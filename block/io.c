@@ -269,6 +269,10 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
 
 void bdrv_drained_begin(BlockDriverState *bs)
 {
+    if (!bs) {
+        return;
+    }
+
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs, true);
         return;
@@ -284,6 +288,10 @@ void bdrv_drained_begin(BlockDriverState *bs)
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
+    if (!bs) {
+        return;
+    }
+
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs, false);
         return;

@@ -245,8 +245,6 @@ void throttle_timers_init(ThrottleTimers *tt,
 /* destroy a timer */
 static void throttle_timer_destroy(QEMUTimer **timer)
 {
-    assert(*timer != NULL);
-
     timer_del(*timer);
     timer_free(*timer);
     *timer = NULL;
@@ -258,7 +256,9 @@ void throttle_timers_detach_aio_context(ThrottleTimers *tt)
     int i;
 
     for (i = 0; i < 2; i++) {
-        throttle_timer_destroy(&tt->timers[i]);
+        if (tt->timers[i]) {
+            throttle_timer_destroy(&tt->timers[i]);
+        }
     }
 }
 
