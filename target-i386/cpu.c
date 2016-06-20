@@ -1491,6 +1491,20 @@ void x86_cpu_change_kvm_default(const char *prop, const char *value)
 static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                    bool migratable_only);
 
+/* Load host-dependent CPU information, when applicable */
+static void x86_cpu_load_host_data(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    FeatureWord w;
+
+    if (cpu->host_features) {
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            env->features[w] =
+                x86_cpu_get_supported_feature_word(w, cpu->migratable);
+        }
+    }
+}
+
 #ifdef CONFIG_KVM
 
 static int cpu_x86_fill_model_id(char *str)
@@ -2918,18 +2932,13 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
+    x86_cpu_load_host_data(cpu);
+
     /*TODO: cpu->host_features incorrectly overwrites features
      * set using "feat=on|off". Once we fix this, we can convert
      * plus_features & minus_features to global properties
      * inside x86_cpu_parse_featurestr() too.
      */
-    if (cpu->host_features) {
-        for (w = 0; w < FEATURE_WORDS; w++) {
-            env->features[w] =
-                x86_cpu_get_supported_feature_word(w, cpu->migratable);
-        }
-    }
-
     for (w = 0; w < FEATURE_WORDS; w++) {
         cpu->env.features[w] |= plus_features[w];
         cpu->env.features[w] &= ~minus_features[w];
