@@ -30,6 +30,7 @@
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
 
+#include "qom/qom-qobject.h"
 #include "qapi-types.h"
 #include "qapi-visit.h"
 #include "qapi/visitor.h"
@@ -2098,6 +2099,69 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     }
 
     return cpu_list;
+}
+
+/* Return host CPU info by instantiating a "host" CPU object,
+ * and returning all the default values for QOM properties
+ */
+void arch_query_host_cpu_info(HostCPUInfo *r, bool migratable, Error **errp)
+{
+    Object *obj = NULL;
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+    QDict *propdict = NULL;
+    Error *err = NULL;
+
+    /* Host CPU information is returned only in KVM mode, by now */
+    if (!kvm_enabled()) {
+        goto out;
+    }
+
+    obj = object_new(X86_CPU_TYPE_NAME("host"));
+
+    object_property_set_bool(obj, migratable, "migratable", &err);
+    if (err) {
+        goto out;
+    }
+
+    x86_cpu_load_host_data(X86_CPU(obj));
+
+    propdict = qdict_new();
+
+    object_property_iter_init(&iter, obj);
+    while ((prop = object_property_iter_next(&iter))) {
+        QObject *v;
+
+        /* Skip properties that aren't useful for the query because
+         * they don't make sense here:
+         * - "realized" doesn't make sense because we never realize
+         *   the CPU object above.
+         * - "filtered-features" doesn't make sense because we
+         *   never filter the feature list (as it is done inside
+         *   realizefn).
+         */
+        if (!strcmp(prop->name, "realized") ||
+            !strcmp(prop->name, "filtered-features")) {
+            continue;
+        }
+
+        v = object_property_get_qobject(obj, prop->name, &err);
+        if (err) {
+            goto out;
+        }
+        qdict_put_obj(propdict, prop->name, v);
+    }
+
+    r->has_qom_properties = true;
+    r->qom_properties = QOBJECT(propdict);
+
+out:
+    object_unref(obj);
+    if (err) {
+        qobject_decref(QOBJECT(propdict));
+        error_propagate(errp, err);
+    }
+    return;
 }
 
 static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
