@@ -183,10 +183,10 @@ static void test_dynamic_globalprop(void)
 {
     MyType *mt;
     static GlobalProperty props[] = {
-        { TYPE_DYNAMIC_PROPS, "prop1", "101", true },
-        { TYPE_DYNAMIC_PROPS, "prop2", "102", true },
-        { TYPE_UNUSED_HOTPLUG, "prop4", "104", true },
-        { TYPE_UNUSED_NOHOTPLUG, "prop5", "105", true },
+        { TYPE_DYNAMIC_PROPS, "prop1", "101", },
+        { TYPE_DYNAMIC_PROPS, "prop2", "102", },
+        { TYPE_UNUSED_HOTPLUG, "prop4", "104", },
+        { TYPE_UNUSED_NOHOTPLUG, "prop5", "105", },
         {}
     };
 
@@ -197,35 +197,6 @@ static void test_dynamic_globalprop(void)
 
     g_assert_cmpuint(mt->prop1, ==, 101);
     g_assert_cmpuint(mt->prop2, ==, 102);
-    g_assert(props[0].used);
-    g_assert(props[1].used);
-    g_assert(!props[2].used);
-    g_assert(!props[3].used);
-}
-
-/* Test setting of dynamic properties using user_provided=false properties */
-static void test_dynamic_globalprop_nouser(void)
-{
-    MyType *mt;
-    static GlobalProperty props[] = {
-        { TYPE_DYNAMIC_PROPS, "prop1", "101" },
-        { TYPE_DYNAMIC_PROPS, "prop2", "102" },
-        { TYPE_UNUSED_HOTPLUG, "prop4", "104" },
-        { TYPE_UNUSED_NOHOTPLUG, "prop5", "105" },
-        {}
-    };
-
-    qdev_prop_register_global_list(props);
-
-    mt = DYNAMIC_TYPE(object_new(TYPE_DYNAMIC_PROPS));
-    qdev_init_nofail(DEVICE(mt));
-
-    g_assert_cmpuint(mt->prop1, ==, 101);
-    g_assert_cmpuint(mt->prop2, ==, 102);
-    g_assert(props[0].used);
-    g_assert(props[1].used);
-    g_assert(!props[2].used);
-    g_assert(!props[3].used);
 }
 
 int main(int argc, char **argv)
@@ -247,9 +218,6 @@ int main(int argc, char **argv)
 
     g_test_add_func("/qdev/properties/dynamic/global",
                     test_dynamic_globalprop);
-
-    g_test_add_func("/qdev/properties/dynamic/global/nouser",
-                    test_dynamic_globalprop_nouser);
 
     g_test_run();
 
