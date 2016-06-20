@@ -583,6 +583,7 @@ static void machine_class_finalize(ObjectClass *klass, void *data)
 void machine_register_compat_props(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    ObjectClass *oc;
     int i;
     GlobalProperty *p;
 
@@ -592,6 +593,13 @@ void machine_register_compat_props(MachineState *machine)
 
     for (i = 0; i < mc->compat_props->len; i++) {
         p = g_array_index(mc->compat_props, GlobalProperty *, i);
+
+        /* Skip registering globals for non-existing device classes */
+        oc = object_class_by_name(p->driver);
+        if (!object_class_dynamic_cast(oc, TYPE_DEVICE)) {
+            continue;
+        }
+
         /* Machine compat_props must never cause errors: */
         p->errp = &error_abort;
         qdev_prop_register_global(p);
