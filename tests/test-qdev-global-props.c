@@ -201,10 +201,8 @@ static void test_dynamic_globalprop_subprocess(void)
     static GlobalProperty props[] = {
         { TYPE_DYNAMIC_PROPS, "prop1", "101", true },
         { TYPE_DYNAMIC_PROPS, "prop2", "102", true },
-        { TYPE_DYNAMIC_PROPS"-bad", "prop3", "103", true },
         { TYPE_UNUSED_HOTPLUG, "prop4", "104", true },
         { TYPE_UNUSED_NOHOTPLUG, "prop5", "105", true },
-        { TYPE_NONDEVICE, "prop6", "106", true },
         {}
     };
     int all_used;
@@ -222,8 +220,6 @@ static void test_dynamic_globalprop_subprocess(void)
     g_assert(props[1].used);
     g_assert(!props[2].used);
     g_assert(!props[3].used);
-    g_assert(!props[4].used);
-    g_assert(!props[5].used);
 }
 
 static void test_dynamic_globalprop(void)
@@ -232,10 +228,8 @@ static void test_dynamic_globalprop(void)
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr_unmatched("*prop1*");
     g_test_trap_assert_stderr_unmatched("*prop2*");
-    g_test_trap_assert_stderr("*Warning: global dynamic-prop-type-bad.prop3 has invalid class name\n*");
     g_test_trap_assert_stderr_unmatched("*prop4*");
     g_test_trap_assert_stderr("*Warning: global nohotplug-type.prop5=105 not used\n*");
-    g_test_trap_assert_stderr("*Warning: global nondevice-type.prop6 has invalid class name\n*");
     g_test_trap_assert_stdout("");
 }
 
@@ -246,10 +240,8 @@ static void test_dynamic_globalprop_nouser_subprocess(void)
     static GlobalProperty props[] = {
         { TYPE_DYNAMIC_PROPS, "prop1", "101" },
         { TYPE_DYNAMIC_PROPS, "prop2", "102" },
-        { TYPE_DYNAMIC_PROPS"-bad", "prop3", "103" },
         { TYPE_UNUSED_HOTPLUG, "prop4", "104" },
         { TYPE_UNUSED_NOHOTPLUG, "prop5", "105" },
-        { TYPE_NONDEVICE, "prop6", "106" },
         {}
     };
     int all_used;
@@ -267,8 +259,6 @@ static void test_dynamic_globalprop_nouser_subprocess(void)
     g_assert(props[1].used);
     g_assert(!props[2].used);
     g_assert(!props[3].used);
-    g_assert(!props[4].used);
-    g_assert(!props[5].used);
 }
 
 static void test_dynamic_globalprop_nouser(void)
