@@ -265,10 +265,8 @@ static void serial_xmit(SerialState *s)
                 s->tsr_retry++;
                 return;
             }
-            s->tsr_retry = 0;
-        } else {
-            s->tsr_retry = 0;
         }
+        s->tsr_retry = 0;
 
         /* Transmit another byte if it is already available. It is only
            possible when FIFO is enabled and not empty. */
