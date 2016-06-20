@@ -78,12 +78,9 @@ static void test_static_prop(void)
 static void test_static_globalprop(void)
 {
     MyType *mt;
-    static GlobalProperty props[] = {
-        { TYPE_STATIC_PROPS, "prop1", "200" },
-        {}
-    };
+    static GlobalProperty prop = { TYPE_STATIC_PROPS, "prop1", "200" };
 
-    qdev_prop_register_global_list(props);
+    qdev_prop_register_global(&prop);
 
     mt = STATIC_TYPE(object_new(TYPE_STATIC_PROPS));
     qdev_init_nofail(DEVICE(mt));
@@ -182,6 +179,7 @@ static const TypeInfo nondevice_type = {
 static void test_dynamic_globalprop(void)
 {
     MyType *mt;
+    int i;
     static GlobalProperty props[] = {
         { TYPE_DYNAMIC_PROPS, "prop1", "101", },
         { TYPE_DYNAMIC_PROPS, "prop2", "102", },
@@ -190,7 +188,9 @@ static void test_dynamic_globalprop(void)
         {}
     };
 
-    qdev_prop_register_global_list(props);
+    for (i = 0; props[i].driver; i++) {
+        qdev_prop_register_global(props + i);
+    }
 
     mt = DYNAMIC_TYPE(object_new(TYPE_DYNAMIC_PROPS));
     qdev_init_nofail(DEVICE(mt));

@@ -1027,15 +1027,6 @@ void qdev_prop_register_global(GlobalProperty *prop)
     global_props = g_list_append(global_props, prop);
 }
 
-void qdev_prop_register_global_list(GlobalProperty *props)
-{
-    int i;
-
-    for (i = 0; props[i].driver != NULL; i++) {
-        qdev_prop_register_global(props+i);
-    }
-}
-
 static void qdev_prop_set_globals_for_type(DeviceState *dev,
                                 const char *typename)
 {
