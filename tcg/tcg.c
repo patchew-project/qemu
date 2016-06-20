@@ -997,6 +997,16 @@ static const char * const ldst_name[] =
     [MO_BEQ]  = "beq",
 };
 
+static const char * const alignment_name[] = {
+    [0] = "UNREACHABLE",
+    [1] = "al2+",
+    [2] = "al4+",
+    [3] = "al8+",
+    [4] = "al16+",
+    [5] = "al32+",
+    [6] = "al64+",
+};
+
 void tcg_dump_ops(TCGContext *s)
 {
     char buf[128];
@@ -1099,9 +1109,15 @@ void tcg_dump_ops(TCGContext *s)
                         qemu_log(",$0x%x,%u", op, ix);
                     } else {
                         const char *s_al = "", *s_op;
+                        int a_bits;
                         if (op & MO_AMASK) {
-                            if ((op & MO_AMASK) == MO_ALIGN) {
-                                s_al = "al+";
+                            a_bits = get_alignment_bits(op);
+                            if (a_bits >= 0) {
+                                if ((op & MO_SIZE) == a_bits) {
+                                    s_al = "al+";
+                                } else {
+                                    s_al = alignment_name[a_bits];
+                                }
                             } else {
                                 s_al = "un+";
                             }
