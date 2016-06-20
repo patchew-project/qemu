@@ -666,3 +666,36 @@ endif
 -include $(wildcard *.d tests/*.d)
 
 include $(SRC_PATH)/tests/docker/Makefile.include
+
+.PHONY: help
+help:
+
+	@echo  'Cleaning targets:'
+	@echo  '  clean           - Remove most generated files but keep the config'
+	@echo  '  distclean       - Remove all generated files'
+	@echo  '  dist            - Build a distributable tarball'
+	@echo  ''
+	@echo  'Test targets:'
+	@echo  '  check           - Run all tests (check-help for details)'
+	@echo  '  docker          - Build QEMU and run tests inside Docker containers'
+	@echo  '  test/speed      - Run TCG tests'
+	@echo  ''
+	@echo  'Documentation targets:'
+	@echo  '  dvi/html/'
+	@echo  '  info/pdf        - Build documentation in specified format'
+	@echo  ''
+	@echo  'Other generic targets:'
+	@echo  '  all             - Build all'
+	@echo  '  install         - Install QEMU, documentation and tools'
+	@echo  '  ctags/TAGS      - Generate tags file for editors'
+	@echo  '  cscope          - Generate cscope index'
+ifdef CONFIG_WIN32
+	@echo  ''
+	@echo  'Windows targets:'
+	@echo  '  installer       - Build NSIS-based installer'
+ifdef QEMU_GA_MSI_ENABLED
+	@echo  '  msi             - Build MSI-based installer'
+endif
+endif
+	@echo  ''
+	@echo  '  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
