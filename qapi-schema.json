@@ -3026,6 +3026,42 @@
 ##
 { 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }
 
+
+##
+# @HostCPUInfo:
+#
+# Information on CPU capabilities supported by the current host.
+#
+# @qom-properties: #optional Values of CPU QOM properties corresponding
+#                  to CPU capabilities supported by the host.
+#
+# Most properties returned in qom-properties are boolean properties
+# indicating if a feature can be enabled in the current host. Other
+# non-boolean properties may be returned, the semantics of each property
+# depend on the architecture-specific code that handle them.
+#
+# Since: 2.7.0
+##
+{ 'struct': 'HostCPUInfo',
+  'data': { '*qom-properties': 'any' } }
+
+##
+# @query-host-cpu:
+#
+# @migratable: #optional If false, unmigratable features will be
+#              returned as well. If true, only migratable features
+#              will be returned. Defaults to true.
+#
+# Return information about CPU capabilities in the current host.
+# The returned data may depend on machine and accelerator configuration.
+#
+# Returns: A HostCPUInfo object.
+#
+# Since: 2.7.0
+##
+{ 'command': 'query-host-cpu', 'data': { '*migratable': 'bool' },
+  'returns': 'HostCPUInfo' }
+
 # @AddfdInfo:
 #
 # Information about a file descriptor that was added to an fd set.

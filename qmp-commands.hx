@@ -3930,6 +3930,12 @@ EQMP
     },
 
     {
+        .name       = "query-host-cpu",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_query_host_cpu,
+    },
+
+    {
         .name       = "query-target",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_target,

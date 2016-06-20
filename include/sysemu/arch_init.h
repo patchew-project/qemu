@@ -35,5 +35,6 @@ int kvm_available(void);
 int xen_available(void);
 
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp);
+void arch_query_host_cpu_info(HostCPUInfo *r, bool migratable, Error **errp);
 
 #endif

@@ -607,6 +607,19 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     return arch_query_cpu_definitions(errp);
 }
 
+HostCPUInfo *qmp_query_host_cpu(bool has_migratable, bool migratable,
+                                Error **errp)
+{
+    HostCPUInfo *r = g_new0(HostCPUInfo, 1);
+
+    if (!has_migratable) {
+        migratable = true;
+    }
+
+    arch_query_host_cpu_info(r, migratable, errp);
+    return r;
+}
+
 void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,
                     Error **errp)
