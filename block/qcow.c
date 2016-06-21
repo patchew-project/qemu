@@ -969,7 +969,15 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        QEMUIOVector qiov;
+        struct iovec iov = {
+            .iov_base   = (uint8_t*) buf,
+            .iov_len    = nb_sectors * BDRV_SECTOR_SIZE,
+        };
+        qemu_iovec_init_external(&qiov, &iov, 1);
+
+        ret = bs->drv->bdrv_co_writev(bs, sector_num, s->cluster_sectors,
+                                      &qiov);
         if (ret < 0) {
             goto fail;
         }
