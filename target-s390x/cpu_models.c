@@ -98,6 +98,24 @@ static void s390_cpu_model_finalize(Object *obj)
 {
 }
 
+static bool get_migratable(Object *obj, Error **errp)
+{
+    return S390_CPU_GET_CLASS(obj)->migration_safe;
+}
+
+static char *get_description(Object *obj, Error **errp)
+{
+    return g_strdup(S390_CPU_GET_CLASS(obj)->desc);
+}
+
+void s390_cpu_model_class_register_props(ObjectClass *oc)
+{
+    object_class_property_add_bool(oc, "migratable", get_migratable, NULL,
+                                   NULL);
+    object_class_property_add_str(oc, "description", get_description, NULL,
+                                  NULL);
+}
+
 #ifdef CONFIG_KVM
 static void s390_host_cpu_model_class_init(ObjectClass *oc, void *data)
 {
