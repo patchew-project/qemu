@@ -221,7 +221,7 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     if (shmfd) {
         msg.size = 0;
         if (vhost_user_read(dev, &msg) < 0) {
-            return 0;
+            return -1;
         }
 
         if (msg.request != VHOST_USER_SET_LOG_BASE) {
@@ -373,7 +373,7 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
     }
 
     if (vhost_user_read(dev, &msg) < 0) {
-        return 0;
+        return -1;
     }
 
     if (msg.request != VHOST_USER_GET_VRING_BASE) {
@@ -474,7 +474,7 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
     }
 
     if (vhost_user_read(dev, &msg) < 0) {
-        return 0;
+        return -1;
     }
 
     if (msg.request != request) {
