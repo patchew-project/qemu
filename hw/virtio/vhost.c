@@ -1020,7 +1020,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         close((uintptr_t)opaque);
         return -1;
     }
-    QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     r = hdev->vhost_ops->vhost_set_owner(hdev);
     if (r < 0) {
@@ -1079,6 +1078,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->started = false;
     hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
+    QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
     return 0;
 fail_vq:
     while (--i >= 0) {
