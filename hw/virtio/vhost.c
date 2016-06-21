@@ -1094,19 +1094,27 @@ fail:
 void vhost_dev_cleanup(struct vhost_dev *hdev)
 {
     int i;
+
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
-    memory_listener_unregister(&hdev->memory_listener);
+    if (hdev->mem) {
+        /* those are only safe after successful init */
+        memory_listener_unregister(&hdev->memory_listener);
+        QLIST_REMOVE(hdev, entry);
+    }
     if (hdev->migration_blocker) {
         migrate_del_blocker(hdev->migration_blocker);
         error_free(hdev->migration_blocker);
     }
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
-    hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    if (hdev->vhost_ops) {
+        hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    }
     vhost_log_put(hdev, false);
-    QLIST_REMOVE(hdev, entry);
+
+    memset(hdev, 0, sizeof(struct vhost_dev));
 }
 
 /* Stop processing guest IO notifications in qemu.
