@@ -1271,6 +1271,16 @@ static void machvirt_init(MachineState *machine)
         }
         cpuobj = object_new(object_class_get_name(oc));
 
+        /* Adjust MPIDR per the GIC's target-list size. */
+        if (gic_version == 3) {
+            CPUState *cs = CPU(cpuobj);
+            uint8_t Aff1 = cs->cpu_index / 16;
+            uint8_t Aff0 = cs->cpu_index % 16;
+
+            object_property_set_int(cpuobj, (Aff1 << ARM_AFF1_SHIFT) | Aff0,
+                                    "mp-affinity", NULL);
+        }
+
         /* Handle any CPU options specified by the user */
         cc->parse_features(CPU(cpuobj), cpuopts, &err);
         g_free(cpuopts);
