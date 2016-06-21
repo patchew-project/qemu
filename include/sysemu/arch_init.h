@@ -41,5 +41,9 @@ CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type
 CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *modela,
                                                      CpuModelInfo *modelb,
                                                      Error **errp);
+CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelBaselineType type,
+                                                    CpuModelInfo *modela,
+                                                    CpuModelInfo *modelb,
+                                                    Error **errp);
 
 #endif

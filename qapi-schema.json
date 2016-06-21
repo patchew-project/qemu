@@ -3166,6 +3166,50 @@
   'data': { 'modela': 'CpuModelInfo', 'modelb': 'CpuModelInfo' },
   'returns': 'CpuModelCompareInfo' }
 
+##
+# @CpuModelBaselineType
+#
+# An enumeration of CPU model baseline types.
+#
+# @stable: Find a compatible, stable model (e.g. least feature changes).
+#
+# @maximum: Find a compatible, maximum model (e.g. maximizing features)
+#
+# Since: 2.7.0
+##
+{ 'enum': 'CpuModelBaselineType',
+  'data': [ 'stable', 'maximum' ] }
+
+##
+# @CpuModelBaselineInfo
+#
+# The result of a CPU model baseline.
+#
+# @model: the baselined CpuModelInfo.
+#
+# Since: 2.7.0
+##
+{ 'struct': 'CpuModelBaselineInfo',
+  'data': { 'model': 'CpuModelInfo' } }
+
+##
+# @query-cpu-model-baseline:
+#
+# Baseline two CPU models, creating a compatible third model.
+#
+# Returns: a CpuModelBaselineInfo. Returns an error if CPU models are not
+#          supported, if a model cannot be used, if the model contains
+#          an unknown cpu definition name, unknown properties or properties
+#          with a wrong type.
+#
+# Since: 2.7.0
+##
+{ 'command': 'query-cpu-model-baseline',
+  'data': { 'type' : 'CpuModelBaselineType',
+            'modela': 'CpuModelInfo',
+            'modelb': 'CpuModelInfo' },
+  'returns': 'CpuModelBaselineInfo' }
+
 # @AddfdInfo:
 #
 # Information about a file descriptor that was added to an fd set.
