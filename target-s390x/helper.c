@@ -70,7 +70,34 @@ void s390x_cpu_timer(void *opaque)
 
 S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp)
 {
-    return S390_CPU(object_new(TYPE_S390_CPU));
+    char *name, *features;
+    CPUState *cpu;
+    ObjectClass *oc;
+    CPUClass *cc;
+
+    name = g_strdup(cpu_model);
+    features = strchr(name, ',');
+    if (features) {
+        features[0] = 0;
+        features++;
+    }
+
+    oc = cpu_class_by_name(TYPE_S390_CPU, name);
+    if (!oc) {
+        error_setg(errp, "Unknown CPU definition \'%s\'", name);
+        g_free(name);
+        return NULL;
+    }
+    cpu = CPU(object_new(object_class_get_name(oc)));
+    cc = CPU_GET_CLASS(cpu);
+
+    cc->parse_features(cpu, features, errp);
+    if (*errp) {
+        object_unref(OBJECT(cpu));
+        g_free(name);
+        return NULL;
+    }
+    return S390_CPU(cpu);
 }
 
 S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp)
