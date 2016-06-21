@@ -45,11 +45,6 @@ uint64_t vhost_user_get_acked_features(NetClientState *nc)
     return s->acked_features;
 }
 
-static int vhost_user_running(VhostUserState *s)
-{
-    return (s->vhost_net) ? 1 : 0;
-}
-
 static void vhost_user_stop(int queues, NetClientState *ncs[])
 {
     VhostUserState *s;
@@ -59,15 +54,11 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
         assert (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
 
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
-        if (!vhost_user_running(s)) {
-            continue;
-        }
 
         if (s->vhost_net) {
             /* save acked features */
-            s->acked_features = vhost_net_get_acked_features(s->vhost_net);
+            s->acked_features |= vhost_net_get_acked_features(s->vhost_net);
             vhost_net_cleanup(s->vhost_net);
-            s->vhost_net = NULL;
         }
     }
 }
@@ -85,12 +76,15 @@ static int vhost_user_start(int queues, NetClientState *ncs[])
         assert (ncs[i]->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
 
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
-        if (vhost_user_running(s)) {
-            continue;
-        }
 
         options.net_backend = ncs[i];
         options.opaque      = s->chr;
+
+        if (s->vhost_net) {
+            vhost_net_cleanup(s->vhost_net);
+            g_free(s->vhost_net);
+        }
+
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
             error_report("failed to init vhost_net for queue %d", i);
@@ -149,6 +143,7 @@ static void vhost_user_cleanup(NetClientState *nc)
 
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
+        g_free(s->vhost_net);
         s->vhost_net = NULL;
     }
 
