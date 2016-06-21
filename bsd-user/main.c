@@ -30,6 +30,7 @@
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
 #include "exec/log.h"
+#include "trace/control.h"
 
 int singlestep;
 unsigned long mmap_min_addr;
@@ -687,6 +688,14 @@ static void usage(void)
            "-p pagesize       set the host page size to 'pagesize'\n"
            "-singlestep       always run in singlestep mode\n"
            "-strace           log system calls\n"
+           "-trace-enable name\n"
+           "                  enable tracing of specified event names\n"
+           "                  (pass '?' to show a list of events)\n"
+           "-trace-events eventsfile\n"
+           "                  enable tracing of specified event names\n"
+           "                  (one name/pattern per line)\n"
+           "-trace-file tracefile\n"
+           "                  output trace file\n"
            "\n"
            "Environment variables:\n"
            "QEMU_STRACE       Print system calls and arguments similar to the\n"
@@ -735,6 +744,7 @@ int main(int argc, char **argv)
     int gdbstub_port = 0;
     char **target_environ, **wrk;
     envlist_t *envlist = NULL;
+    const char *trace_file = NULL;
     bsd_type = target_openbsd;
 
     if (argc <= 1)
@@ -840,6 +850,12 @@ int main(int argc, char **argv)
             singlestep = 1;
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
+        } else if (!strcmp(r, "trace-enable")) {
+            trace_enable_events(argv[optind++]);
+        } else if (!strcmp(r, "trace-events")) {
+            trace_init_events(argv[optind++]);
+        } else if (!strcmp(r, "trace-file")) {
+            trace_file = argv[optind++];
         } else
         {
             usage();
@@ -864,6 +880,11 @@ int main(int argc, char **argv)
         usage();
     }
     filename = argv[optind];
+
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file(trace_file);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
