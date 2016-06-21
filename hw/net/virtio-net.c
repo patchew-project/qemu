@@ -1492,7 +1492,7 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     virtio_net_set_queues(n);
 }
 
-static void virtio_net_save(QEMUFile *f, void *opaque)
+static void virtio_net_save(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
@@ -1538,16 +1538,13 @@ static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
     }
 }
 
-static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
+static int virtio_net_load(QEMUFile *f, void *opaque, size_t size)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int ret;
 
-    if (version_id != VIRTIO_NET_VM_VERSION)
-        return -EINVAL;
-
-    ret = virtio_load(vdev, f, version_id);
+    ret = virtio_load(vdev, f, VIRTIO_NET_VM_VERSION);
     if (ret) {
         return ret;
     }
@@ -1796,8 +1793,6 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     nc->rxfilter_notify_enabled = 1;
 
     n->qdev = dev;
-    register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
-                    virtio_net_save, virtio_net_load, n);
 }
 
 static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
@@ -1808,8 +1803,6 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
-
-    unregister_savevm(dev, "virtio-net", n);
 
     g_free(n->netclient_name);
     n->netclient_name = NULL;
@@ -1844,6 +1837,9 @@ static void virtio_net_instance_init(Object *obj)
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(n), NULL);
 }
+
+VMSTATE_VIRTIO_DEVICE(net, VIRTIO_NET_VM_VERSION, virtio_net_load,
+                      virtio_net_save);
 
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),
@@ -1899,6 +1895,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     dc->props = virtio_net_properties;
+    dc->vmsd = &vmstate_virtio_net;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     vdc->realize = virtio_net_device_realize;
     vdc->unrealize = virtio_net_device_unrealize;
