@@ -417,6 +417,7 @@ VHostNetState *get_vhost_net(NetClientState *nc)
         break;
     case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
         vhost_net = vhost_user_get_vhost_net(nc);
+        assert(vhost_net != NULL);
         break;
     default:
         break;
