@@ -33,6 +33,7 @@
 #include "qemu/envlist.h"
 #include "elf.h"
 #include "exec/log.h"
+#include "trace/control.h"
 
 char *exec_path;
 
@@ -4000,6 +4001,22 @@ static void handle_arg_version(const char *arg)
     exit(EXIT_SUCCESS);
 }
 
+static void handle_arg_trace_enable(const char *arg)
+{
+    trace_enable_events(arg);
+}
+
+static void handle_arg_trace_events(const char *arg)
+{
+    trace_init_events(arg);
+}
+
+static const char *trace_file = NULL;
+static void handle_arg_trace_file(const char *arg)
+{
+    trace_file = arg;
+}
+
 struct qemu_argument {
     const char *argv;
     const char *env;
@@ -4047,6 +4064,12 @@ static const struct qemu_argument arg_table[] = {
      "",           "log system calls"},
     {"seed",       "QEMU_RAND_SEED",   true,  handle_arg_randseed,
      "",           "Seed for pseudo-random number generator"},
+    {"trace-enable", "QEMU_TRACE_ENABLE",true,  handle_arg_trace_enable,
+     "name",       "enable tracing of specified event names (pass '?' to show a list of events)"},
+    {"trace-events", "QEMU_TRACE_EVENTS",true,  handle_arg_trace_events,
+     "eventsfile", "enable tracing of specified event names (one name/pattern per line)"},
+    {"trace-file", "QEMU_TRACE_FILE",  true,  handle_arg_trace_file,
+     "tracefile",  "output trace file"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}
@@ -4237,6 +4260,11 @@ int main(int argc, char **argv, char **envp)
     srand(time(NULL));
 
     optind = parse_args(argc, argv);
+
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file(trace_file);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
