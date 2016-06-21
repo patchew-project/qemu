@@ -3026,6 +3026,87 @@
 ##
 { 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }
 
+##
+# @CpuModelInfo:
+#
+# Virtual CPU model.
+#
+# A CPU model consists of the name of a CPU definition, to which
+# delta changes are applied (e.g. features added/removed). Most magic values
+# that an architecture might require should be hidden behind the name.
+# However, if required, architectures can expose relevant properties.
+#
+# @name: the name of the CPU definition the model is based on
+# @props: #optional a dictionary of properties to be applied
+#
+# Since: 2.7.0
+##
+{ 'struct': 'CpuModelInfo',
+  'data': { 'name': 'str',
+            '*props': 'any' } }
+
+##
+# @CpuModelExpansionType
+#
+# An enumeration of CPU model expansion types.
+#
+# @stable: Expand to a stable CPU model, creating a migration-safe
+#          representation with only delta changes.
+#
+# @migratable: Expand all migratable properties, hiding unmigratable
+#              properties.
+#
+# @full: Expand all properties, including unmigratable ones.
+#
+# Since: 2.7.0
+##
+{ 'enum': 'CpuModelExpansionType',
+  'data': [ 'stable', 'migratable', 'full' ] }
+
+
+##
+# @CpuModelExpansionInfo
+#
+# The result of a cpu model expansion.
+#
+# @model: the expanded CpuModelInfo.
+#
+# Since: 2.7.0
+##
+{ 'struct': 'CpuModelExpansionInfo',
+  'data': { 'model': 'CpuModelInfo' } }
+
+
+##
+# @query-cpu-model-expansion:
+#
+# Expands the given CPU model to the requested detail level.
+# For "stable", a migration-safe representation is created, which will look
+# the same on all QEMU versions and only contains delta changes. "migratable"
+# and "full" will expose properties in a more detailed way. Not all types
+# might be supported for an architecture.
+#
+# Expanding CPU models is in general independant of the accelerator, except
+# for models like "host" that explicitly rely on an accelerator and can
+# vary in different configurations. On certain architectures, the result may
+# rely on the QEMU machine.
+#
+# This interface can therefore also be used to query the "host" capabilities
+# on supporting architectures.
+#
+# Returns: a CpuModelExpansionInfo. Returns an error if CPU models are not
+#          supported, if the model cannot be expanded, if the model contains
+#          an unknown cpu definition name, unknown properties or properties
+#          with a wrong type. Also returns an error if an expansion type is
+#          not supported.
+#
+# Since: 2.7.0
+##
+{ 'command': 'query-cpu-model-expansion',
+  'data': { 'type': 'CpuModelExpansionType',
+            'model': 'CpuModelInfo' },
+  'returns': 'CpuModelExpansionInfo' }
+
 # @AddfdInfo:
 #
 # Information about a file descriptor that was added to an fd set.

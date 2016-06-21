@@ -3930,6 +3930,12 @@ EQMP
     },
 
     {
+        .name       = "query-cpu-model-expansion",
+        .args_type  = "model:q",
+        .mhandler.cmd_new = qmp_marshal_query_cpu_model_expansion,
+    },
+
+    {
         .name       = "query-target",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_target,
