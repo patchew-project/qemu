@@ -1004,21 +1004,19 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     hdev->migration_blocker = NULL;
 
-    if (vhost_set_backend_type(hdev, backend_type) < 0) {
-        close((uintptr_t)opaque);
-        return -1;
-    }
+    r = vhost_set_backend_type(hdev, backend_type);
+    assert(r >= 0);
 
-    if (hdev->vhost_ops->vhost_backend_init(hdev, opaque) < 0) {
-        close((uintptr_t)opaque);
-        return -errno;
+    r = hdev->vhost_ops->vhost_backend_init(hdev, opaque);
+    if (r < 0) {
+        goto fail;
     }
 
     if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
         error_report("vhost backend memory slots limit is less"
                 " than current number of present memory slots");
-        close((uintptr_t)opaque);
-        return -1;
+        r = -1;
+        goto fail;
     }
 
     r = hdev->vhost_ops->vhost_set_owner(hdev);
