@@ -1105,6 +1105,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
     hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    vhost_log_put(hdev, false);
     QLIST_REMOVE(hdev, entry);
 }
 
