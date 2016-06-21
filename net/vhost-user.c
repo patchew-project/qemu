@@ -248,7 +248,15 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         s->chr = chr;
     }
 
-    qemu_chr_add_handlers(chr, NULL, NULL, net_vhost_user_event, nc[0].name);
+    do {
+        Error *err = NULL;
+        if (qemu_chr_wait_connected(chr, &err) < 0) {
+            error_report_err(err);
+            return -1;
+        }
+        qemu_chr_add_handlers(chr, NULL, NULL,
+                              net_vhost_user_event, nc[0].name);
+    } while (nc->link_down);
 
     assert(s->vhost_net != NULL);
 
