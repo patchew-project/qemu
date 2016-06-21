@@ -97,25 +97,24 @@ typedef struct PageDesc {
 #define V_L2_BITS 10
 #define V_L2_SIZE (1 << V_L2_BITS)
 
-/* The bits remaining after N lower levels of page tables.  */
-#define V_L1_BITS_REM \
-    ((L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % V_L2_BITS)
-
-#if V_L1_BITS_REM < 4
-#define V_L1_BITS  (V_L1_BITS_REM + V_L2_BITS)
-#else
-#define V_L1_BITS  V_L1_BITS_REM
-#endif
-
-#define V_L1_SIZE  ((target_ulong)1 << V_L1_BITS)
-
-#define V_L1_SHIFT (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - V_L1_BITS)
-
 uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
 
-/* The bottom level has pointers to PageDesc */
-static void *l1_map[V_L1_SIZE];
+/*
+ * L1 Mapping properties
+ */
+static int v_l1_size;
+static int v_l1_shift;
+static int v_l2_levels;
+
+/* The bottom level has pointers to PageDesc, and is indexed by
+ * anything from 4 to (V_L2_BITS + 3) bits, depending on target page size.
+ */
+#define V_L1_MIN_BITS 4
+#define V_L1_MAX_BITS (V_L2_BITS + 3)
+#define V_L1_MAX_SIZE (1 << V_L1_MAX_BITS)
+
+static void *l1_map[V_L1_MAX_SIZE];
 
 /* code generation context */
 TCGContext tcg_ctx;
@@ -124,6 +123,26 @@ TCGContext tcg_ctx;
 #ifdef CONFIG_USER_ONLY
 __thread int have_tb_lock;
 #endif
+
+static void page_table_config_init(void)
+{
+    uint32_t v_l1_bits;
+
+    assert(TARGET_PAGE_BITS);
+    /* The bits remaining after N lower levels of page tables.  */
+    v_l1_bits = (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % V_L2_BITS;
+    if (v_l1_bits < V_L1_MIN_BITS) {
+        v_l1_bits += V_L2_BITS;
+    }
+
+    v_l1_size = 1 << v_l1_bits;
+    v_l1_shift = L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - v_l1_bits;
+    v_l2_levels = v_l1_shift / V_L2_BITS - 1;
+
+    assert(v_l1_bits <= V_L1_MAX_BITS);
+    assert(v_l1_shift % V_L2_BITS == 0);
+    assert(v_l2_levels >= 0);
+}
 
 void tb_lock(void)
 {
@@ -330,6 +349,8 @@ void page_size_init(void)
 static void page_init(void)
 {
     page_size_init();
+    page_table_config_init();
+
 #if defined(CONFIG_BSD) && defined(CONFIG_USER_ONLY)
     {
 #ifdef HAVE_KINFO_GETVMMAP
@@ -406,10 +427,10 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
     int i;
 
     /* Level 1.  Always allocated.  */
-    lp = l1_map + ((index >> V_L1_SHIFT) & (V_L1_SIZE - 1));
+    lp = l1_map + ((index >> v_l1_shift) & (v_l1_size - 1));
 
     /* Level 2..N-1.  */
-    for (i = V_L1_SHIFT / V_L2_BITS - 1; i > 0; i--) {
+    for (i = v_l2_levels; i > 0; i--) {
         void **p = atomic_rcu_read(lp);
 
         if (p == NULL) {
@@ -825,8 +846,8 @@ static void page_flush_tb(void)
 {
     int i;
 
-    for (i = 0; i < V_L1_SIZE; i++) {
-        page_flush_tb_1(V_L1_SHIFT / V_L2_BITS - 1, l1_map + i);
+    for (i = 0; i < v_l1_size; i++) {
+        page_flush_tb_1(v_l2_levels, l1_map + i);
     }
 }
 
@@ -1852,9 +1873,9 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     data.start = -1u;
     data.prot = 0;
 
-    for (i = 0; i < V_L1_SIZE; i++) {
-        int rc = walk_memory_regions_1(&data, (target_ulong)i << (V_L1_SHIFT + TARGET_PAGE_BITS),
-                                       V_L1_SHIFT / V_L2_BITS - 1, l1_map + i);
+    for (i = 0; i < v_l1_size; i++) {
+        target_ulong base = i << (v_l1_shift + TARGET_PAGE_BITS);
+        int rc = walk_memory_regions_1(&data, base, v_l2_levels, l1_map + i);
         if (rc != 0) {
             return rc;
         }
