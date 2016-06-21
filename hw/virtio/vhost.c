@@ -1032,7 +1032,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     for (i = 0; i < hdev->nvqs; ++i) {
         r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
-            goto fail_vq;
+            hdev->nvqs = i;
+            goto fail;
         }
     }
     hdev->features = features;
@@ -1078,14 +1079,9 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
     return 0;
-fail_vq:
-    while (--i >= 0) {
-        vhost_virtqueue_cleanup(hdev->vqs + i);
-    }
+
 fail:
-    r = -errno;
-    hdev->vhost_ops->vhost_backend_cleanup(hdev);
-    QLIST_REMOVE(hdev, entry);
+    vhost_dev_cleanup(hdev);
     return r;
 }
 
