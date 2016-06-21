@@ -398,7 +398,10 @@ static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
     /* inform backend of log switching, this must be done before
        releasing the current log, to ensure no logging is lost */
     r = dev->vhost_ops->vhost_set_log_base(dev, log_base, log);
-    assert(r >= 0);
+    if (r < 0) {
+        error_report("Failed to change backend log");
+    }
+
     vhost_log_put(dev, true);
     dev->log = log;
     dev->log_size = size;
@@ -565,7 +568,9 @@ static void vhost_commit(MemoryListener *listener)
 
     if (!dev->log_enabled) {
         r = dev->vhost_ops->vhost_set_mem_table(dev, dev->mem);
-        assert(r >= 0);
+        if (r < 0) {
+            error_report("Failed to set mem table");
+        }
         dev->memory_changed = false;
         return;
     }
@@ -578,7 +583,9 @@ static void vhost_commit(MemoryListener *listener)
         vhost_dev_log_resize(dev, log_size + VHOST_LOG_BUFFER);
     }
     r = dev->vhost_ops->vhost_set_mem_table(dev, dev->mem);
-    assert(r >= 0);
+    if (r < 0) {
+        error_report("Failed to set mem table");
+    }
     /* To log less, can only decrease log size after table update. */
     if (dev->log_size > log_size + VHOST_LOG_BUFFER) {
         vhost_dev_log_resize(dev, log_size);
@@ -647,6 +654,7 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
     };
     int r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
     if (r < 0) {
+        error_report("Failed to set vring addr");
         return -errno;
     }
     return 0;
@@ -660,12 +668,15 @@ static int vhost_dev_set_features(struct vhost_dev *dev, bool enable_log)
         features |= 0x1ULL << VHOST_F_LOG_ALL;
     }
     r = dev->vhost_ops->vhost_set_features(dev, features);
+    if (r < 0) {
+        error_report("Failed to set features");
+    }
     return r < 0 ? -errno : 0;
 }
 
 static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
 {
-    int r, t, i, idx;
+    int r, i, idx;
     r = vhost_dev_set_features(dev, enable_log);
     if (r < 0) {
         goto err_features;
@@ -682,12 +693,10 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
 err_vq:
     for (; i >= 0; --i) {
         idx = dev->vhost_ops->vhost_get_vq_index(dev, dev->vq_index + i);
-        t = vhost_virtqueue_set_addr(dev, dev->vqs + i, idx,
-                                     dev->log_enabled);
-        assert(t >= 0);
+        vhost_virtqueue_set_addr(dev, dev->vqs + i, idx,
+                                 dev->log_enabled);
     }
-    t = vhost_dev_set_features(dev, dev->log_enabled);
-    assert(t >= 0);
+    vhost_dev_set_features(dev, dev->log_enabled);
 err_features:
     return r;
 }
@@ -937,7 +946,6 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
         }
     }
 
-    assert (r >= 0);
     cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
                               0, virtio_queue_get_ring_size(vdev, idx));
     cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
@@ -1187,7 +1195,9 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
 
     file.index = hdev->vhost_ops->vhost_get_vq_index(hdev, n);
     r = hdev->vhost_ops->vhost_set_vring_call(hdev, &file);
-    assert(r >= 0);
+    if (r < 0) {
+        error_report("Failed to set vring call");
+    }
 }
 
 uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
