@@ -502,6 +502,9 @@ static const MemoryListener vfio_memory_listener = {
 static void vfio_listener_release(VFIOContainer *container)
 {
     memory_listener_unregister(&container->listener);
+    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+        memory_listener_unregister(&container->prereg_listener);
+    }
 }
 
 static struct vfio_info_cap_header *
@@ -860,8 +863,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             goto free_container_exit;
         }
 
-        ret = ioctl(fd, VFIO_SET_IOMMU,
-                    v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU);
+        container->iommu_type = v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU;
+        ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
         if (ret) {
             error_report("vfio: failed to set iommu for container: %m");
             ret = -errno;
@@ -886,8 +889,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         if ((ret == 0) && (info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
             container->iova_pgsizes = info.iova_pgsizes;
         }
-    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
+    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU) ||
+               ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU)) {
         struct vfio_iommu_spapr_tce_info info;
+        bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU);
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
@@ -895,7 +900,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             ret = -errno;
             goto free_container_exit;
         }
-        ret = ioctl(fd, VFIO_SET_IOMMU, VFIO_SPAPR_TCE_IOMMU);
+        container->iommu_type =
+            v2 ? VFIO_SPAPR_TCE_v2_IOMMU : VFIO_SPAPR_TCE_IOMMU;
+        ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
         if (ret) {
             error_report("vfio: failed to set iommu for container: %m");
             ret = -errno;
@@ -907,11 +914,23 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
          * when container fd is closed so we do not call it explicitly
          * in this file.
          */
-        ret = ioctl(fd, VFIO_IOMMU_ENABLE);
-        if (ret) {
-            error_report("vfio: failed to enable container: %m");
-            ret = -errno;
-            goto free_container_exit;
+        if (!v2) {
+            ret = ioctl(fd, VFIO_IOMMU_ENABLE);
+            if (ret) {
+                error_report("vfio: failed to enable container: %m");
+                ret = -errno;
+                goto free_container_exit;
+            }
+        } else {
+            container->prereg_listener = vfio_prereg_listener;
+
+            memory_listener_register(&container->prereg_listener,
+                                     &address_space_memory);
+            if (container->error) {
+                memory_listener_unregister(&container->prereg_listener);
+                error_report("vfio: RAM memory listener initialization failed for container");
+                goto free_container_exit;
+            }
         }
 
         /*
@@ -924,7 +943,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         if (ret) {
             error_report("vfio: VFIO_IOMMU_SPAPR_TCE_GET_INFO failed: %m");
             ret = -errno;
-            goto free_container_exit;
+            if (v2) {
+                memory_listener_unregister(&container->prereg_listener);
+            }
+            goto listener_release_exit;
         }
         container->min_iova = info.dma32_window_start;
         container->max_iova = container->min_iova + info.dma32_window_size - 1;
