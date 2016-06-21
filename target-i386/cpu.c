@@ -1974,6 +1974,7 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
         const char *name;
         const char *val = NULL;
         char *eq = NULL;
+        char num[32];
 
         /* Compatibility syntax: */
         if (featurestr[0] == '+') {
@@ -1999,7 +2000,6 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
         if (!strcmp(name, "tsc-freq")) {
             int64_t tsc_freq;
             char *err;
-            char num[32];
 
             tsc_freq = qemu_strtosz_suffix_unit(val, &err,
                                            QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
