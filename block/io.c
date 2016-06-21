@@ -570,11 +570,11 @@ static void coroutine_fn bdrv_rw_co_entry(void *opaque)
     RwCo *rwco = opaque;
 
     if (!rwco->is_write) {
-        rwco->ret = bdrv_co_preadv(rwco->child->bs, rwco->offset,
+        rwco->ret = bdrv_co_preadv(rwco->child, rwco->offset,
                                    rwco->qiov->size, rwco->qiov,
                                    rwco->flags);
     } else {
-        rwco->ret = bdrv_co_pwritev(rwco->child->bs, rwco->offset,
+        rwco->ret = bdrv_co_pwritev(rwco->child, rwco->offset,
                                     rwco->qiov->size, rwco->qiov,
                                     rwco->flags);
     }
@@ -1057,10 +1057,11 @@ out:
 /*
  * Handle a read request in coroutine context
  */
-int coroutine_fn bdrv_co_preadv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
+    BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
 
@@ -1133,7 +1134,7 @@ static int coroutine_fn bdrv_co_do_readv(BdrvChild *child,
         return -EINVAL;
     }
 
-    return bdrv_co_preadv(child->bs, sector_num << BDRV_SECTOR_BITS,
+    return bdrv_co_preadv(child, sector_num << BDRV_SECTOR_BITS,
                           nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
@@ -1398,10 +1399,11 @@ fail:
 /*
  * Handle a write request in coroutine context
  */
-int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
+int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
+    BlockDriverState *bs = child->bs;
     BdrvTrackedRequest req;
     uint64_t align = bs->request_alignment;
     uint8_t *head_buf = NULL;
@@ -1535,7 +1537,7 @@ static int coroutine_fn bdrv_co_do_writev(BdrvChild *child,
         return -EINVAL;
     }
 
-    return bdrv_co_pwritev(child->bs, sector_num << BDRV_SECTOR_BITS,
+    return bdrv_co_pwritev(child, sector_num << BDRV_SECTOR_BITS,
                            nb_sectors << BDRV_SECTOR_BITS, qiov, flags);
 }
 
@@ -1547,17 +1549,16 @@ int coroutine_fn bdrv_co_writev(BdrvChild *child, int64_t sector_num,
     return bdrv_co_do_writev(child, sector_num, nb_sectors, qiov, 0);
 }
 
-int coroutine_fn bdrv_co_pwrite_zeroes(BlockDriverState *bs,
-                                       int64_t offset, int count,
-                                       BdrvRequestFlags flags)
+int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
+                                       int count, BdrvRequestFlags flags)
 {
-    trace_bdrv_co_pwrite_zeroes(bs, offset, count, flags);
+    trace_bdrv_co_pwrite_zeroes(child->bs, offset, count, flags);
 
-    if (!(bs->open_flags & BDRV_O_UNMAP)) {
+    if (!(child->bs->open_flags & BDRV_O_UNMAP)) {
         flags &= ~BDRV_REQ_MAY_UNMAP;
     }
 
-    return bdrv_co_pwritev(bs, offset, count, NULL,
+    return bdrv_co_pwritev(child, offset, count, NULL,
                            BDRV_REQ_ZERO_WRITE | flags);
 }
 
