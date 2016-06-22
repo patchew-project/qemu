@@ -1317,7 +1317,7 @@ EQMP
 
     {
         .name       = "block-job-cancel",
-        .args_type  = "device:B,force:b?",
+        .args_type  = "id:s?,device:B?,force:b?",
         .mhandler.cmd_new = qmp_marshal_block_job_cancel,
     },
     {

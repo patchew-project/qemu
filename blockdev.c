@@ -3776,11 +3776,14 @@ void qmp_block_job_set_speed(bool has_id, const char *id, bool has_device,
     aio_context_release(aio_context);
 }
 
-void qmp_block_job_cancel(const char *device,
+void qmp_block_job_cancel(bool has_id, const char *id,
+                          bool has_device, const char *device,
                           bool has_force, bool force, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
+    BlockJob *job = find_block_job(has_id ? id : NULL,
+                                   has_device ? device : NULL,
+                                   &aio_context, errp);
 
     if (!job) {
         return;

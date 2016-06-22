@@ -1509,7 +1509,7 @@ void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     bool force = qdict_get_try_bool(qdict, "force", false);
 
-    qmp_block_job_cancel(device, true, force, &error);
+    qmp_block_job_cancel(false, NULL, true, device, true, force, &error);
 
     hmp_handle_error(mon, &error);
 }
