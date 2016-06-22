@@ -111,3 +111,4 @@ tags
 TAGS
 docker-src.*
 *~
+/include/qemu/module_block.h
