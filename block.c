@@ -26,6 +26,7 @@
 #include "block/block_int.h"
 #include "block/blockjob.h"
 #include "qemu/error-report.h"
+#include "qemu/module_block.h"
 #include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qbool.h"
@@ -242,11 +243,29 @@ BlockDriverState *bdrv_new(void)
 BlockDriver *bdrv_find_format(const char *format_name)
 {
     BlockDriver *drv1;
+    size_t i;
+
     QLIST_FOREACH(drv1, &bdrv_drivers, list) {
         if (!strcmp(drv1->format_name, format_name)) {
             return drv1;
         }
     }
+
+    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
+        if (!strcmp(block_driver_modules[i].format_name, format_name)) {
+            block_module_load_one(block_driver_modules[i].library_name);
+            /* Copying code is not nice, but this way the current discovery is
+             * not modified. Calling recursively could fail if the library
+             * has been deleted.
+             */
+            QLIST_FOREACH(drv1, &bdrv_drivers, list) {
+                if (!strcmp(drv1->format_name, format_name)) {
+                    return drv1;
+                }
+            }
+        }
+    }
+
     return NULL;
 }
 
@@ -443,7 +462,14 @@ int get_tmp_filename(char *filename, int size)
 static BlockDriver *find_hdev_driver(const char *filename)
 {
     int score_max = 0, score;
+    size_t i;
     BlockDriver *drv = NULL, *d;
+
+    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
+        if (block_driver_modules[i].has_probe_device) {
+            block_module_load_one(block_driver_modules[i].library_name);
+        }
+    }
 
     QLIST_FOREACH(d, &bdrv_drivers, list) {
         if (d->bdrv_probe_device) {
@@ -466,6 +492,7 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     char protocol[128];
     int len;
     const char *p;
+    size_t i;
 
     /* TODO Drivers without bdrv_file_open must be specified explicitly */
 
@@ -492,10 +519,28 @@ BlockDriver *bdrv_find_protocol(const char *filename,
         len = sizeof(protocol) - 1;
     memcpy(protocol, filename, len);
     protocol[len] = '\0';
+
     QLIST_FOREACH(drv1, &bdrv_drivers, list) {
         if (drv1->protocol_name &&
             !strcmp(drv1->protocol_name, protocol)) {
             return drv1;
+        }
+    }
+
+    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
+        if (block_driver_modules[i].protocol_name &&
+            !strcmp(block_driver_modules[i].protocol_name, protocol)) {
+            block_module_load_one(block_driver_modules[i].library_name);
+            /* Copying code is not nice, but this way the current discovery is
+             * not modified. Calling recursively could fail if the library
+             * has been deleted.
+             */
+            QLIST_FOREACH(drv1, &bdrv_drivers, list) {
+                if (drv1->protocol_name &&
+                    !strcmp(drv1->protocol_name, protocol)) {
+                    return drv1;
+                }
+            }
         }
     }
 
@@ -521,7 +566,14 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename)
 {
     int score_max = 0, score;
+    size_t i;
     BlockDriver *drv = NULL, *d;
+
+    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
+        if (block_driver_modules[i].has_probe) {
+            block_module_load_one(block_driver_modules[i].library_name);
+        }
+    }
 
     QLIST_FOREACH(d, &bdrv_drivers, list) {
         if (d->bdrv_probe) {
@@ -2738,26 +2790,42 @@ static int qsort_strcmp(const void *a, const void *b)
     return strcmp(a, b);
 }
 
+static const char **add_format(const char **formats, int *count,
+                               const char *format_name)
+{
+    int i;
+
+    for (i = 0; i < *count; i++) {
+        if (!strcmp(formats[i], format_name)) {
+            return formats;
+        }
+    }
+
+    *count += 1;
+    formats = g_renew(const char *, formats, *count);
+    formats[*count] = format_name;
+    return formats;
+}
+
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque)
 {
     BlockDriver *drv;
     int count = 0;
     int i;
+    size_t n;
     const char **formats = NULL;
 
     QLIST_FOREACH(drv, &bdrv_drivers, list) {
         if (drv->format_name) {
-            bool found = false;
-            int i = count;
-            while (formats && i && !found) {
-                found = !strcmp(formats[--i], drv->format_name);
-            }
+            formats = add_format(formats, &count, drv->format_name);
+        }
+    }
 
-            if (!found) {
-                formats = g_renew(const char *, formats, count + 1);
-                formats[count++] = drv->format_name;
-            }
+    for (n = 0; n < ARRAY_SIZE(block_driver_modules); ++n) {
+        if (block_driver_modules[n].format_name) {
+            formats = add_format(formats, &count,
+                                 block_driver_modules[n].format_name);
         }
     }
 
