@@ -110,6 +110,12 @@ F: disas/arm.c
 F: disas/arm-a64.cc
 F: disas/libvixl/
 
+AVR
+M: Michael Rolnik <mrolnik@gmail.com>
+S: Maintained
+F: target-avr/
+F: hw/avr/
+
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
