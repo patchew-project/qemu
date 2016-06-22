@@ -223,6 +223,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     BlockDriverState *overlay_bs;
     Error *local_err = NULL;
 
+    assert(cb);
     assert(top != bs);
     if (top == base) {
         error_setg(errp, "Invalid files for merge: top and base are the same");

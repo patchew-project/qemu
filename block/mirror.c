@@ -912,6 +912,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     bool is_none_mode;
     BlockDriverState *base;
 
+    assert(cb);
     if (mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         error_setg(errp, "Sync mode 'incremental' not supported");
         return;
@@ -935,6 +936,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
     int ret;
     Error *local_err = NULL;
 
+    assert(cb);
     orig_base_flags = bdrv_get_flags(base);
 
     if (bdrv_reopen(base, bs->open_flags, errp)) {
