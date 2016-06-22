@@ -1311,7 +1311,7 @@ EQMP
 
     {
         .name       = "block-job-set-speed",
-        .args_type  = "device:B,speed:o",
+        .args_type  = "id:s?,device:B?,speed:o",
         .mhandler.cmd_new = qmp_marshal_block_job_set_speed,
     },
 

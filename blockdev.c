@@ -3760,10 +3760,13 @@ static BlockJob *find_block_job(const char *id, const char *device,
     return job;
 }
 
-void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
+void qmp_block_job_set_speed(bool has_id, const char *id, bool has_device,
+                             const char *device, int64_t speed, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
+    BlockJob *job = find_block_job(has_id ? id : NULL,
+                                   has_device ? device : NULL,
+                                   &aio_context, errp);
 
     if (!job) {
         return;

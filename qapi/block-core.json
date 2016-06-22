@@ -1469,7 +1469,12 @@
 #
 # Throttling can be disabled by setting the speed to 0.
 #
-# @device: the device name
+# The job must be identified with the @id or @device parameters, but
+# only one of them must be set.
+#
+# @id: #optional the job identifier. (Since 2.7)
+#
+# @device: #optional the device name.
 #
 # @speed:  the maximum speed, in bytes per second, or 0 for unlimited.
 #          Defaults to 0.
@@ -1480,7 +1485,7 @@
 # Since: 1.1
 ##
 { 'command': 'block-job-set-speed',
-  'data': { 'device': 'str', 'speed': 'int' } }
+  'data': { '*id': 'str', '*device': 'str', 'speed': 'int' } }
 
 ##
 # @block-job-cancel:
