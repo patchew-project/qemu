@@ -859,7 +859,7 @@ static gboolean io_watch_poll_prepare(GSource *source, gint *timeout_)
         iwp->src = qio_channel_create_watch(
             iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
-        g_source_attach(iwp->src, NULL);
+        g_source_attach(iwp->src, g_main_context_get_thread_default());
     } else {
         g_source_destroy(iwp->src);
         g_source_unref(iwp->src);
@@ -918,7 +918,7 @@ static guint io_add_watch_poll(QIOChannel *ioc,
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
 
-    tag = g_source_attach(&iwp->parent, NULL);
+    tag = g_source_attach(&iwp->parent, g_main_context_get_thread_default());
     g_source_unref(&iwp->parent);
     return tag;
 }
@@ -3982,7 +3982,7 @@ int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
     }
 
     g_source_set_callback(src, (GSourceFunc)func, user_data, NULL);
-    tag = g_source_attach(src, NULL);
+    tag = g_source_attach(src, g_main_context_get_thread_default());
     g_source_unref(src);
 
     return tag;
