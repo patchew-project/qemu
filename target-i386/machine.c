@@ -347,6 +347,12 @@ static int cpu_post_load(void *opaque, int version_id)
         return -EINVAL;
     }
 
+    if (!cpu->enable_lmce && (env->mcg_cap & MCG_LMCE_P)) {
+        error_report("Config mismatch: VCPU has LMCE enabled, "
+                     "but \"lmce\" option is disabled");
+        return -EINVAL;
+    }
+
     /*
      * Real mode guest segments register DPL should be zero.
      * Older KVM version were setting it wrongly.
