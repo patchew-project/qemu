@@ -1529,7 +1529,7 @@ void hmp_block_job_resume(Monitor *mon, const QDict *qdict)
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
-    qmp_block_job_resume(device, &error);
+    qmp_block_job_resume(false, NULL, true, device, &error);
 
     hmp_handle_error(mon, &error);
 }

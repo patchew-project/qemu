@@ -1562,6 +1562,11 @@
 #
 # This command also clears the error status of the job.
 #
+# The job must be identified with the @id or @device parameters, but
+# only one of them must be set.
+#
+# @id: #optional the job identifier. (Since 2.7)
+#
 # @device: the device name
 #
 # Returns: Nothing on success
@@ -1569,7 +1574,7 @@
 #
 # Since: 1.3
 ##
-{ 'command': 'block-job-resume', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-resume', 'data': { '*id': 'str', '*device': 'str' } }
 
 ##
 # @block-job-complete:
