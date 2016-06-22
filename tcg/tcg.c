@@ -1680,7 +1680,7 @@ static void temp_allocate_frame(TCGContext *s, int temp)
     s->current_frame_offset += sizeof(tcg_target_long);
 }
 
-static void temp_load(TCGContext *, TCGTemp *, TCGRegSet, TCGRegSet);
+static bool temp_load_may_fail(TCGContext *, TCGTemp *, TCGRegSet, TCGRegSet);
 
 /* Mark a temporary as free or dead.  If 'free_or_dead' is negative,
    mark it free; otherwise mark it dead.  */
@@ -1708,11 +1708,11 @@ static inline void temp_dead(TCGContext *s, TCGTemp *ts)
    registers needs to be allocated to store a constant.  If 'free_or_dead'
    is non-zero, subsequently release the temporary; if it is positive, the
    temp is dead; if it is negative, the temp is free.  */
-static void temp_sync(TCGContext *s, TCGTemp *ts,
-                      TCGRegSet allocated_regs, int free_or_dead)
+static bool temp_sync_may_fail(TCGContext *s, TCGTemp *ts,
+                               TCGRegSet allocated_regs, int free_or_dead)
 {
     if (ts->fixed_reg) {
-        return;
+        return true;
     }
     if (!ts->mem_coherent) {
         if (!ts->mem_allocated) {
@@ -1722,9 +1722,11 @@ static void temp_sync(TCGContext *s, TCGTemp *ts,
             if (ts->val_type == TEMP_VAL_REG) {
                 tcg_regset_set_reg(allocated_regs, ts->reg);
             }
-            temp_load(s, ts->mem_base,
-                      tcg_target_available_regs[TCG_TYPE_PTR],
-                      allocated_regs);
+            if (!temp_load_may_fail(s, ts->mem_base,
+                                    tcg_target_available_regs[TCG_TYPE_PTR],
+                                    allocated_regs)) {
+                return false;
+            }
         }
         switch (ts->val_type) {
         case TEMP_VAL_CONST:
@@ -1736,8 +1738,10 @@ static void temp_sync(TCGContext *s, TCGTemp *ts,
                                ts->mem_base->reg, ts->mem_offset)) {
                 break;
             }
-            temp_load(s, ts, tcg_target_available_regs[ts->type],
-                      allocated_regs);
+            if (!temp_load_may_fail(s, ts, tcg_target_available_regs[ts->type],
+                                    allocated_regs)) {
+                return false;
+            }
             /* fallthrough */
 
         case TEMP_VAL_REG:
@@ -1757,20 +1761,36 @@ static void temp_sync(TCGContext *s, TCGTemp *ts,
     if (free_or_dead) {
         temp_free_or_dead(s, ts, free_or_dead);
     }
+    return true;
+}
+
+static void temp_sync(TCGContext *s, TCGTemp *ts,
+                      TCGRegSet allocated_regs, int free_or_dead)
+{
+    bool ok = temp_sync_may_fail(s, ts, allocated_regs, free_or_dead);
+    tcg_debug_assert(ok);
 }
 
 /* free register 'reg' by spilling the corresponding temporary if necessary */
-static void tcg_reg_free(TCGContext *s, TCGReg reg, TCGRegSet allocated_regs)
+static bool tcg_reg_free_may_fail(TCGContext *s, TCGReg reg,
+                                  TCGRegSet allocated_regs)
 {
     TCGTemp *ts = s->reg_to_temp[reg];
     if (ts != NULL) {
-        temp_sync(s, ts, allocated_regs, -1);
+        return temp_sync_may_fail(s, ts, allocated_regs, -1);
     }
+    return true;
+}
+
+static void tcg_reg_free(TCGContext *s, TCGReg reg, TCGRegSet allocated_regs)
+{
+    bool ok = tcg_reg_free_may_fail(s, reg, allocated_regs);
+    tcg_debug_assert(ok);
 }
 
 /* Allocate a register belonging to reg1 & ~reg2 */
-static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet desired_regs,
-                            TCGRegSet allocated_regs, bool rev)
+static int tcg_reg_alloc_may_fail(TCGContext *s, TCGRegSet desired_regs,
+                                  TCGRegSet allocated_regs, bool rev)
 {
     int i, n = ARRAY_SIZE(tcg_target_reg_alloc_order);
     const int *order;
@@ -1781,49 +1801,98 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet desired_regs,
     order = rev ? indirect_reg_alloc_order : tcg_target_reg_alloc_order;
 
     /* first try free registers */
-    for(i = 0; i < n; i++) {
+    for (i = 0; i < n; i++) {
         reg = order[i];
-        if (tcg_regset_test_reg(reg_ct, reg) && s->reg_to_temp[reg] == NULL)
-            return reg;
-    }
-
-    /* XXX: do better spill choice */
-    for(i = 0; i < n; i++) {
-        reg = order[i];
-        if (tcg_regset_test_reg(reg_ct, reg)) {
-            tcg_reg_free(s, reg, allocated_regs);
+        if (tcg_regset_test_reg(reg_ct, reg) && s->reg_to_temp[reg] == NULL) {
             return reg;
         }
     }
 
-    tcg_abort();
+    /* XXX: do better spill choice */
+    for (i = 0; i < n; i++) {
+        reg = order[i];
+        if (tcg_regset_test_reg(reg_ct, reg)
+            && tcg_reg_free_may_fail(s, reg, allocated_regs)) {
+            return reg;
+        }
+    }
+
+    return -1;
+}
+
+static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet desired_regs,
+                            TCGRegSet allocated_regs, bool rev)
+{
+    int r = tcg_reg_alloc_may_fail(s, desired_regs, allocated_regs, rev);
+    tcg_debug_assert(r >= 0);
+    return r;
 }
 
 /* Make sure the temporary is in a register.  If needed, allocate the register
    from DESIRED while avoiding ALLOCATED.  */
-static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
-                      TCGRegSet allocated_regs)
+static bool temp_load_may_fail(TCGContext *s, TCGTemp *ts,
+                               TCGRegSet desired_regs,
+                               TCGRegSet allocated_regs)
 {
-    TCGReg reg;
+    int reg, base_reg;
+    TCGTemp *base;
 
     switch (ts->val_type) {
     case TEMP_VAL_REG:
-        return;
+        return true;
+
     case TEMP_VAL_CONST:
-        reg = tcg_reg_alloc(s, desired_regs, allocated_regs, ts->indirect_base);
+        reg = tcg_reg_alloc_may_fail(s, desired_regs, allocated_regs,
+                                     ts->indirect_base);
+        if (reg < 0) {
+            return false;
+        }
         tcg_out_movi(s, ts->type, reg, ts->val);
         break;
+
     case TEMP_VAL_MEM:
-        reg = tcg_reg_alloc(s, desired_regs, allocated_regs, ts->indirect_base);
+        reg = tcg_reg_alloc_may_fail(s, desired_regs, allocated_regs,
+                                     ts->indirect_base);
+        if (reg < 0) {
+            return false;
+        }
+
+        /* If this register is itself an indirect_base, we may have
+           allocated it during recursion while syncing an indirect_reg.  */
+        if (ts->val_type == TEMP_VAL_REG) {
+            tcg_debug_assert(ts->indirect_base);
+            return true;
+        }
+
+        base = ts->mem_base;
+        base_reg = base->reg;
         if (ts->indirect_reg) {
             tcg_regset_set_reg(allocated_regs, reg);
-            temp_load(s, ts->mem_base,
-                      tcg_target_available_regs[TCG_TYPE_PTR],
-                      allocated_regs);
+            if (temp_load_may_fail(s, base,
+                                   tcg_target_available_regs[TCG_TYPE_PTR],
+                                   allocated_regs)) {
+                base_reg = base->reg;
+            } else {
+                /* There was only one available register.  Since this is a
+                   load, we can get away with re-using the one that we
+                   allocated for TS.  But recurse again just to be sure.  */
+                tcg_regset_reset_reg(allocated_regs, reg);
+                if (!temp_load_may_fail(s, base,
+                                        tcg_target_available_regs[TCG_TYPE_PTR],
+                                        allocated_regs)) {
+                    return false;
+                }
+                tcg_debug_assert(base->reg == reg);
+                base_reg = reg;
+                /* And because we're re-using the register,
+                   make sure to properly mark it clobbered.  */
+                temp_free_or_dead(s, base, -1);
+            }
         }
-        tcg_out_ld(s, ts->type, reg, ts->mem_base->reg, ts->mem_offset);
+        tcg_out_ld(s, ts->type, reg, base_reg, ts->mem_offset);
         ts->mem_coherent = 1;
         break;
+
     case TEMP_VAL_DEAD:
     default:
         tcg_abort();
@@ -1831,6 +1900,14 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
     ts->reg = reg;
     ts->val_type = TEMP_VAL_REG;
     s->reg_to_temp[reg] = ts;
+    return true;
+}
+
+static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
+                      TCGRegSet allocated_regs)
+{
+    bool ok = temp_load_may_fail(s, ts, desired_regs, allocated_regs);
+    tcg_debug_assert(ok);
 }
 
 /* save a temporary to memory. 'allocated_regs' is used in case a
@@ -1865,21 +1942,24 @@ static void save_globals(TCGContext *s, TCGRegSet allocated_regs)
 /* sync globals to their canonical location and assume they can be
    read by the following code. 'allocated_regs' is used in case a
    temporary registers needs to be allocated to store a constant. */
-static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
+static void sync_globals(TCGContext *s, TCGRegSet allocated_regs,
+                         bool forced)
 {
     int i;
 
     for (i = 0; i < s->nb_globals; i++) {
         TCGTemp *ts = &s->temps[i];
+        if (!forced) {
 #ifdef USE_LIVENESS_ANALYSIS
-        /* ??? Liveness does not yet incorporate indirect bases.  */
-        if (!ts->indirect_base) {
-            tcg_debug_assert(ts->val_type != TEMP_VAL_REG
-                             || ts->fixed_reg
-                             || ts->mem_coherent);
-            continue;
-        }
+            /* ??? Liveness does not yet incorporate indirect bases.  */
+            if (!ts->indirect_base) {
+                tcg_debug_assert(ts->val_type != TEMP_VAL_REG
+                                 || ts->fixed_reg
+                                 || ts->mem_coherent);
+                continue;
+            }
 #endif
+        }
         temp_sync(s, ts, allocated_regs, 0);
     }
 }
@@ -2028,12 +2108,12 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
     }
 }
 
-static void tcg_reg_alloc_op(TCGContext *s, 
+static void tcg_reg_alloc_op(TCGContext *s,
                              const TCGOpDef *def, TCGOpcode opc,
                              const TCGArg *args, uint16_t dead_args,
                              uint8_t sync_args)
 {
-    TCGRegSet allocated_regs;
+    TCGRegSet in_alloc_regs, out_alloc_regs;
     int i, k, nb_iargs, nb_oargs;
     TCGReg reg;
     TCGArg arg;
@@ -2041,18 +2121,49 @@ static void tcg_reg_alloc_op(TCGContext *s,
     TCGTemp *ts;
     TCGArg new_args[TCG_MAX_OP_ARGS];
     int const_args[TCG_MAX_OP_ARGS];
+    bool may_restart;
+    int reg_tst;
 
     nb_oargs = def->nb_oargs;
     nb_iargs = def->nb_iargs;
 
-    /* copy constants */
-    memcpy(new_args + nb_oargs + nb_iargs, 
-           args + nb_oargs + nb_iargs, 
+    /* Copy constants.  */
+    memcpy(new_args + nb_oargs + nb_iargs,
+           args + nb_oargs + nb_iargs,
            sizeof(TCGArg) * def->nb_cargs);
 
-    /* satisfy input constraints */ 
-    tcg_regset_set(allocated_regs, s->reserved_regs);
-    for(k = 0; k < nb_iargs; k++) {
+    /* Sync globals if the op has side effects and might
+       trigger an exception.  */
+    if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+        may_restart = false;
+        goto do_sync;
+    }
+
+    may_restart = true;
+    goto start;
+
+ restart:
+    /* Register allocation failed.  If the guest uses indirect
+       registers, we had all available regs allocated to temps
+       that required a base register to sync.  Drop all args,
+       sync all globals, and restart.  Notice if we try to do
+       this more than once.  If that happens, we can't proceed.  */
+    /* ??? It would be nice if we could drop all of the insns we
+       have emitted so far, but then we'd be out-of-sync with
+       the register state in temps[].  */
+    if (!may_restart) {
+        tcg_abort();
+    }
+
+ do_sync:
+    sync_globals(s, s->reserved_regs, may_restart);
+    may_restart = false;
+
+ start:
+    tcg_regset_set(in_alloc_regs, s->reserved_regs);
+
+    /* Satisfy input constraints.  */
+    for (k = 0; k < nb_iargs; k++) {
         i = def->sorted_args[nb_oargs + k];
         arg = args[i];
         arg_ct = &def->args_ct[i];
@@ -2066,7 +2177,9 @@ static void tcg_reg_alloc_op(TCGContext *s,
             goto iarg_end;
         }
 
-        temp_load(s, ts, arg_ct->u.regs, allocated_regs);
+        if (!temp_load_may_fail(s, ts, arg_ct->u.regs, in_alloc_regs)) {
+            goto restart;
+        }
 
         if (arg_ct->ct & TCG_CT_IALIAS) {
             if (ts->fixed_reg) {
@@ -2098,18 +2211,22 @@ static void tcg_reg_alloc_op(TCGContext *s,
             /* nothing to do : the constraint is satisfied */
         } else {
         allocate_in_reg:
-            /* allocate a new register matching the constraint 
+            /* allocate a new register matching the constraint
                and move the temporary register into it */
-            reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs,
-                                ts->indirect_base);
+            reg_tst = tcg_reg_alloc_may_fail(s, arg_ct->u.regs, in_alloc_regs,
+                                             ts->indirect_base);
+            if (reg_tst < 0) {
+                goto restart;
+            }
+            reg = reg_tst;
             tcg_out_mov(s, ts->type, reg, ts->reg);
         }
         new_args[i] = reg;
         const_args[i] = 0;
-        tcg_regset_set_reg(allocated_regs, reg);
+        tcg_regset_set_reg(in_alloc_regs, reg);
     iarg_end: ;
     }
-    
+
     /* mark dead temporaries and free the associated registers */
     for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
         if (IS_DEAD_ARG(i)) {
@@ -2117,26 +2234,22 @@ static void tcg_reg_alloc_op(TCGContext *s,
         }
     }
 
+    tcg_regset_set(out_alloc_regs, s->reserved_regs);
     if (def->flags & TCG_OPF_BB_END) {
-        tcg_reg_alloc_bb_end(s, allocated_regs);
+        tcg_reg_alloc_bb_end(s, in_alloc_regs);
     } else {
         if (def->flags & TCG_OPF_CALL_CLOBBER) {
-            /* XXX: permit generic clobber register list ? */ 
+            /* XXX: permit generic clobber register list ? */
             for (i = 0; i < TCG_TARGET_NB_REGS; i++) {
-                if (tcg_regset_test_reg(tcg_target_call_clobber_regs, i)) {
-                    tcg_reg_free(s, i, allocated_regs);
+                if (tcg_regset_test_reg(tcg_target_call_clobber_regs, i)
+                    && !tcg_reg_free_may_fail(s, i, in_alloc_regs)) {
+                    goto restart;
                 }
             }
         }
-        if (def->flags & TCG_OPF_SIDE_EFFECTS) {
-            /* sync globals if the op has side effects and might trigger
-               an exception. */
-            sync_globals(s, allocated_regs);
-        }
-        
-        /* satisfy the output constraints */
-        tcg_regset_set(allocated_regs, s->reserved_regs);
-        for(k = 0; k < nb_oargs; k++) {
+
+        /* Satisfy the output constraints.  */
+        for (k = 0; k < nb_oargs; k++) {
             i = def->sorted_args[k];
             arg = args[i];
             arg_ct = &def->args_ct[i];
@@ -2150,11 +2263,17 @@ static void tcg_reg_alloc_op(TCGContext *s,
                     tcg_regset_test_reg(arg_ct->u.regs, reg)) {
                     goto oarg_end;
                 }
-                reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs,
-                                    ts->indirect_base);
+                reg_tst = tcg_reg_alloc_may_fail(s, arg_ct->u.regs,
+                                                 out_alloc_regs,
+                                                 ts->indirect_base);
+                if (reg_tst < 0) {
+                    goto restart;
+                }
+                reg = reg_tst;
             }
-            tcg_regset_set_reg(allocated_regs, reg);
-            /* if a fixed register is used, then a move will be done afterwards */
+            tcg_regset_set_reg(out_alloc_regs, reg);
+            /* If a fixed register is used, then a move will be
+               done afterwards.  */
             if (!ts->fixed_reg) {
                 if (ts->val_type == TEMP_VAL_REG) {
                     s->reg_to_temp[ts->reg] = NULL;
@@ -2171,21 +2290,22 @@ static void tcg_reg_alloc_op(TCGContext *s,
         }
     }
 
-    /* emit instruction */
+    /* Emit instruction.  */
     tcg_out_op(s, opc, new_args, const_args);
-    
-    /* move the outputs in the correct register if needed */
-    for(i = 0; i < nb_oargs; i++) {
+
+    /* Move the outputs in the correct register if needed.  */
+    for (i = 0; i < nb_oargs; i++) {
         ts = &s->temps[args[i]];
         reg = new_args[i];
         if (ts->fixed_reg && ts->reg != reg) {
             tcg_out_mov(s, ts->type, ts->reg, reg);
         }
         if (NEED_SYNC_ARG(i)) {
-            temp_sync(s, ts, allocated_regs, IS_DEAD_ARG(i));
+            temp_sync(s, ts, out_alloc_regs, IS_DEAD_ARG(i));
         } else if (IS_DEAD_ARG(i)) {
             temp_dead(s, ts);
         }
+        tcg_regset_set_reg(out_alloc_regs, reg);
     }
 }
 
@@ -2289,7 +2409,7 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
     if (flags & TCG_CALL_NO_READ_GLOBALS) {
         /* Nothing to do */
     } else if (flags & TCG_CALL_NO_WRITE_GLOBALS) {
-        sync_globals(s, allocated_regs);
+        sync_globals(s, allocated_regs, false);
     } else {
         save_globals(s, allocated_regs);
     }
