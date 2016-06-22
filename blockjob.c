@@ -33,6 +33,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/coroutine.h"
+#include "qemu/id.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
@@ -125,7 +126,8 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
-    job->id            = g_strdup(bdrv_get_device_name(bs));
+    job->device        = g_strdup(bdrv_get_device_name(bs));
+    job->id            = id_generate(ID_JOB);
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
@@ -168,6 +170,7 @@ void block_job_unref(BlockJob *job)
                                         block_job_detach_aio_context, job);
         blk_unref(job->blk);
         error_free(job->blocker);
+        g_free(job->device);
         g_free(job->id);
         QLIST_REMOVE(job, job_list);
         g_free(job);
@@ -289,7 +292,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     if (job->pause_count || job->cancelled || !job->driver->complete) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
+        error_setg(errp, "The active block job '%s' cannot be completed",
+                   job->id);
         return;
     }
 
@@ -464,7 +468,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
     info->type      = g_strdup(BlockJobType_lookup[job->driver->job_type]);
-    info->device    = g_strdup(job->id);
+    info->device    = g_strdup(job->device);
     info->len       = job->len;
     info->busy      = job->busy;
     info->paused    = job->pause_count > 0;
@@ -486,7 +490,7 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
 void block_job_event_cancelled(BlockJob *job)
 {
     qapi_event_send_block_job_cancelled(job->driver->job_type,
-                                        job->id,
+                                        job->device,
                                         job->len,
                                         job->offset,
                                         job->speed,
@@ -496,7 +500,7 @@ void block_job_event_cancelled(BlockJob *job)
 void block_job_event_completed(BlockJob *job, const char *msg)
 {
     qapi_event_send_block_job_completed(job->driver->job_type,
-                                        job->id,
+                                        job->device,
                                         job->len,
                                         job->offset,
                                         job->speed,
@@ -510,7 +514,7 @@ void block_job_event_ready(BlockJob *job)
     job->ready = true;
 
     qapi_event_send_block_job_ready(job->driver->job_type,
-                                    job->id,
+                                    job->device,
                                     job->len,
                                     job->offset,
                                     job->speed, &error_abort);
@@ -538,7 +542,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     default:
         abort();
     }
-    qapi_event_send_block_job_error(job->id,
+    qapi_event_send_block_job_error(job->device,
                                     is_read ? IO_OPERATION_TYPE_READ :
                                     IO_OPERATION_TYPE_WRITE,
                                     action, &error_abort);

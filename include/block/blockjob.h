@@ -106,12 +106,16 @@ struct BlockJob {
     BlockBackend *blk;
 
     /**
-     * The ID of the block job. Currently the BlockBackend name of the BDS
-     * owning the job at the time when the job is started.
-     *
-     * TODO Decouple block job IDs from BlockBackend names
+     * The ID of the block job.
      */
     char *id;
+
+    /**
+     * BlockBackend name of the BDS owning the job at the time when
+     * the job is started. For compatibility with clients that don't
+     * support the ID field.
+     */
+    char *device;
 
     /**
      * The coroutine that executes the job.  If not NULL, it is

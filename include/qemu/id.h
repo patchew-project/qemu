@@ -4,6 +4,7 @@
 typedef enum IdSubSystems {
     ID_QDEV,
     ID_BLOCK,
+    ID_JOB,
     ID_MAX      /* last element, used as array size */
 } IdSubSystems;
 
