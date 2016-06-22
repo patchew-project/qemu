@@ -50,7 +50,7 @@ def transaction_bitmap_clear(node, name, **kwargs):
 
 def transaction_drive_backup(device, target, **kwargs):
     return transaction_action('drive-backup', device=device, target=target,
-                              **kwargs)
+                              job_id=device, **kwargs)
 
 
 class Bitmap:
@@ -479,6 +479,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.assertFalse(self.wait_qmp_backup(drive1['id']))
         error = self.vm.event_wait('BLOCK_JOB_ERROR')
         self.assert_qmp(error, 'data', {'device': drive1['id'],
+                                        'id': drive1['id'],
                                         'action': 'report',
                                         'operation': 'read'})
         self.assertFalse(self.vm.get_qmp_events(wait=False))

@@ -58,7 +58,7 @@ function run_qemu()
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute':'drive-mirror', 'arguments':{
             'device': 'src', 'target': '$raw_img', $qmp_format
-            'mode': 'existing', 'sync': 'full'}}" \
+            'mode': 'existing', 'sync': 'full', 'job-id': 'mirror1'}}" \
         "return"
 
     _send_qemu_cmd $QEMU_HANDLE '' "$qmp_event"

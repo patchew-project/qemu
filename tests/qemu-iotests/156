@@ -87,6 +87,7 @@ TEST_IMG="$TEST_IMG.target.overlay" _make_test_img -b "$TEST_IMG.target" 1M
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'drive-mirror',
        'arguments': { 'device': 'source',
+                      'job-id': 'mirror1',
                       'target': '$TEST_IMG.target.overlay',
                       'mode': 'existing',
                       'sync': 'top' } }" \

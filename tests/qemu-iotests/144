@@ -85,6 +85,7 @@ echo
 # Block commit on active layer, push the new overlay into base
 _send_qemu_cmd $h "{ 'execute': 'block-commit',
                                 'arguments': {
+                                                 'job-id': 'commit1',
                                                  'device': 'virtio0'
                                               }
                     }" "READY"

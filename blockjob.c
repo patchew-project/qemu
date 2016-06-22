@@ -492,6 +492,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
     info->type      = g_strdup(BlockJobType_lookup[job->driver->job_type]);
+    info->id        = g_strdup(job->id);
     info->device    = g_strdup(job->device);
     info->len       = job->len;
     info->busy      = job->busy;
@@ -514,6 +515,7 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
 void block_job_event_cancelled(BlockJob *job)
 {
     qapi_event_send_block_job_cancelled(job->driver->job_type,
+                                        job->id,
                                         job->device,
                                         job->len,
                                         job->offset,
@@ -524,6 +526,7 @@ void block_job_event_cancelled(BlockJob *job)
 void block_job_event_completed(BlockJob *job, const char *msg)
 {
     qapi_event_send_block_job_completed(job->driver->job_type,
+                                        job->id,
                                         job->device,
                                         job->len,
                                         job->offset,
@@ -538,6 +541,7 @@ void block_job_event_ready(BlockJob *job)
     job->ready = true;
 
     qapi_event_send_block_job_ready(job->driver->job_type,
+                                    job->id,
                                     job->device,
                                     job->len,
                                     job->offset,
@@ -566,7 +570,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     default:
         abort();
     }
-    qapi_event_send_block_job_error(job->device,
+    qapi_event_send_block_job_error(job->id, job->device,
                                     is_read ? IO_OPERATION_TYPE_READ :
                                     IO_OPERATION_TYPE_WRITE,
                                     action, &error_abort);

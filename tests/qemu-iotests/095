@@ -71,7 +71,7 @@ h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
 
 _send_qemu_cmd $h "{ 'execute': 'block-commit',
-                                 'arguments': { 'device': 'test',
+                                 'arguments': { 'job-id': 'testjob', 'device': 'test',
                                  'top': '"${TEST_IMG}.snp1"' } }" "BLOCK_JOB_COMPLETED"
 
 _cleanup_qemu

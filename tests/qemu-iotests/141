@@ -102,6 +102,7 @@ echo
 test_blockjob \
     "{'execute': 'drive-backup',
       'arguments': {'device': 'drv0',
+                    'job-id': 'backup1',
                     'target': '$TEST_DIR/o.$IMGFMT',
                     'format': '$IMGFMT',
                     'sync': 'none'}}" \
@@ -118,6 +119,7 @@ echo
 test_blockjob \
     "{'execute': 'drive-mirror',
       'arguments': {'device': 'drv0',
+                    'job-id': 'mirror1',
                     'target': '$TEST_DIR/o.$IMGFMT',
                     'format': '$IMGFMT',
                     'sync': 'none'}}" \
@@ -134,7 +136,7 @@ echo
 
 test_blockjob \
     "{'execute': 'block-commit',
-      'arguments': {'device': 'drv0'}}" \
+      'arguments': {'device': 'drv0', 'job-id': 'commit1'}}" \
     'BLOCK_JOB_READY' \
     'BLOCK_JOB_COMPLETED'
 
@@ -151,6 +153,7 @@ $QEMU_IO -c 'write 0 1M' "$TEST_DIR/m.$IMGFMT" | _filter_qemu_io
 test_blockjob \
     "{'execute': 'block-commit',
       'arguments': {'device': 'drv0',
+                    'job-id': 'commit2',
                     'top':    '$TEST_DIR/m.$IMGFMT',
                     'speed':  1}}" \
     'return' \
@@ -173,6 +176,7 @@ $QEMU_IO -c 'write 0 1M' "$TEST_DIR/b.$IMGFMT" | _filter_qemu_io
 test_blockjob \
     "{'execute': 'block-stream',
       'arguments': {'device': 'drv0',
+                    'job-id': 'stream1',
                     'speed': 1}}" \
     'return' \
     'BLOCK_JOB_CANCELLED'
