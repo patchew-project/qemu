@@ -3842,10 +3842,13 @@ void qmp_block_job_resume(bool has_id, const char *id,
     aio_context_release(aio_context);
 }
 
-void qmp_block_job_complete(const char *device, Error **errp)
+void qmp_block_job_complete(bool has_id, const char *id,
+                            bool has_device, const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
+    BlockJob *job = find_block_job(has_id ? id : NULL,
+                                   has_device ? device : NULL,
+                                   &aio_context, errp);
 
     if (!job) {
         return;

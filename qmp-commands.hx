@@ -1332,7 +1332,7 @@ EQMP
     },
     {
         .name       = "block-job-complete",
-        .args_type  = "device:B",
+        .args_type  = "id:s?,device:B?",
         .mhandler.cmd_new = qmp_marshal_block_job_complete,
     },
     {
