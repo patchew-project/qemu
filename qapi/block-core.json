@@ -1421,6 +1421,8 @@
 # On successful completion the image file is updated to drop the backing file
 # and the BLOCK_JOB_COMPLETED event is emitted.
 #
+# @job-id: #optional identifier for the newly-created block job (Since 2.7)
+#
 # @device: the device name
 #
 # @base:   #optional the common backing file name
@@ -1452,8 +1454,9 @@
 # Since: 1.1
 ##
 { 'command': 'block-stream',
-  'data': { 'device': 'str', '*base': 'str', '*backing-file': 'str',
-            '*speed': 'int', '*on-error': 'BlockdevOnError' } }
+  'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
+            '*backing-file': 'str', '*speed': 'int',
+            '*on-error': 'BlockdevOnError' } }
 
 ##
 # @block-job-set-speed:
