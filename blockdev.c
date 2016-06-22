@@ -3704,48 +3704,59 @@ void qmp_blockdev_mirror(const char *device, const char *target,
     aio_context_release(aio_context);
 }
 
-/* Get the block job for a given device name and acquire its AioContext */
-static BlockJob *find_block_job(const char *device, AioContext **aio_context,
-                                Error **errp)
+/* Get a block job using its ID or device name and acquire its AioContext.
+ * Only one of ID and device name can be specified. */
+static BlockJob *find_block_job(const char *id, const char *device,
+                                AioContext **aio_context, Error **errp)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs;
+    BlockJob *job = NULL;
 
     *aio_context = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        goto notfound;
+    if ((id && device) || (!id && !device)) {
+        error_setg(errp, "Only one of ID or device name "
+                   "must be specified when looking for a block job");
+        return NULL;
     }
 
-    *aio_context = blk_get_aio_context(blk);
+    if (id) {
+        job = block_job_get(id);
+    } else {
+        BlockJob *j;
+        for (j = block_job_next(NULL); j; j = block_job_next(j)) {
+            if (!strcmp(device, j->device)) {
+                if (job) {
+                    /* This scenario is currently not possible, but it
+                     * could theoretically happen in the future. */
+                    error_setg(errp, "More than one job on device '%s', "
+                               "use the job ID instead", device);
+                    return NULL;
+                }
+                job = j;
+            }
+        }
+    }
+
+    if (!job) {
+        if (id) {
+            error_setg(errp, "Block job '%s' not found", id);
+        } else {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
+                      "No active block job on device '%s'", device);
+        }
+        return NULL;
+    }
+
+    *aio_context = blk_get_aio_context(job->blk);
     aio_context_acquire(*aio_context);
 
-    if (!blk_is_available(blk)) {
-        goto notfound;
-    }
-    bs = blk_bs(blk);
-
-    if (!bs->job) {
-        goto notfound;
-    }
-
-    return bs->job;
-
-notfound:
-    error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
-              "No active block job on device '%s'", device);
-    if (*aio_context) {
-        aio_context_release(*aio_context);
-        *aio_context = NULL;
-    }
-    return NULL;
+    return job;
 }
 
 void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context, errp);
+    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
 
     if (!job) {
         return;
@@ -3759,7 +3770,7 @@ void qmp_block_job_cancel(const char *device,
                           bool has_force, bool force, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context, errp);
+    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
 
     if (!job) {
         return;
@@ -3784,7 +3795,7 @@ out:
 void qmp_block_job_pause(const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context, errp);
+    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
 
     if (!job || job->user_paused) {
         return;
@@ -3799,7 +3810,7 @@ void qmp_block_job_pause(const char *device, Error **errp)
 void qmp_block_job_resume(const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context, errp);
+    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
 
     if (!job || !job->user_paused) {
         return;
@@ -3815,7 +3826,7 @@ void qmp_block_job_resume(const char *device, Error **errp)
 void qmp_block_job_complete(const char *device, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(device, &aio_context, errp);
+    BlockJob *job = find_block_job(NULL, device, &aio_context, errp);
 
     if (!job) {
         return;
