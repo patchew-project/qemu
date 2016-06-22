@@ -1537,14 +1537,19 @@
 # the operation is actually paused.  Cancelling a paused job automatically
 # resumes it.
 #
-# @device: the device name
+# The job must be identified with the @id or @device parameters, but
+# only one of them must be set.
+#
+# @id: #optional the job identifier. (Since 2.7)
+#
+# @device: #optional the device name
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.3
 ##
-{ 'command': 'block-job-pause', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-pause', 'data': { '*id': 'str', '*device': 'str' } }
 
 ##
 # @block-job-resume:
