@@ -18,4 +18,10 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
+DEF_HELPER_1(wdr, void, env)
 DEF_HELPER_1(debug, void, env)
+DEF_HELPER_1(sleep, void, env)
+DEF_HELPER_1(unsupported, void, env)
+DEF_HELPER_3(outb, void, env, i32, i32)
+DEF_HELPER_2(inb, tl, env, i32)
+DEF_HELPER_3(fullwr, void, env, i32, i32)
