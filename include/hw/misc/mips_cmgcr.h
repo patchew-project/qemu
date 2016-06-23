@@ -11,6 +11,7 @@
 #define _MIPS_GCR_H
 
 #define TYPE_MIPS_GCR "mips-gcr"
+#include "exec/hwaddr.h"
 #define MIPS_GCR(obj) OBJECT_CHECK(MIPSGCRState, (obj), TYPE_MIPS_GCR)
 
 #define GCR_BASE_ADDR           0x1fbf8000ULL

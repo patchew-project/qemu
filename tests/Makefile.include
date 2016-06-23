@@ -496,7 +496,6 @@ blacklisted-headers :=					\
 	hw/usb/quirks.h					\
 	hw/xtensa/bootparam.h				\
 	include/block/write-threshold.h			\
-	include/disas/disas.h				\
 	include/exec/cpu-all.h				\
 	include/exec/cpu-defs.h				\
 	include/exec/cpu_ldst.h				\
@@ -523,17 +522,12 @@ blacklisted-headers :=					\
 	include/hw/arm/fsl-imx25.h			\
 	include/hw/arm/fsl-imx31.h			\
 	include/hw/arm/fsl-imx6.h			\
-	include/hw/arm/sharpsl.h			\
 	include/hw/arm/xlnx-zynqmp.h			\
-	include/hw/block/fdc.h				\
 	include/hw/block/flash.h			\
-	include/hw/char/escc.h				\
 	include/hw/char/pl011.h				\
 	include/hw/char/xilinx_uartlite.h		\
 	include/hw/cris/etraxfs.h			\
-	include/hw/cris/etraxfs_dma.h			\
 	include/hw/elf_ops.h				\
-	include/hw/empty_slot.h				\
 	include/hw/i2c/aspeed_i2c.h			\
 	include/hw/i2c/i2c-ddc.h			\
 	include/hw/i2c/pm_smbus.h			\
@@ -551,7 +545,6 @@ blacklisted-headers :=					\
 	include/hw/misc/mips_itu.h			\
 	include/hw/net/allwinner_emac.h			\
 	include/hw/nvram/openbios_firmware_abi.h	\
-	include/hw/pci-host/apb.h			\
 	include/hw/pci-host/spapr.h			\
 	include/hw/pci/pci_bus.h			\
 	include/hw/pci/pcie_aer.h			\
@@ -562,12 +555,10 @@ blacklisted-headers :=					\
 	include/hw/ppc/spapr_vio.h			\
 	include/hw/ppc/xics.h				\
 	include/hw/sparc/grlib.h			\
-	include/hw/sparc/sparc32_dma.h			\
 	include/hw/ssi/xilinx_spips.h			\
 	include/hw/timer/allwinner-a10-pit.h		\
 	include/hw/timer/aspeed_timer.h			\
 	include/hw/timer/i8254_internal.h		\
-	include/hw/timer/m48t59.h			\
 	include/hw/virtio/virtio-access.h		\
 	include/hw/virtio/virtio-input.h		\
 	include/hw/virtio/virtio-rng.h			\

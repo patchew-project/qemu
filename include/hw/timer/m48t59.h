@@ -1,6 +1,7 @@
 #ifndef NVRAM_H
 #define NVRAM_H
 
+#include "exec/hwaddr.h"
 #include "qemu-common.h"
 #include "qom/object.h"
 

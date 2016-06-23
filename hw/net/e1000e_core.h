@@ -33,6 +33,11 @@
 * License along with this library; if not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef E1000E_CORE_H
+#define E1000E_CORE_H
+
+#include "exec/hwaddr.h"
+
 #define E1000E_PHY_PAGE_SIZE    (0x20)
 #define E1000E_PHY_PAGES        (0x07)
 #define E1000E_MAC_SIZE         (0x8000)
@@ -144,3 +149,5 @@ e1000e_receive(E1000ECore *core, const uint8_t *buf, size_t size);
 
 ssize_t
 e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt);
+
+#endif

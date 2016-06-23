@@ -15,6 +15,8 @@
 #ifndef XILINX_UARTLITE_H
 #define XILINX_UARTLITE_H
 
+#include "exec/hwaddr.h"
+
 static inline DeviceState *xilinx_uartlite_create(hwaddr addr,
                                         qemu_irq irq,
                                         CharDriverState *chr)

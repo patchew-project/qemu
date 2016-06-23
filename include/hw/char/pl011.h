@@ -15,6 +15,8 @@
 #ifndef PL011_UART_H
 #define PL011_UART_H
 
+#include "exec/hwaddr.h"
+
 static inline DeviceState *pl011_create(hwaddr addr,
                                         qemu_irq irq,
                                         CharDriverState *chr)

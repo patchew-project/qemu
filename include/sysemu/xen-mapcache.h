@@ -9,6 +9,7 @@
 #ifndef XEN_MAPCACHE_H
 #define XEN_MAPCACHE_H
 
+#include "exec/hwaddr.h"
 
 typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr start_addr,
                                                      ram_addr_t size,
