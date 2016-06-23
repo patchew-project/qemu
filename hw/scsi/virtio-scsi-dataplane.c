@@ -16,7 +16,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
 #include <hw/scsi/scsi.h>
-#include <block/scsi.h>
+#include "block/scsi.h"
 #include <hw/virtio/virtio-bus.h>
 #include "hw/virtio/virtio-access.h"
 
