@@ -4255,7 +4255,7 @@ EQMP
 
     {
         .name       = "blockdev-open-tray",
-        .args_type  = "device:s,force:b?",
+        .args_type  = "device:s?,id:s?,force:b?",
         .mhandler.cmd_new = qmp_marshal_blockdev_open_tray,
     },
 
@@ -4280,7 +4280,9 @@ which no such event will be generated, these include:
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "force": if false (the default), an eject request will be sent to the guest if
            it has locked the tray (and the tray will not be opened immediately);
            if true, the tray will be opened regardless of whether it is locked
@@ -4303,7 +4305,7 @@ EQMP
 
     {
         .name       = "blockdev-close-tray",
-        .args_type  = "device:s",
+        .args_type  = "device:s?,id:s?",
         .mhandler.cmd_new = qmp_marshal_blockdev_close_tray,
     },
 
@@ -4319,7 +4321,9 @@ If the tray was already closed before, this will be a no-op.
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 
 Example:
 

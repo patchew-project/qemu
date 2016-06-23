@@ -56,7 +56,8 @@
 static QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(monitor_bdrv_states);
 
-static int do_open_tray(const char *device, bool force, Error **errp);
+static int do_open_tray(const char *blk_name, const char *qdev_id,
+                        bool force, Error **errp);
 
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
@@ -1172,6 +1173,29 @@ fail:
     return dinfo;
 }
 
+static BlockBackend *qmp_get_blk(const char *blk_name, const char *qdev_id,
+                                 Error **errp)
+{
+    BlockBackend *blk;
+
+    if (!blk_name == !qdev_id) {
+        error_setg(errp, "Need exactly one of 'device' and 'id'");
+        return NULL;
+    }
+
+    if (qdev_id) {
+        blk = blk_by_qdev_id(qdev_id, errp);
+    } else {
+        blk = blk_by_name(blk_name);
+        if (blk == NULL) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", blk_name);
+        }
+    }
+
+    return blk;
+}
+
 void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
@@ -2285,7 +2309,7 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
         force = false;
     }
 
-    rc = do_open_tray(device, force, &local_err);
+    rc = do_open_tray(device, NULL, force, &local_err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, local_err);
         return;
@@ -2330,15 +2354,15 @@ void qmp_block_passwd(bool has_device, const char *device,
  * If the guest was asked to open the tray, return -EINPROGRESS.
  * Else, return 0.
  */
-static int do_open_tray(const char *device, bool force, Error **errp)
+static int do_open_tray(const char *blk_name, const char *qdev_id,
+                        bool force, Error **errp)
 {
     BlockBackend *blk;
+    const char *device = qdev_id ?: blk_name;
     bool locked;
 
-    blk = blk_by_name(device);
+    blk = qmp_get_blk(blk_name, qdev_id, errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         return -ENODEV;
     }
 
@@ -2374,7 +2398,9 @@ static int do_open_tray(const char *device, bool force, Error **errp)
     return 0;
 }
 
-void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
+void qmp_blockdev_open_tray(bool has_device, const char *device,
+                            bool has_id, const char *id,
+                            bool has_force, bool force,
                             Error **errp)
 {
     Error *local_err = NULL;
@@ -2383,7 +2409,9 @@ void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
     if (!has_force) {
         force = false;
     }
-    rc = do_open_tray(device, force, &local_err);
+    rc = do_open_tray(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      force, &local_err);
     if (rc && rc != -ENOSYS && rc != -EINPROGRESS) {
         error_propagate(errp, local_err);
         return;
@@ -2391,19 +2419,21 @@ void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
     error_free(local_err);
 }
 
-void qmp_blockdev_close_tray(const char *device, Error **errp)
+void qmp_blockdev_close_tray(bool has_device, const char *device,
+                             bool has_id, const char *id,
+                             Error **errp)
 {
     BlockBackend *blk;
 
-    blk = blk_by_name(device);
+    blk = qmp_get_blk(has_device ? device : NULL,
+                      has_id ? id : NULL,
+                      errp);
     if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
         return;
     }
 
     if (!blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable", device);
+        error_setg(errp, "Device '%s' is not removable", device ?: id);
         return;
     }
 
@@ -2599,7 +2629,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
         goto fail;
     }
 
-    rc = do_open_tray(device, false, &err);
+    rc = do_open_tray(device, NULL, false, &err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, err);
         goto fail;
@@ -2621,7 +2651,7 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
 
     blk_apply_root_state(blk, medium_bs);
 
-    qmp_blockdev_close_tray(device, errp);
+    qmp_blockdev_close_tray(true, device, false, NULL, errp);
 
 fail:
     /* If the medium has been inserted, the device has its own reference, so

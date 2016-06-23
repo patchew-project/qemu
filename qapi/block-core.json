@@ -2201,7 +2201,9 @@
 #   to it
 # - if the guest device does not have an actual tray
 #
-# @device: block device name
+# @device:  block device name (deprecated, use @id instead)
+#
+# @id:      the name or QOM path of the guest device
 #
 # @force:  #optional if false (the default), an eject request will be sent to
 #          the guest if it has locked the tray (and the tray will not be opened
@@ -2211,7 +2213,8 @@
 # Since: 2.5
 ##
 { 'command': 'blockdev-open-tray',
-  'data': { 'device': 'str',
+  'data': { '*device': 'str',
+            '*id': 'str',
             '*force': 'bool' } }
 
 ##
@@ -2223,12 +2226,15 @@
 #
 # If the tray was already closed before, this will be a no-op.
 #
-# @device: block device name
+# @device:  block device name (deprecated, use @id instead)
+#
+# @id:      the name or QOM path of the guest device
 #
 # Since: 2.5
 ##
 { 'command': 'blockdev-close-tray',
-  'data': { 'device': 'str' } }
+  'data': { '*device': 'str',
+            '*id': 'str' } }
 
 ##
 # @x-blockdev-remove-medium:
