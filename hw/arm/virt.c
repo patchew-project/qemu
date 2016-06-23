@@ -57,6 +57,7 @@
 #include "hw/smbios/smbios.h"
 #include "qapi/visitor.h"
 #include "standard-headers/linux/input.h"
+#include "hw/arm/smmu.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
@@ -77,6 +78,7 @@ typedef struct VirtBoardInfo {
     uint32_t gic_phandle;
     uint32_t v2m_phandle;
     bool using_psci;
+    uint32_t smmu_phandle;
 } VirtBoardInfo;
 
 typedef struct {
@@ -175,6 +177,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
     [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
     [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
+    [VIRT_SMMU] =               { 0x09050000, 0x00020000 }, /* 128K, needed */
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -195,7 +198,17 @@ static const int a15irqmap[] = {
     [VIRT_SECURE_UART] = 8,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
+    [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
     [VIRT_PLATFORM_BUS] = 112, /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
+};
+
+static const struct smmuirq {
+    const char *name;
+} smmuirqmap[NUM_SMMU_IRQS] = {
+    [SMMU_IRQ_EVTQ] = {"eventq"},
+    [SMMU_IRQ_PRIQ] = {"priq"},
+    [SMMU_IRQ_CMD_SYNC] = {"cmdq-sync"},
+    [SMMU_IRQ_GERROR] = {"gerror"},
 };
 
 static VirtBoardInfo machines[] = {
@@ -938,6 +951,50 @@ static void create_pcie_irq_map(const VirtBoardInfo *vbi, uint32_t gic_phandle,
                            0x7           /* PCI irq */);
 }
 
+static void alloc_smmu_phandle(VirtBoardInfo *vbi)
+{
+    if (!vbi->smmu_phandle)
+        vbi->smmu_phandle = qemu_fdt_alloc_phandle(vbi->fdt);
+}
+
+static void create_smmu(VirtBoardInfo *vbi, qemu_irq *pic)
+{
+    int i;
+    char *smmu;
+    const char compat[] = "arm,smmu-v3";
+    int irq =  vbi->irqmap[VIRT_SMMU];
+    hwaddr base = vbi->memmap[VIRT_SMMU].base;
+    hwaddr size = vbi->memmap[VIRT_SMMU].size;
+    int type = GIC_FDT_IRQ_TYPE_SPI;
+
+    sysbus_create_varargs("smmuv3", base,
+                          pic[irq],
+                          pic[irq + 1],
+                          pic[irq + 2],
+                          pic[irq + 3],
+                          NULL);
+
+    smmu = g_strdup_printf("/smmuv3@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, smmu);
+    qemu_fdt_setprop(vbi->fdt, smmu, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(vbi->fdt, smmu, "reg", 2, base, 2, size);
+
+    for (i = 0; i < NUM_SMMU_IRQS; i++) {
+        qemu_fdt_appendprop_cells(vbi->fdt, smmu, "interrupts",
+                                  type, irq + i,
+                                  GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+        qemu_fdt_appendprop_string(vbi->fdt, smmu, "interrupt-names",
+                                   smmuirqmap[i].name);
+    }
+
+    qemu_fdt_setprop_cell(vbi->fdt, smmu, "clocks", vbi->clock_phandle);
+    qemu_fdt_setprop_cell(vbi->fdt, smmu, "#iommu-cells", 0);
+    qemu_fdt_setprop_string(vbi->fdt, smmu, "clock-names", "apb_pclk");
+
+    qemu_fdt_setprop_cell(vbi->fdt, smmu, "phandle", vbi->smmu_phandle);
+    g_free(smmu);
+}
+
 static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
                         bool use_highmem)
 {
@@ -1048,6 +1105,7 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
     }
 
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "#interrupt-cells", 1);
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "iommus", vbi->smmu_phandle);
     create_pcie_irq_map(vbi, vbi->gic_phandle, irq, nodename);
 
     g_free(nodename);
@@ -1332,7 +1390,11 @@ static void machvirt_init(MachineState *machine)
 
     create_rtc(vbi, pic);
 
+    alloc_smmu_phandle(vbi);
+
     create_pcie(vbi, pic, vms->highmem);
+
+    create_smmu(vbi, pic);
 
     create_gpio(vbi, pic);
 
