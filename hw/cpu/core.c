@@ -15,7 +15,7 @@ static void core_prop_get_core_id(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     CPUCore *core = CPU_CORE(obj);
-    int64_t value = core->core_id;
+    int64_t value = core->core;
 
     visit_type_int(v, name, &value, errp);
 }
@@ -33,7 +33,7 @@ static void core_prop_set_core_id(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    core->core_id = value;
+    core->core = value;
 }
 
 static void core_prop_get_nr_threads(Object *obj, Visitor *v, const char *name,
@@ -65,7 +65,7 @@ static void cpu_core_instance_init(Object *obj)
 {
     CPUCore *core = CPU_CORE(obj);
 
-    object_property_add(obj, "core-id", "int", core_prop_get_core_id,
+    object_property_add(obj, "core", "int", core_prop_get_core_id,
                         core_prop_set_core_id, NULL, NULL, NULL);
     object_property_add(obj, "nr-threads", "int", core_prop_get_nr_threads,
                         core_prop_set_nr_threads, NULL, NULL, NULL);

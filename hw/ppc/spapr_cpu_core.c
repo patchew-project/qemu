@@ -118,7 +118,7 @@ static void spapr_core_release(DeviceState *dev, void *opaque)
         object_unparent(obj);
     }
 
-    spapr->cores[cc->core_id / smt] = NULL;
+    spapr->cores[cc->core / smt] = NULL;
 
     g_free(core->threads);
     object_unparent(OBJECT(dev));
@@ -163,8 +163,8 @@ void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int index;
     int smt = kvmppc_smt_threads();
 
-    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, cc->core_id);
-    index = cc->core_id / smt;
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_CPU, cc->core);
+    index = cc->core / smt;
     spapr->cores[index] = OBJECT(dev);
 
     if (!smc->dr_cpu_enabled) {
@@ -239,19 +239,19 @@ void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out;
     }
 
-    if (cc->core_id % smt) {
-        error_setg(&local_err, "invalid core id %d\n", cc->core_id);
+    if (cc->core % smt) {
+        error_setg(&local_err, "invalid core id %d\n", cc->core);
         goto out;
     }
 
-    index = cc->core_id / smt;
+    index = cc->core / smt;
     if (index < 0 || index >= spapr_max_cores) {
-        error_setg(&local_err, "core id %d out of range", cc->core_id);
+        error_setg(&local_err, "core id %d out of range", cc->core);
         goto out;
     }
 
     if (spapr->cores[index]) {
-        error_setg(&local_err, "core %d already populated", cc->core_id);
+        error_setg(&local_err, "core %d already populated", cc->core);
         goto out;
     }
 
