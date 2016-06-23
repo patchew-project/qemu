@@ -1329,7 +1329,7 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps,
     }
 }
 
-/* Liveness analysis : update the opc_dead_args array to tell if a
+/* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
 static void tcg_liveness_analysis(TCGContext *s)
@@ -1338,9 +1338,8 @@ static void tcg_liveness_analysis(TCGContext *s)
     int oi, oi_prev, nb_ops;
 
     nb_ops = s->gen_next_op_idx;
-    s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
-    s->op_sync_args = tcg_malloc(nb_ops * sizeof(uint8_t));
-    
+    s->op_arg_life = tcg_malloc(nb_ops * sizeof(TCGLifeData));
+
     dead_temps = tcg_malloc(s->nb_temps);
     mem_temps = tcg_malloc(s->nb_temps);
     tcg_la_func_end(s, dead_temps, mem_temps);
@@ -1349,8 +1348,7 @@ static void tcg_liveness_analysis(TCGContext *s)
         int i, nb_iargs, nb_oargs;
         TCGOpcode opc_new, opc_new2;
         bool have_opc_new2;
-        uint16_t dead_args;
-        uint8_t sync_args;
+        TCGLifeData arg_life = 0;
         TCGArg arg;
 
         TCGOp * const op = &s->gen_op_buf[oi];
@@ -1382,15 +1380,13 @@ static void tcg_liveness_analysis(TCGContext *s)
                 do_not_remove_call:
 
                     /* output args are dead */
-                    dead_args = 0;
-                    sync_args = 0;
                     for (i = 0; i < nb_oargs; i++) {
                         arg = args[i];
                         if (dead_temps[arg]) {
-                            dead_args |= (1 << i);
+                            arg_life |= DEAD_ARG << i;
                         }
                         if (mem_temps[arg]) {
-                            sync_args |= (1 << i);
+                            arg_life |= SYNC_ARG << i;
                         }
                         dead_temps[arg] = 1;
                         mem_temps[arg] = 0;
@@ -1411,7 +1407,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                         arg = args[i];
                         if (arg != TCG_CALL_DUMMY_ARG) {
                             if (dead_temps[arg]) {
-                                dead_args |= (1 << i);
+                                arg_life |= DEAD_ARG << i;
                             }
                         }
                     }
@@ -1420,8 +1416,6 @@ static void tcg_liveness_analysis(TCGContext *s)
                         arg = args[i];
                         dead_temps[arg] = 0;
                     }
-                    s->op_dead_args[oi] = dead_args;
-                    s->op_sync_args[oi] = sync_args;
                 }
             }
             break;
@@ -1532,15 +1526,13 @@ static void tcg_liveness_analysis(TCGContext *s)
             } else {
             do_not_remove:
                 /* output args are dead */
-                dead_args = 0;
-                sync_args = 0;
                 for (i = 0; i < nb_oargs; i++) {
                     arg = args[i];
                     if (dead_temps[arg]) {
-                        dead_args |= (1 << i);
+                        arg_life |= DEAD_ARG << i;
                     }
                     if (mem_temps[arg]) {
-                        sync_args |= (1 << i);
+                        arg_life |= SYNC_ARG << i;
                     }
                     dead_temps[arg] = 1;
                     mem_temps[arg] = 0;
@@ -1558,7 +1550,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                 for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                     arg = args[i];
                     if (dead_temps[arg]) {
-                        dead_args |= (1 << i);
+                        arg_life |= DEAD_ARG << i;
                     }
                 }
                 /* input arguments are live for preceding opcodes */
@@ -1566,11 +1558,10 @@ static void tcg_liveness_analysis(TCGContext *s)
                     arg = args[i];
                     dead_temps[arg] = 0;
                 }
-                s->op_dead_args[oi] = dead_args;
-                s->op_sync_args[oi] = sync_args;
             }
             break;
         }
+        s->op_arg_life[oi] = arg_life;
     }
 }
 #else
@@ -1892,11 +1883,11 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
     save_globals(s, allocated_regs);
 }
 
-#define IS_DEAD_ARG(n) ((dead_args >> (n)) & 1)
-#define NEED_SYNC_ARG(n) ((sync_args >> (n)) & 1)
+#define IS_DEAD_ARG(n)   (arg_life & (DEAD_ARG << (n)))
+#define NEED_SYNC_ARG(n) (arg_life & (SYNC_ARG << (n)))
 
 static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
-                               uint16_t dead_args, uint8_t sync_args)
+                               TCGLifeData arg_life)
 {
     TCGTemp *ots;
     tcg_target_ulong val;
@@ -1925,8 +1916,7 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
 }
 
 static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
-                              const TCGArg *args, uint16_t dead_args,
-                              uint8_t sync_args)
+                              const TCGArg *args, TCGLifeData arg_life)
 {
     TCGRegSet allocated_regs;
     TCGTemp *ts, *ots;
@@ -2011,8 +2001,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
 
 static void tcg_reg_alloc_op(TCGContext *s, 
                              const TCGOpDef *def, TCGOpcode opc,
-                             const TCGArg *args, uint16_t dead_args,
-                             uint8_t sync_args)
+                             const TCGArg *args, TCGLifeData arg_life)
 {
     TCGRegSet allocated_regs;
     int i, k, nb_iargs, nb_oargs;
@@ -2178,8 +2167,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
 #endif
 
 static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
-                               const TCGArg * const args, uint16_t dead_args,
-                               uint8_t sync_args)
+                               const TCGArg * const args, TCGLifeData arg_life)
 {
     int flags, nb_regs, i;
     TCGReg reg;
@@ -2400,8 +2388,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         TCGArg * const args = &s->gen_opparam_buf[op->args];
         TCGOpcode opc = op->opc;
         const TCGOpDef *def = &tcg_op_defs[opc];
-        uint16_t dead_args = s->op_dead_args[oi];
-        uint8_t sync_args = s->op_sync_args[oi];
+        TCGLifeData arg_life = s->op_arg_life[oi];
 
         oi_next = op->next;
 #ifdef CONFIG_PROFILER
@@ -2411,11 +2398,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         switch (opc) {
         case INDEX_op_mov_i32:
         case INDEX_op_mov_i64:
-            tcg_reg_alloc_mov(s, def, args, dead_args, sync_args);
+            tcg_reg_alloc_mov(s, def, args, arg_life);
             break;
         case INDEX_op_movi_i32:
         case INDEX_op_movi_i64:
-            tcg_reg_alloc_movi(s, args, dead_args, sync_args);
+            tcg_reg_alloc_movi(s, args, arg_life);
             break;
         case INDEX_op_insn_start:
             if (num_insns >= 0) {
@@ -2440,8 +2427,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
             tcg_out_label(s, arg_label(args[0]), s->code_ptr);
             break;
         case INDEX_op_call:
-            tcg_reg_alloc_call(s, op->callo, op->calli, args,
-                               dead_args, sync_args);
+            tcg_reg_alloc_call(s, op->callo, op->calli, args, arg_life);
             break;
         default:
             /* Sanity check that we've not introduced any unhandled opcodes. */
@@ -2451,7 +2437,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
             /* Note: in order to speed up the code, it would be much
                faster to have specialized register allocator functions for
                some common argument patterns */
-            tcg_reg_alloc_op(s, def, opc, args, dead_args, sync_args);
+            tcg_reg_alloc_op(s, def, opc, args, arg_life);
             break;
         }
 #ifdef CONFIG_DEBUG_TCG
