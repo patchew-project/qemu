@@ -170,7 +170,6 @@ struct ICSIRQState {
 #define XICS_IRQS_SPAPR               1024
 
 qemu_irq xics_get_qirq(XICSState *icp, int irq);
-void xics_set_irq_type(XICSState *icp, int irq, bool lsi);
 int xics_spapr_alloc(XICSState *icp, int src, int irq_hint, bool lsi,
                      Error **errp);
 int xics_spapr_alloc_block(XICSState *icp, int src, int num, bool lsi,
