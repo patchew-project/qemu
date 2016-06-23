@@ -1748,6 +1748,19 @@ Set QOM property @var{property} of object at location @var{path} to value @var{v
 ETEXI
 
     {
+        .name       = "measurements",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Print system measurements",
+        .mhandler.cmd = print_measurements,
+    },
+STEXI
+@item measurements
+@findex measurements
+Redirect Print system measurements
+ETEXI
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
