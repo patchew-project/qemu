@@ -203,6 +203,8 @@ ETEXI
         .mhandler.cmd = sun4m_hmp_info_pic,
 #elif defined(TARGET_LM32)
         .mhandler.cmd = lm32_hmp_info_pic,
+#elif defined(TARGET_PPC)
+        .mhandler.cmd = ppc_hmp_info_pic,
 #else
         .mhandler.cmd = hmp_info_pic,
 #endif

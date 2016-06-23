@@ -3,6 +3,7 @@
 
 #include "target-ppc/cpu-qom.h"
 
+void ppc_hmp_info_pic(Monitor *mon, const QDict *qdict);
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 
 /* PowerPC hardware exceptions management helpers */

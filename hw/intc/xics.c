@@ -35,6 +35,9 @@
 #include "hw/ppc/xics.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
+
+static XICSState *g_xics;
 
 int get_cpu_index_by_dt_id(int cpu_dt_id)
 {
@@ -192,6 +195,9 @@ static void xics_common_initfn(Object *obj)
     object_property_add(obj, "nr_servers", "int",
                         xics_prop_get_nr_servers, xics_prop_set_nr_servers,
                         NULL, NULL, NULL);
+
+    /* For exclusive use of monitor command */
+    g_xics = XICS_COMMON(obj);
 }
 
 static void xics_common_class_init(ObjectClass *oc, void *data)
@@ -634,6 +640,38 @@ static int ics_dispatch_post_load(void *opaque, int version_id)
     }
 
     return 0;
+}
+
+void xics_hmp_info_pic(Monitor *mon, const QDict *qdict)
+{
+    ICSState *ics;
+    uint32_t i;
+
+    for (i = 0; i < g_xics->nr_servers; i++) {
+        ICPState *icp = &g_xics->ss[i];
+
+        if (!icp->output) {
+            continue;
+        }
+        monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                       i, icp->xirr, icp->xirr_owner,
+                       icp->pending_priority, icp->mfrr);
+    }
+    QLIST_FOREACH(ics, &g_xics->ics, list) {
+        monitor_printf(mon, "ICS %4x..%4x %p\n",
+                       ics->offset, ics->offset + ics->nr_irqs - 1, ics);
+        for (i = 0; i < ics->nr_irqs; i++) {
+            ICSIRQState *irq = ics->irqs + i;
+
+            if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+                continue;
+            }
+            monitor_printf(mon, "  %4x %s %02x %02x\n",
+                           ics->offset + i,
+                           (irq->flags & XICS_FLAGS_IRQ_LSI) ? "LSI" : "MSI",
+                           irq->priority, irq->status);
+        }
+    }
 }
 
 static const VMStateDescription vmstate_ics_irq = {

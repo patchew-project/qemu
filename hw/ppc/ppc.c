@@ -27,6 +27,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc_e500.h"
+#include "hw/i386/pc.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpus.h"
@@ -37,6 +38,10 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "trace.h"
+
+#if defined(TARGET_PPC64)
+#include "hw/ppc/xics.h"
+#endif
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -1342,4 +1347,13 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
     }
 
     return NULL;
+}
+
+void ppc_hmp_info_pic(Monitor *mon, const QDict *qdict)
+{
+    /* Call in turn every PIC around. OpenPIC doesn't have one yet */
+#ifdef TARGET_PPC64
+    xics_hmp_info_pic(mon, qdict);
+#endif
+    hmp_info_pic(mon, qdict);
 }
