@@ -997,6 +997,17 @@ static const char * const ldst_name[] =
     [MO_BEQ]  = "beq",
 };
 
+static const char * const alignment_name[(MO_AMASK >> MO_ASHIFT) + 1] = {
+    [MO_UNALN >> MO_ASHIFT]    = "un+",
+    [MO_ALIGN >> MO_ASHIFT]    = "al+",
+    [MO_ALIGN_2 >> MO_ASHIFT]  = "al2+",
+    [MO_ALIGN_4 >> MO_ASHIFT]  = "al4+",
+    [MO_ALIGN_8 >> MO_ASHIFT]  = "al8+",
+    [MO_ALIGN_16 >> MO_ASHIFT] = "al16+",
+    [MO_ALIGN_32 >> MO_ASHIFT] = "al32+",
+    [MO_ALIGN_64 >> MO_ASHIFT] = "al64+",
+};
+
 void tcg_dump_ops(TCGContext *s)
 {
     char buf[128];
@@ -1098,14 +1109,8 @@ void tcg_dump_ops(TCGContext *s)
                     if (op & ~(MO_AMASK | MO_BSWAP | MO_SSIZE)) {
                         qemu_log(",$0x%x,%u", op, ix);
                     } else {
-                        const char *s_al = "", *s_op;
-                        if (op & MO_AMASK) {
-                            if ((op & MO_AMASK) == MO_ALIGN) {
-                                s_al = "al+";
-                            } else {
-                                s_al = "un+";
-                            }
-                        }
+                        const char *s_al, *s_op;
+                        s_al = alignment_name[(op & MO_AMASK) >> MO_ASHIFT];
                         s_op = ldst_name[op & (MO_BSWAP | MO_SSIZE)];
                         qemu_log(",%s%s,%u", s_al, s_op, ix);
                     }
