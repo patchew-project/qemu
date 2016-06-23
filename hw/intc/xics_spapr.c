@@ -114,7 +114,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr, server, priority;
+    uint32_t nr, srcno, server, priority;
 
     if ((nargs != 3) || (nret != 1) || !ics) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -125,13 +125,14 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     server = get_cpu_index_by_dt_id(rtas_ld(args, 1));
     priority = rtas_ld(args, 2);
 
-    if (!ics_valid_irq(ics, nr) || (server >= ics->xics->nr_servers)
+    if (!ics_base_valid_irq(ics, nr) || (server >= ics->xics->nr_servers)
         || (priority > 0xff)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    ics_write_xive(ics, nr, server, priority, priority);
+    srcno = nr - ics->offset;
+    ics_write_xive(ics, srcno, server, priority, priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -142,7 +143,7 @@ static void rtas_get_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                           uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr;
+    uint32_t nr, srcno;
 
     if ((nargs != 1) || (nret != 3) || !ics) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -151,14 +152,15 @@ static void rtas_get_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     nr = rtas_ld(args, 0);
 
-    if (!ics_valid_irq(ics, nr)) {
+    if (!ics_base_valid_irq(ics, nr)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-    rtas_st(rets, 1, ics->irqs[nr - ics->offset].server);
-    rtas_st(rets, 2, ics->irqs[nr - ics->offset].priority);
+    srcno = nr - ics->offset;
+    rtas_st(rets, 1, ics->irqs[srcno].server);
+    rtas_st(rets, 2, ics->irqs[srcno].priority);
 }
 
 static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
@@ -167,7 +169,7 @@ static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                          uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr;
+    uint32_t nr, srcno;
 
     if ((nargs != 1) || (nret != 1) || !ics) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -176,13 +178,14 @@ static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     nr = rtas_ld(args, 0);
 
-    if (!ics_valid_irq(ics, nr)) {
+    if (!ics_base_valid_irq(ics, nr)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server, 0xff,
-                   ics->irqs[nr - ics->offset].priority);
+    srcno = nr - ics->offset;
+    ics_write_xive(ics, srcno, ics->irqs[srcno].server, 0xff,
+                          ics->irqs[srcno].priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -193,7 +196,7 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                         uint32_t nret, target_ulong rets)
 {
     ICSState *ics = QLIST_FIRST(&spapr->xics->ics);
-    uint32_t nr;
+    uint32_t nr, srcno;
 
     if ((nargs != 1) || (nret != 1) || !ics) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -202,14 +205,15 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     nr = rtas_ld(args, 0);
 
-    if (!ics_valid_irq(ics, nr)) {
+    if (!ics_base_valid_irq(ics, nr)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server,
-                   ics->irqs[nr - ics->offset].saved_priority,
-                   ics->irqs[nr - ics->offset].saved_priority);
+    srcno = nr - ics->offset;
+    ics_write_xive(ics, srcno, ics->irqs[srcno].server,
+                          ics->irqs[srcno].saved_priority,
+                          ics->irqs[srcno].saved_priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }

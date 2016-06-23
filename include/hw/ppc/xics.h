@@ -117,6 +117,10 @@ struct ICPState {
     bool cap_irq_xics_enabled;
 };
 
+#define TYPE_ICS_BASE "ics-base"
+#define ICS_BASE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SIMPLE)
+
+/* Retain ics for sPAPR for migration from existing sPAPR guests */
 #define TYPE_ICS "ics"
 #define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
 
@@ -133,6 +137,9 @@ struct ICSStateClass {
 
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
+    void (*reject)(ICSState *s, uint32_t irq);
+    void (*resend)(ICSState *s);
+    void (*eoi)(ICSState *s, uint32_t irq);
 };
 
 struct ICSState {
@@ -147,7 +154,7 @@ struct ICSState {
     QLIST_ENTRY(ICSState) list;
 };
 
-static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
+static inline bool ics_base_valid_irq(ICSState *ics, uint32_t nr)
 {
     return (ics->offset != 0) && (nr >= ics->offset)
         && (nr < (ics->offset + ics->nr_irqs));
@@ -190,7 +197,7 @@ uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr);
 void icp_eoi(XICSState *icp, int server, uint32_t xirr);
 
 void ics_write_xive(ICSState *ics, int nr, int server,
-                    uint8_t priority, uint8_t saved_priority);
+                           uint8_t priority, uint8_t saved_priority);
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 

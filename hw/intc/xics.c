@@ -220,9 +220,32 @@ static const TypeInfo xics_common_info = {
 #define XISR(ss)   (((ss)->xirr) & XISR_MASK)
 #define CPPR(ss)   (((ss)->xirr) >> 24)
 
-static void ics_reject(ICSState *ics, int nr);
-static void ics_resend(ICSState *ics);
-static void ics_eoi(ICSState *ics, int nr);
+static void ics_base_reject(ICSState *ics, uint32_t nr)
+{
+    ICSStateClass *k = ICS_GET_CLASS(ics);
+
+    if (k->reject) {
+        k->reject(ics, nr);
+    }
+}
+
+static void ics_base_resend(ICSState *ics)
+{
+    ICSStateClass *k = ICS_GET_CLASS(ics);
+
+    if (k->resend) {
+        k->resend(ics);
+    }
+}
+
+static void ics_base_eoi(ICSState *ics, int nr)
+{
+    ICSStateClass *k = ICS_GET_CLASS(ics);
+
+    if (k->eoi) {
+        k->eoi(ics, nr);
+    }
+}
 
 static void icp_check_ipi(ICPState *ss, int server)
 {
@@ -233,7 +256,7 @@ static void icp_check_ipi(ICPState *ss, int server)
     trace_xics_icp_check_ipi(server, ss->mfrr);
 
     if (XISR(ss) && ss->xirr_owner) {
-        ics_reject(ss->xirr_owner, XISR(ss));
+        ics_base_reject(ss->xirr_owner, XISR(ss));
     }
 
     ss->xirr = (ss->xirr & ~XISR_MASK) | XICS_IPI;
@@ -251,7 +274,7 @@ static void icp_resend(XICSState *xics, int server)
         icp_check_ipi(ss, server);
     }
     QLIST_FOREACH(ics, &xics->ics, list) {
-        ics_resend(ics);
+        ics_base_resend(ics);
     }
 }
 
@@ -271,7 +294,7 @@ void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
             ss->pending_priority = 0xff;
             qemu_irq_lower(ss->output);
             if (ss->xirr_owner) {
-                ics_reject(ss->xirr_owner, old_xisr);
+                ics_base_reject(ss->xirr_owner, old_xisr);
                 ss->xirr_owner = NULL;
             }
         }
@@ -325,8 +348,8 @@ void icp_eoi(XICSState *xics, int server, uint32_t xirr)
     trace_xics_icp_eoi(server, xirr, ss->xirr);
     irq = xirr & XISR_MASK;
     QLIST_FOREACH(ics, &xics->ics, list) {
-        if (ics_valid_irq(ics, irq)) {
-            ics_eoi(ics, irq);
+        if (ics_base_valid_irq(ics, irq)) {
+            ics_base_eoi(ics, irq);
         }
     }
     if (!XISR(ss)) {
@@ -343,10 +366,10 @@ static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 
     if ((priority >= CPPR(ss))
         || (XISR(ss) && (ss->pending_priority <= priority))) {
-        ics_reject(ics, nr);
+        ics_base_reject(ics, nr);
     } else {
         if (XISR(ss) && ss->xirr_owner) {
-            ics_reject(ss->xirr_owner, XISR(ss));
+            ics_base_reject(ss->xirr_owner, XISR(ss));
             ss->xirr_owner = NULL;
         }
         ss->xirr = (ss->xirr & ~XISR_MASK) | (nr & XISR_MASK);
@@ -425,7 +448,7 @@ static const TypeInfo icp_info = {
 /*
  * ICS: Source layer
  */
-static void resend_msi(ICSState *ics, int srcno)
+static void ics_resend_msi(ICSState *ics, int srcno)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -438,7 +461,7 @@ static void resend_msi(ICSState *ics, int srcno)
     }
 }
 
-static void resend_lsi(ICSState *ics, int srcno)
+static void ics_resend_lsi(ICSState *ics, int srcno)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -450,7 +473,7 @@ static void resend_lsi(ICSState *ics, int srcno)
     }
 }
 
-static void set_irq_msi(ICSState *ics, int srcno, int val)
+static void ics_set_irq_msi(ICSState *ics, int srcno, int val)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -466,7 +489,7 @@ static void set_irq_msi(ICSState *ics, int srcno, int val)
     }
 }
 
-static void set_irq_lsi(ICSState *ics, int srcno, int val)
+static void ics_set_irq_lsi(ICSState *ics, int srcno, int val)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -476,7 +499,7 @@ static void set_irq_lsi(ICSState *ics, int srcno, int val)
     } else {
         irq->status &= ~XICS_STATUS_ASSERTED;
     }
-    resend_lsi(ics, srcno);
+    ics_resend_lsi(ics, srcno);
 }
 
 static void ics_set_irq(void *opaque, int srcno, int val)
@@ -484,13 +507,13 @@ static void ics_set_irq(void *opaque, int srcno, int val)
     ICSState *ics = (ICSState *)opaque;
 
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
-        set_irq_lsi(ics, srcno, val);
+        ics_set_irq_lsi(ics, srcno, val);
     } else {
-        set_irq_msi(ics, srcno, val);
+        ics_set_irq_msi(ics, srcno, val);
     }
 }
 
-static void write_xive_msi(ICSState *ics, int srcno)
+static void ics_write_xive_msi(ICSState *ics, int srcno)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -503,31 +526,30 @@ static void write_xive_msi(ICSState *ics, int srcno)
     icp_irq(ics, irq->server, srcno + ics->offset, irq->priority);
 }
 
-static void write_xive_lsi(ICSState *ics, int srcno)
+static void ics_write_xive_lsi(ICSState *ics, int srcno)
 {
-    resend_lsi(ics, srcno);
+    ics_resend_lsi(ics, srcno);
 }
 
-void ics_write_xive(ICSState *ics, int nr, int server,
-                    uint8_t priority, uint8_t saved_priority)
+void ics_write_xive(ICSState *ics, int srcno, int server,
+                           uint8_t priority, uint8_t saved_priority)
 {
-    int srcno = nr - ics->offset;
     ICSIRQState *irq = ics->irqs + srcno;
 
     irq->server = server;
     irq->priority = priority;
     irq->saved_priority = saved_priority;
 
-    trace_xics_ics_write_xive(nr, srcno, server, priority);
+    trace_xics_ics_write_xive(ics->offset + srcno, srcno, server, priority);
 
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
-        write_xive_lsi(ics, srcno);
+        ics_write_xive_lsi(ics, srcno);
     } else {
-        write_xive_msi(ics, srcno);
+        ics_write_xive_msi(ics, srcno);
     }
 }
 
-static void ics_reject(ICSState *ics, int nr)
+static void ics_reject(ICSState *ics, uint32_t nr)
 {
     ICSIRQState *irq = ics->irqs + nr - ics->offset;
 
@@ -543,14 +565,14 @@ static void ics_resend(ICSState *ics)
     for (i = 0; i < ics->nr_irqs; i++) {
         /* FIXME: filter by server#? */
         if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
-            resend_lsi(ics, i);
+            ics_resend_lsi(ics, i);
         } else {
-            resend_msi(ics, i);
+            ics_resend_msi(ics, i);
         }
     }
 }
 
-static void ics_eoi(ICSState *ics, int nr)
+static void ics_eoi(ICSState *ics, uint32_t nr)
 {
     int srcno = nr - ics->offset;
     ICSIRQState *irq = ics->irqs + srcno;
@@ -639,7 +661,8 @@ static const VMStateDescription vmstate_ics = {
         VMSTATE_UINT32_EQUAL(nr_irqs, ICSState),
 
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
-                                             vmstate_ics_irq, ICSIRQState),
+                                             vmstate_ics_irq,
+                                             ICSIRQState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -672,15 +695,26 @@ static void ics_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_ics;
     dc->reset = ics_reset;
     isc->post_load = ics_post_load;
+    isc->reject = ics_reject;
+    isc->resend = ics_resend;
+    isc->eoi = ics_eoi;
 }
 
 static const TypeInfo ics_info = {
     .name = TYPE_ICS,
-    .parent = TYPE_DEVICE,
+    .parent = TYPE_ICS_BASE,
     .instance_size = sizeof(ICSState),
     .class_init = ics_class_init,
     .class_size = sizeof(ICSStateClass),
     .instance_init = ics_initfn,
+};
+
+static const TypeInfo ics_base_info = {
+    .name = TYPE_ICS_BASE,
+    .parent = TYPE_DEVICE,
+    .abstract = true,
+    .instance_size = sizeof(ICSState),
+    .class_size = sizeof(ICSStateClass),
 };
 
 /*
@@ -691,7 +725,7 @@ ICSState *xics_find_source(XICSState *xics, int irq)
     ICSState *ics;
 
     QLIST_FOREACH(ics, &xics->ics, list) {
-        if (ics_valid_irq(ics, irq)) {
+        if (ics_base_valid_irq(ics, irq)) {
             return ics;
         }
     }
@@ -721,6 +755,7 @@ static void xics_register_types(void)
 {
     type_register_static(&xics_common_info);
     type_register_static(&ics_info);
+    type_register_static(&ics_base_info);
     type_register_static(&icp_info);
 }
 
