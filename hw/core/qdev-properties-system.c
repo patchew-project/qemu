@@ -72,8 +72,17 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
                         const char *propname, Error **errp)
 {
     BlockBackend *blk;
+    bool blk_created = false;
 
     blk = blk_by_name(str);
+    if (!blk) {
+        BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
+        if (bs) {
+            blk = blk_new();
+            blk_insert_bs(blk, bs);
+            blk_created = true;
+        }
+    }
     if (!blk) {
         error_setg(errp, "Property '%s.%s' can't find value '%s'",
                    object_get_typename(OBJECT(dev)), propname, str);
@@ -91,9 +100,16 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
             error_setg(errp, "Drive '%s' is already in use by another device",
                        str);
         }
-        return;
+        goto fail;
     }
+
     *ptr = blk;
+
+fail:
+    if (blk_created) {
+        /* If we need to keep a reference, blk_attach_dev() took it */
+        blk_unref(blk);
+    }
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
