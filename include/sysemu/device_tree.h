@@ -45,12 +45,16 @@ char **qemu_fdt_node_path(void *fdt, const char *name, char *compat,
 
 int qemu_fdt_setprop(void *fdt, const char *node_path,
                      const char *property, const void *val, int size);
+int qemu_fdt_appendprop(void *fdt, const char *node_path,
+                     const char *property, const void *val, int size);
 int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
                           const char *property, uint32_t val);
 int qemu_fdt_setprop_u64(void *fdt, const char *node_path,
                          const char *property, uint64_t val);
 int qemu_fdt_setprop_string(void *fdt, const char *node_path,
                             const char *property, const char *string);
+int qemu_fdt_appendprop_string(void *fdt, const char *node_path,
+                               const char *property, const char *string);
 int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
                              const char *property,
                              const char *target_node_path);
@@ -97,6 +101,20 @@ int qemu_fdt_add_subnode(void *fdt, const char *name);
         qemu_fdt_setprop(fdt, node_path, property, qdt_tmp,                   \
                          sizeof(qdt_tmp));                                    \
     } while (0)
+
+
+#define qemu_fdt_appendprop_cells(fdt, node_path, property, ...)              \
+    do {                                                                      \
+        uint32_t qdt_tmp[] = { __VA_ARGS__ };                                 \
+        int i;                                                                \
+                                                                              \
+        for (i = 0; i < ARRAY_SIZE(qdt_tmp); i++) {                           \
+            qdt_tmp[i] = cpu_to_be32(qdt_tmp[i]);                             \
+        }                                                                     \
+        qemu_fdt_appendprop(fdt, node_path, property, qdt_tmp,                \
+                         sizeof(qdt_tmp));                                    \
+    } while (0)
+
 
 void qemu_fdt_dumpdtb(void *fdt, int size);
 

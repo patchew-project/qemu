@@ -297,6 +297,24 @@ int qemu_fdt_setprop(void *fdt, const char *node_path,
     return r;
 }
 
+int qemu_fdt_appendprop(void *fdt, const char *node_path,
+                     const char *property, const void *val, int size)
+{
+    int r;
+
+    r = fdt_appendprop(fdt, findnode_nofail(fdt, node_path), property,
+                       val, size);
+    if (r < 0) {
+        error_report("%s: Couldn't set %s/%s: %s", __func__, node_path,
+                     property, fdt_strerror(r));
+        exit(1);
+    }
+
+    return r;
+}
+
+
+
 int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
                           const char *property, uint32_t val)
 {
@@ -318,6 +336,23 @@ int qemu_fdt_setprop_u64(void *fdt, const char *node_path,
     val = cpu_to_be64(val);
     return qemu_fdt_setprop(fdt, node_path, property, &val, sizeof(val));
 }
+
+int qemu_fdt_appendprop_string(void *fdt, const char *node_path,
+                            const char *property, const char *string)
+{
+    int r;
+
+    r = fdt_appendprop_string(fdt, findnode_nofail(fdt, node_path),
+                              property, string);
+    if (r < 0) {
+        error_report("%s: Couldn't set %s/%s = %s: %s", __func__,
+                     node_path, property, string, fdt_strerror(r));
+        exit(1);
+    }
+
+    return r;
+}
+
 
 int qemu_fdt_setprop_string(void *fdt, const char *node_path,
                             const char *property, const char *string)
