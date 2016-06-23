@@ -83,7 +83,7 @@ struct XICSState {
     uint32_t nr_servers;
     uint32_t nr_irqs;
     ICPState *ss;
-    ICSState *ics;
+    QLIST_HEAD(, ICSState) ics;
 };
 
 #define TYPE_ICP "icp"
@@ -109,6 +109,7 @@ struct ICPState {
     DeviceState parent_obj;
     /*< public >*/
     CPUState *cs;
+    ICSState *xirr_owner;
     uint32_t xirr;
     uint8_t pending_priority;
     uint8_t mfrr;
@@ -143,6 +144,7 @@ struct ICSState {
     qemu_irq *qirqs;
     ICSIRQState *irqs;
     XICSState *xics;
+    QLIST_ENTRY(ICSState) list;
 };
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
@@ -170,10 +172,9 @@ struct ICSIRQState {
 #define XICS_IRQS_SPAPR               1024
 
 qemu_irq xics_get_qirq(XICSState *icp, int irq);
-int xics_spapr_alloc(XICSState *icp, int src, int irq_hint, bool lsi,
-                     Error **errp);
-int xics_spapr_alloc_block(XICSState *icp, int src, int num, bool lsi,
-                           bool align, Error **errp);
+int xics_spapr_alloc(XICSState *icp, int irq_hint, bool lsi, Error **errp);
+int xics_spapr_alloc_block(XICSState *icp, int num, bool lsi, bool align,
+                           Error **errp);
 void xics_spapr_free(XICSState *icp, int irq, int num);
 
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
@@ -193,6 +194,6 @@ void ics_write_xive(ICSState *ics, int nr, int server,
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 
-int xics_find_source(XICSState *icp, int irq);
+ICSState *xics_find_source(XICSState *icp, int irq);
 
 #endif /* __XICS_H__ */

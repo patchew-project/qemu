@@ -365,7 +365,13 @@ static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
 static void xics_kvm_set_nr_irqs(XICSState *xics, uint32_t nr_irqs,
                                  Error **errp)
 {
-    xics->nr_irqs = xics->ics->nr_irqs = nr_irqs;
+    ICSState *ics = QLIST_FIRST(&xics->ics);
+
+    /* This needs to be deprecated ... */
+    xics->nr_irqs = nr_irqs;
+    if (ics) {
+        ics->nr_irqs = nr_irqs;
+    }
 }
 
 static void xics_kvm_set_nr_servers(XICSState *xics, uint32_t nr_servers,
@@ -398,6 +404,7 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
 {
     KVMXICSState *xicskvm = KVM_XICS(dev);
     XICSState *xics = XICS_COMMON(dev);
+    ICSState *ics;
     int i, rc;
     Error *error = NULL;
     struct kvm_create_device xics_create_device = {
@@ -449,10 +456,12 @@ static void xics_kvm_realize(DeviceState *dev, Error **errp)
 
     xicskvm->kernel_xics_fd = xics_create_device.fd;
 
-    object_property_set_bool(OBJECT(xics->ics), true, "realized", &error);
-    if (error) {
-        error_propagate(errp, error);
-        goto fail;
+    QLIST_FOREACH(ics, &xics->ics, list) {
+        object_property_set_bool(OBJECT(ics), true, "realized", &error);
+        if (error) {
+            error_propagate(errp, error);
+            goto fail;
+        }
     }
 
     assert(xics->nr_servers);
@@ -481,10 +490,14 @@ fail:
 static void xics_kvm_initfn(Object *obj)
 {
     XICSState *xics = XICS_COMMON(obj);
+    ICSState *ics;
 
-    xics->ics = ICS(object_new(TYPE_KVM_ICS));
-    object_property_add_child(obj, "ics", OBJECT(xics->ics), NULL);
-    xics->ics->xics = xics;
+    QLIST_INIT(&xics->ics);
+
+    ics = ICS(object_new(TYPE_KVM_ICS));
+    object_property_add_child(obj, "ics", OBJECT(ics), NULL);
+    ics->xics = xics;
+    QLIST_INSERT_HEAD(&xics->ics, ics, list);
 }
 
 static void xics_kvm_class_init(ObjectClass *oc, void *data)
