@@ -289,14 +289,9 @@ static void xics_spapr_realize(DeviceState *dev, Error **errp)
 static void xics_spapr_initfn(Object *obj)
 {
     XICSState *xics = XICS(obj);
-    ICSState *ics;
 
     QLIST_INIT(&xics->ics);
-
-    ics = ICS(object_new(TYPE_ICS));
-    object_property_add_child(obj, "ics", OBJECT(ics), NULL);
-    ics->xics = xics;
-    QLIST_INSERT_HEAD(&xics->ics, ics, list);
+    xics_add_ics(xics);
 }
 
 static void xics_spapr_class_init(ObjectClass *oc, void *data)

@@ -195,5 +195,6 @@ void ics_write_xive(ICSState *ics, int nr, int server,
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 
 ICSState *xics_find_source(XICSState *icp, int irq);
+void xics_add_ics(XICSState *xics);
 
 #endif /* __XICS_H__ */
