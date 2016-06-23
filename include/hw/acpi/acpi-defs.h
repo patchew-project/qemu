@@ -259,6 +259,90 @@ typedef struct AcpiFacsDescriptorRev1 AcpiFacsDescriptorRev1;
  */
 
 /*
+ * IORT Table
+ */
+struct AcpiIortTable
+{
+    ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
+    uint32_t num_nodes;
+    uint32_t node_offset;
+    uint32_t reserved;
+} QEMU_PACKED;
+typedef struct AcpiIortTable AcpiIortTable;
+
+struct AcpiIortIdMapping
+{
+    uint32_t input_base;
+    uint32_t num_ids;
+    uint32_t output_base;
+    uint32_t output_ref;
+    uint32_t flags;
+} QEMU_PACKED;
+typedef struct AcpiIortIdMapping AcpiIortIdMapping;
+
+struct AcpiIortNode
+{
+    uint8_t  type;
+    uint16_t length;
+    uint8_t  revision;
+    uint32_t reserved1;
+    uint32_t num_id_maps;
+    uint32_t id_array_offset;
+} QEMU_PACKED;
+typedef struct AcpiIortNode AcpiIortNode;
+
+struct AcpiIortSmmu2
+{
+    AcpiIortNode iort_node;
+    uint64_t base_addr;
+    uint64_t span;
+    uint32_t model;
+    uint32_t flags;
+    uint32_t gbl_intr_array_off;
+    uint32_t ctx_intr_cnt;
+    uint32_t ctx_intr_array_off;
+    uint32_t pmr_intr_cnt;
+    uint32_t pmr_intr_array_off;
+
+    // Global interrupt array
+    uint32_t gintr;
+    uint32_t gintr_flags;
+    uint32_t gcfgintr;
+    uint32_t gcfgintr_flags;
+
+    //AcpiIortIdMapping id_mapping_array[0];
+} QEMU_PACKED;
+typedef struct AcpiIortSmmu2 AcpiIortSmmu2;
+
+struct AcpiIortSmmu3
+{
+    AcpiIortNode iort_node;
+    uint64_t base_addr;
+    uint32_t flags;
+    uint32_t reserved2;
+    uint64_t vatos_addr;
+    uint32_t model;
+    uint32_t event_irq;
+    uint32_t pri_irq;
+    uint32_t gerr_irq;
+    uint32_t sync_irq;
+
+    //AcpiIortIdMapping id_mapping_array[0];
+} QEMU_PACKED;
+typedef struct AcpiIortSmmu3 AcpiIortSmmu3;
+
+struct AcpiIortRC
+{
+    AcpiIortNode iort_node;
+    uint64_t mem_access_prop;
+    uint32_t ats_attr;
+    uint32_t pci_seg_num;
+
+    AcpiIortIdMapping id_mapping_array[0];
+} QEMU_PACKED;
+typedef struct AcpiIortRC AcpiIortRC;
+
+/*
  * MADT values and structures
  */
 

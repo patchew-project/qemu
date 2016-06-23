@@ -382,6 +382,45 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt_tbl_offset)
     return rsdp_table;
 }
 
+/*
+ * TODO: Simple IORT for now, will add ID mappings as we go
+ * basic idea is to instantiate SMMU from ACPI
+ */
+static void
+build_iort(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
+{
+    int iort_start = table_data->len;
+    AcpiIortTable *iort;
+    AcpiIortNode *iort_node;
+    AcpiIortSmmu3 *smmu;
+    AcpiIortRC *rc;
+    const MemMapEntry *memmap = guest_info->memmap;
+
+    iort = acpi_data_push(table_data, sizeof(*iort));
+
+    iort->length = sizeof(*iort);
+    iort->node_offset = table_data->len - iort_start;
+    iort->num_nodes++;
+
+    smmu = acpi_data_push(table_data, sizeof(*smmu));
+    iort_node = &smmu->iort_node;
+    iort_node->type = 0x04;          /* SMMUv3 */
+    iort_node->length = sizeof(*smmu);
+    smmu->base_addr = cpu_to_le64(memmap[VIRT_SMMU].base);
+
+    iort->num_nodes++;
+
+    rc = acpi_data_push(table_data, sizeof(*rc));
+    iort_node = &rc->iort_node;
+    iort_node->type = 0x02;          /* RC */
+    iort_node->length = sizeof(*rc);
+    rc->ats_attr = 1;
+    rc->pci_seg_num = 0;
+
+    build_header(linker, table_data, (void *)(table_data->data + iort_start),
+                 "IORT", table_data->len - iort_start, 0, NULL, NULL);
+}
+
 static void
 build_spcr(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
 {
@@ -668,6 +707,7 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
      * MADT
      * MCFG
      * DSDT
+     * IORT = ACPI 6.0
      */
 
     /* DSDT is pointed to by FADT */
@@ -694,6 +734,9 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
         acpi_add_table(table_offsets, tables_blob);
         build_srat(tables_blob, tables->linker, guest_info);
     }
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_iort(tables_blob, tables->linker, guest_info);
 
     /* RSDT is pointed to by RSDP */
     rsdt = tables_blob->len;
