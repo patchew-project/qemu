@@ -156,3 +156,6 @@ memory_region_tb_write(int cpu_index, uint64_t addr, uint64_t value, unsigned si
 #
 # Targets: TCG(all)
 disable vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+
+# hw/misc/aspeed_scu.c
+aspeed_scu_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
