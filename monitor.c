@@ -32,6 +32,7 @@
 #include "hw/pci/pci.h"
 #include "sysemu/watchdog.h"
 #include "hw/loader.h"
+#include "hw/misc/measurements.h"
 #include "exec/gdbstub.h"
 #include "net/net.h"
 #include "net/slirp.h"

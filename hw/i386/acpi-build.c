@@ -107,6 +107,7 @@ typedef struct AcpiMiscInfo {
     unsigned dsdt_size;
     uint16_t pvpanic_port;
     uint16_t applesmc_io_base;
+    uint16_t measurements_io_base;
 } AcpiMiscInfo;
 
 typedef struct AcpiBuildPciBusHotplugState {
@@ -203,6 +204,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->tpm_version = tpm_get_version();
     info->pvpanic_port = pvpanic_port();
     info->applesmc_io_base = applesmc_port();
+    info->measurements_io_base = measurements_port();
 }
 
 /*
@@ -2185,6 +2187,26 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dsdt, scope);
     }
 
+    if (misc->measurements_io_base) {
+        scope = aml_scope("\\_SB.PCI0.ISA");
+        dev = aml_device("PCRS");
+
+        aml_append(dev, aml_name_decl("_HID", aml_string("CORE0001")));
+        /* device present, functioning, decoding, not shown in UI */
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+
+        crs = aml_resource_template();
+        aml_append(crs,
+               aml_io(AML_DECODE16, misc->measurements_io_base,
+                      misc->measurements_io_base,
+                      0x01, 2)
+        );
+        aml_append(dev, aml_name_decl("_CRS", crs));
+
+        aml_append(scope, dev);
+        aml_append(dsdt, scope);
+    }
+
     sb_scope = aml_scope("\\_SB");
     {
         build_memory_devices(sb_scope, nr_mem, pm->mem_hp_io_base,
@@ -2569,7 +2591,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         acpi_add_table(table_offsets, tables_blob);
         build_hpet(tables_blob, tables->linker);
     }
-    if (misc.tpm_version != TPM_VERSION_UNSPEC) {
+    if (misc.tpm_version != TPM_VERSION_UNSPEC || misc.measurements_io_base) {
         acpi_add_table(table_offsets, tables_blob);
         build_tpm_tcpa(tables_blob, tables->linker, tables->tcpalog);
 
