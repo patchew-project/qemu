@@ -5,8 +5,6 @@
 
 #define TYPE_IRQ "irq"
 
-typedef struct IRQState *qemu_irq;
-
 typedef void (*qemu_irq_handler)(void *opaque, int n, int level);
 
 void qemu_set_irq(qemu_irq irq, int level);

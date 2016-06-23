@@ -543,11 +543,9 @@ blacklisted-headers :=					\
 	include/hw/input/hid.h				\
 	include/hw/intc/allwinner-a10-pic.h		\
 	include/hw/isa/i8257.h				\
-	include/hw/isa/vt82c686.h			\
 	include/hw/kvm/clock.h				\
 	include/hw/mips/bios.h				\
 	include/hw/mips/cpudevs.h			\
-	include/hw/mips/mips.h				\
 	include/hw/misc/mips_cmgcr.h			\
 	include/hw/misc/mips_cpc.h			\
 	include/hw/misc/mips_itu.h			\
