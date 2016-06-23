@@ -1196,6 +1196,23 @@ static BlockBackend *qmp_get_blk(const char *blk_name, const char *qdev_id,
     return blk;
 }
 
+static BlockDriverState *qmp_get_root_bs(const char *name, Error **errp)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_lookup_bs(name, name, errp);
+    if (bs == NULL) {
+        return NULL;
+    }
+
+    if (!bdrv_has_blk(bs)) {
+        error_setg(errp, "Need a root block node");
+        return NULL;
+    }
+
+    return bs;
+}
+
 void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
@@ -3041,7 +3058,6 @@ void qmp_block_stream(const char *device,
                       bool has_on_error, BlockdevOnError on_error,
                       Error **errp)
 {
-    BlockBackend *blk;
     BlockDriverState *bs;
     BlockDriverState *base_bs = NULL;
     AioContext *aio_context;
@@ -3052,21 +3068,13 @@ void qmp_block_stream(const char *device,
         on_error = BLOCKDEV_ON_ERROR_REPORT;
     }
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    bs = qmp_get_root_bs(device, errp);
+    if (!bs) {
         return;
     }
 
-    aio_context = blk_get_aio_context(blk);
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!blk_is_available(blk)) {
-        error_setg(errp, "Device '%s' has no medium", device);
-        goto out;
-    }
-    bs = blk_bs(blk);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
         goto out;

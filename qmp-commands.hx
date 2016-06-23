@@ -1118,7 +1118,7 @@ Copy data from a backing file into a block device.
 
 Arguments:
 
-- "device": The device's ID, must be unique (json-string)
+- "device": The device name or node-name of a root node (json-string)
 - "base": The file name of the backing image above which copying starts
           (json-string, optional)
 - "backing-file": The backing file string to write into the active layer. This
