@@ -2463,8 +2463,8 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
         if (c->has_socket) {
             monitor_printf(mon, "    socket: \"%" PRIu64 "\"\n", c->socket);
         }
-        if (c->has_core) {
-            monitor_printf(mon, "    core: \"%" PRIu64 "\"\n", c->core);
+        if (c->has_core_id) {
+            monitor_printf(mon, "    core: \"%" PRIu64 "\"\n", c->core_id);
         }
         if (c->has_thread) {
             monitor_printf(mon, "    thread: \"%" PRIu64 "\"\n", c->thread);

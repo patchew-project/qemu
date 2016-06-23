@@ -4271,7 +4271,7 @@
 #
 # @node: #optional NUMA node ID the CPU belongs to
 # @socket: #optional socket number within node/board the CPU belongs to
-# @core: #optional core number within socket the CPU belongs to
+# @core-id: #optional core number within socket the CPU belongs to
 # @thread: #optional thread number within core the CPU belongs to
 #
 # Since: 2.7
@@ -4279,7 +4279,7 @@
 { 'struct': 'CpuInstanceProperties',
   'data': { '*node': 'int',
             '*socket': 'int',
-            '*core': 'int',
+            '*core-id': 'int',
             '*thread': 'int'
   }
 }
