@@ -779,7 +779,8 @@ int ide_handle_rw_error(IDEState *s, int error, int op)
     BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
-        assert(s->bus->retry_unit == s->unit);
+        assert(!(IS_IDE_RETRY_DMA(op) || IS_IDE_RETRY_PIO(op))
+                || s->bus->retry_unit == s->unit);
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         block_acct_failed(blk_get_stats(s->blk), &s->acct);
