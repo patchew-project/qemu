@@ -437,9 +437,9 @@ void tcg_func_start(TCGContext *s)
     s->goto_tb_issue_mask = 0;
 #endif
 
-    s->gen_first_op_idx = 0;
-    s->gen_last_op_idx = -1;
-    s->gen_next_op_idx = 0;
+    s->gen_op_buf[0].next = 1;
+    s->gen_op_buf[0].prev = 0;
+    s->gen_next_op_idx = 1;
     s->gen_next_parm_idx = 0;
 
     s->be = tcg_malloc(sizeof(TCGBackendData));
@@ -868,7 +868,7 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
     /* Make sure the calli field didn't overflow.  */
     tcg_debug_assert(s->gen_op_buf[i].calli == real_args);
 
-    s->gen_last_op_idx = i;
+    s->gen_op_buf[0].prev = i;
     s->gen_next_op_idx = i + 1;
     s->gen_next_parm_idx = pi;
 
@@ -1004,7 +1004,7 @@ void tcg_dump_ops(TCGContext *s)
     TCGOp *op;
     int oi;
 
-    for (oi = s->gen_first_op_idx; oi >= 0; oi = op->next) {
+    for (oi = s->gen_op_buf[0].next; oi != 0; oi = op->next) {
         int i, k, nb_oargs, nb_iargs, nb_cargs;
         const TCGOpDef *def;
         const TCGArg *args;
@@ -1016,7 +1016,7 @@ void tcg_dump_ops(TCGContext *s)
         args = &s->gen_opparam_buf[op->args];
 
         if (c == INDEX_op_insn_start) {
-            qemu_log("%s ----", oi != s->gen_first_op_idx ? "\n" : "");
+            qemu_log("%s ----", oi != s->gen_op_buf[0].next ? "\n" : "");
 
             for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
                 target_ulong a;
@@ -1287,18 +1287,10 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     int next = op->next;
     int prev = op->prev;
 
-    if (next >= 0) {
-        s->gen_op_buf[next].prev = prev;
-    } else {
-        s->gen_last_op_idx = prev;
-    }
-    if (prev >= 0) {
-        s->gen_op_buf[prev].next = next;
-    } else {
-        s->gen_first_op_idx = next;
-    }
+    s->gen_op_buf[next].prev = prev;
+    s->gen_op_buf[prev].next = next;
 
-    memset(op, -1, sizeof(*op));
+    memset(op, 0, sizeof(*op));
 
 #ifdef CONFIG_PROFILER
     s->del_op_count++;
@@ -1344,7 +1336,7 @@ static void tcg_liveness_analysis(TCGContext *s)
     mem_temps = tcg_malloc(s->nb_temps);
     tcg_la_func_end(s, dead_temps, mem_temps);
 
-    for (oi = s->gen_last_op_idx; oi >= 0; oi = oi_prev) {
+    for (oi = s->gen_op_buf[0].prev; oi != 0; oi = oi_prev) {
         int i, nb_iargs, nb_oargs;
         TCGOpcode opc_new, opc_new2;
         bool have_opc_new2;
@@ -2321,7 +2313,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     {
         int n;
 
-        n = s->gen_last_op_idx + 1;
+        n = s->gen_op_buf[0].prev + 1;
         s->op_count += n;
         if (n > s->op_count_max) {
             s->op_count_max = n;
@@ -2380,7 +2372,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     tcg_out_tb_init(s);
 
     num_insns = -1;
-    for (oi = s->gen_first_op_idx; oi >= 0; oi = oi_next) {
+    for (oi = s->gen_op_buf[0].next; oi != 0; oi = oi_next) {
         TCGOp * const op = &s->gen_op_buf[oi];
         TCGArg * const args = &s->gen_opparam_buf[op->args];
         TCGOpcode opc = op->opc;
