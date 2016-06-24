@@ -1009,6 +1009,7 @@ void tcg_dump_ops(TCGContext *s)
         const TCGOpDef *def;
         const TCGArg *args;
         TCGOpcode c;
+        long pos = ftell(qemu_logfile);
 
         op = &s->gen_op_buf[oi];
         c = op->opc;
@@ -1131,6 +1132,31 @@ void tcg_dump_ops(TCGContext *s)
             }
             for (; i < nb_cargs; i++, k++) {
                 qemu_log("%s$0x%" TCG_PRIlx, k ? "," : "", args[k]);
+            }
+        }
+        if (op->life) {
+            unsigned life = op->life;
+
+            for (i = ftell(qemu_logfile) - pos; i < 48; ++i) {
+                putc(' ', qemu_logfile);
+            }
+
+            if (life & (SYNC_ARG * 3)) {
+                qemu_log("  sync:");
+                for (i = 0; i < 2; ++i) {
+                    if (life & (SYNC_ARG << i)) {
+                        qemu_log(" %d", i);
+                    }
+                }
+            }
+            life /= DEAD_ARG;
+            if (life) {
+                qemu_log("  dead:");
+                for (i = 0; life; ++i, life >>= 1) {
+                    if (life & 1) {
+                        qemu_log(" %d", i);
+                    }
+                }
             }
         }
         qemu_log("\n");
