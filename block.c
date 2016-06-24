@@ -2582,6 +2582,7 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
         bdrv_dirty_bitmap_truncate(bs);
         bdrv_parent_cb_resize(bs);
+        bs->dirty = true; /* file node sync is needed after truncate */
     }
     return ret;
 }

@@ -2239,6 +2239,25 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
         goto flush_parent;
     }
 
+    /* Check if storage is actually dirty before flushing to disk */
+    if (!bs->dirty) {
+        /* Flush requests are appended to tracked request list in order so that
+         * most recent request is at the head of the list. Following code uses
+         * this ordering to wait for the most recent flush request to complete
+         * to ensure that requests return in order */
+        BdrvTrackedRequest *prev_req;
+        QLIST_FOREACH(prev_req, &bs->tracked_requests, list) {
+            if (prev_req == &req || prev_req->type != BDRV_TRACKED_FLUSH) {
+                continue;
+            }
+
+            qemu_co_queue_wait(&prev_req->wait_queue);
+            break;
+        }
+        goto flush_parent;
+    }
+    bs->dirty = false;
+
     BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_DISK);
     if (bs->drv->bdrv_co_flush_to_disk) {
         ret = bs->drv->bdrv_co_flush_to_disk(bs);

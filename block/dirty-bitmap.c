@@ -370,6 +370,9 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
         }
         hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
     }
+
+    /* Set global block driver dirty flag even if bitmap is disabled */
+    bs->dirty = true;
 }
 
 /**

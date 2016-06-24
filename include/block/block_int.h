@@ -418,6 +418,8 @@ struct BlockDriverState {
     int sg;        /* if true, the device is a /dev/sg* */
     int copy_on_read; /* if true, copy read backing sectors into image
                          note this is a reference count */
+
+    bool dirty;
     bool probed;
 
     BlockDriver *drv; /* NULL means no media */
