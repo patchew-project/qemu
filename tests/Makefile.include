@@ -752,7 +752,7 @@ tests/headers/%.c: tests/header-test-template.c
 
 # Consolidated targets
 
-.PHONY: check-qapi-schema check-qtest check-unit check check-source check-clean
+.PHONY: check-qapi-schema check-qtest check-unit check check-block check-source check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y))
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
