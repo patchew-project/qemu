@@ -2586,6 +2586,25 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
     return ret;
 }
 
+int bdrv_apply_snapshot(BlockDriverState *bs, const char *snapshot_id,
+                        uint64_t snapshot_size)
+{
+    int ret = bdrv_snapshot_goto(bs, snapshot_id);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = refresh_total_sectors(bs, snapshot_size >> BDRV_SECTOR_BITS);
+    if (ret < 0) {
+        return ret;
+    }
+    bdrv_dirty_bitmap_truncate(bs);
+    if (bs->blk) {
+        blk_dev_resize_cb(bs->blk);
+    }
+    return ret;
+}
+
 /**
  * Length of a allocated file in bytes. Sparse files are counted by actual
  * allocated space. Return < 0 if error or unknown.

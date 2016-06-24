@@ -527,6 +527,7 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 void *cb_opaque, Error **errp);
 
 /* qcow2-cluster.c functions */
+int shrink_l1_table(BlockDriverState *bs, int64_t new_l1_size);
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);

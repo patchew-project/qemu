@@ -32,6 +32,35 @@
 #include "qemu/bswap.h"
 #include "trace.h"
 
+int shrink_l1_table(BlockDriverState *bs, int64_t new_l1_size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t old_l1_size = s->l1_size;
+    s->l1_size = new_l1_size;
+    int ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset,
+                                             s->l1_size, 1);
+    if (ret < 0) {
+        return ret;
+    }
+
+    s->l1_size = old_l1_size;
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset,
+                                         s->l1_size, -1);
+    if (ret < 0) {
+        return ret;
+    }
+    s->l1_size = new_l1_size;
+
+    uint32_t be_l1_size = cpu_to_be32(s->l1_size);
+    ret = bdrv_pwrite_sync(bs->file->bs, offsetof(QCowHeader, l1_size),
+                           &be_l1_size, sizeof(be_l1_size));
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size)
 {
