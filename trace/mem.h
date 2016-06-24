@@ -7,6 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TRACE__MEM_H
 #define TRACE__MEM_H
 

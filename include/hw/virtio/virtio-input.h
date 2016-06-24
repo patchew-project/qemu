@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _QEMU_VIRTIO_INPUT_H
 #define _QEMU_VIRTIO_INPUT_H
 

@@ -30,6 +30,8 @@
  * udp.h,v 1.3 1994/08/21 05:27:41 paul Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _UDP_H_
 #define _UDP_H_
 

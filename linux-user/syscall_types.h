@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 STRUCT_SPECIAL(termios)
 
 STRUCT(winsize,

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XLNX_SPIPS_H
 #define XLNX_SPIPS_H
 

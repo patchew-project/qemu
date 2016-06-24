@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef AW_A10_PIT_H
 #define AW_A10_PIT_H
 

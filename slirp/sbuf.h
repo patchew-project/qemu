@@ -5,6 +5,8 @@
  * terms and conditions of the copyright.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _SBUF_H_
 #define _SBUF_H_
 

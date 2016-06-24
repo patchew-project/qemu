@@ -22,6 +22,8 @@
  * private to it and not required by the rest of QEMU.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_ARM_INTERNALS_H
 #define TARGET_ARM_INTERNALS_H
 

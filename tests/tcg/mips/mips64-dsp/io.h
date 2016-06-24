@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _ASM_IO_H
 #define _ASM_IO_H
 extern int printf(const char *fmt, ...);

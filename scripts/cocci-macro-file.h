@@ -9,6 +9,8 @@
  * option, any later version.  See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* Coccinelle only does limited parsing of headers, and chokes on some idioms
  * defined in compiler.h and queue.h.  Macros that Coccinelle must know about
  * in order to parse .c files must be in a separate macro file---which is

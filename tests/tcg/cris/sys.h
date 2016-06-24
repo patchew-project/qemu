@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #include <unistd.h>
 
 #define STRINGIFY(x) #x

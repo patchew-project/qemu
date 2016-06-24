@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_PCNET_H
 #define HW_PCNET_H 1
 

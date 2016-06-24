@@ -10,6 +10,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CIO_H
 #define CIO_H
 

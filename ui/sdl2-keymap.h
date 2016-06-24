@@ -1,3 +1,4 @@
+/* FIXME Does not pass make check-headers, yet! */
 
 /* map SDL2 scancodes to QKeyCode */
 

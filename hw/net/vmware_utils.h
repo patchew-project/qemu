@@ -14,6 +14,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VMWARE_UTILS_H
 #define VMWARE_UTILS_H
 

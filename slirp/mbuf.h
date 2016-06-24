@@ -30,6 +30,8 @@
  * mbuf.h,v 1.9 1994/11/14 13:54:20 bde Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _MBUF_H_
 #define _MBUF_H_
 

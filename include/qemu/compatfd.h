@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef QEMU_COMPATFD_H
 #define QEMU_COMPATFD_H
 

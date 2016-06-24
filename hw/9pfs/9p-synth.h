@@ -10,6 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_9PFS_SYNTH_H
 #define HW_9PFS_SYNTH_H 1
 

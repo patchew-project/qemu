@@ -1,3 +1,4 @@
+/* FIXME Does not pass make check-headers, yet! */
 
 void glue(glue(test_, OP), b)(long op0, long op1)
 {

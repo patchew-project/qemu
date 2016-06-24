@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_CURSES_KEYS_H
 #define QEMU_CURSES_KEYS_H 1
 

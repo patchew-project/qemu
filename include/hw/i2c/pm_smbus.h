@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PM_SMBUS_H
 #define PM_SMBUS_H
 

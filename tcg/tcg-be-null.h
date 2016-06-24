@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 typedef struct TCGBackendData {
     /* Empty */
     char dummy;

@@ -6,6 +6,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __KVM_PPC_H__
 #define __KVM_PPC_H__
 

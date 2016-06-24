@@ -7,7 +7,9 @@
  *
  * Copyright (C) 2012-2014 Imagination Technologies Ltd.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
-*/
+ */
+
+/* FIXME Does not pass make check-headers, yet! */
 
 #ifndef __KVM_MIPS_H__
 #define __KVM_MIPS_H__

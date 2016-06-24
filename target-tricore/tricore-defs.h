@@ -15,6 +15,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined(__QEMU_TRICORE_DEFS_H__)
 #define __QEMU_TRICORE_DEFS_H__
 

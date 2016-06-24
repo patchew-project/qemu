@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MULTIBOOT_H
 #define MULTIBOOT_H
 

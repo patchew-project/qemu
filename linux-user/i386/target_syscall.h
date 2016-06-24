@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_SYSCALL_H
 #define TARGET_SYSCALL_H
 

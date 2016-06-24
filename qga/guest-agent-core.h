@@ -10,6 +10,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #include "qapi/qmp/dispatch.h"
 #include "qemu-common.h"
 #include "qga-qmp-commands.h"

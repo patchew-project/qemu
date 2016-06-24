@@ -8,6 +8,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef VFIO_H
 #define VFIO_H
 

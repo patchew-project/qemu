@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_XTENSA_BOOTPARAM
 #define HW_XTENSA_BOOTPARAM
 

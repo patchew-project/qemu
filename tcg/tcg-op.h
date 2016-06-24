@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #include "tcg.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"

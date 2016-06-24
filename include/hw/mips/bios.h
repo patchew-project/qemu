@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #include "cpu.h"
 
 #define BIOS_SIZE (4 * 1024 * 1024)

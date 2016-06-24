@@ -12,6 +12,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XILINX_UARTLITE_H
 #define XILINX_UARTLITE_H
 

@@ -8,6 +8,9 @@
  * published by the Free Software Foundation, or (at your option) any
  * later version. See the COPYING file in the top-level directory.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_UNICORE32_CPU_H
 #define QEMU_UNICORE32_CPU_H
 

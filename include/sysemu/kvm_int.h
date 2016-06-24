@@ -6,6 +6,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_KVM_INT_H
 #define QEMU_KVM_INT_H
 

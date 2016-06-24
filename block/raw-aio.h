@@ -12,6 +12,9 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_RAW_AIO_H
 #define QEMU_RAW_AIO_H
 

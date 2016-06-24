@@ -17,6 +17,8 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef __LINUX_KVM_POWERPC_H
 #define __LINUX_KVM_POWERPC_H
 

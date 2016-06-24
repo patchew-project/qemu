@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CPU_SPARC_H
 #define CPU_SPARC_H
 

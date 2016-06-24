@@ -17,6 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * These are helper functions for creating the hardware description blob used
  * in the Theobroma's uClinux port.

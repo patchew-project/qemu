@@ -18,6 +18,8 @@
     along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __FPA11_H__
 #define __FPA11_H__
 

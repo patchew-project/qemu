@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined (__MIPS_CPU_H__)
 #define __MIPS_CPU_H__
 

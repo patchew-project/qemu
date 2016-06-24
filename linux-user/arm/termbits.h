@@ -1,6 +1,8 @@
 /* from asm/termbits.h */
 /* NOTE: exactly the same as i386 */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #define TARGET_NCCS 19
 
 struct target_termios {

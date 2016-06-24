@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * This header is for use by exec.c and memory.c ONLY.  Do not include it.
  * The functions declared here will be removed soon.

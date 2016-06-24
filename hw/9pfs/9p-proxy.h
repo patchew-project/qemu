@@ -9,6 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
  */
+
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef _QEMU_9P_PROXY_H
 #define _QEMU_9P_PROXY_H
 

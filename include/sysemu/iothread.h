@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef IOTHREAD_H
 #define IOTHREAD_H
 

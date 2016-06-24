@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MEMORY_MAPPING_H
 #define MEMORY_MAPPING_H
 

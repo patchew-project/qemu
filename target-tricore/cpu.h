@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined(__TRICORE_CPU_H__)
 #define __TRICORE_CPU_H__
 

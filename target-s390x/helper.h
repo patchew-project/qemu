@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 DEF_HELPER_2(exception, noreturn, env, i32)
 DEF_HELPER_FLAGS_4(nc, TCG_CALL_NO_WG, i32, env, i32, i64, i64)
 DEF_HELPER_FLAGS_4(oc, TCG_CALL_NO_WG, i32, env, i32, i64, i64)

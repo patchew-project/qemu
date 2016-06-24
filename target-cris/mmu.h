@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #define CRIS_MMU_ERR_EXEC  0
 #define CRIS_MMU_ERR_READ  1
 #define CRIS_MMU_ERR_WRITE 2

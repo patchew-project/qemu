@@ -5,6 +5,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_SIGNAL_H
 #define TARGET_SIGNAL_H
 

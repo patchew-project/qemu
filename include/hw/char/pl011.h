@@ -12,6 +12,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PL011_UART_H
 #define PL011_UART_H
 

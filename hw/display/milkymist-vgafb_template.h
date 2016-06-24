@@ -18,6 +18,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if BITS == 8
 #define COPY_PIXEL(to, r, g, b)                    \
     do {                                           \

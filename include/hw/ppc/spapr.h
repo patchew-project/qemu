@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined(__HW_SPAPR_H__)
 #define __HW_SPAPR_H__
 

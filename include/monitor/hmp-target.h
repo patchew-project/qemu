@@ -21,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MONITOR_COMMON_H
 #define MONITOR_COMMON_H
 

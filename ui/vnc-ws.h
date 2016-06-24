@@ -18,6 +18,8 @@
  * along with this software; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __QEMU_UI_VNC_WS_H
 #define __QEMU_UI_VNC_WS_H
 

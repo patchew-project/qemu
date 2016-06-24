@@ -3,6 +3,9 @@
  *
  * This file is licensed under the GNU GPL.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_SHARPSL_H
 #define QEMU_SHARPSL_H
 

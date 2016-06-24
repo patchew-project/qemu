@@ -10,6 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
+
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef _FILEOP_H
 #define _FILEOP_H
 #include <dirent.h>

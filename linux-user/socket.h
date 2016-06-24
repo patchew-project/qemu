@@ -1,3 +1,4 @@
+/* FIXME Does not pass make check-headers, yet! */
 
 #if defined(TARGET_MIPS)
     /* MIPS special values for constants */

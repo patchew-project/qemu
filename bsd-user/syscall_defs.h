@@ -1,6 +1,8 @@
 /*      $OpenBSD: signal.h,v 1.19 2006/01/08 14:20:16 millert Exp $     */
 /*      $NetBSD: signal.h,v 1.21 1996/02/09 18:25:32 christos Exp $     */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *      The Regents of the University of California.  All rights reserved.

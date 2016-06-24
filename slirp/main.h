@@ -4,6 +4,9 @@
  * Please read the file COPYRIGHT for the
  * terms and conditions of the copyright.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SLIRP_MAIN_H
 #define SLIRP_MAIN_H 1
 

@@ -24,6 +24,9 @@
  * THE SOFTWARE.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined(__XICS_H__)
 #define __XICS_H__
 

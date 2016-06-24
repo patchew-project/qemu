@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SDL_zoom_h
 #define SDL_zoom_h
 

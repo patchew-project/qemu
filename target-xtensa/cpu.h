@@ -25,6 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CPU_XTENSA_H
 #define CPU_XTENSA_H
 

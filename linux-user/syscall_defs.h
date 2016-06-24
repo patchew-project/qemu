@@ -1,5 +1,7 @@
 /* common syscall defines for all architectures */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* Note: although the syscall numbers change between architectures,
    most of them stay the same, so we handle it by putting ifdefs if
    necessary */

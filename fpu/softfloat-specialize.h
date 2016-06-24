@@ -15,6 +15,8 @@
  * indicated otherwise.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
 ===============================================================================
 This C source fragment is part of the SoftFloat IEC/IEEE Floating-point

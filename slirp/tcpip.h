@@ -30,6 +30,8 @@
  * tcpip.h,v 1.3 1994/08/21 05:27:40 paul Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _TCPIP_H_
 #define _TCPIP_H_
 

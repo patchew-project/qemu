@@ -9,6 +9,9 @@
  * Changed system calls macros _syscall5 - _syscall7 to push args 5 to 7 onto
  * the stack. Robin Farine for ACN S.A, Copyright (C) 1996 by ACN S.A
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _ASM_UNISTD_H
 #define _ASM_UNISTD_H
 

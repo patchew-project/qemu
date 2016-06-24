@@ -16,6 +16,8 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef __ARM_KVM_H__
 #define __ARM_KVM_H__
 

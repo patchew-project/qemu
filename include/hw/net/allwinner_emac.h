@@ -19,6 +19,9 @@
  * GNU General Public License for more details.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef AW_EMAC_H
 #define AW_EMAC_H
 

@@ -6,6 +6,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef _LINUX_USERFAULTFD_H
 #define _LINUX_USERFAULTFD_H
 

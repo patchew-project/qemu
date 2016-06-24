@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __FMOPL_H_
 #define __FMOPL_H_
 

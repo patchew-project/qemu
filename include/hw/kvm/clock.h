@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifdef CONFIG_KVM
 
 void kvmclock_create(void);

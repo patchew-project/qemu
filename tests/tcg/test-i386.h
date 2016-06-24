@@ -1,3 +1,4 @@
+/* FIXME Does not pass make check-headers, yet! */
 
 #define exec_op glue(exec_, OP)
 #define exec_opq glue(glue(exec_, OP), q)

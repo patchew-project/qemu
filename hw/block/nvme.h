@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_NVME_H
 #define HW_NVME_H
 #include "qemu/cutils.h"

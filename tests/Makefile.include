@@ -413,6 +413,16 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 $(test-obj-y): QEMU_INCLUDES += -Itests
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
 
+# All headers
+src-headers := $(filter %.h, $(shell cd $(SRC_PATH) && git ls-files))
+gen-headers := $(filter %.h, $(GENERATED_HEADERS))
+# Headers that need more than just #include "qemu/osdep.h" to compile
+excluded-header-with-$(CONFIG_WIN32) := ( with CONFIG_WIN32)?
+excluded-header-comment := /* FIXME Does not pass make check-headers$(excluded-header-with-y), yet!
+excluded-headers := $(shell cd $(SRC_PATH) && egrep -l '$(excluded-header-comment)' $(src-headers))
+excluded-headers += $(shell egrep -l '$(excluded-header-comment)' $(gen-headers))
+checked-headers := $(filter-out $(excluded-headers), $(src-headers) $(gen-headers))
+-include $(patsubst %.h,tests/headers/%.d, $(checked-headers))
 
 # Deps that are common to various different sets of tests below
 test-util-obj-y = libqemuutil.a libqemustub.a
@@ -647,6 +657,7 @@ check-help:
 	@echo " make check-unit           Run qobject tests"
 	@echo " make check-qapi-schema    Run QAPI schema tests"
 	@echo " make check-block          Run block tests"
+	@echo " make check-source         Run source code tests"
 	@echo " make check-report.html    Generates an HTML test report"
 	@echo " make check-clean          Clean the tests"
 	@echo
@@ -728,14 +739,26 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 	@perl -p -e 's|\Q$(SRC_PATH)\E/||g' $*.test.err | diff -q $(SRC_PATH)/$*.err -
 	@diff -q $(SRC_PATH)/$*.exit $*.test.exit
 
+# Header sanity checking
+
+.PHONY: check-headers check-excluded-headers
+check-headers: $(patsubst %.h,tests/headers/%.o, $(checked-headers))
+# Expected to fail:
+check-excluded-headers: $(patsubst %.h,tests/headers/%.o, $(excluded-headers))
+
+tests/headers/%.c: tests/header-test-template.c
+	@mkdir -p $(dir $@)
+	@sed 's,@header@,$(subst tests/headers/,,$(@:.c=.h)),' <$< >$@
+
 # Consolidated targets
 
-.PHONY: check-qapi-schema check-qtest check-unit check check-clean
+.PHONY: check-qapi-schema check-qtest check-unit check check-source check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y))
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
-check: check-qapi-schema check-unit check-qtest
+check-source: check-headers
+check: check-qapi-schema check-unit check-qtest check-source
 check-clean:
 	$(MAKE) -C tests/tcg clean
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)

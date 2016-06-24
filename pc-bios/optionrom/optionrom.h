@@ -18,6 +18,8 @@
  *   Authors: Alexander Graf <agraf@suse.de>
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 
 #include "../../include/hw/nvram/fw_cfg_keys.h"
 

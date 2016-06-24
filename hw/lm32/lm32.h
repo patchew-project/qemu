@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_LM32_H
 #define HW_LM32_H 1
 

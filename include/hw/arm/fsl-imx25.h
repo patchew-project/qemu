@@ -14,6 +14,8 @@
  * for more details.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef FSL_IMX25_H
 #define FSL_IMX25_H
 

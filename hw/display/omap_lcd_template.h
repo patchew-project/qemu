@@ -27,6 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if DEPTH == 32
 # define BPP 4
 # define PIXEL_TYPE uint32_t

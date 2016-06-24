@@ -17,6 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* exception */
 DEF_HELPER_FLAGS_2(exception, 0, void, env, i32)
 

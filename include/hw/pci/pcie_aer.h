@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_PCIE_AER_H
 #define QEMU_PCIE_AER_H
 

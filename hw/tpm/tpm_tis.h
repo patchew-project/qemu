@@ -14,6 +14,9 @@
  * http://www.trustedcomputinggroup.org
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TPM_TPM_TIS_H
 #define TPM_TPM_TIS_H
 

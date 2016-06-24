@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef NVRAM_H
 #define NVRAM_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SPARC32_DMA_H
 #define SPARC32_DMA_H
 

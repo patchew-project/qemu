@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef XEN_PT_H
 #define XEN_PT_H
 

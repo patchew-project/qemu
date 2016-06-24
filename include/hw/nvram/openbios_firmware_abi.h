@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef FIRMWARE_ABI_H
 #define FIRMWARE_ABI_H
 

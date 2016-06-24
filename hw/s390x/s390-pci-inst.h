@@ -11,6 +11,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_S390_PCI_INST_H
 #define HW_S390_PCI_INST_H
 

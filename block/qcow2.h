@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef BLOCK_QCOW2_H
 #define BLOCK_QCOW2_H
 

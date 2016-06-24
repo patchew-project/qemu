@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined (__QEMU_MIPS_DEFS_H__)
 #define __QEMU_MIPS_DEFS_H__
 

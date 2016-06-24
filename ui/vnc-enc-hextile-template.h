@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #define CONCAT_I(a, b) a ## b
 #define CONCAT(a, b) CONCAT_I(a, b)
 #define pixel_t CONCAT(uint, CONCAT(BPP, _t))

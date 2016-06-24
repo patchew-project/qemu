@@ -10,6 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _QEMU_9P_XATTR_H
 #define _QEMU_9P_XATTR_H
 

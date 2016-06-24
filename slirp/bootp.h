@@ -1,4 +1,7 @@
 /* bootp/dhcp defines */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SLIRP_BOOTP_H
 #define SLIRP_BOOTP_H 1
 

@@ -30,6 +30,8 @@
  * tcp.h,v 1.3 1994/08/21 05:27:34 paul Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _TCP_H_
 #define _TCP_H_
 

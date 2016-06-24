@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_NE2000_H
 #define HW_NE2000_H 1
 

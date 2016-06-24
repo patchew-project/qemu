@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __XEN_BLKIF_H__
 #define __XEN_BLKIF_H__
 

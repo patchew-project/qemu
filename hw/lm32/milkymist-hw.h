@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_HW_MILKYMIST_H
 #define QEMU_HW_MILKYMIST_H
 

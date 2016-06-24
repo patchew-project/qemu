@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_EXTRAXFS_H
 #define HW_EXTRAXFS_H 1
 

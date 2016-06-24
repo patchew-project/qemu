@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if DEPTH == 8
 #define BPP 1
 #define PIXEL_TYPE uint8_t

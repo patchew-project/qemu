@@ -3,6 +3,8 @@
  * Guillaume Subiron, Yann Bordenave, Serigne Modou Wagne.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SLIRP_NETINET_ICMP6_H_
 #define SLIRP_NETINET_ICMP6_H_
 

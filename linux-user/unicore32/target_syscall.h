@@ -5,6 +5,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __UC32_SYSCALL_H__
 #define __UC32_SYSCALL_H__
 struct target_pt_regs {

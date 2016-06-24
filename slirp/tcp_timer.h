@@ -30,6 +30,8 @@
  * tcp_timer.h,v 1.4 1994/08/21 05:27:38 paul Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _TCP_TIMER_H_
 #define _TCP_TIMER_H_
 

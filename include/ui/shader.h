@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef QEMU_SHADER_H
 #define QEMU_SHADER_H
 

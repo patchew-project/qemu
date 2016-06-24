@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_PCI_BUS_H
 #define QEMU_PCI_BUS_H
 

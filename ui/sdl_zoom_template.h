@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if BPP == 16
 #define SDL_TYPE Uint16
 #elif BPP == 32

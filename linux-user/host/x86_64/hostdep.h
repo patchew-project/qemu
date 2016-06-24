@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef QEMU_HOSTDEP_H
 #define QEMU_HOSTDEP_H
 

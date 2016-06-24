@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_MIPS_H
 #define HW_MIPS_H
 /* Definitions for mips board emulation.  */

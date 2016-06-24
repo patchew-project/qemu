@@ -16,6 +16,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * Generate inline load/store functions for all MMU modes (typically
  * at least _user and _kernel) as well as _data versions, for all data

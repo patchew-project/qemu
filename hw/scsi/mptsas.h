@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MPTSAS_H
 #define MPTSAS_H
 

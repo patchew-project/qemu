@@ -5,6 +5,8 @@
  * terms and conditions of the copyright.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _SLIRP_SOCKET_H_
 #define _SLIRP_SOCKET_H_
 

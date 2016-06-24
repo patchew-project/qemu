@@ -7,6 +7,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _MIPS_GCR_H
 #define _MIPS_GCR_H
 

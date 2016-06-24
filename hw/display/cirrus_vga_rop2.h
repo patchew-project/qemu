@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if DEPTH == 8
 #define PUTPIXEL()    ROP_OP(&d[0], col)
 #elif DEPTH == 16

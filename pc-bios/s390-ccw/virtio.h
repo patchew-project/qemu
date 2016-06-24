@@ -8,6 +8,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VIRTIO_H
 #define VIRTIO_H
 

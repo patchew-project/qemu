@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _QEMU_BALLOON_H
 #define _QEMU_BALLOON_H
 

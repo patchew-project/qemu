@@ -21,6 +21,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_IDE_AHCI_H
 #define HW_IDE_AHCI_H
 

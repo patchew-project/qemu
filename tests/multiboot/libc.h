@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef LIBC_H
 #define LIBC_H
 

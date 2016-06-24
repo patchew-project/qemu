@@ -6,6 +6,8 @@
  * top-level directory.
  */
 
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef _IVSHMEM_SERVER_H_
 #define _IVSHMEM_SERVER_H_
 

@@ -9,6 +9,8 @@
  * top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _QEMU_VIRTIO_RNG_H
 #define _QEMU_VIRTIO_RNG_H
 

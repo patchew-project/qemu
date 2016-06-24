@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _CRIS_BOOT_H
 #define HW_CRIS_BOOT_H 1
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _HW_SPAPR_VIO_H
 #define _HW_SPAPR_VIO_H
 /*

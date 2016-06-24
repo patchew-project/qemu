@@ -9,6 +9,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SCSI_H
 #define SCSI_H
 

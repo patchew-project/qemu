@@ -17,6 +17,8 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __POWERPC_KVM_PARA_H__
 #define __POWERPC_KVM_PARA_H__
 

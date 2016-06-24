@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __QEMU_THREAD_WIN32_H
 #define __QEMU_THREAD_WIN32_H 1
 #include "windows.h"

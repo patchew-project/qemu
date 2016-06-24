@@ -18,6 +18,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_PPC_CPU_MODELS_H
 #define TARGET_PPC_CPU_MODELS_H
 

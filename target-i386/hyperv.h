@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HYPERV_I386_H
 #define HYPERV_I386_H
 

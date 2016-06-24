@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef APB_PCI_H
 #define APB_PCI_H
 

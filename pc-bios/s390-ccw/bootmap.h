@@ -8,6 +8,9 @@
  * your option) any later version. See the COPYING file in the top-level
  * directory.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _PC_BIOS_S390_CCW_BOOTMAP_H
 #define _PC_BIOS_S390_CCW_BOOTMAP_H
 

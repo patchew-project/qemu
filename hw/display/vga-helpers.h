@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 static inline void vga_draw_glyph_line(uint8_t *d, uint32_t font_data,
                                        uint32_t xorcol, uint32_t bgcol)
 {

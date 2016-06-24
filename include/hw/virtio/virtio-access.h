@@ -12,6 +12,9 @@
  * (at your option) any later version.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _QEMU_VIRTIO_ACCESS_H
 #define _QEMU_VIRTIO_ACCESS_H
 #include "hw/virtio/virtio.h"

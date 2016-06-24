@@ -30,6 +30,8 @@
  * ip_icmp.h,v 1.4 1995/05/30 08:09:43 rgrimes Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _NETINET_IP_ICMP_H_
 #define _NETINET_IP_ICMP_H_
 

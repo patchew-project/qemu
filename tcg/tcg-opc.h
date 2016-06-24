@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * DEF(name, oargs, iargs, cargs, flags)
  */

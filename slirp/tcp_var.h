@@ -30,6 +30,8 @@
  * tcp_var.h,v 1.3 1994/08/21 05:27:39 paul Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _TCP_VAR_H_
 #define _TCP_VAR_H_
 

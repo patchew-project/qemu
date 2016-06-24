@@ -9,6 +9,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_S390_VIRTIO_H
 #define HW_S390_VIRTIO_H 1
 

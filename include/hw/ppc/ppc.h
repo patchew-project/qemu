@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_PPC_H
 #define HW_PPC_H 1
 

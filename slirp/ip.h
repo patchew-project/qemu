@@ -30,6 +30,8 @@
  * ip.h,v 1.3 1994/08/21 05:27:30 paul Exp
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _IP_H_
 #define _IP_H_
 

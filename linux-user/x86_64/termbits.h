@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #define TARGET_NCCS 19
 
 typedef unsigned char	target_cc_t;

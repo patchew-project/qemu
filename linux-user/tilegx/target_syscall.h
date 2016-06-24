@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TILEGX_SYSCALLS_H
 #define TILEGX_SYSCALLS_H
 

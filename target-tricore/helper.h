@@ -15,6 +15,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* Arithmetic */
 DEF_HELPER_3(add_ssov, i32, env, i32, i32)
 DEF_HELPER_3(add64_ssov, i64, env, i64, i64)

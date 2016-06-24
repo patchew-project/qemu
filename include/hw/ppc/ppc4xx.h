@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined(PPC_4XX_H)
 #define PPC_4XX_H
 

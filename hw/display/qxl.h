@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #ifndef HW_QXL_H
 #define HW_QXL_H 1
 

@@ -1,4 +1,7 @@
 /* Declarations for use for CPU state serialization.  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MIGRATION_CPU_H
 #define MIGRATION_CPU_H
 

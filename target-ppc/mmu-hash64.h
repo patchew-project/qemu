@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #if !defined (__MMU_HASH64_H__)
 #define __MMU_HASH64_H__
 

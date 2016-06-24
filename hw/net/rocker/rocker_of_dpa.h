@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef _ROCKER_OF_DPA_H_
 #define _ROCKER_OF_DPA_H_
 

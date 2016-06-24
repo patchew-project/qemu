@@ -9,6 +9,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VIRTIO_SCSI_H
 #define VIRTIO_SCSI_H
 

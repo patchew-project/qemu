@@ -9,6 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
+/* FIXME Does not pass make check-headers with CONFIG_WIN32, yet! */
+
 #if !defined(__HW_SPAPR_DRC_H__)
 #define __HW_SPAPR_DRC_H__
 

@@ -8,6 +8,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef S390_CCW_H
 #define S390_CCW_H
 

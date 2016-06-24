@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 typedef unsigned char   target_openrisc_cc;        /*cc_t*/
 typedef unsigned int    target_openrisc_speed;     /*speed_t*/
 typedef unsigned int    target_openrisc_tcflag;    /*tcflag_t*/

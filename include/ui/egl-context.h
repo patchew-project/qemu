@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef EGL_CONTEXT_H
 #define EGL_CONTEXT_H
 

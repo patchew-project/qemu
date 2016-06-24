@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CRISUTILS_H
 #define CRISUTILS_H 1
 

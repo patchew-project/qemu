@@ -28,6 +28,8 @@
    Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* ------------------------------------------------------------------ */
 /* decNumber package local type, tuning, and macro definitions	      */
 /* ------------------------------------------------------------------ */

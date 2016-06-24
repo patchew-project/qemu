@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_OS_WIN32_H
 #define QEMU_OS_WIN32_H
 

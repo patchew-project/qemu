@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifdef CONFIG_SOFTMMU
 
 typedef struct TCGLabelQemuLdst {

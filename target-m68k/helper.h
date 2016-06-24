@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 DEF_HELPER_1(bitrev, i32, i32)
 DEF_HELPER_1(ff1, i32, i32)
 DEF_HELPER_2(sats, i32, i32, i32)

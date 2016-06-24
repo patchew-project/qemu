@@ -15,6 +15,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef BLOCK_VHDX_H
 #define BLOCK_VHDX_H
 

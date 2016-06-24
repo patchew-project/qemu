@@ -8,6 +8,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TRACE_SIMPLE_H
 #define TRACE_SIMPLE_H
 

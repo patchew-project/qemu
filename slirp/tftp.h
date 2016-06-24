@@ -1,4 +1,7 @@
 /* tftp defines */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SLIRP_TFTP_H
 #define SLIRP_TFTP_H 1
 

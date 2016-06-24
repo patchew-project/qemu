@@ -15,6 +15,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_ARM_DIGIC_H
 #define HW_ARM_DIGIC_H
 
