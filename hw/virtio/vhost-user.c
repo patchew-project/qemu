@@ -31,6 +31,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_MQ = 0,
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
     VHOST_USER_PROTOCOL_F_RARP = 2,
+    VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -82,8 +83,9 @@ typedef struct VhostUserLog {
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
-#define VHOST_USER_VERSION_MASK     (0x3)
-#define VHOST_USER_REPLY_MASK       (0x1<<2)
+#define VHOST_USER_VERSION_MASK         (0x3)
+#define VHOST_USER_REPLY_MASK           (0x1 << 2)
+#define VHOST_USER_NEED_RESPONSE_MASK   (0x1 << 3)
     uint32_t flags;
     uint32_t size; /* the following payload size */
     union {
@@ -239,10 +241,17 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     int i, fd;
     size_t fd_num = 0;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
     VhostUserMsg msg = {
         .request = VHOST_USER_SET_MEM_TABLE,
         .flags = VHOST_USER_VERSION,
     };
+    VhostUserRequest request = msg.request;
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
 
     for (i = 0; i < dev->mem->nregions; ++i) {
         struct vhost_memory_region *reg = dev->mem->regions + i;
@@ -277,6 +286,20 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
 
     vhost_user_write(dev, &msg, fds, fd_num);
 
+    if (reply_supported) {
+        if (vhost_user_read(dev, &msg) < 0) {
+            return 0;
+        }
+
+        if (msg.request != request) {
+            error_report("Received unexpected msg type."
+                            "Expected %d received %d",
+                            request, msg.request);
+            return -1;
+        }
+        return msg.payload.u64 ? -1 : 0;
+    }
+
     return 0;
 }
 
@@ -289,9 +312,29 @@ static int vhost_user_set_vring_addr(struct vhost_dev *dev,
         .payload.addr = *addr,
         .size = sizeof(msg.payload.addr),
     };
+    VhostUserRequest request = msg.request;
 
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
     vhost_user_write(dev, &msg, NULL, 0);
 
+    if (reply_supported) {
+        if (vhost_user_read(dev, &msg) < 0) {
+            return 0;
+        }
+
+        if (msg.request != request) {
+            error_report("Received unexpected msg type."
+                            "Expected %d received %d",
+                            request, msg.request);
+            return -1;
+        }
+        return msg.payload.u64 ? -1 : 0;
+    }
     return 0;
 }
 
@@ -313,8 +356,28 @@ static int vhost_set_vring(struct vhost_dev *dev,
         .size = sizeof(msg.payload.state),
     };
 
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
+
     vhost_user_write(dev, &msg, NULL, 0);
 
+    if (reply_supported) {
+        if (vhost_user_read(dev, &msg) < 0) {
+            return 0;
+        }
+
+        if (msg.request != request) {
+            error_report("Received unexpected msg type."
+                            "Expected %lu received %lu",
+                            request, msg.request);
+            return -1;
+        }
+        return msg.payload.u64 ? -1 : 0;
+    }
     return 0;
 }
 
@@ -395,6 +458,13 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
         .size = sizeof(msg.payload.u64),
     };
 
+    bool reply_Supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
+
     if (ioeventfd_enabled() && file->fd > 0) {
         fds[fd_num++] = file->fd;
     } else {
@@ -402,6 +472,20 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
     }
 
     vhost_user_write(dev, &msg, fds, fd_num);
+
+    if (reply_supported) {
+        if (vhost_user_read(dev, &msg) < 0) {
+            return 0;
+        }
+
+        if (msg.request != request) {
+            error_report("Received unexpected msg type."
+                            "Expected %d received %d",
+                            request, msg.request);
+            return -1;
+        }
+        return msg.payload.u64 ? -1 : 0;
+    }
 
     return 0;
 }
@@ -489,8 +573,30 @@ static int vhost_user_set_owner(struct vhost_dev *dev)
         .flags = VHOST_USER_VERSION,
     };
 
+    VhostUserRequest request = msg.request;
+
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
+
     vhost_user_write(dev, &msg, NULL, 0);
 
+    if (reply_supported) {
+        if (vhost_user_read(dev, &msg) < 0) {
+            return 0;
+        }
+
+        if (msg.request != request) {
+            error_report("Received unexpected msg type."
+                             "Expected %d received %d",
+                             request, msg.request);
+            return -1;
+        }
+        return msg.payload.u64 ? -1 : 0;
+    }
     return 0;
 }
 
@@ -500,9 +606,30 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
         .request = VHOST_USER_RESET_OWNER,
         .flags = VHOST_USER_VERSION,
     };
+    VhostUserRequest request = msg.request;
+
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
 
     vhost_user_write(dev, &msg, NULL, 0);
 
+    if (reply_suported) {
+        if (vhost_user_read(dev, &msg) < 0) {
+            return 0;
+        }
+
+        if (msg.request != request) {
+            error_report("Received unexpected msg type."
+                            "Expected %d received %d",
+                            request, msg.request);
+            return -1;
+        }
+        return msg.payload.u64 ? -1 : 0;
+    }
     return 0;
 }
 
@@ -589,9 +716,15 @@ static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
 {
     VhostUserMsg msg = { 0 };
     int err;
+    VhostUserRequest request = msg.request;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                    VHOST_USER_PROTOCOL_F_REPLY_ACK);
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_RESPONSE_MASK;
+    }
     /* If guest supports GUEST_ANNOUNCE do nothing */
     if (virtio_has_feature(dev->acked_features, VIRTIO_NET_F_GUEST_ANNOUNCE)) {
         return 0;
@@ -606,7 +739,21 @@ static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
         msg.size = sizeof(msg.payload.u64);
 
         err = vhost_user_write(dev, &msg, NULL, 0);
-        return err;
+        if (reply_supported) {
+            if (vhost_user_read(dev, &msg) < 0) {
+                return 0;
+            }
+
+            if (msg.request != request) {
+                error_report("Received unexpected msg type."
+                                "Expected %d received %d",
+                                request, msg.request);
+                return -1;
+            }
+            return msg.payload.u64 ? -1 : 0;
+        } else {
+            return err;
+        }
     }
     return -1;
 }
