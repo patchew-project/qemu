@@ -1,8 +1,7 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef _QEMU_DISAS_H
 #define _QEMU_DISAS_H
 
+#include "exec/hwaddr.h"
 #include "qemu-common.h"
 
 #ifdef NEED_CPU_H

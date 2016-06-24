@@ -1,7 +1,7 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_ESCC_H
 #define HW_ESCC_H 1
+
+#include "exec/hwaddr.h"
 
 /* escc.c */
 #define TYPE_ESCC "escc"

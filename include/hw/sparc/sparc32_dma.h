@@ -1,7 +1,7 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef SPARC32_DMA_H
 #define SPARC32_DMA_H
+
+#include "exec/hwaddr.h"
 
 /* sparc32_dma.c */
 void ledma_memory_read(void *opaque, hwaddr addr,

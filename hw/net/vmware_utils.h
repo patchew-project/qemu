@@ -19,6 +19,7 @@
 #ifndef VMWARE_UTILS_H
 #define VMWARE_UTILS_H
 
+#include "exec/hwaddr.h"
 #include "qemu/range.h"
 #include "vmxnet_debug.h"
 

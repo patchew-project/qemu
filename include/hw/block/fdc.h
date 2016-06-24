@@ -1,8 +1,7 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_FDC_H
 #define HW_FDC_H
 
+#include "exec/hwaddr.h"
 #include "qemu-common.h"
 
 /* fdc.c */

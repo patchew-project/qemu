@@ -3,6 +3,7 @@
 #ifndef MPTSAS_H
 #define MPTSAS_H
 
+#include "exec/hwaddr.h"
 #include "mpi.h"
 
 #define MPTSAS_NUM_PORTS 8

@@ -15,6 +15,7 @@
 #define HW_LM4549_H
 
 #include "audio/audio.h"
+#include "exec/hwaddr.h"
 
 typedef void (*lm4549_callback)(void *opaque);
 
