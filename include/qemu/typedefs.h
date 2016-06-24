@@ -1,9 +1,6 @@
 #ifndef QEMU_TYPEDEFS_H
 #define QEMU_TYPEDEFS_H
 
-/* A load of opaque types so that device init declarations don't have to
-   pull in all the real definitions.  */
-
 /* Please keep this list in alphabetical order */
 typedef struct AdapterInfo AdapterInfo;
 typedef struct AddressSpace AddressSpace;
@@ -34,6 +31,7 @@ typedef struct FWCfgState FWCfgState;
 typedef struct HCIInfo HCIInfo;
 typedef struct I2CBus I2CBus;
 typedef struct I2SCodec I2SCodec;
+typedef struct IRQState *qemu_irq;
 typedef struct ISABus ISABus;
 typedef struct ISADevice ISADevice;
 typedef struct IsaDma IsaDma;

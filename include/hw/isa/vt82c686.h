@@ -1,5 +1,3 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_VT82C686_H
 #define HW_VT82C686_H
 
