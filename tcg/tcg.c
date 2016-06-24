@@ -23,7 +23,6 @@
  */
 
 /* define it to use liveness analysis (better code) */
-#define USE_LIVENESS_ANALYSIS
 #define USE_TCG_OPTIMIZATIONS
 
 #include "qemu/osdep.h"
@@ -1306,7 +1305,6 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
 #endif
 }
 
-#ifdef USE_LIVENESS_ANALYSIS
 /* liveness analysis: end of function: all temps are dead, and globals
    should be in memory. */
 static inline void tcg_la_func_end(TCGContext *s, uint8_t *dead_temps,
@@ -1575,18 +1573,6 @@ static void tcg_liveness_analysis(TCGContext *s)
         }
     }
 }
-#else
-/* dummy liveness analysis */
-static void tcg_liveness_analysis(TCGContext *s)
-{
-    int nb_ops = s->gen_next_op_idx;
-
-    s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
-    memset(s->op_dead_args, 0, nb_ops * sizeof(uint16_t));
-    s->op_sync_args = tcg_malloc(nb_ops * sizeof(uint8_t));
-    memset(s->op_sync_args, 0, nb_ops * sizeof(uint8_t));
-}
-#endif
 
 #ifdef CONFIG_DEBUG_TCG
 static void dump_regs(TCGContext *s)
@@ -1838,7 +1824,6 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
 static inline void temp_save(TCGContext *s, TCGTemp *ts,
                              TCGRegSet allocated_regs)
 {
-#ifdef USE_LIVENESS_ANALYSIS
     /* ??? Liveness does not yet incorporate indirect bases.  */
     if (!ts->indirect_base) {
         /* The liveness analysis already ensures that globals are back
@@ -1846,7 +1831,6 @@ static inline void temp_save(TCGContext *s, TCGTemp *ts,
         tcg_debug_assert(ts->val_type == TEMP_VAL_MEM || ts->fixed_reg);
         return;
     }
-#endif
     temp_sync(s, ts, allocated_regs, 1);
 }
 
@@ -1871,7 +1855,6 @@ static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
 
     for (i = 0; i < s->nb_globals; i++) {
         TCGTemp *ts = &s->temps[i];
-#ifdef USE_LIVENESS_ANALYSIS
         /* ??? Liveness does not yet incorporate indirect bases.  */
         if (!ts->indirect_base) {
             tcg_debug_assert(ts->val_type != TEMP_VAL_REG
@@ -1879,7 +1862,6 @@ static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
                              || ts->mem_coherent);
             continue;
         }
-#endif
         temp_sync(s, ts, allocated_regs, 0);
     }
 }
@@ -1895,7 +1877,6 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
         if (ts->temp_local) {
             temp_save(s, ts, allocated_regs);
         } else {
-#ifdef USE_LIVENESS_ANALYSIS
             /* ??? Liveness does not yet incorporate indirect bases.  */
             if (!ts->indirect_base) {
                 /* The liveness analysis already ensures that temps are dead.
@@ -1903,7 +1884,6 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
                 tcg_debug_assert(ts->val_type == TEMP_VAL_DEAD);
                 continue;
             }
-#endif
             temp_dead(s, ts);
         }
     }
