@@ -257,6 +257,11 @@ int qdev_device_help(QemuOpts *opts)
     DevicePropertyInfoList *prop;
 
     driver = qemu_opt_get(opts, "driver");
+
+    if (driver && access(driver, F_OK == 0) && strlen(driver) == 1) {
+        driver = "?";
+    }
+
     if (driver && is_help_option(driver)) {
         qdev_print_devinfos(false);
         return 1;
