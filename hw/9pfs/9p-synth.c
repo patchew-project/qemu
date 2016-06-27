@@ -412,6 +412,13 @@ static int synth_utimensat(FsContext *fs_ctx, V9fsPath *path,
     return 0;
 }
 
+static int synth_futimens(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                          const struct timespec *buf)
+{
+    errno = EPERM;
+    return -1;
+}
+
 static int synth_remove(FsContext *ctx, const char *path)
 {
     errno = EPERM;
@@ -574,4 +581,5 @@ FileOperations synth_ops = {
     .renameat     = synth_renameat,
     .unlinkat     = synth_unlinkat,
     .ftruncate    = synth_ftruncate,
+    .futimens     = synth_futimens,
 };

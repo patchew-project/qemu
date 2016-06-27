@@ -141,6 +141,8 @@ struct FileOperations
                     V9fsPath *newdir, const char *new_name);
     int (*unlinkat)(FsContext *ctx, V9fsPath *dir, const char *name, int flags);
     int (*ftruncate)(FsContext *, int, V9fsFidOpenState *, off_t);
+    int (*futimens)(FsContext *, int, V9fsFidOpenState *,
+                    const struct timespec *);
     void *opaque;
 };
 

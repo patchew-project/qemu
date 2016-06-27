@@ -923,6 +923,15 @@ static int proxy_utimensat(FsContext *s, V9fsPath *fs_path,
     return retval;
 }
 
+static int proxy_futimens(FsContext *s, int fid_type, V9fsFidOpenState *fs,
+                          const struct timespec *buf)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return qemu_futimens(fd, buf);
+}
+
 static int proxy_remove(FsContext *ctx, const char *path)
 {
     int retval;
@@ -1221,4 +1230,5 @@ FileOperations proxy_ops = {
     .renameat     = proxy_renameat,
     .unlinkat     = proxy_unlinkat,
     .ftruncate    = proxy_ftruncate,
+    .futimens     = proxy_futimens,
 };

@@ -400,6 +400,15 @@ static int handle_utimensat(FsContext *ctx, V9fsPath *fs_path,
     return ret;
 }
 
+static int handle_futimens(FsContext *s, int fid_type, V9fsFidOpenState *fs,
+                           const struct timespec *buf)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return qemu_futimens(fd, buf);
+}
+
 static int handle_remove(FsContext *ctx, const char *path)
 {
     errno = EOPNOTSUPP;
@@ -706,4 +715,5 @@ FileOperations handle_ops = {
     .renameat     = handle_renameat,
     .unlinkat     = handle_unlinkat,
     .ftruncate    = handle_ftruncate,
+    .futimens     = handle_futimens,
 };

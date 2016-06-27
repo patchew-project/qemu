@@ -953,6 +953,15 @@ static int local_utimensat(FsContext *s, V9fsPath *fs_path,
     return ret;
 }
 
+static int local_futimens(FsContext *s, int fid_type, V9fsFidOpenState *fs,
+                          const struct timespec *buf)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return qemu_futimens(fd, buf);
+}
+
 static int local_remove(FsContext *ctx, const char *path)
 {
     int err;
@@ -1290,4 +1299,5 @@ FileOperations local_ops = {
     .renameat  = local_renameat,
     .unlinkat = local_unlinkat,
     .ftruncate = local_ftruncate,
+    .futimens = local_futimens,
 };
