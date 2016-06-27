@@ -269,34 +269,48 @@ err_out:
     return ret;
 }
 
-static int local_set_xattr(const char *path, FsCred *credp)
+static int local_do_setxattr(int fd, const char *path,
+                             const char *name, void *value, size_t size)
+{
+    if (path) {
+        return setxattr(path, name, value, size, 0);
+    } else {
+        return fsetxattr(fd, name, value, size, 0);
+    }
+}
+
+static int local_set_xattr(int fd, const char *path, FsCred *credp)
 {
     int err;
 
     if (credp->fc_uid != -1) {
         uint32_t tmp_uid = cpu_to_le32(credp->fc_uid);
-        err = setxattr(path, "user.virtfs.uid", &tmp_uid, sizeof(uid_t), 0);
+        err = local_do_setxattr(fd, path, "user.virtfs.uid", &tmp_uid,
+                                sizeof(uid_t));
         if (err) {
             return err;
         }
     }
     if (credp->fc_gid != -1) {
         uint32_t tmp_gid = cpu_to_le32(credp->fc_gid);
-        err = setxattr(path, "user.virtfs.gid", &tmp_gid, sizeof(gid_t), 0);
+        err = local_do_setxattr(fd, path, "user.virtfs.gid", &tmp_gid,
+                                sizeof(gid_t));
         if (err) {
             return err;
         }
     }
     if (credp->fc_mode != -1) {
         uint32_t tmp_mode = cpu_to_le32(credp->fc_mode);
-        err = setxattr(path, "user.virtfs.mode", &tmp_mode, sizeof(mode_t), 0);
+        err = local_do_setxattr(fd, path, "user.virtfs.mode", &tmp_mode,
+                                sizeof(mode_t));
         if (err) {
             return err;
         }
     }
     if (credp->fc_rdev != -1) {
         uint64_t tmp_rdev = cpu_to_le64(credp->fc_rdev);
-        err = setxattr(path, "user.virtfs.rdev", &tmp_rdev, sizeof(dev_t), 0);
+        err = local_do_setxattr(fd, path, "user.virtfs.rdev", &tmp_rdev,
+                                sizeof(dev_t));
         if (err) {
             return err;
         }
@@ -489,7 +503,7 @@ static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         buffer = rpath(fs_ctx, path);
-        ret = local_set_xattr(buffer, credp);
+        ret = local_set_xattr(-1, buffer, credp);
         g_free(buffer);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         return local_set_mapped_file_attr(fs_ctx, path, credp);
@@ -522,7 +536,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         if (err == -1) {
             goto out;
         }
-        err = local_set_xattr(buffer, credp);
+        err = local_set_xattr(-1, buffer, credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
@@ -584,7 +598,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
             goto out;
         }
         credp->fc_mode = credp->fc_mode|S_IFDIR;
-        err = local_set_xattr(buffer, credp);
+        err = local_set_xattr(-1, buffer, credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
@@ -674,7 +688,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         }
         credp->fc_mode = credp->fc_mode|S_IFREG;
         /* Set cleint credentials in xattr */
-        err = local_set_xattr(buffer, credp);
+        err = local_set_xattr(-1, buffer, credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
@@ -760,7 +774,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         close(fd);
         /* Set cleint credentials in symlink's xattr */
         credp->fc_mode = credp->fc_mode|S_IFLNK;
-        err = local_set_xattr(buffer, credp);
+        err = local_set_xattr(-1, buffer, credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
@@ -932,7 +946,7 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
         g_free(buffer);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         buffer = rpath(fs_ctx, path);
-        ret = local_set_xattr(buffer, credp);
+        ret = local_set_xattr(-1, buffer, credp);
         g_free(buffer);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         return local_set_mapped_file_attr(fs_ctx, path, credp);
@@ -1046,7 +1060,7 @@ static ssize_t local_lgetxattr(FsContext *ctx, V9fsPath *fs_path,
 {
     char *path = fs_path->data;
 
-    return v9fs_get_xattr(ctx, path, name, value, size);
+    return v9fs_get_xattr(ctx, -1, path, name, value, size);
 }
 
 static ssize_t local_llistxattr(FsContext *ctx, V9fsPath *fs_path,
@@ -1054,7 +1068,7 @@ static ssize_t local_llistxattr(FsContext *ctx, V9fsPath *fs_path,
 {
     char *path = fs_path->data;
 
-    return v9fs_list_xattr(ctx, path, value, size);
+    return v9fs_list_xattr(ctx, -1, path, value, size);
 }
 
 static int local_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
@@ -1062,7 +1076,7 @@ static int local_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
 {
     char *path = fs_path->data;
 
-    return v9fs_set_xattr(ctx, path, name, value, size, flags);
+    return v9fs_set_xattr(ctx, -1, path, name, value, size, flags);
 }
 
 static int local_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
@@ -1070,7 +1084,7 @@ static int local_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
 {
     char *path = fs_path->data;
 
-    return v9fs_remove_xattr(ctx, path, name);
+    return v9fs_remove_xattr(ctx, -1, path, name);
 }
 
 static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,

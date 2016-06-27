@@ -29,18 +29,18 @@ static XattrOperations *get_xattr_operations(XattrOperations **h,
     return NULL;
 }
 
-ssize_t v9fs_get_xattr(FsContext *ctx, const char *path,
+ssize_t v9fs_get_xattr(FsContext *ctx, int fd, const char *path,
                        const char *name, void *value, size_t size)
 {
     XattrOperations *xops = get_xattr_operations(ctx->xops, name);
     if (xops) {
-        return xops->getxattr(ctx, path, name, value, size);
+        return xops->getxattr(ctx, fd, path, name, value, size);
     }
     errno = EOPNOTSUPP;
     return -1;
 }
 
-ssize_t pt_listxattr(FsContext *ctx, const char *path,
+ssize_t pt_listxattr(FsContext *ctx, int fd, const char *path,
                      char *name, void *value, size_t size)
 {
     int name_size = strlen(name) + 1;
@@ -63,7 +63,7 @@ ssize_t pt_listxattr(FsContext *ctx, const char *path,
  * Get the list and pass to each layer to find out whether
  * to send the data or not
  */
-ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
+ssize_t v9fs_list_xattr(FsContext *ctx, int fd, const char *path,
                         void *value, size_t vsize)
 {
     ssize_t size = 0;
@@ -74,8 +74,13 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
     ssize_t xattr_len, parsed_len = 0, attr_len;
 
     /* Get the actual len */
-    buffer = rpath(ctx, path);
-    xattr_len = llistxattr(buffer, value, 0);
+    if (path) {
+        buffer = rpath(ctx, path);
+        xattr_len = llistxattr(buffer, value, 0);
+    } else {
+        buffer = NULL;
+        xattr_len = flistxattr(fd, value, 0);
+    }
     if (xattr_len <= 0) {
         g_free(buffer);
         return xattr_len;
@@ -83,7 +88,11 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
 
     /* Now fetch the xattr and find the actual size */
     orig_value = g_malloc(xattr_len);
-    xattr_len = llistxattr(buffer, orig_value, xattr_len);
+    if (path) {
+        xattr_len = llistxattr(buffer, orig_value, xattr_len);
+    } else {
+        xattr_len = flistxattr(fd, orig_value, xattr_len);
+    }
     g_free(buffer);
 
     /* store the orig pointer */
@@ -95,9 +104,9 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
         }
 
         if (!value) {
-            size += xops->listxattr(ctx, path, orig_value, value, vsize);
+            size += xops->listxattr(ctx, fd, path, orig_value, value, vsize);
         } else {
-            size = xops->listxattr(ctx, path, orig_value, value, vsize);
+            size = xops->listxattr(ctx, fd, path, orig_value, value, vsize);
             if (size < 0) {
                 goto err_out;
             }
@@ -119,24 +128,24 @@ err_out:
     return size;
 }
 
-int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
+int v9fs_set_xattr(FsContext *ctx, int fd, const char *path, const char *name,
                    void *value, size_t size, int flags)
 {
     XattrOperations *xops = get_xattr_operations(ctx->xops, name);
     if (xops) {
-        return xops->setxattr(ctx, path, name, value, size, flags);
+        return xops->setxattr(ctx, fd, path, name, value, size, flags);
     }
     errno = EOPNOTSUPP;
     return -1;
 
 }
 
-int v9fs_remove_xattr(FsContext *ctx,
+int v9fs_remove_xattr(FsContext *ctx, int fd,
                       const char *path, const char *name)
 {
     XattrOperations *xops = get_xattr_operations(ctx->xops, name);
     if (xops) {
-        return xops->removexattr(ctx, path, name);
+        return xops->removexattr(ctx, fd, path, name);
     }
     errno = EOPNOTSUPP;
     return -1;

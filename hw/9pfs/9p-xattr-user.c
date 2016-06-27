@@ -17,7 +17,7 @@
 #include "9p-xattr.h"
 
 
-static ssize_t mp_user_getxattr(FsContext *ctx, const char *path,
+static ssize_t mp_user_getxattr(FsContext *ctx, int fd, const char *path,
                                 const char *name, void *value, size_t size)
 {
     char *buffer;
@@ -31,13 +31,17 @@ static ssize_t mp_user_getxattr(FsContext *ctx, const char *path,
         errno = ENOATTR;
         return -1;
     }
-    buffer = rpath(ctx, path);
-    ret = lgetxattr(buffer, name, value, size);
-    g_free(buffer);
+    if (path) {
+        buffer = rpath(ctx, path);
+        ret = lgetxattr(buffer, name, value, size);
+        g_free(buffer);
+    } else {
+        ret = fgetxattr(fd, name, value, size);
+    }
     return ret;
 }
 
-static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
+static ssize_t mp_user_listxattr(FsContext *ctx, int fd, const char *path,
                                  char *name, void *value, size_t size)
 {
     int name_size = strlen(name) + 1;
@@ -70,8 +74,9 @@ static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
     return name_size;
 }
 
-static int mp_user_setxattr(FsContext *ctx, const char *path, const char *name,
-                            void *value, size_t size, int flags)
+static int mp_user_setxattr(FsContext *ctx, int fd, const char *path,
+                            const char *name, void *value, size_t size,
+                            int flags)
 {
     char *buffer;
     int ret;
@@ -84,13 +89,17 @@ static int mp_user_setxattr(FsContext *ctx, const char *path, const char *name,
         errno = EACCES;
         return -1;
     }
-    buffer = rpath(ctx, path);
-    ret = lsetxattr(buffer, name, value, size, flags);
-    g_free(buffer);
+    if (path) {
+        buffer = rpath(ctx, path);
+        ret = lsetxattr(buffer, name, value, size, flags);
+        g_free(buffer);
+    } else {
+        ret = fsetxattr(fd, name, value, size, flags);
+    }
     return ret;
 }
 
-static int mp_user_removexattr(FsContext *ctx,
+static int mp_user_removexattr(FsContext *ctx, int fd,
                                const char *path, const char *name)
 {
     char *buffer;
@@ -104,9 +113,13 @@ static int mp_user_removexattr(FsContext *ctx,
         errno = EACCES;
         return -1;
     }
-    buffer = rpath(ctx, path);
-    ret = lremovexattr(buffer, name);
-    g_free(buffer);
+    if (path) {
+        buffer = rpath(ctx, path);
+        ret = lremovexattr(buffer, name);
+        g_free(buffer);
+    } else {
+        ret = fremovexattr(fd, name);
+    }
     return ret;
 }
 

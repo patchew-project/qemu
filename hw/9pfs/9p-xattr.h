@@ -18,13 +18,13 @@
 typedef struct xattr_operations
 {
     const char *name;
-    ssize_t (*getxattr)(FsContext *ctx, const char *path,
+    ssize_t (*getxattr)(FsContext *ctx, int fd, const char *path,
                         const char *name, void *value, size_t size);
-    ssize_t (*listxattr)(FsContext *ctx, const char *path,
+    ssize_t (*listxattr)(FsContext *ctx, int fd, const char *path,
                          char *name, void *value, size_t size);
-    int (*setxattr)(FsContext *ctx, const char *path, const char *name,
+    int (*setxattr)(FsContext *ctx, int fd, const char *path, const char *name,
                     void *value, size_t size, int flags);
-    int (*removexattr)(FsContext *ctx,
+    int (*removexattr)(FsContext *ctx, int fd,
                        const char *path, const char *name);
 } XattrOperations;
 
@@ -41,54 +41,67 @@ extern XattrOperations *mapped_xattr_ops[];
 extern XattrOperations *passthrough_xattr_ops[];
 extern XattrOperations *none_xattr_ops[];
 
-ssize_t v9fs_get_xattr(FsContext *ctx, const char *path, const char *name,
-                       void *value, size_t size);
-ssize_t v9fs_list_xattr(FsContext *ctx, const char *path, void *value,
+ssize_t v9fs_get_xattr(FsContext *ctx, int fd, const char *path,
+                       const char *name, void *value, size_t size);
+ssize_t v9fs_list_xattr(FsContext *ctx, int fd, const char *path, void *value,
                         size_t vsize);
-int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
+int v9fs_set_xattr(FsContext *ctx, int fd, const char *path, const char *name,
                           void *value, size_t size, int flags);
-int v9fs_remove_xattr(FsContext *ctx, const char *path, const char *name);
-ssize_t pt_listxattr(FsContext *ctx, const char *path, char *name, void *value,
-                     size_t size);
+int v9fs_remove_xattr(FsContext *ctx, int fd, const char *path,
+                      const char *name);
+ssize_t pt_listxattr(FsContext *ctx, int fd, const char *path, char *name,
+                     void *value, size_t size);
 
-static inline ssize_t pt_getxattr(FsContext *ctx, const char *path,
+static inline ssize_t pt_getxattr(FsContext *ctx, int fd, const char *path,
                                   const char *name, void *value, size_t size)
 {
     char *buffer;
     ssize_t ret;
 
-    buffer = rpath(ctx, path);
-    ret = lgetxattr(buffer, name, value, size);
-    g_free(buffer);
+    if (path) {
+        buffer = rpath(ctx, path);
+        ret = lgetxattr(buffer, name, value, size);
+        g_free(buffer);
+    } else {
+        ret = fgetxattr(fd, name, value, size);
+    }
     return ret;
 }
 
-static inline int pt_setxattr(FsContext *ctx, const char *path,
+static inline int pt_setxattr(FsContext *ctx, int fd, const char *path,
                               const char *name, void *value,
                               size_t size, int flags)
 {
     char *buffer;
     int ret;
 
-    buffer = rpath(ctx, path);
-    ret = lsetxattr(buffer, name, value, size, flags);
-    g_free(buffer);
+    if (path) {
+        buffer = rpath(ctx, path);
+        ret = lsetxattr(buffer, name, value, size, flags);
+        g_free(buffer);
+    } else {
+        ret = fsetxattr(fd, name, value, size, flags);
+    }
     return ret;
 }
 
-static inline int pt_removexattr(FsContext *ctx,
+static inline int pt_removexattr(FsContext *ctx, int fd,
                                  const char *path, const char *name)
 {
     char *buffer;
     int ret;
 
-    buffer = rpath(ctx, path);
-    ret = lremovexattr(path, name);
-    g_free(buffer);
+    if (path) {
+        buffer = rpath(ctx, path);
+        ret = lremovexattr(path, name);
+        g_free(buffer);
+    } else {
+        ret = fremovexattr(fd, name);
+    }
     return ret;
 }
 
-static inline ssize_t notsup_getxattr(FsContext *ctx, const char *path,
+static inline ssize_t notsup_getxattr(FsContext *ctx, int fd, const char *path,
                                       const char *name, void *value,
                                       size_t size)
 {
@@ -96,7 +109,7 @@ static inline ssize_t notsup_getxattr(FsContext *ctx, const char *path,
     return -1;
 }
 
-static inline int notsup_setxattr(FsContext *ctx, const char *path,
+static inline int notsup_setxattr(FsContext *ctx, int fd, const char *path,
                                   const char *name, void *value,
                                   size_t size, int flags)
 {
@@ -104,13 +117,13 @@ static inline int notsup_setxattr(FsContext *ctx, const char *path,
     return -1;
 }
 
-static inline ssize_t notsup_listxattr(FsContext *ctx, const char *path,
+static inline ssize_t notsup_listxattr(FsContext *ctx, int fd, const char *path,
                                        char *name, void *value, size_t size)
 {
     return 0;
 }
 
-static inline int notsup_removexattr(FsContext *ctx,
+static inline int notsup_removexattr(FsContext *ctx, int fd,
                                      const char *path, const char *name)
 {
     errno = ENOTSUP;
