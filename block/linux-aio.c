@@ -117,6 +117,7 @@ static void qemu_laio_completion_bh(void *opaque)
     LinuxAioState *s = opaque;
 
     /* Fetch more completion events when empty */
+more_events:
     if (s->event_idx == s->event_max) {
         do {
             struct timespec ts = { 0 };
@@ -144,6 +145,10 @@ static void qemu_laio_completion_bh(void *opaque)
         s->event_idx++;
 
         qemu_laio_process_completion(laiocb);
+    }
+
+    if (s->event_idx == MAX_EVENTS) {
+        goto more_events; /* there might still be events waiting for us */
     }
 
     if (!s->io_q.plugged && !QSIMPLEQ_EMPTY(&s->io_q.pending)) {
