@@ -349,6 +349,20 @@ static int handle_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
     return ret;
 }
 
+static int handle_ftruncate(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                            off_t size)
+{
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return ftruncate(fd, size);
+}
+
 static int handle_rename(FsContext *ctx, const char *oldpath,
                          const char *newpath)
 {
@@ -696,4 +710,5 @@ FileOperations handle_ops = {
     .name_to_path = handle_name_to_path,
     .renameat     = handle_renameat,
     .unlinkat     = handle_unlinkat,
+    .ftruncate    = handle_ftruncate,
 };

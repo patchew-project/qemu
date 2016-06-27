@@ -1181,6 +1181,19 @@ out_nofid:
     pdu_complete(pdu, retval);
 }
 
+static int v9fs_do_truncate(V9fsPDU *pdu, V9fsFidState *fidp, off_t size)
+{
+    int err;
+
+    if (fid_has_file(fidp)) {
+        err = v9fs_co_ftruncate(pdu, fidp, size);
+    } else {
+        err = v9fs_co_truncate(pdu, &fidp->path, size);
+    }
+
+    return err;
+}
+
 /* Attribute flags */
 #define P9_ATTR_MODE       (1 << 0)
 #define P9_ATTR_UID        (1 << 1)
@@ -1266,7 +1279,7 @@ static void v9fs_setattr(void *opaque)
         }
     }
     if (v9iattr.valid & (P9_ATTR_SIZE)) {
-        err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
+        err = v9fs_do_truncate(pdu, fidp, v9iattr.size);
         if (err < 0) {
             goto out;
         }
@@ -2754,7 +2767,7 @@ static void v9fs_wstat(void *opaque)
         }
     }
     if (v9stat.length != -1) {
-        err = v9fs_co_truncate(pdu, &fidp->path, v9stat.length);
+        err = v9fs_do_truncate(pdu, fidp, v9stat.length);
         if (err < 0) {
             goto out;
         }

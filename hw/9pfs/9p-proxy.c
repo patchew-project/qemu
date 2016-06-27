@@ -864,6 +864,19 @@ static int proxy_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
     return 0;
 }
 
+static int proxy_ftruncate(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                           off_t size)
+{
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        return -EINVAL;
+    }
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return ftruncate(fd, size);
+}
+
 static int proxy_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
@@ -1207,4 +1220,5 @@ FileOperations proxy_ops = {
     .name_to_path = proxy_name_to_path,
     .renameat     = proxy_renameat,
     .unlinkat     = proxy_unlinkat,
+    .ftruncate    = proxy_ftruncate,
 };

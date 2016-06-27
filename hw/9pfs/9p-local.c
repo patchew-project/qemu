@@ -874,6 +874,20 @@ static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
     return ret;
 }
 
+static int local_ftruncate(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                           off_t size)
+{
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return ftruncate(fd, size);
+}
+
 static int local_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
@@ -1275,4 +1289,5 @@ FileOperations local_ops = {
     .name_to_path = local_name_to_path,
     .renameat  = local_renameat,
     .unlinkat = local_unlinkat,
+    .ftruncate = local_ftruncate,
 };
