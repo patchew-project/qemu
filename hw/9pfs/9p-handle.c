@@ -259,11 +259,7 @@ static int handle_fstat(FsContext *fs_ctx, int fid_type,
 {
     int fd;
 
-    if (fid_type == P9_FID_DIR) {
-        fd = dirfd(fs->dir.stream);
-    } else {
-        fd = fs->fd;
-    }
+    fd = v9fs_get_fd_fid(fid_type, fs);
     return fstat(fd, stbuf);
 }
 
@@ -406,11 +402,7 @@ static int handle_fsync(FsContext *ctx, int fid_type,
 {
     int fd;
 
-    if (fid_type == P9_FID_DIR) {
-        fd = dirfd(fs->dir.stream);
-    } else {
-        fd = fs->fd;
-    }
+    fd = v9fs_get_fd_fid(fid_type, fs);
 
     if (datasync) {
         return qemu_fdatasync(fd);

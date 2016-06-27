@@ -202,6 +202,8 @@ union V9fsFidOpenState {
     void *private;
 };
 
+extern int v9fs_get_fd_fid(int fid_type, V9fsFidOpenState *fs);
+
 struct V9fsFidState
 {
     int fid_type;
