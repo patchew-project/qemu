@@ -56,6 +56,21 @@ void helper_lock_init(void)
 }
 #endif
 
+#define GEN_CMPXCHG_HELPER(NAME)                                      \
+target_ulong glue(helper_, NAME)(CPUX86State *env, target_ulong addr, \
+                                 target_ulong old, target_ulong new)  \
+{                                                                     \
+    return glue(glue(cpu_, NAME), _data_ra)(env, addr, old, new, GETPC()); \
+}
+
+GEN_CMPXCHG_HELPER(cmpxchgb)
+GEN_CMPXCHG_HELPER(cmpxchgw)
+GEN_CMPXCHG_HELPER(cmpxchgl)
+#ifdef TARGET_X86_64
+GEN_CMPXCHG_HELPER(cmpxchgq)
+#endif
+#undef GEN_CMPXCHG_HELPER
+
 void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
 {
     uint64_t d;

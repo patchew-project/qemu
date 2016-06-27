@@ -74,8 +74,12 @@ DEF_HELPER_3(boundw, void, env, tl, int)
 DEF_HELPER_3(boundl, void, env, tl, int)
 DEF_HELPER_1(rsm, void, env)
 DEF_HELPER_2(into, void, env, int)
+DEF_HELPER_4(cmpxchgb, tl, env, tl, tl, tl)
+DEF_HELPER_4(cmpxchgw, tl, env, tl, tl, tl)
+DEF_HELPER_4(cmpxchgl, tl, env, tl, tl, tl)
 DEF_HELPER_2(cmpxchg8b, void, env, tl)
 #ifdef TARGET_X86_64
+DEF_HELPER_4(cmpxchgq, tl, env, tl, tl, tl)
 DEF_HELPER_2(cmpxchg16b, void, env, tl)
 #endif
 DEF_HELPER_1(single_step, void, env)
