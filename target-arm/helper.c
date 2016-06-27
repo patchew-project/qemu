@@ -9444,3 +9444,13 @@ uint32_t HELPER(cmpxchgq)(CPUARMState *env, uint32_t addr, uint64_t old,
     read = cpu_cmpxchgq_data_ra(env, addr, old, new, GETPC());
     return read != old;
 }
+
+uint32_t HELPER(atomic_xchgb)(CPUARMState *env, uint32_t addr, uint32_t val)
+{
+    return cpu_atomic_xchgb_data_ra(env, addr, val, GETPC());
+}
+
+uint32_t HELPER(atomic_xchgl)(CPUARMState *env, uint32_t addr, uint32_t val)
+{
+    return cpu_atomic_xchgl_data_ra(env, addr, val, GETPC());
+}
