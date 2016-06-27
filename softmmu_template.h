@@ -548,6 +548,64 @@ void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
     }
 }
 #endif
+
+DATA_TYPE
+glue(glue(helper_cmpxchg, SUFFIX),
+     MMUSUFFIX)(CPUArchState *env, target_ulong addr, DATA_TYPE old,
+                DATA_TYPE new, TCGMemOpIdx oi, uintptr_t retaddr)
+{
+    unsigned mmu_idx = get_mmuidx(oi);
+    int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
+    uintptr_t haddr;
+
+    /* Adjust the given return address.  */
+    retaddr -= GETPC_ADJ;
+
+    /* If the TLB entry is for a different page, reload and try again.  */
+    if ((addr & TARGET_PAGE_MASK)
+        != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
+        if (unlikely((addr & (DATA_SIZE - 1)) != 0
+                     && (get_memop(oi) & MO_AMASK) == MO_ALIGN)) {
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+                                 mmu_idx, retaddr);
+        }
+        if (!VICTIM_TLB_HIT(addr_write)) {
+            tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
+        }
+        tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
+    }
+
+    /* Handle an IO access.  */
+    if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
+        /* XXX */
+        abort();
+    }
+
+    /* Handle slow unaligned access (it spans two pages or IO).  */
+    if (DATA_SIZE > 1
+        && unlikely((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1
+                     >= TARGET_PAGE_SIZE)) {
+        if ((get_memop(oi) & MO_AMASK) == MO_ALIGN) {
+            cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+                                 mmu_idx, retaddr);
+        }
+    }
+
+    /* Handle aligned access or unaligned access in the same page.  */
+    if (unlikely((addr & (DATA_SIZE - 1)) != 0
+                 && (get_memop(oi) & MO_AMASK) == MO_ALIGN)) {
+        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+                             mmu_idx, retaddr);
+    }
+    /*
+     * If the host allows unaligned accesses, then let the compiler
+     * do its thing when performing the access on the host.
+     */
+    haddr = addr + env->tlb_table[mmu_idx][index].addend;
+    return atomic_cmpxchg((DATA_TYPE *)haddr, old, new);
+}
+
 #endif /* !defined(SOFTMMU_CODE_ACCESS) */
 
 #undef READ_ACCESS_TYPE

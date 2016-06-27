@@ -1101,6 +1101,22 @@ uint64_t helper_be_ldq_cmmu(CPUArchState *env, target_ulong addr,
 # define helper_ret_ldq_cmmu  helper_le_ldq_cmmu
 #endif
 
+uint8_t helper_cmpxchgb_mmu(CPUArchState *env, target_ulong addr,
+                            uint8_t old, uint8_t new,
+                            TCGMemOpIdx oi, uintptr_t retaddr);
+
+uint16_t helper_cmpxchgw_mmu(CPUArchState *env, target_ulong addr,
+                             uint16_t old, uint16_t new,
+                             TCGMemOpIdx oi, uintptr_t retaddr);
+
+uint32_t helper_cmpxchgl_mmu(CPUArchState *env, target_ulong addr,
+                             uint32_t old, uint32_t new,
+                             TCGMemOpIdx oi, uintptr_t retaddr);
+
+uint64_t helper_cmpxchgq_mmu(CPUArchState *env, target_ulong addr,
+                             uint64_t old, uint64_t new,
+                             TCGMemOpIdx oi, uintptr_t retaddr);
+
 #endif /* CONFIG_SOFTMMU */
 
 #endif /* TCG_H */
