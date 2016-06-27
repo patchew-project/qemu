@@ -4784,11 +4784,19 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             set_cc_op(s, CC_OP_LOGICB + ot);
             break;
         case 2: /* not */
-            tcg_gen_not_tl(cpu_T0, cpu_T0);
-            if (mod != 3) {
-                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            if (s->prefix & PREFIX_LOCK) {
+                if (mod == 3) {
+                    goto illegal_op;
+                }
+                tcg_gen_movi_tl(cpu_T0, ~0);
+                gen_atomic_xor_fetch(cpu_T0, cpu_A0, cpu_T0, ot);
             } else {
-                gen_op_mov_reg_v(ot, rm, cpu_T0);
+                tcg_gen_not_tl(cpu_T0, cpu_T0);
+                if (mod != 3) {
+                    gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+                } else {
+                    gen_op_mov_reg_v(ot, rm, cpu_T0);
+                }
             }
             break;
         case 3: /* neg */
