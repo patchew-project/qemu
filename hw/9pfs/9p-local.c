@@ -117,6 +117,42 @@ static void local_mapped_file_attr(FsContext *ctx, const char *path,
     fclose(fp);
 }
 
+static int local_do_getxattr(int fd, const char *path,
+                             const char *name, void *value, size_t size)
+{
+    if (path) {
+        return getxattr(path, name, value, size);
+    } else {
+        return fgetxattr(fd, name, value, size);
+    }
+}
+
+static void local_mapped_attr(int fd, char *path, struct stat *stbuf)
+{
+        /* Actual credentials are part of extended attrs */
+        uid_t tmp_uid;
+        gid_t tmp_gid;
+        mode_t tmp_mode;
+        dev_t tmp_dev;
+
+        if (local_do_getxattr(fd, path, "user.virtfs.uid", &tmp_uid,
+                              sizeof(uid_t)) > 0) {
+            stbuf->st_uid = le32_to_cpu(tmp_uid);
+        }
+        if (local_do_getxattr(fd, path, "user.virtfs.gid", &tmp_gid,
+                              sizeof(gid_t)) > 0) {
+            stbuf->st_gid = le32_to_cpu(tmp_gid);
+        }
+        if (local_do_getxattr(fd, path, "user.virtfs.mode", &tmp_mode,
+                              sizeof(mode_t)) > 0) {
+            stbuf->st_mode = le32_to_cpu(tmp_mode);
+        }
+        if (local_do_getxattr(fd, path, "user.virtfs.rdev", &tmp_dev,
+                              sizeof(dev_t)) > 0) {
+            stbuf->st_rdev = le64_to_cpu(tmp_dev);
+        }
+}
+
 static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
     int err;
@@ -124,29 +160,12 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
     char *path = fs_path->data;
 
     buffer = rpath(fs_ctx, path);
-    err =  lstat(buffer, stbuf);
+    err = lstat(buffer, stbuf);
     if (err) {
         goto err_out;
     }
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
-        /* Actual credentials are part of extended attrs */
-        uid_t tmp_uid;
-        gid_t tmp_gid;
-        mode_t tmp_mode;
-        dev_t tmp_dev;
-        if (getxattr(buffer, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
-            stbuf->st_uid = le32_to_cpu(tmp_uid);
-        }
-        if (getxattr(buffer, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
-            stbuf->st_gid = le32_to_cpu(tmp_gid);
-        }
-        if (getxattr(buffer, "user.virtfs.mode",
-                    &tmp_mode, sizeof(mode_t)) > 0) {
-            stbuf->st_mode = le32_to_cpu(tmp_mode);
-        }
-        if (getxattr(buffer, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
-            stbuf->st_rdev = le64_to_cpu(tmp_dev);
-        }
+        local_mapped_attr(-1, buffer, stbuf);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         local_mapped_file_attr(fs_ctx, path, stbuf);
     }
@@ -622,24 +641,7 @@ static int local_fstat(FsContext *fs_ctx, int fid_type,
         return err;
     }
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
-        /* Actual credentials are part of extended attrs */
-        uid_t tmp_uid;
-        gid_t tmp_gid;
-        mode_t tmp_mode;
-        dev_t tmp_dev;
-
-        if (fgetxattr(fd, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
-            stbuf->st_uid = le32_to_cpu(tmp_uid);
-        }
-        if (fgetxattr(fd, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
-            stbuf->st_gid = le32_to_cpu(tmp_gid);
-        }
-        if (fgetxattr(fd, "user.virtfs.mode", &tmp_mode, sizeof(mode_t)) > 0) {
-            stbuf->st_mode = le32_to_cpu(tmp_mode);
-        }
-        if (fgetxattr(fd, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
-            stbuf->st_rdev = le64_to_cpu(tmp_dev);
-        }
+        local_mapped_attr(fd, NULL, stbuf);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         errno = EOPNOTSUPP;
         return -1;
