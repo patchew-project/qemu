@@ -537,6 +537,11 @@ DEF_HELPER_2(dc_zva, void, env, i64)
 DEF_HELPER_FLAGS_2(neon_pmull_64_lo, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 DEF_HELPER_FLAGS_2(neon_pmull_64_hi, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 
+DEF_HELPER_4(cmpxchgb, i32, env, i32, i64, i32)
+DEF_HELPER_4(cmpxchgw, i32, env, i32, i64, i32)
+DEF_HELPER_4(cmpxchgl, i32, env, i32, i64, i32)
+DEF_HELPER_5(cmpxchgq, i32, env, i32, i64, i32, i32)
+
 #ifdef TARGET_AARCH64
 #include "helper-a64.h"
 #endif

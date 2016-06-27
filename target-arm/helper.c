@@ -9409,3 +9409,38 @@ uint32_t HELPER(crc32c)(uint32_t acc, uint32_t val, uint32_t bytes)
     /* Linux crc32c converts the output to one's complement.  */
     return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
+
+/* returns 0 on success; 1 otherwise */
+#define GEN_CMPXCHG(NAME)                                               \
+uint32_t                                                                \
+HELPER(NAME)(CPUARMState *env, uint32_t addr, uint64_t old64, uint32_t new) \
+{                                                                       \
+    uint32_t old = old64;                                               \
+    uint32_t read;                                                      \
+                                                                        \
+    read = glue(glue(cpu_, NAME), _data_ra)(env, addr, old, new, GETPC()); \
+    return read != old;                                                 \
+}
+GEN_CMPXCHG(cmpxchgb)
+GEN_CMPXCHG(cmpxchgw)
+GEN_CMPXCHG(cmpxchgl)
+#undef GEN_CMPXCHG
+
+/*
+ * Returns 0 on success; 1 otherwise.
+ * Bringing in @new_lo and @new_hi is unusual given that @old is 64-bit,
+ * but we do it to save a few TCG instructions.
+ */
+uint32_t HELPER(cmpxchgq)(CPUARMState *env, uint32_t addr, uint64_t old,
+                          uint32_t new_lo, uint32_t new_hi)
+{
+    uint64_t read;
+    uint64_t new;
+
+    new = new_hi;
+    new <<= 32;
+    new |= new_lo;
+
+    read = cpu_cmpxchgq_data_ra(env, addr, old, new, GETPC());
+    return read != old;
+}
