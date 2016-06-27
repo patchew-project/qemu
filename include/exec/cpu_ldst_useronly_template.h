@@ -118,6 +118,8 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 {
     glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(env, ptr, v);
 }
+
+#include "exec/cpu_atomic_useronly_template.h"
 #endif
 
 #undef RES_TYPE

@@ -194,6 +194,8 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
     glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(env, ptr, v, 0);
 }
 
+#include "exec/cpu_atomic_template.h"
+
 #endif /* !SOFTMMU_CODE_ACCESS */
 
 #undef RES_TYPE
