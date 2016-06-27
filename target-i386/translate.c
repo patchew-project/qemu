@@ -4800,11 +4800,37 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             break;
         case 3: /* neg */
-            tcg_gen_neg_tl(cpu_T0, cpu_T0);
-            if (mod != 3) {
-                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            if (s->prefix & PREFIX_LOCK) {
+                TCGLabel *label1;
+                TCGv a0, t0, t1, t2;
+
+                if (mod == 3) {
+                    goto illegal_op;
+                }
+                a0 = tcg_temp_local_new();
+                t0 = tcg_temp_local_new();
+                t1 = tcg_temp_local_new();
+                t2 = tcg_temp_new();
+                label1 = gen_new_label();
+
+                tcg_gen_mov_tl(a0, cpu_A0);
+                gen_set_label(label1);
+                gen_op_ld_v(s, ot, t0, a0);
+                tcg_gen_neg_tl(t1, t0);
+                gen_cmpxchg(t2, a0, t0, t1, ot);
+                tcg_gen_brcond_tl(TCG_COND_NE, t2, t0, label1);
+                tcg_temp_free(t2);
+                tcg_temp_free(a0);
+                tcg_temp_free(t1);
+                tcg_gen_mov_tl(cpu_T0, t0);
+                tcg_temp_free(t0);
             } else {
-                gen_op_mov_reg_v(ot, rm, cpu_T0);
+                tcg_gen_neg_tl(cpu_T0, cpu_T0);
+                if (mod != 3) {
+                    gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+                } else {
+                    gen_op_mov_reg_v(ot, rm, cpu_T0);
+                }
             }
             gen_op_update_neg_cc();
             set_cc_op(s, CC_OP_SUBB + ot);
