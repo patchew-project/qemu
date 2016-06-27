@@ -253,6 +253,23 @@ int v9fs_get_fd_fid(int fid_type, V9fsFidOpenState *fs)
     return fd;
 }
 
+static bool fid_has_file(V9fsFidState *fidp)
+{
+    int fid_type = fidp->fid_type;
+
+    if (fid_type == P9_FID_DIR) {
+        if (fidp->fs.dir.stream) {
+            return true;
+        }
+    } else if (fid_type == P9_FID_FILE) {
+        if (fidp->fs.fd > -1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static V9fsFidState *get_fid(V9fsPDU *pdu, int32_t fid)
 {
     int err;
@@ -1044,6 +1061,19 @@ out_nofid:
     v9fs_string_free(&aname);
 }
 
+static int v9fs_do_stat(V9fsPDU *pdu, V9fsFidState *fidp, struct stat *stbuf)
+{
+    int retval;
+
+    if (fid_has_file(fidp)) {
+        retval = v9fs_co_fstat(pdu, fidp, stbuf);
+    } else {
+        retval = v9fs_co_lstat(pdu, &fidp->path, stbuf);
+    }
+
+    return retval;
+}
+
 static void v9fs_stat(void *opaque)
 {
     int32_t fid;
@@ -1065,7 +1095,7 @@ static void v9fs_stat(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
+    err = v9fs_do_stat(pdu, fidp, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -1115,7 +1145,7 @@ static void v9fs_getattr(void *opaque)
      * Currently we only support BASIC fields in stat, so there is no
      * need to look at request_mask.
      */
-    retval = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
+    retval = v9fs_do_stat(pdu, fidp, &stbuf);
     if (retval < 0) {
         goto out;
     }
@@ -2674,7 +2704,7 @@ static void v9fs_wstat(void *opaque)
     }
     if (v9stat.mode != -1) {
         uint32_t v9_mode;
-        err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
+        err = v9fs_do_stat(pdu, fidp, &stbuf);
         if (err < 0) {
             goto out;
         }
