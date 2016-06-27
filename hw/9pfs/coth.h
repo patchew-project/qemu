@@ -96,5 +96,6 @@ extern int v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t,
                           V9fsStatDotl *v9stat);
 extern int v9fs_co_ftruncate(V9fsPDU *, V9fsFidState *, off_t);
 extern int v9fs_co_futimens(V9fsPDU *, V9fsFidState *, struct timespec [2]);
+extern int v9fs_co_fchown(V9fsPDU *, V9fsFidState *, uid_t, gid_t);
 
 #endif

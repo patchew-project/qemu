@@ -175,6 +175,28 @@ int v9fs_co_chown(V9fsPDU *pdu, V9fsPath *path, uid_t uid, gid_t gid)
     return err;
 }
 
+int v9fs_co_fchown(V9fsPDU *pdu, V9fsFidState *fidp, uid_t uid, gid_t gid)
+{
+    int err;
+    FsCred cred;
+    V9fsState *s = pdu->s;
+
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    cred_init(&cred);
+    cred.fc_uid = uid;
+    cred.fc_gid = gid;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->fchown(&s->ctx, fidp->fid_type, &fidp->fs, &cred);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
 int v9fs_co_truncate(V9fsPDU *pdu, V9fsPath *path, off_t size)
 {
     int err;

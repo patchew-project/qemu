@@ -384,6 +384,15 @@ static int handle_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     return ret;
 }
 
+static int handle_fchown(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                         FsCred *credp)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return fchown(fd, credp->fc_uid, credp->fc_gid);
+}
+
 static int handle_utimensat(FsContext *ctx, V9fsPath *fs_path,
                             const struct timespec *buf)
 {
@@ -716,4 +725,5 @@ FileOperations handle_ops = {
     .unlinkat     = handle_unlinkat,
     .ftruncate    = handle_ftruncate,
     .futimens     = handle_futimens,
+    .fchown       = handle_fchown,
 };

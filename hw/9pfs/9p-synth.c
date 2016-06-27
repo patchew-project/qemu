@@ -405,6 +405,13 @@ static int synth_chown(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
     return -1;
 }
 
+static int synth_fchown(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                        FsCred *credp)
+{
+    errno = EPERM;
+    return -1;
+}
+
 static int synth_utimensat(FsContext *fs_ctx, V9fsPath *path,
                                 const struct timespec *buf)
 {
@@ -582,4 +589,5 @@ FileOperations synth_ops = {
     .unlinkat     = synth_unlinkat,
     .ftruncate    = synth_ftruncate,
     .futimens     = synth_futimens,
+    .fchown       = synth_fchown,
 };

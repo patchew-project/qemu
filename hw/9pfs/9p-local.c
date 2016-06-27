@@ -954,6 +954,27 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     return ret;
 }
 
+static int local_fchown(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                        FsCred *credp)
+{
+    int ret = -1;
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+
+    if ((credp->fc_uid == -1 && credp->fc_gid == -1) ||
+        (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+        (fs_ctx->export_flags & V9FS_SM_NONE)) {
+        ret = fchown(fd, credp->fc_uid, credp->fc_gid);
+    } else if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
+        ret = local_set_xattr(fd, NULL, credp);
+    } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+        errno = EOPNOTSUPP;
+        return -1;
+    }
+    return ret;
+}
+
 static int local_utimensat(FsContext *s, V9fsPath *fs_path,
                            const struct timespec *buf)
 {
@@ -1314,4 +1335,5 @@ FileOperations local_ops = {
     .unlinkat = local_unlinkat,
     .ftruncate = local_ftruncate,
     .futimens = local_futimens,
+    .fchown = local_fchown,
 };

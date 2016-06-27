@@ -1208,6 +1208,19 @@ static int v9fs_do_utimens(V9fsPDU *pdu, V9fsFidState *fidp,
     return err;
 }
 
+static int v9fs_do_chown(V9fsPDU *pdu, V9fsFidState *fidp, uid_t uid, gid_t gid)
+{
+    int err;
+
+    if (fid_has_file(fidp)) {
+        err = v9fs_co_fchown(pdu, fidp, uid, gid);
+    } else {
+        err = v9fs_co_chown(pdu, &fidp->path, uid, gid);
+    }
+
+    return err;
+}
+
 /* Attribute flags */
 #define P9_ATTR_MODE       (1 << 0)
 #define P9_ATTR_UID        (1 << 1)
@@ -1286,8 +1299,7 @@ static void v9fs_setattr(void *opaque)
         if (!(v9iattr.valid & P9_ATTR_GID)) {
             v9iattr.gid = -1;
         }
-        err = v9fs_co_chown(pdu, &fidp->path, v9iattr.uid,
-                            v9iattr.gid);
+        err = v9fs_do_chown(pdu, fidp, v9iattr.uid, v9iattr.gid);
         if (err < 0) {
             goto out;
         }
@@ -2769,7 +2781,7 @@ static void v9fs_wstat(void *opaque)
         }
     }
     if (v9stat.n_gid != -1 || v9stat.n_uid != -1) {
-        err = v9fs_co_chown(pdu, &fidp->path, v9stat.n_uid, v9stat.n_gid);
+        err = v9fs_do_chown(pdu, fidp, v9stat.n_uid, v9stat.n_gid);
         if (err < 0) {
             goto out;
         }

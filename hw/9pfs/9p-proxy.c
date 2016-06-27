@@ -909,6 +909,15 @@ static int proxy_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     return retval;
 }
 
+static int proxy_fchown(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                        FsCred *credp)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return fchown(fd, credp->fc_uid, credp->fc_gid);
+}
+
 static int proxy_utimensat(FsContext *s, V9fsPath *fs_path,
                            const struct timespec *buf)
 {
@@ -1231,4 +1240,5 @@ FileOperations proxy_ops = {
     .unlinkat     = proxy_unlinkat,
     .ftruncate    = proxy_ftruncate,
     .futimens     = proxy_futimens,
+    .fchown       = proxy_fchown,
 };
