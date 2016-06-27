@@ -1029,6 +1029,15 @@ static ssize_t proxy_llistxattr(FsContext *ctx, V9fsPath *fs_path,
     return retval;
 }
 
+static ssize_t proxy_flistxattr(FsContext *ctx, int fid_type,
+                                V9fsFidOpenState *fs, void *value, size_t size)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return flistxattr(fd, value, size);
+}
+
 static int proxy_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
                            void *value, size_t size, int flags)
 {
@@ -1263,4 +1272,5 @@ FileOperations proxy_ops = {
     .fchown       = proxy_fchown,
     .fchmod       = proxy_fchmod,
     .fgetxattr    = proxy_fgetxattr,
+    .flistxattr   = proxy_flistxattr,
 };

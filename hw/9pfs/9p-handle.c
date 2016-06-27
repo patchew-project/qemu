@@ -502,6 +502,15 @@ static ssize_t handle_llistxattr(FsContext *ctx, V9fsPath *fs_path,
     return ret;
 }
 
+static ssize_t handle_flistxattr(FsContext *ctx, int fid_type,
+                                 V9fsFidOpenState *fs, void *value, size_t size)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return flistxattr(fd, value, size);
+}
+
 static int handle_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
                             void *value, size_t size, int flags)
 {
@@ -747,4 +756,5 @@ FileOperations handle_ops = {
     .fchown       = handle_fchown,
     .fchmod       = handle_fchmod,
     .fgetxattr    = handle_fgetxattr,
+    .flistxattr   = handle_flistxattr,
 };

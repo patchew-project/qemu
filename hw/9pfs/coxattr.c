@@ -37,6 +37,26 @@ int v9fs_co_llistxattr(V9fsPDU *pdu, V9fsPath *path, void *value, size_t size)
     return err;
 }
 
+int v9fs_co_flistxattr(V9fsPDU *pdu, V9fsFidState *fidp, void *value,
+                       size_t size)
+{
+    int err;
+    V9fsState *s = pdu->s;
+
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->flistxattr(&s->ctx, fidp->fid_type, &fidp->fs, value,
+                                     size);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
 int v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
                       V9fsString *xattr_name,
                       void *value, size_t size)

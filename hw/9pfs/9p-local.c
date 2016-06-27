@@ -1122,6 +1122,15 @@ static ssize_t local_llistxattr(FsContext *ctx, V9fsPath *fs_path,
     return v9fs_list_xattr(ctx, -1, path, value, size);
 }
 
+static ssize_t local_flistxattr(FsContext *ctx, int fid_type,
+                                V9fsFidOpenState *fs, void *value, size_t size)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return v9fs_list_xattr(ctx, fd, NULL, value, size);
+}
+
 static int local_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
                            void *value, size_t size, int flags)
 {
@@ -1368,4 +1377,5 @@ FileOperations local_ops = {
     .fchown = local_fchown,
     .fchmod = local_fchmod,
     .fgetxattr = local_fgetxattr,
+    .flistxattr = local_flistxattr,
 };

@@ -479,6 +479,13 @@ static ssize_t synth_llistxattr(FsContext *ctx, V9fsPath *path,
     return -1;
 }
 
+static ssize_t synth_flistxattr(FsContext *ctx, int fid_type,
+                                V9fsFidOpenState *fs, void *value, size_t size)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
 static int synth_lsetxattr(FsContext *ctx, V9fsPath *path,
                                 const char *name, void *value,
                                 size_t size, int flags)
@@ -607,4 +614,5 @@ FileOperations synth_ops = {
     .fchown       = synth_fchown,
     .fchmod       = synth_fchmod,
     .fgetxattr    = synth_fgetxattr,
+    .flistxattr   = synth_flistxattr,
 };

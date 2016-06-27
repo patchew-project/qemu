@@ -147,6 +147,8 @@ struct FileOperations
     int (*fchmod)(FsContext *, int, V9fsFidOpenState *, FsCred *);
     ssize_t (*fgetxattr)(FsContext *, int, V9fsFidOpenState *,
                          const char *, void *, size_t);
+    ssize_t (*flistxattr)(FsContext *, int, V9fsFidOpenState *,
+                          void *, size_t);
     void *opaque;
 };
 
