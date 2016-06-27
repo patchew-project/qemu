@@ -1314,6 +1314,7 @@ glue(gen_atomic_, NAME)(TCGv ret, TCGv addr, TCGv reg, TCGMemOp ot)       \
 }
 #endif /* TARGET_X86_64 */
 
+GEN_ATOMIC_HELPER(fetch_add)
 GEN_ATOMIC_HELPER(fetch_sub)
 
 GEN_ATOMIC_HELPER(add_fetch)
@@ -5227,10 +5228,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_op_mov_reg_v(ot, rm, cpu_T0);
         } else {
             gen_lea_modrm(env, s, modrm);
-            gen_op_mov_v_reg(ot, cpu_T0, reg);
-            gen_op_ld_v(s, ot, cpu_T1, cpu_A0);
-            tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
-            gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            if (s->prefix & PREFIX_LOCK) {
+                gen_op_mov_v_reg(ot, cpu_T0, reg);
+                gen_atomic_fetch_add(cpu_T1, cpu_A0, cpu_T0, ot);
+                tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
+            } else {
+                gen_op_ld_v(s, ot, cpu_T1, cpu_A0);
+                gen_op_mov_v_reg(ot, cpu_T0, reg);
+                tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
+                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+            }
             gen_op_mov_reg_v(ot, reg, cpu_T1);
         }
         gen_op_update2_cc();
