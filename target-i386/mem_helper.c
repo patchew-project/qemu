@@ -71,7 +71,7 @@ GEN_CMPXCHG_HELPER(cmpxchgq)
 #endif
 #undef GEN_CMPXCHG_HELPER
 
-void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
+void helper_cmpxchg8b_unlocked(CPUX86State *env, target_ulong a0)
 {
     uint64_t d;
     int eflags;
@@ -92,8 +92,36 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
     CC_SRC = eflags;
 }
 
+void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
+{
+    uint64_t d;
+    uint64_t old;
+    uint64_t new;
+    int eflags;
+
+    old = env->regs[R_EDX];
+    old <<= 32;
+    old |= env->regs[R_EAX];
+
+    new = env->regs[R_ECX];
+    new <<= 32;
+    new |= env->regs[R_EBX];
+
+    eflags = cpu_cc_compute_all(env, CC_OP);
+
+    d = cpu_cmpxchgq_data_ra(env, a0, old, new, GETPC());
+    if (d == old) {
+        eflags |= CC_Z;
+    } else {
+        env->regs[R_EDX] = (uint32_t)(d >> 32);
+        env->regs[R_EAX] = (uint32_t)d;
+        eflags &= ~CC_Z;
+    }
+    CC_SRC = eflags;
+}
+
 #ifdef TARGET_X86_64
-void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
+void helper_cmpxchg16b_unlocked(CPUX86State *env, target_ulong a0)
 {
     uint64_t d0, d1;
     int eflags;
@@ -112,6 +140,28 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
         /* always do the store */
         cpu_stq_data_ra(env, a0, d0, GETPC());
         cpu_stq_data_ra(env, a0 + 8, d1, GETPC());
+        env->regs[R_EDX] = d1;
+        env->regs[R_EAX] = d0;
+        eflags &= ~CC_Z;
+    }
+    CC_SRC = eflags;
+}
+
+void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
+{
+    uint64_t d0 = env->regs[R_EAX];
+    uint64_t d1 = env->regs[R_EDX];
+    int eflags;
+
+    if ((a0 & 0xf) != 0) {
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+    }
+    eflags = cpu_cc_compute_all(env, CC_OP);
+
+    if (cpu_cmpxchgo_data_ra(env, a0, &d0, &d1, env->regs[R_EBX],
+                             env->regs[R_ECX], GETPC())) {
+        eflags |= CC_Z;
+    } else {
         env->regs[R_EDX] = d1;
         env->regs[R_EAX] = d0;
         eflags &= ~CC_Z;

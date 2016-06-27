@@ -78,9 +78,11 @@ DEF_HELPER_4(cmpxchgb, tl, env, tl, tl, tl)
 DEF_HELPER_4(cmpxchgw, tl, env, tl, tl, tl)
 DEF_HELPER_4(cmpxchgl, tl, env, tl, tl, tl)
 DEF_HELPER_2(cmpxchg8b, void, env, tl)
+DEF_HELPER_2(cmpxchg8b_unlocked, void, env, tl)
 #ifdef TARGET_X86_64
 DEF_HELPER_4(cmpxchgq, tl, env, tl, tl, tl)
 DEF_HELPER_2(cmpxchg16b, void, env, tl)
+DEF_HELPER_2(cmpxchg16b_unlocked, void, env, tl)
 #endif
 DEF_HELPER_1(single_step, void, env)
 DEF_HELPER_1(cpuid, void, env)
