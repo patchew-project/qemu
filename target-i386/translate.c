@@ -1253,6 +1253,24 @@ static void gen_helper_fp_arith_STN_ST0(int op, int opreg)
     }
 }
 
+static void gen_cmpxchg(TCGv ret, TCGv addr, TCGv old, TCGv new, TCGMemOp ot)
+{
+    switch (ot & 3) {
+    case 0:
+        return gen_helper_cmpxchgb(ret, cpu_env, addr, old, new);
+    case 1:
+        return gen_helper_cmpxchgw(ret, cpu_env, addr, old, new);
+    case 2:
+        return gen_helper_cmpxchgl(ret, cpu_env, addr, old, new);
+#ifdef TARGET_X86_64
+    case 3:
+        return gen_helper_cmpxchgq(ret, cpu_env, addr, old, new);
+#endif
+    default:
+        tcg_abort();
+    }
+}
+
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
 {
@@ -5082,37 +5100,52 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             t2 = tcg_temp_local_new();
             a0 = tcg_temp_local_new();
             gen_op_mov_v_reg(ot, t1, reg);
-            if (mod == 3) {
-                rm = (modrm & 7) | REX_B(s);
-                gen_op_mov_v_reg(ot, t0, rm);
-            } else {
+
+            if (s->prefix & PREFIX_LOCK) {
+                if (mod == 3) {
+                    goto illegal_op;
+                }
+                label1 = gen_new_label();
                 gen_lea_modrm(env, s, modrm);
                 tcg_gen_mov_tl(a0, cpu_A0);
-                gen_op_ld_v(s, ot, t0, a0);
-                rm = 0; /* avoid warning */
-            }
-            label1 = gen_new_label();
-            tcg_gen_mov_tl(t2, cpu_regs[R_EAX]);
-            gen_extu(ot, t0);
-            gen_extu(ot, t2);
-            tcg_gen_brcond_tl(TCG_COND_EQ, t2, t0, label1);
-            label2 = gen_new_label();
-            if (mod == 3) {
+                tcg_gen_mov_tl(t2, cpu_regs[R_EAX]);
+                gen_cmpxchg(t0, a0, t2, t1, ot);
+                tcg_gen_brcond_tl(TCG_COND_EQ, t2, t0, label1);
                 gen_op_mov_reg_v(ot, R_EAX, t0);
-                tcg_gen_br(label2);
                 gen_set_label(label1);
-                gen_op_mov_reg_v(ot, rm, t1);
             } else {
-                /* perform no-op store cycle like physical cpu; must be
-                   before changing accumulator to ensure idempotency if
-                   the store faults and the instruction is restarted */
-                gen_op_st_v(s, ot, t0, a0);
-                gen_op_mov_reg_v(ot, R_EAX, t0);
-                tcg_gen_br(label2);
-                gen_set_label(label1);
-                gen_op_st_v(s, ot, t1, a0);
+                if (mod == 3) {
+                    rm = (modrm & 7) | REX_B(s);
+                    gen_op_mov_v_reg(ot, t0, rm);
+                } else {
+                    gen_lea_modrm(env, s, modrm);
+                    tcg_gen_mov_tl(a0, cpu_A0);
+                    gen_op_ld_v(s, ot, t0, a0);
+                    rm = 0; /* avoid warning */
+                }
+                label1 = gen_new_label();
+                tcg_gen_mov_tl(t2, cpu_regs[R_EAX]);
+                gen_extu(ot, t0);
+                gen_extu(ot, t2);
+                tcg_gen_brcond_tl(TCG_COND_EQ, t2, t0, label1);
+                label2 = gen_new_label();
+                if (mod == 3) {
+                    gen_op_mov_reg_v(ot, R_EAX, t0);
+                    tcg_gen_br(label2);
+                    gen_set_label(label1);
+                    gen_op_mov_reg_v(ot, rm, t1);
+                } else {
+                    /* perform no-op store cycle like physical cpu; must be
+                       before changing accumulator to ensure idempotency if
+                       the store faults and the instruction is restarted */
+                    gen_op_st_v(s, ot, t0, a0);
+                    gen_op_mov_reg_v(ot, R_EAX, t0);
+                    tcg_gen_br(label2);
+                    gen_set_label(label1);
+                    gen_op_st_v(s, ot, t1, a0);
+                }
+                gen_set_label(label2);
             }
-            gen_set_label(label2);
             tcg_gen_mov_tl(cpu_cc_src, t0);
             tcg_gen_mov_tl(cpu_cc_srcT, t2);
             tcg_gen_sub_tl(cpu_cc_dst, t2, t0);
