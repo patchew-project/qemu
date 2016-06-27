@@ -19,6 +19,8 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
@@ -443,4 +445,52 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
 
     /* Linux crc32c converts the output to one's complement.  */
     return crc32c(acc, buf, bytes) ^ 0xffffffff;
+}
+
+/* returns 0 on success; 1 otherwise */
+#define GEN_CMPXCHG64(SUFFIX)                                           \
+uint64_t                                                                \
+HELPER(glue(cmpxchg64, SUFFIX))(CPUARMState *env, uint64_t addr, uint64_t old, \
+                                uint64_t new)                           \
+{                                                                       \
+    uint64_t read;                                                      \
+                                                                        \
+    read = glue(glue(glue(cpu_, cmpxchg), SUFFIX),                      \
+                _data_ra)(env, addr, old, new, GETPC());                \
+    return read != old;                                                 \
+}
+
+GEN_CMPXCHG64(b)
+GEN_CMPXCHG64(w)
+GEN_CMPXCHG64(l)
+GEN_CMPXCHG64(q)
+#undef GEN_CMPXCHG64
+
+/* returns 0 on success; 1 otherwise */
+uint64_t
+HELPER(paired_cmpxchg64l)(CPUARMState *env, uint64_t addr, uint64_t old_lo,
+                          uint64_t old_hi, uint64_t new_lo, uint64_t new_hi)
+{
+    uint64_t old, new;
+    uint64_t read;
+
+    old = old_hi;
+    old <<= 32;
+    old |= old_lo;
+
+    new = new_hi;
+    new <<= 32;
+    new |= new_lo;
+
+    read = cpu_cmpxchgq_data_ra(env, addr, old, new, GETPC());
+    return read != old;
+}
+
+/* returns 0 on success; 1 otherwise */
+uint64_t
+HELPER(paired_cmpxchg64q)(CPUARMState *env, uint64_t addr, uint64_t old_lo,
+                          uint64_t old_hi, uint64_t new_lo, uint64_t new_hi)
+{
+    return !cpu_cmpxchgo_data_ra(env, addr, &old_lo, &old_hi, new_lo, new_hi,
+                                 GETPC());
 }
