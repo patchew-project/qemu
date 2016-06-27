@@ -643,6 +643,7 @@ int cpu_exec(CPUState *cpu)
 #endif /* buggy compiler */
             cpu->can_do_io = 1;
             tb_lock_reset();
+            tcg_cmpxchg_lock_reset();
         }
     } /* for(;;) */
 

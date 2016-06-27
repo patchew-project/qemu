@@ -650,6 +650,11 @@ void tb_lock(void);
 void tb_unlock(void);
 void tb_lock_reset(void);
 
+void tcg_cmpxchg_lock(uintptr_t addr);
+void tcg_cmpxchg_unlock(void);
+void tcg_cmpxchg_lock_reset(void);
+void tcg_cmpxchg_lock_init(void);
+
 static inline void *tcg_malloc(int size)
 {
     TCGContext *s = &tcg_ctx;

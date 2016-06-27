@@ -140,6 +140,7 @@ void fork_end(int child)
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
+        tcg_cmpxchg_lock_init();
         gdbserver_fork(thread_cpu);
     } else {
         pthread_mutex_unlock(&exclusive_lock);

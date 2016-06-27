@@ -153,6 +153,44 @@ void tb_lock_reset(void)
 #endif
 }
 
+#define TCG_CMPXCHG_NR_LOCKS 16
+static QemuMutex tcg_cmpxchg_locks[TCG_CMPXCHG_NR_LOCKS];
+static __thread QemuMutex *tcg_cmpxchg_curr_lock;
+
+void tcg_cmpxchg_lock(uintptr_t addr)
+{
+    assert(tcg_cmpxchg_curr_lock == NULL);
+    /* choose lock based on cache line address. We assume lines are 64b long */
+    addr >>= 6;
+    addr &= TCG_CMPXCHG_NR_LOCKS - 1;
+    tcg_cmpxchg_curr_lock = &tcg_cmpxchg_locks[addr];
+    qemu_mutex_lock(tcg_cmpxchg_curr_lock);
+}
+
+void tcg_cmpxchg_unlock(void)
+{
+    qemu_mutex_unlock(tcg_cmpxchg_curr_lock);
+    tcg_cmpxchg_curr_lock = NULL;
+}
+
+void tcg_cmpxchg_lock_reset(void)
+{
+    if (unlikely(tcg_cmpxchg_curr_lock)) {
+        tcg_cmpxchg_unlock();
+    }
+}
+
+void tcg_cmpxchg_lock_init(void)
+{
+    int i;
+
+    /* set current to NULL; useful after a child forks in user-mode */
+    tcg_cmpxchg_curr_lock = NULL;
+    for (i = 0; i < TCG_CMPXCHG_NR_LOCKS; i++) {
+        qemu_mutex_init(&tcg_cmpxchg_locks[i]);
+    }
+}
+
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
 void cpu_gen_init(void)
@@ -731,6 +769,7 @@ static inline void code_gen_alloc(size_t tb_size)
     tcg_ctx.tb_ctx.tbs = g_new(TranslationBlock, tcg_ctx.code_gen_max_blocks);
 
     qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
+    tcg_cmpxchg_lock_init();
 }
 
 static void tb_htable_init(void)
