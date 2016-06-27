@@ -46,13 +46,12 @@
 #define EXCP_BKPT            7
 #define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
 #define EXCP_KERNEL_TRAP     9   /* Jumped to kernel code page.  */
-#define EXCP_STREX          10
-#define EXCP_HVC            11   /* HyperVisor Call */
-#define EXCP_HYP_TRAP       12
-#define EXCP_SMC            13   /* Secure Monitor Call */
-#define EXCP_VIRQ           14
-#define EXCP_VFIQ           15
-#define EXCP_SEMIHOST       16   /* semihosting call (A64 only) */
+#define EXCP_HVC            10   /* HyperVisor Call */
+#define EXCP_HYP_TRAP       11
+#define EXCP_SMC            12   /* Secure Monitor Call */
+#define EXCP_VIRQ           13
+#define EXCP_VFIQ           14
+#define EXCP_SEMIHOST       15   /* semihosting call (A64 only) */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -475,10 +474,6 @@ typedef struct CPUARMState {
     uint64_t exclusive_addr;
     uint64_t exclusive_val;
     uint64_t exclusive_high;
-#if defined(CONFIG_USER_ONLY)
-    uint64_t exclusive_test;
-    uint32_t exclusive_info;
-#endif
 
     /* iwMMXt coprocessor state.  */
     struct {
