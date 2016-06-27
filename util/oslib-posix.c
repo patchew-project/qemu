@@ -187,6 +187,16 @@ int qemu_pipe(int pipefd[2])
     return ret;
 }
 
+int qemu_futimens(int fd, const struct timespec *times)
+{
+#ifdef CONFIG_UTIMENSAT
+    return futimens(fd, times);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
 int qemu_utimens(const char *path, const struct timespec *times)
 {
     struct timeval tv[2], tv_now;

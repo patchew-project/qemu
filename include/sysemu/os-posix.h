@@ -57,6 +57,7 @@ typedef struct timeval qemu_timeval;
 #endif
 typedef struct timespec qemu_timespec;
 int qemu_utimens(const char *path, const qemu_timespec *times);
+int qemu_futimens(int fd, const qemu_timespec *times);
 
 bool is_daemonized(void);
 
