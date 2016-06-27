@@ -8783,18 +8783,13 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         /* SWP instruction */
                         rm = (insn) & 0xf;
 
-                        /* ??? This is not really atomic.  However we know
-                           we never have multiple CPUs running in parallel,
-                           so it is good enough.  */
                         addr = load_reg(s, rn);
                         tmp = load_reg(s, rm);
                         tmp2 = tcg_temp_new_i32();
                         if (insn & (1 << 22)) {
-                            gen_aa32_ld8u(s, tmp2, addr, get_mem_index(s));
-                            gen_aa32_st8(s, tmp, addr, get_mem_index(s));
+                            gen_helper_atomic_xchgb(tmp2, cpu_env, addr, tmp);
                         } else {
-                            gen_aa32_ld32u(s, tmp2, addr, get_mem_index(s));
-                            gen_aa32_st32(s, tmp, addr, get_mem_index(s));
+                            gen_helper_atomic_xchgl(tmp2, cpu_env, addr, tmp);
                         }
                         tcg_temp_free_i32(tmp);
                         tcg_temp_free_i32(addr);
