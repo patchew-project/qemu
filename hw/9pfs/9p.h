@@ -164,6 +164,7 @@ typedef struct V9fsXattr
     void *value;
     V9fsString name;
     int flags;
+    V9fsFidState *file;
 } V9fsXattr;
 
 typedef struct V9fsDir {

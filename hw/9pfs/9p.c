@@ -248,6 +248,12 @@ int v9fs_get_fd_fid(int fid_type, V9fsFidOpenState *fs)
         fd = dirfd(fs->dir.stream);
     } else if (fid_type == P9_FID_FILE) {
         fd = fs->fd;
+    } else if (fid_type == P9_FID_XATTR) {
+        V9fsFidState *fidp = fs->xattr.file;
+
+        if (fidp) {
+            return v9fs_get_fd_fid(fidp->fid_type, &fidp->fs);
+        }
     }
 
     return fd;
@@ -264,6 +270,12 @@ static bool fid_has_file(V9fsFidState *fidp)
     } else if (fid_type == P9_FID_FILE) {
         if (fidp->fs.fd > -1) {
             return true;
+        }
+    } else if (fid_type == P9_FID_XATTR) {
+        V9fsFidState *file = fidp->fs.xattr.file;
+
+        if (file) {
+            return fid_has_file(file);
         }
     }
 
@@ -368,6 +380,8 @@ free_value:
     return retval;
 }
 
+static int put_fid(V9fsPDU *pdu, V9fsFidState *fidp);
+
 static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     int retval = 0;
@@ -382,7 +396,13 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
             retval = v9fs_co_closedir(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_XATTR) {
+        V9fsFidState *file_fidp = fidp->fs.xattr.file;
+
         retval = v9fs_xattr_fid_clunk(pdu, fidp);
+        if (file_fidp) {
+            fidp->fs.xattr.file = NULL;
+            put_fid(pdu, file_fidp);
+        }
     }
     v9fs_path_free(&fidp->path);
     g_free(fidp);
@@ -3125,6 +3145,10 @@ static void v9fs_xattrwalk(void *opaque)
         goto out;
     }
     v9fs_path_copy(&xattr_fidp->path, &file_fidp->path);
+    xattr_fidp->fid_type = P9_FID_XATTR;
+    xattr_fidp->fs.xattr.copied_len = -1;
+    xattr_fidp->fs.xattr.file = file_fidp;
+    file_fidp->ref++;
     if (name.data == NULL) {
         /*
          * listxattr request. Get the size first
@@ -3139,8 +3163,6 @@ static void v9fs_xattrwalk(void *opaque)
          * Read the xattr value
          */
         xattr_fidp->fs.xattr.len = size;
-        xattr_fidp->fid_type = P9_FID_XATTR;
-        xattr_fidp->fs.xattr.copied_len = -1;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_llistxattr(pdu, &xattr_fidp->path,
@@ -3172,8 +3194,6 @@ static void v9fs_xattrwalk(void *opaque)
          * Read the xattr value
          */
         xattr_fidp->fs.xattr.len = size;
-        xattr_fidp->fid_type = P9_FID_XATTR;
-        xattr_fidp->fs.xattr.copied_len = -1;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
