@@ -3115,6 +3115,16 @@ out_nofid:
     v9fs_string_free(&name);
 }
 
+static int v9fs_do_getxattr(V9fsPDU *pdu, V9fsFidState *fidp, V9fsString *name,
+                            void *value, size_t size)
+{
+    if (fid_has_file(fidp)) {
+        return v9fs_co_fgetxattr(pdu, fidp, name, value, size);
+    } else {
+        return v9fs_co_lgetxattr(pdu, &fidp->path, name, value, size);
+    }
+}
+
 static void v9fs_xattrwalk(void *opaque)
 {
     int64_t size;
@@ -3181,10 +3191,9 @@ static void v9fs_xattrwalk(void *opaque)
     } else {
         /*
          * specific xattr fid. We check for xattr
-         * presence also collect the xattr size
+         * presence also collect the xattr size.
          */
-        size = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
-                                 &name, NULL, 0);
+        size = v9fs_do_getxattr(pdu, xattr_fidp, &name, NULL, 0);
         if (size < 0) {
             err = size;
             clunk_fid(s, xattr_fidp->fid);
@@ -3196,9 +3205,9 @@ static void v9fs_xattrwalk(void *opaque)
         xattr_fidp->fs.xattr.len = size;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
-            err = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
-                                    &name, xattr_fidp->fs.xattr.value,
-                                    xattr_fidp->fs.xattr.len);
+            err = v9fs_do_getxattr(pdu, xattr_fidp, &name,
+                                   xattr_fidp->fs.xattr.value,
+                                   xattr_fidp->fs.xattr.len);
             if (err < 0) {
                 clunk_fid(s, xattr_fidp->fid);
                 goto out;

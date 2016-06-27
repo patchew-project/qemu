@@ -464,6 +464,14 @@ static ssize_t synth_lgetxattr(FsContext *ctx, V9fsPath *path,
     return -1;
 }
 
+static ssize_t synth_fgetxattr(FsContext *ctx, int fid_type,
+                               V9fsFidOpenState *fs, const char *name,
+                               void *value, size_t size)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
 static ssize_t synth_llistxattr(FsContext *ctx, V9fsPath *path,
                                      void *value, size_t size)
 {
@@ -598,4 +606,5 @@ FileOperations synth_ops = {
     .futimens     = synth_futimens,
     .fchown       = synth_fchown,
     .fchmod       = synth_fchmod,
+    .fgetxattr    = synth_fgetxattr,
 };

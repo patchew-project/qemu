@@ -1104,6 +1104,16 @@ static ssize_t local_lgetxattr(FsContext *ctx, V9fsPath *fs_path,
     return v9fs_get_xattr(ctx, -1, path, name, value, size);
 }
 
+static ssize_t local_fgetxattr(FsContext *ctx, int fid_type,
+                               V9fsFidOpenState *fs, const char *name,
+                               void *value, size_t size)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return v9fs_get_xattr(ctx, fd, NULL, name, value, size);
+}
+
 static ssize_t local_llistxattr(FsContext *ctx, V9fsPath *fs_path,
                                 void *value, size_t size)
 {
@@ -1357,4 +1367,5 @@ FileOperations local_ops = {
     .futimens = local_futimens,
     .fchown = local_fchown,
     .fchmod = local_fchmod,
+    .fgetxattr = local_fgetxattr,
 };

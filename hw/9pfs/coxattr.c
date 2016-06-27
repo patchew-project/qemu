@@ -61,6 +61,28 @@ int v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
     return err;
 }
 
+int v9fs_co_fgetxattr(V9fsPDU *pdu, V9fsFidState *fidp,
+                      V9fsString *xattr_name,
+                      void *value, size_t size)
+{
+    int err;
+    V9fsState *s = pdu->s;
+
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->fgetxattr(&s->ctx, fidp->fid_type, &fidp->fs,
+                                    xattr_name->data,
+                                    value, size);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
 int v9fs_co_lsetxattr(V9fsPDU *pdu, V9fsPath *path,
                       V9fsString *xattr_name, void *value,
                       size_t size, int flags)

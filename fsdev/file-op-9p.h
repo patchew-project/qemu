@@ -145,6 +145,8 @@ struct FileOperations
                     const struct timespec *);
     int (*fchown)(FsContext *, int, V9fsFidOpenState *, FsCred *);
     int (*fchmod)(FsContext *, int, V9fsFidOpenState *, FsCred *);
+    ssize_t (*fgetxattr)(FsContext *, int, V9fsFidOpenState *,
+                         const char *, void *, size_t);
     void *opaque;
 };
 
