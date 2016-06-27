@@ -743,6 +743,15 @@ static int proxy_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     return retval;
 }
 
+static int proxy_fchmod(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                        FsCred *credp)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return fchmod(fd, credp->fc_mode);
+}
+
 static int proxy_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
@@ -1241,4 +1250,5 @@ FileOperations proxy_ops = {
     .ftruncate    = proxy_ftruncate,
     .futimens     = proxy_futimens,
     .fchown       = proxy_fchown,
+    .fchmod       = proxy_fchmod,
 };

@@ -218,6 +218,15 @@ static int handle_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     return ret;
 }
 
+static int handle_fchmod(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                         FsCred *credp)
+{
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+    return fchmod(fd, credp->fc_mode);
+}
+
 static int handle_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
@@ -726,4 +735,5 @@ FileOperations handle_ops = {
     .ftruncate    = handle_ftruncate,
     .futimens     = handle_futimens,
     .fchown       = handle_fchown,
+    .fchmod       = handle_fchmod,
 };

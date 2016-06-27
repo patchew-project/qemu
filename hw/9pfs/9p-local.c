@@ -516,6 +516,26 @@ static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     return ret;
 }
 
+static int local_fchmod(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                        FsCred *credp)
+{
+    int ret = -1;
+    int fd;
+
+    fd = v9fs_get_fd_fid(fid_type, fs);
+
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
+        ret = local_set_xattr(fd, NULL, credp);
+    } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+        errno = ENOTSUP;
+        return -1;
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
+        ret = fchmod(fd, credp->fc_mode);
+    }
+    return ret;
+}
+
 static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
@@ -1336,4 +1356,5 @@ FileOperations local_ops = {
     .ftruncate = local_ftruncate,
     .futimens = local_futimens,
     .fchown = local_fchown,
+    .fchmod = local_fchmod,
 };

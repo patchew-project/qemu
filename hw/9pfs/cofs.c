@@ -112,6 +112,27 @@ int v9fs_co_chmod(V9fsPDU *pdu, V9fsPath *path, mode_t mode)
     return err;
 }
 
+int v9fs_co_fchmod(V9fsPDU *pdu, V9fsFidState *fidp, mode_t mode)
+{
+    int err;
+    FsCred cred;
+    V9fsState *s = pdu->s;
+
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    cred_init(&cred);
+    cred.fc_mode = mode;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->fchmod(&s->ctx, fidp->fid_type, &fidp->fs, &cred);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
 int v9fs_co_utimensat(V9fsPDU *pdu, V9fsPath *path,
                       struct timespec times[2])
 {

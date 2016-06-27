@@ -357,6 +357,13 @@ static int synth_chmod(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
     return -1;
 }
 
+static int synth_fchmod(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                        FsCred *credp)
+{
+    errno = EPERM;
+    return -1;
+}
+
 static int synth_mknod(FsContext *fs_ctx, V9fsPath *path,
                        const char *buf, FsCred *credp)
 {
@@ -590,4 +597,5 @@ FileOperations synth_ops = {
     .ftruncate    = synth_ftruncate,
     .futimens     = synth_futimens,
     .fchown       = synth_fchown,
+    .fchmod       = synth_fchmod,
 };
