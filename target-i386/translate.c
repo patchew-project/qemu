@@ -1433,9 +1433,30 @@ static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
     }
 }
 
+static void gen_inc_locked(DisasContext *s1, TCGMemOp ot, int c)
+{
+    TCGv t0;
+
+    t0 = tcg_temp_new();
+    tcg_gen_movi_tl(t0, 1);
+    gen_compute_eflags_c(s1, cpu_cc_src);
+    if (c > 0) {
+        gen_atomic_add_fetch(cpu_T0, cpu_A0, t0, ot);
+        set_cc_op(s1, CC_OP_INCB + ot);
+    } else {
+        gen_atomic_sub_fetch(cpu_T0, cpu_A0, t0, ot);
+        set_cc_op(s1, CC_OP_DECB + ot);
+    }
+    tcg_gen_mov_tl(cpu_cc_dst, cpu_T0);
+    tcg_temp_free(t0);
+}
+
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_inc(DisasContext *s1, TCGMemOp ot, int d, int c)
 {
+    if (s1->prefix & PREFIX_LOCK) {
+        return gen_inc_locked(s1, ot, c);
+    }
     if (d != OR_TMP0) {
         gen_op_mov_v_reg(ot, cpu_T0, d);
     } else {
