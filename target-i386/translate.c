@@ -1271,6 +1271,51 @@ static void gen_cmpxchg(TCGv ret, TCGv addr, TCGv old, TCGv new, TCGMemOp ot)
     }
 }
 
+#ifndef TARGET_X86_64
+#define GEN_ATOMIC_HELPER(NAME)                                           \
+static void                                                               \
+glue(gen_atomic_, NAME)(TCGv ret, TCGv addr, TCGv reg, TCGMemOp ot)       \
+{                                                                         \
+    switch (ot & 3) {                                                     \
+    case 0:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), b)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    case 1:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), w)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    case 2:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), l)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    default:                                                              \
+        tcg_abort();                                                      \
+    }                                                                     \
+}
+#else /* 64-bit */
+#define GEN_ATOMIC_HELPER(NAME)                                           \
+static void                                                               \
+glue(gen_atomic_, NAME)(TCGv ret, TCGv addr, TCGv reg, TCGMemOp ot)       \
+{                                                                         \
+    switch (ot & 3) {                                                     \
+    case 0:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), b)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    case 1:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), w)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    case 2:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), l)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    case 3:                                                               \
+        glue(glue(gen_helper_atomic_, NAME), q)(ret, cpu_env, addr, reg); \
+        break;                                                            \
+    default:                                                              \
+        tcg_abort();                                                      \
+    }                                                                     \
+}
+#endif /* TARGET_X86_64 */
+
+#undef GEN_ATOMIC_HELPER
+
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
 {

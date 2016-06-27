@@ -84,6 +84,40 @@ DEF_HELPER_4(cmpxchgq, tl, env, tl, tl, tl)
 DEF_HELPER_2(cmpxchg16b, void, env, tl)
 DEF_HELPER_2(cmpxchg16b_unlocked, void, env, tl)
 #endif
+
+/*
+ * Use glue(foo, glue(bar, baz)) instead of glue(glue(foo, bar), baz), otherwise
+ * some gcc's (e.g. v4.6.3) can get confused with the surrounding DEF_HELPER.
+ */
+#ifndef TARGET_X86_64
+#define DEF_ATOMIC_ALL(NAME)                                    \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, b)), tl, env, tl, tl) \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, w)), tl, env, tl, tl) \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, l)), tl, env, tl, tl)
+#else /* 64-bit */
+#define DEF_ATOMIC_ALL(NAME)                                    \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, b)), tl, env, tl, tl) \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, w)), tl, env, tl, tl) \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, l)), tl, env, tl, tl) \
+    DEF_HELPER_3(glue(atomic_, glue(NAME, q)), tl, env, tl, tl)
+#endif
+
+DEF_ATOMIC_ALL(fetch_add)
+DEF_ATOMIC_ALL(fetch_and)
+DEF_ATOMIC_ALL(fetch_or)
+DEF_ATOMIC_ALL(fetch_sub)
+DEF_ATOMIC_ALL(fetch_xor)
+
+DEF_ATOMIC_ALL(add_fetch)
+DEF_ATOMIC_ALL(and_fetch)
+DEF_ATOMIC_ALL(or_fetch)
+DEF_ATOMIC_ALL(sub_fetch)
+DEF_ATOMIC_ALL(xor_fetch)
+
+DEF_ATOMIC_ALL(xchg)
+
+#undef DEF_ATOMIC_ALL
+
 DEF_HELPER_1(single_step, void, env)
 DEF_HELPER_1(cpuid, void, env)
 DEF_HELPER_1(rdtsc, void, env)

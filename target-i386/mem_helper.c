@@ -170,6 +170,44 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
 }
 #endif
 
+#define GEN_ATOMIC_HELPER(NAME)                                     \
+target_ulong                                                        \
+glue(helper_atomic_,                                                \
+     NAME)(CPUArchState *env, target_ulong addr, target_ulong val)  \
+{                                                                   \
+    return glue(glue(cpu_atomic_, NAME), _data_ra)(env, addr, val, GETPC()); \
+}
+
+#ifndef TARGET_X86_64
+#define GEN_ATOMIC_HELPER_ALL(NAME)              \
+    GEN_ATOMIC_HELPER(glue(NAME, b))             \
+    GEN_ATOMIC_HELPER(glue(NAME, w))             \
+    GEN_ATOMIC_HELPER(glue(NAME, l))
+#else /* 64-bit */
+#define GEN_ATOMIC_HELPER_ALL(NAME)              \
+    GEN_ATOMIC_HELPER(glue(NAME, b))             \
+    GEN_ATOMIC_HELPER(glue(NAME, w))             \
+    GEN_ATOMIC_HELPER(glue(NAME, l))             \
+    GEN_ATOMIC_HELPER(glue(NAME, q))
+#endif /* TARGET_X86_64 */
+
+GEN_ATOMIC_HELPER_ALL(fetch_add)
+GEN_ATOMIC_HELPER_ALL(fetch_and)
+GEN_ATOMIC_HELPER_ALL(fetch_or)
+GEN_ATOMIC_HELPER_ALL(fetch_sub)
+GEN_ATOMIC_HELPER_ALL(fetch_xor)
+
+GEN_ATOMIC_HELPER_ALL(add_fetch)
+GEN_ATOMIC_HELPER_ALL(and_fetch)
+GEN_ATOMIC_HELPER_ALL(or_fetch)
+GEN_ATOMIC_HELPER_ALL(sub_fetch)
+GEN_ATOMIC_HELPER_ALL(xor_fetch)
+
+GEN_ATOMIC_HELPER_ALL(xchg)
+
+#undef GEN_ATOMIC_HELPER
+#undef GEN_ATOMIC_HELPER_ALL
+
 void helper_boundw(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
