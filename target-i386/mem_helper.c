@@ -23,39 +23,6 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 
-/* broken thread support */
-
-#if defined(CONFIG_USER_ONLY)
-QemuMutex global_cpu_lock;
-
-void helper_lock(void)
-{
-    qemu_mutex_lock(&global_cpu_lock);
-}
-
-void helper_unlock(void)
-{
-    qemu_mutex_unlock(&global_cpu_lock);
-}
-
-void helper_lock_init(void)
-{
-    qemu_mutex_init(&global_cpu_lock);
-}
-#else
-void helper_lock(void)
-{
-}
-
-void helper_unlock(void)
-{
-}
-
-void helper_lock_init(void)
-{
-}
-#endif
-
 #define GEN_CMPXCHG_HELPER(NAME)                                      \
 target_ulong glue(helper_, NAME)(CPUX86State *env, target_ulong addr, \
                                  target_ulong old, target_ulong new)  \
