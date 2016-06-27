@@ -1315,7 +1315,10 @@ glue(gen_atomic_, NAME)(TCGv ret, TCGv addr, TCGv reg, TCGMemOp ot)       \
 #endif /* TARGET_X86_64 */
 
 GEN_ATOMIC_HELPER(fetch_add)
+GEN_ATOMIC_HELPER(fetch_and)
+GEN_ATOMIC_HELPER(fetch_or)
 GEN_ATOMIC_HELPER(fetch_sub)
+GEN_ATOMIC_HELPER(fetch_xor)
 
 GEN_ATOMIC_HELPER(add_fetch)
 GEN_ATOMIC_HELPER(and_fetch)
@@ -6796,32 +6799,57 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
     bt_op:
         tcg_gen_andi_tl(cpu_T1, cpu_T1, (1 << (3 + ot)) - 1);
-        tcg_gen_shr_tl(cpu_tmp4, cpu_T0, cpu_T1);
-        switch(op) {
-        case 0:
-            break;
-        case 1:
+        if (s->prefix & PREFIX_LOCK) {
+            TCGv t0;
+
+            t0 = tcg_temp_new();
             tcg_gen_movi_tl(cpu_tmp0, 1);
             tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
-            tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_tmp0);
-            break;
-        case 2:
-            tcg_gen_movi_tl(cpu_tmp0, 1);
-            tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
-            tcg_gen_andc_tl(cpu_T0, cpu_T0, cpu_tmp0);
-            break;
-        default:
-        case 3:
-            tcg_gen_movi_tl(cpu_tmp0, 1);
-            tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
-            tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_tmp0);
-            break;
-        }
-        if (op != 0) {
-            if (mod != 3) {
-                gen_op_st_v(s, ot, cpu_T0, cpu_A0);
-            } else {
-                gen_op_mov_reg_v(ot, rm, cpu_T0);
+            switch (op) {
+            case 1:
+                gen_atomic_fetch_or(t0, cpu_A0, cpu_tmp0, ot);
+                tcg_gen_or_tl(cpu_T0, t0, cpu_tmp0);
+                break;
+            case 2:
+                tcg_gen_not_tl(cpu_tmp0, cpu_tmp0);
+                gen_atomic_fetch_and(t0, cpu_A0, cpu_tmp0, ot);
+                tcg_gen_and_tl(cpu_T0, t0, cpu_tmp0);
+                break;
+            case 3:
+                gen_atomic_fetch_xor(t0, cpu_A0, cpu_tmp0, ot);
+                tcg_gen_xor_tl(cpu_T0, t0, cpu_tmp0);
+                break;
+            }
+            tcg_gen_shr_tl(cpu_tmp4, t0, cpu_T1);
+            tcg_temp_free(t0);
+        } else {
+            tcg_gen_shr_tl(cpu_tmp4, cpu_T0, cpu_T1);
+            switch (op) {
+            case 0:
+                break;
+            case 1:
+                tcg_gen_movi_tl(cpu_tmp0, 1);
+                tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
+                tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_tmp0);
+                break;
+            case 2:
+                tcg_gen_movi_tl(cpu_tmp0, 1);
+                tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
+                tcg_gen_andc_tl(cpu_T0, cpu_T0, cpu_tmp0);
+                break;
+            default:
+            case 3:
+                tcg_gen_movi_tl(cpu_tmp0, 1);
+                tcg_gen_shl_tl(cpu_tmp0, cpu_tmp0, cpu_T1);
+                tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_tmp0);
+                break;
+            }
+            if (op != 0) {
+                if (mod != 3) {
+                    gen_op_st_v(s, ot, cpu_T0, cpu_A0);
+                } else {
+                    gen_op_mov_reg_v(ot, rm, cpu_T0);
+                }
             }
         }
 
