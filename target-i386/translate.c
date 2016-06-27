@@ -1314,6 +1314,13 @@ glue(gen_atomic_, NAME)(TCGv ret, TCGv addr, TCGv reg, TCGMemOp ot)       \
 }
 #endif /* TARGET_X86_64 */
 
+GEN_ATOMIC_HELPER(fetch_sub)
+
+GEN_ATOMIC_HELPER(add_fetch)
+GEN_ATOMIC_HELPER(and_fetch)
+GEN_ATOMIC_HELPER(or_fetch)
+GEN_ATOMIC_HELPER(sub_fetch)
+GEN_ATOMIC_HELPER(xor_fetch)
 #undef GEN_ATOMIC_HELPER
 
 /* if d == OR_TMP0, it means memory operand (address in A0) */
@@ -1321,55 +1328,99 @@ static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
 {
     if (d != OR_TMP0) {
         gen_op_mov_v_reg(ot, cpu_T0, d);
-    } else {
+    } else if (!(s1->prefix & PREFIX_LOCK)) {
         gen_op_ld_v(s1, ot, cpu_T0, cpu_A0);
     }
     switch(op) {
     case OP_ADCL:
         gen_compute_eflags_c(s1, cpu_tmp4);
-        tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
-        tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_tmp4);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            TCGv t0;
+
+            t0 = tcg_temp_new();
+            tcg_gen_add_tl(t0, cpu_tmp4, cpu_T1);
+            gen_atomic_add_fetch(cpu_T0, cpu_A0, t0, ot);
+            tcg_temp_free(t0);
+        } else {
+            tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
+            tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_tmp4);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update3_cc(cpu_tmp4);
         set_cc_op(s1, CC_OP_ADCB + ot);
         break;
     case OP_SBBL:
         gen_compute_eflags_c(s1, cpu_tmp4);
-        tcg_gen_sub_tl(cpu_T0, cpu_T0, cpu_T1);
-        tcg_gen_sub_tl(cpu_T0, cpu_T0, cpu_tmp4);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            TCGv t0;
+
+            t0 = tcg_temp_new();
+            tcg_gen_add_tl(t0, cpu_T1, cpu_tmp4);
+            gen_atomic_sub_fetch(cpu_T0, cpu_A0, t0, ot);
+            tcg_temp_free(t0);
+        } else {
+            tcg_gen_sub_tl(cpu_T0, cpu_T0, cpu_T1);
+            tcg_gen_sub_tl(cpu_T0, cpu_T0, cpu_tmp4);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update3_cc(cpu_tmp4);
         set_cc_op(s1, CC_OP_SBBB + ot);
         break;
     case OP_ADDL:
-        tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            gen_atomic_add_fetch(cpu_T0, cpu_A0, cpu_T1, ot);
+        } else {
+            tcg_gen_add_tl(cpu_T0, cpu_T0, cpu_T1);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update2_cc();
         set_cc_op(s1, CC_OP_ADDB + ot);
         break;
     case OP_SUBL:
-        tcg_gen_mov_tl(cpu_cc_srcT, cpu_T0);
-        tcg_gen_sub_tl(cpu_T0, cpu_T0, cpu_T1);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            TCGv t0;
+
+            t0 = tcg_temp_new();
+            gen_atomic_fetch_sub(t0, cpu_A0, cpu_T1, ot);
+            tcg_gen_mov_tl(cpu_cc_srcT, t0);
+            tcg_gen_sub_tl(cpu_T0, t0, cpu_T1);
+            tcg_temp_free(t0);
+        } else {
+            tcg_gen_mov_tl(cpu_cc_srcT, cpu_T0);
+            tcg_gen_sub_tl(cpu_T0, cpu_T0, cpu_T1);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update2_cc();
         set_cc_op(s1, CC_OP_SUBB + ot);
         break;
     default:
     case OP_ANDL:
-        tcg_gen_and_tl(cpu_T0, cpu_T0, cpu_T1);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            gen_atomic_and_fetch(cpu_T0, cpu_A0, cpu_T1, ot);
+        } else {
+            tcg_gen_and_tl(cpu_T0, cpu_T0, cpu_T1);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update1_cc();
         set_cc_op(s1, CC_OP_LOGICB + ot);
         break;
     case OP_ORL:
-        tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_T1);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            gen_atomic_or_fetch(cpu_T0, cpu_A0, cpu_T1, ot);
+        } else {
+            tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_T1);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update1_cc();
         set_cc_op(s1, CC_OP_LOGICB + ot);
         break;
     case OP_XORL:
-        tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_T1);
-        gen_op_st_rm_T0_A0(s1, ot, d);
+        if (s1->prefix & PREFIX_LOCK) {
+            gen_atomic_xor_fetch(cpu_T0, cpu_A0, cpu_T1, ot);
+        } else {
+            tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_T1);
+            gen_op_st_rm_T0_A0(s1, ot, d);
+        }
         gen_op_update1_cc();
         set_cc_op(s1, CC_OP_LOGICB + ot);
         break;
