@@ -37,3 +37,28 @@ glue(glue(cpu_cmpxchgo, MEMSUFFIX),
     return ret;
 }
 #endif
+
+#define GEN_ATOMIC_HELPER(NAME)                                             \
+static inline DATA_TYPE                                                     \
+glue(glue(glue(glue(cpu_atomic_, NAME), SUFFIX), MEMSUFFIX),                \
+     _ra)(CPUArchState *env, target_ulong ptr, DATA_TYPE val, uintptr_t ra) \
+{                                                                           \
+    DATA_TYPE *hostaddr = g2h(ptr);                                         \
+                                                                            \
+    return glue(atomic_, NAME)(hostaddr, val);                              \
+}
+
+GEN_ATOMIC_HELPER(fetch_add)
+GEN_ATOMIC_HELPER(fetch_sub)
+GEN_ATOMIC_HELPER(fetch_and)
+GEN_ATOMIC_HELPER(fetch_or)
+GEN_ATOMIC_HELPER(fetch_xor)
+
+GEN_ATOMIC_HELPER(add_fetch)
+GEN_ATOMIC_HELPER(sub_fetch)
+GEN_ATOMIC_HELPER(and_fetch)
+GEN_ATOMIC_HELPER(or_fetch)
+GEN_ATOMIC_HELPER(xor_fetch)
+
+GEN_ATOMIC_HELPER(xchg)
+#undef GEN_ATOMIC_HELPER
