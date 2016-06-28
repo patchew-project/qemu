@@ -1113,10 +1113,6 @@ static BlockDriver bdrv_quorum = {
 
 static void bdrv_quorum_init(void)
 {
-    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
-        /* SHA256 hash support is required for quorum device */
-        return;
-    }
     bdrv_register(&bdrv_quorum);
 }
 
