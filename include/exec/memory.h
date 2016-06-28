@@ -14,6 +14,13 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+typedef enum {
+    MEMTX_READ,
+    MEMTX_WRITE,
+    MEMTX_PROGRAM,
+} MemTxType;
+
+
 #ifndef CONFIG_USER_ONLY
 
 #define DIRTY_MEMORY_VGA       0
@@ -1251,6 +1258,7 @@ AddressSpace *address_space_init_shareable(MemoryRegion *root,
  */
 void address_space_destroy(AddressSpace *as);
 
+
 /**
  * address_space_rw: read from or write to an address space.
  *
@@ -1262,11 +1270,11 @@ void address_space_destroy(AddressSpace *as);
  * @addr: address within that address space
  * @attrs: memory transaction attributes
  * @buf: buffer with the data transferred
- * @is_write: indicates the transfer direction
+ * @type: indicates the transfer type
  */
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
                              MemTxAttrs attrs, uint8_t *buf,
-                             int len, bool is_write);
+                             int len, MemTxType type);
 
 /**
  * address_space_write: write to address space.
@@ -1279,10 +1287,11 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
  * @addr: address within that address space
  * @attrs: memory transaction attributes
  * @buf: buffer with the data transferred
+ * @force: force writing to ROM areas
  */
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
-                                const uint8_t *buf, int len);
+                                const uint8_t *buf, int len, bool force);
 
 /* address_space_ld*: load from an address space
  * address_space_st*: store to an address space

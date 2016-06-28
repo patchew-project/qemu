@@ -202,7 +202,7 @@ void HELPER(simcall)(CPUXtensaState *env)
 
             for (i = 0; i < ARRAY_SIZE(name); ++i) {
                 rc = cpu_memory_rw_debug(cs, regs[3] + i,
-                                         (uint8_t *)name + i, 1, 0);
+                                         (uint8_t *)name + i, 1, MEMTX_READ);
                 if (rc != 0 || name[i] == 0) {
                     break;
                 }
@@ -247,7 +247,7 @@ void HELPER(simcall)(CPUXtensaState *env)
 
             if (target_tv) {
                 cpu_memory_rw_debug(cs, target_tv,
-                        (uint8_t *)target_tvv, sizeof(target_tvv), 0);
+                        (uint8_t *)target_tvv, sizeof(target_tvv), MEMTX_READ);
                 tv.tv_sec = (int32_t)tswap32(target_tvv[0]);
                 tv.tv_usec = (int32_t)tswap32(target_tvv[1]);
             }
@@ -282,7 +282,7 @@ void HELPER(simcall)(CPUXtensaState *env)
 
             argv.argptr[0] = tswap32(regs[3] + offsetof(struct Argv, text));
             cpu_memory_rw_debug(cs,
-                                regs[3], (uint8_t *)&argv, sizeof(argv), 1);
+                                regs[3], (uint8_t *)&argv, sizeof(argv), MEMTX_WRITE);
         }
         break;
 

@@ -2219,7 +2219,7 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
         abort();
     }
     return address_space_write(subpage->as, addr + subpage->base,
-                               attrs, buf, len);
+                               attrs, buf, len, false);
 }
 
 static bool subpage_accepts(void *opaque, hwaddr addr,
@@ -2436,7 +2436,7 @@ MemoryRegion *get_system_io(void)
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        uint8_t *buf, int len, int is_write)
+                        uint8_t *buf, int len, MemTxType type)
 {
     int l, flags;
     target_ulong page;
@@ -2450,7 +2450,8 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         flags = page_get_flags(page);
         if (!(flags & PAGE_VALID))
             return -1;
-        if (is_write) {
+        if (type == MEMTX_WRITE ||
+            type == MEMTX_PROGRAM) {
             if (!(flags & PAGE_WRITE))
                 return -1;
             /* XXX: this code should not depend on lock_user */
@@ -2552,7 +2553,8 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
                                                 MemTxAttrs attrs,
                                                 const uint8_t *buf,
                                                 int len, hwaddr addr1,
-                                                hwaddr l, MemoryRegion *mr)
+                                                hwaddr l, MemoryRegion *mr,
+                                                bool force)
 {
     uint8_t *ptr;
     uint64_t val;
@@ -2560,7 +2562,14 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
     bool release_lock = false;
 
     for (;;) {
-        if (!memory_access_is_direct(mr, true)) {
+
+        if (memory_access_is_direct(mr, true) ||
+            (force && memory_region_is_romd(mr))) {
+            /* RAM case */
+            ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+            memcpy(ptr, buf, l);
+            invalidate_and_set_dirty(mr, addr1, l);
+        } else {
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
@@ -2593,11 +2602,6 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
             default:
                 abort();
             }
-        } else {
-            /* RAM case */
-            ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-            memcpy(ptr, buf, l);
-            invalidate_and_set_dirty(mr, addr1, l);
         }
 
         if (release_lock) {
@@ -2621,7 +2625,7 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
 }
 
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                                const uint8_t *buf, int len)
+                                const uint8_t *buf, int len, bool force)
 {
     hwaddr l;
     hwaddr addr1;
@@ -2633,7 +2637,7 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         l = len;
         mr = address_space_translate(as, addr, &addr1, &l, true);
         result = address_space_write_continue(as, addr, attrs, buf, len,
-                                              addr1, l, mr);
+                                              addr1, l, mr, force);
         rcu_read_unlock();
     }
 
@@ -2731,12 +2735,17 @@ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
 }
 
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                             uint8_t *buf, int len, bool is_write)
+                             uint8_t *buf, int len, MemTxType type)
 {
-    if (is_write) {
-        return address_space_write(as, addr, attrs, (uint8_t *)buf, len);
-    } else {
+    switch (type) {
+    case MEMTX_READ:
         return address_space_read(as, addr, attrs, (uint8_t *)buf, len);
+    case MEMTX_WRITE:
+        return address_space_write(as, addr, attrs, (uint8_t *)buf, len, false);
+    case MEMTX_PROGRAM:
+        return address_space_write(as, addr, attrs, (uint8_t *)buf, len, true);
+    default:
+        abort();
     }
 }
 
@@ -3010,7 +3019,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     }
     if (is_write) {
         address_space_write(as, bounce.addr, MEMTXATTRS_UNSPECIFIED,
-                            bounce.buffer, access_len);
+                            bounce.buffer, access_len, false);
     }
     qemu_vfree(bounce.buffer);
     bounce.buffer = NULL;
@@ -3626,7 +3635,7 @@ void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        uint8_t *buf, int len, int is_write)
+                        uint8_t *buf, int len, MemTxType type)
 {
     int l;
     hwaddr phys_addr;
@@ -3646,14 +3655,10 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
-        if (is_write) {
-            cpu_physical_memory_write_rom(cpu->cpu_ases[asidx].as,
-                                          phys_addr, buf, l);
-        } else {
-            address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
-                             MEMTXATTRS_UNSPECIFIED,
-                             buf, l, 0);
-        }
+
+        address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
+                         MEMTXATTRS_UNSPECIFIED,
+                         buf, l, type);
         len -= l;
         buf += l;
         addr += l;

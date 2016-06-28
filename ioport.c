@@ -59,7 +59,7 @@ void cpu_outb(uint32_t addr, uint8_t val)
 {
     trace_cpu_out(addr, 'b', val);
     address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        &val, 1);
+                        &val, 1, false);
 }
 
 void cpu_outw(uint32_t addr, uint16_t val)
@@ -69,7 +69,7 @@ void cpu_outw(uint32_t addr, uint16_t val)
     trace_cpu_out(addr, 'w', val);
     stw_p(buf, val);
     address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        buf, 2);
+                        buf, 2, false);
 }
 
 void cpu_outl(uint32_t addr, uint32_t val)
@@ -79,7 +79,7 @@ void cpu_outl(uint32_t addr, uint32_t val)
     trace_cpu_out(addr, 'l', val);
     stl_p(buf, val);
     address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        buf, 4);
+                        buf, 4, false);
 }
 
 uint8_t cpu_inb(uint32_t addr)

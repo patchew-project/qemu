@@ -175,7 +175,7 @@ static void raven_io_write(void *opaque, hwaddr addr,
     }
 
     address_space_write(&s->pci_io_as, addr + 0x80000000,
-                        MEMTXATTRS_UNSPECIFIED, buf, size);
+                        MEMTXATTRS_UNSPECIFIED, buf, size, false);
 }
 
 static const MemoryRegionOps raven_io_ops = {

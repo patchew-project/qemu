@@ -73,7 +73,7 @@ static void rtc_write(void *opaque, hwaddr addr,
 {
     uint8_t buf = val & 0xff;
     address_space_write(&address_space_memory, 0x90000071,
-                        MEMTXATTRS_UNSPECIFIED, &buf, 1);
+                        MEMTXATTRS_UNSPECIFIED, &buf, 1, false);
 }
 
 static const MemoryRegionOps rtc_ops = {
