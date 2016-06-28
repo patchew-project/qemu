@@ -45,6 +45,7 @@
 #include "crypto/tlscredsx509.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
+#include "qemu/mmap-alloc.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -1234,7 +1235,7 @@ void vnc_disconnect_finish(VncState *vs)
     vs->ioc = NULL;
     object_unref(OBJECT(vs->sioc));
     vs->sioc = NULL;
-    g_free(vs);
+    qemu_anon_ram_munmap(vs, sizeof(VncState));
 }
 
 ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp)
@@ -2956,7 +2957,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
 static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
                         bool skipauth, bool websocket)
 {
-    VncState *vs = g_new0(VncState, 1);
+    VncState *vs = qemu_anon_ram_mmap(sizeof(VncState));
     int i;
 
     vs->sioc = sioc;
