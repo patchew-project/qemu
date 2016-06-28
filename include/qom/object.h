@@ -400,6 +400,7 @@ struct Object
     GHashTable *properties;
     uint32_t ref;
     Object *parent;
+    size_t instance_size;
 };
 
 /**

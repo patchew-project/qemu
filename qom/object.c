@@ -15,6 +15,7 @@
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
+#include "qemu/mmap-alloc.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
 #include "qapi/string-input-visitor.h"
@@ -453,6 +454,12 @@ static void object_deinit(Object *obj, TypeImpl *type)
     }
 }
 
+static void object_munmap(void *opaque)
+{
+    Object *obj = opaque;
+    qemu_anon_ram_munmap(obj, obj->instance_size);
+}
+
 static void object_finalize(void *data)
 {
     Object *obj = data;
@@ -467,16 +474,23 @@ static void object_finalize(void *data)
     }
 }
 
+#define OBJECT_MMAP_THRESH 4096
+
 Object *object_new_with_type(Type type)
 {
     Object *obj;
 
     g_assert(type != NULL);
     type_initialize(type);
-
-    obj = g_malloc(type->instance_size);
+    if (type->instance_size < OBJECT_MMAP_THRESH) {
+        obj = g_malloc(type->instance_size);
+        obj->free = g_free;
+    } else {
+        obj = qemu_anon_ram_mmap(type->instance_size);
+        obj->free = object_munmap;
+    }
+    obj->instance_size = type->instance_size;
     object_initialize_with_type(obj, type->instance_size, type);
-    obj->free = g_free;
 
     return obj;
 }
