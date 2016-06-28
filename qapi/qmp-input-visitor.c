@@ -17,6 +17,7 @@
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
+#include "qemu/mmap-alloc.h"
 #include "qemu-common.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qerror.h"
@@ -378,14 +379,14 @@ Visitor *qmp_input_get_visitor(QmpInputVisitor *v)
 void qmp_input_visitor_cleanup(QmpInputVisitor *v)
 {
     qobject_decref(v->root);
-    g_free(v);
+    qemu_anon_ram_munmap(v, sizeof(*v));
 }
 
 QmpInputVisitor *qmp_input_visitor_new(QObject *obj, bool strict)
 {
     QmpInputVisitor *v;
 
-    v = g_malloc0(sizeof(*v));
+    v = qemu_anon_ram_mmap(sizeof(*v));
 
     v->visitor.type = VISITOR_INPUT;
     v->visitor.start_struct = qmp_input_start_struct;
