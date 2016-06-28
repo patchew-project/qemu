@@ -88,7 +88,7 @@ static void coroutine_trampoline(int i0, int i1)
     }
 }
 
-#define COROUTINE_STACK_SIZE (1 << 20)
+#define COROUTINE_STACK_SIZE (1 << 16)
 
 Coroutine *qemu_coroutine_new(void)
 {
