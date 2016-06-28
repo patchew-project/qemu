@@ -746,18 +746,22 @@ static void crs_range_free(gpointer data)
 typedef struct CrsRangeSet {
     GPtrArray *io_ranges;
     GPtrArray *mem_ranges;
+    GPtrArray *mem_64bit_ranges;
  } CrsRangeSet;
 
 static void crs_range_set_init(CrsRangeSet *range_set)
 {
     range_set->io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     range_set->mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    range_set->mem_64bit_ranges =
+            g_ptr_array_new_with_free_func(crs_range_free);
 }
 
 static void crs_range_set_free(CrsRangeSet *range_set)
 {
     g_ptr_array_free(range_set->io_ranges, true);
     g_ptr_array_free(range_set->mem_ranges, true);
+    g_ptr_array_free(range_set->mem_64bit_ranges, true);
 }
 
 static gint crs_range_compare(gconstpointer a, gconstpointer b)
@@ -915,8 +919,14 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
              * that do not support multiple root buses
              */
             if (range_base && range_base <= range_limit) {
-                crs_range_insert(temp_range_set.mem_ranges,
-                                 range_base, range_limit);
+                uint64_t length = range_limit - range_base + 1;
+                if (range_limit <= UINT32_MAX && length <= UINT32_MAX) {
+                    crs_range_insert(temp_range_set.mem_ranges,
+                                     range_base, range_limit);
+                } else {
+                    crs_range_insert(temp_range_set.mem_64bit_ranges,
+                                     range_base, range_limit);
+                }
             }
 
             range_base =
@@ -929,8 +939,14 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
              * that do not support multiple root buses
              */
             if (range_base && range_base <= range_limit) {
-                crs_range_insert(temp_range_set.mem_ranges,
-                                 range_base, range_limit);
+                uint64_t length = range_limit - range_base + 1;
+                if (range_limit <= UINT32_MAX && length <= UINT32_MAX) {
+                    crs_range_insert(temp_range_set.mem_ranges,
+                                     range_base, range_limit);
+                } else {
+                    crs_range_insert(temp_range_set.mem_64bit_ranges,
+                                     range_base, range_limit);
+                }
             }
         }
     }
@@ -956,6 +972,19 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
                                     0, entry->base, entry->limit, 0,
                                     entry->limit - entry->base + 1));
         crs_range_insert(range_set->mem_ranges, entry->base, entry->limit);
+    }
+
+    crs_range_merge(temp_range_set.mem_64bit_ranges);
+    for (i = 0; i < temp_range_set.mem_64bit_ranges->len; i++) {
+        entry = g_ptr_array_index(temp_range_set.mem_64bit_ranges, i);
+        aml_append(crs,
+                   aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                    AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                    AML_READ_WRITE,
+                                    0, entry->base, entry->limit, 0,
+                                    entry->limit - entry->base + 1));
+        crs_range_insert(range_set->mem_64bit_ranges,
+                         entry->base, entry->limit);
     }
 
     crs_range_set_free(&temp_range_set);
@@ -2079,11 +2108,17 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     }
 
     if (pci->w64.begin) {
-        aml_append(crs,
-            aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                             AML_CACHEABLE, AML_READ_WRITE,
-                             0, pci->w64.begin, pci->w64.end - 1, 0,
-                             pci->w64.end - pci->w64.begin));
+        crs_replace_with_free_ranges(crs_range_set.mem_64bit_ranges,
+                                     pci->w64.begin, pci->w64.end - 1);
+        for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+            aml_append(crs,
+                       aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                        AML_MAX_FIXED,
+                                        AML_CACHEABLE, AML_READ_WRITE,
+                                        0, entry->base, entry->limit,
+                                        0, entry->limit - entry->base + 1));
+        }
     }
 
     if (misc->tpm_version != TPM_VERSION_UNSPEC) {
