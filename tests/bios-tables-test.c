@@ -838,6 +838,41 @@ static void test_acpi_piix4_tcg_ipmi(void)
     free_test_data(&data);
 }
 
+static void test_acpi_piix4_tcg_pxb(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_PC;
+    data.variant = ".pxb";
+    data.required_struct_types = base_required_struct_types;
+    data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
+    test_acpi_one("-machine accel=tcg"
+                  " -device pxb,id=pxb,bus_nr=0x80,bus=pci.0"
+                  " -object memory-backend-file,size=4G,mem-path=/tmp/shmem,share,id=mb"
+                  " -device ivshmem-plain,memdev=mb,bus=pxb",
+                  &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_pxb_pcie(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".pxb_pcie";
+    data.required_struct_types = base_required_struct_types;
+    data.required_struct_types_len = ARRAY_SIZE(ipmi_required_struct_types);
+    test_acpi_one("-machine q35,accel=tcg"
+                  " -device pxb-pcie,id=pxb,bus_nr=0x80,bus=pcie.0"
+                  " -device ioh3420,id=rp,bus=pxb,slot=1"
+                  " -object memory-backend-file,size=4G,mem-path=/tmp/shmem,share,id=mb"
+                  " -device ivshmem-plain,memdev=mb,bus=rp",
+                  &data);
+    free_test_data(&data);
+}
+
 int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
@@ -856,6 +891,8 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/tcg/bridge", test_acpi_q35_tcg_bridge);
         qtest_add_func("acpi/piix4/tcg/ipmi", test_acpi_piix4_tcg_ipmi);
         qtest_add_func("acpi/q35/tcg/ipmi", test_acpi_q35_tcg_ipmi);
+        qtest_add_func("acpi/piix4/tcg/pxb", test_acpi_piix4_tcg_pxb);
+        qtest_add_func("acpi/q35/tcg/pxb-pcie", test_acpi_q35_tcg_pxb_pcie);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
