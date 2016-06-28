@@ -14,5 +14,6 @@ void qemu_ram_munmap(void *ptr, size_t size);
  * for g_malloc0 and friends. */
 void *qemu_anon_ram_mmap(size_t size);
 void qemu_anon_ram_munmap(void *ptr, size_t size);
+void *qemu_anon_ram_remap(void *old_ptr, size_t old_size, size_t new_size);
 
 #endif

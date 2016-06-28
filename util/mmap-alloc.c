@@ -124,3 +124,13 @@ void qemu_anon_ram_munmap(void *ptr, size_t size)
         munmap(ptr, size);
     }
 }
+
+void *qemu_anon_ram_remap(void *old_ptr, size_t old_size, size_t new_size)
+{
+    void *ptr = qemu_anon_ram_mmap(new_size);
+    if (old_ptr) {
+        memcpy(ptr, old_ptr, old_size);
+        qemu_anon_ram_munmap(old_ptr, old_size);
+    }
+    return ptr;
+}
