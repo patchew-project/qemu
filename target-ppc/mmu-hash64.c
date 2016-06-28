@@ -653,13 +653,41 @@ static void ppc_hash64_set_dsi(CPUState *cs, CPUPPCState *env, uint64_t dar,
     env->error_code = 0;
 }
 
+static int64_t ppc_hash64_get_rmls(CPUPPCState *env)
+{
+    uint64_t lpcr = env->spr[SPR_LPCR];
+
+    /*
+     * This is the full 4 bits encoding of POWER8. Previous
+     * CPUs only support a subset of these but the filtering
+     * is done when writing LPCR
+     */
+    switch ((lpcr & LPCR_RMLS) >> LPCR_RMLS_SHIFT) {
+    case 0x8: /* 32MB */
+        return 0x2000000ull;
+    case 0x3: /* 64MB */
+        return 0x4000000ull;
+    case 0x7: /* 128MB */
+        return 0x8000000ull;
+    case 0x4: /* 256MB */
+        return 0x10000000ull;
+    case 0x2: /* 1GB */
+        return 0x40000000ull;
+    case 0x1: /* 16GB */
+        return 0x400000000ull;
+    default:
+        /* What to do here ??? */
+        return 0;
+    }
+}
 
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                                 int rwx, int mmu_idx)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    ppc_slb_t *slb;
+    ppc_slb_t *slb_ptr;
+    ppc_slb_t slb;
     unsigned apshift;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
@@ -670,11 +698,53 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
+    /* Note on LPCR usage: 970 uses HID4, but our special variant
+     * of store_spr copies relevant fields into env->spr[SPR_LPCR].
+     * Similarily we filter unimplemented bits when storing into
+     * LPCR depending on the MMU version. This code can thus just
+     * use the LPCR "as-is".
+     */
+
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
-        /* Translation is off */
-        /* In real mode the top 4 effective address bits are ignored */
+        /* Translation is supposedly "off"  */
+        /* In real mode the top 4 effective address bits are (mostly) ignored */
         raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
+
+        /* In HV mode, add HRMOR if top EA bit is clear */
+        if (msr_hv) {
+            if (!(eaddr >> 63)) {
+                raddr |= env->spr[SPR_HRMOR];
+            }
+        } else {
+            /* Otherwise, check VPM for RMA vs VRMA */
+            if (env->spr[SPR_LPCR] & LPCR_VPM0) {
+                uint32_t vrmasd;
+                /* VRMA, we make up an SLB entry */
+                slb.vsid = SLB_VSID_VRMA;
+                vrmasd = (env->spr[SPR_LPCR] & LPCR_VRMASD) >>
+                    LPCR_VRMASD_SHIFT;
+                slb.vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
+                slb.esid = SLB_ESID_V;
+                goto skip_slb;
+            }
+            /* RMA. Check bounds in RMLS */
+            if (raddr < ppc_hash64_get_rmls(env)) {
+                raddr |= env->spr[SPR_RMOR];
+            } else {
+                /* The access failed, generate the approriate interrupt */
+                if (rwx == 2) {
+                    ppc_hash64_set_isi(cs, env, 0x08000000);
+                } else {
+                    dsisr = 0x08000000;
+                    if (rwx == 1) {
+                        dsisr |= 0x02000000;
+                    }
+                    ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
+                }
+                return 1;
+            }
+        }
         tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                      PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
                      TARGET_PAGE_SIZE);
@@ -682,9 +752,8 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     }
 
     /* 2. Translation is on, so look up the SLB */
-    slb = slb_lookup(cpu, eaddr);
-
-    if (!slb) {
+    slb_ptr = slb_lookup(cpu, eaddr);
+    if (!slb_ptr) {
         if (rwx == 2) {
             cs->exception_index = POWERPC_EXCP_ISEG;
             env->error_code = 0;
@@ -696,14 +765,29 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
         return 1;
     }
 
+    /* We grab a local copy because we can modify it (or get a
+     * pre-cooked one from the VRMA code
+     */
+    slb = *slb_ptr;
+
+    /* 2.5 Clamp L||LP in ISL mode */
+    if (env->spr[SPR_LPCR] & LPCR_ISL) {
+        slb.vsid &= ~SLB_VSID_LLP_MASK;
+    }
+
     /* 3. Check for segment level no-execute violation */
-    if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
+    if ((rwx == 2) && (slb.vsid & SLB_VSID_N)) {
         ppc_hash64_set_isi(cs, env, 0x10000000);
         return 1;
     }
 
+    /* We go straight here for VRMA translations as none of the
+     * above applies in that case
+     */
+ skip_slb:
+
     /* 4. Locate the PTE in the hash table */
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte);
+    pte_offset = ppc_hash64_htab_lookup(cpu, &slb, eaddr, &pte);
     if (pte_offset == -1) {
         dsisr = 0x40000000;
         if (rwx == 2) {
@@ -720,7 +804,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                 "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
     /* Validate page size encoding */
-    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
+    apshift = hpte_page_shift(slb.sps, pte.pte0, pte.pte1);
     if (!apshift) {
         error_report("Bad page size encoding in HPTE 0x%"PRIx64" - 0x%"PRIx64
                      " @ 0x%"HWADDR_PRIx, pte.pte0, pte.pte1, pte_offset);
@@ -733,7 +817,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
     /* 5. Check access permissions */
 
-    pp_prot = ppc_hash64_pte_prot(cpu, slb, pte);
+    pp_prot = ppc_hash64_pte_prot(cpu, &slb, pte);
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
     prot = pp_prot & amr_prot;
 
@@ -789,27 +873,51 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 {
     CPUPPCState *env = &cpu->env;
-    ppc_slb_t *slb;
-    hwaddr pte_offset;
+    ppc_slb_t slb;
+    ppc_slb_t *slb_ptr;
+    hwaddr pte_offset, raddr;
     ppc_hash_pte64_t pte;
     unsigned apshift;
 
+    /* Handle real mode */
     if (msr_dr == 0) {
-        /* In real mode the top 4 effective address bits are ignored */
-        return addr & 0x0FFFFFFFFFFFFFFFULL;
-    }
+        raddr = addr & 0x0FFFFFFFFFFFFFFFULL;
 
-    slb = slb_lookup(cpu, addr);
-    if (!slb) {
+        /* In HV mode, add HRMOR if top EA bit is clear */
+        if (msr_hv & !(addr >> 63)) {
+            return raddr | env->spr[SPR_HRMOR];
+        }
+
+        /* Otherwise, check VPM for RMA vs VRMA */
+        if (env->spr[SPR_LPCR] & LPCR_VPM0) {
+            uint32_t vrmasd;
+
+            /* VRMA, we make up an SLB entry */
+            slb.vsid = SLB_VSID_VRMA;
+            vrmasd = (env->spr[SPR_LPCR] & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
+            slb.vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
+            slb.esid = SLB_ESID_V;
+            goto skip_slb;
+        }
+        /* RMA. Check bounds in RMLS */
+        if (raddr < ppc_hash64_get_rmls(env)) {
+            return raddr | env->spr[SPR_RMOR];
+        }
         return -1;
     }
 
-    pte_offset = ppc_hash64_htab_lookup(cpu, slb, addr, &pte);
+    slb_ptr = slb_lookup(cpu, addr);
+    if (!slb_ptr) {
+        return -1;
+    }
+    slb = *slb_ptr;
+ skip_slb:
+    pte_offset = ppc_hash64_htab_lookup(cpu, &slb, addr, &pte);
     if (pte_offset == -1) {
         return -1;
     }
 
-    apshift = hpte_page_shift(slb->sps, pte.pte0, pte.pte1);
+    apshift = hpte_page_shift(slb.sps, pte.pte0, pte.pte1);
     if (!apshift) {
         return -1;
     }
