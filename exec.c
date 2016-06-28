@@ -49,6 +49,7 @@
 #include "exec/cpu-all.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
+#include "qemu/mmap-alloc.h"
 #include "translate-all.h"
 #include "sysemu/replay.h"
 
@@ -1150,7 +1151,7 @@ static void phys_section_destroy(MemoryRegion *mr)
     if (have_sub_page) {
         subpage_t *subpage = container_of(mr, subpage_t, iomem);
         object_unref(OBJECT(&subpage->iomem));
-        g_free(subpage);
+        qemu_anon_ram_munmap(subpage, sizeof(subpage_t));
     }
 }
 
@@ -2270,7 +2271,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
 {
     subpage_t *mmio;
 
-    mmio = g_malloc0(sizeof(subpage_t));
+    mmio = qemu_anon_ram_mmap(sizeof(subpage_t));
 
     mmio->as = as;
     mmio->base = base;
