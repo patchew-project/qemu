@@ -55,6 +55,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
+#include "qemu/mmap-alloc.h"
 
 #include <zlib.h>
 
@@ -837,7 +838,7 @@ int rom_add_file(const char *file, const char *fw_dir,
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
-    int rc, fd = -1;
+    int fd = -1;
     char devpath[100];
 
     rom = g_malloc0(sizeof(*rom));
@@ -867,12 +868,9 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
 
     rom->datasize = rom->romsize;
-    rom->data     = g_malloc0(rom->datasize);
-    lseek(fd, 0, SEEK_SET);
-    rc = read(fd, rom->data, rom->datasize);
-    if (rc != rom->datasize) {
-        fprintf(stderr, "rom: file %-20s: read error: rc=%d (expected %zd)\n",
-                rom->name, rc, rom->datasize);
+    rom->data     = mmap(NULL, rom->datasize, PROT_READ, MAP_SHARED, fd, 0);
+    if (rom->data == MAP_FAILED) {
+        fprintf(stderr, "rom: file %-20s: mmap error\n", rom->name);
         goto err;
     }
     close(fd);
@@ -915,7 +913,7 @@ err:
     if (fd != -1)
         close(fd);
 
-    g_free(rom->data);
+    qemu_anon_ram_munmap(rom->data, rom->romsize);
     g_free(rom->path);
     g_free(rom->name);
     if (fw_dir) {
@@ -1013,7 +1011,7 @@ static void rom_reset(void *unused)
         }
         if (rom->isrom) {
             /* rom needs to be written only once */
-            g_free(rom->data);
+            qemu_anon_ram_munmap(rom->data, rom->datasize);
             rom->data = NULL;
         }
         /*
