@@ -107,3 +107,20 @@ void qemu_ram_munmap(void *ptr, size_t size)
         munmap(ptr, size + getpagesize());
     }
 }
+
+void *qemu_anon_ram_mmap(size_t size)
+{
+    void *ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr == MAP_FAILED) {
+        abort();
+    }
+    return ptr;
+}
+
+void qemu_anon_ram_munmap(void *ptr, size_t size)
+{
+    if (ptr) {
+        munmap(ptr, size);
+    }
+}
