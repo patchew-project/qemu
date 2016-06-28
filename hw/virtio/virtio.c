@@ -20,6 +20,7 @@
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/atomic.h"
+#include "qemu/mmap-alloc.h"
 #include "hw/virtio/virtio-bus.h"
 #include "migration/migration.h"
 #include "hw/virtio/virtio-access.h"
@@ -1612,7 +1613,7 @@ void virtio_cleanup(VirtIODevice *vdev)
 {
     qemu_del_vm_change_state_handler(vdev->vmstate);
     g_free(vdev->config);
-    g_free(vdev->vq);
+    qemu_anon_ram_munmap(vdev->vq, sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
     g_free(vdev->vector_queues);
 }
 
@@ -1666,7 +1667,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->isr = 0;
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
-    vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
+    vdev->vq = qemu_anon_ram_mmap(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);
     vdev->vm_running = runstate_is_running();
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
