@@ -296,6 +296,7 @@ libiscsi=""
 libnfs=""
 coroutine=""
 coroutine_pool=""
+coroutine_stack_size_debug="no"
 seccomp=""
 glusterfs=""
 glusterfs_xlator_opt="no"
@@ -1004,6 +1005,8 @@ for opt do
   ;;
   --enable-coroutine-pool) coroutine_pool="yes"
   ;;
+  --enable-coroutine-stack-size-debug) coroutine_stack_size_debug="yes"
+  ;;
   --disable-docs) docs="no"
   ;;
   --enable-docs) docs="yes"
@@ -1361,6 +1364,8 @@ disabled with --disable-FEATURE, default is enabled if available:
                   (for reading bzip2-compressed dmg images)
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
+  coroutine-stack-size-debug
+                  report coroutine max stack usage (only for debugging)
   glusterfs       GlusterFS backend
   archipelago     Archipelago backend
   tpm             TPM support
@@ -4298,6 +4303,15 @@ fi
 if test "$coroutine" = "gthread" -a "$coroutine_pool" = "yes"; then
   error_exit "'gthread' coroutine backend does not support pool (use --disable-coroutine-pool)"
 fi
+if test "$coroutine_stack_size_debug" = "yes"; then
+  if test "$coroutine" != "ucontext"; then
+    error_exit "coroutine stack size debugging currently only works with ucontext"
+  fi
+  if test "$coroutine_pool" = "yes"; then
+    echo "WARN: disabling coroutine pool for stack size debugging"
+    coroutine_pool=no
+  fi
+fi
 
 ##########################################
 # check if we have open_by_handle_at
@@ -4866,6 +4880,7 @@ echo "QGA MSI support   $guest_agent_msi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
+echo "coroutine stack size debug $coroutine_stack_size_debug"
 echo "GlusterFS support $glusterfs"
 echo "Archipelago support $archipelago"
 echo "gcov              $gcov_tool"
@@ -5334,6 +5349,9 @@ if test "$coroutine_pool" = "yes" ; then
   echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
 else
   echo "CONFIG_COROUTINE_POOL=0" >> $config_host_mak
+fi
+if test "$coroutine_stack_size_debug" = "yes" ; then
+  echo "CONFIG_COROUTINE_STACK_SIZE_DEBUG=y" >> $config_host_mak
 fi
 
 if test "$open_by_handle_at" = "yes" ; then

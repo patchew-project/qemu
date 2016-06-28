@@ -31,6 +31,10 @@
 #include <valgrind/valgrind.h>
 #endif
 
+#ifdef CONFIG_COROUTINE_STACK_SIZE_DEBUG
+#include "qemu/error-report.h"
+#endif
+
 typedef struct {
     Coroutine base;
     void *stack;
@@ -47,6 +51,10 @@ typedef struct {
  */
 static __thread CoroutineUContext leader;
 static __thread Coroutine *current;
+
+#ifdef CONFIG_COROUTINE_STACK_SIZE_DEBUG
+static uint32_t max_stack_usage;
+#endif
 
 /*
  * va_args to makecontext() must be type 'int', so passing
@@ -88,6 +96,9 @@ Coroutine *qemu_coroutine_new(void)
     ucontext_t old_uc, uc;
     sigjmp_buf old_env;
     union cc_arg arg = {0};
+#ifdef CONFIG_COROUTINE_STACK_SIZE_DEBUG
+    void *ptr;
+#endif
 
     /* The ucontext functions preserve signal masks which incurs a
      * system call overhead.  sigsetjmp(buf, 0)/siglongjmp() does not
@@ -116,6 +127,13 @@ Coroutine *qemu_coroutine_new(void)
     }
 #else
     co->stack = g_malloc(stack_size);
+#endif
+
+#ifdef CONFIG_COROUTINE_STACK_SIZE_DEBUG
+    for (ptr = co->stack + getpagesize();
+         ptr < co->stack + COROUTINE_STACK_SIZE; ptr += sizeof(u_int32_t)) {
+        *(u_int32_t *)ptr = 0xdeadbeaf;
+    }
 #endif
 
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
@@ -160,6 +178,20 @@ static inline void valgrind_stack_deregister(CoroutineUContext *co)
 void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
+
+#ifdef CONFIG_COROUTINE_STACK_SIZE_DEBUG
+    void *ptr;
+    for (ptr = co->stack + getpagesize();
+         ptr < co->stack + COROUTINE_STACK_SIZE; ptr += sizeof(u_int32_t)) {
+        if (*(u_int32_t *)ptr != 0xdeadbeaf) {
+            break;
+        }
+    }
+    /* we only want to estimate the max stack usage, the OR will overestimate
+     * the stack usage, but this is ok here and avoids the usage of a mutex */
+    atomic_or(&max_stack_usage,
+              COROUTINE_STACK_SIZE - (uintptr_t) (ptr - co->stack));
+#endif
 
 #ifdef CONFIG_VALGRIND_H
     valgrind_stack_deregister(co);
@@ -210,3 +242,11 @@ bool qemu_in_coroutine(void)
 {
     return current && current->caller;
 }
+
+#ifdef CONFIG_COROUTINE_STACK_SIZE_DEBUG
+static void __attribute__((destructor)) print_max_stack_usage(void)
+{
+   error_report("coroutine-ucontext: max stack usage was less or equal to "
+                "%"PRIu32" bytes.", max_stack_usage);
+}
+#endif
