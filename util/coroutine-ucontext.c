@@ -80,9 +80,10 @@ static void coroutine_trampoline(int i0, int i1)
     }
 }
 
+#define COROUTINE_STACK_SIZE (1 << 20)
+
 Coroutine *qemu_coroutine_new(void)
 {
-    const size_t stack_size = 1 << 20;
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
     sigjmp_buf old_env;
@@ -101,17 +102,32 @@ Coroutine *qemu_coroutine_new(void)
     }
 
     co = g_malloc0(sizeof(*co));
+
+#ifdef MAP_GROWSDOWN
+    co->stack = mmap(NULL, COROUTINE_STACK_SIZE, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
+    if (co->stack == MAP_FAILED) {
+        abort();
+    }
+    /* add a guard page at bottom of the stack */
+    if (mmap(co->stack, getpagesize(), PROT_NONE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0) == MAP_FAILED) {
+        abort();
+    }
+#else
     co->stack = g_malloc(stack_size);
+#endif
+
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     uc.uc_link = &old_uc;
     uc.uc_stack.ss_sp = co->stack;
-    uc.uc_stack.ss_size = stack_size;
+    uc.uc_stack.ss_size = COROUTINE_STACK_SIZE;
     uc.uc_stack.ss_flags = 0;
 
 #ifdef CONFIG_VALGRIND_H
     co->valgrind_stack_id =
-        VALGRIND_STACK_REGISTER(co->stack, co->stack + stack_size);
+        VALGRIND_STACK_REGISTER(co->stack, co->stack + COROUTINE_STACK_SIZE);
 #endif
 
     arg.p = co;
@@ -149,7 +165,11 @@ void qemu_coroutine_delete(Coroutine *co_)
     valgrind_stack_deregister(co);
 #endif
 
+#ifdef MAP_GROWSDOWN
+    munmap(co->stack, COROUTINE_STACK_SIZE);
+#else
     g_free(co->stack);
+#endif
     g_free(co);
 }
 
