@@ -201,6 +201,7 @@ typedef struct VncTight {
 #endif
     int levels[4];
     z_stream stream[4];
+    VncPalette palette;
 } VncTight;
 
 typedef struct VncHextile {
