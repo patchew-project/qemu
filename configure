@@ -296,6 +296,7 @@ libiscsi=""
 libnfs=""
 coroutine=""
 coroutine_pool=""
+coroutine_release_pool="yes"
 coroutine_stack_size_debug="no"
 seccomp=""
 glusterfs=""
@@ -1001,9 +1002,13 @@ for opt do
   ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
-  --disable-coroutine-pool) coroutine_pool="no"
+  --disable-coroutine-pool)
+      coroutine_pool="no"
+      coroutine_release_pool="no"
   ;;
   --enable-coroutine-pool) coroutine_pool="yes"
+  ;;
+  --disable-coroutine-release-pool) coroutine_release_pool="no"
   ;;
   --enable-coroutine-stack-size-debug) coroutine_stack_size_debug="yes"
   ;;
@@ -1364,6 +1369,7 @@ disabled with --disable-FEATURE, default is enabled if available:
                   (for reading bzip2-compressed dmg images)
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
+  coroutine-release-pool  coroutine freelist is shared between threads
   coroutine-stack-size-debug
                   report coroutine max stack usage (only for debugging)
   glusterfs       GlusterFS backend
@@ -4310,6 +4316,7 @@ if test "$coroutine_stack_size_debug" = "yes"; then
   if test "$coroutine_pool" = "yes"; then
     echo "WARN: disabling coroutine pool for stack size debugging"
     coroutine_pool=no
+    coroutine_release_pool=no
   fi
 fi
 
@@ -4880,6 +4887,7 @@ echo "QGA MSI support   $guest_agent_msi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
+echo "coroutine release pool    $coroutine_release_pool"
 echo "coroutine stack size debug $coroutine_stack_size_debug"
 echo "GlusterFS support $glusterfs"
 echo "Archipelago support $archipelago"
@@ -5347,11 +5355,12 @@ fi
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
 if test "$coroutine_pool" = "yes" ; then
   echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
-else
-  echo "CONFIG_COROUTINE_POOL=0" >> $config_host_mak
 fi
 if test "$coroutine_stack_size_debug" = "yes" ; then
   echo "CONFIG_COROUTINE_STACK_SIZE_DEBUG=y" >> $config_host_mak
+fi
+if test "$coroutine_release_pool" = "yes"; then
+  echo "CONFIG_COROUTINE_RELEASE_POOL=y" >> $config_host_mak
 fi
 
 if test "$open_by_handle_at" = "yes" ; then
