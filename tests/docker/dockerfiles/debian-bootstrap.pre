@@ -1,0 +1,5 @@
+#!/bin/sh
+#
+# Simple wrapper for debootstrap, run in the docker build context
+#
+fakeroot debootstrap --variant=buildd --foreign --arch=$DEB_ARCH $DEB_TYPE . http://httpredir.debian.org/debian
