@@ -636,24 +636,15 @@ static void cpu_release_index(CPUState *cpu)
 }
 #endif
 
-void cpu_exec_exit(CPUState *cpu)
+void cpu_exec_unrealize(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
-    if (cpu->cpu_index == -1) {
-        /* cpu_index was never allocated by this @cpu or was already freed. */
-#if defined(CONFIG_USER_ONLY)
-        cpu_list_unlock();
-#endif
-        return;
-    }
 
     QTAILQ_REMOVE(&cpus, cpu, node);
-    cpu_release_index(cpu);
-    cpu->cpu_index = -1;
 #if defined(CONFIG_USER_ONLY)
     (void) cc;
     cpu_list_unlock();
@@ -667,10 +658,51 @@ void cpu_exec_exit(CPUState *cpu)
 #endif
 }
 
-void cpu_exec_init(CPUState *cpu, Error **errp)
+void cpu_exec_exit_cpu_index(CPUState *cpu)
+{
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_lock();
+#endif
+    if (cpu->cpu_index == -1) {
+        /* cpu_index was never allocated by this @cpu or was already freed. */
+#if defined(CONFIG_USER_ONLY)
+        cpu_list_unlock();
+#endif
+        return;
+    }
+
+    cpu_release_index(cpu);
+    cpu->cpu_index = -1;
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_unlock();
+#endif
+}
+
+void cpu_exec_exit(CPUState *cpu)
+{
+    cpu_exec_unrealize(cpu);
+    cpu_exec_exit_cpu_index(cpu);
+}
+
+void cpu_exec_init_cpu_index(CPUState *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_lock();
+#endif
+    cpu->cpu_index = cpu_get_free_index(&local_err);
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_unlock();
+#endif
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+void cpu_exec_realize(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    Error *local_err = NULL;
 
     cpu->as = NULL;
     cpu->num_ases = 0;
@@ -696,14 +728,6 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
-    cpu->cpu_index = cpu_get_free_index(&local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-#if defined(CONFIG_USER_ONLY)
-        cpu_list_unlock();
-#endif
-        return;
-    }
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
 #if defined(CONFIG_USER_ONLY)
     (void) cc;
@@ -716,6 +740,19 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
         vmstate_register(NULL, cpu->cpu_index, cc->vmsd, cpu);
     }
 #endif
+}
+
+void cpu_exec_init(CPUState *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+    cpu_exec_init_cpu_index(cpu, &local_err);
+    if (local_err == NULL) {
+        cpu_exec_realize(cpu, &local_err);
+    }
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+    }
 }
 
 #if defined(CONFIG_USER_ONLY)
