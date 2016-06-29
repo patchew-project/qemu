@@ -1,6 +1,7 @@
 /* headers to use the BSD sockets */
-#ifndef QEMU_SOCKET_H
-#define QEMU_SOCKET_H
+
+#ifndef QEMU_SOCKETS_H
+#define QEMU_SOCKETS_H
 
 #ifdef _WIN32
 
@@ -124,4 +125,4 @@ void qapi_copy_SocketAddress(SocketAddress **p_dest,
  * Returns: the socket address in string format, or NULL on error
  */
 char *socket_address_to_string(struct SocketAddress *addr, Error **errp);
-#endif /* QEMU_SOCKET_H */
+#endif /* QEMU_SOCKETS_H */
