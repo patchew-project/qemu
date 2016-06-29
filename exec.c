@@ -655,15 +655,16 @@ void cpu_exec_exit(CPUState *cpu)
     cpu_release_index(cpu);
     cpu->cpu_index = -1;
 #if defined(CONFIG_USER_ONLY)
+    (void) cc;
     cpu_list_unlock();
-#endif
-
+#else
     if (cc->vmsd != NULL) {
         vmstate_unregister(NULL, cc->vmsd, cpu);
     }
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
         vmstate_unregister(NULL, &vmstate_cpu_common, cpu);
     }
+#endif
 }
 
 void cpu_exec_init(CPUState *cpu, Error **errp)
