@@ -24,8 +24,9 @@
  * THE SOFTWARE.
  *
  */
-#if !defined(__XICS_H__)
-#define __XICS_H__
+
+#ifndef XICS_H
+#define XICS_H
 
 #include "hw/sysbus.h"
 
@@ -168,4 +169,4 @@ void xics_free(XICSState *icp, int irq, int num);
 void xics_cpu_setup(XICSState *icp, PowerPCCPU *cpu);
 void xics_cpu_destroy(XICSState *icp, PowerPCCPU *cpu);
 
-#endif /* __XICS_H__ */
+#endif /* XICS_H */
