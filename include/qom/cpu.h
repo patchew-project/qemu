@@ -558,6 +558,18 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
 CPUState *cpu_generic_init(const char *typename, const char *cpu_model);
 
 /**
+ * cpu_generic_init_no_realize:
+ * @typename: The CPU base type.
+ * @cpu_model: The model string including optional parameters.
+ *
+ * Instantiates a CPU, processes optional parameters.
+ *
+ * Returns: A #CPUState or %NULL if an error occurred.
+ */
+CPUState *cpu_generic_init_no_realize(const char *typename,
+                                      const char *cpu_model);
+
+/**
  * cpu_has_work:
  * @cpu: The vCPU to check.
  *

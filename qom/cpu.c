@@ -43,7 +43,8 @@ bool cpu_exists(int64_t id)
     return false;
 }
 
-CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
+static CPUState *cpu_generic_init_common(const char *typename,
+                                         const char *cpu_model, bool realize)
 {
     char *str, *name, *featurestr;
     CPUState *cpu;
@@ -70,8 +71,9 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
         goto out;
     }
 
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
-
+    if (realize) {
+        object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+    }
 out:
     if (err != NULL) {
         error_report_err(err);
@@ -80,6 +82,17 @@ out:
     }
 
     return cpu;
+}
+
+CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
+{
+    return cpu_generic_init_common(typename, cpu_model, true);
+}
+
+CPUState *cpu_generic_init_no_realize(const char *typename,
+                                      const char *cpu_model)
+{
+    return cpu_generic_init_common(typename, cpu_model, false);
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)
