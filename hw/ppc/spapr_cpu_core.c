@@ -13,6 +13,7 @@
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include <sysemu/cpus.h>
+#include <sysemu/kvm.h>
 #include "target-ppc/kvm_ppc.h"
 #include "hw/ppc/ppc.h"
 #include "target-ppc/mmu-hash64.h"
@@ -265,6 +266,12 @@ static int spapr_cpu_core_realize_child(Object *child, void *opaque)
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(child);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+    ppc_cpu_compute_dt_id_generic(cpu, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return 1;
+    }
 
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {

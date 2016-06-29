@@ -193,7 +193,7 @@ static void ppc_core99_init(MachineState *machine)
 #endif
     }
     for (i = 0; i < smp_cpus; i++) {
-        cpu = cpu_ppc_init(machine->cpu_model);
+        cpu = ppc_cpu_init(machine->cpu_model, NULL);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);

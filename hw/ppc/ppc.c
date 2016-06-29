@@ -37,6 +37,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -1342,4 +1343,63 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
     }
 
     return NULL;
+}
+
+void ppc_cpu_compute_dt_id_generic(PowerPCCPU *cpu, Error **errp)
+{
+    CPUState *cs = CPU(cpu);
+    int max_smt = kvm_enabled() ? kvmppc_smt_threads() : 1;
+
+    if (smp_threads > max_smt) {
+        error_setg(errp, "Cannot support more than %d threads on PPC with %s",
+                   max_smt, kvm_enabled() ? "KVM" : "TCG");
+        return;
+    }
+    if (!is_power_of_2(smp_threads)) {
+        error_setg(errp, "Cannot support %d threads on PPC with %s, "
+                   "threads count must be a power of 2.",
+                   smp_threads, kvm_enabled() ? "KVM" : "TCG");
+        return;
+    }
+
+    if (kvm_enabled() && !kvm_vcpu_id_is_valid(cpu->cpu_dt_id)) {
+        error_setg(errp, "Can't create CPU with id %d in KVM", cpu->cpu_dt_id);
+        error_append_hint(errp, "Adjust the number of cpus to %d "
+                          "or try to raise the number of threads per core\n",
+                          cpu->cpu_dt_id * smp_threads / max_smt);
+        return;
+    }
+
+    cpu->cpu_dt_id = (cs->cpu_index / smp_threads) * max_smt
+        + (cs->cpu_index % smp_threads);
+}
+
+PowerPCCPU *ppc_cpu_init(const char *cpu_model, cpu_compute_dt_id_fn compute_fn)
+{
+    PowerPCCPU *cpu;
+    Error *err = NULL;
+
+    cpu = POWERPC_CPU(cpu_generic_init_no_realize(TYPE_POWERPC_CPU, cpu_model));
+    if (cpu == NULL) {
+        return NULL;
+    }
+
+    if (compute_fn) {
+        compute_fn(cpu, &err);
+    } else {
+        ppc_cpu_compute_dt_id_generic(cpu, &err);
+    }
+    if (err != NULL) {
+        goto out;
+    }
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+out:
+    if (err != NULL) {
+        error_report_err(err);
+        object_unref(OBJECT(cpu));
+        return NULL;
+    }
+
+    return cpu;
 }
