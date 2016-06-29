@@ -1,5 +1,5 @@
 #ifndef CPU_COMMON_H
-#define CPU_COMMON_H 1
+#define CPU_COMMON_H
 
 /* CPU interfaces that are target independent.  */
 
@@ -123,4 +123,4 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
 
 #endif
 
-#endif /* !CPU_COMMON_H */
+#endif /* CPU_COMMON_H */

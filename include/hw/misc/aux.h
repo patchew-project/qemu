@@ -125,4 +125,4 @@ void aux_init_mmio(AUXSlave *aux_slave, MemoryRegion *mmio);
 
 DeviceState *aux_create_slave(AUXBus *bus, const char *name, uint32_t addr);
 
-#endif /* !QEMU_AUX_H */
+#endif /* QEMU_AUX_H */
