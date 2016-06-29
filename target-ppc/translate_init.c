@@ -9371,7 +9371,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    cpu_exec_init(cs, &local_err);
+    cpu_exec_realize(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
@@ -9603,7 +9603,7 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
     opc_handler_t **table;
     int i, j;
 
-    cpu_exec_exit(CPU(dev));
+    cpu_exec_unrealize(CPU(dev));
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (env->opcodes[i] == &invalid_handler) {
@@ -10151,6 +10151,13 @@ static void ppc_cpu_initfn(Object *obj)
     if (tcg_enabled()) {
         ppc_translate_init();
     }
+
+    cpu_exec_init_cpu_index(cs, &error_abort);
+}
+
+static void ppc_cpu_finalizefn(Object *obj)
+{
+    cpu_exec_exit_cpu_index(CPU(obj));
 }
 
 static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr)
@@ -10228,6 +10235,7 @@ static const TypeInfo ppc_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(PowerPCCPU),
     .instance_init = ppc_cpu_initfn,
+    .instance_finalize = ppc_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(PowerPCCPUClass),
     .class_init = ppc_cpu_class_init,
