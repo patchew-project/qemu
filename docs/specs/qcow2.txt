@@ -435,9 +435,12 @@ Structure of a bitmap directory entry:
                     Offset into the image file at which the bitmap table
                     (described below) for the bitmap starts. Must be aligned to
                     a cluster boundary.
+                    Zero value means that bitmap table is not allocated and the
+                    bitmap should be considered as empty (all bits are zero).
 
          8 - 11:    bitmap_table_size
-                    Number of entries in the bitmap table of the bitmap.
+                    Number of entries in the bitmap table of the bitmap. It
+                    must be zero if bitmap_table_offset is zero.
 
         12 - 15:    flags
                     Bit
