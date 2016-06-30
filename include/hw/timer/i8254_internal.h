@@ -57,7 +57,6 @@ typedef struct PITCommonState {
     PITChannelState channels[3];
 } PITCommonState;
 
-#define TYPE_PIT_COMMON "pit-common"
 #define PIT_COMMON(obj) \
      OBJECT_CHECK(PITCommonState, (obj), TYPE_PIT_COMMON)
 #define PIT_COMMON_CLASS(klass) \

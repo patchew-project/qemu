@@ -37,6 +37,7 @@ typedef struct PITChannelInfo {
     int out;
 } PITChannelInfo;
 
+#define TYPE_PIT_COMMON "pit-common"
 #define TYPE_I8254 "isa-pit"
 #define TYPE_KVM_I8254 "kvm-pit"
 
