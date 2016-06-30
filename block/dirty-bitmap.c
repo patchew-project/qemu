@@ -131,7 +131,6 @@ int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
     if (bdrv_dirty_bitmap_frozen(bitmap)) {
         error_setg(errp, "Cannot create a successor for a bitmap that is "
                    "currently frozen");
-        return -1;
     }
     assert(!bitmap->successor);
 
