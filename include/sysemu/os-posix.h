@@ -60,4 +60,28 @@ int qemu_utimens(const char *path, const qemu_timespec *times);
 
 bool is_daemonized(void);
 
+/**
+ * qemu_alloc_stack:
+ * @sz: size of required stack in bytes
+ *
+ * Allocate memory that can be used as a stack, for instance for
+ * coroutines. If the memory cannot be allocated, this function
+ * will abort (like g_malloc()). The function will register a
+ * guard page right below the stack memory to catch stack overflows.
+ *
+ * The allocated stack must be freed with qemu_free_stack().
+ *
+ * Returns: pointer to (the lowest address of) the stack memory.
+ */
+void *qemu_alloc_stack(size_t sz);
+
+/**
+ * qemu_free_stack:
+ * @stack: stack to free
+ * @sz: size of stack in bytes
+ *
+ * Free a stack allocated via qemu_alloc_stack().
+ */
+void qemu_free_stack(void *stack, size_t sz);
+
 #endif

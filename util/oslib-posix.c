@@ -497,3 +497,25 @@ pid_t qemu_fork(Error **errp)
     }
     return pid;
 }
+
+void *qemu_alloc_stack(size_t sz)
+{
+    /* allocate sz bytes plus one extra page for a guard
+     * page at the bottom of the stack */
+    void *ptr = mmap(NULL, sz + getpagesize(), PROT_NONE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr == MAP_FAILED) {
+        abort();
+    }
+    if (mmap(ptr + getpagesize(), sz, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
+        abort();
+    }
+    return ptr + getpagesize();
+}
+
+void qemu_free_stack(void *stack, size_t sz)
+{
+    /* unmap the stack plus the extra guard page */
+    munmap(stack - getpagesize(), sz + getpagesize());
+}
