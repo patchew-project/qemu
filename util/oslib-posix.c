@@ -50,6 +50,10 @@
 
 #include <qemu/mmap-alloc.h>
 
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#include "qemu/error-report.h"
+#endif
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -500,6 +504,9 @@ pid_t qemu_fork(Error **errp)
 
 void *qemu_alloc_stack(size_t sz)
 {
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    void *ptr2;
+#endif
     /* allocate sz bytes plus one extra page for a guard
      * page at the bottom of the stack */
     void *ptr = mmap(NULL, sz + getpagesize(), PROT_NONE,
@@ -511,11 +518,37 @@ void *qemu_alloc_stack(size_t sz)
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
         abort();
     }
-    return ptr + getpagesize();
+    ptr += getpagesize();
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    for (ptr2 = ptr; ptr2 < ptr + sz; ptr2 += sizeof(u_int32_t)) {
+        *(u_int32_t *)ptr2 = 0xdeadbeaf;
+    }
+#endif
+    return ptr;
 }
+
+#ifdef CONFIG_DEBUG_STACK_USAGE
+static __thread unsigned int max_stack_usage;
+#endif
 
 void qemu_free_stack(void *stack, size_t sz)
 {
+#ifdef CONFIG_DEBUG_STACK_USAGE
+    void *ptr;
+    unsigned int usage;
+    for (ptr = stack; ptr < stack + sz; ptr += sizeof(u_int32_t)) {
+        if (*(u_int32_t *)ptr != 0xdeadbeaf) {
+            break;
+        }
+    }
+    usage = sz - (uintptr_t) (ptr - stack);
+    if (usage > max_stack_usage) {
+        error_report("thread %d max stack usage increased from %u to %u",
+                     qemu_get_thread_id(), max_stack_usage, usage);
+        max_stack_usage = usage;
+    }
+#endif
+
     /* unmap the stack plus the extra guard page */
     munmap(stack - getpagesize(), sz + getpagesize());
 }
