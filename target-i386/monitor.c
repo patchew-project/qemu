@@ -36,7 +36,7 @@ static void print_pte(Monitor *mon, hwaddr addr,
 {
 #ifdef TARGET_X86_64
     if (addr & (1ULL << 47)) {
-        addr |= -1LL << 48;
+        addr |= -(1LL << 48);
     }
 #endif
     monitor_printf(mon, TARGET_FMT_plx ": " TARGET_FMT_plx
