@@ -821,7 +821,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         CPUState *cs;
         qemu_irq *input;
 
-        cpu = ppc_cpu_init(machine->cpu_model);
+        cpu = ppc_cpu_init(machine->cpu_model, i);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to initialize CPU!\n");
             exit(1);

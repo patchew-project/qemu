@@ -1352,7 +1352,12 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
     return NULL;
 }
 
-PowerPCCPU *ppc_cpu_init(const char *cpu_model)
+static void ppc_set_vcpu_dt_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
+{
+    ;
+}
+
+PowerPCCPU *ppc_cpu_init(const char *cpu_model, int cpu_index)
 {
     PowerPCCPU *cpu;
     CPUClass *cc;
@@ -1373,6 +1378,11 @@ PowerPCCPU *ppc_cpu_init(const char *cpu_model)
     }
 
     cpu = POWERPC_CPU(object_new(object_class_get_name(oc)));
+
+    ppc_set_vcpu_dt_id(cpu, cpu_index, &err);
+    if (err != NULL) {
+        goto out;
+    }
 
     cc = CPU_CLASS(oc);
     cc->parse_features(CPU(cpu), model_pieces[1], &err);
