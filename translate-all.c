@@ -1004,11 +1004,16 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
         invalidate_page_bitmap(p);
     }
 
+    /* Ensure that we won't find the TB in the shared hash table
+     * if we con't see it in CPU's local cache.
+     * Pairs with smp_rmb() in tb_find_slow(). */
+    smp_wmb();
+
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
     CPU_FOREACH(cpu) {
         if (cpu->tb_jmp_cache[h] == tb) {
-            cpu->tb_jmp_cache[h] = NULL;
+            atomic_set(&cpu->tb_jmp_cache[h], NULL);
         }
     }
 
