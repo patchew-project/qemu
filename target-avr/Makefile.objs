@@ -18,6 +18,8 @@
 #  <http://www.gnu.org/licenses/lgpl-2.1.html>
 #
 
-obj-y   += translate.o cpu.o helper.o
+obj-y   += translate.o helper.o cpu.o translate-inst.o
 obj-y   += gdbstub.o
 obj-$(CONFIG_SOFTMMU) += machine.o
+
+obj-y   += decode.o

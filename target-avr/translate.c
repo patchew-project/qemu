@@ -18,60 +18,30 @@
  *  <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#include "qemu/osdep.h"
+#include "translate.h"
 
-#include "cpu.h"
-#include "exec/exec-all.h"
-#include "disas/disas.h"
-#include "tcg-op.h"
-#include "exec/cpu_ldst.h"
+TCGv_env cpu_env;
 
-#include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
-#include "exec/log.h"
+TCGv     cpu_pc;
 
-typedef struct DisasContext DisasContext;
-typedef struct InstInfo     InstInfo;
+TCGv     cpu_Cf;
+TCGv     cpu_Zf;
+TCGv     cpu_Nf;
+TCGv     cpu_Vf;
+TCGv     cpu_Sf;
+TCGv     cpu_Hf;
+TCGv     cpu_Tf;
+TCGv     cpu_If;
 
-/*This is the state at translation time.  */
-struct DisasContext {
-    struct TranslationBlock    *tb;
+TCGv     cpu_rampD;
+TCGv     cpu_rampX;
+TCGv     cpu_rampY;
+TCGv     cpu_rampZ;
 
-    /*Routine used to access memory */
-    int                         memidx;
-    int                         bstate;
-    int                         singlestep;
-};
-
-enum {
-    BS_NONE = 0,    /*  Nothing special (none of the below          */
-    BS_STOP = 1,    /*  We want to stop translation for any reason  */
-    BS_BRANCH = 2,    /*  A branch condition is reached               */
-    BS_EXCP = 3,    /*  An exception condition is reached           */
-};
-
-static TCGv_env cpu_env;
-
-static TCGv     cpu_pc;
-
-static TCGv     cpu_Cf;
-static TCGv     cpu_Zf;
-static TCGv     cpu_Nf;
-static TCGv     cpu_Vf;
-static TCGv     cpu_Sf;
-static TCGv     cpu_Hf;
-static TCGv     cpu_Tf;
-static TCGv     cpu_If;
-
-static TCGv     cpu_rampD;
-static TCGv     cpu_rampX;
-static TCGv     cpu_rampY;
-static TCGv     cpu_rampZ;
-
-static TCGv     cpu_io[64];
-static TCGv     cpu_r[32];
-static TCGv     cpu_eind;
-static TCGv     cpu_sp;
+TCGv     cpu_io[64];
+TCGv     cpu_r[32];
+TCGv     cpu_eind;
+TCGv     cpu_sp;
 
 #include "exec/gen-icount.h"
 #define REG(x)  (cpu_r[x])
@@ -120,25 +90,27 @@ void avr_translate_init(void)
     done_init = 1;
 }
 
-static inline void gen_goto_tb(CPUAVRState *env, DisasContext *ctx, int n,
-                                target_ulong dest)
+static void decode_opc(AVRCPU *cpu, DisasContext *ctx, InstInfo *inst)
 {
-    TranslationBlock   *tb;
+    CPUAVRState        *env = &cpu->env;
 
-    tb = ctx->tb;
+    inst->opcode = cpu_ldl_code(env, inst->cpc * 2);/*  pc points to words  */
+    inst->length = 16;
+    inst->translate = NULL;
 
-    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)
-        &&  (ctx->singlestep == 0)) {
-        tcg_gen_goto_tb(n);
-        tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((uintptr_t)tb + n);
-    } else {
-        tcg_gen_movi_i32(cpu_pc, dest);
+    /*  the following function looks onto the opcode as a string of bytes   */
+    avr_decode(inst->cpc, &inst->length, inst->opcode, &inst->translate);
 
-        if (ctx->singlestep) {
-            gen_helper_debug(cpu_env);
-        }
-        tcg_gen_exit_tb(0);
+    if (inst->length == 16) {
+        inst->npc = inst->cpc + 1;
+        /*  get opcode as 16bit value   */
+        inst->opcode = inst->opcode & 0x0000ffff;
+    }
+    if (inst->length == 32) {
+        inst->npc = inst->cpc + 2;
+        /*  get opcode as 32bit value   */
+        inst->opcode = (inst->opcode << 16)
+                     | (inst->opcode >> 16);
     }
 }
 
@@ -172,17 +144,20 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
     gen_tb_start(tb);
 
     /*  decode first instruction    */
-    cpc = pc_start;
-    npc = cpc + 1;
+    ctx.inst[0].cpc = pc_start;
+    decode_opc(cpu, &ctx, &ctx.inst[0]);
     do {
-        /*  translate current instruction   */
+        /*  set curr/next PCs   */
+        cpc = ctx.inst[0].cpc;
+        npc = ctx.inst[0].npc;
+
+        /*  decode next instruction */
+        ctx.inst[1].cpc = ctx.inst[0].npc;
+        decode_opc(cpu, &ctx, &ctx.inst[1]);
+
+        /*  translate current instruction */
         tcg_gen_insn_start(cpc);
         num_insns++;
-
-        /*  just skip to next instruction   */
-        cpc++;
-        npc++;
-        ctx.bstate = BS_NONE;
 
         if (unlikely(cpu_breakpoint_test(cs, cpc * 2, BP_ANY))) {
             tcg_gen_movi_i32(cpu_pc, cpc);
@@ -195,6 +170,8 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
             goto done_generating;
         }
 
+        ctx.bstate = ctx.inst[0].translate(env, &ctx, ctx.inst[0].opcode);
+
         if (num_insns >= max_insns) {
             break;      /* max translated instructions limit reached */
         }
@@ -204,6 +181,8 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
         if ((cpc & (TARGET_PAGE_SIZE - 1)) == 0) {
             break;      /* page boundary */
         }
+
+        ctx.inst[0] = ctx.inst[1];  /*  make next inst curr */
     } while (ctx.bstate == BS_NONE && !tcg_op_buf_full());
 
     if (tb->cflags & CF_LAST_IO) {
@@ -239,16 +218,17 @@ done_generating:
 }
 
 void restore_state_to_opc(CPUAVRState *env, TranslationBlock *tb,
-                                target_ulong *data)
+                            target_ulong *data)
 {
     env->pc_w = data[0];
 }
 
 void avr_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                                int flags)
+                            int flags)
 {
     AVRCPU *cpu = AVR_CPU(cs);
     CPUAVRState *env = &cpu->env;
+    int i;
 
     cpu_fprintf(f, "\n");
     cpu_fprintf(f, "PC:    %06x\n", env->pc_w);
@@ -272,7 +252,7 @@ void avr_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                         env->sregC ? 'I' : '-');
 
     cpu_fprintf(f, "\n");
-    for (int i = 0; i < ARRAY_SIZE(env->r); i++) {
+    for (i = 0; i < ARRAY_SIZE(env->r); i++) {
         cpu_fprintf(f, "R[%02d]:  %02x   ", i, env->r[i]);
 
         if ((i % 8) == 7) {
@@ -281,7 +261,7 @@ void avr_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     }
 
     cpu_fprintf(f, "\n");
-    for (int i = 0; i < ARRAY_SIZE(env->io); i++) {
+    for (i = 0; i < ARRAY_SIZE(env->io); i++) {
         cpu_fprintf(f, "IO[%02d]: %02x   ", i, env->io[i]);
 
         if ((i % 8) == 7) {
