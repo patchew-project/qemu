@@ -1354,7 +1354,33 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
 
 void ppc_set_vcpu_dt_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
 {
-    ;
+    int max_smt = kvmppc_smt_threads();
+    int vcpu_dt_id;
+
+    if (smp_threads > max_smt) {
+        error_setg(errp, "Cannot support more than %d threads on PPC with %s",
+                   max_smt, kvm_enabled() ? "KVM" : "TCG");
+        return;
+    }
+    if (!is_power_of_2(smp_threads)) {
+        error_setg(errp, "Cannot support %d threads on PPC with %s, "
+                   "threads count must be a power of 2.",
+                   smp_threads, kvm_enabled() ? "KVM" : "TCG");
+        return;
+    }
+
+    vcpu_dt_id = (cpu_index / smp_threads) * max_smt
+        + (cpu_index % smp_threads);
+
+    if (kvm_enabled() && !kvm_vcpu_id_is_valid(vcpu_dt_id)) {
+        error_setg(errp, "Can't create CPU with id %d in KVM", vcpu_dt_id);
+        error_append_hint(errp, "Adjust the number of cpus to %d "
+                          "or try to raise the number of threads per core\n",
+                          vcpu_dt_id * smp_threads / max_smt);
+        return;
+    }
+
+    cpu->cpu_dt_id = vcpu_dt_id;
 }
 
 PowerPCCPU *ppc_cpu_init(const char *cpu_model, int cpu_index)
