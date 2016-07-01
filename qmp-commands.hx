@@ -1150,7 +1150,7 @@ EQMP
 
     {
         .name       = "block-commit",
-        .args_type  = "device:B,base:s?,top:s?,backing-file:s?,speed:o?",
+        .args_type  = "job-id:s?,device:B,base:s?,top:s?,backing-file:s?,speed:o?",
         .mhandler.cmd_new = qmp_marshal_block_commit,
     },
 
@@ -1163,6 +1163,7 @@ data between 'top' and 'base' into 'base'.
 
 Arguments:
 
+- "job-id": identifier for the newly-created block job (json-string, optional)
 - "device": The device's ID, must be unique (json-string)
 - "base": The file name of the backing image to write data into.
           If not specified, this is the deepest backing image
