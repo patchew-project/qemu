@@ -10000,11 +10000,6 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     return NULL;
 }
 
-PowerPCCPU *cpu_ppc_init(const char *cpu_model)
-{
-    return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
-}
-
 /* Sort by PVR, ordering special case "host" last. */
 static gint ppc_cpu_list_compare(gconstpointer a, gconstpointer b)
 {

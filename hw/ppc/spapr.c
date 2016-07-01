@@ -1828,7 +1828,7 @@ static void ppc_spapr_init(MachineState *machine)
         g_free(type);
     } else {
         for (i = 0; i < smp_cpus; i++) {
-            PowerPCCPU *cpu = cpu_ppc_init(machine->cpu_model);
+            PowerPCCPU *cpu = ppc_cpu_init(machine->cpu_model);
             if (cpu == NULL) {
                 error_report("Unable to find PowerPC CPU definition");
                 exit(1);

@@ -1350,3 +1350,8 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
 
     return NULL;
 }
+
+PowerPCCPU *ppc_cpu_init(const char *cpu_model)
+{
+    return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
+}

@@ -186,7 +186,7 @@ static void bamboo_init(MachineState *machine)
     if (machine->cpu_model == NULL) {
         machine->cpu_model = "440EP";
     }
-    cpu = cpu_ppc_init(machine->cpu_model);
+    cpu = ppc_cpu_init(machine->cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);
