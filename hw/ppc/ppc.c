@@ -1352,7 +1352,7 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
     return NULL;
 }
 
-static void ppc_set_vcpu_dt_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
+void ppc_set_vcpu_dt_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
 {
     ;
 }
