@@ -713,7 +713,8 @@
 #
 # @type: the job type ('stream' for image streaming)
 #
-# @device: the block device name
+# @device: the job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: the maximum progress value
 #
@@ -1469,7 +1470,9 @@
 #
 # Throttling can be disabled by setting the speed to 0.
 #
-# @device: the device name
+# @device: the job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # @speed:  the maximum speed, in bytes per second, or 0 for unlimited.
 #          Defaults to 0.
@@ -1500,7 +1503,9 @@
 # operation can be started at a later time to finish copying all data from the
 # backing file.
 #
-# @device: the device name
+# @device: the job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # @force: #optional whether to allow cancellation of a paused job (default
 #         false).  Since 1.3.
@@ -1526,7 +1531,9 @@
 # the operation is actually paused.  Cancelling a paused job automatically
 # resumes it.
 #
-# @device: the device name
+# @device: the job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
@@ -1546,7 +1553,9 @@
 #
 # This command also clears the error status of the job.
 #
-# @device: the device name
+# @device: the job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
@@ -1572,7 +1581,9 @@
 #
 # A cancelled or paused job cannot be completed.
 #
-# @device: the device name
+# @device: the job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
@@ -2417,7 +2428,8 @@
 #
 # @type: job type
 #
-# @device: device name
+# @device: the job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: maximum progress value
 #
@@ -2448,7 +2460,8 @@
 #
 # @type: job type
 #
-# @device: device name
+# @device: the job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: maximum progress value
 #
@@ -2471,7 +2484,8 @@
 #
 # Emitted when a block job encounters an error
 #
-# @device: device name
+# @device: the job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @operation: I/O operation
 #
@@ -2491,7 +2505,8 @@
 #
 # @type: job type
 #
-# @device: device name
+# @device: the job identifier. Originally the device name but other
+#          values are allowed since QEMU 2.7
 #
 # @len: maximum progress value
 #
