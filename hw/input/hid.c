@@ -27,47 +27,144 @@
 #include "ui/console.h"
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
+#include "include/hw/input/usb-keys.h"
+#include <math.h>
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01
 #define HID_USAGE_POSTFAIL              0x02
 #define HID_USAGE_ERROR_UNDEFINED       0x03
 
-/* Indices are QEMU keycodes, values are from HID Usage Table.  Indices
- * above 0x80 are for keys that come after 0xe0 or 0xe1+0x1d or 0xe1+0x9d.  */
-static const uint8_t hid_usage_keys[0x100] = {
-    0x00, 0x29, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
-    0x24, 0x25, 0x26, 0x27, 0x2d, 0x2e, 0x2a, 0x2b,
-    0x14, 0x1a, 0x08, 0x15, 0x17, 0x1c, 0x18, 0x0c,
-    0x12, 0x13, 0x2f, 0x30, 0x28, 0xe0, 0x04, 0x16,
-    0x07, 0x09, 0x0a, 0x0b, 0x0d, 0x0e, 0x0f, 0x33,
-    0x34, 0x35, 0xe1, 0x31, 0x1d, 0x1b, 0x06, 0x19,
-    0x05, 0x11, 0x10, 0x36, 0x37, 0x38, 0xe5, 0x55,
-    0xe2, 0x2c, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
-    0x3f, 0x40, 0x41, 0x42, 0x43, 0x53, 0x47, 0x5f,
-    0x60, 0x61, 0x56, 0x5c, 0x5d, 0x5e, 0x57, 0x59,
-    0x5a, 0x5b, 0x62, 0x63, 0x00, 0x00, 0x64, 0x44,
-    0x45, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e,
-    0xe8, 0xe9, 0x71, 0x72, 0x73, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x85, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0xe3, 0xe7, 0x65,
+#define RELEASED -1
+#define PUSHED -2
 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x58, 0xe4, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x00, 0x46,
-    0xe6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x00, 0x4a,
-    0x52, 0x4b, 0x00, 0x50, 0x00, 0x4f, 0x00, 0x4d,
-    0x51, 0x4e, 0x49, 0x4c, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0xe3, 0xe7, 0x65, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+/* Translates a QKeyCode to USB HID value */
+static const uint8_t qcode_to_usb_hid[] = {
+    [Q_KEY_CODE_SHIFT] = USB_HID_LEFT_SHIFT,
+    [Q_KEY_CODE_SHIFT_R] = USB_HID_RIGHT_SHIFT,
+    [Q_KEY_CODE_ALT] = USB_HID_LEFT_OPTION,
+    [Q_KEY_CODE_ALT_R] = USB_HID_RIGHT_OPTION,
+    [Q_KEY_CODE_ALTGR] = USB_HID_LEFT_OPTION,
+    [Q_KEY_CODE_ALTGR_R] = USB_HID_RIGHT_OPTION,
+    [Q_KEY_CODE_CTRL] = USB_HID_LEFT_CONTROL,
+    [Q_KEY_CODE_CTRL_R] = USB_HID_RIGHT_CONTROL,
+    [Q_KEY_CODE_MENU] = USB_HID_MENU,
+    [Q_KEY_CODE_ESC] = USB_HID_ESC,
+    [Q_KEY_CODE_1] = USB_HID_1,
+    [Q_KEY_CODE_2] = USB_HID_2,
+    [Q_KEY_CODE_3] = USB_HID_3,
+    [Q_KEY_CODE_4] = USB_HID_4,
+    [Q_KEY_CODE_5] = USB_HID_5,
+    [Q_KEY_CODE_6] = USB_HID_6,
+    [Q_KEY_CODE_7] = USB_HID_7,
+    [Q_KEY_CODE_8] = USB_HID_8,
+    [Q_KEY_CODE_9] = USB_HID_9,
+    [Q_KEY_CODE_0] = USB_HID_0,
+    [Q_KEY_CODE_MINUS] = USB_HID_MINUS,
+    [Q_KEY_CODE_EQUAL] = USB_HID_EQUALS,
+    [Q_KEY_CODE_BACKSPACE] = USB_HID_DELETE,
+    [Q_KEY_CODE_TAB] = USB_HID_TAB,
+    [Q_KEY_CODE_Q] = USB_HID_Q,
+    [Q_KEY_CODE_W] = USB_HID_W,
+    [Q_KEY_CODE_E] = USB_HID_E,
+    [Q_KEY_CODE_R] = USB_HID_R,
+    [Q_KEY_CODE_T] = USB_HID_T,
+    [Q_KEY_CODE_Y] = USB_HID_Y,
+    [Q_KEY_CODE_U] = USB_HID_U,
+    [Q_KEY_CODE_I] = USB_HID_I,
+    [Q_KEY_CODE_O] = USB_HID_O,
+    [Q_KEY_CODE_P] = USB_HID_P,
+    [Q_KEY_CODE_BRACKET_LEFT] = USB_HID_LEFT_BRACKET,
+    [Q_KEY_CODE_BRACKET_RIGHT] = USB_HID_RIGHT_BRACKET,
+    [Q_KEY_CODE_RET] = USB_HID_RETURN,
+    [Q_KEY_CODE_A] = USB_HID_A,
+    [Q_KEY_CODE_S] = USB_HID_S,
+    [Q_KEY_CODE_D] = USB_HID_D,
+    [Q_KEY_CODE_F] = USB_HID_F,
+    [Q_KEY_CODE_G] = USB_HID_G,
+    [Q_KEY_CODE_H] = USB_HID_H,
+    [Q_KEY_CODE_J] = USB_HID_J,
+    [Q_KEY_CODE_K] = USB_HID_K,
+    [Q_KEY_CODE_L] = USB_HID_L,
+    [Q_KEY_CODE_SEMICOLON] = USB_HID_SEMICOLON,
+    [Q_KEY_CODE_APOSTROPHE] = USB_HID_QUOTE,
+    [Q_KEY_CODE_GRAVE_ACCENT] = USB_HID_GRAVE_ACCENT,
+    [Q_KEY_CODE_BACKSLASH] = USB_HID_BACKSLASH,
+    [Q_KEY_CODE_Z] = USB_HID_Z,
+    [Q_KEY_CODE_X] = USB_HID_X,
+    [Q_KEY_CODE_C] = USB_HID_C,
+    [Q_KEY_CODE_V] = USB_HID_V,
+    [Q_KEY_CODE_B] = USB_HID_B,
+    [Q_KEY_CODE_N] = USB_HID_N,
+    [Q_KEY_CODE_M] = USB_HID_M,
+    [Q_KEY_CODE_COMMA] = USB_HID_COMMA,
+    [Q_KEY_CODE_DOT] = USB_HID_PERIOD,
+    [Q_KEY_CODE_SLASH] = USB_HID_FORWARD_SLASH,
+    [Q_KEY_CODE_ASTERISK] = USB_HID_KP_MULTIPLY,
+    [Q_KEY_CODE_SPC] = USB_HID_SPACE,
+    [Q_KEY_CODE_CAPS_LOCK] = USB_HID_CAPS_LOCK,
+    [Q_KEY_CODE_F1] = USB_HID_F1,
+    [Q_KEY_CODE_F2] = USB_HID_F2,
+    [Q_KEY_CODE_F3] = USB_HID_F3,
+    [Q_KEY_CODE_F4] = USB_HID_F4,
+    [Q_KEY_CODE_F5] = USB_HID_F5,
+    [Q_KEY_CODE_F6] = USB_HID_F6,
+    [Q_KEY_CODE_F7] = USB_HID_F7,
+    [Q_KEY_CODE_F8] = USB_HID_F8,
+    [Q_KEY_CODE_F9] = USB_HID_F9,
+    [Q_KEY_CODE_F10] = USB_HID_F10,
+    [Q_KEY_CODE_NUM_LOCK] = USB_HID_CLEAR,
+    [Q_KEY_CODE_SCROLL_LOCK] = USB_HID_SCROLL_LOCK,
+    [Q_KEY_CODE_KP_DIVIDE] = USB_HID_KP_DIVIDE,
+    [Q_KEY_CODE_KP_MULTIPLY] = USB_HID_KP_MULTIPLY,
+    [Q_KEY_CODE_KP_SUBTRACT] = USB_HID_KP_MINUS,
+    [Q_KEY_CODE_KP_ADD] = USB_HID_KP_ADD,
+    [Q_KEY_CODE_KP_ENTER] = USB_HID_KP_ENTER,
+    [Q_KEY_CODE_KP_DECIMAL] = USB_HID_KP_PERIOD,
+    [Q_KEY_CODE_SYSRQ] = USB_HID_PRINT,
+    [Q_KEY_CODE_KP_0] = USB_HID_KP_0,
+    [Q_KEY_CODE_KP_1] = USB_HID_KP_1,
+    [Q_KEY_CODE_KP_2] = USB_HID_KP_2,
+    [Q_KEY_CODE_KP_3] = USB_HID_KP_3,
+    [Q_KEY_CODE_KP_4] = USB_HID_KP_4,
+    [Q_KEY_CODE_KP_5] = USB_HID_KP_5,
+    [Q_KEY_CODE_KP_6] = USB_HID_KP_6,
+    [Q_KEY_CODE_KP_7] = USB_HID_KP_7,
+    [Q_KEY_CODE_KP_8] = USB_HID_KP_8,
+    [Q_KEY_CODE_KP_9] = USB_HID_KP_9,
+    [Q_KEY_CODE_LESS] = 0,
+    [Q_KEY_CODE_F11] = USB_HID_F11,
+    [Q_KEY_CODE_F12] = USB_HID_F12,
+    [Q_KEY_CODE_PRINT] = USB_HID_PRINT,
+    [Q_KEY_CODE_HOME] = USB_HID_HOME,
+    [Q_KEY_CODE_PGUP] = USB_HID_PAGE_UP,
+    [Q_KEY_CODE_PGDN] = USB_HID_PAGE_DOWN,
+    [Q_KEY_CODE_END] = USB_HID_END,
+    [Q_KEY_CODE_LEFT] = USB_HID_LEFT_ARROW,
+    [Q_KEY_CODE_UP] = USB_HID_UP_ARROW,
+    [Q_KEY_CODE_DOWN] = USB_HID_DOWN_ARROW,
+    [Q_KEY_CODE_RIGHT] = USB_HID_RIGHT_ARROW,
+    [Q_KEY_CODE_INSERT] = USB_HID_INSERT,
+    [Q_KEY_CODE_DELETE] = USB_HID_FORWARD_DELETE,
+    [Q_KEY_CODE_STOP] = USB_HID_STOP,
+    [Q_KEY_CODE_AGAIN] = USB_HID_AGAIN,
+    [Q_KEY_CODE_PROPS] = 0,
+    [Q_KEY_CODE_UNDO] = USB_HID_UNDO,
+    [Q_KEY_CODE_FRONT] = 0,
+    [Q_KEY_CODE_COPY] = USB_HID_COPY,
+    [Q_KEY_CODE_OPEN] = 0,
+    [Q_KEY_CODE_PASTE] = USB_HID_PASTE,
+    [Q_KEY_CODE_FIND] = USB_HID_FIND,
+    [Q_KEY_CODE_CUT] = USB_HID_CUT,
+    [Q_KEY_CODE_LF] = 0,
+    [Q_KEY_CODE_HELP] = USB_HID_HELP,
+    [Q_KEY_CODE_META_L] = USB_HID_LEFT_GUI,
+    [Q_KEY_CODE_META_R] = USB_HID_RIGHT_GUI,
+    [Q_KEY_CODE_COMPOSE] = 0,
+    [Q_KEY_CODE_PAUSE] = USB_HID_PAUSE,
+    [Q_KEY_CODE_RO] = 0,
+    [Q_KEY_CODE_KP_COMMA] = USB_HID_KP_COMMA,
+    [Q_KEY_CODE_KP_EQUALS] = USB_HID_KP_EQUALS,
+    [Q_KEY_CODE_POWER] = USB_HID_POWER,
 };
 
 bool hid_has_events(HIDState *hs)
@@ -227,12 +324,22 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
 {
     HIDState *hs = (HIDState *)dev;
     int scancodes[3], i, count;
-    int slot;
-    InputKeyEvent *key = evt->u.key.data;
+    int slot, qcode, keycode;
 
-    count = qemu_input_key_value_to_scancode(key->key,
-                                             key->down,
-                                             scancodes);
+    qcode = qemu_input_key_value_to_qcode(evt->u.key.data->key);
+    if (qcode >= ARRAY_SIZE(qcode_to_usb_hid)) {
+        return;
+    }
+    keycode = qcode_to_usb_hid[qcode];
+
+    count = 2;
+    if (evt->u.key.data->down == false) { /* if key up event */
+        scancodes[0] = RELEASED;
+    } else {
+        scancodes[0] = PUSHED;
+    }
+    scancodes[1] = keycode;
+
     if (hs->n + count > QUEUE_LENGTH) {
         fprintf(stderr, "usb-kbd: warning: key event queue full\n");
         return;
@@ -244,67 +351,47 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
     hs->event(hs);
 }
 
+/* Sets the modifiers variable */
+static void set_modifiers(int status, int bit_position, uint16_t *modifiers)
+{
+    int value = pow(2, bit_position);
+    if (status == PUSHED) {
+        *modifiers |= value;
+    }  else {
+        *modifiers &= ~value;
+    }
+}
+
+/* Handles the modifier keys - they are handled differently from other keys. */
+static void process_modifier_key(int status, int keycode, uint16_t *modifiers)
+{
+    /* subtracting 0xe0 from the keycode gives us the bit position */
+    set_modifiers(status, keycode - 0xe0, modifiers);
+}
+
 static void hid_keyboard_process_keycode(HIDState *hs)
 {
-    uint8_t hid_code, index, key;
-    int i, keycode, slot;
+    int i, keycode, slot, status;
 
     if (hs->n == 0) {
         return;
     }
     slot = hs->head & QUEUE_MASK; QUEUE_INCR(hs->head); hs->n--;
+    status = hs->kbd.keycodes[slot];
+    slot = hs->head & QUEUE_MASK; QUEUE_INCR(hs->head); hs->n--;
     keycode = hs->kbd.keycodes[slot];
 
-    key = keycode & 0x7f;
-    index = key | ((hs->kbd.modifiers & (1 << 8)) >> 1);
-    hid_code = hid_usage_keys[index];
-    hs->kbd.modifiers &= ~(1 << 8);
-
-    switch (hid_code) {
-    case 0x00:
+    /* handle Control, Option, GUI/Windows/Command, and Shift keys */
+    if (keycode >= 0xe0) {
+        process_modifier_key(status, keycode, &(hs->kbd.modifiers));
         return;
-
-    case 0xe0:
-        assert(key == 0x1d);
-        if (hs->kbd.modifiers & (1 << 9)) {
-            /* The hid_codes for the 0xe1/0x1d scancode sequence are 0xe9/0xe0.
-             * Here we're processing the second hid_code.  By dropping bit 9
-             * and setting bit 8, the scancode after 0x1d will access the
-             * second half of the table.
-             */
-            hs->kbd.modifiers ^= (1 << 8) | (1 << 9);
-            return;
-        }
-        /* fall through to process Ctrl_L */
-    case 0xe1 ... 0xe7:
-        /* Ctrl_L/Ctrl_R, Shift_L/Shift_R, Alt_L/Alt_R, Win_L/Win_R.
-         * Handle releases here, or fall through to process presses.
-         */
-        if (keycode & (1 << 7)) {
-            hs->kbd.modifiers &= ~(1 << (hid_code & 0x0f));
-            return;
-        }
-        /* fall through */
-    case 0xe8 ... 0xe9:
-        /* USB modifiers are just 1 byte long.  Bits 8 and 9 of
-         * hs->kbd.modifiers implement a state machine that detects the
-         * 0xe0 and 0xe1/0x1d sequences.  These bits do not follow the
-         * usual rules where bit 7 marks released keys; they are cleared
-         * elsewhere in the function as the state machine dictates.
-         */
-        hs->kbd.modifiers |= 1 << (hid_code & 0x0f);
-        return;
-
-    case 0xea ... 0xef:
-        abort();
-
-    default:
-        break;
     }
 
-    if (keycode & (1 << 7)) {
+    /* if key released */
+    if (status == RELEASED) {
+        /* find the key then remove it from the buffer */
         for (i = hs->kbd.keys - 1; i >= 0; i--) {
-            if (hs->kbd.key[i] == hid_code) {
+            if (hs->kbd.key[i] == keycode) {
                 hs->kbd.key[i] = hs->kbd.key[-- hs->kbd.keys];
                 hs->kbd.key[hs->kbd.keys] = 0x00;
                 break;
@@ -314,14 +401,15 @@ static void hid_keyboard_process_keycode(HIDState *hs)
             return;
         }
     } else {
+        /* search for the key's location in the buffer */
         for (i = hs->kbd.keys - 1; i >= 0; i--) {
-            if (hs->kbd.key[i] == hid_code) {
+            if (hs->kbd.key[i] == keycode) {
                 break;
             }
         }
         if (i < 0) {
             if (hs->kbd.keys < sizeof(hs->kbd.key)) {
-                hs->kbd.key[hs->kbd.keys++] = hid_code;
+                hs->kbd.key[hs->kbd.keys++] = keycode;
             }
         } else {
             return;
