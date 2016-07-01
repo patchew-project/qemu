@@ -1656,8 +1656,8 @@ EQMP
 
     {
         .name       = "drive-mirror",
-        .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
-                      "node-name:s?,replaces:s?,"
+        .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
+                      "format:s?,node-name:s?,replaces:s?,"
                       "on-source-error:s?,on-target-error:s?,"
                       "unmap:b?,"
                       "granularity:i?,buf-size:i?",
@@ -1677,6 +1677,7 @@ of the source.
 
 Arguments:
 
+- "job-id": identifier for the newly-created block job (json-string, optional)
 - "device": device name to operate on (json-string)
 - "target": name of new image file (json-string)
 - "format": format of new image (json-string, optional)
@@ -1720,7 +1721,7 @@ EQMP
 
     {
         .name       = "blockdev-mirror",
-        .args_type  = "sync:s,device:B,target:B,replaces:s?,speed:i?,"
+        .args_type  = "job-id:s?,sync:s,device:B,target:B,replaces:s?,speed:i?,"
                       "on-source-error:s?,on-target-error:s?,"
                       "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_blockdev_mirror,
@@ -1735,6 +1736,7 @@ specifies the target of mirror operation.
 
 Arguments:
 
+- "job-id": identifier for the newly-created block job (json-string, optional)
 - "device": device name to operate on (json-string)
 - "target": device name to mirror to (json-string)
 - "replaces": the block driver node name to replace when finished
