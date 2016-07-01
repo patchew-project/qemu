@@ -37,6 +37,19 @@
 #define RELEASED -1
 #define PUSHED -2
 
+/* #define DEBUG_HID_CODE */
+#ifdef DEBUG_HID_CODE
+    #define DEBUG_HID_PRINT 1
+#else
+    #define DEBUG_HID_PRINT 0
+#endif
+#define DEBUG_HID(fmt, ...)                                 \
+    do {                                                    \
+            if (DEBUG_HID_PRINT) {                          \
+                fprintf(stderr, fmt, ## __VA_ARGS__);       \
+            }                                               \
+        } while (0)                                         \
+
 /* Translates a QKeyCode to USB HID value */
 static const uint8_t qcode_to_usb_hid[] = {
     [Q_KEY_CODE_SHIFT] = USB_HID_LEFT_SHIFT,
@@ -331,6 +344,7 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
         return;
     }
     keycode = qcode_to_usb_hid[qcode];
+    DEBUG_HID("keycode = 0x%x qcode:%d\n", keycode, qcode);
 
     count = 2;
     if (evt->u.key.data->down == false) { /* if key up event */
@@ -380,6 +394,9 @@ static void hid_keyboard_process_keycode(HIDState *hs)
     status = hs->kbd.keycodes[slot];
     slot = hs->head & QUEUE_MASK; QUEUE_INCR(hs->head); hs->n--;
     keycode = hs->kbd.keycodes[slot];
+
+    DEBUG_HID("keycode:0x%x status:%s\n", keycode, (status == PUSHED ? "Pushed"
+              : "Released"));
 
     /* handle Control, Option, GUI/Windows/Command, and Shift keys */
     if (keycode >= 0xe0) {
