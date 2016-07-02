@@ -16,3 +16,5 @@ common-obj-$(CONFIG_SOFTMMU) += null-machine.o
 common-obj-$(CONFIG_SOFTMMU) += loader.o
 common-obj-$(CONFIG_SOFTMMU) += qdev-properties-system.o
 common-obj-$(CONFIG_PLATFORM_BUS) += platform-bus.o
+
+obj-$(CONFIG_SOFTMMU) += generic-loader.o
