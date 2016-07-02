@@ -45,7 +45,7 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 #define ELF_LOAD_WRONG_ENDIAN -4
 const char *load_elf_strerror(int error);
 
-/** load_elf:
+/** load_elf_as:
  * @filename: Path of ELF file
  * @translate_fn: optional function to translate load addresses
  * @translate_opaque: opaque data passed to @translate_fn
@@ -59,6 +59,8 @@ const char *load_elf_strerror(int error);
  * @data_swab: Set to order of byte swapping for data. 0 for no swap, 1
  *             for swapping bytes within halfwords, 2 for bytes within
  *             words and 3 for within doublewords.
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
  *
  * Load an ELF file's contents to the emulated system's address space.
  * Clients may optionally specify a callback to perform address
@@ -68,6 +70,16 @@ const char *load_elf_strerror(int error);
  * load will fail if the target ELF does not match. Some architectures
  * have some architecture-specific behaviours that come into effect when
  * their particular values for @elf_machine are set.
+ */
+
+int load_elf_as(const char *filename,
+                uint64_t (*translate_fn)(void *, uint64_t),
+                void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
+                uint64_t *highaddr, int big_endian, int elf_machine,
+                int clear_lsb, int data_swab, AddressSpace *as);
+
+/** load_elf:
+ * Same as above, but doesn't allow the caller to specify an AddressSpace
  */
 
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
