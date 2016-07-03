@@ -239,7 +239,7 @@ const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OP, "op",
       "show micro ops for each compiled TB" },
     { CPU_LOG_TB_OP_OPT, "op_opt",
-      "show micro ops (x86 only: before eflags optimization) and\n"
+      "show micro ops (x86 only: before eflags optimization) and "
       "after liveness analysis" },
     { CPU_LOG_INT, "int",
       "show interrupts/exceptions in short format" },
@@ -256,12 +256,12 @@ const QEMULogItem qemu_log_items[] = {
     { LOG_UNIMP, "unimp",
       "log unimplemented functionality" },
     { LOG_GUEST_ERROR, "guest_errors",
-      "log when the guest OS does something invalid (eg accessing a\n"
+      "log when the guest OS does something invalid (eg accessing a "
       "non-existent register)" },
     { CPU_LOG_PAGE, "page",
       "dump pages at beginning of user mode emulation" },
     { CPU_LOG_TB_NOCHAIN, "nochain",
-      "do not chain compiled TBs so that \"exec\" and \"cpu\" show\n"
+      "do not chain compiled TBs so that \"exec\" and \"cpu\" show "
       "complete traces" },
     { 0, NULL, NULL },
 };
@@ -318,12 +318,36 @@ int qemu_str_to_log_mask(const char *str)
 void qemu_print_log_usage(FILE *f)
 {
     const QEMULogItem *item;
+    int name_len, help_len, disp_len, wrap_len = 80;
+    char help[wrap_len + 1];
+
     fprintf(f, "Log items (comma separated):\n");
+
+    name_len = 0;
     for (item = qemu_log_items; item->mask != 0; item++) {
-        fprintf(f, "%-15s %s\n", item->name, item->help);
+        name_len = MAX(strlen(item->name), name_len);
     }
 #ifdef CONFIG_TRACE_LOG
-    fprintf(f, "trace:PATTERN   enable trace events\n");
-    fprintf(f, "\nUse \"-d trace:help\" to get a list of trace events.\n\n");
+    name_len = MAX(strlen("trace:PATTERN"), name_len);
+#endif
+    help_len = wrap_len - name_len - 1;
+
+    for (item = qemu_log_items; item->mask != 0; item++) {
+        disp_len = snprintf(help, help_len, "%s", item->help);
+        if (disp_len >= help_len) {
+            char *space = strrchr(help, ' ');
+            *space = '\0';
+            disp_len = space - help + 1;
+        } else {
+            disp_len = 0;
+        }
+        fprintf(f, "%-*s %s\n", name_len, item->name, help);
+        if (disp_len) {
+            fprintf(f, "%-*s  %s\n", name_len, "", item->help + disp_len - 1);
+        }
+    }
+#ifdef CONFIG_TRACE_LOG
+    fprintf(f, "%-*s %s\n", name_len, "trace:PATTERN", "enable trace events");
+    fprintf(f, "\nUse \"-d trace:help\" to get a list of trace events.\n");
 #endif
 }
