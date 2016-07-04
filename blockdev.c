@@ -3309,6 +3309,9 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
     if (!backup->has_on_target_error) {
         backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
     }
+    if (!backup->has_compress) {
+        backup->compress = false;
+    }
 
     blk = blk_by_name(backup->device);
     if (!blk) {
@@ -3341,9 +3344,9 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
             goto out;
         }
     }
-    backup_start(bs, target_bs, backup->speed, backup->sync, NULL, false,
-                 backup->on_source_error, backup->on_target_error, block_job_cb,
-                 bs, txn, &local_err);
+    backup_start(bs, target_bs, backup->speed, backup->sync, NULL,
+                 backup->compress, backup->on_source_error,
+                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }
