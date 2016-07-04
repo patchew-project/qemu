@@ -2604,9 +2604,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         /* virtual & phys address size in low 2 bytes. */
 /* XXX: This value must match the one used in the MMU code. */
         if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-            /* 64 bit processor */
-/* XXX: The physical address space is limited to 42 bits in exec.c. */
-            *eax = 0x00003028; /* 48 bits virtual, 40 bits physical */
+            /* 64 bit processor, 48 bits virtual, configurable
+             * physical bits.
+             */
+            *eax = 0x00003000 + cpu->phys_bits;
         } else {
             if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
                 *eax = 0x00000024; /* 36 bits physical */
@@ -3257,6 +3258,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
+    DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 40),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, 0),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, 0),
     DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, 0),
