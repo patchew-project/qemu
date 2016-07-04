@@ -2985,6 +2985,19 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             /* The user asked for us to use the host physical bits */
             cpu->phys_bits = host_phys_bits;
 
+        } else if (cpu->phys_bits > 52 || cpu->phys_bits < 32) {
+            error_setg(errp, "phys_bits should be between 32 and 52 or 0 to"
+                             " use host size (but is %u)", cpu->phys_bits);
+            return;
+        }
+        /* Print a warning if the user set it to a value that's not the
+         * host value; ignore the magic value 40 because it may well just
+         * be the old machine type.
+         */
+        if (cpu->phys_bits != host_phys_bits && cpu->phys_bits != 40) {
+            fprintf(stderr, "Warning: Host physical bits (%u)"
+                            " does not match phys_bits (%u)\n",
+                            host_phys_bits, cpu->phys_bits);
         }
     } else {
         /* For 32 bit systems don't use the user set value, but keep
