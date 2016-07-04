@@ -912,7 +912,6 @@ bdrv_driver_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         return -ENOTSUP;
     }
 
-    assert(QLIST_EMPTY(&bs->dirty_bitmaps));
     return drv->bdrv_co_pwritev_compressed(bs, offset, bytes, qiov);
 }
 
@@ -1302,6 +1301,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
         bdrv_debug_event(bs, BLKDBG_PWRITEV_ZERO);
         ret = bdrv_co_do_pwrite_zeroes(bs, offset, bytes, flags);
+    } else if (flags & BDRV_REQ_WRITE_COMPRESSED) {
+        ret = bdrv_driver_pwritev_compressed(bs, offset, bytes, qiov);
     } else {
         bdrv_debug_event(bs, BLKDBG_PWRITEV);
         ret = bdrv_driver_pwritev(bs, offset, bytes, qiov, flags);
@@ -1525,14 +1526,9 @@ int coroutine_fn bdrv_co_pwritev(BlockDriverState *bs,
         bytes = ROUND_UP(bytes, align);
     }
 
-    if (flags & BDRV_REQ_WRITE_COMPRESSED) {
-        ret = bdrv_driver_pwritev_compressed(
-                bs, offset, bytes, use_local_qiov ? &local_qiov : qiov);
-    } else {
-        ret = bdrv_aligned_pwritev(bs, &req, offset, bytes,
-                                   use_local_qiov ? &local_qiov : qiov,
-                                   flags);
-    }
+    ret = bdrv_aligned_pwritev(bs, &req, offset, bytes,
+                               use_local_qiov ? &local_qiov : qiov,
+                               flags);
 
 fail:
 
