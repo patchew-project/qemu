@@ -2534,37 +2534,47 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
 
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
-static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
-                                  const uint8_t *buf, int nb_sectors)
+static coroutine_fn int
+qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
+                            uint64_t bytes, QEMUIOVector *qiov)
 {
     BDRVQcow2State *s = bs->opaque;
+    QEMUIOVector hd_qiov;
+    struct iovec iov;
     z_stream strm;
     int ret, out_len;
-    uint8_t *out_buf;
+    uint8_t *buf, *out_buf;
     uint64_t cluster_offset;
 
-    if (nb_sectors == 0) {
+    if (bytes == 0) {
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file->bs);
         return bdrv_truncate(bs->file->bs, cluster_offset);
     }
 
-    if (nb_sectors != s->cluster_sectors) {
+    if (bytes != s->cluster_size) {
         ret = -EINVAL;
 
         /* Zero-pad last write if image size is not cluster aligned */
-        if (sector_num + nb_sectors == bs->total_sectors &&
-            nb_sectors < s->cluster_sectors) {
+        if (offset + bytes == bs->total_sectors << BDRV_SECTOR_BITS &&
+            bytes < s->cluster_size)
+        {
             uint8_t *pad_buf = qemu_blockalign(bs, s->cluster_size);
             memset(pad_buf, 0, s->cluster_size);
-            memcpy(pad_buf, buf, nb_sectors * BDRV_SECTOR_SIZE);
-            ret = qcow2_write_compressed(bs, sector_num,
-                                         pad_buf, s->cluster_sectors);
+            qemu_iovec_to_buf(qiov, 0, pad_buf, s->cluster_size);
+            iov = (struct iovec) {
+                .iov_base   = pad_buf,
+                .iov_len    = s->cluster_size,
+            };
+            qemu_iovec_init_external(&hd_qiov, &iov, 1);
+            ret = qcow2_co_pwritev_compressed(bs, offset, bytes, &hd_qiov);
             qemu_vfree(pad_buf);
         }
         return ret;
     }
+    buf = qemu_blockalign(bs, s->cluster_size);
+    qemu_iovec_to_buf(qiov, 0, buf, s->cluster_size);
 
     out_buf = g_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
 
@@ -2595,33 +2605,44 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        ret = qcow2_co_pwritev(bs, offset, bytes, qiov, 0);
         if (ret < 0) {
             goto fail;
         }
-    } else {
-        cluster_offset = qcow2_alloc_compressed_cluster_offset(bs,
-            sector_num << 9, out_len);
-        if (!cluster_offset) {
-            ret = -EIO;
-            goto fail;
-        }
-        cluster_offset &= s->cluster_offset_mask;
-
-        ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len);
-        if (ret < 0) {
-            goto fail;
-        }
-
-        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
-        ret = bdrv_pwrite(bs->file->bs, cluster_offset, out_buf, out_len);
-        if (ret < 0) {
-            goto fail;
-        }
+        goto success;
     }
 
+    qemu_co_mutex_lock(&s->lock);
+    cluster_offset =
+        qcow2_alloc_compressed_cluster_offset(bs, offset, out_len);
+    if (!cluster_offset) {
+        qemu_co_mutex_unlock(&s->lock);
+        ret = -EIO;
+        goto fail;
+    }
+    cluster_offset &= s->cluster_offset_mask;
+
+    ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len);
+    qemu_co_mutex_unlock(&s->lock);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    iov = (struct iovec) {
+        .iov_base   = out_buf,
+        .iov_len    = out_len,
+    };
+    qemu_iovec_init_external(&hd_qiov, &iov, 1);
+
+    BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
+    ret = bdrv_co_pwritev(bs->file->bs, cluster_offset, out_len, &hd_qiov, 0);
+    if (ret < 0) {
+        goto fail;
+    }
+success:
     ret = 0;
 fail:
+    qemu_vfree(buf);
     g_free(out_buf);
     return ret;
 }
@@ -3366,7 +3387,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_pwrite_zeroes  = qcow2_co_pwrite_zeroes,
     .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,
-    .bdrv_write_compressed  = qcow2_write_compressed,
+    .bdrv_co_pwritev_compressed = qcow2_co_pwritev_compressed,
     .bdrv_make_empty        = qcow2_make_empty,
 
     .bdrv_snapshot_create   = qcow2_snapshot_create,
