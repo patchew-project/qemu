@@ -4596,6 +4596,7 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_TPM
     tpm_cleanup();
 #endif
+    qemu_chr_cleanup();
 
     return 0;
 }
