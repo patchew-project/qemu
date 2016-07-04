@@ -1824,8 +1824,8 @@ int bdrv_is_allocated_above(BlockDriverState *top,
     return 0;
 }
 
-int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
-                          const uint8_t *buf, int nb_sectors)
+int bdrv_pwrite_compressed(BlockDriverState *bs, int64_t offset,
+                           const void *buf, int bytes)
 {
     BlockDriver *drv = bs->drv;
     int ret;
@@ -1836,14 +1836,17 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
     if (!drv->bdrv_write_compressed) {
         return -ENOTSUP;
     }
-    ret = bdrv_check_request(bs, sector_num, nb_sectors);
+    ret = bdrv_check_byte_request(bs, offset, bytes);
     if (ret < 0) {
         return ret;
     }
 
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
 
-    return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
+    return drv->bdrv_write_compressed(bs, offset >> BDRV_SECTOR_BITS, buf,
+                                      bytes >> BDRV_SECTOR_BITS);
 }
 
 typedef struct BdrvVmstateCo {
