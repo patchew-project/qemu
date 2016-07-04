@@ -2957,6 +2957,40 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
            & CPUID_EXT2_AMD_ALIASES);
     }
 
+    /* For 64bit systems think about the number of physical bits to present.
+     * ideally this should be the same as the host; anything other than matching
+     * the host can cause incorrect guest behaviour.
+     * QEMU used to pick the magic value of 40 bits that corresponds to
+     * consumer AMD devices but nothing esle.
+     */
+    if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
+        uint32_t eax;
+        /* Read the hosts physical address size, and compare it to what we
+         * were asked for; note old machine types default to 40 bits
+         */
+        uint32_t host_phys_bits = 0;
+        host_cpuid(0x80000000, 0, &eax, NULL, NULL, NULL);
+        if (eax >= 0x80000008) {
+            host_cpuid(0x80000008, 0, &eax, NULL, NULL, NULL);
+            /* Note: According to AMD doc 25481 rev 2.34 they have a field
+             * at 23:16 that can specify a maximum physical address bits for
+             * the guest that can override this value; but I've not seen
+             * anything with that set.
+             */
+            host_phys_bits = eax & 0xff;
+        } else {
+            /* It's an odd 64 bit machine that doesn't have the leaf for
+             * physical address bits; fall back to 36 that's most older Intel.
+             */
+            host_phys_bits = 36;
+        }
+
+        if (cpu->phys_bits == 0) {
+            /* The user asked for us to use the host physical bits */
+            cpu->phys_bits = host_phys_bits;
+
+        }
+    }
 
     cpu_exec_init(cs, &error_abort);
 
@@ -3259,7 +3293,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
     DEFINE_PROP_BOOL("fill-mtrr-mask", X86CPU, fill_mtrr_mask, true),
-    DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 40),
+    DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 0),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, 0),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, 0),
     DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, 0),
