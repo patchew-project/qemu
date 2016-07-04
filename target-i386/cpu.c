@@ -2609,11 +2609,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              */
             *eax = 0x00003000 + cpu->phys_bits;
         } else {
-            if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
-                *eax = 0x00000024; /* 36 bits physical */
-            } else {
-                *eax = 0x00000020; /* 32 bits physical */
-            }
+            *eax = cpu->phys_bits;
         }
         *ebx = 0;
         *ecx = 0;
@@ -2989,6 +2985,15 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             /* The user asked for us to use the host physical bits */
             cpu->phys_bits = host_phys_bits;
 
+        }
+    } else {
+        /* For 32 bit systems don't use the user set value, but keep
+         * phys_bits consistent with what we tell the guest.
+         */
+        if (env->features[FEAT_1_EDX] & CPUID_PSE36) {
+            cpu->phys_bits = 36;
+        } else {
+            cpu->phys_bits = 32;
         }
     }
 
