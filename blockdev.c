@@ -3179,6 +3179,9 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
     if (!backup->has_mode) {
         backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
+    if (!backup->has_compress) {
+        backup->compress = false;
+    }
 
     blk = blk_by_name(backup->device);
     if (!blk) {
@@ -3267,8 +3270,8 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
     }
 
     backup_start(bs, target_bs, backup->speed, backup->sync, bmap,
-                 backup->on_source_error, backup->on_target_error,
-                 block_job_cb, bs, txn, &local_err);
+                 backup->compress, backup->on_source_error,
+                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3338,7 +3341,7 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
             goto out;
         }
     }
-    backup_start(bs, target_bs, backup->speed, backup->sync, NULL,
+    backup_start(bs, target_bs, backup->speed, backup->sync, NULL, false,
                  backup->on_source_error, backup->on_target_error, block_job_cb,
                  bs, txn, &local_err);
     if (local_err != NULL) {

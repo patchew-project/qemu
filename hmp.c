@@ -1112,6 +1112,7 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     bool full = qdict_get_try_bool(qdict, "full", false);
+    bool compress = qdict_get_try_bool(qdict, "compress", false);
     Error *err = NULL;
     DriveBackup backup = {
         .device = (char *)device,
@@ -1125,6 +1126,8 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         .speed = 0,
         .has_bitmap = false,
         .bitmap = NULL,
+        .has_compress = !!compress,
+        .compress = compress,
         .has_on_source_error = false,
         .on_source_error = 0,
         .has_on_target_error = false,
