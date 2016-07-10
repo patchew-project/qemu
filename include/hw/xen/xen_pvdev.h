@@ -65,6 +65,7 @@ char *xenstore_read_str(const char *base, const char *node);
 int xenstore_read_int(const char *base, const char *node, int *ival);
 int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval);
 void xenstore_update(void *unused);
+char *xenstore_get_domain_name(uint32_t domid);
 
 const char *xenbus_strstate(enum xenbus_state state);
 

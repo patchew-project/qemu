@@ -121,6 +121,21 @@ cleanup:
     free(vec);
 }
 
+char *xenstore_get_domain_name(uint32_t domid)
+{
+    char *dom_path, *str, *ret = NULL;
+
+    dom_path = xs_get_domain_path(xenstore, domid);
+    str = xenstore_read_str(dom_path, "name");
+    free(dom_path);
+    if (str != NULL) {
+        ret = g_strdup(str);
+        free(str);
+    }
+
+    return ret;
+}
+
 const char *xenbus_strstate(enum xenbus_state state)
 {
     static const char *const name[] = {
