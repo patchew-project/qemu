@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/xen/xen_backend.h"
+#include "hw/xen/xen_frontend.h"
 #include "hw/xen/xen_pvdev.h"
 
 static int debug = 0;
@@ -93,6 +94,29 @@ int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval)
     }
     g_free(val);
     return rc;
+}
+
+void xenstore_update(void *unused)
+{
+    char **vec = NULL;
+    intptr_t type, ops, ptr;
+    unsigned int dom, count;
+
+    vec = xs_read_watch(xenstore, &count);
+    if (vec == NULL) {
+        goto cleanup;
+    }
+
+    if (sscanf(vec[XS_WATCH_TOKEN], "be:%" PRIxPTR ":%d:%" PRIxPTR,
+               &type, &dom, &ops) == 3) {
+        xenstore_update_be(vec[XS_WATCH_PATH], (void*)type, dom, (void*)ops);
+    }
+    if (sscanf(vec[XS_WATCH_TOKEN], "fe:%" PRIxPTR, &ptr) == 1) {
+        xenstore_update_fe(vec[XS_WATCH_PATH], (void*)ptr);
+    }
+
+cleanup:
+    free(vec);
 }
 
 const char *xenbus_strstate(enum xenbus_state state)

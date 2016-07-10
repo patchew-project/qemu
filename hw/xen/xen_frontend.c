@@ -68,3 +68,21 @@ void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
         }
     }
 }
+
+void xenstore_update_fe(char *watch, struct XenDevice *xendev)
+{
+    char *node;
+    unsigned int len;
+
+    len = strlen(xendev->fe);
+    if (strncmp(xendev->fe, watch, len) != 0) {
+        return;
+    }
+    if (watch[len] != '/') {
+        return;
+    }
+    node = watch + len + 1;
+
+    xen_be_frontend_changed(xendev, node);
+    xen_be_check_state(xendev);
+}
