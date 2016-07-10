@@ -25,6 +25,7 @@
 
 #include "hw/hw.h"
 #include "hw/xen/xen_backend.h"
+#include "hw/xen/xen_frontend.h"
 #include "xen_blkif.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
