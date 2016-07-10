@@ -25,7 +25,7 @@ static QLIST_HEAD(, TPMBackend) tpm_backends =
 
 
 #define TPM_MAX_MODELS      1
-#define TPM_MAX_DRIVERS     1
+#define TPM_MAX_DRIVERS     2
 
 static TPMDriverOps const *be_drivers[TPM_MAX_DRIVERS] = {
     NULL,
@@ -253,6 +253,7 @@ static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
 {
     TPMInfo *res = g_new0(TPMInfo, 1);
     TPMPassthroughOptions *tpo;
+    TPMXenstubdomsOptions *txo;
 
     res->id = g_strdup(drv->id);
     res->model = drv->fe_model;
@@ -272,6 +273,10 @@ static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
             tpo->has_cancel_path = true;
         }
         break;
+    case TPM_TYPE_XENSTUBDOMS:
+        res->options->type = TPM_TYPE_OPTIONS_KIND_XENSTUBDOMS;
+        txo = g_new0(TPMXenstubdomsOptions, 1);
+        res->options->u.xenstubdoms.data = txo;
     case TPM_TYPE__MAX:
         break;
     }

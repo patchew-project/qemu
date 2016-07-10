@@ -2748,7 +2748,8 @@ DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
     "-tpmdev passthrough,id=id[,path=path][,cancel-path=path]\n"
     "                use path to provide path to a character device; default is /dev/tpm0\n"
     "                use cancel-path to provide path to TPM's cancel sysfs entry; if\n"
-    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n",
+    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n"
+    "-tpmdev xenstubdoms,id=id\n",
     QEMU_ARCH_ALL)
 STEXI
 
@@ -2758,7 +2759,8 @@ The general form of a TPM device option is:
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
 Backend type must be:
-@option{passthrough}.
+@option{passthrough}, or
+@option{xenstubdoms}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option creates the TPM backend and requires a
@@ -2804,6 +2806,13 @@ If the TPM is left disabled and/or deactivated most TPM commands will fail.
 To create a passthrough TPM use the following two options:
 @example
 -tpmdev passthrough,id=tpm0 -device tpm-tis,tpmdev=tpm0
+@end example
+Note that the @code{-tpmdev} id is @code{tpm0} and is referenced by
+@code{tpmdev=tpm0} in the device option.
+
+To create a xenstubdoms TPM use the following two options:
+@example
+-tpmdev xenstubdoms,id=tpm0 -device tpm-tis,tpmdev=tpm0
 @end example
 Note that the @code{-tpmdev} id is @code{tpm0} and is referenced by
 @code{tpmdev=tpm0} in the device option.

@@ -883,6 +883,8 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
                            tpo->has_cancel_path ? ",cancel-path=" : "",
                            tpo->has_cancel_path ? tpo->cancel_path : "");
             break;
+        case TPM_TYPE_OPTIONS_KIND_XENSTUBDOMS:
+            break;
         case TPM_TYPE_OPTIONS_KIND__MAX:
             break;
         }
