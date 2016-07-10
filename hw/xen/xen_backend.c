@@ -262,7 +262,7 @@ static int xen_be_try_setup(struct XenDevice *xendev)
     xen_be_set_state(xendev, XenbusStateInitialising);
 
     xen_be_backend_changed(xendev, NULL);
-    xen_be_frontend_changed(xendev, NULL);
+    xen_fe_frontend_changed(xendev, NULL);
     return 0;
 }
 
