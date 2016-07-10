@@ -233,7 +233,7 @@ struct XenDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 /*
  * release xen backend device.
  */
-struct XenDevice *xen_be_del_xendev(int dom, int dev)
+struct XenDevice *xen_pv_del_xendev(int dom, int dev)
 {
     struct XenDevice *xendev, *xnext;
 
