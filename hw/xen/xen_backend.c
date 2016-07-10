@@ -488,7 +488,9 @@ void xenstore_update_be(char *watch, char *type, int dom,
         } else {
             free(bepath);
             xen_be_backend_changed(xendev, path);
-            xen_be_check_state(xendev);
+            if (!(ops->flags & DEVOPS_FLAG_FE)) {
+                xen_be_check_state(xendev);
+            }
         }
     }
 }

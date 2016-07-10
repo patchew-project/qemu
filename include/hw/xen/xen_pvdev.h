@@ -14,6 +14,8 @@ struct XenDevice;
 #define DEVOPS_FLAG_NEED_GNTDEV   1
 /* don't expect frontend doing correct state transitions (aka console quirk) */
 #define DEVOPS_FLAG_IGNORE_STATE  2
+/*dev is frontend device*/
+#define DEVOPS_FLAG_FE            4
 
 struct XenDevOps {
     size_t    size;
