@@ -87,13 +87,13 @@ int xenstore_mkdir(char *path, int p)
     };
 
     if (!xs_mkdir(xenstore, 0, path)) {
-        xen_be_printf(NULL, 0, "xs_mkdir %s: failed\n", path);
+        xen_pv_printf(NULL, 0, "xs_mkdir %s: failed\n", path);
         return -1;
     }
     xenstore_cleanup_dir(g_strdup(path));
 
     if (!xs_set_permissions(xenstore, 0, path, perms, 2)) {
-        xen_be_printf(NULL, 0, "xs_set_permissions %s: failed\n", path);
+        xen_pv_printf(NULL, 0, "xs_set_permissions %s: failed\n", path);
         return -1;
     }
     return 0;
@@ -134,7 +134,7 @@ int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state)
     if (rc < 0) {
         return rc;
     }
-    xen_be_printf(xendev, 1, "backend state: %s -> %s\n",
+    xen_pv_printf(xendev, 1, "backend state: %s -> %s\n",
                   xenbus_strstate(xendev->be_state), xenbus_strstate(state));
     xendev->be_state = state;
     return 0;
@@ -170,7 +170,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
 
     xendev->evtchndev = xenevtchn_open(NULL, 0);
     if (xendev->evtchndev == NULL) {
-        xen_be_printf(NULL, 0, "can't open evtchn device\n");
+        xen_pv_printf(NULL, 0, "can't open evtchn device\n");
         g_free(xendev);
         return NULL;
     }
@@ -179,7 +179,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     if (ops->flags & DEVOPS_FLAG_NEED_GNTDEV) {
         xendev->gnttabdev = xengnttab_open(NULL, 0);
         if (xendev->gnttabdev == NULL) {
-            xen_be_printf(NULL, 0, "can't open gnttab device\n");
+            xen_pv_printf(NULL, 0, "can't open gnttab device\n");
             xenevtchn_close(xendev->evtchndev);
             g_free(xendev);
             return NULL;
@@ -212,7 +212,7 @@ static void xen_be_backend_changed(struct XenDevice *xendev, const char *node)
     }
 
     if (node) {
-        xen_be_printf(xendev, 2, "backend update: %s\n", node);
+        xen_pv_printf(xendev, 2, "backend update: %s\n", node);
         if (xendev->ops->backend_changed) {
             xendev->ops->backend_changed(xendev, node);
         }
@@ -236,26 +236,26 @@ static int xen_be_try_setup(struct XenDevice *xendev)
     int be_state;
 
     if (xenstore_read_be_int(xendev, "state", &be_state) == -1) {
-        xen_be_printf(xendev, 0, "reading backend state failed\n");
+        xen_pv_printf(xendev, 0, "reading backend state failed\n");
         return -1;
     }
 
     if (be_state != XenbusStateInitialising) {
-        xen_be_printf(xendev, 0, "initial backend state is wrong (%s)\n",
+        xen_pv_printf(xendev, 0, "initial backend state is wrong (%s)\n",
                       xenbus_strstate(be_state));
         return -1;
     }
 
     xendev->fe = xenstore_read_be_str(xendev, "frontend");
     if (xendev->fe == NULL) {
-        xen_be_printf(xendev, 0, "reading frontend path failed\n");
+        xen_pv_printf(xendev, 0, "reading frontend path failed\n");
         return -1;
     }
 
     /* setup frontend watch */
     snprintf(token, sizeof(token), "fe:%p", xendev);
     if (!xs_watch(xenstore, xendev->fe, token)) {
-        xen_be_printf(xendev, 0, "watching frontend path (%s) failed\n",
+        xen_pv_printf(xendev, 0, "watching frontend path (%s) failed\n",
                       xendev->fe);
         return -1;
     }
@@ -279,7 +279,7 @@ static int xen_be_try_init(struct XenDevice *xendev)
     int rc = 0;
 
     if (!xendev->online) {
-        xen_be_printf(xendev, 1, "not online\n");
+        xen_pv_printf(xendev, 1, "not online\n");
         return -1;
     }
 
@@ -287,7 +287,7 @@ static int xen_be_try_init(struct XenDevice *xendev)
         rc = xendev->ops->init(xendev);
     }
     if (rc != 0) {
-        xen_be_printf(xendev, 1, "init() failed\n");
+        xen_pv_printf(xendev, 1, "init() failed\n");
         return rc;
     }
 
@@ -310,9 +310,9 @@ static int xen_be_try_initialise(struct XenDevice *xendev)
     if (xendev->fe_state != XenbusStateInitialised  &&
         xendev->fe_state != XenbusStateConnected) {
         if (xendev->ops->flags & DEVOPS_FLAG_IGNORE_STATE) {
-            xen_be_printf(xendev, 2, "frontend not ready, ignoring\n");
+            xen_pv_printf(xendev, 2, "frontend not ready, ignoring\n");
         } else {
-            xen_be_printf(xendev, 2, "frontend not ready (yet)\n");
+            xen_pv_printf(xendev, 2, "frontend not ready (yet)\n");
             return -1;
         }
     }
@@ -321,7 +321,7 @@ static int xen_be_try_initialise(struct XenDevice *xendev)
         rc = xendev->ops->initialise(xendev);
     }
     if (rc != 0) {
-        xen_be_printf(xendev, 0, "initialise() failed\n");
+        xen_pv_printf(xendev, 0, "initialise() failed\n");
         return rc;
     }
 
@@ -342,9 +342,9 @@ static void xen_be_try_connected(struct XenDevice *xendev)
 
     if (xendev->fe_state != XenbusStateConnected) {
         if (xendev->ops->flags & DEVOPS_FLAG_IGNORE_STATE) {
-            xen_be_printf(xendev, 2, "frontend not ready, ignoring\n");
+            xen_pv_printf(xendev, 2, "frontend not ready, ignoring\n");
         } else {
-            xen_be_printf(xendev, 2, "frontend not ready (yet)\n");
+            xen_pv_printf(xendev, 2, "frontend not ready (yet)\n");
             return;
         }
     }
@@ -378,7 +378,7 @@ static int xen_be_try_reset(struct XenDevice *xendev)
         return -1;
     }
 
-    xen_be_printf(xendev, 1, "device reset (for re-connect)\n");
+    xen_pv_printf(xendev, 1, "device reset (for re-connect)\n");
     xen_be_set_state(xendev, XenbusStateInitialising);
     return 0;
 }
@@ -439,7 +439,7 @@ static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
     snprintf(token, sizeof(token), "be:%p:%d:%p", type, dom, ops);
     snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
     if (!xs_watch(xenstore, path, token)) {
-        xen_be_printf(NULL, 0, "xen be: watching backend path (%s) failed\n", path);
+        xen_pv_printf(NULL, 0, "xen be: watching backend path (%s) failed\n", path);
         return -1;
     }
 
@@ -499,7 +499,7 @@ int xen_be_init(void)
 {
     xenstore = xs_daemon_open();
     if (!xenstore) {
-        xen_be_printf(NULL, 0, "can't connect to xenstored\n");
+        xen_pv_printf(NULL, 0, "can't connect to xenstored\n");
         return -1;
     }
 
@@ -550,10 +550,10 @@ int xen_be_bind_evtchn(struct XenDevice *xendev)
     xendev->local_port = xenevtchn_bind_interdomain
         (xendev->evtchndev, xendev->dom, xendev->remote_port);
     if (xendev->local_port == -1) {
-        xen_be_printf(xendev, 0, "xenevtchn_bind_interdomain failed\n");
+        xen_pv_printf(xendev, 0, "xenevtchn_bind_interdomain failed\n");
         return -1;
     }
-    xen_be_printf(xendev, 2, "bind evtchn port %d\n", xendev->local_port);
+    xen_pv_printf(xendev, 2, "bind evtchn port %d\n", xendev->local_port);
     qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev),
                         xen_be_evtchn_event, NULL, xendev);
     return 0;

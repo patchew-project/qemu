@@ -47,7 +47,7 @@ void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
             fe_state = XenbusStateUnknown;
         }
         if (xendev->fe_state != fe_state) {
-            xen_be_printf(xendev, 1, "frontend state: %s -> %s\n",
+            xen_pv_printf(xendev, 1, "frontend state: %s -> %s\n",
                           xenbus_strstate(xendev->fe_state),
                           xenbus_strstate(fe_state));
         }
@@ -57,12 +57,12 @@ void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
         g_free(xendev->protocol);
         xendev->protocol = xenstore_read_fe_str(xendev, "protocol");
         if (xendev->protocol) {
-            xen_be_printf(xendev, 1, "frontend protocol: %s\n", xendev->protocol);
+            xen_pv_printf(xendev, 1, "frontend protocol: %s\n", xendev->protocol);
         }
     }
 
     if (node) {
-        xen_be_printf(xendev, 2, "frontend update: %s\n", node);
+        xen_pv_printf(xendev, 2, "frontend update: %s\n", node);
         if (xendev->ops->frontend_changed) {
             xendev->ops->frontend_changed(xendev, node);
         }

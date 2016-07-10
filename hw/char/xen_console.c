@@ -156,13 +156,13 @@ static void xencons_send(struct XenConsole *con)
     if (len < 1) {
 	if (!con->backlog) {
 	    con->backlog = 1;
-	    xen_be_printf(&con->xendev, 1, "backlog piling up, nobody listening?\n");
+	    xen_pv_printf(&con->xendev, 1, "backlog piling up, nobody listening?\n");
 	}
     } else {
 	buffer_advance(&con->buffer, len);
 	if (con->backlog && len == size) {
 	    con->backlog = 0;
-	    xen_be_printf(&con->xendev, 1, "backlog is gone\n");
+	    xen_pv_printf(&con->xendev, 1, "backlog is gone\n");
 	}
     }
 }
@@ -187,7 +187,7 @@ static int con_init(struct XenDevice *xendev)
 
     type = xenstore_read_str(con->console, "type");
     if (!type || strcmp(type, "ioemu") != 0) {
-	xen_be_printf(xendev, 1, "not for me (type=%s)\n", type);
+	xen_pv_printf(xendev, 1, "not for me (type=%s)\n", type);
         ret = -1;
         goto out;
     }
@@ -240,14 +240,14 @@ static int con_initialise(struct XenDevice *xendev)
             qemu_chr_add_handlers(con->chr, xencons_can_receive,
                                   xencons_receive, NULL, con);
         } else {
-            xen_be_printf(xendev, 0,
+            xen_pv_printf(xendev, 0,
                           "xen_console_init error chardev %s already used\n",
                           con->chr->label);
             con->chr = NULL;
         }
     }
 
-    xen_be_printf(xendev, 1, "ring mfn %d, remote port %d, local port %d, limit %zd\n",
+    xen_pv_printf(xendev, 1, "ring mfn %d, remote port %d, local port %d, limit %zd\n",
 		  con->ring_ref,
 		  con->xendev.remote_port,
 		  con->xendev.local_port,

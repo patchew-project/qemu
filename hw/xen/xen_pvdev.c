@@ -142,7 +142,7 @@ const char *xenbus_strstate(enum xenbus_state state)
  *  2 == noisy debug messages (logfile only).
  *  3 == will flood your log (logfile only).
  */
-void xen_be_printf(struct XenDevice *xendev, int msg_level, const char *fmt, ...)
+void xen_pv_printf(struct XenDevice *xendev, int msg_level, const char *fmt, ...)
 {
     va_list args;
 
@@ -181,7 +181,7 @@ void xen_be_evtchn_event(void *opaque)
 
     port = xenevtchn_pending(xendev->evtchndev);
     if (port != xendev->local_port) {
-        xen_be_printf(xendev, 0,
+        xen_pv_printf(xendev, 0,
                       "xenevtchn_pending returned %d (expected %d)\n",
                       port, xendev->local_port);
         return;
@@ -200,7 +200,7 @@ void xen_be_unbind_evtchn(struct XenDevice *xendev)
     }
     qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
     xenevtchn_unbind(xendev->evtchndev, xendev->local_port);
-    xen_be_printf(xendev, 2, "unbind evtchn port %d\n", xendev->local_port);
+    xen_pv_printf(xendev, 2, "unbind evtchn port %d\n", xendev->local_port);
     xendev->local_port = -1;
 }
 
