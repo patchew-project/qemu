@@ -1,3 +1,3 @@
 common-obj-$(CONFIG_TPM_TIS) += tpm_tis.o tpm_util.o
 common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o tpm_util.o
-common-obj-$(CONFIG_TPM_XENSTUBDOMS) += xen_vtpm_frontend.o
+common-obj-$(CONFIG_TPM_XENSTUBDOMS) += xen_vtpm_frontend.o tpm_xenstubdoms.o
