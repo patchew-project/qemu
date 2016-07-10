@@ -24,5 +24,6 @@
 #include "sysemu/tpm_backend.h"
 
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
+bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
 
 #endif /* TPM_TPM_UTILS_H */

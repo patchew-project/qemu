@@ -137,17 +137,6 @@ static void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len)
     }
 }
 
-static bool tpm_passthrough_is_selftest(const uint8_t *in, uint32_t in_len)
-{
-    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
-
-    if (in_len >= sizeof(*hdr)) {
-        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
-    }
-
-    return false;
-}
-
 static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                                         const uint8_t *in, uint32_t in_len,
                                         uint8_t *out, uint32_t out_len,
@@ -161,7 +150,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
     tpm_pt->tpm_executing = true;
     *selftest_done = false;
 
-    is_selftest = tpm_passthrough_is_selftest(in, in_len);
+    is_selftest = tpm_util_is_selftest(in, in_len);
 
     ret = tpm_passthrough_unix_write(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {

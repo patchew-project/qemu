@@ -125,3 +125,14 @@ int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version)
 
     return 1;
 }
+
+bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
+{
+    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
+
+    if (in_len >= sizeof(*hdr)) {
+        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
+    }
+
+    return false;
+}
