@@ -75,6 +75,26 @@ void xen_fe_frontend_changed(struct XenDevice *xendev, const char *node)
     }
 }
 
+void xen_fe_backend_changed(struct XenDevice *xendev, const char *node)
+{
+    int be_state;
+
+    if (strcmp(node, "state") == 0) {
+        xenstore_read_be_int(xendev, node, &be_state);
+        switch (be_state) {
+        case XenbusStateConnected:
+            /* TODO */
+            break;
+        case XenbusStateClosing:
+        case XenbusStateClosed:
+            xenbus_switch_state(xendev, XenbusStateClosing);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 void xenstore_update_fe(char *watch, struct XenDevice *xendev)
 {
     char *node;
