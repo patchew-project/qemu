@@ -263,7 +263,7 @@ static void con_disconnect(struct XenDevice *xendev)
         qemu_chr_add_handlers(con->chr, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(con->chr);
     }
-    xen_be_unbind_evtchn(&con->xendev);
+    xen_pv_unbind_evtchn(&con->xendev);
 
     if (con->sring) {
         if (!xendev->dev) {
