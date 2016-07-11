@@ -71,6 +71,9 @@ struct NVDIMMDevice {
      * guest via ACPI NFIT and _FIT method if NVDIMM hotplug is supported.
      */
     MemoryRegion nvdimm_mr;
+
+    /* the device is being unplugged. */
+    bool is_removing;
 };
 typedef struct NVDIMMDevice NVDIMMDevice;
 

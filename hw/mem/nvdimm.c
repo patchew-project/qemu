@@ -145,6 +145,13 @@ static MemoryRegion *nvdimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
     return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
 }
 
+static void nvdimm_prepare_unplug(DeviceState *dev)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(dev);
+
+    nvdimm->is_removing = true;
+}
+
 static void nvdimm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -157,6 +164,7 @@ static void nvdimm_class_init(ObjectClass *oc, void *data)
     ddc->realize = nvdimm_realize;
     ddc->get_memory_region = nvdimm_get_memory_region;
     ddc->get_vmstate_memory_region = nvdimm_get_vmstate_memory_region;
+    ddc->prepare_unplug = nvdimm_prepare_unplug;
 
     nvc->read_label_data = nvdimm_read_label_data;
     nvc->write_label_data = nvdimm_write_label_data;

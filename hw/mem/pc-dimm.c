@@ -433,6 +433,10 @@ static MemoryRegion *pc_dimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
     return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
 }
 
+static  void pc_dimm_prepare_unplug(DeviceState *dev)
+{
+}
+
 static void pc_dimm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -444,6 +448,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
 
     ddc->get_memory_region = pc_dimm_get_memory_region;
     ddc->get_vmstate_memory_region = pc_dimm_get_vmstate_memory_region;
+    ddc->prepare_unplug = pc_dimm_prepare_unplug;
 }
 
 static TypeInfo pc_dimm_info = {

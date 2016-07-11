@@ -355,6 +355,15 @@ static GArray *nvdimm_build_device_structure(GSList *device_list)
 
     for (; device_list; device_list = device_list->next) {
         DeviceState *dev = device_list->data;
+        NVDIMMDevice *nvdimm = NVDIMM(dev);
+
+        /*
+         * the nvdimm device which is being removed should not be included
+         * in nfit/fit.
+         */
+        if (nvdimm->is_removing) {
+            continue;
+        }
 
         /* build System Physical Address Range Structure. */
         nvdimm_build_structure_spa(structures, dev);

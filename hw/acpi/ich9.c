@@ -511,6 +511,9 @@ void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 
     if (lpc->pm.acpi_memory_hotplug.is_enabled &&
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dev);
+
+        ddc->prepare_unplug(dev);
         acpi_memory_unplug_request_cb(hotplug_dev,
                                       &lpc->pm.acpi_memory_hotplug, dev,
                                       errp);
