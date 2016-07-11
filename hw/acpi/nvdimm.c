@@ -466,6 +466,22 @@ typedef struct NvdimmFuncSetLabelDataIn NvdimmFuncSetLabelDataIn;
 QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncSetLabelDataIn) +
                   offsetof(NvdimmDsmIn, arg3) > 4096);
 
+struct NvdimmFuncReadFITIn {
+    uint32_t offset; /* the offset of FIT buffer. */
+} QEMU_PACKED;
+typedef struct NvdimmFuncReadFITIn NvdimmFuncReadFITIn;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncReadFITIn) +
+                  offsetof(NvdimmDsmIn, arg3) > 4096);
+
+struct NvdimmFuncReadFITOut {
+    /* the size of buffer filled by QEMU. */
+    uint32_t len;
+    uint32_t func_ret_status; /* return status code. */
+    uint8_t fit[0]; /* the FIT data. */
+} QEMU_PACKED;
+typedef struct NvdimmFuncReadFITOut NvdimmFuncReadFITOut;
+QEMU_BUILD_BUG_ON(sizeof(NvdimmFuncReadFITOut) > 4096);
+
 static void
 nvdimm_dsm_function0(uint32_t supported_func, hwaddr dsm_mem_addr)
 {
@@ -486,6 +502,46 @@ nvdimm_dsm_no_payload(uint32_t func_ret_status, hwaddr dsm_mem_addr)
     cpu_physical_memory_write(dsm_mem_addr, &out, sizeof(out));
 }
 
+/* Read FIT data, defined in docs/specs/acpi_nvdimm.txt. */
+static void nvdimm_dsm_func_read_fit(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
+{
+    NvdimmFuncReadFITIn *read_fit;
+    NvdimmFuncReadFITOut *read_fit_out;
+    GSList *device_list = nvdimm_get_plugged_device_list();
+    GArray *fit = nvdimm_build_device_structure(device_list);
+    uint32_t read_len = 0, func_ret_status;
+    int left, size;
+
+    read_fit = (NvdimmFuncReadFITIn *)in->arg3;
+    le32_to_cpus(&read_fit->offset);
+
+    nvdimm_debug("Read FIT: offset %#x FIT size %#x.\n", read_fit->offset,
+                 fit->len);
+
+    left = fit->len - read_fit->offset;
+    if (left < 0) {
+        func_ret_status = 3 /* Invalid Input Parameters */;
+        goto build_out;
+    }
+
+    func_ret_status = 0 /* Success */;
+    read_len = MIN(left, 4096 - sizeof(NvdimmFuncReadFITOut));
+
+build_out:
+    size = sizeof(NvdimmFuncReadFITOut) + read_len;
+    read_fit_out = g_malloc(size);
+
+    read_fit_out->len = cpu_to_le32(size);
+    read_fit_out->func_ret_status = cpu_to_le32(func_ret_status);
+    memcpy(read_fit_out->fit, fit->data + read_fit->offset, read_len);
+
+    cpu_physical_memory_write(dsm_mem_addr, read_fit_out, size);
+
+    g_slist_free(device_list);
+    g_array_free(fit, true);
+    g_free(read_fit_out);
+}
+
 static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
 {
     /*
@@ -495,6 +551,11 @@ static void nvdimm_dsm_root(NvdimmDsmIn *in, hwaddr dsm_mem_addr)
     if (!in->function) {
         nvdimm_dsm_function0(0 /* No function supported other than
                                   function 0 */, dsm_mem_addr);
+        return;
+    }
+
+    if (in->function == 0xFFFFFFFF /* Read FIT */) {
+        nvdimm_dsm_func_read_fit(in, dsm_mem_addr);
         return;
     }
 
