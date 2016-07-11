@@ -2632,7 +2632,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     }
     if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
-                          pcms->acpi_nvdimm_state.dsm_mem);
+                          pcms->acpi_nvdimm_state.dsm_mem, machine->ram_slots);
     }
 
     /* Add tables supplied by user (if any) */
