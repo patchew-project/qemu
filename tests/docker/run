@@ -19,6 +19,18 @@ fi
 
 BASE="$(dirname $(realpath $0))"
 
+# cp files into the chroot and execute there
+if test -n "$QEMU_CHROOT"; then
+    mkdir -p $QEMU_CHROOT/$BASE
+    cp $BASE/* $QEMU_CHROOT/$BASE
+    QEMU_CHROOT_SAVE="$QEMU_CHROOT"
+    for bp in dev sys proc; do
+        mount --bind /$bp $QEMU_CHROOT/$bp
+    done
+    QEMU_CHROOT="" chroot $QEMU_CHROOT_SAVE $BASE/run "$@"
+    exit 0
+fi
+
 # Prepare the environment
 . /etc/profile || true
 export PATH=/usr/lib/ccache:$PATH

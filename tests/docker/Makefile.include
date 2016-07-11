@@ -107,6 +107,7 @@ docker-run-%: docker-qemu-src
 		$(call quiet-command,\
 			$(SRC_PATH)/tests/docker/docker.py run $(if $V,,--rm) \
 				-t \
+				--cap-add SYS_ADMIN \
 				$(if $(DEBUG),-i,--net=none) \
 				-e TARGET_LIST=$(TARGET_LIST) \
 				-e EXTRA_CONFIGURE_OPTS=$(EXTRA_CONFIGURE_OPTS) \
