@@ -670,6 +670,7 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
+    int migration_id;
 
     cpu->as = NULL;
     cpu->num_ases = 0;
@@ -708,11 +709,14 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
     (void) cc;
     cpu_list_unlock();
 #else
+    migration_id = cc->get_migration_id ?
+        cc->get_migration_id(cpu) : cpu->cpu_index;
+
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
-        vmstate_register(NULL, cpu->cpu_index, &vmstate_cpu_common, cpu);
+        vmstate_register(NULL, migration_id, &vmstate_cpu_common, cpu);
     }
     if (cc->vmsd != NULL) {
-        vmstate_register(NULL, cpu->cpu_index, cc->vmsd, cpu);
+        vmstate_register(NULL, migration_id, cc->vmsd, cpu);
     }
 #endif
 }

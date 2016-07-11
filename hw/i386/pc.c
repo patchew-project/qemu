@@ -2054,13 +2054,29 @@ static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+static int pc_cpu_get_migration_id(CPUState *cs)
+{
+    CPUArchId apic_id, *found_cpu;
+    CPUClass *cc = CPU_GET_CLASS(cs);
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+
+    apic_id.arch_id = cc->get_arch_id(cs);
+    found_cpu = bsearch(&apic_id, pcms->possible_cpus->cpus,
+        pcms->possible_cpus->len, sizeof(*pcms->possible_cpus->cpus),
+        pc_apic_cmp);
+    assert(found_cpu);
+    return found_cpu - pcms->possible_cpus->cpus;
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PCMachineClass *pcmc = PC_MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(object_class_by_name(TYPE_CPU));
 
+    cc->get_migration_id = pc_cpu_get_migration_id;
     pcmc->get_hotplug_handler = mc->get_hotplug_handler;
     pcmc->pci_enabled = true;
     pcmc->has_acpi_build = true;

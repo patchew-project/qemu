@@ -452,10 +452,13 @@ DEFINE_I440FX_MACHINE(v2_7, "pc-i440fx-2.7", NULL,
 static void pc_i440fx_2_6_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    CPUClass *cc = CPU_CLASS(object_class_by_name(TYPE_CPU));
+
     pc_i440fx_2_7_machine_options(m);
     m->is_default = 0;
     m->alias = NULL;
     pcmc->legacy_cpu_hotplug = true;
+    cc->get_migration_id = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
 }
 

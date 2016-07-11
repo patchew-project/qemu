@@ -194,6 +194,7 @@ typedef struct CPUClass {
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
 
     void (*disas_set_info)(CPUState *cpu, disassemble_info *info);
+    int (*get_migration_id)(CPUState *cpu);
 } CPUClass;
 
 #ifdef HOST_WORDS_BIGENDIAN
