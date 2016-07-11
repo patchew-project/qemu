@@ -824,6 +824,7 @@ QemuCocoaView *cocoaView;
 - (void)changeDeviceMedia:(id)sender;
 - (BOOL)verifyQuit;
 - (void)openDocumentation:(NSString *)filename;
+- (IBAction)do_send_key_menu_item:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -1138,8 +1139,110 @@ QemuCocoaView *cocoaView;
     }
 }
 
+/* The action method to the items in the Send Keys menu */
+- (IBAction)do_send_key_menu_item:(id)sender {
+    NSString *keys = [sender representedObject];
+    NSArray *key_array = [keys componentsSeparatedByString: @","];
+    #define array_size 0xff
+    int keydown_array[array_size] = {0};
+    int index, keycode;
+    NSString *hex_string;
+
+    for (index = 0; index < [key_array count]; index++) {
+        hex_string = [key_array objectAtIndex: index];
+        sscanf([hex_string cStringUsingEncoding: NSASCIIStringEncoding], "%x",
+               &keycode);
+        keycode = cocoa_keycode_to_qemu(keycode);
+        qemu_input_event_send_key_qcode(dcl->con, keycode, true);
+        keydown_array[keycode] = 1;
+    }
+
+    /* Send keyup event for all keys that were sent */
+    for (index = 0; index < array_size; index++) {
+        if (keydown_array[index] != 0) {
+            qemu_input_event_send_key_qcode(dcl->con, index, false);
+        }
+    }
+}
+
 @end
 
+/* Determines if '-sendkeymenu' is in the arguments sent to QEMU */
+static int send_key_support(void) {
+    int index;
+    for (index = 0; index < gArgc; index++) {
+        if (strcmp("-sendkeymenu", gArgv[index]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Remove one of the options from the global variable gArgv */
+static void remove_option(int index)
+{
+    if (index < 0) {
+        printf("Error: remove_option(): index less than zero: %d\n", index);
+        return;
+    } else if (index >= gArgc) {
+        printf("Error: remove_option(): index too big: %d\n", index);
+        return;
+    }
+    gArgc--;
+    /* copy everything from index + 1 to the end */
+    for (; index < gArgc; index++) {
+        gArgv[index] = gArgv[index+1];
+    }
+}
+
+/* Creates the Send Key menu and populates it */
+static void create_send_key_menu(void) {
+    NSMenu *menu;
+    menu = [[NSMenu alloc] initWithTitle:@"Send Key"];
+
+    /* Find the index of the sendkeymenu and its items */
+    int send_key_index = -1;
+    int index;
+    for (index = 0; index < gArgc; index++) {
+        if (strcmp("-sendkeymenu", gArgv[index]) == 0) {
+            send_key_index = index;
+            break;
+        }
+    }
+
+    /* if failed to find the -sendkeymenu argument */
+    if (send_key_index == -1) {
+        printf("Failed to find 'sendkeymenu' arguments\n");
+        exit(EXIT_FAILURE);
+    }
+
+    NSMenuItem *menu_item;
+    char *token;
+    token = strtok(gArgv[send_key_index+1], ":");
+
+    /* loop thru each set of keys */
+    while (token) {
+        menu_item = [[[NSMenuItem alloc] initWithTitle: [NSString stringWithCString: token encoding:NSASCIIStringEncoding]
+                                                action: @selector(do_send_key_menu_item:)
+                                         keyEquivalent: @""] autorelease];
+        [menu addItem: menu_item];
+        token = strtok(NULL, ":");
+
+        [menu_item setRepresentedObject: [NSString stringWithCString: token encoding: NSASCIIStringEncoding]];
+        token = strtok(NULL, ":");
+    }
+
+    /* Add the menu to QEMU's menubar */
+    menu_item = [[[NSMenuItem alloc] initWithTitle: @"Send Key"
+                                            action:nil
+                                     keyEquivalent:@""] autorelease];
+    [menu_item setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menu_item];
+
+    /* Remove the -sendkeymenu and related options from the global variable */
+    remove_option(send_key_index);
+    remove_option(send_key_index);
+}
 
 int main (int argc, const char * argv[]) {
 
@@ -1211,6 +1314,11 @@ int main (int argc, const char * argv[]) {
     menuItem = [[[NSMenuItem alloc] initWithTitle: @"Machine" action:nil keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
     [[NSApp mainMenu] addItem:menuItem];
+
+    // Send Key menu
+    if (send_key_support()) {
+        create_send_key_menu();
+    }
 
     // View menu
     menu = [[NSMenu alloc] initWithTitle:@"View"];
