@@ -951,9 +951,10 @@ static Aml *build_crs(PCIHostState *host,
     return crs;
 }
 
-static void build_memory_devices(Aml *sb_scope, int nr_mem,
-                                 uint16_t io_base, uint16_t io_len)
+static void build_memory_devices(Aml *sb_scope, int nr_mem, uint16_t io_base,
+                                 uint16_t io_len, bool enable_nvdimm)
 {
+    #define BASEPATH "\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE "."
     int i;
     Aml *scope;
     Aml *crs;
@@ -1008,6 +1009,12 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
     aml_append(field,
         /* initiates device eject, write only */
         aml_named_field(MEMORY_SLOT_EJECT, 1));
+
+    if (enable_nvdimm) {
+        aml_append(field,
+        /* initiates nvdimm device, read only */
+        aml_named_field(MEMORY_SLOT_NVDIMM, 1));
+    }
     aml_append(scope, field);
 
     field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,
@@ -1022,7 +1029,6 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
     aml_append(sb_scope, scope);
 
     for (i = 0; i < nr_mem; i++) {
-        #define BASEPATH "\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE "."
         const char *s;
 
         dev = aml_device("MP%02X", i);
@@ -1067,6 +1073,17 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
     method = aml_method(MEMORY_SLOT_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
     for (i = 0; i < nr_mem; i++) {
         ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
+
+        if (enable_nvdimm) {
+            Aml *ifnvdimm;
+
+            ifnvdimm = aml_if(aml_equal(aml_name(BASEPATH MEMORY_SLOT_NVDIMM),
+                                        aml_int(1)));
+            aml_append(ifnvdimm, aml_notify(aml_name("\\_SB.NVDR"),
+                                            aml_int(0x80)));
+            aml_append(ifctx, ifnvdimm);
+        }
+
         aml_append(ifctx,
             aml_notify(aml_name("MP%.02X", i), aml_arg(1))
         );
@@ -2223,7 +2240,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     sb_scope = aml_scope("\\_SB");
     {
         build_memory_devices(sb_scope, nr_mem, pm->mem_hp_io_base,
-                             pm->mem_hp_io_len);
+                             pm->mem_hp_io_len,
+                             pcms->acpi_nvdimm_state.is_enabled);
 
         {
             Object *pci_host;

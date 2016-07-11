@@ -21,7 +21,9 @@ Memory hot-plug interface (IO port 0xa00-0xa17, 1-4 byte access):
                  It's valid only when bit 1 is set.
               2: Device remove event, used to distinguish device for which
                  no device eject request to OSPM was issued.
-              3-7: reserved and should be ignored by OSPM
+              3: reserved and should be ignored by OSPM
+              4: Device is a NVDIMM device.
+              5-7: reserved and should be ignored by OSPM
       [0x15-0x17] reserved
 
   write access:
