@@ -1,0 +1,35 @@
+FROM debian:testing
+
+RUN apt-get update
+RUN apt-get install -y fakeroot debootstrap qemu-user-static
+
+RUN mkdir /debootstrap-arm
+
+RUN cd /debootstrap-arm && fakeroot debootstrap --variant=buildd --foreign \
+    --arch=armhf testing . http://httpredir.debian.org/debian
+
+RUN sed -i 's/in_target mount/echo not for docker in_target mount/g' \
+    /debootstrap-arm/debootstrap/functions
+
+RUN mkdir -p /debootstrap-arm/usr/local/bin
+
+RUN ln /usr/bin/qemu-arm-static /debootstrap-arm/usr/bin/qemu-arm && \
+    ln /usr/bin/qemu-arm-static /debootstrap-arm/usr/bin/qemu-arm-static && \
+    ln /usr/bin/qemu-arm-static /debootstrap-arm/usr/local/bin/qemu-arm && \
+    ln /usr/bin/qemu-arm-static /debootstrap-arm/usr/local/bin/qemu-arm-static
+
+# Run stage 2
+RUN if ! chroot /debootstrap-arm /debootstrap/debootstrap --second-stage; then \
+        echo "Failed to chroot and do stage 2"; \
+        echo "Please set up binfmt_misc to point arm binary to one of:"; \
+        echo "  /usr/bin/qemu-arm"; \
+        echo "  /usr/bin/qemu-arm-static"; \
+        echo "  /usr/local/bin/qemu-arm"; \
+        echo "  /usr/local/bin/qemu-arm-static"; \
+        exit 1; \
+    fi
+RUN chroot /debootstrap-arm sh -c 'cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list'
+RUN chroot /debootstrap-arm apt-get update
+RUN chroot /debootstrap-arm apt-get build-dep -y qemu
+RUN chroot /debootstrap-arm apt-get install -y ccache
+ENV QEMU_CHROOT /debootstrap-arm
