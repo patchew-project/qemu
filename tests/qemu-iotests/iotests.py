@@ -29,6 +29,7 @@ import qmp
 import qtest
 import struct
 import json
+import bz2
 
 
 # This will not work if arguments contain spaces but is necessary if we
@@ -53,6 +54,20 @@ cachemode = os.environ.get('CACHEMODE')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 
 socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
+sample_img_dir = os.environ.get('SAMPLE_IMG_DIR')
+
+def use_sample_image(sample_image_file):
+    sample_img_path = os.path.join(sample_img_dir, sample_image_file + '.bz2')
+    sample_img_file = bz2.BZ2File(sample_img_path)
+    output_img_path = os.path.join(test_dir, sample_image_file)
+    output_img = open(output_img_path, 'wb')
+    output_img.write(sample_img_file.read())
+    sample_img_file.close()
+    output_img.close()
+    return output_img_path
+
+def rm_test_image(test_image):
+    os.remove(test_image)
 
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
