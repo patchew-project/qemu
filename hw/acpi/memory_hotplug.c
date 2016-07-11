@@ -2,6 +2,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/mem/nvdimm.h"
 #include "hw/boards.h"
 #include "hw/qdev-core.h"
 #include "trace.h"
@@ -41,6 +42,7 @@ void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list)
 static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
                                          unsigned int size)
 {
+    uint64_t maddr, msize;
     uint32_t val = 0;
     MemHotplugState *mem_st = opaque;
     MemStatus *mdev;
@@ -53,21 +55,25 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
 
     mdev = &mem_st->devs[mem_st->selector];
     o = OBJECT(mdev->dimm);
+    maddr = o && !mdev->is_nvdimm ? object_property_get_int(o,
+                                        PC_DIMM_ADDR_PROP, NULL) : 0;
+    msize = o && !mdev->is_nvdimm ? object_property_get_int(o,
+                                        PC_DIMM_SIZE_PROP, NULL) : 0;
     switch (addr) {
     case 0x0: /* Lo part of phys address where DIMM is mapped */
-        val = o ? object_property_get_int(o, PC_DIMM_ADDR_PROP, NULL) : 0;
+        val = maddr;
         trace_mhp_acpi_read_addr_lo(mem_st->selector, val);
         break;
     case 0x4: /* Hi part of phys address where DIMM is mapped */
-        val = o ? object_property_get_int(o, PC_DIMM_ADDR_PROP, NULL) >> 32 : 0;
+        val = maddr >> 32;
         trace_mhp_acpi_read_addr_hi(mem_st->selector, val);
         break;
     case 0x8: /* Lo part of DIMM size */
-        val = o ? object_property_get_int(o, PC_DIMM_SIZE_PROP, NULL) : 0;
+        val = msize;
         trace_mhp_acpi_read_size_lo(mem_st->selector, val);
         break;
     case 0xc: /* Hi part of DIMM size */
-        val = o ? object_property_get_int(o, PC_DIMM_SIZE_PROP, NULL) >> 32 : 0;
+        val = msize >> 32;
         trace_mhp_acpi_read_size_hi(mem_st->selector, val);
         break;
     case 0x10: /* node proximity for _PXM method */
@@ -78,6 +84,7 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
         val |= mdev->is_enabled   ? 1 : 0;
         val |= mdev->is_inserting ? 2 : 0;
         val |= mdev->is_removing  ? 4 : 0;
+        val |= mdev->is_nvdimm    ? 16 : 0;
         trace_mhp_acpi_read_flags(mem_st->selector, val);
         break;
     default:
@@ -245,6 +252,7 @@ void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
 
     mdev->dimm = dev;
     mdev->is_enabled = true;
+    mdev->is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
     if (dev->hotplugged) {
         mdev->is_inserting = true;
         acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);

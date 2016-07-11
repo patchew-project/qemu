@@ -17,6 +17,7 @@ typedef struct MemStatus {
     bool is_enabled;
     bool is_inserting;
     bool is_removing;
+    bool is_nvdimm;
     uint32_t ost_event;
     uint32_t ost_status;
 } MemStatus;
