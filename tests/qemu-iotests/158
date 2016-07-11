@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+
+import iotests
+
+imgs = {'raw': ['grub_mbr.raw'], 'bochs': ['empty.bochs'],
+        'cloop': ['simple-pattern.cloop'],
+        'parallels': ['parallels-v1', 'parallels-v2'],
+        'qcow': ['empty.qcow'], 'qcow2': ['empty.qcow2'],
+        'qed': ['empty.qed'], 'vdi': ['empty.vdi'],
+        'vpc': ['virtualpc-dynamic.vhd'], 'vhdx': ['iotest-dynamic-1G.vhdx'],
+        'vmdk': ['iotest-version3.vmdk'], 'luks': ['empty.luks'],
+        'dmg': ['empty.dmg']}
+
+class TestProbingFormats(iotests.QMPTestCase):
+    def setUp(self):
+        self.vm = iotests.VM()
+        self.img_paths = []
+        luks_opts = ''
+        if iotests.imgfmt == 'luks':
+            luks_opts = (',key-secret=sec0')
+        for img_name in imgs[iotests.imgfmt]:
+            self.img_paths.append(iotests.use_sample_image(img_name))
+            self.vm.add_drive_raw('file=%s,id=drive%s,media=cdrom%s' %
+                                  (self.img_paths[-1], len(self.img_paths) - 1,
+                                  luks_opts))
+        if iotests.imgfmt == 'luks':
+            self.vm.use_luks()
+        if iotests.imgfmt != 'raw':
+            self.img_paths.append(iotests.use_sample_image(imgs['raw'][0]))
+            self.vm.add_drive_raw('file=%s,id=drive%s,media=cdrom' %
+                                  (self.img_paths[-1], len(self.img_paths) - 1))
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for img in self.img_paths:
+            iotests.rm_test_image(img)
+
+    def test_probe_detects_format(self):
+        result = self.vm.qmp('query-block')
+        for i in range(len(self.img_paths) - 1):
+            self.assert_qmp(result, 'return[%s]/inserted/image/format' %
+                            i, iotests.imgfmt)
+
+    def test_probe_detects_raw(self):
+        result = self.vm.qmp('query-block')
+        self.assert_qmp(result, 'return[%s]/inserted/image/format' %
+                        (len(self.img_paths) - 1), 'raw')
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['raw', 'bochs', 'cloop', 'parallels', 'qcow',
+                                 'qcow2', 'qed', 'vdi', 'vpc', 'vhdx', 'vmdk',
+                                 'luks', 'dmg'])

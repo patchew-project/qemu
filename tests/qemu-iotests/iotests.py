@@ -49,6 +49,7 @@ if os.environ.get('QEMU_OPTIONS'):
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
 test_dir = os.environ.get('TEST_DIR')
+imgkeysecret = os.environ.get('IMGKEYSECRET')
 output_dir = os.environ.get('OUTPUT_DIR', '.')
 cachemode = os.environ.get('CACHEMODE')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
@@ -207,6 +208,10 @@ class VM(object):
         self._args.append(','.join(options))
         self._num_drives += 1
         return self
+
+    def use_luks(self):
+        self._args.append('-object')
+        self._args.append('secret,id=sec0,data=%s' % imgkeysecret)
 
     def pause_drive(self, drive, event=None):
         '''Pause drive r/w operations'''
