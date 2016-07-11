@@ -140,6 +140,7 @@ common options
 
 check options
     -raw                test raw (default)
+    -dmg                test dmg
     -bochs              test bochs
     -cloop              test cloop
     -parallels          test parallels
@@ -178,6 +179,12 @@ testlist options
 
         -raw)
             IMGFMT=raw
+            xpand=false
+            ;;
+
+        -dmg)
+            IMGFMT=dmg
+            IMGFMT_GENERIC=false
             xpand=false
             ;;
 
