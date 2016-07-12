@@ -18,6 +18,7 @@
 #include "block/block.h"
 #include "qemu/queue.h"
 #include "qemu/sockets.h"
+#include "qapi/error.h"
 #ifdef CONFIG_EPOLL_CREATE1
 #include <sys/epoll.h>
 #endif
@@ -491,6 +492,7 @@ void aio_context_setup(AioContext *ctx, Error **errp)
     assert(!ctx->epollfd);
     ctx->epollfd = epoll_create1(EPOLL_CLOEXEC);
     if (ctx->epollfd == -1) {
+        error_setg_errno(errp, errno, "Failed to create epoll instance");
         ctx->epoll_available = false;
     } else {
         ctx->epoll_available = true;
