@@ -150,10 +150,9 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
  * This function handles both assigning the ioeventfd handler and
  * registering it with the kernel.
  * assign: register/deregister ioeventfd with the kernel
- * set_handler: use the generic ioeventfd handler
  */
 static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
-                                      int n, bool assign, bool set_handler)
+                                      int n, bool assign)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
@@ -167,7 +166,7 @@ static int set_host_notifier_internal(DeviceState *proxy, VirtioBusState *bus,
             error_report("%s: unable to init event notifier: %d", __func__, r);
             return r;
         }
-        virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
+        virtio_queue_set_host_notifier_fd_handler(vq, true, true);
         r = k->ioeventfd_assign(proxy, notifier, n, assign);
         if (r < 0) {
             error_report("%s: unable to assign ioeventfd: %d", __func__, r);
@@ -201,7 +200,7 @@ void virtio_bus_start_ioeventfd(VirtioBusState *bus)
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
-        r = set_host_notifier_internal(proxy, bus, n, true, true);
+        r = set_host_notifier_internal(proxy, bus, n, true);
         if (r < 0) {
             goto assign_error;
         }
@@ -215,7 +214,7 @@ assign_error:
             continue;
         }
 
-        r = set_host_notifier_internal(proxy, bus, n, false, false);
+        r = set_host_notifier_internal(proxy, bus, n, false);
         assert(r >= 0);
     }
     k->ioeventfd_set_started(proxy, false, true);
@@ -237,7 +236,7 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
-        r = set_host_notifier_internal(proxy, bus, n, false, false);
+        r = set_host_notifier_internal(proxy, bus, n, false);
         assert(r >= 0);
     }
     k->ioeventfd_set_started(proxy, false, false);
@@ -269,7 +268,7 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
          */
         virtio_bus_stop_ioeventfd(bus);
     }
-    return set_host_notifier_internal(proxy, bus, n, assign, false);
+    return set_host_notifier_internal(proxy, bus, n, assign);
 }
 
 static char *virtio_bus_get_dev_path(DeviceState *dev)
