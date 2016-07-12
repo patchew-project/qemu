@@ -96,6 +96,22 @@ STEXI
 Select CPU model (@code{-cpu help} for list and additional feature selection)
 ETEXI
 
+DEF("dt-printf", HAS_ARG, QEMU_OPTION_dt_printf,
+    "-dt-printf create FILE with device tree\n", QEMU_ARCH_ALL)
+STEXI
+@item -dt-printf @var{file}
+@findex -dt-printf
+Write DeviceClass hierarchy to @var{file} in JSON format.
+The @var{file} contains a list of DeviceClass.
+Each DeviceClass is a collection with following fields:
+-children: list of DeviceClass to which current class is parent_class
+-type: name of device (string)
+-property: list of device properties where each property is a collection
+Each property in list has following fields:
+-name: property name (string)
+-type: property qtype (number)
+ETEXI
+
 DEF("smp", HAS_ARG, QEMU_OPTION_smp,
     "-smp [cpus=]n[,maxcpus=cpus][,cores=cores][,threads=threads][,sockets=sockets]\n"
     "                set the number of CPUs to 'n' [default=1]\n"

@@ -115,6 +115,7 @@ int main(int argc, char **argv)
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/opts-visitor.h"
+#include "qom/qom-dt.h"
 #include "qom/object_interfaces.h"
 #include "qapi-event.h"
 #include "exec/semihost.h"
@@ -3077,6 +3078,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_model = optarg;
+                break;
+            case QEMU_OPTION_dt_printf:
+                exit(dt_printf(optarg));
                 break;
             case QEMU_OPTION_hda:
                 {
