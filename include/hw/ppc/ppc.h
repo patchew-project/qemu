@@ -107,4 +107,5 @@ enum {
 void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);
 
 PowerPCCPU *ppc_cpu_init(const char *cpu_model);
+void ppc_cpu_parse_features(const char *cpu_model);
 #endif
