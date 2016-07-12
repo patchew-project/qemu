@@ -1178,6 +1178,54 @@ GEN_DIVE(divde, divde, 0);
 GEN_DIVE(divdeo, divde, 1);
 #endif
 
+static inline void gen_op_arith_modw(DisasContext *ctx, TCGv ret, TCGv arg1,
+                                     TCGv arg2, int sign)
+{
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *l2 = gen_new_label();
+    TCGv_i32 t0 = tcg_temp_local_new_i32();
+    TCGv_i32 t1 = tcg_temp_local_new_i32();
+    TCGv_i32 t2 = tcg_temp_local_new_i32();
+
+    tcg_gen_trunc_tl_i32(t0, arg1);
+    tcg_gen_trunc_tl_i32(t1, arg2);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t1, 0, l1);
+    if (sign) {
+        TCGLabel *l3 = gen_new_label();
+        tcg_gen_brcondi_i32(TCG_COND_NE, t1, -1, l3);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, t0, INT32_MIN, l1);
+        gen_set_label(l3);
+        tcg_gen_div_i32(t2, t0, t1);
+    } else {
+        tcg_gen_divu_i32(t2, t0, t1);
+    }
+    tcg_gen_mul_i32(t2, t2, t1);
+    tcg_gen_sub_i32(t2, t0, t2);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    if (sign) {
+        tcg_gen_sari_i32(t2, t0, 31);
+    } else {
+        tcg_gen_movi_i32(t2, 0);
+    }
+    gen_set_label(l2);
+    tcg_gen_extu_i32_tl(ret, t2);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+}
+
+#define GEN_INT_ARITH_MODW(name, opc3, sign)                                \
+static void glue(gen_, name)(DisasContext *ctx)                             \
+{                                                                           \
+    gen_op_arith_modw(ctx, cpu_gpr[rD(ctx->opcode)],                        \
+                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],   \
+                      sign);                                                \
+}
+
+GEN_INT_ARITH_MODW(modsw, 0x18, 1);
+GEN_INT_ARITH_MODW(moduw, 0x08, 0);
+
 /* mulhw  mulhw. */
 static void gen_mulhw(DisasContext *ctx)
 {
@@ -10244,6 +10292,8 @@ GEN_HANDLER_E(divwe, 0x1F, 0x0B, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweo, 0x1F, 0x0B, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweu, 0x1F, 0x0B, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweuo, 0x1F, 0x0B, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(modsw, 0x1F, 0x0B, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(moduw, 0x1F, 0x0B, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 
 #if defined(TARGET_PPC64)
 #undef GEN_INT_ARITH_DIVD
