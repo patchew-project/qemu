@@ -32,6 +32,7 @@
 #include "sysemu/cpus.h"
 #include "hw/timer/m48t59.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/loader.h"
@@ -1354,7 +1355,38 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
 
 PowerPCCPU *ppc_cpu_init(const char *cpu_model)
 {
-    return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
+    PowerPCCPU *cpu = NULL;
+    ObjectClass *oc;
+    gchar **model_pieces;
+    Error *err = NULL;
+
+    model_pieces = g_strsplit(cpu_model, ",", 2);
+    if (!model_pieces[0]) {
+        error_report("Invalid/empty CPU model name");
+        return NULL;
+    }
+
+    oc = cpu_class_by_name(TYPE_POWERPC_CPU, model_pieces[0]);
+    if (oc == NULL) {
+        error_report("Unable to find CPU definition: %s", model_pieces[0]);
+        goto out;
+    }
+
+    cpu = POWERPC_CPU(object_new(object_class_get_name(oc)));
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+
+out:
+    g_strfreev(model_pieces);
+
+    if (err != NULL) {
+        error_report_err(err);
+        if (cpu != NULL) {
+            object_unref(OBJECT(cpu));
+        }
+        return NULL;
+    }
+
+    return cpu;
 }
 
 void ppc_cpu_parse_features(const char *cpu_model)
