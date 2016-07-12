@@ -510,7 +510,7 @@ static void ppc_prep_init(MachineState *machine)
         machine->cpu_model = "602";
     ppc_cpu_parse_features(machine->cpu_model);
     for (i = 0; i < smp_cpus; i++) {
-        cpu = ppc_cpu_init(machine->cpu_model);
+        cpu = ppc_cpu_init(machine->cpu_model, i);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);

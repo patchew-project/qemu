@@ -97,7 +97,7 @@ static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
     qemu_irq *irqs;
 
     ppc_cpu_parse_features(cpu_model);
-    cpu = ppc_cpu_init(cpu_model);
+    cpu = ppc_cpu_init(cpu_model, 0);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);

@@ -57,7 +57,7 @@ PowerPCCPU *ppc4xx_init(const char *cpu_model,
 
     /* init CPUs */
     ppc_cpu_parse_features(cpu_model);
-    cpu = ppc_cpu_init(cpu_model);
+    cpu = ppc_cpu_init(cpu_model, 0);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find PowerPC %s CPU definition\n",
                 cpu_model);
