@@ -2077,7 +2077,7 @@
 #
 # @path:        absolute path to image file in gluster volume
 #
-# @server:      gluster server description
+# @server:      one or more gluster server descriptions
 #
 # @debug_level: #libgfapi log level (default '4' which is Error)
 #
@@ -2086,7 +2086,7 @@
 { 'struct': 'BlockdevOptionsGluster',
   'data': { 'volume': 'str',
             'path': 'str',
-            'server': 'GlusterServer',
+            'server': [ 'GlusterServer' ],
             '*debug_level': 'int' } }
 
 ##
