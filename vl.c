@@ -2922,6 +2922,7 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
     g->property = qemu_opt_get(opts, "property");
     g->value    = qemu_opt_get(opts, "value");
     g->user_provided = true;
+    g->errp = errp;
     qdev_prop_register_global(g);
     return 0;
 }
@@ -4451,7 +4452,7 @@ int main(int argc, char **argv, char **envp)
     machine_register_compat_props(current_machine);
 
     qemu_opts_foreach(qemu_find_opts("global"),
-                      global_init_func, NULL, NULL);
+                      global_init_func, NULL, &error_fatal);
 
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
