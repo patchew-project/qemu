@@ -285,12 +285,8 @@ int qemu_timeout_ns_to_ms(int64_t ns)
         return -1;
     }
 
-    if (!ns) {
-        return 0;
-    }
-
     /* Always round up, because it's better to wait too long than to wait too
-     * little and effectively busy-wait
+     * short and effectively busy-wait
      */
     ms = DIV_ROUND_UP(ns, SCALE_MS);
 
