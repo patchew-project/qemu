@@ -8475,7 +8475,11 @@ static void powerpc_set_compat(Object *obj, Visitor *v, const char *name,
     } else if (strcmp(value, "power8") == 0) {
         *max_compat = CPU_POWERPC_LOGICAL_2_07;
     } else {
-        error_setg(errp, "Invalid compatibility mode \"%s\"", value);
+        /* This is called from -global, which does not exit on error. Since we
+         * don't want to start with a wrong compat mode, we exit now.
+         */
+        error_report("PPC does not support compatibility mode \"%s\"", value);
+        exit(1);
     }
 
     g_free(value);
