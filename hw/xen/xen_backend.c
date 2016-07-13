@@ -52,6 +52,13 @@ struct xs_dirs {
 };
 static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup =
     QTAILQ_HEAD_INITIALIZER(xs_cleanup);
+struct xs_watches {
+    char path[XEN_BUFSIZE];
+    char token[XEN_BUFSIZE];
+    QTAILQ_ENTRY(xs_watches) list;
+};
+static QTAILQ_HEAD(xs_watches_head, xs_watches) xs_w_cleanup =
+    QTAILQ_HEAD_INITIALIZER(xs_w_cleanup);
 
 static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs = QTAILQ_HEAD_INITIALIZER(xendevs);
 static int debug = 0;
@@ -70,9 +77,13 @@ static void xenstore_cleanup_dir(char *dir)
 void xen_config_cleanup(void)
 {
     struct xs_dirs *d;
+    struct xs_watches *w;
 
     QTAILQ_FOREACH(d, &xs_cleanup, list) {
         xs_rm(xenstore, 0, d->xs_dir);
+    }
+    QTAILQ_FOREACH(w, &xs_w_cleanup, list) {
+        xs_unwatch(xenstore, w->path, w->token);
     }
 }
 
@@ -629,20 +640,25 @@ void xen_be_check_state(struct XenDevice *xendev)
 static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
 {
     struct XenDevice *xendev;
-    char path[XEN_BUFSIZE], token[XEN_BUFSIZE];
+    struct xs_watches *w;
     char **dev = NULL;
     unsigned int cdev, j;
 
     /* setup watch */
-    snprintf(token, sizeof(token), "be:%p:%d:%p", type, dom, ops);
-    snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
-    if (!xs_watch(xenstore, path, token)) {
-        xen_be_printf(NULL, 0, "xen be: watching backend path (%s) failed\n", path);
+    w = g_malloc(sizeof(*w));
+
+    snprintf(w->token, sizeof(w->token), "be:%p:%d:%p", type, dom, ops);
+    snprintf(w->path, sizeof(w->path), "backend/%s/%d", type, dom);
+    if (!xs_watch(xenstore, w->path, w->token)) {
+        xen_be_printf(NULL, 0, "xen be: watching backend path (%s) failed\n",
+                      w->path);
+        g_free(w);
         return -1;
     }
+    QTAILQ_INSERT_TAIL(&xs_w_cleanup, w, list);
 
     /* look for backends */
-    dev = xs_directory(xenstore, 0, path, &cdev);
+    dev = xs_directory(xenstore, 0, w->path, &cdev);
     if (!dev) {
         return 0;
     }
