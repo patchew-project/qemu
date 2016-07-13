@@ -508,6 +508,7 @@ static void ppc_prep_init(MachineState *machine)
     /* init CPUs */
     if (machine->cpu_model == NULL)
         machine->cpu_model = "602";
+    ppc_cpu_parse_features(machine->cpu_model);
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {

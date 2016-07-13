@@ -192,6 +192,7 @@ static void ppc_core99_init(MachineState *machine)
         machine->cpu_model = "G4";
 #endif
     }
+    ppc_cpu_parse_features(machine->cpu_model);
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {

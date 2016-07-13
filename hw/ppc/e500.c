@@ -814,6 +814,8 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         machine->cpu_model = "e500v2_v30";
     }
 
+    ppc_cpu_parse_features(machine->cpu_model);
+
     irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {

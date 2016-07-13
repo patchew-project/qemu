@@ -112,6 +112,7 @@ static void ppc_heathrow_init(MachineState *machine)
     /* init CPUs */
     if (machine->cpu_model == NULL)
         machine->cpu_model = "G3";
+    ppc_cpu_parse_features(machine->cpu_model);
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
