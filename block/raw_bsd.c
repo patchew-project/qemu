@@ -28,6 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
+#include "block/probe.h"
 #include "qapi/error.h"
 #include "qemu/option.h"
 
@@ -211,14 +212,6 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
 
 static void raw_close(BlockDriverState *bs)
 {
-}
-
-static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    /* smallest possible positive score so that raw is used if and only if no
-     * other block driver works
-     */
-    return 1;
 }
 
 static int raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
