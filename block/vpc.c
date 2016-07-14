@@ -1050,7 +1050,6 @@ static BlockDriver bdrv_vpc = {
     .format_name    = "vpc",
     .instance_size  = sizeof(BDRVVPCState),
 
-    .bdrv_probe             = vpc_probe,
     .bdrv_open              = vpc_open,
     .bdrv_close             = vpc_close,
     .bdrv_reopen_prepare    = vpc_reopen_prepare,

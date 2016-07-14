@@ -1,7 +1,6 @@
 #ifndef PROBE_H
 #define PROBE_H
 
-int vpc_probe(const uint8_t *buf, int buf_size, const char *filename);
 const char *bdrv_bochs_probe(const uint8_t *buf, int buf_size,
                              const char *filename, int *score);
 const char *bdrv_cloop_probe(const uint8_t *buf, int buf_size,
@@ -26,5 +25,7 @@ const char *bdrv_vhdx_probe(const uint8_t *buf, int buf_size,
                             const char *filename, int *score);
 const char *bdrv_vmdk_probe(const uint8_t *buf, int buf_size,
                             const char *filename, int *score);
+const char *bdrv_vpc_probe(const uint8_t *buf, int buf_size,
+                           const char *filename, int *score);
 
 #endif
