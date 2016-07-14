@@ -16,6 +16,9 @@ int load_image(const char *filename, uint8_t *addr); /* deprecated */
 ssize_t load_image_size(const char *filename, void *addr, size_t size);
 int load_image_targphys(const char *filename, hwaddr,
                         uint64_t max_sz);
+int load_image_targphys_as(const char *filename,
+                           hwaddr addr, uint64_t max_sz, AddressSpace *as);
+
 /**
  * load_image_mr: load an image into a memory region
  * @filename: Path to the image file
@@ -163,6 +166,8 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_as(_f, _as, _i)            \
     rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
+#define rom_add_file_fixed_as(_f, _a, _i, _as)          \
+    rom_add_file(_f, NULL, _a, _i, false, NULL, _as)
 #define rom_add_blob_fixed_as(_f, _b, _l, _a, _as)      \
     rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, _as)
 
