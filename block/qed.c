@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bswap.h"
+#include "block/probe.h"
 #include "trace.h"
 #include "qed.h"
 #include "qapi/qmp/qerror.h"
@@ -25,20 +26,6 @@
 static const AIOCBInfo qed_aiocb_info = {
     .aiocb_size         = sizeof(QEDAIOCB),
 };
-
-static int bdrv_qed_probe(const uint8_t *buf, int buf_size,
-                          const char *filename)
-{
-    const QEDHeader *header = (const QEDHeader *)buf;
-
-    if (buf_size < sizeof(*header)) {
-        return 0;
-    }
-    if (le32_to_cpu(header->magic) != QED_MAGIC) {
-        return 0;
-    }
-    return 100;
-}
 
 /**
  * Check whether an image format is raw
