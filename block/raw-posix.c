@@ -1928,7 +1928,6 @@ BlockDriver bdrv_file = {
     .protocol_name = "file",
     .instance_size = sizeof(BDRVRawState),
     .bdrv_needs_filename = true,
-    .bdrv_probe = NULL, /* no probe for protocols */
     .bdrv_parse_filename = raw_parse_filename,
     .bdrv_file_open = raw_open,
     .bdrv_reopen_prepare = raw_reopen_prepare,

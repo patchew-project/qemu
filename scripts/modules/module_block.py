@@ -24,15 +24,13 @@ def get_string_struct(line):
     return data[2].replace('"', '')[:-1]
 
 def add_module(fheader, library, format_name, protocol_name,
-                probe, probe_device):
+               probe_device):
     lines = []
     lines.append('.library_name = "' + library + '",')
     if format_name != "":
         lines.append('.format_name = "' + format_name + '",')
     if protocol_name != "":
         lines.append('.protocol_name = "' + protocol_name + '",')
-    if probe:
-        lines.append('.has_probe = true,')
     if probe_device:
         lines.append('.has_probe_device = true,')
 
@@ -52,20 +50,17 @@ def process_file(fheader, filename):
                     format_name = get_string_struct(line)
                 elif line.find(".protocol_name") != -1:
                     protocol_name = get_string_struct(line)
-                elif line.find(".bdrv_probe") != -1:
-                    probe = True
                 elif line.find(".bdrv_probe_device") != -1:
                     probe_device = True
                 elif line == "};":
                     add_module(fheader, library, format_name, protocol_name,
-                                probe, probe_device)
+                               probe_device)
                     found_start = False
             elif line.find("static BlockDriver") != -1:
                 found_something = True
                 found_start = True
                 format_name = ""
                 protocol_name = ""
-                probe = False
                 probe_device = False
 
         if not found_something:
@@ -93,7 +88,6 @@ static const struct {
     const char *format_name;
     const char *protocol_name;
     const char *library_name;
-    bool has_probe;
     bool has_probe_device;
 } block_driver_modules[] = {''')
 

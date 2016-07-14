@@ -599,35 +599,16 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
     const char *format_max = NULL;
     const char *format;
     size_t i;
-    BlockDriver *drv = NULL, *d;
-
-    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
-        if (block_driver_modules[i].has_probe) {
-            block_module_load_one(block_driver_modules[i].library_name);
-        }
-    }
-
-    QLIST_FOREACH(d, &bdrv_drivers, list) {
-        if (d->bdrv_probe) {
-            score = d->bdrv_probe(buf, buf_size, filename);
-            if (score > score_max) {
-                score_max = score;
-                drv = d;
-            }
-        }
-    }
 
     for (i = 0; i < ARRAY_SIZE(format_probes); i++) {
         format = format_probes[i](buf, buf_size, filename, &score);
         if (score > score_max) {
             score_max = score;
             format_max = format;
-            /* TODO: move call to find_format outside this loop */
-            drv = bdrv_find_format(format_max);
         }
     }
 
-    return drv;
+    return bdrv_find_format(format_max);
 }
 
 static int find_image_format(BdrvChild *file, const char *filename,

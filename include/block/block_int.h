@@ -99,7 +99,6 @@ struct BlockDriver {
     bool (*bdrv_recurse_is_first_non_filter)(BlockDriverState *bs,
                                              BlockDriverState *candidate);
 
-    int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
 
     /* Any driver implementing this callback is expected to be able to handle
