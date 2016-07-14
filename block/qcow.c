@@ -26,6 +26,8 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "block/block_int.h"
+#include "block/probe.h"
+#include "qcow.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/bswap.h"
@@ -37,27 +39,10 @@
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */
 
-#define QCOW_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
-#define QCOW_VERSION 1
-
 #define QCOW_CRYPT_NONE 0
 #define QCOW_CRYPT_AES  1
 
 #define QCOW_OFLAG_COMPRESSED (1LL << 63)
-
-typedef struct QCowHeader {
-    uint32_t magic;
-    uint32_t version;
-    uint64_t backing_file_offset;
-    uint32_t backing_file_size;
-    uint32_t mtime;
-    uint64_t size; /* in bytes */
-    uint8_t cluster_bits;
-    uint8_t l2_bits;
-    uint16_t padding;
-    uint32_t crypt_method;
-    uint64_t l1_table_offset;
-} QEMU_PACKED QCowHeader;
 
 #define L2_CACHE_SIZE 16
 
@@ -84,18 +69,6 @@ typedef struct BDRVQcowState {
 } BDRVQcowState;
 
 static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
-
-static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    const QCowHeader *cow_header = (const void *)buf;
-
-    if (buf_size >= sizeof(QCowHeader) &&
-        be32_to_cpu(cow_header->magic) == QCOW_MAGIC &&
-        be32_to_cpu(cow_header->version) == QCOW_VERSION)
-        return 100;
-    else
-        return 0;
-}
 
 static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
