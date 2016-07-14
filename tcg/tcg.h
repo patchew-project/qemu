@@ -478,6 +478,25 @@ static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_PTR(TCGv_ptr t)
 #define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)
 #define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
 
+/* used to indicate the type of accesses on which ordering is to be
+   ensured. Modeled after SPARC barriers */
+typedef enum {
+    TCG_MO_LD_LD    = 1,
+    TCG_MO_ST_LD    = 2,
+    TCG_MO_LD_ST    = 4,
+    TCG_MO_ST_ST    = 8,
+    TCG_MO_ALL      = 0xF, /* OR of all above */
+} TCGOrder;
+
+/* used to indicate the kind of ordering which is to be ensured by the
+   instruction. These types are derived from x86/aarch64 instructions.
+   It should be noted that these are different from C11 semantics */
+typedef enum {
+    TCG_BAR_LDAQ     = 0x10, /* generated for aarch64 load-acquire inst. */
+    TCG_BAR_STRL     = 0x20, /* generated for aarch64 store-rel inst. */
+    TCG_BAR_SC       = 0x40, /* generated for all other ordering inst. */
+} TCGBar;
+
 /* Conditions.  Note that these are laid out for easy manipulation by
    the functions below:
      bit 0 is used for inverting;
