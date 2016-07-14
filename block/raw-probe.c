@@ -1,10 +1,14 @@
 #include "qemu/osdep.h"
 #include "block/probe.h"
 
-int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
+const char *bdrv_raw_probe(const uint8_t *buf, int buf_size,
+                           const char *filename, int *score)
 {
+    const char *format = "raw";
+    assert(score);
     /* smallest possible positive score so that raw is used if and only if no
      * other block driver works
      */
-    return 1;
+    *score = 1;
+    return format;
 }

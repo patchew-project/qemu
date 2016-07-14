@@ -226,7 +226,6 @@ static int raw_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
 
 BlockDriver bdrv_raw = {
     .format_name          = "raw",
-    .bdrv_probe           = &raw_probe,
     .bdrv_reopen_prepare  = &raw_reopen_prepare,
     .bdrv_open            = &raw_open,
     .bdrv_close           = &raw_close,
