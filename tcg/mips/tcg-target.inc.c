@@ -292,6 +292,7 @@ typedef enum {
     OPC_JALR     = OPC_SPECIAL | 0x09,
     OPC_MOVZ     = OPC_SPECIAL | 0x0A,
     OPC_MOVN     = OPC_SPECIAL | 0x0B,
+    OPC_SYNC     = OPC_SPECIAL | 0x0F,
     OPC_MFHI     = OPC_SPECIAL | 0x10,
     OPC_MFLO     = OPC_SPECIAL | 0x12,
     OPC_MULT     = OPC_SPECIAL | 0x18,
@@ -1646,6 +1647,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         const_args[4], const_args[5], true);
         break;
 
+    case INDEX_op_mb:
+        tcg_out32(s, OPC_SYNC);
+        break;
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_movi_i32: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -1726,6 +1730,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_qemu_ld_i64, { "L", "L", "lZ", "lZ" } },
     { INDEX_op_qemu_st_i64, { "SZ", "SZ", "SZ", "SZ" } },
 #endif
+
+    { INDEX_op_mb, { } },
     { -1 },
 };
 
