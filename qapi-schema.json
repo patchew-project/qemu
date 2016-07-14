@@ -4317,3 +4317,16 @@
 # Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+
+##
+# @reload-rbd-config
+#
+# Reload the ceph config for a given RBD block device attached to the VM.
+#
+# @node: Name of the node.
+#
+# Returns: nothing on success.
+#
+# Since: 2.7
+##
+{'command': 'reload-rbd-config', 'data': { 'node': 'str' } }

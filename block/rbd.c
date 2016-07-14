@@ -930,6 +930,125 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     return snap_count;
 }
 
+static int qemu_rbd_reopen_prepare(BDRVReopenState *reopen_state,
+                               BlockReopenQueue *queue, Error **errp)
+{
+    BDRVRBDState *new_s;
+    rados_t c;
+    rados_ioctx_t io_ctx;
+    char pool[RBD_MAX_POOL_NAME_SIZE];
+    char snap_buf[RBD_MAX_SNAP_NAME_SIZE];
+    char conf[RBD_MAX_CONF_SIZE];
+    char clientname_buf[RBD_MAX_CONF_VAL_SIZE];
+    char *clientname;
+    int r;
+
+    new_s = reopen_state->opaque = g_new0(BDRVRBDState, 1);
+
+    r = qemu_rbd_parsename(reopen_state->bs->filename,
+                           pool, sizeof pool,
+                           snap_buf, sizeof snap_buf,
+                           new_s->name, sizeof new_s->name,
+                           conf, sizeof conf,
+                           errp);
+    if (r < 0) {
+        return r;
+    }
+
+    if (snap_buf[0] != '\0') {
+        new_s->snap = g_strdup(snap_buf);
+    }
+
+    clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
+    r = rados_create(&c, clientname);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error creating cluster from config");
+        return r;
+    }
+    new_s->cluster = c;
+
+    if (conf[0] != '\0') {
+        r = qemu_rbd_set_conf(c, conf, false, errp);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "error setting config");
+            return r;
+        }
+    }
+
+    if (strstr(conf, "conf=") == NULL) {
+        r = rados_conf_read_file(c, NULL);
+    } else if (conf[0] != '\0') {
+        r = qemu_rbd_set_conf(c, conf, true, errp);
+    }
+
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error parsing config");
+        return r;
+    }
+
+    r = rados_connect(c);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error connecting");
+        return r;
+    }
+
+    r = rados_ioctx_create(c, pool, &io_ctx);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error creating ioctx");
+        return r;
+    }
+    new_s->io_ctx = io_ctx;
+
+    r = rbd_open(io_ctx, new_s->name, &new_s->image, new_s->snap);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error opening rbd");
+        return r;
+    }
+
+    return 0;
+}
+
+static void qemu_rbd_reopen_abort(BDRVReopenState *reopen_state)
+{
+    BDRVRBDState *new_s = reopen_state->opaque;
+
+    if (new_s->io_ctx) {
+        rados_ioctx_destroy(new_s->io_ctx);
+    }
+
+    if (new_s->cluster) {
+        rados_shutdown(new_s->cluster);
+    }
+
+    g_free(new_s->snap);
+    g_free(reopen_state->opaque);
+    reopen_state->opaque = NULL;
+}
+
+static void qemu_rbd_reopen_commit(BDRVReopenState *reopen_state)
+{
+    BDRVRBDState *s, *new_s;
+
+    s = reopen_state->bs->opaque;
+    new_s = reopen_state->opaque;
+
+    rados_aio_flush(s->io_ctx);
+
+    rbd_close(s->image);
+    rados_ioctx_destroy(s->io_ctx);
+    g_free(s->snap);
+    rados_shutdown(s->cluster);
+
+    s->io_ctx = new_s->io_ctx;
+    s->cluster = new_s->cluster;
+    s->image = new_s->image;
+    s->snap = new_s->snap;
+    reopen_state->bs->read_only = (s->snap != NULL);
+
+    g_free(reopen_state->opaque);
+    reopen_state->opaque = NULL;
+}
+
 #ifdef LIBRBD_SUPPORTS_DISCARD
 static BlockAIOCB* qemu_rbd_aio_discard(BlockDriverState *bs,
                                         int64_t sector_num,
@@ -989,6 +1108,9 @@ static BlockDriver bdrv_rbd = {
     .create_opts        = &qemu_rbd_create_opts,
     .bdrv_getlength     = qemu_rbd_getlength,
     .bdrv_truncate      = qemu_rbd_truncate,
+    .bdrv_reopen_prepare = qemu_rbd_reopen_prepare,
+    .bdrv_reopen_commit  = qemu_rbd_reopen_commit,
+    .bdrv_reopen_abort   = qemu_rbd_reopen_abort,
     .protocol_name      = "rbd",
 
     .bdrv_aio_readv         = qemu_rbd_aio_readv,

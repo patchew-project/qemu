@@ -4995,3 +4995,24 @@ Example for pseries machine type started with
      { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
        "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
    ]}'
+
+EQMP
+
+     {
+        .name = "reload-rbd-config",
+        .args_type = "node:s",
+        .mhandler.cmd_new = qmp_marshal_reload_rbd_config,
+     },
+
+SQMP
+reload-rbd-config
+-----------------------------------------
+
+Reload the ceph config for an RBD block device.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "reload-rbd-config", "arguments": { "node": "drive-virtio-disk0" } }
+<- { "return": {} }

@@ -2474,3 +2474,16 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
 
     qapi_free_HotpluggableCPUList(saved);
 }
+
+void hmp_reload_rbd_config(Monitor *mon, const QDict *qdict)
+{
+    const char *node = qdict_get_str(qdict, "node");
+    Error *err = NULL;
+
+    qmp_reload_rbd_config(node, &err);
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+}

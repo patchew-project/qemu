@@ -1759,3 +1759,17 @@ ETEXI
 STEXI
 @end table
 ETEXI
+
+
+    {
+        .name = "reload-rbd-config",
+        .args_type = "node:s",
+        .params = "node",
+        .help = "reload rbd ceph config live",
+        .mhandler.cmd = hmp_reload_rbd_config,
+    },
+
+STEXI
+@item reload rbd config
+Reload ceph config for RBD image.
+ETEXI

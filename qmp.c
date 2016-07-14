@@ -707,3 +707,34 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
 
     return head;
 }
+
+void qmp_reload_rbd_config(const char *node, Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    Error *local_err = NULL;
+    int ret;
+
+    blk = blk_by_name(node);
+    if (!blk) {
+        error_setg(errp, QERR_INVALID_PARAMETER, "node");
+        return;
+    }
+
+    bs = blk_bs(blk);
+    if (!bs) {
+        error_setg(errp, "no BDS found");
+        return;
+    }
+
+    ret = bdrv_reopen(bs, bdrv_get_flags(bs), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (ret) {
+        error_setg_errno(errp, -ret, "failed reopening node");
+        return;
+    }
+}
