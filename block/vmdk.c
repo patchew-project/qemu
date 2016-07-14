@@ -2331,7 +2331,6 @@ static QemuOptsList vmdk_create_opts = {
 static BlockDriver bdrv_vmdk = {
     .format_name                  = "vmdk",
     .instance_size                = sizeof(BDRVVmdkState),
-    .bdrv_probe                   = vmdk_probe,
     .bdrv_open                    = vmdk_open,
     .bdrv_check                   = vmdk_check,
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
