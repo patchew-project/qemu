@@ -6823,10 +6823,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         if (CPU_NEXT(first_cpu)) {
             TaskState *ts;
 
-            cpu_list_lock();
-            /* Remove the CPU from the list.  */
-            QTAILQ_REMOVE(&cpus, cpu, node);
-            cpu_list_unlock();
+            object_unparent(OBJECT(cpu)); /* Remove from QOM */
             ts = cpu->opaque;
             if (ts->child_tidptr) {
                 put_user_u32(0, ts->child_tidptr);
@@ -6834,7 +6831,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                           NULL, NULL, 0);
             }
             thread_cpu = NULL;
-            object_unref(OBJECT(cpu));
+            object_unref(OBJECT(cpu)); /* Remove the last ref we're holding */
             g_free(ts);
             rcu_unregister_thread();
             pthread_exit(NULL);
