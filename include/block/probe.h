@@ -1,7 +1,6 @@
 #ifndef PROBE_H
 #define PROBE_H
 
-int cloop_probe(const uint8_t *buf, int buf_size, const char *filename);
 int block_crypto_probe_luks(const uint8_t *buf, int buf_size,
                             const char *filename);
 int dmg_probe(const uint8_t *buf, int buf_size, const char *filename);
@@ -15,6 +14,8 @@ int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename);
 int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename);
 int vpc_probe(const uint8_t *buf, int buf_size, const char *filename);
 const char *bdrv_bochs_probe(const uint8_t *buf, int buf_size,
+                             const char *filename, int *score);
+const char *bdrv_cloop_probe(const uint8_t *buf, int buf_size,
                              const char *filename, int *score);
 
 #endif
