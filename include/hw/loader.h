@@ -108,6 +108,10 @@ int load_uimage(const char *filename, hwaddr *ep,
                 hwaddr *loadaddr, int *is_linux,
                 uint64_t (*translate_fn)(void *, uint64_t),
                 void *translate_opaque);
+int load_uimage_as(const char *filename, hwaddr *ep,
+                   hwaddr *loadaddr, int *is_linux,
+                   uint64_t (*translate_fn)(void *, uint64_t),
+                   void *translate_opaque, AddressSpace *as);
 
 /**
  * load_ramdisk:
@@ -159,6 +163,8 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_as(_f, _as, _i)            \
     rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
+#define rom_add_blob_fixed_as(_f, _b, _l, _a, _as)      \
+    rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, _as)
 
 #define PC_ROM_MIN_VGA     0xc0000
 #define PC_ROM_MIN_OPTION  0xc8000
