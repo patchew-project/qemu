@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include <zlib.h>
 #include "block/qcow2.h"
+#include "block/probe.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qbool.h"
@@ -63,18 +64,6 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_END 0
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 #define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
-
-static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    const QCowHeader *cow_header = (const void *)buf;
-
-    if (buf_size >= sizeof(QCowHeader) &&
-        be32_to_cpu(cow_header->magic) == QCOW_MAGIC &&
-        be32_to_cpu(cow_header->version) >= 2)
-        return 100;
-    else
-        return 0;
-}
 
 
 /* 
