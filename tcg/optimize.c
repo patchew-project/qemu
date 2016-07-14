@@ -569,6 +569,63 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
     return false;
 }
 
+/* Eliminate duplicate and unnecessary fence instructions */
+void tcg_optimize_mb(TCGContext *s)
+{
+    int oi, oi_next;
+    TCGArg prev_op_mb = -1;
+    TCGOp *prev_op;
+
+    for (oi = s->gen_first_op_idx; oi >= 0; oi = oi_next) {
+        TCGOp *op = &s->gen_op_buf[oi];
+        TCGArg *args = &s->gen_opparam_buf[op->args];
+        TCGOpcode opc = op->opc;
+
+        switch (opc) {
+        case INDEX_op_mb:
+        {
+            TCGBar curr_mb_type = args[0] & 0xF0;
+            TCGBar prev_mb_type = prev_op_mb & 0xF0;
+
+            if (curr_mb_type == prev_mb_type ||
+                (curr_mb_type == TCG_BAR_STRL && prev_mb_type == TCG_BAR_SC)) {
+                /* Remove the current weaker barrier op. The previous
+                 * barrier is stronger and sufficient.
+                 * mb; strl => mb; st
+                 */
+                tcg_op_remove(s, op);
+            } else if (curr_mb_type == TCG_BAR_SC &&
+                       prev_mb_type == TCG_BAR_LDAQ) {
+                /* Remove the previous weaker barrier op. The current
+                 * barrier is stronger and sufficient.
+                 * ldaq; mb => ld; mb
+                 */
+                tcg_op_remove(s, prev_op);
+            } else if (curr_mb_type == TCG_BAR_STRL &&
+                       prev_mb_type == TCG_BAR_LDAQ) {
+                /* Consecutive load-acquire and store-release barriers
+                 * can be merged into one stronger SC barrier
+                 * ldaq; strl => ld; mb; st
+                 */
+                args[0] = (args[0] & 0x0F) | TCG_BAR_SC;
+                tcg_op_remove(s, prev_op);
+            }
+            prev_op_mb = args[0];
+            prev_op = op;
+            break;
+        }
+        case INDEX_op_insn_start:
+            break;
+        default:
+            prev_op_mb = -1;
+            prev_op = NULL;
+            break;
+        }
+
+        oi_next = op->next;
+    }
+}
+
 /* Propagate constants and copies, fold constant expressions. */
 void tcg_optimize(TCGContext *s)
 {
@@ -1327,4 +1384,6 @@ void tcg_optimize(TCGContext *s)
             break;
         }
     }
+
+    tcg_optimize_mb(s);
 }
