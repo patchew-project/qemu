@@ -99,8 +99,6 @@ struct BlockDriver {
     bool (*bdrv_recurse_is_first_non_filter)(BlockDriverState *bs,
                                              BlockDriverState *candidate);
 
-    int (*bdrv_probe_device)(const char *filename);
-
     /* Any driver implementing this callback is expected to be able to handle
      * NULL file names in its .bdrv_open() implementation */
     void (*bdrv_parse_filename)(const char *filename, QDict *options, Error **errp);

@@ -59,6 +59,7 @@
 
 typedef const char *BdrvProbeFunc(const uint8_t *buf, int buf_size,
                                   const char *filename, int *score);
+typedef const char *BdrvProbeDevFunc(const char *filename, int *score);
 
 static BdrvProbeFunc *format_probes[] = {
     bdrv_bochs_probe,
@@ -74,6 +75,13 @@ static BdrvProbeFunc *format_probes[] = {
     bdrv_vhdx_probe,
     bdrv_vmdk_probe,
     bdrv_vpc_probe
+};
+
+static BdrvProbeDevFunc *protocol_probes[] = {
+    hdev_probe_device,
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__linux__)
+    cdrom_probe_device
+#endif
 };
 
 static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
@@ -94,6 +102,8 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
+
+static BlockDriver *bdrv_do_find_protocol(const char *protocol);
 
 #ifdef _WIN32
 static int is_windows_drive_prefix(const char *filename)
@@ -487,25 +497,37 @@ int get_tmp_filename(char *filename, int size)
 static BlockDriver *find_hdev_driver(const char *filename)
 {
     int score_max = 0, score;
+    const char *protocol_max = NULL;
+    const char *protocol;
+    BlockDriver *drv;
     size_t i;
-    BlockDriver *drv = NULL, *d;
+
+    for (i = 0; i < ARRAY_SIZE(protocol_probes); i++) {
+        protocol = protocol_probes[i](filename, &score);
+        if (score > score_max) {
+            protocol_max = protocol;
+            score_max = score;
+        }
+    }
+
+    if (!protocol_max) {
+        return NULL;
+    }
+
+    drv = bdrv_do_find_protocol(protocol_max);
+    if (drv) {
+        return drv;
+    }
 
     for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
-        if (block_driver_modules[i].has_probe_device) {
+        if (block_driver_modules[i].protocol_name &&
+            !strcmp(block_driver_modules[i].protocol_name, protocol_max)) {
             block_module_load_one(block_driver_modules[i].library_name);
+            break;
         }
     }
 
-    QLIST_FOREACH(d, &bdrv_drivers, list) {
-        if (d->bdrv_probe_device) {
-            score = d->bdrv_probe_device(filename);
-            if (score > score_max) {
-                score_max = score;
-                drv = d;
-            }
-        }
-    }
-
+    drv = bdrv_do_find_protocol(protocol);
     return drv;
 }
 
