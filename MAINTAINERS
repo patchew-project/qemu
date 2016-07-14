@@ -1384,7 +1384,7 @@ F: tcg/mips/
 F: disas/mips.c
 
 PPC
-M: Vassili Karpov (malc) <av1474@comtv.ru>
+M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/ppc/
 F: disas/ppc.c
