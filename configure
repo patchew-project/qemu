@@ -5636,6 +5636,8 @@ case "$target_name" in
   x86_64)
     TARGET_BASE_ARCH=i386
   ;;
+  avr)
+  ;;
   alpha)
   ;;
   arm|armeb)
@@ -5832,6 +5834,9 @@ disas_config() {
 
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
+  avr)
+    disas_config "AVR"
+  ;;
   alpha)
     disas_config "ALPHA"
   ;;
