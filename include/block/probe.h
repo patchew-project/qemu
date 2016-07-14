@@ -27,5 +27,7 @@ const char *bdrv_vmdk_probe(const uint8_t *buf, int buf_size,
                             const char *filename, int *score);
 const char *bdrv_vpc_probe(const uint8_t *buf, int buf_size,
                            const char *filename, int *score);
+int hdev_probe_device(const char *filename);
+int cdrom_probe_device(const char *filename);
 
 #endif

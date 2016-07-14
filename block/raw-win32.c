@@ -26,6 +26,7 @@
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "block/block_int.h"
+#include "block/probe.h"
 #include "qemu/module.h"
 #include "raw-aio.h"
 #include "trace.h"
@@ -613,15 +614,6 @@ static int find_device_type(BlockDriverState *bs, const char *filename)
     } else {
         return FTYPE_FILE;
     }
-}
-
-static int hdev_probe_device(const char *filename)
-{
-    if (strstart(filename, "/dev/cdrom", NULL))
-        return 100;
-    if (is_windows_drive(filename))
-        return 100;
-    return 0;
 }
 
 static void hdev_parse_filename(const char *filename, QDict *options,

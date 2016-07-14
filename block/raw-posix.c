@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "block/block_int.h"
+#include "block/probe.h"
 #include "qemu/module.h"
 #include "trace.h"
 #include "block/thread-pool.h"
@@ -2076,22 +2077,6 @@ static void print_unmounting_directions(const char *file_name)
 
 #endif /* defined(__APPLE__) && defined(__MACH__) */
 
-static int hdev_probe_device(const char *filename)
-{
-    struct stat st;
-
-    /* allow a dedicated CD-ROM driver to match with a higher priority */
-    if (strstart(filename, "/dev/cdrom", NULL))
-        return 50;
-
-    if (stat(filename, &st) >= 0 &&
-            (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
-        return 100;
-    }
-
-    return 0;
-}
-
 static int check_hdev_writable(BDRVRawState *s)
 {
 #if defined(BLKROGET)
@@ -2433,32 +2418,6 @@ static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
     return raw_open_common(bs, options, flags, O_NONBLOCK, errp);
 }
 
-static int cdrom_probe_device(const char *filename)
-{
-    int fd, ret;
-    int prio = 0;
-    struct stat st;
-
-    fd = qemu_open(filename, O_RDONLY | O_NONBLOCK);
-    if (fd < 0) {
-        goto out;
-    }
-    ret = fstat(fd, &st);
-    if (ret == -1 || !S_ISBLK(st.st_mode)) {
-        goto outc;
-    }
-
-    /* Attempt to detect via a CDROM specific ioctl */
-    ret = ioctl(fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
-    if (ret >= 0)
-        prio = 100;
-
-outc:
-    qemu_close(fd);
-out:
-    return prio;
-}
-
 static bool cdrom_is_inserted(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -2554,14 +2513,6 @@ static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* make sure the door isn't locked at this time */
     ioctl(s->fd, CDIOCALLOW);
-    return 0;
-}
-
-static int cdrom_probe_device(const char *filename)
-{
-    if (strstart(filename, "/dev/cd", NULL) ||
-            strstart(filename, "/dev/acd", NULL))
-        return 100;
     return 0;
 }
 
