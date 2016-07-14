@@ -1638,7 +1638,6 @@ static BlockDriver bdrv_qed = {
     .create_opts              = &qed_create_opts,
     .supports_backing         = true,
 
-    .bdrv_probe               = bdrv_qed_probe,
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
