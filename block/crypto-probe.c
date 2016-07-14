@@ -15,9 +15,12 @@ static int block_crypto_probe_generic(QCryptoBlockFormat format,
     }
 }
 
-int block_crypto_probe_luks(const uint8_t *buf,
-                                   int buf_size,
-                                   const char *filename) {
-    return block_crypto_probe_generic(Q_CRYPTO_BLOCK_FORMAT_LUKS,
-                                      buf, buf_size, filename);
+const char *bdrv_crypto_probe_luks(const uint8_t *buf, int buf_size,
+                                   const char *filename, int *score)
+{
+    const char *format = "luks";
+    assert(score);
+    *score = block_crypto_probe_generic(Q_CRYPTO_BLOCK_FORMAT_LUKS,
+                                        buf, buf_size, filename);
+    return format;
 }

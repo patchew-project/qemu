@@ -63,6 +63,7 @@ typedef const char *BdrvProbeFunc(const uint8_t *buf, int buf_size,
 static BdrvProbeFunc *format_probes[] = {
     bdrv_bochs_probe,
     bdrv_cloop_probe,
+    bdrv_crypto_probe_luks,
 };
 
 static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
