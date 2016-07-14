@@ -1951,7 +1951,6 @@ static QemuOptsList vhdx_create_opts = {
 static BlockDriver bdrv_vhdx = {
     .format_name            = "vhdx",
     .instance_size          = sizeof(BDRVVHDXState),
-    .bdrv_probe             = vhdx_probe,
     .bdrv_open              = vhdx_open,
     .bdrv_close             = vhdx_close,
     .bdrv_reopen_prepare    = vhdx_reopen_prepare,

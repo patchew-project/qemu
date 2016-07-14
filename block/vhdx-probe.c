@@ -12,10 +12,16 @@
  *
  *  Therefore, we probe by looking for the vhdxfile signature "vhdxfile"
  */
-int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename)
+const char *bdrv_vhdx_probe(const uint8_t *buf, int buf_size,
+                            const char *filename, int *score)
 {
+    const char *format = "vhdx";
+    assert(score);
+
     if (buf_size >= 8 && !memcmp(buf, "vhdxfile", 8)) {
-        return 100;
+        *score = 100;
+        return format;
     }
-    return 0;
+    *score = 0;
+    return format;
 }
