@@ -140,6 +140,7 @@ struct CPUAVRState {
     uint32_t        sp;     /*   16 bits                            */
 
     uint64_t        intsrc; /*  interrupt sources                   */
+    bool            fullacc;/*  CPU/MEM if true MEM only otherwise  */
 
     uint32_t        features;
 
@@ -182,12 +183,22 @@ int avr_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 int avr_cpu_memory_rw_debug(CPUState *cs, vaddr address, uint8_t *buf,
                                 int len, bool is_write);
 
+enum {
+    TB_FLAGS_FULL_ACCESS = 1,
+};
 static inline void cpu_get_tb_cpu_state(CPUAVRState *env, target_ulong *pc,
                                 target_ulong *cs_base, uint32_t *pflags)
 {
+    uint32_t flags = 0;
+
     *pc = env->pc_w * 2;
     *cs_base = 0;
-    *pflags = 0;
+
+    if (env->fullacc) {
+        flags |= TB_FLAGS_FULL_ACCESS;
+    }
+
+    *pflags = flags;
 }
 
 static inline int cpu_interrupts_enabled(CPUAVRState *env1)
