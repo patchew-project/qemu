@@ -98,6 +98,7 @@ const VMStateDescription vms_avr_cpu = {
     .version_id         = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.features, AVRCPU),
         VMSTATE_UINT32(env.pc_w, AVRCPU),
         VMSTATE_UINT32(env.sp, AVRCPU),
 
