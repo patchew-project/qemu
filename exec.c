@@ -596,7 +596,6 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 }
 #endif
 
-#ifndef CONFIG_USER_ONLY
 static DECLARE_BITMAP(cpu_index_map, MAX_CPUMASK_BITS);
 
 static int cpu_get_free_index(Error **errp)
@@ -617,24 +616,6 @@ static void cpu_release_index(CPUState *cpu)
 {
     bitmap_clear(cpu_index_map, cpu->cpu_index, 1);
 }
-#else
-
-static int cpu_get_free_index(Error **errp)
-{
-    CPUState *some_cpu;
-    int cpu_index = 0;
-
-    CPU_FOREACH(some_cpu) {
-        cpu_index++;
-    }
-    return cpu_index;
-}
-
-static void cpu_release_index(CPUState *cpu)
-{
-    return;
-}
-#endif
 
 void cpu_exec_exit(CPUState *cpu)
 {
