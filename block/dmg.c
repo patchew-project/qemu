@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "block/probe.h"
 #include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -65,21 +66,6 @@ typedef struct BDRVDMGState {
     bz_stream bzstream;
 #endif
 } BDRVDMGState;
-
-static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    int len;
-
-    if (!filename) {
-        return 0;
-    }
-
-    len = strlen(filename);
-    if (len > 4 && !strcmp(filename + len - 4, ".dmg")) {
-        return 2;
-    }
-    return 0;
-}
 
 static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
 {
