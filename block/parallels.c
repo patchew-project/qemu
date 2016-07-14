@@ -31,6 +31,8 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "block/probe.h"
+#include "parallels.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/bswap.h"
@@ -38,29 +40,6 @@
 #include "qapi/util.h"
 
 /**************************************************************/
-
-#define HEADER_MAGIC "WithoutFreeSpace"
-#define HEADER_MAGIC2 "WithouFreSpacExt"
-#define HEADER_VERSION 2
-#define HEADER_INUSE_MAGIC  (0x746F6E59)
-
-#define DEFAULT_CLUSTER_SIZE 1048576        /* 1 MiB */
-
-
-// always little-endian
-typedef struct ParallelsHeader {
-    char magic[16]; // "WithoutFreeSpace"
-    uint32_t version;
-    uint32_t heads;
-    uint32_t cylinders;
-    uint32_t tracks;
-    uint32_t bat_entries;
-    uint64_t nb_sectors;
-    uint32_t inuse;
-    uint32_t data_off;
-    char padding[12];
-} QEMU_PACKED ParallelsHeader;
-
 
 typedef enum ParallelsPreallocMode {
     PRL_PREALLOC_MODE_FALLOCATE = 0,
@@ -535,24 +514,6 @@ exit:
     goto done;
 }
 
-
-static int parallels_probe(const uint8_t *buf, int buf_size,
-                           const char *filename)
-{
-    const ParallelsHeader *ph = (const void *)buf;
-
-    if (buf_size < sizeof(ParallelsHeader)) {
-        return 0;
-    }
-
-    if ((!memcmp(ph->magic, HEADER_MAGIC, 16) ||
-           !memcmp(ph->magic, HEADER_MAGIC2, 16)) &&
-           (le32_to_cpu(ph->version) == HEADER_VERSION)) {
-        return 100;
-    }
-
-    return 0;
-}
 
 static int parallels_update_header(BlockDriverState *bs)
 {
