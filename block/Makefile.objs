@@ -24,7 +24,7 @@ block-obj-y += accounting.o dirty-bitmap.o
 block-obj-y += write-threshold.o
 
 block-obj-y += crypto.o
-block-obj-y += bochs-probe.o
+block-obj-y += bochs-probe.o cloop-probe.o
 
 common-obj-y += stream.o
 common-obj-y += backup.o
