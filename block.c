@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/probe.h"
 #include "qemu/error-report.h"
 #include "module_block.h"
 #include "qemu/module.h"
@@ -55,6 +56,13 @@
 #endif
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
+
+typedef const char *BdrvProbeFunc(const uint8_t *buf, int buf_size,
+                                  const char *filename, int *score);
+
+static BdrvProbeFunc *format_probes[] = {
+    bdrv_bochs_probe,
+};
 
 static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(graph_bdrv_states);
@@ -576,6 +584,8 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                             const char *filename)
 {
     int score_max = 0, score;
+    const char *format_max = NULL;
+    const char *format;
     size_t i;
     BlockDriver *drv = NULL, *d;
 
@@ -592,6 +602,16 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
                 score_max = score;
                 drv = d;
             }
+        }
+    }
+
+    for (i = 0; i < ARRAY_SIZE(format_probes); i++) {
+        format = format_probes[i](buf, buf_size, filename, &score);
+        if (score > score_max) {
+            score_max = score;
+            format_max = format;
+            /* TODO: move call to find_format outside this loop */
+            drv = bdrv_find_format(format_max);
         }
     }
 
