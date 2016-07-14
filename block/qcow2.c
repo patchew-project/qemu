@@ -3382,7 +3382,6 @@ static QemuOptsList qcow2_create_opts = {
 BlockDriver bdrv_qcow2 = {
     .format_name        = "qcow2",
     .instance_size      = sizeof(BDRVQcow2State),
-    .bdrv_probe         = qcow2_probe,
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
