@@ -19,6 +19,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
+#include "block/probe.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/crc32c.h"
@@ -270,25 +271,6 @@ static void vhdx_set_shift_bits(BDRVVHDXState *s)
     s->sectors_per_block_bits =   ctz32(s->sectors_per_block);
     s->chunk_ratio_bits =         ctz64(s->chunk_ratio);
     s->block_size_bits =          ctz32(s->block_size);
-}
-
-/*
- * Per the MS VHDX Specification, for every VHDX file:
- *      - The header section is fixed size - 1 MB
- *      - The header section is always the first "object"
- *      - The first 64KB of the header is the File Identifier
- *      - The first uint64 (8 bytes) is the VHDX Signature ("vhdxfile")
- *      - The following 512 bytes constitute a UTF-16 string identifiying the
- *        software that created the file, and is optional and diagnostic only.
- *
- *  Therefore, we probe by looking for the vhdxfile signature "vhdxfile"
- */
-static int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    if (buf_size >= 8 && !memcmp(buf, "vhdxfile", 8)) {
-        return 100;
-    }
-    return 0;
 }
 
 /*
