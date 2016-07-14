@@ -64,6 +64,7 @@ static BdrvProbeFunc *format_probes[] = {
     bdrv_bochs_probe,
     bdrv_cloop_probe,
     bdrv_crypto_probe_luks,
+    bdrv_dmg_probe,
 };
 
 static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
