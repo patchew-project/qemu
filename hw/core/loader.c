@@ -777,6 +777,7 @@ struct Rom {
 
     uint8_t *data;
     MemoryRegion *mr;
+    AddressSpace *as;
     int isrom;
     char *fw_dir;
     char *fw_file;
@@ -796,12 +797,15 @@ static void rom_insert(Rom *rom)
         hw_error ("ROM images must be loaded at startup\n");
     }
 
-    /* list is ordered by load address */
+    /* List is ordered by load address in the same address space */
     QTAILQ_FOREACH(item, &roms, next) {
-        if (rom->addr >= item->addr)
-            continue;
-        QTAILQ_INSERT_BEFORE(item, rom, next);
-        return;
+        if (rom->addr >= item->addr && rom->as == item->as) {
+            QTAILQ_INSERT_AFTER(&roms, item, rom, next);
+            return;
+        } else if (rom->addr <= item->addr && rom->as == item->as) {
+            QTAILQ_INSERT_BEFORE(item, rom, next);
+            return;
+        }
     }
     QTAILQ_INSERT_TAIL(&roms, rom, next);
 }
@@ -833,16 +837,25 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name)
 
 int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
-                 bool option_rom, MemoryRegion *mr)
+                 bool option_rom, MemoryRegion *mr,
+                 AddressSpace *as)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
     int rc, fd = -1;
     char devpath[100];
 
+    if (as && mr) {
+        fprintf(stderr, "Specifying an Address Space and Memory Region is " \
+                "not valid when loading a rom\n");
+        /* We haven't allocated anything so we don't need any cleanup */
+        return -1;
+    }
+
     rom = g_malloc0(sizeof(*rom));
     rom->name = g_strdup(file);
     rom->path = qemu_find_file(QEMU_FILE_TYPE_BIOS, rom->name);
+    rom->as = as;
     if (rom->path == NULL) {
         rom->path = g_strdup(file);
     }
@@ -969,7 +982,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
  * memory ownership of "data", so we don't have to allocate and copy the buffer.
  */
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
-                        size_t romsize, hwaddr addr)
+                        size_t romsize, hwaddr addr, AddressSpace *as)
 {
     Rom *rom;
 
@@ -979,18 +992,19 @@ int rom_add_elf_program(const char *name, void *data, size_t datasize,
     rom->datasize = datasize;
     rom->romsize  = romsize;
     rom->data     = data;
+    rom->as       = as;
     rom_insert(rom);
     return 0;
 }
 
 int rom_add_vga(const char *file)
 {
-    return rom_add_file(file, "vgaroms", 0, -1, true, NULL);
+    return rom_add_file(file, "vgaroms", 0, -1, true, NULL, NULL);
 }
 
 int rom_add_option(const char *file, int32_t bootindex)
 {
-    return rom_add_file(file, "genroms", 0, bootindex, true, NULL);
+    return rom_add_file(file, "genroms", 0, bootindex, true, NULL, NULL);
 }
 
 static void rom_reset(void *unused)
@@ -1008,7 +1022,8 @@ static void rom_reset(void *unused)
             void *host = memory_region_get_ram_ptr(rom->mr);
             memcpy(host, rom->data, rom->datasize);
         } else {
-            cpu_physical_memory_write_rom(&address_space_memory,
+            cpu_physical_memory_write_rom(rom->as ? rom->as :
+                                                    &address_space_memory,
                                           rom->addr, rom->data, rom->datasize);
         }
         if (rom->isrom) {
@@ -1031,12 +1046,13 @@ int rom_check_and_register_reset(void)
     hwaddr addr = 0;
     MemoryRegionSection section;
     Rom *rom;
+    AddressSpace *as = NULL;
 
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
             continue;
         }
-        if (addr > rom->addr) {
+        if ((addr > rom->addr) && (as == rom->as)) {
             fprintf(stderr, "rom: requested regions overlap "
                     "(rom %s. free=0x" TARGET_FMT_plx
                     ", addr=0x" TARGET_FMT_plx ")\n",
@@ -1049,6 +1065,7 @@ int rom_check_and_register_reset(void)
                                      rom->addr, 1);
         rom->isrom = int128_nz(section.size) && memory_region_is_rom(section.mr);
         memory_region_unref(section.mr);
+        as = rom->as;
     }
     qemu_register_reset(rom_reset, NULL);
     roms_loaded = 1;
