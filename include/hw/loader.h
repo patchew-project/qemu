@@ -45,7 +45,7 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 #define ELF_LOAD_WRONG_ENDIAN -4
 const char *load_elf_strerror(int error);
 
-/** load_elf:
+/** load_elf_as:
  * @filename: Path of ELF file
  * @translate_fn: optional function to translate load addresses
  * @translate_opaque: opaque data passed to @translate_fn
@@ -59,6 +59,8 @@ const char *load_elf_strerror(int error);
  * @data_swab: Set to order of byte swapping for data. 0 for no swap, 1
  *             for swapping bytes within halfwords, 2 for bytes within
  *             words and 3 for within doublewords.
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
  *
  * Load an ELF file's contents to the emulated system's address space.
  * Clients may optionally specify a callback to perform address
@@ -71,6 +73,16 @@ const char *load_elf_strerror(int error);
  * If no @elf_machine is provided the machine will default to the value
  * in the ELFs header and no checks will be carried out against the
  * machine type.
+ */
+
+int load_elf_as(const char *filename,
+                uint64_t (*translate_fn)(void *, uint64_t),
+                void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
+                uint64_t *highaddr, int big_endian, int elf_machine,
+                int clear_lsb, int data_swab, AddressSpace *as);
+
+/** load_elf:
+ * Same as above, but doesn't allow the caller to specify an AddressSpace
  */
 
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
@@ -141,8 +153,10 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
     rom_add_file(_f, NULL, _a, _i, false, NULL, NULL)
 #define rom_add_blob_fixed(_f, _b, _l, _a)      \
     rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, NULL)
+
 #define rom_add_file_mr(_f, _mr, _i)            \
     rom_add_file(_f, NULL, 0, _i, false, _mr, NULL)
+
 #define rom_add_file_as(_f, _as, _i)            \
     rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
 
