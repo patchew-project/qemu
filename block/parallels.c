@@ -709,7 +709,6 @@ static QemuOptsList parallels_create_opts = {
 static BlockDriver bdrv_parallels = {
     .format_name	= "parallels",
     .instance_size	= sizeof(BDRVParallelsState),
-    .bdrv_probe		= parallels_probe,
     .bdrv_open		= parallels_open,
     .bdrv_close		= parallels_close,
     .bdrv_co_get_block_status = parallels_co_get_block_status,
