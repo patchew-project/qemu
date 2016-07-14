@@ -52,20 +52,14 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "block/block_int.h"
+#include "block/probe.h"
+#include "vdi.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/bswap.h"
 #include "migration/migration.h"
 #include "qemu/coroutine.h"
 #include "qemu/cutils.h"
-
-#if defined(CONFIG_UUID)
-#include <uuid/uuid.h>
-#else
-/* TODO: move uuid emulation to some central place in QEMU. */
-#include "sysemu/sysemu.h"     /* UUID_FMT */
-typedef unsigned char uuid_t[16];
-#endif
 
 /* Code configuration options. */
 
@@ -91,16 +85,6 @@ typedef unsigned char uuid_t[16];
 
 #define SECTOR_SIZE 512
 #define DEFAULT_CLUSTER_SIZE (1 * MiB)
-
-#if defined(CONFIG_VDI_DEBUG)
-#define logout(fmt, ...) \
-                fprintf(stderr, "vdi\t%-24s" fmt, __func__, ##__VA_ARGS__)
-#else
-#define logout(fmt, ...) ((void)0)
-#endif
-
-/* Image signature. */
-#define VDI_SIGNATURE 0xbeda107f
 
 /* Image version. */
 #define VDI_VERSION_1_1 0x00010001
@@ -161,33 +145,6 @@ static inline void uuid_unparse(const uuid_t uu, char *out)
 }
 # endif
 #endif
-
-typedef struct {
-    char text[0x40];
-    uint32_t signature;
-    uint32_t version;
-    uint32_t header_size;
-    uint32_t image_type;
-    uint32_t image_flags;
-    char description[256];
-    uint32_t offset_bmap;
-    uint32_t offset_data;
-    uint32_t cylinders;         /* disk geometry, unused here */
-    uint32_t heads;             /* disk geometry, unused here */
-    uint32_t sectors;           /* disk geometry, unused here */
-    uint32_t sector_size;
-    uint32_t unused1;
-    uint64_t disk_size;
-    uint32_t block_size;
-    uint32_t block_extra;       /* unused here */
-    uint32_t blocks_in_image;
-    uint32_t blocks_allocated;
-    uuid_t uuid_image;
-    uuid_t uuid_last_snap;
-    uuid_t uuid_link;
-    uuid_t uuid_parent;
-    uint64_t unused2[7];
-} QEMU_PACKED VdiHeader;
 
 typedef struct {
     /* The block map entries are little endian (even in memory). */
@@ -369,28 +326,6 @@ static int vdi_make_empty(BlockDriverState *bs)
     logout("\n");
     /* The return value for missing code must be 0, see block.c. */
     return 0;
-}
-
-static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
-{
-    const VdiHeader *header = (const VdiHeader *)buf;
-    int ret = 0;
-
-    logout("\n");
-
-    if (buf_size < sizeof(*header)) {
-        /* Header too small, no VDI. */
-    } else if (le32_to_cpu(header->signature) == VDI_SIGNATURE) {
-        ret = 100;
-    }
-
-    if (ret == 0) {
-        logout("no vdi image\n");
-    } else {
-        logout("%s", header->text);
-    }
-
-    return ret;
 }
 
 static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
