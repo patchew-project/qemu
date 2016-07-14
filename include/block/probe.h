@@ -13,5 +13,6 @@ int bdrv_qed_probe(const uint8_t *buf, int buf_size, const char *filename);
 int raw_probe(const uint8_t *buf, int buf_size, const char *filename);
 int vdi_probe(const uint8_t *buf, int buf_size, const char *filename);
 int vhdx_probe(const uint8_t *buf, int buf_size, const char *filename);
+int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename);
 
 #endif
