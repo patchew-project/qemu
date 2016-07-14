@@ -26,7 +26,7 @@ block-obj-y += write-threshold.o
 block-obj-y += crypto.o
 block-obj-y += bochs-probe.o cloop-probe.o crypto-probe.o dmg-probe.o
 block-obj-y += parallels-probe.o qcow-probe.o qcow2-probe.o qed-probe.o
-block-obj-y += raw-probe.o vdi-probe.o vhdx-probe.o vmdk-probe.o
+block-obj-y += raw-probe.o vdi-probe.o vhdx-probe.o vmdk-probe.o vpc-probe.o
 
 common-obj-y += stream.o
 common-obj-y += backup.o
