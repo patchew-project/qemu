@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 
 #include "block/block_int.h"
+#include "block/probe.h"
 #include "sysemu/block-backend.h"
 #include "crypto/block.h"
 #include "qapi/opts-visitor.h"
@@ -39,19 +40,6 @@ typedef struct BlockCrypto BlockCrypto;
 struct BlockCrypto {
     QCryptoBlock *block;
 };
-
-
-static int block_crypto_probe_generic(QCryptoBlockFormat format,
-                                      const uint8_t *buf,
-                                      int buf_size,
-                                      const char *filename)
-{
-    if (qcrypto_block_has_format(format, buf, buf_size)) {
-        return 100;
-    } else {
-        return 0;
-    }
-}
 
 
 static ssize_t block_crypto_read_func(QCryptoBlock *block,
@@ -537,13 +525,6 @@ static int64_t block_crypto_getlength(BlockDriverState *bs)
     return len;
 }
 
-
-static int block_crypto_probe_luks(const uint8_t *buf,
-                                   int buf_size,
-                                   const char *filename) {
-    return block_crypto_probe_generic(Q_CRYPTO_BLOCK_FORMAT_LUKS,
-                                      buf, buf_size, filename);
-}
 
 static int block_crypto_open_luks(BlockDriverState *bs,
                                   QDict *options,
