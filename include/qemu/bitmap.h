@@ -37,6 +37,7 @@
  * bitmap_set(dst, pos, nbits)			Set specified bit area
  * bitmap_set_atomic(dst, pos, nbits)   Set specified bit area with atomic ops
  * bitmap_clear(dst, pos, nbits)		Clear specified bit area
+ * bitmap_move(dst, src, nbits)                 Move *src to *dst
  * bitmap_test_and_clear_atomic(dst, pos, nbits)    Test and clear area
  * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
  */
@@ -133,6 +134,18 @@ static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
     } else {
         long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
         memcpy(dst, src, len);
+    }
+}
+
+static inline void bitmap_move(unsigned long *dst, const unsigned long *src,
+                               long nbits)
+{
+    if (small_nbits(nbits)) {
+        unsigned long tmp = *src;
+        *dst = tmp;
+    } else {
+        long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+        memmove(dst, src, len);
     }
 }
 
