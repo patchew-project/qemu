@@ -3378,3 +3378,40 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     abort();
 }
+
+#define _4G (1ULL << 32)
+
+unsigned long get_guest_max_pfn(void)
+{
+    PCMachineState *pcms = PC_MACHINE(current_machine);
+    ram_addr_t above_4g_mem = pcms->above_4g_mem_size;
+    unsigned long max_pfn;
+
+    if (above_4g_mem) {
+        max_pfn = (_4G + above_4g_mem) >> TARGET_PAGE_BITS;
+    } else {
+        max_pfn = pcms->below_4g_mem_size >> TARGET_PAGE_BITS;
+    }
+
+    return max_pfn;
+}
+
+unsigned long *tighten_guest_free_page_bmap(unsigned long *bmap)
+{
+    PCMachineState *pcms = PC_MACHINE(current_machine);
+    ram_addr_t above_4g_mem = pcms->above_4g_mem_size;
+
+    if (above_4g_mem) {
+        unsigned long *src, *dst, len, pos;
+        ram_addr_t below_4g_mem = pcms->below_4g_mem_size;
+        src = bmap + (_4G >> TARGET_PAGE_BITS) / BITS_PER_LONG;
+        dst = bmap + (below_4g_mem >> TARGET_PAGE_BITS) / BITS_PER_LONG;
+        bitmap_move(dst, src, above_4g_mem >> TARGET_PAGE_BITS);
+
+        pos = (above_4g_mem + below_4g_mem) >> TARGET_PAGE_BITS;
+        len = (_4G - below_4g_mem) >> TARGET_PAGE_BITS;
+        bitmap_clear(bmap, pos, len);
+    }
+
+    return bmap;
+}

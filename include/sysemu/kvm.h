@@ -230,6 +230,24 @@ int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type);
 void kvm_remove_all_breakpoints(CPUState *cpu);
 int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap);
+
+/**
+ * tighten_guest_free_page_bmap - process the free page bitmap from
+ *         guest to get a tight page bitmap which does not contain
+ *         holes.
+ * @bmap: undressed guest free page bitmap
+ * Returns: a tight guest free page bitmap, the n th bit in the
+ *         returned bitmap and the n th bit in the migration bitmap
+ *         should correspond to the same guest RAM page.
+ */
+unsigned long *tighten_guest_free_page_bmap(unsigned long *bmap);
+
+/**
+ * get_guest_max_pfn - get the max pfn of guest
+ * Returns: the max pfn of guest
+ */
+unsigned long get_guest_max_pfn(void);
+
 #ifndef _WIN32
 int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset);
 #endif
