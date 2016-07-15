@@ -86,24 +86,52 @@ static void test_parse_range(void)
     error_free_or_abort(&err);
 }
 
-static void test_parse_path(void)
+static void test_parse_path(gconstpointer data)
 {
+    gchar const *tmp_path = data;
+    gchar *plain_path = g_build_filename(tmp_path, "qemu.log", NULL);
+    gchar *pid_infix_path = g_build_filename(tmp_path, "qemu-%d.log", NULL);
+    gchar *pid_suffix_path = g_build_filename(tmp_path, "qemu.log.%d", NULL);
+    gchar *double_pid_path = g_build_filename(tmp_path, "qemu-%d%d.log", NULL);
     Error *err = NULL;
 
-    qemu_set_log_filename("/tmp/qemu.log", &error_abort);
-    qemu_set_log_filename("/tmp/qemu-%d.log", &error_abort);
-    qemu_set_log_filename("/tmp/qemu.log.%d", &error_abort);
+    qemu_set_log_filename(plain_path, &error_abort);
+    qemu_set_log_filename(pid_infix_path, &error_abort);
+    qemu_set_log_filename(pid_suffix_path, &error_abort);
 
-    qemu_set_log_filename("/tmp/qemu-%d%d.log", &err);
+    qemu_set_log_filename(double_pid_path, &err);
     error_free_or_abort(&err);
+
+    g_free(double_pid_path);
+    g_free(pid_suffix_path);
+    g_free(pid_infix_path);
+    g_free(plain_path);
+}
+
+static void rmtree(gchar const *root)
+{
+    /* There should really be a g_rmtree(). Implementing it ourselves
+     * isn't really worth it just for a test, so let's just use rm. */
+    gchar const *rm_args[] = { "rm", "-rf", root, NULL };
+    g_spawn_sync(NULL, (gchar **)rm_args, NULL,
+                 G_SPAWN_SEARCH_PATH, NULL, NULL,
+                 NULL, NULL, NULL, NULL);
 }
 
 int main(int argc, char **argv)
 {
+    gchar *tmp_path = g_dir_make_tmp("qemu-test-logging.XXXXXX", NULL);
+    int rc;
+
     g_test_init(&argc, &argv, NULL);
+    g_assert_nonnull(tmp_path);
 
     g_test_add_func("/logging/parse_range", test_parse_range);
-    g_test_add_func("/logging/parse_path", test_parse_path);
+    g_test_add_data_func("/logging/parse_path", tmp_path, test_parse_path);
 
-    return g_test_run();
+    rc = g_test_run();
+
+    rmtree(tmp_path);
+    g_free(tmp_path);
+    return rc;
 }
