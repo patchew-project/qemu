@@ -35,6 +35,7 @@
 #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
 #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
 #define VIRTIO_BALLOON_F_PAGE_BITMAP	3 /* Send page info with bitmap */
+#define VIRTIO_BALLOON_F_MISC_VQ	4 /* Misc info virtqueue */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
@@ -99,6 +100,27 @@ struct balloon_bmap_hdr {
 	__virtio64 start_pfn;
 	/* The length of the bitmap, in bytes */
 	__virtio64 bmap_len;
+};
+
+enum balloon_req_id {
+	/* Get free pages information */
+	BALLOON_GET_FREE_PAGES,
+};
+
+enum balloon_flag {
+	/* Have more data for a request */
+	BALLOON_FLAG_CONT,
+	/* No more data for a request */
+	BALLOON_FLAG_DONE,
+};
+
+struct balloon_req_hdr {
+	/* Used to distinguish different request */
+	__virtio16 cmd;
+	/* Reserved */
+	__virtio16 reserved[3];
+	/* Request parameter */
+	__virtio64 param;
 };
 
 #endif /* _LINUX_VIRTIO_BALLOON_H */
