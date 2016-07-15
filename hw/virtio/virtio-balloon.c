@@ -52,6 +52,77 @@ static const char *balloon_stat_names[] = {
    [VIRTIO_BALLOON_S_NR] = NULL
 };
 
+static void do_balloon_bulk_pages(ram_addr_t base_pfn, uint16_t page_shift,
+                                  unsigned long len, bool deflate)
+{
+    ram_addr_t size, processed, chunk, base;
+    MemoryRegionSection section = {.mr = NULL};
+
+    size = len << page_shift;
+    base = base_pfn << page_shift;
+
+    for (processed = 0; processed < size; processed += chunk) {
+        chunk = size - processed;
+        while (chunk >= TARGET_PAGE_SIZE) {
+            section = memory_region_find(get_system_memory(),
+                                         base + processed, chunk);
+            if (!section.mr) {
+                chunk = QEMU_ALIGN_DOWN(chunk / 2, TARGET_PAGE_SIZE);
+            } else {
+                break;
+            }
+        }
+
+        if (section.mr &&
+            (int128_nz(section.size) && memory_region_is_ram(section.mr))) {
+            void *addr = section.offset_within_region +
+                   memory_region_get_ram_ptr(section.mr);
+            qemu_madvise(addr, chunk,
+                         deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Invalid guest RAM range [0x%lx, 0x%lx]\n",
+                          base + processed, chunk);
+            chunk = TARGET_PAGE_SIZE;
+        }
+    }
+}
+
+static void balloon_bulk_pages(struct balloon_bmap_hdr *hdr,
+                               unsigned long *bitmap, bool deflate)
+{
+    ram_addr_t base_pfn = hdr->start_pfn;
+    uint16_t page_shift = hdr->page_shift;
+    unsigned long len = hdr->bmap_len;
+    unsigned long current = 0, end = len * BITS_PER_BYTE;
+
+    if (!qemu_balloon_is_inhibited() && (!kvm_enabled() ||
+                                         kvm_has_sync_mmu())) {
+        while (current < end) {
+            unsigned long one = find_next_bit(bitmap, end, current);
+
+            if (one < end) {
+                unsigned long pages, zero;
+
+                zero = find_next_zero_bit(bitmap, end, one + 1);
+                if (zero >= end) {
+                    pages = end - one;
+                } else {
+                    pages = zero - one;
+                }
+
+                if (pages) {
+                    do_balloon_bulk_pages(base_pfn + one, page_shift,
+                                          pages, deflate);
+                }
+                current = one + pages;
+            } else {
+                current = one;
+            }
+        }
+    }
+}
+
 /*
  * reset_stats - Mark all items in the stats array as unset
  *
@@ -70,6 +141,13 @@ static bool balloon_stats_supported(const VirtIOBalloon *s)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_STATS_VQ);
+}
+
+static bool balloon_page_bitmap_supported(const VirtIOBalloon *s)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_BITMAP);
 }
 
 static bool balloon_stats_enabled(const VirtIOBalloon *s)
@@ -213,32 +291,54 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     for (;;) {
         size_t offset = 0;
         uint32_t pfn;
+
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
             return;
         }
 
-        while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
-            ram_addr_t pa;
-            ram_addr_t addr;
-            int p = virtio_ldl_p(vdev, &pfn);
+        if (balloon_page_bitmap_supported(s)) {
+            struct balloon_bmap_hdr hdr;
+            uint64_t bmap_len;
 
-            pa = (ram_addr_t) p << VIRTIO_BALLOON_PFN_SHIFT;
-            offset += 4;
+            iov_to_buf(elem->out_sg, elem->out_num, offset, &hdr, sizeof(hdr));
+            offset += sizeof(hdr);
 
-            /* FIXME: remove get_system_memory(), but how? */
-            section = memory_region_find(get_system_memory(), pa, 1);
-            if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
-                continue;
+            bmap_len = hdr.bmap_len;
+            if (bmap_len > 0) {
+                unsigned long *bitmap = bitmap_new(bmap_len * BITS_PER_BYTE);
+                iov_to_buf(elem->out_sg, elem->out_num, offset,
+                           bitmap, bmap_len);
 
-            trace_virtio_balloon_handle_output(memory_region_name(section.mr),
-                                               pa);
-            /* Using memory_region_get_ram_ptr is bending the rules a bit, but
-               should be OK because we only want a single page.  */
-            addr = section.offset_within_region;
-            balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
-                         !!(vq == s->dvq));
-            memory_region_unref(section.mr);
+                balloon_bulk_pages(&hdr, bitmap, !!(vq == s->dvq));
+                g_free(bitmap);
+            }
+        } else {
+            while (iov_to_buf(elem->out_sg, elem->out_num, offset,
+                              &pfn, 4) == 4) {
+                ram_addr_t pa;
+                ram_addr_t addr;
+                int p = virtio_ldl_p(vdev, &pfn);
+
+                pa = (ram_addr_t) p << VIRTIO_BALLOON_PFN_SHIFT;
+                offset += 4;
+
+                /* FIXME: remove get_system_memory(), but how? */
+                section = memory_region_find(get_system_memory(), pa, 1);
+                if (!int128_nz(section.size) ||
+                    !memory_region_is_ram(section.mr)) {
+                    continue;
+                }
+
+                trace_virtio_balloon_handle_output(memory_region_name(
+                                                            section.mr), pa);
+                /* Using memory_region_get_ram_ptr is bending the rules a bit,
+                 * but should be OK because we only want a single page.  */
+                addr = section.offset_within_region;
+                balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
+                             !!(vq == s->dvq));
+                memory_region_unref(section.mr);
+            }
         }
 
         virtqueue_push(vq, elem, offset);
@@ -494,6 +594,8 @@ static void virtio_balloon_instance_init(Object *obj)
 static Property virtio_balloon_properties[] = {
     DEFINE_PROP_BIT("deflate-on-oom", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
+    DEFINE_PROP_BIT("page-bitmap", VirtIOBalloon, host_features,
+                    VIRTIO_BALLOON_F_PAGE_BITMAP, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
