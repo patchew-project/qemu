@@ -43,6 +43,8 @@
 #include "trace.h"
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
+#include "sysemu/balloon.h"
+#include "sysemu/kvm.h"
 
 #ifdef DEBUG_MIGRATION_RAM
 #define DPRINTF(fmt, ...) \
@@ -228,6 +230,8 @@ static QemuMutex migration_bitmap_mutex;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 static bool ram_bulk_stage;
+static bool ignore_freepage_rsp;
+static uint64_t free_page_req_id;
 
 /* used by the search for pages to send */
 struct PageSearchStatus {
@@ -244,6 +248,7 @@ static struct BitmapRcu {
     struct rcu_head rcu;
     /* Main migration bitmap */
     unsigned long *bmap;
+    unsigned long *free_page_bmap;
     /* bitmap of pages that haven't been sent even once
      * only maintained and used in postcopy at the moment
      * where it's used to send the dirtymap at the start
@@ -636,6 +641,7 @@ static void migration_bitmap_sync(void)
     rcu_read_unlock();
     qemu_mutex_unlock(&migration_bitmap_mutex);
 
+    ignore_freepage_rsp = true;
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
     num_dirty_pages_period += migration_dirty_pages - num_dirty_pages_init;
@@ -1409,6 +1415,7 @@ static void migration_bitmap_free(struct BitmapRcu *bmap)
 {
     g_free(bmap->bmap);
     g_free(bmap->unsentmap);
+    g_free(bmap->free_page_bmap);
     g_free(bmap);
 }
 
@@ -1476,6 +1483,77 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
         qemu_mutex_unlock(&migration_bitmap_mutex);
         migration_dirty_pages += new - old;
         call_rcu(old_bitmap, migration_bitmap_free, rcu);
+    }
+}
+
+static void filter_out_guest_free_page(unsigned long *free_page_bmap,
+                                       long nbits)
+{
+    long i, page_count = 0, len;
+    unsigned long *bitmap;
+
+    tighten_guest_free_page_bmap(free_page_bmap);
+    qemu_mutex_lock(&migration_bitmap_mutex);
+    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    slow_bitmap_complement(bitmap, free_page_bmap, nbits);
+
+    len = (last_ram_offset() >> TARGET_PAGE_BITS) / BITS_PER_LONG;
+    for (i = 0; i < len; i++) {
+        page_count += hweight_long(bitmap[i]);
+    }
+
+    migration_dirty_pages = page_count;
+    qemu_mutex_unlock(&migration_bitmap_mutex);
+}
+
+static void ram_request_free_page(unsigned long *bmap, unsigned long max_pfn)
+{
+    BalloonReqStatus status;
+
+    free_page_req_id++;
+    status = balloon_get_free_pages(bmap, max_pfn / BITS_PER_BYTE,
+                                    free_page_req_id);
+    if (status == REQ_START) {
+        ignore_freepage_rsp = false;
+    }
+}
+
+static void ram_handle_free_page(void)
+{
+    unsigned long nbits, req_id = 0;
+    RAMBlock *pc_ram_block;
+    BalloonReqStatus status;
+
+    status = balloon_free_page_ready(&req_id);
+    switch (status) {
+    case REQ_DONE:
+        if (req_id != free_page_req_id) {
+            return;
+        }
+        rcu_read_lock();
+        pc_ram_block = QLIST_FIRST_RCU(&ram_list.blocks);
+        nbits = pc_ram_block->used_length >> TARGET_PAGE_BITS;
+        filter_out_guest_free_page(migration_bitmap_rcu->free_page_bmap, nbits);
+        rcu_read_unlock();
+
+        qemu_mutex_lock_iothread();
+        migration_bitmap_sync();
+        qemu_mutex_unlock_iothread();
+        /*
+         * bulk stage assumes in (migration_bitmap_find_and_reset_dirty) that
+         * every page is dirty, that's no longer ture at this point.
+         */
+        ram_bulk_stage = false;
+        last_seen_block = NULL;
+        last_sent_block = NULL;
+        last_offset = 0;
+        break;
+    case REQ_ERROR:
+        ignore_freepage_rsp = true;
+        error_report("failed to get free page");
+        break;
+    default:
+        break;
     }
 }
 
@@ -1944,6 +2022,11 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     qemu_mutex_unlock_ramlist();
     qemu_mutex_unlock_iothread();
 
+    if (balloon_free_pages_support() && !migrate_postcopy_ram()) {
+        unsigned long max_pfn = get_guest_max_pfn();
+        migration_bitmap_rcu->free_page_bmap = bitmap_new(max_pfn);
+        ram_request_free_page(migration_bitmap_rcu->free_page_bmap, max_pfn);
+    }
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
@@ -1984,6 +2067,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     while ((ret = qemu_file_rate_limit(f)) == 0) {
         int pages;
 
+        if (!ignore_freepage_rsp) {
+            ram_handle_free_page();
+        }
         pages = ram_find_and_save_block(f, false, &bytes_transferred);
         /* no more pages to sent */
         if (pages == 0) {
