@@ -34,6 +34,7 @@
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
 #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+#define VIRTIO_BALLOON_F_PAGE_BITMAP	3 /* Send page info with bitmap */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
@@ -81,5 +82,23 @@ struct virtio_balloon_stat {
 	__virtio16 tag;
 	__virtio64 val;
 } QEMU_PACKED;
+
+/* Page bitmap header structure */
+struct balloon_bmap_hdr {
+	/* Used to distinguish different request */
+	__virtio16 cmd;
+	/* Shift width of page in the bitmap */
+	__virtio16 page_shift;
+	/* flag used to identify different status */
+	__virtio16 flag;
+	/* Reserved */
+	__virtio16 reserved;
+	/* ID of the request */
+	__virtio64 req_id;
+	/* The pfn of 0 bit in the bitmap */
+	__virtio64 start_pfn;
+	/* The length of the bitmap, in bytes */
+	__virtio64 bmap_len;
+};
 
 #endif /* _LINUX_VIRTIO_BALLOON_H */
