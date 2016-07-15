@@ -31,6 +31,7 @@
 #include "hw/virtio/virtio-access.h"
 
 #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
+#define BALLOON_VERSION 2
 
 static void balloon_page(void *addr, int deflate)
 {
@@ -610,15 +611,33 @@ static void virtio_balloon_save(QEMUFile *f, void *opaque)
 static void virtio_balloon_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    uint16_t elem_num = 0;
 
     qemu_put_be32(f, s->num_pages);
     qemu_put_be32(f, s->actual);
+    if (s->stats_vq_elem != NULL) {
+        elem_num = 1;
+    }
+    qemu_put_be16(f, elem_num);
+    if (elem_num) {
+        qemu_put_virtqueue_element(f, s->stats_vq_elem);
+    }
+
+    elem_num = 0;
+    if (s->misc_vq_elem != NULL) {
+        elem_num = 1;
+    }
+    qemu_put_be16(f, elem_num);
+    if (elem_num) {
+        qemu_put_virtqueue_element(f, s->misc_vq_elem);
+    }
 }
 
 static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
 {
-    if (version_id != 1)
+    if (version_id < 1 || version_id > BALLOON_VERSION) {
         return -EINVAL;
+    }
 
     return virtio_load(VIRTIO_DEVICE(opaque), f, version_id);
 }
@@ -627,9 +646,22 @@ static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
                                       int version_id)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    uint16_t elem_num = 0;
 
     s->num_pages = qemu_get_be32(f);
     s->actual = qemu_get_be32(f);
+    if (version_id == BALLOON_VERSION) {
+        elem_num = qemu_get_be16(f);
+        if (elem_num == 1) {
+            s->stats_vq_elem =
+                    qemu_get_virtqueue_element(f, sizeof(VirtQueueElement));
+        }
+        elem_num = qemu_get_be16(f);
+        if (elem_num == 1) {
+            s->misc_vq_elem =
+                    qemu_get_virtqueue_element(f, sizeof(VirtQueueElement));
+        }
+    }
 
     if (balloon_stats_enabled(s)) {
         balloon_stats_change_timer(s, s->stats_poll_interval);
@@ -665,7 +697,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     reset_stats(s);
     s->req_status = REQ_INIT;
 
-    register_savevm(dev, "virtio-balloon", -1, 1,
+    register_savevm(dev, "virtio-balloon", -1, BALLOON_VERSION,
                     virtio_balloon_save, virtio_balloon_load, s);
 }
 
