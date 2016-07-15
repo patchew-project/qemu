@@ -367,10 +367,15 @@ static int sys_getcwd1(char *buf, size_t size)
 static int sys_utimensat(int dirfd, const char *pathname,
     const struct timespec times[2], int flags)
 {
-    if (pathname == NULL)
+    if (pathname == NULL) {
+        if (dirfd == AT_FDCWD) {
+            errno = EFAULT;
+            return -1;
+        }
         return futimens(dirfd, times);
-    else
+    } else {
         return utimensat(dirfd, pathname, times, flags);
+    }
 }
 #elif defined(__NR_utimensat)
 #define __NR_sys_utimensat __NR_utimensat
