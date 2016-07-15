@@ -134,8 +134,7 @@ static int parse_volume_options(GlusterConf *gconf, char *path)
  *
  * 'transport' specifies the transport type used to connect to gluster
  * management daemon (glusterd). Valid transport types are
- * tcp, unix and rdma. If a transport type isn't specified, then tcp
- * type is assumed.
+ * tcp, unix. If a transport type isn't specified, then tcp type is assumed.
  *
  * 'host' specifies the host where the volume file specification for
  * the given volume resides. This can be either hostname, ipv4 address
@@ -162,7 +161,6 @@ static int parse_volume_options(GlusterConf *gconf, char *path)
  * file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
  * file=gluster+tcp://host.domain.com:24007/testvol/dir/a.img
  * file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
- * file=gluster+rdma://1.2.3.4:24007/testvol/a.img
  */
 static int qemu_gluster_parseuri(GlusterConf *gconf, const char *filename)
 {
@@ -184,8 +182,6 @@ static int qemu_gluster_parseuri(GlusterConf *gconf, const char *filename)
     } else if (!strcmp(uri->scheme, "gluster+unix")) {
         gconf->transport = g_strdup("unix");
         is_unix = true;
-    } else if (!strcmp(uri->scheme, "gluster+rdma")) {
-        gconf->transport = g_strdup("rdma");
     } else {
         ret = -EINVAL;
         goto out;
@@ -1048,37 +1044,8 @@ static BlockDriver bdrv_gluster_unix = {
     .create_opts                  = &qemu_gluster_create_opts,
 };
 
-static BlockDriver bdrv_gluster_rdma = {
-    .format_name                  = "gluster",
-    .protocol_name                = "gluster+rdma",
-    .instance_size                = sizeof(BDRVGlusterState),
-    .bdrv_needs_filename          = true,
-    .bdrv_file_open               = qemu_gluster_open,
-    .bdrv_reopen_prepare          = qemu_gluster_reopen_prepare,
-    .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
-    .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
-    .bdrv_close                   = qemu_gluster_close,
-    .bdrv_create                  = qemu_gluster_create,
-    .bdrv_getlength               = qemu_gluster_getlength,
-    .bdrv_get_allocated_file_size = qemu_gluster_allocated_file_size,
-    .bdrv_truncate                = qemu_gluster_truncate,
-    .bdrv_co_readv                = qemu_gluster_co_readv,
-    .bdrv_co_writev               = qemu_gluster_co_writev,
-    .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
-    .bdrv_has_zero_init           = qemu_gluster_has_zero_init,
-#ifdef CONFIG_GLUSTERFS_DISCARD
-    .bdrv_co_discard              = qemu_gluster_co_discard,
-#endif
-#ifdef CONFIG_GLUSTERFS_ZEROFILL
-    .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
-#endif
-    .bdrv_co_get_block_status     = qemu_gluster_co_get_block_status,
-    .create_opts                  = &qemu_gluster_create_opts,
-};
-
 static void bdrv_gluster_init(void)
 {
-    bdrv_register(&bdrv_gluster_rdma);
     bdrv_register(&bdrv_gluster_unix);
     bdrv_register(&bdrv_gluster_tcp);
     bdrv_register(&bdrv_gluster);
