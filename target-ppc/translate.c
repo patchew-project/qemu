@@ -856,6 +856,32 @@ static void gen_cmprb(DisasContext *ctx)
     tcg_temp_free(src2hi);
 }
 
+/* cmpeqb */
+static void gen_cmpeqb(DisasContext *ctx)
+{
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *l2 = gen_new_label();
+    TCGv src1 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_local_new();
+    TCGv arg1 = cpu_gpr[rB(ctx->opcode)];
+    int i;
+
+    tcg_gen_andi_tl(src1, cpu_gpr[rA(ctx->opcode)], 0xFF);
+    for (i = 0; i < 64; i += 8) {
+        tcg_gen_shri_tl(t0, arg1, i);
+        tcg_gen_andi_tl(t0, t0, 0xFF);
+        tcg_gen_brcond_tl(TCG_COND_EQ, src1, t0, l1);
+    }
+    tcg_gen_movi_i32(cpu_crf[crfD(ctx->opcode)], 0);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    /* Set match bit, i.e. CRF_GT */
+    tcg_gen_movi_i32(cpu_crf[crfD(ctx->opcode)], 1 << CRF_GT);
+    gen_set_label(l2);
+    tcg_temp_free(src1);
+    tcg_temp_free(t0);
+}
+
 /* isel (PowerPC 2.03 specification) */
 static void gen_isel(DisasContext *ctx)
 {
@@ -10040,6 +10066,7 @@ GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
+GEN_HANDLER_E(cmpeqb, 0x1F, 0x00, 0x07, 0x00600000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
