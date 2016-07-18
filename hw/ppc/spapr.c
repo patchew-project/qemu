@@ -2371,7 +2371,7 @@ static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
     int spapr_max_cores = max_cpus / smp_threads;
     int smt = kvmppc_smt_threads();
 
-    for (i = 0; i < spapr_max_cores; i++) {
+    for (i = spapr_max_cores - 1; i >= 0; i--) {
         HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
         HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
         CpuInstanceProperties *cpu_props = g_new0(typeof(*cpu_props), 1);
