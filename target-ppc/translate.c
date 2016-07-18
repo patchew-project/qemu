@@ -1224,6 +1224,47 @@ static void glue(gen_, name)(DisasContext *ctx)                             \
 GEN_INT_ARITH_MODW(modsw, 0x18, 1);
 GEN_INT_ARITH_MODW(moduw, 0x08, 0);
 
+#if defined(TARGET_PPC64)
+static inline void gen_op_arith_modd(DisasContext *ctx, TCGv ret, TCGv arg1,
+                                     TCGv arg2, int sign)
+{
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *l2 = gen_new_label();
+    TCGv_i64 t0 = tcg_temp_local_new_i64();
+
+    tcg_gen_brcondi_i64(TCG_COND_EQ, arg2, 0, l1);
+    if (sign) {
+        TCGLabel *l3 = gen_new_label();
+        tcg_gen_brcondi_i64(TCG_COND_NE, arg2, -1, l3);
+        tcg_gen_brcondi_i64(TCG_COND_EQ, arg1, INT64_MIN, l1);
+        gen_set_label(l3);
+        tcg_gen_rem_i64(ret, arg1, arg2);
+    } else {
+        tcg_gen_remu_i64(ret, arg1, arg2);
+    }
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    if (sign) {
+        tcg_gen_sari_i64(ret, arg1, 63);
+    } else {
+        tcg_gen_movi_i64(ret, 0);
+    }
+    gen_set_label(l2);
+    tcg_temp_free_i64(t0);
+}
+
+#define GEN_INT_ARITH_MODD(name, opc3, sign)                            \
+static void glue(gen_, name)(DisasContext *ctx)                           \
+{                                                                         \
+  gen_op_arith_modd(ctx, cpu_gpr[rD(ctx->opcode)],                        \
+                    cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],   \
+                    sign);                                                \
+}
+
+GEN_INT_ARITH_MODD(modsd, 0x18, 1);
+GEN_INT_ARITH_MODD(modud, 0x08, 0);
+#endif
+
 /* mulhw  mulhw. */
 static void gen_mulhw(DisasContext *ctx)
 {
@@ -10306,6 +10347,8 @@ GEN_HANDLER_E(divdeu, 0x1F, 0x09, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeuo, 0x1F, 0x09, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divde, 0x1F, 0x09, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeo, 0x1F, 0x09, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(modsd, 0x1F, 0x09, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(modud, 0x1F, 0x09, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 
 #undef GEN_INT_ARITH_MUL_HELPER
 #define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
