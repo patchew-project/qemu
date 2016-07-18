@@ -4879,6 +4879,35 @@ static void gen_mtspr(DisasContext *ctx)
     }
 }
 
+#if defined(TARGET_PPC64)
+/* setb */
+static void gen_setb(DisasContext *ctx)
+{
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *l2 = gen_new_label();
+    TCGLabel *out = gen_new_label();
+    TCGv_i32 t0 = tcg_temp_local_new_i32();
+    TCGv_i64 ret = tcg_temp_local_new_i64();
+    int crf = crfS(ctx->opcode);
+
+    tcg_gen_andi_i32(t0, cpu_crf[crf], 0x3);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
+    tcg_gen_andi_i32(t0, cpu_crf[crf], 0x1);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 1, l2);
+    tcg_gen_movi_i64(cpu_gpr[rD(ctx->opcode)], 1);
+    tcg_gen_br(out);
+    gen_set_label(l2);
+    tcg_gen_movi_i64(cpu_gpr[rD(ctx->opcode)], -1);
+    tcg_gen_br(out);
+    gen_set_label(l1);
+    tcg_gen_movi_i64(cpu_gpr[rD(ctx->opcode)], 0);
+    gen_set_label(out);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i64(ret);
+}
+#endif
+
 /***                         Cache management                              ***/
 
 /* dcbf */
@@ -10195,6 +10224,7 @@ GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB),
 GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B),
+GEN_HANDLER_E(setb, 0x1F, 0x00, 0x04, 0x0003F801, PPC_NONE, PPC2_ISA300),
 #endif
 GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001EF801, PPC_MISC),
 GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000000, PPC_MISC),
