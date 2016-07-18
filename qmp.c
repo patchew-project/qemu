@@ -17,6 +17,7 @@
 #include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "monitor/monitor.h"
+#include "monitor/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"
@@ -29,6 +30,7 @@
 #include "sysemu/block-backend.h"
 #include "qom/qom-qobject.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"
@@ -133,6 +135,65 @@ void qmp_cpu(int64_t index, Error **errp)
     /* Just do nothing */
 }
 
+static void qmp_compat_cpu_add(int64_t id, Error **errp)
+{
+    Error *err = NULL;
+    MachineClass *mc = MACHINE_GET_CLASS(current_machine);
+    HotpluggableCPUList *l = mc->query_hotpluggable_cpus(current_machine);
+    HotpluggableCPUList *list_item;
+    HotpluggableCPU *cpu_item;
+    QDict *opts = NULL;
+    int64_t i;
+
+    if (!l) {
+        goto out;
+    }
+
+    for (list_item = l, i = 0;
+         list_item;
+         list_item = list_item->next, i++) {
+        if (i == id) {
+            break;
+        }
+    }
+
+    if (!list_item) {
+        error_setg(errp, "CPU id must be in the range 0..%" PRId64,
+                   i - 1);
+        goto out;
+    }
+
+    cpu_item = list_item->value;
+
+    opts = qdict_new();
+    qdict_put(opts, "driver", qstring_from_str(cpu_item->type));
+    if (cpu_item->props->has_node_id) {
+        qdict_put(opts, "node-id", qint_from_int(cpu_item->props->node_id));
+    }
+    if (cpu_item->props->has_socket_id) {
+        qdict_put(opts, "socket-id", qint_from_int(cpu_item->props->socket_id));
+    }
+    if (cpu_item->props->has_core_id) {
+        qdict_put(opts, "core-id", qint_from_int(cpu_item->props->core_id));
+    }
+    if (cpu_item->props->has_thread_id) {
+        qdict_put(opts, "thread-id", qint_from_int(cpu_item->props->thread_id));
+    }
+
+    qmp_device_add(opts, NULL, &err);
+    if (err) {
+        error_propagate(errp, err);
+    }
+
+out:
+    if (opts) {
+        QDECREF(opts);
+    }
+    if (l) {
+        qapi_free_HotpluggableCPUList(l);
+    }
+}
+
 void qmp_cpu_add(int64_t id, Error **errp)
 {
     MachineClass *mc;
@@ -140,6 +201,8 @@ void qmp_cpu_add(int64_t id, Error **errp)
     mc = MACHINE_GET_CLASS(current_machine);
     if (mc->hot_add_cpu) {
         mc->hot_add_cpu(id, errp);
+    } else if (mc->query_hotpluggable_cpus) {
+        qmp_compat_cpu_add(id, errp);
     } else {
         error_setg(errp, "Not supported");
     }
