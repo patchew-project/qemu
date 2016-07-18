@@ -123,6 +123,14 @@ to do so, because it tells readers which variables are shared with
 other threads, and which are local to the current thread or protected
 by other, more mundane means.
 
+atomic_read() and atomic_set() only support accesses as large as a
+pointer.  If you need to access variables larger than a pointer you
+can use volatile_read() and volatile_set(), but be careful: these always
+use volatile accesses, and 64-bit volatile accesses are not atomic on
+several 32-bit processors such as ARMv7.  In other words, volatile_read
+and volatile_set only provide "safe register" semantics when applied to
+64-bit variables.
+
 Memory barriers control the order of references to shared memory.
 They come in four kinds:
 
@@ -335,10 +343,15 @@ and memory barriers, and the equivalents in QEMU:
   Both semantics prevent the compiler from doing certain transformations;
   the difference is that atomic accesses are guaranteed to be atomic,
   while volatile accesses aren't. Thus, in the volatile case we just cross
-  our fingers hoping that the compiler will generate atomic accesses,
-  since we assume the variables passed are machine-word sized and
-  properly aligned.
+  our fingers hoping that the compiler and processor will provide atomic
+  accesses, since we assume the variables passed are machine-word sized
+  and properly aligned.
+
   No barriers are implied by atomic_read/set in either Linux or QEMU.
+
+- volatile_read and volatile_set are equivalent to ACCESS_ONCE in Linux.
+  No barriers are implied by volatile_read/set in QEMU, nor by
+  ACCESS_ONCE in Linux.
 
 - atomic read-modify-write operations in Linux are of three kinds:
 

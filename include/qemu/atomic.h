@@ -18,6 +18,12 @@
 /* Compiler barrier */
 #define barrier()   ({ asm volatile("" ::: "memory"); (void)0; })
 
+/* These will only be atomic if the processor does the fetch or store
+ * in a single issue memory operation
+ */
+#define volatile_read(ptr)       (*(__typeof__(*ptr) volatile*) (ptr))
+#define volatile_set(ptr, i)     ((*(__typeof__(*ptr) volatile*) (ptr)) = (i))
+
 #ifdef __ATOMIC_RELAXED
 /* For C11 atomic ops */
 
@@ -260,6 +266,17 @@
  */
 #define atomic_read(ptr)       (*(__typeof__(*ptr) volatile*) (ptr))
 #define atomic_set(ptr, i)     ((*(__typeof__(*ptr) volatile*) (ptr)) = (i))
+#define atomic_read(ptr)                              \
+    ({                                                \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
+    volatile_read(ptr);                               \
+    })
+
+#define atomic_set(ptr, i)  do {                      \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
+    volatile_set(ptr, i);                             \
+} while(0)
+
 
 /**
  * atomic_rcu_read - reads a RCU-protected pointer to a local variable
