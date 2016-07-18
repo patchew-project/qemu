@@ -7785,6 +7785,36 @@ static void gen_maddld(DisasContext *ctx)
     tcg_temp_free_i64(zero);
     tcg_temp_free_i64(neg);
 }
+
+/* maddhd maddhdu */
+static void gen_maddhd_maddhdu(DisasContext *ctx)
+{
+    TCGv_i64 lo = tcg_temp_new_i64();
+    TCGv_i64 hi = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 neg = tcg_const_i64(-1);
+
+    if (Rc(ctx->opcode)) {
+        tcg_gen_mulu2_i64(lo, hi, cpu_gpr[rA(ctx->opcode)],
+                          cpu_gpr[rB(ctx->opcode)]);
+        tcg_gen_mov_i64(t2, zero);
+    } else {
+        tcg_gen_muls2_i64(lo, hi, cpu_gpr[rA(ctx->opcode)],
+                          cpu_gpr[rB(ctx->opcode)]);
+        tcg_gen_movi_i64(t2, -1);
+        tcg_gen_movcond_i64(TCG_COND_GE, t2, cpu_gpr[rC(ctx->opcode)], zero, zero, neg);
+    }
+    tcg_gen_mov_i64(t1, zero);
+    tcg_gen_add2_i64(t1, cpu_gpr[rD(ctx->opcode)], lo, hi, cpu_gpr[rC(ctx->opcode)], t2);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(hi);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(neg);
+}
 #endif /* defined(TARGET_PPC64) */
 
 GEN_VXFORM_NOA(vclzb, 1, 28)
@@ -10401,6 +10431,8 @@ GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC),
 GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC),
 #if defined(TARGET_PPC64)
+GEN_HANDLER_E(maddhd_maddhdu, 0x04, 0x18, 0xFF, 0x00000000, PPC_NONE,
+              PPC2_ISA300),
 GEN_HANDLER_E(maddld, 0x04, 0x19, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
 #endif
 GEN_HANDLER2(evsel0, "evsel", 0x04, 0x1c, 0x09, 0x00000000, PPC_SPE),
