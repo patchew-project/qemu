@@ -40,6 +40,7 @@
 /* Include definitions for instructions classes and implementations flags */
 //#define PPC_DEBUG_DISAS
 //#define DO_PPC_STATISTICS
+//#define PPC_DUMP_CPU
 
 #ifdef PPC_DEBUG_DISAS
 #  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
@@ -367,12 +368,15 @@ GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, PPC_NONE)
 #define GEN_HANDLER2_E(name, onam, opc1, opc2, opc3, inval, type, type2)      \
 GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, type2)
 
+#define GEN_HANDLER_E_2(name, opc1, opc2, opc3, opc4, inval, type, type2)     \
+GEN_OPCODE3(name, opc1, opc2, opc3, opc4, inval, type, type2)
+
 typedef struct opcode_t {
-    unsigned char opc1, opc2, opc3;
+    unsigned char opc1, opc2, opc3, opc4;
 #if HOST_LONG_BITS == 64 /* Explicitly align to 64 bits */
-    unsigned char pad[5];
+    unsigned char pad[4];
 #else
-    unsigned char pad[1];
+    unsigned char pad[4]; /* 4-byte pad to maintain pad in opcode table */
 #endif
     opc_handler_t handler;
     const char *oname;
@@ -452,6 +456,8 @@ EXTRACT_HELPER(opc1, 26, 6);
 EXTRACT_HELPER(opc2, 1, 5);
 /* Opcode part 3 */
 EXTRACT_HELPER(opc3, 6, 5);
+/* Opcode part 4 */
+EXTRACT_HELPER(opc4, 16, 5);
 /* Update Cr0 flags */
 EXTRACT_HELPER(Rc, 0, 1);
 /* Update Cr6 flags (Altivec) */
@@ -589,6 +595,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
     .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
@@ -604,6 +611,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
     .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval1  = invl1,                                                     \
@@ -620,6 +628,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
     .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
@@ -630,12 +639,29 @@ EXTRACT_HELPER(SP, 19, 2);
     },                                                                        \
     .oname = onam,                                                            \
 }
+#define GEN_OPCODE3(name, op1, op2, op3, op4, invl, _typ, _typ2)              \
+{                                                                             \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .opc4 = op4,                                                              \
+    .pad  = { 0, },                                                           \
+    .handler = {                                                              \
+        .inval1  = invl,                                                      \
+        .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
+        .handler = &gen_##name,                                               \
+        .oname = stringify(name),                                             \
+    },                                                                        \
+    .oname = stringify(name),                                                 \
+}
 #else
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
     .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
@@ -650,6 +676,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
     .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval1  = invl1,                                                     \
@@ -665,6 +692,7 @@ EXTRACT_HELPER(SP, 19, 2);
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
     .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
     .pad  = { 0, },                                                           \
     .handler = {                                                              \
         .inval1  = invl,                                                      \
@@ -673,6 +701,21 @@ EXTRACT_HELPER(SP, 19, 2);
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = onam,                                                            \
+}
+#define GEN_OPCODE3(name, op1, op2, op3, op4, invl, _typ, _typ2)              \
+{                                                                             \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .opc4 = op4,                                                              \
+    .pad  = { 0, },                                                           \
+    .handler = {                                                              \
+        .inval1  = invl,                                                      \
+        .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
+        .handler = &gen_##name,                                               \
+    },                                                                        \
+    .oname = stringify(name),                                                 \
 }
 #endif
 
@@ -11946,9 +11989,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         } else {
             ctx.opcode = cpu_ldl_code(env, ctx.nip);
         }
-        LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
-                    ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
-                    opc3(ctx.opcode), ctx.le_mode ? "little" : "big");
+        LOG_DISAS("translate opcode %08x (%02x %02x %02x %02x) (%s)\n",
+                  ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
+                  opc3(ctx.opcode), opc4(ctx.opcode),
+                  ctx.le_mode ? "little" : "big");
         ctx.nip += 4;
         table = env->opcodes;
         handler = table[opc1(ctx.opcode)];
@@ -11958,14 +12002,19 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
             if (is_indirect_opcode(handler)) {
                 table = ind_table(handler);
                 handler = table[opc3(ctx.opcode)];
+                if (is_indirect_opcode(handler)) {
+                    table = ind_table(handler);
+                    handler = table[opc4(ctx.opcode)];
+                }
             }
         }
         /* Is opcode *REALLY* valid ? */
         if (unlikely(handler->handler == &gen_invalid)) {
             qemu_log_mask(LOG_GUEST_ERROR, "invalid/unsupported opcode: "
-                          "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
+                          "%02x - %02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
                           opc1(ctx.opcode), opc2(ctx.opcode),
-                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
+                          opc3(ctx.opcode), opc4(ctx.opcode),
+                          ctx.opcode, ctx.nip - 4, (int)msr_ir);
         } else {
             uint32_t inval;
 
@@ -11977,10 +12026,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
 
             if (unlikely((ctx.opcode & inval) != 0)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "invalid bits: %08x for opcode: "
-                              "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
+                              "%02x - %02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
                               ctx.opcode & inval, opc1(ctx.opcode),
                               opc2(ctx.opcode), opc3(ctx.opcode),
-                              ctx.opcode, ctx.nip - 4);
+                              opc4(ctx.opcode), ctx.opcode, ctx.nip - 4);
                 gen_inval_exception(ctxp, POWERPC_EXCP_INVAL_INVAL);
                 break;
             }
@@ -12006,9 +12055,9 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
             break;
         }
         if (tcg_check_temp_count()) {
-            fprintf(stderr, "Opcode %02x %02x %02x (%08x) leaked temporaries\n",
+            fprintf(stderr, "Opcode %02x %02x %02x %02x (%08x) leaked temporaries\n",
                     opc1(ctx.opcode), opc2(ctx.opcode), opc3(ctx.opcode),
-                    ctx.opcode);
+                    opc4(ctx.opcode), ctx.opcode);
             exit(1);
         }
     }
