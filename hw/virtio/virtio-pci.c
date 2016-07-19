@@ -1716,6 +1716,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
+    bool pcie_port = (pci_bus_is_express(pci_dev->bus) &&
+                      !pci_bus_is_root(pci_dev->bus));
 
     /*
      * virtio pci bar layout used by default.
@@ -1766,8 +1768,23 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     address_space_init(&proxy->modern_as, &proxy->modern_cfg, "virtio-pci-cfg-as");
 
-    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_dev->bus) &&
-        !pci_bus_is_root(pci_dev->bus)) {
+    if ((pcie_port && (proxy->disable_modern == ON_OFF_AUTO_AUTO))
+         || (proxy->disable_modern == ON_OFF_AUTO_OFF)) {
+        proxy->flags &= ~VIRTIO_PCI_FLAG_DISABLE_MODERN;
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    } else {
+        proxy->flags |= VIRTIO_PCI_FLAG_DISABLE_MODERN;
+        pci_dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
+    }
+
+    if ((pcie_port && (proxy->disable_legacy == ON_OFF_AUTO_AUTO))
+        || (proxy->disable_legacy == ON_OFF_AUTO_ON)) {
+        proxy->flags |= VIRTIO_PCI_FLAG_DISABLE_LEGACY;
+    } else {
+        proxy->flags &= ~VIRTIO_PCI_FLAG_DISABLE_LEGACY;
+    }
+
+    if (pcie_port && pci_is_express(pci_dev)) {
         int pos;
 
         pos = pcie_endpoint_cap_init(pci_dev, 0);
@@ -1821,10 +1838,10 @@ static void virtio_pci_reset(DeviceState *qdev)
 static Property virtio_pci_properties[] = {
     DEFINE_PROP_BIT("virtio-pci-bus-master-bug-migration", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION_BIT, false),
-    DEFINE_PROP_BIT("disable-legacy", VirtIOPCIProxy, flags,
-                    VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT, false),
-    DEFINE_PROP_BIT("disable-modern", VirtIOPCIProxy, flags,
-                    VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT, true),
+    DEFINE_PROP_ON_OFF_AUTO("disable-legacy", VirtIOPCIProxy, disable_legacy,
+                            ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("disable-modern", VirtIOPCIProxy, disable_modern,
+                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT("migrate-extra", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT, true),
     DEFINE_PROP_BIT("modern-pio-notify", VirtIOPCIProxy, flags,
@@ -1841,7 +1858,7 @@ static void virtio_pci_dc_realize(DeviceState *qdev, Error **errp)
     PCIDevice *pci_dev = &proxy->pci_dev;
 
     if (!(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE) &&
-        !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN)) {
+        !(proxy->disable_modern == ON_OFF_AUTO_ON)) {
         pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
     }
 

@@ -144,6 +144,8 @@ struct VirtIOPCIProxy {
     uint32_t modern_mem_bar;
     int config_cap;
     uint32_t flags;
+    OnOffAuto disable_modern;
+    OnOffAuto disable_legacy;
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t dfselect;
