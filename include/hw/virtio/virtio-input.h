@@ -104,5 +104,6 @@ void virtio_input_add_config(VirtIOInput *vinput,
                              virtio_input_config *config);
 void virtio_input_idstr_config(VirtIOInput *vinput,
                                uint8_t select, const char *string);
+void virtio_input_finalize(Object *obj);
 
 #endif /* QEMU_VIRTIO_INPUT_H */

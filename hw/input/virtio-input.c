@@ -285,6 +285,16 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
                     virtio_input_save, virtio_input_load, vinput);
 }
 
+void virtio_input_finalize(Object *obj)
+{
+    VirtIOInput *vinput = VIRTIO_INPUT(obj);
+    VirtIOInputConfig *cfg, *next;
+
+    QTAILQ_FOREACH_SAFE(cfg, &vinput->cfg_list, node, next) {
+        QTAILQ_REMOVE(&vinput->cfg_list, cfg, node);
+        g_free(cfg);
+    }
+}
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
