@@ -78,7 +78,8 @@ static void add_pc_test_cases(void)
     const QListEntry *p;
     QObject *qobj;
     QString *qstr;
-    const char *mname, *path;
+    const char *mname;
+    char *path;
     PCTestData *data;
 
     qtest_start("-machine none");
@@ -99,7 +100,7 @@ static void add_pc_test_cases(void)
             continue;
         }
         data = g_malloc(sizeof(PCTestData));
-        data->machine = mname;
+        data->machine = g_strdup(mname);
         data->cpu_model = "Haswell"; /* 1.3+ theoretically */
         data->sockets = 1;
         data->cores = 3;
@@ -120,13 +121,16 @@ static void add_pc_test_cases(void)
                                    mname, data->sockets, data->cores,
                                    data->threads, data->maxcpus);
             qtest_add_data_func(path, data, test_pc_without_cpu_add);
+            g_free(path);
         } else {
             path = g_strdup_printf("cpu/%s/add/%ux%ux%u&maxcpus=%u",
                                    mname, data->sockets, data->cores,
                                    data->threads, data->maxcpus);
             qtest_add_data_func(path, data, test_pc_with_cpu_add);
+            g_free(path);
         }
     }
+    QDECREF(response);
     qtest_end();
 }
 
