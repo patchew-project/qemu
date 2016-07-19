@@ -2060,14 +2060,27 @@ static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
     vfio_intx_enable(vdev);
 }
 
+static int vfio_pci_name_to_addr(const char *name, PCIHostDeviceAddress *addr)
+{
+    if (strlen(name) != 12 ||
+        sscanf(name, "%04x:%02x:%02x.%1x", &addr->domain,
+               &addr->bus, &addr->slot, &addr->function) != 4) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
 {
-    char tmp[13];
+    PCIHostDeviceAddress tmp;
 
-    sprintf(tmp, "%04x:%02x:%02x.%1x", addr->domain,
-            addr->bus, addr->slot, addr->function);
+    if (vfio_pci_name_to_addr(name, &tmp)) {
+        return false;
+    }
 
-    return (strcmp(tmp, name) == 0);
+    return (tmp.domain == addr->domain && tmp.bus == addr->bus &&
+            tmp.slot == addr->slot && tmp.function == addr->function);
 }
 
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
