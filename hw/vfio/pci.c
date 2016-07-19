@@ -1924,6 +1924,8 @@ static void vfio_check_hot_bus_reset(VFIOPCIDevice *vdev, Error **errp)
     /* List all affected devices by bus reset */
     devices = &info->devices[0];
 
+    vdev->single_depend_dev = (info->count == 1);
+
     /* Verify that we have all the groups required */
     for (i = 0; i < info->count; i++) {
         PCIHostDeviceAddress host;
@@ -3119,6 +3121,18 @@ static void vfio_pci_reset(DeviceState *dev)
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
 
     trace_vfio_pci_reset(vdev->vbasedev.name);
+
+    if (vdev->features & VFIO_FEATURE_ENABLE_AER) {
+        PCIDevice *br = pci_bridge_get_device(pdev->bus);
+
+        if ((pci_get_word(br->config + PCI_BRIDGE_CONTROL) &
+             PCI_BRIDGE_CTL_BUS_RESET)) {
+            if (pci_get_function_0(pdev) == pdev) {
+                vfio_pci_hot_reset(vdev, vdev->single_depend_dev);
+            }
+            return;
+        }
+    }
 
     vfio_pci_pre_reset(vdev);
 
