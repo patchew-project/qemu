@@ -132,6 +132,7 @@ static void wait_for_serial(const char *side)
     char *serialpath = g_strdup_printf("%s/%s", tmpfs, side);
     FILE *serialfile = fopen(serialpath, "r");
 
+    g_free(serialpath);
     do {
         int readvalue = fgetc(serialfile);
 
@@ -143,7 +144,6 @@ static void wait_for_serial(const char *side)
         case 'B':
             /* It's alive! */
             fclose(serialfile);
-            g_free(serialpath);
             return;
 
         case EOF:
@@ -288,6 +288,7 @@ static void cleanup(const char *filename)
     char *path = g_strdup_printf("%s/%s", tmpfs, filename);
 
     unlink(path);
+    g_free(path);
 }
 
 static void test_migrate(void)
@@ -319,6 +320,7 @@ static void test_migrate(void)
                           " -drive file=%s,format=raw"
                           " -incoming %s",
                           tmpfs, bootpath, uri);
+    g_free(bootpath);
     to = qtest_init(cmd);
     g_free(cmd);
 
