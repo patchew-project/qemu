@@ -10,6 +10,7 @@ addons:
   apt:
     packages:
       - libaio-dev
+      - libasound2-dev
       - libattr1-dev
       - libbrlapi-dev
       - libcap-ng-dev
@@ -22,6 +23,7 @@ addons:
       - libnss3-dev
       - libpixman-1-dev
       - libpng12-dev
+      - libpulse-dev
       - librados-dev
       - libsdl1.2-dev
       - libseccomp-dev
@@ -62,6 +64,7 @@ before_install:
   - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
   - git submodule update --init --recursive
 before_script:
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then CONFIG="$CONFIG --audio-drv-list=alsa,oss,pa,sdl"; fi
   - ./configure ${CONFIG}
 script:
   - make -j3 && ${TEST_CMD}
