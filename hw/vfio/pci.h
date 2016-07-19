@@ -15,6 +15,7 @@
 #include "qemu-common.h"
 #include "exec/memory.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/vfio/vfio-common.h"
 #include "qemu/event_notifier.h"
