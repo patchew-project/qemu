@@ -1738,6 +1738,48 @@ error:
     return ret;
 }
 
+static int vfio_pci_do_hot_reset(VFIOPCIDevice *vdev,
+                                 struct vfio_pci_hot_reset_info *info)
+{
+    VFIOGroup *group;
+    struct vfio_pci_hot_reset *reset;
+    int32_t *fds;
+    int ret, i, count;
+    struct vfio_pci_dependent_device *devices;
+
+    /* Determine how many group fds need to be passed */
+    count = 0;
+    devices = &info->devices[0];
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        for (i = 0; i < info->count; i++) {
+            if (group->groupid == devices[i].group_id) {
+                count++;
+                break;
+            }
+        }
+    }
+
+    reset = g_malloc0(sizeof(*reset) + (count * sizeof(*fds)));
+    reset->argsz = sizeof(*reset) + (count * sizeof(*fds));
+    fds = &reset->group_fds[0];
+
+    /* Fill in group fds */
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        for (i = 0; i < info->count; i++) {
+            if (group->groupid == devices[i].group_id) {
+                fds[reset->count++] = group->fd;
+                break;
+            }
+        }
+    }
+
+    /* Bus reset! */
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
+    g_free(reset);
+
+    return ret;
+}
+
 static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -1965,9 +2007,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     VFIOGroup *group;
     struct vfio_pci_hot_reset_info *info = NULL;
     struct vfio_pci_dependent_device *devices;
-    struct vfio_pci_hot_reset *reset;
-    int32_t *fds;
-    int ret, i, count;
+    int ret, i;
     bool multi = false;
 
     trace_vfio_pci_hot_reset(vdev->vbasedev.name, single ? "one" : "multi");
@@ -2045,34 +2085,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
         goto out_single;
     }
 
-    /* Determine how many group fds need to be passed */
-    count = 0;
-    QLIST_FOREACH(group, &vfio_group_list, next) {
-        for (i = 0; i < info->count; i++) {
-            if (group->groupid == devices[i].group_id) {
-                count++;
-                break;
-            }
-        }
-    }
-
-    reset = g_malloc0(sizeof(*reset) + (count * sizeof(*fds)));
-    reset->argsz = sizeof(*reset) + (count * sizeof(*fds));
-    fds = &reset->group_fds[0];
-
-    /* Fill in group fds */
-    QLIST_FOREACH(group, &vfio_group_list, next) {
-        for (i = 0; i < info->count; i++) {
-            if (group->groupid == devices[i].group_id) {
-                fds[reset->count++] = group->fd;
-                break;
-            }
-        }
-    }
-
-    /* Bus reset! */
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
-    g_free(reset);
+    ret = vfio_pci_do_hot_reset(vdev, info);
 
     trace_vfio_pci_hot_reset_result(vdev->vbasedev.name,
                                     ret ? "%m" : "Success");
