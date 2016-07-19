@@ -4031,6 +4031,7 @@ static void qemu_chr_free_common(CharDriverState *chr)
 
 void qemu_chr_free(CharDriverState *chr)
 {
+    qemu_chr_disconnect(chr);
     if (chr->chr_close) {
         chr->chr_close(chr);
     }
