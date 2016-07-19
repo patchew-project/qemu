@@ -158,6 +158,7 @@ static void pc_q35_init(MachineState *machine)
     } else {
         gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
     }
+    machine->gsi = gsi;
 
     /* create pci host bus */
     q35_host = Q35_HOST_DEVICE(qdev_create(NULL, TYPE_Q35_HOST_DEVICE));

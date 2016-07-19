@@ -190,6 +190,7 @@ static void pc_init1(MachineState *machine,
     } else {
         gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
     }
+    machine->gsi = gsi;
 
     if (pcmc->pci_enabled) {
         pci_bus = i440fx_init(host_type,
