@@ -166,7 +166,14 @@ static void QEMU_NORETURN help(void)
            "Parameters to compare subcommand:\n"
            "  '-f' first image format\n"
            "  '-F' second image format\n"
-           "  '-s' run in Strict mode - fail on different image size or sector allocation\n";
+           "  '-s' run in Strict mode - fail on different image size or sector allocation\n"
+           "\n"
+           "Parameters to dd subcommand:\n"
+           "  'bs=BYTES' read and write up to BYTES bytes at a time "
+           "(default: 512)\n"
+           "  'count=N' copy only N input blocks\n"
+           "  'if=FILE' read from FILE\n"
+           "  'of=FILE' write to FILE\n";
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
@@ -3787,6 +3794,361 @@ static int img_bench(int argc, char **argv)
 out:
     qemu_vfree(data.buf);
     blk_unref(blk);
+
+    if (ret) {
+        return 1;
+    }
+    return 0;
+}
+
+#define C_BS      01
+#define C_COUNT   02
+#define C_IF      04
+#define C_OF      010
+
+struct DdInfo {
+    unsigned int flags;
+    size_t count;
+};
+
+struct DdIo {
+    size_t bsz;    /* Block size */
+    off_t offset;
+    char *filename;
+    uint8_t *buf;
+};
+
+struct DdOpts {
+    const char *name;
+    int (*f)(const char *, struct DdIo *, struct DdIo *, struct DdInfo *);
+    unsigned int flag;
+};
+
+/*
+ * get_size() was needed for the size syntax dd(1) supports which is
+ * different from qemu_strtosz_suffix()
+ *
+ */
+static size_t get_size(const char *str)
+{
+    /* XXX: handle {k,m,g}B notations */
+    unsigned long num;
+    size_t res = 0;
+    const char *buf;
+    int ret;
+
+    errno = 0;
+    if (strchr(str, '-')) {
+        error_report("invalid number: '%s'", str);
+        errno = EINVAL;
+        return res;
+    }
+    ret = qemu_strtoul(str, &buf, 0, &num);
+
+    if (ret < 0) {
+        error_report("invalid number: '%s'", str);
+        return res;
+    }
+
+    switch (*buf) {
+    case '\0':
+    case 'c':
+        res = num;
+        break;
+    case 'w':
+        res = num * 2;
+        break;
+    case 'b':
+        res = num * 512;
+        break;
+    case 'K':
+        res = num * 1024;
+        break;
+    case 'M':
+        res = num * 1024 * 1024;
+        break;
+    case 'G':
+        res = num * 1024 * 1024 * 1024;
+        break;
+    case 'T':
+        res = num * 1024 * 1024 * 1024 * 1024;
+        break;
+    case 'P':
+        res = num * 1024 * 1024 * 1024 * 1024 * 1024;
+        break;
+    case 'E':
+        res = num * 1024 * 1024 * 1024 * 1024 * 1024 * 1024;
+        break;
+    case 'Z':
+        res = num * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024;
+        break;
+    case 'Y':
+        res = num * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024;
+        break;
+    default:
+        error_report("invalid number: '%s'", str);
+        errno = EINVAL;
+    }
+
+    return res;
+}
+
+static int img_dd_bs(const char *arg,
+                     struct DdIo *in, struct DdIo *out,
+                     struct DdInfo *dd)
+{
+    in->bsz = out->bsz = get_size(arg);
+
+    if (in->bsz == 0 && (errno == EINVAL || errno == ERANGE)) {
+        return 1;
+    }
+    if (in->bsz == 0) {
+        error_report("invalid number: '%s'", arg);
+        return 1;
+    }
+
+    return 0;
+}
+
+static int img_dd_count(const char *arg,
+                        struct DdIo *in, struct DdIo *out,
+                        struct DdInfo *dd)
+{
+    dd->count = get_size(arg);
+
+    if (dd->count == 0 && (errno == EINVAL || errno == ERANGE)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static int img_dd_if(const char *arg,
+                     struct DdIo *in, struct DdIo *out,
+                     struct DdInfo *dd)
+{
+    in->filename = g_strdup(arg);
+
+    return 0;
+}
+
+static int img_dd_of(const char *arg,
+                     struct DdIo *in, struct DdIo *out,
+                     struct DdInfo *dd)
+{
+    out->filename = g_strdup(arg);
+
+    return 0;
+}
+
+static int img_dd(int argc, char **argv)
+{
+    int ret = 0;
+    char *arg = NULL;
+    char *tmp;
+    BlockDriver *drv = NULL, *proto_drv = NULL;
+    BlockBackend *blk1 = NULL, *blk2 = NULL;
+    QemuOpts *opts = NULL;
+    QemuOptsList *create_opts = NULL;
+    Error *local_err = NULL;
+    bool image_opts = false;
+    int c;
+    const char *out_fmt = "raw";
+    const char *fmt = NULL;
+    int64_t size = 0;
+    int64_t block_count = 0, incount = 0, outcount = 0;
+    struct DdInfo dd = {
+        .flags = 0,
+        .count = 0,
+    };
+    struct DdIo in = {
+        .bsz = 512, /* Block size is by default 512 bytes */
+        .offset = 0,
+        .filename = NULL,
+        .buf = NULL
+    };
+    struct DdIo out = {
+        .bsz = 512,
+        .offset = 0,
+        .filename = NULL,
+        .buf = NULL
+    };
+
+    const struct DdOpts options[] = {
+        { "bs", img_dd_bs, C_BS },
+        { "count", img_dd_count, C_COUNT },
+        { "if", img_dd_if, C_IF },
+        { "of", img_dd_of, C_OF },
+        { NULL, NULL, 0 }
+    };
+    const struct option long_options[] = {
+        { "help", no_argument, 0, 'h'},
+        { "image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        { 0, 0, 0, 0 }
+    };
+
+    while ((c = getopt_long(argc, argv, "hf:O:", long_options, NULL))) {
+        if (c == EOF) {
+            break;
+        }
+        switch (c) {
+        case 'O':
+            out_fmt = optarg;
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        case '?':
+            error_report("Try 'qemu-img --help' for more information.");
+            ret = -1;
+            goto out;
+            break;
+        case 'h':
+            help();
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    for (int i = optind; i < argc; i++) {
+        int j;
+        arg = g_strdup(argv[i]);
+
+        tmp = strchr(arg, '=');
+        if (tmp == NULL) {
+            error_report("unrecognized operand %s", arg);
+            ret = -1;
+            goto out;
+        }
+
+        *tmp++ = '\0';
+
+        for (j = 0; options[j].name != NULL; j++) {
+            if (!strcmp(arg, options[j].name)) {
+                break;
+            }
+        }
+        if (options[j].name == NULL) {
+            error_report("unrecognized operand %s", arg);
+            ret = -1;
+            goto out;
+        }
+
+        if (options[j].f(tmp, &in, &out, &dd) != 0) {
+            ret = -1;
+            goto out;
+        }
+        dd.flags |= options[j].flag;
+        g_free(arg);
+        arg = NULL;
+    }
+
+    if (!(dd.flags & C_IF && dd.flags & C_OF)) {
+        error_report("Must specify both input and output files");
+        ret = -1;
+        goto out;
+    }
+    blk1 = img_open(image_opts, in.filename, fmt, 0, false, true);
+
+    if (!blk1) {
+        ret = -1;
+        goto out;
+    }
+
+    drv = bdrv_find_format(out_fmt);
+    if (!drv) {
+        error_report("Unknown file format");
+        ret = -1;
+        goto out;
+    }
+    proto_drv = bdrv_find_protocol(out.filename, true, &local_err);
+
+    if (!proto_drv) {
+        error_report_err(local_err);
+        ret = -1;
+        goto out;
+    }
+    if (!drv->create_opts) {
+        error_report("Format driver '%s' does not support image creation",
+                     drv->format_name);
+        ret = -1;
+        goto out;
+    }
+    if (!proto_drv->create_opts) {
+        error_report("Protocol driver '%s' does not support image creation",
+                     proto_drv->format_name);
+        ret = -1;
+        goto out;
+    }
+    create_opts = qemu_opts_append(create_opts, drv->create_opts);
+    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+
+    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+
+    size =  blk_getlength(blk1);
+
+    if (dd.flags & C_COUNT && dd.count * in.bsz < size) {
+        size = dd.count * in.bsz;
+    }
+
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
+
+    ret = bdrv_create(drv, out.filename, opts, &local_err);
+    if (ret < 0) {
+        error_reportf_err(local_err,
+                          "%s: error while creating output image: ",
+                          out.filename);
+        ret = -1;
+        goto out;
+    }
+
+    blk2 = img_open(image_opts, out.filename, out_fmt, BDRV_O_RDWR,
+                    false, true);
+
+    if (!blk2) {
+        ret = -1;
+        goto out;
+    }
+
+    in.buf = g_new(uint8_t, in.bsz);
+
+    for (; incount < size; incount += ret, block_count++) {
+        int out_ret;
+
+        if (in.bsz + incount > size) {
+            ret = blk_pread(blk1, incount, in.buf, size - incount);
+        } else {
+            ret = blk_pread(blk1, incount, in.buf, in.bsz);
+        }
+        if (ret < 0) {
+            error_report("error while reading from input image file: %s",
+                         strerror(-ret));
+            ret = -1;
+            goto out;
+        }
+        out_ret = blk_pwrite(blk2, outcount, in.buf, ret, 0);
+
+        if (out_ret < 0) {
+            error_report("error while writing to output image file: %s",
+                         strerror(-out_ret));
+            ret = -1;
+            goto out;
+        }
+        outcount += out_ret;
+    }
+
+out:
+    g_free(arg);
+    qemu_opts_del(opts);
+    qemu_opts_free(create_opts);
+    blk_unref(blk1);
+    blk_unref(blk2);
+    g_free(in.filename);
+    g_free(out.filename);
+    g_free(in.buf);
+    g_free(out.buf);
 
     if (ret) {
         return 1;
