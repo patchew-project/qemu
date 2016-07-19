@@ -919,6 +919,7 @@ static void ncq_err(NCQTransferState *ncq_tfs)
     ide_state->error = ABRT_ERR;
     ide_state->status = READY_STAT | ERR_STAT;
     ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+    qemu_sglist_destroy(&ncq_tfs->sglist);
     ncq_tfs->used = 0;
 }
 
@@ -1330,6 +1331,7 @@ static void ahci_start_dma(IDEDMA *dma, IDEState *s,
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     DPRINTF(ad->port_no, "\n");
     s->io_buffer_offset = 0;
+    qemu_sglist_destroy(&s->sg);
     dma_cb(s, 0);
 }
 
