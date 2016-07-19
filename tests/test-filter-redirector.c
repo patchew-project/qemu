@@ -69,6 +69,7 @@ static void test_redirector_tx(void)
     char sock_path0[] = "filter-redirector0.XXXXXX";
     char sock_path1[] = "filter-redirector1.XXXXXX";
     char *recv_buf;
+    QDict *resp;
     uint32_t size = sizeof(send_buf);
     size = htonl(size);
 
@@ -99,7 +100,8 @@ static void test_redirector_tx(void)
     g_assert_cmpint(recv_sock, !=, -1);
 
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp("{ 'execute' : 'query-status'}");
+    resp = qmp("{ 'execute' : 'query-status'}");
+    QDECREF(resp);
 
     struct iovec iov[] = {
         {
@@ -145,6 +147,7 @@ static void test_redirector_rx(void)
     char sock_path0[] = "filter-redirector0.XXXXXX";
     char sock_path1[] = "filter-redirector1.XXXXXX";
     char *recv_buf;
+    QDict *resp;
     uint32_t size = sizeof(send_buf);
     size = htonl(size);
 
@@ -184,7 +187,8 @@ static void test_redirector_rx(void)
     send_sock = unix_connect(sock_path1, NULL);
     g_assert_cmpint(send_sock, !=, -1);
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp("{ 'execute' : 'query-status'}");
+    resp = qmp("{ 'execute' : 'query-status'}");
+    QDECREF(resp);
 
     ret = iov_send(send_sock, iov, 2, 0, sizeof(size) + sizeof(send_buf));
     g_assert_cmpint(ret, ==, sizeof(send_buf) + sizeof(size));
