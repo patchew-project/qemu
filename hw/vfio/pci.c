@@ -2627,18 +2627,66 @@ static void vfio_put_device(VFIOPCIDevice *vdev)
 static void vfio_err_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
+    PCIDevice *dev = &vdev->pdev;
+    Error *local_err = NULL;
+    PCIEAERMsg msg = {
+        .severity = 0,
+        .source_id = (pci_bus_num(dev->bus) << 8) | dev->devfn,
+    };
 
     if (!event_notifier_test_and_clear(&vdev->err_notifier)) {
         return;
     }
 
+
+    if (!(vdev->features & VFIO_FEATURE_ENABLE_AER)) {
+        goto stop;
+    }
+
     /*
-     * TBD. Retrieve the error details and decide what action
-     * needs to be taken. One of the actions could be to pass
-     * the error to the guest and have the guest driver recover
-     * from the error. This requires that PCIe capabilities be
-     * exposed to the guest. For now, we just terminate the
-     * guest to contain the error.
+     * in case the real hardware configuration has been changed,
+     * here we should recheck the bus reset capability.
+     */
+    vfio_check_hot_bus_reset(vdev, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        goto stop;
+    }
+
+    /*
+     * we should read the error details from the real hardware
+     * configuration spaces, here we only need to do is signaling
+     * to guest an uncorrectable error has occurred.
+     */
+    if (dev->exp.aer_cap) {
+        uint8_t *aer_cap = dev->config + dev->exp.aer_cap;
+        uint32_t uncor_status;
+        bool isfatal;
+
+        uncor_status = vfio_pci_read_config(dev,
+                           dev->exp.aer_cap + PCI_ERR_UNCOR_STATUS, 4);
+
+        /*
+         * if the error is not emitted by this device, we can
+         * just ignore it.
+         */
+        if (!(uncor_status & ~0UL)) {
+            return;
+        }
+
+        isfatal = uncor_status & pci_get_long(aer_cap + PCI_ERR_UNCOR_SEVER);
+
+        msg.severity = isfatal ? PCI_ERR_ROOT_CMD_FATAL_EN :
+                                 PCI_ERR_ROOT_CMD_NONFATAL_EN;
+
+        pcie_aer_msg(dev, &msg);
+        return;
+    }
+
+stop:
+    /*
+     * If the aer capability is not exposed to the guest. we just
+     * terminate the guest to contain the error.
      */
 
     error_report("%s(%s) Unrecoverable error detected. Please collect any data possible and then kill the guest", __func__, vdev->vbasedev.name);
