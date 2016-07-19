@@ -40,7 +40,7 @@ static void test_io_channel_command_fifo(bool async)
 
     unlink(TEST_FIFO);
     if (access("/bin/socat", X_OK) < 0) {
-        return; /* Pretend success if socat is not present */
+        goto end; /* Pretend success if socat is not present */
     }
     if (mkfifo(TEST_FIFO, 0600) < 0) {
         abort();
@@ -59,6 +59,7 @@ static void test_io_channel_command_fifo(bool async)
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
 
+end:
     g_free(srcfifo);
     g_free(dstfifo);
     unlink(TEST_FIFO);
