@@ -41,6 +41,7 @@ struct PCIBus {
     int *irq_count;
 
     Notifier machine_done;
+    unsigned bus_bsel;
 };
 
 typedef struct PCIBridgeWindows PCIBridgeWindows;
