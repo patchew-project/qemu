@@ -35,6 +35,12 @@
 
 #define MSIX_CAP_LENGTH 12
 
+/*
+ * Timeout for waiting host aer error process, it is 3 seconds.
+ * For hardware bus reset 3 seconds will be enough.
+ */
+#define PCI_AER_PROCESS_TIMEOUT 3000000
+
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 
@@ -1913,6 +1919,14 @@ static void vfio_check_hot_bus_reset(VFIOPCIDevice *vdev, Error **errp)
     VFIOGroup *group;
     int ret, i, devfn, range_limit;
 
+    if (!(vdev->vbasedev.flags & VFIO_DEVICE_FLAGS_AERPROCESS)) {
+        error_setg(errp, "vfio: Cannot enable AER for device %s,"
+                   " host vfio driver does not support for"
+                   " aer error progress",
+                   vdev->vbasedev.name);
+        return;
+    }
+
     ret = vfio_get_hot_reset_info(vdev, &info);
     if (ret) {
         error_setg(errp, "vfio: Cannot enable AER for device %s,"
@@ -2679,6 +2693,11 @@ static void vfio_err_notifier_handler(void *opaque)
         msg.severity = isfatal ? PCI_ERR_ROOT_CMD_FATAL_EN :
                                  PCI_ERR_ROOT_CMD_NONFATAL_EN;
 
+        if (isfatal) {
+            PCIDevice *dev_0 = pci_get_function_0(dev);
+            VFIOPCIDevice *vdev_0 = DO_UPCAST(VFIOPCIDevice, pdev, dev_0);
+            vdev_0->pci_aer_error_signaled = true;
+        }
         pcie_aer_msg(dev, &msg);
         return;
     }
@@ -3163,6 +3182,19 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_bars_exit(vdev);
 }
 
+static int vfio_aer_error_is_in_process(VFIOPCIDevice *vdev)
+{
+    struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
+    int ret;
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_INFO, &dev_info);
+    if (ret) {
+        error_report("vfio: error getting device info: %m");
+        return ret;
+    }
+    return dev_info.flags & VFIO_DEVICE_FLAGS_INAERPROCESS ? 1 : 0;
+}
+
 static void vfio_pci_reset(DeviceState *dev)
 {
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
@@ -3176,7 +3208,24 @@ static void vfio_pci_reset(DeviceState *dev)
         if ((pci_get_word(br->config + PCI_BRIDGE_CONTROL) &
              PCI_BRIDGE_CTL_BUS_RESET)) {
             if (pci_get_function_0(pdev) == pdev) {
-                vfio_pci_hot_reset(vdev, vdev->single_depend_dev);
+                if (!vdev->pci_aer_error_signaled) {
+                    vfio_pci_hot_reset(vdev, vdev->single_depend_dev);
+                } else {
+                    int i;
+                    for (i = 0; i < 1000; i++) {
+                        if (!vfio_aer_error_is_in_process(vdev)) {
+                            break;
+                        }
+                        g_usleep(PCI_AER_PROCESS_TIMEOUT / 1000);
+                    }
+
+                    if (i == 1000) {
+                        qdev_unplug(&vdev->pdev.qdev, NULL);
+                    } else {
+                        vfio_pci_hot_reset(vdev, vdev->single_depend_dev);
+                    }
+                    vdev->pci_aer_error_signaled = false;
+                }
             }
             return;
         }
