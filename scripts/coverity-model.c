@@ -68,13 +68,18 @@ static void __bufread(uint8_t *buf, ssize_t len)
 }
 
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                             uint8_t *buf, int len, bool is_write)
+                             uint8_t *buf, int len,
+                             MemoryAccessType access_type)
 {
     MemTxResult result;
 
     // TODO: investigate impact of treating reads as producing
     // tainted data, with __coverity_tainted_data_argument__(buf).
-    if (is_write) __bufread(buf, len); else __bufwrite(buf, len);
+    if (access_type == MEM_DATA_STORE) {
+        __bufread(buf, len);
+    } else {
+        __bufwrite(buf, len);
+    }
 
     return result;
 }

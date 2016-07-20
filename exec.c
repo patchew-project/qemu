@@ -2728,12 +2728,16 @@ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
 }
 
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                             uint8_t *buf, int len, bool is_write)
+                             uint8_t *buf, int len,
+                             MemoryAccessType access_type)
 {
-    if (is_write) {
+    switch (access_type) {
+    case MEM_DATA_STORE:
         return address_space_write(as, addr, attrs, buf, len);
-    } else {
+    case MEM_DATA_LOAD:
         return address_space_read(as, addr, attrs, buf, len);
+    default:
+        abort();
     }
 }
 
@@ -2741,7 +2745,7 @@ void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write)
 {
     address_space_rw(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
-                     buf, len, is_write);
+                     buf, len, is_write ? MEM_DATA_STORE : MEM_DATA_LOAD);
 }
 
 enum write_rom_type {
@@ -3653,7 +3657,7 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         } else {
             address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
                              MEMTXATTRS_UNSPECIFIED,
-                             buf, l, 0);
+                             buf, l, access_type);
         }
         len -= l;
         buf += l;

@@ -1767,11 +1767,12 @@ static void kvm_handle_io(uint16_t port, MemTxAttrs attrs, void *data, int direc
 {
     int i;
     uint8_t *ptr = data;
+    MemoryAccessType access_type =
+        (direction == KVM_EXIT_IO_OUT) ? MEM_DATA_STORE : MEM_DATA_LOAD;
 
     for (i = 0; i < count; i++) {
         address_space_rw(&address_space_io, port, attrs,
-                         ptr, size,
-                         direction == KVM_EXIT_IO_OUT);
+                         ptr, size, access_type);
         ptr += size;
     }
 }
@@ -1947,7 +1948,8 @@ int kvm_cpu_exec(CPUState *cpu)
                              run->mmio.phys_addr, attrs,
                              run->mmio.data,
                              run->mmio.len,
-                             run->mmio.is_write);
+                             run->mmio.is_write ?
+                             MEM_DATA_STORE : MEM_DATA_LOAD);
             ret = 0;
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN:

@@ -22,6 +22,7 @@
 #define DIRTY_MEMORY_NUM       3        /* num of dirty bits */
 
 #include "exec/cpu-common.h"
+#include "qom/cpu.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
@@ -1284,11 +1285,13 @@ void address_space_destroy(AddressSpace *as);
  * @addr: address within that address space
  * @attrs: memory transaction attributes
  * @buf: buffer with the data transferred
- * @is_write: indicates the transfer direction
+ * @access_type: indicates the transfer direction (only valid values
+ * are MEM_DATA_LOAD for data reads and MEM_DATA_STORE for data
+ * writes)
  */
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
                              MemTxAttrs attrs, uint8_t *buf,
-                             int len, bool is_write);
+                             int len, MemoryAccessType access_type);
 
 /**
  * address_space_write: write to address space.
