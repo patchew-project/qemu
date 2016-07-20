@@ -671,9 +671,9 @@ static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
 
-    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+    if (cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn,
                             sizeof(diag_501), 0) ||
-        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)diag_501,
+        cpu_memory_rw_debug(cs, bp->pc, diag_501,
                             sizeof(diag_501), 1)) {
         return -EINVAL;
     }
@@ -688,7 +688,7 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
         return -EINVAL;
     } else if (memcmp(t, diag_501, sizeof(diag_501))) {
         return -EINVAL;
-    } else if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+    } else if (cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn,
                                    sizeof(diag_501), 1)) {
         return -EINVAL;
     }

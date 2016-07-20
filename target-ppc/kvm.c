@@ -1454,9 +1454,9 @@ int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     /* Mixed endian case is not handled */
     uint32_t sc = debug_inst_opcode;
 
-    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+    if (cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn,
                             sizeof(sc), 0) ||
-        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&sc, sizeof(sc), 1)) {
+        cpu_memory_rw_debug(cs, bp->pc, &sc, sizeof(sc), 1)) {
         return -EINVAL;
     }
 
@@ -1467,9 +1467,9 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
     uint32_t sc;
 
-    if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&sc, sizeof(sc), 0) ||
+    if (cpu_memory_rw_debug(cs, bp->pc, &sc, sizeof(sc), 0) ||
         sc != debug_inst_opcode ||
-        cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn,
+        cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn,
                             sizeof(sc), 1)) {
         return -EINVAL;
     }

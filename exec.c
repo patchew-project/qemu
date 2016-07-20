@@ -2438,11 +2438,12 @@ MemoryRegion *get_system_io(void)
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        uint8_t *buf, int len, int is_write)
+                        void *b, int len, int is_write)
 {
     int l, flags;
     target_ulong page;
     void * p;
+    uint8_t *buf = b;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -3619,11 +3620,12 @@ void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        uint8_t *buf, int len, int is_write)
+                        void *b, int len, int is_write)
 {
     int l;
     hwaddr phys_addr;
     target_ulong page;
+    uint8_t *buf = b;
 
     while (len > 0) {
         int asidx;

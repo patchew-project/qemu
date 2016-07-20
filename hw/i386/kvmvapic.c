@@ -261,7 +261,7 @@ instruction_ok:
      * and update the cached values.
      */
     if (cpu_memory_rw_debug(cs, ip + instr->addr_offset,
-                            (void *)&real_tpr_addr,
+                            &real_tpr_addr,
                             sizeof(real_tpr_addr), 0) < 0) {
         return -1;
     }
@@ -349,7 +349,7 @@ static int get_kpcr_number(X86CPU *cpu)
     } QEMU_PACKED kpcr;
 
     if (cpu_memory_rw_debug(CPU(cpu), env->segs[R_FS].base,
-                            (void *)&kpcr, sizeof(kpcr), 0) < 0 ||
+                            &kpcr, sizeof(kpcr), 0) < 0 ||
         kpcr.self != env->segs[R_FS].base) {
         return -1;
     }
@@ -388,7 +388,7 @@ static void patch_call(VAPICROMState *s, X86CPU *cpu, target_ulong ip,
 
     offset = cpu_to_le32(target - ip - 5);
     patch_byte(cpu, ip, 0xe8); /* call near */
-    cpu_memory_rw_debug(CPU(cpu), ip + 1, (void *)&offset, sizeof(offset), 1);
+    cpu_memory_rw_debug(CPU(cpu), ip + 1, &offset, sizeof(offset), 1);
 }
 
 static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
@@ -434,8 +434,8 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
         break;
     case 0xc7: /* mov imm32, r/m32 (c7/0) */
         patch_byte(cpu, ip, 0x68);  /* push imm32 */
-        cpu_memory_rw_debug(cs, ip + 6, (void *)&imm32, sizeof(imm32), 0);
-        cpu_memory_rw_debug(cs, ip + 1, (void *)&imm32, sizeof(imm32), 1);
+        cpu_memory_rw_debug(cs, ip + 6, &imm32, sizeof(imm32), 0);
+        cpu_memory_rw_debug(cs, ip + 1, &imm32, sizeof(imm32), 1);
         patch_call(s, cpu, ip + 5, handlers->set_tpr);
         break;
     case 0xff: /* push r/m32 */
