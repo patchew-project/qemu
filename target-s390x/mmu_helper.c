@@ -71,7 +71,7 @@ static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
 {
     uint64_t tec;
 
-    tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | 4 | asc >> 46;
+    tec = vaddr | (rw == MEM_DATA_STORE ? FS_WRITE : FS_READ) | 4 | asc >> 46;
 
     DPRINTF("%s: trans_exc_code=%016" PRIx64 "\n", __func__, tec);
 
@@ -88,7 +88,7 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
     int ilen = ILEN_LATER;
     uint64_t tec;
 
-    tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | asc >> 46;
+    tec = vaddr | (rw == MEM_DATA_STORE ? FS_WRITE : FS_READ) | asc >> 46;
 
     DPRINTF("%s: trans_exc_code=%016" PRIx64 "\n", __func__, tec);
 
@@ -97,7 +97,7 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
     }
 
     /* Code accesses have an undefined ilc.  */
-    if (rw == MMU_INST_FETCH) {
+    if (rw == MEM_INST_FETCH) {
         ilen = 2;
     }
 
@@ -291,7 +291,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
 
     r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
                              exc);
-    if (rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE)) {
+    if (rw == MEM_DATA_STORE && !(*flags & PAGE_WRITE)) {
         trigger_prot_fault(env, vaddr, asc, rw, exc);
         return -1;
     }
@@ -348,7 +348,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
          * Instruction: Primary
          * Data: Secondary
          */
-        if (rw == MMU_INST_FETCH) {
+        if (rw == MEM_INST_FETCH) {
             r = mmu_translate_asce(env, vaddr, PSW_ASC_PRIMARY, env->cregs[1],
                                    raddr, flags, rw, exc);
             *flags &= ~(PAGE_READ | PAGE_WRITE);

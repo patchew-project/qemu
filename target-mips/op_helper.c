@@ -2384,7 +2384,7 @@ void helper_wait(CPUMIPSState *env)
 #if !defined(CONFIG_USER_ONLY)
 
 void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
-                                  MMUAccessType access_type,
+                                  MemoryAccessType access_type,
                                   int mmu_idx, uintptr_t retaddr)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
@@ -2394,11 +2394,11 @@ void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
     env->CP0_BadVAddr = addr;
 
-    if (access_type == MMU_DATA_STORE) {
+    if (access_type == MEM_DATA_STORE) {
         excp = EXCP_AdES;
     } else {
         excp = EXCP_AdEL;
-        if (access_type == MMU_INST_FETCH) {
+        if (access_type == MEM_INST_FETCH) {
             error_code |= EXCP_INST_NOTAVAIL;
         }
     }
@@ -2406,7 +2406,7 @@ void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     do_raise_exception_err(env, excp, error_code, retaddr);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+void tlb_fill(CPUState *cs, target_ulong addr, MemoryAccessType access_type,
               int mmu_idx, uintptr_t retaddr)
 {
     int ret;

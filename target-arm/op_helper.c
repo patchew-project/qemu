@@ -117,7 +117,7 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
  * NULL, it means that the function was called in C code (i.e. not
  * from generated code or from helper.c)
  */
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+void tlb_fill(CPUState *cs, target_ulong addr, MemoryAccessType access_type,
               int mmu_idx, uintptr_t retaddr)
 {
     bool ret;
@@ -149,14 +149,14 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
         /* For insn and data aborts we assume there is no instruction syndrome
          * information; this is always true for exceptions reported to EL1.
          */
-        if (access_type == MMU_INST_FETCH) {
+        if (access_type == MEM_INST_FETCH) {
             syn = syn_insn_abort(same_el, 0, fi.s1ptw, syn);
             exc = EXCP_PREFETCH_ABORT;
         } else {
             syn = merge_syn_data_abort(env->exception.syndrome, target_el,
                                        same_el, fi.s1ptw,
-                                       access_type == MMU_DATA_STORE, syn);
-            if (access_type == MMU_DATA_STORE
+                                       access_type == MEM_DATA_STORE, syn);
+            if (access_type == MEM_DATA_STORE
                 && arm_feature(env, ARM_FEATURE_V6)) {
                 fsr |= (1 << 11);
             }
@@ -171,7 +171,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 
 /* Raise a data fault alignment exception for the specified virtual address */
 void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
-                                 MMUAccessType access_type,
+                                 MemoryAccessType access_type,
                                  int mmu_idx, uintptr_t retaddr)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -199,12 +199,12 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
         env->exception.fsr = 0x1;
     }
 
-    if (access_type == MMU_DATA_STORE && arm_feature(env, ARM_FEATURE_V6)) {
+    if (access_type == MEM_DATA_STORE && arm_feature(env, ARM_FEATURE_V6)) {
         env->exception.fsr |= (1 << 11);
     }
 
     syn = merge_syn_data_abort(env->exception.syndrome, target_el,
-                               same_el, 0, access_type == MMU_DATA_STORE,
+                               same_el, 0, access_type == MEM_DATA_STORE,
                                0x21);
     raise_exception(env, EXCP_DATA_ABORT, syn, target_el);
 }

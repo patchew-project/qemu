@@ -2828,7 +2828,7 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
     cpu_loop_exit(cs);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+void tlb_fill(CPUState *cs, target_ulong addr, MemoryAccessType access_type,
               int mmu_idx, uintptr_t retaddr)
 {
     int ret;

@@ -36,7 +36,7 @@
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
+void tlb_fill(CPUState *cs, target_ulong addr, MemoryAccessType access_type,
               int mmu_idx, uintptr_t retaddr)
 {
     int ret;
@@ -77,7 +77,7 @@ static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
     int mmu_idx = cpu_mmu_index(env, false);
 
     while (l > 0) {
-        void *p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
+        void *p = tlb_vaddr_to_host(env, dest, MEM_DATA_STORE, mmu_idx);
         if (p) {
             /* Access to the whole page in write mode granted.  */
             int l_adj = adj_len_to_page(l, dest);
@@ -100,8 +100,8 @@ static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
     int mmu_idx = cpu_mmu_index(env, false);
 
     while (l > 0) {
-        void *src_p = tlb_vaddr_to_host(env, src, MMU_DATA_LOAD, mmu_idx);
-        void *dest_p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
+        void *src_p = tlb_vaddr_to_host(env, src, MEM_DATA_LOAD, mmu_idx);
+        void *dest_p = tlb_vaddr_to_host(env, dest, MEM_DATA_STORE, mmu_idx);
         if (src_p && dest_p) {
             /* Access to both whole pages granted.  */
             int l_adj = adj_len_to_page(l, src);
