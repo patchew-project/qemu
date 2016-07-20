@@ -205,7 +205,7 @@ static void dp8393x_do_load_cam(dp8393xState *s)
         /* Fill current entry */
         address_space_read(&s->as,
             (s->regs[SONIC_URRA] << 16) | s->regs[SONIC_CDP],
-            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+            MEMTXATTRS_UNSPECIFIED, data, size);
         s->cam[index][0] = data[1 * width] & 0xff;
         s->cam[index][1] = data[1 * width] >> 8;
         s->cam[index][2] = data[2 * width] & 0xff;
@@ -224,7 +224,7 @@ static void dp8393x_do_load_cam(dp8393xState *s)
     /* Read CAM enable */
     address_space_read(&s->as,
         (s->regs[SONIC_URRA] << 16) | s->regs[SONIC_CDP],
-        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+        MEMTXATTRS_UNSPECIFIED, data, size);
     s->regs[SONIC_CE] = data[0 * width];
     DPRINTF("load cam done. cam enable mask 0x%04x\n", s->regs[SONIC_CE]);
 
@@ -244,7 +244,7 @@ static void dp8393x_do_read_rra(dp8393xState *s)
     size = sizeof(uint16_t) * 4 * width;
     address_space_read(&s->as,
         (s->regs[SONIC_URRA] << 16) | s->regs[SONIC_RRP],
-        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+        MEMTXATTRS_UNSPECIFIED, data, size);
 
     /* Update SONIC registers */
     s->regs[SONIC_CRBA0] = data[0 * width];
@@ -362,7 +362,7 @@ static void dp8393x_do_transmit_packets(dp8393xState *s)
         s->regs[SONIC_TTDA] = s->regs[SONIC_CTDA];
         address_space_read(&s->as,
             ((s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA]) + sizeof(uint16_t) * width,
-            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+            MEMTXATTRS_UNSPECIFIED, data, size);
         tx_len = 0;
 
         /* Update registers */
@@ -397,7 +397,7 @@ static void dp8393x_do_transmit_packets(dp8393xState *s)
                 size = sizeof(uint16_t) * 3 * width;
                 address_space_read(&s->as,
                     ((s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA]) + sizeof(uint16_t) * (4 + 3 * i) * width,
-                    MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+                    MEMTXATTRS_UNSPECIFIED, data, size);
                 s->regs[SONIC_TSA0] = data[0 * width];
                 s->regs[SONIC_TSA1] = data[1 * width];
                 s->regs[SONIC_TFS] = data[2 * width];
@@ -438,7 +438,7 @@ static void dp8393x_do_transmit_packets(dp8393xState *s)
             size = sizeof(uint16_t) * width;
             address_space_read(&s->as,
                 ((s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA]) + sizeof(uint16_t) * (4 + 3 * s->regs[SONIC_TFC]) * width,
-                MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+                MEMTXATTRS_UNSPECIFIED, data, size);
             s->regs[SONIC_CTDA] = data[0 * width] & ~0x1;
             if (data[0 * width] & 0x1) {
                 /* EOL detected */
@@ -702,7 +702,7 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
         size = sizeof(uint16_t) * 1 * width;
         address = ((s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA]) + sizeof(uint16_t) * 5 * width;
         address_space_read(&s->as, address, MEMTXATTRS_UNSPECIFIED,
-                           (uint8_t *)data, size);
+                           data, size);
         if (data[0 * width] & 0x1) {
             /* Still EOL ; stop reception */
             return -1;
@@ -762,7 +762,7 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     size = sizeof(uint16_t) * width;
     address_space_read(&s->as,
         ((s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA]) + sizeof(uint16_t) * 5 * width,
-        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+        MEMTXATTRS_UNSPECIFIED, data, size);
     s->regs[SONIC_LLFA] = data[0 * width];
     if (s->regs[SONIC_LLFA] & 0x1) {
         /* EOL detected */
