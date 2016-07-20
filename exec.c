@@ -2623,7 +2623,7 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
 }
 
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                                const uint8_t *buf, int len)
+                                const void *buf, int len)
 {
     hwaddr l;
     hwaddr addr1;
@@ -2736,7 +2736,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                              uint8_t *buf, int len, bool is_write)
 {
     if (is_write) {
-        return address_space_write(as, addr, attrs, (uint8_t *)buf, len);
+        return address_space_write(as, addr, attrs, buf, len);
     } else {
         return address_space_read(as, addr, attrs, buf, len);
     }
@@ -3584,7 +3584,7 @@ void address_space_stq(AddressSpace *as, hwaddr addr, uint64_t val,
 {
     MemTxResult r;
     val = tswap64(val);
-    r = address_space_write(as, addr, attrs, (void *) &val, 8);
+    r = address_space_write(as, addr, attrs, &val, 8);
     if (result) {
         *result = r;
     }
@@ -3595,7 +3595,7 @@ void address_space_stq_le(AddressSpace *as, hwaddr addr, uint64_t val,
 {
     MemTxResult r;
     val = cpu_to_le64(val);
-    r = address_space_write(as, addr, attrs, (void *) &val, 8);
+    r = address_space_write(as, addr, attrs, &val, 8);
     if (result) {
         *result = r;
     }
@@ -3605,7 +3605,7 @@ void address_space_stq_be(AddressSpace *as, hwaddr addr, uint64_t val,
 {
     MemTxResult r;
     val = cpu_to_be64(val);
-    r = address_space_write(as, addr, attrs, (void *) &val, 8);
+    r = address_space_write(as, addr, attrs, &val, 8);
     if (result) {
         *result = r;
     }

@@ -164,7 +164,7 @@ static inline void vring_used_write(VirtQueue *vq, VRingUsedElem *uelem,
     virtio_tswap32s(vq->vdev, &uelem->len);
     pa = vq->vring.used + offsetof(VRingUsed, ring[i]);
     address_space_write(&address_space_memory, pa, MEMTXATTRS_UNSPECIFIED,
-                       (void *)uelem, sizeof(VRingUsedElem));
+                        uelem, sizeof(VRingUsedElem));
 }
 
 static uint16_t vring_used_idx(VirtQueue *vq)

@@ -431,7 +431,7 @@ static void dp8393x_do_transmit_packets(dp8393xState *s)
         size = sizeof(uint16_t) * width;
         address_space_write(&s->as,
             (s->regs[SONIC_UTDA] << 16) | s->regs[SONIC_TTDA],
-            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+            MEMTXATTRS_UNSPECIFIED, data, size);
 
         if (!(s->regs[SONIC_CR] & SONIC_CR_HTX)) {
             /* Read footer of packet */
@@ -722,10 +722,10 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     DPRINTF("Receive packet at %08x\n", (s->regs[SONIC_CRBA1] << 16) | s->regs[SONIC_CRBA0]);
     address = (s->regs[SONIC_CRBA1] << 16) | s->regs[SONIC_CRBA0];
     address_space_write(&s->as, address,
-        MEMTXATTRS_UNSPECIFIED, (uint8_t *)buf, rx_len);
+        MEMTXATTRS_UNSPECIFIED, buf, rx_len);
     address += rx_len;
     address_space_write(&s->as, address,
-        MEMTXATTRS_UNSPECIFIED, (uint8_t *)&checksum, 4);
+        MEMTXATTRS_UNSPECIFIED, &checksum, 4);
     rx_len += 4;
     s->regs[SONIC_CRBA1] = address >> 16;
     s->regs[SONIC_CRBA0] = address & 0xffff;
@@ -756,7 +756,7 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     address_space_write(&s->as,
                         (s->regs[SONIC_URDA] << 16) |
                         s->regs[SONIC_CRDA],
-                        MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, size);
+                        MEMTXATTRS_UNSPECIFIED, data, size);
 
     /* Move to next descriptor */
     size = sizeof(uint16_t) * width;
@@ -771,7 +771,7 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
         data[0 * width] = 0; /* in_use */
         address_space_write(&s->as,
             ((s->regs[SONIC_URDA] << 16) | s->regs[SONIC_CRDA]) + sizeof(uint16_t) * 6 * width,
-            MEMTXATTRS_UNSPECIFIED, (uint8_t *)data, sizeof(uint16_t));
+            MEMTXATTRS_UNSPECIFIED, data, sizeof(uint16_t));
         s->regs[SONIC_CRDA] = s->regs[SONIC_LLFA];
         s->regs[SONIC_ISR] |= SONIC_ISR_PKTRX;
         s->regs[SONIC_RSC] = (s->regs[SONIC_RSC] & 0xff00) | (((s->regs[SONIC_RSC] & 0x00ff) + 1) & 0x00ff);
