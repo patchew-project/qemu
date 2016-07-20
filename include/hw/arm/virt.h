@@ -45,6 +45,9 @@
 
 #define PPI(irq) ((irq) + 16)
 
+/* 1GB alignment for hotplug memory region */
+#define ARCH_VIRT_HOTPLUG_MEM_ALIGN (1ULL << 30)
+
 enum {
     VIRT_FLASH,
     VIRT_MEM,
