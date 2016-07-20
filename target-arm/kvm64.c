@@ -874,8 +874,10 @@ static const uint32_t brk_insn = 0xd4200000;
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
     if (have_guest_debug) {
-        if (cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn, 4, 0) ||
-            cpu_memory_rw_debug(cs, bp->pc, &brk_insn, 4, 1)) {
+        if (cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn,
+                                4, MEM_DATA_LOAD) ||
+            cpu_memory_rw_debug(cs, bp->pc, &brk_insn,
+                                4, MEM_DATA_STORE)) {
             return -EINVAL;
         }
         return 0;
@@ -890,9 +892,11 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     static uint32_t brk;
 
     if (have_guest_debug) {
-        if (cpu_memory_rw_debug(cs, bp->pc, &brk, 4, 0) ||
+        if (cpu_memory_rw_debug(cs, bp->pc, &brk,
+                                4, MEM_DATA_LOAD) ||
             brk != brk_insn ||
-            cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn, 4, 1)) {
+            cpu_memory_rw_debug(cs, bp->pc, &bp->saved_insn,
+                                4, MEM_DATA_STORE)) {
             return -EINVAL;
         }
         return 0;

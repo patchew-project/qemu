@@ -51,7 +51,8 @@ static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
     if (cc->memory_rw_debug) {
         return cc->memory_rw_debug(cpu, addr, buf, len, is_write);
     }
-    return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
+    return cpu_memory_rw_debug(cpu, addr, buf, len,
+                               is_write ? MEM_DATA_STORE : MEM_DATA_LOAD);
 }
 
 enum {

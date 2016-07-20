@@ -398,7 +398,10 @@ int sparc_cpu_memory_rw_debug(CPUState *cs, vaddr address,
             /* Handle access before this window.  */
             if (addr < fp) {
                 len1 = fp - addr;
-                if (cpu_memory_rw_debug(cs, addr, buf, len1, is_write) != 0) {
+                if (cpu_memory_rw_debug(cs, addr, buf, len1,
+                                        is_write ?
+                                        MEM_DATA_STORE :
+                                        MEM_DATA_LOAD) != 0) {
                     return -1;
                 }
                 addr += len1;
@@ -434,7 +437,8 @@ int sparc_cpu_memory_rw_debug(CPUState *cs, vaddr address,
             }
         }
     }
-    return cpu_memory_rw_debug(cs, addr, buf, len, is_write);
+    return cpu_memory_rw_debug(cs, addr, buf, len,
+                               is_write ? MEM_DATA_STORE : MEM_DATA_LOAD);
 }
 
 #else /* !TARGET_SPARC64 */

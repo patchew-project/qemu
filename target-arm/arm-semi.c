@@ -187,7 +187,7 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;
-    cpu_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, &size, 4, 0);
+    cpu_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, &size, 4, MEM_DATA_LOAD);
     size = be32_to_cpu(size);
     if (is_a64(env)) {
         env->xregs[0] = size;

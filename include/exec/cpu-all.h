@@ -310,7 +310,7 @@ void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf);
 #endif /* !CONFIG_USER_ONLY */
 
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        void *buf, int len, int is_write);
+                        void *buf, int len, MemoryAccessType access_type);
 
 int cpu_exec(CPUState *cpu);
 

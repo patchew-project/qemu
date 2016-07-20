@@ -1691,7 +1691,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
         l = sizeof(buf);
         if (l > size)
             l = size;
-        if (cpu_memory_rw_debug(cpu, addr, buf, l, 0) != 0) {
+        if (cpu_memory_rw_debug(cpu, addr, buf, l, MEM_DATA_LOAD) != 0) {
             error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRId64
                              " specified", orig_addr, orig_size);
             goto exit;

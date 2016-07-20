@@ -2438,12 +2438,15 @@ MemoryRegion *get_system_io(void)
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        void *b, int len, int is_write)
+                        void *b, int len, MemoryAccessType access_type)
 {
     int l, flags;
     target_ulong page;
     void * p;
     uint8_t *buf = b;
+
+    g_assert(access_type == MEM_DATA_STORE ||
+             access_type == MEM_DATA_LOAD);
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -2453,7 +2456,7 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         flags = page_get_flags(page);
         if (!(flags & PAGE_VALID))
             return -1;
-        if (is_write) {
+        if (access_type == MEM_DATA_STORE) {
             if (!(flags & PAGE_WRITE))
                 return -1;
             /* XXX: this code should not depend on lock_user */
@@ -3620,12 +3623,15 @@ void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                        void *b, int len, int is_write)
+                        void *b, int len, MemoryAccessType access_type)
 {
     int l;
     hwaddr phys_addr;
     target_ulong page;
     uint8_t *buf = b;
+
+    g_assert(access_type == MEM_DATA_STORE ||
+             access_type == MEM_DATA_LOAD);
 
     while (len > 0) {
         int asidx;
@@ -3641,7 +3647,7 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
-        if (is_write) {
+        if (access_type == MEM_DATA_STORE) {
             cpu_physical_memory_write_rom(cpu->cpu_ases[asidx].as,
                                           phys_addr, buf, l);
         } else {
