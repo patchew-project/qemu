@@ -65,7 +65,8 @@ typedef uint64_t vaddr;
 typedef enum MemoryAccessType {
     MEM_DATA_LOAD  = 0,
     MEM_DATA_STORE = 1,
-    MEM_INST_FETCH = 2
+    MEM_INST_FETCH = 2,
+    MEM_DEBUG_STORE = 3,
 } MemoryAccessType;
 
 typedef struct CPUWatchpoint CPUWatchpoint;

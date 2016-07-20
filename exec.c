@@ -2446,7 +2446,8 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
     uint8_t *buf = b;
 
     g_assert(access_type == MEM_DATA_STORE ||
-             access_type == MEM_DATA_LOAD);
+             access_type == MEM_DATA_LOAD  ||
+             access_type == MEM_DEBUG_STORE);
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -2558,7 +2559,8 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
                                                 MemTxAttrs attrs,
                                                 const uint8_t *buf,
                                                 int len, hwaddr addr1,
-                                                hwaddr l, MemoryRegion *mr)
+                                                hwaddr l, MemoryRegion *mr,
+                                                bool debug)
 {
     uint8_t *ptr;
     uint64_t val;
@@ -2566,7 +2568,15 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
     bool release_lock = false;
 
     for (;;) {
-        if (!memory_access_is_direct(mr, true)) {
+        /*
+         * debug_direct is used to copy the semantics of
+         * cpu_physical_memory_write_rom() which was originally used
+         * to handle writes to memory with GDBStub
+         */
+        const bool debug_direct = (debug && !(memory_region_is_ram(mr) ||
+                                              memory_region_is_romd(mr)));
+
+        if (!memory_access_is_direct(mr, true) || !debug_direct) {
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
@@ -2617,8 +2627,10 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
     return result;
 }
 
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                                const void *buf, int len)
+static MemTxResult address_space_write_combined(AddressSpace *as, hwaddr addr,
+                                                MemTxAttrs attrs,
+                                                const void *buf, int len,
+                                                bool debug)
 {
     hwaddr l;
     hwaddr addr1;
@@ -2630,11 +2642,25 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         l = len;
         mr = address_space_translate(as, addr, &addr1, &l, true);
         result = address_space_write_continue(as, addr, attrs, buf, len,
-                                              addr1, l, mr);
+                                              addr1, l, mr, debug);
         rcu_read_unlock();
     }
 
     return result;
+
+}
+
+MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                                const void *buf, int len)
+{
+    return address_space_write_combined(as, addr, attrs, buf, len, false);
+}
+
+static MemTxResult address_space_write_debug(AddressSpace *as, hwaddr addr,
+                                             MemTxAttrs attrs,
+                                             const void *buf, int len)
+{
+    return address_space_write_combined(as, addr, attrs, buf, len, true);
 }
 
 /* Called within RCU critical section.  */
@@ -2736,6 +2762,8 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         return address_space_write(as, addr, attrs, buf, len);
     case MEM_DATA_LOAD:
         return address_space_read(as, addr, attrs, buf, len);
+    case MEM_DEBUG_STORE:
+        return address_space_write_debug(as, addr, attrs, buf, len);
     default:
         abort();
     }
@@ -3635,7 +3663,8 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
     uint8_t *buf = b;
 
     g_assert(access_type == MEM_DATA_STORE ||
-             access_type == MEM_DATA_LOAD);
+             access_type == MEM_DATA_LOAD  ||
+             access_type == MEM_DEBUG_STORE);
 
     while (len > 0) {
         int asidx;
@@ -3651,14 +3680,10 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
-        if (access_type == MEM_DATA_STORE) {
-            cpu_physical_memory_write_rom(cpu->cpu_ases[asidx].as,
-                                          phys_addr, buf, l);
-        } else {
-            address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
-                             MEMTXATTRS_UNSPECIFIED,
-                             buf, l, access_type);
-        }
+        address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
+                         MEMTXATTRS_UNSPECIFIED,
+                         buf, l, access_type);
+
         len -= l;
         buf += l;
         addr += l;

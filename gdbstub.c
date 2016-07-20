@@ -991,7 +991,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         hextomem(mem_buf, p, len);
         if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len,
-                                   MEM_DATA_STORE) != 0) {
+                                   MEM_DEBUG_STORE) != 0) {
             put_packet(s, "E14");
         } else {
             put_packet(s, "OK");
