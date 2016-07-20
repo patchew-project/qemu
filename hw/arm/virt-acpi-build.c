@@ -648,6 +648,7 @@ struct AcpiBuildState {
 static
 void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
 {
+    AcpiNVDIMMState *acpi_nvdimm = guest_info->acpi_nvdimm;
     GArray *table_offsets;
     unsigned dsdt, rsdt;
     GArray *tables_blob = tables->table_data;
@@ -695,6 +696,10 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
         build_srat(tables_blob, tables->linker, guest_info);
     }
 
+    if (acpi_nvdimm->is_enabled) {
+        nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
+                          acpi_nvdimm);
+    }
     /* RSDT is pointed to by RSDP */
     rsdt = tables_blob->len;
     build_rsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);

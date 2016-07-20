@@ -32,6 +32,7 @@
 
 #include "qemu-common.h"
 #include "exec/hwaddr.h"
+#include "hw/mem/nvdimm.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -47,6 +48,8 @@
 
 /* 1GB alignment for hotplug memory region */
 #define ARCH_VIRT_HOTPLUG_MEM_ALIGN (1ULL << 30)
+
+#define ARCH_VIRT_NVDIMM      "nvdimm"
 
 enum {
     VIRT_FLASH,
@@ -70,6 +73,7 @@ enum {
     VIRT_GPIO,
     VIRT_SECURE_UART,
     VIRT_SECURE_MEM,
+    VIRT_ACPI_IO,
 };
 
 typedef struct MemMapEntry {

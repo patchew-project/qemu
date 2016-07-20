@@ -94,6 +94,7 @@ typedef struct {
     bool highmem;
     int32_t gic_version;
     MemoryHotplugState hotplug_memory;
+    AcpiNVDIMMState acpi_nvdimm;
 } VirtMachineState;
 
 #define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME("virt")
@@ -180,6 +181,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
     [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
     [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
+    [VIRT_ACPI_IO] =            { 0x09050000, 0x00001000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -1376,6 +1378,7 @@ static void machvirt_init(MachineState *machine)
     guest_info->irqmap = vbi->irqmap;
     guest_info->use_highmem = vms->highmem;
     guest_info->gic_version = gic_version;
+    guest_info->acpi_nvdimm = &vms->acpi_nvdimm;
     guest_info_state->machine_done.notify = virt_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
 
@@ -1411,6 +1414,18 @@ static void machvirt_init(MachineState *machine)
                            "hotplug-memory", hotplug_mem_size);
         memory_region_add_subregion(sysmem, vms->hotplug_memory.base,
                                     &vms->hotplug_memory.mr);
+    }
+
+    if (vms->acpi_nvdimm.is_enabled) {
+        AcpiNVDIMMState *acpi_nvdimm = &vms->acpi_nvdimm;
+
+        acpi_nvdimm->dsm_io.type = NVDIMM_ACPI_IO_MEMORY;
+        acpi_nvdimm->dsm_io.base =
+                vbi->memmap[VIRT_ACPI_IO].base + NVDIMM_ACPI_IO_BASE;
+        acpi_nvdimm->dsm_io.size = NVDIMM_ACPI_IO_LEN;
+
+        nvdimm_init_acpi_state(acpi_nvdimm, sysmem,
+                               guest_info->fw_cfg, OBJECT(vms));
     }
 
     vbi->bootinfo.ram_size = machine->ram_size;
@@ -1550,6 +1565,20 @@ static HotplugHandler *virt_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static bool virt_get_nvdimm(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->acpi_nvdimm.is_enabled;
+}
+
+static void virt_set_nvdimm(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->acpi_nvdimm.is_enabled = value;
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1620,6 +1649,11 @@ static void virt_2_7_instance_init(Object *obj)
     object_property_set_description(obj, "gic-version",
                                     "Set GIC version. "
                                     "Valid values are 2, 3 and host", NULL);
+
+    /* nvdimm is disabled on default. */
+    vms->acpi_nvdimm.is_enabled = false;
+    object_property_add_bool(obj, ARCH_VIRT_NVDIMM, virt_get_nvdimm,
+                             virt_set_nvdimm, &error_abort);
 }
 
 static void virt_machine_2_7_options(MachineClass *mc)
