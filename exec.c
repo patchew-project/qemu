@@ -2569,32 +2569,23 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
                potential bugs */
             switch (l) {
             case 8:
-                /* 64 bit write access */
-                val = ldq_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 8,
-                                                       attrs);
+                val = ldq_p(buf);  /* 64 bit write access */
                 break;
             case 4:
-                /* 32 bit write access */
-                val = ldl_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 4,
-                                                       attrs);
+                val = ldl_p(buf); /* 32 bit write access */
                 break;
             case 2:
-                /* 16 bit write access */
-                val = lduw_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 2,
-                                                       attrs);
+                val = lduw_p(buf); /* 16 bit write access */
                 break;
             case 1:
-                /* 8 bit write access */
-                val = ldub_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 1,
-                                                       attrs);
+                val = ldub_p(buf); /*  8 bit write access */
                 break;
             default:
                 abort();
             }
+
+            result |= memory_region_dispatch_write(mr, addr1, val, l,
+                                                   attrs);
         } else {
             /* RAM case */
             ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
