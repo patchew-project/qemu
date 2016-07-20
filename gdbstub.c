@@ -44,15 +44,17 @@
 #endif
 
 static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
-                                         uint8_t *buf, int len, bool is_write)
+                                         uint8_t *buf, int len,
+                                         MemoryAccessType access_type)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->memory_rw_debug) {
+        const bool is_write = (access_type == MEM_DATA_STORE);
         return cc->memory_rw_debug(cpu, addr, buf, len, is_write);
     }
-    return cpu_memory_rw_debug(cpu, addr, buf, len,
-                               is_write ? MEM_DATA_STORE : MEM_DATA_LOAD);
+
+    return cpu_memory_rw_debug(cpu, addr, buf, len, access_type);
 }
 
 enum {
@@ -966,7 +968,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             break;
         }
 
-        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len, false) != 0) {
+        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf,
+                                   len, MEM_DATA_LOAD) != 0) {
             put_packet (s, "E14");
         } else {
             memtohex(buf, mem_buf, len);
@@ -988,7 +991,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         hextomem(mem_buf, p, len);
         if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len,
-                                   true) != 0) {
+                                   MEM_DATA_STORE) != 0) {
             put_packet(s, "E14");
         } else {
             put_packet(s, "OK");
