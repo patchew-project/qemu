@@ -98,9 +98,24 @@ typedef struct NVDIMMClass NVDIMMClass;
 #define NVDIMM_ACPI_IO_BASE     0x0a18
 #define NVDIMM_ACPI_IO_LEN      4
 
+typedef enum {
+    NVDIMM_ACPI_IO_PORT = 0X00,
+    NVDIMM_ACPI_IO_MEMORY = 0X01,
+} AcpiNVDIMMIOType;
+
+struct AcpiNVDIMMIOEntry {
+    AcpiNVDIMMIOType type;
+    hwaddr base;
+    hwaddr size;
+};
+typedef struct AcpiNVDIMMIOEntry AcpiNVDIMMIOEntry;
+
 struct AcpiNVDIMMState {
     /* detect if NVDIMM support is enabled. */
     bool is_enabled;
+
+    /* NVDIMM IO Type, Address, and Size */
+    AcpiNVDIMMIOEntry dsm_io;
 
     /* the data of the fw_cfg file NVDIMM_DSM_MEM_FILE. */
     GArray *dsm_mem;
@@ -112,5 +127,5 @@ typedef struct AcpiNVDIMMState AcpiNVDIMMState;
 void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
                             FWCfgState *fw_cfg, Object *owner);
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       BIOSLinker *linker, GArray *dsm_dma_arrea);
+                       BIOSLinker *linker, AcpiNVDIMMState *acpi_nvdimm_state);
 #endif

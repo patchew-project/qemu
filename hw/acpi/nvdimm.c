@@ -765,8 +765,8 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
                             FWCfgState *fw_cfg, Object *owner)
 {
     memory_region_init_io(&state->io_mr, owner, &nvdimm_dsm_ops, state,
-                          "nvdimm-acpi-io", NVDIMM_ACPI_IO_LEN);
-    memory_region_add_subregion(io, NVDIMM_ACPI_IO_BASE, &state->io_mr);
+                          "nvdimm-acpi-io", state->dsm_io.size);
+    memory_region_add_subregion(io, state->dsm_io.base, &state->io_mr);
 
     state->dsm_mem = g_array_new(false, true /* clear */, 1);
     acpi_data_push(state->dsm_mem, sizeof(NvdimmDsmIn));
@@ -912,9 +912,10 @@ static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
 
 static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
                               GArray *table_data, BIOSLinker *linker,
-                              GArray *dsm_dma_arrea)
+                              AcpiNVDIMMState *acpi_nvdimm_state)
 {
     Aml *ssdt, *sb_scope, *dev, *field;
+    AmlRegionSpace rs;
     int mem_addr_offset, nvdimm_ssdt;
 
     acpi_add_table(table_offsets, table_data);
@@ -940,8 +941,14 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
     aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0012")));
 
     /* map DSM memory and IO into ACPI namespace. */
-    aml_append(dev, aml_operation_region("NPIO", AML_SYSTEM_IO,
-               aml_int(NVDIMM_ACPI_IO_BASE), NVDIMM_ACPI_IO_LEN));
+    if (acpi_nvdimm_state->dsm_io.type == NVDIMM_ACPI_IO_PORT) {
+        rs = AML_SYSTEM_IO;
+    } else {
+        rs = AML_SYSTEM_MEMORY;
+    }
+    aml_append(dev, aml_operation_region("NPIO", rs,
+               aml_int(acpi_nvdimm_state->dsm_io.base),
+               acpi_nvdimm_state->dsm_io.size));
     aml_append(dev, aml_operation_region("NRAM", AML_SYSTEM_MEMORY,
                aml_name(NVDIMM_ACPI_MEM_ADDR), sizeof(NvdimmDsmIn)));
 
@@ -1014,7 +1021,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
                                                NVDIMM_ACPI_MEM_ADDR);
 
     bios_linker_loader_alloc(linker,
-                             NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
+                             NVDIMM_DSM_MEM_FILE, acpi_nvdimm_state->dsm_mem,
                              sizeof(NvdimmDsmIn), false /* high memory */);
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, mem_addr_offset, sizeof(uint32_t),
@@ -1026,7 +1033,7 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       BIOSLinker *linker, GArray *dsm_dma_arrea)
+                       BIOSLinker *linker, AcpiNVDIMMState *acpi_nvdimm_state)
 {
     GSList *device_list;
 
@@ -1037,6 +1044,6 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
     }
     nvdimm_build_nfit(device_list, table_offsets, table_data, linker);
     nvdimm_build_ssdt(device_list, table_offsets, table_data, linker,
-                      dsm_dma_arrea);
+                      acpi_nvdimm_state);
     g_slist_free(device_list);
 }
