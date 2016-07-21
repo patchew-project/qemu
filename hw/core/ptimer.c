@@ -96,7 +96,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
         if (expired) {
             /* Prevent timer underflowing if it should already have
                triggered.  */
-            counter = 0;
+            counter = 1;
         } else {
             uint64_t rem;
             uint64_t div;
