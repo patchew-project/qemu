@@ -84,17 +84,8 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
 
 
 def gen_marshal_proto(name):
-    ret = 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
-    if not middle_mode:
-        ret = 'static ' + ret
-    return ret
-
-
-def gen_marshal_decl(name):
-    return mcgen('''
-%(proto)s;
-''',
-                 proto=gen_marshal_proto(name))
+    return 'static void qmp_marshal_%s' % c_name(name) + \
+        '(QDict *args, QObject **ret, Error **errp)'
 
 
 def gen_marshal(name, arg_type, boxed, ret_type):
@@ -209,8 +200,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = set()
 
     def visit_end(self):
-        if not middle_mode:
-            self.defn += gen_registry(self._regy)
+        self.defn += gen_registry(self._regy)
         self._regy = None
         self._visited_ret_types = None
 
@@ -222,21 +212,12 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         if ret_type and ret_type not in self._visited_ret_types:
             self._visited_ret_types.add(ret_type)
             self.defn += gen_marshal_output(ret_type)
-        if middle_mode:
-            self.decl += gen_marshal_decl(name)
         self.defn += gen_marshal(name, arg_type, boxed, ret_type)
-        if not middle_mode:
-            self._regy += gen_register_command(name, success_response)
+        self._regy += gen_register_command(name, success_response)
 
-
-middle_mode = False
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line("m", ["middle"])
-
-for o, a in opts:
-    if o in ("-m", "--middle"):
-        middle_mode = True
+    parse_command_line()
 
 c_comment = '''
 /*
