@@ -229,8 +229,6 @@ static int mon_refcount;
 static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
 
-static const mon_cmd_t qmp_cmds[];
-
 Monitor *cur_mon;
 
 static QEMUClockType event_clock_type = QEMU_CLOCK_REALTIME;
@@ -947,21 +945,24 @@ static void hmp_info_help(Monitor *mon, const QDict *qdict)
     help_cmd(mon, "info");
 }
 
+static void query_commands_cb(QmpCommand *cmd, void *opaque)
+{
+    CommandInfoList *info, **list = opaque;
+
+    info = g_malloc0(sizeof(*info));
+    info->value = g_malloc0(sizeof(*info->value));
+    info->value->name = g_strdup(cmd->name);
+    info->next = *list;
+    *list = info;
+}
+
 CommandInfoList *qmp_query_commands(Error **errp)
 {
-    CommandInfoList *info, *cmd_list = NULL;
-    const mon_cmd_t *cmd;
+    CommandInfoList *list = NULL;
 
-    for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
-        info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->name = g_strdup(cmd->name);
+    qmp_for_each_command(query_commands_cb, &list);
 
-        info->next = cmd_list;
-        cmd_list = info;
-    }
-
-    return cmd_list;
+    return list;
 }
 
 EventInfoList *qmp_query_events(Error **errp)
@@ -2164,11 +2165,6 @@ static mon_cmd_t info_cmds[] = {
 static mon_cmd_t mon_cmds[] = {
 #include "hmp-commands.h"
     { NULL, NULL, },
-};
-
-static const mon_cmd_t qmp_cmds[] = {
-#include "qmp-commands-old.h"
-    { /* NULL */ },
 };
 
 /*******************************************************************/
