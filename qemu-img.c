@@ -268,7 +268,7 @@ static BlockBackend *img_open_opts(const char *optstr,
     options = qemu_opts_to_qdict(opts, NULL);
     blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     if (!blk) {
-        error_reportf_err(local_err, "Could not open '%s': ", optstr);
+        error_report_err(local_err);
         return NULL;
     }
     blk_set_enable_write_cache(blk, !writethrough);
@@ -295,7 +295,7 @@ static BlockBackend *img_open_file(const char *filename,
 
     blk = blk_new_open(filename, NULL, options, flags, &local_err);
     if (!blk) {
-        error_reportf_err(local_err, "Could not open '%s': ", filename);
+        error_report(local_err);
         return NULL;
     }
     blk_set_enable_write_cache(blk, !writethrough);
