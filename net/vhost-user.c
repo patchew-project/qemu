@@ -23,7 +23,6 @@ typedef struct VhostUserState {
     CharDriverState *chr;
     VHostNetState *vhost_net;
     guint watch;
-    uint64_t acked_features;
 } VhostUserState;
 
 typedef struct VhostUserChardevProps {
@@ -42,12 +41,7 @@ uint64_t vhost_user_get_acked_features(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_USER);
-    return s->acked_features;
-}
-
-static int vhost_user_running(VhostUserState *s)
-{
-    return (s->vhost_net) ? 1 : 0;
+    return s->vhost_net ? vhost_net_get_acked_features(s->vhost_net) : 0;
 }
 
 static void vhost_user_stop(int queues, NetClientState *ncs[])
@@ -59,15 +53,9 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
         assert(ncs[i]->info->type == NET_CLIENT_DRIVER_VHOST_USER);
 
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
-        if (!vhost_user_running(s)) {
-            continue;
-        }
 
         if (s->vhost_net) {
-            /* save acked features */
-            s->acked_features = vhost_net_get_acked_features(s->vhost_net);
             vhost_net_cleanup(s->vhost_net);
-            s->vhost_net = NULL;
         }
     }
 }
@@ -75,6 +63,7 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
 static int vhost_user_start(int queues, NetClientState *ncs[])
 {
     VhostNetOptions options;
+    struct vhost_net *net = NULL;
     VhostUserState *s;
     int max_queues;
     int i;
@@ -85,33 +74,39 @@ static int vhost_user_start(int queues, NetClientState *ncs[])
         assert(ncs[i]->info->type == NET_CLIENT_DRIVER_VHOST_USER);
 
         s = DO_UPCAST(VhostUserState, nc, ncs[i]);
-        if (vhost_user_running(s)) {
-            continue;
-        }
 
         options.net_backend = ncs[i];
         options.opaque      = s->chr;
         options.busyloop_timeout = 0;
-        s->vhost_net = vhost_net_init(&options);
-        if (!s->vhost_net) {
+        net = vhost_net_init(&options);
+        if (!net) {
             error_report("failed to init vhost_net for queue %d", i);
             goto err;
         }
 
         if (i == 0) {
-            max_queues = vhost_net_get_max_queues(s->vhost_net);
+            max_queues = vhost_net_get_max_queues(net);
             if (queues > max_queues) {
                 error_report("you are asking more queues than supported: %d",
                              max_queues);
                 goto err;
             }
         }
+
+        if (s->vhost_net) {
+            vhost_net_cleanup(s->vhost_net);
+            g_free(s->vhost_net);
+        }
+        s->vhost_net = net;
     }
 
     return 0;
 
 err:
-    vhost_user_stop(i + 1, ncs);
+    if (net) {
+        vhost_net_cleanup(net);
+    }
+    vhost_user_stop(i, ncs);
     return -1;
 }
 
@@ -150,6 +145,7 @@ static void vhost_user_cleanup(NetClientState *nc)
 
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
+        g_free(s->vhost_net);
         s->vhost_net = NULL;
     }
     if (s->chr) {
