@@ -4048,6 +4048,20 @@ QemuOptsList qemu_mon_opts = {
     },
 };
 
+/*
+ * the QAPI schema is blissfully unaware #ifdef FOO commands, and the
+ * QAPI code generator happily generates a dead qmp_marshal_foo_cmd()
+ * that calls qmp_foo_cmd().  Provide it one, or else linking fails.
+ * FIXME Educate the QAPI schema on #ifdef commands.
+ */
+#ifndef CONFIG_SPICE
+SpiceInfo *qmp_query_spice(Error **errp)
+{
+    error_setg(errp, QERR_FEATURE_DISABLED, "spice");
+    return NULL;
+};
+#endif
+
 #ifndef TARGET_I386
 void qmp_rtc_reset_reinjection(Error **errp)
 {
