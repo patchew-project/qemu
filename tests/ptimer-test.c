@@ -189,6 +189,7 @@ static void check_periodic(gconstpointer arg)
     QEMUBH *bh = qemu_bh_new(ptimer_trigger, NULL);
     ptimer_state *ptimer = ptimer_init(bh, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
+    bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
 
     triggered = false;
 
@@ -245,7 +246,12 @@ static void check_periodic(gconstpointer arg)
 
     ptimer_set_count(ptimer, 0);
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 10);
-    g_assert_true(triggered);
+
+    if (no_immediate_trigger) {
+        g_assert_false(triggered);
+    } else {
+        g_assert_true(triggered);
+    }
 
     triggered = false;
 
@@ -389,6 +395,7 @@ static void check_run_with_delta_0(gconstpointer arg)
     QEMUBH *bh = qemu_bh_new(ptimer_trigger, NULL);
     ptimer_state *ptimer = ptimer_init(bh, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
+    bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
 
     triggered = false;
 
@@ -396,7 +403,12 @@ static void check_run_with_delta_0(gconstpointer arg)
     ptimer_set_limit(ptimer, 99, 0);
     ptimer_run(ptimer, 1);
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 99);
-    g_assert_true(triggered);
+
+    if (no_immediate_trigger) {
+        g_assert_false(triggered);
+    } else {
+        g_assert_true(triggered);
+    }
 
     triggered = false;
 
@@ -420,7 +432,12 @@ static void check_run_with_delta_0(gconstpointer arg)
     ptimer_set_count(ptimer, 0);
     ptimer_run(ptimer, 0);
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 99);
-    g_assert_true(triggered);
+
+    if (no_immediate_trigger) {
+        g_assert_false(triggered);
+    } else {
+        g_assert_true(triggered);
+    }
 
     triggered = false;
 
@@ -443,6 +460,7 @@ static void check_periodic_with_load_0(gconstpointer arg)
     QEMUBH *bh = qemu_bh_new(ptimer_trigger, NULL);
     ptimer_state *ptimer = ptimer_init(bh, *policy);
     bool continuous_trigger = (*policy & PTIMER_POLICY_CONTINUOUS_TRIGGER);
+    bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
 
     triggered = false;
 
@@ -450,7 +468,12 @@ static void check_periodic_with_load_0(gconstpointer arg)
     ptimer_run(ptimer, 0);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
-    g_assert_true(triggered);
+
+    if (no_immediate_trigger) {
+        g_assert_false(triggered);
+    } else {
+        g_assert_true(triggered);
+    }
 
     triggered = false;
 
@@ -458,7 +481,7 @@ static void check_periodic_with_load_0(gconstpointer arg)
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
 
-    if (continuous_trigger) {
+    if (continuous_trigger || no_immediate_trigger) {
         g_assert_true(triggered);
     } else {
         g_assert_false(triggered);
@@ -472,6 +495,7 @@ static void check_oneshot_with_load_0(gconstpointer arg)
     const uint8_t *policy = arg;
     QEMUBH *bh = qemu_bh_new(ptimer_trigger, NULL);
     ptimer_state *ptimer = ptimer_init(bh, *policy);
+    bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
 
     triggered = false;
 
@@ -479,13 +503,29 @@ static void check_oneshot_with_load_0(gconstpointer arg)
     ptimer_run(ptimer, 1);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
-    g_assert_true(triggered);
+
+    if (no_immediate_trigger) {
+        g_assert_false(triggered);
+    } else {
+        g_assert_true(triggered);
+    }
 
     triggered = false;
 
     qemu_clock_step(2000000 + 100000);
 
     g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
+
+    if (no_immediate_trigger) {
+        g_assert_true(triggered);
+    } else {
+        g_assert_false(triggered);
+    }
+
+    triggered = false;
+
+    qemu_clock_step(2000000 + 100000);
+
     g_assert_false(triggered);
 }
 
@@ -506,6 +546,10 @@ static void add_ptimer_tests(uint8_t policy)
 
     if (policy & PTIMER_POLICY_CONTINUOUS_TRIGGER) {
         g_strlcat(policy_name, "continuous_trigger,", 256);
+    }
+
+    if (policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER) {
+        g_strlcat(policy_name, "no_immediate_trigger,", 256);
     }
 
     qtest_add_data_func(
@@ -555,7 +599,7 @@ static void add_ptimer_tests(uint8_t policy)
 
 static void add_all_ptimer_policies_comb_tests(void)
 {
-    int last_policy = PTIMER_POLICY_CONTINUOUS_TRIGGER;
+    int last_policy = PTIMER_POLICY_NO_IMMEDIATE_TRIGGER;
     int policy = PTIMER_POLICY_DEFAULT;
 
     for (; policy < (last_policy << 1); policy++) {
