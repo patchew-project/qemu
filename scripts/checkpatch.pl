@@ -286,7 +286,7 @@ sub top_of_kernel_tree {
 
 	my @tree_check = (
 		"COPYING", "MAINTAINERS", "Makefile",
-		"README", "docs", "VERSION",
+		"README.md", "docs", "VERSION",
 		"vl.c"
 	);
 
