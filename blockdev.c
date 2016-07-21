@@ -1838,17 +1838,8 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static void do_drive_backup(const char *job_id, const char *device,
-                            const char *target, bool has_format,
-                            const char *format, enum MirrorSyncMode sync,
-                            bool has_mode, enum NewImageMode mode,
-                            bool has_speed, int64_t speed,
-                            bool has_bitmap, const char *bitmap,
-                            bool has_on_source_error,
-                            BlockdevOnError on_source_error,
-                            bool has_on_target_error,
-                            BlockdevOnError on_target_error,
-                            BlockJobTxn *txn, Error **errp);
+static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
+                            Error **errp);
 
 static void drive_backup_prepare(BlkActionState *common, Error **errp)
 {
@@ -1878,16 +1869,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     bdrv_drained_begin(blk_bs(blk));
     state->bs = blk_bs(blk);
 
-    do_drive_backup(backup->has_job_id ? backup->job_id : NULL,
-                    backup->device, backup->target,
-                    backup->has_format, backup->format,
-                    backup->sync,
-                    backup->has_mode, backup->mode,
-                    backup->has_speed, backup->speed,
-                    backup->has_bitmap, backup->bitmap,
-                    backup->has_on_source_error, backup->on_source_error,
-                    backup->has_on_target_error, backup->on_target_error,
-                    common->block_job_txn, &local_err);
+    do_drive_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -3155,17 +3137,7 @@ out:
     aio_context_release(aio_context);
 }
 
-static void do_drive_backup(const char *job_id, const char *device,
-                            const char *target, bool has_format,
-                            const char *format, enum MirrorSyncMode sync,
-                            bool has_mode, enum NewImageMode mode,
-                            bool has_speed, int64_t speed,
-                            bool has_bitmap, const char *bitmap,
-                            bool has_on_source_error,
-                            BlockdevOnError on_source_error,
-                            bool has_on_target_error,
-                            BlockdevOnError on_target_error,
-                            BlockJobTxn *txn, Error **errp)
+static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
@@ -3178,23 +3150,26 @@ static void do_drive_backup(const char *job_id, const char *device,
     int flags;
     int64_t size;
 
-    if (!has_speed) {
-        speed = 0;
+    if (!backup->has_speed) {
+        backup->speed = 0;
     }
-    if (!has_on_source_error) {
-        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_source_error) {
+        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!has_on_target_error) {
-        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    if (!backup->has_on_target_error) {
+        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!has_mode) {
-        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    if (!backup->has_mode) {
+        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    }
+    if (!backup->has_job_id) {
+        backup->job_id = NULL;
     }
 
-    blk = blk_by_name(device);
+    blk = blk_by_name(backup->device);
     if (!blk) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+                  "Device '%s' not found", backup->device);
         return;
     }
 
@@ -3204,13 +3179,14 @@ static void do_drive_backup(const char *job_id, const char *device,
     /* Although backup_run has this check too, we need to use bs->drv below, so
      * do an early check redundantly. */
     if (!blk_is_available(blk)) {
-        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, backup->device);
         goto out;
     }
     bs = blk_bs(blk);
 
-    if (!has_format) {
-        format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
+    if (!backup->has_format) {
+        backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
+                         NULL : (char *)bs->drv->format_name;
     }
 
     /* Early check to avoid creating target */
@@ -3222,13 +3198,13 @@ static void do_drive_backup(const char *job_id, const char *device,
 
     /* See if we have a backing HD we can use to create our new image
      * on top of. */
-    if (sync == MIRROR_SYNC_MODE_TOP) {
+    if (backup->sync == MIRROR_SYNC_MODE_TOP) {
         source = backing_bs(bs);
         if (!source) {
-            sync = MIRROR_SYNC_MODE_FULL;
+            backup->sync = MIRROR_SYNC_MODE_FULL;
         }
     }
-    if (sync == MIRROR_SYNC_MODE_NONE) {
+    if (backup->sync == MIRROR_SYNC_MODE_NONE) {
         source = bs;
     }
 
@@ -3238,14 +3214,14 @@ static void do_drive_backup(const char *job_id, const char *device,
         goto out;
     }
 
-    if (mode != NEW_IMAGE_MODE_EXISTING) {
-        assert(format);
+    if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
+        assert(backup->format);
         if (source) {
-            bdrv_img_create(target, format, source->filename,
+            bdrv_img_create(backup->target, backup->format, source->filename,
                             source->drv->format_name, NULL,
                             size, flags, &local_err, false);
         } else {
-            bdrv_img_create(target, format, NULL, NULL, NULL,
+            bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
                             size, flags, &local_err, false);
         }
     }
@@ -3255,29 +3231,29 @@ static void do_drive_backup(const char *job_id, const char *device,
         goto out;
     }
 
-    if (format) {
+    if (backup->format) {
         options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(format));
+        qdict_put(options, "driver", qstring_from_str(backup->format));
     }
 
-    target_bs = bdrv_open(target, NULL, options, flags, errp);
+    target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
     if (!target_bs) {
         goto out;
     }
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    if (has_bitmap) {
-        bmap = bdrv_find_dirty_bitmap(bs, bitmap);
+    if (backup->has_bitmap) {
+        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
-            error_setg(errp, "Bitmap '%s' could not be found", bitmap);
+            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
             bdrv_unref(target_bs);
             goto out;
         }
     }
 
-    backup_start(job_id, bs, target_bs, speed, sync, bmap,
-                 on_source_error, on_target_error,
+    backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
+                 bmap, backup->on_source_error, backup->on_target_error,
                  block_job_cb, bs, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
@@ -3289,24 +3265,9 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_drive_backup(bool has_job_id, const char *job_id,
-                      const char *device, const char *target,
-                      bool has_format, const char *format,
-                      enum MirrorSyncMode sync,
-                      bool has_mode, enum NewImageMode mode,
-                      bool has_speed, int64_t speed,
-                      bool has_bitmap, const char *bitmap,
-                      bool has_on_source_error, BlockdevOnError on_source_error,
-                      bool has_on_target_error, BlockdevOnError on_target_error,
-                      Error **errp)
+void qmp_drive_backup(DriveBackup *arg, Error **errp)
 {
-    return do_drive_backup(has_job_id ? job_id : NULL, device, target,
-                           has_format, format, sync,
-                           has_mode, mode, has_speed, speed,
-                           has_bitmap, bitmap,
-                           has_on_source_error, on_source_error,
-                           has_on_target_error, on_target_error,
-                           NULL, errp);
+    return do_drive_backup(arg, NULL, errp);
 }
 
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
