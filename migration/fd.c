@@ -23,15 +23,11 @@
 #include "trace.h"
 
 
-void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
+static void fd_start_outgoing_migration_core(MigrationState *s, int fd,
+                                             Error **errp)
 {
     QIOChannel *ioc;
-    int fd = monitor_get_fd(cur_mon, fdname, errp);
-    if (fd == -1) {
-        return;
-    }
 
-    trace_migration_fd_outgoing(fd);
     ioc = qio_channel_new_fd(fd, errp);
     if (!ioc) {
         close(fd);
@@ -40,6 +36,32 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
 
     migration_channel_connect(s, ioc, NULL);
     object_unref(OBJECT(ioc));
+}
+
+void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
+{
+    int fd = monitor_get_fd(cur_mon, fdname, errp);
+    if (fd == -1) {
+        return;
+    }
+
+    trace_migration_fd_outgoing(fd);
+    fd_start_outgoing_migration_core(s, fd, errp);
+}
+
+void file_start_outgoing_migration(MigrationState *s, const char *filename,
+                                   Error **errp)
+{
+    int fd;
+
+    fd = qemu_open(filename, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "Failed to open file: %s", filename);
+        return;
+    }
+    
+    trace_migration_file_outgoing(filename);
+    fd_start_outgoing_migration_core(s, fd, errp);
 }
 
 static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
