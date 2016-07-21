@@ -190,6 +190,8 @@ static void check_periodic(gconstpointer arg)
     ptimer_state *ptimer = ptimer_init(bh, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
     bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
+    bool no_immediate_reload = (*policy & PTIMER_POLICY_NO_IMMEDIATE_RELOAD);
+    bool continuous_trigger = (*policy & PTIMER_POLICY_CONTINUOUS_TRIGGER);
 
     triggered = false;
 
@@ -245,7 +247,7 @@ static void check_periodic(gconstpointer arg)
     g_assert_false(triggered);
 
     ptimer_set_count(ptimer, 0);
-    g_assert_cmpuint(ptimer_get_count(ptimer), ==, 10);
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_immediate_reload ? 0 : 10);
 
     if (no_immediate_trigger) {
         g_assert_false(triggered);
@@ -257,7 +259,14 @@ static void check_periodic(gconstpointer arg)
 
     qemu_clock_step(2000000 * 12 + 100000);
 
-    g_assert_cmpuint(ptimer_get_count(ptimer), ==, wrap_policy ? 9 : 8);
+    if (no_immediate_reload && (!continuous_trigger && !no_immediate_trigger)) {
+        g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
+        g_assert_false(triggered);
+        return;
+    }
+
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==,
+                    8 + (wrap_policy ? 1 : 0) + (no_immediate_reload ? 1 : 0));
     g_assert_true(triggered);
 
     ptimer_stop(ptimer);
@@ -266,7 +275,8 @@ static void check_periodic(gconstpointer arg)
 
     qemu_clock_step(2000000 * 12 + 100000);
 
-    g_assert_cmpuint(ptimer_get_count(ptimer), ==, wrap_policy ? 9 : 8);
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==,
+                    8 + (wrap_policy ? 1 : 0) + (no_immediate_reload ? 1 : 0));
     g_assert_false(triggered);
 }
 
@@ -396,13 +406,15 @@ static void check_run_with_delta_0(gconstpointer arg)
     ptimer_state *ptimer = ptimer_init(bh, *policy);
     bool wrap_policy = (*policy & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
     bool no_immediate_trigger = (*policy & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER);
+    bool no_immediate_reload = (*policy & PTIMER_POLICY_NO_IMMEDIATE_RELOAD);
+    bool continuous_trigger = (*policy & PTIMER_POLICY_CONTINUOUS_TRIGGER);
 
     triggered = false;
 
     ptimer_set_period(ptimer, 2000000);
     ptimer_set_limit(ptimer, 99, 0);
     ptimer_run(ptimer, 1);
-    g_assert_cmpuint(ptimer_get_count(ptimer), ==, 99);
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_immediate_reload ? 0 : 99);
 
     if (no_immediate_trigger) {
         g_assert_false(triggered);
@@ -411,6 +423,11 @@ static void check_run_with_delta_0(gconstpointer arg)
     }
 
     triggered = false;
+
+    if (no_immediate_reload) {
+        ptimer_set_count(ptimer, 99);
+        ptimer_run(ptimer, 1);
+    }
 
     qemu_clock_step(2000000 + 100000);
 
@@ -431,7 +448,7 @@ static void check_run_with_delta_0(gconstpointer arg)
 
     ptimer_set_count(ptimer, 0);
     ptimer_run(ptimer, 0);
-    g_assert_cmpuint(ptimer_get_count(ptimer), ==, 99);
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_immediate_reload ? 0 : 99);
 
     if (no_immediate_trigger) {
         g_assert_false(triggered);
@@ -440,6 +457,21 @@ static void check_run_with_delta_0(gconstpointer arg)
     }
 
     triggered = false;
+
+    if (no_immediate_reload) {
+        qemu_clock_step(2000000 + 100000);
+
+        if (continuous_trigger || no_immediate_trigger) {
+            g_assert_cmpuint(ptimer_get_count(ptimer), ==, 99);
+            g_assert_true(triggered);
+
+            triggered = false;
+        } else {
+            g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
+            g_assert_false(triggered);
+            return;
+        }
+    }
 
     qemu_clock_step(2000000 + 100000);
 
@@ -552,6 +584,10 @@ static void add_ptimer_tests(uint8_t policy)
         g_strlcat(policy_name, "no_immediate_trigger,", 256);
     }
 
+    if (policy & PTIMER_POLICY_NO_IMMEDIATE_RELOAD) {
+        g_strlcat(policy_name, "no_immediate_reload,", 256);
+    }
+
     qtest_add_data_func(
         g_strdup_printf("/ptimer/set_count policy=%s", policy_name),
         ppolicy, check_set_count);
@@ -599,7 +635,7 @@ static void add_ptimer_tests(uint8_t policy)
 
 static void add_all_ptimer_policies_comb_tests(void)
 {
-    int last_policy = PTIMER_POLICY_NO_IMMEDIATE_TRIGGER;
+    int last_policy = PTIMER_POLICY_NO_IMMEDIATE_RELOAD;
     int policy = PTIMER_POLICY_DEFAULT;
 
     for (; policy < (last_policy << 1); policy++) {
