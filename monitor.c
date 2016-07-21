@@ -3934,6 +3934,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     QObject *obj, *data;
     QDict *input, *args;
     const mon_cmd_t *cmd;
+    QmpCommand *qcmd;
     const char *cmd_name;
     Monitor *mon = cur_mon;
 
@@ -3959,7 +3960,8 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     cmd_name = qdict_get_str(input, "execute");
     trace_handle_qmp_command(mon, cmd_name);
     cmd = qmp_find_cmd(cmd_name);
-    if (!cmd) {
+    qcmd = qmp_find_command(cmd_name);
+    if (!qcmd || !cmd) {
         error_set(&local_err, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", cmd_name);
         goto err_out;
@@ -3981,7 +3983,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    cmd->mhandler.cmd_new(args, &data, &local_err);
+    qcmd->fn(args, &data, &local_err);
 
 err_out:
     monitor_protocol_emitter(mon, data, local_err);
@@ -4050,10 +4052,15 @@ void monitor_resume(Monitor *mon)
 
 static QObject *get_qmp_greeting(void)
 {
+    QmpCommand *cmd;
     QObject *ver = NULL;
 
-    qmp_marshal_query_version(NULL, &ver, NULL);
-    return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
+    cmd = qmp_find_command("query-version");
+    assert(cmd && cmd->fn);
+    cmd->fn(NULL, &ver, NULL);
+
+    return qobject_from_jsonf("{'QMP':{'version': %p, 'capabilities': []}}",
+                              ver);
 }
 
 static void monitor_qmp_event(void *opaque, int event)
