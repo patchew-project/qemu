@@ -1838,6 +1838,12 @@ static void virtio_pci_dc_realize(DeviceState *qdev, Error **errp)
     VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
     PCIDevice *pci_dev = &proxy->pci_dev;
 
+    if (proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY &&
+        proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN) {
+        error_setg(errp, "device is unserviceable when both legacy and modern modes are disabled. At least one of the disable-modern or disable-legacy properties should be set to false.");
+        return;
+    }
+
     if (!(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE) &&
         !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN)) {
         pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
