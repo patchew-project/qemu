@@ -40,8 +40,11 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
     uint64_t period = s->period;
     uint64_t delta = s->delta;
 
-    if (delta == 0) {
+    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
         ptimer_trigger(s);
+    }
+
+    if (delta == 0) {
         delta = s->delta = s->limit;
     }
 
@@ -60,6 +63,10 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
         if (s->enabled == 1) {
             delta = 1;
         }
+    }
+
+    if (delta == 0 && (s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
+        delta = 1;
     }
 
     if (delta == 0) {

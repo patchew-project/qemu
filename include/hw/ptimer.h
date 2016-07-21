@@ -19,6 +19,9 @@
 /* Periodic timer that has load = 0 would continuously re-trigger every
  * period.  */
 #define PTIMER_POLICY_CONTINUOUS_TRIGGER    (1 << 1)
+/* Starting to run with/setting counter = 0 won't perform immediate
+ * trigger.  */
+#define PTIMER_POLICY_NO_IMMEDIATE_TRIGGER  (1 << 2)
 
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
