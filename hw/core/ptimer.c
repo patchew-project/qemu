@@ -44,7 +44,7 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
         ptimer_trigger(s);
     }
 
-    if (delta == 0) {
+    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_RELOAD)) {
         delta = s->delta = s->limit;
     }
 
@@ -102,11 +102,13 @@ static void ptimer_tick(void *opaque)
 {
     ptimer_state *s = (ptimer_state *)opaque;
     ptimer_trigger(s);
-    s->delta = 0;
     if (s->enabled == 2) {
+        s->delta = 0;
         s->enabled = 0;
     } else {
-        ptimer_reload(s, 1);
+        int delta_adjust = (s->delta != 0 && s->limit != 0) ? 1 : 0;
+        s->delta = s->limit;
+        ptimer_reload(s, delta_adjust);
     }
 }
 

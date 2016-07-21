@@ -22,6 +22,8 @@
 /* Starting to run with/setting counter = 0 won't perform immediate
  * trigger.  */
 #define PTIMER_POLICY_NO_IMMEDIATE_TRIGGER  (1 << 2)
+/* Starting to run with/setting counter = 0 won't re-load counter.  */
+#define PTIMER_POLICY_NO_IMMEDIATE_RELOAD   (1 << 3)
 
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
