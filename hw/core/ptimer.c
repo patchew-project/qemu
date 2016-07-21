@@ -34,20 +34,25 @@ static void ptimer_trigger(ptimer_state *s)
     }
 }
 
-static void ptimer_reload(ptimer_state *s)
+static void ptimer_reload(ptimer_state *s, int delta_adjust)
 {
     uint32_t period_frac = s->period_frac;
     uint64_t period = s->period;
+    uint64_t delta = s->delta;
 
-    if (s->delta == 0) {
+    if (delta == 0) {
         ptimer_trigger(s);
-        s->delta = s->limit;
+        delta = s->delta = s->limit;
     }
-    if (s->delta == 0 || s->period == 0) {
+    if (delta == 0 || s->period == 0) {
         fprintf(stderr, "Timer with period zero, disabling\n");
         timer_del(s->timer);
         s->enabled = 0;
         return;
+    }
+
+    if (s->policy_mask & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD) {
+        delta += delta_adjust;
     }
 
     /*
@@ -59,15 +64,15 @@ static void ptimer_reload(ptimer_state *s)
      * on the current generation of host machines.
      */
 
-    if (s->enabled == 1 && (s->delta * period < 10000) && !use_icount) {
-        period = 10000 / s->delta;
+    if (s->enabled == 1 && (delta * period < 10000) && !use_icount) {
+        period = 10000 / delta;
         period_frac = 0;
     }
 
     s->last_event = s->next_event;
-    s->next_event = s->last_event + s->delta * period;
+    s->next_event = s->last_event + delta * period;
     if (period_frac) {
-        s->next_event += ((int64_t)period_frac * s->delta) >> 32;
+        s->next_event += ((int64_t)period_frac * delta) >> 32;
     }
     timer_mod(s->timer, s->next_event);
 }
@@ -80,7 +85,7 @@ static void ptimer_tick(void *opaque)
     if (s->enabled == 2) {
         s->enabled = 0;
     } else {
-        ptimer_reload(s);
+        ptimer_reload(s, 1);
     }
 }
 
@@ -88,7 +93,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
 {
     uint64_t counter;
 
-    if (s->enabled) {
+    if (s->enabled && s->delta != 0) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         int64_t next = s->next_event;
         int64_t last = s->last_event;
@@ -145,6 +150,14 @@ uint64_t ptimer_get_count(ptimer_state *s)
                     div += 1;
             }
             counter = rem / div + 1;
+
+            if (!oneshot && s->delta == s->limit) {
+                /* Before wrapping around, timer should stay with counter = 0
+                   for a one period.  The delta has been adjusted by +1 for
+                   the wrapped around counter, so taking a modulo of limit + 1
+                   gives that period.  */
+                counter %= s->limit + 1;
+            }
         }
     } else {
         counter = s->delta;
@@ -157,7 +170,7 @@ void ptimer_set_count(ptimer_state *s, uint64_t count)
     s->delta = count;
     if (s->enabled) {
         s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s);
+        ptimer_reload(s, 0);
     }
 }
 
@@ -172,7 +185,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
     s->enabled = oneshot ? 2 : 1;
     if (was_disabled) {
         s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s);
+        ptimer_reload(s, 0);
     }
 }
 
@@ -196,7 +209,7 @@ void ptimer_set_period(ptimer_state *s, int64_t period)
     s->period_frac = 0;
     if (s->enabled) {
         s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s);
+        ptimer_reload(s, 0);
     }
 }
 
@@ -208,7 +221,7 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
     s->period_frac = (1000000000ll << 32) / freq;
     if (s->enabled) {
         s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s);
+        ptimer_reload(s, 0);
     }
 }
 
@@ -221,7 +234,7 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
         s->delta = limit;
     if (s->enabled && reload) {
         s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s);
+        ptimer_reload(s, 0);
     }
 }
 
