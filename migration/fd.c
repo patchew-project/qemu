@@ -21,7 +21,7 @@
 #include "monitor/monitor.h"
 #include "io/channel-util.h"
 #include "trace.h"
-
+#include "qemu/cutils.h"
 
 static void fd_start_outgoing_migration_core(MigrationState *s, int fd,
                                              Error **errp)
@@ -73,13 +73,9 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
     return FALSE; /* unregister */
 }
 
-void fd_start_incoming_migration(const char *infd, Error **errp)
+static void fd_start_incoming_migration_core(int fd, Error **errp)
 {
     QIOChannel *ioc;
-    int fd;
-
-    fd = strtol(infd, NULL, 0);
-    trace_migration_fd_incoming(fd);
 
     ioc = qio_channel_new_fd(fd, errp);
     if (!ioc) {
@@ -92,4 +88,33 @@ void fd_start_incoming_migration(const char *infd, Error **errp)
                           fd_accept_incoming_migration,
                           NULL,
                           NULL);
+}
+
+void fd_start_incoming_migration(const char *infd, Error **errp)
+{
+    long fd;
+    int err;
+
+    err = qemu_strtol(infd, NULL, 0, &fd);
+    if (err < 0) {
+        error_setg_errno(errp, -err, "Failed to convert string '%s'"
+                        " to number", infd);
+        return;
+    }
+
+    trace_migration_fd_incoming((int)fd);
+    fd_start_incoming_migration_core((int)fd, errp);
+}
+
+void file_start_incoming_migration(const char *filename, Error **errp)
+{
+    int fd;
+
+    fd = qemu_open(filename, O_RDONLY);
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "Failed to open file:%s", filename);
+        return;
+    }
+    trace_migration_file_incoming(filename);
+    fd_start_incoming_migration_core(fd, errp);
 }

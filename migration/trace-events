@@ -195,6 +195,7 @@ migration_exec_incoming(const char *cmd) "cmd=%s"
 migration_fd_outgoing(int fd) "fd=%d"
 migration_fd_incoming(int fd) "fd=%d"
 migration_file_outgoing(const char *filename) "file=%s"
+migration_file_incoming(const char *filename) "file=%s"
 
 # migration/socket.c
 migration_socket_incoming_accepted(void) ""

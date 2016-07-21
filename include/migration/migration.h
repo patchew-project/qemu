@@ -223,6 +223,8 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
 
 void file_start_outgoing_migration(MigrationState *s, const char *filename, Error **errp);
 
+void file_start_incoming_migration(const char *filename, Error **errp);
+
 void rdma_start_outgoing_migration(void *opaque, const char *host_port, Error **errp);
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp);
