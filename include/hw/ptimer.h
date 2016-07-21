@@ -12,11 +12,13 @@
 #include "qemu/timer.h"
 #include "migration/vmstate.h"
 
+#define PTIMER_POLICY_DEFAULT               0
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
 
-ptimer_state *ptimer_init(QEMUBH *bh);
+ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask);
 void ptimer_set_period(ptimer_state *s, int64_t period);
 void ptimer_set_freq(ptimer_state *s, uint32_t freq);
 uint64_t ptimer_get_limit(ptimer_state *s);
