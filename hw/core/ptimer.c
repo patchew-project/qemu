@@ -89,6 +89,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
     if (s->enabled) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         int64_t next = s->next_event;
+        int64_t last = s->last_event;
         bool expired = (now - next >= 0);
         bool oneshot = (s->enabled == 2);
 
@@ -97,6 +98,8 @@ uint64_t ptimer_get_count(ptimer_state *s)
             /* Prevent timer underflowing if it should already have
                triggered.  */
             counter = 1;
+        } else if (now == last) {
+            counter = s->delta;
         } else {
             uint64_t rem;
             uint64_t div;
@@ -139,7 +142,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
                 if ((uint32_t)(period_frac << shift))
                     div += 1;
             }
-            counter = rem / div;
+            counter = rem / div + 1;
         }
     } else {
         counter = s->delta;
