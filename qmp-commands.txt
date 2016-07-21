@@ -1,8 +1,3 @@
-HXCOMM QMP dispatch table and documentation
-HXCOMM Text between SQMP and EQMP is copied to the QMP documentation file and
-HXCOMM does not show up in the other formats.
-
-SQMP
                         QMP Supported Commands
                         ----------------------
 
@@ -58,14 +53,6 @@ If you're planning to adopt QMP, please observe the following:
 Server's responses in the examples below are always a success response, please
 refer to the QMP specification for more details on error responses.
 
-EQMP
-
-    {
-        .name       = "quit",
-        .args_type  = "",
-    },
-
-SQMP
 quit
 ----
 
@@ -78,14 +65,6 @@ Example:
 -> { "execute": "quit" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "eject",
-        .args_type  = "force:-f,device:B",
-    },
-
-SQMP
 eject
 -----
 
@@ -103,14 +82,6 @@ Example:
 
 Note: The "force" argument defaults to false.
 
-EQMP
-
-    {
-        .name       = "change",
-        .args_type  = "device:B,target:F,arg:s?",
-    },
-
-SQMP
 change
 ------
 
@@ -138,14 +109,6 @@ Examples:
                             "arg": "foobar1" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "screendump",
-        .args_type  = "filename:F",
-    },
-
-SQMP
 screendump
 ----------
 
@@ -160,14 +123,6 @@ Example:
 -> { "execute": "screendump", "arguments": { "filename": "/tmp/image" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "stop",
-        .args_type  = "",
-    },
-
-SQMP
 stop
 ----
 
@@ -180,14 +135,6 @@ Example:
 -> { "execute": "stop" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "cont",
-        .args_type  = "",
-    },
-
-SQMP
 cont
 ----
 
@@ -200,14 +147,6 @@ Example:
 -> { "execute": "cont" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "system_wakeup",
-        .args_type  = "",
-    },
-
-SQMP
 system_wakeup
 -------------
 
@@ -220,14 +159,6 @@ Example:
 -> { "execute": "system_wakeup" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "system_reset",
-        .args_type  = "",
-    },
-
-SQMP
 system_reset
 ------------
 
@@ -240,14 +171,6 @@ Example:
 -> { "execute": "system_reset" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "system_powerdown",
-        .args_type  = "",
-    },
-
-SQMP
 system_powerdown
 ----------------
 
@@ -260,16 +183,6 @@ Example:
 -> { "execute": "system_powerdown" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "device_add",
-        .args_type  = "device:O",
-        .params     = "driver[,prop=value][,...]",
-        .help       = "add device, like -device on the command line",
-    },
-
-SQMP
 device_add
 ----------
 
@@ -295,14 +208,6 @@ Notes:
 (2) It's possible to list device properties by running QEMU with the
     "-device DEVICE,\?" command-line argument, where DEVICE is the device's name
 
-EQMP
-
-    {
-        .name       = "device_del",
-        .args_type  = "id:s",
-    },
-
-SQMP
 device_del
 ----------
 
@@ -322,14 +227,6 @@ Example:
 -> { "execute": "device_del", "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "send-key",
-        .args_type  = "keys:q,hold-time:i?",
-    },
-
-SQMP
 send-key
 ----------
 
@@ -352,14 +249,6 @@ Example:
                               { "type": "qcode", "data": "delete" } ] } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "cpu",
-        .args_type  = "index:i",
-    },
-
-SQMP
 cpu
 ---
 
@@ -376,14 +265,6 @@ Example:
 
 Note: CPUs' indexes are obtained with the 'query-cpus' command.
 
-EQMP
-
-    {
-        .name       = "cpu-add",
-        .args_type  = "id:i",
-    },
-
-SQMP
 cpu-add
 -------
 
@@ -398,14 +279,6 @@ Example:
 -> { "execute": "cpu-add", "arguments": { "id": 2 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "memsave",
-        .args_type  = "val:l,size:i,filename:s,cpu:i?",
-    },
-
-SQMP
 memsave
 -------
 
@@ -426,14 +299,6 @@ Example:
                             "filename": "/tmp/virtual-mem-dump" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "pmemsave",
-        .args_type  = "val:l,size:i,filename:s",
-    },
-
-SQMP
 pmemsave
 --------
 
@@ -453,14 +318,6 @@ Example:
                             "filename": "/tmp/physical-mem-dump" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "inject-nmi",
-        .args_type  = "",
-    },
-
-SQMP
 inject-nmi
 ----------
 
@@ -475,14 +332,6 @@ Example:
 
 Note: inject-nmi fails when the guest doesn't support injecting.
 
-EQMP
-
-    {
-        .name       = "ringbuf-write",
-        .args_type  = "device:s,data:s,format:s?",
-    },
-
-SQMP
 ringbuf-write
 -------------
 
@@ -503,14 +352,6 @@ Example:
                                "format": "utf8" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "ringbuf-read",
-        .args_type  = "device:s,size:i,format:s?",
-    },
-
-SQMP
 ringbuf-read
 -------------
 
@@ -538,14 +379,6 @@ Example:
                                "format": "utf8" } }
 <- {"return": "abcdefgh"}
 
-EQMP
-
-    {
-        .name       = "xen-save-devices-state",
-        .args_type  = "filename:F",
-    },
-
-SQMP
 xen-save-devices-state
 -------
 
@@ -564,14 +397,6 @@ Example:
      "arguments": { "filename": "/tmp/save" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "xen-load-devices-state",
-        .args_type  = "filename:F",
-    },
-
-SQMP
 xen-load-devices-state
 ----------------------
 
@@ -590,14 +415,6 @@ Example:
      "arguments": { "filename": "/tmp/resume" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "xen-set-global-dirty-log",
-        .args_type  = "enable:b",
-    },
-
-SQMP
 xen-set-global-dirty-log
 -------
 
@@ -613,14 +430,6 @@ Example:
      "arguments": { "enable": true } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "migrate",
-        .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
-    },
-
-SQMP
 migrate
 -------
 
@@ -645,14 +454,6 @@ Notes:
 (3) The user Monitor's "detach" argument is invalid in QMP and should not
     be used
 
-EQMP
-
-    {
-        .name       = "migrate_cancel",
-        .args_type  = "",
-    },
-
-SQMP
 migrate_cancel
 --------------
 
@@ -665,14 +466,6 @@ Example:
 -> { "execute": "migrate_cancel" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "migrate-incoming",
-        .args_type  = "uri:s",
-    },
-
-SQMP
 migrate-incoming
 ----------------
 
@@ -693,13 +486,6 @@ Notes:
     be used
 (2) The uri format is the same as for -incoming
 
-EQMP
-    {
-        .name       = "migrate-set-cache-size",
-        .args_type  = "value:o",
-    },
-
-SQMP
 migrate-set-cache-size
 ----------------------
 
@@ -715,13 +501,6 @@ Example:
 -> { "execute": "migrate-set-cache-size", "arguments": { "value": 536870912 } }
 <- { "return": {} }
 
-EQMP
-    {
-        .name       = "migrate-start-postcopy",
-        .args_type  = "",
-    },
-
-SQMP
 migrate-start-postcopy
 ----------------------
 
@@ -732,14 +511,6 @@ Example:
 -> { "execute": "migrate-start-postcopy" }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "query-migrate-cache-size",
-        .args_type  = "",
-    },
-
-SQMP
 query-migrate-cache-size
 ------------------------
 
@@ -753,14 +524,6 @@ Example:
 -> { "execute": "query-migrate-cache-size" }
 <- { "return": 67108864 }
 
-EQMP
-
-    {
-        .name       = "migrate_set_speed",
-        .args_type  = "value:o",
-    },
-
-SQMP
 migrate_set_speed
 -----------------
 
@@ -775,14 +538,6 @@ Example:
 -> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "migrate_set_downtime",
-        .args_type  = "value:T",
-    },
-
-SQMP
 migrate_set_downtime
 --------------------
 
@@ -797,16 +552,6 @@ Example:
 -> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "client_migrate_info",
-        .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
-        .params     = "protocol hostname port tls-port cert-subject",
-        .help       = "set migration information for remote display",
-    },
-
-SQMP
 client_migrate_info
 -------------------
 
@@ -830,16 +575,6 @@ Example:
                     "port": 1234 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "dump-guest-memory",
-        .args_type  = "paging:b,protocol:s,detach:b?,begin:i?,end:i?,format:s?",
-        .params     = "-p protocol [-d] [begin] [length] [format]",
-        .help       = "dump guest memory to file",
-    },
-
-SQMP
 dump
 
 
@@ -870,14 +605,6 @@ Notes:
 
 (1) All boolean arguments default to false
 
-EQMP
-
-    {
-        .name       = "query-dump-guest-memory-capability",
-        .args_type  = "",
-    },
-
-SQMP
 query-dump-guest-memory-capability
 ----------
 
@@ -889,16 +616,6 @@ Example:
 <- { "return": { "formats":
                     ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
 
-EQMP
-
-    {
-        .name       = "query-dump",
-        .args_type  = "",
-        .params     = "",
-        .help       = "query background dump status",
-    },
-
-SQMP
 query-dump
 ----------
 
@@ -912,16 +629,6 @@ Example:
 <- { "return": { "status": "active", "completed": 1024000,
                  "total": 2048000 } }
 
-EQMP
-
-#if defined TARGET_S390X
-    {
-        .name       = "dump-skeys",
-        .args_type  = "filename:F",
-    },
-#endif
-
-SQMP
 dump-skeys
 ----------
 
@@ -936,14 +643,6 @@ Example:
 -> { "execute": "dump-skeys", "arguments": { "filename": "/tmp/skeys" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "netdev_add",
-        .args_type  = "netdev:O",
-    },
-
-SQMP
 netdev_add
 ----------
 
@@ -966,14 +665,6 @@ Note: The supported device options are the same ones supported by the '-netdev'
       command-line argument, which are listed in the '-help' output or QEMU's
       manual
 
-EQMP
-
-    {
-        .name       = "netdev_del",
-        .args_type  = "id:s",
-    },
-
-SQMP
 netdev_del
 ----------
 
@@ -989,14 +680,6 @@ Example:
 <- { "return": {} }
 
 
-EQMP
-
-    {
-        .name       = "object-add",
-        .args_type  = "qom-type:s,id:s,props:q?",
-    },
-
-SQMP
 object-add
 ----------
 
@@ -1014,14 +697,6 @@ Example:
      "props": { "filename": "/dev/hwrng" } } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "object-del",
-        .args_type  = "id:s",
-    },
-
-SQMP
 object-del
 ----------
 
@@ -1037,15 +712,6 @@ Example:
 <- { "return": {} }
 
 
-EQMP
-
-
-    {
-        .name       = "block_resize",
-        .args_type  = "device:s?,node-name:s?,size:o",
-    },
-
-SQMP
 block_resize
 ------------
 
@@ -1062,14 +728,6 @@ Example:
 -> { "execute": "block_resize", "arguments": { "device": "scratch", "size": 1073741824 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-stream",
-        .args_type  = "job-id:s?,device:B,base:s?,speed:o?,backing-file:s?,on-error:s?",
-    },
-
-SQMP
 block-stream
 ------------
 
@@ -1106,14 +764,6 @@ Example:
                                                "base": "/tmp/master.qcow2" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-commit",
-        .args_type  = "job-id:s?,device:B,base:s?,top:s?,backing-file:s?,speed:o?",
-    },
-
-SQMP
 block-commit
 ------------
 
@@ -1170,15 +820,6 @@ Example:
                                               "top": "/tmp/snap1.qcow2" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "drive-backup",
-        .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
-                      "format:s?,bitmap:s?,on-source-error:s?,on-target-error:s?",
-    },
-
-SQMP
 drive-backup
 ------------
 
@@ -1225,15 +866,6 @@ Example:
                                                "target": "backup.img" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-backup",
-        .args_type  = "job-id:s?,sync:s,device:B,target:B,speed:i?,"
-                      "on-source-error:s?,on-target-error:s?",
-    },
-
-SQMP
 blockdev-backup
 ---------------
 
@@ -1267,35 +899,6 @@ Example:
                                                   "target": "tgt-id" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-job-set-speed",
-        .args_type  = "device:B,speed:o",
-    },
-
-    {
-        .name       = "block-job-cancel",
-        .args_type  = "device:B,force:b?",
-    },
-    {
-        .name       = "block-job-pause",
-        .args_type  = "device:B",
-    },
-    {
-        .name       = "block-job-resume",
-        .args_type  = "device:B",
-    },
-    {
-        .name       = "block-job-complete",
-        .args_type  = "device:B",
-    },
-    {
-        .name       = "transaction",
-        .args_type  = "actions:q,properties:q?",
-    },
-
-SQMP
 transaction
 -----------
 
@@ -1381,14 +984,6 @@ Example:
                                          "name": "snapshot0" } } ] } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-dirty-bitmap-add",
-        .args_type  = "node:B,name:s,granularity:i?",
-    },
-
-SQMP
 
 block-dirty-bitmap-add
 ----------------------
@@ -1408,14 +1003,6 @@ Example:
                                                    "name": "bitmap0" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-dirty-bitmap-remove",
-        .args_type  = "node:B,name:s",
-    },
-
-SQMP
 
 block-dirty-bitmap-remove
 -------------------------
@@ -1435,14 +1022,6 @@ Example:
                                                       "name": "bitmap0" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-dirty-bitmap-clear",
-        .args_type  = "node:B,name:s",
-    },
-
-SQMP
 
 block-dirty-bitmap-clear
 ------------------------
@@ -1463,14 +1042,6 @@ Example:
                                                            "name": "bitmap0" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-snapshot-sync",
-        .args_type  = "device:s?,node-name:s?,snapshot-file:s,snapshot-node-name:s?,format:s?,mode:s?",
-    },
-
-SQMP
 blockdev-snapshot-sync
 ----------------------
 
@@ -1498,14 +1069,6 @@ Example:
                                                         "format": "qcow2" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-snapshot",
-        .args_type  = "node:s,overlay:s",
-    },
-
-SQMP
 blockdev-snapshot
 -----------------
 Since 2.5
@@ -1535,14 +1098,6 @@ Example:
                                                     "overlay": "node1534" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-snapshot-internal-sync",
-        .args_type  = "device:B,name:s",
-    },
-
-SQMP
 blockdev-snapshot-internal-sync
 -------------------------------
 
@@ -1563,14 +1118,6 @@ Example:
    }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-snapshot-delete-internal-sync",
-        .args_type  = "device:B,id:s?,name:s?",
-    },
-
-SQMP
 blockdev-snapshot-delete-internal-sync
 --------------------------------------
 
@@ -1602,18 +1149,6 @@ Example:
      }
    }
 
-EQMP
-
-    {
-        .name       = "drive-mirror",
-        .args_type  = "job-id:s?,sync:s,device:B,target:s,speed:i?,mode:s?,"
-                      "format:s?,node-name:s?,replaces:s?,"
-                      "on-source-error:s?,on-target-error:s?,"
-                      "unmap:b?,"
-                      "granularity:i?,buf-size:i?",
-    },
-
-SQMP
 drive-mirror
 ------------
 
@@ -1667,16 +1202,6 @@ Example:
                                                "format": "qcow2" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-mirror",
-        .args_type  = "job-id:s?,sync:s,device:B,target:B,replaces:s?,speed:i?,"
-                      "on-source-error:s?,on-target-error:s?,"
-                      "granularity:i?,buf-size:i?",
-    },
-
-SQMP
 blockdev-mirror
 ------------
 
@@ -1717,13 +1242,6 @@ Example:
                                                   "sync": "full" } }
 <- { "return": {} }
 
-EQMP
-    {
-        .name       = "change-backing-file",
-        .args_type  = "device:s,image-node-name:s,backing-file:s",
-    },
-
-SQMP
 change-backing-file
 -------------------
 Since: 2.1
@@ -1754,14 +1272,6 @@ Arguments:
 Returns: Nothing on success
          If "device" does not exist or cannot be determined, DeviceNotFound
 
-EQMP
-
-    {
-        .name       = "balloon",
-        .args_type  = "value:M",
-    },
-
-SQMP
 balloon
 -------
 
@@ -1776,14 +1286,6 @@ Example:
 -> { "execute": "balloon", "arguments": { "value": 536870912 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "set_link",
-        .args_type  = "name:s,up:b",
-    },
-
-SQMP
 set_link
 --------
 
@@ -1799,16 +1301,6 @@ Example:
 -> { "execute": "set_link", "arguments": { "name": "e1000.0", "up": false } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "getfd",
-        .args_type  = "fdname:s",
-        .params     = "getfd name",
-        .help       = "receive a file descriptor via SCM rights and assign it a name",
-    },
-
-SQMP
 getfd
 -----
 
@@ -1831,16 +1323,6 @@ Notes:
 (2) The 'closefd' command can be used to explicitly close the file
     descriptor when it is no longer needed.
 
-EQMP
-
-    {
-        .name       = "closefd",
-        .args_type  = "fdname:s",
-        .params     = "closefd name",
-        .help       = "close a file descriptor previously passed via SCM rights",
-    },
-
-SQMP
 closefd
 -------
 
@@ -1855,16 +1337,6 @@ Example:
 -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
 <- { "return": {} }
 
-EQMP
-
-     {
-        .name       = "add-fd",
-        .args_type  = "fdset-id:i?,opaque:s?",
-        .params     = "add-fd fdset-id opaque",
-        .help       = "Add a file descriptor, that was passed via SCM rights, to an fd set",
-    },
-
-SQMP
 add-fd
 -------
 
@@ -1893,16 +1365,6 @@ Notes:
 (1) The list of fd sets is shared by all monitor connections.
 (2) If "fdset-id" is not specified, a new fd set will be created.
 
-EQMP
-
-     {
-        .name       = "remove-fd",
-        .args_type  = "fdset-id:i,fd:i?",
-        .params     = "remove-fd fdset-id fd",
-        .help       = "Remove a file descriptor from an fd set",
-    },
-
-SQMP
 remove-fd
 ---------
 
@@ -1925,15 +1387,6 @@ Notes:
 (2) If "fd" is not specified, all file descriptors in "fdset-id" will be
     removed.
 
-EQMP
-
-    {
-        .name       = "query-fdsets",
-        .args_type  = "",
-        .help       = "Return information describing all fd sets",
-    },
-
-SQMP
 query-fdsets
 -------------
 
@@ -1974,14 +1427,6 @@ Example:
 
 Note: The list of fd sets is shared by all monitor connections.
 
-EQMP
-
-    {
-        .name       = "block_passwd",
-        .args_type  = "device:s?,node-name:s?,password:s",
-    },
-
-SQMP
 block_passwd
 ------------
 
@@ -1999,14 +1444,6 @@ Example:
                                                "password": "12345" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block_set_io_throttle",
-        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,bps_max_length:l?,bps_rd_max_length:l?,bps_wr_max_length:l?,iops_max_length:l?,iops_rd_max_length:l?,iops_wr_max_length:l?,iops_size:l?,group:s?",
-    },
-
-SQMP
 block_set_io_throttle
 ------------
 
@@ -2055,14 +1492,6 @@ Example:
                                                "iops_size": 0 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "set_password",
-        .args_type  = "protocol:s,password:s,connected:s?",
-    },
-
-SQMP
 set_password
 ------------
 
@@ -2080,14 +1509,6 @@ Example:
                                                "password": "secret" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "expire_password",
-        .args_type  = "protocol:s,time:s",
-    },
-
-SQMP
 expire_password
 ---------------
 
@@ -2104,14 +1525,6 @@ Example:
                                                   "time": "+60" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "add_client",
-        .args_type  = "protocol:s,fdname:s,skipauth:b?,tls:b?",
-    },
-
-SQMP
 add_client
 ----------
 
@@ -2130,15 +1543,6 @@ Example:
                                              "fdname": "myclient" } }
 <- { "return": {} }
 
-EQMP
-    {
-        .name       = "qmp_capabilities",
-        .args_type  = "",
-        .params     = "",
-        .help       = "enable QMP capabilities",
-    },
-
-SQMP
 qmp_capabilities
 ----------------
 
@@ -2153,14 +1557,6 @@ Example:
 
 Note: This command must be issued before issuing any other command.
 
-EQMP
-
-    {
-        .name       = "human-monitor-command",
-        .args_type  = "command-line:s,cpu-index:i?",
-    },
-
-SQMP
 human-monitor-command
 ---------------------
 
@@ -2197,13 +1593,7 @@ Notes:
 3. Query Commands
 =================
 
-HXCOMM Each query command below is inside a SQMP/EQMP section, do NOT change
-HXCOMM this! We will possibly move query commands definitions inside those
-HXCOMM sections, just like regular commands.
 
-EQMP
-
-SQMP
 query-version
 -------------
 
@@ -2231,14 +1621,6 @@ Example:
       }
    }
 
-EQMP
-
-    {
-        .name       = "query-version",
-        .args_type  = "",
-    },
-
-SQMP
 query-commands
 --------------
 
@@ -2267,14 +1649,6 @@ Example:
 
 Note: This example has been shortened as the real response is too long.
 
-EQMP
-
-    {
-        .name       = "query-commands",
-        .args_type  = "",
-    },
-
-SQMP
 query-events
 --------------
 
@@ -2303,14 +1677,6 @@ Example:
 
 Note: This example has been shortened as the real response is too long.
 
-EQMP
-
-    {
-        .name       = "query-events",
-        .args_type  = "",
-    },
-
-SQMP
 query-qmp-schema
 ----------------
 
@@ -2319,14 +1685,6 @@ named schema entities.  Entities are commands, events and various
 types.  See docs/qapi-code-gen.txt for information on their structure
 and intended use.
 
-EQMP
-
-    {
-        .name       = "query-qmp-schema",
-        .args_type  = "",
-    },
-
-SQMP
 query-chardev
 -------------
 
@@ -2363,14 +1721,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-chardev",
-        .args_type  = "",
-    },
-
-SQMP
 query-chardev-backends
 -------------
 
@@ -2403,14 +1753,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-chardev-backends",
-        .args_type  = "",
-    },
-
-SQMP
 query-block
 -----------
 
@@ -2586,14 +1928,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-block",
-        .args_type  = "",
-    },
-
-SQMP
 query-blockstats
 ----------------
 
@@ -2782,14 +2116,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-blockstats",
-        .args_type  = "query-nodes:b?",
-    },
-
-SQMP
 query-cpus
 ----------
 
@@ -2836,14 +2162,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-cpus",
-        .args_type  = "",
-    },
-
-SQMP
 query-iothreads
 ---------------
 
@@ -2874,14 +2192,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-iothreads",
-        .args_type  = "",
-    },
-
-SQMP
 query-pci
 ---------
 
@@ -3090,14 +2400,6 @@ Example:
 
 Note: This example has been shortened as the real response is too long.
 
-EQMP
-
-    {
-        .name       = "query-pci",
-        .args_type  = "",
-    },
-
-SQMP
 query-kvm
 ---------
 
@@ -3113,14 +2415,6 @@ Example:
 -> { "execute": "query-kvm" }
 <- { "return": { "enabled": true, "present": true } }
 
-EQMP
-
-    {
-        .name       = "query-kvm",
-        .args_type  = "",
-    },
-
-SQMP
 query-status
 ------------
 
@@ -3152,14 +2446,6 @@ Example:
 -> { "execute": "query-status" }
 <- { "return": { "running": true, "singlestep": false, "status": "running" } }
 
-EQMP
-    
-    {
-        .name       = "query-status",
-        .args_type  = "",
-    },
-
-SQMP
 query-mice
 ----------
 
@@ -3195,14 +2481,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "query-mice",
-        .args_type  = "",
-    },
-
-SQMP
 query-vnc
 ---------
 
@@ -3257,18 +2535,6 @@ Example:
       }
    }
 
-EQMP
-
-    {
-        .name       = "query-vnc",
-        .args_type  = "",
-    },
-    {
-        .name       = "query-vnc-servers",
-        .args_type  = "",
-    },
-
-SQMP
 query-spice
 -----------
 
@@ -3336,16 +2602,6 @@ Example:
       }
    }
 
-EQMP
-
-#if defined(CONFIG_SPICE)
-    {
-        .name       = "query-spice",
-        .args_type  = "",
-    },
-#endif
-
-SQMP
 query-name
 ----------
 
@@ -3360,14 +2616,6 @@ Example:
 -> { "execute": "query-name" }
 <- { "return": { "name": "qemu-name" } }
 
-EQMP
-
-    {
-        .name       = "query-name",
-        .args_type  = "",
-    },
-
-SQMP
 query-uuid
 ----------
 
@@ -3382,14 +2630,6 @@ Example:
 -> { "execute": "query-uuid" }
 <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
 
-EQMP
-
-    {
-        .name       = "query-uuid",
-        .args_type  = "",
-    },
-
-SQMP
 query-command-line-options
 --------------------------
 
@@ -3430,14 +2670,6 @@ Example:
      ]
    }
 
-EQMP
-
-    {
-        .name       = "query-command-line-options",
-        .args_type  = "option:s?",
-    },
-
-SQMP
 query-migrate
 -------------
 
@@ -3607,14 +2839,6 @@ Examples:
       }
    }
 
-EQMP
-
-    {
-        .name       = "query-migrate",
-        .args_type  = "",
-    },
-
-SQMP
 migrate-set-capabilities
 ------------------------
 
@@ -3635,14 +2859,6 @@ Example:
 -> { "execute": "migrate-set-capabilities" , "arguments":
      { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
 
-EQMP
-
-    {
-        .name       = "migrate-set-capabilities",
-        .args_type  = "capabilities:q",
-        .params     = "capability:s,state:b",
-    },
-SQMP
 query-migrate-capabilities
 --------------------------
 
@@ -3672,14 +2888,6 @@ Example:
      {"state": false, "capability": "postcopy-ram"}
    ]}
 
-EQMP
-
-    {
-        .name       = "query-migrate-capabilities",
-        .args_type  = "",
-    },
-
-SQMP
 migrate-set-parameters
 ----------------------
 
@@ -3700,14 +2908,6 @@ Example:
 -> { "execute": "migrate-set-parameters" , "arguments":
       { "compress-level": 1 } }
 
-EQMP
-
-    {
-        .name       = "migrate-set-parameters",
-        .args_type  =
-            "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?",
-    },
-SQMP
 query-migrate-parameters
 ------------------------
 
@@ -3737,14 +2937,6 @@ Example:
       }
    }
 
-EQMP
-
-    {
-        .name       = "query-migrate-parameters",
-        .args_type  = "",
-    },
-
-SQMP
 query-balloon
 -------------
 
@@ -3764,81 +2956,6 @@ Example:
       }
    }
 
-EQMP
-
-    {
-        .name       = "query-balloon",
-        .args_type  = "",
-    },
-
-    {
-        .name       = "query-block-jobs",
-        .args_type  = "",
-    },
-
-    {
-        .name       = "qom-list",
-        .args_type  = "path:s",
-    },
-
-    {
-        .name       = "qom-set",
-	.args_type  = "path:s,property:s,value:q",
-    },
-
-    {
-        .name       = "qom-get",
-	.args_type  = "path:s,property:s",
-    },
-
-    {
-        .name       = "nbd-server-start",
-        .args_type  = "addr:q,tls-creds:s?",
-    },
-    {
-        .name       = "nbd-server-add",
-        .args_type  = "device:B,writable:b?",
-    },
-    {
-        .name       = "nbd-server-stop",
-        .args_type  = "",
-    },
-
-    {
-        .name       = "change-vnc-password",
-        .args_type  = "password:s",
-    },
-    {
-        .name       = "qom-list-types",
-        .args_type  = "implements:s?,abstract:b?",
-    },
-
-    {
-        .name       = "device-list-properties",
-        .args_type  = "typename:s",
-    },
-
-    {
-        .name       = "query-machines",
-        .args_type  = "",
-    },
-
-    {
-        .name       = "query-cpu-definitions",
-        .args_type  = "",
-    },
-
-    {
-        .name       = "query-target",
-        .args_type  = "",
-    },
-
-    {
-        .name       = "query-tpm",
-        .args_type  = "",
-    },
-
-SQMP
 query-tpm
 ---------
 
@@ -3864,14 +2981,6 @@ Example:
      ]
    }
 
-EQMP
-
-    {
-        .name       = "query-tpm-models",
-        .args_type  = "",
-    },
-
-SQMP
 query-tpm-models
 ----------------
 
@@ -3884,14 +2993,6 @@ Example:
 -> { "execute": "query-tpm-models" }
 <- { "return": [ "tpm-tis" ] }
 
-EQMP
-
-    {
-        .name       = "query-tpm-types",
-        .args_type  = "",
-    },
-
-SQMP
 query-tpm-types
 ---------------
 
@@ -3904,14 +3005,6 @@ Example:
 -> { "execute": "query-tpm-types" }
 <- { "return": [ "passthrough" ] }
 
-EQMP
-
-    {
-        .name       = "chardev-add",
-        .args_type  = "id:s,backend:q",
-    },
-
-SQMP
 chardev-add
 ----------------
 
@@ -3940,15 +3033,6 @@ Examples:
                      "backend" : { "type" : "pty", "data" : {} } } }
 <- { "return": { "pty" : "/dev/pty/42" } }
 
-EQMP
-
-    {
-        .name       = "chardev-remove",
-        .args_type  = "id:s",
-    },
-
-
-SQMP
 chardev-remove
 --------------
 
@@ -3963,13 +3047,6 @@ Example:
 -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
 <- { "return": {} }
 
-EQMP
-    {
-        .name       = "query-rx-filter",
-        .args_type  = "name:s?",
-    },
-
-SQMP
 query-rx-filter
 ---------------
 
@@ -4027,14 +3104,6 @@ Example:
       ]
    }
 
-EQMP
-
-    {
-        .name       = "blockdev-add",
-        .args_type  = "options:q",
-    },
-
-SQMP
 blockdev-add
 ------------
 
@@ -4085,14 +3154,6 @@ Example (2):
 
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "x-blockdev-del",
-        .args_type  = "id:s?,node-name:s?",
-    },
-
-SQMP
 x-blockdev-del
 ------------
 Since 2.5
@@ -4141,14 +3202,6 @@ Example:
    }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-open-tray",
-        .args_type  = "device:s,force:b?",
-    },
-
-SQMP
 blockdev-open-tray
 ------------------
 
@@ -4188,14 +3241,6 @@ Example:
 
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "blockdev-close-tray",
-        .args_type  = "device:s",
-    },
-
-SQMP
 blockdev-close-tray
 -------------------
 
@@ -4222,14 +3267,6 @@ Example:
 
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "x-blockdev-remove-medium",
-        .args_type  = "device:s",
-    },
-
-SQMP
 x-blockdev-remove-medium
 ------------------------
 
@@ -4269,14 +3306,6 @@ Example:
 
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "x-blockdev-insert-medium",
-        .args_type  = "device:s,node-name:s",
-    },
-
-SQMP
 x-blockdev-insert-medium
 ------------------------
 
@@ -4308,14 +3337,6 @@ Example:
 
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "x-blockdev-change",
-        .args_type  = "parent:B,child:B?,node:B?",
-    },
-
-SQMP
 x-blockdev-change
 -----------------
 
@@ -4360,15 +3381,7 @@ Delete a quorum's node
                     "child": "children.1" } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "query-named-block-nodes",
-        .args_type  = "",
-    },
-
-SQMP
-@query-named-block-nodes
+query-named-block-nodes
 ------------------------
 
 Return a list of BlockDeviceInfo for all the named block driver nodes
@@ -4421,14 +3434,6 @@ Example:
                       }
                    } } ] }
 
-EQMP
-
-    {
-        .name       = "blockdev-change-medium",
-        .args_type  = "device:B,filename:F,format:s?,read-only-mode:s?",
-    },
-
-SQMP
 blockdev-change-medium
 ----------------------
 
@@ -4473,14 +3478,6 @@ Examples:
 
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "query-memdev",
-        .args_type  = "",
-    },
-
-SQMP
 query-memdev
 ------------
 
@@ -4510,15 +3507,7 @@ Example (1):
      ]
    }
 
-EQMP
-
-    {
-        .name       = "query-memory-devices",
-        .args_type  = "",
-    },
-
-SQMP
-@query-memory-devices
+query-memory-devices
 --------------------
 
 Return a list of memory devices.
@@ -4536,15 +3525,8 @@ Example:
                         "slot": 0},
                    "type": "dimm"
                  } ] }
-EQMP
 
-    {
-        .name       = "query-acpi-ospm-status",
-        .args_type  = "",
-    },
-
-SQMP
-@query-acpi-ospm-status
+query-acpi-ospm-status
 --------------------
 
 Return list of ACPIOSTInfo for devices that support status reporting
@@ -4557,16 +3539,7 @@ Example:
                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
    ]}
-EQMP
 
-#if defined TARGET_I386
-    {
-        .name       = "rtc-reset-reinjection",
-        .args_type  = "",
-    },
-#endif
-
-SQMP
 rtc-reset-reinjection
 ---------------------
 
@@ -4578,14 +3551,7 @@ Example:
 
 -> { "execute": "rtc-reset-reinjection" }
 <- { "return": {} }
-EQMP
 
-    {
-        .name       = "trace-event-get-state",
-        .args_type  = "name:s,vcpu:i?",
-    },
-
-SQMP
 trace-event-get-state
 ---------------------
 
@@ -4609,14 +3575,7 @@ Example:
 
 -> { "execute": "trace-event-get-state", "arguments": { "name": "qemu_memalign" } }
 <- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
-EQMP
 
-    {
-        .name       = "trace-event-set-state",
-        .args_type  = "name:s,enable:b,ignore-unavailable:b?,vcpu:i?",
-    },
-
-SQMP
 trace-event-set-state
 ---------------------
 
@@ -4643,14 +3602,6 @@ Example:
 
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
-EQMP
-
-    {
-        .name       = "input-send-event",
-        .args_type  = "console:i?,events:q",
-    },
-
-SQMP
 @input-send-event
 -----------------
 
@@ -4708,14 +3659,6 @@ Move mouse pointer to absolute coordinates (20000, 400).
                { "type": "abs", "data" : { "axis": "y", "value" : 400 } } ] } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "block-set-write-threshold",
-        .args_type  = "node-name:s,write-threshold:l",
-    },
-
-SQMP
 block-set-write-threshold
 ------------
 
@@ -4735,14 +3678,6 @@ Example:
                  "write-threshold": 17179869184 } }
 <- { "return": {} }
 
-EQMP
-
-    {
-        .name       = "query-rocker",
-        .args_type  = "name:s",
-    },
-
-SQMP
 Show rocker switch
 ------------------
 
@@ -4755,14 +3690,6 @@ Example:
 -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
 <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
 
-EQMP
-
-    {
-        .name       = "query-rocker-ports",
-        .args_type  = "name:s",
-    },
-
-SQMP
 Show rocker switch ports
 ------------------------
 
@@ -4779,14 +3706,6 @@ Example:
                   "autoneg": "off", "link-up": true, "speed": 10000}
    ]}
 
-EQMP
-
-    {
-        .name       = "query-rocker-of-dpa-flows",
-        .args_type  = "name:s,tbl-id:i?",
-    },
-
-SQMP
 Show rocker switch OF-DPA flow tables
 -------------------------------------
 
@@ -4807,14 +3726,6 @@ Example:
                  {...more...},
    ]}
 
-EQMP
-
-    {
-        .name       = "query-rocker-of-dpa-groups",
-        .args_type  = "name:s,type:i?",
-    },
-
-SQMP
 Show rocker OF-DPA group tables
 -------------------------------
 
@@ -4836,16 +3747,6 @@ Example:
                   "pop-vlan": 1, "id": 251658240}
    ]}
 
-EQMP
-
-#if defined TARGET_ARM
-    {
-        .name       = "query-gic-capabilities",
-        .args_type  = "",
-    },
-#endif
-
-SQMP
 query-gic-capabilities
 ---------------
 
@@ -4860,14 +3761,6 @@ Example:
 <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
                 { "version": 3, "emulated": false, "kernel": true } ] }
 
-EQMP
-
-    {
-        .name       = "query-hotpluggable-cpus",
-        .args_type  = "",
-    },
-
-SQMP
 Show existing/possible CPUs
 ---------------------------
 
