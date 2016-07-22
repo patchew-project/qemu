@@ -2138,13 +2138,16 @@
 #
 # @debug-level: #optional libgfapi log level (default '4' which is Error)
 #
+# @logfile:     #optional libgfapi log file (default /dev/stderr)
+#
 # Since: 2.7
 ##
 { 'struct': 'BlockdevOptionsGluster',
   'data': { 'volume': 'str',
             'path': 'str',
             'server': ['GlusterServer'],
-            '*debug_level': 'int' } }
+            '*debug_level': 'int',
+            '*logfile': 'str' } }
 
 ##
 # @BlockdevOptions
