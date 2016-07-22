@@ -2562,7 +2562,7 @@ struct target_mq_attr {
 #define FUTEX_CMD_MASK          ~(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME)
 
 #ifdef CONFIG_EPOLL
-#if defined(TARGET_X86_64)
+#if defined(TARGET_X86_64) || defined(TARGET_I386)
 #define TARGET_EPOLL_PACKED QEMU_PACKED
 #else
 #define TARGET_EPOLL_PACKED
