@@ -10218,6 +10218,9 @@ static void ppc_cpu_reset(CPUState *s)
     if (env->mmu_model & POWERPC_MMU_64) {
         msr |= (1ULL << MSR_SF);
     }
+    if (env->mmu_model == POWERPC_MMU_BOOKE206) {
+        msr |= (1ULL << MSR_CM);
+    }
 #endif
 
     hreg_store_msr(env, msr, 1);
