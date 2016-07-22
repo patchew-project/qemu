@@ -248,6 +248,7 @@
 #       2.3: 'host_floppy' deprecated
 #       2.5: 'host_floppy' dropped
 #       2.6: 'luks' added
+#       2.7: 'replication' added
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1696,8 +1697,8 @@
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'luks', 'null-aio', 'null-co',
-            'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp',
-            'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'replication',
+            'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -2160,6 +2161,19 @@
 { 'enum' : 'ReplicationMode', 'data' : [ 'primary', 'secondary' ] }
 
 ##
+# @BlockdevOptionsReplication
+#
+# Driver specific block device options for replication
+#
+# @mode: the replication mode
+#
+# Since: 2.7
+##
+{ 'struct': 'BlockdevOptionsReplication',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { 'mode': 'ReplicationMode'  } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2224,6 +2238,7 @@
       'quorum':     'BlockdevOptionsQuorum',
       'raw':        'BlockdevOptionsGenericFormat',
 # TODO rbd: Wait for structured options
+      'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
 # TODO ssh: Should take InetSocketAddress for 'host'?
       'tftp':       'BlockdevOptionsFile',
