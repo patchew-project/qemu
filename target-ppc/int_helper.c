@@ -160,6 +160,11 @@ target_ulong helper_cntlzw(target_ulong t)
     return clz32(t);
 }
 
+target_ulong helper_cnttzw(target_ulong t)
+{
+    return ctz32(t);
+}
+
 #if defined(TARGET_PPC64)
 uint64_t helper_modsd(uint64_t rau, uint64_t rbu)
 {
