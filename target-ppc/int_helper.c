@@ -161,6 +161,22 @@ target_ulong helper_cntlzw(target_ulong t)
 }
 
 #if defined(TARGET_PPC64)
+uint64_t helper_modsd(uint64_t rau, uint64_t rbu)
+{
+    int64_t ra = (int64_t)rau;
+    int64_t rb = (int64_t)rbu;
+
+    if ((rb == 0) || (ra == INT32_MIN && rb == -1)) {
+        return 0;
+    }
+    return ra % rb;
+}
+
+uint64_t helper_modud(uint64_t ra, uint64_t rb)
+{
+    return rb ? ra % rb : 0;
+}
+
 target_ulong helper_cntlzd(target_ulong t)
 {
     return clz64(t);
