@@ -139,6 +139,21 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 
 #endif
 
+uint32_t helper_modsw(uint32_t rau, uint32_t rbu)
+{
+    int32_t ra = (int32_t) rau;
+    int32_t rb = (int32_t) rbu;
+
+    if ((rb == 0) || (ra == INT32_MIN && rb == -1)) {
+        return 0;
+    }
+    return ra % rb;
+}
+
+uint32_t helper_moduw(uint32_t ra, uint32_t rb)
+{
+    return rb ? ra % rb : 0;
+}
 
 target_ulong helper_cntlzw(target_ulong t)
 {

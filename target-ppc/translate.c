@@ -1175,6 +1175,23 @@ GEN_DIVE(divde, divde, 0);
 GEN_DIVE(divdeo, divde, 1);
 #endif
 
+#define GEN_INT_ARITH_MODW(name, opc3, sign)                            \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+{                                                                       \
+    TCGv_i32 t0 = tcg_temp_new_i32();                                   \
+    TCGv_i32 t1 = tcg_temp_new_i32();                                   \
+                                                                        \
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                 \
+    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                 \
+    gen_helper_##name(t0, t0 , t1);                                     \
+    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                  \
+    tcg_temp_free_i32(t0);                                              \
+    tcg_temp_free_i32(t1);                                              \
+}
+
+GEN_INT_ARITH_MODW(moduw, 0x08, 0);
+GEN_INT_ARITH_MODW(modsw, 0x18, 1);
+
 /* mulhw  mulhw. */
 static void gen_mulhw(DisasContext *ctx)
 {
@@ -10241,6 +10258,8 @@ GEN_HANDLER_E(divwe, 0x1F, 0x0B, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweo, 0x1F, 0x0B, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweu, 0x1F, 0x0B, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divweuo, 0x1F, 0x0B, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
+GEN_HANDLER_E(modsw, 0x1F, 0x0B, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(moduw, 0x1F, 0x0B, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 
 #if defined(TARGET_PPC64)
 #undef GEN_INT_ARITH_DIVD
