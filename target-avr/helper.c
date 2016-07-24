@@ -152,6 +152,7 @@ void tlb_fill(CPUState *cs, target_ulong vaddr, MMUAccessType access_type,
 
     tlb_set_page_with_attrs(cs, vaddr, paddr, attrs, prot, mmu_idx, page_size);
 }
+
 void helper_sleep(CPUAVRState *env)
 {
     CPUState *cs = CPU(avr_env_get_cpu(env));
@@ -159,6 +160,7 @@ void helper_sleep(CPUAVRState *env)
     cs->exception_index = EXCP_HLT;
     cpu_loop_exit(cs);
 }
+
 void helper_unsupported(CPUAVRState *env)
 {
     CPUState *cs = CPU(avr_env_get_cpu(env));

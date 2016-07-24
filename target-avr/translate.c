@@ -90,18 +90,6 @@ void avr_translate_init(void)
     done_init = 1;
 }
 
-static int translate_nop(CPUAVRState *env, DisasContext *ctx, uint32_t opcode)
-{
-    return BS_NONE;
-}
-
-void avr_decode(uint32_t pc, uint32_t *length, uint32_t opcode,
-                        translate_function_t *translate)
-{
-    *length = 32;
-    *translate = &translate_nop;
-}
-
 static void decode_opc(AVRCPU *cpu, DisasContext *ctx, InstInfo *inst)
 {
     CPUAVRState        *env = &cpu->env;
