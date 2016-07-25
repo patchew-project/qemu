@@ -28,7 +28,9 @@ endif
 CFLAGS := $(filter -O% -g%, $(CFLAGS))
 QEMU_INCLUDES += -I$(SRC_PATH)
 
-Wa = -Wa,
+ifndef CONFIG_BSD
+Wa = -Wa
+endif
 ASFLAGS += -32
 QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), $(Wa)-32)
 
@@ -44,7 +46,11 @@ build-all: multiboot.bin linuxboot.bin linuxboot_dma.bin kvmvapic.bin
 ifdef CONFIG_WIN32
 LD_EMULATION = i386pe
 else
+ifdef CONFIG_BSD
+LD_EMULATION = elf_i386_fbsd
+else
 LD_EMULATION = elf_i386
+endif
 endif
 
 %.img: %.o
