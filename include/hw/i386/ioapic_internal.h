@@ -29,7 +29,7 @@
 
 #define MAX_IOAPICS                     1
 
-#define IOAPIC_VERSION                  0x11
+#define IOAPIC_VERSION                  0x20
 
 #define IOAPIC_LVT_DEST_SHIFT           56
 #define IOAPIC_LVT_DEST_IDX_SHIFT       48
@@ -71,6 +71,7 @@
 
 #define IOAPIC_IOREGSEL                 0x00
 #define IOAPIC_IOWIN                    0x10
+#define IOAPIC_EOI                      0x40
 
 #define IOAPIC_REG_ID                   0x00
 #define IOAPIC_REG_VER                  0x01

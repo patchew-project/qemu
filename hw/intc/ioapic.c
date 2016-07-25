@@ -354,6 +354,12 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
             }
         }
         break;
+    case IOAPIC_EOI:
+        if (size != 4) {
+            break;
+        }
+        ioapic_eoi_broadcast(val);
+        break;
     }
 
     ioapic_update_kvm_routes(s);
