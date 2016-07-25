@@ -260,7 +260,7 @@ unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
         bytes -= len;
         offset = 0;
     }
-    assert(offset == 0);
+    assert(j == 0 || offset == 0);
     return j;
 }
 
