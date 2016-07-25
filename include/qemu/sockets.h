@@ -36,17 +36,11 @@ InetSocketAddress *inet_parse(const char *str, Error **errp);
 int inet_listen(const char *str, char *ostr, int olen,
                 int socktype, int port_offset, Error **errp);
 int inet_connect(const char *str, Error **errp);
-int inet_nonblocking_connect(const char *str,
-                             NonBlockingConnectHandler *callback,
-                             void *opaque, Error **errp);
 
 NetworkAddressFamily inet_netfamily(int family);
 
 int unix_listen(const char *path, char *ostr, int olen, Error **errp);
 int unix_connect(const char *path, Error **errp);
-int unix_nonblocking_connect(const char *str,
-                             NonBlockingConnectHandler *callback,
-                             void *opaque, Error **errp);
 
 SocketAddress *socket_parse(const char *str, Error **errp);
 int socket_connect(SocketAddress *addr, Error **errp,
