@@ -368,6 +368,7 @@ SPAPR_CPU_CORE_INITFN(POWER7+_v2.1, POWER7plus);
 SPAPR_CPU_CORE_INITFN(POWER8_v2.0, POWER8);
 SPAPR_CPU_CORE_INITFN(POWER8E_v2.1, POWER8E);
 SPAPR_CPU_CORE_INITFN(POWER8NVL_v1.0, POWER8NVL);
+SPAPR_CPU_CORE_INITFN(POWER9_v1.0, POWER9);
 
 typedef struct SPAPRCoreInfo {
     const char *name;
@@ -410,6 +411,10 @@ static const SPAPRCoreInfo spapr_cores[] = {
     /* POWER8NVL and aliases */
     { .name = "POWER8NVL_v1.0", .initfn = spapr_cpu_core_POWER8NVL_initfn },
     { .name = "POWER8NVL", .initfn = spapr_cpu_core_POWER8NVL_initfn },
+
+    /* POWER9 and aliases */
+    { .name = "POWER9_v1.0", .initfn = spapr_cpu_core_POWER9_initfn },
+    { .name = "POWER9", .initfn = spapr_cpu_core_POWER9_initfn },
 
     { .name = NULL }
 };
