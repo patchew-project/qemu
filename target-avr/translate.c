@@ -90,18 +90,6 @@ void avr_translate_init(void)
     done_init = 1;
 }
 
-static int translate_nop(CPUAVRState *env, DisasContext *ctx, uint32_t opcode)
-{
-    return BS_NONE;
-}
-
-void avr_decode(uint32_t pc, uint32_t *length, uint32_t opcode,
-                        translate_function_t *translate)
-{
-    *length = 32;
-    *translate = &translate_nop;
-}
-
 static void decode_opc(AVRCPU *cpu, DisasContext *ctx, InstInfo *inst)
 {
     CPUAVRState *env = &cpu->env;
@@ -154,8 +142,8 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
     if (tb->flags & TB_FLAGS_FULL_ACCESS) {
         /*
             this flag is set by ST/LD instruction
-            we will regenerate ONLY it with mem/cpu memory access
-            insttead of mem access
+            we will regenerate it ONLY with mem/cpu memory access
+            instead of mem access
         */
         max_insns = 1;
     }
@@ -178,14 +166,17 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(cpc);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, cpc * 2, BP_ANY))) {
+        /*
+         * this is due to some strange GDB behavior
+         * let's assume main is has 0x100 address
+         * b main   - sets a breakpoint to 0x00000100 address (code)
+         * b *0x100 - sets a breakpoint to 0x00800100 address (data)
+         */
+        if (unlikely(cpu_breakpoint_test(cs, PHYS_BASE_CODE + cpc * 2, BP_ANY))
+                 || cpu_breakpoint_test(cs, PHYS_BASE_DATA + cpc * 2, BP_ANY)) {
             tcg_gen_movi_i32(cpu_pc, cpc);
             gen_helper_debug(cpu_env);
             ctx.bstate = BS_EXCP;
-            /* The address covered by the breakpoint must be included in
-               [tb->pc, tb->pc + tb->size) in order to for it to be
-               properly cleared -- thus we increment the PC here so that
-               the logic setting tb->size below does the right thing. */
             goto done_generating;
         }
 
