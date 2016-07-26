@@ -46,6 +46,8 @@ typedef struct CadenceGEMState {
 
     /* Static properties */
     uint8_t num_priority_queues;
+    uint8_t num_type1_screeners;
+    uint8_t num_type2_screeners;
 
     /* GEM registers backing store */
     uint32_t regs[CADENCE_GEM_MAXREG];
