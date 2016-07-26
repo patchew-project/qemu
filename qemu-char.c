@@ -4197,14 +4197,23 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
     ChardevFile *file = backend->u.file.data;
     ChardevCommon *common = qapi_ChardevFile_base(file);
     HANDLE out;
+    DWORD flags;
 
     if (file->has_in) {
         error_setg(errp, "input file not supported");
         return NULL;
     }
 
+    if (file->has_append && file->append) {
+        /* Append to file if it already exists. */
+        flags = OPEN_ALWAYS;
+    } else {
+        /* Truncate file if it already exists. */
+        flags = CREATE_ALWAYS;
+    }
+
     out = CreateFile(file->out, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                     OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                     flags, FILE_ATTRIBUTE_NORMAL, NULL);
     if (out == INVALID_HANDLE_VALUE) {
         error_setg(errp, "open %s failed", file->out);
         return NULL;
