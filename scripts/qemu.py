@@ -33,7 +33,7 @@ class QEMUMachine(object):
         self._qemu_log_path = os.path.join(test_dir, name + ".log")
         self._popen = None
         self._binary = binary
-        self._args = args
+        self._args = list(args) # Force copy args in case we modify them
         self._wrapper = wrapper
         self._events = []
         self._iolog = None
@@ -183,6 +183,23 @@ class QEMUMachine(object):
         return events
 
     def event_wait(self, name, timeout=60.0, match=None):
+        # Test if 'match' is a recursive subset of 'event'
+        def event_match(event, match=None):
+            if match is None:
+                return True
+
+            for key in match:
+                if key in event:
+                    if isinstance(event[key], dict):
+                        if not event_match(event[key], match[key]):
+                            return False
+                    elif event[key] != match[key]:
+                        return False
+                else:
+                    return False
+
+            return True
+
         # Search cached events
         for event in self._events:
             if (event['event'] == name) and event_match(event, match):
