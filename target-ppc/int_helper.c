@@ -686,6 +686,55 @@ VCMP(gtsd, >, s64)
 #undef VCMP_DO
 #undef VCMP
 
+#define VCMPNEZ_DO(suffix, element, record)                         \
+void helper_vcmpnez##suffix(CPUPPCState *env, ppc_avr_t *r,         \
+                            ppc_avr_t *a, ppc_avr_t *b)                 \
+{                                                                       \
+    uint64_t ones = (uint64_t)-1;                                       \
+    uint64_t all = ones;                                                \
+    uint64_t none = 0;                                                  \
+    int i;                                                              \
+                                                                        \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        uint64_t result = ((a->element[i] == 0)                         \
+                           || (b->element[i] == 0)                      \
+                           || (a->element[i] != b->element[i]) ?        \
+                           ones : 0x0);                                 \
+        switch (sizeof(a->element[0])) {                                \
+        case 8:                                                         \
+            r->u64[i] = result;                                         \
+            break;                                                      \
+        case 4:                                                         \
+            r->u32[i] = result;                                         \
+            break;                                                      \
+        case 2:                                                         \
+            r->u16[i] = result;                                         \
+            break;                                                      \
+        case 1:                                                         \
+            r->u8[i] = result;                                          \
+            break;                                                      \
+        }                                                               \
+        all &= result;                                                  \
+        none |= result;                                                 \
+    }                                                                   \
+    if (record) {                                                       \
+        env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);           \
+    }                                                                   \
+}
+
+/* VCMPNEZ - Vector compare not equal to zero
+ *   suffix  - instruction mnemonic suffix (b: byte, h: halfword, w: word)
+ *   element - element type to access from vector
+ */
+#define VCMPNEZ(suffix, element)         \
+    VCMPNEZ_DO(suffix, element, 0)       \
+    VCMPNEZ_DO(suffix##_dot, element, 1)
+VCMPNEZ(b, u8)
+VCMPNEZ(h, u16)
+VCMPNEZ(w, u32)
+#undef VCMPNEZ_DO
+#undef VCMPNEZ
+
 #define VCMPFP_DO(suffix, compare, order, record)                       \
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
                              ppc_avr_t *a, ppc_avr_t *b)                \
