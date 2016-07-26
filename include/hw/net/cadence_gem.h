@@ -30,7 +30,7 @@
 #include "net/net.h"
 #include "hw/sysbus.h"
 
-#define CADENCE_GEM_MAXREG        (0x00000640/4) /* Last valid GEM address */
+#define CADENCE_GEM_MAXREG        (0x00000800 / 4) /* Last valid GEM address */
 
 #define MAX_PRIORITY_QUEUES             8
 
