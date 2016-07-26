@@ -597,6 +597,29 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+#define VABSDU_DO(name, element, etype)                                 \
+void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)           \
+{                                                                       \
+    int i;                                                              \
+                                                                        \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        r->element[i] = abs(a->element[i] - b->element[i]);             \
+    }                                                                   \
+}
+
+/* VABSDU - Vector absolute difference unsigned
+ *   name    - instruction mnemonic suffix (b: byte, h: halfword, w: word)
+ *   element - element type to access from vector
+ *   etype   - internal data type to use for elements
+ */
+#define VABSDU(type, element, etype)                                    \
+    VABSDU_DO(absdu##type, element, etype)
+VABSDU(b, u8, uint16_t)
+VABSDU(h, u16, uint32_t)
+VABSDU(w, u32, uint64_t)
+#undef VABSDU_DO
+#undef VABSDU
+
 #define VCF(suffix, cvt, element)                                       \
     void helper_vcf##suffix(CPUPPCState *env, ppc_avr_t *r,             \
                             ppc_avr_t *b, uint32_t uim)                 \
