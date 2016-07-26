@@ -456,7 +456,7 @@ static void omap_i2c_init(Object *obj)
     sysbus_init_irq(sbd, &s->drq[0]);
     sysbus_init_irq(sbd, &s->drq[1]);
     sysbus_init_mmio(sbd, &s->iomem);
-    s->bus = i2c_init_bus(dev, NULL);
+    s->bus = i2c_init_bus(dev, NULL, true);
 }
 
 static void omap_i2c_realize(DeviceState *dev, Error **errp)

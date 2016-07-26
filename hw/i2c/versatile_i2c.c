@@ -86,7 +86,7 @@ static void versatile_i2c_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     I2CBus *bus;
 
-    bus = i2c_init_bus(dev, "i2c");
+    bus = i2c_init_bus(dev, "i2c", true);
     s->bitbang = bitbang_i2c_init(bus);
     memory_region_init_io(&s->iomem, obj, &versatile_i2c_ops, s,
                           "versatile_i2c", 0x1000);

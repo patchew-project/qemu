@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
+#include "qapi/error.h"
 
 typedef struct I2CNode I2CNode;
 
@@ -22,6 +23,7 @@ struct I2CBus
     BusState qbus;
     QLIST_HEAD(, I2CNode) current_devs;
     uint8_t saved_address;
+    bool broadcast_enabled;
     bool broadcast;
 };
 
@@ -45,11 +47,31 @@ static void i2c_bus_pre_save(void *opaque)
 
     bus->saved_address = -1;
     if (!QLIST_EMPTY(&bus->current_devs)) {
-        if (!bus->broadcast) {
+        if (!bus->broadcast_enabled && !bus->broadcast) {
             bus->saved_address = QLIST_FIRST(&bus->current_devs)->elt->address;
         }
     }
 }
+
+static bool vmstate_test_use_broadcast(void *opaque)
+{
+    I2CBus *bus = opaque;
+
+    return bus->broadcast_enabled;
+}
+
+static const VMStateDescription vmstate_broadcast_state = {
+    .name = "i2c_bus/broadcast",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .needed = vmstate_test_use_broadcast,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(broadcast, I2CBus),
+        VMSTATE_END_OF_LIST()
+    }
+
+};
 
 static const VMStateDescription vmstate_i2c_bus = {
     .name = "i2c_bus",
@@ -58,17 +80,21 @@ static const VMStateDescription vmstate_i2c_bus = {
     .pre_save = i2c_bus_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(saved_address, I2CBus),
-        VMSTATE_BOOL(broadcast, I2CBus),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_broadcast_state,
+        NULL
     }
 };
 
 /* Create a new I2C bus.  */
-I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
+I2CBus *i2c_init_bus(DeviceState *parent, const char *name, bool broadcast)
 {
     I2CBus *bus;
 
     bus = I2C_BUS(qbus_create(TYPE_I2C_BUS, parent, name));
+    bus->broadcast_enabled = broadcast;
     QLIST_INIT(&bus->current_devs);
     vmstate_register(NULL, -1, &vmstate_i2c_bus, bus);
     return bus;

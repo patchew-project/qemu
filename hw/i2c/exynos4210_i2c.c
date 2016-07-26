@@ -309,7 +309,7 @@ static void exynos4210_i2c_init(Object *obj)
                           TYPE_EXYNOS4_I2C, EXYNOS4_I2C_MEM_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    s->bus = i2c_init_bus(dev, "i2c");
+    s->bus = i2c_init_bus(dev, "i2c", true);
 }
 
 static void exynos4210_i2c_class_init(ObjectClass *klass, void *data)

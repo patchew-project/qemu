@@ -86,6 +86,12 @@ static void ich9_smbus_realize(PCIDevice *d, Error **errp)
                      &s->smb.io);
 }
 
+static Property ich9_smbus_properties[] = {
+    DEFINE_PROP_BOOL("smbus-broadcast-enabled", ICH9SMBState,
+                     smb.smb_broadcast_enabled, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ich9_smb_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -97,6 +103,7 @@ static void ich9_smb_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_SERIAL_SMBUS;
     dc->vmsd = &vmstate_ich9_smbus;
     dc->desc = "ICH9 SMBUS Bridge";
+    dc->props = ich9_smbus_properties;
     k->realize = ich9_smbus_realize;
     k->config_write = ich9_smbus_write_config;
     /*

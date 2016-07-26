@@ -50,7 +50,7 @@ struct I2CSlave
     uint8_t address;
 };
 
-I2CBus *i2c_init_bus(DeviceState *parent, const char *name);
+I2CBus *i2c_init_bus(DeviceState *parent, const char *name, bool broadcast);
 void i2c_set_slave_address(I2CSlave *dev, uint8_t address);
 int i2c_bus_busy(I2CBus *bus);
 int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv);

@@ -3,6 +3,7 @@
 
 typedef struct PMSMBus {
     I2CBus *smbus;
+    bool smb_broadcast_enabled;
     MemoryRegion io;
 
     uint8_t smb_stat;

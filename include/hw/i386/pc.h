@@ -391,6 +391,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "apic",\
         .property = "legacy-instance-id",\
         .value    = "on",\
+    },\
+    {\
+        .driver   = "ICH9 SMB",\
+        .property = "smbus-broadcast-enabled",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "PIIX4_PM",\
+        .property = "smbus-broadcast-enabled",\
+        .value    = "off",\
     },
 
 #define PC_COMPAT_2_5 \

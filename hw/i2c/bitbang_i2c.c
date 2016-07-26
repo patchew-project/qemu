@@ -220,7 +220,7 @@ static void gpio_i2c_init(Object *obj)
     memory_region_init(&s->dummy_iomem, obj, "gpio_i2c", 0);
     sysbus_init_mmio(sbd, &s->dummy_iomem);
 
-    bus = i2c_init_bus(dev, "i2c");
+    bus = i2c_init_bus(dev, "i2c", true);
     s->bitbang = bitbang_i2c_init(bus);
 
     qdev_init_gpio_in(dev, bitbang_i2c_gpio_set, 2);

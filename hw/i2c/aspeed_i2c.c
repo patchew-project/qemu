@@ -394,7 +394,7 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
         snprintf(name, sizeof(name), "aspeed.i2c.%d", i);
         s->busses[i].controller = s;
         s->busses[i].id = i;
-        s->busses[i].bus = i2c_init_bus(dev, name);
+        s->busses[i].bus = i2c_init_bus(dev, name, true);
         memory_region_init_io(&s->busses[i].mr, OBJECT(dev),
                               &aspeed_i2c_bus_ops, &s->busses[i], name, 0x40);
         memory_region_add_subregion(&s->iomem, 0x40 * (i + offset),

@@ -882,7 +882,7 @@ static void stellaris_i2c_init(Object *obj)
     I2CBus *bus;
 
     sysbus_init_irq(sbd, &s->irq);
-    bus = i2c_init_bus(dev, "i2c");
+    bus = i2c_init_bus(dev, "i2c", true);
     s->bus = bus;
 
     memory_region_init_io(&s->iomem, obj, &stellaris_i2c_ops, s,
