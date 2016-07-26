@@ -244,6 +244,23 @@ void ioapic_dump_state(Monitor *mon, const QDict *qdict)
     }
 }
 
+static uint32_t ioapic_get_version(void)
+{
+    X86IOMMUState *iommu = x86_iommu_get_default();
+
+    /*
+     * If we enabled vIOMMU IR, we provide a upgraded version of
+     * IOAPIC 0x20, which support explicit EOI request from guest.
+     * This fixes a bug that IR not working on some old upstream
+     * kernels (before v4.0, commit d32932d) or most RHEL ones.
+     */
+    if (iommu && iommu->intr_supported) {
+        return 0x20;
+    }
+
+    return 0x11;
+}
+
 static uint64_t
 ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -265,7 +282,7 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
             val = s->id << IOAPIC_ID_SHIFT;
             break;
         case IOAPIC_REG_VER:
-            val = IOAPIC_VERSION |
+            val = ioapic_get_version() |
                 ((IOAPIC_NUM_PINS - 1) << IOAPIC_VER_ENTRIES_SHIFT);
             break;
         default:
@@ -353,6 +370,12 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                 ioapic_service(s);
             }
         }
+        break;
+    case IOAPIC_EOI:
+        if (size != 4 || ioapic_get_version() != 0x20) {
+            break;
+        }
+        ioapic_eoi_broadcast(val);
         break;
     }
 
