@@ -7220,6 +7220,7 @@ GEN_VXFORM(vsraw, 2, 14);
 GEN_VXFORM(vsrad, 2, 15);
 GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
+GEN_VXFORM(vsrv, 2, 28);
 GEN_VXFORM(vslv, 2, 29);
 GEN_VXFORM(vaddcuw, 0, 6);
 GEN_VXFORM(vsubcuw, 0, 22);
@@ -10655,6 +10656,7 @@ GEN_VXFORM(vsraw, 2, 14),
 GEN_VXFORM_207(vsrad, 2, 15),
 GEN_VXFORM(vslo, 6, 16),
 GEN_VXFORM(vsro, 6, 17),
+GEN_VXFORM(vsrv, 2, 28),
 GEN_VXFORM(vslv, 2, 29),
 GEN_VXFORM(vaddcuw, 0, 6),
 GEN_VXFORM(vsubcuw, 0, 22),

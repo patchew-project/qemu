@@ -1690,6 +1690,23 @@ void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
+void helper_vsrv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    unsigned int shift, bytes, src[ARRAY_SIZE(r->u8) + 1];
+
+    src[0] = 0;
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        src[i + 1] = a->u8[i];
+    }
+
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        shift = b->u8[i] & 0x7;               /* extract shift value */
+        bytes = (src[i] << 8) + src[i + 1];     /* extract adjacent bytes */
+        r->u8[i] = (bytes >> shift) & 0xFF;   /* shift and store result */
+    }
+}
+
 void helper_vsldoi(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
 {
     int sh = shift & 0xf;
