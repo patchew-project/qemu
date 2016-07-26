@@ -170,6 +170,11 @@ void error_setg_internal(Error **errp,
  * Just like error_setg(), with @os_error info added to the message.
  * If @os_error is non-zero, ": " + strerror(os_error) is appended to
  * the human-readable error message.
+ *
+ * Reminder: errno may get clobbered by almost any function call. If
+ * you need the value of errno for another purpose, save it before
+ * invoking error_setg_errno() (or any other function for that
+ * matter).
  */
 #define error_setg_errno(errp, os_error, fmt, ...)                      \
     error_setg_errno_internal((errp), __FILE__, __LINE__, __func__,     \
