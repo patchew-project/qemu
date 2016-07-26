@@ -26,6 +26,119 @@
 
 #include "hw/intc/arm_gicv3_common.h"
 
+/*
+ * Field manipulations
+ */
+#define GIC_CLEAR_BIT(irq, ncpu, gicr_field1, gicd_field2)           \
+    do {                                                             \
+        if ((irq) < GIC_INTERNAL) {                                  \
+            s->cpu[(ncpu)].gicr_field1 &= ~(1 << (irq));             \
+        } else {                                                     \
+            gic_bmp_clear_bit((irq - GIC_INTERNAL), s->gicd_field2); \
+        }                                                            \
+    } while (0)
+#define GIC_SET_BIT(irq, ncpu, gicr_field1, gicd_field2)             \
+    do {                                                             \
+        if ((irq) < GIC_INTERNAL) {                                  \
+            s->cpu[(ncpu)].gicr_field1 |= 1 << (irq);                \
+        } else {                                                     \
+            gic_bmp_set_bit((irq - GIC_INTERNAL), s->gicd_field2);   \
+        }                                                            \
+    } while (0)
+#define GIC_REPLACE_BIT(irq, ncpu, gicr_field1, gicd_field2, val)    \
+    do {                                                             \
+        if (val) {                                                   \
+            GIC_SET_BIT(irq, ncpu, gicr_field1, gicd_field2);        \
+        } else {                                                     \
+            GIC_CLEAR_BIT(irq, ncpu, gicr_field1, gicd_field2);      \
+        }                                                            \
+    } while (0)
+#define GIC_TEST_BIT(irq, ncpu, gicr_field1, gicd_field2)                 \
+    (((irq) < GIC_INTERNAL) ? (s->cpu[(ncpu)].gicr_field1 >> (irq)) & 1 : \
+    gic_bmp_test_bit((irq) - GIC_INTERNAL, s->gicd_field2));
+
+#define GIC_SET_PRIORITY(irq, ncpu, pri)                       \
+    do {                                                       \
+        if ((irq) < GIC_INTERNAL) {                            \
+            s->cpu[(ncpu)].gicr_ipriorityr[(irq)] = (pri);     \
+        } else {                                               \
+            s->gicd_ipriority[(irq) - GIC_INTERNAL] = (pri);   \
+        }                                                      \
+    } while (0)
+#define GIC_GET_PRIORITY(irq, ncpu)                                 \
+    (((irq) < GIC_INTERNAL) ? s->cpu[(ncpu)].gicr_ipriorityr[irq] : \
+     s->gicd_ipriority[(irq) - GIC_INTERNAL])
+
+#define GIC_GET_TARGET(irq, ncpu)                       \
+    (((irq) < GIC_INTERNAL) ? (1 << (ncpu)) :           \
+     s->irq_target[(irq) - GIC_INTERNAL])
+#define GIC_SET_TARGET(irq, cm)                         \
+    do {                                                \
+        if ((irq) >= GIC_INTERNAL) {                    \
+            s->irq_target[(irq - GIC_INTERNAL)] = (cm); \
+        }                                               \
+    } while (0)
+
+#define GIC_SET_GROUP(irq, cpu)    GIC_SET_BIT(irq, cpu, gicr_igroupr0, group)
+#define GIC_CLEAR_GROUP(irq, cpu)  \
+                                 GIC_CLEAR_BIT(irq, cpu, gicr_igroupr0, group)
+#define GIC_REPLACE_GROUP(irq, cpu, val) \
+                          GIC_REPLACE_BIT(irq, cpu, gicr_igroupr0, group, val)
+#define GIC_TEST_GROUP(irq, cpu)   \
+                                  GIC_TEST_BIT(irq, cpu, gicr_igroupr0, group)
+#define GIC_SET_ENABLED(irq, cpu)  \
+                                GIC_SET_BIT(irq, cpu, gicr_ienabler0, enabled)
+#define GIC_CLEAR_ENABLED(irq, cpu) \
+                              GIC_CLEAR_BIT(irq, cpu, gicr_ienabler0, enabled)
+#define GIC_REPLACE_ENABLED(irq, cpu, val) \
+                       GIC_REPLACE_BIT(irq, cpu, gicr_ienabler0, enabled, val)
+#define GIC_TEST_ENABLED(irq, cpu) \
+                               GIC_TEST_BIT(irq, cpu, gicr_ienabler0, enabled)
+#define GIC_SET_PENDING(irq, cpu)  \
+                                  GIC_SET_BIT(irq, cpu, gicr_ipendr0, pending)
+#define GIC_CLEAR_PENDING(irq, cpu) \
+                                GIC_CLEAR_BIT(irq, cpu, gicr_ipendr0, pending)
+#define GIC_CLEAR_PENDING(irq, cpu) \
+                                GIC_CLEAR_BIT(irq, cpu, gicr_ipendr0, pending)
+#define GIC_REPLACE_PENDING(irq, cpu, val) \
+                         GIC_REPLACE_BIT(irq, cpu, gicr_ipendr0, pending, val)
+#define GIC_TEST_PENDING(irq, cpu) \
+                                 GIC_TEST_BIT(irq, cpu, gicr_ipendr0, pending)
+#define GIC_SET_ACTIVE(irq, cpu)   \
+                                 GIC_SET_BIT(irq, cpu, gicr_iactiver0, active)
+#define GIC_CLEAR_ACTIVE(irq, cpu) \
+                               GIC_CLEAR_BIT(irq, cpu, gicr_iactiver0, active)
+#define GIC_REPLACE_ACTIVE(irq, cpu, val) \
+                        GIC_REPLACE_BIT(irq, cpu, gicr_iactiver0, active, val)
+#define GIC_TEST_ACTIVE(irq, cpu)         \
+                                GIC_TEST_BIT(irq, cpu, gicr_iactiver0, active)
+#define GIC_SET_LEVEL(irq, cpu)          GIC_SET_BIT(irq, cpu, level, level)
+#define GIC_CLEAR_LEVEL(irq, cpu)        GIC_CLEAR_BIT(irq, cpu, level, level)
+#define GIC_REPLACE_LEVEL(irq, cpu, val) \
+                                  GIC_REPLACE_BIT(irq, cpu, level, level, val)
+#define GIC_TEST_LEVEL(irq, cpu)         GIC_TEST_BIT(irq, cpu, level, level)
+#define GIC_SET_EDGE_TRIGGER(irq, cpu)   \
+                             GIC_SET_BIT(irq, cpu, edge_trigger, edge_trigger)
+#define GIC_CLEAR_EDGE_TRIGGER(irq, cpu) \
+                           GIC_CLEAR_BIT(irq, cpu, edge_trigger, edge_trigger)
+#define GIC_REPLACE_EDGE_TRIGGER(irq, cpu, val) \
+                    GIC_REPLACE_BIT(irq, cpu, edge_trigger, edge_trigger, val)
+#define GIC_TEST_EDGE_TRIGGER(irq, cpu)  \
+                            GIC_TEST_BIT(irq, cpu, edge_trigger, edge_trigger)
+
+static inline bool gic_test_pending(GICv3State *s, int irq, int cpu)
+{
+    /* Edge-triggered interrupts are marked pending on a rising edge, but
+     * level-triggered interrupts are either considered pending when the
+     * level is active or if software has explicitly written to
+     * GICD_ISPENDR to set the state pending.
+     */
+    bool pending = GIC_TEST_PENDING(irq, cpu);
+    bool trigger = GIC_TEST_EDGE_TRIGGER(irq, cpu);
+    bool level = GIC_TEST_LEVEL(irq, cpu);
+    return pending || (!trigger && level);
+}
+
 /* Distributor registers, as offsets from the distributor base address */
 #define GICD_CTLR            0x0000
 #define GICD_TYPER           0x0004

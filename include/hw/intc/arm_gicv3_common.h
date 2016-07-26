@@ -146,6 +146,7 @@ struct GICv3CPUState {
     qemu_irq parent_irq;
     qemu_irq parent_fiq;
 
+    bool cpu_enabled;
     /* Redistributor */
     uint32_t level;                  /* Current IRQ level */
     /* RD_base page registers */

@@ -54,6 +54,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
+        VMSTATE_BOOL(cpu_enabled, GICv3CPUState),
         VMSTATE_UINT32(level, GICv3CPUState),
         VMSTATE_UINT32(gicr_ctlr, GICv3CPUState),
         VMSTATE_UINT32_ARRAY(gicr_statusr, GICv3CPUState, 2),
@@ -64,6 +65,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
         VMSTATE_UINT32(gicr_ienabler0, GICv3CPUState),
         VMSTATE_UINT32(gicr_ipendr0, GICv3CPUState),
         VMSTATE_UINT32(gicr_iactiver0, GICv3CPUState),
+        VMSTATE_UINT32(level, GICv3CPUState),
         VMSTATE_UINT32(edge_trigger, GICv3CPUState),
         VMSTATE_UINT32(gicr_igrpmodr0, GICv3CPUState),
         VMSTATE_UINT32(gicr_nsacr, GICv3CPUState),
@@ -220,6 +222,7 @@ static void arm_gicv3_common_reset(DeviceState *dev)
     for (i = 0; i < s->num_cpu; i++) {
         GICv3CPUState *cs = &s->cpu[i];
 
+        cs->cpu_enabled = false;
         cs->level = 0;
         cs->gicr_ctlr = 0;
         cs->gicr_statusr[GICV3_S] = 0;
