@@ -229,7 +229,6 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
     }
 
 done_generating:
-    env->fullacc = false;
     gen_tb_end(tb, num_insns);
 
     tb->size = (npc - pc_start) * 2;
