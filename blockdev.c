@@ -3731,6 +3731,17 @@ void qmp_block_job_cancel(const char *device,
         goto out;
     }
 
+    if (block_job_txn_all_success(job)) {
+        if (job->txn != NULL) {
+            error_setg(errp, "All block jobs in transaction for device '%s' are"
+                             "already successed", device);
+        } else {
+            error_setg(errp, "The block job for device '%s' is"
+                             "already successed", device);
+        }
+        goto out;
+    }
+
     trace_qmp_block_job_cancel(job);
     block_job_cancel(job);
 out:
