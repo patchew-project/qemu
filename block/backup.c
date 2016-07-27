@@ -467,6 +467,18 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_unlock(&job->flush_rwlock);
     g_free(job->done_bitmap);
 
+    if (ret == 0) {
+        job->common.success = true;
+        while (!block_job_txn_all_success(&job->common)) {
+            if (block_job_is_cancelled(&job->common)) {
+                break;
+            }
+
+            block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, SLICE_TIME);
+        }
+    }
+
+
     bdrv_op_unblock_all(blk_bs(target), job->common.blocker);
 
     data = g_malloc(sizeof(*data));

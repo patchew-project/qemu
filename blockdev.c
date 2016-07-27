@@ -2250,6 +2250,8 @@ void qmp_transaction(TransactionActionList *dev_list,
         }
     }
 
+    block_job_txn_set_prepared(block_job_txn);
+
     QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
         if (state->ops->commit) {
             state->ops->commit(state);

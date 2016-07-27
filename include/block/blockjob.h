@@ -156,6 +156,13 @@ struct BlockJob {
     bool ready;
 
     /**
+     * All work is done with success, job is ready to be completed
+     * successfully, but waiting for cancelling by other job from transaction,
+     * if it (other job) fails.
+     */
+    bool success;
+
+    /**
      * Set to true when the job has deferred work to the main loop.
      */
     bool deferred_to_main_loop;
@@ -503,5 +510,8 @@ void block_job_txn_unref(BlockJobTxn *txn);
  * to release the reference that is automatically grabbed here.
  */
 void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
+
+void block_job_txn_set_prepared(BlockJobTxn *txn);
+bool block_job_txn_all_success(BlockJob *job);
 
 #endif

@@ -49,6 +49,8 @@ struct BlockJobTxn {
 
     /* Reference count */
     int refcnt;
+
+    bool prepared;
 };
 
 static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
@@ -220,6 +222,28 @@ static void block_job_completed_single(BlockJob *job)
         block_job_txn_unref(job->txn);
     }
     block_job_unref(job);
+}
+
+bool block_job_txn_all_success(BlockJob *job)
+{
+    BlockJobTxn *txn = job->txn;
+    BlockJob *other_job;
+
+    if (txn == NULL) {
+        return job->success;
+    }
+
+    if (!txn->prepared) {
+        return false;
+    }
+
+    QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
+        if (!(other_job->success)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static void block_job_completed_txn_abort(BlockJob *job)
@@ -661,4 +685,13 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
 
     QLIST_INSERT_HEAD(&txn->jobs, job, txn_list);
     block_job_txn_ref(txn);
+}
+
+void block_job_txn_set_prepared(BlockJobTxn *txn)
+{
+    if (!txn) {
+        return;
+    }
+
+    txn->prepared = true;
 }
