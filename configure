@@ -5069,6 +5069,10 @@ if test "$sdl" = "yes" ; then
   echo "CONFIG_SDLABI=$sdlabi" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
 fi
+if test "$sdlabi" = "2.0"; then
+  echo "CONFIG_SDL2=y" >> $config_host_mak
+fi
+
 if test "$cocoa" = "yes" ; then
   echo "CONFIG_COCOA=y" >> $config_host_mak
 fi
