@@ -738,24 +738,7 @@ static const DisplayChangeListenerOps dcl_gl_ops = {
 };
 #endif
 
-void sdl_display_early_init(int opengl)
-{
-    switch (opengl) {
-    case -1: /* default */
-    case 0:  /* off */
-        break;
-    case 1: /* on */
-#ifdef CONFIG_OPENGL
-        display_opengl = 1;
-#endif
-        break;
-    default:
-        g_assert_not_reached();
-        break;
-    }
-}
-
-void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
+static void sdl_display_init_do(DisplayState *ds, int full_screen, int no_frame)
 {
     int flags;
     uint8_t data = 0;
@@ -842,3 +825,10 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     atexit(sdl_cleanup);
 }
+
+static void sdl_init_fn(void)
+{
+    sdl_register_init_fun(sdl_display_init_do);
+}
+
+sdl_init(sdl_init_fn);

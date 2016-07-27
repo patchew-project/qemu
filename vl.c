@@ -4221,7 +4221,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (display_type == DT_SDL) {
-        sdl_display_early_init(request_opengl);
+        if (!sdl_display_early_init(request_opengl)) {
+            error_report("Failed to initialize SDL");
+            exit(1);
+        }
     }
 
     if (request_opengl == 1 && display_opengl == 0) {

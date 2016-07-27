@@ -425,10 +425,11 @@ void surface_gl_setup_viewport(ConsoleGLState *gls,
 
 /* sdl.c */
 #ifdef CONFIG_SDL
-void sdl_display_early_init(int opengl);
+bool sdl_display_early_init(int opengl);
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
+void sdl_register_init_fun(void *fn);
 #else
-static inline void sdl_display_early_init(int opengl)
+static inline bool sdl_display_early_init(int opengl)
 {
     /* This must never be called if CONFIG_SDL is disabled */
     error_report("SDL support is disabled");

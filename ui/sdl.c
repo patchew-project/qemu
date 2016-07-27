@@ -932,17 +932,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define    = sdl_mouse_define,
 };
 
-void sdl_display_early_init(int opengl)
-{
-    if (opengl == 1 /* on */) {
-        fprintf(stderr,
-                "SDL1 display code has no opengl support.\n"
-                "Please recompile qemu with SDL2, using\n"
-                "./configure --enable-sdl --with-sdlabi=2.0\n");
-    }
-}
-
-void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
+static void sdl_display_init_do(DisplayState *ds, int full_screen, int no_frame)
 {
     int flags;
     uint8_t data = 0;
@@ -1025,3 +1015,10 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     atexit(sdl_cleanup);
 }
+
+static void sdl_init_fn(void)
+{
+    sdl_register_init_fun(sdl_display_init_do);
+}
+
+sdl_init(sdl_init_fn);

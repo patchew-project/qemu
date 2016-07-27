@@ -167,6 +167,9 @@ static void module_load(module_init_type type)
     static const char *block_modules[] = {
         CONFIG_BLOCK_MODULES
     };
+    static const char *sdl_modules[] = {
+        "ui-sdl",
+    };
     char *exec_dir;
     char *dirs[3];
     int i = 0;
@@ -180,6 +183,9 @@ static void module_load(module_init_type type)
     switch (type) {
     case MODULE_INIT_BLOCK:
         mp = block_modules;
+        break;
+    case MODULE_INIT_SDL:
+        mp = sdl_modules;
         break;
     default:
         /* no other types have dynamic modules for now*/

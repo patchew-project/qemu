@@ -44,6 +44,7 @@ typedef enum {
     MODULE_INIT_OPTS,
     MODULE_INIT_QAPI,
     MODULE_INIT_QOM,
+    MODULE_INIT_SDL,
     MODULE_INIT_MAX
 } module_init_type;
 
@@ -51,6 +52,7 @@ typedef enum {
 #define opts_init(function) module_init(function, MODULE_INIT_OPTS)
 #define qapi_init(function) module_init(function, MODULE_INIT_QAPI)
 #define type_init(function) module_init(function, MODULE_INIT_QOM)
+#define sdl_init(function) module_init(function, MODULE_INIT_SDL)
 
 void register_module_init(void (*fn)(void), module_init_type type);
 void register_dso_module_init(void (*fn)(void), module_init_type type);

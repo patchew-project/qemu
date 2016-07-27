@@ -26,7 +26,9 @@ ifeq ($(CONFIG_OPENGL),y)
 sdl.mo-objs += sdl2-gl.o
 endif
 endif
+common-obj-y += sdl-init.o
 sdl.mo-cflags := $(SDL_CFLAGS)
+sdl.mo-libs := $(SDL_LIBS)
 
 ifeq ($(CONFIG_OPENGL),y)
 common-obj-y += shader.o
