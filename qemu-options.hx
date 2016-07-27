@@ -967,7 +967,7 @@ DEF("nographic", 0, QEMU_OPTION_nographic,
 STEXI
 @item -nographic
 @findex -nographic
-Normally, QEMU uses SDL to display the VGA output. With this option,
+Normally, QEMU uses GTK to display the VGA output. With this option,
 you can totally disable graphical output so that QEMU is a simple
 command line application. The emulated serial port is redirected on
 the console and muxed with the monitor (unless redirected elsewhere
@@ -977,12 +977,12 @@ the console and monitor.
 ETEXI
 
 DEF("curses", 0, QEMU_OPTION_curses,
-    "-curses         use a curses/ncurses interface instead of SDL\n",
+    "-curses         use a curses/ncurses interface instead of GTK\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -curses
 @findex -curses
-Normally, QEMU uses SDL to display the VGA output.  With this option,
+Normally, QEMU uses GTK to display the VGA output.  With this option,
 QEMU can display the VGA output when in text mode using a
 curses/ncurses interface.  Nothing is displayed in graphical mode.
 ETEXI
@@ -1032,6 +1032,14 @@ STEXI
 @item -sdl
 @findex -sdl
 Enable SDL.
+ETEXI
+
+DEF("gtk", 0, QEMU_OPTION_gtk,
+    "-gtk            enable GTK (default)\n", QEMU_ARCH_ALL)
+STEXI
+@item -gtk
+@findex -gtk
+Enable GTK.
 ETEXI
 
 DEF("spice", HAS_ARG, QEMU_OPTION_spice,
@@ -1228,7 +1236,7 @@ DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
 STEXI
 @item -vnc @var{display}[,@var{option}[,@var{option}[,...]]]
 @findex -vnc
-Normally, QEMU uses SDL to display the VGA output.  With this option,
+Normally, QEMU uses GTK to display the VGA output.  With this option,
 you can have QEMU listen on VNC display @var{display} and redirect the VGA
 display over the VNC session.  It is very useful to enable the usb
 tablet device when using this option (option @option{-usbdevice
