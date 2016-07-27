@@ -552,6 +552,10 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         rados_conf_set(s->cluster, "rbd_cache", "true");
     }
 
+    if (flags & BDRV_O_NO_FLUSH) {
+        rados_conf_set(s->cluster, "rbd_cache_writethrough_until_flush", "false");
+    }
+
     r = rados_connect(s->cluster);
     if (r < 0) {
         error_setg_errno(errp, -r, "error connecting");
