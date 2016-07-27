@@ -41,6 +41,7 @@
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
 
+#include "qemu/uri.h"
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
 
@@ -595,6 +596,18 @@ iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsilun->use_16_for_rw) {
+#if LIBISCSI_API_VERSION >= (20160603)
+        iTask.task = iscsi_write16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                            NULL, num_sectors * iscsilun->block_size,
+                                            iscsilun->block_size, 0, 0, fua, 0, 0,
+                                            iscsi_co_generic_cb, &iTask, (struct scsi_iovec *)iov->iov, iov->niov);
+    } else {
+        iTask.task = iscsi_write10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                            NULL, num_sectors * iscsilun->block_size,
+                                            iscsilun->block_size, 0, 0, fua, 0, 0,
+                                            iscsi_co_generic_cb, &iTask, (struct scsi_iovec *)iov->iov, iov->niov);
+    }
+#else
         iTask.task = iscsi_write16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                         NULL, num_sectors * iscsilun->block_size,
                                         iscsilun->block_size, 0, 0, fua, 0, 0,
@@ -605,11 +618,14 @@ retry:
                                         iscsilun->block_size, 0, 0, fua, 0, 0,
                                         iscsi_co_generic_cb, &iTask);
     }
+#endif
     if (iTask.task == NULL) {
         return -ENOMEM;
     }
+#if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
                           iov->niov);
+#endif
     while (!iTask.complete) {
         iscsi_set_events(iscsilun);
         qemu_coroutine_yield();
@@ -792,6 +808,19 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (iscsilun->use_16_for_rw) {
+#if LIBISCSI_API_VERSION >= (20160603)
+        iTask.task = iscsi_read16_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                           num_sectors * iscsilun->block_size,
+                                           iscsilun->block_size, 0, 0, 0, 0, 0,
+                                           iscsi_co_generic_cb, &iTask, (struct scsi_iovec *)iov->iov, iov->niov);
+    } else {
+        iTask.task = iscsi_read10_iov_task(iscsilun->iscsi, iscsilun->lun, lba,
+                                           num_sectors * iscsilun->block_size,
+                                           iscsilun->block_size,
+                                           0, 0, 0, 0, 0,
+                                           iscsi_co_generic_cb, &iTask, (struct scsi_iovec *)iov->iov, iov->niov);
+    }
+#else
         iTask.task = iscsi_read16_task(iscsilun->iscsi, iscsilun->lun, lba,
                                        num_sectors * iscsilun->block_size,
                                        iscsilun->block_size, 0, 0, 0, 0, 0,
@@ -803,11 +832,13 @@ retry:
                                        0, 0, 0, 0, 0,
                                        iscsi_co_generic_cb, &iTask);
     }
+#endif
     if (iTask.task == NULL) {
         return -ENOMEM;
     }
+#if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_in(iTask.task, (struct scsi_iovec *) iov->iov, iov->niov);
-
+#endif
     while (!iTask.complete) {
         iscsi_set_events(iscsilun);
         qemu_coroutine_yield();
@@ -1592,9 +1623,9 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     filename = qemu_opt_get(opts, "filename");
 
-    iscsi_url = iscsi_parse_full_url(iscsi, filename);
+    iscsi_url = iscsi_parse_full_url(iscsi, uri_string_unescape(filename, -1, NULL));
     if (iscsi_url == NULL) {
-        error_setg(errp, "Failed to parse URL : %s", filename);
+        error_setg(errp, "Failed to parse URL : %s", uri_string_unescape(filename, -1, NULL));
         ret = -EINVAL;
         goto out;
     }
@@ -1609,7 +1640,13 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOMEM;
         goto out;
     }
-
+#if LIBISCSI_API_VERSION >= (20160603)
+    if (iscsi_init_transport(iscsi, iscsi_url->transport)) {
+        error_setg(errp, ("Error initializing transport."));
+        ret = -EINVAL;
+        goto out;
+    }
+#endif
     if (iscsi_set_targetname(iscsi, iscsi_url->target)) {
         error_setg(errp, "iSCSI: Failed to set target name.");
         ret = -EINVAL;
