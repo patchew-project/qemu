@@ -416,6 +416,7 @@ static void pci_config(void)
     int n_size = TEST_IMAGE_SIZE / 2;
     void *addr;
     uint64_t capacity;
+    QDict *resp;
 
     bus = pci_test_start();
 
@@ -430,8 +431,10 @@ static void pci_config(void)
 
     qvirtio_set_driver_ok(&qvirtio_pci, &dev->vdev);
 
-    qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
-                                                    " 'size': %d } }", n_size);
+    resp = qmp("{ 'execute': 'block_resize', 'arguments': "
+               "{ 'device': 'drive0', 'size': %d } }", n_size);
+    QDECREF(resp);
+
     qvirtio_wait_config_isr(&qvirtio_pci, &dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
     capacity = qvirtio_config_readq(&qvirtio_pci, &dev->vdev,
@@ -459,6 +462,7 @@ static void pci_msix(void)
     uint32_t free_head;
     uint8_t status;
     char *data;
+    QDict *resp;
 
     bus = pci_test_start();
     alloc = pc_alloc_init();
@@ -488,8 +492,9 @@ static void pci_msix(void)
 
     qvirtio_set_driver_ok(&qvirtio_pci, &dev->vdev);
 
-    qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
-                                                    " 'size': %d } }", n_size);
+    resp = qmp("{ 'execute': 'block_resize', 'arguments': "
+               "{ 'device': 'drive0', 'size': %d } }", n_size);
+    QDECREF(resp);
 
     qvirtio_wait_config_isr(&qvirtio_pci, &dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
@@ -717,6 +722,7 @@ static void mmio_basic(void)
     QGuestAllocator *alloc;
     int n_size = TEST_IMAGE_SIZE / 2;
     uint64_t capacity;
+    QDict *resp;
 
     arm_test_start();
 
@@ -734,8 +740,9 @@ static void mmio_basic(void)
     test_basic(&qvirtio_mmio, &dev->vdev, alloc, vq,
                             QVIRTIO_MMIO_DEVICE_SPECIFIC);
 
-    qmp("{ 'execute': 'block_resize', 'arguments': { 'device': 'drive0', "
-                                                    " 'size': %d } }", n_size);
+    resp = qmp("{ 'execute': 'block_resize', 'arguments': "
+               "{ 'device': 'drive0', 'size': %d } }", n_size);
+    QDECREF(resp);
 
     qvirtio_wait_queue_isr(&qvirtio_mmio, &dev->vdev, vq,
                            QVIRTIO_BLK_TIMEOUT_US);
