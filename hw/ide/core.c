@@ -822,6 +822,7 @@ static void ide_dma_cb(void *opaque, int ret)
         return;
     }
     if (ret < 0) {
+        dma_buf_commit(s, 0);
         if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
             return;
         }
