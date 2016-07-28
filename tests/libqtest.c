@@ -758,8 +758,21 @@ void qtest_add_func(const char *str, void (*fn)(void))
     g_free(path);
 }
 
+void qtest_add_data_func_full(const char *str, void *data,
+                              void (*fn)(const void *),
+                              GDestroyNotify data_free_func)
+{
+#if GLIB_CHECK_VERSION(2, 34, 0)
+    gchar *path = g_strdup_printf("/%s/%s", qtest_get_arch(), str);
+    g_test_add_data_func_full(path, data, fn, data_free_func);
+    g_free(path);
+#else
+    qtest_add_data_func(str, data, fn);
+#endif
+}
+
 void qtest_add_data_func(const char *str, const void *data,
-                         void (*fn)(const void *))
+                              void (*fn)(const void *))
 {
     gchar *path = g_strdup_printf("/%s/%s", qtest_get_arch(), str);
     g_test_add_data_func(path, data, fn);
