@@ -2157,6 +2157,15 @@ void object_property_add_uint32_ptr(Object *obj, const char *name,
                         NULL, NULL, (void *)v, errp);
 }
 
+void object_property_add_uint32_ptr_release(Object *obj, const char *name,
+                                            uint32_t *v,
+                                            ObjectPropertyRelease *release,
+                                            Error **errp)
+{
+    object_property_add(obj, name, "uint32", property_get_uint32_ptr,
+                        NULL, release, (void *)v, errp);
+}
+
 void object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
                                           const uint32_t *v, Error **errp)
 {

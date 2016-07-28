@@ -425,6 +425,11 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
                  table_data->len - madt_start, 1, NULL, NULL);
 }
 
+static void bsel_release(Object *obj, const char *name, void *opaque)
+{
+    g_free(opaque);
+}
+
 /* Assign BSEL property to all buses.  In the future, this can be changed
  * to only assign to buses that support hotplug.
  */
@@ -432,13 +437,19 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 {
     unsigned *bsel_alloc = opaque;
     unsigned *bus_bsel;
+    Error *err = NULL;
 
     if (qbus_is_hotpluggable(BUS(bus))) {
         bus_bsel = g_malloc(sizeof *bus_bsel);
 
         *bus_bsel = (*bsel_alloc)++;
-        object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
-                                       bus_bsel, NULL);
+        object_property_add_uint32_ptr_release(OBJECT(bus),
+                                               ACPI_PCIHP_PROP_BSEL,
+                                               bus_bsel, bsel_release, &err);
+        if (err) {
+            g_free(bus_bsel);
+            error_report_err(err);
+        }
     }
 
     return bsel_alloc;
