@@ -10367,7 +10367,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     info.si_code = si_code;
                     info._sifields._sigfault._addr
                         = ((CPUArchState *)cpu_env)->pc;
-                    queue_signal((CPUArchState *)cpu_env, info.si_signo, &info);
+                    queue_signal((CPUArchState *)cpu_env, info.si_signo,
+                                 QEMU_SI_FAULT, &info);
                 }
             }
             break;
@@ -11446,7 +11447,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             info.si_errno = 0;
             info.si_code = TARGET_SEGV_MAPERR;
             info._sifields._sigfault._addr = arg6;
-            queue_signal((CPUArchState *)cpu_env, info.si_signo, &info);
+            queue_signal((CPUArchState *)cpu_env, info.si_signo,
+                         QEMU_SI_FAULT, &info);
             ret = 0xdeadbeef;
 
         }
