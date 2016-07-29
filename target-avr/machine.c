@@ -44,8 +44,8 @@ static void put_sreg(QEMUFile *f, void *opaque, size_t size)
 
 static const VMStateInfo vms_sreg = {
     .name = "sreg",
-    .get  = get_sreg,
-    .put  = put_sreg,
+    .get = get_sreg,
+    .put = put_sreg,
 };
 
 static int get_segment(QEMUFile *f, void *opaque, size_t size)
@@ -68,33 +68,33 @@ static void put_segment(QEMUFile *f, void *opaque, size_t size)
 
 static const VMStateInfo vms_rampD = {
     .name = "rampD",
-    .get  = get_segment,
-    .put  = put_segment,
+    .get = get_segment,
+    .put = put_segment,
 };
 static const VMStateInfo vms_rampX = {
     .name = "rampX",
-    .get  = get_segment,
-    .put  = put_segment,
+    .get = get_segment,
+    .put = put_segment,
 };
 static const VMStateInfo vms_rampY = {
     .name = "rampY",
-    .get  = get_segment,
-    .put  = put_segment,
+    .get = get_segment,
+    .put = put_segment,
 };
 static const VMStateInfo vms_rampZ = {
     .name = "rampZ",
-    .get  = get_segment,
-    .put  = put_segment,
+    .get = get_segment,
+    .put = put_segment,
 };
 static const VMStateInfo vms_eind = {
     .name = "eind",
-    .get  = get_segment,
-    .put  = put_segment,
+    .get = get_segment,
+    .put = put_segment,
 };
 
 const VMStateDescription vms_avr_cpu = {
-    .name               = "cpu",
-    .version_id         = 0,
+    .name = "cpu",
+    .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.pc_w, AVRCPU),

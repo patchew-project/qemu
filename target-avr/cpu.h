@@ -83,6 +83,42 @@
 #define AVR_CPU_IO_REGS_LAST (AVR_CPU_IO_REGS_BASE + AVR_CPU_IO_REGS - 1)
 #define AVR_EXT_IO_REGS_LAST (AVR_EXT_IO_REGS_BASE + AVR_EXT_IO_REGS - 1)
 
+enum    avr_features {
+    AVR_FEATURE_SRAM,
+
+    AVR_FEATURE_1_BYTE_PC,
+    AVR_FEATURE_2_BYTE_PC,
+    AVR_FEATURE_3_BYTE_PC,
+
+    AVR_FEATURE_1_BYTE_SP,
+    AVR_FEATURE_2_BYTE_SP,
+
+    AVR_FEATURE_BREAK,
+    AVR_FEATURE_DES,
+    AVR_FEATURE_RMW, /* Read Modify Write - XCH LAC LAS LAT */
+
+    AVR_FEATURE_EIJMP_EICALL,
+    AVR_FEATURE_IJMP_ICALL,
+    AVR_FEATURE_JMP_CALL,
+
+    AVR_FEATURE_ADIW_SBIW,
+
+    AVR_FEATURE_SPM,
+    AVR_FEATURE_SPMX,
+
+    AVR_FEATURE_ELPMX,
+    AVR_FEATURE_ELPM,
+    AVR_FEATURE_LPMX,
+    AVR_FEATURE_LPM,
+
+    AVR_FEATURE_MOVW,
+    AVR_FEATURE_MUL,
+    AVR_FEATURE_RAMPD,
+    AVR_FEATURE_RAMPX,
+    AVR_FEATURE_RAMPY,
+    AVR_FEATURE_RAMPZ,
+};
+
 typedef struct CPUAVRState CPUAVRState;
 
 struct CPUAVRState {
@@ -111,12 +147,24 @@ struct CPUAVRState {
 
     uint64_t intsrc; /* interrupt sources */
 
+    uint32_t features;
+
     /* Those resources are used only in QEMU core */
     CPU_COMMON
 };
 
-#define cpu_list            avr_cpu_list
-#define cpu_signal_handler  cpu_avr_signal_handler
+static inline int avr_feature(CPUAVRState *env, int feature)
+{
+    return (env->features & (1U << feature)) != 0;
+}
+
+static inline void  avr_set_feature(CPUAVRState *env, int feature)
+{
+    env->features |= (1U << feature);
+}
+
+#define cpu_list avr_cpu_list
+#define cpu_signal_handler cpu_avr_signal_handler
 
 #include "exec/cpu-all.h"
 #include "cpu-qom.h"
