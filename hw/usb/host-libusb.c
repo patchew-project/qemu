@@ -358,7 +358,7 @@ static USBHostRequest *usb_host_req_find(USBHostDevice *s, USBPacket *p)
     return NULL;
 }
 
-static void usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
+static void LIBUSB_CALL usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
 {
     USBHostRequest *r = xfer->user_data;
     USBHostDevice  *s = r->host;
@@ -391,7 +391,7 @@ out:
     }
 }
 
-static void usb_host_req_complete_data(struct libusb_transfer *xfer)
+static void LIBUSB_CALL usb_host_req_complete_data(struct libusb_transfer *xfer)
 {
     USBHostRequest *r = xfer->user_data;
     USBHostDevice  *s = r->host;
@@ -447,7 +447,8 @@ static void usb_host_req_abort(USBHostRequest *r)
 
 /* ------------------------------------------------------------------------ */
 
-static void usb_host_req_complete_iso(struct libusb_transfer *transfer)
+static void LIBUSB_CALL
+usb_host_req_complete_iso(struct libusb_transfer *transfer)
 {
     USBHostIsoXfer *xfer = transfer->user_data;
 
