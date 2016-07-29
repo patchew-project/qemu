@@ -151,6 +151,14 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
     if (max_insns > TCG_MAX_INSNS) {
         max_insns = TCG_MAX_INSNS;
     }
+    if (tb->flags & TB_FLAGS_FULL_ACCESS) {
+        /*
+            this flag is set by ST/LD instruction
+            we will regenerate ONLY it with mem/cpu memory access
+            insttead of mem access
+        */
+        max_insns = 1;
+    }
 
     gen_tb_start(tb);
 
@@ -221,6 +229,7 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
     }
 
 done_generating:
+    env->fullacc = false;
     gen_tb_end(tb, num_insns);
 
     tb->size = (npc - pc_start) * 2;
