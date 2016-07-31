@@ -129,9 +129,15 @@ static void ioapic_service(IOAPICCommonState *s)
                     }
                     continue;
                 }
-#else
-                (void)coalesce;
 #endif
+
+                if (coalesce) {
+                    /* We are level triggered interrupts, and the
+                     * guest should be still working on previous one,
+                     * so skip it. */
+                    continue;
+                }
+
                 /* No matter whether IR is enabled, we translate
                  * the IOAPIC message into a MSI one, and its
                  * address space will decide whether we need a
