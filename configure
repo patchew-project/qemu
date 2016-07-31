@@ -320,6 +320,7 @@ vhdx=""
 numa=""
 tcmalloc="no"
 jemalloc="no"
+vxhs="yes"
 
 # parse CC options first
 for opt do
@@ -1150,6 +1151,11 @@ for opt do
   ;;
   --enable-jemalloc) jemalloc="yes"
   ;;
+  --disable-vxhs) vxhs="no"
+  ;;
+  --enable-vxhs) vxhs="yes"
+  ;;
+
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1380,6 +1386,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   numa            libnuma support
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
+  vxhs            Veritas HyperScale vDisk backend support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -4541,7 +4548,18 @@ fi
 if do_cc -nostdlib -Wl,-r -Wl,--no-relax -o $TMPMO $TMPO; then
   LD_REL_FLAGS="-Wl,--no-relax"
 fi
-
+#################################################
+# gmodule support probe
+if $pkg_config --modversion glib-2.0 gmodule-2.0 > /dev/null 2>&1 ; then
+    glib_cflags=`$pkg_config --cflags glib-2.0 gmodule-2.0 2>/dev/null`
+    glib_libs=`$pkg_config --libs glib-2.0 gmodule-2.0 2>/dev/null`
+    LIBS="$glib_libs $LIBS"
+    LIBS="$glib_libs $LIBS"
+    libs_qga="$glib_libs $libs_qga"
+else
+    echo "glib-2.0 gmodule-2.0 required to compile QEMU"
+    exit 1
+fi
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -5477,6 +5495,10 @@ fi
 if test "$pthread_setname_np" = "yes" ; then
   echo "CONFIG_THREAD_SETNAME_BYTHREAD=y" >> $config_host_mak
   echo "CONFIG_PTHREAD_SETNAME_NP=y" >> $config_host_mak
+fi
+
+if test "$vxhs" = "yes" ; then
+  echo "CONFIG_VXHS=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
