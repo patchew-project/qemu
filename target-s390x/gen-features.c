@@ -371,6 +371,7 @@ static uint16_t full_GEN13_GA1[] = {
 #define default_GEN8_GA5 EmptyFeat
 static uint16_t default_GEN9_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_1,
+    S390_FEAT_CMM,
 };
 #define default_GEN9_GA2 EmptyFeat
 #define default_GEN9_GA3 EmptyFeat
