@@ -42,3 +42,10 @@ amdvi_mode_invalid(unsigned level, uint64_t addr)"error: translation level 0x%"P
 amdvi_page_fault(uint64_t addr) "error: page fault accessing guest physical address 0x%"PRIx64
 amdvi_iotlb_hit(uint16_t bus, uint16_t slot, uint16_t func, uint64_t addr, uint64_t txaddr) "hit iotlb devid %02x:%02x.%x gpa 0x%"PRIx64 " hpa 0x%"PRIx64
 amdvi_translation_result(uint16_t bus, uint16_t slot, uint16_t func, uint64_t addr, uint64_t txaddr) "devid: %02x:%02x.%x gpa 0x%"PRIx64 " hpa 0x%"PRIx64
+amdvi_irte_get_fail(uint64_t addr, uint64_t offset) "couldn't access device table entry 0x%"PRIx64" + offset 0x%"PRIx64
+amdvi_invalid_irte_entry(uint16_t devid, uint64_t offset) "devid %x requested IRTE offset 0x%"PRIx64" Outside IR table range"
+amdvi_ir_request(uint32_t data, uint64_t addr, uint16_t sid) "IR request data 0x%"PRIx32" address 0x%"PRIx64" SID %x"
+amdvi_ir_remap(uint32_t data, uint64_t addr, uint16_t sid) "IR remap data 0x%"PRIx32" address 0x%"PRIx64" SID %x"
+amdvi_ir_target_abort(uint32_t data, uint64_t addr, uint16_t sid) "IR target abort data 0x%"PRIx32" address 0x%"PRIx64" SID %x"
+amdvi_ir_write_fail(uint64_t addr, uint32_t data) "fail to write to addr 0x%"PRIx64 " value 0x%"PRIx32
+amdvi_ir_read_fail(uint64_t addr) " fail to read from addr 0x%"PRIx64
