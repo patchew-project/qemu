@@ -294,7 +294,8 @@ typedef struct AcpiMultipleApicTable AcpiMultipleApicTable;
 #define ACPI_APIC_GENERIC_DISTRIBUTOR   12
 #define ACPI_APIC_GENERIC_MSI_FRAME     13
 #define ACPI_APIC_GENERIC_REDISTRIBUTOR 14
-#define ACPI_APIC_RESERVED              15   /* 15 and greater are reserved */
+#define ACPI_APIC_ITS_STRUCTURE         15
+#define ACPI_APIC_RESERVED              16   /* 16 and greater are reserved */
 
 /*
  * MADT sub-structures (Follow MULTIPLE_APIC_DESCRIPTION_TABLE)
@@ -385,6 +386,16 @@ struct AcpiMadtGenericMsiFrame {
 } QEMU_PACKED;
 
 typedef struct AcpiMadtGenericMsiFrame AcpiMadtGenericMsiFrame;
+
+struct AcpiMadtGicIts {
+    ACPI_SUB_HEADER_DEF
+    uint16_t reserved;
+    uint32_t gic_its_id;
+    uint64_t base_address;
+    uint32_t reserved2;
+} QEMU_PACKED;
+
+typedef struct AcpiMadtGicIts AcpiMadtGicIts;
 
 struct AcpiMadtGenericRedistributor {
     ACPI_SUB_HEADER_DEF
