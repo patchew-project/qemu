@@ -20,7 +20,10 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"
+#include "hw/i386/intel_iommu.h"
+#include "hw/i386/amd_iommu.h"
 #include "hw/i386/x86-iommu.h"
+#include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -71,6 +74,21 @@ X86IOMMUState *x86_iommu_get_default(void)
     return x86_iommu_default;
 }
 
+IommuType x86_iommu_get_type(void)
+{
+    bool ambiguous;
+
+    if (object_resolve_path_type("", TYPE_AMD_IOMMU_DEVICE, &ambiguous)
+            && !ambiguous) {
+        return TYPE_AMD;
+    } else if (object_resolve_path_type("", TYPE_INTEL_IOMMU_DEVICE, &ambiguous)
+            && !ambiguous) {
+        return TYPE_INTEL;
+    } else {
+        return TYPE_NONE;
+    }
+}
+
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
@@ -79,6 +97,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     if (x86_class->realize) {
         x86_class->realize(dev, errp);
     }
+
     x86_iommu_set_default(X86_IOMMU_DEVICE(dev));
 }
 
