@@ -134,4 +134,5 @@ void page_size_init(void);
  * returned. */
 bool dump_in_progress(void);
 
+long int qemu_read_cpuid_info(void);
 #endif
