@@ -191,6 +191,8 @@ int qemu_fdatasync(int fd)
         ((vgetq_lane_u64(v1, 0) == vgetq_lane_u64(v2, 0)) && \
          (vgetq_lane_u64(v1, 1) == vgetq_lane_u64(v2, 1)))
 #define VEC_OR(v1, v2) ((v1) | (v2))
+#define VEC_PREFETCH(base, index) \
+        asm volatile ("prfm pldl1strm, [%x[a]]\n" : : [a]"r"(&base[(index)]))
 #else
 #define VECTYPE        unsigned long
 #define SPLAT(p)       (*(p) * (~0UL / 255))
@@ -233,6 +235,9 @@ static size_t buffer_find_nonzero_offset_inner(const void *buf, size_t len)
     const VECTYPE *p = buf;
     const VECTYPE zero = (VECTYPE){0};
     size_t i;
+#if defined (__aarch64__)
+    bool do_prefetch;
+#endif
 
     assert(can_use_buffer_find_nonzero_offset_inner(buf, len));
 
@@ -246,9 +251,26 @@ static size_t buffer_find_nonzero_offset_inner(const void *buf, size_t len)
         }
     }
 
+#if defined (__aarch64__)
+    do_prefetch = is_thunder_pass2_cpu();
+    if (do_prefetch) {
+        VEC_PREFETCH(p, 8);
+        VEC_PREFETCH(p, 16);
+        VEC_PREFETCH(p, 24);
+    }
+#endif
+
     for (i = BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR;
          i < len / sizeof(VECTYPE);
          i += BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR) {
+
+#if defined (__aarch64__)
+        if (do_prefetch) {
+            VEC_PREFETCH(p, i+32);
+            VEC_PREFETCH(p, i+40);
+        }
+#endif
+
         VECTYPE tmp0 = VEC_OR(p[i + 0], p[i + 1]);
         VECTYPE tmp1 = VEC_OR(p[i + 2], p[i + 3]);
         VECTYPE tmp2 = VEC_OR(p[i + 4], p[i + 5]);

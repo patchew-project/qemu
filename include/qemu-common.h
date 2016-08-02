@@ -135,4 +135,5 @@ void page_size_init(void);
 bool dump_in_progress(void);
 
 long int qemu_read_cpuid_info(void);
+bool is_thunder_pass2_cpu(void);
 #endif
