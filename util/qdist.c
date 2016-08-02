@@ -62,8 +62,8 @@ void qdist_add(struct qdist *dist, double x, long count)
 
     if (unlikely(dist->n == dist->size)) {
         dist->size *= 2;
-        dist->entries = g_realloc(dist->entries,
-                                  sizeof(*dist->entries) * (dist->size));
+        dist->entries = g_realloc_n(dist->entries, dist->size,
+                                    sizeof(*dist->entries));
     }
     dist->n++;
     entry = &dist->entries[dist->n - 1];
