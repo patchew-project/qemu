@@ -35,6 +35,7 @@
 #include "qom/object_interfaces.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "qemu/uuid.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
