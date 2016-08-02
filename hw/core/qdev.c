@@ -151,7 +151,6 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
     }
 
     qdev_set_parent_bus(dev, bus);
-    object_unref(OBJECT(dev));
     return dev;
 }
 
@@ -360,6 +359,7 @@ void qdev_init_nofail(DeviceState *dev)
                           object_get_typename(OBJECT(dev)));
         exit(1);
     }
+    object_unref(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
