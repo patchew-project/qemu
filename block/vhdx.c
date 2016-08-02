@@ -25,8 +25,7 @@
 #include "qemu/bswap.h"
 #include "block/vhdx.h"
 #include "migration/migration.h"
-
-#include <uuid/uuid.h>
+#include "qemu/uuid.h"
 
 /* Options for VHDX creation */
 
@@ -213,10 +212,10 @@ bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset)
  */
 void vhdx_guid_generate(MSGUID *guid)
 {
-    uuid_t uuid;
+    qemu_uuid_t uuid;
     assert(guid != NULL);
 
-    uuid_generate(uuid);
+    qemu_uuid_generate(uuid);
     memcpy(guid, uuid, sizeof(MSGUID));
 }
 
