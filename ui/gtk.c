@@ -2150,7 +2150,7 @@ static void gd_set_keycode_type(GtkDisplayState *s)
 
 static gboolean gtkinit;
 
-void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
+void gtk_display_init_do(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
@@ -2240,7 +2240,7 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     gd_set_keycode_type(s);
 }
 
-void early_gtk_display_init(int opengl)
+void early_gtk_display_init_do(int opengl)
 {
     /* The QEMU code relies on the assumption that it's always run in
      * the C locale. Therefore it is not prepared to deal with
@@ -2287,4 +2287,11 @@ void early_gtk_display_init(int opengl)
 #if defined(CONFIG_VTE)
     register_vc_handler(gd_vc_handler);
 #endif
+}
+
+__attribute__((constructor))
+static void gtk_init_fn(void)
+{
+    gtk_register_early_init_fun(early_gtk_display_init_do);
+    gtk_register_init_fun(gtk_display_init_do);
 }

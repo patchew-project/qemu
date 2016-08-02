@@ -15,7 +15,11 @@ common-obj-$(CONFIG_SDL) += sdl.mo x_keymap.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
-common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
+common-obj-$(CONFIG_GTK) += gtk.mo
+
+ifneq ($(CONFIG_GTK),)
+common-obj-y += gtk-init.o x_keymap.o
+endif
 
 ifeq ($(CONFIG_SDLABI),1.2)
 sdl.mo-objs := sdl.o sdl_zoom.o
@@ -28,25 +32,27 @@ endif
 endif
 sdl.mo-cflags := $(SDL_CFLAGS)
 
+gtk.mo-objs := gtk.o
 ifeq ($(CONFIG_OPENGL),y)
 common-obj-y += shader.o
 common-obj-y += console-gl.o
 common-obj-y += egl-helpers.o
 common-obj-y += egl-context.o
 ifeq ($(CONFIG_GTK_GL),y)
-common-obj-$(CONFIG_GTK) += gtk-gl-area.o
+gtk.mo-objs += gtk-gl-area.o
 else
-common-obj-$(CONFIG_GTK) += gtk-egl.o
+gtk.mo-objs += gtk-egl.o
 endif
 endif
 
-gtk.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
+gtk.mo-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
 gtk-egl.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS) $(OPENGL_CFLAGS)
 gtk-gl-area.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS) $(OPENGL_CFLAGS)
 shader.o-cflags += $(OPENGL_CFLAGS)
 console-gl.o-cflags += $(OPENGL_CFLAGS)
 egl-helpers.o-cflags += $(OPENGL_CFLAGS)
 
+gtk.mo-libs := $(GTK_LIBS) $(VTE_LIBS)
 gtk-egl.o-libs += $(OPENGL_LIBS)
 shader.o-libs += $(OPENGL_LIBS)
 console-gl.o-libs += $(OPENGL_LIBS)

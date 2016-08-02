@@ -502,8 +502,14 @@ int index_from_key(const char *key, size_t key_length);
 
 /* gtk.c */
 #ifdef CONFIG_GTK
+bool gtk_mod_init(void);
 void early_gtk_display_init(int opengl);
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
+void early_gtk_display_init_do(int opengl);
+void gtk_display_init_do(DisplayState *ds, bool full_screen,
+                         bool grab_on_hover);
+void gtk_register_early_init_fun(void *fn);
+void gtk_register_init_fun(void *fn);
 #else
 static inline void gtk_display_init(DisplayState *ds, bool full_screen,
                                     bool grab_on_hover)

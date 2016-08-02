@@ -4194,9 +4194,19 @@ int main(int argc, char **argv, char **envp)
         display_remote++;
     }
 #endif
-    if (display_type == DT_DEFAULT && !display_remote) {
+    if ((display_type == DT_DEFAULT && !display_remote)
+        || display_type == DT_GTK) {
 #if defined(CONFIG_GTK)
-        display_type = DT_GTK;
+        if (!gtk_mod_init()) {
+            if (display_type == DT_GTK) {
+                error_report("GTK could not be initialized, exiting");
+                exit(1);
+            }
+            error_report("GTK could not be initialized, using display None");
+            display_type = DT_NONE;
+        } else {
+            display_type = DT_GTK;
+        }
 #elif defined(CONFIG_SDL)
         display_type = DT_SDL;
 #elif defined(CONFIG_COCOA)
