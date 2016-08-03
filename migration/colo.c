@@ -287,6 +287,7 @@ void *colo_process_incoming_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
     Error *local_err = NULL;
+    int ret;
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
@@ -302,6 +303,12 @@ void *colo_process_incoming_thread(void *opaque)
      * fd back to blocked.
      */
     qemu_file_set_blocking(mis->from_src_file, true);
+
+    ret = colo_init_ram_cache();
+    if (ret < 0) {
+        error_report("Failed to initialize ram cache");
+        goto out;
+    }
 
     colo_send_message(mis->to_src_file, COLO_MESSAGE_CHECKPOINT_READY,
                       &local_err);
@@ -352,6 +359,10 @@ out:
     if (local_err) {
         error_report_err(local_err);
     }
+
+    qemu_mutex_lock_iothread();
+    colo_release_ram_cache();
+    qemu_mutex_unlock_iothread();
 
     if (mis->to_src_file) {
         qemu_fclose(mis->to_src_file);
