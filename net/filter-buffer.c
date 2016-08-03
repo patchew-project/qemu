@@ -118,16 +118,6 @@ static void filter_buffer_setup(NetFilterState *nf, Error **errp)
 {
     FilterBufferState *s = FILTER_BUFFER(nf);
 
-    /*
-     * We may want to accept zero interval when VM FT solutions like MC
-     * or COLO use this filter to release packets on demand.
-     */
-    if (!s->interval) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "interval",
-                   "a non-zero interval");
-        return;
-    }
-
     s->incoming_queue = qemu_new_net_queue(qemu_netfilter_pass_to_next, nf);
     filter_buffer_setup_timer(nf);
 }
