@@ -3752,7 +3752,7 @@ Query current migration capabilities
          - "zero-blocks" : Zero Blocks state (json-bool)
          - "compress": Multiple compression threads state (json-bool)
          - "events": Migration state change event state (json-bool)
-         - "postcopy-ram": postcopy ram state (json-bool)
+         - "x-colo" : COarse-Grain LOck Stepping for Non-stop Service (json-bool)
 
 Arguments:
 
