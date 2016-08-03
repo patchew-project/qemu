@@ -14,12 +14,14 @@
 #include "qemu/osdep.h"
 #include <migration/colo.h>
 #include "trace.h"
+#include <net/net.h>
 
 typedef struct {
      bool colo_requested;
 } COLOInfo;
 
 static COLOInfo colo_info;
+static Notifier netdev_init_notifier;
 
 COLOMode get_colo_mode(void)
 {
@@ -59,6 +61,11 @@ static const VMStateDescription colo_state = {
 void colo_info_init(void)
 {
     vmstate_register(NULL, 0, &colo_state, &colo_info);
+    /* FIXME: Remove this after COLO switch to using colo-proxy */
+    if (colo_supported()) {
+        netdev_init_notifier.notify = colo_add_buffer_filter;
+        netdev_register_init_notifier(&netdev_init_notifier);
+    }
 }
 
 bool migration_incoming_enable_colo(void)

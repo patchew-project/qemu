@@ -21,6 +21,8 @@
 #define NETFILTER_CLASS(klass) \
     OBJECT_CLASS_CHECK(NetFilterClass, (klass), TYPE_NETFILTER)
 
+#define TYPE_FILTER_BUFFER "filter-buffer"
+
 typedef void (FilterSetup) (NetFilterState *nf, Error **errp);
 typedef void (FilterCleanup) (NetFilterState *nf);
 /*
