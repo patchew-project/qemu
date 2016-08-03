@@ -402,6 +402,18 @@ static void process_incoming_migration_co(void *opaque)
         /* Else if something went wrong then just fall out of the normal exit */
     }
 
+    /* we get colo info, and know if we are in colo mode */
+    if (!ret && migration_incoming_enable_colo()) {
+        mis->migration_incoming_co = qemu_coroutine_self();
+        qemu_thread_create(&mis->colo_incoming_thread, "colo incoming",
+             colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
+        mis->have_colo_incoming_thread = true;
+        qemu_coroutine_yield();
+
+        /* Wait checkpoint incoming thread exit before free resource */
+        qemu_thread_join(&mis->colo_incoming_thread);
+    }
+
     qemu_fclose(f);
     free_xbzrle_decoded_buf();
 
