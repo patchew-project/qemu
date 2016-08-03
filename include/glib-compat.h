@@ -260,4 +260,13 @@ static inline void g_hash_table_add(GHashTable *hash_table, gpointer key)
     } while (0)
 #endif
 
+/*
+ * A GFunc function helper freeing the first argument (not part of glib)
+ */
+static inline void qemu_g_func_free(gpointer data,
+                                    gpointer user_data)
+{
+    g_free(data);
+}
+
 #endif
