@@ -1412,7 +1412,8 @@ static void virtio_net_add_queue(VirtIONet *n, int index)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
 
-    n->vqs[index].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
+    n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
+                                           virtio_net_handle_rx);
     if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
         n->vqs[index].tx_vq =
             virtio_add_queue(vdev, 256, virtio_net_handle_tx_timer);
@@ -1716,9 +1717,27 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     VirtIONet *n = VIRTIO_NET(dev);
     NetClientState *nc;
     int i;
+    int min_rx_queue_size;
 
     virtio_net_set_config_size(n, n->host_features);
     virtio_init(vdev, "virtio-net", VIRTIO_ID_NET, n->config_size);
+
+    /*
+     * We set a lower limit on RX queue size to what it always was.
+     * Guests that want a smaller ring can always resize it without
+     * help from us (using virtio 1 and up).
+     */
+    min_rx_queue_size = 256;
+    if (n->net_conf.rx_queue_size < min_rx_queue_size ||
+        n->net_conf.rx_queue_size > VIRTQUEUE_MAX_SIZE ||
+        (n->net_conf.rx_queue_size & (n->net_conf.rx_queue_size - 1))) {
+        error_setg(errp, "Invalid rx_queue_size (= %" PRIu16 "), "
+                   "must be a power of 2 between %d and %d.",
+                   n->net_conf.rx_queue_size, min_rx_queue_size,
+                   VIRTQUEUE_MAX_SIZE);
+        virtio_cleanup(vdev);
+        return;
+    }
 
     n->max_queues = MAX(n->nic_conf.peers.queues, 1);
     if (n->max_queues * 2 + 1 > VIRTIO_QUEUE_MAX) {
@@ -1880,6 +1899,7 @@ static Property virtio_net_properties[] = {
                        TX_TIMER_INTERVAL),
     DEFINE_PROP_INT32("x-txburst", VirtIONet, net_conf.txburst, TX_BURST),
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
+    DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size, 256),
     DEFINE_PROP_END_OF_LIST(),
 };
 
