@@ -1651,8 +1651,6 @@ void cpu_loop(CPUPPCState *env)
                       "Aborting\n");
             break;
         case POWERPC_EXCP_DSI:      /* Data storage exception                */
-            EXCP_DUMP(env, "Invalid data memory access: 0x" TARGET_FMT_lx "\n",
-                      env->spr[SPR_DAR]);
             /* XXX: check this. Seems bugged */
             switch (env->error_code & 0xFF000000) {
             case 0x40000000:
@@ -1683,8 +1681,6 @@ void cpu_loop(CPUPPCState *env)
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_ISI:      /* Instruction storage exception         */
-            EXCP_DUMP(env, "Invalid instruction fetch: 0x\n" TARGET_FMT_lx
-                      "\n", env->spr[SPR_SRR0]);
             /* XXX: check this */
             switch (env->error_code & 0xFF000000) {
             case 0x40000000:
@@ -1715,7 +1711,6 @@ void cpu_loop(CPUPPCState *env)
                       "Aborting\n");
             break;
         case POWERPC_EXCP_ALIGN:    /* Alignment exception                   */
-            EXCP_DUMP(env, "Unaligned memory access\n");
             /* XXX: check this */
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
@@ -1728,7 +1723,6 @@ void cpu_loop(CPUPPCState *env)
             /* XXX: check this */
             switch (env->error_code & ~0xF) {
             case POWERPC_EXCP_FP:
-                EXCP_DUMP(env, "Floating point program exception\n");
                 info.si_signo = TARGET_SIGFPE;
                 info.si_errno = 0;
                 switch (env->error_code & 0xF) {
@@ -1764,7 +1758,6 @@ void cpu_loop(CPUPPCState *env)
                 }
                 break;
             case POWERPC_EXCP_INVAL:
-                EXCP_DUMP(env, "Invalid instruction\n");
                 info.si_signo = TARGET_SIGILL;
                 info.si_errno = 0;
                 switch (env->error_code & 0xF) {
@@ -1788,7 +1781,6 @@ void cpu_loop(CPUPPCState *env)
                 }
                 break;
             case POWERPC_EXCP_PRIV:
-                EXCP_DUMP(env, "Privilege violation\n");
                 info.si_signo = TARGET_SIGILL;
                 info.si_errno = 0;
                 switch (env->error_code & 0xF) {
@@ -1818,7 +1810,6 @@ void cpu_loop(CPUPPCState *env)
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_FPU:      /* Floating-point unavailable exception  */
-            EXCP_DUMP(env, "No floating point allowed\n");
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
@@ -1830,7 +1821,6 @@ void cpu_loop(CPUPPCState *env)
                       "Aborting\n");
             break;
         case POWERPC_EXCP_APU:      /* Auxiliary processor unavailable       */
-            EXCP_DUMP(env, "No APU instruction allowed\n");
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
@@ -1858,7 +1848,6 @@ void cpu_loop(CPUPPCState *env)
                       "Aborting\n");
             break;
         case POWERPC_EXCP_SPEU:     /* SPE/embedded floating-point unavail.  */
-            EXCP_DUMP(env, "No SPE/floating-point instruction allowed\n");
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
@@ -1922,7 +1911,6 @@ void cpu_loop(CPUPPCState *env)
                       "while in user mode. Aborting\n");
             break;
         case POWERPC_EXCP_VPU:      /* Vector unavailable exception          */
-            EXCP_DUMP(env, "No Altivec instructions allowed\n");
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_COPROC;
