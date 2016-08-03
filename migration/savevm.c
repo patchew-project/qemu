@@ -912,6 +912,10 @@ void qemu_savevm_state_begin(QEMUFile *f,
             break;
         }
     }
+    if (migration_in_colo_state()) {
+        qemu_put_byte(f, QEMU_VM_EOF);
+        qemu_fflush(f);
+    }
 }
 
 /*
