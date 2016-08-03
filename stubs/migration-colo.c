@@ -44,3 +44,8 @@ void qmp_x_colo_lost_heartbeat(Error **errp)
                      " with --enable-colo option in order to support"
                      " COLO feature");
 }
+
+bool colo_handle_shutdown(void)
+{
+    return false;
+}
