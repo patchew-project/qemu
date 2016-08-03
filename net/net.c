@@ -56,6 +56,9 @@
 static VMChangeStateEntry *net_change_state_entry;
 static QTAILQ_HEAD(, NetClientState) net_clients;
 
+static NotifierList netdev_init_notifiers =
+    NOTIFIER_LIST_INITIALIZER(netdev_init_notifiers);
+
 const char *host_net_devices[] = {
     "tap",
     "socket",
@@ -929,6 +932,10 @@ static int net_init_nic(const Netdev *netdev, const char *name,
     return idx;
 }
 
+void netdev_register_init_notifier(Notifier *notify)
+{
+    notifier_list_add(&netdev_init_notifiers, notify);
+}
 
 static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
     const Netdev *netdev,
@@ -1055,6 +1062,11 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
                        NetClientDriver_lookup[netdev->type]);
         }
         return -1;
+    }
+    if (is_netdev) {
+        const Netdev *netdev = object;
+
+        notifier_list_notify(&netdev_init_notifiers, netdev->id);
     }
     return 0;
 }

@@ -8,6 +8,7 @@
 #include "net/queue.h"
 #include "migration/vmstate.h"
 #include "qapi-types.h"
+#include "qemu/notify.h"
 
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \
@@ -194,6 +195,8 @@ struct NICInfo {
     int instantiated; /* does this NICInfo correspond to an instantiated NIC? */
     int nvectors;
 };
+
+void netdev_register_init_notifier(Notifier *notify);
 
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
