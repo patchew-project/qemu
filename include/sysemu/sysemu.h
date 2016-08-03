@@ -134,6 +134,9 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
                                            uint64_t *length_list);
 
 int qemu_loadvm_state(QEMUFile *f);
+int qemu_loadvm_state_begin(QEMUFile *f);
+int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
+int qemu_load_device_state(QEMUFile *f);
 
 extern int autostart;
 
