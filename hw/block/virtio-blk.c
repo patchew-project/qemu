@@ -987,7 +987,7 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     vdc->load = virtio_blk_load_device;
 }
 
-static const TypeInfo virtio_device_info = {
+static const TypeInfo virtio_blk_info = {
     .name = TYPE_VIRTIO_BLK,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOBlock),
@@ -997,7 +997,7 @@ static const TypeInfo virtio_device_info = {
 
 static void virtio_register_types(void)
 {
-    type_register_static(&virtio_device_info);
+    type_register_static(&virtio_blk_info);
 }
 
 type_init(virtio_register_types)
