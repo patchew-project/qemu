@@ -126,7 +126,13 @@ static void release_drive(Object *obj, const char *name, void *opaque)
 
 static char *print_drive(void *ptr)
 {
-    return g_strdup(blk_name(ptr));
+    const char *name;
+
+    name = blk_name(ptr);
+    if (!*name) {
+        name = bdrv_get_node_name(blk_bs(ptr));
+    }
+    return g_strdup(name);
 }
 
 static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
