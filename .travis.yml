@@ -99,3 +99,6 @@ matrix:
         - sudo apt-get build-dep -qq qemu
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - git submodule update --init --recursive
+after_success:
+  - cd tests/tcg/mttcg/x86
+  - make tests
