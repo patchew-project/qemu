@@ -1235,9 +1235,11 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCMachineState *pcms = container_of(notifier,
                                         PCMachineState, machine_done);
     PCIBus *bus = pcms->bus;
+    static uint16_t boot_cpus;
 
     /* set the number of CPUs */
-    rtc_set_memory(pcms->rtc, 0x5f, pc_present_cpus_count(pcms) - 1);
+    boot_cpus = pc_present_cpus_count(pcms);
+    rtc_set_memory(pcms->rtc, 0x5f, boot_cpus - 1);
 
     if (bus) {
         int extra_hosts = 0;
@@ -1258,8 +1260,16 @@ void pc_machine_done(Notifier *notifier, void *data)
 
     acpi_setup();
     if (pcms->fw_cfg) {
+        MachineClass *mc = MACHINE_GET_CLASS(pcms);
+
         pc_build_smbios(pcms->fw_cfg);
         pc_build_feature_control_file(pcms);
+
+        if (mc->max_cpus > 255) {
+            boot_cpus = cpu_to_le16(boot_cpus);
+            fw_cfg_add_file(pcms->fw_cfg, "etc/boot-cpus", &boot_cpus,
+                            sizeof(boot_cpus));
+        }
     }
 }
 
