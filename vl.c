@@ -178,6 +178,7 @@ bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
+uint32_t debug_port = 0xe9;
 
 int icount_align_option;
 
@@ -2584,6 +2585,17 @@ static int debugcon_parse(const char *devname)
     return 0;
 }
 
+static void debugcon_parse_port(const char *arg)
+{
+    uint32_t port;
+
+    port = strtoul(arg, NULL, 0);
+    if (port) {
+        printf("Re-assign debug console to port 0x%08x.\n", port);
+        debug_port = port;
+    }
+}
+
 static gint machine_class_cmp(gconstpointer a, gconstpointer b)
 {
     const MachineClass *mc1 = a, *mc2 = b;
@@ -3579,6 +3591,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_debugcon:
                 add_device_config(DEV_DEBUGCON, optarg);
+                break;
+            case QEMU_OPTION_debugport:
+                debugcon_parse_port(optarg);
                 break;
             case QEMU_OPTION_loadvm:
                 loadvm = optarg;

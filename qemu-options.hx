@@ -3123,6 +3123,15 @@ The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 ETEXI
 
+DEF("debugport", HAS_ARG, QEMU_OPTION_debugport, \
+    "-debugport n     Specify debug IO port number\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -debugport @var{n}
+@findex -debugport
+Specify the debug IO port number, default is 0xe9.
+ETEXI
+
 DEF("pidfile", HAS_ARG, QEMU_OPTION_pidfile, \
     "-pidfile file   write PID to 'file'\n", QEMU_ARCH_ALL)
 STEXI

@@ -105,6 +105,10 @@ static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    if (debug_port != 0xe9) {
+        qdev_prop_set_uint32(dev, "iobase", debug_port);
+        qdev_prop_set_uint32(dev, "readback", debug_port);
+    }
     memory_region_init_io(&s->io, OBJECT(dev), &debugcon_ops, s,
                           TYPE_ISA_DEBUGCON_DEVICE, 1);
     memory_region_add_subregion(isa_address_space_io(d),
