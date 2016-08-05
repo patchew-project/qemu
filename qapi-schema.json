@@ -4338,3 +4338,29 @@
 # Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+
+##
+# @Measurement
+#
+# @pcr: The PCR in the measurement
+# @value: The hash value
+# @vcpus-count: number of logical VCPU threads @HotpluggableCPU provides
+# @qom-path: #optional link to existing CPU object if CPU is present or
+#            omitted if CPU is not present.
+#
+# Since: 2.7
+##
+{ 'struct': 'Measurement',
+  'data': { 'pcr': 'int',
+            'hash': 'str'
+          }
+}
+
+##
+# @query-measurements
+#
+# Returns: a list of Measurement objects
+#
+# Since: 2.7
+##
+{ 'command': 'query-measurements', 'returns': ['Measurement'] }
