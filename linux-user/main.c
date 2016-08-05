@@ -32,10 +32,12 @@
 #include "tcg.h"
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
+#include "qemu/error-report.h"
 #include "elf.h"
 #include "exec/log.h"
 #include "trace/control.h"
 #include "glib-compat.h"
+#include "hypertrace/user.h"
 
 char *exec_path;
 
@@ -4011,6 +4013,14 @@ static void handle_arg_trace(const char *arg)
     trace_file = trace_opt_parse(arg);
 }
 
+static char *hypertrace_base;
+static size_t hypertrace_size;
+static void handle_arg_hypertrace(const char *arg)
+{
+    g_free(hypertrace_base);
+    hypertrace_opt_parse(arg, &hypertrace_base, &hypertrace_size);
+}
+
 struct qemu_argument {
     const char *argv;
     const char *env;
@@ -4060,6 +4070,8 @@ static const struct qemu_argument arg_table[] = {
      "",           "Seed for pseudo-random number generator"},
     {"trace",      "QEMU_TRACE",       true,  handle_arg_trace,
      "",           "[[enable=]<pattern>][,events=<file>][,file=<file>]"},
+    {"hypertrace", "QEMU_HYPERTRACE",  true,  handle_arg_hypertrace,
+     "",           "[[base=]<path>][,pages=<int>]"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}
@@ -4250,6 +4262,7 @@ int main(int argc, char **argv, char **envp)
     srand(time(NULL));
 
     qemu_add_opts(&qemu_trace_opts);
+    qemu_add_opts(&qemu_hypertrace_opts);
 
     optind = parse_args(argc, argv);
 
@@ -4447,6 +4460,12 @@ int main(int argc, char **argv, char **envp)
     target_set_brk(info->brk);
     syscall_init();
     signal_init();
+
+    if (atexit(hypertrace_fini)) {
+        fprintf(stderr, "error: atexit: %s\n", strerror(errno));
+        abort();
+    }
+    hypertrace_init(hypertrace_base, hypertrace_size);
 
     /* Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
        generating the prologue until now so that the prologue can take

@@ -23,6 +23,7 @@
 #include "qemu.h"
 #include "qemu-common.h"
 #include "translate-all.h"
+#include "hypertrace/user.h"
 
 //#define DEBUG_MMAP
 
@@ -553,6 +554,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
  the_end1:
+    hypertrace_guest_mmap(fd, (void *)g2h(start));
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
 #ifdef DEBUG_MMAP
