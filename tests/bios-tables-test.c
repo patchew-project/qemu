@@ -809,7 +809,8 @@ static void test_acpi_piix4_tcg_cphp(void)
     data.machine = MACHINE_PC;
     data.variant = ".cphp";
     test_acpi_one("-machine accel=tcg"
-                  " -smp 2,cores=3,sockets=2,maxcpus=6",
+                  " -smp 2,cores=3,sockets=2,maxcpus=6"
+                  " -numa node -numa node",
                   &data);
     free_test_data(&data);
 }
@@ -822,7 +823,8 @@ static void test_acpi_q35_tcg_cphp(void)
     data.machine = MACHINE_Q35;
     data.variant = ".cphp";
     test_acpi_one("-machine q35,accel=tcg"
-                  " -smp 2,cores=3,sockets=2,maxcpus=6",
+                  " -smp 2,cores=3,sockets=2,maxcpus=6"
+                  " -numa node -numa node",
                   &data);
     free_test_data(&data);
 }
