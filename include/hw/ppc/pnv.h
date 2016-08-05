@@ -31,6 +31,10 @@ typedef struct PnvChip {
 
     /*< public >*/
     uint32_t     chip_id;
+    uint32_t     num_cores;
+    char *cpu_model;
+
+    Object **cores;
 } PnvChip;
 
 #define TYPE_POWERNV_MACHINE      "powernv-machine"
@@ -43,9 +47,12 @@ typedef struct sPowerNVMachineState {
 
     uint32_t initrd_base;
     long initrd_size;
+    hwaddr fdt_addr;
 
     uint32_t  num_chips;
     PnvChip   *chips;
 } sPowerNVMachineState;
+
+#define PNV_TIMEBASE_FREQ           512000000ULL
 
 #endif /* _PPC_PNV_H */
