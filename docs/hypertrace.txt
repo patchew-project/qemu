@@ -1,0 +1,141 @@
+= Hypertrace channel =
+
+The hypertrace channel allows guest code to emit events in QEMU (the host) using
+its tracing infrastructure (see "docs/trace.txt"). This works in both 'system'
+and 'user' modes. That is, hypertrace is to tracing, what hypercalls are to
+system calls.
+
+You can use this to emit an event on both guest and QEMU (host) traces to easily
+synchronize or correlate them. You could also modify you guest's tracing system
+to emit all events through the hypertrace channel, providing a unified and fully
+synchronized trace log. Another use case is timing the performance of guest code
+when optimizing TCG (QEMU traces have a timestamp).
+
+QEMU provides an example library and Linux kernel module that guest code can use
+to interact with the hypertrace channel.
+
+Hypertrace highlights:
+
+* Works with 'system' and 'user' mode.
+
+* Minimal setup for the guest (e.g., 'system' mode with Linux and 'user' mode
+  work out of the box).
+
+* Independent of guest architecture; the guest code uses accesses to special
+  memory regions, as opposed to redefining instruction semantics.
+
+* Negligible guest overhead; guest operations do not go through any OS
+  abstraction, except during the setup of the communication channel.
+
+Warning: The hypertrace channel in 'system' mode is presented as a PCI device,
+and thus will only be available on systems with support for PCI. You can get the
+list of guests with PCI support with 'grep pci.mak default-configs/*'.
+
+
+== Quick guide ==
+
+1. Set the number of arguments for the hypertrace events:
+
+    mkdir /tmp/qemu-build
+    cd /tmp/qemu-build
+    /path/to/qemu-source/configure              \
+        --with-hypertrace-args=1                \
+        --prefix=/tmp/qemu-install
+    make -j install
+
+2. Compile the corresponding guest support code:
+
+    make -C /tmp/qemu-build/x86_64-linux-user/hypertrace/guest/user
+    make -C /tmp/qemu-build/x86_64-softmmu/hypertrace/guest/user
+    make -C /tmp/qemu-build/x86_64-softmmu/hypertrace/guest/linux-module
+
+   If you need to cross-compile the guest library, set the 'CC' variable (e.g.,
+   for mipsel):
+
+    make -C /tmp/qemu-build/mipsel-linux-user/hypertrace/guest/user CC=mipsel-gnu-linux-gcc
+
+3. Create a guest application using "qemu-hypertrace.h":
+
+    cat > /tmp/my-hypertrace.c <<EOF
+    #include <stdio.h>
+    #include <errno.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <qemu-hypertrace.h>
+    
+    
+    int main(int argc, char **argv)
+    {
+        char *base = NULL;
+        if (argc > 1) {
+            base = argv[1];
+        }
+
+        /* In 'user' mode this path must be the same we will use to start QEMU. */
+        if (qemu_hypertrace_init(base) != 0) {
+            fprintf(stderr, "error: qemu_hypertrace_init: %s\n", strerror(errno));
+            abort();
+        }
+    
+        /* Set event arguments */
+        uint64_t voffset  = 0;
+        uint64_t *data = qemu_hypertrace_data(voffset);
+        data[0] = 0xcafe;
+        data[1] = 0xbabe;
+        data[2] = 0xdead;
+        data[3] = 0xbeef;
+    
+        /* Emit event */
+        printf("emitting hypertrace event\n");
+        qemu_hypertrace(voffset);
+    }
+    EOF
+
+    gcc -o /tmp/my-hypertrace-user /tmp/my-hypertrace.c                                    \
+        /tmp/qemu-build/x86_64-linux-user/hypertrace/guest/user/libqemu-hypertrace-guest.a \
+        -I/tmp/qemu-install/include
+
+    gcc -o /tmp/my-hypertrace-softmmu /tmp/my-hypertrace.c                              \
+        /tmp/qemu-build/x86_64-softmmu/hypertrace/guest/user/libqemu-hypertrace-guest.a \
+        -I/tmp/qemu-install/include
+
+4. Run a guest with access to QEMU's hypertrace:
+
+    /tmp/qemu-install/bin/qemu-x86_64          \
+      -hypertrace /tmp/hypertrace              \
+      -trace enable=guest* -D /dev/stdout      \
+      /tmp/my-hypertrace-user /tmp/hypertrace
+
+   Or, to run in 'system' mode:
+
+    /tmp/qemu-install/x86_64-softmmu/qemu-system-x86_64 \
+      -device hypertrace                                \
+      -trace enable=guest* -D /dev/stdout               \
+      ...
+
+   And inside the VM:
+
+    sudo /tmp/my-hypertrace-softmmu
+
+   You can also use hypertrace from Linux's kernel code with the provided module
+   (see the header in "/tmp/qemu-install/include/linux/qemu-hypertrace.h"):
+
+    sudo insmod /tmp/qemu-build/x86_64-softmmu/hypertrace/guest/linux-module/qemu-hypertrace.ko
+
+== Details ==
+
+To make it more efficient in terms of guest and host time, hypertrace provides
+two different memory areas (channels).
+
+The control channel is used by the guest to tell QEMU that new data is ready to
+be processed in the data channel. Writes to the control channel are intercepted
+by QEMU, which emits the "hypertrace" tracing event.
+
+The data channel is a regular memory buffer used by the guest to write the event
+arguments before raising the event through the control channel.
+
+The data channel is a physical memory region used by all virtual CPUs. To allow
+multiple guest threads or virtual CPUs to use hypertrace concurrently, the value
+passed on the control channel is used as an index to the data channel (i.e.,
+each guest thread or virtual CPU must write on a different portion of the data
+channel).
