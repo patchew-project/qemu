@@ -20,6 +20,18 @@
 #define _PPC_PNV_H
 
 #include "hw/boards.h"
+#include "hw/sysbus.h"
+
+#define TYPE_PNV_CHIP "powernv-chip"
+#define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
+
+typedef struct PnvChip {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    uint32_t     chip_id;
+} PnvChip;
 
 #define TYPE_POWERNV_MACHINE      "powernv-machine"
 #define POWERNV_MACHINE(obj) \
@@ -31,6 +43,9 @@ typedef struct sPowerNVMachineState {
 
     uint32_t initrd_base;
     long initrd_size;
+
+    uint32_t  num_chips;
+    PnvChip   *chips;
 } sPowerNVMachineState;
 
 #endif /* _PPC_PNV_H */

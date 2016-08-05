@@ -185,6 +185,7 @@ static void ppc_powernv_init(MachineState *machine)
     sPowerNVMachineState *pnv = POWERNV_MACHINE(machine);
     long fw_size;
     char *filename;
+    int i;
 
     if (ram_size < (1 * G_BYTE)) {
         error_report("Warning: skiboot may not work with < 1GB of RAM");
@@ -236,6 +237,23 @@ static void ppc_powernv_init(MachineState *machine)
             pnv->initrd_base = 0;
             pnv->initrd_size = 0;
     }
+
+    /* Create PowerNV chips
+     *
+     * FIXME: We should decide how many chips to create based on
+     * #cores and Venice vs. Murano vs. Naples chip type etc..., for
+     * now, just create one chip, with all the cores.
+     */
+    pnv->num_chips = 1;
+
+    pnv->chips = g_new0(PnvChip, pnv->num_chips);
+    for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = &pnv->chips[i];
+
+        object_initialize(chip, sizeof(*chip), TYPE_PNV_CHIP);
+        object_property_set_int(OBJECT(chip), i, "chip-id", &error_abort);
+        object_property_set_bool(OBJECT(chip), true, "realized", &error_abort);
+    }
 }
 
 static void powernv_machine_class_init(ObjectClass *oc, void *data)
@@ -274,10 +292,39 @@ static const TypeInfo powernv_machine_2_8_info = {
     .class_init    = powernv_machine_2_8_class_init,
 };
 
+
+static void pnv_chip_realize(DeviceState *dev, Error **errp)
+{
+    ;
+}
+
+static Property pnv_chip_properties[] = {
+    DEFINE_PROP_UINT32("chip-id", PnvChip, chip_id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pnv_chip_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = pnv_chip_realize;
+    dc->props = pnv_chip_properties;
+    dc->desc = "PowerNV Chip";
+ }
+
+static const TypeInfo pnv_chip_info = {
+    .name          = TYPE_PNV_CHIP,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PnvChip),
+    .class_init    = pnv_chip_class_init,
+};
+
+
 static void powernv_machine_register_types(void)
 {
     type_register_static(&powernv_machine_info);
     type_register_static(&powernv_machine_2_8_info);
+    type_register_static(&pnv_chip_info);
 }
 
 type_init(powernv_machine_register_types)
