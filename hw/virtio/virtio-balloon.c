@@ -423,6 +423,26 @@ static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
+static void virtio_balloon_vmstate_cb(void *opaque, int running,
+                                      RunState state)
+{
+    VirtIOBalloon *s = opaque;
+
+    if (!running) {
+        /* put the stats element back if the VM is not running */
+        if (s->stats_vq_elem != NULL) {
+            virtqueue_discard(s->svq, s->stats_vq_elem, s->stats_vq_offset);
+            g_free(s->stats_vq_elem);
+            s->stats_vq_elem = NULL;
+        }
+
+    } else {
+        /* poll stats queue for the element we may have discarded
+         * when the VM was stopped */
+        virtio_balloon_receive_stats(VIRTIO_DEVICE(s), s->svq);
+    }
+}
+
 static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -446,6 +466,8 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
 
     reset_stats(s);
+
+    s->change = qemu_add_vm_change_state_handler(virtio_balloon_vmstate_cb, s);
 }
 
 static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
@@ -453,6 +475,7 @@ static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBalloon *s = VIRTIO_BALLOON(dev);
 
+    qemu_del_vm_change_state_handler(s->change);
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
     virtio_cleanup(vdev);
