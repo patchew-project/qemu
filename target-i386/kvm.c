@@ -111,7 +111,14 @@ static int has_pit_state2;
 
 static bool has_msr_mcg_ext_ctl;
 
+static bool has_x2apic_ids;
+
 static struct kvm_cpuid2 *cpuid_cache;
+
+bool kvm_has_x2apic_ids(void)
+{
+    return has_x2apic_ids;
+}
 
 int kvm_has_pit_state2(void)
 {
@@ -1153,6 +1160,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 
 #ifdef KVM_CAP_PIT_STATE2
     has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
+#endif
+
+#ifdef KVM_CAP_X2APIC_API
+    if (kvm_check_extension(s, KVM_CAP_X2APIC_API)) {
+        has_x2apic_ids = !kvm_vm_enable_cap(s, KVM_CAP_X2APIC_API, 0,
+                                            KVM_X2APIC_API_USE_32BIT_IDS);
+    }
 #endif
 
     ret = kvm_get_supported_msrs(s);

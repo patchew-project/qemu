@@ -15,6 +15,7 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/pci/msi.h"
 #include "sysemu/kvm.h"
+#include "kvm_i386.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
                                     int reg_id, uint32_t val)
@@ -34,7 +35,11 @@ void kvm_put_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
     int i;
 
     memset(kapic, 0, sizeof(*kapic));
-    kvm_apic_set_reg(kapic, 0x2, s->id << 24);
+    if (kvm_has_x2apic_ids() && s->apicbase & MSR_IA32_APICBASE_EXTD) {
+        kvm_apic_set_reg(kapic, 0x2, s->initial_apic_id);
+    } else {
+        kvm_apic_set_reg(kapic, 0x2, s->id << 24);
+    }
     kvm_apic_set_reg(kapic, 0x8, s->tpr);
     kvm_apic_set_reg(kapic, 0xd, s->log_dest << 24);
     kvm_apic_set_reg(kapic, 0xe, s->dest_mode << 28 | 0x0fffffff);
@@ -59,7 +64,11 @@ void kvm_get_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
     APICCommonState *s = APIC_COMMON(dev);
     int i, v;
 
-    s->id = kvm_apic_get_reg(kapic, 0x2) >> 24;
+    if (kvm_has_x2apic_ids() && s->apicbase & MSR_IA32_APICBASE_EXTD) {
+        assert(kvm_apic_get_reg(kapic, 0x2) == s->initial_apic_id);
+    } else {
+        s->id = kvm_apic_get_reg(kapic, 0x2) >> 24;
+    }
     s->tpr = kvm_apic_get_reg(kapic, 0x8);
     s->arb_id = kvm_apic_get_reg(kapic, 0x9);
     s->log_dest = kvm_apic_get_reg(kapic, 0xd) >> 24;
