@@ -33,6 +33,7 @@ addons:
       - libvte-2.90-dev
       - sparse
       - uuid-dev
+      - gcc-aarch64-linux-gnu
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
 # to prevent IRC notifications from forks. This was created using:
@@ -101,4 +102,6 @@ matrix:
         - git submodule update --init --recursive
 after_success:
   - cd tests/tcg/mttcg/x86
+  - make tests
+  - cd ../aarch64
   - make tests
