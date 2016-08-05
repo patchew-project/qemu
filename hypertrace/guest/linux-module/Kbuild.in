@@ -1,0 +1,5 @@
+# -*- mode: makefile -*-
+
+src = $(MOD_SRC_PATH)
+ccflags-y := -I$(src)/include/ -DHYPERTRACE_NUM_ARGS=$(HYPERTRACE_NUM_ARGS)
+obj-m := qemu-hypertrace.o
