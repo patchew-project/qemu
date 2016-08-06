@@ -29,17 +29,22 @@ test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')
 blockdev_target_img = os.path.join(iotests.test_dir, 'blockdev-target.img')
 
-class TestSingleDrive(iotests.QMPTestCase):
-    image_len = 64 * 1024 * 1024 # MB
+image_len = 64 * 1024 * 1024 # MB
 
+def setUpModule():
+    qemu_img('create', '-f', iotests.imgfmt, test_img, str(image_len))
+    qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 64k', test_img)
+    qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xd5 1M 32k', test_img)
+    qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 32M 124k', test_img)
+    qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 67043328 64k', test_img)
+
+def tearDownModule():
+    os.remove(test_img)
+
+
+class TestSingleDrive(iotests.QMPTestCase):
     def setUp(self):
-        # Write data to the image so we can compare later
-        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleDrive.image_len))
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 64k', test_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xd5 1M 32k', test_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 32M 124k', test_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 67043328 64k', test_img)
-        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(TestSingleDrive.image_len))
+        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
         self.vm = iotests.VM().add_drive(test_img).add_drive(blockdev_target_img)
         if iotests.qemu_default_machine == 'pc':
@@ -48,7 +53,6 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
         os.remove(blockdev_target_img)
         try:
             os.remove(target_img)
@@ -158,19 +162,14 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
 class TestSetSpeed(iotests.QMPTestCase):
-    image_len = 80 * 1024 * 1024 # MB
-
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSetSpeed.image_len))
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P1 0 512', test_img)
-        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(TestSingleDrive.image_len))
+        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
         self.vm = iotests.VM().add_drive(test_img).add_drive(blockdev_target_img)
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
         os.remove(blockdev_target_img)
         try:
             os.remove(target_img)
@@ -246,15 +245,8 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.do_test_set_speed_invalid('blockdev-backup',  'drive1')
 
 class TestSingleTransaction(iotests.QMPTestCase):
-    image_len = 64 * 1024 * 1024 # MB
-
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleTransaction.image_len))
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 64k', test_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xd5 1M 32k', test_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 32M 124k', test_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 67043328 64k', test_img)
-        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(TestSingleDrive.image_len))
+        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
         self.vm = iotests.VM().add_drive(test_img).add_drive(blockdev_target_img)
         if iotests.qemu_default_machine == 'pc':
@@ -263,7 +255,6 @@ class TestSingleTransaction(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
         os.remove(blockdev_target_img)
         try:
             os.remove(target_img)
