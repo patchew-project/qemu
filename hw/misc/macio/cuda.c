@@ -911,7 +911,7 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
-    s->autopoll_rate_ms = 20;
+    s->autopoll_rate_ms = 35;
     s->adb_poll_mask = 0xffff;
 }
 
