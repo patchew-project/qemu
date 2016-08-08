@@ -97,11 +97,27 @@ def gen_marshal_decl(name, export):
                  proto=gen_marshal_proto(name, export))
 
 
+def if_args(arg_type, block):
+    ret = ''
+    if not arg_type or arg_type.is_empty():
+        ret += mcgen('''
+    if (args) {
+''')
+        push_indent()
+    ret += block()
+    if not arg_type or arg_type.is_empty():
+        pop_indent()
+        ret += mcgen('''
+    }
+''')
+    return ret
+
 def gen_marshal(name, arg_type, boxed, ret_type, export):
     ret = mcgen('''
 
 %(proto)s
 {
+    Visitor *v = NULL;
     Error *err = NULL;
 ''',
                 proto=gen_marshal_proto(name, export))
@@ -112,17 +128,23 @@ def gen_marshal(name, arg_type, boxed, ret_type, export):
 ''',
                      c_type=ret_type.c_type())
 
+    visit_members = ''
     if arg_type and not arg_type.is_empty():
+        visit_members = mcgen('visit_type_%(c_name)s_members(v, &arg, &err);',
+                            c_name=arg_type.c_name())
         ret += mcgen('''
-    Visitor *v;
     %(c_name)s arg = {0};
 
+''',
+                     c_name=arg_type.c_name())
+
+    ret += if_args(arg_type, lambda: mcgen('''
     v = qmp_input_visitor_new(QOBJECT(args), true);
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
     }
-    visit_type_%(c_name)s_members(v, &arg, &err);
+    %(visit_members)s
     if (!err) {
         visit_check_struct(v, &err);
     }
@@ -131,35 +153,28 @@ def gen_marshal(name, arg_type, boxed, ret_type, export):
         goto out;
     }
 ''',
-                     c_name=arg_type.c_name())
-
-    else:
-        ret += mcgen('''
-
-    (void)args;
-''')
+                 visit_members=visit_members))
 
     ret += gen_call(name, arg_type, boxed, ret_type)
 
     # 'goto out' produced above for arg_type, and by gen_call() for ret_type
-    if (arg_type and not arg_type.is_empty()) or ret_type:
-        ret += mcgen('''
+    if arg_type and not arg_type.is_empty():
+        visit_members = mcgen('visit_type_%(c_name)s_members(v, &arg, NULL);',
+                              c_name=arg_type.c_name())
+    ret += mcgen('''
 
 out:
-''')
-    ret += mcgen('''
     error_propagate(errp, err);
-''')
-    if arg_type and not arg_type.is_empty():
-        ret += mcgen('''
     visit_free(v);
+''')
+    ret += if_args(arg_type, lambda: mcgen('''
     v = qapi_dealloc_visitor_new();
     visit_start_struct(v, NULL, NULL, 0, NULL);
-    visit_type_%(c_name)s_members(v, &arg, NULL);
+    %(visit_members)s
     visit_end_struct(v, NULL);
     visit_free(v);
 ''',
-                     c_name=arg_type.c_name())
+                     visit_members=visit_members))
 
     ret += mcgen('''
 }
