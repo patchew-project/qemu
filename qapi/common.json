@@ -76,7 +76,7 @@
 #
 # Since: 0.14.0
 ##
-{ 'command': 'query-version', 'returns': 'VersionInfo' }
+{ 'command': 'query-version', 'returns': 'VersionInfo', 'export-marshal': true }
 
 ##
 # @CommandInfo:
