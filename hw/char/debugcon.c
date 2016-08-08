@@ -30,6 +30,7 @@
 #include "sysemu/char.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
+#include "hw/char/debugcon.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
 #define ISA_DEBUGCON_DEVICE(obj) \
@@ -133,6 +134,28 @@ static const TypeInfo debugcon_isa_info = {
     .instance_size = sizeof(ISADebugconState),
     .class_init    = debugcon_isa_class_initfn,
 };
+
+static Object *debugcon_isa_find(void)
+{
+    bool ambig;
+    Object *o = object_resolve_path_type("", TYPE_ISA_DEBUGCON_DEVICE,
+                                         &ambig);
+
+    if (ambig) {
+        return NULL;
+    }
+    return o;
+}
+
+uint32_t debugcon_get_port(void)
+{
+    Object *obj = debugcon_isa_find();
+
+    if (obj) {
+        return object_property_get_int(obj, "iobase", &error_abort);
+    }
+    return 0xe9;
+}
 
 static void debugcon_register_types(void)
 {

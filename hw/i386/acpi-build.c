@@ -44,6 +44,7 @@
 #include "hw/acpi/tpm.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
+#include "hw/char/debugcon.h"
 #include "sysemu/numa.h"
 
 /* Supported chipsets: */
@@ -1442,7 +1443,8 @@ static void build_dbg_aml(Aml *table)
     Aml *idx = aml_local(2);
 
     aml_append(scope,
-       aml_operation_region("DBG", AML_SYSTEM_IO, aml_int(0x0402), 0x01));
+       aml_operation_region("DBG", AML_SYSTEM_IO,
+                            aml_int(debugcon_get_port()), 0x01));
     field = aml_field("DBG", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("DBGB", 8));
     aml_append(scope, field);
