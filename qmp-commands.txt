@@ -3381,8 +3381,8 @@ Delete a quorum's node
                     "child": "children.1" } }
 <- { "return": {} }
 
-@query-named-block-nodes
-------------------------
+query-named-block-nodes
+-----------------------
 
 Return a list of BlockDeviceInfo for all the named block driver nodes
 
@@ -3507,7 +3507,7 @@ Example (1):
      ]
    }
 
-@query-memory-devices
+query-memory-devices
 --------------------
 
 Return a list of memory devices.
@@ -3525,8 +3525,9 @@ Example:
                         "slot": 0},
                    "type": "dimm"
                  } ] }
-@query-acpi-ospm-status
---------------------
+
+query-acpi-ospm-status
+----------------------
 
 Return list of ACPIOSTInfo for devices that support status reporting
 via ACPI _OST method.
@@ -3538,6 +3539,7 @@ Example:
                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
    ]}
+
 rtc-reset-reinjection
 ---------------------
 
@@ -3549,6 +3551,7 @@ Example:
 
 -> { "execute": "rtc-reset-reinjection" }
 <- { "return": {} }
+
 trace-event-get-state
 ---------------------
 
@@ -3572,6 +3575,7 @@ Example:
 
 -> { "execute": "trace-event-get-state", "arguments": { "name": "qemu_memalign" } }
 <- { "return": [ { "name": "qemu_memalign", "state": "disabled" } ] }
+
 trace-event-set-state
 ---------------------
 
@@ -3598,8 +3602,9 @@ Example:
 
 -> { "execute": "trace-event-set-state", "arguments": { "name": "qemu_memalign", "enable": "true" } }
 <- { "return": {} }
-@input-send-event
------------------
+
+input-send-event
+----------------
 
 Send input event to guest.
 
