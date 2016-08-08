@@ -578,7 +578,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run, job);
     block_job_txn_add_job(txn, &job->common);
-    qemu_coroutine_enter(job->common.co);
+    block_job_start(&job->common);
     return;
 
  error:

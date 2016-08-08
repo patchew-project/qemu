@@ -246,6 +246,14 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                        BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
+ * block_job_start:
+ * @job: The job object as returned by @block_job_create.
+ *
+ * Begins execution of a block job.
+ */
+void block_job_start(BlockJob *job);
+
+/**
  * block_job_sleep_ns:
  * @job: The job that calls the function.
  * @clock: The clock to sleep on.

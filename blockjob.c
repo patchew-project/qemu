@@ -158,7 +158,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
-    job->busy          = true;
+    job->busy          = false;
+    job->paused        = true;
     job->refcnt        = 1;
     bs->job = job;
 
@@ -179,6 +180,14 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
     return job;
+}
+
+void block_job_start(BlockJob *job)
+{
+    assert(job && job->co && job->paused && !job->busy);
+    job->paused = false;
+    job->busy = true;
+    qemu_coroutine_enter(job->co);
 }
 
 void block_job_ref(BlockJob *job)

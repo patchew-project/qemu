@@ -106,7 +106,7 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     s->common.co = qemu_coroutine_create(test_block_job_run, s);
     data->job = s;
     data->result = result;
-    qemu_coroutine_enter(s->common.co);
+    block_job_start(&s->common);
     return &s->common;
 }
 
