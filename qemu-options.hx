@@ -1492,6 +1492,15 @@ STEXI
 Disable HPET support.
 ETEXI
 
+DEF("acpifadt", HAS_ARG, QEMU_OPTION_acpifadt, \
+    "-acpifadt  n    configure FADT revision number (1, 3, 5)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -acpifadt @var{n}
+@findex -acpifadt
+Configure FADT revision number, default is 1.
+ETEXI
+
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
     "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,{data|file}=file1[:file2]...]\n"
     "                ACPI table description\n", QEMU_ARCH_I386)
