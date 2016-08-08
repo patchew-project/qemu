@@ -2151,6 +2151,20 @@
             '*debug-level': 'int' } }
 
 ##
+# @BlockdevLockMode
+#
+# Describes how QEMU should lock the image.
+#
+# @off:       Disabled
+# @shared:    Use shared lock for both RO and RW images.
+# @auto:      Use exclusive lock for RW images, and shared lock for RO images.
+#
+# Since: 2.7
+##
+{ 'enum': 'BlockdevLockMode',
+  'data': [ 'off', 'shared', 'auto' ] }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2172,6 +2186,8 @@
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 #
+# @lock-mode: #optional how to lock the image. (default: auto) (Since 2.7)
+#
 # Remaining options are determined by the block driver.
 #
 # Since: 1.7
@@ -2185,7 +2201,8 @@
             '*cache': 'BlockdevCacheOptions',
             '*aio': 'BlockdevAioOptions',
             '*read-only': 'bool',
-            '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
+            '*detect-zeroes': 'BlockdevDetectZeroesOptions',
+            '*lock-mode': 'BlockdevLockMode' },
   'discriminator': 'driver',
   'data': {
       'archipelago':'BlockdevOptionsArchipelago',
