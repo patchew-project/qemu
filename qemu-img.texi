@@ -88,6 +88,9 @@ progress is reported when the process receives a @code{SIGUSR1} signal.
 @item -q
 Quiet mode - do not print any output (except errors). There's no progress bar
 in case both @var{-q} and @var{-p} options are used.
+@item -L
+disables image locking. The image will not be locked, other processes can
+access and lock this image while we are using it.
 @item -S @var{size}
 indicates the consecutive number of bytes that must contain only zeros
 for qemu-img to create a sparse image during conversion. This value is rounded

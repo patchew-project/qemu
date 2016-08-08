@@ -141,6 +141,7 @@ static void QEMU_NORETURN help(void)
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "  '-p' show progress of command (only certain commands)\n"
            "  '-q' use Quiet mode - do not print any output (except errors)\n"
+           "  '-L' don't lock the image\n"
            "  '-S' indicates the consecutive number of bytes (defaults to 4k) that must\n"
            "       contain only zeros for qemu-img to create a sparse image during\n"
            "       conversion. If the number of bytes is 0, the source will not be scanned for\n"
