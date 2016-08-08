@@ -43,6 +43,8 @@ Force the use of the block driver for format @var{fmt} instead of
 auto-detecting
 @item -r, --read-only
 Export the disk as read-only
+@item -L, --no-lock
+Disable image locking
 @item -P, --partition=@var{num}
 Only expose partition @var{num}
 @item -s, --snapshot

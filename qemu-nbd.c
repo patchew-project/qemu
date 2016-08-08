@@ -102,6 +102,7 @@ static void usage(const char *name)
 "Block device options:\n"
 "  -f, --format=FORMAT       set image format (raw, qcow2, ...)\n"
 "  -r, --read-only           export read-only\n"
+"  -L, --no-lock             disable image locking\n"
 "  -s, --snapshot            use FILE as an external snapshot, create a temporary\n"
 "                            file with backing_file=FILE, redirect the write to\n"
 "                            the temporary one\n"
@@ -474,7 +475,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:";
+    const char *sopt = "hVb:o:p:rsnLP:c:dvk:e:f:tl:x:T:";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -483,6 +484,7 @@ int main(int argc, char **argv)
         { "socket", required_argument, NULL, 'k' },
         { "offset", required_argument, NULL, 'o' },
         { "read-only", no_argument, NULL, 'r' },
+        { "no-lock", no_argument, NULL, 'L' },
         { "partition", required_argument, NULL, 'P' },
         { "connect", required_argument, NULL, 'c' },
         { "disconnect", no_argument, NULL, 'd' },
@@ -637,6 +639,9 @@ int main(int argc, char **argv)
         case 'r':
             nbdflags |= NBD_FLAG_READ_ONLY;
             flags &= ~BDRV_O_RDWR;
+            break;
+        case 'L':
+            flags |= BDRV_O_NO_LOCK;
             break;
         case 'P':
             partition = strtol(optarg, &end, 0);
