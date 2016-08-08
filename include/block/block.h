@@ -187,6 +187,15 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_MAX,
 } BlockOpType;
 
+typedef enum {
+    /* The values are ordered so that lower number implies higher restriction.
+     * Starting from 1 to make 0 an invalid value.
+     * */
+    BDRV_LOCKF_EXCLUSIVE = 1,
+    BDRV_LOCKF_SHARED,
+    BDRV_LOCKF_UNLOCK,
+} BdrvLockfCmd;
+
 void bdrv_info_print(Monitor *mon, const QObject *data);
 void bdrv_info(Monitor *mon, QObject **ret_data);
 void bdrv_stats_print(Monitor *mon, const QObject *data);
@@ -274,7 +283,7 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs);
 BlockDriverState *bdrv_find_base(BlockDriverState *bs);
-
+BdrvLockfCmd bdrv_get_locking_cmd(int flags);
 
 typedef struct BdrvCheckResult {
     int corruptions;

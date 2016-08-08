@@ -319,6 +319,10 @@ struct BlockDriver {
                            Error **errp);
     void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
                            Error **errp);
+    /**
+     * Lock/unlock the image.
+     */
+    int (*bdrv_lockf)(BlockDriverState *bs, BdrvLockfCmd cmd);
 
     QLIST_ENTRY(BlockDriver) list;
 };
@@ -528,6 +532,7 @@ struct BlockDriverState {
     unsigned io_plug_disabled;
 
     int quiesce_counter;
+    BdrvLockfCmd cur_lock;
 };
 
 struct BlockBackendRootState {
