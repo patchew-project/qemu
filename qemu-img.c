@@ -608,6 +608,7 @@ static int img_check(int argc, char **argv)
     ImageCheck *check;
     bool quiet = false;
     bool image_opts = false;
+    bool nolock = false;
 
     fmt = NULL;
     output = NULL;
@@ -624,7 +625,7 @@ static int img_check(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hf:r:T:q",
+        c = getopt_long(argc, argv, "hf:r:T:qL",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -657,6 +658,9 @@ static int img_check(int argc, char **argv)
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -691,6 +695,7 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
+    flags |= nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", cache);
@@ -811,6 +816,7 @@ static int img_commit(int argc, char **argv)
     Error *local_err = NULL;
     CommonBlockJobCBInfo cbi;
     bool image_opts = false;
+    bool nolock = false;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
@@ -822,7 +828,7 @@ static int img_commit(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "f:ht:b:dpq",
+        c = getopt_long(argc, argv, "f:ht:b:dpqL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -851,6 +857,9 @@ static int img_commit(int argc, char **argv)
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -883,6 +892,7 @@ static int img_commit(int argc, char **argv)
     }
 
     flags = BDRV_O_RDWR | BDRV_O_UNMAP;
+    flags |= nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
@@ -1141,6 +1151,7 @@ static int img_compare(int argc, char **argv)
     int c, pnum;
     uint64_t progress_base;
     bool image_opts = false;
+    bool nolock = false;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
@@ -1150,7 +1161,7 @@ static int img_compare(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hf:F:T:pqs",
+        c = getopt_long(argc, argv, "hf:F:T:pqsL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -1177,6 +1188,9 @@ static int img_compare(int argc, char **argv)
             break;
         case 's':
             strict = true;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -1215,7 +1229,7 @@ static int img_compare(int argc, char **argv)
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
 
-    flags = 0;
+    flags = nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", cache);
@@ -1764,6 +1778,7 @@ static int img_convert(int argc, char **argv)
     QemuOpts *sn_opts = NULL;
     ImgConvertState state;
     bool image_opts = false;
+    bool nolock = false;
 
     fmt = NULL;
     out_fmt = "raw";
@@ -1779,7 +1794,7 @@ static int img_convert(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hf:O:B:ce6o:s:l:S:pt:T:qn",
+        c = getopt_long(argc, argv, "hf:O:B:ce6o:s:l:S:pt:T:qnL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -1868,6 +1883,9 @@ static int img_convert(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
+        case 'L':
+            nolock = true;
+            break;
         case 'n':
             skip_create = 1;
             break;
@@ -1916,7 +1934,7 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    src_flags = 0;
+    src_flags = nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(src_cache, &src_flags, &src_writethrough);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", src_cache);
@@ -2066,6 +2084,7 @@ static int img_convert(int argc, char **argv)
     }
 
     flags = min_sparse ? (BDRV_O_RDWR | BDRV_O_UNMAP) : BDRV_O_RDWR;
+    flags |= nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
@@ -2246,12 +2265,14 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 static ImageInfoList *collect_image_info_list(bool image_opts,
                                               const char *filename,
                                               const char *fmt,
-                                              bool chain)
+                                              bool chain,
+                                              bool nolock)
 {
     ImageInfoList *head = NULL;
     ImageInfoList **last = &head;
     GHashTable *filenames;
     Error *err = NULL;
+    int flags;
 
     filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
 
@@ -2268,8 +2289,9 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         }
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
-        blk = img_open(image_opts, filename, fmt,
-                       BDRV_O_NO_BACKING | BDRV_O_NO_IO, false, false);
+        flags = BDRV_O_NO_BACKING | BDRV_O_NO_IO;
+        flags |= nolock ? BDRV_O_NO_LOCK : 0;
+        blk = img_open(image_opts, filename, fmt, flags, false, false);
         if (!blk) {
             goto err;
         }
@@ -2321,6 +2343,7 @@ static int img_info(int argc, char **argv)
     const char *filename, *fmt, *output;
     ImageInfoList *list;
     bool image_opts = false;
+    bool nolock = false;
 
     fmt = NULL;
     output = NULL;
@@ -2335,7 +2358,7 @@ static int img_info(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "f:h",
+        c = getopt_long(argc, argv, "f:hL",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -2347,6 +2370,9 @@ static int img_info(int argc, char **argv)
             break;
         case 'f':
             fmt = optarg;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case OPTION_OUTPUT:
             output = optarg;
@@ -2387,7 +2413,7 @@ static int img_info(int argc, char **argv)
         return 1;
     }
 
-    list = collect_image_info_list(image_opts, filename, fmt, chain);
+    list = collect_image_info_list(image_opts, filename, fmt, chain, nolock);
     if (!list) {
         return 1;
     }
@@ -2533,6 +2559,8 @@ static int img_map(int argc, char **argv)
     MapEntry curr = { .length = 0 }, next;
     int ret = 0;
     bool image_opts = false;
+    bool nolock = false;
+    int flags;
 
     fmt = NULL;
     output = NULL;
@@ -2546,7 +2574,7 @@ static int img_map(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "f:h",
+        c = getopt_long(argc, argv, "f:hL",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -2558,6 +2586,9 @@ static int img_map(int argc, char **argv)
             break;
         case 'f':
             fmt = optarg;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case OPTION_OUTPUT:
             output = optarg;
@@ -2595,7 +2626,8 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open(image_opts, filename, fmt, 0, false, false);
+    flags = nolock ? BDRV_O_NO_LOCK : 0;
+    blk = img_open(image_opts, filename, fmt, flags, false, false);
     if (!blk) {
         return 1;
     }
@@ -2658,6 +2690,7 @@ static int img_snapshot(int argc, char **argv)
     bool quiet = false;
     Error *err = NULL;
     bool image_opts = false;
+    bool nolock = false;
 
     bdrv_oflags = BDRV_O_RDWR;
     /* Parse commandline parameters */
@@ -2668,7 +2701,7 @@ static int img_snapshot(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "la:c:d:hq",
+        c = getopt_long(argc, argv, "la:c:d:hqL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2713,6 +2746,9 @@ static int img_snapshot(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
+        case 'L':
+            nolock = true;
+            break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
@@ -2738,6 +2774,7 @@ static int img_snapshot(int argc, char **argv)
         return 1;
     }
 
+    bdrv_oflags |= nolock ? BDRV_O_NO_LOCK : 0;
     /* Open the image */
     blk = img_open(image_opts, filename, NULL, bdrv_oflags, false, quiet);
     if (!blk) {
@@ -2807,6 +2844,7 @@ static int img_rebase(int argc, char **argv)
     bool quiet = false;
     Error *local_err = NULL;
     bool image_opts = false;
+    bool nolock = false;
 
     /* Parse commandline parameters */
     fmt = NULL;
@@ -2821,7 +2859,7 @@ static int img_rebase(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hf:F:b:upt:T:q",
+        c = getopt_long(argc, argv, "hf:F:b:upt:T:qL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2851,6 +2889,9 @@ static int img_rebase(int argc, char **argv)
             break;
         case 'T':
             src_cache = optarg;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case 'q':
             quiet = true;
@@ -2891,6 +2932,7 @@ static int img_rebase(int argc, char **argv)
     qemu_progress_print(0, 100);
 
     flags = BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
+    flags |= nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
@@ -3152,6 +3194,8 @@ static int img_resize(int argc, char **argv)
     bool quiet = false;
     BlockBackend *blk = NULL;
     QemuOpts *param;
+    int flags;
+    bool nolock = false;
 
     static QemuOptsList resize_options = {
         .name = "resize_options",
@@ -3186,7 +3230,7 @@ static int img_resize(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "f:hq",
+        c = getopt_long(argc, argv, "f:hqL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3201,6 +3245,9 @@ static int img_resize(int argc, char **argv)
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -3253,8 +3300,9 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
-    blk = img_open(image_opts, filename, fmt,
-                   BDRV_O_RDWR, false, quiet);
+    flags = BDRV_O_RDWR;
+    flags |= nolock ? BDRV_O_NO_LOCK : 0;
+    blk = img_open(image_opts, filename, fmt, flags, false, quiet);
     if (!blk) {
         ret = -1;
         goto out;
@@ -3315,6 +3363,7 @@ static int img_amend(int argc, char **argv)
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
     bool image_opts = false;
+    bool nolock = false;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
@@ -3324,7 +3373,7 @@ static int img_amend(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "ho:f:t:pq",
+        c = getopt_long(argc, argv, "ho:f:t:pqL",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3360,6 +3409,9 @@ static int img_amend(int argc, char **argv)
                 break;
             case 'q':
                 quiet = true;
+                break;
+            case 'L':
+                nolock = true;
                 break;
             case OPTION_OBJECT:
                 opts = qemu_opts_parse_noisily(&qemu_object_opts,
@@ -3406,6 +3458,7 @@ static int img_amend(int argc, char **argv)
     }
 
     flags = BDRV_O_RDWR;
+    flags |= nolock ? BDRV_O_NO_LOCK : 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
