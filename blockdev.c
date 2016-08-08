@@ -545,6 +545,10 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         qdict_put(bs_opts, "driver", qstring_from_str(buf));
     }
 
+    if ((buf = qemu_opt_get(opts, BDRV_OPT_LOCK_MODE)) != NULL) {
+        qdict_put(bs_opts, BDRV_OPT_LOCK_MODE, qstring_from_str(buf));
+    }
+
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         on_write_error = parse_block_error_action(buf, 0, &error);
@@ -4265,6 +4269,11 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
+        },{
+            .name = BDRV_OPT_LOCK_MODE,
+            .type = QEMU_OPT_STRING,
+            .help = "how to lock the image (auto, shared, off. "
+                    "default: auto)",
         },
         { /* end of list */ }
     },

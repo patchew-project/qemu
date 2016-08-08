@@ -705,6 +705,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
      * the parent. */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_LOCK_MODE);
 
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
@@ -757,6 +758,7 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
      * which is only applied on the top level (BlockBackend) */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_LOCK_MODE);
 
     /* backing files always opened read-only */
     flags &= ~(BDRV_O_RDWR | BDRV_O_COPY_ON_READ);
@@ -880,6 +882,11 @@ static QemuOptsList bdrv_runtime_opts = {
             .name = BDRV_OPT_CACHE_NO_FLUSH,
             .type = QEMU_OPT_BOOL,
             .help = "Ignore flush requests",
+        },{
+            .name = BDRV_OPT_LOCK_MODE,
+            .type = QEMU_OPT_STRING,
+            .help = "how to lock the image (auto, shared, off. "
+                    "default: auto)",
         },
         { /* end of list */ }
     },
@@ -897,6 +904,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     const char *filename;
     const char *driver_name = NULL;
     const char *node_name = NULL;
+    const char *lock_mode = NULL;
     QemuOpts *opts;
     BlockDriver *drv;
     Error *local_err = NULL;
@@ -936,6 +944,19 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
     bdrv_assign_node_name(bs, node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail_opts;
+    }
+
+    lock_mode = qemu_opt_get(opts, BDRV_OPT_LOCK_MODE) ? : "off";
+    if (!strcmp(lock_mode, "auto")) {
+        /* Default */
+    } else if (!strcmp(lock_mode, "shared")) {
+        bs->open_flags |= BDRV_O_SHARED_LOCK;
+    } else if (!strcmp(lock_mode, "off")) {
+        bs->open_flags |= BDRV_O_NO_LOCK;
+    } else {
+        error_setg(errp, "invalid lock mode");
         ret = -EINVAL;
         goto fail_opts;
     }
