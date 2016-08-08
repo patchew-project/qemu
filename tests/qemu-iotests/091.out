@@ -18,6 +18,7 @@ vm1: live migration completed
 vm2: qemu-io disk write complete
 vm2: qemu process running successfully
 vm2: flush io, and quit
+vm1: quit
 Check image pattern
 read 4194304/4194304 bytes at offset 0
 4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
