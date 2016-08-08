@@ -1,0 +1,197 @@
+#!/bin/bash
+#
+# Test image locking
+#
+# Copyright (C) 2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=famz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "${TEST_IMG}.base"
+    rm -f "${TEST_IMG}.convert"
+    rm -f "${TEST_IMG}.a"
+    rm -f "${TEST_IMG}.b"
+    rm -f "${TEST_IMG}.lnk"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=32M
+
+_run_cmd()
+{
+    echo
+    (echo "$@"; "$@" 2>&1 1>/dev/null) | _filter_testdir
+}
+
+function _do_run_qemu()
+{
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -serial none "$@" 1>/dev/null
+}
+
+function _run_qemu_with_images()
+{
+    _do_run_qemu \
+        $(for i in $@; do echo "-drive if=none,file=$i"; done) 2>&1 \
+        | _filter_testdir | _filter_qemu
+}
+
+for opts1 in "" "readonly=on" "lock-mode=off" "lock-mode=shared"; do
+    echo
+    echo "== Creating base image =="
+    TEST_IMG="${TEST_IMG}.base" _make_test_img $size
+
+    echo
+    echo "== Creating test image =="
+    $QEMU_IMG create -f $IMGFMT "${TEST_IMG}" -b ${TEST_IMG}.base | _filter_img_create
+
+    echo
+    echo "== Launching QEMU $opts1 =="
+    _launch_qemu -drive file="${TEST_IMG}",if=none,$opts1
+    h=$QEMU_HANDLE
+
+    for opts2 in "" "lock-mode=auto" "lock-mode=shared" \
+                 "lock-mode=off" "lock-mode=auto,readonly=on"; do
+        echo
+        echo "== Launching another QEMU $opts2 =="
+        echo "quit" | \
+            $QEMU -nographic -monitor stdio \
+            -drive file="${TEST_IMG}",if=none,$opts2 2>&1 1>/dev/null | \
+            _filter_testdir | _filter_qemu
+    done
+
+    for L in "" "-L"; do
+
+        echo
+        echo "== Running utility commands $(test -n "$L" && echo "(lock disabled)") =="
+        _run_cmd $QEMU_IO $L -c "read 0 512" "${TEST_IMG}"
+        _run_cmd $QEMU_IO $L -r -c "read 0 512" "${TEST_IMG}"
+        _run_cmd $QEMU_IMG info        $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG check       $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG compare     $L "${TEST_IMG}" "${TEST_IMG}"
+        _run_cmd $QEMU_IMG map         $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG amend -o "" $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG commit      $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG resize      $L "${TEST_IMG}" $size
+        _run_cmd $QEMU_IMG rebase      $L "${TEST_IMG}" -b "${TEST_IMG}.base"
+        _run_cmd $QEMU_IMG snapshot -l $L "${TEST_IMG}"
+        _run_cmd $QEMU_IMG convert     $L "${TEST_IMG}" "${TEST_IMG}.convert"
+    done
+    _send_qemu_cmd $h "{ 'execute': 'quit', }" ""
+    echo
+    echo "Round done"
+    _cleanup_qemu
+done
+
+function _enum_opts()
+{
+    echo lock-mode={shared,auto,off},readonly={on,off}
+}
+
+for opt1 in $(_enum_opts); do
+    for opt2 in $(_enum_opts); do
+        echo
+        echo "== Two devices with the same image ($opt1 - $opt2) =="
+        _run_qemu_with_images "${TEST_IMG},$opt1" "${TEST_IMG},$opt2"
+    done
+done
+
+(
+    $QEMU_IMG create -f qcow2 "${TEST_IMG}.a" -b "${TEST_IMG}"
+    $QEMU_IMG create -f qcow2 "${TEST_IMG}.b" -b "${TEST_IMG}"
+    $QEMU_IMG create -f qcow2 "${TEST_IMG}.c" -b "${TEST_IMG}.b"
+) | _filter_img_create
+
+echo
+echo "== Two devices sharing the same file in backing chain =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG}.b"
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG}.c"
+
+echo
+echo "== Backing image also as an active device =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG}"
+
+echo
+echo "== Backing image also as an active device (ro) =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG},readonly=on"
+
+echo
+echo "== Backing image also as an active device (shared) =="
+_run_qemu_with_images "${TEST_IMG}.a" "${TEST_IMG},lock-mode=shared"
+
+echo
+echo "== Symbolic link =="
+rm -f "${TEST_IMG}.lnk" &>/dev/null
+ln -s ${TEST_IMG} "${TEST_IMG}.lnk" || echo "Failed to create link"
+_run_qemu_with_images "${TEST_IMG}.lnk" "${TEST_IMG}"
+
+echo
+echo "== Test that close one BDS doesn't unlock others =="
+_launch_qemu -drive file="${TEST_IMG}",if=none,id=d0
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'qmp_capabilities' }" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_add 0 if=none,id=d1,file=${TEST_IMG}' } }" \
+    "Failed to lock image"
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_add 0 if=none,id=d1,file=${TEST_IMG},lock-mode=off' } }" \
+    "OK"
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d1' } }" \
+    ""
+
+_run_cmd $QEMU_IMG info "${TEST_IMG}"
+
+_cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

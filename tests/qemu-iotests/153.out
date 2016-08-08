@@ -1,0 +1,426 @@
+QA output created by 153
+
+== Creating base image ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=33554432
+
+== Creating test image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base
+
+== Launching QEMU  ==
+
+== Launching another QEMU  ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,: Failed to lock image
+
+== Launching another QEMU lock-mode=auto ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,lock-mode=auto: Failed to lock image
+
+== Launching another QEMU lock-mode=shared ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,lock-mode=shared: Failed to lock image
+
+== Launching another QEMU lock-mode=off ==
+
+== Launching another QEMU lock-mode=auto,readonly=on ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,lock-mode=auto,readonly=on: Failed to lock image
+
+== Running utility commands  ==
+
+_qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
+can't open device TEST_DIR/t.qcow2: Failed to lock image
+no file open, try 'help open'
+
+_qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
+can't open device TEST_DIR/t.qcow2: Failed to lock image
+no file open, try 'help open'
+
+_qemu_img_wrapper info TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper check TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper map TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper commit TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper resize TEST_DIR/t.qcow2 32M
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper rebase TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper snapshot -l TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper convert TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+== Running utility commands (lock disabled) ==
+
+_qemu_io_wrapper -L -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_io_wrapper -L -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper commit -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper resize -L TEST_DIR/t.qcow2 32M
+
+_qemu_img_wrapper rebase -L TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+
+_qemu_img_wrapper snapshot -l -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+Round done
+
+== Creating base image ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=33554432
+
+== Creating test image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base
+
+== Launching QEMU readonly=on ==
+
+== Launching another QEMU  ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,: Failed to lock image
+
+== Launching another QEMU lock-mode=auto ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,lock-mode=auto: Failed to lock image
+
+== Launching another QEMU lock-mode=shared ==
+
+== Launching another QEMU lock-mode=off ==
+
+== Launching another QEMU lock-mode=auto,readonly=on ==
+
+== Running utility commands  ==
+
+_qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
+can't open device TEST_DIR/t.qcow2: Failed to lock image
+no file open, try 'help open'
+
+_qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper commit TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper resize TEST_DIR/t.qcow2 32M
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper rebase TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper snapshot -l TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+== Running utility commands (lock disabled) ==
+
+_qemu_io_wrapper -L -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_io_wrapper -L -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper commit -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper resize -L TEST_DIR/t.qcow2 32M
+
+_qemu_img_wrapper rebase -L TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+
+_qemu_img_wrapper snapshot -l -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+Round done
+
+== Creating base image ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=33554432
+
+== Creating test image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base
+
+== Launching QEMU lock-mode=off ==
+
+== Launching another QEMU  ==
+
+== Launching another QEMU lock-mode=auto ==
+
+== Launching another QEMU lock-mode=shared ==
+
+== Launching another QEMU lock-mode=off ==
+
+== Launching another QEMU lock-mode=auto,readonly=on ==
+
+== Running utility commands  ==
+
+_qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+
+_qemu_img_wrapper commit TEST_DIR/t.qcow2
+
+_qemu_img_wrapper resize TEST_DIR/t.qcow2 32M
+
+_qemu_img_wrapper rebase TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+
+_qemu_img_wrapper snapshot -l TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+== Running utility commands (lock disabled) ==
+
+_qemu_io_wrapper -L -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_io_wrapper -L -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper commit -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper resize -L TEST_DIR/t.qcow2 32M
+
+_qemu_img_wrapper rebase -L TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+
+_qemu_img_wrapper snapshot -l -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+Round done
+
+== Creating base image ==
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=33554432
+
+== Creating test image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base
+
+== Launching QEMU lock-mode=shared ==
+
+== Launching another QEMU  ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,: Failed to lock image
+
+== Launching another QEMU lock-mode=auto ==
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,lock-mode=auto: Failed to lock image
+
+== Launching another QEMU lock-mode=shared ==
+
+== Launching another QEMU lock-mode=off ==
+
+== Launching another QEMU lock-mode=auto,readonly=on ==
+
+== Running utility commands  ==
+
+_qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
+can't open device TEST_DIR/t.qcow2: Failed to lock image
+no file open, try 'help open'
+
+_qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper commit TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper resize TEST_DIR/t.qcow2 32M
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper rebase TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+
+_qemu_img_wrapper snapshot -l TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+== Running utility commands (lock disabled) ==
+
+_qemu_io_wrapper -L -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_io_wrapper -L -r -c read 0 512 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper info -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper check -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper compare -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper map -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper amend -o  -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper commit -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper resize -L TEST_DIR/t.qcow2 32M
+
+_qemu_img_wrapper rebase -L TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+
+_qemu_img_wrapper snapshot -l -L TEST_DIR/t.qcow2
+
+_qemu_img_wrapper convert -L TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
+
+Round done
+
+== Two devices with the same image (lock-mode=shared,readonly=on - lock-mode=shared,readonly=on) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=on - lock-mode=shared,readonly=off) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=on - lock-mode=auto,readonly=on) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=on - lock-mode=auto,readonly=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=auto,readonly=off: Failed to lock image
+
+== Two devices with the same image (lock-mode=shared,readonly=on - lock-mode=off,readonly=on) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=on - lock-mode=off,readonly=off) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=off - lock-mode=shared,readonly=on) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=off - lock-mode=shared,readonly=off) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=off - lock-mode=auto,readonly=on) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=off - lock-mode=auto,readonly=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=auto,readonly=off: Failed to lock image
+
+== Two devices with the same image (lock-mode=shared,readonly=off - lock-mode=off,readonly=on) ==
+
+== Two devices with the same image (lock-mode=shared,readonly=off - lock-mode=off,readonly=off) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=on - lock-mode=shared,readonly=on) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=on - lock-mode=shared,readonly=off) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=on - lock-mode=auto,readonly=on) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=on - lock-mode=auto,readonly=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=auto,readonly=off: Failed to lock image
+
+== Two devices with the same image (lock-mode=auto,readonly=on - lock-mode=off,readonly=on) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=on - lock-mode=off,readonly=off) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=off - lock-mode=shared,readonly=on) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=shared,readonly=on: Failed to lock image
+
+== Two devices with the same image (lock-mode=auto,readonly=off - lock-mode=shared,readonly=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=shared,readonly=off: Failed to lock image
+
+== Two devices with the same image (lock-mode=auto,readonly=off - lock-mode=auto,readonly=on) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=auto,readonly=on: Failed to lock image
+
+== Two devices with the same image (lock-mode=auto,readonly=off - lock-mode=auto,readonly=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,lock-mode=auto,readonly=off: Failed to lock image
+
+== Two devices with the same image (lock-mode=auto,readonly=off - lock-mode=off,readonly=on) ==
+
+== Two devices with the same image (lock-mode=auto,readonly=off - lock-mode=off,readonly=off) ==
+
+== Two devices with the same image (lock-mode=off,readonly=on - lock-mode=shared,readonly=on) ==
+
+== Two devices with the same image (lock-mode=off,readonly=on - lock-mode=shared,readonly=off) ==
+
+== Two devices with the same image (lock-mode=off,readonly=on - lock-mode=auto,readonly=on) ==
+
+== Two devices with the same image (lock-mode=off,readonly=on - lock-mode=auto,readonly=off) ==
+
+== Two devices with the same image (lock-mode=off,readonly=on - lock-mode=off,readonly=on) ==
+
+== Two devices with the same image (lock-mode=off,readonly=on - lock-mode=off,readonly=off) ==
+
+== Two devices with the same image (lock-mode=off,readonly=off - lock-mode=shared,readonly=on) ==
+
+== Two devices with the same image (lock-mode=off,readonly=off - lock-mode=shared,readonly=off) ==
+
+== Two devices with the same image (lock-mode=off,readonly=off - lock-mode=auto,readonly=on) ==
+
+== Two devices with the same image (lock-mode=off,readonly=off - lock-mode=auto,readonly=off) ==
+
+== Two devices with the same image (lock-mode=off,readonly=off - lock-mode=off,readonly=on) ==
+
+== Two devices with the same image (lock-mode=off,readonly=off - lock-mode=off,readonly=off) ==
+Formatting 'TEST_DIR/t.IMGFMT.a', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT.b', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT
+Formatting 'TEST_DIR/t.IMGFMT.c', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.b
+
+== Two devices sharing the same file in backing chain ==
+
+== Backing image also as an active device ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to lock image
+
+== Backing image also as an active device (ro) ==
+
+== Backing image also as an active device (shared) ==
+
+== Symbolic link ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to lock image
+
+== Test that close one BDS doesn't unlock others ==
+{"return": {}}
+{"return": "Failed to lock imagern"}
+{"return": "OKrn"}
+
+_qemu_img_wrapper info TEST_DIR/t.qcow2
+qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to lock image
+*** done
