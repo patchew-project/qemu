@@ -83,28 +83,28 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
 
 
-def gen_marshal_proto(name):
-    ret = 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
-    if not middle_mode:
-        ret = 'static ' + ret
-    return ret
+def gen_marshal_proto(name, export):
+    return mcgen('%(export)svoid qmp_marshal_%(c_name)s(QDict *args, '
+                 'QObject **ret, Error **errp)',
+                 c_name=c_name(name),
+                 export="" if export else "static ")
 
 
-def gen_marshal_decl(name):
+def gen_marshal_decl(name, export):
     return mcgen('''
 %(proto)s;
 ''',
-                 proto=gen_marshal_proto(name))
+                 proto=gen_marshal_proto(name, export))
 
 
-def gen_marshal(name, arg_type, boxed, ret_type):
+def gen_marshal(name, arg_type, boxed, ret_type, export):
     ret = mcgen('''
 
 %(proto)s
 {
     Error *err = NULL;
 ''',
-                proto=gen_marshal_proto(name))
+                proto=gen_marshal_proto(name, export))
 
     if ret_type:
         ret += mcgen('''
@@ -215,16 +215,17 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = None
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, export_marshal):
         if not gen:
             return
         self.decl += gen_command_decl(name, arg_type, boxed, ret_type)
         if ret_type and ret_type not in self._visited_ret_types:
             self._visited_ret_types.add(ret_type)
             self.defn += gen_marshal_output(ret_type)
-        if middle_mode:
-            self.decl += gen_marshal_decl(name)
-        self.defn += gen_marshal(name, arg_type, boxed, ret_type)
+        export = middle_mode or export_marshal
+        if export:
+            self.decl += gen_marshal_decl(name, True)
+        self.defn += gen_marshal(name, arg_type, boxed, ret_type, export)
         if not middle_mode:
             self._regy += gen_register_command(name, success_response)
 
