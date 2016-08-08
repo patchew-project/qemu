@@ -28,7 +28,7 @@ make-archive-maybe = $(if $(wildcard $1/*), \
 		"  ARCHIVE $(notdir $2)"))
 
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
-DOCKER_SRC_COPY := docker-src.$(CUR_TIME)
+DOCKER_SRC_COPY := .docker-src.$(CUR_TIME)
 
 $(DOCKER_SRC_COPY):
 	@mkdir $@
