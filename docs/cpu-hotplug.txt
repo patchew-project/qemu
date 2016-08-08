@@ -1,0 +1,110 @@
+QEMU CPU hotplug
+===================
+
+This document explains how to use the cpu hotplug feature in QEMU,
+which is present since v2.6.0.
+
+Guest support is required for cpu hotplug to work.
+
+CPU hotplug
+-------------------
+
+In order to be able to hotplug cpu, QEMU has to be told what is the
+maximum amount of cpus the guest can grow. This is done at startup
+time by means of the -smp command-line option, which has the following
+format:
+
+ -smp [cpus=]n[,maxcpus=cpus][,cores=cores][,threads=threads]
+	[,sockets=sockets]
+
+Where,
+
+ - "cpus" set the number of CPUs to 'n' [default=1]
+ - "maxcpus" maximum number of total cpus, including offlineCPUs for
+	hotplug, etc
+ - "cores" number of CPU cores on one socket
+ - "threads= number of threads on one CPU core
+ - "sockets= number of discrete sockets in the system
+
+
+For example, the following command-line:
+
+ qemu [...] -smp 3,maxcpus=10,sockets=2,cores=2,threads=2
+
+Creates a guest with 3 cpus and it support up to 10 cpus. The cpu
+topology is sockets (2) * cores (2) * threads (2) and can't greater
+than maxcpus. When the guest is just booted, the guest will see 3
+cpus. so there are seven cpus can be hotplugged by using any
+combination of the available sockets,cores and threads topology or
+using apic-id.
+
+cpu hot-plug
+-----------------------
+
+A monitor commands are used to hotplug cpu:
+
+ - "device_add": creates a cpu device and inserts it into the
+ specific topology as a device
+
+For example, the following commands add a cpu which id is cpu1 to
+the guest discussed earlier:
+
+  (qemu) device_add qemu64-x86_64-cpu,id=cpu1,apic-id=3
+
+ - "qemu64-x86_64-cpu" is the cpu modle.
+ - "id" is the unique identifier in the device sets.
+ - "apic-id" is the hotpluged cpu's physical identification.
+
+Another command uses the cpu topology to add the additional cpu in
+the designated position.
+
+For example, the following commands add a cpu in the last position
+of the guest cpu topology discussed earlier.
+
+  (qemu) device_add qemu64-x86_64-cpu,id=cpu1,socket-id=2,core-id=1,
+	thread-id=1
+
+It's also possible to start a guest with cpu cold-plugged into the
+hotpluggable cpu topology.
+
+In the following command-line example, a guest which has 3 cpus is
+created where one of the cpus comes from the "apic-id", and another
+one comes from "socket-id...". After that, the guest has additional
+seven cpus to be hot-plug when needed:
+
+ qemu  [...] -smp 1,maxcpus=10,sockets=2,cores=2,threads=2
+	-device qemu64-x86_64-cpu,id=cpu1,apic-id=1
+	-device qemu64-x86_64-cpu,socket-id=2,core-id=1,thread-id=0
+
+cpu hot-unplug
+------------------------
+
+In order to be able to hot unplug cpu device, QEMU has two ways
+to remove cpu device.
+  1. Using the ids which were assigned when you hot plugged cpus.
+  2. Using qom_path where the cpu is located in the guest.
+
+A monitor commands are used to hot unplug cpus:
+
+ - "device_del": deletes a cpu device
+
+For example, assuming that the cpu device with id "cpu1" exists,
+the following commands tries to remove it.
+
+  (qemu) device_del cpu1
+
+If you don't set the ids when you hot plugged cpus.
+
+First, you may need to obtain the cpu's qom_path. The following
+commands list all hotplugable-cpus, you can get the qom_path
+through the cpu topology.
+
+  (qemu) info hotpluggable-cpus
+
+Then you can remove it by the qom_path.
+
+For example, assuming that the cpu device with qom_path "/machine
+/unattached/device[0]" exists, the following commands tries to
+remove it.
+
+  (qemu) device_del /machine/unattached/device[0]
