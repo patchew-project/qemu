@@ -108,6 +108,7 @@ static void open_help(void)
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
 " -n, -- disable host cache, short for -t none\n"
+" -L, -- disable image locking\n"
 " -k, -- use kernel AIO implementation (on Linux only)\n"
 " -t, -- use the given cache mode for the image\n"
 " -d, -- use the given discard mode for the image\n"
@@ -124,7 +125,7 @@ static const cmdinfo_t open_cmd = {
     .argmin     = 1,
     .argmax     = -1,
     .flags      = CMD_NOFILE_OK,
-    .args       = "[-rsnk] [-t cache] [-d discard] [-o options] [path]",
+    .args       = "[-rsnLk] [-t cache] [-d discard] [-o options] [path]",
     .oneline    = "open the file specified by path",
     .help       = open_help,
 };
@@ -143,12 +144,13 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
 {
     int flags = BDRV_O_UNMAP;
     int readonly = 0;
+    bool nolock = false;
     bool writethrough = true;
     int c;
     QemuOpts *qopts;
     QDict *opts;
 
-    while ((c = getopt(argc, argv, "snro:kt:d:")) != -1) {
+    while ((c = getopt(argc, argv, "snrLo:kt:d:")) != -1) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;
@@ -177,6 +179,9 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
                 return 0;
             }
             break;
+        case 'L':
+            nolock = true;
+            break;
         case 'o':
             if (imageOpts) {
                 printf("--image-opts and 'open -o' are mutually exclusive\n");
@@ -196,6 +201,10 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
 
     if (!readonly) {
         flags |= BDRV_O_RDWR;
+    }
+
+    if (nolock) {
+        flags |= BDRV_O_NO_LOCK;
     }
 
     if (imageOpts && (optind == argc - 1)) {
@@ -436,13 +445,15 @@ static QemuOptsList file_opts = {
 int main(int argc, char **argv)
 {
     int readonly = 0;
-    const char *sopt = "hVc:d:f:rsnmkt:T:";
+    const char *sopt = "hVc:d:f:rLsnmkt:T:";
+    bool nolock = false;
     const struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
         { "cmd", required_argument, NULL, 'c' },
         { "format", required_argument, NULL, 'f' },
         { "read-only", no_argument, NULL, 'r' },
+        { "no-lock", no_argument, NULL, 'L' },
         { "snapshot", no_argument, NULL, 's' },
         { "nocache", no_argument, NULL, 'n' },
         { "misalign", no_argument, NULL, 'm' },
@@ -500,6 +511,9 @@ int main(int argc, char **argv)
             break;
         case 'r':
             readonly = 1;
+            break;
+        case 'L':
+            nolock = true;
             break;
         case 'm':
             qemuio_misalign = true;
@@ -584,6 +598,10 @@ int main(int argc, char **argv)
     /* open the device */
     if (!readonly) {
         flags |= BDRV_O_RDWR;
+    }
+
+    if (nolock) {
+        flags |= BDRV_O_NO_LOCK;
     }
 
     if ((argc - optind) == 1) {
