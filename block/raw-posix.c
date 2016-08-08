@@ -133,6 +133,7 @@ do { \
 
 typedef struct BDRVRawState {
     int fd;
+    int lock_fd;
     int type;
     int open_flags;
     size_t buf_align;
@@ -149,6 +150,7 @@ typedef struct BDRVRawState {
 
 typedef struct BDRVRawReopenState {
     int fd;
+    int lock_fd;
     int open_flags;
 } BDRVRawReopenState;
 
@@ -367,6 +369,38 @@ static void raw_parse_flags(int bdrv_flags, int *open_flags)
     }
 }
 
+
+static int raw_lockf_fd(int fd, BdrvLockfCmd cmd)
+{
+    assert(fd >= 0);
+    /* Locking byte 1 avoids interfereing with virtlockd. */
+    switch (cmd) {
+    case BDRV_LOCKF_EXCLUSIVE:
+        return qemu_lock_fd(fd, 1, 1, true);
+    case BDRV_LOCKF_SHARED:
+        return qemu_lock_fd(fd, 1, 1, false);
+    case BDRV_LOCKF_UNLOCK:
+        return qemu_unlock_fd(fd, 1, 1);
+    default:
+        abort();
+    }
+}
+
+static int raw_lockf(BlockDriverState *bs, BdrvLockfCmd cmd)
+{
+
+    BDRVRawState *s = bs->opaque;
+
+    if (s->lock_fd < 0) {
+        s->lock_fd = qemu_dup(s->fd);
+        if (s->lock_fd < 0) {
+            return s->lock_fd;
+        }
+    }
+
+    return raw_lockf_fd(s->lock_fd, cmd);
+}
+
 #ifdef CONFIG_LINUX_AIO
 static bool raw_use_aio(int bdrv_flags)
 {
@@ -433,6 +467,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     raw_parse_flags(bdrv_flags, &s->open_flags);
 
     s->fd = -1;
+    s->lock_fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
@@ -529,6 +564,253 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     return raw_open_common(bs, options, flags, 0, errp);
 }
 
+typedef enum {
+    RAW_REOPEN_PREPARE,
+    RAW_REOPEN_COMMIT,
+    RAW_REOPEN_ABORT
+} RawReopenOperation;
+
+typedef int (*RawReopenFunc)(BDRVReopenState *state,
+                             RawReopenOperation op,
+                             BdrvLockfCmd old_lock,
+                             BdrvLockfCmd new_lock,
+                             Error **errp);
+
+static int
+raw_reopen_identical(BDRVReopenState *state,
+                     RawReopenOperation op,
+                     BdrvLockfCmd old_lock,
+                     BdrvLockfCmd new_lock,
+                     Error **errp)
+{
+    assert(old_lock == new_lock);
+    return 0;
+}
+
+static int
+raw_reopen_from_unlock(BDRVReopenState *state,
+                       RawReopenOperation op,
+                       BdrvLockfCmd old_lock,
+                       BdrvLockfCmd new_lock,
+                       Error **errp)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+    int ret = 0;
+
+    assert(old_lock != new_lock);
+    assert(old_lock == BDRV_LOCKF_UNLOCK);
+    switch (op) {
+    case RAW_REOPEN_PREPARE:
+        ret = raw_lockf_fd(raw_s->lock_fd, new_lock);
+        if (ret) {
+            error_setg_errno(errp, -ret, "Failed to lock new fd");
+        }
+        break;
+    case RAW_REOPEN_COMMIT:
+    case RAW_REOPEN_ABORT:
+        break;
+    }
+
+    return ret;
+}
+
+static int
+raw_reopen_to_unlock(BDRVReopenState *state,
+                     RawReopenOperation op,
+                     BdrvLockfCmd old_lock,
+                     BdrvLockfCmd new_lock,
+                     Error **errp)
+{
+    BDRVRawState *s = state->bs->opaque;
+    int ret = 0;
+
+    assert(old_lock != new_lock);
+    assert(new_lock == BDRV_LOCKF_UNLOCK);
+    switch (op) {
+    case RAW_REOPEN_PREPARE:
+        break;
+    case RAW_REOPEN_COMMIT:
+        if (s->lock_fd >= 0) {
+            qemu_close(s->lock_fd);
+            s->lock_fd = -1;
+        }
+        break;
+    case RAW_REOPEN_ABORT:
+        break;
+    }
+
+    return ret;
+}
+
+static int
+raw_reopen_upgrade(BDRVReopenState *state,
+                   RawReopenOperation op,
+                   BdrvLockfCmd old_lock,
+                   BdrvLockfCmd new_lock,
+                   Error **errp)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawState *s = state->bs->opaque;
+    int ret = 0, ret2;
+
+    assert(old_lock == BDRV_LOCKF_SHARED);
+    assert(new_lock == BDRV_LOCKF_EXCLUSIVE);
+    switch (op) {
+    case RAW_REOPEN_PREPARE:
+        ret = raw_lockf_fd(raw_s->lock_fd, BDRV_LOCKF_SHARED);
+        if (ret) {
+            error_setg_errno(errp, -ret, "Failed to lock new fd (shared)");
+            break;
+        }
+        ret = raw_lockf_fd(s->lock_fd, BDRV_LOCKF_UNLOCK);
+        if (ret) {
+            error_setg_errno(errp, -ret, "Failed to unlock old fd");
+            goto restore;
+        }
+        ret = raw_lockf_fd(raw_s->lock_fd, BDRV_LOCKF_EXCLUSIVE);
+        if (ret) {
+            error_setg_errno(errp, -ret, "Failed to lock new fd (exclusive)");
+            goto restore;
+        }
+        break;
+    case RAW_REOPEN_COMMIT:
+        break;
+    case RAW_REOPEN_ABORT:
+        raw_lockf_fd(raw_s->lock_fd, BDRV_LOCKF_SHARED);
+        ret = raw_lockf_fd(s->lock_fd, BDRV_LOCKF_SHARED);
+        if (ret) {
+            error_report("Failed to restore lock on old fd");
+        }
+        break;
+    }
+
+    return ret;
+restore:
+    ret2 = raw_lockf_fd(s->lock_fd, BDRV_LOCKF_SHARED);
+    if (ret2) {
+        error_report("Failed to restore old lock");
+    }
+    return ret;
+}
+
+static int
+raw_reopen_downgrade(BDRVReopenState *state,
+                     RawReopenOperation op,
+                     BdrvLockfCmd old_lock,
+                     BdrvLockfCmd new_lock,
+                     Error **errp)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawState *s = state->bs->opaque;
+    int ret = 0;
+
+    assert(old_lock == BDRV_LOCKF_EXCLUSIVE);
+    assert(new_lock == BDRV_LOCKF_SHARED);
+    switch (op) {
+    case RAW_REOPEN_PREPARE:
+        break;
+    case RAW_REOPEN_COMMIT:
+        ret = raw_lockf_fd(s->lock_fd, BDRV_LOCKF_SHARED);
+        if (ret) {
+            error_report("Failed to downgrade old lock");
+            break;
+        }
+        ret = raw_lockf_fd(raw_s->lock_fd, BDRV_LOCKF_SHARED);
+        if (ret) {
+            error_report("Failed to lock new fd");
+            break;
+        }
+        break;
+    case RAW_REOPEN_ABORT:
+        break;
+    }
+
+    return ret;
+}
+
+/**
+ * Transactionally moving between three possible locking states is tricky and
+ * must be done carefully. That is mostly because downgrading an exclusive lock
+ * to shared or unlocked is not guaranteed to be revertable. As a result, in
+ * such cases we have to defer the downgraing to "commit", given that no revert
+ * will happen after that point, and that downgrading a lock should never fail.
+ *
+ * On the other hand, upgrading a lock (e.g. from unlocked or shared to
+ * exclusive lock) must happen in "prepare" because it may fail.
+ *
+ * Manage the operation matrix with this state transition table to make
+ * fulfulling above conditions easier.
+ */
+static const struct RawReopenFuncRecord {
+    BdrvLockfCmd old_lock;
+    BdrvLockfCmd new_lock;
+    RawReopenFunc func;
+    bool need_lock_fd;
+} reopen_functions[] = {
+    {BDRV_LOCKF_UNLOCK, BDRV_LOCKF_UNLOCK, raw_reopen_identical, false},
+    {BDRV_LOCKF_UNLOCK, BDRV_LOCKF_SHARED, raw_reopen_from_unlock, true},
+    {BDRV_LOCKF_UNLOCK, BDRV_LOCKF_EXCLUSIVE, raw_reopen_from_unlock, true},
+    {BDRV_LOCKF_SHARED, BDRV_LOCKF_UNLOCK, raw_reopen_to_unlock, false},
+    {BDRV_LOCKF_SHARED, BDRV_LOCKF_SHARED, raw_reopen_identical, false},
+    {BDRV_LOCKF_SHARED, BDRV_LOCKF_EXCLUSIVE, raw_reopen_upgrade, true},
+    {BDRV_LOCKF_EXCLUSIVE, BDRV_LOCKF_UNLOCK, raw_reopen_to_unlock, false},
+    {BDRV_LOCKF_EXCLUSIVE, BDRV_LOCKF_SHARED, raw_reopen_downgrade, true},
+    {BDRV_LOCKF_EXCLUSIVE, BDRV_LOCKF_EXCLUSIVE, raw_reopen_identical, false},
+};
+
+static int raw_reopen_handle_lock(BDRVReopenState *state,
+                                  RawReopenOperation op,
+                                  Error **errp)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawState *s = state->bs->opaque;
+    BdrvLockfCmd old_lock, new_lock;
+    const struct RawReopenFuncRecord *rec;
+    int ret;
+
+    old_lock = bdrv_get_locking_cmd(bdrv_get_flags(state->bs));
+    new_lock = bdrv_get_locking_cmd(state->flags);
+
+    for (rec = &reopen_functions[0];
+         rec < &reopen_functions[ARRAY_SIZE(reopen_functions)];
+         rec++) {
+        if (rec->old_lock == old_lock && rec->new_lock == new_lock) {
+            break;
+        }
+    }
+    assert(rec != &reopen_functions[ARRAY_SIZE(reopen_functions)]);
+
+    switch (op) {
+    case RAW_REOPEN_PREPARE:
+        if (rec->need_lock_fd) {
+            ret = qemu_dup(raw_s->fd);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to dup new fd");
+                return ret;
+            }
+            raw_s->lock_fd = ret;
+        }
+        return rec->func(state, op, old_lock, new_lock, errp);
+    case RAW_REOPEN_COMMIT:
+        rec->func(state, op, old_lock, new_lock, errp);
+        if (rec->need_lock_fd) {
+            if (s->lock_fd >= 0) {
+                qemu_close(s->lock_fd);
+            }
+            s->lock_fd = raw_s->lock_fd;
+        }
+        break;
+    case RAW_REOPEN_ABORT:
+        rec->func(state, op, old_lock, new_lock, errp);
+        if (rec->need_lock_fd && raw_s->lock_fd >= 0) {
+            qemu_close(raw_s->lock_fd);
+            raw_s->lock_fd = -1;
+        }
+        break;
+    }
+    return 0;
+}
+
 static int raw_reopen_prepare(BDRVReopenState *state,
                               BlockReopenQueue *queue, Error **errp)
 {
@@ -607,6 +889,10 @@ static int raw_reopen_prepare(BDRVReopenState *state,
         }
     }
 
+    if (!ret) {
+        ret = raw_reopen_handle_lock(state, RAW_REOPEN_PREPARE, errp);
+    }
+
     return ret;
 }
 
@@ -616,6 +902,8 @@ static void raw_reopen_commit(BDRVReopenState *state)
     BDRVRawState *s = state->bs->opaque;
 
     s->open_flags = raw_s->open_flags;
+
+    raw_reopen_handle_lock(state, RAW_REOPEN_COMMIT, NULL);
 
     qemu_close(s->fd);
     s->fd = raw_s->fd;
@@ -633,6 +921,8 @@ static void raw_reopen_abort(BDRVReopenState *state)
     if (raw_s == NULL) {
         return;
     }
+
+    raw_reopen_handle_lock(state, RAW_REOPEN_ABORT, NULL);
 
     if (raw_s->fd >= 0) {
         qemu_close(raw_s->fd);
@@ -1321,6 +1611,10 @@ static void raw_close(BlockDriverState *bs)
         qemu_close(s->fd);
         s->fd = -1;
     }
+    if (s->lock_fd >= 0) {
+        qemu_close(s->lock_fd);
+        s->lock_fd = -1;
+    }
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
@@ -1874,7 +2168,7 @@ BlockDriver bdrv_file = {
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
                         = raw_get_allocated_file_size,
-
+    .bdrv_lockf = raw_lockf,
     .create_opts = &raw_create_opts,
 };
 
@@ -2324,6 +2618,8 @@ static BlockDriver bdrv_host_device = {
 #ifdef __linux__
     .bdrv_aio_ioctl     = hdev_aio_ioctl,
 #endif
+
+    .bdrv_lockf = raw_lockf,
 };
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
