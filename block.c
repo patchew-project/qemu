@@ -992,7 +992,7 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
-    lock_mode = qemu_opt_get(opts, BDRV_OPT_LOCK_MODE) ? : "off";
+    lock_mode = qemu_opt_get(opts, BDRV_OPT_LOCK_MODE) ? : "auto";
     if (!strcmp(lock_mode, "auto")) {
         /* Default */
     } else if (!strcmp(lock_mode, "shared")) {
