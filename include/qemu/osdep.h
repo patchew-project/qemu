@@ -286,6 +286,8 @@ int qemu_close(int fd);
 #ifndef _WIN32
 int qemu_dup(int fd);
 #endif
+int qemu_lock_fd(int fd, int64_t start, int64_t len, bool exclusive);
+int qemu_unlock_fd(int fd, int64_t start, int64_t len);
 
 #if defined(__HAIKU__) && defined(__i386__)
 #define FMT_pid "%ld"
