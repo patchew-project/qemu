@@ -816,6 +816,20 @@ STEXI
 Show information about hotpluggable CPUs
 ETEXI
 
+    {
+        .name       = "measurements",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show PCR measurements",
+        .mhandler.cmd = hmp_info_measurements,
+    },
+
+STEXI
+@item info measurements
+@findex measurements
+Show PCR measurements
+ETEXI
+
 STEXI
 @end table
 ETEXI
