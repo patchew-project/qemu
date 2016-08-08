@@ -117,9 +117,12 @@ static void block_job_detach_aio_context(void *opaque)
     block_job_unref(job);
 }
 
-void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed,
-                       BlockCompletionFunc *cb, void *opaque, Error **errp)
+void *block_job_create(const char *job_id,
+                       const BlockJobDriver *driver,
+                       BlockDriverState *bs,
+                       int64_t speed,
+                       BlockCompletionFunc *cb,
+                       void *opaque, Error **errp)
 {
     BlockBackend *blk;
     BlockJob *job;

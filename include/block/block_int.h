@@ -745,7 +745,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   void *opaque, Error **errp);
 
 /*
- * backup_start:
+ * backup_job_create:
  * @job_id: The id of the newly-created job, or %NULL to use the
  * device name of @bs.
  * @bs: Block device to operate on.
@@ -759,16 +759,17 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * @opaque: Opaque pointer value passed to @cb.
  * @txn: Transaction that this job is part of (may be NULL).
  *
- * Start a backup operation on @bs.  Clusters in @bs are written to @target
+ * Create a backup operation on @bs.  Clusters in @bs are written to @target
  * until the job is cancelled or manually completed.
  */
-void backup_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *target, int64_t speed,
-                  MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
-                  BlockdevOnError on_source_error,
-                  BlockdevOnError on_target_error,
-                  BlockCompletionFunc *cb, void *opaque,
-                  BlockJobTxn *txn, Error **errp);
+BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+                            BlockDriverState *target, int64_t speed,
+                            MirrorSyncMode sync_mode,
+                            BdrvDirtyBitmap *sync_bitmap,
+                            BlockdevOnError on_source_error,
+                            BlockdevOnError on_target_error,
+                            BlockCompletionFunc *cb, void *opaque,
+                            BlockJobTxn *txn, Error **errp);
 
 void hmp_drive_add_node(Monitor *mon, const char *optstr);
 

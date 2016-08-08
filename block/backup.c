@@ -474,13 +474,16 @@ static void coroutine_fn backup_run(void *opaque)
     block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }
 
-void backup_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *target, int64_t speed,
-                  MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
-                  BlockdevOnError on_source_error,
-                  BlockdevOnError on_target_error,
-                  BlockCompletionFunc *cb, void *opaque,
-                  BlockJobTxn *txn, Error **errp)
+BlockJob *backup_job_create(const char *job_id,
+                            BlockDriverState *bs,
+                            BlockDriverState *target,
+                            int64_t speed,
+                            MirrorSyncMode sync_mode,
+                            BdrvDirtyBitmap *sync_bitmap,
+                            BlockdevOnError on_source_error,
+                            BlockdevOnError on_target_error,
+                            BlockCompletionFunc *cb, void *opaque,
+                            BlockJobTxn *txn, Error **errp)
 {
     int64_t len;
     BlockDriverInfo bdi;
@@ -492,46 +495,46 @@ void backup_start(const char *job_id, BlockDriverState *bs,
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
-        return;
+        return NULL;
     }
 
     if (!bdrv_is_inserted(bs)) {
         error_setg(errp, "Device is not inserted: %s",
                    bdrv_get_device_name(bs));
-        return;
+        return NULL;
     }
 
     if (!bdrv_is_inserted(target)) {
         error_setg(errp, "Device is not inserted: %s",
                    bdrv_get_device_name(target));
-        return;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
-        return;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_BACKUP_TARGET, errp)) {
-        return;
+        return NULL;
     }
 
     if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
                              "\"incremental\" sync mode");
-            return;
+            return NULL;
         }
 
         /* Create a new bitmap, and freeze/disable this one. */
         if (bdrv_dirty_bitmap_create_successor(bs, sync_bitmap, errp) < 0) {
-            return;
+            return NULL;
         }
     } else if (sync_bitmap) {
         error_setg(errp,
                    "a sync_bitmap was provided to backup_run, "
                    "but received an incompatible sync_mode (%s)",
                    MirrorSyncMode_lookup[sync_mode]);
-        return;
+        return NULL;
     }
 
     len = bdrv_getlength(bs);
@@ -578,8 +581,8 @@ void backup_start(const char *job_id, BlockDriverState *bs,
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run, job);
     block_job_txn_add_job(txn, &job->common);
-    block_job_start(&job->common);
-    return;
+
+    return &job->common;
 
  error:
     if (sync_bitmap) {
@@ -589,4 +592,6 @@ void backup_start(const char *job_id, BlockDriverState *bs,
         blk_unref(job->target);
         block_job_unref(&job->common);
     }
+
+    return NULL;
 }
