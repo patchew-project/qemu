@@ -3233,6 +3233,11 @@ static void do_drive_backup(const char *job_id, const char *device,
         }
     }
     if (sync == MIRROR_SYNC_MODE_NONE) {
+        /* XXX: bs will be open second time as the backing file of target,
+         * disable image locking. Once block layer allows sharing backing BDS,
+         * change below to BDRV_O_NO_BACKING and assign it after bdrv_open().
+         **/
+        flags |= BDRV_O_NO_LOCK;
         source = bs;
     }
 
