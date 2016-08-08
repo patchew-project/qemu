@@ -64,6 +64,7 @@ int main(int argc, char **argv)
 #include "hw/bt.h"
 #include "sysemu/watchdog.h"
 #include "hw/smbios/smbios.h"
+#include "hw/acpi/acpi.h"
 #include "hw/xen/xen.h"
 #include "hw/qdev.h"
 #include "hw/loader.h"
@@ -158,6 +159,7 @@ int max_cpus = 1;
 int smp_cores = 1;
 int smp_threads = 1;
 int acpi_enabled = 1;
+uint8_t acpi_fadt_rev = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
 static int no_reboot;
@@ -2301,6 +2303,19 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+static void fadt_parse(const char *arg)
+{
+    uint32_t rev;
+
+    rev = strtoul(arg, NULL, 0);
+    if (rev != 1 && rev != 3 && rev != 5) {
+        error_printf("Unsupported FADT revision %d,"
+                     "please specify 1,3,5.\n", rev);
+        exit(1);
+    }
+    acpi_fadt_rev = rev;
+}
+
 static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     return qdev_device_help(opts);
@@ -3622,6 +3637,9 @@ int main(int argc, char **argv, char **envp)
                 qdev_prop_register_global(&slew_lost_ticks);
                 break;
             }
+            case QEMU_OPTION_acpifadt:
+                fadt_parse(optarg);
+                break;
             case QEMU_OPTION_acpitable:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("acpi"),
                                                optarg, true);
