@@ -85,6 +85,7 @@ run_qemu <<EOF
         "driver": "$IMGFMT",
         "id": "disk",
         "node-name": "test-node",
+        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -97,6 +98,7 @@ run_qemu <<EOF
       "options": {
         "driver": "$IMGFMT",
         "id": "disk",
+        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -109,6 +111,7 @@ run_qemu <<EOF
       "options": {
         "driver": "$IMGFMT",
         "id": "test-node",
+        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -122,6 +125,7 @@ run_qemu <<EOF
         "driver": "$IMGFMT",
         "id": "disk2",
         "node-name": "disk",
+        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -135,6 +139,7 @@ run_qemu <<EOF
         "driver": "$IMGFMT",
         "id": "disk2",
         "node-name": "test-node",
+        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -148,6 +153,7 @@ run_qemu <<EOF
         "driver": "$IMGFMT",
         "id": "disk3",
         "node-name": "disk3",
+        "lock-mode": "off",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
