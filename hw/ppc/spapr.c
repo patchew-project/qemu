@@ -1826,7 +1826,6 @@ static void ppc_spapr_init(MachineState *machine)
             qemu_register_reset(spapr_drc_reset, drc);
 
             if (i < spapr_cores) {
-                char *type = spapr_get_cpu_core_type(machine->cpu_model);
                 Object *core;
 
                 if (!object_class_by_name(type)) {
