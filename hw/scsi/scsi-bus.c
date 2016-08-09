@@ -7,7 +7,7 @@
 #include "hw/qdev.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
-#include "trace.h"
+#include "hw/scsi/trace.h"
 #include "sysemu/dma.h"
 #include "qemu/cutils.h"
 
