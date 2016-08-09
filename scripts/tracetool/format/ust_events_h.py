@@ -21,7 +21,7 @@ def generate(events, backend, group):
               if "disabled" not in e.properties]
 
     if group == "common":
-        include = "generated-ust-provider.h"
+        include = "trace-ust-all.h"
     else:
         include = "trace-ust.h"
 
