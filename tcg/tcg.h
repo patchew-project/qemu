@@ -902,6 +902,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op);
 TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
 
+void tcg_optimize_mb(TCGContext *s);
 void tcg_optimize(TCGContext *s);
 
 /* only used for debugging purposes */
