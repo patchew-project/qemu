@@ -1840,6 +1840,7 @@ static void ppc_spapr_init(MachineState *machine)
                 object_property_set_int(core, core_id, CPU_CORE_PROP_CORE_ID,
                                         &error_fatal);
                 object_property_set_bool(core, true, "realized", &error_fatal);
+                g_free(type);
             }
         }
         g_free(type);
