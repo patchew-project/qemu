@@ -41,7 +41,7 @@ void qemu_uuid_unparse(char *out, const QemuUUID *uuid);
 
 char *qemu_uuid_unparse_strdup(const QemuUUID *uuid);
 
-int qemu_uuid_parse(const char *str, uint8_t *uuid);
+int qemu_uuid_parse(QemuUUID *uuid, const char *str);
 
 void qemu_uuid_convert(QemuUUID *uuid);
 
