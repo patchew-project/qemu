@@ -26,7 +26,7 @@
 #include "hw/sparc/sun4m.h"
 #include "monitor/monitor.h"
 #include "hw/sysbus.h"
-#include "trace.h"
+#include "hw/intc/trace.h"
 
 //#define DEBUG_IRQ_COUNT
 

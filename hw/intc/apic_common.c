@@ -23,7 +23,7 @@
 #include "cpu.h"
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
-#include "trace.h"
+#include "hw/intc/trace.h"
 #include "sysemu/kvm.h"
 #include "hw/qdev.h"
 #include "hw/sysbus.h"

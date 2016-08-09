@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "trace.h"
+#include "hw/intc/trace.h"
 #include "gicv3_internal.h"
 #include "cpu.h"
 

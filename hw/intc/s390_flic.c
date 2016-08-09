@@ -15,7 +15,7 @@
 #include "hw/sysbus.h"
 #include "migration/qemu-file.h"
 #include "hw/s390x/s390_flic.h"
-#include "trace.h"
+#include "hw/intc/trace.h"
 
 S390FLICState *s390_get_flic(void)
 {
