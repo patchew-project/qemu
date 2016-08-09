@@ -13,6 +13,10 @@
 #include "qemu-common.h"
 #include "trace/generated-events.h"
 
+typedef struct TraceEventIter {
+    size_t event;
+    const char *pattern;
+} TraceEventIter;
 
 /**
  * TraceEventID:
@@ -24,6 +28,11 @@
  * See also: "trace/generated-events.h"
  */
 enum TraceEventID;
+
+
+void trace_event_iter_init(TraceEventIter *iter, const char *pattern);
+
+TraceEvent *trace_event_iter_next(TraceEventIter *iter);
 
 /**
  * trace_event_id:
