@@ -38,7 +38,7 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
-#include "trace.h"
+#include "target-ppc/trace.h"
 #include "exec/gdbstub.h"
 #include "exec/memattrs.h"
 #include "sysemu/hostmem.h"
