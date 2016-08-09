@@ -46,7 +46,7 @@
 #include "e1000x_common.h"
 #include "e1000e_core.h"
 
-#include "trace.h"
+#include "hw/net/trace.h"
 
 #define TYPE_E1000E "e1000e"
 #define E1000E(obj) OBJECT_CHECK(E1000EState, (obj), TYPE_E1000E)
