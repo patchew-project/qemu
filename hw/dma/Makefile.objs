@@ -14,3 +14,5 @@ obj-$(CONFIG_XLNX_ZYNQMP) += xlnx_dpdma.o
 obj-$(CONFIG_OMAP) += omap_dma.o soc_dma.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_dma.o
 obj-$(CONFIG_RASPI) += bcm2835_dma.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
