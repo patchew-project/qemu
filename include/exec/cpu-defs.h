@@ -54,6 +54,15 @@ typedef uint64_t target_ulong;
 #error TARGET_LONG_SIZE undefined
 #endif
 
+/* Supporting 64 bit vCPUs on 32 bit hosts is getting increasingly
+ * complicated so we no longer do it. The configure script should have
+ * prevented such a configuration being built but we double check
+ * here.
+ */
+#if HOST_LONG_BITS < TARGET_LONG_BITS
+#error wide-on-narrow CPU emulation is no longer supported
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 /* use a fully associative victim tlb of 8 entries */
 #define CPU_VTLB_SIZE 8
