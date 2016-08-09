@@ -1,0 +1,127 @@
+QEMU CPU hotplug
+================
+
+This document explains how to use the CPU hotplug feature in QEMU,
+which regards the CPU as a divece.
+
+the -device/device_add and device_del based on CPUs are merged since
+2.7
+
+Guest support is required for CPU hotplug to work.
+
+CPU hot-plug
+------------
+
+In order to be able to hotplug CPUs, QEMU has to be told the maximum
+amount of CPUs which the guest can grow. This is done at startup time
+by means of the -smp command-line option, which has the following
+format:
+
+ -smp [cpus=]n[,maxcpus=cpus][,cores=cores][,threads=threads]
+	[,sockets=sockets]
+
+Where,
+
+ - "cpus"    set the number of CPUs to 'n' [default=1].
+ - "maxcpus" set the maximum number of CPUs, including offline VCPUs
+   for hotplug, etc.
+ - "cores"   set the number of CPU cores on one socket.
+ - "threads  set the number of threads on one CPU core.
+ - "sockets  set the number of discrete sockets in the system. On
+   sPAPR, sockets have no real meaning, And it has no real effect.
+
+For example, the following command-line:
+
+ qemu [...] -smp 3,maxcpus=10,sockets=2,cores=2,threads=2
+
+Creates a guest with 3 VCPUs and it supports up to 10 VCPUs. The
+CPU topology is sockets (2) * cores (2) * threads (2) and can't be
+greater than maxcpus. When the guest is booted, the guest will see
+3 VCPUs. More on this below.
+
+Query possible available CPU objects
+------------------------------------
+
+The VCPUs should be hotplugged by socket/core/thread-ids parameters
+of the possible available CPUs objects.
+
+Before adding the VCPUs, we should know those topology parameters,
+so that we can find out the available place (socket,core,thread)
+for a new VCPU.
+
+There are two ways to obtain them:
+
+1. from the properties advertised by QEMU via the QMP command
+query-hotpluggable-cpus.
+2. from the corresponding HMP command "info hotpluggable-cpus".
+
+For example, a monitor command can be used to list the possible CPU
+objects:
+
+  (qemu) info hotpluggable-cpus
+
+Select the hotpluggable CPUs including "CPUInstance Properties" for
+hotpluging. Such as this:
+
+  ...
+  type: "qemu64-x86_64-cpu"
+  vcpus_count: "1"
+  CPUInstance Properties:
+    socket-id: "0"
+    core-id: "1"
+    thread-id: "0"
+  ...
+
+Hotplug CPUs
+------------
+
+A monitor command can be used to hotplug CPUs:
+
+ - "device_add": creates a VCPU device and inserts it into the
+	specific place as a device
+
+For example, the following command adds a VCPU which has the id cpu1
+in the last position of the guest's CPU sockets which was discussed
+earlier by using the socket/core/thread-ids:
+
+  (qemu) device_add qemu64-x86_64-cpu,id=cpu9,socket-id=2,core-id=0,
+	thread-id=1
+
+Where,
+
+ - "qemu64-x86_64-cpu" is the CPU model.
+ - "id" is the unique identifier in the device sets. It is required.
+ - "socket-id/core-id/thread-id" represent the designated position
+   which is obtained form the above possible list of CPUs.
+
+It's also possible to start a guest with cpu cold-plugged into the
+specific place (socket,core,thread).
+
+In the following command-lines example, a guest which has 3 VCPUs is
+created:
+
+ qemu  [...] -smp 1,maxcpus=10,sockets=2,cores=2,threads=2 \
+	-device qemu64-x86_64-cpu,id=cpu1,socket-id=1, \
+	core-id=1,thread-id=0 \
+	-device qemu64-x86_64-cpu,id=cpu2,socket-id=1, \
+	core-id=1,thread-id=1 \
+
+Two VCPUs are cold-plugged by "-device" parameter. They are in the
+same socket and core with different thread-ids. After that, the
+guest has additional seven VCPUs to be hot-plugged when needed.
+
+CPU hot-unplug
+--------------
+
+In order to be able to hot unplug CPU device, QEMU removes CPUs device
+by using the ids which were assigned when you hot plugged the CPUs.
+
+A monitor command can be used to hot unplug CPUs:
+
+ - "device_del": deletes a CPU device
+
+For example, assuming that the CPU device with id "cpu1" exists and has
+been offline, the following command tries to remove it.
+
+  (qemu) device_del cpu1
+
