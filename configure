@@ -1252,7 +1252,21 @@ if [ "$bsd_user" = "yes" ]; then
 fi
 
 for config in $mak_wilds; do
-    default_target_list="${default_target_list} $(basename "$config" .mak)"
+
+    target=$(basename "$config" .mak)
+
+    if test "$cpu_width" = "32"; then
+        case $target in
+            *64*|s390x-*)
+                # skip 64 bit machines
+                ;;
+            *)
+                default_target_list="${default_target_list} ${target}"
+                ;;
+        esac
+    else
+        default_target_list="${default_target_list} ${target}"
+    fi
 done
 
 if test x"$show_help" = x"yes" ; then
