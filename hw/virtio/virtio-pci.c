@@ -705,7 +705,8 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
     int ret;
 
     if (irqfd->users == 0) {
-        ret = kvm_irqchip_add_msi_route(kvm_state, vector, &proxy->pci_dev);
+        ret = kvm_irqchip_add_msi_route(kvm_state, vector, &proxy->pci_dev,
+                pci_requester_id(&proxy->pci_dev));
         if (ret < 0) {
             return ret;
         }
@@ -838,7 +839,8 @@ static int virtio_pci_vq_vector_unmask(VirtIOPCIProxy *proxy,
         irqfd = &proxy->vector_irqfd[vector];
         if (irqfd->msg.data != msg.data || irqfd->msg.address != msg.address) {
             ret = kvm_irqchip_update_msi_route(kvm_state, irqfd->virq, msg,
-                                               &proxy->pci_dev);
+                                        &proxy->pci_dev,
+                                        pci_requester_id(&proxy->pci_dev));
             if (ret < 0) {
                 return ret;
             }

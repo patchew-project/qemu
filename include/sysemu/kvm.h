@@ -357,7 +357,8 @@ int kvm_arch_on_sigbus(int code, void *addr);
 void kvm_arch_init_irq_routing(KVMState *s);
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
-                             uint64_t address, uint32_t data, PCIDevice *dev);
+                             uint64_t address, uint32_t data,
+                             uint16_t requester_id);
 
 /* Notify arch about newly added MSI routes */
 int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
@@ -490,9 +491,9 @@ static inline void cpu_synchronize_post_init(CPUState *cpu)
  *          as @NULL, an empty MSI message will be inited.
  * @return: virq (>=0) when success, errno (<0) when failed.
  */
-int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev);
+int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev, uint16_t requester_id);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
-                                 PCIDevice *dev);
+                                 PCIDevice *dev, uint16_t requester_id);
 void kvm_irqchip_commit_routes(KVMState *s);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
 

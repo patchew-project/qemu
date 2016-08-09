@@ -103,6 +103,7 @@ typedef struct IOAPICCommonClass {
 struct IOAPICCommonState {
     SysBusDevice busdev;
     MemoryRegion io_memory;
+    uint16_t devid;
     uint8_t id;
     uint8_t ioregsel;
     uint32_t irr;

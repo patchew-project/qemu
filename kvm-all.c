@@ -1246,7 +1246,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     return kvm_set_irq(s, route->kroute.gsi, 1);
 }
 
-int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
+int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev, uint16_t requester_id)
 {
     struct kvm_irq_routing_entry kroute = {};
     int virq;
@@ -1275,7 +1275,8 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
-    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data, dev)) {
+    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data,
+                requester_id)) {
         kvm_irqchip_release_virq(s, virq);
         return -EINVAL;
     }
@@ -1290,7 +1291,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
 }
 
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
-                                 PCIDevice *dev)
+                                 PCIDevice *dev, uint16_t requester_id)
 {
     struct kvm_irq_routing_entry kroute = {};
 
@@ -1308,7 +1309,8 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
-    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data, dev)) {
+    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data,
+                requester_id)) {
         return -EINVAL;
     }
 

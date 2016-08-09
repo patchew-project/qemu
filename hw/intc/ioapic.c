@@ -95,9 +95,17 @@ static void ioapic_entry_parse(uint64_t entry, struct ioapic_entry_info *info)
         (info->delivery_mode << MSI_DATA_DELIVERY_MODE_SHIFT);
 }
 
-static void ioapic_service(IOAPICCommonState *s)
+static void ioapic_write_ioapic_as(IOAPICCommonState *s, uint32_t data, uint64_t addr)
 {
     AddressSpace *ioapic_as = PC_MACHINE(qdev_get_machine())->ioapic_as;
+    MemTxAttrs attrs;
+
+    attrs.requester_id = s->devid;
+    address_space_stl_le(ioapic_as, addr, data, attrs, NULL);
+}
+
+static void ioapic_service(IOAPICCommonState *s)
+{
     struct ioapic_entry_info info;
     uint8_t i;
     uint32_t mask;
@@ -141,7 +149,7 @@ static void ioapic_service(IOAPICCommonState *s)
                  * the IOAPIC message into a MSI one, and its
                  * address space will decide whether we need a
                  * translation. */
-                stl_le_phys(ioapic_as, info.addr, info.data);
+                ioapic_write_ioapic_as(s, info.data, info.addr);
             }
         }
     }
@@ -197,7 +205,7 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
             ioapic_entry_parse(s->ioredtbl[i], &info);
             msg.address = info.addr;
             msg.data = info.data;
-            kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL);
+            kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL, s->devid);
         }
         kvm_irqchip_commit_routes(kvm_state);
     }
@@ -385,12 +393,23 @@ static void ioapic_machine_done_notify(Notifier *notifier, void *data)
 
     if (kvm_irqchip_is_split()) {
         X86IOMMUState *iommu = x86_iommu_get_default();
+        MSIMessage msg = {0, 0};
+        int i;
+
         if (iommu) {
             /* Register this IOAPIC with IOMMU IEC notifier, so that
              * when there are IR invalidates, we can be notified to
              * update kernel IR cache. */
-            x86_iommu_iec_register_notifier(iommu, ioapic_iec_notifier, s);
+            s->devid = iommu->ioapic_bdf;
+            /* update IOAPIC routes to the right SID */
+            for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+                kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL, s->devid);
+            }
+            kvm_irqchip_commit_routes(kvm_state);
         }
+
+        kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL, s->devid);
+        x86_iommu_iec_register_notifier(iommu, ioapic_iec_notifier, s);
     }
 #endif
 }
@@ -407,6 +426,7 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->io_memory, OBJECT(s), &ioapic_io_ops, s,
                           "ioapic", 0x1000);
+    s->devid = 0;
 
     qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
