@@ -46,7 +46,7 @@
 #include "sysemu/cpus.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
-#include "trace.h"
+#include "migration/trace.h"
 #include "qemu/bitops.h"
 #include "qemu/iov.h"
 #include "block/snapshot.h"

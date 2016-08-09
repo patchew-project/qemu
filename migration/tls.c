@@ -24,7 +24,7 @@
 #include "crypto/tlscreds.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "trace.h"
+#include "migration/trace.h"
 
 static QCryptoTLSCreds *
 migration_tls_get_creds(MigrationState *s,

@@ -29,7 +29,7 @@
 #include "migration/postcopy-ram.h"
 #include "qemu/thread.h"
 #include "qmp-commands.h"
-#include "trace.h"
+#include "migration/trace.h"
 #include "qapi-event.h"
 #include "qom/cpu.h"
 #include "exec/memory.h"

@@ -24,7 +24,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "migration/trace.h"
 
 /* Arbitrary limit on size of each discard command,
  * keeps them around ~200 bytes

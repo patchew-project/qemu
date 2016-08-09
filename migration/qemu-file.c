@@ -30,7 +30,7 @@
 #include "qemu/coroutine.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
-#include "trace.h"
+#include "migration/trace.h"
 
 #define IO_BUF_SIZE 32768
 #define MAX_IOV_SIZE MIN(IOV_MAX, 64)
