@@ -3025,6 +3025,19 @@ if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     fi
 fi
 
+# Silence clang warnings about expansion to 'defined' in macro
+cat > $TMPC << EOF
+#define TEST (defined(DUMMY))
+#if TEST
+int main(void) { return 0; }
+#endif
+EOF
+if ! compile_prog "-Werror" ; then
+    if cc_has_warning_flag "-Wno-expansion-to-defined"; then
+	CFLAGS="-Wno-expansion-to-defined $CFLAGS"
+    fi
+fi
+
 ##########################################
 # SHA command probe for modules
 if test "$modules" = yes; then
