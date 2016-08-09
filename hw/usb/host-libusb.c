@@ -44,7 +44,7 @@
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
-#include "trace.h"
+#include "hw/usb/trace.h"
 
 #include "hw/usb.h"
 

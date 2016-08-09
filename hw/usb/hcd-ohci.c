@@ -33,7 +33,7 @@
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-dma.h"
-#include "trace.h"
+#include "hw/usb/trace.h"
 
 /* This causes frames to occur 1000x slower */
 //#define OHCI_TIME_WARP 1
@@ -937,9 +937,9 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
 #ifdef trace_event_get_state
 static void ohci_td_pkt(const char *msg, const uint8_t *buf, size_t len)
 {
-    bool print16 = !!trace_event_get_state(common_dstate,
+    bool print16 = !!trace_event_get_state(hw_usb_dstate,
                                            TRACE_USB_OHCI_TD_PKT_SHORT);
-    bool printall = !!trace_event_get_state(common_dstate,
+    bool printall = !!trace_event_get_state(hw_usb_dstate,
                                             TRACE_USB_OHCI_TD_PKT_FULL);
     const int width = 16;
     int i;
