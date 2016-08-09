@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/char.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "hw/char/trace.h"
 #include "hw/virtio/virtio-serial.h"
 #include "qapi-event.h"
 
