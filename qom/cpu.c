@@ -345,7 +345,7 @@ static void cpu_common_initfn(Object *obj)
     qemu_mutex_init(&cpu->work_mutex);
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
-    bitmap_zero(cpu->trace_dstate, TRACE_VCPU_EVENT_COUNT);
+    bitmap_zero(cpu->trace_dstate, TRACE_MAX_VCPU_EVENT);
 }
 
 static void cpu_common_finalize(Object *obj)

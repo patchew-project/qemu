@@ -27,7 +27,6 @@
 #include "qemu/bitmap.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
-#include "trace/generated-events.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
@@ -240,6 +239,13 @@ struct qemu_work_item {
     bool free;
 };
 
+
+/* Keep this a multiple of 8, or better yet a multiple
+ * of the platform word size, since the struct
+ * will be padded out to that regardless.
+ */
+#define TRACE_MAX_VCPU_EVENT 32
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).
@@ -351,7 +357,7 @@ struct CPUState {
     struct kvm_run *kvm_run;
 
     /* Used for events with 'vcpu' and *without* the 'disabled' properties */
-    DECLARE_BITMAP(trace_dstate, TRACE_VCPU_EVENT_COUNT);
+    DECLARE_BITMAP(trace_dstate, TRACE_MAX_VCPU_EVENT);
 
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index; /* used by alpha TCG */

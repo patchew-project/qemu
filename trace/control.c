@@ -31,6 +31,7 @@ typedef struct TraceEventGroup {
     size_t nevents;
 } TraceEventGroup;
 
+static bool have_vcpu_events;
 static TraceEventGroup *event_groups;
 static size_t nevent_groups;
 
@@ -67,6 +68,20 @@ QemuOptsList qemu_trace_opts = {
 void trace_event_register_group(TraceEvent *events,
                                 size_t nevents)
 {
+    size_t nvcpuevents = 0;
+    for (size_t i = 0; i < nevents; i++) {
+        if (events[i].vcpu_id != TRACE_VCPU_EVENT_COUNT) {
+            nvcpuevents++;
+        }
+    }
+
+    if (nvcpuevents) {
+        /* We only support 1 group having vcpu events */
+        assert(!have_vcpu_events);
+        assert(nvcpuevents < TRACE_MAX_VCPU_EVENT);
+        have_vcpu_events = true;
+    }
+
     event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
     event_groups[nevent_groups].events = events;
     event_groups[nevent_groups].nevents = nevents;

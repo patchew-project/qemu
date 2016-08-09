@@ -19,6 +19,7 @@ typedef struct TraceEventIter {
     const char *pattern;
 } TraceEventIter;
 
+
 /**
  * TraceEventID:
  *
