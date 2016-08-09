@@ -19,13 +19,13 @@ from tracetool import out
 PUBLIC = True
 
 
-def generate_h_begin(events):
+def generate_h_begin(events, group):
     out('#include "trace/control.h"',
         '#include "qemu/log.h"',
         '')
 
 
-def generate_h(event):
+def generate_h(event, group):
     argnames = ", ".join(event.args.names())
     if len(event.args) > 0:
         argnames = ", " + argnames
@@ -34,7 +34,7 @@ def generate_h(event):
         # already checked on the generic format code
         cond = "true"
     else:
-        cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
+        cond = "trace_event_get_state(%s_dstate, %s)" % (group.lower(), "TRACE_" + event.name.upper())
 
     out('        if (%(cond)s) {',
         '            struct timeval _now;',

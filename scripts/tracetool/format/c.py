@@ -16,7 +16,7 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 from tracetool import out
 
 
-def generate(events, backend):
+def generate(events, backend, group):
     active_events = [e for e in events
                      if "disable" not in e.properties]
 
@@ -26,10 +26,10 @@ def generate(events, backend):
         '#include "trace.h"',
         '')
 
-    out('uint16_t dstate[TRACE_EVENT_COUNT];')
-    out('bool dstate_init[TRACE_EVENT_COUNT];')
+    out('uint16_t %s_dstate[TRACE_%s_EVENT_COUNT];' % (group.lower(), group.upper()))
+    out('bool %s_dstate_init[TRACE_%s_EVENT_COUNT];' % (group.lower(), group.upper()))
 
-    out('static TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
+    out('static TraceEvent %s_trace_events[TRACE_%s_EVENT_COUNT] = {' % (group.lower(), group.upper()))
 
     for e in events:
         if "vcpu" in e.properties:
@@ -47,13 +47,16 @@ def generate(events, backend):
     out('};',
         '')
 
-    out('void trace_register_events(void)',
+    out('void trace_%s_register_events(void)' % group.lower(),
         '{',
-        '    trace_event_register_group(trace_events, TRACE_EVENT_COUNT, dstate, dstate_init);',
+        '    trace_event_register_group(%s_trace_events,' % group.lower(),
+        '                               TRACE_%s_EVENT_COUNT,' % group.upper(),
+        '                               %s_dstate,' % group.lower(),
+        '                               %s_dstate_init);' % group.lower(),
         '}',
-        'trace_init(trace_register_events)')
+        'trace_init(trace_%s_register_events)' % group.lower())
 
-    backend.generate_begin(active_events)
+    backend.generate_begin(active_events, group)
     for event in active_events:
-        backend.generate(event)
-    backend.generate_end(active_events)
+        backend.generate(event, group)
+    backend.generate_end(active_events, group)

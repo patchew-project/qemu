@@ -353,7 +353,8 @@ def try_import(mod_name, attr_name=None, attr_default=None):
 
 
 def generate(fevents, format, backends,
-             binary=None, probe_prefix=None):
+             binary=None, probe_prefix=None,
+             group=None):
     """Generate the output for the given (format, backends) pair.
 
     Parameters
@@ -368,6 +369,8 @@ def generate(fevents, format, backends,
         See tracetool.backend.dtrace.BINARY.
     probe_prefix : str or None
         See tracetool.backend.dtrace.PROBEPREFIX.
+    group: str
+        Name of the tracing group
     """
     # fix strange python error (UnboundLocalError tracetool)
     import tracetool
@@ -377,6 +380,9 @@ def generate(fevents, format, backends,
         raise TracetoolError("format not set")
     if not tracetool.format.exists(format):
         raise TracetoolError("unknown format: %s" % format)
+
+    if group is None:
+        group = "common"
 
     if len(backends) is 0:
         raise TracetoolError("no backends specified")
@@ -391,4 +397,4 @@ def generate(fevents, format, backends,
 
     events = _read_events(fevents)
 
-    tracetool.format.generate(events, format, backend)
+    tracetool.format.generate(events, format, backend, group)

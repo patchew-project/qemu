@@ -44,6 +44,7 @@ Options:
     --help                   This help message.
     --list-backends          Print list of available backends.
     --check-backends         Check if the given backend is valid.
+    --group <name>           Name of the event group
     --binary <path>          Full path to QEMU binary.
     --target-type <type>     QEMU emulator target type ('system' or 'user').
     --target-name <name>     QEMU emulator target name.
@@ -67,7 +68,8 @@ def main(args):
 
     long_opts = ["backends=", "format=", "help", "list-backends",
                  "check-backends"]
-    long_opts += ["binary=", "target-type=", "target-name=", "probe-prefix="]
+    long_opts += ["binary=", "target-type=", "target-name=", "probe-prefix=",
+                  "group="]
 
     try:
         opts, args = getopt.getopt(args[1:], "", long_opts)
@@ -81,6 +83,7 @@ def main(args):
     target_type = None
     target_name = None
     probe_prefix = None
+    group = None
     for opt, arg in opts:
         if opt == "--help":
             error_opt()
@@ -105,6 +108,8 @@ def main(args):
             target_name = arg
         elif opt == '--probe-prefix':
             probe_prefix = arg
+        elif opt == '--group':
+            group = arg
 
         else:
             error_opt("unhandled option: %s" % opt)
@@ -131,7 +136,8 @@ def main(args):
 
     try:
         tracetool.generate(sys.stdin, arg_format, arg_backends,
-                           binary=binary, probe_prefix=probe_prefix)
+                           binary=binary, probe_prefix=probe_prefix,
+                           group=group)
     except tracetool.TracetoolError as e:
         error_opt(str(e))
 
