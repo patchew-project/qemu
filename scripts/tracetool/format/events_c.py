@@ -34,7 +34,7 @@ def generate(events, backend):
         if "vcpu" in e.properties:
             vcpu_id = "TRACE_VCPU_" + e.name.upper()
         else:
-            vcpu_id = "TRACE_VCPU_EVENT_COUNT"
+            vcpu_id = "(size_t)-1";
         out('    { .id = %(id)s, .vcpu_id = %(vcpu_id)s,'
             ' .name = \"%(name)s\",'
             ' .sstate = %(sstate)s },',

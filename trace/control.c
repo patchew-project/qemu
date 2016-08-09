@@ -74,7 +74,7 @@ void trace_event_register_group(TraceEvent *events,
 {
     size_t nvcpuevents = 0;
     for (size_t i = 0; i < nevents; i++) {
-        if (events[i].vcpu_id != TRACE_VCPU_EVENT_COUNT) {
+        if (events[i].vcpu_id != (size_t)-1) {
             nvcpuevents++;
         }
     }
