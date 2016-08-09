@@ -4,7 +4,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
 #include "hw/qdev-core.h"
-#include "trace.h"
+#include "hw/acpi/trace.h"
 #include "qapi-event.h"
 
 static ACPIOSTInfo *acpi_memory_device_status(int slot, MemStatus *mdev)

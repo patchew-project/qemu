@@ -3,7 +3,7 @@
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
 #include "qapi-event.h"
-#include "trace.h"
+#include "hw/acpi/trace.h"
 
 #define ACPI_CPU_HOTPLUG_REG_LEN 12
 #define ACPI_CPU_SELECTOR_OFFSET_WR 0
