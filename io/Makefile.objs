@@ -8,3 +8,5 @@ io-obj-y += channel-watch.o
 io-obj-y += channel-websock.o
 io-obj-y += channel-util.o
 io-obj-y += task.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o

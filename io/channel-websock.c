@@ -23,7 +23,7 @@
 #include "qemu/bswap.h"
 #include "io/channel-websock.h"
 #include "crypto/hash.h"
-#include "trace.h"
+#include "io/trace.h"
 
 
 /* Max amount to allow in rawinput/rawoutput buffers */
