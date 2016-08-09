@@ -22,7 +22,7 @@
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-#include "trace.h"
+#include "hw/display/trace.h"
 #include "hw/sysbus.h"
 
 typedef struct G364State {

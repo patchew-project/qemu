@@ -26,7 +26,7 @@
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
 #include "sysemu/sysemu.h"
-#include "trace.h"
+#include "hw/display/trace.h"
 
 #include "qxl.h"
 
