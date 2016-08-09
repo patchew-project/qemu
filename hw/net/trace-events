@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(289)
+
 # hw/net/lance.c
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=%"PRIx64"val=0x%04x"
 lance_mem_writew(uint64_t addr, uint32_t val) "addr=%"PRIx64"val=0x%04x"

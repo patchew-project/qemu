@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(108)
+
 # hw/vfio/pci.c
 vfio_intx_interrupt(const char *name, char line) " (%s) Pin %c"
 vfio_intx_eoi(const char *name) " (%s) EOI"

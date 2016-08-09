@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(529)
+
 # io/task.c
 qio_task_new(void *task, void *source, void *func, void *opaque) "Task new task=%p source=%p func=%p opaque=%p"
 qio_task_complete(void *task) "Task complete task=%p"

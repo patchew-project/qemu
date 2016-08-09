@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(500)
+
 # hw/virtio/virtio.c
 virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"
 virtqueue_flush(void *vq, unsigned int count) "vq %p count %u"

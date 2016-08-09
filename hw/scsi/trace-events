@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(200)
+
 # hw/scsi/scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_cancel(int target, int lun, int tag) "target %d lun %d tag %d"

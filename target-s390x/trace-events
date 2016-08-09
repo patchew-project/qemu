@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(16)
+
 # target-s390x/mmu_helper.c
 get_skeys_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"
 set_skeys_nonzero(int rc) "SKEY: Call to set_skeys unexpectedly returned %d"

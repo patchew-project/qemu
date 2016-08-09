@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(125)
+
 # hw/ppc/spapr_pci.c
 spapr_pci_msi(const char *msg, uint32_t ca) "%s (cfg=%x)"
 spapr_pci_msi_setup(const char *name, unsigned vector, uint64_t addr) "dev\"%s\" vector %u, addr=%"PRIx64

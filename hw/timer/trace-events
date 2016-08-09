@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(484)
+
 # hw/timer/slavio_timer.c
 slavio_timer_get_out(uint64_t limit, uint32_t counthigh, uint32_t count) "limit %"PRIx64" count %x%08x"
 slavio_timer_irq(uint32_t counthigh, uint32_t count) "callback: count %x%08x"

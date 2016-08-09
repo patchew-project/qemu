@@ -25,6 +25,8 @@
 #
 # The <format-string> should be a sprintf()-compatible format string.
 
+@id_offset(1)
+
 # thread-pool.c
 thread_pool_submit(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
 thread_pool_complete(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"

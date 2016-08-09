@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(49)
+
 # hw/block/virtio-blk.c
 virtio_blk_req_complete(void *req, int status) "req %p status %d"
 virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"

@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(36)
+
 # hw/mem/pc-dimm.c
 mhp_pc_dimm_assigned_slot(int slot) "0x%d"
 mhp_pc_dimm_assigned_address(uint64_t addr) "0x%"PRIx64

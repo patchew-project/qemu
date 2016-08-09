@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(400)
+
 # hw/isa/pc87312.c
 pc87312_io_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
 pc87312_io_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"

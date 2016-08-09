@@ -1,4 +1,6 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(324)
+
 # hw/arm/virt-acpi-build.c
 virt_acpi_setup(void) "No fw cfg or ACPI disabled. Bailing out."

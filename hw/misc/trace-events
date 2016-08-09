@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(361)
+
 # hw/misc/eccmemctl.c
 ecc_mem_writel_mer(uint32_t val) "Write memory enable %08x"
 ecc_mem_writel_mdr(uint32_t val) "Write memory delay %08x"

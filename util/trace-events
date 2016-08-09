@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(648)
+
 # util/buffer.c
 buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"
 buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"

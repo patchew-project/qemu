@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(512)
+
 # audio/alsaaudio.c
 alsa_revents(int revents) "revents = %d"
 alsa_pollout(int i, int fd) "i = %d fd = %d"

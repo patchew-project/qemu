@@ -48,7 +48,7 @@ def generate(events, backend, group):
         sizestr = ' + '.join(sizes)
 
         # Generate format string and value pairs for record header and arguments
-        fields = [('8b', str(event_id)),
+        fields = [('8b', str((e.id_offset << 16) | event_id)),
                   ('8b', 'gettimeofday_ns()'),
                   ('4b', sizestr),
                   ('4b', 'pid()')]

@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(4)
+
 # linux-user/signal.c
 user_setup_frame(void *env, uint64_t frame_addr) "env=%p frame_addr=%"PRIx64
 user_setup_rt_frame(void *env, uint64_t frame_addr) "env=%p frame_addr=%"PRIx64

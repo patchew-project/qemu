@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(144)
+
 # hw/intc/apic_common.c
 cpu_set_apic_base(uint64_t val) "%016"PRIx64
 cpu_get_apic_base(uint64_t val) "%016"PRIx64

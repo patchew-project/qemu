@@ -1,4 +1,6 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(625)
+
 # net/vhost-user.c
 vhost_user_event(const char *chr, int event) "chr: %s got event: %d"

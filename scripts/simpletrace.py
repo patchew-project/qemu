@@ -114,11 +114,12 @@ def process(events, log, analyzer, read_header=True):
     if read_header:
         read_trace_header(log)
 
-    dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
+    dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)",
+                                dropped_event_id, 0)
     edict = {dropped_event_id: dropped_event}
 
-    for num, event in enumerate(events):
-        edict[num] = event
+    for event in events:
+        edict[event.global_id] = event
 
     def build_fn(analyzer, event):
         if isinstance(event, str):

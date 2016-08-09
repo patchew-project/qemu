@@ -80,11 +80,12 @@ def generate_c(event, group):
         '        return;',
         '    }',
         '',
-        '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
+        '    if (trace_record_start(&rec, (%(id_offset)d << 16) | %(event_id)s, %(size_str)s)) {',
         '        return; /* Trace Buffer Full, Event Dropped ! */',
         '    }',
         cond=cond,
         event_id=event_id,
+        id_offset=event.id_offset,
         size_str=sizestr)
 
     if len(event.args) > 0:

@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(432)
+
 # hw/input/ps2.c
 ps2_put_keycode(void *opaque, int keycode) "%p keycode %d"
 ps2_read_data(void *opaque) "%p"

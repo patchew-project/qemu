@@ -145,6 +145,12 @@ class Event(object):
     ----------
     name : str
         The event name.
+    local_id: int
+        ID of event within the group
+    id_offset: int
+        Offset for event ID
+    global_id: int
+        ID of event globally unique
     fmt : str
         The event format string.
     properties : set(str)
@@ -163,13 +169,17 @@ class Event(object):
 
     _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec", "vcpu"])
 
-    def __init__(self, name, props, fmt, args, orig=None,
+    def __init__(self, name, local_id, id_offset, props, fmt, args, orig=None,
                  event_trans=None, event_exec=None):
         """
         Parameters
         ----------
         name : string
             Event name.
+        local_id: int
+            ID of event within the group
+        id_offset: int
+            Offset for event ID
         props : list of str
             Property names.
         fmt : str, list of str
@@ -185,6 +195,9 @@ class Event(object):
 
         """
         self.name = name
+        self.local_id = local_id
+        self.id_offset = id_offset
+        self.global_id = (self.id_offset << 16) | self.local_id
         self.properties = props
         self.fmt = fmt
         self.args = args
@@ -204,11 +217,11 @@ class Event(object):
 
     def copy(self):
         """Create a new copy."""
-        return Event(self.name, list(self.properties), self.fmt,
+        return Event(self.name, self.local_id, self.id_offset, list(self.properties), self.fmt,
                      self.args.copy(), self, self.event_trans, self.event_exec)
 
     @staticmethod
-    def build(line_str):
+    def build(line_str, local_id, id_offset):
         """Build an Event instance from a string.
 
         Parameters
@@ -237,7 +250,7 @@ class Event(object):
         if "tcg" in props and isinstance(fmt, str):
             raise ValueError("Events with 'tcg' property must have two formats")
 
-        event = Event(name, props, fmt, args)
+        event = Event(name, local_id, id_offset, props, fmt, args)
 
         # add implicit arguments when using the 'vcpu' property
         import tracetool.vcpu
@@ -251,10 +264,13 @@ class Event(object):
             fmt = self.fmt
         else:
             fmt = "%s, %s" % (self.fmt[0], self.fmt[1])
-        return "Event('%s %s(%s) %s')" % (" ".join(self.properties),
-                                          self.name,
-                                          self.args,
-                                          fmt)
+        return "Event('%s %s:%d:%d(%s) %s')" % (
+            " ".join(self.properties),
+            self.name,
+            self.local_id,
+            self.id_offset,
+            self.args,
+            fmt)
 
     _FMT = re.compile("(%[\d\.]*\w+|%.*PRI\S+)")
 
@@ -274,6 +290,8 @@ class Event(object):
     def transform(self, *trans):
         """Return a new Event with transformed Arguments."""
         return Event(self.name,
+                     self.local_id,
+                     self.id_offset,
                      list(self.properties),
                      self.fmt,
                      self.args.transform(*trans),
@@ -282,13 +300,26 @@ class Event(object):
 
 def _read_events(fobj):
     events = []
+    id_offset = 0
+    local_id = 0
+    all_id_offsets = []
     for line in fobj:
         if not line.strip():
             continue
         if line.lstrip().startswith('#'):
             continue
 
-        event = Event.build(line)
+        if line.startswith("@id_offset("):
+            id_offset = int(line[11:-2])
+
+            if id_offset in all_id_offsets:
+                raise TracetoolError("ID offset %d already used" % id_offset)
+            all_id_offsets.append(id_offset)
+            local_id = 0
+            continue
+
+        event = Event.build(line, local_id, id_offset)
+        local_id += 1
 
         # transform TCG-enabled events
         if "tcg" not in event.properties:

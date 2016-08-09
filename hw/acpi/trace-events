@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(225)
+
 # hw/acpi/memory_hotplug.c
 mhp_acpi_invalid_slot_selected(uint32_t slot) "0x%"PRIx32
 mhp_acpi_ejecting_invalid_slot(uint32_t slot) "0x%"PRIx32

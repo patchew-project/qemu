@@ -1,5 +1,7 @@
 # See docs/trace-events.txt for syntax documentation.
 
+@id_offset(392)
+
 # hw/i386/xen/xen_platform.c
 xen_platform_log(char *s) "xen platform: %s"
 
