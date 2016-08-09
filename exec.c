@@ -1402,6 +1402,11 @@ static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
     }
 }
 
+bool qemu_ram_is_shared(RAMBlock *rb)
+{
+    return rb->flags & RAM_SHARED;
+}
+
 const char *qemu_ram_get_idstr(RAMBlock *rb)
 {
     return rb->idstr;

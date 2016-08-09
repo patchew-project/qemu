@@ -3723,6 +3723,7 @@ Enable/Disable migration capabilities
 - "compress": use multiple compression threads to accelerate live migration
 - "events": generate events for each migration state change
 - "postcopy-ram": postcopy mode for live migration
+- "bypass-shared-memory": bypass shared memory region
 
 Arguments:
 
@@ -3753,6 +3754,7 @@ Query current migration capabilities
          - "compress": Multiple compression threads state (json-bool)
          - "events": Migration state change event state (json-bool)
          - "postcopy-ram": postcopy ram state (json-bool)
+         - "bypass-shared-memory": bypass shared memory state (json-bool)
 
 Arguments:
 
@@ -3767,6 +3769,7 @@ Example:
      {"state": false, "capability": "compress"},
      {"state": true, "capability": "events"},
      {"state": false, "capability": "postcopy-ram"}
+     {"state": false, "capability": "bypass-shared-memory"}
    ]}
 
 EQMP
