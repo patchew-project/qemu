@@ -18,7 +18,7 @@
 #include "cpu.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/css.h"
-#include "trace.h"
+#include "hw/s390x/trace.h"
 #include "hw/s390x/s390_flic.h"
 
 typedef struct CrwContainer {
