@@ -25,6 +25,11 @@ bool kvm_has_smm(void)
     return 1;
 }
 
+bool kvm_disable_x2apic_broadcast_quirk(void)
+{
+    return false;
+}
+
 /* This function is only called inside conditionals which we
  * rely on the compiler to optimize out when CONFIG_KVM is not
  * defined.

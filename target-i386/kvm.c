@@ -128,6 +128,18 @@ bool kvm_allows_irq0_override(void)
     return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
 }
 
+static bool kvm_x2apic_api_set_flags(uint64_t flags)
+{
+    KVMState *s = KVM_STATE(current_machine->accelerator);
+
+    return !kvm_vm_enable_cap(s, KVM_CAP_X2APIC_API, 0, flags);
+}
+
+bool kvm_disable_x2apic_broadcast_quirk(void)
+{
+    return kvm_x2apic_api_set_flags(KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK);
+}
+
 static int kvm_get_tsc(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);

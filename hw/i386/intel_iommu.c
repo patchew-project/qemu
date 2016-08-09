@@ -31,6 +31,7 @@
 #include "hw/i386/x86-iommu.h"
 #include "hw/pci-host/q35.h"
 #include "sysemu/kvm.h"
+#include "kvm_i386.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -2364,7 +2365,14 @@ static void vtd_init(IntelIOMMUState *s)
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
-        s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM | VTD_ECAP_MHMV;
+        s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
+        /* QEMU APIC does not support x2APIC and KVM does not work well without
+         * disabling a quirk.  IOMMU is unmigratable so we unconditionally use
+         * optional KVM features.
+         */
+        if (kvm_irqchip_in_kernel() && kvm_disable_x2apic_broadcast_quirk()) {
+            s->ecap |= VTD_ECAP_EIM;
+        }
     }
 
     vtd_reset_context_cache(s);
