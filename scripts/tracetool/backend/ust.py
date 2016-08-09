@@ -20,8 +20,13 @@ PUBLIC = True
 
 
 def generate_h_begin(events, group):
+    if group == "common":
+        include = "trace/generated-ust-provider.h"
+    else:
+        include = "trace-ust.h"
+
     out('#include <lttng/tracepoint.h>',
-        '#include "trace/generated-ust-provider.h"',
+        '#include "%s"' % include,
         '')
 
 
