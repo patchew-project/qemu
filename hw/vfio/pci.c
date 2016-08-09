@@ -30,7 +30,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "pci.h"
-#include "trace.h"
+#include "hw/vfio/trace.h"
 #include "qapi/error.h"
 
 #define MSIX_CAP_LENGTH 12

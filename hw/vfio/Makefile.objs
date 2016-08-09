@@ -5,4 +5,6 @@ obj-$(CONFIG_SOFTMMU) += platform.o
 obj-$(CONFIG_SOFTMMU) += calxeda-xgmac.o
 obj-$(CONFIG_SOFTMMU) += amd-xgbe.o
 obj-$(CONFIG_SOFTMMU) += spapr.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
 endif
