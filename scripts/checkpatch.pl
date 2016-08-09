@@ -1355,7 +1355,7 @@ sub process {
 		next if ($realfile !~ /\.(h|c|cpp|pl)$/);
 
 # in QEMU, no tabs are allowed
-		if ($rawline =~ /^\+.*\t/) {
+		if ($rawline =~ /^\+.*\t/ && $realfile !~ /^linux-headers\//) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			ERROR("code indent should never use tabs\n" . $herevet);
 			$rpt_cleaners = 1;
