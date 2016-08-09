@@ -120,7 +120,7 @@ ivshmem-server-obj-y = contrib/ivshmem-server/
 ######################################################################
 trace-events-subdirs =
 trace-events-y = trace-events
-trace-events-y += util/trace-events
+trace-events-subdirs += util
 trace-events-y += crypto/trace-events
 trace-events-subdirs += io
 trace-events-y += migration/trace-events

@@ -27,7 +27,7 @@
 #include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/queue.h"
-#include "trace.h"
+#include "util/trace.h"
 
 void qemu_co_queue_init(CoQueue *queue)
 {
