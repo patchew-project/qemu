@@ -937,8 +937,8 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
 #ifdef trace_event_get_state
 static void ohci_td_pkt(const char *msg, const uint8_t *buf, size_t len)
 {
-    bool print16 = !!trace_event_get_state(TRACE_USB_OHCI_TD_PKT_SHORT);
-    bool printall = !!trace_event_get_state(TRACE_USB_OHCI_TD_PKT_FULL);
+    bool print16 = !!trace_event_get_state(dstate, TRACE_USB_OHCI_TD_PKT_SHORT);
+    bool printall = !!trace_event_get_state(dstate, TRACE_USB_OHCI_TD_PKT_FULL);
     const int width = 16;
     int i;
     char tmp[3 * width + 1];

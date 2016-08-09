@@ -35,6 +35,9 @@ enum TraceEventID;
 void trace_event_iter_init(TraceEventIter *iter, const char *pattern);
 
 TraceEvent *trace_event_iter_next(TraceEventIter *iter);
+TraceEvent *trace_event_iter_next_full(TraceEventIter *iter,
+                                       uint16_t **dstate,
+                                       bool **dstate_init);
 
 
 /**
@@ -97,8 +100,8 @@ static const char * trace_event_get_name(TraceEvent *ev);
  *
  * As a down side, you must always use an immediate #TraceEventID value.
  */
-#define trace_event_get_state(id)                       \
-    ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
+#define trace_event_get_state(dstate, id)                                \
+    ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(dstate, id))
 
 /**
  * trace_event_get_vcpu_state:
@@ -135,7 +138,8 @@ static bool trace_event_get_state_static(TraceEvent *ev);
  *
  * If the event has the 'vcpu' property, gets the OR'ed state of all vCPUs.
  */
-static bool trace_event_get_state_dynamic(TraceEvent *ev);
+static bool trace_event_get_state_dynamic(uint16_t *dstate,
+                                          TraceEvent *ev);
 
 /**
  * trace_event_get_vcpu_state_dynamic:
@@ -154,7 +158,8 @@ static bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu, TraceEvent *ev);
  *
  * Pre-condition: trace_event_get_state_static(ev) == true
  */
-void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
+void trace_event_set_state_dynamic(uint16_t *dstate, TraceEvent *ev,
+                                   bool state);
 
 /**
  * trace_event_set_vcpu_state_dynamic:
@@ -163,7 +168,7 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
  *
  * Pre-condition: trace_event_get_vcpu_state_static(ev) == true
  */
-void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
+void trace_event_set_vcpu_state_dynamic(uint16_t *dstate, CPUState *vcpu,
                                         TraceEvent *ev, bool state);
 
 

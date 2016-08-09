@@ -15,7 +15,6 @@
 #include "qom/cpu.h"
 
 
-extern uint16_t trace_events_dstate[];
 extern int trace_events_enabled_count;
 
 
@@ -53,22 +52,24 @@ static inline bool trace_event_get_state_static(TraceEvent *ev)
     return ev->sstate;
 }
 
-static inline bool trace_event_get_state_dynamic_by_id(TraceEventID id)
+static inline bool trace_event_get_state_dynamic_by_id(
+    uint16_t *trace_events_dstate, TraceEventID id)
 {
     /* it's on fast path, avoid consistency checks (asserts) */
     return unlikely(trace_events_enabled_count) && trace_events_dstate[id];
 }
 
-static inline bool trace_event_get_state_dynamic(TraceEvent *ev)
+static inline bool trace_event_get_state_dynamic(
+    uint16_t *trace_events_dstate, TraceEvent *ev)
 {
     TraceEventID id;
     assert(trace_event_get_state_static(ev));
     id = trace_event_get_id(ev);
-    return trace_event_get_state_dynamic_by_id(id);
+    return trace_event_get_state_dynamic_by_id(trace_events_dstate, id);
 }
 
-static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,
-                                                                 TraceEventVCPUID id)
+static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(
+    CPUState *vcpu, TraceEventVCPUID id)
 {
     /* it's on fast path, avoid consistency checks (asserts) */
     if (unlikely(trace_events_enabled_count)) {
@@ -89,6 +90,8 @@ static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
 
 
 void trace_event_register_group(TraceEvent *events,
-                                size_t nevents);
+                                size_t nevents,
+                                uint16_t *dstate,
+                                bool *dstate_init);
 
 #endif /* TRACE__CONTROL_INTERNAL_H */

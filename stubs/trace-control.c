@@ -11,16 +11,12 @@
 #include "trace/control.h"
 
 
-void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
+void trace_event_set_state_dynamic(uint16_t *dstate, TraceEvent *ev, bool state)
 {
-    TraceEventID id;
     assert(trace_event_get_state_static(ev));
-    id = trace_event_get_id(ev);
-    trace_events_enabled_count += state - trace_events_dstate[id];
-    trace_events_dstate[id] = state;
 }
 
-void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
+void trace_event_set_vcpu_state_dynamic(uint16_t *dstate, CPUState *vcpu,
                                         TraceEvent *ev, bool state)
 {
     /* should never be called on non-target binaries */

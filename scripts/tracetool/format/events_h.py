@@ -55,6 +55,9 @@ def generate(events, backend):
                 enabled=enabled)
         out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
 
+    out('extern uint16_t dstate[TRACE_EVENT_COUNT];')
+    out('extern bool dstate_init[TRACE_EVENT_COUNT];')
+
     out('#include "trace/event-internal.h"',
         'void trace_register_events(void);',
         '',

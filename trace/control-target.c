@@ -13,22 +13,22 @@
 #include "translate-all.h"
 
 
-void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
+void trace_event_set_state_dynamic(uint16_t *dstate, TraceEvent *ev, bool state)
 {
     CPUState *vcpu;
     assert(trace_event_get_state_static(ev));
     if (trace_event_is_vcpu(ev)) {
         CPU_FOREACH(vcpu) {
-            trace_event_set_vcpu_state_dynamic(vcpu, ev, state);
+            trace_event_set_vcpu_state_dynamic(dstate, vcpu, ev, state);
         }
     } else {
         TraceEventID id = trace_event_get_id(ev);
-        trace_events_enabled_count += state - trace_events_dstate[id];
-        trace_events_dstate[id] = state;
+        trace_events_enabled_count += state - dstate[id];
+        dstate[id] = state;
     }
 }
 
-void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
+void trace_event_set_vcpu_state_dynamic(uint16_t *dstate, CPUState *vcpu,
                                         TraceEvent *ev, bool state)
 {
     TraceEventID id;
@@ -43,11 +43,11 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
         if (state) {
             trace_events_enabled_count++;
             set_bit(vcpu_id, vcpu->trace_dstate);
-            trace_events_dstate[id]++;
+            dstate[id]++;
         } else {
             trace_events_enabled_count--;
             clear_bit(vcpu_id, vcpu->trace_dstate);
-            trace_events_dstate[id]--;
+            dstate[id]--;
         }
     }
 }

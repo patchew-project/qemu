@@ -73,6 +73,8 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
     TraceEventInfoList *events = NULL;
     TraceEventIter iter;
     TraceEvent *ev;
+    uint16_t *dstate;
+    bool *dstate_init;
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
 
@@ -90,9 +92,11 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
 
     /* Get states (all errors checked above) */
     trace_event_iter_init(&iter, is_pattern ? name : NULL);
-    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+    while ((ev = trace_event_iter_next_full(&iter, &dstate, &dstate_init)) !=
+           NULL) {
         TraceEventInfoList *elem;
         bool is_vcpu = trace_event_is_vcpu(ev);
+        g_assert(dstate);
         if (has_vcpu && !is_vcpu) {
             continue;
         }
@@ -115,7 +119,7 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
                 }
                 /* else: already skipped above */
             } else {
-                if (trace_event_get_state_dynamic(ev)) {
+                if (trace_event_get_state_dynamic(dstate, ev)) {
                     elem->value->state = TRACE_EVENT_STATE_ENABLED;
                 } else {
                     elem->value->state = TRACE_EVENT_STATE_DISABLED;
@@ -139,6 +143,8 @@ void qmp_trace_event_set_state(const char *name, bool enable,
     TraceEvent *ev;
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
+    uint16_t *dstate;
+    bool *dstate_init;
 
     /* Check provided vcpu */
     cpu = get_cpu(has_vcpu, vcpu, &err);
@@ -155,15 +161,16 @@ void qmp_trace_event_set_state(const char *name, bool enable,
 
     /* Apply changes (all errors checked above) */
     trace_event_iter_init(&iter, name);
-    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+    while ((ev = trace_event_iter_next_full(&iter, &dstate, &dstate_init)) !=
+           NULL) {
         if (!trace_event_get_state_static(ev) ||
             (has_vcpu && !trace_event_is_vcpu(ev))) {
             continue;
         }
         if (has_vcpu) {
-            trace_event_set_vcpu_state_dynamic(cpu, ev, enable);
+            trace_event_set_vcpu_state_dynamic(dstate, cpu, ev, enable);
         } else {
-            trace_event_set_state_dynamic(ev, enable);
+            trace_event_set_state_dynamic(dstate, ev, enable);
         }
     }
 }

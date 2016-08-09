@@ -29,20 +29,22 @@ int trace_events_enabled_count;
 typedef struct TraceEventGroup {
     TraceEvent *events;
     size_t nevents;
+    /*
+     * Interpretation depends on wether the event has the 'vcpu' property:
+     * - false: Boolean value indicating whether the event is active.
+     * - true : Integral counting the number of vCPUs that have this event
+     *          enabled.
+     */
+    uint16_t *dstate;
+    /* Marks events for late vCPU state init */
+    bool *dstate_init;
 } TraceEventGroup;
 
 static bool have_vcpu_events;
 static TraceEventGroup *event_groups;
 static size_t nevent_groups;
 
-/*
- * Interpretation depends on wether the event has the 'vcpu' property:
- * - false: Boolean value indicating whether the event is active.
- * - true : Integral counting the number of vCPUs that have this event enabled.
- */
-uint16_t trace_events_dstate[TRACE_EVENT_COUNT];
-/* Marks events for late vCPU state init */
-static bool trace_events_dstate_init[TRACE_EVENT_COUNT];
+static bool pattern_glob(const char *pat, const char *ev);
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -66,7 +68,9 @@ QemuOptsList qemu_trace_opts = {
 
 
 void trace_event_register_group(TraceEvent *events,
-                                size_t nevents)
+                                size_t nevents,
+                                uint16_t *dstate,
+                                bool *dstate_init)
 {
     size_t nvcpuevents = 0;
     for (size_t i = 0; i < nevents; i++) {
@@ -85,6 +89,8 @@ void trace_event_register_group(TraceEvent *events,
     event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
     event_groups[nevent_groups].events = events;
     event_groups[nevent_groups].nevents = nevents;
+    event_groups[nevent_groups].dstate = dstate;
+    event_groups[nevent_groups].dstate_init = dstate_init;
     nevent_groups++;
 }
 
@@ -145,6 +151,14 @@ void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
 
 TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 {
+    return trace_event_iter_next_full(iter, NULL, NULL);
+}
+
+
+TraceEvent *trace_event_iter_next_full(TraceEventIter *iter,
+                                       uint16_t **dstate,
+                                       bool **dstate_init)
+{
     TraceEvent *ev;
 
     if (iter->group >= nevent_groups ||
@@ -153,6 +167,12 @@ TraceEvent *trace_event_iter_next(TraceEventIter *iter)
     }
 
     ev = &(event_groups[iter->group].events[iter->event]);
+    if (dstate) {
+        *dstate = event_groups[iter->group].dstate;
+    }
+    if (dstate_init) {
+        *dstate_init = event_groups[iter->group].dstate_init;
+    }
 
     do {
         iter->event++;
@@ -188,9 +208,12 @@ static void do_trace_enable_events(const char *line_buf)
     TraceEventIter iter;
     TraceEvent *ev;
     bool is_pattern = trace_event_is_pattern(line_ptr);
+    uint16_t *dstate;
+    bool *dstate_init;
 
     trace_event_iter_init(&iter, is_pattern ? line_ptr : NULL);
-    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+    while ((ev = trace_event_iter_next_full(&iter, &dstate, &dstate_init)) !=
+           NULL) {
         bool match = false;
         if (is_pattern) {
             if (trace_event_get_state_static(ev)) {
@@ -209,9 +232,9 @@ static void do_trace_enable_events(const char *line_buf)
         }
         if (match) {
             /* start tracing */
-            trace_event_set_state_dynamic(ev, enable);
+            trace_event_set_state_dynamic(dstate, ev, enable);
             /* mark for late vCPU init */
-            trace_events_dstate_init[ev->id] = true;
+            dstate_init[ev->id] = true;
             if (!is_pattern) {
                 return;
             }
@@ -334,12 +357,15 @@ void trace_init_vcpu_events(void)
 {
     TraceEventIter iter;
     TraceEvent *ev;
+    uint16_t *dstate;
+    bool *dstate_init;
     trace_event_iter_init(&iter, NULL);
-    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+    while ((ev = trace_event_iter_next_full(&iter, &dstate, &dstate_init)) !=
+           NULL) {
         if (trace_event_is_vcpu(ev) &&
             trace_event_get_state_static(ev) &&
-            trace_events_dstate_init[ev->id]) {
-            trace_event_set_state_dynamic(ev, true);
+            dstate_init[ev->id]) {
+            trace_event_set_state_dynamic(dstate, ev, true);
         }
     }
 }

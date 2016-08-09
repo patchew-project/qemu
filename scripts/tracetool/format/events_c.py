@@ -25,7 +25,10 @@ def generate(events, backend):
         '#include "trace/control.h"',
         '')
 
-    out('TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
+    out('uint16_t dstate[TRACE_EVENT_COUNT];')
+    out('bool dstate_init[TRACE_EVENT_COUNT];')
+
+    out('static TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
 
     for e in events:
         if "vcpu" in e.properties:
@@ -45,6 +48,6 @@ def generate(events, backend):
 
     out('void trace_register_events(void)',
         '{',
-        '    trace_event_register_group(trace_events, TRACE_EVENT_COUNT);',
+        '    trace_event_register_group(trace_events, TRACE_EVENT_COUNT, dstate, dstate_init);',
         '}',
         'trace_init(trace_register_events)')
