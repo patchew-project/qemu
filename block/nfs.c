@@ -30,7 +30,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "block/block_int.h"
-#include "trace.h"
+#include "block/trace.h"
 #include "qemu/iov.h"
 #include "qemu/uri.h"
 #include "qemu/cutils.h"

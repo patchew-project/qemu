@@ -29,7 +29,7 @@
 #include "qemu/log.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
-#include "trace.h"
+#include "block/trace.h"
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
 #include "block/raw-aio.h"

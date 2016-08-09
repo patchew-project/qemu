@@ -24,6 +24,8 @@ block-obj-y += accounting.o dirty-bitmap.o
 block-obj-y += write-threshold.o
 
 block-obj-y += crypto.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
 
 common-obj-y += stream.o
 common-obj-y += backup.o

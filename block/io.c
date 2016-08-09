@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "trace.h"
+#include "block/trace.h"
 #include "sysemu/block-backend.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
