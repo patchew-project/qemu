@@ -32,7 +32,7 @@
 #include "hw/pci-host/q35.h"
 #include "sysemu/kvm.h"
 
-/*#define DEBUG_INTEL_IOMMU*/
+#define DEBUG_INTEL_IOMMU
 #ifdef DEBUG_INTEL_IOMMU
 enum {
     DEBUG_GENERAL, DEBUG_CSR, DEBUG_INV, DEBUG_MMU, DEBUG_FLOG,
@@ -2043,43 +2043,41 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
         return -VTD_FR_IR_IRTE_RSVD;
     }
 
-    if (sid != X86_IOMMU_SID_INVALID) {
-        /* Validate IRTE SID */
-        source_id = le32_to_cpu(entry->irte.source_id);
-        switch (entry->irte.sid_vtype) {
-        case VTD_SVT_NONE:
-            VTD_DPRINTF(IR, "No SID validation for IRTE index %d", index);
-            break;
+    /* Validate IRTE SID */
+    source_id = le32_to_cpu(entry->irte.source_id);
+    switch (entry->irte.sid_vtype) {
+    case VTD_SVT_NONE:
+        VTD_DPRINTF(IR, "No SID validation for IRTE index %d", index);
+        break;
 
-        case VTD_SVT_ALL:
-            mask = vtd_svt_mask[entry->irte.sid_q];
-            if ((source_id & mask) != (sid & mask)) {
-                VTD_DPRINTF(GENERAL, "SID validation for IRTE index "
-                            "%d failed (reqid 0x%04x sid 0x%04x)", index,
-                            sid, source_id);
-                return -VTD_FR_IR_SID_ERR;
-            }
-            break;
-
-        case VTD_SVT_BUS:
-            bus_max = source_id >> 8;
-            bus_min = source_id & 0xff;
-            bus = sid >> 8;
-            if (bus > bus_max || bus < bus_min) {
-                VTD_DPRINTF(GENERAL, "SID validation for IRTE index %d "
-                            "failed (bus %d outside %d-%d)", index, bus,
-                            bus_min, bus_max);
-                return -VTD_FR_IR_SID_ERR;
-            }
-            break;
-
-        default:
-            VTD_DPRINTF(GENERAL, "Invalid SVT bits (0x%x) in IRTE index "
-                        "%d", entry->irte.sid_vtype, index);
-            /* Take this as verification failure. */
+    case VTD_SVT_ALL:
+        mask = vtd_svt_mask[entry->irte.sid_q];
+        if ((source_id & mask) != (sid & mask)) {
+            VTD_DPRINTF(GENERAL, "SID validation for IRTE index "
+                    "%d failed (reqid 0x%04x sid 0x%04x)", index,
+                    sid, source_id);
             return -VTD_FR_IR_SID_ERR;
-            break;
         }
+        break;
+
+    case VTD_SVT_BUS:
+        bus_max = source_id >> 8;
+        bus_min = source_id & 0xff;
+        bus = sid >> 8;
+        if (bus > bus_max || bus < bus_min) {
+            VTD_DPRINTF(GENERAL, "SID validation for IRTE index %d "
+                    "failed (bus %d outside %d-%d)", index, bus,
+                    bus_min, bus_max);
+            return -VTD_FR_IR_SID_ERR;
+        }
+        break;
+
+    default:
+        VTD_DPRINTF(GENERAL, "Invalid SVT bits (0x%x) in IRTE index "
+                "%d", entry->irte.sid_vtype, index);
+        /* Take this as verification failure. */
+        return -VTD_FR_IR_SID_ERR;
+        break;
     }
 
     return 0;
@@ -2252,14 +2250,17 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
 {
     int ret = 0;
     MSIMessage from = {}, to = {};
-    uint16_t sid = X86_IOMMU_SID_INVALID;
+    VTDAddressSpace *as = opaque;
+    uint16_t sid = pci_bus_num(as->bus) << 8 | as->devfn;
 
     from.address = (uint64_t) addr + VTD_INTERRUPT_ADDR_FIRST;
     from.data = (uint32_t) value;
 
-    if (!attrs.unspecified) {
-        /* We have explicit Source ID */
-        sid = attrs.requester_id;
+    if (attrs.requester_id != sid) {
+        VTD_DPRINTF(GENERAL, "int remap request for sid 0x%04x"
+                    " requester_id 0x%04x couldn't be verified",
+                    sid, attrs.requester_id);
+        return MEMTX_ERROR;
     }
 
     ret = vtd_interrupt_remap_msi(opaque, &from, &to, sid);
@@ -2325,7 +2326,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         memory_region_init_iommu(&vtd_dev_as->iommu, OBJECT(s),
                                  &s->iommu_ops, "intel_iommu", UINT64_MAX);
         memory_region_init_io(&vtd_dev_as->iommu_ir, OBJECT(s),
-                              &vtd_mem_ir_ops, s, "intel_iommu_ir",
+                              &vtd_mem_ir_ops, vtd_dev_as, "intel_iommu_ir",
                               VTD_INTERRUPT_ADDR_SIZE);
         memory_region_add_subregion(&vtd_dev_as->iommu, VTD_INTERRUPT_ADDR_FIRST,
                                     &vtd_dev_as->iommu_ir);
@@ -2465,6 +2466,9 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     vtd_init(s);
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, Q35_HOST_BRIDGE_IOMMU_ADDR);
     pci_setup_iommu(bus, vtd_host_dma_iommu, dev);
+    /* IOMMU expected IOAPIC SID */
+    x86_iommu->ioapic_bdf = Q35_PSEUDO_DEVFN_IOAPIC << 8 |
+        Q35_PSEUDO_DEVFN_IOAPIC;
     /* Pseudo address space under root PCI bus. */
     pcms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
 
