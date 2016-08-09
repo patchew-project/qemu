@@ -45,7 +45,7 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
-#include "trace.h"
+#include "hw/ppc/trace.h"
 #include "elf.h"
 #include "qemu/cutils.h"
 
