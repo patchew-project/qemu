@@ -10,9 +10,6 @@
 #ifndef TRACE__EVENT_INTERNAL_H
 #define TRACE__EVENT_INTERNAL_H
 
-#include "trace/generated-events.h"
-
-
 /**
  * TraceEvent:
  * @id: Unique event identifier.

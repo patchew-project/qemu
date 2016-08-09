@@ -24,6 +24,7 @@ def generate(events, backend):
         '',
         '#include "qemu-common.h"',
         '#include "trace/control.h"',
+        '#include "trace/generated-events.h"',
         '')
 
     backend.generate_begin(events)

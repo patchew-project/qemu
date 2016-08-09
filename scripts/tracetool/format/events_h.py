@@ -58,7 +58,6 @@ def generate(events, backend):
     out('extern uint16_t dstate[TRACE_EVENT_COUNT];')
     out('extern bool dstate_init[TRACE_EVENT_COUNT];')
 
-    out('#include "trace/event-internal.h"',
-        'void trace_register_events(void);',
+    out('void trace_register_events(void);',
         '',
         '#endif  /* TRACE__GENERATED_EVENTS_H */')
