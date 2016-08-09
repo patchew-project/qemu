@@ -24,13 +24,13 @@ static inline bool trace_event_is_pattern(const char *str)
     return strchr(str, '*') != NULL;
 }
 
-static inline TraceEventID trace_event_get_id(TraceEvent *ev)
+static inline size_t trace_event_get_id(TraceEvent *ev)
 {
     assert(ev != NULL);
     return ev->id;
 }
 
-static inline TraceEventVCPUID trace_event_get_vcpu_id(TraceEvent *ev)
+static inline size_t trace_event_get_vcpu_id(TraceEvent *ev)
 {
     return ev->vcpu_id;
 }
@@ -53,7 +53,7 @@ static inline bool trace_event_get_state_static(TraceEvent *ev)
 }
 
 static inline bool trace_event_get_state_dynamic_by_id(
-    uint16_t *trace_events_dstate, TraceEventID id)
+    uint16_t *trace_events_dstate, size_t id)
 {
     /* it's on fast path, avoid consistency checks (asserts) */
     return unlikely(trace_events_enabled_count) && trace_events_dstate[id];
@@ -62,14 +62,14 @@ static inline bool trace_event_get_state_dynamic_by_id(
 static inline bool trace_event_get_state_dynamic(
     uint16_t *trace_events_dstate, TraceEvent *ev)
 {
-    TraceEventID id;
+    size_t id;
     assert(trace_event_get_state_static(ev));
     id = trace_event_get_id(ev);
     return trace_event_get_state_dynamic_by_id(trace_events_dstate, id);
 }
 
-static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(
-    CPUState *vcpu, TraceEventVCPUID id)
+static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,
+                                                                 size_t id)
 {
     /* it's on fast path, avoid consistency checks (asserts) */
     if (unlikely(trace_events_enabled_count)) {
@@ -82,7 +82,7 @@ static inline bool trace_event_get_vcpu_state_dynamic_by_vcpu_id(
 static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
                                                       TraceEvent *ev)
 {
-    TraceEventVCPUID id;
+    size_t id;
     assert(trace_event_is_vcpu(ev));
     id = trace_event_get_vcpu_id(ev);
     return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, id);

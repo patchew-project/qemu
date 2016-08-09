@@ -22,7 +22,7 @@ void trace_event_set_state_dynamic(uint16_t *dstate, TraceEvent *ev, bool state)
             trace_event_set_vcpu_state_dynamic(dstate, vcpu, ev, state);
         }
     } else {
-        TraceEventID id = trace_event_get_id(ev);
+        size_t id = trace_event_get_id(ev);
         trace_events_enabled_count += state - dstate[id];
         dstate[id] = state;
     }
@@ -31,8 +31,8 @@ void trace_event_set_state_dynamic(uint16_t *dstate, TraceEvent *ev, bool state)
 void trace_event_set_vcpu_state_dynamic(uint16_t *dstate, CPUState *vcpu,
                                         TraceEvent *ev, bool state)
 {
-    TraceEventID id;
-    TraceEventVCPUID vcpu_id;
+    size_t id;
+    size_t vcpu_id;
     bool state_pre;
     assert(trace_event_get_state_static(ev));
     assert(trace_event_is_vcpu(ev));
