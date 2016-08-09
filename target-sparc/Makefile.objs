@@ -5,3 +5,5 @@ obj-$(TARGET_SPARC) += int32_helper.o
 obj-$(TARGET_SPARC64) += int64_helper.o
 obj-$(TARGET_SPARC64) += vis_helper.o
 obj-y += gdbstub.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
