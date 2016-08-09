@@ -22,7 +22,7 @@
 #include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "hw/i386/trace.h"
 
 void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
                                      iec_notify_fn fn, void *data)
