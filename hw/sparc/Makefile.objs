@@ -1,1 +1,3 @@
 obj-y += sun4m.o leon3.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
