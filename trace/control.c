@@ -25,6 +25,15 @@
 #include "monitor/monitor.h"
 
 int trace_events_enabled_count;
+
+typedef struct TraceEventGroup {
+    TraceEvent *events;
+    size_t nevents;
+} TraceEventGroup;
+
+static TraceEventGroup *event_groups;
+static size_t nevent_groups;
+
 /*
  * Interpretation depends on wether the event has the 'vcpu' property:
  * - false: Boolean value indicating whether the event is active.
@@ -53,6 +62,16 @@ QemuOptsList qemu_trace_opts = {
         { /* end of list */ }
     },
 };
+
+
+void trace_event_register_group(TraceEvent *events,
+                                size_t nevents)
+{
+    event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
+    event_groups[nevent_groups].events = events;
+    event_groups[nevent_groups].nevents = nevents;
+    nevent_groups++;
+}
 
 
 TraceEvent *trace_event_name(const char *name)
@@ -105,6 +124,7 @@ static bool pattern_glob(const char *pat, const char *ev)
 void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
 {
     iter->event = 0;
+    iter->group = 0;
     iter->pattern = pattern;
 }
 
@@ -112,18 +132,26 @@ TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 {
     TraceEvent *ev;
 
-    if (iter->event >= TRACE_EVENT_COUNT) {
+    if (iter->group >= nevent_groups ||
+        iter->event >= event_groups[iter->group].nevents) {
         return NULL;
     }
 
-    ev = &(trace_events[iter->event]);
+    ev = &(event_groups[iter->group].events[iter->event]);
 
     do {
         iter->event++;
-    } while (iter->event < TRACE_EVENT_COUNT &&
+        if (iter->event >= event_groups[iter->group].nevents) {
+            iter->event = 0;
+            iter->group++;
+        }
+    } while (iter->group < nevent_groups &&
+             iter->event < event_groups[iter->group].nevents &&
              iter->pattern &&
-             !pattern_glob(iter->pattern,
-                           trace_event_get_name(&(trace_events[iter->event]))));
+             !pattern_glob(
+                 iter->pattern,
+                 trace_event_get_name(
+                     &(event_groups[iter->group].events[iter->event]))));
 
     return ev;
 }

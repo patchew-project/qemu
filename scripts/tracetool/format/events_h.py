@@ -56,5 +56,6 @@ def generate(events, backend):
         out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
 
     out('#include "trace/event-internal.h"',
+        'void trace_register_events(void);',
         '',
         '#endif  /* TRACE__GENERATED_EVENTS_H */')

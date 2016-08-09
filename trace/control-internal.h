@@ -15,7 +15,6 @@
 #include "qom/cpu.h"
 
 
-extern TraceEvent trace_events[];
 extern uint16_t trace_events_dstate[];
 extern int trace_events_enabled_count;
 
@@ -87,5 +86,9 @@ static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
     id = trace_event_get_vcpu_id(ev);
     return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, id);
 }
+
+
+void trace_event_register_group(TraceEvent *events,
+                                size_t nevents);
 
 #endif /* TRACE__CONTROL_INTERNAL_H */

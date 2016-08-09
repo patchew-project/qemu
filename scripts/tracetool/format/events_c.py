@@ -42,3 +42,9 @@ def generate(events, backend):
 
     out('};',
         '')
+
+    out('void trace_register_events(void)',
+        '{',
+        '    trace_event_register_group(trace_events, TRACE_EVENT_COUNT);',
+        '}',
+        'trace_init(trace_register_events)')
