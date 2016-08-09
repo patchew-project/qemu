@@ -48,7 +48,7 @@
 #endif
 #include <math.h>
 
-#include "trace.h"
+#include "ui/trace.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
