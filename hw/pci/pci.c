@@ -34,7 +34,7 @@
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "qmp-commands.h"
-#include "trace.h"
+#include "hw/pci/trace.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "exec/address-spaces.h"
