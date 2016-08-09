@@ -16,3 +16,5 @@ common-obj-$(CONFIG_NETMAP) += netmap.o
 common-obj-y += filter.o
 common-obj-y += filter-buffer.o
 common-obj-y += filter-mirror.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o

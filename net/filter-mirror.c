@@ -19,7 +19,7 @@
 #include "qom/object.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "net/trace.h"
 #include "sysemu/char.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
