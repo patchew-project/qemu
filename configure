@@ -478,6 +478,7 @@ elif check_define __x86_64__ ; then
     cpu="x32"
   else
     cpu="x86_64"
+    cpu_width=64
   fi
 elif check_define __sparc__ ; then
   if check_define __arch64__ ; then
@@ -515,26 +516,36 @@ ARCH=
 # Normalise host CPU name and set ARCH.
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  ia64|ppc|ppc64|s390|s390x|sparc64|x32)
+  ppc|s390|x32)
     cpu="$cpu"
+    cpu_width=32
+  ;;
+  ia64|ppc64|s390x|sparc64)
+    cpu="$cpu"
+    cpu_width=64
   ;;
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
+    cpu_width=32
   ;;
   x86_64|amd64)
     cpu="x86_64"
+    cpu_width=64
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
+    cpu_width=32
   ;;
   aarch64)
     cpu="aarch64"
+    cpu_width=32
   ;;
   mips*)
     cpu="mips"
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
+    cpu_width=32
   ;;
   *)
     # This will result in either an error or falling back to TCI later
@@ -1698,6 +1709,26 @@ if compile_object ; then
 else
     echo big/little test failed
 fi
+
+##########################################
+# host address width checks
+too_wide_targets=""
+
+if test "$cpu_width" = "32"; then
+    for target in $target_list; do
+        target_name=$(echo $target | cut -d '-' -f 1)
+        case "$target_name" in
+            aarch64|mips64|ppc64|s390x|sparc64)
+                too_wide_targets="$too_wide_targets $target"
+                ;;
+        esac
+    done
+fi
+
+if test ! -z "$too_wide_targets" ; then
+    error_exit "Support for the following targets can't be built on 32 bit systems:\n\t$too_wide_targets"
+fi
+
 
 ##########################################
 # cocoa implies not SDL or GTK
@@ -4795,6 +4826,7 @@ if test "$slirp" = "yes" ; then
 fi
 echo "module support    $modules"
 echo "host CPU          $cpu"
+echo "host CPU width    $cpu_width"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
 echo "tcg debug enabled $debug_tcg"
