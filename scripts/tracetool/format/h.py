@@ -24,8 +24,44 @@ def generate(events, backend):
         '',
         '#include "qemu-common.h"',
         '#include "trace/control.h"',
-        '#include "trace/generated-events.h"',
         '')
+
+    # event identifiers
+    out('typedef enum {')
+
+    for e in events:
+        out('    TRACE_%s,' % e.name.upper())
+
+    out('    TRACE_EVENT_COUNT',
+        '} TraceEventID;')
+
+    # per-vCPU event identifiers
+    out('typedef enum {')
+
+    for e in events:
+        if "vcpu" in e.properties:
+            out('    TRACE_VCPU_%s,' % e.name.upper())
+
+    out('    TRACE_VCPU_EVENT_COUNT',
+        '} TraceEventVCPUID;')
+
+    # static state
+    for e in events:
+        if 'disable' in e.properties:
+            enabled = 0
+        else:
+            enabled = 1
+        if "tcg-exec" in e.properties:
+            # a single define for the two "sub-events"
+            out('#define TRACE_%(name)s_ENABLED %(enabled)d',
+                name=e.original.name.upper(),
+                enabled=enabled)
+        out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
+
+    out('extern uint16_t dstate[TRACE_EVENT_COUNT];')
+    out('extern bool dstate_init[TRACE_EVENT_COUNT];')
+
+    out('void trace_register_events(void);')
 
     backend.generate_begin(events)
 
