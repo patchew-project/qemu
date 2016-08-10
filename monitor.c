@@ -1008,6 +1008,26 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
     *ret_data = qobject_from_json(qmp_schema_json);
 }
 
+/*
+ * Those commands are registered unconditionnally by generated
+ * qmp files. FIXME: Educate the QAPI schema on #ifdef commands.
+ */
+static void qmp_disable_marshal(void)
+{
+#ifndef CONFIG_SPICE
+    qmp_disable_command("query-spice");
+#endif
+#ifndef TARGET_I386
+    qmp_disable_command("rtc-reset-reinjection");
+#endif
+#ifndef TARGET_S390X
+    qmp_disable_command("dump-skeys");
+#endif
+#ifndef TARGET_ARM
+    qmp_disable_command("query-gic-capabilities");
+#endif
+}
+
 static void qmp_init_marshal(void)
 {
     qmp_register_command("query-qmp-schema", qmp_query_qmp_schema,
@@ -1016,6 +1036,9 @@ static void qmp_init_marshal(void)
                          QCO_NO_OPTIONS);
     qmp_register_command("netdev_add", qmp_netdev_add,
                          QCO_NO_OPTIONS);
+
+    /* call it after the rest of qapi_init() */
+    register_module_init(qmp_disable_marshal, MODULE_INIT_QAPI);
 }
 
 qapi_init(qmp_init_marshal);
