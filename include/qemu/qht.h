@@ -15,6 +15,7 @@ struct qht {
     struct qht_map *map;
     QemuMutex lock; /* serializes setters of ht->map */
     unsigned int mode;
+    unsigned int magic;
 };
 
 /**
@@ -124,6 +125,8 @@ bool qht_remove(struct qht *ht, const void *p, uint32_t hash);
  * If concurrent readers may exist, the objects pointed to by the hash table
  * must remain valid for the existing RCU grace period -- see qht_remove().
  * See also: qht_reset_size()
+ *
+ * Note: it is OK to pass an uninitialized @ht.
  */
 void qht_reset(struct qht *ht);
 
@@ -138,6 +141,8 @@ void qht_reset(struct qht *ht);
  * If concurrent readers may exist, the objects pointed to by the hash table
  * must remain valid for the existing RCU grace period -- see qht_remove().
  * See also: qht_reset(), qht_resize().
+ *
+ * Note: it is OK to pass an uninitialized @ht.
  */
 bool qht_reset_size(struct qht *ht, size_t n_elems);
 
@@ -173,6 +178,8 @@ void qht_iter(struct qht *ht, qht_iter_func_t func, void *userp);
  *
  * When done with @stats, pass the struct to qht_statistics_destroy().
  * Failing to do this will leak memory.
+ *
+ * Note: it is OK to pass an uninitialized @ht.
  */
 void qht_statistics_init(struct qht *ht, struct qht_stats *stats);
 

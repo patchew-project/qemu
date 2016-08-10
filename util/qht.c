@@ -89,6 +89,8 @@
 #define QHT_BUCKET_ENTRIES 4
 #endif
 
+#define QHT_MAGIC 0xbebec4fe
+
 /*
  * Note: reading partially-updated pointers in @pointers could lead to
  * segfaults. We thus access them with atomic_read/set; this guarantees
@@ -181,6 +183,11 @@ static inline void qht_bucket_debug__locked(struct qht_bucket *b)
 static inline void qht_map_debug__all_locked(struct qht_map *map)
 { }
 #endif /* QHT_DEBUG */
+
+static inline bool qht_inited(const struct qht *ht)
+{
+    return ht->magic == QHT_MAGIC;
+}
 
 static inline size_t qht_elems_to_buckets(size_t n_elems)
 {
@@ -356,6 +363,7 @@ void qht_init(struct qht *ht, size_t n_elems, unsigned int mode)
     size_t n_buckets = qht_elems_to_buckets(n_elems);
 
     ht->mode = mode;
+    ht->magic = QHT_MAGIC;
     qemu_mutex_init(&ht->lock);
     map = qht_map_create(n_buckets);
     atomic_rcu_set(&ht->map, map);
@@ -403,6 +411,10 @@ void qht_reset(struct qht *ht)
 {
     struct qht_map *map;
 
+    if (unlikely(!qht_inited(ht))) {
+        return;
+    }
+
     qht_map_lock_buckets__no_stale(ht, &map);
     qht_map_reset__all_locked(map);
     qht_map_unlock_buckets(map);
@@ -415,6 +427,9 @@ bool qht_reset_size(struct qht *ht, size_t n_elems)
     size_t n_buckets;
     bool resize = false;
 
+    if (unlikely(!qht_inited(ht))) {
+        return false;
+    }
     n_buckets = qht_elems_to_buckets(n_elems);
 
     qemu_mutex_lock(&ht->lock);
@@ -787,17 +802,16 @@ void qht_statistics_init(struct qht *ht, struct qht_stats *stats)
     struct qht_map *map;
     int i;
 
-    map = atomic_rcu_read(&ht->map);
-
     stats->used_head_buckets = 0;
     stats->entries = 0;
     qdist_init(&stats->chain);
     qdist_init(&stats->occupancy);
     /* bail out if the qht has not yet been initialized */
-    if (unlikely(map == NULL)) {
+    if (unlikely(!qht_inited(ht))) {
         stats->head_buckets = 0;
         return;
     }
+    map = atomic_rcu_read(&ht->map);
     stats->head_buckets = map->n_buckets;
 
     for (i = 0; i < map->n_buckets; i++) {

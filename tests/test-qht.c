@@ -97,6 +97,9 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
 {
     /* under KVM we might fetch stats from an uninitialized qht */
     check_n(0);
+    /* resetting an uninitialized qht can happen as well, e.g. KVM + gdb */
+    qht_reset(&ht);
+    qht_reset_size(&ht, 0);
 
     qht_init(&ht, 0, mode);
 
