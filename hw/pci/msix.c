@@ -264,8 +264,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     if ((table_bar_nr == pba_bar_nr &&
          ranges_overlap(table_offset, table_size, pba_offset, pba_size)) ||
         table_offset + table_size > memory_region_size(table_bar) ||
-        pba_offset + pba_size > memory_region_size(pba_bar) ||
-        (table_offset | pba_offset) & PCI_MSIX_FLAGS_BIRMASK) {
+        pba_offset + pba_size > memory_region_size(pba_bar)) {
         return -EINVAL;
     }
 
@@ -282,8 +281,8 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     dev->msix_entries_nr = nentries;
     dev->msix_function_masked = true;
 
-    pci_set_long(config + PCI_MSIX_TABLE, table_offset | table_bar_nr);
-    pci_set_long(config + PCI_MSIX_PBA, pba_offset | pba_bar_nr);
+    pci_set_long(config + PCI_MSIX_TABLE, (table_offset << 3) | table_bar_nr);
+    pci_set_long(config + PCI_MSIX_PBA, (pba_offset << 3) | pba_bar_nr);
 
     /* Make flags bit writable. */
     dev->wmask[cap + MSIX_CONTROL_OFFSET] |= MSIX_ENABLE_MASK |
