@@ -58,9 +58,12 @@ struct NetTxPkt {
     bool is_loopback;
 };
 
+#define NET_PKT_MAX_FRAGS    16  /* ref: MAX_SKB_FRAGS in kernel driver */
+
 void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
     uint32_t max_frags, bool has_virt_hdr)
 {
+    assert(max_frags <= NET_PKT_MAX_FRAGS);
     struct NetTxPkt *p = g_malloc0(sizeof *p);
 
     p->pci_dev = pci_dev;
