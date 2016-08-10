@@ -419,6 +419,14 @@ bool qht_reset_size(struct qht *ht, size_t n_elems)
 
     qemu_mutex_lock(&ht->lock);
     map = ht->map;
+
+    if (!map) {
+        new = qht_map_create(n_buckets);
+        atomic_rcu_set(&ht->map, new);
+        qemu_mutex_unlock(&ht->lock);
+        return true;
+    }
+
     if (n_buckets != map->n_buckets) {
         new = qht_map_create(n_buckets);
         resize = true;
