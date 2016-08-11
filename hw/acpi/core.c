@@ -19,6 +19,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "sysemu/sysemu.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
@@ -54,6 +55,7 @@ static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE - ACPI_TABLE_PFX_SIZE] =
 
 char unsigned *acpi_tables;
 size_t acpi_tables_len;
+uint8_t acpi_fadt_rev = 1;
 
 static QemuOptsList qemu_acpi_opts = {
     .name = "acpi",
@@ -228,7 +230,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
 }
 
 static void acpi_table_from_file(bool has_header, const char *file,
-                                 AcpiTableOptions *hdrs, Error **errp)
+                                 const QemuOpts *opts, Error **errp)
 {
     AcpiTableOptions *hdrs = NULL;
     Error *err = NULL;
@@ -302,17 +304,33 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
 
     val = qemu_opt_get((QemuOpts *)opts, "file");
     if (val) {
-        acpi_table_from_file(true, val, hdrs, errp);
+        acpi_table_from_file(true, val, opts, errp);
         return;
     }
 
     val = qemu_opt_get((QemuOpts *)opts, "data");
     if (val) {
-        acpi_table_from_file(false, val, hdrs, errp);
+        acpi_table_from_file(false, val, opts, errp);
         return;
     }
 
-    error_setg(errp, "'-acpitable' requires one of 'data' or 'file'");
+    val = qemu_opt_get((QemuOpts *)opts, "fadt");
+    if (val) {
+        unsigned long rev;
+        int err;
+
+        err = qemu_strtoul(val, NULL, 10, &rev);
+        if (err ||
+            (rev != 1 && rev != 3 && rev != 5)) {
+            error_setg(errp, "Unsupported FADT revision %s, "
+                       "please specify 1,3,5", val);
+            return;
+        }
+        acpi_fadt_rev = rev;
+        return;
+    }
+
+    error_setg(errp, "'-acpitable' requires one of 'data','file' or 'fadt'");
 }
 
 static bool acpi_table_builtin = false;

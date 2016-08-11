@@ -1497,7 +1497,10 @@ DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
     "             [,sig=str][,rev=n]\n"
     "             [,oem_id=str][,oem_table_id=str][,oem_rev=n]\n"
     "             [,asl_compiler_id=str][,asl_compiler_rev=n]\n"
-    "                ACPI table description\n", QEMU_ARCH_I386)
+    "                ACPI table description\n"
+    "-acpitable fadt=n\n"
+    "                Configure FADT revision\n",
+    QEMU_ARCH_I386)
 STEXI
 @item -acpitable data=@var{file1}[:@var{file2}]...[,sig=@var{str}][,rev=@var{n}][,oem_id=@var{str}][,oem_table_id=@var{str}][,oem_rev=@var{n}] [,asl_compiler_id=@var{str}][,asl_compiler_rev=@var{n}]
 @findex -acpitable
@@ -1511,6 +1514,9 @@ If a SLIC table is supplied to QEMU, then the SLIC's oem_id and oem_table_id
 fields will override the same in the RSDT and the FADT (a.k.a. FACP), in order
 to ensure the field matches required by the Microsoft SLIC spec and the ACPI
 spec.
+
+@item -acpitable fadt=@var{n}
+Configure FADT revision to 1, 3, 5, default 1.
 ETEXI
 
 DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,

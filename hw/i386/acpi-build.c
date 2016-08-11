@@ -275,8 +275,22 @@ build_facs(GArray *table_data, BIOSLinker *linker)
     facs->length = cpu_to_le32(sizeof(*facs));
 }
 
+/* GAS */
+static void
+build_gas(struct AcpiGenericAddress *gas, uint8_t space_id,
+          uint8_t bit_width, uint8_t bit_offset,
+          uint8_t access_width, uint64_t address)
+{
+    gas->space_id = space_id;
+    gas->bit_width = bit_width;
+    gas->bit_offset = bit_offset;
+    gas->access_width = access_width;
+    gas->address = address;
+}
+
 /* Load chipset information in FADT */
-static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
+static void fadt_setup(AcpiFadtDescriptorRev5_1 *fadt, AcpiPmInfo *pm,
+                       uint8_t revision)
 {
     fadt->model = 1;
     fadt->reserved1 = 0;
@@ -308,6 +322,25 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
         fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL);
     }
     fadt->century = RTC_CENTURY;
+
+    /* Build ACPI 2.0 (FADT version 3+) GAS fields */
+    if (revision >= 3) {
+        /* EVT, CNT, TMR register matches hw/acpi/core.c */
+        build_gas(&fadt->xpm1a_event_block, AML_SYSTEM_IO,
+                  32, 0, 0, cpu_to_le64(pm->io_base));
+        build_gas(&fadt->xpm1a_control_block, AML_SYSTEM_IO,
+                  16, 0, 0, cpu_to_le64(pm->io_base + 0x04));
+        build_gas(&fadt->xpm_timer_block, AML_SYSTEM_IO,
+                  32, 0, 0, cpu_to_le64(pm->io_base + 0x08));
+        build_gas(&fadt->xgpe0_block, AML_SYSTEM_IO,
+                  pm->gpe0_blk_len << 3, 0, 0, cpu_to_le64(pm->gpe0_blk));
+    }
+
+    /* Build dummy ACPI 5.0 fields */
+    if (revision >= 5) {
+        build_gas(&fadt->sleep_control, AML_SYSTEM_MEMORY, 0, 0, 0, 0);
+        build_gas(&fadt->sleep_status, AML_SYSTEM_MEMORY, 0, 0, 0, 0);
+    }
 }
 
 
@@ -315,11 +348,21 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
 static void
 build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
            unsigned facs_tbl_offset, unsigned dsdt_tbl_offset,
-           const char *oem_id, const char *oem_table_id)
+           const char *oem_id, const char *oem_table_id, uint8_t revision)
 {
-    AcpiFadtDescriptorRev1 *fadt = acpi_data_push(table_data, sizeof(*fadt));
-    unsigned fw_ctrl_offset = (char *)&fadt->firmware_ctrl - table_data->data;
-    unsigned dsdt_entry_offset = (char *)&fadt->dsdt - table_data->data;
+    AcpiFadtDescriptorRev5_1 *fadt;
+    unsigned fw_ctrl_offset;
+    unsigned dsdt_entry_offset;
+    unsigned fadt_len;
+
+    if (revision == 1) {
+        fadt_len = sizeof (AcpiFadtDescriptorRev1);
+    } else {
+        fadt_len = sizeof (AcpiFadtDescriptorRev5_1);
+    }
+    fadt = acpi_data_push(table_data, fadt_len);
+    fw_ctrl_offset = (char *)&fadt->firmware_ctrl - table_data->data;
+    dsdt_entry_offset = (char *)&fadt->dsdt - table_data->data;
 
     /* FACS address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
@@ -327,13 +370,28 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
         ACPI_BUILD_TABLE_FILE, facs_tbl_offset);
 
     /* DSDT address to be filled by Guest linker */
-    fadt_setup(fadt, pm);
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, dsdt_entry_offset, sizeof(fadt->dsdt),
         ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
 
-    build_header(linker, table_data,
-                 (void *)fadt, "FACP", sizeof(*fadt), 1, oem_id, oem_table_id);
+    if (revision > 2) {
+        fw_ctrl_offset = (char *)&fadt->Xfacs - table_data->data;
+        dsdt_entry_offset = (char *)&fadt->Xdsdt - table_data->data;
+
+        /* FACS address to be filled by Guest linker */
+        bios_linker_loader_add_pointer(linker,
+            ACPI_BUILD_TABLE_FILE, fw_ctrl_offset, sizeof(fadt->Xfacs),
+            ACPI_BUILD_TABLE_FILE, facs_tbl_offset);
+
+        /* DSDT address to be filled by Guest linker */
+        bios_linker_loader_add_pointer(linker,
+            ACPI_BUILD_TABLE_FILE, dsdt_entry_offset, sizeof(fadt->Xdsdt),
+            ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
+    }
+
+    fadt_setup(fadt, pm, revision);
+    build_header(linker, table_data, (void *)fadt, "FACP", fadt_len,
+                 revision, oem_id, oem_table_id);
 }
 
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
@@ -2679,7 +2737,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     fadt = tables_blob->len;
     acpi_add_table(table_offsets, tables_blob);
     build_fadt(tables_blob, tables->linker, &pm, facs, dsdt,
-               slic_oem.id, slic_oem.table_id);
+               slic_oem.id, slic_oem.table_id, acpi_fadt_rev);
     aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
