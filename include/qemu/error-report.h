@@ -13,6 +13,8 @@
 #ifndef QEMU_ERROR_REPORT_H
 #define QEMU_ERROR_REPORT_H
 
+#include <unistd.h>
+
 typedef struct Location {
     /* all members are private to qemu-error.c */
     enum { LOC_NONE, LOC_CMDLINE, LOC_FILE } kind;
@@ -36,6 +38,12 @@ void error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void error_set_progname(const char *argv0);
 void error_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+
+#define error_report_exit(...) do {             \
+        error_report(__VA_ARGS__);              \
+        exit(1);                                \
+    } while (0)
+
 const char *error_get_progname(void);
 extern bool enable_timestamp_msg;
 
