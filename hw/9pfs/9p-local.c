@@ -493,6 +493,9 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
     char *buffer = NULL;
 
     v9fs_string_init(&fullname);
+    if (strstr(name, "../")) {
+        return err;
+    }
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
     path = fullname.data;
 
@@ -554,6 +557,9 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     char *buffer = NULL;
 
     v9fs_string_init(&fullname);
+    if (strstr(name, "../")) {
+        return err;
+    }
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
     path = fullname.data;
 
@@ -663,6 +669,9 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     flags |= O_NOFOLLOW;
 
     v9fs_string_init(&fullname);
+    if (strstr(name, "../")) {
+        return err;
+    }
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
     path = fullname.data;
 
@@ -734,6 +743,9 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     char *buffer = NULL;
 
     v9fs_string_init(&fullname);
+    if (strstr(name, "../")) {
+        return err;
+    }
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
     newpath = fullname.data;
 
@@ -830,11 +842,14 @@ out:
 static int local_link(FsContext *ctx, V9fsPath *oldpath,
                       V9fsPath *dirpath, const char *name)
 {
-    int ret;
+    int ret = -1;
     V9fsString newpath;
     char *buffer, *buffer1;
 
     v9fs_string_init(&newpath);
+    if (strstr(name, "../")) {
+        return ret;
+    }
     v9fs_string_sprintf(&newpath, "%s/%s", dirpath->data, name);
 
     buffer = rpath(ctx, oldpath->data);
@@ -1059,6 +1074,9 @@ static int local_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
 static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
                               const char *name, V9fsPath *target)
 {
+    if (strstr(name, "../")) {
+        return -1;
+    }
     if (dir_path) {
         v9fs_string_sprintf((V9fsString *)target, "%s/%s",
                             dir_path->data, name);
@@ -1074,12 +1092,15 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
                           const char *old_name, V9fsPath *newdir,
                           const char *new_name)
 {
-    int ret;
+    int ret = -1;
     V9fsString old_full_name, new_full_name;
 
     v9fs_string_init(&old_full_name);
     v9fs_string_init(&new_full_name);
 
+    if (strstr(old_name, "../") || strstr(new_name, "../")) {
+        return ret;
+    }
     v9fs_string_sprintf(&old_full_name, "%s/%s", olddir->data, old_name);
     v9fs_string_sprintf(&new_full_name, "%s/%s", newdir->data, new_name);
 
@@ -1092,12 +1113,14 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
 static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
                           const char *name, int flags)
 {
-    int ret;
+    int ret = -1;
     V9fsString fullname;
     char *buffer;
 
     v9fs_string_init(&fullname);
-
+    if (strstr(name, "../")) {
+        return ret;
+    }
     v9fs_string_sprintf(&fullname, "%s/%s", dir->data, name);
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         if (flags == AT_REMOVEDIR) {
