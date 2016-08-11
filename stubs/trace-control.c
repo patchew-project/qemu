@@ -21,8 +21,13 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
     TraceEventID id;
     assert(trace_event_get_state_static(ev));
     id = trace_event_get_id(ev);
-    trace_events_enabled_count += state - trace_events_dstate[id];
-    trace_events_dstate[id] = state;
+    if (state) {
+        trace_events_enabled_count++;
+        trace_events_dstate[id] = 1;
+    } else {
+        trace_events_enabled_count--;
+        trace_events_dstate[id] = 0;
+    }
 }
 
 void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
