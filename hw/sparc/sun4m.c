@@ -943,22 +943,19 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                              slavio_irq[16], iommu, &ledma_irq, 1);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
-        error_report("Unsupported depth: %d", graphic_depth);
-        exit (1);
+        error_report_exit("Unsupported depth: %d", graphic_depth);
     }
     num_vsimms = 0;
     if (num_vsimms == 0) {
         if (vga_interface_type == VGA_CG3) {
             if (graphic_depth != 8) {
-                error_report("Unsupported depth: %d", graphic_depth);
-                exit(1);
+                error_report_exit("Unsupported depth: %d", graphic_depth);
             }
 
             if (!(graphic_width == 1024 && graphic_height == 768) &&
                 !(graphic_width == 1152 && graphic_height == 900)) {
-                error_report("Unsupported resolution: %d x %d", graphic_width,
-                             graphic_height);
-                exit(1);
+                error_report_exit("Unsupported resolution: %d x %d",
+                                  graphic_width, graphic_height);
             }
 
             /* sbus irq 5 */
@@ -967,14 +964,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         } else {
             /* If no display specified, default to TCX */
             if (graphic_depth != 8 && graphic_depth != 24) {
-                error_report("Unsupported depth: %d", graphic_depth);
-                exit(1);
+                error_report_exit("Unsupported depth: %d", graphic_depth);
             }
 
             if (!(graphic_width == 1024 && graphic_height == 768)) {
-                error_report("Unsupported resolution: %d x %d",
-                             graphic_width, graphic_height);
-                exit(1);
+                error_report_exit("Unsupported resolution: %d x %d",
+                                  graphic_width, graphic_height);
             }
 
             tcx_init(hwdef->tcx_base, slavio_irq[11], 0x00100000,

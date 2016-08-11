@@ -220,14 +220,12 @@ void audio_init(void)
         if (c->enabled) {
             if (c->isa) {
                 if (!isa_bus) {
-                    error_report("ISA bus not available for %s", c->name);
-                    exit(1);
+                    error_report_exit("ISA bus not available for %s", c->name);
                 }
                 c->init.init_isa(isa_bus);
             } else {
                 if (!pci_bus) {
-                    error_report("PCI bus not available for %s", c->name);
-                    exit(1);
+                    error_report_exit("PCI bus not available for %s", c->name);
                 }
                 c->init.init_pci(pci_bus);
             }

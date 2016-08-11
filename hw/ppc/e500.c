@@ -207,9 +207,8 @@ static int sysbus_device_create_devtree(SysBusDevice *sbdev, void *opaque)
     }
 
     if (!matched) {
-        error_report("Device %s is not supported by this machine yet.",
-                     qdev_fw_name(DEVICE(sbdev)));
-        exit(1);
+        error_report_exit("Device %s is not supported by this machine yet.",
+                          qdev_fw_name(DEVICE(sbdev)));
     }
 
     return 0;

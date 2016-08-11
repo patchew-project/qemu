@@ -109,15 +109,13 @@ static void clipper_init(MachineState *machine)
     palcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
                                 bios_name ? bios_name : "palcode-clipper");
     if (palcode_filename == NULL) {
-        error_report("no palcode provided");
-        exit(1);
+        error_report_exit("no palcode provided");
     }
     size = load_elf(palcode_filename, cpu_alpha_superpage_to_phys,
                     NULL, &palcode_entry, &palcode_low, &palcode_high,
                     0, EM_ALPHA, 0, 0);
     if (size < 0) {
-        error_report("could not load palcode '%s'", palcode_filename);
-        exit(1);
+        error_report_exit("could not load palcode '%s'", palcode_filename);
     }
     g_free(palcode_filename);
 
@@ -136,8 +134,7 @@ static void clipper_init(MachineState *machine)
                         NULL, &kernel_entry, &kernel_low, &kernel_high,
                         0, EM_ALPHA, 0, 0);
         if (size < 0) {
-            error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
+            error_report_exit("could not load kernel '%s'", kernel_filename);
         }
 
         cpus[0]->env.trap_arg1 = kernel_entry;
@@ -153,9 +150,8 @@ static void clipper_init(MachineState *machine)
 
             initrd_size = get_image_size(initrd_filename);
             if (initrd_size < 0) {
-                error_report("could not load initial ram disk '%s'",
-                             initrd_filename);
-                exit(1);
+                error_report_exit("could not load initial ram disk '%s'",
+                                  initrd_filename);
             }
 
             /* Put the initrd image as high in memory as possible.  */

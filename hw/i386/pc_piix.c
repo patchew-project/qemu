@@ -404,8 +404,7 @@ static void pc_xen_hvm_init(MachineState *machine)
     PCIBus *bus;
 
     if (!xen_enabled()) {
-        error_report("xenfv machine requires the xen accelerator");
-        exit(1);
+        error_report_exit("xenfv machine requires the xen accelerator");
     }
 
     pc_xen_hvm_init_pci(machine);
