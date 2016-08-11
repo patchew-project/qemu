@@ -31,8 +31,6 @@ int trace_events_enabled_count;
  * - true : Integral counting the number of vCPUs that have this event enabled.
  */
 uint16_t trace_events_dstate[TRACE_EVENT_COUNT];
-/* Marks events for late vCPU state init */
-static bool trace_events_dstate_init[TRACE_EVENT_COUNT];
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -142,10 +140,7 @@ static void do_trace_enable_events(const char *line_buf)
         TraceEvent *ev = NULL;
         while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
             if (trace_event_get_state_static(ev)) {
-                /* start tracing */
-                trace_event_set_state_dynamic(ev, enable);
-                /* mark for late vCPU init */
-                trace_events_dstate_init[ev->id] = true;
+                trace_event_set_state_dynamic_init(ev, enable);
             }
         }
     } else {
@@ -157,10 +152,7 @@ static void do_trace_enable_events(const char *line_buf)
             error_report("WARNING: trace event '%s' is not traceable",
                          line_ptr);
         } else {
-            /* start tracing */
-            trace_event_set_state_dynamic(ev, enable);
-            /* mark for late vCPU init */
-            trace_events_dstate_init[ev->id] = true;
+            trace_event_set_state_dynamic_init(ev, enable);
         }
     }
 }
@@ -275,9 +267,14 @@ void trace_init_vcpu_events(void)
 {
     TraceEvent *ev = NULL;
     while ((ev = trace_event_pattern("*", ev)) != NULL) {
-        if (trace_event_is_vcpu(ev) &&
-            trace_event_get_state_static(ev) &&
-            trace_events_dstate_init[ev->id]) {
+        if (trace_event_is_vcpu(ev) && trace_event_get_state_dynamic(ev)) {
+            TraceEventID id = trace_event_get_id(ev);
+            /* check preconditions */
+            assert(trace_events_dstate[id] == 1);
+            /* disable early-init state ... */
+            trace_events_dstate[id] = 0;
+            trace_events_enabled_count--;
+            /* ... and properly re-enable */
             trace_event_set_state_dynamic(ev, true);
         }
     }
