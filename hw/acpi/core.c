@@ -89,8 +89,6 @@ static int acpi_checksum(const uint8_t *data, int len)
  * It is valid to call this function with
  * (@blob == NULL && bloblen == 0 && !has_header).
  *
- * @hdrs->file and @hdrs->data are ignored.
- *
  * SIZE_MAX is considered "infinity" in this function.
  *
  * The number of tables that can be installed is not limited, but the 16-bit
@@ -229,7 +227,8 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
                                       ACPI_TABLE_PFX_SIZE, acpi_payload_size);
 }
 
-void acpi_table_add(const QemuOpts *opts, Error **errp)
+static void acpi_table_from_file(bool has_header, const char *file,
+                                 AcpiTableOptions *hdrs, Error **errp)
 {
     AcpiTableOptions *hdrs = NULL;
     Error *err = NULL;
@@ -249,12 +248,8 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
     if (err) {
         goto out;
     }
-    if (hdrs->has_file == hdrs->has_data) {
-        error_setg(&err, "'-acpitable' requires one of 'data' or 'file'");
-        goto out;
-    }
 
-    pathnames = g_strsplit(hdrs->has_file ? hdrs->file : hdrs->data, ":", 0);
+    pathnames = g_strsplit(file, ":", 0);
     if (pathnames == NULL || pathnames[0] == NULL) {
         error_setg(&err, "'-acpitable' requires at least one pathname");
         goto out;
@@ -291,7 +286,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         close(fd);
     }
 
-    acpi_table_install(blob, bloblen, hdrs->has_file, hdrs, &err);
+    acpi_table_install(blob, bloblen, has_header, hdrs, &err);
 
 out:
     g_free(blob);
@@ -299,6 +294,25 @@ out:
     qapi_free_AcpiTableOptions(hdrs);
 
     error_propagate(errp, err);
+}
+
+void acpi_table_add(const QemuOpts *opts, Error **errp)
+{
+    const char *val;
+
+    val = qemu_opt_get((QemuOpts *)opts, "file");
+    if (val) {
+        acpi_table_from_file(true, val, hdrs, errp);
+        return;
+    }
+
+    val = qemu_opt_get((QemuOpts *)opts, "data");
+    if (val) {
+        acpi_table_from_file(false, val, hdrs, errp);
+        return;
+    }
+
+    error_setg(errp, "'-acpitable' requires one of 'data' or 'file'");
 }
 
 static bool acpi_table_builtin = false;
