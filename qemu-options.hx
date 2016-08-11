@@ -1493,10 +1493,13 @@ Disable HPET support.
 ETEXI
 
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
-    "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,{data|file}=file1[:file2]...]\n"
+    "-acpitable {data|file}=file1[:file2]...\n"
+    "             [,sig=str][,rev=n]\n"
+    "             [,oem_id=str][,oem_table_id=str][,oem_rev=n]\n"
+    "             [,asl_compiler_id=str][,asl_compiler_rev=n]\n"
     "                ACPI table description\n", QEMU_ARCH_I386)
 STEXI
-@item -acpitable [sig=@var{str}][,rev=@var{n}][,oem_id=@var{str}][,oem_table_id=@var{str}][,oem_rev=@var{n}] [,asl_compiler_id=@var{str}][,asl_compiler_rev=@var{n}][,data=@var{file1}[:@var{file2}]...]
+@item -acpitable data=@var{file1}[:@var{file2}]...[,sig=@var{str}][,rev=@var{n}][,oem_id=@var{str}][,oem_table_id=@var{str}][,oem_rev=@var{n}] [,asl_compiler_id=@var{str}][,asl_compiler_rev=@var{n}]
 @findex -acpitable
 Add ACPI table with specified header fields and context from specified files.
 For file=, take whole ACPI table from the specified files, including all
