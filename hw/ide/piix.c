@@ -144,7 +144,7 @@ static void pci_piix_init_ports(PCIIDEState *d) {
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
-        ide_register_restart_cb(&d->bus[i]);
+        ide_register_restart_cb(&d->bus[i], d->vmstate);
     }
 }
 

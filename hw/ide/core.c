@@ -2579,10 +2579,10 @@ static void ide_restart_cb(void *opaque, int running, RunState state)
     }
 }
 
-void ide_register_restart_cb(IDEBus *bus)
+void ide_register_restart_cb(IDEBus *bus, VMChangeStateEntry *e)
 {
     if (bus->dma->ops->restart_dma) {
-        qemu_add_vm_change_state_handler(ide_restart_cb, bus);
+        e = qemu_add_vm_change_state_handler(ide_restart_cb, bus);
     }
 }
 

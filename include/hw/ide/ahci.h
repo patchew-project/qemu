@@ -298,6 +298,7 @@ typedef struct AHCIState {
     int32_t ports;
     qemu_irq irq;
     AddressSpace *as;
+    VMChangeStateEntry *vmstate;
 } AHCIState;
 
 typedef struct AHCIPCIState {

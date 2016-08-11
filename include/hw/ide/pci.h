@@ -57,6 +57,7 @@ typedef struct PCIIDEState {
     uint32_t secondary; /* used only for cmd646 */
     MemoryRegion bmdma_bar;
     CMD646BAR cmd646_bar[2]; /* used only for cmd646 */
+    VMChangeStateEntry *vmstate;
 } PCIIDEState;
 
 
