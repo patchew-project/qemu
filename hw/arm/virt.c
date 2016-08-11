@@ -240,8 +240,7 @@ static void create_fdt(VirtBoardInfo *vbi)
     void *fdt = create_device_tree(&vbi->fdt_size);
 
     if (!fdt) {
-        error_report("create_device_tree() failed");
-        exit(1);
+        error_report_exit("create_device_tree() failed");
     }
 
     vbi->fdt = fdt;
@@ -814,21 +813,18 @@ static void create_one_flash(const char *name, hwaddr flashbase,
         int image_size;
 
         if (drive_get(IF_PFLASH, 0, 0)) {
-            error_report("The contents of the first flash device may be "
-                         "specified with -bios or with -drive if=pflash... "
-                         "but you cannot use both options at once");
-            exit(1);
+            error_report_exit("The contents of the first flash device may be "
+                              "specified with -bios or with -drive if=pflash"
+                              "... but you cannot use both options at once");
         }
         fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, file);
         if (!fn) {
-            error_report("Could not find ROM image '%s'", file);
-            exit(1);
+            error_report_exit("Could not find ROM image '%s'", file);
         }
         image_size = load_image_mr(fn, sysbus_mmio_get_region(sbd, 0));
         g_free(fn);
         if (image_size < 0) {
-            error_report("Could not load ROM image '%s'", file);
-            exit(1);
+            error_report_exit("Could not load ROM image '%s'", file);
         }
     }
 }
@@ -1195,14 +1191,12 @@ static void machvirt_init(MachineState *machine)
      */
     if (!gic_version) {
         if (!kvm_enabled()) {
-            error_report("gic-version=host requires KVM");
-            exit(1);
+            error_report_exit("gic-version=host requires KVM");
         }
 
         gic_version = kvm_arm_vgic_probe();
         if (!gic_version) {
-            error_report("Unable to determine GIC version supported by host");
-            exit(1);
+            error_report_exit("Unable to determine GIC version supported by host");
         }
     }
 
@@ -1212,8 +1206,7 @@ static void machvirt_init(MachineState *machine)
     vbi = find_machine_info(cpustr[0]);
 
     if (!vbi) {
-        error_report("mach-virt: CPU %s not supported", cpustr[0]);
-        exit(1);
+        error_report_exit("mach-virt: CPU %s not supported", cpustr[0]);
     }
 
     /* If we have an EL3 boot ROM then the assumption is that it will
@@ -1237,23 +1230,21 @@ static void machvirt_init(MachineState *machine)
     }
 
     if (max_cpus > virt_max_cpus) {
-        error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
-                     "supported by machine 'mach-virt' (%d)",
-                     max_cpus, virt_max_cpus);
-        exit(1);
+        error_report_exit("Number of SMP CPUs requested (%d) exceeds max CPUs "
+                          "supported by machine 'mach-virt' (%d)",
+                          max_cpus, virt_max_cpus);
     }
 
     vbi->smp_cpus = smp_cpus;
 
     if (machine->ram_size > vbi->memmap[VIRT_MEM].size) {
-        error_report("mach-virt: cannot model more than %dGB RAM", RAMLIMIT_GB);
-        exit(1);
+        error_report_exit("mach-virt: cannot model more than %dGB RAM",
+                          RAMLIMIT_GB);
     }
 
     if (vms->secure) {
         if (kvm_enabled()) {
-            error_report("mach-virt: KVM does not support Security extensions");
-            exit(1);
+            error_report_exit("mach-virt: KVM does not support Security extensions");
         }
 
         /* The Secure view of the world is the same as the NonSecure,
@@ -1271,8 +1262,7 @@ static void machvirt_init(MachineState *machine)
 
     oc = cpu_class_by_name(TYPE_ARM_CPU, cpustr[0]);
     if (!oc) {
-        error_report("Unable to find CPU definition");
-        exit(1);
+        error_report_exit("Unable to find CPU definition");
     }
     typename = object_class_get_name(oc);
 

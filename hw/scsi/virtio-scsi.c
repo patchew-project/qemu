@@ -83,8 +83,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
 
 static void virtio_scsi_bad_req(void)
 {
-    error_report("wrong size for virtio-scsi headers");
-    exit(1);
+    error_report_exit("wrong size for virtio-scsi headers");
 }
 
 static size_t qemu_sgl_concat(VirtIOSCSIReq *req, struct iovec *iov,
@@ -207,8 +206,7 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
                               sizeof(VirtIOSCSICmdResp) + vs->sense_size) < 0) {
-        error_report("invalid SCSI request migration data");
-        exit(1);
+        error_report_exit("invalid SCSI request migration data");
     }
 
     scsi_req_ref(sreq);
@@ -624,8 +622,7 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 
     if ((uint32_t) virtio_ldl_p(vdev, &scsiconf->sense_size) >= 65536 ||
         (uint32_t) virtio_ldl_p(vdev, &scsiconf->cdb_size) >= 256) {
-        error_report("bad data written to virtio-scsi configuration space");
-        exit(1);
+        error_report_exit("bad data written to virtio-scsi configuration space");
     }
 
     vs->sense_size = virtio_ldl_p(vdev, &scsiconf->sense_size);

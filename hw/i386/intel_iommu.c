@@ -2471,9 +2471,8 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
     if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
         !kvm_irqchip_is_split()) {
-        error_report("Intel Interrupt Remapping cannot work with "
-                     "kernel-irqchip=on, please use 'split|off'.");
-        exit(1);
+        error_report_exit("Intel Interrupt Remapping cannot work with "
+                          "kernel-irqchip=on, please use 'split|off'.");
     }
 }
 

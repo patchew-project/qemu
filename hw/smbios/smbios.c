@@ -330,9 +330,8 @@ static void smbios_validate_table(void)
     uint32_t expect_t4_count = smbios_legacy ? smp_cpus : smbios_smp_sockets;
 
     if (smbios_type4_count && smbios_type4_count != expect_t4_count) {
-        error_report("Expected %d SMBIOS Type 4 tables, got %d instead",
-                     expect_t4_count, smbios_type4_count);
-        exit(1);
+        error_report_exit("Expected %d SMBIOS Type 4 tables, got %d instead",
+                          expect_t4_count, smbios_type4_count);
     }
 }
 
@@ -731,9 +730,8 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
         /* in legacy mode, also complain if fields were given for types > 1 */
         if (find_next_bit(have_fields_bitmap,
                           SMBIOS_MAX_TYPE+1, 2) < SMBIOS_MAX_TYPE+1) {
-            error_report("can't process fields for smbios "
-                         "types > 1 on machine versions < 2.1!");
-            exit(1);
+            error_report_exit("can't process fields for smbios "
+                              "types > 1 on machine versions < 2.1!");
         }
     } else {
         g_free(smbios_entries);
@@ -897,8 +895,7 @@ void smbios_entry_add(QemuOpts *opts)
 
         size = get_image_size(val);
         if (size == -1 || size < sizeof(struct smbios_structure_header)) {
-            error_report("Cannot read SMBIOS file %s", val);
-            exit(1);
+            error_report_exit("Cannot read SMBIOS file %s", val);
         }
 
         /*
@@ -911,14 +908,12 @@ void smbios_entry_add(QemuOpts *opts)
                                                     smbios_tables_len);
 
         if (load_image(val, (uint8_t *)header) != size) {
-            error_report("Failed to load SMBIOS file %s", val);
-            exit(1);
+            error_report_exit("Failed to load SMBIOS file %s", val);
         }
 
         if (test_bit(header->type, have_fields_bitmap)) {
-            error_report("can't load type %d struct, fields already specified!",
-                         header->type);
-            exit(1);
+            error_report_exit("can't load type %d struct, fields already specified!",
+                              header->type);
         }
         set_bit(header->type, have_binfile_bitmap);
 
@@ -963,13 +958,11 @@ void smbios_entry_add(QemuOpts *opts)
         unsigned long type = strtoul(val, NULL, 0);
 
         if (type > SMBIOS_MAX_TYPE) {
-            error_report("out of range!");
-            exit(1);
+            error_report_exit("out of range!");
         }
 
         if (test_bit(type, have_binfile_bitmap)) {
-            error_report("can't add fields, binary file already loaded!");
-            exit(1);
+            error_report_exit("can't add fields, binary file already loaded!");
         }
         set_bit(type, have_fields_bitmap);
 
@@ -984,8 +977,7 @@ void smbios_entry_add(QemuOpts *opts)
             val = qemu_opt_get(opts, "release");
             if (val) {
                 if (sscanf(val, "%hhu.%hhu", &type0.major, &type0.minor) != 2) {
-                    error_report("Invalid release");
-                    exit(1);
+                    error_report_exit("Invalid release");
                 }
                 type0.have_major_minor = true;
             }
@@ -1002,8 +994,7 @@ void smbios_entry_add(QemuOpts *opts)
             val = qemu_opt_get(opts, "uuid");
             if (val) {
                 if (qemu_uuid_parse(val, qemu_uuid) != 0) {
-                    error_report("Invalid UUID");
-                    exit(1);
+                    error_report_exit("Invalid UUID");
                 }
                 qemu_uuid_set = true;
             }
@@ -1045,12 +1036,10 @@ void smbios_entry_add(QemuOpts *opts)
             type17.speed = qemu_opt_get_number(opts, "speed", 0);
             return;
         default:
-            error_report("Don't know how to build fields for SMBIOS type %ld",
-                         type);
-            exit(1);
+            error_report_exit("Don't know how to build fields for SMBIOS type %ld",
+                              type);
         }
     }
 
-    error_report("Must specify type= or file=");
-    exit(1);
+    error_report_exit("Must specify type= or file=");
 }

@@ -274,9 +274,8 @@ static void validate_numa_cpus(void)
                               MAX_CPUMASK_BITS)) {
             bitmap_and(seen_cpus, seen_cpus,
                        numa_info[i].node_cpu, MAX_CPUMASK_BITS);
-            error_report("CPU(s) present in multiple NUMA nodes: %s",
-                         enumerate_cpus(seen_cpus, max_cpus));
-            exit(EXIT_FAILURE);
+            error_report_exit("CPU(s) present in multiple NUMA nodes: %s",
+                              enumerate_cpus(seen_cpus, max_cpus));
         }
         bitmap_or(seen_cpus, seen_cpus,
                   numa_info[i].node_cpu, MAX_CPUMASK_BITS);
@@ -307,8 +306,7 @@ void parse_numa_opts(MachineClass *mc)
     for (i = max_numa_nodeid - 1; i >= 0; i--) {
         /* Report large node IDs first, to make mistakes easier to spot */
         if (!numa_info[i].present) {
-            error_report("numa: Node ID missing: %d", i);
-            exit(1);
+            error_report_exit("numa: Node ID missing: %d", i);
         }
     }
 
@@ -349,10 +347,9 @@ void parse_numa_opts(MachineClass *mc)
             numa_total += numa_info[i].node_mem;
         }
         if (numa_total != ram_size) {
-            error_report("total memory for NUMA nodes (0x%" PRIx64 ")"
-                         " should equal RAM size (0x" RAM_ADDR_FMT ")",
-                         numa_total, ram_size);
-            exit(1);
+            error_report_exit("total memory for NUMA nodes (0x%" PRIx64 ")"
+                              " should equal RAM size (0x" RAM_ADDR_FMT ")",
+                              numa_total, ram_size);
         }
 
         for (i = 0; i < nb_numa_nodes; i++) {
@@ -458,10 +455,9 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 
         if (memory_region_is_mapped(seg)) {
             char *path = object_get_canonical_path_component(OBJECT(backend));
-            error_report("memory backend %s is used multiple times. Each "
-                         "-numa option must use a different memdev value.",
-                         path);
-            exit(1);
+            error_report_exit("memory backend %s is used multiple times. Each "
+                              "-numa option must use a different memdev value.",
+                              path);
         }
 
         host_memory_backend_set_mapped(backend, true);

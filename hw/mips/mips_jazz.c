@@ -196,8 +196,7 @@ static void mips_jazz_init(MachineState *machine,
         bios_size = -1;
     }
     if ((bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) && !qtest_enabled()) {
-        error_report("Could not load MIPS bios '%s'", bios_name);
-        exit(1);
+        error_report_exit("Could not load MIPS bios '%s'", bios_name);
     }
 
     /* Init CPU internal devices */

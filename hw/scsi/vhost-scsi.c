@@ -171,8 +171,7 @@ static void vhost_scsi_set_config(VirtIODevice *vdev,
 
     if ((uint32_t) virtio_ldl_p(vdev, &scsiconf->sense_size) != vs->sense_size ||
         (uint32_t) virtio_ldl_p(vdev, &scsiconf->cdb_size) != vs->cdb_size) {
-        error_report("vhost-scsi does not support changing the sense data and CDB sizes");
-        exit(1);
+        error_report_exit("vhost-scsi does not support changing the sense data and CDB sizes");
     }
 }
 
@@ -190,11 +189,8 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
 
         ret = vhost_scsi_start(s);
         if (ret < 0) {
-            error_report("virtio-scsi: unable to start vhost: %s",
-                         strerror(-ret));
-
-            /* There is no userspace virtio-scsi fallback so exit */
-            exit(1);
+            error_report_exit("virtio-scsi: unable to start vhost: %s",
+                              strerror(-ret));
         }
     } else {
         vhost_scsi_stop(s);

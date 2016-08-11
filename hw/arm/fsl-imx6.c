@@ -36,9 +36,8 @@ static void fsl_imx6_init(Object *obj)
     int i;
 
     if (smp_cpus > FSL_IMX6_NUM_CPUS) {
-        error_report("%s: Only %d CPUs are supported (%d requested)",
-                     TYPE_FSL_IMX6, FSL_IMX6_NUM_CPUS, smp_cpus);
-        exit(1);
+        error_report_exit("%s: Only %d CPUs are supported (%d requested)",
+                          TYPE_FSL_IMX6, FSL_IMX6_NUM_CPUS, smp_cpus);
     }
 
     for (i = 0; i < smp_cpus; i++) {

@@ -1168,14 +1168,13 @@ void pc_cpus_init(PCMachineState *pcms)
 
     model_pieces = g_strsplit(machine->cpu_model, ",", 2);
     if (!model_pieces[0]) {
-        error_report("Invalid/empty CPU model name");
-        exit(1);
+        error_report_exit("Invalid/empty CPU model name");
     }
 
     oc = cpu_class_by_name(TYPE_X86_CPU, model_pieces[0]);
     if (oc == NULL) {
-        error_report("Unable to find CPU definition: %s", model_pieces[0]);
-        exit(1);
+        error_report_exit("Unable to find CPU definition: %s",
+                          model_pieces[0]);
     }
     typename = object_class_get_name(oc);
     cc = CPU_CLASS(oc);
@@ -1191,9 +1190,8 @@ void pc_cpus_init(PCMachineState *pcms)
      */
     pcms->apic_id_limit = x86_cpu_apic_id_from_index(max_cpus - 1) + 1;
     if (pcms->apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
-        error_report("max_cpus is too large. APIC ID of last CPU is %u",
-                     pcms->apic_id_limit - 1);
-        exit(1);
+        error_report_exit("max_cpus is too large. APIC ID of last CPU is %u",
+                          pcms->apic_id_limit - 1);
     }
 
     pcms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
@@ -1392,9 +1390,8 @@ void pc_memory_init(PCMachineState *pcms,
          (machine->maxram_size > machine->ram_size))) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-        error_report("\"-memory 'slots|maxmem'\" is not supported by: %s",
-                     mc->name);
-        exit(EXIT_FAILURE);
+        error_report_exit("\"-memory 'slots|maxmem'\" is not supported by: %s",
+                          mc->name);
     }
 
     /* initialize hotplug memory address space */
@@ -1404,16 +1401,14 @@ void pc_memory_init(PCMachineState *pcms,
             machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
-            error_report("unsupported amount of memory slots: %"PRIu64,
-                         machine->ram_slots);
-            exit(EXIT_FAILURE);
+            error_report_exit("unsupported amount of memory slots: %" PRIu64,
+                              machine->ram_slots);
         }
 
         if (QEMU_ALIGN_UP(machine->maxram_size,
                           TARGET_PAGE_SIZE) != machine->maxram_size) {
-            error_report("maximum memory size must by aligned to multiple of "
-                         "%d bytes", TARGET_PAGE_SIZE);
-            exit(EXIT_FAILURE);
+            error_report_exit("maximum memory size must by aligned to multiple"
+                              " of %d bytes", TARGET_PAGE_SIZE);
         }
 
         pcms->hotplug_memory.base =
@@ -1426,9 +1421,8 @@ void pc_memory_init(PCMachineState *pcms,
 
         if ((pcms->hotplug_memory.base + hotplug_mem_size) <
             hotplug_mem_size) {
-            error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
-                         machine->maxram_size);
-            exit(EXIT_FAILURE);
+            error_report_exit("unsupported amount of maximum memory: " RAM_ADDR_FMT,
+                              machine->maxram_size);
         }
 
         memory_region_init(&pcms->hotplug_memory.mr, OBJECT(pcms),
@@ -2092,8 +2086,7 @@ bool pc_machine_is_smm_enabled(PCMachineState *pcms)
     }
 
     if (pcms->smm == ON_OFF_AUTO_ON) {
-        error_report("System Management Mode not supported by this hypervisor.");
-        exit(1);
+        error_report_exit("System Management Mode not supported by this hypervisor.");
     }
     return false;
 }

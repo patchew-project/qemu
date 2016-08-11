@@ -40,10 +40,8 @@ static void xlnx_ep108_init(MachineState *machine)
 
     /* Create the memory region to pass to the SoC */
     if (ram_size > XLNX_ZYNQMP_MAX_RAM_SIZE) {
-        error_report("ERROR: RAM size 0x%" PRIx64 " above max supported of "
-                     "0x%llx", ram_size,
-                     XLNX_ZYNQMP_MAX_RAM_SIZE);
-        exit(1);
+        error_report_exit("ERROR: RAM size 0x%" PRIx64 " above max supported "
+                          "of 0x%llx", ram_size, XLNX_ZYNQMP_MAX_RAM_SIZE);
     }
 
     if (ram_size < 0x08000000) {
@@ -75,8 +73,7 @@ static void xlnx_ep108_init(MachineState *machine)
         bus = qdev_get_child_bus(DEVICE(&s->soc), bus_name);
         g_free(bus_name);
         if (!bus) {
-            error_report("No SD bus found for SD card %d", i);
-            exit(1);
+            error_report_exit("No SD bus found for SD card %d", i);
         }
         carddev = qdev_create(bus, TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);

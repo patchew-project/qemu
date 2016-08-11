@@ -448,9 +448,8 @@ static int add_fdt_node(SysBusDevice *sbdev, void *opaque)
             return 0;
         }
     }
-    error_report("Device %s can not be dynamically instantiated",
-                     qdev_fw_name(DEVICE(sbdev)));
-    exit(1);
+    error_report_exit("Device %s can not be dynamically instantiated",
+                      qdev_fw_name(DEVICE(sbdev)));
 }
 
 /**

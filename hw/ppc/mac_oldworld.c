@@ -157,8 +157,7 @@ static void ppc_heathrow_init(MachineState *machine)
         bios_size = -1;
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        error_report("could not load PowerPC bios '%s'", bios_name);
-        exit(1);
+        error_report_exit("could not load PowerPC bios '%s'", bios_name);
     }
 
     if (linux_boot) {
@@ -183,8 +182,7 @@ static void ppc_heathrow_init(MachineState *machine)
                                               kernel_base,
                                               ram_size - kernel_base);
         if (kernel_size < 0) {
-            error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
+            error_report_exit("could not load kernel '%s'", kernel_filename);
         }
         /* load initrd */
         if (initrd_filename) {
@@ -192,9 +190,8 @@ static void ppc_heathrow_init(MachineState *machine)
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               ram_size - initrd_base);
             if (initrd_size < 0) {
-                error_report("could not load initial ram disk '%s'",
-                             initrd_filename);
-                exit(1);
+                error_report_exit("could not load initial ram disk '%s'",
+                                  initrd_filename);
             }
             cmdline_base = round_page(initrd_base + initrd_size);
         } else {
@@ -250,8 +247,7 @@ static void ppc_heathrow_init(MachineState *machine)
                 ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
             break;
         default:
-            error_report("Bus model not supported on OldWorld Mac machine");
-            exit(1);
+            error_report_exit("Bus model not supported on OldWorld Mac machine");
         }
     }
 
@@ -264,8 +260,7 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* init basic PC hardware */
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
-        error_report("Only 6xx bus is supported on heathrow machine");
-        exit(1);
+        error_report_exit("Only 6xx bus is supported on heathrow machine");
     }
     pic = heathrow_pic_init(&pic_mem, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic,
