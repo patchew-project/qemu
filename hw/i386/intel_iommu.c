@@ -2364,7 +2364,10 @@ static void vtd_init(IntelIOMMUState *s)
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
-        s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM | VTD_ECAP_MHMV;
+        s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
+        if (s->eim_supported) {
+            s->ecap |= VTD_ECAP_EIM;
+        }
     }
 
     vtd_reset_context_cache(s);
@@ -2468,6 +2471,12 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     /* Pseudo address space under root PCI bus. */
     pcms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
 
+    /* EIM bit requires IR */
+    if (s->eim_supported && !x86_iommu->intr_supported) {
+        error_report("EIM (Extended Interrupt Mode) bit requires intremap=on");
+        exit(1);
+    }
+
     /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
     if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
         !kvm_irqchip_is_split()) {
@@ -2490,9 +2499,35 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     x86_class->int_remap = vtd_int_remap;
 }
 
+static bool vtd_eim_prop_get(Object *o, Error **errp)
+{
+    IntelIOMMUState *s = INTEL_IOMMU_DEVICE(o);
+    return s->eim_supported;
+}
+
+static void vtd_eim_prop_set(Object *o, bool value, Error **errp)
+{
+    IntelIOMMUState *s = INTEL_IOMMU_DEVICE(o);
+    s->eim_supported = value;
+}
+
+static void vtd_instance_init(Object *o)
+{
+    IntelIOMMUState *s = INTEL_IOMMU_DEVICE(o);
+
+    /*
+     * TODO: we can enable this by default after we have full x2apic
+     * support.
+     */
+    s->eim_supported = false;
+    object_property_add_bool(o, "eim", vtd_eim_prop_get,
+                             vtd_eim_prop_set, NULL);
+}
+
 static const TypeInfo vtd_info = {
     .name          = TYPE_INTEL_IOMMU_DEVICE,
     .parent        = TYPE_X86_IOMMU_DEVICE,
+    .instance_init = vtd_instance_init,
     .instance_size = sizeof(IntelIOMMUState),
     .class_init    = vtd_class_init,
 };
