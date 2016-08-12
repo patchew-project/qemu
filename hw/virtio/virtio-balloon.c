@@ -99,6 +99,16 @@ static void balloon_stats_poll_cb(void *opaque)
     VirtIOBalloon *s = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
+    /* After live migration we fetch the current element again */
+    if (s->stats_vq_elem == NULL && virtqueue_rewind(s->svq, 1)) {
+        VirtQueueElement *elem = virtqueue_pop(s->svq, sizeof(*elem));
+
+        if (elem) {
+            s->stats_vq_offset = iov_size(elem->out_sg, elem->out_num);
+            s->stats_vq_elem = elem;
+        }
+    }
+
     if (s->stats_vq_elem == NULL || !balloon_stats_supported(s)) {
         /* re-schedule */
         balloon_stats_change_timer(s, s->stats_poll_interval);
