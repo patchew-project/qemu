@@ -20,7 +20,7 @@
 #include "net/checksum.h"
 #include "net/eth.h"
 
-uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq)
+uint32_t net_checksum_add_cont(int len, const uint8_t *buf, int seq)
 {
     uint32_t sum = 0;
     int i;
@@ -43,7 +43,7 @@ uint16_t net_checksum_finish(uint32_t sum)
 }
 
 uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
-                             uint8_t *addrs, uint8_t *buf)
+                             const uint8_t *addrs, const uint8_t *buf)
 {
     uint32_t sum = 0;
 
@@ -53,7 +53,7 @@ uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
     return net_checksum_finish(sum);
 }
 
-void net_checksum_calculate(uint8_t *data, int length)
+void net_checksum_calculate(const uint8_t *data, int length)
 {
     int mac_hdr_len, ip_len;
     struct ip_header *ip;

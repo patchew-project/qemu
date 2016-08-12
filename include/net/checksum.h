@@ -21,20 +21,20 @@
 #include "qemu/bswap.h"
 struct iovec;
 
-uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq);
+uint32_t net_checksum_add_cont(int len, const uint8_t *buf, int seq);
 uint16_t net_checksum_finish(uint32_t sum);
 uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
-                             uint8_t *addrs, uint8_t *buf);
-void net_checksum_calculate(uint8_t *data, int length);
+                             const uint8_t *addrs, const uint8_t *buf);
+void net_checksum_calculate(const uint8_t *data, int length);
 
 static inline uint32_t
-net_checksum_add(int len, uint8_t *buf)
+net_checksum_add(int len, const uint8_t *buf)
 {
     return net_checksum_add_cont(len, buf, 0);
 }
 
 static inline uint16_t
-net_raw_checksum(uint8_t *data, int length)
+net_raw_checksum(const uint8_t *data, int length)
 {
     return net_checksum_finish(net_checksum_add(length, data));
 }
