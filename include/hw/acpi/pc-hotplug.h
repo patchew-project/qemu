@@ -43,6 +43,7 @@
 #define MEMORY_SLOT_INSERT_EVENT     "MINS"
 #define MEMORY_SLOT_REMOVE_EVENT     "MRMV"
 #define MEMORY_SLOT_EJECT            "MEJ"
+#define MEMORY_SLOT_NVDIMM           "NVDM"
 #define MEMORY_SLOT_SLECTOR          "MSEL"
 #define MEMORY_SLOT_OST_EVENT        "MOEV"
 #define MEMORY_SLOT_OST_STATUS       "MOSC"
