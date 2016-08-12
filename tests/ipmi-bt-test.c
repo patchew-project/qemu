@@ -415,7 +415,10 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    cmdline = g_strdup_printf("-vnc none"
+    cmdline = g_strdup_printf(
+#ifdef CONFIG_VNC
+          "-vnc none"
+#endif
           " -chardev socket,id=ipmi0,host=localhost,port=%d,reconnect=10"
           " -device ipmi-bmc-extern,chardev=ipmi0,id=bmc0"
           " -device isa-ipmi-bt,bmc=bmc0", emu_port);
