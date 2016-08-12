@@ -26,6 +26,7 @@
 #include "block/block_int.h"
 #include "block/blockjob.h"
 #include "qemu/error-report.h"
+#include "module_block.h"
 #include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qbool.h"
@@ -241,15 +242,38 @@ BlockDriverState *bdrv_new(void)
     return bs;
 }
 
-BlockDriver *bdrv_find_format(const char *format_name)
+static BlockDriver *bdrv_do_find_format(const char *format_name)
 {
     BlockDriver *drv1;
+
     QLIST_FOREACH(drv1, &bdrv_drivers, list) {
         if (!strcmp(drv1->format_name, format_name)) {
             return drv1;
         }
     }
+
     return NULL;
+}
+
+BlockDriver *bdrv_find_format(const char *format_name)
+{
+    BlockDriver *drv1;
+    size_t i;
+
+    drv1 = bdrv_do_find_format(format_name);
+    if (drv1) {
+        return drv1;
+    }
+
+    /* The driver isn't registered, maybe we need to load a module */
+    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
+        if (!strcmp(block_driver_modules[i].format_name, format_name)) {
+            block_module_load_one(block_driver_modules[i].library_name);
+            break;
+        }
+    }
+
+    return bdrv_do_find_format(format_name);
 }
 
 static int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
@@ -460,6 +484,19 @@ static BlockDriver *find_hdev_driver(const char *filename)
     return drv;
 }
 
+static BlockDriver *bdrv_do_find_protocol(const char *protocol)
+{
+    BlockDriver *drv1;
+
+    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
+        if (drv1->protocol_name && !strcmp(drv1->protocol_name, protocol)) {
+            return drv1;
+        }
+    }
+
+    return NULL;
+}
+
 BlockDriver *bdrv_find_protocol(const char *filename,
                                 bool allow_protocol_prefix,
                                 Error **errp)
@@ -468,6 +505,7 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     char protocol[128];
     int len;
     const char *p;
+    size_t i;
 
     /* TODO Drivers without bdrv_file_open must be specified explicitly */
 
@@ -494,15 +532,25 @@ BlockDriver *bdrv_find_protocol(const char *filename,
         len = sizeof(protocol) - 1;
     memcpy(protocol, filename, len);
     protocol[len] = '\0';
-    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
-        if (drv1->protocol_name &&
-            !strcmp(drv1->protocol_name, protocol)) {
-            return drv1;
+
+    drv1 = bdrv_do_find_protocol(protocol);
+    if (drv1) {
+        return drv1;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(block_driver_modules); ++i) {
+        if (block_driver_modules[i].protocol_name &&
+            !strcmp(block_driver_modules[i].protocol_name, protocol)) {
+            block_module_load_one(block_driver_modules[i].library_name);
+            break;
         }
     }
 
-    error_setg(errp, "Unknown protocol '%s'", protocol);
-    return NULL;
+    drv1 = bdrv_do_find_protocol(protocol);
+    if (!drv1) {
+        error_setg(errp, "Unknown protocol '%s'", protocol);
+    }
+    return drv1;
 }
 
 /*
