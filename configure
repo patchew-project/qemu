@@ -1324,9 +1324,11 @@ disabled with --disable-FEATURE, default is enabled if available:
   guest-agent     build the QEMU Guest Agent
   guest-agent-msi build guest agent Windows MSI installation package
   pie             Position Independent Executables
+  tools           build tools (qemu-img, qemu-nbd, ivshmem-server...)
   modules         modules support
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
+  qom-cast-debug  QOM debugging
   sparse          sparse checker
 
   gnutls          GNUTLS cryptography support
@@ -1359,10 +1361,14 @@ disabled with --disable-FEATURE, default is enabled if available:
   cap-ng          libcap-ng support
   attr            attr and xattr support
   vhost-net       vhost-net acceleration support
+  vhost-scsi      vhost-scsi acceleration support
   spice           spice
+  opengl          OpenGL support
+  virglrenderer   virgl 3d rendering
   rbd             rados block device (rbd)
   libiscsi        iscsi support
   libnfs          nfs support
+  xfsctl          xfsctl support
   smartcard       smartcard support (libcacard)
   libusb          libusb (for usb passthrough)
   usb-redir       usb network redirection support
