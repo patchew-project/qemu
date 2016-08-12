@@ -400,6 +400,9 @@ static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 
     if (s->acpi_memory_hotplug.is_enabled &&
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dev);
+
+        ddc->prepare_unplug(dev);
         acpi_memory_unplug_request_cb(hotplug_dev, &s->acpi_memory_hotplug,
                                       dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
