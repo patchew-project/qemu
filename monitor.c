@@ -1512,6 +1512,17 @@ static void hmp_ioport_write(Monitor *mon, const QDict *qdict)
     }
 }
 
+static void hmp_mmu_xlate(Monitor *mon, const QDict *qdict)
+{
+    CPUState *cpu = mon_get_cpu();
+    vaddr va = qdict_get_int(qdict, "addr");
+    hwaddr pa;
+
+    pa = cpu_get_phys_page_debug(cpu, va);
+    pa |= (va & ~TARGET_PAGE_MASK);
+    monitor_printf(mon, "0x%#" HWADDR_PRIx "\n", pa);
+}
+
 static void hmp_boot_set(Monitor *mon, const QDict *qdict)
 {
     Error *local_err = NULL;

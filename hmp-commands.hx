@@ -569,6 +569,21 @@ Write to I/O port.
 ETEXI
 
     {
+        .name       = "xlate",
+        .args_type  = "addr:l",
+        .params     = "addr",
+        .help       = "Translate virtual address via the MMU",
+        .mhandler.cmd = hmp_mmu_xlate,
+    },
+
+STEXI
+@item xlate @var{addr}
+@findex xlate
+Translate virtual address
+
+ETEXI
+
+    {
         .name       = "sendkey",
         .args_type  = "keys:s,hold-time:i?",
         .params     = "keys [hold_ms]",
