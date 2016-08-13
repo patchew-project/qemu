@@ -25,27 +25,44 @@ class QMPCapabilitiesError(QMPError):
 class QMPTimeoutError(QMPError):
     pass
 
+class QMPShellBadPort(QMPError):
+    pass
+
 class QEMUMonitorProtocol:
     def __init__(self, address, server=False, debug=False):
         """
         Create a QEMUMonitorProtocol class.
 
         @param address: QEMU address, can be either a unix socket path (string)
-                        or a tuple in the form ( address, port ) for a TCP
-                        connection
+                        or a TCP endpoint (string in the format "host:port")
         @param server: server mode listens on the socket (bool)
         @raise socket.error on socket connection errors
         @note No connection is established, this is done by the connect() or
               accept() methods
         """
         self.__events = []
-        self.__address = address
+        self.__address = self.__get_address(address)
         self._debug = debug
         self.__sock = self.__get_sock()
         if server:
             self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.__sock.bind(self.__address)
             self.__sock.listen(1)
+
+    def __get_address(self, arg):
+        """
+        Figure out if the argument is in the port:host form, if it's not it's
+        probably a file path.
+        """
+        addr = arg.split(':')
+        if len(addr) == 2:
+            try:
+                port = int(addr[1])
+            except ValueError:
+                raise QMPShellBadPort
+            return ( addr[0], port )
+        # socket path
+        return arg
 
     def __get_sock(self):
         if isinstance(self.__address, tuple):
