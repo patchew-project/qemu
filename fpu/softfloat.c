@@ -5279,6 +5279,8 @@ floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
+    require_valid_floatx80(a, status);
+    require_valid_floatx80(b, status);
     aSign = extractFloatx80Sign( a );
     bSign = extractFloatx80Sign( b );
     if ( aSign == bSign ) {
@@ -5300,6 +5302,8 @@ floatx80 floatx80_sub(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
+    require_valid_floatx80(a, status);
+    require_valid_floatx80(b, status);
     aSign = extractFloatx80Sign( a );
     bSign = extractFloatx80Sign( b );
     if ( aSign == bSign ) {
@@ -5323,6 +5327,8 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
     int32_t aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
 
+    require_valid_floatx80(a, status);
+    require_valid_floatx80(b, status);
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5380,6 +5386,8 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
     uint64_t aSig, bSig, zSig0, zSig1;
     uint64_t rem0, rem1, rem2, term0, term1, term2;
 
+    require_valid_floatx80(a, status);
+    require_valid_floatx80(b, status);
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5461,6 +5469,8 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
     uint64_t aSig0, aSig1, bSig;
     uint64_t q, term0, term1, alternateASig0, alternateASig1;
 
+    require_valid_floatx80(a, status);
+    require_valid_floatx80(b, status);
     aSig0 = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5556,6 +5566,7 @@ floatx80 floatx80_sqrt(floatx80 a, float_status *status)
     uint64_t aSig0, aSig1, zSig0, zSig1, doubleZSig0;
     uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
 
+    require_valid_floatx80(a, status);
     aSig0 = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );

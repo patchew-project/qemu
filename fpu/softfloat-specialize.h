@@ -203,6 +203,18 @@ void float_raise(int8_t flags, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Asserts that the given value must be a valid floatx80 encoding. If The given
+| value is a pseudo-NaN, pseudo-infiinty, or un-normal, raise an invalid
+| operation exception and cause the parent function to return NaN.
+*----------------------------------------------------------------------------*/
+
+#define require_valid_floatx80(a, status)           \
+    if (floatx80_invalid_encoding((a))) {               \
+        float_raise(float_flag_invalid, (status));        \
+        return floatx80_default_nan((status));            \
+    }
+
+/*----------------------------------------------------------------------------
 | Internal canonical NaN format.
 *----------------------------------------------------------------------------*/
 typedef struct {
