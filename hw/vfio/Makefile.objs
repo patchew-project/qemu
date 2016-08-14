@@ -5,4 +5,5 @@ obj-$(CONFIG_SOFTMMU) += platform.o
 obj-$(CONFIG_SOFTMMU) += calxeda-xgmac.o
 obj-$(CONFIG_SOFTMMU) += amd-xgbe.o
 obj-$(CONFIG_SOFTMMU) += spapr.o
+obj-$(CONFIG_SOFTMMU) += qcom-hidma.o
 endif
