@@ -16,7 +16,7 @@
 #include "qom/qom-qobject.h"
 #include "qapi/visitor.h"
 #include "qapi/qobject-input-visitor.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 
 void object_property_set_qobject(Object *obj, QObject *value,
                                  const char *name, Error **errp)
@@ -35,7 +35,7 @@ QObject *object_property_get_qobject(Object *obj, const char *name,
     Error *local_err = NULL;
     Visitor *v;
 
-    v = qmp_output_visitor_new(&ret);
+    v = qobject_output_visitor_new(&ret);
     object_property_get(obj, v, name, &local_err);
     if (!local_err) {
         visit_complete(v, &ret);
