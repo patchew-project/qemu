@@ -37,3 +37,4 @@ util-obj-y += qht.o
 util-obj-y += range.o
 
 util-qom-obj-y += authz.o
+util-qom-obj-y += authz-simple.o

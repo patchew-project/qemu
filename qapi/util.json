@@ -1,0 +1,47 @@
+# -*- Mode: Python -*-
+#
+# QAPI util definitions
+
+##
+# QAuthZSimplePolicy:
+#
+# The authorization policy result
+#
+# @deny: deny access
+# @allow: allow access
+#
+# Since: 2.7
+##
+{ 'enum': 'QAuthZSimplePolicy',
+  'prefix': 'QAUTHZ_SIMPLE_POLICY',
+  'data': ['deny', 'allow']}
+
+##
+# QAuthZSimpleFormat:
+#
+# The authorization policy result
+#
+# @exact: an exact string match
+# @glob: string with ? and * shell wildcard support
+#
+# Since: 2.7
+##
+{ 'enum': 'QAuthZSimpleFormat',
+  'prefix': 'QAUTHZ_SIMPLE_FORMAT',
+  'data': ['exact', 'glob']}
+
+##
+# QAuthZSimpleRule:
+#
+# A single authorization rule.
+#
+# @match: a glob to match against a user identity
+# @policy: the result to return if @match evaluates to true
+# @format: (optional) the format of the @match rule (default 'exact')
+#
+# Since: 2.7
+##
+{ 'struct': 'QAuthZSimpleRule',
+  'data': {'match': 'str',
+           'policy': 'QAuthZSimplePolicy',
+           '*format': 'QAuthZSimpleFormat'}}

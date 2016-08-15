@@ -10,6 +10,7 @@ check-qom-proplist
 qht-bench
 rcutorture
 test-aio
+test-authz-simple
 test-base64
 test-bitops
 test-blockjob-txn
