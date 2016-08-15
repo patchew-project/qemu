@@ -61,7 +61,12 @@ static long kvm_hypercall(unsigned long nr, unsigned long param1,
 
 static long virtio_notify(SubChannelId schid, int vq_idx, long cookie)
 {
-    return kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32 *)&schid,
+    union {
+        SubChannelId schid;
+        u32 value;
+    } sch;
+    sch.schid = schid;
+    return kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, sch.value,
                          vq_idx, cookie);
 }
 
