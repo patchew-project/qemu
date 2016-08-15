@@ -173,6 +173,7 @@ include $(SRC_PATH)/Makefile.objs
 dummy := $(call unnest-vars,,target-obj-y)
 target-obj-y-save := $(target-obj-y)
 dummy := $(call unnest-vars,.., \
+               util-qom-obj-y \
                block-obj-y \
                block-obj-m \
                crypto-obj-y \
@@ -185,6 +186,7 @@ target-obj-y := $(target-obj-y-save)
 all-obj-y += $(common-obj-y)
 all-obj-y += $(target-obj-y)
 all-obj-y += $(qom-obj-y)
+all-obj-y += $(util-qom-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 all-obj-$(CONFIG_USER_ONLY) += $(crypto-aes-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(crypto-obj-y)

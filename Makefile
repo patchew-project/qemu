@@ -148,6 +148,7 @@ endif
 dummy := $(call unnest-vars,, \
                 stub-obj-y \
                 util-obj-y \
+                util-qom-obj-y \
                 qga-obj-y \
                 ivshmem-client-obj-y \
                 ivshmem-server-obj-y \

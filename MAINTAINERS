@@ -1330,6 +1330,13 @@ F: include/qemu/throttle.h
 F: util/throttle.c
 L: qemu-block@nongnu.org
 
+Authorization
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Maintained
+F: util/authz*
+F: include/qemu/authz*
+F: tests/test-authz-*
+
 Usermode Emulation
 ------------------
 Overall
