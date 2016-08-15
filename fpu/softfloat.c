@@ -4814,6 +4814,10 @@ int32_t floatx80_to_int32(floatx80 a, float_status *status)
     int32_t aExp, shiftCount;
     uint64_t aSig;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return 1 << 31;     // Integer indefinite value
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -4842,6 +4846,10 @@ int32_t floatx80_to_int32_round_to_zero(floatx80 a, float_status *status)
     uint64_t aSig, savedASig;
     int32_t z;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return 1 << 31;     // Integer indefinite value
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -4888,6 +4896,10 @@ int64_t floatx80_to_int64(floatx80 a, float_status *status)
     int32_t aExp, shiftCount;
     uint64_t aSig, aSigExtra;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return 1 << 63;     // Integer indefinite value (64-bit)
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -4929,6 +4941,10 @@ int64_t floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
     uint64_t aSig;
     int64_t z;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return 1 << 63;     // Integer indefinite value (64-bit)
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -4971,6 +4987,10 @@ float32 floatx80_to_float32(floatx80 a, float_status *status)
     int32_t aExp;
     uint64_t aSig;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return float32_default_nan(status);
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -4999,6 +5019,10 @@ float64 floatx80_to_float64(floatx80 a, float_status *status)
     int32_t aExp;
     uint64_t aSig, zSig;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return float64_default_nan(status);
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5027,6 +5051,10 @@ float128 floatx80_to_float128(floatx80 a, float_status *status)
     int aExp;
     uint64_t aSig, zSig0, zSig1;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return float128_default_nan(status);
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5052,6 +5080,10 @@ floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
     uint64_t lastBitMask, roundBitsMask;
     floatx80 z;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aExp = extractFloatx80Exp( a );
     if ( 0x403E <= aExp ) {
         if ( ( aExp == 0x7FFF ) && (uint64_t) ( extractFloatx80Frac( a )<<1 ) ) {
@@ -5279,6 +5311,10 @@ floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSign = extractFloatx80Sign( a );
     bSign = extractFloatx80Sign( b );
     if ( aSign == bSign ) {
@@ -5300,6 +5336,10 @@ floatx80 floatx80_sub(floatx80 a, floatx80 b, float_status *status)
 {
     flag aSign, bSign;
 
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSign = extractFloatx80Sign( a );
     bSign = extractFloatx80Sign( b );
     if ( aSign == bSign ) {
@@ -5323,6 +5363,10 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
     int32_t aExp, bExp, zExp;
     uint64_t aSig, bSig, zSig0, zSig1;
 
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5380,6 +5424,10 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
     uint64_t aSig, bSig, zSig0, zSig1;
     uint64_t rem0, rem1, rem2, term0, term1, term2;
 
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5461,6 +5509,10 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
     uint64_t aSig0, aSig1, bSig;
     uint64_t q, term0, term1, alternateASig0, alternateASig1;
 
+    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSig0 = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -5556,6 +5608,10 @@ floatx80 floatx80_sqrt(floatx80 a, float_status *status)
     uint64_t aSig0, aSig1, zSig0, zSig1, doubleZSig0;
     uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSig0 = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
@@ -7645,6 +7701,10 @@ floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
     int32_t aExp;
     uint64_t aSig;
 
+    if (floatx80_invalid_encoding(a)) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
