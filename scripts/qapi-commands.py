@@ -117,7 +117,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
     Visitor *v;
     %(c_name)s arg = {0};
 
-    v = qmp_input_visitor_new(QOBJECT(args), true);
+    v = qobject_input_visitor_new(QOBJECT(args), true);
     visit_start_struct(v, NULL, NULL, 0, &err);
     if (err) {
         goto out;
@@ -279,7 +279,7 @@ fdef.write(mcgen('''
 #include "qapi/qmp/dispatch.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp-output-visitor.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
