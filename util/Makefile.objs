@@ -36,4 +36,7 @@ util-obj-y += qht.o
 util-obj-y += range.o
 
 util-qom-obj-y += authz.o
+util-qom-obj-$(CONFIG_PAM) += authz-pam.o
 util-qom-obj-y += authz-simple.o
+
+authz-pam.o-libs = -lpam

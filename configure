@@ -312,6 +312,7 @@ nettle=""
 nettle_kdf="no"
 gcrypt=""
 gcrypt_kdf="no"
+pam=""
 vte=""
 virglrenderer=""
 tpm="yes"
@@ -1112,6 +1113,10 @@ for opt do
   ;;
   --enable-gcrypt) gcrypt="yes"
   ;;
+  --disable-pam) pam="no"
+  ;;
+  --enable-pam) pam="yes"
+  ;;
   --enable-rdma) rdma="yes"
   ;;
   --disable-rdma) rdma="no"
@@ -1332,6 +1337,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   gnutls          GNUTLS cryptography support
   nettle          nettle cryptography support
   gcrypt          libgcrypt cryptography support
+  pam             PAM access control
   sdl             SDL UI
   --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
   gtk             gtk UI
@@ -2394,6 +2400,32 @@ else
     tasn1=no
 fi
 
+
+##########################################
+# PAM probe
+
+if test "x$pam" != "no"; then
+    cat > $TMPC <<EOF
+#include <security/pam_appl.h>
+#include <stdio.h>
+int main(void) {
+   const char *service_name = "qemu";
+   const char *user = "frank";
+   const struct pam_conv *pam_conv = NULL;
+   pam_handle_t *pamh = NULL;
+   pam_start(service_name, user, pam_conv, &pamh);
+}
+EOF
+    if compile_prog "" "-lpam" ; then
+	pam=yes
+    else
+	if test "$pam" = "yes"; then
+	    feature_not_found "PAM" "Install pam-devel"
+	else
+	    pam=no
+	fi
+    fi
+fi
 
 ##########################################
 # getifaddrs (for tests/test-io-channel-socket )
@@ -4819,6 +4851,7 @@ echo "libgcrypt kdf     $gcrypt_kdf"
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
 echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
+echo "PAM               $pam"
 echo "curses support    $curses"
 echo "virgl support     $virglrenderer"
 echo "curl support      $curl"
@@ -5197,6 +5230,9 @@ if test "$nettle" = "yes" ; then
 fi
 if test "$tasn1" = "yes" ; then
   echo "CONFIG_TASN1=y" >> $config_host_mak
+fi
+if test "$pam" = "yes" ; then
+    echo "CONFIG_PAM=y" >> $config_host_mak
 fi
 if test "$have_ifaddrs_h" = "yes" ; then
     echo "HAVE_IFADDRS_H=y" >> $config_host_mak
