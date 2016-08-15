@@ -150,7 +150,7 @@ static int vnc_auth_sasl_check_access(VncState *vs)
         return 0;
     }
 
-    allow = qemu_acl_party_is_allowed(vs->vd->sasl.acl, vs->sasl.username);
+    allow = qauthz_is_allowed(vs->vd->sasl.acl, vs->sasl.username, NULL);
 
     VNC_DEBUG("SASL client %s %s by ACL\n", vs->sasl.username,
               allow ? "allowed" : "denied");

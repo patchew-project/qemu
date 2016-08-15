@@ -33,7 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
-#include "qemu/acl.h"
+#include "qemu/authz-simple.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
@@ -3757,7 +3757,9 @@ void vnc_display_open(const char *id, Error **errp)
         } else {
             vs->tlsaclname = g_strdup_printf("vnc.%s.x509dname", vs->id);
         }
-        qemu_acl_init(vs->tlsaclname);
+        qauthz_simple_new(vs->tlsaclname,
+                          QAUTHZ_SIMPLE_POLICY_DENY,
+                          &error_abort);
     }
 #ifdef CONFIG_VNC_SASL
     if (acl && sasl) {
@@ -3768,7 +3770,10 @@ void vnc_display_open(const char *id, Error **errp)
         } else {
             aclname = g_strdup_printf("vnc.%s.username", vs->id);
         }
-        vs->sasl.acl = qemu_acl_init(aclname);
+        vs->sasl.acl =
+            QAUTHZ(qauthz_simple_new(aclname,
+                                     QAUTHZ_SIMPLE_POLICY_DENY,
+                                     &error_abort));
         g_free(aclname);
     }
 #endif
