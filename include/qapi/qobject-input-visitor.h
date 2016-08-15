@@ -60,4 +60,26 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  */
 Visitor *qobject_string_input_visitor_new(QObject *obj);
 
+/**
+ * qobject_mixed_input_visitor_new:
+ * @obj: the input object to visit
+ * @strict: whether to require that all input keys are consumed
+ *
+ * Create a new input visitor that converts a QObject to a QAPI object.
+ *
+ * Any scalar values in the @obj input data structure can either be
+ * represented as the native data type, or as strings. ie if visiting
+ * a boolean, the value can be a QBoolean or a QString whose contents
+ * represent a valid boolean.
+ *
+ * If @strict is set to true, then an error will be reported if any
+ * dict keys are not consumed during visitation.
+ *
+ * The returned input visitor should be released by calling
+ * visit_free() when no longer required.
+ *
+ * Returns: a new input visitor
+ */
+Visitor *qobject_mixed_input_visitor_new(QObject *obj, bool strict);
+
 #endif

@@ -276,6 +276,19 @@ static void qobject_input_type_int64_str(Visitor *v, const char *name,
     *obj = ret;
 }
 
+static void qobject_input_type_int64_mixed(Visitor *v, const char *name,
+                                           int64_t *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QObject *qobj = qobject_input_get_object(qiv, name, true);
+
+    if (qobj && qobj->type == QTYPE_QSTRING) {
+        qobject_input_type_int64_str(v, name, obj, errp);
+    } else {
+        qobject_input_type_int64(v, name, obj, errp);
+    }
+}
+
 static void qobject_input_type_uint64(Visitor *v, const char *name,
                                       uint64_t *obj, Error **errp)
 {
@@ -302,6 +315,19 @@ static void qobject_input_type_uint64_str(Visitor *v, const char *name,
     parse_option_number(name, qstr ? qstr->string : NULL, obj, errp);
 }
 
+static void qobject_input_type_uint64_mixed(Visitor *v, const char *name,
+                                            uint64_t *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QObject *qobj = qobject_input_get_object(qiv, name, true);
+
+    if (qobj && qobj->type == QTYPE_QSTRING) {
+        qobject_input_type_uint64_str(v, name, obj, errp);
+    } else {
+        qobject_input_type_uint64(v, name, obj, errp);
+    }
+}
+
 static void qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
                                     Error **errp)
 {
@@ -325,6 +351,19 @@ static void qobject_input_type_bool_str(Visitor *v, const char *name, bool *obj,
                                                                 true));
 
     parse_option_bool(name, qstr ? qstr->string : NULL, obj, errp);
+}
+
+static void qobject_input_type_bool_mixed(Visitor *v, const char *name,
+                                          bool *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QObject *qobj = qobject_input_get_object(qiv, name, true);
+
+    if (qobj && qobj->type == QTYPE_QSTRING) {
+        qobject_input_type_bool_str(v, name, obj, errp);
+    } else {
+        qobject_input_type_bool(v, name, obj, errp);
+    }
 }
 
 static void qobject_input_type_str(Visitor *v, const char *name, char **obj,
@@ -388,6 +427,19 @@ static void qobject_input_type_number_str(Visitor *v, const char *name,
                "number");
 }
 
+static void qobject_input_type_number_mixed(Visitor *v, const char *name,
+                                            double *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QObject *qobj = qobject_input_get_object(qiv, name, true);
+
+    if (qobj && qobj->type == QTYPE_QSTRING) {
+        qobject_input_type_number_str(v, name, obj, errp);
+    } else {
+        qobject_input_type_number(v, name, obj, errp);
+    }
+}
+
 static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
                                    Error **errp)
 {
@@ -434,6 +486,20 @@ static void qobject_input_type_size_str(Visitor *v, const char *name,
     error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                "size");
 }
+
+static void qobject_input_type_size_mixed(Visitor *v, const char *name,
+                                          uint64_t *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QObject *qobj = qobject_input_get_object(qiv, name, true);
+
+    if (qobj && qobj->type == QTYPE_QSTRING) {
+        qobject_input_type_size_str(v, name, obj, errp);
+    } else {
+        qobject_input_type_uint64(v, name, obj, errp);
+    }
+}
+
 
 static void qobject_input_optional(Visitor *v, const char *name, bool *present)
 {
@@ -518,6 +584,38 @@ Visitor *qobject_string_input_visitor_new(QObject *obj)
     v->visitor.optional = qobject_input_optional;
     v->visitor.free = qobject_input_free;
     v->strict = true;
+
+    v->root = obj;
+    qobject_incref(obj);
+
+    return &v->visitor;
+}
+
+Visitor *qobject_mixed_input_visitor_new(QObject *obj, bool strict)
+{
+    QObjectInputVisitor *v;
+
+    v = g_malloc0(sizeof(*v));
+
+    v->visitor.type = VISITOR_INPUT;
+    v->visitor.start_struct = qobject_input_start_struct;
+    v->visitor.check_struct = qobject_input_check_struct;
+    v->visitor.end_struct = qobject_input_pop;
+    v->visitor.start_list = qobject_input_start_list;
+    v->visitor.next_list = qobject_input_next_list;
+    v->visitor.end_list = qobject_input_pop;
+    v->visitor.start_alternate = qobject_input_start_alternate;
+    v->visitor.type_int64 = qobject_input_type_int64_mixed;
+    v->visitor.type_uint64 = qobject_input_type_uint64_mixed;
+    v->visitor.type_bool = qobject_input_type_bool_mixed;
+    v->visitor.type_str = qobject_input_type_str;
+    v->visitor.type_number = qobject_input_type_number_mixed;
+    v->visitor.type_any = qobject_input_type_any;
+    v->visitor.type_null = qobject_input_type_null;
+    v->visitor.type_size = qobject_input_type_size_mixed;
+    v->visitor.optional = qobject_input_optional;
+    v->visitor.free = qobject_input_free;
+    v->strict = strict;
 
     v->root = obj;
     qobject_incref(obj);
