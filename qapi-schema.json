@@ -5,6 +5,9 @@
 # QAPI common definitions
 { 'include': 'qapi/common.json' }
 
+# QAPI util definitions
+{ 'include': 'qapi/util.json' }
+
 # QAPI crypto definitions
 { 'include': 'qapi/crypto.json' }
 
@@ -3761,7 +3764,8 @@
 # Since 2.5
 ##
 { 'struct': 'DummyForceArrays',
-  'data': { 'unused': ['X86CPUFeatureWordInfo'] } }
+  'data': { 'unused1': ['X86CPUFeatureWordInfo'],
+            'unused2': ['QAuthZSimpleRule'] } }
 
 
 ##
