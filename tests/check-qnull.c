@@ -10,7 +10,7 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/error.h"
 
@@ -47,7 +47,7 @@ static void qnull_visit_test(void)
 
     g_assert(qnull_.refcnt == 1);
     obj = qnull();
-    v = qmp_input_visitor_new(obj, true);
+    v = qobject_input_visitor_new(obj, true);
     qobject_decref(obj);
     visit_type_null(v, NULL, &error_abort);
     visit_free(v);
