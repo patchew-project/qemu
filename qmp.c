@@ -667,7 +667,7 @@ void qmp_object_add(const char *type, const char *id,
     }
 
     v = qobject_input_visitor_new(props, true);
-    obj = user_creatable_add_type(type, id, pdict, v, errp);
+    obj = user_creatable_add_type(type, id, true, pdict, v, errp);
     visit_free(v);
     if (obj) {
         object_unref(obj);

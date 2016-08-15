@@ -4,6 +4,7 @@
 #include "qemu/module.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/opts-visitor.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
@@ -63,12 +64,16 @@ Object *user_creatable_add(const QDict *qdict,
     if (local_err) {
         goto out_visit;
     }
-    visit_check_struct(v, &local_err);
+
+    obj = user_creatable_add_type(type, id, false, pdict, v, &local_err);
     if (local_err) {
         goto out_visit;
     }
 
-    obj = user_creatable_add_type(type, id, pdict, v, &local_err);
+    visit_check_struct(v, &local_err);
+    if (local_err) {
+        goto out_visit;
+    }
 
 out_visit:
     visit_end_struct(v, NULL);
@@ -87,7 +92,7 @@ out:
 
 
 Object *user_creatable_add_type(const char *type, const char *id,
-                                const QDict *qdict,
+                                bool nested, const QDict *qdict,
                                 Visitor *v, Error **errp)
 {
     Object *obj;
@@ -114,9 +119,11 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
-    if (local_err) {
-        goto out;
+    if (nested) {
+        visit_start_struct(v, NULL, NULL, 0, &local_err);
+        if (local_err) {
+            goto out;
+        }
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
         object_property_set(obj, v, e->key, &local_err);
@@ -124,12 +131,14 @@ Object *user_creatable_add_type(const char *type, const char *id,
             break;
         }
     }
-    if (!local_err) {
-        visit_check_struct(v, &local_err);
-    }
-    visit_end_struct(v, NULL);
-    if (local_err) {
-        goto out;
+    if (nested) {
+        if (!local_err) {
+            visit_check_struct(v, &local_err);
+        }
+        visit_end_struct(v, NULL);
+        if (local_err) {
+            goto out;
+        }
     }
 
     object_property_add_child(object_get_objects_root(),
@@ -158,13 +167,21 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
 {
     Visitor *v;
     QDict *pdict;
+    QObject *pobj;
     Object *obj = NULL;
 
-    v = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
 
-    obj = user_creatable_add(pdict, v, errp);
+    pobj = qdict_crumple(pdict, true, errp);
+    if (!pobj) {
+        goto cleanup;
+    }
+    v = qobject_string_input_visitor_new(pobj, true);
+
+    obj = user_creatable_add((QDict *)pobj, v, errp);
     visit_free(v);
+    qobject_decref(pobj);
+ cleanup:
     QDECREF(pdict);
     return obj;
 }

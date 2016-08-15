@@ -96,18 +96,24 @@ Object *user_creatable_add(const QDict *qdict,
  * user_creatable_add_type:
  * @type: the object type name
  * @id: the unique ID for the object
+ * @nested: whether to recurse into the visitor for properties
  * @qdict: the object properties
  * @v: the visitor
  * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Create an instance of the user creatable object @type, placing
  * it in the object composition tree with name @id, initializing
- * it with properties from @qdict
+ * it with properties from @qdict.
+ *
+ * If the visitor is already positioned to read the properties
+ * in @qdict, @nested should be false. Conversely, if it is
+ * necessary to open/close a struct to read the properties in
+ * @qdict, @nested should be true.
  *
  * Returns: the newly created object or NULL on error
  */
 Object *user_creatable_add_type(const char *type, const char *id,
-                                const QDict *qdict,
+                                bool nested, const QDict *qdict,
                                 Visitor *v, Error **errp);
 
 /**
