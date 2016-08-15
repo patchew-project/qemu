@@ -23,7 +23,7 @@
 #include "crypto/tlscredsanon.h"
 #include "crypto/tlscredsx509.h"
 #include "qapi/error.h"
-#include "qemu/acl.h"
+#include "qemu/authz.h"
 #include "trace.h"
 
 #ifdef CONFIG_GNUTLS
@@ -220,6 +220,7 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
     unsigned int nCerts, i;
     time_t now;
     gnutls_x509_crt_t cert = NULL;
+    Error *err = NULL;
 
     now = time(NULL);
     if (now == ((time_t)-1)) {
@@ -308,16 +309,33 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
                 goto error;
             }
             if (session->aclname) {
-                qemu_acl *acl = qemu_acl_find(session->aclname);
-                int allow;
-                if (!acl) {
+                QAuthZ *acl;
+                Object *obj;
+                Object *container;
+                bool allow;
+
+                container = object_get_objects_root();
+                obj = object_resolve_path_component(container,
+                                                    session->aclname);
+                if (!obj) {
                     error_setg(errp, "Cannot find ACL %s",
                                session->aclname);
                     goto error;
                 }
 
-                allow = qemu_acl_party_is_allowed(acl, session->peername);
+                if (!object_dynamic_cast(obj, TYPE_QAUTHZ)) {
+                    error_setg(errp, "Object '%s' is not a QAuthZ subclass",
+                               session->aclname);
+                    goto error;
+                }
 
+                acl = QAUTHZ(obj);
+
+                allow = qauthz_is_allowed(acl, session->peername, &err);
+                if (err) {
+                    error_propagate(errp, err);
+                    goto error;
+                }
                 if (!allow) {
                     error_setg(errp, "TLS x509 ACL check for %s is denied",
                                session->peername);
