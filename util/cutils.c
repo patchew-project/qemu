@@ -186,11 +186,14 @@ int qemu_fdatasync(int fd)
 #define VEC_OR(v1, v2) (_mm_or_si128(v1, v2))
 #elif defined(__aarch64__)
 #include "arm_neon.h"
+#include "qemu/aarch64-cpuid.h"
 #define VECTYPE        uint64x2_t
 #define ALL_EQ(v1, v2) \
         ((vgetq_lane_u64(v1, 0) == vgetq_lane_u64(v2, 0)) && \
          (vgetq_lane_u64(v1, 1) == vgetq_lane_u64(v2, 1)))
 #define VEC_OR(v1, v2) ((v1) | (v2))
+#define VEC_PREFETCH(base, index) \
+        __builtin_prefetch(&base[index], 0, 0);
 #else
 #define VECTYPE        unsigned long
 #define SPLAT(p)       (*(p) * (~0UL / 255))
@@ -199,6 +202,29 @@ int qemu_fdatasync(int fd)
 #endif
 
 #define BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR 8
+
+static inline void prefetch_vector(const VECTYPE *p, int index)
+{
+#if defined(__aarch64__)
+    get_aarch64_cpu_id();
+    if (is_thunderx_pass2_cpu()) {
+        /* Prefetch first 3 cache lines */
+        VEC_PREFETCH(p, index + BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR);
+        VEC_PREFETCH(p, index + (BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR * 2));
+        VEC_PREFETCH(p, index + (BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR * 3));
+    }
+#endif
+}
+
+static inline void prefetch_vector_loop(const VECTYPE *p, int index)
+{
+#if defined(__aarch64__)
+    if (is_thunderx_pass2_cpu()) {
+        /* Prefetch 4 cache lines ahead from index */
+        VEC_PREFETCH(p, index + (BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR * 4));
+    }
+#endif
+}
 
 static bool
 can_use_buffer_find_nonzero_offset_inner(const void *buf, size_t len)
@@ -246,9 +272,14 @@ static size_t buffer_find_nonzero_offset_inner(const void *buf, size_t len)
         }
     }
 
+    prefetch_vector(p, 0);
+
     for (i = BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR;
          i < len / sizeof(VECTYPE);
          i += BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR) {
+
+        prefetch_vector_loop(p, i);
+
         VECTYPE tmp0 = VEC_OR(p[i + 0], p[i + 1]);
         VECTYPE tmp1 = VEC_OR(p[i + 2], p[i + 3]);
         VECTYPE tmp2 = VEC_OR(p[i + 4], p[i + 5]);
