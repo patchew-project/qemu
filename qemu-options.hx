@@ -3752,7 +3752,8 @@ DEF("object", HAS_ARG, QEMU_OPTION_object,
     "                create a new object of type TYPENAME setting properties\n"
     "                in the order they are specified.  Note that the 'id'\n"
     "                property must be set.  These objects are placed in the\n"
-    "                '/objects' path.\n",
+    "                '/objects' path.\n"
+    "                Use '-object help' to print available backend types.\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -object @var{typename}[,@var{prop1}=@var{value1},...]
@@ -3761,6 +3762,8 @@ Create a new object of type @var{typename} setting properties
 in the order they are specified.  Note that the 'id'
 property must be set.  These objects are placed in the
 '/objects' path.
+
+Use '-object help' to print available backend types.
 
 @table @option
 

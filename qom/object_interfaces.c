@@ -58,6 +58,22 @@ Object *user_creatable_add(const QDict *qdict,
         goto out_visit;
     }
 
+    if (!strcmp(type, "help")) {
+        printf("Available object backend types:\n");
+        GSList *list = object_class_get_list(TYPE_USER_CREATABLE, false);
+        while (list) {
+            const char *name;
+            name = object_class_get_name(OBJECT_CLASS(list->data));
+            /* Ignore user-creatable. */
+            if (strcmp(name, TYPE_USER_CREATABLE)) {
+                printf("%s\n", name);
+            }
+            list = list->next;
+        }
+        g_slist_free(list);
+        exit(0);
+    }
+
     qdict_del(pdict, "id");
     visit_type_str(v, "id", &id, &local_err);
     if (local_err) {
