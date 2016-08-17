@@ -288,37 +288,6 @@ e1000e_use_msix_vectors(E1000EState *s, int num_vectors)
 }
 
 static void
-e1000e_init_msix(E1000EState *s)
-{
-    PCIDevice *d = PCI_DEVICE(s);
-    int res = msix_init(PCI_DEVICE(s), E1000E_MSIX_VEC_NUM,
-                        &s->msix,
-                        E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
-                        &s->msix,
-                        E1000E_MSIX_IDX, E1000E_MSIX_PBA,
-                        0xA0, NULL);
-
-    if (res < 0) {
-        trace_e1000e_msix_init_fail(res);
-    } else {
-        if (!e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM)) {
-            msix_uninit(d, &s->msix, &s->msix);
-        } else {
-            s->intr_state |= E1000E_USE_MSIX;
-        }
-    }
-}
-
-static void
-e1000e_cleanup_msix(E1000EState *s)
-{
-    if (s->intr_state & E1000E_USE_MSIX) {
-        e1000e_unuse_msix_vectors(s, E1000E_MSIX_VEC_NUM);
-        msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
-    }
-}
-
-static void
 e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
 {
     DeviceState *dev = DEVICE(pci_dev);
@@ -462,7 +431,20 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     macaddr = s->conf.macaddr.a;
 
-    e1000e_init_msix(s);
+    ret = msix_init(pci_dev, E1000E_MSIX_VEC_NUM,
+                    &s->msix,
+                    E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
+                    &s->msix,
+                    E1000E_MSIX_IDX, E1000E_MSIX_PBA,
+                    0xA0, NULL);
+
+    if (ret) {
+        trace_e1000e_msix_init_fail(ret);
+    } else {
+        /* Won't fail, for simplicity, no need to check return value */
+        e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM);
+        s->intr_state |= E1000E_USE_MSIX;
+    }
 
     if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
         hw_error("Failed to initialize PCIe capability");
@@ -511,7 +493,8 @@ static void e1000e_pci_uninit(PCIDevice *pci_dev)
 
     qemu_del_nic(s->nic);
 
-    e1000e_cleanup_msix(s);
+    e1000e_unuse_msix_vectors(s, E1000E_MSIX_VEC_NUM);
+    msix_uninit(pci_dev, &s->msix, &s->msix);
     msi_uninit(pci_dev);
 }
 
