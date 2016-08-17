@@ -1652,7 +1652,9 @@ int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size)
                 if (rs->finalize) {
                     rs->finalize(rs);
                 }
-                return 1;
+                if (!size) {
+                    return 1;
+                }
             }
             break;
         }
