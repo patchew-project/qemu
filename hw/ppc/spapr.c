@@ -2344,6 +2344,9 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
             return;
         }
         spapr_core_unplug(hotplug_dev, dev, errp);
+    } else {
+        error_setg(errp, "Unplug not supported for device type: %s",
+                   object_get_typename(OBJECT(dev)));
     }
 }
 
@@ -2359,6 +2362,7 @@ static HotplugHandler *spapr_get_hotpug_handler(MachineState *machine,
                                              DeviceState *dev)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_CPU) ||
         object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         return HOTPLUG_HANDLER(machine);
     }
