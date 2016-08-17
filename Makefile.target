@@ -6,6 +6,7 @@ include ../config-host.mak
 include config-target.mak
 include config-devices.mak
 include $(SRC_PATH)/rules.mak
+include $(SRC_PATH)/qapi.mak
 
 $(call set-vpath, $(SRC_PATH):$(BUILD_DIR))
 ifdef CONFIG_LINUX
@@ -157,6 +158,28 @@ obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
 GENERATED_HEADERS += hmp-commands.h hmp-commands-info.h qmp-commands-old.h
+GENERATED_HEADERS += qmp-introspect.h
+GENERATED_SOURCES += qmp-introspect.c qmp-marshal.c qapi-event.c
+
+qmp-marshal.c :\
+$(qapi-modules) $(qapi-commands-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
+		$(qapi-gen-type) -o "." -m $<, \
+		"  GEN   $(TARGET_DIR)$@")
+
+qapi-event.c :\
+$(qapi-modules) $(qapi-event-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
+		$(qapi-gen-type) -o "." $<, \
+		"  GEN   $@")
+
+qmp-introspect.h qmp-introspect.c :\
+$(qapi-modules) $(qapi-introspect-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-introspect.py \
+		$(qapi-gen-type) -o "." $<, \
+		"  GEN   $(TARGET_DIR)$@")
+
+obj-y += qmp-marshal.o qmp-introspect.o qapi-event.o
 
 endif # CONFIG_SOFTMMU
 
