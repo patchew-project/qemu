@@ -166,7 +166,7 @@ qapi-flags = $(patsubst %,-f %,$(qapi-hconfig))
 qmp-marshal.c :\
 $(qapi-modules) $(qapi-commands-py) $(qapi-hconfig)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(qapi-flags) $(qapi-gen-type) -o "." -m $<, \
+		$(qapi-flags) $(qapi-gen-type) -o "." $<, \
 		"  GEN   $(TARGET_DIR)$@")
 
 qapi-event.c :\

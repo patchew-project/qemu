@@ -306,7 +306,7 @@ $(qapi-modules) $(qapi-event-py)
 qmp-commands.h :\
 $(qapi-modules) $(qapi-commands-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(qapi-gen-type) -o "." -m $<, \
+		$(qapi-gen-type) -o "." $<, \
 		"  GEN   $@")
 
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
