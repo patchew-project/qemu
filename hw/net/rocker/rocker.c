@@ -1262,7 +1262,7 @@ static int rocker_msix_init(Rocker *r)
                     ROCKER_PCI_MSIX_BAR_IDX, ROCKER_PCI_MSIX_TABLE_OFFSET,
                     &r->msix_bar,
                     ROCKER_PCI_MSIX_BAR_IDX, ROCKER_PCI_MSIX_PBA_OFFSET,
-                    0);
+                    0, NULL);
     if (err) {
         return err;
     }

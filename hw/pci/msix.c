@@ -21,6 +21,7 @@
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
 #include "qemu/range.h"
+#include "qapi/error.h"
 
 #define MSIX_CAP_LENGTH 12
 
@@ -242,7 +243,8 @@ static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
 int msix_init(struct PCIDevice *dev, unsigned short nentries,
               MemoryRegion *table_bar, uint8_t table_bar_nr,
               unsigned table_offset, MemoryRegion *pba_bar,
-              uint8_t pba_bar_nr, unsigned pba_offset, uint8_t cap_pos)
+              uint8_t pba_bar_nr, unsigned pba_offset, uint8_t cap_pos,
+              Error **errp)
 {
     int cap;
     unsigned table_size, pba_size;
@@ -250,6 +252,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
 
     /* Nothing to do if MSI is not supported by interrupt controller */
     if (!msi_nonbroken) {
+        error_setg(errp, "MSI-X is not supported by interrupt controller");
         return -ENOTSUP;
     }
 
@@ -267,7 +270,8 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
         assert(0);
     }
 
-    cap = pci_add_capability(dev, PCI_CAP_ID_MSIX, cap_pos, MSIX_CAP_LENGTH);
+    cap = pci_add_capability2(dev, PCI_CAP_ID_MSIX,
+                              cap_pos, MSIX_CAP_LENGTH, errp);
     if (cap < 0) {
         return cap;
     }
@@ -336,7 +340,7 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
     ret = msix_init(dev, nentries, &dev->msix_exclusive_bar, bar_nr,
                     0, &dev->msix_exclusive_bar,
                     bar_nr, bar_pba_offset,
-                    0);
+                    0, NULL);
     if (ret) {
         return ret;
     }
@@ -445,8 +449,10 @@ void msix_notify(PCIDevice *dev, unsigned vector)
 {
     MSIMessage msg;
 
-    if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector])
+    if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector]) {
         return;
+    }
+
     if (msix_is_masked(dev, vector)) {
         msix_set_pending(dev, vector);
         return;
@@ -481,8 +487,10 @@ void msix_reset(PCIDevice *dev)
 /* Mark vector as used. */
 int msix_vector_use(PCIDevice *dev, unsigned vector)
 {
-    if (vector >= dev->msix_entries_nr)
+    if (vector >= dev->msix_entries_nr) {
         return -EINVAL;
+    }
+
     dev->msix_entry_used[vector]++;
     return 0;
 }

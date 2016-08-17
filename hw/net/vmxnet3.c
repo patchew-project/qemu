@@ -2181,32 +2181,6 @@ vmxnet3_use_msix_vectors(VMXNET3State *s, int num_vectors)
     return true;
 }
 
-static bool
-vmxnet3_init_msix(VMXNET3State *s)
-{
-    PCIDevice *d = PCI_DEVICE(s);
-    int res = msix_init(d, VMXNET3_MAX_INTRS,
-                        &s->msix_bar,
-                        VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_TABLE,
-                        &s->msix_bar,
-                        VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_PBA(s),
-                        VMXNET3_MSIX_OFFSET(s));
-
-    if (0 > res) {
-        VMW_WRPRN("Failed to initialize MSI-X, error %d", res);
-        s->msix_used = false;
-    } else {
-        if (!vmxnet3_use_msix_vectors(s, VMXNET3_MAX_INTRS)) {
-            VMW_WRPRN("Failed to use MSI-X vectors, error %d", res);
-            msix_uninit(d, &s->msix_bar, &s->msix_bar);
-            s->msix_used = false;
-        } else {
-            s->msix_used = true;
-        }
-    }
-    return s->msix_used;
-}
-
 static void
 vmxnet3_cleanup_msix(VMXNET3State *s)
 {
@@ -2315,9 +2289,19 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
      * is a programming error. Fall back to INTx silently on -ENOTSUP */
     assert(!ret || ret == -ENOTSUP);
 
-    if (!vmxnet3_init_msix(s)) {
-        VMW_WRPRN("Failed to initialize MSI-X, configuration is inconsistent.");
-    }
+    ret = msix_init(pci_dev, VMXNET3_MAX_INTRS,
+                    &s->msix_bar,
+                    VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_TABLE,
+                    &s->msix_bar,
+                    VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_PBA(s),
+                    VMXNET3_MSIX_OFFSET(s), NULL);
+    /* Any error other than -ENOTSUP(board's MSI support is broken)
+     * is a programming error. Fall back to INTx silently on -ENOTSUP */
+    assert(!ret || ret == -ENOTSUP);
+    s->msix_used = !ret;
+    /* VMXNET3_MAX_INTRS is passed, so it will never fail when mark vector.
+     * For simplicity, no need to check return value. */
+    vmxnet3_use_msix_vectors(s, VMXNET3_MAX_INTRS);
 
     vmxnet3_net_init(s);
 

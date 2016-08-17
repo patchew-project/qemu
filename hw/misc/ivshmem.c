@@ -899,6 +899,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
 
         if (ivshmem_setup_interrupts(s) < 0) {
             error_setg(errp, "failed to initialize interrupts");
+            error_append_hint(errp, "MSI-X is not supported by interrupt controller");
             return;
         }
     }

@@ -3594,7 +3594,28 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     dev->config[0x60] = 0x30; /* release number */
 
-    usb_xhci_init(xhci);
+    if (xhci->numintrs > MAXINTRS) {
+        xhci->numintrs = MAXINTRS;
+    }
+    while (xhci->numintrs & (xhci->numintrs - 1)) {   /* ! power of 2 */
+        xhci->numintrs++;
+    }
+    if (xhci->numintrs < 1) {
+        xhci->numintrs = 1;
+    }
+
+    if (xhci->numslots > MAXSLOTS) {
+        xhci->numslots = MAXSLOTS;
+    }
+    if (xhci->numslots < 1) {
+        xhci->numslots = 1;
+    }
+
+    if (xhci_get_flag(xhci, XHCI_FLAG_ENABLE_STREAMS)) {
+        xhci->max_pstreams_mask = 7; /* == 256 primary streams */
+    } else {
+        xhci->max_pstreams_mask = 0;
+    }
 
     if (xhci->msi != ON_OFF_AUTO_OFF) {
         ret = msi_init(dev, 0x70, xhci->numintrs, true, false, &err);
@@ -3613,30 +3634,29 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
         error_free(err);
     }
 
-    if (xhci->numintrs > MAXINTRS) {
-        xhci->numintrs = MAXINTRS;
-    }
-    while (xhci->numintrs & (xhci->numintrs - 1)) {   /* ! power of 2 */
-        xhci->numintrs++;
-    }
-    if (xhci->numintrs < 1) {
-        xhci->numintrs = 1;
-    }
-    if (xhci->numslots > MAXSLOTS) {
-        xhci->numslots = MAXSLOTS;
-    }
-    if (xhci->numslots < 1) {
-        xhci->numslots = 1;
-    }
-    if (xhci_get_flag(xhci, XHCI_FLAG_ENABLE_STREAMS)) {
-        xhci->max_pstreams_mask = 7; /* == 256 primary streams */
-    } else {
-        xhci->max_pstreams_mask = 0;
-    }
-
-    xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
-
     memory_region_init(&xhci->mem, OBJECT(xhci), "xhci", LEN_REGS);
+    if (xhci->msix != ON_OFF_AUTO_OFF) {
+        ret = msix_init(dev, xhci->numintrs,
+                        &xhci->mem, 0, OFF_MSIX_TABLE,
+                        &xhci->mem, 0, OFF_MSIX_PBA,
+                        0x90, &err);
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error */
+        assert(!ret || ret == -ENOTSUP);
+        if (ret && xhci->msix == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msix=on request, fail */
+            error_append_hint(&err, "You have to use msix=auto (default) or "
+                    "msic=off with this machine type.\n");
+            /* No instance_finalize method, need to free the resource here */
+            object_unref(OBJECT(&xhci->mem));
+            error_propagate(errp, err);
+            return;
+        }
+        assert(!err || xhci->msix == ON_OFF_AUTO_AUTO);
+        /* With msix=auto, we fall back to MSI off silently */
+        error_free(err);
+    }
+
     memory_region_init_io(&xhci->mem_cap, OBJECT(xhci), &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
     memory_region_init_io(&xhci->mem_oper, OBJECT(xhci), &xhci_oper_ops, xhci,
@@ -3664,18 +3684,13 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &xhci->mem);
 
+    usb_xhci_init(xhci);
+    xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
+
     if (pci_bus_is_express(dev->bus) ||
         xhci_get_flag(xhci, XHCI_FLAG_FORCE_PCIE_ENDCAP)) {
         ret = pcie_endpoint_cap_init(dev, 0xa0);
         assert(ret >= 0);
-    }
-
-    if (xhci->msix != ON_OFF_AUTO_OFF) {
-        /* TODO check for errors */
-        msix_init(dev, xhci->numintrs,
-                  &xhci->mem, 0, OFF_MSIX_TABLE,
-                  &xhci->mem, 0, OFF_MSIX_PBA,
-                  0x90);
     }
 }
 
