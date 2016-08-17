@@ -89,7 +89,8 @@ typedef struct E1000EState {
 #define E1000E_MSIX_TABLE   (0x0000)
 #define E1000E_MSIX_PBA     (0x2000)
 
-#define E1000E_USE_MSIX    BIT(0)
+#define E1000E_USE_MSI     BIT(0)
+#define E1000E_USE_MSIX    BIT(1)
 
 static uint64_t
 e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -470,6 +471,8 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
     if (ret) {
         trace_e1000e_msi_init_fail(ret);
+    } else {
+        s->intr_state |= E1000E_USE_MSI;
     }
 
     if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
