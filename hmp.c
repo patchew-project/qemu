@@ -2038,6 +2038,22 @@ void hmp_info_iothreads(Monitor *mon, const QDict *qdict)
     qapi_free_IOThreadInfoList(info_list);
 }
 
+void hmp_info_measurements(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    MeasurementList *info_list = qmp_query_measurements(&err);
+    MeasurementList *info;
+
+    if (err == NULL) {
+        for (info = info_list; info; info = info->next) {
+            monitor_printf(mon, "%02" PRId64 ":%s\n", info->value->pcr,
+                           info->value->hash);
+        }
+        qapi_free_MeasurementList(info_list);
+    }
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_qom_list(Monitor *mon, const QDict *qdict)
 {
     const char *path = qdict_get_try_str(qdict, "path");

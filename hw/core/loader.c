@@ -55,6 +55,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
+#include "hw/misc/measurements.h"
 
 #include <zlib.h>
 
@@ -1023,6 +1024,17 @@ static void rom_reset(void *unused)
          * CPU definitely fetches its instructions from the just written data.
          */
         cpu_flush_icache_range(rom->addr, rom->datasize);
+    }
+}
+
+void measure_roms(void)
+{
+    Rom *rom;
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->data == NULL) {
+            continue;
+        }
+        measurements_extend_data(0, rom->data, rom->datasize, rom->name);
     }
 }
 

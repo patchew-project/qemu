@@ -4338,3 +4338,33 @@
 # Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+
+##
+# @Measurement
+#
+# @pcr: The platform configuration register in the measurement
+# @hash: The SHA1 value stored inside the given platform configuration register
+#
+# Since: 2.8
+##
+{ 'struct': 'Measurement',
+  'data': { 'pcr': 'int',
+            'hash': 'str'
+          }
+}
+
+##
+# @query-measurements
+#
+# Various components of the boot process (including ROMs) will be
+# cryptographically hashed and stored in platform configuration registers. Any
+# modification of these boot components will result in changes to these values,
+# making it possible to verify that the system was booted in the expected
+# configuration. This command will return the values.
+#
+# Returns: a list of Measurement objects
+#
+#
+# Since: 2.8
+##
+{ 'command': 'query-measurements', 'returns': ['Measurement'] }

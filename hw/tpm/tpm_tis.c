@@ -1036,6 +1036,11 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
     TPMState *s = TPM(dev);
     TPMTISEmuState *tis = &s->s.tis;
 
+    if (measurements_port()) {
+        error_setg(errp, "Can't use measurements and TPM simultaneously");
+        return;
+    }
+
     s->be_driver = qemu_find_tpm(s->backend);
     if (!s->be_driver) {
         error_setg(errp, "tpm_tis: backend driver with id %s could not be "

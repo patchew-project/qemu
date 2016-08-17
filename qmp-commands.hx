@@ -5039,3 +5039,23 @@ Example for pc machine type started with
             "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
          }
        ]}
+
+EQMP
+    {
+        .name       = "query-measurements",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_query_measurements,
+    },
+SQMP
+Show system measurements
+------------------------
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "query-measurements" }
+<- {"return": [
+     { "pcr": 0, "hash": "2cfb9f764876a5c7a3a96770fb79043353a5fa38"},
+     { "pcr": 1, "hash": "30b2c318442bd985ce9394ff649056ffde691617"}
+     ]}'
