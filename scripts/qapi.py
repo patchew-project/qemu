@@ -76,6 +76,7 @@ struct_types = []
 union_types = []
 events = []
 all_names = {}
+defs = []
 
 #
 # Parsing the schema into expressions
@@ -177,6 +178,7 @@ class QAPISchemaParser(object):
                 self.exprs.append(expr_elem)
 
     def accept(self):
+        ok = True
         while True:
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
@@ -184,7 +186,19 @@ class QAPISchemaParser(object):
             self.val = None
 
             if self.tok == '#':
-                self.cursor = self.src.find('\n', self.cursor)
+                end = self.src.find('\n', self.cursor)
+                line = self.src[self.cursor:end+1]
+                self.cursor = end
+                sline = line.split()
+                if len(defs) and len(sline) >= 1 \
+                   and sline[0] in ['ifdef', 'endif']:
+                    if sline[0] == 'ifdef':
+                        ok = sline[1] in defs
+                    elif sline[0] == 'endif':
+                        ok = True
+                    continue
+            elif not ok:
+                continue
             elif self.tok in "{}:,[]":
                 return
             elif self.tok == "'":
@@ -1707,15 +1721,36 @@ def gen_params(arg_type, boxed, extra):
 #
 # Common command line parsing
 #
+def defile(filename):
+    f = open(filename, 'r')
+    while 1:
+        line = f.readline()
+        if not line:
+            break
+        while line[-2:] == '\\\n':
+            nextline = f.readline()
+            if not nextline:
+                break
+            line = line + nextline
+        tmp = line.strip()
+        if tmp[:1] != '#':
+            continue
+        tmp = tmp[1:]
+        words = tmp.split()
+        if words[0] != "define":
+            continue
+        defs.append(words[1])
+    f.close()
 
 
 def parse_command_line(extra_options="", extra_long_options=[]):
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       "chp:o:" + extra_options,
+                                       "chp:o:f:" + extra_options,
                                        ["source", "header", "prefix=",
-                                        "output-dir="] + extra_long_options)
+                                        "output-dir=", "--defile="] +
+                                       extra_long_options)
     except getopt.GetoptError as err:
         print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
@@ -1742,6 +1777,8 @@ def parse_command_line(extra_options="", extra_long_options=[]):
             do_c = True
         elif o in ("-h", "--header"):
             do_h = True
+        elif o in ("-f", "--defile"):
+            defile(a)
         else:
             extra_opts.append(oa)
 
