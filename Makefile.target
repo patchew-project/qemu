@@ -160,23 +160,25 @@ endif
 GENERATED_HEADERS += hmp-commands.h hmp-commands-info.h qmp-commands-old.h
 GENERATED_HEADERS += qmp-introspect.h
 GENERATED_SOURCES += qmp-introspect.c qmp-marshal.c qapi-event.c
+qapi-hconfig = ../config-host.h config-target.h
+qapi-flags = $(patsubst %,-f %,$(qapi-hconfig))
 
 qmp-marshal.c :\
-$(qapi-modules) $(qapi-commands-py)
+$(qapi-modules) $(qapi-commands-py) $(qapi-hconfig)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(qapi-gen-type) -o "." -m $<, \
+		$(qapi-flags) $(qapi-gen-type) -o "." -m $<, \
 		"  GEN   $(TARGET_DIR)$@")
 
 qapi-event.c :\
 $(qapi-modules) $(qapi-event-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
-		$(qapi-gen-type) -o "." $<, \
+		$(qapi-flags) $(qapi-gen-type) -o "." $<, \
 		"  GEN   $@")
 
 qmp-introspect.h qmp-introspect.c :\
-$(qapi-modules) $(qapi-introspect-py)
+$(qapi-modules) $(qapi-introspect-py) $(qapi-hconfig)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-introspect.py \
-		$(qapi-gen-type) -o "." $<, \
+		$(qapi-flags) $(qapi-gen-type) -o "." $<, \
 		"  GEN   $(TARGET_DIR)$@")
 
 obj-y += qmp-marshal.o qmp-introspect.o qapi-event.o

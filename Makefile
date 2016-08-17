@@ -267,20 +267,23 @@ qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 
+qapi-hconfig = config-host.h
+qapi-flags = $(patsubst %,-f %,$(qapi-hconfig))
+
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h :\
-$(SRC_PATH)/qga/qapi-schema.json $(qapi-types-py)
+$(SRC_PATH)/qga/qapi-schema.json $(qapi-types-py) $(qapi-hconfig)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
-		$(qapi-gen-type) -o qga/qapi-generated -p "qga-" $<, \
+		$(qapi-flags) $(qapi-gen-type) -o qga/qapi-generated -p "qga-" $<, \
 		"  GEN   $@")
 qga/qapi-generated/qga-qapi-visit.c qga/qapi-generated/qga-qapi-visit.h :\
-$(SRC_PATH)/qga/qapi-schema.json $(qapi-visit-py)
+$(SRC_PATH)/qga/qapi-schema.json $(qapi-visit-py) $(qapi-hconfig)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
-		$(qapi-gen-type) -o qga/qapi-generated -p "qga-" $<, \
+		$(qapi-flags) $(qapi-gen-type) -o qga/qapi-generated -p "qga-" $<, \
 		"  GEN   $@")
 qga/qapi-generated/qga-qmp-commands.h qga/qapi-generated/qga-qmp-marshal.c :\
-$(SRC_PATH)/qga/qapi-schema.json $(qapi-commands-py)
+$(SRC_PATH)/qga/qapi-schema.json $(qapi-commands-py) $(qapi-hconfig)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(qapi-gen-type) -o qga/qapi-generated -p "qga-" $<, \
+		$(qapi-flags) $(qapi-gen-type) -o qga/qapi-generated -p "qga-" $<, \
 		"  GEN   $@")
 
 qapi-types.c qapi-types.h :\
