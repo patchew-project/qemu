@@ -973,6 +973,8 @@
 { 'enum': 'NetworkAddressFamily',
   'data': [ 'ipv4', 'ipv6', 'unix', 'unknown' ] }
 
+#ifdef CONFIG_VNC
+
 ##
 # @VncBasicInfo
 #
@@ -1146,6 +1148,10 @@
 ##
 { 'command': 'query-vnc-servers', 'returns': ['VncInfo2'] }
 
+#endif CONFIG_VNC
+
+#ifdef CONFIG_SPICE
+
 ##
 # @SpiceBasicInfo
 #
@@ -1270,6 +1276,8 @@
 # Since: 0.14.0
 ##
 { 'command': 'query-spice', 'returns': 'SpiceInfo' }
+
+#endif CONFIG_SPICE
 
 ##
 # @BalloonInfo:
@@ -2000,6 +2008,8 @@
 ##
 { 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
 
+#ifdef CONFIG_VNC
+
 ##
 # @change-vnc-password:
 #
@@ -2013,6 +2023,8 @@
 #         string.  Existing clients are unaffected by executing this command.
 ##
 { 'command': 'change-vnc-password', 'data': {'password': 'str'} }
+
+#endif
 
 ##
 # @change:
@@ -2343,6 +2355,8 @@
 { 'command': 'query-dump-guest-memory-capability',
   'returns': 'DumpGuestMemoryCapability' }
 
+#ifdef TARGET_S390X
+
 ##
 # @dump-skeys
 #
@@ -2356,6 +2370,8 @@
 ##
 { 'command': 'dump-skeys',
   'data': { 'filename': 'str' } }
+
+#endif TARGET_S390X
 
 ##
 # @netdev_add:
@@ -3371,6 +3387,8 @@
   'base': 'ChardevCommon' }
 
 
+#ifdef CONFIG_SPICE
+
 ##
 # @ChardevSpiceChannel:
 #
@@ -3394,6 +3412,8 @@
 ##
 { 'struct': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' },
   'base': 'ChardevCommon' }
+
+#endif CONFIG_SPICE
 
 ##
 # @ChardevVC:
@@ -3446,8 +3466,10 @@
                                        'testdev': 'ChardevCommon',
                                        'stdio'  : 'ChardevStdio',
                                        'console': 'ChardevCommon',
+#ifdef CONFIG_SPICE
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
+#endif
                                        'vc'     : 'ChardevVC',
                                        'ringbuf': 'ChardevRingbuf',
                                        # next one is just for compatibility
@@ -4200,6 +4222,8 @@
 { 'enum': 'GuestPanicAction',
   'data': [ 'pause' ] }
 
+#ifdef TARGET_I386
+
 ##
 # @rtc-reset-reinjection
 #
@@ -4211,6 +4235,8 @@
 # Since: 2.1
 ##
 { 'command': 'rtc-reset-reinjection' }
+
+#endif TARGET_I386
 
 # Rocker ethernet network switch
 { 'include': 'qapi/rocker.json' }
@@ -4271,6 +4297,8 @@
             'emulated': 'bool',
             'kernel': 'bool' } }
 
+#ifdef TARGET_ARM
+
 ##
 # @query-gic-capabilities:
 #
@@ -4282,6 +4310,8 @@
 # Since: 2.6
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
+
+#endif TARGET_ARM
 
 ##
 # CpuInstanceProperties

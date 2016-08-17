@@ -570,6 +570,7 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
     qapi_free_BlockStatsList(stats_list);
 }
 
+#ifdef CONFIG_VNC
 void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 {
     VncInfo *info;
@@ -615,6 +616,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 out:
     qapi_free_VncInfo(info);
 }
+#endif
 
 #ifdef CONFIG_SPICE
 void hmp_info_spice(Monitor *mon, const QDict *qdict)

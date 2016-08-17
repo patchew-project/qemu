@@ -4306,28 +4306,6 @@ QemuOptsList qemu_mon_opts = {
     },
 };
 
-#ifndef TARGET_I386
-void qmp_rtc_reset_reinjection(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
-}
-#endif
-
-#ifndef TARGET_S390X
-void qmp_dump_skeys(const char *filename, Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "dump-skeys");
-}
-#endif
-
-#ifndef TARGET_ARM
-GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "query-gic-capabilities");
-    return NULL;
-}
-#endif
-
 HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
