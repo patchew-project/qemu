@@ -84,9 +84,8 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
         break;
 
     default:
-        error_report("XICS interrupt controller does not support this CPU "
-                     "bus model");
-        abort();
+        error_report_abort("XICS interrupt controller does not support "
+                           "this CPU bus model");
     }
 }
 

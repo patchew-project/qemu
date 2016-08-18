@@ -2606,8 +2606,7 @@ MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
         msg = msi_get_message(dev, vector);
     } else {
         /* Should never happen */
-        error_report("%s: unknown interrupt type", __func__);
-        abort();
+        error_report_abort("%s: unknown interrupt type", __func__);
     }
     return msg;
 }

@@ -352,9 +352,8 @@ static bool netmap_has_vnet_hdr_len(NetClientState *nc, int len)
 
     /* Restore the previous length. */
     if (netmap_fd_set_vnet_hdr_len(s, prev_len)) {
-        error_report("Failed to restore vnet-hdr length %d on %s: %s",
-                     prev_len, s->ifname, strerror(errno));
-        abort();
+        error_report_abort("Failed to restore vnet-hdr length %d on %s: %s",
+                           prev_len, s->ifname, strerror(errno));
     }
 
     return true;
