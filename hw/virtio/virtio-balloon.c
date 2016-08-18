@@ -88,10 +88,19 @@ static void balloon_stats_change_timer(VirtIOBalloon *s, int64_t secs)
     timer_mod(s->stats_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + secs * 1000);
 }
 
+static void balloon_stats_push_elem(VirtIOBalloon *s)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    virtqueue_push(s->svq, s->stats_vq_elem, s->stats_vq_offset);
+    virtio_notify(vdev, s->svq);
+    g_free(s->stats_vq_elem);
+    s->stats_vq_elem = NULL;
+}
+
 static void balloon_stats_poll_cb(void *opaque)
 {
     VirtIOBalloon *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     if (!s->stats_vq_elem) {
         /* The guest hasn't sent the stats yet (either not enabled or we came
@@ -100,10 +109,7 @@ static void balloon_stats_poll_cb(void *opaque)
         return;
     }
 
-    virtqueue_push(s->svq, s->stats_vq_elem, s->stats_vq_offset);
-    virtio_notify(vdev, s->svq);
-    g_free(s->stats_vq_elem);
-    s->stats_vq_elem = NULL;
+    balloon_stats_push_elem(s);
 }
 
 static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
@@ -411,6 +417,15 @@ static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
+static void balloon_vm_state_change(void *opaque, int running, RunState state)
+{
+    VirtIOBalloon *s = opaque;
+
+    if (!running && s->stats_vq_elem) {
+        balloon_stats_push_elem(s);
+    }
+}
+
 static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -433,6 +448,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(vdev, 1, virtio_balloon_receive_stats);
 
+    s->change = qemu_add_vm_change_state_handler(balloon_vm_state_change, s);
     reset_stats(s);
 }
 
@@ -441,6 +457,7 @@ static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBalloon *s = VIRTIO_BALLOON(dev);
 
+    qemu_del_vm_change_state_handler(s->change);
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
     virtio_cleanup(vdev);
