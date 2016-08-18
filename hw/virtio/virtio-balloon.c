@@ -68,12 +68,6 @@ static inline void reset_stats(VirtIOBalloon *dev)
     for (i = 0; i < VIRTIO_BALLOON_S_NR; dev->stats[i++] = -1);
 }
 
-static bool balloon_stats_supported(const VirtIOBalloon *s)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_STATS_VQ);
-}
-
 static bool balloon_stats_enabled(const VirtIOBalloon *s)
 {
     return s->stats_poll_interval > 0;
@@ -99,9 +93,10 @@ static void balloon_stats_poll_cb(void *opaque)
     VirtIOBalloon *s = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    if (s->stats_vq_elem == NULL || !balloon_stats_supported(s)) {
-        /* re-schedule */
-        balloon_stats_change_timer(s, s->stats_poll_interval);
+    if (!s->stats_vq_elem) {
+        /* The guest hasn't sent the stats yet (either not enabled or we came
+         * too early), nothing to do.  Once the guest starts sending stats the
+         * timer will get armed in receive handler */
         return;
     }
 
