@@ -128,6 +128,14 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
     if (max_insns > TCG_MAX_INSNS) {
         max_insns = TCG_MAX_INSNS;
     }
+    if (tb->flags & TB_FLAGS_FULL_ACCESS) {
+        /*
+            this flag is set by ST/LD instruction
+            we will regenerate it ONLY with mem/cpu memory access
+            instead of mem access
+        */
+        max_insns = 1;
+    }
 
     gen_tb_start(tb);
 
