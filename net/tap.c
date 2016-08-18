@@ -421,6 +421,9 @@ static void launch_script(const char *setup_script, const char *ifname,
         parg = args;
         *parg++ = (char *)setup_script;
         *parg++ = (char *)ifname;
+        if (qemu_name) {
+                *parg++ = (char *)qemu_name;
+        }
         *parg = NULL;
         execv(setup_script, args);
         _exit(1);
