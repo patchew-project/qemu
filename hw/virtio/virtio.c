@@ -92,7 +92,7 @@ struct VirtQueue
 
     uint16_t queue_index;
 
-    int inuse;
+    unsigned int inuse;
 
     uint16_t vector;
     VirtIOHandleOutput handle_output;
@@ -290,6 +290,7 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 void virtqueue_flush(VirtQueue *vq, unsigned int count)
 {
     uint16_t old, new;
+    assert(vq->inuse >= count);
     /* Make sure buffer is written before we update index. */
     smp_wmb();
     trace_virtqueue_flush(vq, count);
