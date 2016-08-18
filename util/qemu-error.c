@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include <unistd.h>
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
@@ -236,4 +237,15 @@ void error_report(const char *fmt, ...)
     va_start(ap, fmt);
     error_vreport(fmt, ap);
     va_end(ap);
+}
+
+void error_report_fatal(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vreport(fmt, ap);
+    va_end(ap);
+
+    exit(1);
 }
