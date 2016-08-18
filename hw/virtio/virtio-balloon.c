@@ -262,13 +262,6 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
         goto out;
     }
 
-    if (s->stats_vq_elem != NULL) {
-        /* This should never happen if the driver follows the spec. */
-        virtqueue_push(vq, s->stats_vq_elem, 0);
-        virtio_notify(vdev, vq);
-        g_free(s->stats_vq_elem);
-    }
-
     s->stats_vq_elem = elem;
 
     /* Initialize the stats to get rid of any stale values.  This is only
@@ -443,7 +436,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 
     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-    s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+    s->svq = virtio_add_queue(vdev, 1, virtio_balloon_receive_stats);
 
     reset_stats(s);
 }
