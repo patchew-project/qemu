@@ -33,6 +33,7 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/log.h"
+#include "translate-inst.h"
 
 extern TCGv_env cpu_env;
 
