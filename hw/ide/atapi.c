@@ -1289,7 +1289,7 @@ static const struct AtapiCmd {
     [ 0xad ] = { cmd_read_dvd_structure,            CHECK_READY },
     [ 0xbb ] = { cmd_set_speed,                     NONDATA },
     [ 0xbd ] = { cmd_mechanism_status,              0 },
-    [ 0xbe ] = { cmd_read_cd,                       CHECK_READY },
+    [ 0xbe ] = { cmd_read_cd,                       CHECK_READY | NONDATA },
     /* [1] handler detects and reports not ready condition itself */
 };
 
