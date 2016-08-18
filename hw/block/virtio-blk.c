@@ -477,21 +477,18 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     unsigned out_num = req->elem.out_num;
 
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
-        error_report("virtio-blk missing headers");
-        exit(1);
+        error_report_fatal("virtio-blk missing headers");
     }
 
     if (unlikely(iov_to_buf(iov, out_num, 0, &req->out,
                             sizeof(req->out)) != sizeof(req->out))) {
-        error_report("virtio-blk request outhdr too short");
-        exit(1);
+        error_report_fatal("virtio-blk request outhdr too short");
     }
 
     iov_discard_front(&iov, &out_num, sizeof(req->out));
 
     if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
-        error_report("virtio-blk request inhdr too short");
-        exit(1);
+        error_report_fatal("virtio-blk request inhdr too short");
     }
 
     /* We always touch the last byte, so just see how big in_iov is.  */

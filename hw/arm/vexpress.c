@@ -568,22 +568,20 @@ static void vexpress_common_init(MachineState *machine)
         int image_size;
 
         if (drive_get(IF_PFLASH, 0, 0)) {
-            error_report("The contents of the first flash device may be "
-                         "specified with -bios or with -drive if=pflash... "
-                         "but you cannot use both options at once");
-            exit(1);
+            error_report_fatal("The contents of the first flash device "
+                               "may be specified with -bios or with -drive "
+                               "if=pflash... but you cannot use both "
+                               "options at once");
         }
         fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (!fn) {
-            error_report("Could not find ROM image '%s'", bios_name);
-            exit(1);
+            error_report_fatal("Could not find ROM image '%s'", bios_name);
         }
         image_size = load_image_targphys(fn, map[VE_NORFLASH0],
                                          VEXPRESS_FLASH_SIZE);
         g_free(fn);
         if (image_size < 0) {
-            error_report("Could not load ROM image '%s'", bios_name);
-            exit(1);
+            error_report_fatal("Could not load ROM image '%s'", bios_name);
         }
     }
 

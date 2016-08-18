@@ -100,8 +100,7 @@ static void puv3_load_kernel(const char *kernel_filename)
     size = load_image_targphys(kernel_filename, KERNEL_LOAD_ADDR,
             KERNEL_MAX_SIZE);
     if (size < 0) {
-        error_report("Load kernel error: '%s'", kernel_filename);
-        exit(1);
+        error_report_fatal("Load kernel error: '%s'", kernel_filename);
     }
 
     /* cheat curses that we have a graphic console, only under ocd console */
@@ -118,8 +117,7 @@ static void puv3_init(MachineState *machine)
     UniCore32CPU *cpu;
 
     if (initrd_filename) {
-        error_report("Please use kernel built-in initramdisk");
-        exit(1);
+        error_report_fatal("Please use kernel built-in initramdisk");
     }
 
     if (!cpu_model) {
@@ -128,8 +126,7 @@ static void puv3_init(MachineState *machine)
 
     cpu = uc32_cpu_init(cpu_model);
     if (!cpu) {
-        error_report("Unable to find CPU definition");
-        exit(1);
+        error_report_fatal("Unable to find CPU definition");
     }
     env = &cpu->env;
 

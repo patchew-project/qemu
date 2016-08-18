@@ -282,9 +282,8 @@ static void virtex_init(MachineState *machine)
                                               high, ram_size - high);
 
             if (initrd_size < 0) {
-                error_report("couldn't load ram disk '%s'",
-                             machine->initrd_filename);
-                exit(1);
+                error_report_fatal("couldn't load ram disk '%s'",
+                                   machine->initrd_filename);
             }
             high = ROUND_UP(high + initrd_size, 4);
         }

@@ -40,8 +40,7 @@ static void init_dev(tc58128_dev * dev, const char *filename)
 	ret = load_image(filename, dev->flash_contents + 528 * 32);
 	if (ret < 0) {
             if (!qtest_enabled()) {
-                error_report("Could not load flash image %s", filename);
-                exit(1);
+                error_report_fatal("Could not load flash image %s", filename);
             }
 	} else {
 	    /* Build first block with number of blocks */

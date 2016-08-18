@@ -866,8 +866,7 @@ static void configure_rtc(QemuOpts *opts)
         } else if (!strcmp(value, "vm")) {
             rtc_clock = QEMU_CLOCK_VIRTUAL;
         } else {
-            error_report("invalid option value '%s'", value);
-            exit(1);
+            error_report_fatal("invalid option value '%s'", value);
         }
     }
     value = qemu_opt_get(opts, "driftfix");
@@ -883,8 +882,7 @@ static void configure_rtc(QemuOpts *opts)
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {
-            error_report("invalid option value '%s'", value);
-            exit(1);
+            error_report_fatal("invalid option value '%s'", value);
         }
     }
 }
@@ -1219,31 +1217,27 @@ static void smp_parse(QemuOpts *opts)
             threads = cpus / (cores * sockets);
             threads = threads > 0 ? threads : 1;
         } else if (sockets * cores * threads < cpus) {
-            error_report("cpu topology: "
-                         "sockets (%u) * cores (%u) * threads (%u) < "
-                         "smp_cpus (%u)",
-                         sockets, cores, threads, cpus);
-            exit(1);
+            error_report_fatal("cpu topology: "
+                               "sockets (%u) * cores (%u) * threads (%u) < "
+                               "smp_cpus (%u)",
+                               sockets, cores, threads, cpus);
         }
 
         max_cpus = qemu_opt_get_number(opts, "maxcpus", cpus);
 
         if (max_cpus > MAX_CPUMASK_BITS) {
-            error_report("unsupported number of maxcpus");
-            exit(1);
+            error_report_fatal("unsupported number of maxcpus");
         }
 
         if (max_cpus < cpus) {
-            error_report("maxcpus must be equal to or greater than smp");
-            exit(1);
+            error_report_fatal("maxcpus must be equal to or greater than smp");
         }
 
         if (sockets * cores * threads > max_cpus) {
-            error_report("cpu topology: "
-                         "sockets (%u) * cores (%u) * threads (%u) > "
-                         "maxcpus (%u)",
-                         sockets, cores, threads, max_cpus);
-            exit(1);
+            error_report_fatal("cpu topology: "
+                               "sockets (%u) * cores (%u) * threads (%u) > "
+                               "maxcpus (%u)",
+                               sockets, cores, threads, max_cpus);
         }
 
         smp_cpus = cpus;
@@ -1262,8 +1256,7 @@ static void realtime_init(void)
 {
     if (enable_mlock) {
         if (os_mlock() < 0) {
-            error_report("locking memory failed");
-            exit(1);
+            error_report_fatal("locking memory failed");
         }
     }
 }
@@ -2026,8 +2019,7 @@ static void select_vgahw(const char *p)
         VGAInterfaceInfo *ti = &vga_interfaces[t];
         if (ti->opt_name && strstart(p, ti->opt_name, &opts)) {
             if (!vga_interface_available(t)) {
-                error_report("%s not available", ti->name);
-                exit(1);
+                error_report_fatal("%s not available", ti->name);
             }
             vga_interface_type = t;
             break;
@@ -2035,8 +2027,7 @@ static void select_vgahw(const char *p)
     }
     if (t == VGA_TYPE_MAX) {
     invalid_vga:
-        error_report("unknown vga type: %s", p);
-        exit(1);
+        error_report_fatal("unknown vga type: %s", p);
     }
     while (*opts) {
         const char *nextopt;
@@ -2120,28 +2111,24 @@ static DisplayType select_display(const char *p)
                 }
             } else {
             invalid_sdl_args:
-                error_report("invalid SDL option string");
-                exit(1);
+                error_report_fatal("invalid SDL option string");
             }
             opts = nextopt;
         }
 #else
-        error_report("SDL support is disabled");
-        exit(1);
+        error_report_fatal("SDL support is disabled");
 #endif
     } else if (strstart(p, "vnc", &opts)) {
         if (*opts == '=') {
             vnc_parse(opts + 1, &error_fatal);
         } else {
-            error_report("VNC requires a display argument vnc=<display>");
-            exit(1);
+            error_report_fatal("VNC requires a display argument vnc=<display>");
         }
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
 #else
-        error_report("curses support is disabled");
-        exit(1);
+        error_report_fatal("curses support is disabled");
 #endif
     } else if (strstart(p, "gtk", &opts)) {
 #ifdef CONFIG_GTK
@@ -2169,20 +2156,17 @@ static DisplayType select_display(const char *p)
                 }
             } else {
             invalid_gtk_args:
-                error_report("invalid GTK option string");
-                exit(1);
+                error_report_fatal("invalid GTK option string");
             }
             opts = nextopt;
         }
 #else
-        error_report("GTK support is disabled");
-        exit(1);
+        error_report_fatal("GTK support is disabled");
 #endif
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
     } else {
-        error_report("unknown display type");
-        exit(1);
+        error_report_fatal("unknown display type");
     }
 
     return display;
@@ -2356,8 +2340,7 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     } else if (strcmp(mode, "control") == 0) {
         flags = MONITOR_USE_CONTROL;
     } else {
-        error_report("unknown monitor mode \"%s\"", mode);
-        exit(1);
+        error_report_fatal("unknown monitor mode \"%s\"", mode);
     }
 
     if (qemu_opt_get_bool(opts, "pretty", 0))
@@ -2369,8 +2352,7 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     chardev = qemu_opt_get(opts, "chardev");
     chr = qemu_chr_find(chardev);
     if (chr == NULL) {
-        error_report("chardev \"%s\" not found", chardev);
-        exit(1);
+        error_report_fatal("chardev \"%s\" not found", chardev);
     }
 
     qemu_chr_fe_claim_no_fail(chr);
@@ -2396,8 +2378,7 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
         }
         opts = qemu_chr_parse_compat(label, optarg);
         if (!opts) {
-            error_report("parse error: %s", optarg);
-            exit(1);
+            error_report_fatal("parse error: %s", optarg);
         }
     }
 
@@ -2466,8 +2447,7 @@ static int serial_parse(const char *devname)
     if (strcmp(devname, "none") == 0)
         return 0;
     if (index == MAX_SERIAL_PORTS) {
-        error_report("too many serial ports");
-        exit(1);
+        error_report_fatal("too many serial ports");
     }
     snprintf(label, sizeof(label), "serial%d", index);
     serial_hds[index] = qemu_chr_new(label, devname, NULL);
@@ -2488,8 +2468,7 @@ static int parallel_parse(const char *devname)
     if (strcmp(devname, "none") == 0)
         return 0;
     if (index == MAX_PARALLEL_PORTS) {
-        error_report("too many parallel ports");
-        exit(1);
+        error_report_fatal("too many parallel ports");
     }
     snprintf(label, sizeof(label), "parallel%d", index);
     parallel_hds[index] = qemu_chr_new(label, devname, NULL);
@@ -2512,8 +2491,7 @@ static int virtcon_parse(const char *devname)
     if (strcmp(devname, "none") == 0)
         return 0;
     if (index == MAX_VIRTIO_CONSOLES) {
-        error_report("too many virtio consoles");
-        exit(1);
+        error_report_fatal("too many virtio consoles");
     }
 
     bus_opts = qemu_opts_create(device, NULL, 0, &error_abort);
@@ -2546,8 +2524,7 @@ static int sclp_parse(const char *devname)
         return 0;
     }
     if (index == MAX_SCLP_CONSOLES) {
-        error_report("too many sclp consoles");
-        exit(1);
+        error_report_fatal("too many sclp consoles");
     }
 
     assert(arch_type == QEMU_ARCH_S390X);
@@ -2577,8 +2554,7 @@ static int debugcon_parse(const char *devname)
     }
     opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1, NULL);
     if (!opts) {
-        error_report("already have a debugcon device");
-        exit(1);
+        error_report_fatal("already have a debugcon device");
     }
     qemu_opt_set(opts, "driver", "isa-debugcon", &error_abort);
     qemu_opt_set(opts, "chardev", "debugcon", &error_abort);
@@ -2703,8 +2679,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     popt = qemu_options;
     for(;;) {
         if (!popt->name) {
-            error_report("invalid option");
-            exit(1);
+            error_report_fatal("invalid option");
         }
         if (!strcmp(popt->name, r + 1))
             break;
@@ -2712,8 +2687,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
     }
     if (popt->flags & HAS_ARG) {
         if (optind >= argc) {
-            error_report("requires an argument");
-            exit(1);
+            error_report_fatal("requires an argument");
         }
         optarg = argv[optind++];
         loc_set_cmdline(argv, optind - 2, 2);
@@ -2841,8 +2815,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     mem_str = qemu_opt_get(opts, "size");
     if (mem_str) {
         if (!*mem_str) {
-            error_report("missing 'size' option value");
-            exit(EXIT_FAILURE);
+            error_report_fatal("missing 'size' option value");
         }
 
         sz = qemu_opt_get_size(opts, "size", ram_size);
@@ -2853,8 +2826,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
 
             sz <<= 20;
             if ((sz >> 20) != overflow_check) {
-                error_report("too large 'size' option value");
-                exit(EXIT_FAILURE);
+                error_report_fatal("too large 'size' option value");
             }
         }
     }
@@ -2867,8 +2839,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     sz = QEMU_ALIGN_UP(sz, 8192);
     ram_size = sz;
     if (ram_size != sz) {
-        error_report("ram size too large");
-        exit(EXIT_FAILURE);
+        error_report_fatal("ram size too large");
     }
 
     /* store value for the future use */
@@ -2883,32 +2854,31 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
         sz = qemu_opt_get_size(opts, "maxmem", 0);
         slots = qemu_opt_get_number(opts, "slots", 0);
         if (sz < ram_size) {
-            error_report("invalid value of -m option maxmem: "
-                         "maximum memory size (0x%" PRIx64 ") must be at least "
-                         "the initial memory size (0x" RAM_ADDR_FMT ")",
-                         sz, ram_size);
-            exit(EXIT_FAILURE);
+            error_report_fatal("invalid value of -m option maxmem: "
+                               "maximum memory size (0x%" PRIx64
+                               ") must be at least "
+                               "the initial memory size (0x"
+                               RAM_ADDR_FMT ")", sz, ram_size);
         } else if (sz > ram_size) {
             if (!slots) {
-                error_report("invalid value of -m option: maxmem was "
-                             "specified, but no hotplug slots were specified");
-                exit(EXIT_FAILURE);
+                error_report_fatal("invalid value of -m option: maxmem was "
+                                   "specified, but no hotplug slots were "
+                                   "specified");
             }
         } else if (slots) {
-            error_report("invalid value of -m option maxmem: "
-                         "memory slots were specified but maximum memory size "
-                         "(0x%" PRIx64 ") is equal to the initial memory size "
-                         "(0x" RAM_ADDR_FMT ")", sz, ram_size);
-            exit(EXIT_FAILURE);
+            error_report_fatal("invalid value of -m option maxmem: "
+                               "memory slots were specified but maximum "
+                               "memory size (0x%" PRIx64 ") is equal to the "
+                               "initial memory size " "(0x" RAM_ADDR_FMT ")",
+                               sz, ram_size);
         }
 
         *maxram_size = sz;
         *ram_slots = slots;
     } else if ((!maxmem_str && slots_str) ||
             (maxmem_str && !slots_str)) {
-        error_report("invalid -m option value: missing "
-                "'%s' option", slots_str ? "maxmem" : "slots");
-        exit(EXIT_FAILURE);
+        error_report_fatal("invalid -m option value: missing " "'%s' option",
+                           slots_str ? "maxmem" : "slots");
     }
 
     loc_pop(&loc);
@@ -3067,8 +3037,7 @@ int main(int argc, char **argv, char **envp)
 
             popt = lookup_opt(argc, argv, &optarg, &optind);
             if (!(popt->arch_mask & arch_type)) {
-                error_report("Option not supported for this target");
-                exit(1);
+                error_report_fatal("Option not supported for this target");
             }
             switch(popt->index) {
             case QEMU_OPTION_no_kvm_irqchip: {
@@ -3163,8 +3132,7 @@ int main(int argc, char **argv, char **envp)
                         }
                     } else if (*p != '\0') {
                     chs_fail:
-                        error_report("invalid physical CHS format");
-                        exit(1);
+                        error_report_fatal("invalid physical CHS format");
                     }
                     if (hda_opts != NULL) {
                         qemu_opt_set_number(hda_opts, "cyls", cyls,
@@ -3209,8 +3177,7 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_CURSES
                 display_type = DT_CURSES;
 #else
-                error_report("curses support is disabled");
-                exit(1);
+                error_report_fatal("curses support is disabled");
 #endif
                 break;
             case QEMU_OPTION_portrait:
@@ -3220,8 +3187,8 @@ int main(int argc, char **argv, char **envp)
                 graphic_rotate = strtol(optarg, (char **) &optarg, 10);
                 if (graphic_rotate != 0 && graphic_rotate != 90 &&
                     graphic_rotate != 180 && graphic_rotate != 270) {
-                    error_report("only 90, 180, 270 deg rotation is available");
-                    exit(1);
+                    error_report_fatal("only 90, 180, 270 deg rotation "
+                                       "is available");
                 }
                 break;
             case QEMU_OPTION_kernel:
@@ -3384,8 +3351,7 @@ int main(int argc, char **argv, char **envp)
                     w = strtol(p, (char **)&p, 10);
                     if (w <= 0) {
                     graphic_error:
-                        error_report("invalid resolution or depth");
-                        exit(1);
+                        error_report_fatal("invalid resolution or depth");
                     }
                     if (*p != 'x')
                         goto graphic_error;
@@ -3450,8 +3416,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_fsdev:
                 olist = qemu_find_opts("fsdev");
                 if (!olist) {
-                    error_report("fsdev support is disabled");
-                    exit(1);
+                    error_report_fatal("fsdev support is disabled");
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, true);
                 if (!opts) {
@@ -3465,8 +3430,7 @@ int main(int argc, char **argv, char **envp)
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
-                    error_report("virtfs support is disabled");
-                    exit(1);
+                    error_report_fatal("virtfs support is disabled");
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, true);
                 if (!opts) {
@@ -3475,16 +3439,14 @@ int main(int argc, char **argv, char **envp)
 
                 if (qemu_opt_get(opts, "fsdriver") == NULL ||
                     qemu_opt_get(opts, "mount_tag") == NULL) {
-                    error_report("Usage: -virtfs fsdriver,mount_tag=tag");
-                    exit(1);
+                    error_report_fatal("Usage: -virtfs fsdriver,mount_tag=tag");
                 }
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
                                          qemu_opt_get(opts, "mount_tag"),
                                          1, NULL);
                 if (!fsdev) {
-                    error_report("duplicate fsdev id: %s",
-                                 qemu_opt_get(opts, "mount_tag"));
-                    exit(1);
+                    error_report_fatal("duplicate fsdev id: %s",
+                                       qemu_opt_get(opts, "mount_tag"));
                 }
 
                 writeout = qemu_opt_get(opts, "writeout");
@@ -3492,9 +3454,8 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_SYNC_FILE_RANGE
                     qemu_opt_set(fsdev, "writeout", writeout, &error_abort);
 #else
-                    error_report("writeout=immediate not supported "
-                                 "on this platform");
-                    exit(1);
+                    error_report_fatal("writeout=immediate not supported "
+                                       "on this platform");
 #endif
                 }
                 qemu_opt_set(fsdev, "fsdriver",
@@ -3532,8 +3493,7 @@ int main(int argc, char **argv, char **envp)
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"), "v_synth",
                                          1, NULL);
                 if (!fsdev) {
-                    error_report("duplicate option: %s", "virtfs_synth");
-                    exit(1);
+                    error_report_fatal("duplicate option: %s", "virtfs_synth");
                 }
                 qemu_opt_set(fsdev, "fsdriver", "synth", &error_abort);
 
@@ -3560,8 +3520,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_watchdog_action:
                 if (select_watchdog_action(optarg) == -1) {
-                    error_report("unknown -watchdog-action parameter");
-                    exit(1);
+                    error_report_fatal("unknown -watchdog-action parameter");
                 }
                 break;
             case QEMU_OPTION_virtiocon:
@@ -3604,8 +3563,7 @@ int main(int argc, char **argv, char **envp)
                 display_type = DT_SDL;
                 break;
 #else
-                error_report("SDL support is disabled");
-                exit(1);
+                error_report_fatal("SDL support is disabled");
 #endif
             case QEMU_OPTION_pidfile:
                 pid_file = optarg;
@@ -3710,8 +3668,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_balloon:
                 if (balloon_parse(optarg) < 0) {
-                    error_report("unknown -balloon argument %s", optarg);
-                    exit(1);
+                    error_report_fatal("unknown -balloon argument %s", optarg);
                 }
                 break;
             case QEMU_OPTION_no_reboot:
@@ -3725,15 +3682,14 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_uuid:
                 if(qemu_uuid_parse(optarg, qemu_uuid) < 0) {
-                    error_report("failed to parse UUID string: wrong format");
-                    exit(1);
+                    error_report_fatal("failed to parse UUID string: "
+                                       "wrong format");
                 }
                 qemu_uuid_set = true;
                 break;
             case QEMU_OPTION_option_rom:
                 if (nb_option_roms >= MAX_OPTION_ROMS) {
-                    error_report("too many option ROMs");
-                    exit(1);
+                    error_report_fatal("too many option ROMs");
                 }
                 opts = qemu_opts_parse_noisily(qemu_find_opts("option-rom"),
                                                optarg, true);
@@ -3744,8 +3700,7 @@ int main(int argc, char **argv, char **envp)
                 option_rom[nb_option_roms].bootindex =
                     qemu_opt_get_number(opts, "bootindex", -1);
                 if (!option_rom[nb_option_roms].name) {
-                    error_report("Option ROM file is not specified");
-                    exit(1);
+                    error_report_fatal("Option ROM file is not specified");
                 }
                 nb_option_roms++;
                 break;
@@ -3769,9 +3724,8 @@ int main(int argc, char **argv, char **envp)
                         } else  if (strcmp("auto", target) == 0) {
                             semihosting.target = SEMIHOSTING_TARGET_AUTO;
                         } else {
-                            error_report("unsupported semihosting-config %s",
-                                         optarg);
-                            exit(1);
+                            error_report_fatal("unsupported semihosting-"
+                                               "config %s", optarg);
                         }
                     } else {
                         semihosting.target = SEMIHOSTING_TARGET_AUTO;
@@ -3780,8 +3734,8 @@ int main(int argc, char **argv, char **envp)
                     qemu_opt_foreach(opts, add_semihosting_arg,
                                      &semihosting, NULL);
                 } else {
-                    error_report("unsupported semihosting-config %s", optarg);
-                    exit(1);
+                    error_report_fatal("unsupported semihosting-config %s",
+                                       optarg);
                 }
                 break;
             case QEMU_OPTION_tdf:
@@ -3796,8 +3750,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_prom_env:
                 if (nb_prom_envs >= MAX_PROM_ENVS) {
-                    error_report("too many prom variables");
-                    exit(1);
+                    error_report_fatal("too many prom variables");
                 }
                 prom_envs[nb_prom_envs] = optarg;
                 nb_prom_envs++;
@@ -3845,22 +3798,19 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {
-                    error_report("Option not supported for this target");
-                    exit(1);
+                    error_report_fatal("Option not supported for this target");
                 }
                 xen_domid = atoi(optarg);
                 break;
             case QEMU_OPTION_xen_create:
                 if (!(xen_available())) {
-                    error_report("Option not supported for this target");
-                    exit(1);
+                    error_report_fatal("Option not supported for this target");
                 }
                 xen_mode = XEN_CREATE;
                 break;
             case QEMU_OPTION_xen_attach:
                 if (!(xen_available())) {
-                    error_report("Option not supported for this target");
-                    exit(1);
+                    error_report_fatal("Option not supported for this target");
                 }
                 xen_mode = XEN_ATTACH;
                 break;
@@ -3872,17 +3822,15 @@ int main(int argc, char **argv, char **envp)
                 {
                     int ret = qemu_read_config_file(optarg);
                     if (ret < 0) {
-                        error_report("read config %s: %s", optarg,
-                                     strerror(-ret));
-                        exit(1);
+                        error_report_fatal("read config %s: %s", optarg,
+                                           strerror(-ret));
                     }
                     break;
                 }
             case QEMU_OPTION_spice:
                 olist = qemu_find_opts("spice");
                 if (!olist) {
-                    error_report("spice support is disabled");
-                    exit(1);
+                    error_report_fatal("spice support is disabled");
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, false);
                 if (!opts) {
@@ -3898,9 +3846,8 @@ int main(int argc, char **argv, char **envp)
                     } else {
                         fp = fopen(optarg, "w");
                         if (fp == NULL) {
-                            error_report("open %s: %s", optarg,
-                                         strerror(errno));
-                            exit(1);
+                            error_report_fatal("open %s: %s", optarg,
+                                               strerror(errno));
                         }
                     }
                     qemu_config_write(fp);
@@ -3930,9 +3877,8 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 #else
-                error_report("File descriptor passing is disabled on this "
-                             "platform");
-                exit(1);
+                error_report_fatal("File descriptor passing is disabled "
+                                   "on this platform");
 #endif
                 break;
             case QEMU_OPTION_object:
@@ -3960,14 +3906,12 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_dump_vmstate:
                 if (vmstate_dump_file) {
-                    error_report("only one '-dump-vmstate' "
-                                 "option may be given");
-                    exit(1);
+                    error_report_fatal("only one '-dump-vmstate' "
+                                       "option may be given");
                 }
                 vmstate_dump_file = fopen(optarg, "w");
                 if (vmstate_dump_file == NULL) {
-                    error_report("open %s: %s", optarg, strerror(errno));
-                    exit(1);
+                    error_report_fatal("open %s: %s", optarg, strerror(errno));
                 }
                 break;
             default:
@@ -4082,10 +4026,10 @@ int main(int argc, char **argv, char **envp)
 
     machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
     if (max_cpus > machine_class->max_cpus) {
-        error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
-                     "supported by machine '%s' (%d)", max_cpus,
-                     machine_class->name, machine_class->max_cpus);
-        exit(1);
+        error_report_fatal("Number of SMP CPUs requested (%d) exceeds max CPUs "
+                           "supported by machine '%s' (%d)",
+                           max_cpus, machine_class->name,
+                           machine_class->max_cpus);
     }
 
     /*
@@ -4145,13 +4089,11 @@ int main(int argc, char **argv, char **envp)
         if (nographic
             && (default_parallel || default_serial
                 || default_monitor || default_virtcon)) {
-            error_report("-nographic cannot be used with -daemonize");
-            exit(1);
+            error_report_fatal("-nographic cannot be used with -daemonize");
         }
 #ifdef CONFIG_CURSES
         if (display_type == DT_CURSES) {
-            error_report("curses display cannot be used with -daemonize");
-            exit(1);
+            error_report_fatal("curses display cannot be used with -daemonize");
         }
 #endif
     }
@@ -4230,9 +4172,8 @@ int main(int argc, char **argv, char **envp)
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
 #else
-        error_report("OpenGL support is disabled");
+        error_report_fatal("OpenGL support is disabled");
 #endif
-        exit(1);
     }
 
     page_size_init();
@@ -4257,8 +4198,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        error_report("could not acquire pid file: %s", strerror(errno));
-        exit(1);
+        error_report_fatal("could not acquire pid file: %s", strerror(errno));
     }
 
     if (qemu_opts_foreach(qemu_find_opts("device"),
@@ -4313,18 +4253,15 @@ int main(int argc, char **argv, char **envp)
     linux_boot = (kernel_filename != NULL);
 
     if (!linux_boot && *kernel_cmdline != '\0') {
-        error_report("-append only allowed with -kernel option");
-        exit(1);
+        error_report_fatal("-append only allowed with -kernel option");
     }
 
     if (!linux_boot && initrd_filename != NULL) {
-        error_report("-initrd only allowed with -kernel option");
-        exit(1);
+        error_report_fatal("-initrd only allowed with -kernel option");
     }
 
     if (!linux_boot && qemu_opt_get(machine_opts, "dtb")) {
-        error_report("-dtb only allowed with -kernel option");
-        exit(1);
+        error_report_fatal("-dtb only allowed with -kernel option");
     }
 
     if (semihosting_enabled() && !semihosting_get_argc() && kernel_filename) {
@@ -4340,8 +4277,7 @@ int main(int argc, char **argv, char **envp)
     cpu_ticks_init();
     if (icount_opts) {
         if (kvm_enabled() || xen_enabled()) {
-            error_report("-icount is not allowed with kvm or xen");
-            exit(1);
+            error_report_fatal("-icount is not allowed with kvm or xen");
         }
         configure_icount(icount_opts, &error_abort);
         qemu_opts_del(icount_opts);
@@ -4378,8 +4314,7 @@ int main(int argc, char **argv, char **envp)
     if (!xen_enabled()) {
         /* On 32-bit hosts, QEMU is limited by virtual address space */
         if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
-            error_report("at most 2047 MB RAM can be simulated");
-            exit(1);
+            error_report_fatal("at most 2047 MB RAM can be simulated");
         }
     }
 
@@ -4562,8 +4497,7 @@ int main(int argc, char **argv, char **envp)
     qemu_run_machine_init_done_notifiers();
 
     if (rom_check_and_register_reset() != 0) {
-        error_report("rom check and register reset failed");
-        exit(1);
+        error_report_fatal("rom check and register reset failed");
     }
 
     replay_start();

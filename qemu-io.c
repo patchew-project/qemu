@@ -488,8 +488,7 @@ int main(int argc, char **argv)
             break;
         case 'd':
             if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
-                error_report("Invalid discard option: %s", optarg);
-                exit(1);
+                error_report_fatal("Invalid discard option: %s", optarg);
             }
             break;
         case 'f':
@@ -509,8 +508,7 @@ int main(int argc, char **argv)
             break;
         case 't':
             if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
-                error_report("Invalid cache option: %s", optarg);
-                exit(1);
+                error_report_fatal("Invalid cache option: %s", optarg);
             }
             break;
         case 'T':
@@ -546,8 +544,7 @@ int main(int argc, char **argv)
     }
 
     if (format && imageOpts) {
-        error_report("--image-opts and -f are mutually exclusive");
-        exit(1);
+        error_report_fatal("--image-opts and -f are mutually exclusive");
     }
 
     if (qemu_init_main_loop(&local_error)) {

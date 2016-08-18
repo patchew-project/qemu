@@ -975,8 +975,7 @@ void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
 static void qemu_kvm_destroy_vcpu(CPUState *cpu)
 {
     if (kvm_destroy_vcpu(cpu) < 0) {
-        error_report("kvm_destroy_vcpu failed");
-        exit(EXIT_FAILURE);
+        error_report_fatal("kvm_destroy_vcpu failed");
     }
 }
 

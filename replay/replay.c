@@ -281,14 +281,12 @@ void replay_configure(QemuOpts *opts)
     } else if (!strcmp(rr, "replay")) {
         mode = REPLAY_MODE_PLAY;
     } else {
-        error_report("Invalid icount rr option: %s", rr);
-        exit(1);
+        error_report_fatal("Invalid icount rr option: %s", rr);
     }
 
     fname = qemu_opt_get(opts, "rrfile");
     if (!fname) {
-        error_report("File name not specified for replay");
-        exit(1);
+        error_report_fatal("File name not specified for replay");
     }
 
     replay_enable(fname, mode);
@@ -308,8 +306,7 @@ void replay_start(void)
         exit(1);
     }
     if (!use_icount) {
-        error_report("Please enable icount to use record/replay");
-        exit(1);
+        error_report_fatal("Please enable icount to use record/replay");
     }
 
     /* Timer for snapshotting will be set up here. */

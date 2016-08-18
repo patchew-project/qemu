@@ -58,9 +58,8 @@ static void x86_iommu_set_default(X86IOMMUState *x86_iommu)
     assert(x86_iommu);
 
     if (x86_iommu_default) {
-        error_report("QEMU does not support multiple vIOMMUs "
-                     "for x86 yet.");
-        exit(1);
+        error_report_fatal("QEMU does not support multiple vIOMMUs "
+                           "for x86 yet.");
     }
 
     x86_iommu_default = x86_iommu;

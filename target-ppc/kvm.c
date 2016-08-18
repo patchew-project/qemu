@@ -2062,8 +2062,8 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_PAPR, 0);
     if (ret) {
-        error_report("This vCPU type or KVM version does not support PAPR");
-        exit(1);
+        error_report_fatal("This vCPU type or KVM version does "
+                           "not support PAPR");
     }
 
     /* Update the capability flag so we sync the right information
@@ -2083,8 +2083,7 @@ void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_EPR, 0, mpic_proxy);
     if (ret && mpic_proxy) {
-        error_report("This KVM version does not support EPR");
-        exit(1);
+        error_report_fatal("This KVM version does not support EPR");
     }
 }
 

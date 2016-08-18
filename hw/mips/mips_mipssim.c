@@ -199,9 +199,9 @@ mips_mipssim_init(MachineState *machine)
     if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
         !kernel_filename && !qtest_enabled()) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
-        error_report("Could not load MIPS bios '%s', and no "
-                     "-kernel argument was specified", bios_name);
-        exit(1);
+        error_report_fatal("Could not load MIPS bios '%s', and no "
+                           "-kernel argument was specified",
+                           bios_name);
     } else {
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;

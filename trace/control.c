@@ -192,8 +192,7 @@ static void trace_init_events(const char *fname)
     loc_set_file(fname, 0);
     fp = fopen(fname, "r");
     if (!fp) {
-        error_report("%s", strerror(errno));
-        exit(1);
+        error_report_fatal("%s", strerror(errno));
     }
     while (fgets(line_buf, sizeof(line_buf), fp)) {
         loc_set_file(fname, ++line_idx);
@@ -208,8 +207,7 @@ static void trace_init_events(const char *fname)
     }
     if (fclose(fp) != 0) {
         loc_set_file(fname, 0);
-        error_report("%s", strerror(errno));
-        exit(1);
+        error_report_fatal("%s", strerror(errno));
     }
     loc_pop(&loc);
 }

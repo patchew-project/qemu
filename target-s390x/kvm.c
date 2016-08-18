@@ -909,8 +909,7 @@ void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq)
         if (!r) {
             return;
         }
-        error_report("KVM failed to inject interrupt %llx", irq->type);
-        exit(1);
+        error_report_fatal("KVM failed to inject interrupt %llx", irq->type);
     }
 
     inject_vcpu_irq_legacy(cs, irq);
@@ -2181,9 +2180,8 @@ int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
         mp_state.mp_state = KVM_MP_STATE_LOAD;
         break;
     default:
-        error_report("Requested CPU state is not a valid S390 CPU state: %u",
-                     cpu_state);
-        exit(1);
+        error_report_fatal("Requested CPU state is not a valid S390 "
+                           "CPU state: %u", cpu_state);
     }
 
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);

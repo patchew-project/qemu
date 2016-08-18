@@ -265,14 +265,13 @@ static void ref405ep_init(MachineState *machine)
             bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
             g_free(filename);
             if (bios_size < 0 || bios_size > BIOS_SIZE) {
-                error_report("Could not load PowerPC BIOS '%s'", bios_name);
-                exit(1);
+                error_report_fatal("Could not load PowerPC BIOS '%s'",
+                                   bios_name);
             }
             bios_size = (bios_size + 0xfff) & ~0xfff;
             memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
         } else if (!qtest_enabled() || kernel_filename != NULL) {
-            error_report("Could not load PowerPC BIOS '%s'", bios_name);
-            exit(1);
+            error_report_fatal("Could not load PowerPC BIOS '%s'", bios_name);
         } else {
             /* Avoid an uninitialized variable warning */
             bios_size = -1;
@@ -563,14 +562,13 @@ static void taihu_405ep_init(MachineState *machine)
             bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
             g_free(filename);
             if (bios_size < 0 || bios_size > BIOS_SIZE) {
-                error_report("Could not load PowerPC BIOS '%s'", bios_name);
-                exit(1);
+                error_report_fatal("Could not load PowerPC BIOS '%s'",
+                                   bios_name);
             }
             bios_size = (bios_size + 0xfff) & ~0xfff;
             memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
         } else if (!qtest_enabled()) {
-            error_report("Could not load PowerPC BIOS '%s'", bios_name);
-            exit(1);
+            error_report_fatal("Could not load PowerPC BIOS '%s'", bios_name);
         }
         memory_region_set_readonly(bios, true);
     }

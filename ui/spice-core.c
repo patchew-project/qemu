@@ -332,8 +332,9 @@ static int parse_name(const char *string, const char *optname,
     if (value != -1) {
         return value;
     }
-    error_report("spice: invalid %s: %s", optname, string);
-    exit(1);
+    error_report_fatal("spice: invalid %s: %s", optname, string);
+    /* Never reach here. */
+    return -1;
 }
 
 static const char *stream_video_names[] = {
@@ -603,9 +604,8 @@ static int add_channel(void *opaque, const char *name, const char *value,
     if (strcmp(name, "tls-channel") == 0) {
         int *tls_port = opaque;
         if (!*tls_port) {
-            error_report("spice: tried to setup tls-channel"
-                         " without specifying a TLS port");
-            exit(1);
+            error_report_fatal("spice: tried to setup tls-channel"
+                               " without specifying a TLS port");
         }
         security = SPICE_CHANNEL_SECURITY_SSL;
     }
@@ -621,8 +621,8 @@ static int add_channel(void *opaque, const char *name, const char *value,
         rc = spice_server_set_channel_security(spice_server, value, security);
     }
     if (rc != 0) {
-        error_report("spice: failed to set channel security for %s", value);
-        exit(1);
+        error_report_fatal("spice: failed to set channel security for %s",
+                           value);
     }
     return 0;
 }
@@ -660,12 +660,10 @@ void qemu_spice_init(void)
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
     if (port < 0 || port > 65535) {
-        error_report("spice port is out of range");
-        exit(1);
+        error_report_fatal("spice port is out of range");
     }
     if (tls_port < 0 || tls_port > 65535) {
-        error_report("spice tls-port is out of range");
-        exit(1);
+        error_report_fatal("spice tls-port is out of range");
     }
     password = qemu_opt_get(opts, "password");
 
@@ -735,8 +733,7 @@ void qemu_spice_init(void)
     }
     if (qemu_opt_get_bool(opts, "sasl", 0)) {
         if (spice_server_set_sasl(spice_server, 1) == -1) {
-            error_report("spice: failed to enable sasl");
-            exit(1);
+            error_report_fatal("spice: failed to enable sasl");
         }
         auth = "sasl";
     }
@@ -753,9 +750,8 @@ void qemu_spice_init(void)
 #if SPICE_SERVER_VERSION >= 0x000c04
         spice_server_set_agent_file_xfer(spice_server, false);
 #else
-        error_report("this qemu build does not support the "
-                     "\"disable-agent-file-xfer\" option");
-        exit(1);
+        error_report_fatal("this qemu build does not support the "
+                           "\"disable-agent-file-xfer\" option");
 #endif
     }
 
@@ -802,8 +798,7 @@ void qemu_spice_init(void)
     spice_server_set_seamless_migration(spice_server, seamless_migration);
     spice_server_set_sasl_appname(spice_server, "qemu");
     if (spice_server_init(spice_server, &core_interface) != 0) {
-        error_report("failed to initialize spice server");
-        exit(1);
+        error_report_fatal("failed to initialize spice server");
     };
     using_spice = 1;
 
@@ -829,13 +824,12 @@ void qemu_spice_init(void)
 #ifdef HAVE_SPICE_GL
     if (qemu_opt_get_bool(opts, "gl", 0)) {
         if ((port != 0) || (tls_port != 0)) {
-            error_report("SPICE GL support is local-only for now and "
-                         "incompatible with -spice port/tls-port");
-            exit(1);
+            error_report_fatal("SPICE GL support is local-only for now and "
+                               "incompatible with -spice port/tls-port");
         }
         if (egl_rendernode_init() != 0) {
-            error_report("Failed to initialize EGL render node for SPICE GL");
-            exit(1);
+            error_report_fatal("Failed to initialize EGL render "
+                               "node for SPICE GL");
         }
         display_opengl = 1;
     }
@@ -846,8 +840,7 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
 {
     if (!spice_server) {
         if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
-            error_report("Oops: spice configured but not active");
-            exit(1);
+            error_report_fatal("Oops: spice configured but not active");
         }
         /*
          * Create a spice server instance.

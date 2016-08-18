@@ -115,8 +115,7 @@ void replay_char_write_event_load(int *res, int *offset)
         replay_mutex_unlock();
     } else {
         replay_mutex_unlock();
-        error_report("Missing character write event in the replay log");
-        exit(1);
+        error_report_fatal("Missing character write event in the replay log");
     }
 }
 
@@ -139,8 +138,10 @@ int replay_char_read_all_load(uint8_t *buf)
         return res;
     } else {
         replay_mutex_unlock();
-        error_report("Missing character read all event in the replay log");
-        exit(1);
+        error_report_fatal("Missing character read all event "
+                           "in the replay log");
+        /* Never reach here. */
+        return -1;
     }
 }
 

@@ -220,8 +220,7 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
             lowaddr = 0;
         }
         if (image_size < 0) {
-            error_report("Could not load kernel '%s'", kernel_filename);
-            exit(1);
+            error_report_fatal("Could not load kernel '%s'", kernel_filename);
         }
     }
 

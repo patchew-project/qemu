@@ -190,9 +190,8 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
                                                   ram_size - initrd_offset);
             }
             if (initrd_size < 0) {
-                error_report("qemu: could not load initrd '%s'",
-                             initrd_filename);
-                exit(EXIT_FAILURE);
+                error_report_fatal("qemu: could not load initrd '%s'",
+                                   initrd_filename);
             }
             boot_info.initrd_end = boot_info.initrd_start + initrd_size;
             high = ROUND_UP(high + initrd_size, 4);
