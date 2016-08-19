@@ -1037,7 +1037,6 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
-    uint64_t features;
     int i, r, n_initialized_vqs = 0;
 
     hdev->migration_blocker = NULL;
@@ -1063,12 +1062,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    r = hdev->vhost_ops->vhost_get_features(hdev, &features);
-    if (r < 0) {
-        VHOST_OPS_DEBUG("vhost_get_features failed");
-        goto fail;
-    }
-
     for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
         r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
@@ -1085,8 +1078,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
             }
         }
     }
-
-    hdev->features = features;
 
     hdev->memory_listener = (MemoryListener) {
         .begin = vhost_begin,

@@ -25,15 +25,6 @@ static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
     return ioctl(fd, request, arg);
 }
 
-static int vhost_kernel_init(struct vhost_dev *dev, void *opaque)
-{
-    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_KERNEL);
-
-    dev->opaque = opaque;
-
-    return 0;
-}
-
 static int vhost_kernel_cleanup(struct vhost_dev *dev)
 {
     int fd = (uintptr_t) dev->opaque;
@@ -170,6 +161,24 @@ static int vhost_kernel_get_vq_index(struct vhost_dev *dev, int idx)
     assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
 
     return idx - dev->vq_index;
+}
+
+static int vhost_kernel_init(struct vhost_dev *dev, void *opaque)
+{
+    uint64_t features;
+    int r;
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_KERNEL);
+
+    dev->opaque = opaque;
+
+    r = vhost_kernel_get_features(dev, &features);
+    if (r < 0) {
+        return r;
+    }
+    dev->features = features;
+
+    return 0;
 }
 
 static const VhostOps kernel_ops = {
