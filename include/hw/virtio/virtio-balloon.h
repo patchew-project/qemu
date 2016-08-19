@@ -38,7 +38,6 @@ typedef struct VirtIOBalloon {
     uint32_t actual;
     uint64_t stats[VIRTIO_BALLOON_S_NR];
     VirtQueueElement *stats_vq_elem;
-    size_t stats_vq_offset;
     QEMUTimer *stats_timer;
     int64_t stats_last_update;
     int64_t stats_poll_interval;

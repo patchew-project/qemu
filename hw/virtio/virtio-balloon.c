@@ -92,7 +92,7 @@ static void balloon_stats_push_elem(VirtIOBalloon *s)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    virtqueue_push(s->svq, s->stats_vq_elem, s->stats_vq_offset);
+    virtqueue_push(s->svq, s->stats_vq_elem, 0);
     virtio_notify(vdev, s->svq);
     g_free(s->stats_vq_elem);
     s->stats_vq_elem = NULL;
@@ -283,7 +283,6 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
         if (tag < VIRTIO_BALLOON_S_NR)
             s->stats[tag] = val;
     }
-    s->stats_vq_offset = offset;
 
     if (qemu_gettimeofday(&tv) < 0) {
         fprintf(stderr, "warning: %s: failed to get time of day\n", __func__);
