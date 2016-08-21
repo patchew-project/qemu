@@ -154,12 +154,15 @@
 # @watchdog: the watchdog action is configured to pause and has been triggered
 #
 # @guest-panicked: guest has been panicked as a result of guest OS panic
+#
+# @postmigrate-recovery: guest is paused for recovery after a network failure
+# (since 2.7)
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
             'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
-            'guest-panicked' ] }
+            'guest-panicked', 'postmigrate-recovery' ] }
 
 ##
 # @StatusInfo:
@@ -438,12 +441,15 @@
 #
 # @failed: some error occurred during migration process.
 #
+# @postcopy-recovery: in recovery mode, after a network failure. (since 2.7)
+#
 # Since: 2.3
 #
 ##
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
-            'active', 'postcopy-active', 'completed', 'failed' ] }
+            'active', 'postcopy-active', 'completed', 'failed',
+            'postcopy-recovery' ] }
 
 ##
 # @MigrationInfo
@@ -2119,6 +2125,8 @@
 #
 # @uri: the Uniform Resource Identifier of the destination VM
 #
+# @recover: #optional recover from a broken migration (since 2.7)
+#
 # @blk: #optional do block migration (full disk copy)
 #
 # @inc: #optional incremental disk copy migration
@@ -2131,7 +2139,7 @@
 # Since: 0.14.0
 ##
 { 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool', '*detach': 'bool' } }
+  'data': {'uri': 'str', '*recover': 'bool', '*blk': 'bool', '*inc': 'bool', '*detach': 'bool' } }
 
 ##
 # @migrate-incoming
@@ -2141,6 +2149,8 @@
 #
 # @uri: The Uniform Resource Identifier identifying the source or
 #       address to listen on
+#
+# @recover: #optional recover from a broken migration (since 2.7)
 #
 # Returns: nothing on success
 #

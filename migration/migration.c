@@ -709,6 +709,33 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     case MIGRATION_STATUS_CANCELLED:
         info->has_status = true;
         break;
+    case MIGRATION_STATUS_POSTCOPY_RECOVERY:
+        info->has_status = true;
+        info->has_total_time = true;
+        info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+        info->has_ram = true;
+        info->ram = g_malloc0(sizeof(*info->ram));
+        info->ram->transferred = ram_bytes_transferred();
+        info->ram->remaining = ram_bytes_remaining();
+        info->ram->total = ram_bytes_total();
+        info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->skipped = skipped_mig_pages_transferred();
+        info->ram->normal = norm_mig_pages_transferred();
+        info->ram->normal_bytes = norm_mig_bytes_transferred();
+        info->ram->dirty_pages_rate = s->dirty_pages_rate;
+        info->ram->mbps = s->mbps;
+        info->ram->dirty_sync_count = s->dirty_sync_count;
+
+        if (blk_mig_active()) {
+            info->has_disk = true;
+            info->disk = g_malloc0(sizeof(*info->disk));
+            info->disk->transferred = blk_mig_bytes_transferred();
+            info->disk->remaining = blk_mig_bytes_remaining();
+            info->disk->total = blk_mig_bytes_total();
+        }
+
+        get_xbzrle_cache_stats(info);
     }
     info->status = s->state;
 
@@ -993,6 +1020,7 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->xfer_limit = 0;
     s->cleanup_bh = 0;
     s->to_dst_file = NULL;
+    s->in_recovery = false;
     s->state = MIGRATION_STATUS_NONE;
     s->params = *params;
     s->rp_state.from_dst_file = NULL;
@@ -1069,13 +1097,14 @@ bool migration_is_blocked(Error **errp)
     return false;
 }
 
-void qmp_migrate(const char *uri, bool has_blk, bool blk,
-                 bool has_inc, bool inc, bool has_detach, bool detach,
+void qmp_migrate(const char *uri, bool in_recover, bool recover, bool has_blk,
+                 bool blk, bool has_inc, bool inc, bool has_detach, bool detach,
                  Error **errp)
 {
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     MigrationParams params;
+    bool recovery = in_recover && recover;
     const char *p;
 
     params.blk = has_blk && blk;
@@ -1095,7 +1124,39 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
-    s = migrate_init(&params);
+    if (recovery ^ atomic_mb_read(&s->in_recovery)) {
+        if (recovery) {
+            /* No VM is waiting for recovery and
+             * recovery option was set
+             */
+
+            error_setg(errp, "No VM to recover");
+            return;
+        } else {
+            /* A VM is waiting for recovery and
+             * no recovery option is set
+             */
+
+            error_setg(errp, "A migration is in recovery state");
+            return;
+        }
+    } else {
+        if (!recovery) {
+            /* No VM is waiting for recovery and
+             * no recovery option is set
+             */
+            s = migrate_init(&params);
+        } else {
+            /* A VM is waiting for recovery and
+             * recovery option was set
+             */
+            s->to_dst_file = NULL;
+            if (s->rp_state.from_dst_file) {
+                /* shutdown the rp socket, so causing the rp thread to shutdown */
+                qemu_file_shutdown(s->rp_state.from_dst_file);
+            }
+        }
+    }
 
     if (strstart(uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
@@ -1336,6 +1397,8 @@ static void migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
  */
 static void *source_return_path_thread(void *opaque)
 {
+    fprintf(stderr, "Return path started on source\n");
+
     MigrationState *ms = opaque;
     QEMUFile *rp = ms->rp_state.from_dst_file;
     uint16_t header_len, header_type;
@@ -1439,8 +1502,8 @@ static void *source_return_path_thread(void *opaque)
 
     trace_source_return_path_thread_end();
 out:
-    ms->rp_state.from_dst_file = NULL;
     qemu_fclose(rp);
+    fprintf(stderr, "Return path failed on source\n");
     return NULL;
 }
 
@@ -1714,6 +1777,7 @@ static void *migration_thread(void *opaque)
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
+    int ret;
 
     rcu_register_thread();
 
@@ -1781,7 +1845,26 @@ static void *migration_thread(void *opaque)
             }
         }
 
-        if (qemu_file_get_error(s->to_dst_file)) {
+        if ((ret = qemu_file_get_error(s->to_dst_file))) {
+            /*  This check is based on how the error is set during the network
+             *  recv(). When recv() returns 0 (i.e. no data to read), the error
+             *  is set to -EIO. For all other network errors, it is set
+             *  according to the return value received.
+             */
+            if (ret == -EIO && s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+                /* Network Failure during postcopy */
+
+                current_active_state = MIGRATION_STATUS_POSTCOPY_RECOVERY;
+                runstate_set(RUN_STATE_POSTMIGRATE_RECOVERY);
+                ret = qemu_migrate_postcopy_outgoing_recovery(s);
+                if(ret == 0) {
+                    current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
+                    runstate_set(RUN_STATE_FINISH_MIGRATE);
+                    qemu_file_clear_error(s->to_dst_file);
+                    continue;
+                }
+
+            }
             migrate_set_state(&s->state, current_active_state,
                               MIGRATION_STATUS_FAILED);
             trace_migration_thread_file_err();
@@ -1852,17 +1935,6 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    /* This is a best 1st approximation. ns to ms */
-    s->expected_downtime = max_downtime/1000000;
-    s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
-
-    qemu_file_set_blocking(s->to_dst_file, true);
-    qemu_file_set_rate_limit(s->to_dst_file,
-                             s->bandwidth_limit / XFER_LIMIT_RATIO);
-
-    /* Notify before starting migration thread */
-    notifier_list_notify(&migration_state_notifiers, s);
-
     /*
      * Open the return path; currently for postcopy but other things might
      * also want it.
@@ -1877,10 +1949,59 @@ void migrate_fd_connect(MigrationState *s)
         }
     }
 
+    qemu_file_set_blocking(s->to_dst_file, true);
+    qemu_file_set_rate_limit(s->to_dst_file,
+                             s->bandwidth_limit / XFER_LIMIT_RATIO);
+
+    if (atomic_mb_read(&s->in_recovery)) {
+        qemu_mutex_lock(&migration_recovery_mutex);
+        atomic_mb_set(&s->in_recovery, false);
+        qemu_cond_signal(&migration_recovery_cond);
+        qemu_mutex_unlock(&migration_recovery_mutex);
+
+        fprintf(stderr, "recovered\n");
+        return;
+    }
+
+    /* This is a best 1st approximation. ns to ms */
+    s->expected_downtime = max_downtime/1000000;
+    s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
+
+
+    /* Notify before starting migration thread */
+    notifier_list_notify(&migration_state_notifiers, s);
+
     migrate_compress_threads_create();
     qemu_thread_create(&s->thread, "migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
     s->migration_thread_running = true;
+}
+
+int qemu_migrate_postcopy_outgoing_recovery(MigrationState* ms)
+{
+    migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                                  MIGRATION_STATUS_POSTCOPY_RECOVERY);
+
+    atomic_mb_set(&ms->in_recovery, true);
+    /* Code for network recovery to be added here */
+    qemu_mutex_lock(&migration_recovery_mutex);
+    while(atomic_mb_read(&ms->in_recovery) == true) {
+        fprintf(stderr, "Under recovery, not letting it fail %p\n", ms->to_dst_file);
+        qemu_cond_wait(&migration_recovery_cond, &migration_recovery_mutex);
+    }
+    qemu_mutex_unlock(&migration_recovery_mutex);
+
+    if(ms->to_dst_file != NULL) {
+        /* Recovery successfull */
+        migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_RECOVERY,
+                                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+
+        qemu_savevm_send_open_return_path(ms->to_dst_file);
+        return 0;
+    }
+
+    return -1;
+
 }
 
 PostcopyState  postcopy_state_get(void)

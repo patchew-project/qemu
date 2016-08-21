@@ -639,7 +639,7 @@ EQMP
 
     {
         .name       = "migrate",
-        .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
+        .args_type  = "detach:-d,recover:-r,blk:-b,inc:-i,uri:s",
         .mhandler.cmd_new = qmp_marshal_migrate,
     },
 
@@ -651,6 +651,7 @@ Migrate to URI.
 
 Arguments:
 
+- "recover": recover migration (json-bool, optional)
 - "blk": block migration, full disk copy (json-bool, optional)
 - "inc": incremental disk copy (json-bool, optional)
 - "uri": Destination URI (json-string)

@@ -142,6 +142,7 @@ struct MigrationState
     int state;
     /* Old style params from 'migrate' command */
     MigrationParams params;
+    bool in_recovery;
 
     /* State related to return path */
     struct {
@@ -350,6 +351,9 @@ void global_state_store_running(void);
 void flush_page_queue(MigrationState *ms);
 int ram_save_queue_pages(MigrationState *ms, const char *rbname,
                          ram_addr_t start, ram_addr_t len);
+
+int qemu_migrate_postcopy_outgoing_recovery(MigrationState *ms);
+int qemu_migrate_postcopy_incoming_recovery(QEMUFile **f,MigrationIncomingState* mis);
 
 PostcopyState postcopy_state_get(void);
 /* Set the state and return the old state */
