@@ -694,7 +694,7 @@ EQMP
 
     {
         .name       = "migrate-incoming",
-        .args_type  = "uri:s",
+        .args_type  = "recover:-r,uri:s",
         .mhandler.cmd_new = qmp_marshal_migrate_incoming,
     },
 
@@ -703,10 +703,12 @@ migrate-incoming
 ----------------
 
 Continue an incoming migration
+ -r to recover from a broken migration
 
 Arguments:
 
 - "uri": Source/listening URI (json-string)
+- "recover": recover migration (json-bool, optional)
 
 Example:
 

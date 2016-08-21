@@ -932,17 +932,19 @@ ETEXI
 
     {
         .name       = "migrate_incoming",
-        .args_type  = "uri:s",
-        .params     = "uri",
-        .help       = "Continue an incoming migration from an -incoming defer",
+        .args_type  = "recover:-r,uri:s",
+        .params     = "[-r] uri",
+        .help       = "Continue an incoming migration from an -incoming defer"
+                     "\n\t\t\t -r to recover from a broken migration",
         .mhandler.cmd = hmp_migrate_incoming,
     },
 
 STEXI
-@item migrate_incoming @var{uri}
+@item migrate_incoming [-r] @var{uri}
 @findex migrate_incoming
-Continue an incoming migration using the @var{uri} (that has the same syntax
-as the -incoming option).
+Continue an incoming migration using the @var{uri}
+    -r to recover from a broken migration (that has the same syntax
+    as the -incoming option).
 
 ETEXI
 

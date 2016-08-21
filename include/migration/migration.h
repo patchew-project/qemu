@@ -82,6 +82,9 @@ typedef enum {
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
 
+    /* To be used by a VM for recovery */
+    bool in_recovery;
+
     /*
      * Free at the start of the main state load, set as the main thread finishes
      * loading state.

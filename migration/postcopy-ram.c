@@ -393,6 +393,8 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
  */
 static void *postcopy_ram_fault_thread(void *opaque)
 {
+    fprintf(stderr, "return path thread started\n");
+
     MigrationIncomingState *mis = opaque;
     struct uffd_msg msg;
     int ret;
@@ -481,8 +483,15 @@ static void *postcopy_ram_fault_thread(void *opaque)
             migrate_send_rp_req_pages(mis, NULL,
                                      rb_offset, hostpagesize);
         }
+
+        ret = qemu_file_get_error(mis->to_src_file);
+        if (ret != 0) {
+            qemu_file_clear_error(mis->to_src_file);
+            break;
+        }
     }
     trace_postcopy_ram_fault_thread_exit();
+    fprintf(stderr, "return path failed\n");
     return NULL;
 }
 

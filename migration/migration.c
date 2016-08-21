@@ -432,6 +432,8 @@ void migration_fd_process_incoming(QEMUFile *f)
 void migration_channel_process_incoming(MigrationState *s,
                                         QIOChannel *ioc)
 {
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
     trace_migration_set_incoming_channel(
         ioc, object_get_typename(OBJECT(ioc)));
 
@@ -445,6 +447,19 @@ void migration_channel_process_incoming(MigrationState *s,
         }
     } else {
         QEMUFile *f = qemu_fopen_channel_input(ioc);
+
+        if (mis != NULL && atomic_mb_read(&mis->in_recovery)) {
+            mis->from_src_file = f;
+
+            qemu_mutex_lock(&migration_recovery_mutex);
+            atomic_mb_set(&mis->in_recovery, false);
+            qemu_cond_signal(&migration_recovery_cond);
+            qemu_mutex_unlock(&migration_recovery_mutex);
+
+            fprintf(stderr, "recovered\n");
+            return;
+        }
+
         migration_fd_process_incoming(f);
     }
 }
@@ -1063,18 +1078,61 @@ void migrate_del_blocker(Error *reason)
     migration_blockers = g_slist_remove(migration_blockers, reason);
 }
 
-void qmp_migrate_incoming(const char *uri, Error **errp)
+void qmp_migrate_incoming(const char *uri, bool in_recover, bool recover, Error **errp)
 {
     Error *local_err = NULL;
+    bool recovery = in_recover && recover;
     static bool once = true;
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
-    if (!deferred_incoming) {
-        error_setg(errp, "For use with '-incoming defer'");
-        return;
-    }
-    if (!once) {
+    if (recovery) {
+        if (mis != NULL) {
+
+            if(!atomic_mb_read(&mis->in_recovery)) {
+                /* Recovery option was set but the VM
+                 * Does not seem to have been in recovery
+                 */
+                error_setg(errp, "No VM to recover");
+                return;
+            } else {
+                /* Recovery option was set and the VM
+                 * needs a recovery, resetting the socket
+                 * to NULL
+                 */
+                mis->from_src_file = NULL;
+                if(mis->have_fault_thread) {
+                    /* shutdown the socket to source, causing the fault_thread to shutdown */
+                    uint64_t tmp64 = 1;
+
+                    fprintf(stderr, "rp shutdown\n");
+
+                    if (write(mis->userfault_quit_fd, &tmp64, 8) != 8) {
+                        error_report("%s: incrementing userfault_quit_fd: %s",
+                            __func__, strerror(errno));
+                    }
+                    close(mis->userfault_quit_fd);
+                    close(mis->userfault_fd);
+                    mis->have_fault_thread = false;
+                }
+                fprintf(stderr, "rp after shutdown %p\n", mis->to_src_file);
+            }
+
+        } else {
+            /* Recovery option was set but there
+             * is no VM running/(in recovery)
+             */
+            error_setg(errp, "Cannot use -r option without a VM to recover");
+            return;
+        }
+    } else if (!once) {
         error_setg(errp, "The incoming migration has already been started");
     }
+
+    if (!recover && !deferred_incoming) {
+         error_setg(errp, "For use with '-incoming defer'");
+         return;
+     }
+
 
     qemu_start_incoming_migration(uri, &local_err);
 
@@ -2006,6 +2064,33 @@ int qemu_migrate_postcopy_outgoing_recovery(MigrationState* ms)
     return -1;
 
 }
+
+int qemu_migrate_postcopy_incoming_recovery(QEMUFile **f,
+                                            MigrationIncomingState* mis)
+{
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                                   MIGRATION_STATUS_POSTCOPY_RECOVERY);
+
+    atomic_mb_set(&mis->in_recovery, true);
+    /* Code for network recovery to be added here */
+    qemu_mutex_lock(&migration_recovery_mutex);
+    while(atomic_mb_read(&mis->in_recovery) == true) {
+        fprintf(stderr, "Recover, not letting it fail %p\n", mis->from_src_file);
+        qemu_cond_wait(&migration_recovery_cond, &migration_recovery_mutex);
+    }
+    qemu_mutex_unlock(&migration_recovery_mutex);
+
+    if(mis->from_src_file != NULL) {
+        *f = mis->from_src_file;
+
+        migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_RECOVERY,
+                                       MIGRATION_STATUS_ACTIVE);
+        return 0;
+    }
+
+    return -1;
+}
+
 
 PostcopyState  postcopy_state_get(void)
 {

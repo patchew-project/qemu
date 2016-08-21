@@ -1186,9 +1186,10 @@ void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
+    bool recover = qdict_get_try_bool(qdict, "recover", false);
     const char *uri = qdict_get_str(qdict, "uri");
 
-    qmp_migrate_incoming(uri, &err);
+    qmp_migrate_incoming(uri, !!recover, recover, &err);
 
     hmp_handle_error(mon, &err);
 }

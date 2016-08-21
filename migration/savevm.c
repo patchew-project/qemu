@@ -1829,6 +1829,7 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint8_t section_type;
     int ret;
+    PostcopyState ps;
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
 
@@ -1837,27 +1838,45 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
         case QEMU_VM_SECTION_START:
         case QEMU_VM_SECTION_FULL:
             ret = qemu_loadvm_section_start_full(f, mis);
-            if (ret < 0) {
-                return ret;
-            }
             break;
         case QEMU_VM_SECTION_PART:
         case QEMU_VM_SECTION_END:
             ret = qemu_loadvm_section_part_end(f, mis);
-            if (ret < 0) {
-                return ret;
-            }
             break;
         case QEMU_VM_COMMAND:
             ret = loadvm_process_command(f);
             trace_qemu_loadvm_state_section_command(ret);
-            if ((ret < 0) || (ret & LOADVM_QUIT)) {
+            if (ret & LOADVM_QUIT) {
+                fprintf(stderr, "LOADVM_QUIT\n");
                 return ret;
-            }
+             }
             break;
         default:
             error_report("Unknown savevm section type %d", section_type);
             return -EINVAL;
+        }
+
+        if (ret < 0) {
+            ps = postcopy_state_get();
+            ret = qemu_file_get_error(f);
+
+            /*  This check is based on how the error is set during the network
+             *  recv(). When recv() returns 0 (i.e. no data to read), the error
+             *  is set to -EIO. For all other network errors, it is set
+             *  according to the return value received.
+             */
+            if (ret == -EIO && ps == POSTCOPY_INCOMING_RUNNING) {
+                ret = qemu_migrate_postcopy_incoming_recovery(&f, mis);
+
+                if (ret == 0) {
+                    postcopy_ram_enable_notify(mis);
+                    qemu_file_clear_error(f);
+                    continue;
+                }
+            }
+
+            ret = qemu_file_get_error(f);
+            return ret;
         }
     }
 
