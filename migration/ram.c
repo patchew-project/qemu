@@ -2649,6 +2649,41 @@ void migrate_incoming_ram_bitmap_free(void)
     }
 }
 
+void *migrate_incoming_ram_req_pages(void* opaque)
+{
+    MigrationIncomingState *mis = opaque;
+    struct RAMBlock *rb;
+    size_t hostpagesize = getpagesize();
+    uint64_t addr;
+    unsigned long base;
+    unsigned long nr;
+    unsigned long rb_end;
+    unsigned long next;
+    unsigned long *not_received;
+
+    not_received = atomic_rcu_read(&migration_bitmap_rcu)->not_received;
+    QLIST_FOREACH_RCU(rb, &ram_list.blocks, next) {
+        addr = 0;
+        base = rb->offset >> TARGET_PAGE_BITS;
+        rb_end = base + (rb->used_length >> TARGET_PAGE_BITS);
+        while (true) {
+            nr = base + (addr >> TARGET_PAGE_BITS);
+            next = find_next_bit(not_received, rb_end, nr);
+            addr = (next - base) << TARGET_PAGE_BITS;
+
+            if (addr >= rb->used_length) {
+                break;
+            }
+            else {
+                migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
+                                     addr, hostpagesize);
+                addr++;
+            }
+        }
+    }
+    return NULL;
+}
+
 static SaveVMHandlers savevm_ram_handlers = {
     .save_live_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,

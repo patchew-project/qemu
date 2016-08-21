@@ -366,6 +366,7 @@ int qemu_migrate_postcopy_incoming_recovery(QEMUFile **f,MigrationIncomingState*
 void migrate_incoming_ram_bitmap_init(void);
 void migrate_incoming_ram_bitmap_update(RAMBlock *rb, ram_addr_t addr);
 void migrate_incoming_ram_bitmap_free(void);
+void *migrate_incoming_ram_req_pages(void *opaque);
 
 PostcopyState postcopy_state_get(void);
 /* Set the state and return the old state */

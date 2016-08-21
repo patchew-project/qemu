@@ -100,6 +100,7 @@ enum qemu_vm_cmd {
                                       were previously sent during
                                       precopy but are dirty. */
     MIG_CMD_PACKAGED,          /* Send a wrapped stream within this stream */
+    MIG_CMD_POSTCOPY_RECOVERY,  /* Send pages lost due to n/w failure */
     MIG_CMD_MAX
 };
 

@@ -1621,6 +1621,7 @@ static int loadvm_process_command(QEMUFile *f)
     uint16_t cmd;
     uint16_t len;
     uint32_t tmp32;
+    QemuThread req_pages_not_received;
 
     cmd = qemu_get_be16(f);
     len = qemu_get_be16(f);
@@ -1677,6 +1678,17 @@ static int loadvm_process_command(QEMUFile *f)
 
     case MIG_CMD_POSTCOPY_RAM_DISCARD:
         return loadvm_postcopy_ram_handle_discard(mis, len);
+
+    case MIG_CMD_POSTCOPY_RECOVERY:
+        /*
+         * This case will only be used when migration recovers from a
+         * network failure during a postcopy migration.
+         * Now, send the requests for pages that were lost due to the
+         * network failure.
+         */
+        qemu_thread_create(&req_pages_not_received, "pc/recovery",
+                       migrate_incoming_ram_req_pages, mis, QEMU_THREAD_DETACHED);
+            break;
     }
 
     return 0;
