@@ -381,6 +381,10 @@ static void process_incoming_migration_co(void *opaque)
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_ACTIVE);
+
+    /* Initializing the bitmap for destination side */
+    migrate_incoming_ram_bitmap_init();
+
     ret = qemu_loadvm_state(f);
 
     ps = postcopy_state_get();

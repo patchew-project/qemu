@@ -358,6 +358,10 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
 int qemu_migrate_postcopy_outgoing_recovery(MigrationState *ms);
 int qemu_migrate_postcopy_incoming_recovery(QEMUFile **f,MigrationIncomingState* mis);
 
+void migrate_incoming_ram_bitmap_init(void);
+void migrate_incoming_ram_bitmap_update(RAMBlock *rb, ram_addr_t addr);
+void migrate_incoming_ram_bitmap_free(void);
+
 PostcopyState postcopy_state_get(void);
 /* Set the state and return the old state */
 PostcopyState postcopy_state_set(PostcopyState new_state);

@@ -250,6 +250,13 @@ static struct BitmapRcu {
      * of the postcopy phase
      */
     unsigned long *unsentmap;
+    /*
+     * A new bitmap for postcopy network failure recovery.
+     * It keeps track of the pages recieved.
+     * In the end, it would be used to request pages that were
+     * lost due to network failure.
+     */
+    unsigned long *not_received;
 } *migration_bitmap_rcu;
 
 struct CompressParam {
@@ -2340,6 +2347,7 @@ static int ram_load_postcopy(QEMUFile *f)
         void *page_buffer = NULL;
         void *place_source = NULL;
         uint8_t ch;
+        RAMBlock* block = NULL;
 
         addr = qemu_get_be64(f);
         flags = addr & ~TARGET_PAGE_MASK;
@@ -2348,7 +2356,7 @@ static int ram_load_postcopy(QEMUFile *f)
         trace_ram_load_postcopy_loop((uint64_t)addr, flags);
         place_needed = false;
         if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE)) {
-            RAMBlock *block = ram_block_from_stream(f, flags);
+            block = ram_block_from_stream(f, flags);
 
             host = host_from_ram_block_offset(block, addr);
             if (!host) {
@@ -2436,6 +2444,15 @@ static int ram_load_postcopy(QEMUFile *f)
         if (!ret) {
             ret = qemu_file_get_error(f);
         }
+        if (block != NULL) {
+            /*
+             * TODO
+             * We need to delay updating the bits until host page is
+             * recieved and the place is done, or tidy up the bitmap later
+             * accordingly (whether whole host page was recieved or not)
+             */
+            migrate_incoming_ram_bitmap_update(block, addr);
+        }
     }
 
     return ret;
@@ -2483,6 +2500,16 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             RAMBlock *block = ram_block_from_stream(f, flags);
 
             host = host_from_ram_block_offset(block, addr);
+
+            migrate_incoming_ram_bitmap_update(block, addr);
+            /*
+             * TODO
+             * 1) Do we need a bitmap_update call later in the while loop also?
+             * 2) We need to delay updating the bits until host page is
+             * recieved and the place is done, or tidy up the bitmap later
+             * accordingly (whether whole host page was recieved or not)
+             */
+
             if (!host) {
                 error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
@@ -2576,6 +2603,50 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
     return ret;
+}
+
+void migrate_incoming_ram_bitmap_init(void)
+{
+    int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
+
+    /*
+     * A new bitmap for postcopy network failure recovery.
+     * It keeps track of the pages recieved.
+     * In the end, it would be used to request pages that were
+     * lost due to network failure.
+     */
+
+    ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+    migration_bitmap_rcu = g_new0(struct BitmapRcu, 1);
+    migration_bitmap_rcu->not_received = bitmap_new(ram_bitmap_pages);
+    bitmap_set(migration_bitmap_rcu->not_received, 0, ram_bitmap_pages);
+}
+
+void migrate_incoming_ram_bitmap_update(RAMBlock *rb, ram_addr_t addr)
+{
+    unsigned long base = rb->offset >> TARGET_PAGE_BITS;
+    unsigned long nr = base + (addr >> TARGET_PAGE_BITS);
+    unsigned long *bitmap;
+
+    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->not_received;
+    clear_bit(nr, bitmap);
+
+    static int count = 0;
+    count++;
+    if(count == 1000) {
+        count = 0;
+        ram_debug_dump_bitmap(bitmap, true);
+    }
+}
+
+void migrate_incoming_ram_bitmap_free(void)
+{
+    struct BitmapRcu *bitmap = migration_bitmap_rcu;
+    atomic_rcu_set(&migration_bitmap_rcu, NULL);
+    if (bitmap) {
+        memory_global_dirty_log_stop();
+        call_rcu(bitmap, migration_bitmap_free, rcu);
+    }
 }
 
 static SaveVMHandlers savevm_ram_handlers = {

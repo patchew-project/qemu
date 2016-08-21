@@ -317,6 +317,9 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
     postcopy_state_set(POSTCOPY_INCOMING_END);
     migrate_send_rp_shut(mis, qemu_file_get_error(mis->from_src_file) != 0);
 
+    /* Free the bitmap used to keep track of incoming pages */
+    migrate_incoming_ram_bitmap_free();
+
     if (mis->postcopy_tmp_page) {
         munmap(mis->postcopy_tmp_page, getpagesize());
         mis->postcopy_tmp_page = NULL;
