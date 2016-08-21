@@ -127,6 +127,11 @@ void qemu_file_set_error(QEMUFile *f, int ret)
     }
 }
 
+void qemu_file_clear_error(QEMUFile *f)
+{
+    f->last_error = 0;
+}
+
 bool qemu_file_is_writable(QEMUFile *f)
 {
     return f->ops->writev_buffer;

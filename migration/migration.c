@@ -63,6 +63,9 @@ static NotifierList migration_state_notifiers =
 
 static bool deferred_incoming;
 
+static QemuMutex migration_recovery_mutex;
+static QemuCond migration_recovery_cond;
+
 /*
  * Current state of incoming postcopy; note this is not part of
  * MigrationIncomingState since it's state is used during cleanup
