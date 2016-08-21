@@ -986,6 +986,11 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
+    MigrationState *ms = migrate_get_current();
+
+    if (ms->recovered_once) {
+        qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_RECOVERY, 0, NULL);
+    }
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops || !se->ops->save_live_complete_postcopy) {

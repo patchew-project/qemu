@@ -1042,6 +1042,7 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->xfer_limit = 0;
     s->cleanup_bh = 0;
     s->to_dst_file = NULL;
+    s->recovered_once = false;
     s->in_recovery = false;
     s->state = MIGRATION_STATUS_NONE;
     s->params = *params;
@@ -1925,6 +1926,7 @@ static void *migration_thread(void *opaque)
                 if(ret == 0) {
                     current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
                     runstate_set(RUN_STATE_FINISH_MIGRATE);
+                    s->recovered_once = true;
                     qemu_file_clear_error(s->to_dst_file);
                     continue;
                 }

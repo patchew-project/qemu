@@ -145,6 +145,11 @@ struct MigrationState
     int state;
     /* Old style params from 'migrate' command */
     MigrationParams params;
+    /*
+     * Don't need 2 variables for recovery.
+     * Clean this up, use a single variable with different states.
+     */
+    bool recovered_once;
     bool in_recovery;
 
     /* State related to return path */
