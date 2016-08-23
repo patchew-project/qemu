@@ -320,6 +320,7 @@ vhdx=""
 numa=""
 tcmalloc="no"
 jemalloc="no"
+vxhs=""
 
 # parse CC options first
 for opt do
@@ -1150,6 +1151,11 @@ for opt do
   ;;
   --enable-jemalloc) jemalloc="yes"
   ;;
+  --disable-vxhs) vxhs="no"
+  ;;
+  --enable-vxhs) vxhs="yes"
+  ;;
+
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1380,6 +1386,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   numa            libnuma support
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
+  vxhs            Veritas HyperScale vDisk backend support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -4543,6 +4550,43 @@ if do_cc -nostdlib -Wl,-r -Wl,--no-relax -o $TMPMO $TMPO; then
 fi
 
 ##########################################
+# Veritas HyperScale block driver VxHS
+# Check if libqnio is installed
+if test "$vxhs" != "no" ; then
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <qnio/qnio_api.h>
+
+void vxhs_inc_acb_segment_count(void *acb, int count);
+void vxhs_dec_acb_segment_count(void *acb, int count);
+void vxhs_set_acb_buffer(void *ptr, void *buffer);
+
+void vxhs_inc_acb_segment_count(void *ptr, int count)
+{
+}
+void vxhs_dec_acb_segment_count(void *ptr, int count)
+{
+}
+void vxhs_set_acb_buffer(void *ptr, void *buffer)
+{
+}
+int main(void) {
+    qemu_ck_initialize_lock();
+    return 0;
+}
+EOF
+  vxhs_libs="-lqnioshim -lqnio"
+  if compile_prog "" "$vxhs_libs" ; then
+    vxhs=yes
+  else
+    if test "$vxhs" = "yes" ; then
+      feature_not_found "vxhs block device" "Install libqnio. See github"
+    fi
+    vxhs=no
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5486,6 +5530,12 @@ fi
 if test "$pthread_setname_np" = "yes" ; then
   echo "CONFIG_THREAD_SETNAME_BYTHREAD=y" >> $config_host_mak
   echo "CONFIG_PTHREAD_SETNAME_NP=y" >> $config_host_mak
+fi
+
+if test "$vxhs" = "yes" ; then
+  echo "CONFIG_VXHS=y" >> $config_host_mak
+  echo "VXHS_CFLAGS=$vxhs_cflags" >> $config_host_mak
+  echo "VXHS_LIBS=$vxhs_libs" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
