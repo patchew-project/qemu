@@ -253,9 +253,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
         return -ENOTSUP;
     }
 
-    if (nentries < 1 || nentries > PCI_MSIX_FLAGS_QSIZE + 1) {
-        return -EINVAL;
-    }
+    assert(nentries >= 1 && nentries <= PCI_MSIX_FLAGS_QSIZE + 1);
 
     table_size = nentries * PCI_MSIX_ENTRY_SIZE;
     pba_size = QEMU_ALIGN_UP(nentries, 64) / 8;
@@ -266,7 +264,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
         table_offset + table_size > memory_region_size(table_bar) ||
         pba_offset + pba_size > memory_region_size(pba_bar) ||
         (table_offset | pba_offset) & PCI_MSIX_FLAGS_BIRMASK) {
-        return -EINVAL;
+        assert(0);
     }
 
     cap = pci_add_capability(dev, PCI_CAP_ID_MSIX, cap_pos, MSIX_CAP_LENGTH);
