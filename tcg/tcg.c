@@ -2587,6 +2587,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         }
     }
 
+#ifdef USE_TCG_OPTIMIZATIONS
+    tcg_optimize_mb(s);
+#endif
+
 #ifdef CONFIG_PROFILER
     s->la_time += profile_getclock();
 #endif

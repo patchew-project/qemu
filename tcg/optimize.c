@@ -538,6 +538,80 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
     return false;
 }
 
+/* Eliminate duplicate and unnecessary fence instructions */
+void tcg_optimize_mb(TCGContext *s)
+{
+    int oi, oi_next;
+    TCGArg prev_op_mb = -1;
+    TCGOp *prev_op = NULL;
+
+    for (oi = s->gen_op_buf[0].next; oi != 0; oi = oi_next) {
+        TCGOp *op = &s->gen_op_buf[oi];
+        TCGArg *args = &s->gen_opparam_buf[op->args];
+        TCGOpcode opc = op->opc;
+
+        switch (opc) {
+        case INDEX_op_mb:
+        {
+            if (prev_op_mb == -1) {
+                goto done;
+            }
+
+            TCGBar curr_mb_type = args[0] & 0xF0;
+            TCGBar prev_mb_type = prev_op_mb & 0xF0;
+
+            if (curr_mb_type == prev_mb_type ||
+                (curr_mb_type == TCG_BAR_STRL && prev_mb_type == TCG_BAR_SC)) {
+                /* Remove the current weaker barrier op. The previous
+                 * barrier is stronger and sufficient.
+                 * mb; strl => mb; st
+                 */
+                tcg_op_remove(s, op);
+                op = prev_op;
+                args[0] = prev_op_mb;
+                break;
+            } else if (curr_mb_type == TCG_BAR_SC &&
+                       prev_mb_type == TCG_BAR_LDAQ) {
+                /* Remove the previous weaker barrier op. The current
+                 * barrier is stronger and sufficient.
+                 * ldaq; mb => ld; mb
+                 */
+                tcg_op_remove(s, prev_op);
+            } else if (curr_mb_type == TCG_BAR_STRL &&
+                       prev_mb_type == TCG_BAR_LDAQ) {
+                /* Consecutive load-acquire and store-release barriers
+                 * can be merged into one stronger SC barrier
+                 * ldaq; strl => ld; mb; st
+                 */
+                args[0] = TCG_BAR_SC | TCG_MO_ALL;
+                tcg_op_remove(s, prev_op);
+            }
+
+        done:
+            prev_op_mb = args[0];
+            prev_op = op;
+            break;
+        }
+        case INDEX_op_qemu_ld_i32:
+        case INDEX_op_qemu_ld_i64:
+        case INDEX_op_qemu_st_i32:
+        case INDEX_op_qemu_st_i64:
+        case INDEX_op_call:
+            prev_op_mb = -1;
+            prev_op = NULL;
+            break;
+        default:
+            if (tcg_op_defs[opc].flags & TCG_OPF_BB_END) {
+                prev_op_mb = -1;
+                prev_op = NULL;
+            }
+            break;
+        }
+
+        oi_next = op->next;
+    }
+}
+
 /* Propagate constants and copies, fold constant expressions. */
 void tcg_optimize(TCGContext *s)
 {
