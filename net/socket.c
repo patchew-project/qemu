@@ -517,53 +517,77 @@ static int net_socket_listen_init(NetClientState *peer,
     return 0;
 }
 
-static int net_socket_connect_init(NetClientState *peer,
-                                   const char *model,
-                                   const char *name,
-                                   const char *host_str)
+typedef struct {
+    NetClientState *peer;
+    SocketAddress *saddr;
+    char *model;
+    char *name;
+} socket_connect_data;
+
+static void socket_connect_data_free(socket_connect_data *c)
 {
+    qapi_free_SocketAddress(c->saddr);
+    g_free(c->model);
+    g_free(c->name);
+    g_free(c);
+}
+
+static void net_socket_connected(int fd, Error *err, void *opaque)
+{
+    socket_connect_data *c = opaque;
     NetSocketState *s;
-    int fd = -1, ret = -1;
     char *addr_str = NULL;
-    SocketAddress *saddr = NULL;
     Error *local_error = NULL;
 
-    saddr = socket_parse(host_str, &local_error);
-    if (saddr == NULL) {
-        error_report_err(local_error);
-        return -1;
-    }
-
-    fd = socket_connect(saddr, &local_error, NULL, NULL);
-    if (fd < 0) {
-        error_report_err(local_error);
-        goto end;
-    }
-
-    qemu_set_nonblock(fd);
-
-    s = net_socket_fd_init(peer, model, name, fd, true);
-    if (!s) {
-        goto end;
-    }
-
-    addr_str = socket_address_to_string(saddr, &local_error);
+    addr_str = socket_address_to_string(c->saddr, &local_error);
     if (addr_str == NULL) {
         error_report_err(local_error);
+        closesocket(fd);
+        goto end;
+    }
+
+    s = net_socket_fd_init(c->peer, c->model, c->name, fd, true);
+    if (!s) {
+        closesocket(fd);
         goto end;
     }
 
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: connect to %s", addr_str);
-    ret = 0;
 
 end:
-    if (ret == -1 && fd >= 0) {
-        closesocket(fd);
-    }
-    qapi_free_SocketAddress(saddr);
     g_free(addr_str);
-    return ret;
+    socket_connect_data_free(c);
+}
+
+static int net_socket_connect_init(NetClientState *peer,
+                                   const char *model,
+                                   const char *name,
+                                   const char *host_str)
+{
+    socket_connect_data *c = g_new0(socket_connect_data, 1);
+    int fd = -1;
+    Error *local_error = NULL;
+
+    c->peer = peer;
+    c->model = g_strdup(model);
+    c->name = g_strdup(name);
+    c->saddr = socket_parse(host_str, &local_error);
+    if (c->saddr == NULL) {
+        goto err;
+    }
+
+    fd = socket_connect(c->saddr, &local_error, net_socket_connected, c);
+    if (fd < 0) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    error_report_err(local_error);
+    socket_connect_data_free(c);
+    return -1;
 }
 
 static int net_socket_mcast_init(NetClientState *peer,
