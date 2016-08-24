@@ -217,6 +217,11 @@ static VirtBoardInfo machines[] = {
         .irqmap = a15irqmap,
     },
     {
+        .cpu_model = "cortex-a72",
+        .memmap = a15memmap,
+        .irqmap = a15irqmap,
+    },
+    {
         .cpu_model = "host",
         .memmap = a15memmap,
         .irqmap = a15irqmap,
