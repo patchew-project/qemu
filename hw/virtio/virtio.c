@@ -1470,6 +1470,10 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         vdc->save(vdev, f);
     }
 
+    if (vdc->vmsd) {
+        vmstate_save_state(f, vdc->vmsd, vdev, NULL);
+    }
+
     /* Subsections */
     vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
@@ -1596,6 +1600,13 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     if (vdc->load != NULL) {
         ret = vdc->load(vdev, f, version_id);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    if (vdc->vmsd) {
+        ret = vmstate_load_state(f, vdc->vmsd, vdev, version_id);
         if (ret) {
             return ret;
         }
