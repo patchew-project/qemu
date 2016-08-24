@@ -45,7 +45,7 @@ typedef struct VirtIONetQueue {
     VirtQueue *tx_vq;
     QEMUTimer *tx_timer;
     QEMUBH *tx_bh;
-    int tx_waiting;
+    uint32_t tx_waiting;
     struct {
         VirtQueueElement *elem;
     } async_tx;
@@ -66,7 +66,7 @@ typedef struct VirtIONet {
     size_t guest_hdr_len;
     uint32_t host_features;
     uint8_t has_ufo;
-    int mergeable_rx_bufs;
+    uint32_t mergeable_rx_bufs;
     uint8_t promisc;
     uint8_t allmulti;
     uint8_t alluni;
@@ -95,6 +95,12 @@ typedef struct VirtIONet {
     QEMUTimer *announce_timer;
     int announce_counter;
     bool needs_vnet_hdr_swap;
+
+    /* Helper variables just for migration  - see validate_curr_queues */
+    VirtIONetQueue *mig_vqs_1; /* vqs+1 */
+    uint16_t mig_curr_queues_1; /* vqs-1 */
+    bool     mig_has_vnet_hdr; /* Stashed copy during load */
+    bool     mig_has_ufo;      /* Stashed copy during load */
 } VirtIONet;
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
