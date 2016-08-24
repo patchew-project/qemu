@@ -254,8 +254,45 @@ static bool select_accel_int(const void *buf, size_t len)
 #undef pixel
 #undef bool
 #define bool _Bool
-#define DO_ZERO(X)  vec_all_eq(X, (__vector unsigned char){ 0 })
-ACCEL_BUFFER_ZERO(buffer_zero_ppc, 128, __vector unsigned char, DO_ZERO)
+
+static bool __attribute__((noinline))
+buffer_zero_ppc(const void *buf, size_t len)
+{
+    typedef unsigned char vec __attribute__((vector_size(16)));
+    const vec *p = buf;
+    const vec *end = buf + len;
+    vec t0, t1, t2, t3, zero = (vec){ 0 };
+
+    do {
+        p += 8;
+        __builtin_prefetch(p);
+        /* ??? GCC6 does poorly with power64le; extra xxswap.  */
+        __asm volatile("lvebx %0,%4,%5\n\t"
+                       "lvebx %1,%4,%6\n\t"
+                       "lvebx %2,%4,%7\n\t"
+                       "lvebx %3,%4,%8\n\t"
+                       "vor %0,%0,%1\n\t"
+                       "vor %1,%2,%3\n\t"
+                       "lvebx %2,%4,%9\n\t"
+                       "lvebx %3,%4,%10\n\t"
+                       "vor %0,%0,%1\n\t"
+                       "vor %1,%2,%3\n\t"
+                       "lvebx %2,%4,%11\n\t"
+                       "lvebx %3,%4,%12\n\t"
+                       "vor %0,%0,%1\n\t"
+                       "vor %1,%2,%3\n\t"
+                       "vor %0,%0,%1"
+                       : "=v"(t0), "=v"(t1), "=v"(t2), "=v"(t3)
+                       : "b"(p), "b"(-8 * 16), "b"(-7 * 16),
+                         "b"(-6 * 16), "b"(-5 * 16),
+                         "b"(-4 * 16), "b"(-3 * 16),
+                         "b"(-2 * 16), "b"(-1 * 16));
+        if (unlikely(vec_any_ne(t0, zero))) {
+            return false;
+        }
+    } while (p < end);
+    return true;
+}
 
 static bool select_accel_fn(const void *buf, size_t len)
 {
