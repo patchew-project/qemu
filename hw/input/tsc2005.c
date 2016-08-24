@@ -31,30 +31,31 @@ typedef struct {
     QEMUTimer *timer;
     uint16_t model;
 
-    int x, y;
-    int pressure;
+    int32_t x, y;
+    bool pressure;
 
-    int state, reg, irq, command;
+    uint8_t reg, state;
+    bool irq, command;
     uint16_t data, dav;
 
-    int busy;
-    int enabled;
-    int host_mode;
-    int function;
-    int nextfunction;
-    int precision;
-    int nextprecision;
-    int filter;
-    int pin_func;
-    int timing[2];
-    int noise;
-    int reset;
-    int pdst;
-    int pnd0;
+    bool busy;
+    bool enabled;
+    bool host_mode;
+    int8_t function;
+    int8_t nextfunction;
+    bool precision;
+    bool nextprecision;
+    uint16_t filter;
+    uint8_t pin_func;
+    int16_t timing[2];
+    uint8_t noise;
+    bool reset;
+    bool pdst;
+    bool pnd0;
     uint16_t temp_thr[2];
     uint16_t aux_thr[2];
 
-    int tr[8];
+    int32_t tr[8];
 } TSC2005State;
 
 enum {
@@ -434,92 +435,51 @@ static void tsc2005_touchscreen_event(void *opaque,
         tsc2005_pin_update(s);
 }
 
-static void tsc2005_save(QEMUFile *f, void *opaque)
+static int tsc2005_post_load(void *opaque, int version_id)
 {
     TSC2005State *s = (TSC2005State *) opaque;
-    int i;
-
-    qemu_put_be16(f, s->x);
-    qemu_put_be16(f, s->y);
-    qemu_put_byte(f, s->pressure);
-
-    qemu_put_byte(f, s->state);
-    qemu_put_byte(f, s->reg);
-    qemu_put_byte(f, s->command);
-
-    qemu_put_byte(f, s->irq);
-    qemu_put_be16s(f, &s->dav);
-    qemu_put_be16s(f, &s->data);
-
-    timer_put(f, s->timer);
-    qemu_put_byte(f, s->enabled);
-    qemu_put_byte(f, s->host_mode);
-    qemu_put_byte(f, s->function);
-    qemu_put_byte(f, s->nextfunction);
-    qemu_put_byte(f, s->precision);
-    qemu_put_byte(f, s->nextprecision);
-    qemu_put_be16(f, s->filter);
-    qemu_put_byte(f, s->pin_func);
-    qemu_put_be16(f, s->timing[0]);
-    qemu_put_be16(f, s->timing[1]);
-    qemu_put_be16s(f, &s->temp_thr[0]);
-    qemu_put_be16s(f, &s->temp_thr[1]);
-    qemu_put_be16s(f, &s->aux_thr[0]);
-    qemu_put_be16s(f, &s->aux_thr[1]);
-    qemu_put_be32(f, s->noise);
-    qemu_put_byte(f, s->reset);
-    qemu_put_byte(f, s->pdst);
-    qemu_put_byte(f, s->pnd0);
-
-    for (i = 0; i < 8; i ++)
-        qemu_put_be32(f, s->tr[i]);
-}
-
-static int tsc2005_load(QEMUFile *f, void *opaque, int version_id)
-{
-    TSC2005State *s = (TSC2005State *) opaque;
-    int i;
-
-    s->x = qemu_get_be16(f);
-    s->y = qemu_get_be16(f);
-    s->pressure = qemu_get_byte(f);
-
-    s->state = qemu_get_byte(f);
-    s->reg = qemu_get_byte(f);
-    s->command = qemu_get_byte(f);
-
-    s->irq = qemu_get_byte(f);
-    qemu_get_be16s(f, &s->dav);
-    qemu_get_be16s(f, &s->data);
-
-    timer_get(f, s->timer);
-    s->enabled = qemu_get_byte(f);
-    s->host_mode = qemu_get_byte(f);
-    s->function = qemu_get_byte(f);
-    s->nextfunction = qemu_get_byte(f);
-    s->precision = qemu_get_byte(f);
-    s->nextprecision = qemu_get_byte(f);
-    s->filter = qemu_get_be16(f);
-    s->pin_func = qemu_get_byte(f);
-    s->timing[0] = qemu_get_be16(f);
-    s->timing[1] = qemu_get_be16(f);
-    qemu_get_be16s(f, &s->temp_thr[0]);
-    qemu_get_be16s(f, &s->temp_thr[1]);
-    qemu_get_be16s(f, &s->aux_thr[0]);
-    qemu_get_be16s(f, &s->aux_thr[1]);
-    s->noise = qemu_get_be32(f);
-    s->reset = qemu_get_byte(f);
-    s->pdst = qemu_get_byte(f);
-    s->pnd0 = qemu_get_byte(f);
-
-    for (i = 0; i < 8; i ++)
-        s->tr[i] = qemu_get_be32(f);
 
     s->busy = timer_pending(s->timer);
     tsc2005_pin_update(s);
 
     return 0;
 }
+
+static const VMStateDescription vmstate_tsc2005 = {
+    .name = "tsc2005",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .post_load = tsc2005_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_BOOL(pressure, TSC2005State),
+        VMSTATE_BOOL(irq, TSC2005State),
+        VMSTATE_BOOL(command, TSC2005State),
+        VMSTATE_BOOL(enabled, TSC2005State),
+        VMSTATE_BOOL(host_mode, TSC2005State),
+        VMSTATE_BOOL(reset, TSC2005State),
+        VMSTATE_BOOL(pdst, TSC2005State),
+        VMSTATE_BOOL(pnd0, TSC2005State),
+        VMSTATE_BOOL(precision, TSC2005State),
+        VMSTATE_BOOL(nextprecision, TSC2005State),
+        VMSTATE_UINT8(reg, TSC2005State),
+        VMSTATE_UINT8(state, TSC2005State),
+        VMSTATE_UINT16(data, TSC2005State),
+        VMSTATE_UINT16(dav, TSC2005State),
+        VMSTATE_UINT16(filter, TSC2005State),
+        VMSTATE_INT8(nextfunction, TSC2005State),
+        VMSTATE_INT8(function, TSC2005State),
+        VMSTATE_INT32(x, TSC2005State),
+        VMSTATE_INT32(y, TSC2005State),
+        VMSTATE_TIMER_PTR(timer, TSC2005State),
+        VMSTATE_UINT8(pin_func, TSC2005State),
+        VMSTATE_INT16_ARRAY(timing, TSC2005State, 2),
+        VMSTATE_UINT8(noise, TSC2005State),
+        VMSTATE_UINT16_ARRAY(temp_thr, TSC2005State, 2),
+        VMSTATE_UINT16_ARRAY(aux_thr, TSC2005State, 2),
+        VMSTATE_INT32_ARRAY(tr, TSC2005State, 8),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void *tsc2005_init(qemu_irq pintdav)
 {
@@ -550,7 +510,7 @@ void *tsc2005_init(qemu_irq pintdav)
                     "QEMU TSC2005-driven Touchscreen");
 
     qemu_register_reset((void *) tsc2005_reset, s);
-    register_savevm(NULL, "tsc2005", -1, 0, tsc2005_save, tsc2005_load, s);
+    vmstate_register(NULL, 0, &vmstate_tsc2005, s);
 
     return s;
 }
