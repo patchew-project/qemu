@@ -396,32 +396,32 @@ static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
     trace_virtio_balloon_to_target(target, dev->num_pages);
 }
 
-static void virtio_balloon_save_device(VirtIODevice *vdev, QEMUFile *f)
-{
-    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-
-    qemu_put_be32(f, s->num_pages);
-    qemu_put_be32(f, s->actual);
-}
-
 static int virtio_balloon_load(QEMUFile *f, void *opaque, size_t size)
 {
     return virtio_load(VIRTIO_DEVICE(opaque), f, 1);
 }
 
-static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
-                                      int version_id)
+static int virtio_balloon_post_load_device(void *opaque, int version_id)
 {
-    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-
-    s->num_pages = qemu_get_be32(f);
-    s->actual = qemu_get_be32(f);
+    VirtIOBalloon *s = VIRTIO_BALLOON(opaque);
 
     if (balloon_stats_enabled(s)) {
         balloon_stats_change_timer(s, s->stats_poll_interval);
     }
     return 0;
 }
+
+static const VMStateDescription vmstate_virtio_balloon_device = {
+    .name = "virtio-balloon-device",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = virtio_balloon_post_load_device,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(num_pages, VirtIOBalloon),
+        VMSTATE_UINT32(actual, VirtIOBalloon),
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 {
@@ -503,8 +503,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     vdc->get_config = virtio_balloon_get_config;
     vdc->set_config = virtio_balloon_set_config;
     vdc->get_features = virtio_balloon_get_features;
-    vdc->save = virtio_balloon_save_device;
-    vdc->load = virtio_balloon_load_device;
+    vdc->vmsd = &vmstate_virtio_balloon_device;
 }
 
 static const TypeInfo virtio_balloon_info = {
