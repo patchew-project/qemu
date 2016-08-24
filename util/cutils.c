@@ -266,21 +266,127 @@ static bool select_accel_fn(const void *buf, size_t len)
     return select_accel_int(buf, len);
 }
 
-#elif defined(CONFIG_AVX2_OPT)
+#elif defined(CONFIG_AVX2_OPT) || defined(__SSE2__)
 #include <cpuid.h>
 #include <x86intrin.h>
 
+#ifdef CONFIG_AVX2_OPT
 #pragma GCC push_options
 #pragma GCC target("avx2")
-#define AVX2_ZERO(X)  _mm256_testz_si256((X), (X))
-ACCEL_BUFFER_ZERO(buffer_zero_avx2, 128, __m256i, AVX2_ZERO)
-#pragma GCC pop_options
 
+static bool __attribute__((noinline))
+buffer_zero_avx2(const void *buf, size_t len)
+{
+    const __m256i *p = buf;
+    const __m256i *end = buf + len;
+    __m256i t;
+
+    do {
+        p += 4;
+        __builtin_prefetch(p);
+        /* Note that most AVX insns handle unaligned operands by
+           default; we only need take care for the initial load.  */
+        __asm volatile("vmovdqu -0x80(%1),%0\n\t"
+                       "vpor -0x60(%1),%0,%0\n\t"
+                       "vpor -0x40(%1),%0,%0\n\t"
+                       "vpor -0x20(%1),%0,%0"
+                       : "=x"(t) : "r"(p));
+        if (unlikely(!_mm256_testz_si256(t, t))) {
+            return false;
+        }
+    } while (p < end);
+    return true;
+}
+
+#pragma GCC pop_options
+#pragma GCC push_options
+#pragma GCC target("avx")
+
+static bool __attribute__((noinline))
+buffer_zero_avx(const void *buf, size_t len)
+{
+    const __m128i *p = buf;
+    const __m128i *end = buf + len;
+    __m128i t;
+
+    do {
+        p += 4;
+        __builtin_prefetch(p);
+        /* Note that most AVX insns handle unaligned operands by
+           default; we only need take care for the initial load.  */
+        __asm volatile("vmovdqu -0x40(%1),%0\n\t"
+                       "vpor -0x20(%1),%0,%0\n\t"
+                       "vpor -0x20(%1),%0,%0\n\t"
+                       "vpor -0x10(%1),%0,%0"
+                       : "=x"(t) : "r"(p));
+        if (unlikely(!_mm_testz_si128(t, t))) {
+            return false;
+        }
+    } while (p < end);
+    return true;
+}
+
+#pragma GCC pop_options
+#pragma GCC push_options
+#pragma GCC target("sse4")
+
+static bool __attribute__((noinline))
+buffer_zero_sse4(const void *buf, size_t len)
+{
+    const __m128i *p = buf;
+    const __m128i *end = buf + len;
+    __m128i t0, t1, t2, t3;
+
+    do {
+        p += 4;
+        __builtin_prefetch(p);
+        __asm volatile("movdqu -0x40(%4),%0\n\t"
+                       "movdqu -0x20(%4),%1\n\t"
+                       "movdqu -0x20(%4),%2\n\t"
+                       "movdqu -0x10(%4),%3\n\t"
+                       "por %1,%0\n\t"
+                       "por %3,%2\n\t"
+                       "por %2,%0"
+                       : "=x"(t0), "=x"(t1), "=x"(t2), "=x"(t3) : "r"(p));
+        if (unlikely(!_mm_testz_si128(t0, t0))) {
+            return false;
+        }
+    } while (p < end);
+    return true;
+}
+
+#pragma GCC pop_options
 #pragma GCC push_options
 #pragma GCC target("sse2")
-#define SSE2_ZERO(X) \
-    (_mm_movemask_epi8(_mm_cmpeq_epi8((X), _mm_setzero_si128())) == 0xFFFF)
-ACCEL_BUFFER_ZERO(buffer_zero_sse2, 64, __m128i, SSE2_ZERO)
+#endif /* CONFIG_AVX2_OPT */
+
+static bool __attribute__((noinline))
+buffer_zero_sse2(const void *buf, size_t len)
+{
+    const __m128i *p = buf;
+    const __m128i *end = buf + len;
+    __m128i zero = _mm_setzero_si128();
+    __m128i t0, t1, t2, t3;
+
+    do {
+        p += 4;
+        __builtin_prefetch(p);
+        __asm volatile("movdqu -0x40(%4),%0\n\t"
+                       "movdqu -0x20(%4),%1\n\t"
+                       "movdqu -0x20(%4),%2\n\t"
+                       "movdqu -0x10(%4),%3\n\t"
+                       "por %1,%0\n\t"
+                       "por %3,%2\n\t"
+                       "por %2,%0"
+                       : "=x"(t0), "=x"(t1), "=x"(t2), "=x"(t3) : "r"(p));
+        if (unlikely(_mm_movemask_epi8(_mm_cmpeq_epi8(t0, zero)) == 0xFFFF)) {
+            return false;
+        }
+    } while (p < end);
+    return true;
+}
+
+#ifdef CONFIG_AVX2_OPT
 #pragma GCC pop_options
 
 #define CACHE_SSE2    1
@@ -321,32 +427,47 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
     }
     cpuid_cache = cache;
 }
+#endif /* CONFIG_AVX2_OPT */
 
 static bool select_accel_fn(const void *buf, size_t len)
 {
-    uintptr_t ibuf = (uintptr_t)buf;
-    if (len % 128 == 0 && ibuf % 32 == 0 && (cpuid_cache & CACHE_AVX2)) {
+#ifdef CONFIG_AVX2_OPT
+    int cache = cpuid_cache;
+
+    /* Force bits that the compiler tells us must be there.
+       This allows the compiler to optimize subsequent tests.  */
+#ifdef __AVX2__
+    cache |= CACHE_AVX2;
+#endif
+#ifdef __AVX__
+    cache |= CACHE_AVX1;
+#endif
+#ifdef __SSE4_1__
+    cache |= CACHE_SSE4;
+#endif
+#ifdef __SSE2__
+    cache |= CACHE_SSE2;
+#endif
+
+    if (len % 128 == 0 && (cache & CACHE_AVX2)) {
         return buffer_zero_avx2(buf, len);
     }
-    if (len % 64 == 0 && ibuf % 16 == 0 && (cpuid_cache & CACHE_SSE2)) {
+    if (len % 64 == 0) {
+        if (cache & CACHE_AVX1) {
+            return buffer_zero_avx(buf, len);
+        }
+        if (cache & CACHE_SSE4) {
+            return buffer_zero_sse4(buf, len);
+        }
+        if (cache & CACHE_SSE2) {
+            return buffer_zero_sse2(buf, len);
+        }
+    }
+#else
+    if (len % 64 == 0) {
         return buffer_zero_sse2(buf, len);
     }
-    return select_accel_int(buf, len);
-}
-
-#elif defined __SSE2__
-#include <emmintrin.h>
-
-#define SSE2_ZERO(X) \
-    (_mm_movemask_epi8(_mm_cmpeq_epi8((X), _mm_setzero_si128())) == 0xFFFF)
-ACCEL_BUFFER_ZERO(buffer_zero_sse2, 64, __m128i, SSE2_ZERO)
-
-static bool select_accel_fn(const void *buf, size_t len)
-{
-    uintptr_t ibuf = (uintptr_t)buf;
-    if (len % 64 == 0 && ibuf % sizeof(__m128i) == 0) {
-        return buffer_zero_sse2(buf, len);
-    }
+#endif
     return select_accel_int(buf, len);
 }
 
