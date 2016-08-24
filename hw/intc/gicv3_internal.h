@@ -68,11 +68,6 @@
 #define GICD_CTLR_RWP               (1U << 31)
 
 /*
- * Redistributor frame offsets from RD_base
- */
-#define GICR_SGI_OFFSET 0x10000
-
-/*
  * Redistributor registers, offsets from RD_base
  */
 #define GICR_CTLR             0x0000
@@ -90,18 +85,18 @@
 #define GICR_IDREGS           0xFFD0
 
 /* SGI and PPI Redistributor registers, offsets from RD_base */
-#define GICR_IGROUPR0         (GICR_SGI_OFFSET + 0x0080)
-#define GICR_ISENABLER0       (GICR_SGI_OFFSET + 0x0100)
-#define GICR_ICENABLER0       (GICR_SGI_OFFSET + 0x0180)
-#define GICR_ISPENDR0         (GICR_SGI_OFFSET + 0x0200)
-#define GICR_ICPENDR0         (GICR_SGI_OFFSET + 0x0280)
-#define GICR_ISACTIVER0       (GICR_SGI_OFFSET + 0x0300)
-#define GICR_ICACTIVER0       (GICR_SGI_OFFSET + 0x0380)
-#define GICR_IPRIORITYR       (GICR_SGI_OFFSET + 0x0400)
-#define GICR_ICFGR0           (GICR_SGI_OFFSET + 0x0C00)
-#define GICR_ICFGR1           (GICR_SGI_OFFSET + 0x0C04)
-#define GICR_IGRPMODR0        (GICR_SGI_OFFSET + 0x0D00)
-#define GICR_NSACR            (GICR_SGI_OFFSET + 0x0E00)
+#define GICR_IGROUPR0         0x0080
+#define GICR_ISENABLER0       0x0100
+#define GICR_ICENABLER0       0x0180
+#define GICR_ISPENDR0         0x0200
+#define GICR_ICPENDR0         0x0280
+#define GICR_ISACTIVER0       0x0300
+#define GICR_ICACTIVER0       0x0380
+#define GICR_IPRIORITYR       0x0400
+#define GICR_ICFGR0           0x0C00
+#define GICR_ICFGR1           0x0C04
+#define GICR_IGRPMODR0        0x0D00
+#define GICR_NSACR            0x0E00
 
 #define GICR_CTLR_ENABLE_LPIS        (1U << 0)
 #define GICR_CTLR_RWP                (1U << 3)
