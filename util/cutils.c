@@ -475,13 +475,35 @@ static bool select_accel_fn(const void *buf, size_t len)
 #include "arm_neon.h"
 
 #define DO_ZERO(X)  (vgetq_lane_u64((X), 0) | vgetq_lane_u64((X), 1))
-ACCEL_BUFFER_ZERO(buffer_zero_neon, 128, uint64x2_t, DO_ZERO)
+ACCEL_BUFFER_ZERO(buffer_zero_neon_64, 64, uint64x2_t, DO_ZERO)
+ACCEL_BUFFER_ZERO(buffer_zero_neon_128, 128, uint64x2_t, DO_ZERO)
+
+static uint32_t buffer_zero_line_mask;
+static accel_zero_fn buffer_zero_accel;
+
+static void __attribute__((constructor)) init_buffer_zero_accel(void)
+{
+    uint64_t t;
+
+    /* Use the DZP block size as a proxy for the cacheline size,
+       since the later is not available to userspace.  This seems
+       to work in practice for existing implementations.  */
+    asm("mrs %0, dczid_el0" : "=r"(t));
+    if ((t & 15) * 16 >= 128) {
+        buffer_zero_line_mask = 128 - 1;
+        buffer_zero_accel = buffer_zero_neon_128;
+    } else {
+        buffer_zero_line_mask = 64 - 1;
+        buffer_zero_accel = buffer_zero_neon_64;
+    }
+}
 
 static bool select_accel_fn(const void *buf, size_t len)
 {
     uintptr_t ibuf = (uintptr_t)buf;
-    if (len % 128 == 0 && ibuf % sizeof(uint64x2_t) == 0) {
-        return buffer_zero_neon(buf, len);
+    if (likely(ibuf % sizeof(uint64_t) == 0)
+        && (len & buffer_zero_line_mask) == 0) {
+        return buffer_zero_accel(buf, len);
     }
     return select_accel_int(buf, len);
 }
