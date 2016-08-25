@@ -87,6 +87,8 @@ typedef struct BDRVPCacheState {
 
 #ifdef PCACHE_DEBUG
     uint64_t shrink_cnt_node;
+    QTAILQ_HEAD(death_node_head, BlockNode) death_node_list;
+    CoMutex                                 death_node_lock;
 #endif
 } BDRVPCacheState;
 
@@ -152,7 +154,7 @@ enum {
 
 #define PCNODE(_n) ((PCNode *)(_n))
 
-static inline void pcache_node_unref(PCNode *node)
+static inline void pcache_node_unref(BDRVPCacheState *s, PCNode *node)
 {
     assert(node->status == NODE_SUCCESS_STATUS ||
            node->status == NODE_REMOVE_STATUS);
@@ -161,6 +163,12 @@ static inline void pcache_node_unref(PCNode *node)
         assert(node->status == NODE_REMOVE_STATUS);
 
         node->status = NODE_GHOST_STATUS;
+
+#ifdef PCACHE_DEBUG
+        qemu_co_mutex_lock(&s->death_node_lock);
+        QTAILQ_REMOVE(&s->death_node_list, &node->cm, entry);
+        qemu_co_mutex_unlock(&s->death_node_lock);
+#endif
         g_free(node->data);
         g_slice_free1(sizeof(*node), node);
     }
@@ -263,11 +271,17 @@ static void pcache_node_drop(BDRVPCacheState *s, PCNode *node)
     QTAILQ_REMOVE(&s->pcache.lru.list, &node->cm, entry);
     qemu_co_mutex_unlock(&s->pcache.lru.lock);
 
+#ifdef PCACHE_DEBUG
+    qemu_co_mutex_lock(&s->death_node_lock);
+    QTAILQ_INSERT_HEAD(&s->death_node_list, &node->cm, entry);
+    qemu_co_mutex_unlock(&s->death_node_lock);
+#endif
+
     qemu_co_mutex_lock(&s->pcache.tree.lock);
     rb_erase(&node->cm.rb_node, &s->pcache.tree.root);
     qemu_co_mutex_unlock(&s->pcache.tree.lock);
 
-    pcache_node_unref(node);
+    pcache_node_unref(s, node);
 }
 
 static void pcache_try_shrink(BDRVPCacheState *s)
@@ -367,7 +381,7 @@ static void pcache_pickup_parts_of_cache(PrefCacheAIOCB *acb, PCNode *node,
             up_size = lc_key.size;
 
             if (!pcache_node_find_and_create(acb, &lc_key, &new_node)) {
-                pcache_node_unref(node);
+                pcache_node_unref(acb->s, node);
                 node = new_node;
                 continue;
             }
@@ -377,7 +391,7 @@ static void pcache_pickup_parts_of_cache(PrefCacheAIOCB *acb, PCNode *node,
         /* XXX: node read */
         up_size = MIN(node->cm.sector_num + node->cm.nb_sectors - num, size);
 
-        pcache_node_unref(node);
+        pcache_node_unref(acb->s, node);
 
         size -= up_size;
         num += up_size;
@@ -416,7 +430,7 @@ static int32_t pcache_prefetch(PrefCacheAIOCB *acb)
                                                      acb->nb_sectors)
     {
         /* XXX: node read */
-        pcache_node_unref(node);
+        pcache_node_unref(acb->s, node);
         return PREFETCH_FULL_UP;
     }
     pcache_pickup_parts_of_cache(acb, node, key.num, key.size);
@@ -459,7 +473,7 @@ static void pcache_merge_requests(PrefCacheAIOCB *acb)
 
         /* XXX: pcache read */
 
-        pcache_node_unref(req->node);
+        pcache_node_unref(acb->s, req->node);
 
         g_slice_free1(sizeof(*req), req);
     }
@@ -544,6 +558,11 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
     s->pcache.curr_size = 0;
 
     s->cfg_cache_size = cache_size >> BDRV_SECTOR_BITS;
+
+#ifdef PCACHE_DEBUG
+    QTAILQ_INIT(&s->death_node_list);
+    qemu_co_mutex_init(&s->death_node_lock);
+#endif
 }
 
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
@@ -597,6 +616,20 @@ static void pcache_close(BlockDriverState *bs)
         cnt++;
     }
     DPRINTF("used %d nodes\n", cnt);
+
+#ifdef PCACHE_DEBUG
+    if (!QTAILQ_EMPTY(&s->death_node_list)) {
+        cnt = 0;
+        DPRINTF("warning: death node list contains of node\n");
+        QTAILQ_FOREACH_SAFE(node, &s->death_node_list, entry, next) {
+            QTAILQ_REMOVE(&s->death_node_list, node, entry);
+            g_free(PCNODE(node)->data);
+            g_slice_free1(sizeof(*node), node);
+            cnt++;
+        }
+        DPRINTF("death nodes: %d", cnt);
+    }
+#endif
 }
 
 static void pcache_parse_filename(const char *filename, QDict *options,
