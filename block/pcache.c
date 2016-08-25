@@ -100,6 +100,7 @@ typedef struct BDRVPCacheState {
     struct {
         uint32_t cache_size;
         uint32_t readahead_size;
+        uint32_t max_aio_size;
         uint32_t lreq_pool_size;
     } cfg;
 
@@ -144,6 +145,7 @@ static const AIOCBInfo pcache_aiocb_info = {
 
 #define PCACHE_OPT_CACHE_SIZE "pcache-full-size"
 #define PCACHE_OPT_READAHEAD_SIZE "pcache-readahead-size"
+#define PCACHE_OPT_MAX_AIO_SIZE "pcache-max-aio-size"
 
 static QemuOptsList runtime_opts = {
     .name = "pcache",
@@ -164,6 +166,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Prefetch cache readahead size",
         },
+        {
+            .name = PCACHE_OPT_MAX_AIO_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum size of aio which is handled by pcache",
+        },
         { /* end of list */ }
     },
 };
@@ -173,6 +180,7 @@ static QemuOptsList runtime_opts = {
 #define PCACHE_DEFAULT_CACHE_SIZE (4 << MB_BITS)
 #define PCACHE_DEFAULT_READAHEAD_SIZE (128 << KB_BITS)
 #define PCACHE_DEFAULT_POOL_STAT_SIZE (1 << MB_BITS)
+#define PCACHE_DEFAULT_MAX_AIO_SIZE (32 << KB_BITS)
 
 enum {
     NODE_SUCCESS_STATUS = 0,
@@ -386,12 +394,7 @@ static void lreq_try_shrink(BDRVPCacheState *s)
 {
     while (s->lreq.curr_size > s->cfg.lreq_pool_size) {
         LRNode *rmv_node;
-            /* XXX: need to filter large requests */
-        if (QTAILQ_EMPTY(&s->lreq.lru.list)) {
-            DPRINTF("lru lreq list is empty, but curr_size: %d\n",
-                    s->lreq.curr_size);
-            break;
-        }
+        assert(!QTAILQ_EMPTY(&s->lreq.lru.list));
 
         qemu_co_mutex_lock(&s->lreq.lru.lock);
         rmv_node = LRNODE(QTAILQ_LAST(&s->lreq.lru.list, lru_head));
@@ -943,6 +946,23 @@ static void pcache_readahead_request(BlockDriverState *bs, PrefCacheAIOCB *acb)
     pcache_send_acb_request_list(bs, acb_readahead);
 }
 
+static inline bool pcache_skip_aio_read(BlockDriverState *bs,
+                                        uint64_t sector_num,
+                                        uint32_t nb_sectors)
+{
+    BDRVPCacheState *s = bs->opaque;
+
+    if (nb_sectors > s->cfg.max_aio_size) {
+        return true;
+    }
+
+    if (bdrv_nb_sectors(bs) < sector_num + nb_sectors) {
+        return true;
+    }
+
+    return false;
+}
+
 static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
                                     int64_t sector_num,
                                     QEMUIOVector *qiov,
@@ -950,9 +970,16 @@ static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
                                     BlockCompletionFunc *cb,
                                     void *opaque)
 {
-    PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
-                                         opaque, PCACHE_AIO_READ);
-    int32_t status = pcache_prefetch(acb);
+    PrefCacheAIOCB *acb;
+    int32_t status;
+
+    if (pcache_skip_aio_read(bs, sector_num, nb_sectors)) {
+        return bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors,
+                              cb, opaque);
+    }
+    acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
+                         opaque, PCACHE_AIO_READ);
+    status = pcache_prefetch(acb);
     if (status == PREFETCH_NEW_NODE) {
         BlockAIOCB *ret = bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors,
                                          cb, opaque);
@@ -993,9 +1020,12 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
                                             PCACHE_DEFAULT_CACHE_SIZE);
     uint64_t readahead_size = qemu_opt_get_size(opts, PCACHE_OPT_READAHEAD_SIZE,
                                                 PCACHE_DEFAULT_READAHEAD_SIZE);
+    uint64_t max_aio_size = qemu_opt_get_size(opts, PCACHE_OPT_MAX_AIO_SIZE,
+                                              PCACHE_DEFAULT_MAX_AIO_SIZE);
     DPRINTF("pcache configure:\n");
     DPRINTF("pcache-full-size = %jd\n", cache_size);
     DPRINTF("readahead_size = %jd\n", readahead_size);
+    DPRINTF("max_aio_size = %jd\n", max_aio_size);
 
     s->pcache.tree.root = RB_ROOT;
     qemu_co_mutex_init(&s->pcache.tree.lock);
@@ -1012,6 +1042,7 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
     s->cfg.cache_size = cache_size >> BDRV_SECTOR_BITS;
     s->cfg.readahead_size = readahead_size >> BDRV_SECTOR_BITS;
     s->cfg.lreq_pool_size = PCACHE_DEFAULT_POOL_STAT_SIZE >> BDRV_SECTOR_BITS;
+    s->cfg.max_aio_size = max_aio_size >> BDRV_SECTOR_BITS;
 
 #ifdef PCACHE_DEBUG
     QTAILQ_INIT(&s->death_node_list);
