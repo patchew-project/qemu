@@ -683,7 +683,7 @@ static void pcache_aio_bh(void *opaque)
 {
     PrefCacheAIOCB *acb = opaque;
     qemu_bh_delete(acb->bh);
-    acb->common.cb(acb->common.opaque, 0);
+    acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
 
@@ -696,7 +696,8 @@ static void complete_aio_request(PrefCacheAIOCB *acb)
     }
 }
 
-static void pcache_complete_acb_wait_queue(BDRVPCacheState *s, PCNode *node)
+static void pcache_complete_acb_wait_queue(BDRVPCacheState *s, PCNode *node,
+                                           int ret)
 {
     ACBEntryLink *link, *next;
 
@@ -710,7 +711,11 @@ static void pcache_complete_acb_wait_queue(BDRVPCacheState *s, PCNode *node)
         QTAILQ_REMOVE(&node->wait.list, link, entry);
         g_slice_free1(sizeof(*link), link);
 
-        pcache_node_read_buf(wait_acb, node);
+        if (ret == 0) {
+            pcache_node_read_buf(wait_acb, node);
+        } else {  /* write only fail, because next request can rewrite error */
+            wait_acb->ret = ret;
+        }
 
         NODE_ASSERT(node->ref != 0, node);
         pcache_node_unref(s, node);
@@ -753,16 +758,17 @@ static void pcache_merge_requests(PrefCacheAIOCB *acb)
         assert(req != NULL);
         NODE_ASSERT(node->status == NODE_WAIT_STATUS, node);
 
-        pcache_node_submit(req);
-
-        if (!(acb->aio_type & PCACHE_AIO_READAHEAD)) {
-            pcache_node_read_buf(acb, node);
+        if (acb->ret == 0) {
+            pcache_node_submit(req);
+            if (!(acb->aio_type & PCACHE_AIO_READAHEAD)) {
+                pcache_node_read_buf(acb, node);
+            }
+        } else {
+            pcache_node_drop(acb->s, node);
         }
+        pcache_complete_acb_wait_queue(acb->s, node, acb->ret);
 
-        pcache_complete_acb_wait_queue(acb->s, node);
-
-        pcache_node_unref(acb->s, req->node);
-
+        pcache_node_unref(acb->s, node);
         g_slice_free1(sizeof(*req), req);
     }
     qemu_co_mutex_unlock(&acb->requests.lock);
@@ -799,6 +805,11 @@ static void pcache_aio_cb(void *opaque, int ret)
 {
     PrefCacheAIOCB *acb = opaque;
 
+    if (ret != 0) {
+        acb->ret = ret;
+        DPRINTF("pcache aio_cb(num: %jd nb: %d) err: %d",
+                acb->sector_num, acb->nb_sectors, ret);
+    }
     if (acb->aio_type & PCACHE_AIO_READ) {
         if (atomic_dec_fetch(&acb->requests.cnt) > 0) {
             return;
