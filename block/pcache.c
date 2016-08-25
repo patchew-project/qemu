@@ -79,6 +79,8 @@ typedef struct BDRVPCacheState {
         QTAILQ_HEAD(pcache_head, BlockNode) head;
         CoMutex lock;
     } list;
+
+    uint32_t cfg_cache_size;
 } BDRVPCacheState;
 
 typedef struct PrefCacheAIOCB {
@@ -96,6 +98,8 @@ static const AIOCBInfo pcache_aiocb_info = {
     .aiocb_size = sizeof(PrefCacheAIOCB),
 };
 
+#define PCACHE_OPT_CACHE_SIZE "pcache-full-size"
+
 static QemuOptsList runtime_opts = {
     .name = "pcache",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -105,9 +109,18 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "[internal use only, will be removed]",
         },
+        {
+            .name = PCACHE_OPT_CACHE_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Total cache size",
+        },
         { /* end of list */ }
     },
 };
+
+#define KB_BITS 10
+#define MB_BITS 20
+#define PCACHE_DEFAULT_CACHE_SIZE (4 << MB_BITS)
 
 #define PCNODE(_n) ((PCNode *)(_n))
 
@@ -263,7 +276,9 @@ static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
     PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
                                          opaque, QEMU_AIO_READ);
 
-    pcache_prefetch(acb);
+    if (acb->s->pcache.curr_size < acb->s->cfg_cache_size) {
+        pcache_prefetch(acb);
+    }
 
     bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors,
                    pcache_aio_cb, acb);
@@ -287,13 +302,18 @@ static BlockAIOCB *pcache_aio_writev(BlockDriverState *bs,
 
 static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
 {
+    uint64_t cache_size = qemu_opt_get_size(opts, PCACHE_OPT_CACHE_SIZE,
+                                            PCACHE_DEFAULT_CACHE_SIZE);
     DPRINTF("pcache configure:\n");
+    DPRINTF("pcache-full-size = %jd\n", cache_size);
 
     s->pcache.tree.root = RB_ROOT;
     qemu_co_mutex_init(&s->pcache.tree.lock);
     QTAILQ_INIT(&s->list.head);
     qemu_co_mutex_init(&s->list.lock);
     s->pcache.curr_size = 0;
+
+    s->cfg_cache_size = cache_size >> BDRV_SECTOR_BITS;
 }
 
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
