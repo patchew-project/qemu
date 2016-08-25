@@ -200,6 +200,8 @@ static QemuOptsList runtime_opts = {
 #define PCACHE_DEFAULT_POOL_STAT_SIZE (1 << MB_BITS)
 #define PCACHE_DEFAULT_MAX_AIO_SIZE (32 << KB_BITS)
 
+#define PCACHE_WRITE_THROUGH_NODE TRUE
+
 enum {
     NODE_SUCCESS_STATUS = 0,
     NODE_WAIT_STATUS    = 1,
@@ -538,7 +540,12 @@ static uint64_t ranges_overlap_size(uint64_t node1, uint32_t size1,
     return MIN(node1 + size1, node2 + size2) - MAX(node1, node2);
 }
 
-static inline void pcache_node_read_buf(PrefCacheAIOCB *acb, PCNode* node)
+enum {
+    NODE_READ_BUF  = 1,
+    NODE_WRITE_BUF = 2
+};
+
+static void pcache_node_rw_buf(PrefCacheAIOCB *acb, PCNode* node, uint32_t type)
 {
     uint64_t qiov_offs = 0, node_offs = 0;
     uint32_t size;
@@ -554,8 +561,9 @@ static inline void pcache_node_read_buf(PrefCacheAIOCB *acb, PCNode* node)
            << BDRV_SECTOR_BITS;
 
     qemu_co_mutex_lock(&node->lock); /* XXX: use rw lock */
-    copy = \
-        qemu_iovec_from_buf(acb->qiov, qiov_offs, node->data + node_offs, size);
+    copy = type & NODE_READ_BUF ?
+        qemu_iovec_from_buf(acb->qiov, qiov_offs, node->data + node_offs, size)
+        : qemu_iovec_to_buf(acb->qiov, qiov_offs, node->data + node_offs, size);
     qemu_co_mutex_unlock(&node->lock);
     assert(copy == size);
 }
@@ -586,7 +594,7 @@ static void pcache_node_read(PrefCacheAIOCB *acb, PCNode* node)
     }
     qemu_co_mutex_unlock(&node->lock);
 
-    pcache_node_read_buf(acb, node);
+    pcache_node_rw_buf(acb, node, NODE_READ_BUF);
     pcache_node_unref(acb->s, node);
 }
 
@@ -712,7 +720,7 @@ static void pcache_complete_acb_wait_queue(BDRVPCacheState *s, PCNode *node,
         g_slice_free1(sizeof(*link), link);
 
         if (ret == 0) {
-            pcache_node_read_buf(wait_acb, node);
+            pcache_node_rw_buf(wait_acb, node, NODE_READ_BUF);
         } else {  /* write only fail, because next request can rewrite error */
             wait_acb->ret = ret;
         }
@@ -761,7 +769,7 @@ static void pcache_merge_requests(PrefCacheAIOCB *acb)
         if (acb->ret == 0) {
             pcache_node_submit(req);
             if (!(acb->aio_type & PCACHE_AIO_READAHEAD)) {
-                pcache_node_read_buf(acb, node);
+                pcache_node_rw_buf(acb, node, NODE_READ_BUF);
             }
         } else {
             pcache_node_drop(acb->s, node);
@@ -774,7 +782,7 @@ static void pcache_merge_requests(PrefCacheAIOCB *acb)
     qemu_co_mutex_unlock(&acb->requests.lock);
 }
 
-static void pcache_try_node_drop(PrefCacheAIOCB *acb)
+static void pcache_update_node_state(PrefCacheAIOCB *acb)
 {
     BDRVPCacheState *s = acb->s;
     RbNodeKey key;
@@ -793,7 +801,11 @@ static void pcache_try_node_drop(PrefCacheAIOCB *acb)
         }
         if (node->status != NODE_WAIT_STATUS) {
             NODE_ASSERT(node->status == NODE_SUCCESS_STATUS, node);
+#if PCACHE_WRITE_THROUGH_NODE
+            pcache_node_rw_buf(acb, node, NODE_WRITE_BUF);
+#else
             pcache_node_drop(s, node);
+#endif
         }
         key.num = node->cm.sector_num + node->cm.nb_sectors;
 
@@ -820,7 +832,7 @@ static void pcache_aio_cb(void *opaque, int ret)
             return;
         }
     } else {        /* PCACHE_AIO_WRITE */
-        pcache_try_node_drop(acb); /* XXX: use write through */
+        pcache_update_node_state(acb);
     }
 
     complete_aio_request(acb);
