@@ -88,6 +88,7 @@ typedef struct PCNode {
     uint32_t                 status;
     uint32_t                 ref;
     uint8_t                  *data;
+    uint32_t                 rdcnt;
     CoMutex                  lock;
 } PCNode;
 
@@ -342,6 +343,7 @@ static inline void *pcache_node_alloc(RbNodeKey* key)
     node->cm.nb_sectors = key->size;
     node->ref = 0;
     node->status = NODE_WAIT_STATUS;
+    node->rdcnt = 0;
     qemu_co_mutex_init(&node->lock);
     node->data = g_malloc(node->cm.nb_sectors << BDRV_SECTOR_BITS);
     node->wait.cnt = 0;
@@ -560,11 +562,23 @@ static void pcache_node_rw_buf(PrefCacheAIOCB *acb, PCNode* node, uint32_t type)
                                node->cm.sector_num, node->cm.nb_sectors)
            << BDRV_SECTOR_BITS;
 
-    qemu_co_mutex_lock(&node->lock); /* XXX: use rw lock */
-    copy = type & NODE_READ_BUF ?
-        qemu_iovec_from_buf(acb->qiov, qiov_offs, node->data + node_offs, size)
-        : qemu_iovec_to_buf(acb->qiov, qiov_offs, node->data + node_offs, size);
-    qemu_co_mutex_unlock(&node->lock);
+    if (type & NODE_READ_BUF) {
+        qemu_co_mutex_lock(&node->lock); /* XXX: use rw lock */
+        copy = qemu_iovec_from_buf(acb->qiov, qiov_offs,
+                                   node->data + node_offs, size);
+        qemu_co_mutex_unlock(&node->lock);
+
+        /* pcache node is no longer needed, when it was all read */
+        atomic_add(&node->rdcnt, size >> BDRV_SECTOR_BITS);
+        if (node->rdcnt >= node->cm.nb_sectors) {
+            pcache_node_drop(acb->s, node);
+        }
+    } else {
+        qemu_co_mutex_lock(&node->lock); /* XXX: use rw lock */
+        copy = qemu_iovec_to_buf(acb->qiov, qiov_offs,
+                                 node->data + node_offs, size);
+        qemu_co_mutex_unlock(&node->lock);
+    }
     assert(copy == size);
 }
 
