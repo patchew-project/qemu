@@ -24,12 +24,22 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
+#include "block/raw-aio.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
 
+typedef struct PrefCacheAIOCB {
+    BlockAIOCB common;
+
+    QEMUIOVector *qiov;
+    uint64_t sector_num;
+    uint32_t nb_sectors;
+    int      aio_type;
+    int      ret;
+} PrefCacheAIOCB;
 
 static const AIOCBInfo pcache_aiocb_info = {
-    .aiocb_size = sizeof(BlockAIOCB),
+    .aiocb_size = sizeof(PrefCacheAIOCB),
 };
 
 static QemuOptsList runtime_opts = {
@@ -47,12 +57,27 @@ static QemuOptsList runtime_opts = {
 
 static void pcache_aio_cb(void *opaque, int ret)
 {
+    PrefCacheAIOCB *acb = opaque;
 
-    BlockAIOCB *acb = opaque;
-
-    acb->cb(acb->opaque, ret);
+    acb->common.cb(acb->common.opaque, ret);
 
     qemu_aio_unref(acb);
+}
+
+static PrefCacheAIOCB *pcache_aio_get(BlockDriverState *bs, int64_t sector_num,
+                                      QEMUIOVector *qiov, int nb_sectors,
+                                      BlockCompletionFunc *cb, void *opaque,
+                                      int type)
+{
+    PrefCacheAIOCB *acb = qemu_aio_get(&pcache_aiocb_info, bs, cb, opaque);
+
+    acb->sector_num = sector_num;
+    acb->nb_sectors = nb_sectors;
+    acb->qiov = qiov;
+    acb->aio_type = type;
+    acb->ret = 0;
+
+    return acb;
 }
 
 static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
@@ -62,11 +87,12 @@ static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
                                     BlockCompletionFunc *cb,
                                     void *opaque)
 {
-    BlockAIOCB *acb = qemu_aio_get(&pcache_aiocb_info, bs, cb, opaque);
+    PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
+                                         opaque, QEMU_AIO_READ);
 
     bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors,
                    pcache_aio_cb, acb);
-    return acb;
+    return &acb->common;
 }
 
 static BlockAIOCB *pcache_aio_writev(BlockDriverState *bs,
@@ -76,11 +102,12 @@ static BlockAIOCB *pcache_aio_writev(BlockDriverState *bs,
                                      BlockCompletionFunc *cb,
                                      void *opaque)
 {
-    BlockAIOCB *acb = qemu_aio_get(&pcache_aiocb_info, bs, cb, opaque);
+    PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
+                                         opaque, QEMU_AIO_WRITE);
 
     bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors,
                     pcache_aio_cb, acb);
-    return acb;
+    return &acb->common;
 }
 
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
