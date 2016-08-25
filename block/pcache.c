@@ -38,6 +38,24 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
+#define NODE_PRINT(_node) \
+    printf("node:\n"      \
+           "num: %jd size: %d\n"   \
+           "ref: %d\nstatus: %d\n" \
+           "node_wait_cnt: %d\n"   \
+           "data: %p\nlock %u\n",  \
+           (_node)->cm.sector_num, (_node)->cm.nb_sectors,    \
+           (_node)->ref, (_node)->status, (_node)->wait.cnt,  \
+           (_node)->data, (_node)->lock.locked)
+
+#define NODE_ASSERT(_assert, _node) \
+    do {                            \
+        if (!(_assert)) {           \
+            NODE_PRINT(_node);      \
+            assert(_assert);        \
+        }                           \
+    } while (0)
+
 typedef struct RbNodeKey {
     uint64_t    num;
     uint32_t    size;
@@ -201,7 +219,7 @@ enum {
 static inline void pcache_node_unref(BDRVPCacheState *s, PCNode *node)
 {
     if (atomic_fetch_dec(&node->ref) == 0) {
-        assert(node->status == NODE_REMOVE_STATUS);
+        NODE_ASSERT(node->status == NODE_REMOVE_STATUS, node);
 
         node->status = NODE_GHOST_STATUS;
 
@@ -217,8 +235,8 @@ static inline void pcache_node_unref(BDRVPCacheState *s, PCNode *node)
 
 static inline PCNode *pcache_node_ref(PCNode *node)
 {
-    assert(node->status == NODE_SUCCESS_STATUS ||
-           node->status == NODE_WAIT_STATUS);
+    NODE_ASSERT(node->status == NODE_SUCCESS_STATUS ||
+                node->status == NODE_WAIT_STATUS, node);
     atomic_inc(&node->ref);
 
     return node;
@@ -422,8 +440,8 @@ static PrefCachePartReq *pcache_req_get(PrefCacheAIOCB *acb, PCNode *node)
     req->node = node;
     req->acb = acb;
 
-    assert(acb->sector_num <= node->cm.sector_num + node->cm.nb_sectors);
-
+    NODE_ASSERT(acb->sector_num <= node->cm.sector_num + node->cm.nb_sectors,
+                node);
     qemu_iovec_init(&req->qiov, 1);
     qemu_iovec_add(&req->qiov, node->data,
                    node->cm.nb_sectors << BDRV_SECTOR_BITS);
@@ -554,10 +572,10 @@ static inline void pcache_node_read_wait(PrefCacheAIOCB *acb, PCNode *node)
 
 static void pcache_node_read(PrefCacheAIOCB *acb, PCNode* node)
 {
-    assert(node->status == NODE_SUCCESS_STATUS ||
-           node->status == NODE_WAIT_STATUS    ||
-           node->status == NODE_REMOVE_STATUS);
-    assert(node->data != NULL);
+    NODE_ASSERT(node->status == NODE_SUCCESS_STATUS ||
+                node->status == NODE_WAIT_STATUS    ||
+                node->status == NODE_REMOVE_STATUS, node);
+    NODE_ASSERT(node->data != NULL, node);
 
     qemu_co_mutex_lock(&node->lock);
     if (node->status == NODE_WAIT_STATUS) {
@@ -694,13 +712,13 @@ static void pcache_complete_acb_wait_queue(BDRVPCacheState *s, PCNode *node)
 
         pcache_node_read_buf(wait_acb, node);
 
-        assert(node->ref != 0);
+        NODE_ASSERT(node->ref != 0, node);
         pcache_node_unref(s, node);
 
         complete_aio_request(wait_acb);
         atomic_dec(&node->wait.cnt);
     }
-    assert(atomic_read(&node->wait.cnt) == 0);
+    NODE_ASSERT(atomic_read(&node->wait.cnt) == 0, node);
 }
 
 static void pcache_node_submit(PrefCachePartReq *req)
@@ -709,8 +727,8 @@ static void pcache_node_submit(PrefCachePartReq *req)
     BDRVPCacheState *s = req->acb->s;
 
     assert(node != NULL);
-    assert(atomic_read(&node->ref) != 0);
-    assert(node->data != NULL);
+    NODE_ASSERT(atomic_read(&node->ref) != 0, node);
+    NODE_ASSERT(node->data != NULL, node);
 
     qemu_co_mutex_lock(&node->lock);
     if (node->status == NODE_WAIT_STATUS) {
@@ -733,7 +751,7 @@ static void pcache_merge_requests(PrefCacheAIOCB *acb)
         QTAILQ_REMOVE(&acb->requests.list, req, entry);
 
         assert(req != NULL);
-        assert(node->status == NODE_WAIT_STATUS);
+        NODE_ASSERT(node->status == NODE_WAIT_STATUS, node);
 
         pcache_node_submit(req);
 
@@ -768,7 +786,7 @@ static void pcache_try_node_drop(PrefCacheAIOCB *acb)
             return;
         }
         if (node->status != NODE_WAIT_STATUS) {
-            assert(node->status == NODE_SUCCESS_STATUS);
+            NODE_ASSERT(node->status == NODE_SUCCESS_STATUS, node);
             pcache_node_drop(s, node);
         }
         key.num = node->cm.sector_num + node->cm.nb_sectors;
@@ -1081,8 +1099,8 @@ fail:
 
 static void pcache_node_check_and_free(BDRVPCacheState *s, PCNode *node)
 {
-    assert(node->status == NODE_SUCCESS_STATUS);
-    assert(node->ref == 0);
+    NODE_ASSERT(node->status == NODE_SUCCESS_STATUS, node);
+    NODE_ASSERT(node->ref == 0, node);
 
     node->status = NODE_REMOVE_STATUS;
     rb_erase(&node->cm.rb_node, &s->pcache.tree.root);
