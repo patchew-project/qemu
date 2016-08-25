@@ -28,6 +28,15 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
 
+#define PCACHE_DEBUG
+
+#ifdef PCACHE_DEBUG
+#define DPRINTF(fmt, ...) \
+        printf("%s:%s:%d "fmt, __FILE__, __func__, __LINE__, ## __VA_ARGS__)
+#else
+#define DPRINTF(fmt, ...) do { } while (0)
+#endif
+
 typedef struct PrefCacheAIOCB {
     BlockAIOCB common;
 
