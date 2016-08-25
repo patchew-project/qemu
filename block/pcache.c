@@ -427,6 +427,16 @@ static bool pcache_node_find_and_create(PrefCacheAIOCB *acb, RbNodeKey *key,
     return true;
 }
 
+static inline PCNode *pcache_node_add(PrefCacheAIOCB *acb, RbNodeKey *key)
+{
+    PCNode *node = NULL;
+    if (!pcache_node_find_and_create(acb, key, &node)) {
+        pcache_node_unref(acb->s, node);
+        return NULL;
+    }
+    return node;
+}
+
 static uint64_t ranges_overlap_size(uint64_t node1, uint32_t size1,
                                     uint64_t node2, uint32_t size2)
 {
@@ -735,6 +745,38 @@ static void pcache_send_acb_request_list(BlockDriverState *bs,
     qemu_co_mutex_unlock(&acb->requests.lock);
 }
 
+static void readahead_node_prev(PrefCacheAIOCB *acb, PCNode *node,
+                                RbNodeKey *key)
+{
+    RbNodeKey lc_key;
+    if (node->cm.key.num <= key->num) {
+        return;
+    }
+
+    lc_key.num = key->num;
+    lc_key.size = node->cm.key.num - key->num;
+
+    pcache_node_add(acb, &lc_key);
+}
+
+static void readahead_node_next(PrefCacheAIOCB *acb, PCNode *node,
+                                RbNodeKey *key, uint64_t total_sectors)
+{
+    BDRVPCacheState *s;
+    RbNodeKey lc_key;
+    if (node->cm.key.num + node->cm.key.size >= key->num + key->size) {
+        return;
+    }
+    s = acb->s;
+
+    lc_key.num = node->cm.key.num + node->cm.key.size;
+    lc_key.size = s->cfg.readahead_size;
+    if (total_sectors <= lc_key.num + lc_key.size) {
+        return;
+    }
+    pcache_node_add(acb, &lc_key);
+}
+
 static bool check_allocated_blocks(BlockDriverState *bs, int64_t sector_num,
                                    int32_t nb_sectors)
 {
@@ -777,9 +819,14 @@ static void pcache_readahead_request(BlockDriverState *bs, PrefCacheAIOCB *acb)
                                    acb->common.opaque, PCACHE_AIO_READ |
                                                        PCACHE_AIO_READAHEAD);
     if (!pcache_node_find_and_create(acb_readahead, &key, &node)) {
+        readahead_node_prev(acb_readahead, node, &key);
+        readahead_node_next(acb_readahead, node, &key, total_sectors);
+
         pcache_node_unref(s, node);
-        qemu_aio_unref(acb_readahead);
-        return;
+        if (acb_readahead->requests.cnt == 0) {
+            qemu_aio_unref(acb_readahead);
+            return;
+        }
     }
     pcache_send_acb_request_list(bs, acb_readahead);
 }
