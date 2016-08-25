@@ -58,7 +58,10 @@ typedef struct BlockNode {
 typedef struct PCNode {
     BlockNode cm;
 
+    uint32_t                 status;
+    uint32_t                 ref;
     uint8_t                  *data;
+    CoMutex                  lock;
 } PCNode;
 
 typedef struct ReqStor {
@@ -95,8 +98,22 @@ typedef struct PrefCacheAIOCB {
     uint64_t sector_num;
     uint32_t nb_sectors;
     int      aio_type;
+    struct {
+        QTAILQ_HEAD(req_head, PrefCachePartReq) list;
+        CoMutex lock;
+    } requests;
     int      ret;
 } PrefCacheAIOCB;
+
+typedef struct PrefCachePartReq {
+    uint64_t sector_num;
+    uint32_t nb_sectors;
+
+    QEMUIOVector qiov;
+    PCNode *node;
+    PrefCacheAIOCB *acb;
+    QTAILQ_ENTRY(PrefCachePartReq) entry;
+} PrefCachePartReq;
 
 static const AIOCBInfo pcache_aiocb_info = {
     .aiocb_size = sizeof(PrefCacheAIOCB),
@@ -126,7 +143,38 @@ static QemuOptsList runtime_opts = {
 #define MB_BITS 20
 #define PCACHE_DEFAULT_CACHE_SIZE (4 << MB_BITS)
 
+enum {
+    NODE_SUCCESS_STATUS = 0,
+    NODE_WAIT_STATUS    = 1,
+    NODE_REMOVE_STATUS  = 2,
+    NODE_GHOST_STATUS   = 3 /* only for debugging */
+};
+
 #define PCNODE(_n) ((PCNode *)(_n))
+
+static inline void pcache_node_unref(PCNode *node)
+{
+    assert(node->status == NODE_SUCCESS_STATUS ||
+           node->status == NODE_REMOVE_STATUS);
+
+    if (atomic_fetch_dec(&node->ref) == 0) {
+        assert(node->status == NODE_REMOVE_STATUS);
+
+        node->status = NODE_GHOST_STATUS;
+        g_free(node->data);
+        g_slice_free1(sizeof(*node), node);
+    }
+}
+
+static inline PCNode *pcache_node_ref(PCNode *node)
+{
+    assert(node->status == NODE_SUCCESS_STATUS ||
+           node->status == NODE_WAIT_STATUS);
+    assert(atomic_read(&node->ref) == 0);/* XXX: only for sequential requests */
+    atomic_inc(&node->ref);
+
+    return node;
+}
 
 static int pcache_key_cmp(const RbNodeKey *key1, const RbNodeKey *key2)
 {
@@ -184,13 +232,7 @@ static void *node_insert(struct RbRoot *root, BlockNode *node)
 
 static inline PCNode *pcache_node_insert(struct RbRoot *root, PCNode *node)
 {
-    return node_insert(root, &node->cm);
-}
-
-static inline void pcache_node_free(PCNode *node)
-{
-    g_free(node->data);
-    g_slice_free1(sizeof(*node), node);
+    return pcache_node_ref(node_insert(root, &node->cm));
 }
 
 static inline void *pcache_node_alloc(RbNodeKey* key)
@@ -199,6 +241,9 @@ static inline void *pcache_node_alloc(RbNodeKey* key)
 
     node->cm.sector_num = key->num;
     node->cm.nb_sectors = key->size;
+    node->ref = 0;
+    node->status = NODE_WAIT_STATUS;
+    qemu_co_mutex_init(&node->lock);
     node->data = g_malloc(node->cm.nb_sectors << BDRV_SECTOR_BITS);
 
     return node;
@@ -206,6 +251,12 @@ static inline void *pcache_node_alloc(RbNodeKey* key)
 
 static void pcache_node_drop(BDRVPCacheState *s, PCNode *node)
 {
+    uint32_t prev_status = atomic_xchg(&node->status, NODE_REMOVE_STATUS);
+    if (prev_status == NODE_REMOVE_STATUS) {
+        return;
+    }
+    assert(prev_status != NODE_GHOST_STATUS);
+
     atomic_sub(&s->pcache.curr_size, node->cm.nb_sectors);
 
     qemu_co_mutex_lock(&s->pcache.lru.lock);
@@ -216,7 +267,7 @@ static void pcache_node_drop(BDRVPCacheState *s, PCNode *node)
     rb_erase(&node->cm.rb_node, &s->pcache.tree.root);
     qemu_co_mutex_unlock(&s->pcache.tree.lock);
 
-    pcache_node_free(node);
+    pcache_node_unref(node);
 }
 
 static void pcache_try_shrink(BDRVPCacheState *s)
@@ -232,6 +283,30 @@ static void pcache_try_shrink(BDRVPCacheState *s)
         atomic_inc(&s->shrink_cnt_node);
 #endif
     }
+}
+
+static PrefCachePartReq *pcache_req_get(PrefCacheAIOCB *acb, PCNode *node)
+{
+    PrefCachePartReq *req = g_slice_alloc(sizeof(*req));
+
+    req->nb_sectors = node->cm.nb_sectors;
+    req->sector_num = node->cm.sector_num;
+    req->node = node;
+    req->acb = acb;
+
+    assert(acb->sector_num <= node->cm.sector_num + node->cm.nb_sectors);
+
+    qemu_iovec_init(&req->qiov, 1);
+    qemu_iovec_add(&req->qiov, node->data,
+                   node->cm.nb_sectors << BDRV_SECTOR_BITS);
+    return req;
+}
+
+static inline void push_node_request(PrefCacheAIOCB *acb, PCNode *node)
+{
+    PrefCachePartReq *req = pcache_req_get(acb, node);
+
+    QTAILQ_INSERT_HEAD(&acb->requests.list, req, entry);
 }
 
 static inline void pcache_lru_node_up(BDRVPCacheState *s, PCNode *node)
@@ -253,16 +328,17 @@ static bool pcache_node_find_and_create(PrefCacheAIOCB *acb, RbNodeKey *key,
     found = pcache_node_insert(&s->pcache.tree.root, new_node);
     qemu_co_mutex_unlock(&s->pcache.tree.lock);
     if (found != new_node) {
-        pcache_node_free(new_node);
-        pcache_lru_node_up(s, found);
+        g_free(new_node->data);
+        g_slice_free1(sizeof(*new_node), new_node);
+        if (found->status == NODE_SUCCESS_STATUS) {
+            pcache_lru_node_up(s, found);
+        }
         *out_node = found;
         return false;
     }
     atomic_add(&s->pcache.curr_size, new_node->cm.nb_sectors);
 
-    qemu_co_mutex_lock(&s->pcache.lru.lock);
-    QTAILQ_INSERT_HEAD(&s->pcache.lru.list, &new_node->cm, entry);
-    qemu_co_mutex_unlock(&s->pcache.lru.lock);
+    push_node_request(acb, new_node);
 
     pcache_try_shrink(s);
 
@@ -291,6 +367,7 @@ static void pcache_pickup_parts_of_cache(PrefCacheAIOCB *acb, PCNode *node,
             up_size = lc_key.size;
 
             if (!pcache_node_find_and_create(acb, &lc_key, &new_node)) {
+                pcache_node_unref(node);
                 node = new_node;
                 continue;
             }
@@ -299,6 +376,8 @@ static void pcache_pickup_parts_of_cache(PrefCacheAIOCB *acb, PCNode *node,
         }
         /* XXX: node read */
         up_size = MIN(node->cm.sector_num + node->cm.nb_sectors - num, size);
+
+        pcache_node_unref(node);
 
         size -= up_size;
         num += up_size;
@@ -336,6 +415,8 @@ static int32_t pcache_prefetch(PrefCacheAIOCB *acb)
         node->cm.sector_num + node->cm.nb_sectors >= acb->sector_num +
                                                      acb->nb_sectors)
     {
+        /* XXX: node read */
+        pcache_node_unref(node);
         return PREFETCH_FULL_UP;
     }
     pcache_pickup_parts_of_cache(acb, node, key.num, key.size);
@@ -343,9 +424,55 @@ static int32_t pcache_prefetch(PrefCacheAIOCB *acb)
     return PREFETCH_PART_UP;
 }
 
+static void pcache_node_submit(PrefCachePartReq *req)
+{
+    PCNode *node = req->node;
+    BDRVPCacheState *s = req->acb->s;
+
+    assert(node != NULL);
+    assert(atomic_read(&node->ref) != 0);
+    assert(node->data != NULL);
+
+    qemu_co_mutex_lock(&node->lock);
+    if (node->status == NODE_WAIT_STATUS) {
+        qemu_co_mutex_lock(&s->pcache.lru.lock);
+        QTAILQ_INSERT_HEAD(&s->pcache.lru.list, &node->cm, entry);
+        qemu_co_mutex_unlock(&s->pcache.lru.lock);
+
+        node->status = NODE_SUCCESS_STATUS;
+    }
+    qemu_co_mutex_unlock(&node->lock);
+}
+
+static void pcache_merge_requests(PrefCacheAIOCB *acb)
+{
+    PrefCachePartReq *req, *next;
+
+    qemu_co_mutex_lock(&acb->requests.lock);
+    QTAILQ_FOREACH_SAFE(req, &acb->requests.list, entry, next) {
+        QTAILQ_REMOVE(&acb->requests.list, req, entry);
+
+        assert(req != NULL);
+        assert(req->node->status == NODE_WAIT_STATUS);
+
+        pcache_node_submit(req);
+
+        /* XXX: pcache read */
+
+        pcache_node_unref(req->node);
+
+        g_slice_free1(sizeof(*req), req);
+    }
+    qemu_co_mutex_unlock(&acb->requests.lock);
+}
+
 static void pcache_aio_cb(void *opaque, int ret)
 {
     PrefCacheAIOCB *acb = opaque;
+
+    if (acb->aio_type & QEMU_AIO_READ) {
+        pcache_merge_requests(acb);
+    }
 
     acb->common.cb(acb->common.opaque, ret);
 
@@ -365,6 +492,9 @@ static PrefCacheAIOCB *pcache_aio_get(BlockDriverState *bs, int64_t sector_num,
     acb->qiov = qiov;
     acb->aio_type = type;
     acb->ret = 0;
+
+    QTAILQ_INIT(&acb->requests.list);
+    qemu_co_mutex_init(&acb->requests.lock);
 
     return acb;
 }
@@ -445,6 +575,17 @@ fail:
     return ret;
 }
 
+static void pcache_node_check_and_free(BDRVPCacheState *s, PCNode *node)
+{
+    assert(node->status == NODE_SUCCESS_STATUS);
+    assert(node->ref == 0);
+
+    node->status = NODE_REMOVE_STATUS;
+    rb_erase(&node->cm.rb_node, &s->pcache.tree.root);
+    g_free(node->data);
+    g_slice_free1(sizeof(*node), node);
+}
+
 static void pcache_close(BlockDriverState *bs)
 {
     uint32_t cnt = 0;
@@ -452,7 +593,7 @@ static void pcache_close(BlockDriverState *bs)
     BlockNode *node, *next;
     QTAILQ_FOREACH_SAFE(node, &s->pcache.lru.list, entry, next) {
         QTAILQ_REMOVE(&s->pcache.lru.list, node, entry);
-        pcache_node_free(PCNODE(node));
+        pcache_node_check_and_free(s, PCNODE(node));
         cnt++;
     }
     DPRINTF("used %d nodes\n", cnt);
