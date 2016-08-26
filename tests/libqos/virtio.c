@@ -264,9 +264,9 @@ void qvirtqueue_kick(const QVirtioBus *bus, QVirtioDevice *d, QVirtQueue *vq,
     uint16_t avail_event;
 
     /* vq->avail->ring[idx % vq->size] */
-    writel(vq->avail + 4 + (2 * (idx % vq->size)), free_head);
+    writew(vq->avail + 4 + (2 * (idx % vq->size)), free_head);
     /* vq->avail->idx */
-    writel(vq->avail + 2, idx + 1);
+    writew(vq->avail + 2, idx + 1);
 
     /* Must read after idx is updated */
     flags = readw(vq->avail);
