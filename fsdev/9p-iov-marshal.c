@@ -127,7 +127,12 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
                                      str->size);
                 if (copied > 0) {
                     str->data[str->size] = 0;
-                } else {
+                    /* 9P forbids NUL characters in all text strings */
+                    if (strlen(str->data) != str->size) {
+                        copied = -EINVAL;
+                    }
+                }
+                if (copied <= 0) {
                     v9fs_string_free(str);
                 }
             }
