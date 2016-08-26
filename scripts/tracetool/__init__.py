@@ -72,6 +72,11 @@ class Arguments:
         arg_str : str
             String describing the event arguments.
         """
+        # check for empty argument list
+        arg_str = arg_str.strip()
+        if arg_str == "":
+            return Arguments([])
+
         res = []
         for arg in arg_str.split(","):
             arg = arg.strip()
