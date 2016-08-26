@@ -2150,6 +2150,11 @@ static void v9fs_create(void *opaque)
         }
         fidp->fid_type = P9_FID_DIR;
     } else if (perm & P9_STAT_MODE_SYMLINK) {
+        if (extension.data == NULL) {
+            err = -EINVAL;
+            goto out;
+        }
+
         err = v9fs_co_symlink(pdu, fidp, &name,
                               extension.data, -1 , &stbuf);
         if (err < 0) {
@@ -2161,8 +2166,15 @@ static void v9fs_create(void *opaque)
         }
         v9fs_path_copy(&fidp->path, &path);
     } else if (perm & P9_STAT_MODE_LINK) {
-        int32_t ofid = atoi(extension.data);
-        V9fsFidState *ofidp = get_fid(pdu, ofid);
+        V9fsFidState *ofidp;
+
+        if (extension.data == NULL) {
+            err = -EINVAL;
+            goto out;
+        }
+
+        ofidp = get_fid(pdu, atoi(extension.data));
+
         if (ofidp == NULL) {
             err = -EINVAL;
             goto out;
@@ -2187,6 +2199,11 @@ static void v9fs_create(void *opaque)
         char ctype;
         uint32_t major, minor;
         mode_t nmode = 0;
+
+        if (extension.data == NULL) {
+            err = -EINVAL;
+            goto out;
+        }
 
         if (sscanf(extension.data, "%c %u %u", &ctype, &major, &minor) != 3) {
             err = -errno;
