@@ -67,6 +67,11 @@ typedef struct ReqStor {
         CoMutex       lock;
     } tree;
 
+    struct {
+        QTAILQ_HEAD(lru_head, BlockNode) list;
+        CoMutex lock;
+    } lru;
+
     uint32_t curr_size;
 } ReqStor;
 
@@ -75,12 +80,11 @@ typedef struct BDRVPCacheState {
 
     ReqStor pcache;
 
-    struct {
-        QTAILQ_HEAD(pcache_head, BlockNode) head;
-        CoMutex lock;
-    } list;
-
     uint32_t cfg_cache_size;
+
+#ifdef PCACHE_DEBUG
+    uint64_t shrink_cnt_node;
+#endif
 } BDRVPCacheState;
 
 typedef struct PrefCacheAIOCB {
@@ -182,6 +186,44 @@ static inline void *pcache_node_alloc(RbNodeKey* key)
     return node;
 }
 
+static void pcache_node_drop(BDRVPCacheState *s, PCNode *node)
+{
+    atomic_sub(&s->pcache.curr_size, node->cm.nb_sectors);
+
+    qemu_co_mutex_lock(&s->pcache.lru.lock);
+    QTAILQ_REMOVE(&s->pcache.lru.list, &node->cm, entry);
+    qemu_co_mutex_unlock(&s->pcache.lru.lock);
+
+    qemu_co_mutex_lock(&s->pcache.tree.lock);
+    rb_erase(&node->cm.rb_node, &s->pcache.tree.root);
+    qemu_co_mutex_unlock(&s->pcache.tree.lock);
+
+    pcache_node_free(node);
+}
+
+static void pcache_try_shrink(BDRVPCacheState *s)
+{
+    while (s->pcache.curr_size > s->cfg_cache_size) {
+        qemu_co_mutex_lock(&s->pcache.lru.lock);
+        assert(!QTAILQ_EMPTY(&s->pcache.lru.list));
+        PCNode *rmv_node = PCNODE(QTAILQ_LAST(&s->pcache.lru.list, lru_head));
+        qemu_co_mutex_unlock(&s->pcache.lru.lock);
+
+        pcache_node_drop(s, rmv_node);
+#ifdef PCACHE_DEBUG
+        atomic_inc(&s->shrink_cnt_node);
+#endif
+    }
+}
+
+static inline void pcache_lru_node_up(BDRVPCacheState *s, PCNode *node)
+{
+    qemu_co_mutex_lock(&s->pcache.lru.lock);
+    QTAILQ_REMOVE(&s->pcache.lru.list, &node->cm, entry);
+    QTAILQ_INSERT_HEAD(&s->pcache.lru.list, &node->cm, entry);
+    qemu_co_mutex_unlock(&s->pcache.lru.lock);
+}
+
 static bool pcache_node_find_and_create(PrefCacheAIOCB *acb, RbNodeKey *key,
                                         PCNode **out_node)
 {
@@ -194,14 +236,17 @@ static bool pcache_node_find_and_create(PrefCacheAIOCB *acb, RbNodeKey *key,
     qemu_co_mutex_unlock(&s->pcache.tree.lock);
     if (found != new_node) {
         pcache_node_free(new_node);
+        pcache_lru_node_up(s, found);
         *out_node = found;
         return false;
     }
     atomic_add(&s->pcache.curr_size, new_node->cm.nb_sectors);
 
-    qemu_co_mutex_lock(&s->list.lock);
-    QTAILQ_INSERT_HEAD(&s->list.head, &new_node->cm, entry);
-    qemu_co_mutex_unlock(&s->list.lock);
+    qemu_co_mutex_lock(&s->pcache.lru.lock);
+    QTAILQ_INSERT_HEAD(&s->pcache.lru.list, &new_node->cm, entry);
+    qemu_co_mutex_unlock(&s->pcache.lru.lock);
+
+    pcache_try_shrink(s);
 
     *out_node = new_node;
     return true;
@@ -275,10 +320,7 @@ static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
 {
     PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
                                          opaque, QEMU_AIO_READ);
-
-    if (acb->s->pcache.curr_size < acb->s->cfg_cache_size) {
-        pcache_prefetch(acb);
-    }
+    pcache_prefetch(acb);
 
     bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors,
                    pcache_aio_cb, acb);
@@ -309,8 +351,8 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
 
     s->pcache.tree.root = RB_ROOT;
     qemu_co_mutex_init(&s->pcache.tree.lock);
-    QTAILQ_INIT(&s->list.head);
-    qemu_co_mutex_init(&s->list.lock);
+    QTAILQ_INIT(&s->pcache.lru.list);
+    qemu_co_mutex_init(&s->pcache.lru.lock);
     s->pcache.curr_size = 0;
 
     s->cfg_cache_size = cache_size >> BDRV_SECTOR_BITS;
@@ -350,8 +392,8 @@ static void pcache_close(BlockDriverState *bs)
     uint32_t cnt = 0;
     BDRVPCacheState *s = bs->opaque;
     BlockNode *node, *next;
-    QTAILQ_FOREACH_SAFE(node, &s->list.head, entry, next) {
-        QTAILQ_REMOVE(&s->list.head, node, entry);
+    QTAILQ_FOREACH_SAFE(node, &s->pcache.lru.list, entry, next) {
+        QTAILQ_REMOVE(&s->pcache.lru.list, node, entry);
         pcache_node_free(PCNODE(node));
         cnt++;
     }
