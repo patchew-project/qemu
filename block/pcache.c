@@ -73,6 +73,10 @@ typedef struct PCNode {
     CoMutex                  lock;
 } PCNode;
 
+typedef struct LRNode {
+    BlockNode cm;
+} LRNode;
+
 typedef struct ReqStor {
     struct {
         struct RbRoot root;
@@ -91,10 +95,12 @@ typedef struct BDRVPCacheState {
     BlockDriverState **bs;
 
     ReqStor pcache;
+    ReqStor lreq;
 
     struct {
         uint32_t cache_size;
         uint32_t readahead_size;
+        uint32_t lreq_pool_size;
     } cfg;
 
 #ifdef PCACHE_DEBUG
@@ -166,6 +172,7 @@ static QemuOptsList runtime_opts = {
 #define MB_BITS 20
 #define PCACHE_DEFAULT_CACHE_SIZE (4 << MB_BITS)
 #define PCACHE_DEFAULT_READAHEAD_SIZE (128 << KB_BITS)
+#define PCACHE_DEFAULT_POOL_STAT_SIZE (1 << MB_BITS)
 
 enum {
     NODE_SUCCESS_STATUS = 0,
@@ -181,6 +188,7 @@ enum {
 };
 
 #define PCNODE(_n) ((PCNode *)(_n))
+#define LRNODE(_n) ((LRNode *)(_n))
 
 static inline void pcache_node_unref(BDRVPCacheState *s, PCNode *node)
 {
@@ -262,6 +270,11 @@ static PCNode *pcache_node_search(struct RbRoot *root, RbNodeKey *key)
     return node == NULL ? NULL : pcache_node_ref(node);
 }
 
+static inline LRNode *lreq_node_search(struct RbRoot *root, RbNodeKey *key)
+{
+    return node_search(root, key);
+}
+
 static void *node_insert(struct RbRoot *root, BlockNode *node)
 {
     struct RbNode **new = &(root->rb_node), *parent = NULL;
@@ -286,6 +299,11 @@ static void *node_insert(struct RbRoot *root, BlockNode *node)
 static inline PCNode *pcache_node_insert(struct RbRoot *root, PCNode *node)
 {
     return pcache_node_ref(node_insert(root, &node->cm));
+}
+
+static inline LRNode *lreq_node_insert(struct RbRoot *root, LRNode *node)
+{
+    return node_insert(root, &node->cm);
 }
 
 static inline void *pcache_node_alloc(RbNodeKey* key)
@@ -364,6 +382,34 @@ static void pcache_try_shrink(BDRVPCacheState *s)
     }
 }
 
+static void lreq_try_shrink(BDRVPCacheState *s)
+{
+    while (s->lreq.curr_size > s->cfg.lreq_pool_size) {
+        LRNode *rmv_node;
+            /* XXX: need to filter large requests */
+        if (QTAILQ_EMPTY(&s->lreq.lru.list)) {
+            DPRINTF("lru lreq list is empty, but curr_size: %d\n",
+                    s->lreq.curr_size);
+            break;
+        }
+
+        qemu_co_mutex_lock(&s->lreq.lru.lock);
+        rmv_node = LRNODE(QTAILQ_LAST(&s->lreq.lru.list, lru_head));
+        qemu_co_mutex_unlock(&s->lreq.lru.lock);
+
+        atomic_sub(&s->lreq.curr_size, rmv_node->cm.nb_sectors);
+
+        qemu_co_mutex_lock(&s->lreq.lru.lock);
+        QTAILQ_REMOVE(&s->lreq.lru.list, &rmv_node->cm, entry);
+        qemu_co_mutex_unlock(&s->lreq.lru.lock);
+
+        qemu_co_mutex_lock(&s->lreq.tree.lock);
+        rb_erase(&rmv_node->cm.rb_node, &s->lreq.tree.root);
+        qemu_co_mutex_unlock(&s->lreq.tree.lock);
+        g_slice_free1(sizeof(*rmv_node), rmv_node);
+    }
+}
+
 static PrefCachePartReq *pcache_req_get(PrefCacheAIOCB *acb, PCNode *node)
 {
     PrefCachePartReq *req = g_slice_alloc(sizeof(*req));
@@ -435,6 +481,34 @@ static inline PCNode *pcache_node_add(PrefCacheAIOCB *acb, RbNodeKey *key)
         return NULL;
     }
     return node;
+}
+
+static LRNode *lreq_node_add(PrefCacheAIOCB *acb, RbNodeKey *key)
+{
+    BDRVPCacheState *s = acb->s;
+    LRNode *new_node = g_slice_alloc(sizeof(*new_node));
+    LRNode *found;
+
+    new_node->cm.sector_num = key->num;
+    new_node->cm.nb_sectors = key->size;
+
+    qemu_co_mutex_lock(&s->lreq.tree.lock);
+    found = lreq_node_insert(&s->lreq.tree.root, new_node);
+    qemu_co_mutex_unlock(&s->lreq.tree.lock);
+    if (found != new_node) {
+        g_slice_free1(sizeof(*new_node), new_node);
+        return NULL;
+    }
+
+    atomic_add(&s->lreq.curr_size, new_node->cm.nb_sectors);
+
+    lreq_try_shrink(s);
+
+    qemu_co_mutex_lock(&s->lreq.lru.lock);
+    QTAILQ_INSERT_HEAD(&s->lreq.lru.list, &new_node->cm, entry);
+    qemu_co_mutex_unlock(&s->lreq.lru.lock);
+
+    return new_node;
 }
 
 static uint64_t ranges_overlap_size(uint64_t node1, uint32_t size1,
@@ -552,12 +626,23 @@ enum {
 
 static int32_t pcache_prefetch(PrefCacheAIOCB *acb)
 {
+    BDRVPCacheState *s = acb->s;
     RbNodeKey key;
-    PCNode *node = NULL;
+    PCNode *node;
 
     prefetch_init_key(acb, &key);
-    if (pcache_node_find_and_create(acb, &key, &node)) {
+
+    /* add request statistics */
+    lreq_node_add(acb, &key);
+
+    qemu_co_mutex_lock(&s->pcache.tree.lock); /* XXX: use get_next_node */
+    node = pcache_node_search(&s->pcache.tree.root, &key);
+    qemu_co_mutex_unlock(&s->pcache.tree.lock);
+    if (node == NULL) {
         return PREFETCH_NEW_NODE;
+    }
+    if (node->status == NODE_SUCCESS_STATUS) {
+        pcache_lru_node_up(s, node);
     }
 
     /* Node covers the whole request */
@@ -795,6 +880,30 @@ static bool check_allocated_blocks(BlockDriverState *bs, int64_t sector_num,
     return true;
 }
 
+static bool check_lreq_sequence(BDRVPCacheState *s, uint64_t sector_num)
+{
+    RbNodeKey key;
+    LRNode *node;
+    uint32_t cache_line_sz = s->cfg.readahead_size;
+
+    if (sector_num <= cache_line_sz) {
+        return false;
+    }
+            /* check is a previous cache block */
+    key.num = sector_num - cache_line_sz;
+    key.size = cache_line_sz;
+
+    qemu_co_mutex_lock(&s->lreq.tree.lock);
+    node = lreq_node_search(&s->lreq.tree.root, &key);
+    qemu_co_mutex_unlock(&s->lreq.tree.lock);
+    if (node == NULL) { /* requests isn't consistent,
+                         * most likely there is no sense to make readahead.
+                         */
+        return false;
+    }
+    return node->cm.sector_num > key.num ? false : true;
+}
+
 static void pcache_readahead_request(BlockDriverState *bs, PrefCacheAIOCB *acb)
 {
     BDRVPCacheState *s = acb->s;
@@ -803,6 +912,9 @@ static void pcache_readahead_request(BlockDriverState *bs, PrefCacheAIOCB *acb)
     uint64_t total_sectors = bdrv_nb_sectors(bs);
     PCNode *node = NULL;
 
+    if (!check_lreq_sequence(acb->s, acb->sector_num)) {
+        return;
+    }
     prefetch_init_key(acb, &key);
 
     key.num = key.num + key.size;
@@ -841,7 +953,13 @@ static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
     PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
                                          opaque, PCACHE_AIO_READ);
     int32_t status = pcache_prefetch(acb);
-    if (status == PREFETCH_FULL_UP) {
+    if (status == PREFETCH_NEW_NODE) {
+        BlockAIOCB *ret = bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors,
+                                         cb, opaque);
+        pcache_readahead_request(bs, acb);
+        qemu_aio_unref(acb); /* XXX: fix superfluous alloc */
+        return ret;
+    } else if (status == PREFETCH_FULL_UP) {
         assert(acb->requests.cnt == 0);
         complete_aio_request(acb);
     } else {
@@ -885,8 +1003,15 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
     qemu_co_mutex_init(&s->pcache.lru.lock);
     s->pcache.curr_size = 0;
 
+    s->lreq.tree.root = RB_ROOT;
+    qemu_co_mutex_init(&s->lreq.tree.lock);
+    QTAILQ_INIT(&s->lreq.lru.list);
+    qemu_co_mutex_init(&s->lreq.lru.lock);
+    s->lreq.curr_size = 0;
+
     s->cfg.cache_size = cache_size >> BDRV_SECTOR_BITS;
     s->cfg.readahead_size = readahead_size >> BDRV_SECTOR_BITS;
+    s->cfg.lreq_pool_size = PCACHE_DEFAULT_POOL_STAT_SIZE >> BDRV_SECTOR_BITS;
 
 #ifdef PCACHE_DEBUG
     QTAILQ_INIT(&s->death_node_list);
@@ -945,6 +1070,16 @@ static void pcache_close(BlockDriverState *bs)
         cnt++;
     }
     DPRINTF("used %d nodes\n", cnt);
+
+    cnt = 0;
+    if (!QTAILQ_EMPTY(&s->lreq.lru.list)) {
+        QTAILQ_FOREACH_SAFE(node, &s->lreq.lru.list, entry, next) {
+            QTAILQ_REMOVE(&s->lreq.lru.list, node, entry);
+            g_slice_free1(sizeof(*node), node);
+            cnt++;
+        }
+    }
+    DPRINTF("used %d lreq nodes\n", cnt);
 
 #ifdef PCACHE_DEBUG
     if (!QTAILQ_EMPTY(&s->death_node_list)) {
