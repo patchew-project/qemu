@@ -9528,7 +9528,47 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_sysfs
     case TARGET_NR_sysfs:
-        goto unimplemented;
+        switch (arg1) {
+        case 1:
+            {
+                if (arg2 != 0) {
+                    p = lock_user_string(arg2);
+                    if (!p) {
+                        goto efault;
+                    }
+                    ret = get_errno(syscall(__NR_sysfs, arg1, p));
+                    unlock_user(p, arg2, 0);
+                } else {
+                    ret = get_errno(syscall(__NR_sysfs, arg1, NULL));
+                }
+            }
+            break;
+        case 2:
+            {
+                if (arg3 != 0) {
+                    char buf[PATH_MAX];
+                    int len;
+                    memset(buf, 0, PATH_MAX);
+                    ret = get_errno(syscall(__NR_sysfs, arg1, arg2, buf));
+                    len = PATH_MAX;
+                    if (len > strlen(buf)) {
+                        len = strlen(buf);
+                    }
+                    if (copy_to_user(arg3, buf, len) != 0) {
+                        goto efault;
+                    }
+                } else {
+                    ret = get_errno(syscall(__NR_sysfs, arg1, arg2, NULL));
+                }
+            }
+            break;
+        case 3:
+            ret = get_errno(syscall(__NR_sysfs, arg1));
+            break;
+        default:
+            ret = -EINVAL;
+        }
+        break;
 #endif
     case TARGET_NR_personality:
         ret = get_errno(personality(arg1));
