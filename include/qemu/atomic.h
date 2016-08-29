@@ -194,6 +194,10 @@
     _old;                                                               \
     })
 
+/* Provide shorter names for GCC atomic builtins, return new value */
+#define atomic_inc_fetch(ptr)  __sync_add_and_fetch(ptr, 1, __ATOMIC_SEQ_CST)
+#define atomic_dec_fetch(ptr)  __sync_add_and_fetch(ptr, -1, __ATOMIC_SEQ_CST)
+
 /* Provide shorter names for GCC atomic builtins, return old value */
 #define atomic_fetch_inc(ptr)  __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST)
 #define atomic_fetch_dec(ptr)  __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST)
@@ -387,6 +391,10 @@
 #define atomic_xchg(ptr, i)    (smp_mb(), __sync_lock_test_and_set(ptr, i))
 #endif
 #endif
+
+/* Provide shorter names for GCC atomic builtins, return new value */
+#define atomic_inc_fetch(ptr)  __sync_add_and_fetch(ptr, 1)
+#define atomic_dec_fetch(ptr)  __sync_add_and_fetch(ptr, -1)
 
 /* Provide shorter names for GCC atomic builtins.  */
 #define atomic_fetch_inc(ptr)  __sync_fetch_and_add(ptr, 1)
