@@ -105,6 +105,7 @@ typedef struct PrefCacheAIOCB {
         CoMutex lock;
         uint32_t cnt;
     } requests;
+    uint32_t ref;
     QEMUBH   *bh;
     int      ret;
 } PrefCacheAIOCB;
@@ -505,9 +506,11 @@ static void pcache_aio_bh(void *opaque)
 
 static void complete_aio_request(PrefCacheAIOCB *acb)
 {
-    acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
-                         pcache_aio_bh, acb);
-    qemu_bh_schedule(acb->bh);
+    if (atomic_dec_fetch(&acb->ref) == 0) {
+        acb->bh = aio_bh_new(bdrv_get_aio_context(acb->common.bs),
+                             pcache_aio_bh, acb);
+        qemu_bh_schedule(acb->bh);
+    }
 }
 
 static void pcache_node_submit(PrefCachePartReq *req)
@@ -585,9 +588,7 @@ static void pcache_aio_cb(void *opaque, int ret)
         pcache_merge_requests(acb);
     }
 
-    acb->common.cb(acb->common.opaque, ret);
-
-    qemu_aio_unref(acb);
+    complete_aio_request(acb);
 }
 
 static PrefCacheAIOCB *pcache_aio_get(BlockDriverState *bs, int64_t sector_num,
@@ -603,6 +604,7 @@ static PrefCacheAIOCB *pcache_aio_get(BlockDriverState *bs, int64_t sector_num,
     acb->requests.cnt = 0;
     acb->qiov = qiov;
     acb->aio_type = type;
+    acb->ref = 1;
     acb->ret = 0;
 
     QTAILQ_INIT(&acb->requests.list);
