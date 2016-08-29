@@ -92,7 +92,10 @@ typedef struct BDRVPCacheState {
 
     ReqStor pcache;
 
-    uint32_t cfg_cache_size;
+    struct {
+        uint32_t cache_size;
+        uint32_t readahead_size;
+    } cfg;
 
 #ifdef PCACHE_DEBUG
     uint64_t shrink_cnt_node;
@@ -134,6 +137,7 @@ static const AIOCBInfo pcache_aiocb_info = {
 };
 
 #define PCACHE_OPT_CACHE_SIZE "pcache-full-size"
+#define PCACHE_OPT_READAHEAD_SIZE "pcache-readahead-size"
 
 static QemuOptsList runtime_opts = {
     .name = "pcache",
@@ -149,6 +153,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Total cache size",
         },
+        {
+            .name = PCACHE_OPT_READAHEAD_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Prefetch cache readahead size",
+        },
         { /* end of list */ }
     },
 };
@@ -156,6 +165,7 @@ static QemuOptsList runtime_opts = {
 #define KB_BITS 10
 #define MB_BITS 20
 #define PCACHE_DEFAULT_CACHE_SIZE (4 << MB_BITS)
+#define PCACHE_DEFAULT_READAHEAD_SIZE (128 << KB_BITS)
 
 enum {
     NODE_SUCCESS_STATUS = 0,
@@ -164,13 +174,16 @@ enum {
     NODE_GHOST_STATUS   = 3 /* only for debugging */
 };
 
+enum {
+    PCACHE_AIO_READ      = 1,
+    PCACHE_AIO_WRITE     = 2,
+    PCACHE_AIO_READAHEAD = 4
+};
+
 #define PCNODE(_n) ((PCNode *)(_n))
 
 static inline void pcache_node_unref(BDRVPCacheState *s, PCNode *node)
 {
-    assert(node->status == NODE_SUCCESS_STATUS ||
-           node->status == NODE_REMOVE_STATUS);
-
     if (atomic_fetch_dec(&node->ref) == 0) {
         assert(node->status == NODE_REMOVE_STATUS);
 
@@ -333,7 +346,7 @@ static inline PCNode *pcache_get_most_unused_node(BDRVPCacheState *s)
 
 static void pcache_try_shrink(BDRVPCacheState *s)
 {
-    while (s->pcache.curr_size > s->cfg_cache_size) {
+    while (s->pcache.curr_size > s->cfg.cache_size) {
         PCNode *rmv_node;
                 /* it can happen if all nodes are waiting */
         if (QTAILQ_EMPTY(&s->pcache.lru.list)) {
@@ -626,7 +639,9 @@ static void pcache_merge_requests(PrefCacheAIOCB *acb)
 
         pcache_node_submit(req);
 
-        pcache_node_read_buf(acb, node);
+        if (!(acb->aio_type & PCACHE_AIO_READAHEAD)) {
+            pcache_node_read_buf(acb, node);
+        }
 
         pcache_complete_acb_wait_queue(acb->s, node);
 
@@ -668,12 +683,16 @@ static void pcache_aio_cb(void *opaque, int ret)
 {
     PrefCacheAIOCB *acb = opaque;
 
-    if (acb->aio_type & QEMU_AIO_READ) {
+    if (acb->aio_type & PCACHE_AIO_READ) {
         if (atomic_dec_fetch(&acb->requests.cnt) > 0) {
             return;
         }
         pcache_merge_requests(acb);
-    } else {        /* QEMU_AIO_WRITE */
+        if (acb->aio_type & PCACHE_AIO_READAHEAD) {
+            qemu_aio_unref(acb);
+            return;
+        }
+    } else {        /* PCACHE_AIO_WRITE */
         pcache_try_node_drop(acb); /* XXX: use write through */
     }
 
@@ -702,6 +721,69 @@ static PrefCacheAIOCB *pcache_aio_get(BlockDriverState *bs, int64_t sector_num,
     return acb;
 }
 
+static void pcache_send_acb_request_list(BlockDriverState *bs,
+                                         PrefCacheAIOCB *acb)
+{
+    PrefCachePartReq *req;
+
+    assert(acb->requests.cnt != 0);
+    qemu_co_mutex_lock(&acb->requests.lock);
+    QTAILQ_FOREACH(req, &acb->requests.list, entry) {
+        bdrv_aio_readv(bs->file, req->sector_num, &req->qiov,
+                       req->nb_sectors, pcache_aio_cb, acb);
+    }
+    qemu_co_mutex_unlock(&acb->requests.lock);
+}
+
+static bool check_allocated_blocks(BlockDriverState *bs, int64_t sector_num,
+                                   int32_t nb_sectors)
+{
+    int ret, num;
+
+    do {
+        ret = bdrv_is_allocated(bs, sector_num, nb_sectors, &num);
+        if (ret <= 0) {
+            return false;
+        }
+        sector_num += num;
+        nb_sectors -= num;
+
+    } while (nb_sectors);
+
+    return true;
+}
+
+static void pcache_readahead_request(BlockDriverState *bs, PrefCacheAIOCB *acb)
+{
+    BDRVPCacheState *s = acb->s;
+    PrefCacheAIOCB *acb_readahead;
+    RbNodeKey key;
+    uint64_t total_sectors = bdrv_nb_sectors(bs);
+    PCNode *node = NULL;
+
+    prefetch_init_key(acb, &key);
+
+    key.num = key.num + key.size;
+    if (total_sectors <= key.num + s->cfg.readahead_size) {
+        return; /* readahead too small or beyond end of disk */
+    }
+    key.size = s->cfg.readahead_size;
+
+    if (!check_allocated_blocks(bs->file->bs, key.num, key.size)) {
+        return;
+    }
+
+    acb_readahead = pcache_aio_get(bs, key.num, NULL, key.size, acb->common.cb,
+                                   acb->common.opaque, PCACHE_AIO_READ |
+                                                       PCACHE_AIO_READAHEAD);
+    if (!pcache_node_find_and_create(acb_readahead, &key, &node)) {
+        pcache_node_unref(s, node);
+        qemu_aio_unref(acb_readahead);
+        return;
+    }
+    pcache_send_acb_request_list(bs, acb_readahead);
+}
+
 static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
                                     int64_t sector_num,
                                     QEMUIOVector *qiov,
@@ -710,22 +792,18 @@ static BlockAIOCB *pcache_aio_readv(BlockDriverState *bs,
                                     void *opaque)
 {
     PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
-                                         opaque, QEMU_AIO_READ);
+                                         opaque, PCACHE_AIO_READ);
     int32_t status = pcache_prefetch(acb);
     if (status == PREFETCH_FULL_UP) {
         assert(acb->requests.cnt == 0);
         complete_aio_request(acb);
     } else {
-        PrefCachePartReq *req;
         assert(acb->requests.cnt != 0);
 
-        qemu_co_mutex_lock(&acb->requests.lock);
-        QTAILQ_FOREACH(req, &acb->requests.list, entry) {
-            bdrv_aio_readv(bs->file, req->sector_num, &req->qiov,
-                           req->nb_sectors, pcache_aio_cb, acb);
-        }
-        qemu_co_mutex_unlock(&acb->requests.lock);
+        pcache_send_acb_request_list(bs, acb);
     }
+    pcache_readahead_request(bs, acb);
+
     return &acb->common;
 }
 
@@ -737,7 +815,7 @@ static BlockAIOCB *pcache_aio_writev(BlockDriverState *bs,
                                      void *opaque)
 {
     PrefCacheAIOCB *acb = pcache_aio_get(bs, sector_num, qiov, nb_sectors, cb,
-                                         opaque, QEMU_AIO_WRITE);
+                                         opaque, PCACHE_AIO_WRITE);
 
     bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors,
                     pcache_aio_cb, acb);
@@ -748,8 +826,11 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
 {
     uint64_t cache_size = qemu_opt_get_size(opts, PCACHE_OPT_CACHE_SIZE,
                                             PCACHE_DEFAULT_CACHE_SIZE);
+    uint64_t readahead_size = qemu_opt_get_size(opts, PCACHE_OPT_READAHEAD_SIZE,
+                                                PCACHE_DEFAULT_READAHEAD_SIZE);
     DPRINTF("pcache configure:\n");
     DPRINTF("pcache-full-size = %jd\n", cache_size);
+    DPRINTF("readahead_size = %jd\n", readahead_size);
 
     s->pcache.tree.root = RB_ROOT;
     qemu_co_mutex_init(&s->pcache.tree.lock);
@@ -757,7 +838,8 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
     qemu_co_mutex_init(&s->pcache.lru.lock);
     s->pcache.curr_size = 0;
 
-    s->cfg_cache_size = cache_size >> BDRV_SECTOR_BITS;
+    s->cfg.cache_size = cache_size >> BDRV_SECTOR_BITS;
+    s->cfg.readahead_size = readahead_size >> BDRV_SECTOR_BITS;
 
 #ifdef PCACHE_DEBUG
     QTAILQ_INIT(&s->death_node_list);
