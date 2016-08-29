@@ -143,6 +143,24 @@ static int pcache_key_cmp(const RbNodeKey *key1, const RbNodeKey *key2)
     return 0;
 }
 
+static BlockNode *pcache_node_prev(BlockNode* node, RbNodeKey *key)
+{
+    while (node) {
+        struct RbNode *prev_rb_node = rb_prev(&node->rb_node);
+        BlockNode *prev_node;
+        if (prev_rb_node == NULL) {
+            break;
+        }
+        prev_node = container_of(prev_rb_node, BlockNode, rb_node);
+        if (prev_node->sector_num + prev_node->nb_sectors <= key->num) {
+            break;
+        }
+        node = prev_node;
+    }
+
+    return node;
+}
+
 static void *node_insert(struct RbRoot *root, BlockNode *node)
 {
     struct RbNode **new = &(root->rb_node), *parent = NULL;
@@ -152,7 +170,7 @@ static void *node_insert(struct RbRoot *root, BlockNode *node)
         BlockNode *this = container_of(*new, BlockNode, rb_node);
         int result = pcache_key_cmp(&node->key, &this->key);
         if (result == 0) {
-            return this;
+            return pcache_node_prev(this, &node->key);
         }
         parent = *new;
         new = result < 0 ? &((*new)->rb_left) : &((*new)->rb_right);
@@ -258,6 +276,45 @@ static inline void prefetch_init_key(PrefCacheAIOCB *acb, RbNodeKey* key)
     key->size = acb->nb_sectors;
 }
 
+static void pcache_pickup_parts_of_cache(PrefCacheAIOCB *acb, PCNode *node,
+                                         uint64_t num, uint32_t size)
+{
+    uint32_t up_size;
+
+    do {
+        if (num < node->cm.sector_num) {
+            PCNode *new_node;
+            RbNodeKey lc_key = {
+                .num = num,
+                .size = node->cm.sector_num - num,
+            };
+            up_size = lc_key.size;
+
+            if (!pcache_node_find_and_create(acb, &lc_key, &new_node)) {
+                node = new_node;
+                continue;
+            }
+            size -= up_size;
+            num += up_size;
+        }
+        /* XXX: node read */
+        up_size = MIN(node->cm.sector_num + node->cm.nb_sectors - num, size);
+
+        size -= up_size;
+        num += up_size;
+        if (size != 0) {
+            RbNodeKey lc_key = {
+                .num = num,
+                .size = size,
+            };
+            if (pcache_node_find_and_create(acb, &lc_key, &node)) {
+                size -= lc_key.size;
+                assert(size == 0);
+            }
+        }
+    } while (size);
+}
+
 enum {
     PREFETCH_NEW_NODE  = 0,
     PREFETCH_FULL_UP   = 1,
@@ -281,6 +338,7 @@ static int32_t pcache_prefetch(PrefCacheAIOCB *acb)
     {
         return PREFETCH_FULL_UP;
     }
+    pcache_pickup_parts_of_cache(acb, node, key.num, key.size);
 
     return PREFETCH_PART_UP;
 }
