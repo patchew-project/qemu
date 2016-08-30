@@ -608,5 +608,6 @@ typedef struct AcpiDmarRootPortATS AcpiDmarRootPortATS;
 
 /* Masks for Flags field above */
 #define ACPI_DMAR_INCLUDE_PCI_ALL   1
+#define ACPI_DMAR_ATSR_ALL_PORTS    1
 
 #endif
