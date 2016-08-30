@@ -1797,6 +1797,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
          * PCI Power Management Interface Specification.
          */
         pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
+
+        if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
+            pcie_ats_init(pci_dev, 256);
+        }
+
     } else {
         /*
          * make future invocations of pci_is_express() return false
@@ -1846,6 +1851,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT, false),
     DEFINE_PROP_BIT("x-disable-pcie", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT, false),
+    DEFINE_PROP_BIT("ats", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_ATS_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
