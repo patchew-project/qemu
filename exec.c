@@ -417,6 +417,39 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
 }
 
 /* Called from RCU critical section */
+IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+                                            bool is_write)
+{
+    IOMMUTLBEntry iotlb = {0};
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
+    hwaddr plen;
+
+    for (;;) {
+        AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
+        section = address_space_translate_internal(d, addr, &addr, &plen, true);
+        mr = section->mr;
+
+        if (!mr->iommu_ops) {
+            break;
+        }
+
+        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
+        addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
+                | (addr & iotlb.addr_mask));
+        plen = MIN(plen, (addr | iotlb.addr_mask) - addr + 1);
+        if (!(iotlb.perm & (1 << is_write))) {
+            iotlb.target_as = NULL;
+            break;
+        }
+
+        as = iotlb.target_as;
+    }
+
+    return iotlb;
+}
+
+/* Called from RCU critical section */
 MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
                                       hwaddr *xlat, hwaddr *plen,
                                       bool is_write)
