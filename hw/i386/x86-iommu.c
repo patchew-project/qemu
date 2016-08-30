@@ -100,6 +100,18 @@ static void x86_iommu_intremap_prop_set(Object *o, bool value, Error **errp)
     s->intr_supported = value;
 }
 
+static bool x86_iommu_device_iotlb_prop_get(Object *o, Error **errp)
+{
+    X86IOMMUState *s = X86_IOMMU_DEVICE(o);
+    return s->dt_supported;
+}
+
+static void x86_iommu_device_iotlb_prop_set(Object *o, bool value, Error **errp)
+{
+    X86IOMMUState *s = X86_IOMMU_DEVICE(o);
+    s->dt_supported = value;
+}
+
 static void x86_iommu_instance_init(Object *o)
 {
     X86IOMMUState *s = X86_IOMMU_DEVICE(o);
@@ -108,6 +120,11 @@ static void x86_iommu_instance_init(Object *o)
     s->intr_supported = false;
     object_property_add_bool(o, "intremap", x86_iommu_intremap_prop_get,
                              x86_iommu_intremap_prop_set, NULL);
+    s->dt_supported = false;
+    object_property_add_bool(o, "device_iotlb",
+                             x86_iommu_device_iotlb_prop_get,
+                             x86_iommu_device_iotlb_prop_set,
+                             NULL);
 }
 
 static const TypeInfo x86_iommu_info = {
