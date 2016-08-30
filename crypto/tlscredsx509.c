@@ -615,7 +615,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     }
 
     if (cert != NULL && key != NULL) {
-#if GNUTLS_VERSION_NUMBER >= 0x030111
+#if defined(GNUTLS_VERSION_NUMBER) && GNUTLS_VERSION_NUMBER >= 0x030111
         char *password = NULL;
         if (creds->passwordid) {
             password = qcrypto_secret_lookup_as_utf8(creds->passwordid,
