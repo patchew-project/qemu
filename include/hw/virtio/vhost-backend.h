@@ -8,8 +8,11 @@
  *
  */
 
+
 #ifndef VHOST_BACKEND_H
 #define VHOST_BACKEND_H
+
+#include "exec/memory.h"
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
@@ -73,6 +76,14 @@ typedef int (*vhost_migration_done_op)(struct vhost_dev *dev,
 typedef bool (*vhost_backend_can_merge_op)(struct vhost_dev *dev,
                                            uint64_t start1, uint64_t size1,
                                            uint64_t start2, uint64_t size2);
+typedef void (*vhost_set_iotlb_callback_op)(struct vhost_dev *dev,
+                                           int enabled);
+typedef int (*vhost_update_device_iotlb_op)(struct vhost_dev *dev,
+                                            uint64_t iova, uint64_t uaddr,
+                                            uint64_t len,
+                                            IOMMUAccessFlags perm);
+typedef int (*vhost_invalidate_device_iotlb_op)(struct vhost_dev *dev,
+                                                uint64_t iova, uint64_t len);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -102,6 +113,9 @@ typedef struct VhostOps {
     vhost_requires_shm_log_op vhost_requires_shm_log;
     vhost_migration_done_op vhost_migration_done;
     vhost_backend_can_merge_op vhost_backend_can_merge;
+    vhost_set_iotlb_callback_op vhost_set_iotlb_callback;
+    vhost_update_device_iotlb_op vhost_update_device_iotlb;
+    vhost_invalidate_device_iotlb_op vhost_invalidate_device_iotlb;
 } VhostOps;
 
 extern const VhostOps user_ops;
