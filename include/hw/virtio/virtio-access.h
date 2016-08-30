@@ -17,11 +17,24 @@
 #define QEMU_VIRTIO_ACCESS_H
 
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-bus.h"
 #include "exec/address-spaces.h"
 
 #if defined(TARGET_PPC64) || defined(TARGET_ARM)
 #define LEGACY_VIRTIO_IS_BIENDIAN 1
 #endif
+
+static inline AddressSpace *virtio_get_dma_as(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM) &&
+        k->get_dma_as) {
+        return k->get_dma_as(qbus->parent);
+    }
+    return &address_space_memory;
+}
 
 static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
@@ -40,45 +53,55 @@ static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 
 static inline uint16_t virtio_lduw_phys(VirtIODevice *vdev, hwaddr pa)
 {
+    AddressSpace *dma_as = virtio_get_dma_as(vdev);
+
     if (virtio_access_is_big_endian(vdev)) {
-        return lduw_be_phys(&address_space_memory, pa);
+        return lduw_be_phys(dma_as, pa);
     }
-    return lduw_le_phys(&address_space_memory, pa);
+    return lduw_le_phys(dma_as, pa);
 }
 
 static inline uint32_t virtio_ldl_phys(VirtIODevice *vdev, hwaddr pa)
 {
+    AddressSpace *dma_as = virtio_get_dma_as(vdev);
+
     if (virtio_access_is_big_endian(vdev)) {
-        return ldl_be_phys(&address_space_memory, pa);
+        return ldl_be_phys(dma_as, pa);
     }
-    return ldl_le_phys(&address_space_memory, pa);
+    return ldl_le_phys(dma_as, pa);
 }
 
 static inline uint64_t virtio_ldq_phys(VirtIODevice *vdev, hwaddr pa)
 {
+    AddressSpace *dma_as = virtio_get_dma_as(vdev);
+
     if (virtio_access_is_big_endian(vdev)) {
-        return ldq_be_phys(&address_space_memory, pa);
+        return ldq_be_phys(dma_as, pa);
     }
-    return ldq_le_phys(&address_space_memory, pa);
+    return ldq_le_phys(dma_as, pa);
 }
 
 static inline void virtio_stw_phys(VirtIODevice *vdev, hwaddr pa,
                                    uint16_t value)
 {
+    AddressSpace *dma_as = virtio_get_dma_as(vdev);
+
     if (virtio_access_is_big_endian(vdev)) {
-        stw_be_phys(&address_space_memory, pa, value);
+        stw_be_phys(dma_as, pa, value);
     } else {
-        stw_le_phys(&address_space_memory, pa, value);
+        stw_le_phys(dma_as, pa, value);
     }
 }
 
 static inline void virtio_stl_phys(VirtIODevice *vdev, hwaddr pa,
                                    uint32_t value)
 {
+    AddressSpace *dma_as = virtio_get_dma_as(vdev);
+
     if (virtio_access_is_big_endian(vdev)) {
-        stl_be_phys(&address_space_memory, pa, value);
+        stl_be_phys(dma_as, pa, value);
     } else {
-        stl_le_phys(&address_space_memory, pa, value);
+        stl_le_phys(dma_as, pa, value);
     }
 }
 
