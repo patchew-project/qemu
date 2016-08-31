@@ -2810,6 +2810,15 @@ static bool object_create_initial(const char *type)
         return false;
     }
 
+    /* Initialization of memory backends may delay chardev
+     * initialization for too long, and trigger timeouts on
+     * software that waits for a monitor socket to be created
+     * (e.g. libvirt).
+     */
+    if (g_str_has_prefix(type, "memory-backend-")) {
+        return false;
+    }
+
     return true;
 }
 
