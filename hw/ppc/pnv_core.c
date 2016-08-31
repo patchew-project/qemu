@@ -18,7 +18,9 @@
  */
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "target-ppc/cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
@@ -144,10 +146,75 @@ static const TypeInfo pnv_core_info = {
     .abstract       = true,
 };
 
+
+#define DTS_RESULT0     0x50000
+#define DTS_RESULT1     0x50001
+
+static bool pnv_core_xscom_read(XScomDevice *dev, uint32_t range,
+                               uint32_t offset, uint64_t *out_val)
+{
+    switch (offset) {
+    case DTS_RESULT0:
+        *out_val = 0x26f024f023f0000ull;
+        break;
+    case DTS_RESULT1:
+        *out_val = 0x24f000000000000ull;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "Warning: reading reg=0x%08x", offset);
+    }
+
+   return true;
+}
+
+static bool pnv_core_xscom_write(XScomDevice *dev, uint32_t range,
+                                uint32_t offset, uint64_t val)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "Warning: writing to reg=0x%08x", offset);
+    return true;
+}
+
+#define EX_XSCOM_BASE 0x10000000
+#define EX_XSCOM_SIZE 0x100000
+
+static void pnv_core_xscom_realize(DeviceState *dev, Error **errp)
+{
+    XScomDevice *xd = XSCOM_DEVICE(dev);
+    PnvCoreXScom *pnv_xd = PNV_CORE_XSCOM(dev);
+
+    xd->ranges[0].addr = EX_XSCOM_BASE | P8_PIR2COREID(pnv_xd->core_pir) << 24;
+    xd->ranges[0].size = EX_XSCOM_SIZE;
+}
+
+static Property pnv_core_xscom_properties[] = {
+        DEFINE_PROP_UINT32("core-pir", PnvCoreXScom, core_pir, 0),
+        DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pnv_core_xscom_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    XScomDeviceClass *xdc = XSCOM_DEVICE_CLASS(klass);
+
+    xdc->read = pnv_core_xscom_read;
+    xdc->write = pnv_core_xscom_write;
+
+    dc->realize = pnv_core_xscom_realize;
+    dc->props = pnv_core_xscom_properties;
+}
+
+static const TypeInfo pnv_core_xscom_type_info = {
+    .name          = TYPE_PNV_CORE_XSCOM,
+    .parent        = TYPE_XSCOM_DEVICE,
+    .instance_size = sizeof(PnvCoreXScom),
+    .class_init    = pnv_core_xscom_class_init,
+};
+
 static void pnv_core_register_types(void)
 {
     int i ;
 
+    type_register_static(&pnv_core_xscom_type_info);
     type_register_static(&pnv_core_info);
     for (i = 0; i < ARRAY_SIZE(pnv_core_models); ++i) {
         TypeInfo ti = {

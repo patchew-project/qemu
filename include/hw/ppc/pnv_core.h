@@ -20,6 +20,18 @@
 #define _PPC_PNV_CORE_H
 
 #include "hw/cpu/core.h"
+#include "hw/ppc/pnv_xscom.h"
+
+#define TYPE_PNV_CORE_XSCOM "powernv-cpu-core-xscom"
+#define PNV_CORE_XSCOM(obj) \
+     OBJECT_CHECK(PnvCoreXScom, (obj), TYPE_PNV_CORE_XSCOM)
+
+typedef struct PnvCoreXScom {
+    XScomDevice xd;
+    uint32_t core_pir;
+} PnvCoreXScom;
+
+#define P8_PIR2COREID(pir) (((pir) >> 3) & 0xf)
 
 #define TYPE_PNV_CORE "powernv-cpu-core"
 #define PNV_CORE(obj) \
@@ -35,6 +47,7 @@ typedef struct PnvCore {
 
     /*< public >*/
     void *threads;
+    PnvCoreXScom *xd;
 } PnvCore;
 
 typedef struct PnvCoreClass {

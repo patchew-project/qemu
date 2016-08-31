@@ -527,6 +527,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     for (i = 0, core_hwid = 0; (core_hwid < sizeof(chip->cores_mask) * 8)
              && (i < chip->num_cores); core_hwid++) {
         PnvCore *pnv_core = &chip->cores[i];
+        DeviceState *qdev;
 
         if (!(chip->cores_mask & (1 << core_hwid))) {
             continue;
@@ -542,6 +543,14 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                                  &error_fatal);
         object_unref(OBJECT(pnv_core));
         i++;
+
+        /* Attach the core to its XSCOM bus */
+        qdev = qdev_create(&chip->xscom->bus, TYPE_PNV_CORE_XSCOM);
+        qdev_prop_set_uint32(qdev, "core-pir",
+                             P8_PIR(chip->chip_id, core_hwid));
+        qdev_init_nofail(qdev);
+
+        pnv_core->xd = PNV_CORE_XSCOM(qdev);
     }
     g_free(typename);
 
