@@ -77,8 +77,7 @@ int aio_bh_poll(AioContext *ctx)
 
     ret = 0;
     for (bh = ctx->first_bh; bh; bh = next) {
-        /* Make sure that fetching bh happens before accessing its members */
-        smp_read_barrier_depends();
+        /* store bh->next since bh can be freed in aio_bh_call() */
         next = bh->next;
         /* The atomic_xchg is paired with the one in qemu_bh_schedule.  The
          * implicit memory barrier ensures that the callback sees all writes
