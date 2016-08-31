@@ -36,6 +36,7 @@ typedef enum PnvChipType {
 } PnvChipType;
 
 typedef struct XScomBus XScomBus;
+typedef struct PnvCore PnvCore;
 typedef struct PnvChip {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -43,6 +44,10 @@ typedef struct PnvChip {
     /*< public >*/
     uint32_t     chip_id;
     XScomBus     *xscom;
+
+    uint32_t  num_cores;
+    uint32_t  cores_mask;
+    PnvCore   *cores;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -108,5 +113,7 @@ typedef struct PnvMachineState {
     uint32_t  num_chips;
     PnvChip   **chips;
 } PnvMachineState;
+
+#define PNV_TIMEBASE_FREQ           512000000ULL
 
 #endif /* _PPC_PNV_H */
