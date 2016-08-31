@@ -168,6 +168,8 @@ static void ppc_powernv_init(MachineState *machine)
     char *fw_filename;
     long fw_size;
     long kernel_size;
+    int i;
+    char *chip_typename;
 
     /* allocate RAM */
     if (ram_size < (1 * G_BYTE)) {
@@ -212,6 +214,153 @@ static void ppc_powernv_init(MachineState *machine)
             exit(1);
         }
     }
+
+    /* Create the processor chips */
+    chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%s", machine->cpu_model);
+
+    pnv->chips = g_new0(PnvChip *, pnv->num_chips);
+    for (i = 0; i < pnv->num_chips; i++) {
+        Object *chip = object_new(chip_typename);
+        object_property_set_int(chip, CHIP_HWID(i), "chip-id", &error_abort);
+        object_property_set_bool(chip, true, "realized", &error_abort);
+        pnv->chips[i] = PNV_CHIP(chip);
+    }
+    g_free(chip_typename);
+}
+
+static void pnv_chip_power8nvl_realize(PnvChip *chip, Error **errp)
+{
+    ;
+}
+
+static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvChipClass *k = PNV_CHIP_CLASS(klass);
+
+    k->realize = pnv_chip_power8nvl_realize;
+    k->cpu_model = "POWER8NVL";
+    k->chip_type = PNV_CHIP_P8NVL;
+    k->chip_f000f = 0x120d304980000000ull;
+    dc->desc = "PowerNV Chip POWER8NVL";
+}
+
+static const TypeInfo pnv_chip_power8nvl_info = {
+    .name          = TYPE_PNV_CHIP_POWER8NVL,
+    .parent        = TYPE_PNV_CHIP,
+    .instance_size = sizeof(PnvChipPower8NVL),
+    .class_init    = pnv_chip_power8nvl_class_init,
+};
+
+static void pnv_chip_power8_realize(PnvChip *chip, Error **errp)
+{
+    ;
+}
+
+static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvChipClass *k = PNV_CHIP_CLASS(klass);
+
+    k->realize = pnv_chip_power8_realize;
+    k->cpu_model = "POWER8";
+    k->chip_type = PNV_CHIP_P8;
+    k->chip_f000f = 0x220ea04980000000ull;
+    dc->desc = "PowerNV Chip POWER8";
+}
+
+static const TypeInfo pnv_chip_power8_info = {
+    .name          = TYPE_PNV_CHIP_POWER8,
+    .parent        = TYPE_PNV_CHIP,
+    .instance_size = sizeof(PnvChipPower8),
+    .class_init    = pnv_chip_power8_class_init,
+};
+
+static void pnv_chip_power8e_realize(PnvChip *chip, Error **errp)
+{
+    ;
+}
+
+static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvChipClass *k = PNV_CHIP_CLASS(klass);
+
+    k->realize = pnv_chip_power8e_realize;
+    k->cpu_model = "POWER8E";
+    k->chip_type = PNV_CHIP_P8E;
+    k->chip_f000f = 0x221ef04980000000ull;
+    dc->desc = "PowerNV Chip POWER8E";
+}
+
+static const TypeInfo pnv_chip_power8e_info = {
+    .name          = TYPE_PNV_CHIP_POWER8E,
+    .parent        = TYPE_PNV_CHIP,
+    .instance_size = sizeof(PnvChipPower8e),
+    .class_init    = pnv_chip_power8e_class_init,
+};
+
+static void pnv_chip_realize(DeviceState *dev, Error **errp)
+{
+    PnvChip *chip = PNV_CHIP(dev);
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+
+    pcc->realize(chip, errp);
+}
+
+static Property pnv_chip_properties[] = {
+    DEFINE_PROP_UINT32("chip-id", PnvChip, chip_id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pnv_chip_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = pnv_chip_realize;
+    dc->props = pnv_chip_properties;
+    dc->desc = "PowerNV Chip";
+ }
+
+static const TypeInfo pnv_chip_info = {
+    .name          = TYPE_PNV_CHIP,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .class_init    = pnv_chip_class_init,
+    .class_size    = sizeof(PnvChipClass),
+    .abstract      = true,
+};
+
+static char *pnv_get_num_chips(Object *obj, Error **errp)
+{
+    return g_strdup_printf("%d", POWERNV_MACHINE(obj)->num_chips);
+}
+
+static void pnv_set_num_chips(Object *obj, const char *value, Error **errp)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    int num_chips;
+
+    if (sscanf(value, "%d", &num_chips) != 1) {
+        error_setg(errp, "invalid num_chips property: '%s'", value);
+    }
+
+    /*
+     * FIXME: should we decide on how many chips we can create based
+     * on #cores and Venice vs. Murano vs. Naples chip type etc...,
+     */
+    pnv->num_chips = num_chips;
+}
+
+static void powernv_machine_initfn(Object *obj)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    pnv->num_chips = 1;
+
+    object_property_add_str(obj, "num-chips", pnv_get_num_chips,
+                            pnv_set_num_chips, NULL);
+    object_property_set_description(obj, "num-chips",
+                                    "Specifies the number of processor chips",
+                                    NULL);
 }
 
 static void powernv_machine_class_init(ObjectClass *oc, void *data)
@@ -233,12 +382,17 @@ static const TypeInfo powernv_machine_info = {
     .name          = TYPE_POWERNV_MACHINE,
     .parent        = TYPE_MACHINE,
     .instance_size = sizeof(PnvMachineState),
+    .instance_init = powernv_machine_initfn,
     .class_init    = powernv_machine_class_init,
 };
 
 static void powernv_machine_register_types(void)
 {
     type_register_static(&powernv_machine_info);
+    type_register_static(&pnv_chip_info);
+    type_register_static(&pnv_chip_power8e_info);
+    type_register_static(&pnv_chip_power8_info);
+    type_register_static(&pnv_chip_power8nvl_info);
 }
 
 type_init(powernv_machine_register_types)
