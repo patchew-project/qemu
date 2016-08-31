@@ -39,6 +39,8 @@
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 
+#include "hw/ppc/pnv_xscom.h"
+
 #include <libfdt.h>
 
 #define FDT_ADDR                0x01000000
@@ -103,6 +105,7 @@ static void *powernv_create_fdt(PnvMachineState *pnv,
     char *buf;
     const char plat_compat[] = "qemu,powernv\0ibm,powernv";
     int off;
+    int i;
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
@@ -141,6 +144,11 @@ static void *powernv_create_fdt(PnvMachineState *pnv,
 
     /* Memory */
     powernv_populate_memory(fdt);
+
+    /* Populate XSCOM for each chip */
+    for (i = 0; i < pnv->num_chips; i++) {
+        xscom_populate_fdt(pnv->chips[i]->xscom, fdt, 0);
+    }
 
     return fdt;
 }
@@ -304,6 +312,9 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+
+    /* Set up XSCOM bus */
+    chip->xscom = xscom_create(chip);
 
     pcc->realize(chip, errp);
 }

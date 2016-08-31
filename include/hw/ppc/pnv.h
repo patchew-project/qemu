@@ -35,12 +35,14 @@ typedef enum PnvChipType {
     PNV_CHIP_P8NVL, /* AKA Naples */
 } PnvChipType;
 
+typedef struct XScomBus XScomBus;
 typedef struct PnvChip {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
     uint32_t     chip_id;
+    XScomBus     *xscom;
 } PnvChip;
 
 typedef struct PnvChipClass {
