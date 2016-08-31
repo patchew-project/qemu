@@ -236,6 +236,27 @@ static void ppc_powernv_init(MachineState *machine)
     g_free(chip_typename);
 }
 
+/* Allowed core identifiers on a POWER8 Processor Chip :
+ *
+ * <EX0 reserved>
+ *  EX1  - Venice only
+ *  EX2  - Venice only
+ *  EX3  - Venice only
+ *  EX4
+ *  EX5
+ *  EX6
+ * <EX7,8 reserved> <reserved>
+ *  EX9  - Venice only
+ *  EX10 - Venice only
+ *  EX11 - Venice only
+ *  EX12
+ *  EX13
+ *  EX14
+ * <EX15 reserved>
+ */
+#define POWER8E_CORE_MASK  (~0xffff8f8f)
+#define POWER8_CORE_MASK   (~0xffff8181)
+
 static void pnv_chip_power8nvl_realize(PnvChip *chip, Error **errp)
 {
     ;
@@ -250,6 +271,8 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER8NVL";
     k->chip_type = PNV_CHIP_P8NVL;
     k->chip_f000f = 0x120d304980000000ull;
+    k->cores_max = 12;
+    k->cores_mask = POWER8_CORE_MASK;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -274,6 +297,8 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER8";
     k->chip_type = PNV_CHIP_P8;
     k->chip_f000f = 0x220ea04980000000ull;
+    k->cores_max = 12;
+    k->cores_mask = POWER8_CORE_MASK;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -298,6 +323,8 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->cpu_model = "POWER8E";
     k->chip_type = PNV_CHIP_P8E;
     k->chip_f000f = 0x221ef04980000000ull;
+    k->cores_max = 6;
+    k->cores_mask = POWER8E_CORE_MASK;
     dc->desc = "PowerNV Chip POWER8E";
 }
 

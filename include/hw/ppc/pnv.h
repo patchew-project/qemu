@@ -49,6 +49,8 @@ typedef struct PnvChipClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
+    uint32_t   cores_max;
+    uint32_t   cores_mask;
     const char *cpu_model;
     PnvChipType  chip_type;
     uint64_t     chip_f000f;
