@@ -1058,7 +1058,7 @@ BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque)
 {
-    if (!blk_is_available(blk)) {
+    if (!blk_is_inserted(blk)) {
         return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
     }
 
@@ -1118,7 +1118,7 @@ int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int count)
 
 int blk_co_flush(BlockBackend *blk)
 {
-    if (!blk_is_available(blk)) {
+    if (!blk_is_inserted(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -1127,7 +1127,7 @@ int blk_co_flush(BlockBackend *blk)
 
 int blk_flush(BlockBackend *blk)
 {
-    if (!blk_is_available(blk)) {
+    if (!blk_is_inserted(blk)) {
         return -ENOMEDIUM;
     }
 
