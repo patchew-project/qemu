@@ -1,0 +1,145 @@
+PCI EXPRESS GUIDELINES
+======================
+
+1. Introduction
+================
+The doc proposes best practices on how to use PCIe/PCI device
+in PCIe based machines and explains the reasoning behind them.
+
+
+2. Device placement strategy
+============================
+QEMU does not have a clear socket-device matching mechanism
+and allows any PCI/PCIe device to be plugged into any PCI/PCIe slot.
+Plugging a PCI device into a PCIe device might not always work and
+is weird anyway since it cannot be done for "bare metal".
+Plugging a PCIe device into a PCI slot will hide the Extended
+Configuration Space thus is also not recommended.
+
+The recommendation is to separate the PCIe and PCI hierarchies.
+PCIe devices should be plugged only into PCIe Root Ports and
+PCIe Downstream ports (let's call them PCIe ports).
+
+2.1 Root Bus (pcie.0)
+=====================
+Plug only legacy PCI devices as Root Complex Integrated Devices
+even if the PCIe spec does not forbid PCIe devices. The existing
+hardware uses mostly PCI devices as Integrated Endpoints. In this
+way we may avoid some strange Guest OS-es behaviour.
+Other than that plug only PCIe Root Ports, PCIe Switches (upstream ports)
+or DMI-PCI bridges to start legacy PCI hierarchies.
+
+
+   pcie.0 bus
+   --------------------------------------------------------------------------
+        |                |                    |                   |
+   -----------   ------------------   ------------------  ------------------
+   | PCI Dev |   | PCIe Root Port |   |  Upstream Port |  | DMI-PCI bridge |
+   -----------   ------------------   ------------------  ------------------
+
+2.2 PCIe only hierarchy
+=======================
+Always use PCIe Root ports to start a PCIe hierarchy. Use PCIe switches (Upstream
+Ports + several Downstream Ports) if out of PCIe Root Ports slots. PCIe switches
+can be nested until a depth of 6-7. Plug only PCIe devices into PCIe Ports.
+
+
+   pcie.0 bus
+   ----------------------------------------------------
+        |                |               |
+   -------------   -------------   -------------
+   | Root Port |   | Root Port |   | Root Port |
+   ------------   --------------   -------------
+         |                               |
+    ------------                 -----------------
+    | PCIe Dev |                 | Upstream Port |
+    ------------                 -----------------
+                                  |            |
+                     -------------------    -------------------
+                     | Downstream Port |    | Downstream Port |
+                     -------------------    -------------------
+                             |
+                         ------------
+                         | PCIe Dev |
+                         ------------
+
+2.3 PCI only hierarchy
+======================
+Legacy PCI devices can be plugged into pcie.0 as Integrated Devices or
+into DMI-PCI bridge. PCI-PCI bridges can be plugged into DMI-PCI bridges
+and can be nested until a depth of 6-7. DMI-BRIDGES should be plugged
+only into pcie.0 bus.
+
+   pcie.0 bus
+   ----------------------------------------------
+        |                            |
+   -----------               ------------------
+   | PCI Dev |               | DMI-PCI BRIDGE |
+   ----------                ------------------
+                               |            |
+                        -----------    ------------------
+                        | PCI Dev |    | PCI-PCI Bridge |
+                        -----------    ------------------
+                                         |           |
+                                  -----------     -----------
+                                  | PCI Dev |     | PCI Dev |
+                                  -----------     -----------
+
+
+
+3. IO space issues
+===================
+PCIe Ports are seen by Firmware/Guest OS as PCI bridges and
+as required by PCI spec will reserve a 4K IO range for each.
+The firmware used by QEMU (SeaBIOS/OVMF) will further optimize
+it by allocation the IO space only if there is at least a device
+with IO BARs plugged into the bridge.
+Behind a PCIe PORT only one device may be plugged, resulting in
+the allocation of a whole 4K range for each device.
+The IO space is limited resulting in ~10 PCIe ports per system
+if devices with IO BARs are plugged into IO ports.
+
+Using the proposed device placing strategy solves this issue
+by using only PCIe devices with PCIe PORTS. The PCIe spec requires
+PCIe devices to work without IO BARs.
+The PCI hierarchy has no such limitations.
+
+
+4. Hot Plug
+============
+The root bus pcie.0 does not support hot-plug, so Integrated Devices,
+DMI-PCI bridges and Root Ports can't be hot-plugged/hot-unplugged.
+
+PCI devices can be hot-plugged into PCI-PCI bridges. (There is a bug
+in QEMU preventing it to work, but it would be solved soon).
+The PCI hotplug is ACPI based and can work side by side with the PCIe
+native hotplug.
+
+PCIe devices can be natively hot-plugged/hot-unplugged into/from
+PCIe Ports (Root Ports/Downstream Ports). Switches are hot-pluggable.
+Keep in mind you always need to have at least one PCIe Port available
+for hotplug, the PCIe Ports themselves are not hot-pluggable.
+
+
+5. Device assignment
+====================
+Host devices are mostly PCIe and should be plugged only into PCIe ports.
+PCI-PCI bridge slots can be used for legacy PCI host devices.
+
+
+6. Virtio devices
+=================
+Virtio devices plugged into the PCI hierarchy or as an Integrated Devices
+will remain PCI and have transitional behaviour as default.
+Virtio devices plugged into PCIe ports are Express devices and have
+"1.0" behavior by default without IO support.
+In both case disable-* properties can be used to override the behaviour.
+
+
+7. Conclusion
+==============
+The proposal offers a usage model that is easy to understand and follow
+and in the same time overcomes some PCIe limitations.
+
+
+
