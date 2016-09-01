@@ -1202,6 +1202,9 @@ struct X86CPU {
      */
     bool enable_lmce;
 
+    /* Compatibility bits for old machine types */
+    bool enable_compat_cache;
+
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 
