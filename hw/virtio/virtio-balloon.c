@@ -406,7 +406,13 @@ static void virtio_balloon_save_device(VirtIODevice *vdev, QEMUFile *f)
 
 static int virtio_balloon_load(QEMUFile *f, void *opaque, size_t size)
 {
-    return virtio_load(VIRTIO_DEVICE(opaque), f, 1);
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    int ret = virtio_load(vdev, f, 1);
+    /* rewind needs vq->inuse populated which happens in virtio_load() after
+     * vdev->load */
+    virtqueue_rewind(s->svq);
+    return ret;
 }
 
 static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -468,6 +474,18 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
     }
 }
 
+static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+
+    if (vdev->vm_running && balloon_stats_supported(s) &&
+        (status & VIRTIO_CONFIG_S_DRIVER_OK) && !s->stats_vq_elem) {
+        /* poll stats queue for the element we may have discarded when the VM
+         * was stopped */
+        virtio_balloon_receive_stats(vdev, s->svq);
+    }
+}
+
 static void virtio_balloon_instance_init(Object *obj)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(obj);
@@ -505,6 +523,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_balloon_get_features;
     vdc->save = virtio_balloon_save_device;
     vdc->load = virtio_balloon_load_device;
+    vdc->set_status = virtio_balloon_set_status;
 }
 
 static const TypeInfo virtio_balloon_info = {
