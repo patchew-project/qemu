@@ -115,6 +115,11 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
         pci_piix3_xen_ide_unplug(DEVICE(d));
     }
+    else if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
+            PCI_CLASS_STORAGE_SCSI
+            && strcmp(d->name, "xen-pci-passthrough") != 0) {
+        object_unparent(OBJECT(d));
+    }
 }
 
 static void pci_unplug_disks(PCIBus *bus)
