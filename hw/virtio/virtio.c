@@ -272,6 +272,12 @@ void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
     virtqueue_unmap_sg(vq, elem, len);
 }
 
+void virtqueue_rewind(VirtQueue *vq)
+{
+    vq->last_avail_idx -= vq->inuse;
+    vq->inuse = 0;
+}
+
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
