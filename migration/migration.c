@@ -59,6 +59,11 @@
 /* Migration XBZRLE default cache size */
 #define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
 
+/* The delay time (in ms) between two COLO checkpoints
+ * Note: Please change this default value to 10000 when we support hybrid mode.
+ */
+#define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY 200
+
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
@@ -90,6 +95,7 @@ MigrationState *migrate_get_current(void)
             .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
             .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
             .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+            .x_checkpoint_delay = DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
         },
     };
 
@@ -582,6 +588,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
     params->tls_creds = g_strdup(s->parameters.tls_creds);
     params->tls_hostname = g_strdup(s->parameters.tls_hostname);
+    params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
 
     return params;
 }
@@ -801,6 +808,8 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 const char *tls_creds,
                                 bool has_tls_hostname,
                                 const char *tls_hostname,
+                                bool has_x_checkpoint_delay,
+                                int64_t x_checkpoint_delay,
                                 Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -836,6 +845,11 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                    "cpu_throttle_increment",
                    "an integer in the range of 1 to 99");
     }
+    if (has_x_checkpoint_delay && (x_checkpoint_delay < 0)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                    "x_checkpoint_delay",
+                    "is invalid, it should be positive");
+    }
 
     if (has_compress_level) {
         s->parameters.compress_level = compress_level;
@@ -859,6 +873,10 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     if (has_tls_hostname) {
         g_free(s->parameters.tls_hostname);
         s->parameters.tls_hostname = g_strdup(tls_hostname);
+    }
+
+    if (has_x_checkpoint_delay) {
+        s->parameters.x_checkpoint_delay = x_checkpoint_delay;
     }
 }
 

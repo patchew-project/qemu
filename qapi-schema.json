@@ -646,12 +646,16 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
+#          periodic mode. (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
-           'tls-creds', 'tls-hostname'] }
+           'tls-creds', 'tls-hostname',
+           'x-checkpoint-delay' ] }
 
 #
 # @migrate-set-parameters
@@ -687,6 +691,8 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @x-checkpoint-delay: the delay time between two checkpoints. (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
@@ -696,7 +702,8 @@
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'str',
-            '*tls-hostname': 'str'} }
+            '*tls-hostname': 'str',
+            '*x-checkpoint-delay': 'int' } }
 
 #
 # @MigrationParameters
@@ -730,6 +737,8 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -739,7 +748,9 @@
             'cpu-throttle-initial': 'int',
             'cpu-throttle-increment': 'int',
             'tls-creds': 'str',
-            'tls-hostname': 'str'} }
+            'tls-hostname': 'str',
+            'x-checkpoint-delay': 'int'} }
+
 ##
 # @query-migrate-parameters
 #
