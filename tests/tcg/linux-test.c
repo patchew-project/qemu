@@ -31,6 +31,7 @@
 #include <utime.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -39,6 +40,7 @@
 #include <dirent.h>
 #include <setjmp.h>
 #include <sys/shm.h>
+#include "qemu/osdep.h"
 #include "qemu/cutils.h"
 
 #define TESTPATH "/tmp/linux-test.tmp"

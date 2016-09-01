@@ -89,7 +89,7 @@ hello-i386: hello-i386.c
 	strip $@
 
 testthread: testthread.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $< -lpthread
+	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $< -lpthread
 
 # i386/x86_64 emulation test (test various opcodes) */
 test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
@@ -98,7 +98,7 @@ test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
               $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
 
 test-i386-fprem: test-i386-fprem.c
-	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(CC_I386) $(QEMU_INCLUDES) $(GLIB_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 test-x86_64: test-i386.c \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
@@ -106,7 +106,7 @@ test-x86_64: test-i386.c \
 
 # generic Linux and CPU test
 linux-test: linux-test.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
+	$(CC_I386) $(QEMU_INCLUDES) $(GLIB_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
 
 # vm86 test
 runcom: runcom.c
