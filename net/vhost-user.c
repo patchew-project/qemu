@@ -210,6 +210,9 @@ static void net_vhost_user_event(void *opaque, int event)
                                           MAX_QUEUE_NUM);
     assert(queues < MAX_QUEUE_NUM);
 
+    if (queues < 1)
+        return;
+
     s = DO_UPCAST(VhostUserState, nc, ncs[0]);
     trace_vhost_user_event(s->chr->label, event);
     switch (event) {
