@@ -16,6 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "qemu/osdep.h"
+
 #define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdlib.h>
@@ -31,6 +34,7 @@
 #include <utime.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
