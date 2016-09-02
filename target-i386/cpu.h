@@ -1202,6 +1202,11 @@ struct X86CPU {
      */
     bool enable_lmce;
 
+    /* Compatibility bits for old machine types.
+     * If true present virtual l3 cache for VM.
+     */
+    bool enable_l3_cache_shared;
+
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 
