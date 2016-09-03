@@ -126,6 +126,14 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
     int prot = 0;
     int ret = MM_K_ACV;
 
+    /* Handle physical accesses.  */
+    if (mmu_idx == MMU_PHYS_IDX) {
+        phys = addr;
+        prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        ret = -1;
+        goto exit;
+    }
+
     /* Ensure that the virtual address is properly sign-extended from
        the last implemented virtual address bit.  */
     if (saddr >> TARGET_VIRT_ADDR_SPACE_BITS != saddr >> 63) {
@@ -137,7 +145,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
        determine which KSEG is actually active.  */
     if (saddr < 0 && ((saddr >> 41) & 3) == 2) {
         /* User-space cannot access KSEG addresses.  */
-        if (mmu_idx != MMU_KERNEL_IDX) {
+        if (mmu_idx < MMU_KERNEL_IDX) {
             goto exit;
         }
 
