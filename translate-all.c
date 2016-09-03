@@ -119,7 +119,7 @@ static void *l1_map[V_L1_SIZE];
 
 /* code generation context */
 TCGContext tcg_ctx;
-bool parallel_cpus;
+bool parallel_cpus = 1;
 
 /* translation block context */
 #ifdef CONFIG_USER_ONLY
