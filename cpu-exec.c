@@ -225,6 +225,29 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 }
 #endif
 
+void cpu_exec_step(CPUState *cpu)
+{
+    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
+    TranslationBlock *tb;
+    target_ulong cs_base, pc;
+    uint32_t flags;
+    bool old_tb_flushed;
+
+    old_tb_flushed = cpu->tb_flushed;
+    cpu->tb_flushed = false;
+
+    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+    tb = tb_gen_code(cpu, pc, cs_base, flags,
+                     1 | CF_NOCACHE | CF_IGNORE_ICOUNT);
+    tb->orig_tb = NULL;
+    cpu->tb_flushed |= old_tb_flushed;
+    /* execute the generated code */
+    trace_exec_tb_nocache(tb, pc);
+    cpu_tb_exec(cpu, tb);
+    tb_phys_invalidate(tb, -1);
+    tb_free(tb);
+}
+
 struct tb_desc {
     target_ulong pc;
     target_ulong cs_base;

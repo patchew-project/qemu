@@ -1575,6 +1575,12 @@ static void tcg_exec_all(void)
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(cpu);
                 break;
+            } else if (r == EXCP_ATOMIC) {
+                /* ??? When we begin running cpus in parallel, we should
+                   stop all cpus, clear parallel_cpus, and interpret a
+                   single insn with cpu_exec_step.  In the meantime,
+                   we should never get here.  */
+                abort();
             }
         } else if (cpu->stop || cpu->stopped) {
             if (cpu->unplug) {
