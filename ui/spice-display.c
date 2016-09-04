@@ -916,6 +916,7 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
     .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
+    .dpy_gl_ctx_is_mt_safe   = true,
 
     .dpy_gl_scanout          = qemu_spice_gl_scanout,
     .dpy_gl_update           = qemu_spice_gl_update,

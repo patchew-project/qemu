@@ -221,7 +221,7 @@ typedef struct DisplayChangeListenerOps {
                            uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     void (*dpy_gl_update)(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
-
+    bool dpy_gl_ctx_is_mt_safe; /* the ctx* functions are mt-safe */
 } DisplayChangeListenerOps;
 
 struct DisplayChangeListener {
@@ -296,6 +296,7 @@ QEMUGLContext dpy_gl_ctx_create(QemuConsole *con,
 void dpy_gl_ctx_destroy(QemuConsole *con, QEMUGLContext ctx);
 int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
 QEMUGLContext dpy_gl_ctx_get_current(QemuConsole *con);
+bool dpy_gl_ctx_is_mt_safe(QemuConsole *con);
 
 bool console_has_gl(QemuConsole *con);
 

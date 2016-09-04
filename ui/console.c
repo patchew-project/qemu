@@ -1682,6 +1682,12 @@ bool dpy_cursor_define_supported(QemuConsole *con)
     return false;
 }
 
+bool dpy_gl_ctx_is_mt_safe(QemuConsole *con)
+{
+    assert(con->gl);
+    return con->gl->ops->dpy_gl_ctx_is_mt_safe;
+}
+
 QEMUGLContext dpy_gl_ctx_create(QemuConsole *con,
                                 struct QEMUGLParams *qparams)
 {
