@@ -56,7 +56,8 @@ void sdl2_gl_refresh(DisplayChangeListener *dcl);
 void sdl2_gl_redraw(struct sdl2_console *scon);
 
 QEMUGLContext sdl2_gl_create_context(DisplayChangeListener *dcl,
-                                     QEMUGLParams *params);
+                                     QEMUGLParams *params,
+                                     bool make_current);
 void sdl2_gl_destroy_context(DisplayChangeListener *dcl, QEMUGLContext ctx);
 int sdl2_gl_make_context_current(DisplayChangeListener *dcl,
                                  QEMUGLContext ctx);

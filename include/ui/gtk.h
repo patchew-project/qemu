@@ -98,7 +98,8 @@ void gd_egl_refresh(DisplayChangeListener *dcl);
 void gd_egl_switch(DisplayChangeListener *dcl,
                    DisplaySurface *surface);
 QEMUGLContext gd_egl_create_context(DisplayChangeListener *dcl,
-                                    QEMUGLParams *params);
+                                    QEMUGLParams *params,
+                                    bool make_current);
 void gd_egl_scanout(DisplayChangeListener *dcl,
                     uint32_t backing_id, bool backing_y_0_top,
                     uint32_t backing_width, uint32_t backing_height,
@@ -119,7 +120,8 @@ void gd_gl_area_refresh(DisplayChangeListener *dcl);
 void gd_gl_area_switch(DisplayChangeListener *dcl,
                        DisplaySurface *surface);
 QEMUGLContext gd_gl_area_create_context(DisplayChangeListener *dcl,
-                                        QEMUGLParams *params);
+                                        QEMUGLParams *params,
+                                        bool make_current);
 void gd_gl_area_destroy_context(DisplayChangeListener *dcl,
                                 QEMUGLContext ctx);
 void gd_gl_area_scanout(DisplayChangeListener *dcl,

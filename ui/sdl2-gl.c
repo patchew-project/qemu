@@ -139,14 +139,17 @@ void sdl2_gl_redraw(struct sdl2_console *scon)
 }
 
 QEMUGLContext sdl2_gl_create_context(DisplayChangeListener *dcl,
-                                     QEMUGLParams *params)
+                                     QEMUGLParams *params,
+                                     bool make_current)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     SDL_GLContext ctx;
 
     assert(scon->opengl);
 
-    SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
+    if (make_current) {
+        SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
+    }
 
     SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,

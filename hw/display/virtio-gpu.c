@@ -968,7 +968,7 @@ static void virtio_gpu_gl_register(DisplayChangeListener *dcl,
     }
 
     if (g->iothread && !g->thread_ctx) {
-        g->thread_ctx = dpy_gl_ctx_create(dcl->con, &qparams);
+        g->thread_ctx = dpy_gl_ctx_create(dcl->con, &qparams, true);
     }
 }
 

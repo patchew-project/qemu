@@ -1693,10 +1693,11 @@ bool dpy_gl_ctx_is_mt_safe(QemuConsole *con)
 }
 
 QEMUGLContext dpy_gl_ctx_create(QemuConsole *con,
-                                struct QEMUGLParams *qparams)
+                                struct QEMUGLParams *qparams,
+                                bool make_current)
 {
     assert(con->gl);
-    return con->gl->ops->dpy_gl_ctx_create(con->gl, qparams);
+    return con->gl->ops->dpy_gl_ctx_create(con->gl, qparams, make_current);
 }
 
 void dpy_gl_ctx_destroy(QemuConsole *con, QEMUGLContext ctx)

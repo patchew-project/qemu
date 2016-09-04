@@ -851,10 +851,14 @@ static void qemu_spice_gl_block_timer(void *opaque)
 }
 
 static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
-                                                  QEMUGLParams *params)
+                                                  QEMUGLParams *params,
+                                                  bool make_current)
 {
-    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-                   qemu_egl_rn_ctx);
+    if (make_current) {
+        eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                       qemu_egl_rn_ctx);
+    }
+
     return qemu_egl_create_context(dcl, params);
 }
 

@@ -145,7 +145,8 @@ void gd_gl_area_switch(DisplayChangeListener *dcl,
 }
 
 QEMUGLContext gd_gl_area_create_context(DisplayChangeListener *dcl,
-                                        QEMUGLParams *params)
+                                        QEMUGLParams *params,
+                                        bool make_curent)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     GdkWindow *window;
