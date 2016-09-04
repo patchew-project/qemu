@@ -120,6 +120,8 @@ typedef struct VirtIOGPU {
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) cmdq;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) fenceq;
 
+    /* lock protects scanout and req_state */
+    QemuMutex display_info_lock;
     struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUTS];
     struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
 

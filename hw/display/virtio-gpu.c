@@ -102,6 +102,8 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
     if (cursor->pos.scanout_id >= g->conf.max_outputs) {
         return;
     }
+
+    qemu_mutex_lock(&g->display_info_lock);
     s = &g->scanout[cursor->pos.scanout_id];
 
     trace_virtio_gpu_update_cursor(cursor->pos.scanout_id,
@@ -131,6 +133,7 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
     }
     dpy_mouse_set(s->con, cursor->pos.x, cursor->pos.y,
                   cursor->resource_id ? 1 : 0);
+    qemu_mutex_unlock(&g->display_info_lock);
 }
 
 static void virtio_gpu_get_config(VirtIODevice *vdev, uint8_t *config)
@@ -230,6 +233,7 @@ virtio_gpu_fill_display_info(VirtIOGPU *g,
 {
     int i;
 
+    qemu_mutex_lock(&g->display_info_lock);
     for (i = 0; i < g->conf.max_outputs; i++) {
         if (g->enabled_output_bitmask & (1 << i)) {
             dpy_info->pmodes[i].enabled = 1;
@@ -237,6 +241,7 @@ virtio_gpu_fill_display_info(VirtIOGPU *g,
             dpy_info->pmodes[i].r.height = g->req_state[i].height;
         }
     }
+    qemu_mutex_unlock(&g->display_info_lock);
 }
 
 void virtio_gpu_get_display_info(VirtIOGPU *g,
@@ -915,6 +920,7 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
         return -1;
     }
 
+    qemu_mutex_lock(&g->display_info_lock);
     g->req_state[idx].x = info->xoff;
     g->req_state[idx].y = info->yoff;
     g->req_state[idx].width = info->width;
@@ -926,6 +932,7 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
         g->enabled_output_bitmask &= ~(1 << idx);
     }
 
+    qemu_mutex_unlock(&g->display_info_lock);
     /* send event to guest */
     virtio_gpu_notify_event(g, VIRTIO_GPU_EVENT_DISPLAY);
     return 0;
@@ -1149,6 +1156,7 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
 
+    qemu_mutex_init(&g->display_info_lock);
     g->enabled_output_bitmask = 1;
     g->qdev = qdev;
 

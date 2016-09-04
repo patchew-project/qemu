@@ -123,11 +123,13 @@ static void virtio_gpu_do_resource_flush(VirtIOGPU *g,
 {
     int i;
 
+    qemu_mutex_lock(&g->display_info_lock);
     for (i = 0; i < fl->num_flushes; i++) {
         virtio_gpu_rect_update(g, fl->idx[i],
                                fl->r.x, fl->r.y,
                                fl->r.width, fl->r.height);
     }
+    qemu_mutex_unlock(&g->display_info_lock);
 }
 
 static void virgl_cmd_resource_flush(VirtIOGPU *g,
@@ -141,6 +143,7 @@ static void virgl_cmd_resource_flush(VirtIOGPU *g,
     trace_virtio_gpu_cmd_res_flush(rf.resource_id,
                                    rf.r.width, rf.r.height, rf.r.x, rf.r.y);
 
+    qemu_mutex_lock(&g->display_info_lock);
     msg.u.fl.r = rf.r;
     msg.u.fl.num_flushes = 0;
     for (i = 0; i < g->conf.max_outputs; i++) {
@@ -149,6 +152,7 @@ static void virgl_cmd_resource_flush(VirtIOGPU *g,
         }
         msg.u.fl.idx[msg.u.fl.num_flushes++] = i;
     }
+    qemu_mutex_unlock(&g->display_info_lock);
     virtio_gpu_do_resource_flush(g, &msg.u.fl);
 }
 
@@ -156,6 +160,7 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
                                       struct virtio_gpu_set_scanout_info *info)
 
 {
+    qemu_mutex_lock(&g->display_info_lock);
     if (info->tex_id) {
         qemu_console_resize(g->scanout[info->idx].con,
                             info->r.width, info->r.height);
@@ -171,6 +176,7 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
                        0, 0, 0, 0, 0, 0);
     }
     g->scanout[info->idx].resource_id = info->resource_id;
+    qemu_mutex_unlock(&g->display_info_lock);
 }
 
 static void virgl_cmd_set_scanout(VirtIOGPU *g,
