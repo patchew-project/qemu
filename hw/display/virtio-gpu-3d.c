@@ -19,12 +19,39 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "qapi/error.h"
+#include "ui/egl-context.h"
 
 #ifdef CONFIG_VIRGL
 
 #include <virglrenderer.h>
 
 static struct virgl_renderer_callbacks virtio_gpu_3d_cbs;
+
+static void event_notifier_wait(EventNotifier *e)
+{
+    int fd = event_notifier_get_fd(e);
+    fd_set rfds;
+    int max_fd = fd + 1;
+
+    FD_ZERO(&rfds);
+    FD_SET(fd, &rfds);
+    select(max_fd, &rfds, NULL, NULL, NULL);
+
+    event_notifier_test_and_clear(e);
+}
+
+static void virtio_gpu_write_msg(VirtIOGPU *g,
+                                 struct virtio_gpu_thread_msg *msg)
+{
+    VirtIOGPUDataPlane *dp = g->dp;
+
+    qemu_mutex_lock(&dp->thread_msg_lock);
+    dp->thread_msg = *msg;
+    qemu_mutex_unlock(&dp->thread_msg_lock);
+
+    event_notifier_set(&dp->thread_to_qemu);
+    event_notifier_wait(&dp->qemu_to_thread_ack);
+}
 
 static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
                                          struct virtio_gpu_ctrl_command *cmd)
@@ -154,7 +181,13 @@ static void virgl_cmd_resource_flush(VirtIOGPU *g,
         msg.u.fl.idx[msg.u.fl.num_flushes++] = i;
     }
     qemu_mutex_unlock(&g->display_info_lock);
-    virtio_gpu_do_resource_flush(g, &msg.u.fl);
+
+    if (VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
+        msg.id = VIRTIO_GPU_CMD_RESOURCE_FLUSH;
+        virtio_gpu_write_msg(g, &msg);
+    } else {
+        virtio_gpu_do_resource_flush(g, &msg.u.fl);
+    }
 }
 
 static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
@@ -214,14 +247,19 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
             cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
             return;
         }
-
         msg.u.ss.tex_id = info.tex_id;
         msg.u.ss.width = info.width;
         msg.u.ss.height = info.height;
         msg.u.ss.flags = info.flags;
         msg.u.ss.resource_id = ss.resource_id;
     }
-    virtio_gpu_do_set_scanout(g, &msg.u.ss);
+
+    if (VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
+        msg.id = VIRTIO_GPU_CMD_SET_SCANOUT;
+        virtio_gpu_write_msg(g, &msg);
+    } else {
+        virtio_gpu_do_set_scanout(g, &msg.u.ss);
+    }
 }
 
 static void virgl_cmd_submit_3d(VirtIOGPU *g,
