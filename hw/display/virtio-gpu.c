@@ -897,7 +897,7 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     virtio_gpu_process_cmdq(g);
 
 #ifdef CONFIG_VIRGL
-    if (g->use_virgl_renderer) {
+    if (g->use_virgl_renderer && !VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
         virtio_gpu_virgl_fence_poll(g);
     }
 #endif

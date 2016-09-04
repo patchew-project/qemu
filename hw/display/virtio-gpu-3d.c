@@ -773,17 +773,33 @@ void virtio_gpu_virgl_dp_destroy(VirtIOGPU *g)
     g_free(dp);
 }
 
+static void render_poll_handler(void *opaque)
+{
+    virgl_renderer_poll();
+}
+
 int virtio_gpu_virgl_init(VirtIOGPU *g)
 {
     int ret;
+    int flags = 0;
 
-    ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
+    if (VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
+        flags |= VIRGL_RENDERER_THREAD_SYNC;
+    }
+
+    ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
     if (ret != 0) {
         return ret;
     }
 
-    g->fence_poll = timer_new_ms(QEMU_CLOCK_VIRTUAL,
-                                 virtio_gpu_fence_poll, g);
+    if (VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
+        aio_set_fd_handler(iothread_get_aio_context(g->iothread),
+                           virgl_renderer_get_poll_fd(),
+                           false, render_poll_handler, NULL, g);
+    } else {
+        g->fence_poll = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                     virtio_gpu_fence_poll, g);
+    }
 
     if (virtio_gpu_stats_enabled(g->conf)) {
         g->print_stats = timer_new_ms(QEMU_CLOCK_VIRTUAL,
