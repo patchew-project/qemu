@@ -118,22 +118,59 @@ static void virtio_gpu_rect_update(VirtIOGPU *g, int idx, int x, int y,
     dpy_gl_update(g->scanout[idx].con, x, y, width, height);
 }
 
+static void virtio_gpu_do_resource_flush(VirtIOGPU *g,
+                                         struct virtio_gpu_thread_flush *fl)
+{
+    int i;
+
+    for (i = 0; i < fl->num_flushes; i++) {
+        virtio_gpu_rect_update(g, fl->idx[i],
+                               fl->r.x, fl->r.y,
+                               fl->r.width, fl->r.height);
+    }
+}
+
 static void virgl_cmd_resource_flush(VirtIOGPU *g,
                                      struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_resource_flush rf;
+    struct virtio_gpu_thread_msg msg;
     int i;
 
     VIRTIO_GPU_FILL_CMD(rf);
     trace_virtio_gpu_cmd_res_flush(rf.resource_id,
                                    rf.r.width, rf.r.height, rf.r.x, rf.r.y);
 
+    msg.u.fl.r = rf.r;
+    msg.u.fl.num_flushes = 0;
     for (i = 0; i < g->conf.max_outputs; i++) {
         if (g->scanout[i].resource_id != rf.resource_id) {
             continue;
         }
-        virtio_gpu_rect_update(g, i, rf.r.x, rf.r.y, rf.r.width, rf.r.height);
+        msg.u.fl.idx[msg.u.fl.num_flushes++] = i;
     }
+    virtio_gpu_do_resource_flush(g, &msg.u.fl);
+}
+
+static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
+                                      struct virtio_gpu_set_scanout_info *info)
+
+{
+    if (info->tex_id) {
+        qemu_console_resize(g->scanout[info->idx].con,
+                            info->r.width, info->r.height);
+
+        dpy_gl_scanout(g->scanout[info->idx].con, info->tex_id,
+                       info->flags & 1 /* FIXME: Y_0_TOP */,
+                       info->width, info->height,
+                       info->r.x, info->r.y, info->r.width, info->r.height);
+    } else {
+        if (info->idx != 0)
+            dpy_gfx_replace_surface(g->scanout[info->idx].con, NULL);
+        dpy_gl_scanout(g->scanout[info->idx].con, 0, false,
+                       0, 0, 0, 0, 0, 0);
+    }
+    g->scanout[info->idx].resource_id = info->resource_id;
 }
 
 static void virgl_cmd_set_scanout(VirtIOGPU *g,
@@ -141,7 +178,7 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
 {
     struct virtio_gpu_set_scanout ss;
     struct virgl_renderer_resource_info info;
-    int ret;
+    struct virtio_gpu_thread_msg msg;
 
     VIRTIO_GPU_FILL_CMD(ss);
     trace_virtio_gpu_cmd_set_scanout(ss.scanout_id, ss.resource_id,
@@ -156,9 +193,13 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
     g->enable = 1;
 
     memset(&info, 0, sizeof(info));
+    memset(&msg, 0, sizeof(msg));
 
+    msg.u.ss.r = ss.r;
+    msg.u.ss.idx = ss.scanout_id;
+    msg.u.ss.resource_id = ss.resource_id;
     if (ss.resource_id && ss.r.width && ss.r.height) {
-        ret = virgl_renderer_resource_get_info(ss.resource_id, &info);
+        int ret = virgl_renderer_resource_get_info(ss.resource_id, &info);
         if (ret == -1) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: illegal resource specified %d\n",
@@ -166,21 +207,14 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
             cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
             return;
         }
-        qemu_console_resize(g->scanout[ss.scanout_id].con,
-                            ss.r.width, ss.r.height);
-        virgl_renderer_force_ctx_0();
-        dpy_gl_scanout(g->scanout[ss.scanout_id].con, info.tex_id,
-                       info.flags & 1 /* FIXME: Y_0_TOP */,
-                       info.width, info.height,
-                       ss.r.x, ss.r.y, ss.r.width, ss.r.height);
-    } else {
-        if (ss.scanout_id != 0) {
-            dpy_gfx_replace_surface(g->scanout[ss.scanout_id].con, NULL);
-        }
-        dpy_gl_scanout(g->scanout[ss.scanout_id].con, 0, false,
-                       0, 0, 0, 0, 0, 0);
+
+        msg.u.ss.tex_id = info.tex_id;
+        msg.u.ss.width = info.width;
+        msg.u.ss.height = info.height;
+        msg.u.ss.flags = info.flags;
+        msg.u.ss.resource_id = ss.resource_id;
     }
-    g->scanout[ss.scanout_id].resource_id = ss.resource_id;
+    virtio_gpu_do_set_scanout(g, &msg.u.ss);
 }
 
 static void virgl_cmd_submit_3d(VirtIOGPU *g,

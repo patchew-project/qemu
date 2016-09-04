@@ -83,6 +83,26 @@ struct virtio_gpu_ctrl_command {
     QTAILQ_ENTRY(virtio_gpu_ctrl_command) next;
 };
 
+struct virtio_gpu_thread_msg {
+    uint32_t id;
+    union {
+        struct virtio_gpu_set_scanout_info {
+            struct virtio_gpu_rect r;
+            uint32_t idx;
+            uint32_t tex_id;
+            uint32_t flags;
+            uint32_t resource_id;
+            uint32_t width;
+            uint32_t height;
+        } ss;
+        struct virtio_gpu_thread_flush {
+            struct virtio_gpu_rect r;
+            int num_flushes;
+            uint32_t idx[VIRTIO_GPU_MAX_SCANOUTS];
+        } fl;
+    } u;
+};
+
 typedef struct VirtIOGPU {
     VirtIODevice parent_obj;
 
