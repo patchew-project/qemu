@@ -22,11 +22,17 @@
 #include "migration/migration.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "ui/egl-context.h"
 
 #define VIRTIO_GPU_VM_VERSION 1
 
 static struct virtio_gpu_simple_resource*
 virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
+
+static void
+virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq);
+static void
+virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq);
 
 #ifdef CONFIG_VIRGL
 #include <virglrenderer.h>
@@ -824,9 +830,129 @@ static void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
     }
 }
 
+static void data_plane_handle_ctrl_cb(VirtIODevice *vdev, VirtQueue *q)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    virtio_gpu_handle_ctrl(&g->parent_obj, q);
+}
+
+static void data_plane_handle_cursor_cb(VirtIODevice *vdev, VirtQueue *q)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    virtio_gpu_handle_cursor(&g->parent_obj, q);
+}
+
+static void virtio_gpu_data_plane_start(VirtIODevice *vdev)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPUDataPlane *dp = g->dp;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    int i, r;
+
+    if (dp->started || dp->starting) {
+        return;
+    }
+
+    dp->starting = true;
+
+    /* Set up guest notifier (irq) */
+    r = k->set_guest_notifiers(qbus->parent, 2, true);
+    if (r != 0) {
+        fprintf(stderr, "virtio-gpu failed to set guest notifier (%d), "
+                "ensure -enable-kvm is set\n", r);
+        goto fail_guest_notifiers;
+    }
+
+    /* Set up virtqueue notify */
+    for (i = 0; i < 2; i++) {
+        r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, true);
+        if (r != 0) {
+            fprintf(stderr, "virtio-gpu failed to set host notifier (%d)\n", r);
+            while (i--) {
+                virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+            }
+            goto fail_guest_notifiers;
+        }
+    }
+
+    dp->starting = false;
+    dp->started = true;
+
+    /* Kick right away to begin processing requests already in vring */
+    for (i = 0; i < 2; i++) {
+        VirtQueue *vq = virtio_get_queue(vdev, i);
+
+        event_notifier_set(virtio_queue_get_host_notifier(vq));
+    }
+
+    AioContext *ctx = iothread_get_aio_context(g->iothread);
+    /* Get this show started by hooking up our callbacks */
+    aio_context_acquire(ctx);
+    virtio_queue_aio_set_host_notifier_handler(virtio_get_queue(vdev, 0), ctx,
+                                               data_plane_handle_ctrl_cb);
+    virtio_queue_aio_set_host_notifier_handler(virtio_get_queue(vdev, 1), ctx,
+                                               data_plane_handle_cursor_cb);
+    aio_context_release(ctx);
+    return;
+
+fail_guest_notifiers:
+    dp->disabled = true;
+    dp->starting = false;
+    dp->started = true;
+}
+
+void virtio_gpu_data_plane_stop(VirtIOGPUDataPlane *dp)
+{
+    VirtIOGPU *g = dp->gpu;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(g)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    AioContext *ctx = iothread_get_aio_context(g->iothread);
+    unsigned i;
+
+    if (!dp->started || dp->stopping) {
+        return;
+    }
+
+    if (dp->disabled) {
+        dp->disabled = false;
+        dp->started = false;
+        return;
+    }
+    dp->stopping = true;
+
+    /* Get this show started by hooking up our callbacks */
+    aio_context_acquire(ctx);
+    /* Stop notifications for new requests from guest */
+    for (i = 0; i < 2; i++) {
+        VirtQueue *vq = virtio_get_queue(VIRTIO_DEVICE(g), i);
+
+        virtio_queue_aio_set_host_notifier_handler(vq, ctx, NULL);
+    }
+    aio_context_release(ctx);
+
+    for (i = 0; i < 2; i++) {
+        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+    }
+
+    /* Clean up guest notifier (irq) */
+    k->set_guest_notifiers(qbus->parent, 2, false);
+
+    dp->started = false;
+    dp->stopping = false;
+}
+
 static void virtio_gpu_handle_ctrl_cb(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
+
+    if (g->dp) {
+        virtio_gpu_data_plane_start(vdev);
+        if (!g->dp->disabled) {
+            return;
+        }
+    }
+
     qemu_bh_schedule(g->ctrl_bh);
 }
 
@@ -1210,9 +1336,13 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     }
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
+        VirtQueue *(*add_queue)(VirtIODevice *vdev, int queue_size,
+                                  VirtIOHandleOutput handle_output) =
+            g->iothread ? virtio_add_queue_aio : virtio_add_queue;
+
         /* use larger control queue in 3d mode */
-        g->ctrl_vq   = virtio_add_queue(vdev, 256, virtio_gpu_handle_ctrl_cb);
-        g->cursor_vq = virtio_add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
+        g->ctrl_vq   = add_queue(vdev, 256, virtio_gpu_handle_ctrl_cb);
+        g->cursor_vq = add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
         g->virtio_config.num_capsets = 1;
 #if defined(CONFIG_VIRGL)
         {
@@ -1289,6 +1419,10 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
     int i;
+
+    if (g->dp) {
+        virtio_gpu_data_plane_stop(g->dp);
+    }
 
     g->enable = 0;
 

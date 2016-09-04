@@ -217,5 +217,6 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g);
 int virtio_gpu_virgl_init(VirtIOGPU *g);
 int virtio_gpu_virgl_dp_create(VirtIOGPU *g, Error **errp);
 void virtio_gpu_virgl_dp_destroy(VirtIOGPU *g);
+void virtio_gpu_data_plane_stop(VirtIOGPUDataPlane *dp);
 
 #endif
