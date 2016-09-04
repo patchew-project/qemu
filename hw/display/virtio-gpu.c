@@ -1177,6 +1177,12 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev, Error **errp)
 
 static void virtio_gpu_instance_init(Object *obj)
 {
+    VirtIOGPU *g = VIRTIO_GPU(obj);
+
+    object_property_add_link(obj, "iothread", TYPE_IOTHREAD,
+                             (Object **)&g->iothread,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
 }
 
 static void virtio_gpu_reset(VirtIODevice *vdev)

@@ -20,6 +20,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
 #include "qemu/log.h"
+#include "sysemu/iothread.h"
 
 #include "standard-headers/linux/virtio_gpu.h"
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
@@ -109,6 +110,9 @@ typedef struct VirtIOGPU {
     bool use_virgl_renderer;
     bool renderer_inited;
     int renderer_blocked;
+
+    IOThread *iothread;
+
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
 

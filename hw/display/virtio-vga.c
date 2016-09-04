@@ -191,6 +191,8 @@ static void virtio_vga_inst_initfn(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_GPU);
+    object_property_add_alias(obj, "iothread", OBJECT(&dev->vdev), "iothread",
+                              &error_abort);
 }
 
 static TypeInfo virtio_vga_info = {

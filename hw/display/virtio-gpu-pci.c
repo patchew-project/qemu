@@ -58,6 +58,8 @@ static void virtio_gpu_initfn(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_GPU);
+    object_property_add_alias(obj, "iothread", OBJECT(&dev->vdev), "iothread",
+                              &error_abort);
 }
 
 static const TypeInfo virtio_gpu_pci_info = {
