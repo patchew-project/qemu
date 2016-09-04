@@ -228,6 +228,16 @@ virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id)
     return NULL;
 }
 
+static void virtio_gpu_notify_vq(VirtIOGPU *g, VirtQueue *vq)
+{
+    if (VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
+        set_bit(virtio_get_queue_index(vq), g->dp->batch_notify_vqs);
+        qemu_bh_schedule(g->dp->notify_guest_bh);
+    } else {
+        virtio_notify(VIRTIO_DEVICE(g), vq);
+    }
+}
+
 void virtio_gpu_ctrl_response(VirtIOGPU *g,
                               struct virtio_gpu_ctrl_command *cmd,
                               struct virtio_gpu_ctrl_hdr *resp,
@@ -249,7 +259,7 @@ void virtio_gpu_ctrl_response(VirtIOGPU *g,
                       __func__, s, resp_len);
     }
     virtqueue_push(vq, &cmd->elem, s);
-    virtio_notify(VIRTIO_DEVICE(g), vq);
+    virtio_gpu_notify_vq(g, vq);
     cmd->finished = true;
 }
 
@@ -925,7 +935,7 @@ static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
             update_cursor(g, &cursor_info);
         }
         virtqueue_push(vq, elem, 0);
-        virtio_notify(vdev, vq);
+        virtio_gpu_notify_vq(g, vq);
         g_free(elem);
     }
 }
