@@ -996,7 +996,11 @@ static void virtio_gpu_gl_block(void *opaque, bool block)
     assert(g->renderer_blocked >= 0);
 
     if (g->renderer_blocked == 0) {
-        virtio_gpu_process_cmdq(g);
+        if (VIRTIO_GPU_DATA_PLANE_OK(g->dp)) {
+            qemu_bh_schedule(g->dp->thread_process_bh);
+        } else {
+            virtio_gpu_process_cmdq(g);
+        }
     }
 }
 
