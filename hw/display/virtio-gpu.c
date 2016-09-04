@@ -94,6 +94,37 @@ static void update_cursor_data_virgl(VirtIOGPU *g,
 
 #endif
 
+/* called with display_info_lock */
+static void scanout_set_cursor(int i, void *opaque)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_scanout *s = &g->scanout[i];
+
+    dpy_mouse_set(s->con, s->cursor.pos.x, s->cursor.pos.y,
+                  s->cursor.resource_id ? 1 : 0);
+}
+
+/* called with display_info_lock */
+static void scanout_define_cursor(int i, void *opaque)
+{
+    VirtIOGPU *g = opaque;
+    struct virtio_gpu_scanout *s = &g->scanout[i];
+
+    dpy_cursor_define(s->con, s->current_cursor);
+}
+
+static void virtio_gpu_update_cursor_bh(void *opaque)
+{
+    VirtIOGPU *g = opaque;
+
+    qemu_mutex_lock(&g->display_info_lock);
+    bitmap_foreach(g->define_cursor_bitmap, g->conf.max_outputs,
+                   scanout_define_cursor, g);
+    bitmap_foreach(g->set_cursor_bitmap, g->conf.max_outputs,
+                   scanout_set_cursor, g);
+    qemu_mutex_unlock(&g->display_info_lock);
+}
+
 static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
 {
     struct virtio_gpu_scanout *s;
@@ -124,15 +155,19 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
             VIRGL(g, update_cursor_data_virgl, update_cursor_data_simple,
                   g, s, cursor->resource_id);
         }
-        dpy_cursor_define(s->con, s->current_cursor);
 
         s->cursor = *cursor;
+
+        set_bit(cursor->pos.scanout_id, g->define_cursor_bitmap);
     } else {
         s->cursor.pos.x = cursor->pos.x;
         s->cursor.pos.y = cursor->pos.y;
+        s->cursor.resource_id = cursor->resource_id;
     }
-    dpy_mouse_set(s->con, cursor->pos.x, cursor->pos.y,
-                  cursor->resource_id ? 1 : 0);
+
+    set_bit(cursor->pos.scanout_id, g->set_cursor_bitmap);
+    qemu_bh_schedule(g->update_cursor_bh);
+
     qemu_mutex_unlock(&g->display_info_lock);
 }
 
@@ -1171,6 +1206,10 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 
     g->ctrl_bh = qemu_bh_new(virtio_gpu_ctrl_bh, g);
     g->cursor_bh = qemu_bh_new(virtio_gpu_cursor_bh, g);
+    g->update_cursor_bh = qemu_bh_new(virtio_gpu_update_cursor_bh, g);
+    g->set_cursor_bitmap = bitmap_new(g->conf.max_outputs);
+    g->define_cursor_bitmap = bitmap_new(g->conf.max_outputs);
+
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
@@ -1196,6 +1235,11 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 static void virtio_gpu_device_unrealize(DeviceState *qdev, Error **errp)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
+
+    qemu_bh_delete(g->update_cursor_bh);
+    g_free(g->set_cursor_bitmap);
+    g_free(g->define_cursor_bitmap);
+
     if (g->migration_blocker) {
         migrate_del_blocker(g->migration_blocker);
         error_free(g->migration_blocker);

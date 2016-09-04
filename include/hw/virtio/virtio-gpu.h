@@ -108,8 +108,11 @@ typedef struct VirtIOGPU {
 
     QEMUBH *ctrl_bh;
     QEMUBH *cursor_bh;
+    QEMUBH *update_cursor_bh;
     VirtQueue *ctrl_vq;
     VirtQueue *cursor_vq;
+    unsigned long *define_cursor_bitmap;
+    unsigned long *set_cursor_bitmap;
 
     int enable;
 
