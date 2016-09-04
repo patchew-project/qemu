@@ -178,6 +178,7 @@ typedef struct QEMUGLParams QEMUGLParams;
 struct QEMUGLParams {
     int major_ver;
     int minor_ver;
+    int gles;
 };
 
 typedef struct DisplayChangeListenerOps {

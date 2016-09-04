@@ -542,11 +542,11 @@ virgl_create_context(void *opaque, int scanout_idx,
 {
     VirtIOGPU *g = opaque;
     QEMUGLContext ctx;
-    QEMUGLParams qparams;
+    QEMUGLParams qparams = {
+        .major_ver = params->major_ver,
+        .minor_ver = params->minor_ver
+    };
     bool make_current = true;
-
-    qparams.major_ver = params->major_ver;
-    qparams.minor_ver = params->minor_ver;
 
     if (g->thread_ctx) {
         dpy_gl_ctx_make_current(g->scanout[scanout_idx].con, g->thread_ctx);
