@@ -1200,6 +1200,16 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
         g->ctrl_vq   = virtio_add_queue(vdev, 256, virtio_gpu_handle_ctrl_cb);
         g->cursor_vq = virtio_add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
         g->virtio_config.num_capsets = 1;
+#if defined(CONFIG_VIRGL)
+        {
+            Error *err = NULL;
+            if (g->iothread && virtio_gpu_virgl_dp_create(g, &err) != 0) {
+                error_propagate(errp, err);
+                virtio_cleanup(vdev);
+                return;
+            }
+        }
+#endif
     } else {
         g->ctrl_vq   = virtio_add_queue(vdev, 64, virtio_gpu_handle_ctrl_cb);
         g->cursor_vq = virtio_add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
@@ -1237,6 +1247,9 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev, Error **errp)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
 
+#if defined(CONFIG_VIRGL)
+    virtio_gpu_virgl_dp_destroy(g);
+#endif
     qemu_bh_delete(g->update_cursor_bh);
     g_free(g->set_cursor_bitmap);
     g_free(g->define_cursor_bitmap);

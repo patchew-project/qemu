@@ -102,6 +102,26 @@ struct virtio_gpu_thread_msg {
     } u;
 };
 
+typedef struct VirtIOGPU VirtIOGPU;
+
+typedef struct VirtIOGPUDataPlane {
+    VirtIOGPU *gpu;
+    bool starting;
+    bool started;
+    bool disabled;
+    bool stopping;
+    QEMUBH *notify_guest_bh;
+    unsigned long *batch_notify_vqs;
+    QEMUBH *thread_process_bh;
+
+    EventNotifier thread_to_qemu;
+    EventNotifier qemu_to_thread_ack;
+    struct virtio_gpu_thread_msg thread_msg;
+    QemuMutex thread_msg_lock;
+} VirtIOGPUDataPlane;
+
+#define VIRTIO_GPU_DATA_PLANE_OK(dp) ((dp) && (dp)->started && !(dp)->disabled)
+
 typedef struct VirtIOGPU {
     VirtIODevice parent_obj;
 
@@ -137,6 +157,7 @@ typedef struct VirtIOGPU {
 
     IOThread *iothread;
     QEMUGLContext thread_ctx;
+    VirtIOGPUDataPlane *dp;
 
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
@@ -194,5 +215,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
 void virtio_gpu_virgl_fence_poll(VirtIOGPU *g);
 void virtio_gpu_virgl_reset(VirtIOGPU *g);
 int virtio_gpu_virgl_init(VirtIOGPU *g);
+int virtio_gpu_virgl_dp_create(VirtIOGPU *g, Error **errp);
+void virtio_gpu_virgl_dp_destroy(VirtIOGPU *g);
 
 #endif

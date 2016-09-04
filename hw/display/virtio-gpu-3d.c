@@ -16,6 +16,7 @@
 #include "qemu/iov.h"
 #include "trace.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "qapi/error.h"
 
@@ -630,6 +631,108 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
         }
         dpy_gl_scanout(g->scanout[i].con, 0, false, 0, 0, 0, 0, 0, 0);
     }
+}
+
+static void virtio_gpu_from_thread_read(EventNotifier *n)
+{
+    VirtIOGPUDataPlane *dp = container_of(n, VirtIOGPUDataPlane,
+                                          thread_to_qemu);
+    VirtIOGPU *g = dp->gpu;
+    struct virtio_gpu_thread_msg *qmsg;
+
+    event_notifier_test_and_clear(n);
+
+    qemu_mutex_lock(&dp->thread_msg_lock);
+    qmsg = &dp->thread_msg;
+    qemu_mutex_unlock(&dp->thread_msg_lock);
+
+    switch (qmsg->id) {
+    case VIRTIO_GPU_CMD_SET_SCANOUT:
+        virtio_gpu_do_set_scanout(g, &qmsg->u.ss);
+        break;
+    case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
+        virtio_gpu_do_resource_flush(g, &qmsg->u.fl);
+        break;
+    default:
+        fprintf(stderr, "unknown msg received %d\n", qmsg->id);
+    }
+    event_notifier_set(&dp->qemu_to_thread_ack);
+}
+
+static void notify_guest_vq(int i, void *opaque)
+{
+    VirtIOGPU *g = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(g);
+    VirtQueue *vq = virtio_get_queue(vdev, i);
+
+    if (virtio_should_notify(vdev, vq)) {
+        event_notifier_set(virtio_queue_get_guest_notifier(vq));
+    }
+}
+
+static void notify_guest_bh(void *opaque)
+{
+    VirtIOGPUDataPlane *dp = opaque;
+    VirtIOGPU *g = dp->gpu;
+
+    bitmap_foreach(dp->batch_notify_vqs, 2, notify_guest_vq, g);
+}
+
+static void thread_process_bh(void *opaque)
+{
+    VirtIOGPU *g = opaque;
+
+    virtio_gpu_process_cmdq(g);
+}
+
+int virtio_gpu_virgl_dp_create(VirtIOGPU *g, Error **errp)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(g);
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtIOGPUDataPlane *dp;
+    AioContext *ctx;
+
+    /* Don't try if transport does not support notifiers. */
+    if (!k->set_guest_notifiers || !k->ioeventfd_started) {
+        error_setg(errp,
+                   "device is incompatible with dataplane "
+                   "(transport does not support notifiers)");
+        return -1;
+    }
+
+    dp = g_new0(VirtIOGPUDataPlane, 1);
+    qemu_mutex_init(&dp->thread_msg_lock);
+    ctx = iothread_get_aio_context(g->iothread);
+    dp->thread_process_bh = aio_bh_new(ctx, thread_process_bh, g);
+    dp->notify_guest_bh = aio_bh_new(ctx, notify_guest_bh, dp);
+    dp->batch_notify_vqs = bitmap_new(2);
+
+    event_notifier_init(&dp->thread_to_qemu, 0);
+    event_notifier_init(&dp->qemu_to_thread_ack, 0);
+
+    event_notifier_set_handler(&dp->thread_to_qemu, true,
+                               virtio_gpu_from_thread_read);
+    dp->gpu = g;
+    g->dp = dp;
+
+    return 0;
+}
+
+void virtio_gpu_virgl_dp_destroy(VirtIOGPU *g)
+{
+    VirtIOGPUDataPlane *dp = g->dp;
+
+    if (!dp) {
+        return;
+    }
+
+    g_free(dp->batch_notify_vqs);
+    qemu_bh_delete(dp->notify_guest_bh);
+    qemu_bh_delete(dp->thread_process_bh);
+    event_notifier_cleanup(&dp->thread_to_qemu);
+    event_notifier_cleanup(&dp->qemu_to_thread_ack);
+    g_free(dp);
 }
 
 int virtio_gpu_virgl_init(VirtIOGPU *g)
