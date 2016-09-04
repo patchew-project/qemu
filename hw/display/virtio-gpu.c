@@ -233,6 +233,8 @@ void virtio_gpu_ctrl_response(VirtIOGPU *g,
                               struct virtio_gpu_ctrl_hdr *resp,
                               size_t resp_len)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(g);
+    VirtQueue *vq = virtio_get_queue(vdev, 0);
     size_t s;
 
     if (cmd->cmd_hdr.flags & VIRTIO_GPU_FLAG_FENCE) {
@@ -246,8 +248,8 @@ void virtio_gpu_ctrl_response(VirtIOGPU *g,
                       "%s: response size incorrect %zu vs %zu\n",
                       __func__, s, resp_len);
     }
-    virtqueue_push(cmd->vq, &cmd->elem, s);
-    virtio_notify(VIRTIO_DEVICE(g), cmd->vq);
+    virtqueue_push(vq, &cmd->elem, s);
+    virtio_notify(VIRTIO_DEVICE(g), vq);
     cmd->finished = true;
 }
 
@@ -875,7 +877,6 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
     cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
     while (cmd) {
-        cmd->vq = vq;
         cmd->error = 0;
         cmd->finished = false;
         cmd->waiting = false;

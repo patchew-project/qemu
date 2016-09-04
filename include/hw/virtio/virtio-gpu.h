@@ -75,7 +75,6 @@ struct virtio_gpu_conf {
 
 struct virtio_gpu_ctrl_command {
     VirtQueueElement elem;
-    VirtQueue *vq;
     struct virtio_gpu_ctrl_hdr cmd_hdr;
     uint32_t error;
     bool waiting;
