@@ -1414,6 +1414,10 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         }
     }
     text_console_update_cursor(NULL);
+
+    if (con->hw_ops->gl_register) {
+        con->hw_ops->gl_register(dcl, con->hw, &error_fatal);
+    }
 }
 
 void update_displaychangelistener(DisplayChangeListener *dcl,

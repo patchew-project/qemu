@@ -954,12 +954,31 @@ static void virtio_gpu_gl_block(void *opaque, bool block)
     }
 }
 
+static void virtio_gpu_gl_register(DisplayChangeListener *dcl,
+                                   void *hw, Error **errp)
+{
+    VirtIOGPU *g = hw;
+    QEMUGLParams qparams = {
+        .major_ver = 2,
+    };
+
+    if (g->iothread && !dpy_gl_ctx_is_mt_safe(dcl->con)) {
+        error_setg(errp, "The display does not support a rendering thread");
+        return;
+    }
+
+    if (g->iothread && !g->thread_ctx) {
+        g->thread_ctx = dpy_gl_ctx_create(dcl->con, &qparams);
+    }
+}
+
 const GraphicHwOps virtio_gpu_ops = {
     .invalidate = virtio_gpu_invalidate_display,
     .gfx_update = virtio_gpu_update_display,
     .text_update = virtio_gpu_text_update,
     .ui_info = virtio_gpu_ui_info,
     .gl_block = virtio_gpu_gl_block,
+    .gl_register = virtio_gpu_gl_register,
 };
 
 static const VMStateDescription vmstate_virtio_gpu_scanout = {

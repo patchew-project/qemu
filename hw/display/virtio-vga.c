@@ -76,12 +76,23 @@ static void virtio_vga_gl_block(void *opaque, bool block)
     }
 }
 
+static void virtio_vga_gl_register(DisplayChangeListener *dcl,
+                                   void *hw, Error **errp)
+{
+    VirtIOVGA *vvga = hw;
+
+    if (virtio_gpu_ops.gl_register) {
+        virtio_gpu_ops.gl_register(dcl, &vvga->vdev, errp);
+    }
+}
+
 static const GraphicHwOps virtio_vga_ops = {
     .invalidate = virtio_vga_invalidate_display,
     .gfx_update = virtio_vga_update_display,
     .text_update = virtio_vga_text_update,
     .ui_info = virtio_vga_ui_info,
     .gl_block = virtio_vga_gl_block,
+    .gl_register = virtio_vga_gl_register,
 };
 
 static const VMStateDescription vmstate_virtio_vga = {

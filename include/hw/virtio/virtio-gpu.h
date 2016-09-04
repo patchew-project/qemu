@@ -134,6 +134,7 @@ typedef struct VirtIOGPU {
     int renderer_blocked;
 
     IOThread *iothread;
+    QEMUGLContext thread_ctx;
 
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
