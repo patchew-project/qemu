@@ -223,6 +223,29 @@ static inline int bitmap_intersects(const unsigned long *src1,
     }
 }
 
+static inline void bitmap_foreach(unsigned long *bitmap, int size,
+                                  void (*cb)(int i, void *opaque),
+                                  void *opaque)
+{
+    unsigned long lbitmap[BITS_TO_LONGS(size)];
+    unsigned j;
+
+    memcpy(lbitmap, bitmap, sizeof(lbitmap));
+    memset(bitmap, 0, sizeof(lbitmap));
+
+    for (j = 0; j < size; j += BITS_PER_LONG) {
+        unsigned long bits = lbitmap[j];
+
+        while (bits != 0) {
+            unsigned i = j + ctzl(bits);
+
+            (*cb)(i, opaque);
+
+            bits &= bits - 1; /* clear right-most bit */
+        }
+    }
+}
+
 void bitmap_set(unsigned long *map, long i, long len);
 void bitmap_set_atomic(unsigned long *map, long i, long len);
 void bitmap_clear(unsigned long *map, long start, long nr);
