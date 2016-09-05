@@ -14,7 +14,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
@@ -28,7 +28,7 @@ typedef struct TestOutputVisitorData {
 static void visitor_output_setup(TestOutputVisitorData *data,
                                  const void *unused)
 {
-    data->ov = qmp_output_visitor_new(&data->obj);
+    data->ov = qobject_output_visitor_new(&data->obj);
     g_assert(data->ov);
 }
 
