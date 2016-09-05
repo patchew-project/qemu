@@ -35,6 +35,7 @@
 #include <sys/swap.h>
 #include <linux/capability.h>
 #include <sched.h>
+#include <sys/timex.h>
 #ifdef __ia64__
 int __clone2(int (*fn)(void *), void *child_stack_base,
              size_t stack_size, int flags, void *arg, ...);
@@ -6578,6 +6579,78 @@ static inline abi_long target_ftruncate64(void *cpu_env, abi_long arg1,
 }
 #endif
 
+#ifdef TARGET_NR_adjtimex
+static inline abi_long target_to_host_timex(struct timex *host_buf,
+                                            abi_long target_addr)
+{
+    struct target_timex *target_buf;
+
+    if (!lock_user_struct(VERIFY_READ, target_buf, target_addr, 1)) {
+        return -TARGET_EFAULT;
+    }
+
+    host_buf->modes = tswap32(target_buf->modes);
+    host_buf->offset = tswapal(target_buf->offset);
+    host_buf->freq = tswapal(target_buf->freq);
+    host_buf->maxerror = tswapal(target_buf->maxerror);
+    host_buf->esterror = tswapal(target_buf->esterror);
+    host_buf->status = tswap32(target_buf->status);
+    host_buf->constant = tswapal(target_buf->constant);
+    host_buf->precision = tswapal(target_buf->precision);
+    host_buf->tolerance = tswapal(target_buf->tolerance);
+    host_buf->time.tv_sec = tswapal(target_buf->time.tv_sec);
+    host_buf->time.tv_usec = tswapal(target_buf->time.tv_usec);
+    host_buf->tick = tswapal(target_buf->tick);
+    host_buf->ppsfreq = tswapal(target_buf->ppsfreq);
+    host_buf->jitter = tswapal(target_buf->jitter);
+    host_buf->shift = tswap32(target_buf->shift);
+    host_buf->stabil = tswapal(target_buf->stabil);
+    host_buf->jitcnt = tswapal(target_buf->jitcnt);
+    host_buf->calcnt = tswapal(target_buf->calcnt);
+    host_buf->errcnt = tswapal(target_buf->errcnt);
+    host_buf->stbcnt = tswapal(target_buf->stbcnt);
+    host_buf->tai = tswap32(target_buf->tai);
+
+    unlock_user_struct(target_buf, target_addr, 0);
+    return 0;
+}
+
+static inline abi_long host_to_target_timex(abi_long target_addr,
+                                            struct timex *host_buf)
+{
+    struct target_timex *target_buf;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_buf, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+
+    target_buf->modes = tswap32(host_buf->modes);
+    target_buf->offset = tswapal(host_buf->offset);
+    target_buf->freq = tswapal(host_buf->freq);
+    target_buf->maxerror = tswapal(host_buf->maxerror);
+    target_buf->esterror = tswapal(host_buf->esterror);
+    target_buf->status = tswap32(host_buf->status);
+    target_buf->constant = tswapal(host_buf->constant);
+    target_buf->precision = tswapal(host_buf->precision);
+    target_buf->tolerance = tswapal(host_buf->tolerance);
+    target_buf->time.tv_sec = tswapal(host_buf->time.tv_sec);
+    target_buf->time.tv_usec = tswapal(host_buf->time.tv_usec);
+    target_buf->tick = tswapal(host_buf->tick);
+    target_buf->ppsfreq = tswapal(host_buf->ppsfreq);
+    target_buf->jitter = tswapal(host_buf->jitter);
+    target_buf->shift = tswap32(host_buf->shift);
+    target_buf->stabil = tswapal(host_buf->stabil);
+    target_buf->jitcnt = tswapal(host_buf->jitcnt);
+    target_buf->calcnt = tswapal(host_buf->calcnt);
+    target_buf->errcnt = tswapal(host_buf->errcnt);
+    target_buf->stbcnt = tswapal(host_buf->stbcnt);
+    target_buf->tai = tswap32(host_buf->tai);
+
+    unlock_user_struct(target_buf, target_addr, 1);
+    return 0;
+}
+#endif
+
 static inline abi_long target_to_host_timespec(struct timespec *host_ts,
                                                abi_ulong target_addr)
 {
@@ -9419,8 +9492,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
 #endif
+#ifdef TARGET_NR_adjtimex
     case TARGET_NR_adjtimex:
-        goto unimplemented;
+        {
+            struct timex host_buf;
+
+            if (target_to_host_timex(&host_buf, arg1) != 0) {
+                goto efault;
+            }
+            ret = get_errno(adjtimex(&host_buf));
+            if (!is_error(ret) && arg1) {
+                if (host_to_target_timex(arg1, &host_buf) != 0) {
+                    goto efault;
+                }
+            }
+        }
+        break;
+#endif
 #ifdef TARGET_NR_create_module
     case TARGET_NR_create_module:
 #endif
