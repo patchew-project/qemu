@@ -980,16 +980,16 @@ ETEXI
 
     {
         .name       = "migrate_set_downtime",
-        .args_type  = "value:T",
+        .args_type  = "value:i",
         .params     = "value",
-        .help       = "set maximum tolerated downtime (in seconds) for migrations",
+        .help       = "set maximum tolerated downtime (in milliseconds) for migrations",
         .mhandler.cmd = hmp_migrate_set_downtime,
     },
 
 STEXI
-@item migrate_set_downtime @var{second}
+@item migrate_set_downtime @var{milliseconds}
 @findex migrate_set_downtime
-Set maximum tolerated downtime (in seconds) for migration.
+Set maximum tolerated downtime (in milliseconds) for migration.
 ETEXI
 
     {
