@@ -44,6 +44,9 @@
 #define BUFFER_DELAY     100
 #define XFER_LIMIT_RATIO (1000 / BUFFER_DELAY)
 
+/* Amount of nanoseconds we are willing to wait for migration to be down. */
+#define DEFAULT_MIGRATE_SET_DOWNTIME 300000000
+
 /* Default compression thread count */
 #define DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT 8
 /* Default decompression thread count, usually decompression is at
@@ -80,7 +83,6 @@ MigrationState *migrate_get_current(void)
     static bool once;
     static MigrationState current_migration = {
         .state = MIGRATION_STATUS_NONE,
-        .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
         .parameters = {
@@ -89,6 +91,8 @@ MigrationState *migrate_get_current(void)
             .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
             .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
             .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+            .max_bandwidth = MAX_THROTTLE,
+            .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
         },
     };
 
@@ -566,6 +570,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
     params->tls_creds = g_strdup(s->parameters.tls_creds);
     params->tls_hostname = g_strdup(s->parameters.tls_hostname);
+    params->max_bandwidth = s->parameters.max_bandwidth;
+    params->downtime_limit = s->parameters.downtime_limit;
 
     return params;
 }
@@ -773,6 +779,10 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 const char *tls_creds,
                                 bool has_tls_hostname,
                                 const char *tls_hostname,
+                                bool has_max_bandwidth,
+                                int64_t max_bandwidth,
+                                bool has_downtime_limit,
+                                double downtime_limit,
                                 Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -831,6 +841,12 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     if (has_tls_hostname) {
         g_free(s->parameters.tls_hostname);
         s->parameters.tls_hostname = g_strdup(tls_hostname);
+    }
+    if (has_max_bandwidth) {
+        qmp_migrate_set_speed(max_bandwidth, NULL);
+    }
+    if (has_downtime_limit) {
+        qmp_migrate_set_downtime(downtime_limit, NULL);
     }
 }
 
@@ -1175,18 +1191,24 @@ void qmp_migrate_set_speed(int64_t value, Error **errp)
     }
 
     s = migrate_get_current();
-    s->bandwidth_limit = value;
+    s->parameters.max_bandwidth = value;
     if (s->to_dst_file) {
         qemu_file_set_rate_limit(s->to_dst_file,
-                                 s->bandwidth_limit / XFER_LIMIT_RATIO);
+                            s->parameters.max_bandwidth / XFER_LIMIT_RATIO);
     }
 }
 
 void qmp_migrate_set_downtime(double value, Error **errp)
 {
+    MigrationState *s;
+
     value *= 1e9;
     value = MAX(0, MIN(UINT64_MAX, value));
+
+    s = migrate_get_current();
+
     max_downtime = (uint64_t)value;
+    s->parameters.downtime_limit = max_downtime;
 }
 
 bool migrate_postcopy_ram(void)
@@ -1858,7 +1880,7 @@ void migrate_fd_connect(MigrationState *s)
 
     qemu_file_set_blocking(s->to_dst_file, true);
     qemu_file_set_rate_limit(s->to_dst_file,
-                             s->bandwidth_limit / XFER_LIMIT_RATIO);
+                             s->parameters.max_bandwidth / XFER_LIMIT_RATIO);
 
     /* Notify before starting migration thread */
     notifier_list_notify(&migration_state_notifiers, s);
