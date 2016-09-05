@@ -57,6 +57,7 @@ typedef enum {
     IOMMU_RO   = 1,
     IOMMU_WO   = 2,
     IOMMU_RW   = 3,
+    IOMMU_ACCESS_INVALID = 4,
 } IOMMUAccessFlags;
 
 struct IOMMUTLBEntry {
@@ -202,6 +203,7 @@ struct MemoryRegion {
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
     NotifierList iommu_notify;
+    IOMMUAccessFlags iommu_notify_flag;
 };
 
 /**
@@ -611,9 +613,11 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr);
  * @entry: the new entry in the IOMMU translation table.  The entry
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
+ * @flag: type of IOMMU notification (IOMMU_RW, IOMMU_NONE)
  */
 void memory_region_notify_iommu(MemoryRegion *mr,
-                                IOMMUTLBEntry entry);
+                                IOMMUTLBEntry entry,
+                                IOMMUAccessFlags flag);
 
 /**
  * memory_region_register_iommu_notifier: register a notifier for changes to

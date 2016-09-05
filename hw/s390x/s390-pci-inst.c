@@ -616,7 +616,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             goto out;
         }
 
-        memory_region_notify_iommu(mr, entry);
+        memory_region_notify_iommu(mr, entry, IOMMU_RW);
         start += entry.addr_mask + 1;
     }
 

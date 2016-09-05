@@ -1418,6 +1418,7 @@ void memory_region_init_iommu(MemoryRegion *mr,
     memory_region_init(mr, owner, name, size);
     mr->iommu_ops = ops,
     mr->terminates = true;  /* then re-forwards */
+    mr->iommu_notify_flag = IOMMU_ACCESS_INVALID;
     notifier_list_init(&mr->iommu_notify);
 }
 
@@ -1520,6 +1521,7 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n,
     if (mr->iommu_ops->notify_started &&
         QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
         mr->iommu_ops->notify_started(mr, flag);
+        mr->iommu_notify_flag = flag;
     }
     notifier_list_add(&mr->iommu_notify, n);
 }
@@ -1560,13 +1562,15 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n)
     if (mr->iommu_ops->notify_stopped &&
         QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
         mr->iommu_ops->notify_stopped(mr);
+        mr->iommu_notify_flag = IOMMU_ACCESS_INVALID;
     }
 }
 
 void memory_region_notify_iommu(MemoryRegion *mr,
-                                IOMMUTLBEntry entry)
+                                IOMMUTLBEntry entry, IOMMUAccessFlags flag)
 {
     assert(memory_region_is_iommu(mr));
+    assert(flag == mr->iommu_notify_flag);
     notifier_list_notify(&mr->iommu_notify, &entry);
 }
 
