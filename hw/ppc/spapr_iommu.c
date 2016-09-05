@@ -156,7 +156,8 @@ static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)
     return 1ULL << tcet->page_shift;
 }
 
-static void spapr_tce_notify_started(MemoryRegion *iommu)
+static void spapr_tce_notify_started(MemoryRegion *iommu,
+                                     IOMMUAccessFlags flag)
 {
     spapr_tce_set_need_vfio(container_of(iommu, sPAPRTCETable, iommu), true);
 }

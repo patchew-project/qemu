@@ -154,7 +154,7 @@ struct MemoryRegionIOMMUOps {
     /* Returns minimum supported page size */
     uint64_t (*get_min_page_size)(MemoryRegion *iommu);
     /* Called when the first notifier is set */
-    void (*notify_started)(MemoryRegion *iommu);
+    void (*notify_started)(MemoryRegion *iommu, IOMMUAccessFlags flag);
     /* Called when the last notifier is removed */
     void (*notify_stopped)(MemoryRegion *iommu);
 };
@@ -623,8 +623,12 @@ void memory_region_notify_iommu(MemoryRegion *mr,
  * @n: the notifier to be added; the notifier receives a pointer to an
  *     #IOMMUTLBEntry as the opaque value; the pointer ceases to be
  *     valid on exit from the notifier.
+ * @flag: kind of notifer to request. IOMMU_RW for notifying all
+ *        events (including additions), and IOMMU_NONE for notifying
+ *        cache invalidations only.
  */
-void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
+void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n,
+                                           IOMMUAccessFlags flag);
 
 /**
  * memory_region_iommu_replay: replay existing IOMMU translations to

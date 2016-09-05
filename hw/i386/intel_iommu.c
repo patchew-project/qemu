@@ -1974,7 +1974,8 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void vtd_iommu_notify_started(MemoryRegion *iommu)
+static void vtd_iommu_notify_started(MemoryRegion *iommu,
+                                     IOMMUAccessFlags flag)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
 

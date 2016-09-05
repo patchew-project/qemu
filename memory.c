@@ -1513,11 +1513,13 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
-void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
+void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n,
+                                           IOMMUAccessFlags flag)
 {
+    assert(flag == IOMMU_NONE || flag == IOMMU_RW);
     if (mr->iommu_ops->notify_started &&
         QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
-        mr->iommu_ops->notify_started(mr);
+        mr->iommu_ops->notify_started(mr, flag);
     }
     notifier_list_add(&mr->iommu_notify, n);
 }

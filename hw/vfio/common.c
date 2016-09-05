@@ -456,7 +456,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
         giommu->n.notify = vfio_iommu_map_notify;
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
 
-        memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);
+        memory_region_register_iommu_notifier(giommu->iommu, &giommu->n,
+                                              IOMMU_RW);
         memory_region_iommu_replay(giommu->iommu, &giommu->n, false);
 
         return;
