@@ -964,35 +964,6 @@ Set cache size to @var{value} (in bytes) for xbzrle migrations.
 ETEXI
 
     {
-        .name       = "migrate_set_speed",
-        .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set maximum speed (in bytes) for migrations. "
-	"Defaults to MB if no size suffix is specified, ie. B/K/M/G/T",
-        .mhandler.cmd = hmp_migrate_set_speed,
-    },
-
-STEXI
-@item migrate_set_speed @var{value}
-@findex migrate_set_speed
-Set maximum speed to @var{value} (in bytes) for migrations.
-ETEXI
-
-    {
-        .name       = "migrate_set_downtime",
-        .args_type  = "value:T",
-        .params     = "value",
-        .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .mhandler.cmd = hmp_migrate_set_downtime,
-    },
-
-STEXI
-@item migrate_set_downtime @var{second}
-@findex migrate_set_downtime
-Set maximum tolerated downtime (in seconds) for migration.
-ETEXI
-
-    {
         .name       = "migrate_set_capability",
         .args_type  = "capability:s,state:b",
         .params     = "capability state",
@@ -1009,15 +980,15 @@ ETEXI
 
     {
         .name       = "migrate_set_parameter",
-        .args_type  = "parameter:s,value:s",
-        .params     = "parameter value",
+        .args_type  = "parameter:s,value:s?,speed:o?",
+        .params     = "parameter value speed",
         .help       = "Set the parameter for migration",
         .mhandler.cmd = hmp_migrate_set_parameter,
         .command_completion = migrate_set_parameter_completion,
     },
 
 STEXI
-@item migrate_set_parameter @var{parameter} @var{value}
+@item migrate_set_parameter @var{parameter} @var{value} @var{speed}
 @findex migrate_set_parameter
 Set the parameter @var{parameter} for migration.
 ETEXI

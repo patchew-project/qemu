@@ -784,52 +784,6 @@ Example:
 EQMP
 
     {
-        .name       = "migrate_set_speed",
-        .args_type  = "value:o",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_speed,
-    },
-
-SQMP
-migrate_set_speed
------------------
-
-Set maximum speed for migrations.
-
-Arguments:
-
-- "value": maximum speed, in bytes per second (json-int)
-
-Example:
-
--> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
-<- { "return": {} }
-
-EQMP
-
-    {
-        .name       = "migrate_set_downtime",
-        .args_type  = "value:T",
-        .mhandler.cmd_new = qmp_marshal_migrate_set_downtime,
-    },
-
-SQMP
-migrate_set_downtime
---------------------
-
-Set maximum tolerated downtime (in seconds) for migrations.
-
-Arguments:
-
-- "value": maximum downtime (json-number)
-
-Example:
-
--> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
-<- { "return": {} }
-
-EQMP
-
-    {
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
@@ -3790,6 +3744,9 @@ Set migration parameters
                           throttled for auto-converge (json-int)
 - "cpu-throttle-increment": set throttle increasing percentage for
                             auto-converge (json-int)
+- "migrate-set-speed": set maximum speed for migrations (json-int)
+- "migrate-set-downtime": set maximum tolerated downtime (in seconds) for
+                          migrations (json-number)
 
 Arguments:
 
@@ -3803,7 +3760,7 @@ EQMP
     {
         .name       = "migrate-set-parameters",
         .args_type  =
-            "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?",
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?,migrate-set-speed:i?,migrate-set-downtime:T?",
         .mhandler.cmd_new = qmp_marshal_migrate_set_parameters,
     },
 SQMP

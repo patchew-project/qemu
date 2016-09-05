@@ -637,12 +637,17 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @migrate-set-speed: to set maximum speed for migration. A value lesser than
+#                     zero will be automatically round upto zero.
+#
+# @migrate-set-downtime: set maximum tolerated downtime for migration.
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
-           'tls-creds', 'tls-hostname'] }
+           'tls-creds', 'tls-hostname', 'migrate-set-speed',
+           'migrate-set-downtime'] }
 
 #
 # @migrate-set-parameters
@@ -678,6 +683,11 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @migrate-set-speed: to set maximum speed for migration. A value lesser than
+#                     zero will be automatically round upto zero.
+#
+# @migrate-set-downtime: set maximum tolerated downtime for migration.
+#
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters',
@@ -687,7 +697,9 @@
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'str',
-            '*tls-hostname': 'str'} }
+            '*tls-hostname': 'str',
+            '*migrate-set-speed': 'int',
+            '*migrate-set-downtime': 'number'} }
 
 #
 # @MigrationParameters
@@ -721,6 +733,11 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @migrate-set-speed: to set maximum speed for migration. A value lesser than
+#                     zero will be automatically round upto zero.
+#
+# @migrate-set-downtime: set maximum tolerated downtime for migration.
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -730,7 +747,9 @@
             'cpu-throttle-initial': 'int',
             'cpu-throttle-increment': 'int',
             'tls-creds': 'str',
-            'tls-hostname': 'str'} }
+            'tls-hostname': 'str',
+            'migrate-set-speed': 'int',
+            'migrate-set-downtime': 'int'} }
 ##
 # @query-migrate-parameters
 #
@@ -1802,34 +1821,6 @@
 # Since: 0.14.0
 ##
 { 'command': 'migrate_cancel' }
-
-##
-# @migrate_set_downtime
-#
-# Set maximum tolerated downtime for migration.
-#
-# @value: maximum downtime in seconds
-#
-# Returns: nothing on success
-#
-# Since: 0.14.0
-##
-{ 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
-
-##
-# @migrate_set_speed
-#
-# Set maximum speed for migration.
-#
-# @value: maximum speed in bytes.
-#
-# Returns: nothing on success
-#
-# Notes: A value lesser than zero will be automatically round up to zero.
-#
-# Since: 0.14.0
-##
-{ 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
 
 ##
 # @migrate-set-cache-size

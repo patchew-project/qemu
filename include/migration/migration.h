@@ -129,7 +129,6 @@ struct MigrationSrcPageRequest {
 
 struct MigrationState
 {
-    int64_t bandwidth_limit;
     size_t bytes_xfer;
     size_t xfer_limit;
     QemuThread thread;
@@ -204,6 +203,10 @@ void migration_tls_channel_connect(MigrationState *s,
                                    Error **errp);
 
 uint64_t migrate_max_downtime(void);
+
+void migrate_set_preferred_speed(int64_t value, Error **errp);
+
+void migrate_set_expected_downtime(double value, Error **errp);
 
 void exec_start_incoming_migration(const char *host_port, Error **errp);
 
