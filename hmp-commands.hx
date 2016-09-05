@@ -1009,15 +1009,15 @@ ETEXI
 
     {
         .name       = "migrate_set_parameter",
-        .args_type  = "parameter:s,value:s",
-        .params     = "parameter value",
+        .args_type  = "parameter:s,value:s?,speed:o?",
+        .params     = "parameter value speed",
         .help       = "Set the parameter for migration",
         .mhandler.cmd = hmp_migrate_set_parameter,
         .command_completion = migrate_set_parameter_completion,
     },
 
 STEXI
-@item migrate_set_parameter @var{parameter} @var{value}
+@item migrate_set_parameter @var{parameter} @var{value} @var{speed}
 @findex migrate_set_parameter
 Set the parameter @var{parameter} for migration.
 ETEXI

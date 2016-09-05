@@ -3790,7 +3790,9 @@ Set migration parameters
                           throttled for auto-converge (json-int)
 - "cpu-throttle-increment": set throttle increasing percentage for
                             auto-converge (json-int)
-
+- "migrate-set-speed": set maximum speed for migrations (json-octets)
+- "migrate-set-downtime": set maximum tolerated downtime (in seconds) for
+                          migrations (json-number)
 Arguments:
 
 Example:
@@ -3803,7 +3805,7 @@ EQMP
     {
         .name       = "migrate-set-parameters",
         .args_type  =
-            "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?",
+            "compress-level:i?,compress-threads:i?,decompress-threads:i?,cpu-throttle-initial:i?,cpu-throttle-increment:i?,migrate-set-speed:o?,migrate-set-downtime:T?",
         .mhandler.cmd_new = qmp_marshal_migrate_set_parameters,
     },
 SQMP
@@ -3820,6 +3822,9 @@ Query current migration parameters
                                     throttled (json-int)
          - "cpu-throttle-increment" : throttle increasing percentage for
                                       auto-converge (json-int)
+         - "migrate-set-speed" : maximium migration speed (json-octets)
+         - "migration-set-downtime" : maximum tolerated downtime of migration
+                                      (json-number)
 
 Arguments:
 
@@ -3832,7 +3837,9 @@ Example:
          "cpu-throttle-increment": 10,
          "compress-threads": 8,
          "compress-level": 1,
-         "cpu-throttle-initial": 20
+         "cpu-throttle-initial": 20,
+         "migration-set-speed": 33554432,
+         "migration-set-downtime": 300000000
       }
    }
 
