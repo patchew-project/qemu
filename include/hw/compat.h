@@ -1,6 +1,8 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
+#define HW_COMPAT_2_7
+
 #define HW_COMPAT_2_6 \
     {\
         .driver   = "virtio-mmio",\
