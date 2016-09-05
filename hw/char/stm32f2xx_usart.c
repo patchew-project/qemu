@@ -156,7 +156,6 @@ static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
                 qemu_chr_fe_write_all(s->chr, &ch, 1);
             }
             s->usart_sr |= USART_SR_TC;
-            s->usart_sr &= ~USART_SR_TXE;
         }
         return;
     case USART_BRR:
@@ -168,6 +167,12 @@ static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
                 s->usart_sr & USART_SR_RXNE) {
                 qemu_set_irq(s->irq, 1);
             }
+
+            if (s->usart_cr1 & USART_CR1_TXEIE &&
+                s->usart_sr & USART_SR_TXE) {
+                qemu_set_irq(s->irq, 1);
+            }
+
         return;
     case USART_CR2:
         s->usart_cr2 = value;

@@ -44,6 +44,7 @@
 #define USART_SR_RXNE (1 << 5)
 
 #define USART_CR1_UE  (1 << 13)
+#define USART_CR1_TXEIE (1 << 7)
 #define USART_CR1_RXNEIE  (1 << 5)
 #define USART_CR1_TE  (1 << 3)
 #define USART_CR1_RE  (1 << 2)
