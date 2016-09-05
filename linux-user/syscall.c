@@ -9139,6 +9139,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif
+#ifdef TARGET_NR_setitimer
     case TARGET_NR_setitimer:
         {
             struct itimerval value, ovalue, *pvalue;
@@ -9162,6 +9163,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#endif
+#ifdef TARGET_NR_getitimer
     case TARGET_NR_getitimer:
         {
             struct itimerval value;
@@ -9176,6 +9179,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#endif
 #ifdef TARGET_NR_stat
     case TARGET_NR_stat:
         if (!(p = lock_user_string(arg1)))
@@ -9242,6 +9246,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                          arg6, arg7, arg8, 0);
         break;
 #endif
+#ifdef TARGET_NR_wait4
     case TARGET_NR_wait4:
         {
             int status;
@@ -9269,6 +9274,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#endif
 #ifdef TARGET_NR_swapoff
     case TARGET_NR_swapoff:
         if (!(p = lock_user_string(arg1)))
@@ -9277,6 +9283,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg1, 0);
         break;
 #endif
+#ifdef TARGET_NR_sysinfo
     case TARGET_NR_sysinfo:
         {
             struct target_sysinfo *target_value;
@@ -9304,6 +9311,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#endif
 #ifdef TARGET_NR_ipc
     case TARGET_NR_ipc:
 	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
@@ -9364,9 +9372,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_shmdt(arg1);
         break;
 #endif
+#ifdef TARGET_NR_fsync
     case TARGET_NR_fsync:
         ret = get_errno(fsync(arg1));
         break;
+#endif
+#ifdef TARGET_NR_clone
     case TARGET_NR_clone:
         /* Linux manages to have three different orderings for its
          * arguments to clone(); the BACKWARDS and BACKWARDS2 defines
@@ -9384,6 +9395,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
 #endif
         break;
+#endif
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group:
