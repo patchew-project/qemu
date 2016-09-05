@@ -41,6 +41,7 @@ static void visitor_input_teardown(TestInputVisitorData *data,
    function so that the JSON string used by the tests are kept in the test
    functions (and not in main()). */
 static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
+                                                 bool strict, bool autocast,
                                                  const char *json_string,
                                                  va_list *ap)
 {
@@ -49,9 +50,29 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
-    data->qiv = qobject_input_visitor_new(data->obj, false);
+    if (autocast) {
+        assert(strict);
+        data->qiv = qobject_string_input_visitor_new(data->obj);
+    } else {
+        data->qiv = qobject_input_visitor_new(data->obj, strict);
+    }
     g_assert(data->qiv);
     return data->qiv;
+}
+
+static GCC_FMT_ATTR(4, 5)
+Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
+                                      bool strict, bool autocast,
+                                      const char *json_string, ...)
+{
+    Visitor *v;
+    va_list ap;
+
+    va_start(ap, json_string);
+    v = visitor_input_test_init_internal(data, strict, autocast,
+                                         json_string, &ap);
+    va_end(ap);
+    return v;
 }
 
 static GCC_FMT_ATTR(2, 3)
@@ -62,7 +83,8 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, json_string, &ap);
+    v = visitor_input_test_init_internal(data, true, false,
+                                         json_string, &ap);
     va_end(ap);
     return v;
 }
@@ -77,7 +99,8 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    return visitor_input_test_init_internal(data, json_string, NULL);
+    return visitor_input_test_init_internal(data, true, false,
+                                            json_string, NULL);
 }
 
 static void test_visitor_in_int(TestInputVisitorData *data,
@@ -109,6 +132,33 @@ static void test_visitor_in_int_overflow(TestInputVisitorData *data,
     error_free_or_abort(&err);
 }
 
+static void test_visitor_in_int_autocast(TestInputVisitorData *data,
+                                         const void *unused)
+{
+    int64_t res = 0, value = -42;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, true,
+                                     "\"-42\"");
+
+    visit_type_int(v, NULL, &res, &error_abort);
+    g_assert_cmpint(res, ==, value);
+}
+
+static void test_visitor_in_int_noautocast(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    int64_t res = 0;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"-42\"");
+
+    visit_type_int(v, NULL, &res, &err);
+    g_assert(err != NULL);
+    error_free(err);
+}
+
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
@@ -121,6 +171,32 @@ static void test_visitor_in_bool(TestInputVisitorData *data,
     g_assert_cmpint(res, ==, true);
 }
 
+static void test_visitor_in_bool_autocast(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    bool res = false;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, true, "\"yes\"");
+
+    visit_type_bool(v, NULL, &res, &error_abort);
+    g_assert_cmpint(res, ==, true);
+}
+
+static void test_visitor_in_bool_noautocast(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    bool res = false;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"true\"");
+
+    visit_type_bool(v, NULL, &res, &err);
+    g_assert(err != NULL);
+    error_free(err);
+}
+
 static void test_visitor_in_number(TestInputVisitorData *data,
                                    const void *unused)
 {
@@ -131,6 +207,58 @@ static void test_visitor_in_number(TestInputVisitorData *data,
 
     visit_type_number(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_number_autocast(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    double res = 0, value = 3.14;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, true, "\"3.14\"");
+
+    visit_type_number(v, NULL, &res, &error_abort);
+    g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_number_noautocast(TestInputVisitorData *data,
+                                              const void *unused)
+{
+    double res = 0;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"3.14\"");
+
+    visit_type_number(v, NULL, &res, &err);
+    g_assert(err != NULL);
+    error_free(err);
+}
+
+static void test_visitor_in_size_autocast(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    uint64_t res, value = 500 * 1024 * 1024;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, true, "\"500M\"");
+
+    visit_type_size(v, NULL, &res, &error_abort);
+    g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_size_noautocast(TestInputVisitorData *data,
+                                            const void *unused)
+{
+    uint64_t res = 0;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init(data, "\"500M\"");
+
+    visit_type_size(v, NULL, &res, &err);
+    g_assert(err != NULL);
+    error_free(err);
 }
 
 static void test_visitor_in_string(TestInputVisitorData *data,
@@ -289,7 +417,7 @@ static void test_visitor_in_null(TestInputVisitorData *data,
      * when input is not null.
      */
 
-    v = visitor_input_test_init(data, "{ 'a': null, 'b': '' }");
+    v = visitor_input_test_init_full(data, false, false, "{ 'a': null, 'b': '' }");
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_type_null(v, "a", &error_abort);
     visit_type_str(v, "a", &tmp, &err);
@@ -841,10 +969,26 @@ int main(int argc, char **argv)
                            &in_visitor_data, test_visitor_in_int);
     input_visitor_test_add("/visitor/input/int_overflow",
                            &in_visitor_data, test_visitor_in_int_overflow);
+    input_visitor_test_add("/visitor/input/int_autocast",
+                           &in_visitor_data, test_visitor_in_int_autocast);
+    input_visitor_test_add("/visitor/input/int_noautocast",
+                           &in_visitor_data, test_visitor_in_int_noautocast);
     input_visitor_test_add("/visitor/input/bool",
                            &in_visitor_data, test_visitor_in_bool);
+    input_visitor_test_add("/visitor/input/bool_autocast",
+                           &in_visitor_data, test_visitor_in_bool_autocast);
+    input_visitor_test_add("/visitor/input/bool_noautocast",
+                           &in_visitor_data, test_visitor_in_bool_noautocast);
     input_visitor_test_add("/visitor/input/number",
                            &in_visitor_data, test_visitor_in_number);
+    input_visitor_test_add("/visitor/input/number_autocast",
+                           &in_visitor_data, test_visitor_in_number_autocast);
+    input_visitor_test_add("/visitor/input/number_noautocast",
+                           &in_visitor_data, test_visitor_in_number_noautocast);
+    input_visitor_test_add("/visitor/input/size_autocast",
+                           &in_visitor_data, test_visitor_in_size_autocast);
+    input_visitor_test_add("/visitor/input/size_noautocast",
+                           &in_visitor_data, test_visitor_in_size_noautocast);
     input_visitor_test_add("/visitor/input/string",
                            &in_visitor_data, test_visitor_in_string);
     input_visitor_test_add("/visitor/input/enum",
