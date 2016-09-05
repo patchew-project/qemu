@@ -171,6 +171,7 @@ L: qemu-ppc@nongnu.org
 S: Maintained
 F: target-ppc/
 F: hw/ppc/
+F: include/hw/ppc/
 F: disas/ppc.c
 
 S390
@@ -571,6 +572,9 @@ L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/ppc/e500.[hc]
 F: hw/ppc/e500plat.c
+F: include/hw/ppc/ppc_e500.h
+F: include/hw/pci-host/ppce500.h
+F: pc-bios/u-boot.e500
 
 mpc8544ds
 M: Alexander Graf <agraf@suse.de>
@@ -588,6 +592,8 @@ F: hw/ppc/mac_newworld.c
 F: hw/pci-host/uninorth.c
 F: hw/pci-bridge/dec.[hc]
 F: hw/misc/macio/
+F: include/hw/ppc/mac_dbdma.h
+F: hw/nvram/mac_nvram.c
 
 Old World
 M: Alexander Graf <agraf@suse.de>
@@ -615,6 +621,10 @@ F: include/hw/*/spapr*
 F: hw/*/xics*
 F: include/hw/*/xics*
 F: pc-bios/spapr-rtas/*
+F: pc-bios/spapr-rtas.bin
+F: pc-bios/slof.bin
+F: docs/specs/ppc-spapr-hcalls.txt
+F: docs/specs/ppc-spapr-hotplug.txt
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -807,6 +817,7 @@ M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/ppc4*.c
+F: include/hw/ppc/ppc4xx.h
 
 ppce500
 M: Alexander Graf <agraf@suse.de>
