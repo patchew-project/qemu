@@ -35,4 +35,6 @@ int vhost_set_vring_enable(NetClientState * nc, int enable);
 
 uint64_t vhost_net_get_acked_features(VHostNetState *net);
 
+uint64_t vhost_net_get_mtu(struct vhost_net *net);
+
 #endif

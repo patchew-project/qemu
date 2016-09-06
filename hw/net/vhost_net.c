@@ -74,6 +74,7 @@ static const int user_feature_bits[] = {
     VIRTIO_NET_F_HOST_ECN,
     VIRTIO_NET_F_HOST_UFO,
     VIRTIO_NET_F_MRG_RXBUF,
+    VIRTIO_NET_F_MTU,
 
     /* This bit implies RARP isn't sent by QEMU out of band */
     VIRTIO_NET_F_GUEST_ANNOUNCE,
@@ -435,6 +436,11 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
     return 0;
 }
 
+uint64_t vhost_net_get_mtu(struct vhost_net *net)
+{
+    return net->dev.mtu;
+}
+
 #else
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
@@ -498,6 +504,11 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 }
 
 int vhost_set_vring_enable(NetClientState *nc, int enable)
+{
+    return 0;
+}
+
+uint64_t vhost_net_get_mtu(struct vhost_net *net)
 {
     return 0;
 }
