@@ -295,7 +295,7 @@ static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 
 static void vfio_iommu_map_notify(Notifier *n, void *data)
 {
-    VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
+    VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n.notifier);
     VFIOContainer *container = giommu->container;
     IOMMUTLBEntry *iotlb = data;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
@@ -453,7 +453,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
         giommu->iommu_offset = section->offset_within_address_space -
                                section->offset_within_region;
         giommu->container = container;
-        giommu->n.notify = vfio_iommu_map_notify;
+        giommu->n.notifier.notify = vfio_iommu_map_notify;
+        giommu->n.notifier_caps = IOMMU_NOTIFIER_ALL;
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
 
         memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);

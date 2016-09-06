@@ -67,6 +67,27 @@ struct IOMMUTLBEntry {
     IOMMUAccessFlags perm;
 };
 
+/*
+ * Bitmap for differnet IOMMUNotifier capabilities. Each notifier can
+ * register with one or multiple IOMMU Notifier capability bit(s).
+ */
+typedef enum {
+    IOMMU_NOTIFIER_NONE = 0,
+    /* Notify cache invalidations */
+    IOMMU_NOTIFIER_INVALIDATION = 0x1,
+    /* Notify entry changes (newly created entries) */
+    IOMMU_NOTIFIER_CHANGE = 0x2,
+} IOMMUNotifierCap;
+
+#define IOMMU_NOTIFIER_ALL (IOMMU_NOTIFIER_INVALIDATION | \
+                            IOMMU_NOTIFIER_CHANGE)
+
+struct IOMMUNotifier {
+    Notifier notifier;
+    IOMMUNotifierCap notifier_caps;
+};
+typedef struct IOMMUNotifier IOMMUNotifier;
+
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure
  * of some kind. The memory subsystem will bitwise-OR together results
@@ -620,11 +641,13 @@ void memory_region_notify_iommu(MemoryRegion *mr,
  * IOMMU translation entries.
  *
  * @mr: the memory region to observe
- * @n: the notifier to be added; the notifier receives a pointer to an
- *     #IOMMUTLBEntry as the opaque value; the pointer ceases to be
- *     valid on exit from the notifier.
+ * @n: the IOMMUNotifier to be added; the Notifier within the
+ *     IOMMUNotifier receives a pointer to an #IOMMUTLBEntry as the
+ *     opaque value; the pointer ceases to be valid on exit from the
+ *     notifier.
  */
-void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
+void memory_region_register_iommu_notifier(MemoryRegion *mr,
+                                           IOMMUNotifier *n);
 
 /**
  * memory_region_iommu_replay: replay existing IOMMU translations to
@@ -636,7 +659,8 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
  * @is_write: Whether to treat the replay as a translate "write"
  *     through the iommu
  */
-void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write);
+void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+                                bool is_write);
 
 /**
  * memory_region_unregister_iommu_notifier: unregister a notifier for
@@ -646,7 +670,8 @@ void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write);
  *      needs to be called
  * @n: the notifier to be removed.
  */
-void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n);
+void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
+                                             IOMMUNotifier *n);
 
 /**
  * memory_region_name: get a memory region's name

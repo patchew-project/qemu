@@ -1513,13 +1513,16 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
-void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
+void memory_region_register_iommu_notifier(MemoryRegion *mr,
+                                           IOMMUNotifier *n)
 {
+    /* We need to register for at least one bitfield */
+    assert(n->notifier_caps != IOMMU_NOTIFIER_NONE);
     if (mr->iommu_ops->notify_started &&
         QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
         mr->iommu_ops->notify_started(mr);
     }
-    notifier_list_add(&mr->iommu_notify, n);
+    notifier_list_add(&mr->iommu_notify, &n->notifier);
 }
 
 uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
@@ -1531,7 +1534,8 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
     return TARGET_PAGE_SIZE;
 }
 
-void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write)
+void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+                                bool is_write)
 {
     hwaddr addr, granularity;
     IOMMUTLBEntry iotlb;
@@ -1541,7 +1545,7 @@ void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write)
     for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
         iotlb = mr->iommu_ops->translate(mr, addr, is_write);
         if (iotlb.perm != IOMMU_NONE) {
-            n->notify(n, &iotlb);
+            n->notifier.notify(&n->notifier, &iotlb);
         }
 
         /* if (2^64 - MR size) < granularity, it's possible to get an
@@ -1552,9 +1556,10 @@ void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n, bool is_write)
     }
 }
 
-void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n)
+void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
+                                             IOMMUNotifier *n)
 {
-    notifier_remove(n);
+    notifier_remove(&n->notifier);
     if (mr->iommu_ops->notify_stopped &&
         QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
         mr->iommu_ops->notify_stopped(mr);
@@ -1564,8 +1569,24 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr, Notifier *n)
 void memory_region_notify_iommu(MemoryRegion *mr,
                                 IOMMUTLBEntry entry)
 {
+    IOMMUNotifier *iommu_notify;
+    IOMMUNotifierCap request_cap;
+    Notifier *notifier, *next;
+
     assert(memory_region_is_iommu(mr));
-    notifier_list_notify(&mr->iommu_notify, &entry);
+
+    if (entry.perm & IOMMU_RW) {
+        request_cap = IOMMU_NOTIFIER_CHANGE;
+    } else {
+        request_cap = IOMMU_NOTIFIER_INVALIDATION;
+    }
+
+    QLIST_FOREACH_SAFE(notifier, &mr->iommu_notify.notifiers, node, next) {
+        iommu_notify = container_of(notifier, IOMMUNotifier, notifier);
+        if (iommu_notify->notifier_caps & request_cap) {
+            notifier->notify(notifier, &entry);
+        }
+    }
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
