@@ -1736,6 +1736,19 @@ Print QOM properties of object at location @var{path}
 ETEXI
 
     {
+        .name       = "qom-get",
+        .args_type  = "path:s,property:s",
+        .params     = "path property",
+        .help       = "print QOM property",
+        .mhandler.cmd  = hmp_qom_get,
+    },
+
+STEXI
+@item qom-get @var{path} @var{property}
+Print QOM property @var{property} of object at location @var{path}
+ETEXI
+
+    {
         .name       = "qom-set",
         .args_type  = "path:s,property:s,value:s",
         .params     = "path property value",

@@ -22,11 +22,13 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"
+#include "qom/qom-qobject.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qjson.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/util.h"
 #include "qapi-visit.h"
@@ -2060,6 +2062,30 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
             list = list->next;
         }
         qapi_free_ObjectPropertyInfoList(start);
+    }
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_qom_get(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_str(qdict, "path");
+    const char *property = qdict_get_str(qdict, "property");
+    Error *err = NULL;
+    Object *obj;
+    QObject *sub;
+
+    obj = object_resolve_path(path, NULL);
+    if (obj == NULL) {
+        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
+        hmp_handle_error(mon, &err);
+        return;
+    }
+    sub = object_property_get_qobject(obj, property, &err);
+    if (err == NULL) {
+        QString *str = qobject_to_json_pretty(sub);
+        monitor_printf(mon, "%s\n", qstring_get_str(str));
+        QDECREF(str);
     }
     hmp_handle_error(mon, &err);
 }
