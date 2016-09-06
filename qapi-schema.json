@@ -2604,6 +2604,7 @@
     '*fds':        'str',
     '*script':     'str',
     '*downscript': 'str',
+    '*br':         'str',
     '*helper':     'str',
     '*sndbuf':     'size',
     '*vnet_hdr':   'bool',
