@@ -53,8 +53,48 @@ static inline target_ulong addr_add(CPUPPCState *env, target_ulong addr,
     }
 }
 
+/* Reduce the length so that addr + len doesn't cross a page boundary.  */
+static inline uint64_t adj_len_to_page(uint64_t len, uint64_t addr)
+{
+#ifndef CONFIG_USER_ONLY
+    if ((addr & ~TARGET_PAGE_MASK) + len - 1 >= TARGET_PAGE_SIZE) {
+        return -addr & ~TARGET_PAGE_MASK;
+    }
+#endif
+    return len;
+}
+
 void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
+    uint32_t *src;
+    uint64_t len, adjlen;
+
+    if ((addr & 3)) {
+        goto fallback;
+    }
+    len = (32 - reg) << 2;
+    while (len) {
+        src = tlb_vaddr_to_host(env, addr, MMU_DATA_LOAD, env->dmmu_idx);
+        if (!src) {
+            goto fallback;
+        }
+        adjlen = adj_len_to_page(len, addr);
+        len -= adjlen;
+#if defined(HOST_WORDS_BIGENDIAN)
+        memcpy(&env->gpr[reg], src, adjlen);
+        reg += (adjlen >> 2);
+        addr = addr_add(env, addr, adjlen);
+#else
+        while(adjlen) {
+            env->gpr[reg++] = bswap32(*(src++));
+            adjlen -= 4;
+            addr = addr_add(env, addr, 4);
+        }
+#endif
+    }
+    return;
+
+ fallback:
     for (; reg < 32; reg++) {
         if (needs_byteswap(env)) {
             env->gpr[reg] = bswap32(cpu_ldl_data_ra(env, addr, GETPC()));
@@ -67,6 +107,35 @@ void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 
 void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
+    uint32_t *dst;
+    uint64_t len, adjlen;
+
+    if ((addr & 3)) {
+        goto fallback;
+    }
+    len = (32 - reg) << 2;
+    while (len) {
+        dst = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, env->dmmu_idx);
+        if (!dst) {
+            goto fallback;
+        }
+        adjlen = adj_len_to_page(len, addr);
+        len -= adjlen;
+#if defined(HOST_WORDS_BIGENDIAN)
+        memcpy(dst, &env->gpr[reg], adjlen);
+        reg += (adjlen >> 2);
+        addr = addr_add(env, addr, adjlen);
+#else
+        while(adjlen) {
+            *(dst++) = bswap32(env->gpr[reg++]);
+            adjlen -= 4;
+            addr = addr_add(env, addr, 4);
+        }
+#endif
+    }
+    return;
+
+ fallback:
     for (; reg < 32; reg++) {
         if (needs_byteswap(env)) {
             cpu_stl_data_ra(env, addr, bswap32((uint32_t)env->gpr[reg]),
