@@ -27,6 +27,9 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
+#ifdef TARGET_PPC64
+#include "hw/ppc/spapr_rtas.h"
+#endif
 
 #define MAX_IRQ 256
 
@@ -528,6 +531,20 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
+#ifdef TARGET_PPC64
+    } else if (strcmp(words[0], "rtas") == 0) {
+        uint64_t res, args, ret;
+        uint32_t nargs, nret;
+
+        nargs = strtol(words[2], NULL, 0);
+        args = strtoll(words[3], NULL, 0);
+        nret = strtol(words[4], NULL, 0);
+        ret = strtoll(words[5], NULL, 0);
+        res = qtest_rtas_call(words[1], nargs, args, nret, ret);
+
+        qtest_send_prefix(chr);
+        qtest_sendf(chr, "OK %"PRIu64"\n", res);
+#endif
     } else if (qtest_enabled() && strcmp(words[0], "clock_step") == 0) {
         int64_t ns;
 
