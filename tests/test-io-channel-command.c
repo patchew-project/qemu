@@ -18,6 +18,7 @@
  *
  */
 
+#include <glib/gstdio.h>
 #include "qemu/osdep.h"
 #include "io/channel-command.h"
 #include "io-channel-helpers.h"
@@ -26,11 +27,14 @@
 #ifndef WIN32
 static void test_io_channel_command_fifo(bool async)
 {
-#define TEST_FIFO "tests/test-io-channel-command.fifo"
     QIOChannel *src, *dst;
     QIOChannelTest *test;
-    char *srcfifo = g_strdup_printf("PIPE:%s,wronly", TEST_FIFO);
-    char *dstfifo = g_strdup_printf("PIPE:%s,rdonly", TEST_FIFO);
+    char *tmpdir = g_strdup("/tmp/test-io-channel.XXXXXX");
+    g_assert_nonnull(mkdtemp(tmpdir));
+
+    char *fifo = g_strdup_printf("%s/command.fifo", tmpdir);
+    char *srcfifo = g_strdup_printf("PIPE:%s,wronly", fifo);
+    char *dstfifo = g_strdup_printf("PIPE:%s,rdonly", fifo);
     const char *srcargv[] = {
         "/bin/socat", "-", srcfifo, NULL,
     };
@@ -38,11 +42,10 @@ static void test_io_channel_command_fifo(bool async)
         "/bin/socat", dstfifo, "-", NULL,
     };
 
-    unlink(TEST_FIFO);
     if (access("/bin/socat", X_OK) < 0) {
-        return; /* Pretend success if socat is not present */
+        goto end; /* Pretend success if socat is not present */
     }
-    if (mkfifo(TEST_FIFO, 0600) < 0) {
+    if (mkfifo(fifo, 0600) < 0) {
         abort();
     }
     src = QIO_CHANNEL(qio_channel_command_new_spawn(srcargv,
@@ -59,9 +62,12 @@ static void test_io_channel_command_fifo(bool async)
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
 
+end:
+    g_free(fifo);
     g_free(srcfifo);
     g_free(dstfifo);
-    unlink(TEST_FIFO);
+    g_rmdir(tmpdir);
+    g_free(tmpdir);
 }
 
 
