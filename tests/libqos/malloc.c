@@ -12,6 +12,9 @@
 
 #include "qemu/osdep.h"
 #include "libqos/malloc.h"
+#include "libqos/malloc-pc.h"
+#include "libqos/malloc-ppc64.h"
+#include "libqtest.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
 
@@ -374,4 +377,43 @@ void migrate_allocator(QGuestAllocator *src,
     node = mlist_new(src->start, src->end - src->start);
     QTAILQ_INSERT_HEAD(src->free, node, MLIST_ENTNAME);
     return;
+}
+
+QGuestAllocator *machine_alloc_init(void)
+{
+    const char *arch = qtest_get_arch();
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        return pc_alloc_init();
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        return ppc64_alloc_init();
+    }
+    return NULL;
+}
+
+QGuestAllocator *machine_alloc_init_flags(QAllocOpts flags)
+{
+    const char *arch = qtest_get_arch();
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        return pc_alloc_init_flags(flags);
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        return ppc64_alloc_init_flags(flags);
+    }
+    return NULL;
+}
+
+void machine_alloc_uninit(QGuestAllocator *allocator)
+{
+    const char *arch = qtest_get_arch();
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        pc_alloc_uninit(allocator);
+        return;
+    }
+    if (strcmp(arch, "ppc64") == 0) {
+        ppc64_alloc_uninit(allocator);
+    }
 }
