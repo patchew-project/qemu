@@ -66,6 +66,7 @@ static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
     case 1: return (type) cpu_##insn##_super_ra(env, addr, retaddr);    \
     default:                                                            \
     case 2: return (type) cpu_##insn##_user_ra(env, addr, retaddr);     \
+    case 3: return (type) cpu_##insn##_error_ra(env, addr, retaddr);    \
     }                                                                   \
 }
 #endif
@@ -93,6 +94,7 @@ static inline void do_##name(CPUMIPSState *env, target_ulong addr,      \
     case 1: cpu_##insn##_super_ra(env, addr, val, retaddr); break;      \
     default:                                                            \
     case 2: cpu_##insn##_user_ra(env, addr, val, retaddr); break;       \
+    case 3: cpu_##insn##_error_ra(env, addr, val, retaddr); break;      \
     }                                                                   \
 }
 #endif
