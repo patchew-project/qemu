@@ -32,6 +32,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
     VHOST_USER_PROTOCOL_F_RARP = 2,
     VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
+    VHOST_USER_PROTOCOL_F_MTU = 4,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -59,6 +60,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_QUEUE_NUM = 17,
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_SEND_RARP = 19,
+    VHOST_USER_GET_MTU = 20,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -186,6 +188,7 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
     case VHOST_USER_RESET_OWNER:
     case VHOST_USER_SET_MEM_TABLE:
     case VHOST_USER_GET_QUEUE_NUM:
+    case VHOST_USER_GET_MTU:
         return true;
     default:
         return false;
@@ -598,6 +601,14 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
         if (dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ)) {
             err = vhost_user_get_u64(dev, VHOST_USER_GET_QUEUE_NUM,
                                      &dev->max_queues);
+            if (err < 0) {
+                return err;
+            }
+        }
+
+        /* query the MTU we support if backend supports MTU feature */
+        if (dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MTU)) {
+            err = vhost_user_get_u64(dev, VHOST_USER_GET_MTU, &dev->mtu);
             if (err < 0) {
                 return err;
             }
