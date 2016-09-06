@@ -1978,10 +1978,14 @@ static void vtd_iommu_notifier_add(MemoryRegion *iommu, IOMMUNotifier *n)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
 
-    hw_error("Device at bus %s addr %02x.%d requires iommu notifier which "
-             "is currently not supported by intel-iommu emulation",
-             vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
-             PCI_FUNC(vtd_as->devfn));
+    if (n->notifier_caps & IOMMU_NOTIFIER_CHANGE) {
+        error_report("Device at bus %s addr %02x.%d requires iommu "
+                     "notifier which is currently not supported by "
+                     "intel-iommu emulation",
+                     vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
+                     PCI_FUNC(vtd_as->devfn));
+        exit(1);
+    }
 }
 
 static const VMStateDescription vtd_vmstate = {
