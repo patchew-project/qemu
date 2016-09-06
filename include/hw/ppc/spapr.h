@@ -564,6 +564,7 @@ struct sPAPRTCETable {
     MemoryRegion root, iommu;
     struct VIOsPAPRDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(sPAPRTCETable) list;
+    int iommu_users;
 };
 
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);

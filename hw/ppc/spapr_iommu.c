@@ -156,14 +156,20 @@ static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)
     return 1ULL << tcet->page_shift;
 }
 
-static void spapr_tce_notify_started(MemoryRegion *iommu)
+static void spapr_tce_notifier_add(MemoryRegion *iommu, IOMMUNotifier *n)
 {
-    spapr_tce_set_need_vfio(container_of(iommu, sPAPRTCETable, iommu), true);
+    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+    if (tcet->iommu_users++ == 0) {
+        spapr_tce_set_need_vfio(tcet, true);
+    }
 }
 
-static void spapr_tce_notify_stopped(MemoryRegion *iommu)
+static void spapr_tce_notifier_del(MemoryRegion *iommu)
 {
-    spapr_tce_set_need_vfio(container_of(iommu, sPAPRTCETable, iommu), false);
+    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+    if (--tcet->iommu_users == 0) {
+        spapr_tce_set_need_vfio(tcet, false);
+    }
 }
 
 static int spapr_tce_table_post_load(void *opaque, int version_id)
@@ -246,8 +252,8 @@ static const VMStateDescription vmstate_spapr_tce_table = {
 static MemoryRegionIOMMUOps spapr_iommu_ops = {
     .translate = spapr_tce_translate_iommu,
     .get_min_page_size = spapr_tce_get_min_page_size,
-    .notify_started = spapr_tce_notify_started,
-    .notify_stopped = spapr_tce_notify_stopped,
+    .notifier_add = spapr_tce_notifier_add,
+    .notifier_del = spapr_tce_notifier_del,
 };
 
 static int spapr_tce_table_realize(DeviceState *dev)

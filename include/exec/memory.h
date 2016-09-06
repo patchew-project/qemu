@@ -174,10 +174,10 @@ struct MemoryRegionIOMMUOps {
     IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr, bool is_write);
     /* Returns minimum supported page size */
     uint64_t (*get_min_page_size)(MemoryRegion *iommu);
-    /* Called when the first notifier is set */
-    void (*notify_started)(MemoryRegion *iommu);
-    /* Called when the last notifier is removed */
-    void (*notify_stopped)(MemoryRegion *iommu);
+    /* Called when someone registers to the notify list */
+    void (*notifier_add)(MemoryRegion *iommu, IOMMUNotifier *n);
+    /* Called when someone unregisters from the notify list */
+    void (*notifier_del)(MemoryRegion *iommu, IOMMUNotifier *n);
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;

@@ -1518,9 +1518,8 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
 {
     /* We need to register for at least one bitfield */
     assert(n->notifier_caps != IOMMU_NOTIFIER_NONE);
-    if (mr->iommu_ops->notify_started &&
-        QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
-        mr->iommu_ops->notify_started(mr);
+    if (mr->iommu_ops->notifier_add) {
+        mr->iommu_ops->notifier_add(mr, n);
     }
     notifier_list_add(&mr->iommu_notify, &n->notifier);
 }
@@ -1560,9 +1559,8 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
                                              IOMMUNotifier *n)
 {
     notifier_remove(&n->notifier);
-    if (mr->iommu_ops->notify_stopped &&
-        QLIST_EMPTY(&mr->iommu_notify.notifiers)) {
-        mr->iommu_ops->notify_stopped(mr);
+    if (mr->iommu_ops->notifier_del) {
+        mr->iommu_ops->notifier_del(mr, n);
     }
 }
 
