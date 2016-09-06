@@ -3,7 +3,7 @@
 
 #include "libqtest.h"
 #include "libqos/pci.h"
-#include "libqos/malloc-pc.h"
+#include "libqos/malloc.h"
 
 typedef struct QOSOps {
     QGuestAllocator *(*init_allocator)(QAllocOpts);
