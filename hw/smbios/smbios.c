@@ -886,6 +886,9 @@ void smbios_entry_add(QemuOpts *opts)
 {
     const char *val;
 
+    int i, terminator_count = 2, table_str_field_count = 0;
+    int *tables_str_field_offset = NULL;
+
     assert(!smbios_immutable);
 
     val = qemu_opt_get(opts, "file");
@@ -927,7 +930,94 @@ void smbios_entry_add(QemuOpts *opts)
             smbios_type4_count++;
         }
 
+        switch (header->type) {
+        case 0:
+            tables_str_field_offset = g_malloc0(sizeof(int) * \
+                                                TYPE_0_STR_FIELD_COUNT);
+            tables_str_field_offset = (int []){\
+                                    TYPE_0_STR_FIELD_OFFSET_VENDOR, \
+                                    TYPE_0_STR_FIELD_OFFSET_BIOS_VERSION, \
+                                    TYPE_0_STR_FIELD_OFFSET_BIOS_RELEASE_DATE};
+            table_str_field_count = sizeof(tables_str_field_offset) / \
+                                    sizeof(tables_str_field_offset[0]);
+            break;
+        case 1:
+            tables_str_field_offset = g_malloc0(sizeof(int) * \
+                                                TYPE_1_STR_FIELD_COUNT);
+            tables_str_field_offset = (int []){
+                                    TYPE_1_STR_FIELD_OFFSET_MANUFACTURER, \
+                                    TYPE_1_STR_FIELD_OFFSET_PRODUCT, \
+                                    TYPE_1_STR_FIELD_OFFSET_VERSION, \
+                                    TYPE_1_STR_FIELD_OFFSET_SERIAL, \
+                                    TYPE_1_STR_FIELD_OFFSET_SKU, \
+                                    TYPE_1_STR_FIELD_OFFSET_FAMILY};
+            table_str_field_count = sizeof(tables_str_field_offset) / \
+                                    sizeof(tables_str_field_offset[0]);
+            break;
+        case 2:
+            tables_str_field_offset = g_malloc0(sizeof(int) * \
+                                                TYPE_2_STR_FIELD_COUNT);
+            tables_str_field_offset = (int []){\
+                                    TYPE_2_STR_FIELD_OFFSET_MANUFACTURER, \
+                                    TYPE_2_STR_FIELD_OFFSET_PRODUCT, \
+                                    TYPE_2_STR_FIELD_OFFSET_VERSION, \
+                                    TYPE_2_STR_FIELD_OFFSET_SERIAL, \
+                                    TYPE_2_STR_FIELD_OFFSET_ASSET, \
+                                    TYPE_2_STR_FIELD_OFFSET_LOCATION};
+            table_str_field_count = sizeof(tables_str_field_offset) / \
+                                    sizeof(tables_str_field_offset[0]);
+            break;
+        case 3:
+            tables_str_field_offset = g_malloc0(sizeof(int) * \
+                                                TYPE_3_STR_FIELD_COUNT);
+            tables_str_field_offset = (int []){\
+                                    TYPE_3_STR_FIELD_OFFSET_MANUFACTURER, \
+                                    TYPE_3_STR_FIELD_OFFSET_VERSION, \
+                                    TYPE_3_STR_FIELD_OFFSET_SERIAL, \
+                                    TYPE_3_STR_FIELD_OFFSET_ASSET, \
+                                    TYPE_3_STR_FIELD_OFFSET_SKU};
+            table_str_field_count = sizeof(tables_str_field_offset) / \
+                                    sizeof(tables_str_field_offset[0]);
+            break;
+        case 4:
+            tables_str_field_offset = g_malloc0(sizeof(int) * \
+                                                TYPE_4_STR_FIELD_COUNT);
+            tables_str_field_offset = (int []){\
+                                    TYPE_4_STR_FIELD_OFFSET_SOCKET, \
+                                    TYPE_4_STR_FIELD_OFFSET_PROCESSOR_MANUFACTURER, \
+                                    TYPE_4_STR_FIELD_OFFSET_PROCESSOR_VERSION, \
+                                    TYPE_4_STR_FIELD_OFFSET_SERIAL, \
+                                    TYPE_4_STR_FIELD_OFFSET_ASSET, \
+                                    TYPE_4_STR_FIELD_OFFSET_PART};
+            table_str_field_count = sizeof(tables_str_field_offset) / \
+                                    sizeof(tables_str_field_offset[0]);
+            break;
+        case 17:
+            tables_str_field_offset = g_malloc0(sizeof(int) * \
+                                                TYPE_17_STR_FIELD_COUNT);
+            tables_str_field_offset = (int []){\
+                                    TYPE_17_STR_FIELD_OFFSET_DEVICE_LOCATOR, \
+                                    TYPE_17_STR_FIELD_OFFSET_BANK_LOCATOR, \
+                                    TYPE_17_STR_FIELD_OFFSET_MANUFACTURER, \
+                                    TYPE_17_STR_FIELD_OFFSET_SERIAL, \
+                                    TYPE_17_STR_FIELD_OFFSET_ASSET, \
+                                    TYPE_17_STR_FIELD_OFFSET_PART};
+            table_str_field_count = sizeof(tables_str_field_offset) / \
+                                    sizeof(tables_str_field_offset[0]);
+            break;
+        default:
+            break;
+        }
+
+        for (i = 0; i < table_str_field_count; i++) {
+            if (*(uint8_t *)(smbios_tables + tables_str_field_offset[i]) > 0) {
+                terminator_count = 1;
+                break;
+            }
+        }
+
         smbios_tables_len += size;
+        smbios_tables_len += terminator_count;
         if (size > smbios_table_max) {
             smbios_table_max = size;
         }
