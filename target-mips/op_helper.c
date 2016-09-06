@@ -1526,14 +1526,23 @@ target_ulong helper_mftc0_ebase(CPUMIPSState *env)
 
 void helper_mtc0_ebase(CPUMIPSState *env, target_ulong arg1)
 {
-    env->CP0_EBase = (env->CP0_EBase & ~0x3FFFF000) | (arg1 & 0x3FFFF000);
+    if (arg1 & (1 << CP0EBase_WG) & env->CP0_EBase_rw_bitmask) {
+        env->CP0_EBase = (env->CP0_EBase & 0x7ff) | (arg1 & ~0x7ff);
+    } else {
+        env->CP0_EBase = (env->CP0_EBase & ~0x3FFFF800) | (arg1 & 0x3FFFF800);
+    }
 }
 
 void helper_mttc0_ebase(CPUMIPSState *env, target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUMIPSState *other = mips_cpu_map_tc(env, &other_tc);
-    other->CP0_EBase = (other->CP0_EBase & ~0x3FFFF000) | (arg1 & 0x3FFFF000);
+    if (arg1 & (1 << CP0EBase_WG) & env->CP0_EBase_rw_bitmask) {
+        other->CP0_EBase = (other->CP0_EBase & 0x7ff) | (arg1 & ~0x7ff);
+    } else {
+        other->CP0_EBase = (other->CP0_EBase & ~0x3FFFF800) |
+                           (arg1 & 0x3FFFF800);
+    }
 }
 
 target_ulong helper_mftc0_configx(CPUMIPSState *env, target_ulong idx)
