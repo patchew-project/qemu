@@ -1974,7 +1974,7 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void vtd_iommu_notify_started(MemoryRegion *iommu)
+static void vtd_iommu_notifier_add(MemoryRegion *iommu, IOMMUNotifier *n)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
 
@@ -2348,7 +2348,7 @@ static void vtd_init(IntelIOMMUState *s)
     memset(s->womask, 0, DMAR_REG_SIZE);
 
     s->iommu_ops.translate = vtd_iommu_translate;
-    s->iommu_ops.notify_started = vtd_iommu_notify_started;
+    s->iommu_ops.notifier_add = vtd_iommu_notifier_add;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
