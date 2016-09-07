@@ -716,11 +716,13 @@ pvscsi_process_request_descriptor(PVSCSIState *s,
 static void
 pvscsi_process_io(PVSCSIState *s)
 {
+    int descr_pa_cnt = 0;
     PVSCSIRingReqDesc descr;
     hwaddr next_descr_pa;
 
     assert(s->rings_info_valid);
-    while ((next_descr_pa = pvscsi_ring_pop_req_descr(&s->rings)) != 0) {
+    while (((next_descr_pa = pvscsi_ring_pop_req_descr(&s->rings)) != 0)
+            && descr_pa_cnt++ < PVSCSI_SETUP_RINGS_MAX_NUM_PAGES) {
 
         /* Only read after production index verification */
         smp_rmb();
