@@ -237,3 +237,14 @@ void error_report(const char *fmt, ...)
     error_vreport(fmt, ap);
     va_end(ap);
 }
+
+void error_report_fatal(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vreport(fmt, ap);
+    va_end(ap);
+
+    exit(1);
+}
