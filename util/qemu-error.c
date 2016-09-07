@@ -248,3 +248,14 @@ void error_report_fatal(const char *fmt, ...)
 
     exit(1);
 }
+
+void error_report_abort(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vreport(fmt, ap);
+    va_end(ap);
+
+    abort();
+}
