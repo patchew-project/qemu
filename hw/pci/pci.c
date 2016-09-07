@@ -1797,9 +1797,8 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
 
     bus = pci_get_bus_devfn(&devfn, rootbus, devaddr);
     if (!bus) {
-        error_report("Invalid PCI device address %s for device %s",
-                     devaddr, pci_nic_names[i]);
-        exit(1);
+        error_report_fatal("Invalid PCI device address %s for device %s",
+                           devaddr, pci_nic_names[i]);
     }
 
     pci_dev = pci_create(bus, devfn, pci_nic_names[i]);

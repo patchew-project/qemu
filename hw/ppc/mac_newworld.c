@@ -230,8 +230,7 @@ static void ppc_core99_init(MachineState *machine)
         bios_size = -1;
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        error_report("could not load PowerPC bios '%s'", bios_name);
-        exit(1);
+        error_report_fatal("could not load PowerPC bios '%s'", bios_name);
     }
 
     if (linux_boot) {
@@ -257,8 +256,7 @@ static void ppc_core99_init(MachineState *machine)
                                               kernel_base,
                                               ram_size - kernel_base);
         if (kernel_size < 0) {
-            error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
+            error_report_fatal("could not load kernel '%s'", kernel_filename);
         }
         /* load initrd */
         if (initrd_filename) {
@@ -266,9 +264,8 @@ static void ppc_core99_init(MachineState *machine)
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               ram_size - initrd_base);
             if (initrd_size < 0) {
-                error_report("could not load initial ram disk '%s'",
-                             initrd_filename);
-                exit(1);
+                error_report_fatal("could not load initial ram disk '%s'",
+                                   initrd_filename);
             }
             cmdline_base = round_page(initrd_base + initrd_size);
         } else {
@@ -349,8 +346,7 @@ static void ppc_core99_init(MachineState *machine)
             break;
 #endif /* defined(TARGET_PPC64) */
         default:
-            error_report("Bus model not supported on mac99 machine");
-            exit(1);
+            error_report_fatal("Bus model not supported on mac99 machine");
         }
     }
 

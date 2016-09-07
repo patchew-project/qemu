@@ -2417,8 +2417,8 @@ static void dump_map_entry(OutputFormat output_format, MapEntry *e,
     switch (output_format) {
     case OFORMAT_HUMAN:
         if (e->data && !e->has_offset) {
-            error_report("File contains external, encrypted or compressed clusters.");
-            exit(1);
+            error_report_fatal("File contains external, encrypted "
+                               "or compressed clusters.");
         }
         if (e->data && !e->zero) {
             printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
@@ -3492,8 +3492,7 @@ typedef struct BenchData {
 static void bench_undrained_flush_cb(void *opaque, int ret)
 {
     if (ret < 0) {
-        error_report("Failed flush request: %s", strerror(-ret));
-        exit(EXIT_FAILURE);
+        error_report_fatal("Failed flush request: %s", strerror(-ret));
     }
 }
 
@@ -3503,8 +3502,7 @@ static void bench_cb(void *opaque, int ret)
     BlockAIOCB *acb;
 
     if (ret < 0) {
-        error_report("Failed request: %s", strerror(-ret));
-        exit(EXIT_FAILURE);
+        error_report_fatal("Failed request: %s", strerror(-ret));
     }
 
     if (b->in_flush) {
@@ -3531,8 +3529,7 @@ static void bench_cb(void *opaque, int ret)
 
                 acb = blk_aio_flush(b->blk, cb, b);
                 if (!acb) {
-                    error_report("Failed to issue flush request");
-                    exit(EXIT_FAILURE);
+                    error_report_fatal("Failed to issue flush request");
                 }
             }
             if (b->drain_on_flush) {
@@ -3550,8 +3547,7 @@ static void bench_cb(void *opaque, int ret)
                                  bench_cb, b);
         }
         if (!acb) {
-            error_report("Failed to issue request");
-            exit(EXIT_FAILURE);
+            error_report_fatal("Failed to issue request");
         }
         b->in_flight++;
         b->offset += b->step;

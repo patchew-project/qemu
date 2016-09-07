@@ -3244,8 +3244,7 @@ void kvm_arch_init_irq_routing(KVMState *s)
            MSI routes for signaling interrupts to the local apics. */
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
             if (kvm_irqchip_add_msi_route(s, 0, NULL) < 0) {
-                error_report("Could not enable split IRQ mode.");
-                exit(1);
+                error_report_fatal("Could not enable split IRQ mode.");
             }
         }
     }
@@ -3257,9 +3256,10 @@ int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
     if (machine_kernel_irqchip_split(ms)) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_SPLIT_IRQCHIP, 0, 24);
         if (ret) {
-            error_report("Could not enable split irqchip mode: %s",
-                         strerror(-ret));
-            exit(1);
+            error_report_fatal("Could not enable split irqchip mode: %s",
+                               strerror(-ret));
+            /* Never reach here. */
+            return -1;
         } else {
             DPRINTF("Enabled KVM_CAP_SPLIT_IRQCHIP\n");
             kvm_split_irqchip = true;

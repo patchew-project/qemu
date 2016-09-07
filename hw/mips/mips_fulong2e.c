@@ -328,8 +328,7 @@ static void mips_fulong2e_init(MachineState *machine)
 
         if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
             !kernel_filename && !qtest_enabled()) {
-            error_report("Could not load MIPS bios '%s'", bios_name);
-            exit(1);
+            error_report_fatal("Could not load MIPS bios '%s'", bios_name);
         }
     }
 

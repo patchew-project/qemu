@@ -234,9 +234,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_xtensa_init(cpu_model);
         if (cpu == NULL) {
-            error_report("unable to find CPU definition '%s'",
-                         cpu_model);
-            exit(EXIT_FAILURE);
+            error_report_fatal("unable to find CPU definition '%s'",
+                               cpu_model);
         }
         env = &cpu->env;
 
@@ -323,8 +322,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             uint32_t dtb_addr = tswap32(cur_lowmem);
 
             if (!fdt) {
-                error_report("could not load DTB '%s'", dtb_filename);
-                exit(EXIT_FAILURE);
+                error_report_fatal("could not load DTB '%s'", dtb_filename);
             }
 
             cpu_physical_memory_write(cur_lowmem, fdt, fdt_size);
@@ -343,8 +341,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
                                                   lowmem_end - cur_lowmem);
             }
             if (initrd_size < 0) {
-                error_report("could not load initrd '%s'", initrd_filename);
-                exit(EXIT_FAILURE);
+                error_report_fatal("could not load initrd '%s'",
+                                   initrd_filename);
             }
             initrd_location.start = tswap32(cur_lowmem);
             initrd_location.end = tswap32(cur_lowmem + initrd_size);
@@ -369,9 +367,8 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             if (success > 0 && is_linux) {
                 entry_point = ep;
             } else {
-                error_report("could not load kernel '%s'",
-                             kernel_filename);
-                exit(EXIT_FAILURE);
+                error_report_fatal("could not load kernel '%s'",
+                                   kernel_filename);
             }
         }
         if (entry_point != env->pc) {

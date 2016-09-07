@@ -81,8 +81,7 @@ static void shix_init(MachineState *machine)
         bios_name = BIOS_FILENAME;
     ret = load_image_targphys(bios_name, 0, 0x4000);
     if (ret < 0 && !qtest_enabled()) {
-        error_report("Could not load SHIX bios '%s'", bios_name);
-        exit(1);
+        error_report_fatal("Could not load SHIX bios '%s'", bios_name);
     }
 
     /* Register peripherals */

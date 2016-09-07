@@ -55,9 +55,8 @@ static void replay_run_event(Event *event)
         aio_bh_call(event->opaque);
         break;
     default:
-        error_report("Replay: invalid async event ID (%d) in the queue",
-                    event->event_kind);
-        exit(1);
+        error_report_fatal("Replay: invalid async event ID (%d) in the queue",
+                           event->event_kind);
         break;
     }
 }
@@ -190,8 +189,8 @@ static void replay_save_event(Event *event, int checkpoint)
             replay_put_qword(event->id);
             break;
         default:
-            error_report("Unknown ID %" PRId64 " of replay event", event->id);
-            exit(1);
+            error_report_fatal("Unknown ID %" PRId64 " of replay event",
+                               event->id);
         }
     }
 }
@@ -253,8 +252,7 @@ static Event *replay_read_event(int checkpoint)
         }
         break;
     default:
-        error_report("Unknown ID %d of replay event", read_event_kind);
-        exit(1);
+        error_report_fatal("Unknown ID %d of replay event", read_event_kind);
         break;
     }
 

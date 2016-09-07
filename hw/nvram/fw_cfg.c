@@ -805,9 +805,8 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
     for (i = 0; i <= count; i++) {
         if (i != index &&
             strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
-            error_report("duplicate fw_cfg file name: %s",
-                         s->files->f[index].name);
-            exit(1);
+            error_report_fatal("duplicate fw_cfg file name: %s",
+                               s->files->f[index].name);
         }
     }
 

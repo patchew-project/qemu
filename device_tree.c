@@ -60,14 +60,15 @@ void *create_device_tree(int *sizep)
     }
     ret = fdt_open_into(fdt, fdt, *sizep);
     if (ret) {
-        error_report("Unable to copy device tree in memory");
-        exit(1);
+        error_report_fatal("Unable to copy device tree in memory");
     }
 
     return fdt;
 fail:
-    error_report("%s Couldn't create dt: %s", __func__, fdt_strerror(ret));
-    exit(1);
+    error_report_fatal("%s Couldn't create dt: %s", __func__,
+                       fdt_strerror(ret));
+    /* Never reach here. */
+    return NULL;
 }
 
 void *load_device_tree(const char *filename_path, int *sizep)
@@ -140,14 +141,14 @@ static void read_fstree(void *fdt, const char *dirname)
     const char *parent_node;
 
     if (strstr(dirname, root_dir) != dirname) {
-        error_setg(&error_fatal, "%s: %s must be searched within %s",
-                   __func__, dirname, root_dir);
+        error_report_fatal("%s: %s must be searched within %s", __func__,
+                           dirname, root_dir);
     }
     parent_node = &dirname[strlen(SYSFS_DT_BASEDIR)];
 
     d = opendir(dirname);
     if (!d) {
-        error_setg(&error_fatal, "%s cannot open %s", __func__, dirname);
+        error_report_fatal("%s cannot open %s", __func__, dirname);
     }
 
     while ((de = readdir(d)) != NULL) {
@@ -161,7 +162,7 @@ static void read_fstree(void *fdt, const char *dirname)
         tmpnam = g_strdup_printf("%s/%s", dirname, de->d_name);
 
         if (lstat(tmpnam, &st) < 0) {
-            error_setg(&error_fatal, "%s cannot lstat %s", __func__, tmpnam);
+            error_report_fatal("%s cannot lstat %s", __func__, tmpnam);
         }
 
         if (S_ISREG(st.st_mode)) {
@@ -169,8 +170,8 @@ static void read_fstree(void *fdt, const char *dirname)
             gsize len;
 
             if (!g_file_get_contents(tmpnam, &val, &len, NULL)) {
-                error_setg(&error_fatal, "%s not able to extract info from %s",
-                           __func__, tmpnam);
+                error_report_fatal("%s not able to extract info from %s",
+                                   __func__, tmpnam);
             }
 
             if (strlen(parent_node) > 0) {
@@ -205,9 +206,8 @@ void *load_device_tree_from_sysfs(void)
     host_fdt = create_device_tree(&host_fdt_size);
     read_fstree(host_fdt, SYSFS_DT_BASEDIR);
     if (fdt_check_header(host_fdt)) {
-        error_setg(&error_fatal,
-                   "%s host device tree extracted into memory is invalid",
-                   __func__);
+        error_report_fatal("%s host device tree extracted into "
+                           "memory is invalid", __func__);
     }
     return host_fdt;
 }
@@ -220,9 +220,8 @@ static int findnode_nofail(void *fdt, const char *node_path)
 
     offset = fdt_path_offset(fdt, node_path);
     if (offset < 0) {
-        error_report("%s Couldn't find node %s: %s", __func__, node_path,
-                     fdt_strerror(offset));
-        exit(1);
+        error_report_fatal("%s Couldn't find node %s: %s", __func__,
+                           node_path, fdt_strerror(offset));
     }
 
     return offset;
@@ -289,9 +288,8 @@ int qemu_fdt_setprop(void *fdt, const char *node_path,
 
     r = fdt_setprop(fdt, findnode_nofail(fdt, node_path), property, val, size);
     if (r < 0) {
-        error_report("%s: Couldn't set %s/%s: %s", __func__, node_path,
-                     property, fdt_strerror(r));
-        exit(1);
+        error_report_fatal("%s: Couldn't set %s/%s: %s", __func__, node_path,
+                           property, fdt_strerror(r));
     }
 
     return r;
@@ -304,9 +302,8 @@ int qemu_fdt_setprop_cell(void *fdt, const char *node_path,
 
     r = fdt_setprop_cell(fdt, findnode_nofail(fdt, node_path), property, val);
     if (r < 0) {
-        error_report("%s: Couldn't set %s/%s = %#08x: %s", __func__,
-                     node_path, property, val, fdt_strerror(r));
-        exit(1);
+        error_report_fatal("%s: Couldn't set %s/%s = %#08x: %s", __func__,
+                           node_path, property, val, fdt_strerror(r));
     }
 
     return r;
@@ -326,9 +323,8 @@ int qemu_fdt_setprop_string(void *fdt, const char *node_path,
 
     r = fdt_setprop_string(fdt, findnode_nofail(fdt, node_path), property, string);
     if (r < 0) {
-        error_report("%s: Couldn't set %s/%s = %s: %s", __func__,
-                     node_path, property, string, fdt_strerror(r));
-        exit(1);
+        error_report_fatal("%s: Couldn't set %s/%s = %s: %s", __func__,
+                           node_path, property, string, fdt_strerror(r));
     }
 
     return r;
@@ -378,9 +374,8 @@ uint32_t qemu_fdt_get_phandle(void *fdt, const char *path)
 
     r = fdt_get_phandle(fdt, findnode_nofail(fdt, path));
     if (r == 0) {
-        error_report("%s: Couldn't get phandle for %s: %s", __func__,
-                     path, fdt_strerror(r));
-        exit(1);
+        error_report_fatal("%s: Couldn't get phandle for %s: %s", __func__,
+                           path, fdt_strerror(r));
     }
 
     return r;
@@ -423,9 +418,8 @@ int qemu_fdt_nop_node(void *fdt, const char *node_path)
 
     r = fdt_nop_node(fdt, findnode_nofail(fdt, node_path));
     if (r < 0) {
-        error_report("%s: Couldn't nop node %s: %s", __func__, node_path,
-                     fdt_strerror(r));
-        exit(1);
+        error_report_fatal("%s: Couldn't nop node %s: %s", __func__,
+                           node_path, fdt_strerror(r));
     }
 
     return r;
@@ -452,9 +446,8 @@ int qemu_fdt_add_subnode(void *fdt, const char *name)
 
     retval = fdt_add_subnode(fdt, parent, basename);
     if (retval < 0) {
-        error_report("FDT: Failed to create subnode %s: %s", name,
-                     fdt_strerror(retval));
-        exit(1);
+        error_report_fatal("FDT: Failed to create subnode %s: %s", name,
+                           fdt_strerror(retval));
     }
 
     g_free(dupname);

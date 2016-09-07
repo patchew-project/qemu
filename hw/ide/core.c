@@ -2851,9 +2851,8 @@ void ide_drive_get(DriveInfo **hd, int n)
      */
 
     if (highest_bus > n_buses) {
-        error_report("Too many IDE buses defined (%d > %d)",
-                     highest_bus, n_buses);
-        exit(1);
+        error_report_fatal("Too many IDE buses defined (%d > %d)",
+                           highest_bus, n_buses);
     }
 
     for (i = 0; i < n; i++) {

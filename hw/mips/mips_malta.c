@@ -809,17 +809,16 @@ static int64_t load_kernel (void)
     /* Sanity check where the kernel has been linked */
     if (kvm_enabled()) {
         if (kernel_entry & 0x80000000ll) {
-            error_report("KVM guest kernels must be linked in useg. "
-                         "Did you forget to enable CONFIG_KVM_GUEST?");
-            exit(1);
+            error_report_fatal("KVM guest kernels must be linked in useg. "
+                               "Did you forget to enable CONFIG_KVM_GUEST?");
         }
 
         xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
     } else {
         if (!(kernel_entry & 0x80000000ll)) {
-            error_report("KVM guest kernels aren't supported with TCG. "
-                         "Did you unintentionally enable CONFIG_KVM_GUEST?");
-            exit(1);
+            error_report_fatal("KVM guest kernels aren't supported with TCG. "
+                               "Did you unintentionally enable "
+                               "CONFIG_KVM_GUEST?");
         }
 
         xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
@@ -949,8 +948,7 @@ static void create_cps(MaltaState *s, const char *cpu_model,
     object_property_set_int(OBJECT(s->cps), smp_cpus, "num-vp", &err);
     object_property_set_bool(OBJECT(s->cps), true, "realized", &err);
     if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        exit(1);
+        error_report_fatal("%s", error_get_pretty(err));
     }
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
@@ -1119,9 +1117,9 @@ void mips_malta_init(MachineState *machine)
     } else {
         /* The flash region isn't executable from a KVM guest */
         if (kvm_enabled()) {
-            error_report("KVM enabled but no -kernel argument was specified. "
-                         "Booting from flash is not supported with KVM.");
-            exit(1);
+            error_report_fatal("KVM enabled but no -kernel argument was "
+                               "specified. Booting from flash is not "
+                               "supported with KVM.");
         }
         /* Load firmware from flash. */
         if (!dinfo) {
@@ -1139,9 +1137,9 @@ void mips_malta_init(MachineState *machine)
             }
             if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
                 !kernel_filename && !qtest_enabled()) {
-                error_report("Could not load MIPS bios '%s', and no "
-                             "-kernel argument was specified", bios_name);
-                exit(1);
+                error_report_fatal("Could not load MIPS bios '%s', and no "
+                                   "-kernel argument was specified",
+                                   bios_name);
             }
         }
         /* In little endian mode the 32bit words in the bios are swapped,

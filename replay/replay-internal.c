@@ -158,8 +158,8 @@ void replay_fetch_data_kind(void)
             replay_check_error();
             replay_has_unread_data = 1;
             if (replay_data_kind >= EVENT_COUNT) {
-                error_report("Replay: unknown event kind %d", replay_data_kind);
-                exit(1);
+                error_report_fatal("Replay: unknown event kind %d",
+                                   replay_data_kind);
             }
         }
     }
