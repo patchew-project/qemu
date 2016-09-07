@@ -19,6 +19,7 @@
 #include "coth.h"
 #include "hw/virtio/virtio-access.h"
 #include "qemu/iov.h"
+#include "qemu/error-report.h"
 
 void virtio_9p_push_and_notify(V9fsPDU *pdu)
 {
@@ -33,6 +34,11 @@ void virtio_9p_push_and_notify(V9fsPDU *pdu)
 
     /* FIXME: we should batch these completions */
     virtio_notify(VIRTIO_DEVICE(v), v->vq);
+}
+
+static void virtio_9p_error(const char *msg)
+{
+    error_report("The virtio-9p driver in the guest has an issue: %s", msg);
 }
 
 static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -56,13 +62,23 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
             break;
         }
 
-        BUG_ON(elem->out_num == 0 || elem->in_num == 0);
+        if (elem->out_num == 0) {
+            virtio_9p_error("missing VirtFS request's header");
+            exit(1);
+        }
+        if (elem->in_num == 0) {
+            virtio_9p_error("missing VirtFS reply's header");
+            exit(1);
+        }
         QEMU_BUILD_BUG_ON(sizeof out != 7);
 
         v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                          &out, sizeof out);
-        BUG_ON(len != sizeof out);
+        if (len != sizeof out) {
+            virtio_9p_error("malformed VirtFS request");
+            exit(1);
+        }
 
         pdu->size = le32_to_cpu(out.size_le);
 
