@@ -49,6 +49,10 @@
 /* Starting to run with/setting counter = 0 won't re-load counter.  */
 #define PTIMER_POLICY_NO_IMMEDIATE_RELOAD   (1 << 3)
 
+/* Make counter value of the running timer represent the actual value and
+ * not the one less.  */
+#define PTIMER_POLICY_NO_COUNTER_ROUND_DOWN (1 << 4)
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);

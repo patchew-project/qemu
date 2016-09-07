@@ -119,11 +119,14 @@ static void ptimer_tick(void *opaque)
 
 uint64_t ptimer_get_count(ptimer_state *s)
 {
+    bool no_round_down =
+                !!(s->policy_mask & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
     uint64_t counter;
 
     if (s->enabled && s->delta != 0) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         int64_t next = s->next_event;
+        int64_t last = s->last_event;
         bool expired = (now - next >= 0);
         bool oneshot = (s->enabled == 2);
 
@@ -131,7 +134,9 @@ uint64_t ptimer_get_count(ptimer_state *s)
         if (expired) {
             /* Prevent timer underflowing if it should already have
                triggered.  */
-            counter = 0;
+            counter = no_round_down ? 1 : 0;
+        } else if (now == last && no_round_down) {
+            counter = s->delta;
         } else {
             uint64_t rem;
             uint64_t div;
@@ -174,7 +179,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
                 if ((uint32_t)(period_frac << shift))
                     div += 1;
             }
-            counter = rem / div;
+            counter = rem / div + (no_round_down ? 1 : 0);
 
             if (!oneshot && s->delta == s->limit) {
                 /* Before wrapping around, timer should stay with counter = 0
