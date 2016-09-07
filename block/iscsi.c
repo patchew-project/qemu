@@ -1220,19 +1220,13 @@ static QemuOpts *find_iscsi_opts(const char *id)
     return opts;
 }
 
-static void parse_chap(struct iscsi_context *iscsi, const char *target,
+static void parse_chap(struct iscsi_context *iscsi, QemuOpts *opts,
                        Error **errp)
 {
-    QemuOpts *opts;
     const char *user = NULL;
     const char *password = NULL;
     const char *secretid;
     char *secret = NULL;
-
-    opts = find_iscsi_opts(target);
-    if (!opts) {
-        return;
-    }
 
     user = qemu_opt_get(opts, "user");
     if (!user) {
@@ -1264,16 +1258,10 @@ static void parse_chap(struct iscsi_context *iscsi, const char *target,
     g_free(secret);
 }
 
-static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
+static void parse_header_digest(struct iscsi_context *iscsi, QemuOpts *opts,
                                 Error **errp)
 {
-    QemuOpts *opts;
     const char *digest = NULL;
-
-    opts = find_iscsi_opts(target);
-    if (!opts) {
-        return;
-    }
 
     digest = qemu_opt_get(opts, "header-digest");
     if (!digest) {
@@ -1293,19 +1281,15 @@ static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
     }
 }
 
-static char *parse_initiator_name(const char *target)
+static char *parse_initiator_name(QemuOpts *opts)
 {
-    QemuOpts *opts;
     const char *name;
     char *iscsi_name;
     UuidInfo *uuid_info;
 
-    opts = find_iscsi_opts(target);
-    if (opts) {
-        name = qemu_opt_get(opts, "initiator-name");
-        if (name) {
-            return g_strdup(name);
-        }
+    name = qemu_opt_get(opts, "initiator-name");
+    if (name) {
+        return g_strdup(name);
     }
 
     uuid_info = qmp_query_uuid(NULL);
@@ -1320,19 +1304,14 @@ static char *parse_initiator_name(const char *target)
     return iscsi_name;
 }
 
-static int parse_timeout(const char *target)
+static int parse_timeout(QemuOpts *opts)
 {
-    QemuOpts *opts;
     const char *timeout;
 
-    opts = find_iscsi_opts(target);
-    if (opts) {
-        timeout = qemu_opt_get(opts, "timeout");
-        if (timeout) {
-            return atoi(timeout);
-        }
+    timeout = qemu_opt_get(opts, "timeout");
+    if (timeout) {
+        return atoi(timeout);
     }
-
     return 0;
 }
 
@@ -1568,6 +1547,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     struct scsi_inquiry_supported_pages *inq_vpd;
     char *initiator_name = NULL;
     QemuOpts *opts;
+    QemuOpts *iscsi_opts;
     Error *local_err = NULL;
     const char *filename;
     int i, ret = 0, timeout = 0;
@@ -1591,7 +1571,9 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     memset(iscsilun, 0, sizeof(IscsiLun));
 
-    initiator_name = parse_initiator_name(iscsi_url->target);
+    iscsi_opts = find_iscsi_opts(iscsi_url->target);
+
+    initiator_name = parse_initiator_name(iscsi_opts);
 
     iscsi = iscsi_create_context(initiator_name);
     if (iscsi == NULL) {
@@ -1617,7 +1599,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* check if we got CHAP username/password via the options */
-    parse_chap(iscsi, iscsi_url->target, &local_err);
+    parse_chap(iscsi, iscsi_opts, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1633,7 +1615,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
 
     /* check if we got HEADER_DIGEST via the options */
-    parse_header_digest(iscsi, iscsi_url->target, &local_err);
+    parse_header_digest(iscsi, iscsi_opts, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1641,7 +1623,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* timeout handling is broken in libiscsi before 1.15.0 */
-    timeout = parse_timeout(iscsi_url->target);
+    timeout = parse_timeout(iscsi_opts);
 #if defined(LIBISCSI_API_VERSION) && LIBISCSI_API_VERSION >= 20150621
     iscsi_set_timeout(iscsi, timeout);
 #else
