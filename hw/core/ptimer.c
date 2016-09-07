@@ -45,7 +45,8 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
         ptimer_trigger(s);
         delta = s->delta = s->limit;
     }
-    if (delta == 0 || s->period == 0) {
+
+    if (s->period == 0) {
         if (!qtest_enabled()) {
             fprintf(stderr, "Timer with period zero, disabling\n");
         }
@@ -56,6 +57,21 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
     if (s->policy_mask & PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD) {
         delta += delta_adjust;
+    }
+
+    if (delta == 0 && (s->policy_mask & PTIMER_POLICY_CONTINUOUS_TRIGGER)) {
+        if (s->enabled == 1) {
+            delta = 1;
+        }
+    }
+
+    if (delta == 0) {
+        if (!qtest_enabled()) {
+            fprintf(stderr, "Timer with delta zero, disabling\n");
+        }
+        timer_del(s->timer);
+        s->enabled = 0;
+        return;
     }
 
     /*

@@ -38,6 +38,10 @@
  * around.  */
 #define PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD (1 << 0)
 
+/* Periodic timer that has load = 0 would continuously re-trigger every
+ * period.  */
+#define PTIMER_POLICY_CONTINUOUS_TRIGGER    (1 << 1)
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
