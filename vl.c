@@ -676,10 +676,9 @@ void runstate_set(RunState new_state)
     }
 
     if (!runstate_valid_transitions[current_run_state][new_state]) {
-        error_report("invalid runstate transition: '%s' -> '%s'",
-                     RunState_lookup[current_run_state],
-                     RunState_lookup[new_state]);
-        abort();
+        error_report_abort("invalid runstate transition: '%s' -> '%s'",
+                           RunState_lookup[current_run_state],
+                           RunState_lookup[new_state]);
     }
     trace_runstate_set(new_state);
     current_run_state = new_state;

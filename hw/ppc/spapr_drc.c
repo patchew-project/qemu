@@ -327,7 +327,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             break;
         }
         default:
-            error_setg(&error_abort, "device FDT in unexpected state: %d", tag);
+            error_report_abort("device FDT in unexpected state: %d", tag);
         }
         fdt_offset = fdt_offset_next;
     } while (fdt_depth != 0);

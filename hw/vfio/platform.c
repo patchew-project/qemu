@@ -339,9 +339,8 @@ static void vfio_start_eventfd_injection(SysBusDevice *sbdev, qemu_irq irq)
 
     ret = vfio_set_trigger_eventfd(intp, vfio_intp_interrupt);
     if (ret) {
-        error_report("vfio: failed to start eventfd signaling for IRQ %d: %m",
-                     intp->pin);
-        abort();
+        error_report_abort("vfio: failed to start eventfd signaling "
+                           "for IRQ %d: %m", intp->pin);
     }
 }
 
@@ -431,9 +430,8 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
     return;
 fail_vfio:
     kvm_irqchip_remove_irqfd_notifier(kvm_state, intp->interrupt, irq);
-    error_report("vfio: failed to start eventfd signaling for IRQ %d: %m",
-                 intp->pin);
-    abort();
+    error_report_abort("vfio: failed to start eventfd signaling for IRQ %d: %m",
+                       intp->pin);
 fail_irqfd:
     vfio_start_eventfd_injection(sbdev, irq);
     return;

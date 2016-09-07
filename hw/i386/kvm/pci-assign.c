@@ -465,8 +465,8 @@ static void assigned_dev_register_regions(PCIRegion *io_regions,
              * so should return EINVAL for a 3 byte read */
             ret = pread(pci_dev->v_addrs[i].region->resource_fd, &val, 3, 0);
             if (ret >= 0) {
-                error_report("Unexpected return from I/O port read: %d", ret);
-                abort();
+                error_report_abort("Unexpected return from I/O port read: %d",
+                                   ret);
             } else if (errno != EINVAL) {
                 error_report("Kernel doesn't support ioport resource "
                              "access, hiding this region.");

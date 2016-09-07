@@ -2254,8 +2254,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         goto out;
 
     } else if (ret != 0) {
-        error_report("Huh, first cluster in empty image is already in use?");
-        abort();
+        error_report_abort("Huh, first cluster in empty image is "
+                           "already in use?");
     }
 
     /* Create a full header (including things like feature table) */
