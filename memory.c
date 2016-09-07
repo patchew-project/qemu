@@ -23,6 +23,7 @@
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "qom/object.h"
 #include "trace.h"
 
@@ -30,8 +31,6 @@
 #include "exec/ram_addr.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
-
-//#define DEBUG_UNASSIGNED
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
@@ -1101,9 +1100,7 @@ static void memory_region_initfn(Object *obj)
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
-#endif
+    qemu_log_mask(LOG_UNIMP, "%s " TARGET_FMT_plx "\n", __func__, addr);
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
     }
@@ -1113,9 +1110,8 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
 static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
-#endif
+    qemu_log_mask(LOG_UNIMP, "%s " TARGET_FMT_plx " = 0x%" PRIx64 "\n",
+                  __func__, addr, val);
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
     }
