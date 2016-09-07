@@ -2515,14 +2515,18 @@ LIBISCSI_CHAP_PASSWORD="password" \
 qemu-system-i386 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
+An iSCSI drive is associated with an -iscsi option as follows.  If -drive
+...,iscsi=<iscsi-id> is present then the -iscsi option with that id is used.
+Otherwise an -iscsi option whose id matches the drive's target IQN is searched
+and if the search fails the first -iscsi option is used.
+
 iSCSI support is an optional feature of QEMU and only available when
 compiled and linked against libiscsi.
 ETEXI
 DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "-iscsi [user=user][,password=password]\n"
     "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
-    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
-    "       [,timeout=timeout]\n"
+    "       [,initiator-name=initiator-iqn][,id=id][,timeout=timeout]\n"
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 STEXI
 

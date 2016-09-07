@@ -1199,7 +1199,7 @@ retry:
 }
 
 /* Look up the -iscsi command-line option */
-static QemuOpts *find_iscsi_opts(const char *id)
+static QemuOpts *find_iscsi_opts(const char *id, bool default_to_first)
 {
     QemuOptsList *list;
     QemuOpts *opts;
@@ -1210,13 +1210,9 @@ static QemuOpts *find_iscsi_opts(const char *id)
     }
 
     opts = qemu_opts_find(list, id);
-    if (opts == NULL) {
+    if (opts == NULL && default_to_first) {
         opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return NULL;
-        }
     }
-
     return opts;
 }
 
@@ -1411,6 +1407,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "URL to the iscsi image",
         },
+        {
+            .name = "iscsi",
+            .type = QEMU_OPT_STRING,
+            .help = "id of iscsi object",
+        },
         { /* end of list */ }
     },
 };
@@ -1550,6 +1551,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *iscsi_opts;
     Error *local_err = NULL;
     const char *filename;
+    const char *iscsi_opts_id;
     int i, ret = 0, timeout = 0;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
@@ -1571,7 +1573,12 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     memset(iscsilun, 0, sizeof(IscsiLun));
 
-    iscsi_opts = find_iscsi_opts(iscsi_url->target);
+    iscsi_opts_id = qemu_opt_get(opts, "iscsi");
+    if (iscsi_opts_id) {
+        iscsi_opts = find_iscsi_opts(iscsi_opts_id, false);
+    } else {
+        iscsi_opts = find_iscsi_opts(iscsi_url->target, true);
+    }
 
     initiator_name = parse_initiator_name(iscsi_opts);
 
