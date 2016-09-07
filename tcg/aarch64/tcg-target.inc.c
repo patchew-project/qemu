@@ -1081,23 +1081,22 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
     int tlb_offset = is_read ?
         offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
         : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
-    int a_bits = get_alignment_bits(opc);
+    unsigned a_bits = get_alignment_bits(opc);
+    unsigned s_bits = opc & MO_SIZE;
     TCGReg base = TCG_AREG0, x3;
     uint64_t tlb_mask;
 
     /* For aligned accesses, we check the first byte and include the alignment
        bits within the address.  For unaligned access, we check that we don't
        cross pages using the address of the last byte of the access.  */
-    if (a_bits >= 0) {
-        /* A byte access or an alignment check required */
-        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
+    if (a_bits >= s_bits) {
         x3 = addr_reg;
     } else {
         tcg_out_insn(s, 3401, ADDI, TARGET_LONG_BITS == 64,
-                     TCG_REG_X3, addr_reg, (1 << (opc & MO_SIZE)) - 1);
-        tlb_mask = TARGET_PAGE_MASK;
+                     TCG_REG_X3, addr_reg, nbits(s_bits) - nbits(a_bits));
         x3 = TCG_REG_X3;
     }
+    tlb_mask = TARGET_PAGE_MASK | nbits(a_bits);
 
     /* Extract the TLB index from the address into X0.
        X0<CPU_TLB_BITS:0> =
