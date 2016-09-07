@@ -103,6 +103,9 @@ obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal32.o
 obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal64.o
 obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal128.o
 
+# qqq
+obj-y += qqq.o
+
 #########################################################
 # Linux user emulator target
 
