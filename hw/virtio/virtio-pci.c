@@ -307,7 +307,7 @@ static int virtio_pci_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
     MemoryRegion *modern_mr = &proxy->notify.mr;
     MemoryRegion *modern_notify_mr = &proxy->notify_pio.mr;
     MemoryRegion *legacy_mr = &proxy->bar;
-    hwaddr modern_addr = QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
+    hwaddr modern_addr = proxy->queue_mem_mult *
                          virtio_get_queue_index(vq);
     hwaddr legacy_addr = VIRTIO_PCI_QUEUE_NOTIFY;
 
@@ -1370,7 +1370,8 @@ static void virtio_pci_notify_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
     VirtIODevice *vdev = opaque;
-    unsigned queue = addr / QEMU_VIRTIO_PCI_QUEUE_MEM_MULT;
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(DEVICE(vdev)->parent_bus->parent);
+    unsigned queue = addr / proxy->queue_mem_mult;
 
     if (queue < VIRTIO_QUEUE_MAX) {
         virtio_queue_notify(vdev, queue);
@@ -1609,7 +1610,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         struct virtio_pci_notify_cap notify = {
             .cap.cap_len = sizeof notify,
             .notify_off_multiplier =
-                cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT),
+                cpu_to_le32(proxy->queue_mem_mult),
         };
         struct virtio_pci_cfg_cap cfg = {
             .cap.cap_len = sizeof cfg,
@@ -1717,6 +1718,9 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     bool pcie_port = pci_bus_is_express(pci_dev->bus) &&
                      !pci_bus_is_root(pci_dev->bus);
 
+    proxy->queue_mem_mult = (proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ) ?
+        QEMU_VIRTIO_PCI_QUEUE_MEM_MULT : 4;
+
     /*
      * virtio pci bar layout used by default.
      * subclasses can re-arrange things if needed.
@@ -1744,8 +1748,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->device.type = VIRTIO_PCI_CAP_DEVICE_CFG;
 
     proxy->notify.offset = 0x3000;
-    proxy->notify.size =
-        QEMU_VIRTIO_PCI_QUEUE_MEM_MULT * VIRTIO_QUEUE_MAX;
+    proxy->notify.size = proxy->queue_mem_mult * VIRTIO_QUEUE_MAX;
     proxy->notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 
     proxy->notify_pio.offset = 0x0;
@@ -1754,8 +1757,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     /* subclasses can enforce modern, so do this unconditionally */
     memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
-                       2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
-                       VIRTIO_QUEUE_MAX);
+                       pow2ceil(proxy->notify.offset + proxy->notify.size));
 
     memory_region_init_alias(&proxy->modern_cfg,
                              OBJECT(proxy),
@@ -1833,6 +1835,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT, false),
     DEFINE_PROP_BIT("x-disable-pcie", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT, false),
+    DEFINE_PROP_BIT("page-per-vq", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_PAGE_PER_VQ_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

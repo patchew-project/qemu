@@ -64,6 +64,7 @@ enum {
     VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT,
     VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT,
     VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT,
+    VIRTIO_PCI_FLAG_PAGE_PER_VQ_BIT,
 };
 
 /* Need to activate work-arounds for buggy guests at vmstate load. */
@@ -83,6 +84,10 @@ enum {
 /* have pio notification for modern device ? */
 #define VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY \
     (1 << VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT)
+
+/* page per vq flag to be used by split drivers within guests */
+#define VIRTIO_PCI_FLAG_PAGE_PER_VQ \
+    (1 << VIRTIO_PCI_FLAG_PAGE_PER_VQ_BIT)
 
 typedef struct {
     MSIMessage msg;
@@ -138,6 +143,7 @@ struct VirtIOPCIProxy {
     uint32_t msix_bar;
     uint32_t modern_io_bar;
     uint32_t modern_mem_bar;
+    int queue_mem_mult;
     int config_cap;
     uint32_t flags;
     bool disable_modern;
