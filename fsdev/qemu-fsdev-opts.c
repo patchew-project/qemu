@@ -37,6 +37,58 @@ static QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "sock_fd",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "bps",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes burst",
+        }, {
+            .name = "bps_rd",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes read burst",
+        }, {
+            .name = "bps_wr",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total bytes write burst",
+        }, {
+            .name = "iops",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total io operations burst",
+        }, {
+            .name = "iops_rd",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total io operations read burst",
+        }, {
+            .name = "iops_wr",
+            .type = QEMU_OPT_NUMBER,
+            .help = "total io operations write burst",
+        }, {
+            .name = "bps_max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "maximum bytes burst",
+        }, {
+            .name = "bps_rd_max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "maximum bytes read burst",
+        }, {
+            .name = "bps_wr_max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "maximum bytes write burst",
+        }, {
+            .name = "iops_max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "maximum io operations burst",
+        }, {
+            .name = "iops_rd_max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "maximum io operations read burst",
+        }, {
+            .name = "iops_wr_max",
+            .type = QEMU_OPT_NUMBER,
+            .help = "maximum io operations write burst",
+        }, {
+            .name = "iops_size",
+            .type = QEMU_OPT_NUMBER,
+            .help = "io iops-size",
         },
 
         { /*End of list */ }
