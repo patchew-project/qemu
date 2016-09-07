@@ -1198,27 +1198,40 @@ retry:
     return 0;
 }
 
+/* Look up the -iscsi command-line option */
+static QemuOpts *find_iscsi_opts(const char *id)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return NULL;
+    }
+
+    opts = qemu_opts_find(list, id);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return NULL;
+        }
+    }
+
+    return opts;
+}
+
 static void parse_chap(struct iscsi_context *iscsi, const char *target,
                        Error **errp)
 {
-    QemuOptsList *list;
     QemuOpts *opts;
     const char *user = NULL;
     const char *password = NULL;
     const char *secretid;
     char *secret = NULL;
 
-    list = qemu_find_opts("iscsi");
-    if (!list) {
+    opts = find_iscsi_opts(target);
+    if (!opts) {
         return;
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
     }
 
     user = qemu_opt_get(opts, "user");
@@ -1254,21 +1267,12 @@ static void parse_chap(struct iscsi_context *iscsi, const char *target,
 static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
                                 Error **errp)
 {
-    QemuOptsList *list;
     QemuOpts *opts;
     const char *digest = NULL;
 
-    list = qemu_find_opts("iscsi");
-    if (!list) {
+    opts = find_iscsi_opts(target);
+    if (!opts) {
         return;
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
     }
 
     digest = qemu_opt_get(opts, "header-digest");
@@ -1291,23 +1295,16 @@ static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
 
 static char *parse_initiator_name(const char *target)
 {
-    QemuOptsList *list;
     QemuOpts *opts;
     const char *name;
     char *iscsi_name;
     UuidInfo *uuid_info;
 
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            name = qemu_opt_get(opts, "initiator-name");
-            if (name) {
-                return g_strdup(name);
-            }
+    opts = find_iscsi_opts(target);
+    if (opts) {
+        name = qemu_opt_get(opts, "initiator-name");
+        if (name) {
+            return g_strdup(name);
         }
     }
 
@@ -1325,21 +1322,14 @@ static char *parse_initiator_name(const char *target)
 
 static int parse_timeout(const char *target)
 {
-    QemuOptsList *list;
     QemuOpts *opts;
     const char *timeout;
 
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            timeout = qemu_opt_get(opts, "timeout");
-            if (timeout) {
-                return atoi(timeout);
-            }
+    opts = find_iscsi_opts(target);
+    if (opts) {
+        timeout = qemu_opt_get(opts, "timeout");
+        if (timeout) {
+            return atoi(timeout);
         }
     }
 
