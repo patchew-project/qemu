@@ -75,3 +75,6 @@ int arc_gen_NEG(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_ABS(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_NOT(DisasCtxt *c, TCGv dest, TCGv src1);
 
+int arc_gen_POP(DisasCtxt *c, TCGv src1);
+int arc_gen_PUSH(DisasCtxt *c, TCGv src1);
+

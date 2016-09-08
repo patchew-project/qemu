@@ -1147,3 +1147,25 @@ int arc_gen_NOT(DisasCtxt *ctx, TCGv dest, TCGv src1)
     return  BS_NONE;
 }
 
+/*
+    POP
+*/
+int arc_gen_POP(DisasCtxt *ctx, TCGv src1)
+{
+    tcg_gen_qemu_ld_tl(src1, cpu_sp, ctx->memidx, MO_UL);
+    tcg_gen_addi_tl(cpu_sp, cpu_sp, 4);
+
+    return BS_NONE;
+}
+
+/*
+    PUSH
+*/
+int arc_gen_PUSH(DisasCtxt *ctx, TCGv src1)
+{
+    tcg_gen_subi_tl(cpu_sp, cpu_sp, 4);
+    tcg_gen_qemu_st_tl(src1, cpu_sp, ctx->memidx, MO_UL);
+
+    return BS_NONE;
+}
+
