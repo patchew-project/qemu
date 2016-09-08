@@ -1976,3 +1976,96 @@ gen_set_label(label_done);
     return  BS_BRANCH_DS;
 }
 
+/*
+    J
+*/
+int arc_gen_J(DisasCtxt *ctx, TCGv src1, ARC_COND cond)
+{
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_fall = gen_new_label();
+
+    arc_gen_jump_ifnot(ctx, cond, label_fall);
+
+    if (ctx->opt.f) {
+        if (TCGV_EQUAL(src1, cpu_ilink1)) {
+            tcg_gen_mov_tl(cpu_Lf, cpu_l1_Lf);
+            tcg_gen_mov_tl(cpu_Zf, cpu_l1_Zf);
+            tcg_gen_mov_tl(cpu_Nf, cpu_l1_Nf);
+            tcg_gen_mov_tl(cpu_Cf, cpu_l1_Cf);
+            tcg_gen_mov_tl(cpu_Vf, cpu_l1_Vf);
+            tcg_gen_mov_tl(cpu_Uf, cpu_l1_Uf);
+
+            tcg_gen_mov_tl(cpu_DEf, cpu_l1_DEf);
+            tcg_gen_mov_tl(cpu_AEf, cpu_l1_AEf);
+            tcg_gen_mov_tl(cpu_A2f, cpu_l1_A2f);
+            tcg_gen_mov_tl(cpu_A1f, cpu_l1_A1f);
+            tcg_gen_mov_tl(cpu_E2f, cpu_l1_E2f);
+            tcg_gen_mov_tl(cpu_E1f, cpu_l1_E1f);
+
+            tcg_gen_mov_tl(cpu_bta, cpu_bta_l1);
+        }
+        if (TCGV_EQUAL(src1, cpu_ilink2)) {
+            tcg_gen_mov_tl(cpu_Lf, cpu_l2_Lf);
+            tcg_gen_mov_tl(cpu_Zf, cpu_l2_Zf);
+            tcg_gen_mov_tl(cpu_Nf, cpu_l2_Nf);
+            tcg_gen_mov_tl(cpu_Cf, cpu_l2_Cf);
+            tcg_gen_mov_tl(cpu_Vf, cpu_l2_Vf);
+            tcg_gen_mov_tl(cpu_Uf, cpu_l2_Uf);
+
+            tcg_gen_mov_tl(cpu_DEf, cpu_l2_DEf);
+            tcg_gen_mov_tl(cpu_AEf, cpu_l2_AEf);
+            tcg_gen_mov_tl(cpu_A2f, cpu_l2_A2f);
+            tcg_gen_mov_tl(cpu_A1f, cpu_l2_A1f);
+            tcg_gen_mov_tl(cpu_E2f, cpu_l2_E2f);
+            tcg_gen_mov_tl(cpu_E1f, cpu_l2_E1f);
+
+            tcg_gen_mov_tl(cpu_bta, cpu_bta_l2);
+        }
+    }
+
+    tcg_gen_mov_tl(cpu_pc, src1);
+    if (ctx->opt.d == 0) {
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        arc_gen_exec_delayslot(ctx);
+    }
+    tcg_gen_br(label_done);
+
+gen_set_label(label_fall);
+    tcg_gen_movi_tl(cpu_pc, ctx->dpc);
+    arc_gen_exec_delayslot(ctx);
+
+gen_set_label(label_done);
+
+    return  BS_BRANCH_DS;
+}
+
+/*
+    JL
+*/
+int arc_gen_JL(DisasCtxt *ctx, TCGv src1, ARC_COND cond)
+{
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_fall = gen_new_label();
+
+    arc_gen_jump_ifnot(ctx, cond, label_fall);
+
+    tcg_gen_mov_tl(cpu_pc, src1);
+    if (ctx->opt.d == 0) {
+        tcg_gen_movi_tl(cpu_blink, ctx->npc);
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        tcg_gen_movi_tl(cpu_blink, ctx->dpc);
+        arc_gen_exec_delayslot(ctx);
+    }
+    tcg_gen_br(label_done);
+
+gen_set_label(label_fall);
+    tcg_gen_movi_tl(cpu_pc, ctx->dpc);
+    arc_gen_exec_delayslot(ctx);
+
+gen_set_label(label_done);
+
+    return  BS_BRANCH_DS;
+}
+

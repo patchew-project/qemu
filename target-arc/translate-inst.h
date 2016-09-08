@@ -138,3 +138,6 @@ void arc_gen_jump_ifnot(DisasCtxt *ctx, ARC_COND cond, TCGLabel *label_skip);
 int arc_gen_B(DisasCtxt *c, TCGv rd, ARC_COND cond);
 int arc_gen_BL(DisasCtxt *c, TCGv Rd, ARC_COND cond);
 
+int arc_gen_J(DisasCtxt *c, TCGv src1, ARC_COND cond);
+int arc_gen_JL(DisasCtxt *c, TCGv src1, ARC_COND cond);
+
