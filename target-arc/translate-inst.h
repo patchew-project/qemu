@@ -95,3 +95,7 @@ int arc_gen_MPYH(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_MPYHU(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_MPYU(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 
+int arc_gen_DIVAW(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_MUL64(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_MULU64(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+
