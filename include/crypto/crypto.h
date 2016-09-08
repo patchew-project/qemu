@@ -30,6 +30,8 @@
 
 #include "qemu/queue.h"
 #include "qapi-types.h"
+#include "crypto/crypto-queue.h"
+
 
 typedef void (CryptoPoll)(CryptoClientState *, bool);
 typedef void (CryptoCleanup) (CryptoClientState *);
@@ -53,6 +55,8 @@ struct CryptoClientState {
     char *model;
     char *name;
     char info_str[256];
+    CryptoQueue *incoming_queue;
+    unsigned int queue_index;
     CryptoClientDestructor *destructor;
 };
 
@@ -63,5 +67,13 @@ CryptoClientState *new_crypto_client(CryptoClientInfo *info,
                                     CryptoClientState *peer,
                                     const char *model,
                                     const char *name);
+int qemu_deliver_crypto_packet(CryptoClientState *sender,
+                              unsigned flags,
+                              void *header_opqaue,
+                              void *opaque);
+int qemu_send_crypto_packet_async(CryptoClientState *sender,
+                                unsigned flags,
+                                void *opaque,
+                                CryptoPacketSent *sent_cb);
 
 #endif /* QCRYPTO_CRYPTO_H__ */

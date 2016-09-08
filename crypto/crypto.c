@@ -151,6 +151,8 @@ static void crypto_client_setup(CryptoClientState *cc,
     }
     QTAILQ_INSERT_TAIL(&crypto_clients, cc, next);
     cc->destructor = destructor;
+    cc->incoming_queue =
+                qemu_new_crypto_queue(qemu_deliver_crypto_packet, cc);
 }
 
 CryptoClientState *new_crypto_client(CryptoClientInfo *info,
@@ -168,4 +170,30 @@ CryptoClientState *new_crypto_client(CryptoClientInfo *info,
                           crypto_client_destructor);
 
     return cc;
+}
+
+int qemu_deliver_crypto_packet(CryptoClientState *sender,
+                              unsigned flags,
+                              void *header_opqaue,
+                              void *opaque)
+{
+    return 0;
+}
+
+int qemu_send_crypto_packet_async(CryptoClientState *sender,
+                                unsigned flags,
+                                void *opaque,
+                                CryptoPacketSent *sent_cb)
+{
+    CryptoQueue *queue;
+
+    if (!sender->ready) {
+        /* we assume that all packets are sent */
+        return 1;
+    }
+
+    queue = sender->peer->incoming_queue;
+
+    return qemu_crypto_queue_send(queue, flags, sender,
+                                  opaque, sent_cb);
 }
