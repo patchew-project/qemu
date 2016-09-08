@@ -13,7 +13,7 @@
 
 #define VIRTIO_CRYPTO_OPCODE(service, op)   ((service << 8) | (op))
 
-struct virtio_crypto_ctrl_header{
+struct virtio_crypto_ctrl_header {
 #define VIRTIO_CRYPTO_CIPHER_CREATE_SESSION \
        VIRTIO_CRYPTO_OPCODE(VIRTIO_CRYPTO_SERVICE_CIPHER, 0x02)
 #define VIRTIO_CRYPTO_CIPHER_DESTROY_SESSION \
@@ -65,7 +65,7 @@ struct virtio_crypto_cipher_session_para {
 };
 
 struct virtio_crypto_session_input {
-    // Device-writable part
+    /* Device-writable part */
     __virtio64 session_id;
     __virtio32 status;
     __virtio32 padding;
@@ -205,7 +205,7 @@ struct virtio_crypto_sym_create_session_req {
         struct virtio_crypto_alg_chain_session_req chain;
     } u;
 
-    // Device-readable part
+    /* Device-readable part */
 
 /* No operation */
 #define VIRTIO_CRYPTO_SYM_OP_NONE  0
@@ -219,9 +219,9 @@ struct virtio_crypto_sym_create_session_req {
 };
 
 struct virtio_crypto_destroy_session_req {
-    // Device-readable part
+    /* Device-readable part */
     __virtio64  session_id;
-    // Device-writable part
+    /* Device-writable part */
     __virtio32  status;
     __virtio32  padding;
 };
@@ -331,24 +331,24 @@ struct virtio_crypto_aead_output {
 };
 
 struct virtio_crypto_cipher_data_req {
-    // Device-readable part
+    /* Device-readable part */
     struct virtio_crypto_cipher_para para;
     struct virtio_crypto_cipher_output odata;
-    // Device-writable part
+    /* Device-writable part */
     struct virtio_crypto_cipher_input idata;
 };
 
 struct virtio_crypto_hash_data_req {
-    // Device-readable part
+    /* Device-readable part */
     struct virtio_crypto_hash_output odata;
-    // Device-writable part
+    /* Device-writable part */
     struct virtio_crypto_hash_input idata;
 };
 
 struct virtio_crypto_mac_data_req {
-    // Device-readable part
+    /* Device-readable part */
     struct virtio_crypto_mac_output odata;
-    // Device-writable part
+    /* Device-writable part */
     struct virtio_crypto_mac_input idata;
 };
 
@@ -359,7 +359,7 @@ struct virtio_crypto_alg_chain_data_para {
 struct virtio_crypto_alg_chain_data_output {
     struct virtio_crypto_cipher_output cipher;
 
-    // Device-readable part
+    /* Device-readable part */
     __virtio64 aad_data_addr; /* additional auth data guest address */
     __virtio32 aad_len; /* length of additional auth data */
     __virtio32 padding;
@@ -370,10 +370,10 @@ struct virtio_crypto_alg_chain_data_input {
 };
 
 struct virtio_crypto_alg_chain_data_req {
-    // Device-readable part
+    /* Device-readable part */
     struct virtio_crypto_alg_chain_data_para para;
     struct virtio_crypto_alg_chain_data_output odata;
-    // Device-writable part
+    /* Device-writable part */
     struct virtio_crypto_alg_chain_data_input idata;
 };
 
@@ -383,7 +383,7 @@ struct virtio_crypto_sym_data_req {
         struct virtio_crypto_alg_chain_data_req chain;
     } u;
 
-    // Device-readable part
+    /* Device-readable part */
 
     /* See above VIRTIO_CRYPTO_SYM_OP_* */
     __virtio32 op_type;
@@ -391,10 +391,10 @@ struct virtio_crypto_sym_data_req {
 };
 
 struct virtio_crypto_aead_data_req {
-    // Device-readable part
+    /* Device-readable part */
     struct virtio_crypto_aead_para para;
     struct virtio_crypto_aead_output odata;
-    // Device-writable part
+    /* Device-writable part */
     struct virtio_crypto_aead_input idata;
 };
 
