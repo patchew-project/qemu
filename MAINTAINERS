@@ -99,6 +99,11 @@ F: hw/alpha/
 F: tests/tcg/alpha/
 F: disas/alpha.c
 
+ARC
+M: Michael Rolnik <mrolnik@gmail.com>
+S: Maintained
+F: target-arc/
+
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org

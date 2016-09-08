@@ -58,6 +58,8 @@
 /fsdev/virtfs-proxy-helper
 *.[1-9]
 *.a
+*.swp
+*.swo
 *.aux
 *.cp
 *.dvi
