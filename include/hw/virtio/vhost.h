@@ -55,6 +55,7 @@ struct vhost_dev {
     uint64_t log_size;
     Error *migration_blocker;
     bool memory_changed;
+    bool mem_changed_req_sync;
     hwaddr mem_changed_start_addr;
     hwaddr mem_changed_end_addr;
     const VhostOps *vhost_ops;

@@ -303,7 +303,11 @@ static void vhost_dev_assign_memory(struct vhost_dev *dev,
         reg->guest_phys_addr = start_addr;
         reg->userspace_addr = uaddr;
         ++to;
+    } else {
+        /* Existing mapping updated, sync is required */
+        dev->mem_changed_req_sync = true;
     }
+
     assert(to <= dev->mem->nregions + 1);
     dev->mem->nregions = to;
 }
@@ -533,6 +537,7 @@ static void vhost_set_memory(MemoryListener *listener,
     } else {
         /* Remove old mapping for this memory, if any. */
         vhost_dev_unassign_memory(dev, start_addr, size);
+        dev->mem_changed_req_sync = true;
     }
     dev->mem_changed_start_addr = MIN(dev->mem_changed_start_addr, start_addr);
     dev->mem_changed_end_addr = MAX(dev->mem_changed_end_addr, start_addr + size - 1);
@@ -1126,6 +1131,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->log_enabled = false;
     hdev->started = false;
     hdev->memory_changed = false;
+    hdev->mem_changed_req_sync = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
     return 0;
@@ -1301,6 +1307,10 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     if (r < 0) {
         goto fail_features;
     }
+
+    /* First time the mem table is set, skip sync for completion */
+    hdev->mem_changed_req_sync = false;
+
     r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_mem_table failed");

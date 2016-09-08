@@ -531,6 +531,11 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
 
     vhost_user_write(dev, &msg, fds, fd_num);
 
+    if (!dev->mem_changed_req_sync) {
+        /* The update only add regions, skip the sync */
+        return 0;
+    }
+
     if (reply_supported) {
         return process_message_reply(dev, msg.request);
     } else {
@@ -540,6 +545,8 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
          */
         vhost_user_get_features(dev, &features);
     }
+
+    dev->mem_changed_req_sync = false;
 
     return 0;
 }
