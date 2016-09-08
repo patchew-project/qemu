@@ -2560,3 +2560,60 @@ int arc_gen_SAT16(DisasCtxt *ctx, TCGv dest, TCGv src1)
     return  BS_NONE;
 }
 
+/*
+    ASLS
+*/
+int arc_gen_ASLS(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    /* TODO */
+
+    return  BS_NONE;
+}
+
+
+/*
+    ASRS
+*/
+int arc_gen_ASRS(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    /* TODO: check */
+    TCGv rslt = dest;
+    TCGv shft = tcg_temp_new_i32();
+    TCGLabel *label_pos = gen_new_label();
+    TCGLabel *label_done = gen_new_label();
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_brcond_tl(TCG_COND_LEU, src2, ctx->smax32, label_pos);
+
+    /*  negative    */
+    tcg_gen_movcond_tl(TCG_COND_GT, shft, src2, ctx->smin5, src2, ctx->smin5);
+    tcg_gen_neg_tl(shft, shft);
+    tcg_gen_shl_tl(rslt, src1, shft);
+
+    tcg_gen_br(label_done);
+
+gen_set_label(label_pos);
+    /*  positive    */
+    tcg_gen_movcond_tl(TCG_COND_LT, shft, src2, ctx->smax5, src2, ctx->smax5);
+    tcg_gen_sar_tl(rslt, src1, shft);
+
+gen_set_label(label_done);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_sari_tl(cpu_Nf, rslt, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    tcg_temp_free_i32(shft);
+
+    return BS_NONE;
+}
+

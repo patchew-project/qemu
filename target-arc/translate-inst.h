@@ -156,3 +156,6 @@ int arc_gen_RND16(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_NEGS(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_NEGSW(DisasCtxt *c, TCGv dest, TCGv src1);
 
+int arc_gen_ASLS(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_ASRS(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
+
