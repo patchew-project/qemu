@@ -34,6 +34,7 @@
 #include "crypto/crypto.h"
 #include "qemu/config-file.h"
 #include "monitor/monitor.h"
+#include "crypto/crypto-clients.h"
 
 
 static QTAILQ_HEAD(, CryptoClientState) crypto_clients;
@@ -81,7 +82,12 @@ int crypto_init_clients(void)
 static int (* const crypto_client_init_fun[CRYPTO_CLIENT_OPTIONS_KIND__MAX])(
     const CryptoClientOptions *opts,
     const char *name,
-    CryptoClientState *peer, Error **errp);
+    CryptoClientState *peer, Error **errp) = {
+#ifdef CONFIG_CRYPTODEV_LINUX
+        [CRYPTO_CLIENT_OPTIONS_KIND_CRYPTODEV_LINUX] =
+                                             crypto_init_cryptodev_linux,
+#endif
+};
 
 static int crypto_client_init1(const void *object, Error **errp)
 {
