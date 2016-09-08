@@ -171,3 +171,5 @@ int arc_gen_TRAP(DisasCtxt *c, TCGv src1);
 
 int arc_gen_RTIE(DisasCtxt *c);
 
+int arc_gen_LPcc(DisasCtxt *ctx, TCGv Rd, unsigned Q);
+

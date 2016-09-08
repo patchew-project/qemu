@@ -437,4 +437,7 @@ void helper_rtie(CPUARCState *env)
     }
 }
 
-
+void helper_flush(CPUARCState *env)
+{
+    tb_flush((CPUState *)arc_env_get_cpu(env));
+}

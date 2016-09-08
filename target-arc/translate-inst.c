@@ -2813,3 +2813,43 @@ int arc_gen_RTIE(DisasCtxt *ctx)
     return  BS_BRANCH;
 }
 
+/*
+    LPcc
+*/
+int arc_gen_LPcc(DisasCtxt *ctx, TCGv rd, unsigned Q)
+{
+    TCGLabel *label_done = gen_new_label();
+    TCGv t0 = tcg_const_local_i32(ctx->npc);
+
+    /*
+        if cc is false, pc will be updated here
+        pc = pcl + rd
+    */
+    tcg_gen_shli_tl(cpu_pc, rd, 1);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, ctx->pcl);
+
+    /*
+        if cc is false we will jump to done label
+    */
+    arc_gen_jump_ifnot(ctx, Q, label_done);
+
+    /*
+        cc is true
+    */
+    tcg_gen_movi_tl(t0, ctx->lpe);
+
+    tcg_gen_movi_tl(cpu_lps, ctx->npc);
+    tcg_gen_mov_tl(cpu_lpe, cpu_pc);
+    tcg_gen_movi_tl(cpu_pc, ctx->npc);
+
+    tcg_gen_brcond_tl(TCG_COND_EQ, t0, cpu_lpe, label_done);
+
+    gen_helper_flush(cpu_env);
+
+gen_set_label(label_done);
+
+    tcg_temp_free_i32(t0);
+
+    return  BS_BRANCH;
+}
+
