@@ -140,6 +140,137 @@ static void arc_gen_kill_delayslot(DisasCtxt *ctx)
     /*  nothing to do   */
 }
 
+#define ARC_COND_IF_1(flag, label) \
+                    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_ ## flag ## f, 0, label)
+#define ARC_COND_IF_0(flag, label) \
+                    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_ ## flag ## f, 0, label)
+
+void arc_gen_jump_ifnot(DisasCtxt *ctx, ARC_COND cond, TCGLabel *label_skip)
+{
+    TCGLabel *label_cont = gen_new_label();
+
+    switch (cond) {
+        /*
+            Always
+        */
+        case    ARC_COND_AL: {
+        } break;
+
+        /*
+            Zero
+        */
+        case    ARC_COND_Z: {
+            ARC_COND_IF_0(Z, label_skip);
+        } break;
+
+        /*
+            Non-Zero
+        */
+        case    ARC_COND_NZ: {
+            ARC_COND_IF_1(Z, label_skip);
+        } break;
+
+        /*
+            Positive
+        */
+        case    ARC_COND_P: {
+            tcg_gen_brcondi_tl(TCG_COND_LT, cpu_Nf, 0, label_skip);
+        } break;
+
+        /*
+            Negative
+        */
+        case    ARC_COND_N: {
+            tcg_gen_brcondi_tl(TCG_COND_GE, cpu_Nf, 0, label_skip);
+        } break;
+
+        /*
+            Carry set, lower than (unsigned)
+        */
+        case    ARC_COND_C: {
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_Cf, 0, label_skip);
+        } break;
+
+        /*
+            Carry clear, higher or same (unsigned)
+        */
+        case    ARC_COND_CC: {
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_Cf, 0, label_skip);
+        } break;
+
+        /*
+            Over-flow set
+        */
+        case    ARC_COND_VS: {
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_Cf, 0, label_skip);
+        } break;
+
+        /*
+            Over-flow clear
+        */
+        case    ARC_COND_VC: {
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_Cf, 0, label_skip);
+        } break;
+
+        /*
+            Greater than (signed)
+        */
+        case    ARC_COND_GT: {
+            tcg_gen_brcondi_tl(TCG_COND_LE, cpu_Nf, 0, label_skip);
+        } break;
+
+        /*
+            Greater than or equal to (signed)
+        */
+        case    ARC_COND_GE: {
+            tcg_gen_brcondi_tl(TCG_COND_LT, cpu_Nf, 0, label_skip);
+        } break;
+
+        /*
+            Less than (signed)
+        */
+        case    ARC_COND_LT: {
+            tcg_gen_brcondi_tl(TCG_COND_GE, cpu_Nf, 0, label_skip);
+        } break;
+
+        /*
+            Less than or equal to (signed)
+        */
+        case    ARC_COND_LE: {
+            tcg_gen_brcondi_tl(TCG_COND_GT, cpu_Nf, 0, label_skip);
+        } break;
+
+        /*
+            Higher than (unsigned)
+            !C and !Z
+        */
+        case    ARC_COND_HI: {
+            ARC_COND_IF_1(C, label_skip);
+            ARC_COND_IF_1(Z, label_skip);
+        } break;
+
+        /*
+            Lower than
+            C or Z
+        */
+        case    ARC_COND_LS: {
+            ARC_COND_IF_1(C, label_cont);
+            ARC_COND_IF_0(Z, label_skip);
+        } break;
+
+        /*
+            Positive non-zero
+            !N and !Z
+        */
+        case    ARC_COND_PNZ: {
+            ARC_COND_IF_1(N, label_skip);
+            ARC_COND_IF_1(Z, label_skip);
+        } break;
+    }
+
+    gen_set_label(label_cont);
+}
+
 /*
     ADC
 */
@@ -1781,6 +1912,64 @@ gen_set_label(label_jump);
     } else {
         arc_gen_exec_delayslot(ctx);
     }
+
+gen_set_label(label_done);
+
+    return  BS_BRANCH_DS;
+}
+
+/*
+    B
+*/
+int arc_gen_B(DisasCtxt *ctx, TCGv rd, ARC_COND cond)
+{
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_fall = gen_new_label();
+
+    arc_gen_jump_ifnot(ctx, cond, label_fall);
+
+    tcg_gen_shli_tl(cpu_pc, rd, 1);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, ctx->pcl);
+    if (ctx->opt.d == 0) {
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        arc_gen_exec_delayslot(ctx);
+    }
+    tcg_gen_br(label_done);
+
+gen_set_label(label_fall);
+    tcg_gen_movi_tl(cpu_pc, ctx->dpc);
+    arc_gen_exec_delayslot(ctx);
+
+gen_set_label(label_done);
+
+    return  BS_BRANCH_DS;
+}
+
+/*
+    BL
+*/
+int arc_gen_BL(DisasCtxt *ctx, TCGv Rd, ARC_COND cond)
+{
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_fall = gen_new_label();
+
+    arc_gen_jump_ifnot(ctx, cond, label_fall);
+
+    tcg_gen_shli_tl(cpu_pc, Rd, 2);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, ctx->pcl);
+    if (ctx->opt.d == 0) {
+        tcg_gen_movi_tl(cpu_blink, ctx->npc);
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        tcg_gen_movi_tl(cpu_blink, ctx->dpc);
+        arc_gen_exec_delayslot(ctx);
+    }
+    tcg_gen_br(label_done);
+
+gen_set_label(label_fall);
+    tcg_gen_movi_tl(cpu_pc, ctx->dpc);
+    arc_gen_exec_delayslot(ctx);
 
 gen_set_label(label_done);
 

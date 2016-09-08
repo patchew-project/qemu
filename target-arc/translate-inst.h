@@ -134,3 +134,7 @@ int arc_gen_BBIT0(DisasCtxt *c, TCGv src1, TCGv src2, TCGv rd);
 int arc_gen_BBIT1(DisasCtxt *c, TCGv src1, TCGv src2, TCGv rd);
 int arc_gen_BR(DisasCtxt *c, TCGv src1, TCGv src2, TCGv Rd, TCGCond cond);
 
+void arc_gen_jump_ifnot(DisasCtxt *ctx, ARC_COND cond, TCGLabel *label_skip);
+int arc_gen_B(DisasCtxt *c, TCGv rd, ARC_COND cond);
+int arc_gen_BL(DisasCtxt *c, TCGv Rd, ARC_COND cond);
+
