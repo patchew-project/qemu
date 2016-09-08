@@ -164,6 +164,8 @@ int load_uimage(const char *filename, hwaddr *ep,
  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz);
 
+ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen);
+
 ssize_t read_targphys(const char *name,
                       int fd, hwaddr dst_addr, size_t nbytes);
 void pstrcpy_targphys(const char *name,

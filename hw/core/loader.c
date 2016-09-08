@@ -531,8 +531,7 @@ static void zfree(void *x, void *addr)
  * overflow on real hardware too. */
 #define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
 
-static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
-                      size_t srclen)
+ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen)
 {
     z_stream s;
     ssize_t dstbytes;
