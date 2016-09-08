@@ -141,3 +141,6 @@ int arc_gen_BL(DisasCtxt *c, TCGv Rd, ARC_COND cond);
 int arc_gen_J(DisasCtxt *c, TCGv src1, ARC_COND cond);
 int arc_gen_JL(DisasCtxt *c, TCGv src1, ARC_COND cond);
 
+int arc_gen_LR(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_SR(DisasCtxt *c, TCGv src1, TCGv src2);
+

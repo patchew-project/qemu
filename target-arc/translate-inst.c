@@ -2069,3 +2069,29 @@ gen_set_label(label_done);
     return  BS_BRANCH_DS;
 }
 
+/*
+    LR
+*/
+int arc_gen_LR(DisasCtxt *ctx, TCGv dest, TCGv src1)
+{
+    TCGv cpc = tcg_const_local_i32((ctx->cpc + 3) & 0xfffffffc);
+    TCGv npc = tcg_const_local_i32((ctx->npc + 3) & 0xfffffffc);
+
+    gen_helper_lr(dest, cpu_env, src1);
+
+    tcg_temp_free_i32(cpc);
+    tcg_temp_free_i32(npc);
+
+    return BS_NONE;
+}
+
+/*
+    SR
+*/
+int arc_gen_SR(DisasCtxt *ctx, TCGv src1, TCGv src2)
+{
+    gen_helper_sr(src1, src2);
+
+    return  BS_NONE;
+}
+
