@@ -197,7 +197,33 @@ static Property virtio_crypto_properties[] = {
 
 static void virtio_crypto_get_config(VirtIODevice *vdev, uint8_t *config)
 {
+    VirtIOCrypto *c = VIRTIO_CRYPTO(vdev);
+    struct virtio_crypto_config crypto_cfg;
 
+    virtio_stl_p(vdev, &crypto_cfg.status, c->status);
+    virtio_stl_p(vdev, &crypto_cfg.max_dataqueues, c->max_queues);
+    virtio_stl_p(vdev, &crypto_cfg.crypto_services,
+                 c->legacy_conf.crypto_services);
+    virtio_stl_p(vdev, &crypto_cfg.cipher_algo_l,
+                 c->legacy_conf.cipher_algo_l);
+    virtio_stl_p(vdev, &crypto_cfg.cipher_algo_h,
+                 c->legacy_conf.cipher_algo_h);
+    virtio_stl_p(vdev, &crypto_cfg.hash_algo,
+                 c->legacy_conf.hash_algo);
+    virtio_stl_p(vdev, &crypto_cfg.mac_algo_l,
+                 c->legacy_conf.mac_algo_l);
+    virtio_stl_p(vdev, &crypto_cfg.mac_algo_h,
+                 c->legacy_conf.mac_algo_h);
+    virtio_stl_p(vdev, &crypto_cfg.asym_algo,
+                 c->legacy_conf.asym_algo);
+    virtio_stl_p(vdev, &crypto_cfg.kdf_algo,
+                 c->legacy_conf.kdf_algo);
+    virtio_stl_p(vdev, &crypto_cfg.aead_algo,
+                 c->legacy_conf.aead_algo);
+    virtio_stl_p(vdev, &crypto_cfg.primitive_algo,
+                 c->legacy_conf.primitive_algo);
+
+    memcpy(config, &crypto_cfg, c->config_size);
 }
 
 static void virtio_crypto_set_config(VirtIODevice *vdev, const uint8_t *config)
