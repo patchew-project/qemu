@@ -64,3 +64,10 @@ int arc_gen_SYNC(DisasCtxt *c);
 int arc_gen_MAX(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_MIN(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 
+int arc_gen_MOV(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_EXTB(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_EXTW(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_SEXB(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_SEXW(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_SWAP(DisasCtxt *c, TCGv dest, TCGv src1);
+
