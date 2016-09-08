@@ -21,6 +21,7 @@
 obj-y   += translate.o
 obj-y   += helper.o
 obj-y   += cpu.o
+obj-y   += translate-inst.o
 obj-y   += gdbstub.o
 obj-y   += decode.o
 obj-$(CONFIG_SOFTMMU) += machine.o
