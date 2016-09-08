@@ -13384,7 +13384,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
     case 0x2d:
         switch (minor) {
         case SYNC:
-            /* NOP */
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
             break;
         case SYSCALL:
             generate_exception_end(ctx, EXCP_SYSCALL);
@@ -17201,7 +17201,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_SYNC:
         check_insn(ctx, ISA_MIPS2);
-        /* Treat as NOP. */
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
         break;
 
 #if defined(TARGET_MIPS64)
