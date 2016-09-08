@@ -452,3 +452,215 @@ int arc_gen_XOR(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
     return  BS_NONE;
 }
 
+/*
+    ASL
+*/
+int arc_gen_ASL(DisasCtxt *ctx, TCGv dest, TCGv src1)
+{
+    arc_gen_ADD(ctx, dest, src1, src1);
+
+    return  BS_NONE;
+}
+
+/*
+    ASLm
+*/
+int arc_gen_ASLm(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+    TCGv t0 = tcg_temp_new_i32();
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_andi_tl(t0, src2, 31);
+    tcg_gen_shl_tl(rslt, src1, t0);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+        tcg_gen_rotl_tl(cpu_Cf, src1, t0);
+        tcg_gen_andi_tl(cpu_Cf, cpu_Cf, 1);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+    tcg_temp_free_i32(t0);
+
+    return  BS_NONE;
+}
+
+/*
+    ASR
+*/
+int arc_gen_ASR(DisasCtxt *ctx, TCGv dest, TCGv src1)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_sari_tl(rslt, src1, 1);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+        tcg_gen_andi_tl(cpu_Cf, src1, 1);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
+/*
+    ASRm
+*/
+int arc_gen_ASRm(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+    TCGv t0 = tcg_temp_new_i32();
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_andi_tl(t0, src2, 31);
+    tcg_gen_sar_tl(rslt, src1, t0);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+        tcg_gen_rotr_tl(cpu_Cf, src1, src2);
+        tcg_gen_shri_tl(cpu_Cf, cpu_Cf, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+    tcg_temp_free_i32(t0);
+
+    return  BS_NONE;
+}
+
+/*
+    LSR
+*/
+int arc_gen_LSR(DisasCtxt *ctx, TCGv dest, TCGv src1)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_shri_tl(rslt, src1, 1);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_movi_tl(cpu_Nf, 0);
+        tcg_gen_andi_tl(cpu_Cf, src1, 1);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
+/*
+    LSRm
+*/
+int arc_gen_LSRm(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+    TCGv t0 = tcg_temp_new_i32();
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_andi_tl(t0, src2, 31);
+    tcg_gen_shr_tl(rslt, src1, t0);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+        tcg_gen_rotr_tl(cpu_Cf, src1, t0);
+        tcg_gen_shri_tl(cpu_Cf, cpu_Cf, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+    tcg_temp_free_i32(t0);
+
+    return  BS_NONE;
+}
+
+/*
+    ROR
+*/
+int arc_gen_ROR(DisasCtxt *ctx, TCGv dest, TCGv src1)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_rotri_tl(rslt, src1, 1);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+        tcg_gen_mov_tl(cpu_Cf, cpu_Nf);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
+/*
+    RORm
+*/
+int arc_gen_RORm(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_andi_tl(rslt, src2, 0x1f);
+    tcg_gen_rotr_tl(rslt, src1, rslt);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+        tcg_gen_mov_tl(cpu_Cf, cpu_Nf);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
