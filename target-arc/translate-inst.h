@@ -163,3 +163,5 @@ int arc_gen_SLEEP(DisasCtxt *c, TCGv src1);
 int arc_gen_BRK(DisasCtxt *c);
 int arc_gen_FLAG(DisasCtxt *c, TCGv src1);
 
+int arc_gen_NOP(DisasCtxt *c);
+int arc_gen_UNIMP(DisasCtxt *c);

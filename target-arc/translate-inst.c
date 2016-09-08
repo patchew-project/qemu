@@ -2678,3 +2678,23 @@ int arc_gen_SLEEP(DisasCtxt *ctx, TCGv src1)
     return  BS_BREAK;
 }
 
+/*
+    NOP
+*/
+int arc_gen_NOP(DisasCtxt *ctx)
+{
+    /*  literally no operation  */
+    return  BS_NONE;
+}
+
+/*
+    UNIMP
+*/
+int arc_gen_UNIMP(DisasCtxt *ctx)
+{
+    /* PC = INT_VECTOR_BACE + 0x10 */
+    tcg_gen_andi_tl(cpu_pc, cpu_intvec, 0xffffffc0);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, 0x10);
+
+    return  BS_EXCP;
+}
