@@ -333,3 +333,122 @@ int arc_gen_CMP(DisasCtxt *ctx, TCGv src1, TCGv src2)
 
     return  BS_NONE;
 }
+
+/*
+    TST
+*/
+int arc_gen_TST(DisasCtxt *ctx, TCGv src1, TCGv src2)
+{
+    TCGv temp = tcg_temp_new_i32();
+
+    ctx->opt.f = 1;
+    arc_gen_AND(ctx, temp, src1, src2);
+    tcg_temp_free_i32(temp);
+
+    return BS_NONE;
+}
+
+/*
+    AND
+*/
+int arc_gen_AND(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_and_tl(rslt, src1, src2);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
+/*
+    OR
+*/
+int arc_gen_OR(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_or_tl(rslt, src1, src2);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
+/*
+    BIC
+*/
+int arc_gen_BIC(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_andc_tl(rslt, src1, src2);  /*  rslt = src1 & ~src2             */
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+
+/*
+    XOR
+*/
+int arc_gen_XOR(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv rslt = dest;
+
+    if (TCGV_EQUAL(dest, src1) || TCGV_EQUAL(dest, src2)) {
+        rslt = tcg_temp_new_i32();
+    }
+
+    tcg_gen_xor_tl(rslt, src1, src2);
+
+    if (ctx->opt.f) {
+        tcg_gen_setcond_tl(TCG_COND_EQ, cpu_Zf, rslt, ctx->zero);
+        tcg_gen_shri_tl(cpu_Nf, rslt, 31);
+    }
+
+    if (!TCGV_EQUAL(dest, rslt)) {
+        tcg_gen_mov_tl(dest, rslt);
+        tcg_temp_free_i32(rslt);
+    }
+
+    return  BS_NONE;
+}
+

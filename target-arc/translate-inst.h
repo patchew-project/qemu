@@ -36,3 +36,9 @@ int arc_gen_SBC(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_RSUB(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_CMP(DisasCtxt *c, TCGv src1, TCGv src2);
 
+int arc_gen_AND(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_OR(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_BIC(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_XOR(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_TST(DisasCtxt *c, TCGv src1, TCGv src2);
+
