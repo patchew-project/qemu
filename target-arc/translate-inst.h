@@ -90,3 +90,8 @@ int arc_gen_RLC(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_NORMW(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_NORM(DisasCtxt *c, TCGv dest, TCGv src1);
 
+int arc_gen_MPY(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_MPYH(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_MPYHU(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_MPYU(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+
