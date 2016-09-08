@@ -894,3 +894,32 @@ int arc_gen_SYNC(DisasCtxt *ctx)
 
     return BS_NONE;
 }
+
+/*
+    MAX
+*/
+int arc_gen_MAX(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    if (ctx->opt.f) {
+        arc_gen_CMP(ctx, src1, src2);
+    }
+
+    tcg_gen_movcond_tl(TCG_COND_GEU, dest, src1, src2, src1, src2);
+
+    return  BS_NONE;
+}
+
+/*
+    MIN
+*/
+int arc_gen_MIN(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    if (ctx->opt.f) {
+        arc_gen_CMP(ctx, src1, src2);
+    }
+
+    tcg_gen_movcond_tl(TCG_COND_GEU, dest, src1, src2, src2, src1);
+
+    return  BS_NONE;
+}
+

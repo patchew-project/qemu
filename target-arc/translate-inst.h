@@ -61,3 +61,6 @@ int arc_gen_STB(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_PREFETCH(DisasCtxt *c, TCGv src1, TCGv src2);
 int arc_gen_SYNC(DisasCtxt *c);
 
+int arc_gen_MAX(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_MIN(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+
