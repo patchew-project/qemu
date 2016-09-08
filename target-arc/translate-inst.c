@@ -104,6 +104,42 @@ static void gen_sub_Vf(TCGv dest, TCGv src1, TCGv src2)
     tcg_temp_free_i32(t1);
 }
 
+static void arc_gen_exec_delayslot(DisasCtxt *ctx)
+{
+    if (ctx->opt.limm == 0) {
+        uint32_t cpc = ctx->cpc;
+        uint32_t npc = ctx->npc;
+        uint32_t dpc = ctx->dpc;
+        uint32_t pcl = ctx->pcl;
+        options_t opt = ctx->opt;
+        int bstate = ctx->bstate;
+
+        ctx->cpc = ctx->npc;
+        ctx->pcl = ctx->cpc & 0xfffffffc;
+
+        ++ctx->ds;
+
+        /* TODO: check for illegal instruction sequence */
+
+        memset(&ctx->opt, 0, sizeof(ctx->opt));
+        arc_decode(ctx);
+
+        --ctx->ds;
+
+        ctx->cpc = cpc;
+        ctx->npc = npc;
+        ctx->dpc = dpc;
+        ctx->pcl = pcl;
+        ctx->opt = opt;
+        ctx->bstate = bstate;
+    }
+}
+
+static void arc_gen_kill_delayslot(DisasCtxt *ctx)
+{
+    /*  nothing to do   */
+}
+
 /*
     ADC
 */
@@ -1649,5 +1685,105 @@ int arc_gen_MULU64(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
     tcg_temp_free_i64(srcB);
 
     return BS_NONE;
+}
+
+/*
+    BBIT0
+*/
+int arc_gen_BBIT0(DisasCtxt *ctx, TCGv src1, TCGv src2, TCGv rd)
+{
+    TCGv mask = tcg_temp_new_i32();
+    TCGv cond = tcg_temp_new_i32();
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_jump = gen_new_label();
+
+    tcg_gen_andi_tl(mask, src2, 0x31);
+    tcg_gen_shr_tl(mask, ctx->one, mask);
+    tcg_gen_andc_tl(cond, src1, mask);      /*  cond = src1 & ~(1 << src2)   */
+
+    tcg_gen_brcond_tl(TCG_COND_EQ, cond, ctx->zero, label_jump);
+
+    tcg_gen_movi_tl(cpu_pc, ctx->npc);
+    arc_gen_exec_delayslot(ctx);
+    tcg_gen_br(label_done);
+
+gen_set_label(label_jump);
+    tcg_gen_shli_tl(cpu_pc, rd, 1);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, ctx->pcl);
+    if (ctx->opt.d == 0) {
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        arc_gen_exec_delayslot(ctx);
+    }
+
+gen_set_label(label_done);
+    tcg_temp_free_i32(cond);
+    tcg_temp_free_i32(mask);
+
+    return  BS_BRANCH_DS;
+}
+
+/*
+    BBIT1
+*/
+int arc_gen_BBIT1(DisasCtxt *ctx, TCGv src1, TCGv src2, TCGv rd)
+{
+    TCGv mask = tcg_temp_new_i32();
+    TCGv cond = tcg_temp_new_i32();
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_jump = gen_new_label();
+
+    tcg_gen_andi_tl(mask, src2, 0x31);
+    tcg_gen_shr_tl(mask, ctx->one, mask);
+    tcg_gen_and_tl(cond, src1, mask);       /*  cond = src1 & (1 << src2)   */
+
+    tcg_gen_brcond_tl(TCG_COND_EQ, cond, ctx->zero, label_jump);
+
+    tcg_gen_movi_tl(cpu_pc, ctx->dpc);
+    arc_gen_exec_delayslot(ctx);
+    tcg_gen_br(label_done);
+
+gen_set_label(label_jump);
+    tcg_gen_shli_tl(cpu_pc, rd, 1);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, ctx->pcl);
+    if (ctx->opt.d == 0) {
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        arc_gen_exec_delayslot(ctx);
+    }
+
+gen_set_label(label_done);
+    tcg_temp_free_i32(cond);
+    tcg_temp_free_i32(mask);
+
+    return  BS_BRANCH_DS;
+}
+
+/*
+    BR
+*/
+int arc_gen_BR(DisasCtxt *ctx, TCGv src1, TCGv src2, TCGv Rd, TCGCond cond)
+{
+    TCGLabel *label_done = gen_new_label();
+    TCGLabel *label_jump = gen_new_label();
+
+    tcg_gen_brcond_tl(cond, src1, src2, label_jump);
+
+    tcg_gen_movi_tl(cpu_pc, ctx->dpc);
+    arc_gen_exec_delayslot(ctx);
+    tcg_gen_br(label_done);
+
+gen_set_label(label_jump);
+    tcg_gen_shli_tl(cpu_pc, Rd, 1);
+    tcg_gen_addi_tl(cpu_pc, cpu_pc, ctx->pcl);
+    if (ctx->opt.d == 0) {
+        arc_gen_kill_delayslot(ctx);
+    } else {
+        arc_gen_exec_delayslot(ctx);
+    }
+
+gen_set_label(label_done);
+
+    return  BS_BRANCH_DS;
 }
 

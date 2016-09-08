@@ -22,6 +22,37 @@
 #include "qemu/bitops.h"
 #include "tcg/tcg.h"
 
+typedef enum ARC_COND {
+    ARC_COND_AL      = 0x00,
+    ARC_COND_RA      = 0x00,
+    ARC_COND_EQ      = 0x01,
+    ARC_COND_Z       = 0x01,
+    ARC_COND_NE      = 0x02,
+    ARC_COND_NZ      = 0x02,
+    ARC_COND_PL      = 0x03,
+    ARC_COND_P       = 0x03,
+    ARC_COND_MI      = 0x04,
+    ARC_COND_N       = 0x04,
+    ARC_COND_CS      = 0x05,
+    ARC_COND_C       = 0x05,
+    ARC_COND_LO      = 0x05,
+    ARC_COND_CC      = 0x06,
+    ARC_COND_NC      = 0x06,
+    ARC_COND_HS      = 0x06,
+    ARC_COND_VS      = 0x07,
+    ARC_COND_V       = 0x07,
+    ARC_COND_VC      = 0x08,
+    ARC_COND_NV      = 0x08,
+    ARC_COND_GT      = 0x09,
+    ARC_COND_GE      = 0x0a,
+    ARC_COND_LT      = 0x0b,
+    ARC_COND_LE      = 0x0c,
+    ARC_COND_HI      = 0x0d,
+    ARC_COND_LS      = 0x0e,
+    ARC_COND_PNZ     = 0x0f,
+} ARC_COND;
+
+
 int arc_gen_ADC(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_ADD(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_ADD1(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
@@ -98,4 +129,8 @@ int arc_gen_MPYU(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_DIVAW(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_MUL64(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_MULU64(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+
+int arc_gen_BBIT0(DisasCtxt *c, TCGv src1, TCGv src2, TCGv rd);
+int arc_gen_BBIT1(DisasCtxt *c, TCGv src1, TCGv src2, TCGv rd);
+int arc_gen_BR(DisasCtxt *c, TCGv src1, TCGv src2, TCGv Rd, TCGCond cond);
 
