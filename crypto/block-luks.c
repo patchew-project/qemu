@@ -1154,9 +1154,6 @@ qcrypto_block_luks_create(QCryptoBlock *block,
 
     /* iter_time was in millis, but count_iters reported for secs */
     iters /= 1000;
-    /* Why /= 2 ?  That matches cryptsetup, but there's no
-     * explanation why they chose /= 2... */
-    iters /= 2;
     if (iters > UINT32_MAX) {
         error_setg(errp, "Too many PBKDF iterations for LUKS format");
         goto error;
