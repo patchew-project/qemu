@@ -177,7 +177,21 @@ int qemu_deliver_crypto_packet(CryptoClientState *sender,
                               void *header_opqaue,
                               void *opaque)
 {
-    return 0;
+    CryptoClientState *cc = opaque;
+    int ret = -1;
+
+    if (!cc->ready) {
+        return 1;
+    }
+
+    if (flags == QEMU_CRYPTO_PACKET_FLAG_SYM) {
+        CryptoSymOpInfo *op_info = header_opqaue;
+        if (cc->info->do_sym_op) {
+            ret = cc->info->do_sym_op(cc, op_info);
+        }
+    }
+
+    return ret;
 }
 
 int qemu_send_crypto_packet_async(CryptoClientState *sender,
