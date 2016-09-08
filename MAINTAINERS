@@ -103,6 +103,7 @@ ARC
 M: Michael Rolnik <mrolnik@gmail.com>
 S: Maintained
 F: target-arc/
+F: hw/arc
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
