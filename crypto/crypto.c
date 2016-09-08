@@ -197,3 +197,77 @@ int qemu_send_crypto_packet_async(CryptoClientState *sender,
     return qemu_crypto_queue_send(queue, flags, sender,
                                   opaque, sent_cb);
 }
+
+CryptoLegacyHWState *
+qemu_new_crypto_legacy_hw(CryptoClientInfo *info,
+                           CryptoLegacyHWConf *conf,
+                           const char *model,
+                           const char *name,
+                           void *opaque)
+{
+    CryptoLegacyHWState *crypto;
+    CryptoClientState **peers = conf->peers.ccs;
+    int i, queues = MAX(1, conf->peers.queues);
+
+    assert(info->type == CRYPTO_CLIENT_OPTIONS_KIND_LEGACY_HW);
+    assert(info->size >= sizeof(CryptoLegacyHWState));
+
+    crypto = g_malloc0(info->size + sizeof(CryptoClientState) * queues);
+    crypto->ccs = (void *)crypto + info->size;
+    crypto->opaque = opaque;
+    crypto->conf = conf;
+
+    for (i = 0; i < queues; i++) {
+        crypto_client_setup(&crypto->ccs[i], info, peers[i], model, name,
+                              NULL);
+        crypto->ccs[i].queue_index = i;
+        crypto->ccs[i].ready = true;
+    }
+
+    return crypto;
+}
+
+static void qemu_cleanup_crypto_client(CryptoClientState *cc)
+{
+    QTAILQ_REMOVE(&crypto_clients, cc, next);
+
+    if (cc->info->cleanup) {
+        cc->info->cleanup(cc);
+    }
+}
+
+static void qemu_free_crypto_client(CryptoClientState *cc)
+{
+    if (cc->incoming_queue) {
+        qemu_del_crypto_queue(cc->incoming_queue);
+    }
+    if (cc->peer) {
+        cc->peer->peer = NULL;
+    }
+    g_free(cc->model);
+    g_free(cc->name);
+
+    if (cc->destructor) {
+        cc->destructor(cc);
+    }
+}
+
+CryptoClientState *
+qemu_get_crypto_subqueue(CryptoLegacyHWState *crypto, int queue_index)
+{
+    return crypto->ccs + queue_index;
+}
+
+void qemu_del_crypto_legacy_hw(CryptoLegacyHWState *crypto)
+{
+    int i, queues = MAX(crypto->conf->peers.queues, 1);
+
+    for (i = queues - 1; i >= 0; i--) {
+        CryptoClientState *cc = qemu_get_crypto_subqueue(crypto, i);
+
+        qemu_cleanup_crypto_client(cc);
+        qemu_free_crypto_client(cc);
+    }
+
+    g_free(crypto);
+}

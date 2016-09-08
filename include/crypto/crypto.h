@@ -32,6 +32,7 @@
 #include "qapi-types.h"
 #include "crypto/crypto-queue.h"
 
+#define MAX_CRYPTO_QUEUE_NUM  64
 
 typedef void (CryptoPoll)(CryptoClientState *, bool);
 typedef void (CryptoCleanup) (CryptoClientState *);
@@ -60,6 +61,24 @@ struct CryptoClientState {
     CryptoClientDestructor *destructor;
 };
 
+/* qdev crypto legacy hardware properties */
+
+typedef struct CryptoLegacyHWPeers {
+    CryptoClientState *ccs[MAX_CRYPTO_QUEUE_NUM];
+    int32_t queues;
+} CryptoLegacyHWPeers;
+
+typedef struct CryptoLegacyHWConf {
+    CryptoLegacyHWPeers peers;
+} CryptoLegacyHWConf;
+
+typedef struct CryptoLegacyHWState {
+    CryptoClientState *ccs;
+    void *opaque;
+    CryptoLegacyHWConf *conf;
+    bool peer_deleted;
+} CryptoLegacyHWState;
+
 int crypto_client_init(QemuOpts *opts, Error **errp);
 int crypto_init_clients(void);
 
@@ -75,5 +94,15 @@ int qemu_send_crypto_packet_async(CryptoClientState *sender,
                                 unsigned flags,
                                 void *opaque,
                                 CryptoPacketSent *sent_cb);
+CryptoLegacyHWState *
+qemu_new_crypto_legacy_hw(CryptoClientInfo *info,
+                           CryptoLegacyHWConf *conf,
+                           const char *model,
+                           const char *name,
+                           void *opaque);
+void qemu_del_crypto_legacy_hw(CryptoLegacyHWState *crypto);
+
+CryptoClientState *
+qemu_get_crypto_subqueue(CryptoLegacyHWState *crypto, int queue_index);
 
 #endif /* QCRYPTO_CRYPTO_H__ */
