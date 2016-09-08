@@ -2803,3 +2803,13 @@ int arc_gen_SWI(DisasCtxt *ctx)
     return  BS_EXCP;
 }
 
+/*
+    RTIE
+*/
+int arc_gen_RTIE(DisasCtxt *ctx)
+{
+    gen_helper_rtie(cpu_env);
+
+    return  BS_BRANCH;
+}
+

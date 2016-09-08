@@ -416,4 +416,25 @@ void helper_halt(CPUARCState *env)
     /* TODO: implement */
 }
 
+void helper_rtie(CPUARCState *env)
+{
+    if (env->stat.AEf) {
+        CPU_PCL(env) = env->eret;
+        env->stat = env->stat_er;
+        env->bta = env->erbta;
+    } else if (env->stat.A2f) {
+        CPU_PCL(env) = CPU_ILINK2(env);
+        env->stat = env->stat_l2;
+        env->bta = env->bta_l2;
+    } else if (env->stat.A1f) {
+        CPU_PCL(env) = CPU_ILINK1(env);
+        env->stat = env->stat_l1;
+        env->bta = env->bta_l1;
+    } else {
+        CPU_PCL(env) = env->eret;
+        env->stat = env->stat_er;
+        env->bta = env->stat.AEf;
+    }
+}
+
 

@@ -24,4 +24,5 @@ DEF_HELPER_2(normw, i32, env, i32)
 DEF_HELPER_2(lr, tl, env, i32)
 DEF_HELPER_2(sr, void, i32, i32)
 DEF_HELPER_1(halt, void, env)
+DEF_HELPER_1(rtie, void, env)
 
