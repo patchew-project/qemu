@@ -71,3 +71,7 @@ int arc_gen_SEXB(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_SEXW(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_SWAP(DisasCtxt *c, TCGv dest, TCGv src1);
 
+int arc_gen_NEG(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_ABS(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_NOT(DisasCtxt *c, TCGv dest, TCGv src1);
+
