@@ -917,8 +917,12 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     const char *hash_alg;
     char *cipher_mode_spec = NULL;
     QCryptoCipherAlgorithm ivcipheralg = 0;
+    uint64_t iters;
 
     memcpy(&luks_opts, &options->u.luks, sizeof(luks_opts));
+    if (!luks_opts.has_iter_time) {
+        luks_opts.iter_time = 1000;
+    }
     if (!luks_opts.has_cipher_alg) {
         luks_opts.cipher_alg = QCRYPTO_CIPHER_ALG_AES_256;
     }
@@ -1064,7 +1068,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     /* Determine how many iterations we need to hash the master
      * key, in order to have 1 second of compute time used
      */
-    luks->header.master_key_iterations =
+    iters = luks_opts.iter_time *
         qcrypto_pbkdf2_count_iters(luks_opts.hash_alg,
                                    masterkey, luks->header.key_bytes,
                                    luks->header.master_key_salt,
@@ -1074,15 +1078,19 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         error_propagate(errp, local_err);
         goto error;
     }
-
+    /* iter_time was in millis, but count_iters reported for secs */
+    iters /= 1000;
     /* Why /= 8 ?  That matches cryptsetup, but there's no
      * explanation why they chose /= 8... Probably so that
      * if all 8 keyslots are active we only spend 1 second
      * in total time to check all keys */
-    luks->header.master_key_iterations /= 8;
+    iters /= 8;
+    if (iters > UINT32_MAX) {
+        error_setg(errp, "Too many PBKDF iterations for LUKS format");
+        goto error;
+    }
     luks->header.master_key_iterations = MAX(
-        luks->header.master_key_iterations,
-        QCRYPTO_BLOCK_LUKS_MIN_MASTER_KEY_ITERS);
+        iters, QCRYPTO_BLOCK_LUKS_MIN_MASTER_KEY_ITERS);
 
 
     /* Hash the master key, saving the result in the LUKS
@@ -1131,7 +1139,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     /* Again we determine how many iterations are required to
      * hash the user password while consuming 1 second of compute
      * time */
-    luks->header.key_slots[0].iterations =
+    iters = luks_opts.iter_time *
         qcrypto_pbkdf2_count_iters(luks_opts.hash_alg,
                                    (uint8_t *)password, strlen(password),
                                    luks->header.key_slots[0].salt,
@@ -1141,12 +1149,18 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         error_propagate(errp, local_err);
         goto error;
     }
+
+    /* iter_time was in millis, but count_iters reported for secs */
+    iters /= 1000;
     /* Why /= 2 ?  That matches cryptsetup, but there's no
      * explanation why they chose /= 2... */
-    luks->header.key_slots[0].iterations /= 2;
+    iters /= 2;
+    if (iters > UINT32_MAX) {
+        error_setg(errp, "Too many PBKDF iterations for LUKS format");
+        goto error;
+    }
     luks->header.key_slots[0].iterations = MAX(
-        luks->header.key_slots[0].iterations,
-        QCRYPTO_BLOCK_LUKS_MIN_SLOT_KEY_ITERS);
+        iters, QCRYPTO_BLOCK_LUKS_MIN_SLOT_KEY_ITERS);
 
 
     /* Generate a key that we'll use to encrypt the master
