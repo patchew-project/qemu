@@ -84,3 +84,5 @@ int arc_gen_BSET(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_BTST(DisasCtxt *c, TCGv src1, TCGv src2);
 int arc_gen_BXOR(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 
+int arc_gen_RRC(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_RLC(DisasCtxt *c, TCGv dest, TCGv src1);
