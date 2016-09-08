@@ -78,3 +78,9 @@ int arc_gen_NOT(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_POP(DisasCtxt *c, TCGv src1);
 int arc_gen_PUSH(DisasCtxt *c, TCGv src1);
 
+int arc_gen_BCLR(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_BMSK(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_BSET(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_BTST(DisasCtxt *c, TCGv src1, TCGv src2);
+int arc_gen_BXOR(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+
