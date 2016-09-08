@@ -159,3 +159,7 @@ int arc_gen_NEGSW(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_ASLS(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_ASRS(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
 
+int arc_gen_SLEEP(DisasCtxt *c, TCGv src1);
+int arc_gen_BRK(DisasCtxt *c);
+int arc_gen_FLAG(DisasCtxt *c, TCGv src1);
+

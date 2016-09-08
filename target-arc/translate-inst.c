@@ -2617,3 +2617,64 @@ gen_set_label(label_done);
     return BS_NONE;
 }
 
+/*
+    BRK
+*/
+int arc_gen_BRK(DisasCtxt *ctx)
+{
+    tcg_gen_movi_tl(cpu_debug_BH, 1);
+    gen_helper_halt(cpu_env);
+    return  BS_BREAK;
+}
+
+/*
+    FLAG
+*/
+int arc_gen_FLAG(DisasCtxt *ctx, TCGv src1)
+{
+    TCGLabel *label_else = gen_new_label();
+    TCGLabel *label_done = gen_new_label();
+    TCGv temp = tcg_temp_new_i32();
+
+    tcg_gen_mov_tl(temp, src1);
+
+    tcg_gen_andi_tl(cpu_Hf, temp, 1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_Hf, 0, label_else);
+
+    gen_helper_halt(cpu_env);
+
+gen_set_label(label_else);
+    tcg_gen_shri_tl(temp, temp, 1);
+    tcg_gen_andi_tl(cpu_E1f, temp, 1);
+
+    tcg_gen_shri_tl(temp, temp, 1);
+    tcg_gen_andi_tl(cpu_E2f, temp, 1);
+
+    tcg_gen_shri_tl(temp, temp, 6);
+    tcg_gen_andi_tl(cpu_Vf, temp, 1);
+
+    tcg_gen_shri_tl(temp, temp, 1);
+    tcg_gen_andi_tl(cpu_Cf, temp, 1);
+
+    tcg_gen_shri_tl(temp, temp, 1);
+    tcg_gen_andi_tl(cpu_Nf, temp, 1);
+
+    tcg_gen_shri_tl(temp, temp, 1);
+    tcg_gen_andi_tl(cpu_Zf, temp, 1);
+gen_set_label(label_done);
+
+    return BS_NONE;
+}
+
+/*
+    SLEEP
+*/
+int arc_gen_SLEEP(DisasCtxt *ctx, TCGv src1)
+{
+    tcg_gen_movi_tl(cpu_debug_ZZ, 1);
+    tcg_gen_andi_tl(cpu_E1f, src1, 0x01);
+    tcg_gen_andi_tl(cpu_E2f, src1, 0x02);
+
+    return  BS_BREAK;
+}
+

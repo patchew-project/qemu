@@ -411,3 +411,9 @@ target_ulong helper_lr(CPUARCState *env, uint32_t aux)
     return  result;
 }
 
+void helper_halt(CPUARCState *env)
+{
+    /* TODO: implement */
+}
+
+
