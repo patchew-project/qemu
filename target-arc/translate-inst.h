@@ -51,3 +51,13 @@ int arc_gen_LSRm(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 int arc_gen_ROR(DisasCtxt *c, TCGv dest, TCGv src1);
 int arc_gen_RORm(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
 
+int arc_gen_EX(DisasCtxt *c, TCGv dest, TCGv src1);
+int arc_gen_LD(DisasCtxt *c, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_LDW(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_LDB(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_ST(DisasCtxt *c, TCGv src1, TCGv src2, TCGv src3);
+int arc_gen_STW(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_STB(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2);
+int arc_gen_PREFETCH(DisasCtxt *c, TCGv src1, TCGv src2);
+int arc_gen_SYNC(DisasCtxt *c);
+

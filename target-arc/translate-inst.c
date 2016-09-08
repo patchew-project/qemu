@@ -664,3 +664,233 @@ int arc_gen_RORm(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
     return  BS_NONE;
 }
 
+/*
+    EX
+*/
+int arc_gen_EX(DisasCtxt *ctx, TCGv dest, TCGv src1)
+{
+    TCGv temp = tcg_temp_new_i32();
+
+    tcg_gen_mov_tl(temp, dest);
+
+    tcg_gen_qemu_ld_tl(dest, src1, ctx->memidx, MO_UL);
+    tcg_gen_qemu_st_tl(temp, src1, ctx->memidx, MO_UL);
+
+    tcg_temp_free_i32(temp);
+
+    return BS_NONE;
+}
+
+/*
+    LD
+*/
+int arc_gen_LD(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+    TCGv addr = tcg_temp_new_i32();
+
+    /*  address             */
+    switch (ctx->opt.aa) {
+        case 0x00: {
+            tcg_gen_add_tl(addr, src1, src2);
+        } break;
+
+        case 0x01: {
+            tcg_gen_add_tl(addr, src1, src2);
+        } break;
+
+        case 0x02: {
+            tcg_gen_mov_tl(addr, src1);
+        } break;
+
+        case 0x03: {
+            if (ctx->opt.zz == 0x02) {
+                tcg_gen_shli_tl(addr, src2, 1);
+            } else if (ctx->opt.zz == 0x00) {
+                tcg_gen_shli_tl(addr, src2, 2);
+            } else {
+                assert(!"bad format");
+            }
+
+            tcg_gen_add_tl(addr, src1, addr);
+        } break;
+    }
+
+    /*  memory read         */
+    switch (ctx->opt.zz) {
+        case 0x00: {
+            tcg_gen_qemu_ld_tl(dest, addr, ctx->memidx, MO_UL);
+        } break;
+
+        case 0x01: {
+            if (ctx->opt.x) {
+                tcg_gen_qemu_ld_tl(dest, addr, ctx->memidx, MO_SB);
+            } else {
+                tcg_gen_qemu_ld_tl(dest, addr, ctx->memidx, MO_UB);
+            }
+        } break;
+
+        case 0x02: {
+            if (ctx->opt.x) {
+                tcg_gen_qemu_ld_tl(dest, addr, ctx->memidx, MO_SW);
+            } else {
+                tcg_gen_qemu_ld_tl(dest, addr, ctx->memidx, MO_UW);
+            }
+        } break;
+
+        case 0x03: {
+            assert(!"reserved");
+        } break;
+    }
+
+    /*  address write back      */
+    if (ctx->opt.aa == 0x01 || ctx->opt.aa == 0x02) {
+        tcg_gen_add_tl(src1, src1, src2);
+    }
+
+    tcg_temp_free_i32(addr);
+
+    return BS_NONE;
+}
+
+/*
+    LDB
+*/
+int arc_gen_LDB(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+
+    ctx->opt.zz = 1;    /*  byte                        */
+    ctx->opt.x = 0;     /*  no sign extension           */
+    ctx->opt.aa = 0;    /*  no address write back       */
+    ctx->opt.di = 0;    /*  cached data memory access   */
+
+    return arc_gen_LD(ctx, dest, src1, src2);
+}
+
+/*
+    LDW
+*/
+int arc_gen_LDW(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+
+    ctx->opt.zz = 2;    /*  word                        */
+    ctx->opt.x = 0;     /*  no sign extension           */
+    ctx->opt.aa = 0;    /*  no address write back       */
+    ctx->opt.di = 0;    /*  cached data memory access   */
+
+    return arc_gen_LD(ctx, dest, src1, src2);
+}
+
+/*
+    ST
+*/
+int arc_gen_ST(DisasCtxt *ctx, TCGv src1, TCGv src2, TCGv src3)
+{
+    TCGv addr = tcg_temp_new_i32();
+
+    /*  address         */
+    switch (ctx->opt.aa) {
+        case 0x00: {
+            tcg_gen_add_tl(addr, src2, src3);
+        } break;
+
+        case 0x01: {
+            tcg_gen_add_tl(addr, src2, src3);
+        } break;
+
+        case 0x02: {
+            tcg_gen_mov_tl(addr, src2);
+        } break;
+
+        case 0x03: {
+            if (ctx->opt.zz == 0x02) {
+                tcg_gen_shli_tl(addr, src3, 1);
+            } else if (ctx->opt.zz == 0x00) {
+                tcg_gen_shli_tl(addr, src3, 2);
+            } else {
+                assert(!"bad format");
+            }
+
+            tcg_gen_add_tl(addr, src2, addr);
+        } break;
+    }
+
+    /*  write               */
+    switch (ctx->opt.zz) {
+        case 0x00: {
+            tcg_gen_qemu_st_tl(src1, addr, ctx->memidx, MO_UL);
+        } break;
+
+        case 0x01: {
+            tcg_gen_qemu_st_tl(src1, addr, ctx->memidx, MO_UB);
+        } break;
+
+        case 0x02: {
+            tcg_gen_qemu_st_tl(src1, addr, ctx->memidx, MO_UW);
+        } break;
+
+        case 0x03: {
+            assert(!"reserved");
+        } break;
+    }
+
+    /*  address write back  */
+    if (ctx->opt.aa == 0x01 || ctx->opt.aa == 0x02) {
+        tcg_gen_add_tl(src2, src2, src3);
+    }
+
+    tcg_temp_free_i32(addr);
+
+    return  BS_NONE;
+}
+
+/*
+    STB
+*/
+int arc_gen_STB(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+
+    ctx->opt.zz = 1;    /*  byte                        */
+    ctx->opt.x = 0;     /*  no sign extension           */
+    ctx->opt.aa = 0;    /*  no address write back       */
+    ctx->opt.di = 0;    /*  cached data memory access   */
+
+    return arc_gen_ST(ctx, dest, src1, src2);
+}
+
+/*
+    STW
+*/
+int arc_gen_STW(DisasCtxt *ctx, TCGv dest, TCGv src1, TCGv src2)
+{
+
+    ctx->opt.zz = 2;    /*  word                        */
+    ctx->opt.x = 0;     /*  no sign extension           */
+    ctx->opt.aa = 0;    /*  no address write back       */
+    ctx->opt.di = 0;    /*  cached data memory access   */
+
+    return arc_gen_ST(ctx, dest, src1, src2);
+}
+
+/*
+    PREFETCH
+*/
+int arc_gen_PREFETCH(DisasCtxt *ctx, TCGv src1, TCGv src2)
+{
+    TCGv temp = tcg_temp_new_i32();
+
+    arc_gen_LD(ctx, temp, src1, src2);
+
+    tcg_temp_free_i32(temp);
+
+    return BS_NONE;
+}
+
+/*
+    SYNC
+*/
+int arc_gen_SYNC(DisasCtxt *ctx)
+{
+    /*  nothing to do*/
+
+    return BS_NONE;
+}
