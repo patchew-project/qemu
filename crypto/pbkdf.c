@@ -65,12 +65,15 @@ static int qcrypto_pbkdf2_get_thread_cpu(unsigned long long *val_ms,
 int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
                                const uint8_t *key, size_t nkey,
                                const uint8_t *salt, size_t nsalt,
+                               size_t nout,
                                Error **errp)
 {
     int ret = -1;
-    uint8_t out[32];
+    uint8_t *out;
     long long int iterations = (1 << 15);
     unsigned long long delta_ms, start_ms, end_ms;
+
+    out = g_new0(uint8_t, nout);
 
     while (1) {
         if (qcrypto_pbkdf2_get_thread_cpu(&start_ms, errp) < 0) {
@@ -80,7 +83,7 @@ int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
                            key, nkey,
                            salt, nsalt,
                            iterations,
-                           out, sizeof(out),
+                           out, nout,
                            errp) < 0) {
             goto cleanup;
         }
@@ -110,6 +113,7 @@ int qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
     ret = iterations;
 
  cleanup:
-    memset(out, 0, sizeof(out));
+    memset(out, 0, nout);
+    g_free(out);
     return ret;
 }
