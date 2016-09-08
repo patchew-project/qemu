@@ -119,6 +119,7 @@ int main(int argc, char **argv)
 #include "qapi-event.h"
 #include "exec/semihost.h"
 #include "crypto/init.h"
+#include "crypto/crypto.h"
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
 
@@ -3015,6 +3016,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    qemu_add_opts(&qemu_cryptodev_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
@@ -3983,6 +3985,13 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+            case QEMU_OPTION_cryptodev:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("cryptodev"),
+                                               optarg, false);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
@@ -4369,6 +4378,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (net_init_clients() < 0) {
+        exit(1);
+    }
+
+    if (crypto_init_clients() < 0) {
         exit(1);
     }
 

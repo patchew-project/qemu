@@ -4582,3 +4582,49 @@
 # Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+
+##
+# @CryptoLegacyHWOptions
+#
+# Create a new cryptographic hardware device.
+#
+# @cryptodev: #optional id of -cryptodev to connect to
+#
+# @model: #optional device model (Only virtio at present)
+#
+# @vectors: #optional number of MSI-x vectors, 0 to disable MSI-X
+#
+# Since 2.7
+##
+{ 'struct': 'CryptoLegacyHWOptions',
+  'data': {
+    '*cryptodev':  'str',
+    '*model':   'str',
+    '*vectors': 'uint32' } }
+
+##
+# @CryptoClientOptions
+#
+# A discriminated record of crypto device traits.
+#
+# Since 2.7
+#
+##
+{ 'union': 'CryptoClientOptions',
+  'data': {'legacy-hw':   'CryptoLegacyHWOptions'} }
+
+##
+# @Cryptodev
+#
+# Captures the configuration of a crypto device.
+#
+# @id: identifier for monitor commands.
+#
+# @opts: device type specific properties
+#
+# Since 2.7
+##
+{ 'struct': 'Cryptodev',
+  'data': {
+    'id':   'str',
+    'opts': 'CryptoClientOptions' } }

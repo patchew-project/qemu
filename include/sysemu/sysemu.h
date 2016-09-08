@@ -244,5 +244,6 @@ extern QemuOptsList qemu_netdev_opts;
 extern QemuOptsList qemu_net_opts;
 extern QemuOptsList qemu_global_opts;
 extern QemuOptsList qemu_mon_opts;
+extern QemuOptsList qemu_cryptodev_opts;
 
 #endif
