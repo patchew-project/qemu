@@ -822,10 +822,10 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUMoxieState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    MoxieCPU *cpu = moxie_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUMoxieState *env = cpu->env_ptr;
+    MoxieCPU *moxie_cpu = moxie_env_get_cpu(env);
     DisasContext ctx;
     target_ulong pc_start;
     int num_insns, max_insns;
@@ -851,7 +851,7 @@ void gen_intermediate_code(CPUMoxieState *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, ctx.pc, BP_ANY))) {
             tcg_gen_movi_i32(cpu_pc, ctx.pc);
             gen_helper_debug(cpu_env);
             ctx.bstate = BS_EXCP;
@@ -864,12 +864,12 @@ void gen_intermediate_code(CPUMoxieState *env, struct TranslationBlock *tb)
         }
 
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
-        ctx.pc += decode_opc(cpu, &ctx);
+        ctx.pc += decode_opc(moxie_cpu, &ctx);
 
         if (num_insns >= max_insns) {
             break;
         }
-        if (cs->singlestep_enabled) {
+        if (cpu->singlestep_enabled) {
             break;
         }
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0) {
@@ -877,7 +877,7 @@ void gen_intermediate_code(CPUMoxieState *env, struct TranslationBlock *tb)
         }
     } while (ctx.bstate == BS_NONE && !tcg_op_buf_full());
 
-    if (cs->singlestep_enabled) {
+    if (cpu->singlestep_enabled) {
         tcg_gen_movi_tl(cpu_pc, ctx.pc);
         gen_helper_debug(cpu_env);
     } else {

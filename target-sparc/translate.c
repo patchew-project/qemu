@@ -5564,10 +5564,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 }
 
-void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock * tb)
 {
-    SPARCCPU *cpu = sparc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUSPARCState * env = cpu->env_ptr;
     target_ulong pc_start, last_pc;
     DisasContext dc1, *dc = &dc1;
     int num_insns;
@@ -5585,7 +5584,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
     dc->def = env->def;
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
-    dc->singlestep = (cs->singlestep_enabled || singlestep);
+    dc->singlestep = (cpu->singlestep_enabled || singlestep);
 #ifdef TARGET_SPARC64
     dc->fprs_dirty = 0;
     dc->asi = (tb->flags >> TB_FLAG_ASI_SHIFT) & 0xff;
@@ -5611,7 +5610,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
         num_insns++;
         last_pc = dc->pc;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc->pc, BP_ANY))) {
             if (dc->pc != pc_start) {
                 save_state(dc);
             }
@@ -5674,7 +5673,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log("--------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, last_pc + 4 - pc_start, 0);
+        log_target_disas(cpu, pc_start, last_pc + 4 - pc_start, 0);
         qemu_log("\n");
     }
 #endif
