@@ -235,6 +235,8 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val);
 void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
 int virtio_set_features(VirtIODevice *vdev, uint64_t val);
+bool virtio_test_backend_feature(VirtIODevice *vdev,
+                                 unsigned int fbit, Error **errp);
 
 /* Base devices.  */
 typedef struct VirtIOBlkConf VirtIOBlkConf;
