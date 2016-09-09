@@ -87,6 +87,24 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
     }
 }
 
+static void test_visitor_out_size(TestOutputVisitorData *data,
+                                  const void *unused)
+{
+    uint64_t value = 1729;
+    Error *err = NULL;
+    char *str;
+
+    visit_type_size(data->ov, NULL, &value, &err);
+    g_assert(!err);
+
+    str = visitor_get(data);
+    if (data->human) {
+        g_assert_cmpstr(str, ==, "1729 (1.69 KiB)");
+    } else {
+        g_assert_cmpstr(str, ==, "1729");
+    }
+}
+
 static void test_visitor_out_intList(TestOutputVisitorData *data,
                                      const void *unused)
 {
@@ -240,6 +258,10 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_int, false);
     output_visitor_test_add("/string-visitor/output/int-human",
                             &out_visitor_data, test_visitor_out_int, true);
+    output_visitor_test_add("/string-visitor/output/size",
+                            &out_visitor_data, test_visitor_out_size, false);
+    output_visitor_test_add("/string-visitor/output/size-human",
+                            &out_visitor_data, test_visitor_out_size, true);
     output_visitor_test_add("/string-visitor/output/bool",
                             &out_visitor_data, test_visitor_out_bool, false);
     output_visitor_test_add("/string-visitor/output/bool-human",
