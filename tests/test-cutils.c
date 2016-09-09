@@ -1437,8 +1437,94 @@ static void test_qemu_strtosz_suffix_unit(void)
     g_assert_cmpint(res, ==, 12345000);
 }
 
+
+static struct SzToStrData {
+    const char *path;
+    int64_t val;
+    const char *expected;
+    const char default_suffix;
+    bool long_suffix;
+    const char *separator;
+} test_qemu_sztostr_data[] = {
+    { "/cutils/sztostr/simple", -42, "-42B", '\0', true, NULL },
+    { "/cutils/sztostr/simple-suffix", -1729, "-1.69KiB", '\0', true, NULL },
+    { "/cutils/sztostr/default-suffix", 1729, "1.69",
+      QEMU_STRTOSZ_DEFSUFFIX_KB, true, NULL },
+    { "/cutils/sztostr/short-suffix", 1729, "1.69 K", '\0', false, " " },
+    { "/cutils/sztostr/simple-sepator", -1729, "-1.69",
+      QEMU_STRTOSZ_DEFSUFFIX_KB, true, " " },
+    { "/cutils/sztostr/simple-suffix-sepator", -1729, "-1.69 KiB",
+      '\0', true, " " },
+    { "/cutils/sztostr/ulong-max", ULLONG_MAX, "-1B", '\0', true, NULL },
+    { "/cutils/sztostr/long-max", LONG_MAX, "8EiB", '\0', true, NULL },
+    { "/cutils/sztostr/long-min", -LONG_MAX - 1, "-8EiB", '\0', true, NULL },
+};
+
+static void test_qemu_sztostr(const void *opaque)
+{
+    const struct SzToStrData *data = opaque;
+    char *actual;
+
+    if (data->separator || data->default_suffix) {
+        actual = qemu_sztostr_full(data->val,
+                                   data->default_suffix,
+                                   data->long_suffix,
+                                   data->separator);
+    } else {
+        actual = qemu_sztostr(data->val);
+    }
+
+    g_assert_cmpstr(actual, ==, data->expected);
+
+    g_free(actual);
+}
+
+
+static struct SzUToStrData {
+    const char *path;
+    uint64_t val;
+    const char *expected;
+    const char default_suffix;
+    bool long_suffix;
+    const char *separator;
+} test_qemu_szutostr_data[] = {
+    { "/cutils/szutostr/simple", 42, "42B", '\0', true, NULL },
+    { "/cutils/szutostr/simple-suffix", 1729, "1.69KiB", '\0', true, NULL },
+    { "/cutils/szutostr/default-suffix", 1729, "1.69",
+      QEMU_STRTOSZ_DEFSUFFIX_KB, true, NULL },
+    { "/cutils/szutostr/short-suffix", 1729, "1.69 K", '\0', false, " " },
+    { "/cutils/szutostr/simple-sepator", 1729, "1.69",
+      QEMU_STRTOSZ_DEFSUFFIX_KB, true, " " },
+    { "/cutils/szutostr/simple-suffix-sepator", 1729, "1.69 KiB",
+      '\0', true, " " },
+    { "/cutils/szutostr/ulong-max", ULLONG_MAX, "16EiB", '\0', true, NULL },
+    { "/cutils/szutostr/long-max", LONG_MAX, "8EiB", '\0', true, NULL },
+};
+
+static void test_qemu_szutostr(const void *opaque)
+{
+    const struct SzUToStrData *data = opaque;
+    char *actual;
+
+    if (data->separator || data->default_suffix) {
+        actual = qemu_szutostr_full(data->val,
+                                    data->default_suffix,
+                                    data->long_suffix,
+                                    data->separator);
+    } else {
+        actual = qemu_szutostr(data->val);
+    }
+
+    g_assert_cmpstr(actual, ==, data->expected);
+
+    g_free(actual);
+}
+
+
 int main(int argc, char **argv)
 {
+    gsize i;
+
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/cutils/parse_uint/null", test_parse_uint_null);
@@ -1598,5 +1684,15 @@ int main(int argc, char **argv)
     g_test_add_func("/cutils/strtosz/suffix-unit",
                     test_qemu_strtosz_suffix_unit);
 
+    for (i = 0; i < G_N_ELEMENTS(test_qemu_sztostr_data); i++) {
+        g_test_add_data_func(test_qemu_sztostr_data[i].path,
+                             &(test_qemu_sztostr_data[i]),
+                             test_qemu_sztostr);
+    }
+    for (i = 0; i < G_N_ELEMENTS(test_qemu_szutostr_data); i++) {
+        g_test_add_data_func(test_qemu_szutostr_data[i].path,
+                             &(test_qemu_szutostr_data[i]),
+                             test_qemu_szutostr);
+    }
     return g_test_run();
 }

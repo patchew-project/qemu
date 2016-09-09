@@ -158,6 +158,18 @@ int64_t qemu_strtosz_suffix(const char *nptr, char **end,
                             const char default_suffix);
 int64_t qemu_strtosz_suffix_unit(const char *nptr, char **end,
                             const char default_suffix, int64_t unit);
+
+char *qemu_sztostr(int64_t val);
+char *qemu_sztostr_full(int64_t val,
+                        const char default_suffix,
+                        bool long_suffix,
+                        const char *separator);
+char *qemu_szutostr(uint64_t val);
+char *qemu_szutostr_full(uint64_t val,
+                         const char default_suffix,
+                         bool long_suffix,
+                         const char *separator);
+
 #define K_BYTE     (1ULL << 10)
 #define M_BYTE     (1ULL << 20)
 #define G_BYTE     (1ULL << 30)

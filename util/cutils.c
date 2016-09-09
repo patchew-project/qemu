@@ -503,6 +503,84 @@ int64_t qemu_strtosz(const char *nptr, char **end)
     return qemu_strtosz_suffix(nptr, end, QEMU_STRTOSZ_DEFSUFFIX_MB);
 }
 
+
+static char *qemu_sztostr_impl(uint64_t val,
+                               const char default_suffix,
+                               bool long_suffix,
+                               const char *separator,
+                               bool allowSigned)
+{
+    static const char *suffixes[] = {
+        "B", "K", "M", "G", "T", "P", "E" };
+    const char *extra_suffix = "";
+    uint64_t div;
+    int i;
+    const char *sign = "";
+    const char *suffix = "";
+
+    /* The exponent (returned in i) minus one gives us
+     * floor(log2(val * 1024 / 1000).  The correction makes us
+     * switch to the higher power when the integer part is >= 1000.
+     */
+    if (allowSigned && ((int64_t)val < 0)) {
+        val = ((int64_t)val) * -1;
+        sign = "-";
+    }
+
+    frexp(val / (1000.0 / 1024.0), &i);
+    i = (i - 1) / 10;
+    assert(i < ARRAY_SIZE(suffixes));
+    div = 1ULL << (i * 10);
+
+    if (suffixes[i][0] != default_suffix) {
+        suffix = suffixes[i];
+        if (i > 0 && long_suffix) {
+            extra_suffix = "iB";
+        }
+    } else {
+        separator = NULL;
+    }
+
+    return g_strdup_printf("%s%0.3g%s%s%s",
+                           sign,
+                           (double)val / div,
+                           separator ? separator : "",
+                           suffix, extra_suffix);
+}
+
+
+char *qemu_sztostr(int64_t val)
+{
+    return qemu_sztostr_impl((uint64_t)val, '\0', true, "", true);
+}
+
+
+char *qemu_sztostr_full(int64_t val,
+                        const char default_suffix,
+                        bool long_suffix,
+                        const char *separator)
+{
+    return qemu_sztostr_impl((uint64_t)val, default_suffix,
+                             long_suffix, separator, true);
+}
+
+
+char *qemu_szutostr(uint64_t val)
+{
+    return qemu_sztostr_impl(val, '\0', true, "", false);
+}
+
+
+char *qemu_szutostr_full(uint64_t val,
+                         const char default_suffix,
+                         bool long_suffix,
+                         const char *separator)
+{
+    return qemu_sztostr_impl(val, default_suffix,
+                             long_suffix, separator, false);
+}
+
+
 /**
  * Helper function for qemu_strto*l() functions.
  */
