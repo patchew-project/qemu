@@ -4432,7 +4432,7 @@ static void gen_tlbiel(DisasContext *ctx)
 #else
     CHK_SV;
 
-    gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_tlbiel(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 

@@ -156,10 +156,15 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 #if !defined(CONFIG_USER_ONLY)
 static inline void check_tlb_flush(CPUPPCState *env)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
-    if (env->tlb_need_flush) {
-        env->tlb_need_flush = 0;
-        tlb_flush(cs, 1);
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
+        if (env->tlb_need_flush) {
+            env->tlb_need_flush = 0;
+            tlb_flush(cs, 1);
+        }
     }
 }
 #else

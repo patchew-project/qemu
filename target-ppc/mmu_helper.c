@@ -1946,7 +1946,8 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     }
 }
 
-void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
+void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr,
+                            unsigned int global)
 {
 #if !defined(FLUSH_ALL_TLBS)
     addr &= TARGET_PAGE_MASK;
@@ -1979,7 +1980,14 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
          *      we just invalidate all TLBs
          */
-        env->tlb_need_flush = 1;
+        if (!global) {
+            env->tlb_need_flush = 1;
+        } else {
+            CPUState *other_cs;
+            CPU_FOREACH(other_cs) {
+                env->tlb_need_flush = 1;
+            }
+        }
         break;
 #endif /* defined(TARGET_PPC64) */
     default:
@@ -2078,7 +2086,12 @@ void helper_tlbia(CPUPPCState *env)
 
 void helper_tlbie(CPUPPCState *env, target_ulong addr)
 {
-    ppc_tlb_invalidate_one(env, addr);
+    ppc_tlb_invalidate_one(env, addr, 1);
+}
+
+void helper_tlbiel(CPUPPCState *env, target_ulong addr)
+{
+    ppc_tlb_invalidate_one(env, addr, 0);
 }
 
 void helper_tlbiva(CPUPPCState *env, target_ulong addr)
@@ -2757,7 +2770,7 @@ static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
 
 void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUState *cs;
 
     if (address & 0x4) {
         /* flush all entries */
@@ -2774,11 +2787,15 @@ void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
     if (address & 0x8) {
         /* flush TLB1 entries */
         booke206_invalidate_ea_tlb(env, 1, address);
-        tlb_flush(CPU(cpu), 1);
+        CPU_FOREACH(cs) {
+            tlb_flush(cs, 1);
+        }
     } else {
         /* flush TLB0 entries */
         booke206_invalidate_ea_tlb(env, 0, address);
-        tlb_flush_page(CPU(cpu), address & MAS2_EPN_MASK);
+        CPU_FOREACH(cs) {
+            tlb_flush_page(cs, address & MAS2_EPN_MASK);
+        }
     }
 }
 
