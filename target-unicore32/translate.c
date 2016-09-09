@@ -45,9 +45,10 @@ typedef struct DisasContext {
 #define IS_USER(s)      1
 #endif
 
+/* TODO: rename as DJ_* when transitioning this target to generic translation */
 /* These instructions trap after executing, so defer them until after the
    conditional executions state has been updated.  */
-#define DISAS_SYSCALL 5
+#define DISAS_SYSCALL DISAS_TARGET + 0
 
 static TCGv_env cpu_env;
 static TCGv_i32 cpu_R[32];
