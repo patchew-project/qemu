@@ -1581,6 +1581,21 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     uint32_t size;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
+    /*
+     * Virtio capabilities present without
+     * VIRTIO_F_VERSION_1 confuses guests
+     */
+    if (!virtio_test_backend_feature(vdev, VIRTIO_F_VERSION_1, errp)) {
+        virtio_pci_disable_modern(proxy);
+    }
+
+    legacy = virtio_pci_legacy(proxy);
+    modern = virtio_pci_modern(proxy);
+    if (!legacy && !modern) {
+        error_setg(errp, "PCI device is neither legacy nor modern.");
+        return;
+    }
+
     config = proxy->pci_dev.config;
     if (proxy->class_code) {
         pci_config_set_class(config, proxy->class_code);
