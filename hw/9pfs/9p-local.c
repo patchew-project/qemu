@@ -420,6 +420,8 @@ static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,
                             const struct iovec *iov,
                             int iovcnt, off_t offset)
 {
+    throttle9p_request(ctx->fst, false, iov->iov_len);
+
 #ifdef CONFIG_PREADV
     return preadv(fs->fd, iov, iovcnt, offset);
 #else
@@ -436,8 +438,10 @@ static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
                              const struct iovec *iov,
                              int iovcnt, off_t offset)
 {
-    ssize_t ret
-;
+    ssize_t ret;
+
+    throttle9p_request(ctx->fst, true, iov->iov_len);
+
 #ifdef CONFIG_PREADV
     ret = pwritev(fs->fd, iov, iovcnt, offset);
 #else
@@ -1213,6 +1217,9 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
 
+    /* get the throttle structure */
+    FsThrottle *fst = &fse->fst;
+
     if (!sec_model) {
         error_report("Security model not specified, local fs needs security model");
         error_printf("valid options are:"
@@ -1240,6 +1247,13 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
         error_report("fsdev: No path specified");
         return -1;
     }
+
+    throttle9p_enable_io_limits(opts, fst);
+
+    if (throttle9p_get_io_limits_state(fst)) {
+        throttle9p_configure_iolimits(opts, fst);
+    }
+
     fse->path = g_strdup(path);
 
     return 0;
