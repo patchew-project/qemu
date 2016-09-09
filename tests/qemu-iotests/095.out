@@ -6,7 +6,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/
 === Base image info before commit and resize ===
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
-virtual size: 5.0M (5242880 bytes)
+virtual size: 5M (5242880 bytes)
 
 === Running QEMU Live Commit Test ===
 
