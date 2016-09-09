@@ -1481,6 +1481,19 @@ void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size)
     virtio_save(VIRTIO_DEVICE(opaque), f);
 }
 
+bool virtio_test_backend_virtio_1(VirtIODevice *vdev, Error **errp)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint64_t feature;
+
+    virtio_add_feature(&feature, VIRTIO_F_VERSION_1);
+
+    assert(k->get_features != NULL);
+    feature = k->get_features(vdev, feature, errp);
+
+    return virtio_has_feature(feature, VIRTIO_F_VERSION_1);
+}
+
 static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
