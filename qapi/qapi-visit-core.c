@@ -44,6 +44,7 @@ void visit_start_struct(Visitor *v, const char *name, void **obj,
         assert(size);
         assert(!(v->type & VISITOR_OUTPUT) || *obj);
     }
+    assert(v->start_struct != NULL);
     v->start_struct(v, name, obj, size, &err);
     if (obj && (v->type & VISITOR_INPUT)) {
         assert(!err != !*obj);
@@ -60,6 +61,7 @@ void visit_check_struct(Visitor *v, Error **errp)
 
 void visit_end_struct(Visitor *v, void **obj)
 {
+    assert(v->end_struct != NULL);
     v->end_struct(v, obj);
 }
 
@@ -69,6 +71,7 @@ void visit_start_list(Visitor *v, const char *name, GenericList **list,
     Error *err = NULL;
 
     assert(!list || size >= sizeof(GenericList));
+    assert(v->start_list != NULL);
     v->start_list(v, name, list, size, &err);
     if (list && (v->type & VISITOR_INPUT)) {
         assert(!(err && *list));
@@ -79,11 +82,13 @@ void visit_start_list(Visitor *v, const char *name, GenericList **list,
 GenericList *visit_next_list(Visitor *v, GenericList *tail, size_t size)
 {
     assert(tail && size >= sizeof(GenericList));
+    assert(v->next_list != NULL);
     return v->next_list(v, tail, size);
 }
 
 void visit_end_list(Visitor *v, void **obj)
 {
+    assert(v->end_list != NULL);
     v->end_list(v, obj);
 }
 
@@ -127,6 +132,7 @@ bool visit_is_input(Visitor *v)
 void visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     assert(obj);
+    assert(v->type_int64 != NULL);
     v->type_int64(v, name, obj, errp);
 }
 
@@ -136,6 +142,7 @@ static void visit_type_uintN(Visitor *v, uint64_t *obj, const char *name,
     Error *err = NULL;
     uint64_t value = *obj;
 
+    assert(v->type_uint64 != NULL);
     v->type_uint64(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
@@ -175,6 +182,7 @@ void visit_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                        Error **errp)
 {
     assert(obj);
+    assert(v->type_uint64 != NULL);
     v->type_uint64(v, name, obj, errp);
 }
 
@@ -185,6 +193,7 @@ static void visit_type_intN(Visitor *v, int64_t *obj, const char *name,
     Error *err = NULL;
     int64_t value = *obj;
 
+    assert(v->type_int64 != NULL);
     v->type_int64(v, name, &value, &err);
     if (err) {
         error_propagate(errp, err);
@@ -233,6 +242,7 @@ void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
     if (v->type_size) {
         v->type_size(v, name, obj, errp);
     } else {
+        assert(v->type_uint64 != NULL);
         v->type_uint64(v, name, obj, errp);
     }
 }
@@ -240,6 +250,7 @@ void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
 void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 {
     assert(obj);
+    assert(v->type_bool != NULL);
     v->type_bool(v, name, obj, errp);
 }
 
@@ -252,6 +263,7 @@ void visit_type_str(Visitor *v, const char *name, char **obj, Error **errp)
      * can enable:
     assert(!(v->type & VISITOR_OUTPUT) || *obj);
      */
+    assert(v->type_str != NULL);
     v->type_str(v, name, obj, &err);
     if (v->type & VISITOR_INPUT) {
         assert(!err != !*obj);
@@ -263,6 +275,7 @@ void visit_type_number(Visitor *v, const char *name, double *obj,
                        Error **errp)
 {
     assert(obj);
+    assert(v->type_number != NULL);
     v->type_number(v, name, obj, errp);
 }
 
@@ -272,6 +285,7 @@ void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp)
 
     assert(obj);
     assert(v->type != VISITOR_OUTPUT || *obj);
+    assert(v->type_any != NULL);
     v->type_any(v, name, obj, &err);
     if (v->type == VISITOR_INPUT) {
         assert(!err != !*obj);
@@ -281,6 +295,7 @@ void visit_type_any(Visitor *v, const char *name, QObject **obj, Error **errp)
 
 void visit_type_null(Visitor *v, const char *name, Error **errp)
 {
+    assert(v->type_null != NULL);
     v->type_null(v, name, errp);
 }
 
