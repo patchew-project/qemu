@@ -33,6 +33,8 @@ check-unit-y += tests/test-string-input-visitor$(EXESUF)
 gcov-files-test-string-input-visitor-y = qapi/string-input-visitor.c
 check-unit-y += tests/test-string-output-visitor$(EXESUF)
 gcov-files-test-string-output-visitor-y = qapi/string-output-visitor.c
+check-unit-y += tests/test-text-output-visitor$(EXESUF)
+gcov-files-test-text-output-visitor-y = qapi/text-output-visitor.c
 check-unit-y += tests/test-qmp-event$(EXESUF)
 gcov-files-test-qmp-event-y += qapi/qmp-event.c
 check-unit-y += tests/test-opts-visitor$(EXESUF)
@@ -433,7 +435,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/check-qjson.o \
 	tests/test-coroutine.o tests/test-string-output-visitor.o \
 	tests/test-string-input-visitor.o tests/test-qmp-output-visitor.o \
-	tests/test-clone-visitor.o \
+	tests/test-clone-visitor.o tests/test-text-output-visitor.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
 	tests/test-x86-cpuid.o tests/test-mul64.o tests/test-int128.o \
@@ -530,6 +532,7 @@ $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-int
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
+tests/test-text-output-visitor$(EXESUF): tests/test-text-output-visitor.o $(test-qapi-obj-y)
 tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y)
 tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y)
 tests/test-clone-visitor$(EXESUF): tests/test-clone-visitor.o $(test-qapi-obj-y)
