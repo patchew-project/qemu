@@ -29,7 +29,7 @@
 #include "block/write-threshold.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/text-output-visitor.h"
 #include "qapi/qmp/types.h"
 #include "sysemu/block-backend.h"
 #include "qemu/cutils.h"
@@ -572,105 +572,17 @@ void bdrv_snapshot_dump(fprintf_function func_fprintf, void *f,
     }
 }
 
-static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
-                       QDict *dict);
-static void dump_qlist(fprintf_function func_fprintf, void *f, int indentation,
-                       QList *list);
-
-static void dump_qobject(fprintf_function func_fprintf, void *f,
-                         int comp_indent, QObject *obj)
-{
-    switch (qobject_type(obj)) {
-        case QTYPE_QINT: {
-            QInt *value = qobject_to_qint(obj);
-            func_fprintf(f, "%" PRId64, qint_get_int(value));
-            break;
-        }
-        case QTYPE_QSTRING: {
-            QString *value = qobject_to_qstring(obj);
-            func_fprintf(f, "%s", qstring_get_str(value));
-            break;
-        }
-        case QTYPE_QDICT: {
-            QDict *value = qobject_to_qdict(obj);
-            dump_qdict(func_fprintf, f, comp_indent, value);
-            break;
-        }
-        case QTYPE_QLIST: {
-            QList *value = qobject_to_qlist(obj);
-            dump_qlist(func_fprintf, f, comp_indent, value);
-            break;
-        }
-        case QTYPE_QFLOAT: {
-            QFloat *value = qobject_to_qfloat(obj);
-            func_fprintf(f, "%g", qfloat_get_double(value));
-            break;
-        }
-        case QTYPE_QBOOL: {
-            QBool *value = qobject_to_qbool(obj);
-            func_fprintf(f, "%s", qbool_get_bool(value) ? "true" : "false");
-            break;
-        }
-        default:
-            abort();
-    }
-}
-
-static void dump_qlist(fprintf_function func_fprintf, void *f, int indentation,
-                       QList *list)
-{
-    const QListEntry *entry;
-    int i = 0;
-
-    for (entry = qlist_first(list); entry; entry = qlist_next(entry), i++) {
-        QType type = qobject_type(entry->value);
-        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
-        func_fprintf(f, "%*s[%i]:%c", indentation * 4, "", i,
-                     composite ? '\n' : ' ');
-        dump_qobject(func_fprintf, f, indentation + 1, entry->value);
-        if (!composite) {
-            func_fprintf(f, "\n");
-        }
-    }
-}
-
-static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
-                       QDict *dict)
-{
-    const QDictEntry *entry;
-
-    for (entry = qdict_first(dict); entry; entry = qdict_next(dict, entry)) {
-        QType type = qobject_type(entry->value);
-        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
-        char *key = g_malloc(strlen(entry->key) + 1);
-        int i;
-
-        /* replace dashes with spaces in key (variable) names */
-        for (i = 0; entry->key[i]; i++) {
-            key[i] = entry->key[i] == '-' ? ' ' : entry->key[i];
-        }
-        key[i] = 0;
-        func_fprintf(f, "%*s%s:%c", indentation * 4, "", key,
-                     composite ? '\n' : ' ');
-        dump_qobject(func_fprintf, f, indentation + 1, entry->value);
-        if (!composite) {
-            func_fprintf(f, "\n");
-        }
-        g_free(key);
-    }
-}
 
 void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
                                    ImageInfoSpecific *info_spec)
 {
-    QObject *obj, *data;
-    Visitor *v = qmp_output_visitor_new(&obj);
+    Visitor *v = text_output_visitor_new(4, 2);
+    char *str;
 
     visit_type_ImageInfoSpecific(v, NULL, &info_spec, &error_abort);
-    visit_complete(v, &obj);
-    assert(qobject_type(obj) == QTYPE_QDICT);
-    data = qdict_get(qobject_to_qdict(obj), "data");
-    dump_qobject(func_fprintf, f, 1, data);
+    visit_complete(v, &str);
+    func_fprintf(f, "%s", str);
+    g_free(str);
     visit_free(v);
 }
 
