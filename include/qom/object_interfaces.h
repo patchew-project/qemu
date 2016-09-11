@@ -165,4 +165,6 @@ int user_creatable_add_opts_foreach(void *opaque,
  */
 void user_creatable_del(const char *id, Error **errp);
 
+int user_creatable_help_func(void *opaque, QemuOpts *opts, Error **errp);
+
 #endif

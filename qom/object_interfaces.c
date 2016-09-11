@@ -5,6 +5,7 @@
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/opts-visitor.h"
+#include "qemu/help_option.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
 {
@@ -210,6 +211,117 @@ void user_creatable_del(const char *id, Error **errp)
         return;
     }
     object_unparent(obj);
+}
+
+int user_creatable_help_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Visitor *v;
+    char *type = NULL;
+    Error *local_err = NULL;
+
+    int i;
+    char *values = NULL;
+    Object *obj;
+    ObjectPropertyInfoList *props = NULL;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+    ObjectPropertyInfoList *start;
+
+    struct EnumProperty {
+        const char * const *strings;
+        int (*get)(Object *, Error **);
+        void (*set)(Object *, int, Error **);
+    } *enumprop;
+
+    v = opts_visitor_new(opts);
+    visit_start_struct(v, NULL, NULL, 0, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    visit_type_str(v, "qom-type", &type, &local_err);
+    if (local_err) {
+        goto out_visit;
+    }
+
+    if (type && is_help_option(type)) {
+        printf("Available object backend types:\n");
+        GSList *list = object_class_get_list(TYPE_USER_CREATABLE, false);
+        while (list) {
+            const char *name;
+            name = object_class_get_name(OBJECT_CLASS(list->data));
+            if (strcmp(name, TYPE_USER_CREATABLE)) {
+                printf("%s\n", name);
+            }
+            list = list->next;
+        }
+        g_slist_free(list);
+        goto out_visit;
+    }
+
+    if (!type || !qemu_opt_has_help_opt(opts)) {
+        visit_end_struct(v, NULL);
+        return 0;
+    }
+
+    if (!object_class_by_name(type)) {
+        printf("invalid object type: %s\n", type);
+        goto out_visit;
+    }
+    obj = object_new(type);
+    object_property_iter_init(&iter, obj);
+
+    while ((prop = object_property_iter_next(&iter))) {
+        ObjectPropertyInfoList *entry = g_malloc0(sizeof(*entry));
+        entry->value = g_malloc0(sizeof(ObjectPropertyInfo));
+        entry->next = props;
+        props = entry;
+        entry->value->name = g_strdup(prop->name);
+        i = 0;
+        enumprop = prop->opaque;
+        if (!g_str_equal(prop->type, "string") && \
+            !g_str_equal(prop->type, "bool") && \
+            !g_str_equal(prop->type, "struct tm") && \
+            !g_str_equal(prop->type, "int") && \
+            !g_str_equal(prop->type, "uint8") && \
+            !g_str_equal(prop->type, "uint16") && \
+            !g_str_equal(prop->type, "uint32") && \
+            !g_str_equal(prop->type, "uint64")) {
+            while (enumprop->strings[i] != NULL) {
+                if (i != 0) {
+                    values = g_strdup_printf("%s/%s",
+                                            values, enumprop->strings[i]);
+                } else {
+                    values = g_strdup_printf("%s", enumprop->strings[i]);
+                }
+                i++;
+            }
+            entry->value->type = g_strdup_printf("%s, available values: %s",
+                                                prop->type, values);
+        } else {
+            entry->value->type = g_strdup(prop->type);
+        }
+    }
+
+    start = props;
+    while (props != NULL) {
+        ObjectPropertyInfo *value = props->value;
+        printf("%s (%s)\n", value->name, value->type);
+        props = props->next;
+    }
+    qapi_free_ObjectPropertyInfoList(start);
+
+out_visit:
+    visit_end_struct(v, NULL);
+
+out:
+    g_free(values);
+    g_free(type);
+    object_unref(obj);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+    return 1;
 }
 
 static void register_types(void)

@@ -4251,6 +4251,11 @@ int main(int argc, char **argv, char **envp)
     page_size_init();
     socket_init();
 
+    if (qemu_opts_foreach(qemu_find_opts("object"), user_creatable_help_func,
+                          NULL, NULL)) {
+        exit(1);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           user_creatable_add_opts_foreach,
                           object_create_initial, NULL)) {
