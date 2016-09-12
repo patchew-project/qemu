@@ -534,7 +534,7 @@ static bool virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req
     }
 
     d = virtio_scsi_device_find(s, req->req.cmd.lun);
-    if (!d) {
+    if (!d || !blk_is_available(d->conf.blk)) {
         req->resp.cmd.response = VIRTIO_SCSI_S_BAD_TARGET;
         virtio_scsi_complete_cmd_req(req);
         return false;
