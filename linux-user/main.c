@@ -346,9 +346,10 @@ void cpu_loop(CPUX86State *env)
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_fault(env);
-            } else
-#endif
+            } else {
+#else
             {
+#endif
                 info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SI_KERNEL;
@@ -359,10 +360,11 @@ void cpu_loop(CPUX86State *env)
         case EXCP0E_PAGE:
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
-            if (!(env->error_code & 1))
+            if (!(env->error_code & 1)) {
                 info.si_code = TARGET_SEGV_MAPERR;
-            else
+            } else {
                 info.si_code = TARGET_SEGV_ACCERR;
+            }
             info._sifields._sigfault._addr = env->cr[2];
             queue_signal(env, info.si_signo, &info);
             break;
@@ -370,9 +372,10 @@ void cpu_loop(CPUX86State *env)
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_trap(env, trapnr);
-            } else
-#endif
+            } else {
+#else
             {
+#endif
                 /* division by zero */
                 info.si_signo = TARGET_SIGFPE;
                 info.si_errno = 0;
@@ -386,9 +389,10 @@ void cpu_loop(CPUX86State *env)
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_trap(env, trapnr);
-            } else
-#endif
+            } else {
+#else
             {
+#endif
                 info.si_signo = TARGET_SIGTRAP;
                 info.si_errno = 0;
                 if (trapnr == EXCP01_DB) {
@@ -406,9 +410,10 @@ void cpu_loop(CPUX86State *env)
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
                 handle_vm86_trap(env, trapnr);
-            } else
-#endif
+            } else {
+#else
             {
+#endif
                 info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 info.si_code = TARGET_SI_KERNEL;
@@ -431,13 +436,12 @@ void cpu_loop(CPUX86State *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         default:
@@ -600,8 +604,9 @@ do_kernel_trap(CPUARMState *env)
         cpsr = cpsr_read(env);
         addr = env->regs[2];
         /* FIXME: This should SEGV if the access fails.  */
-        if (get_user_u32(val, addr))
+        if (get_user_u32(val, addr)) {
             val = ~env->regs[0];
+        }
         if (val == env->regs[0]) {
             val = env->regs[1];
             /* FIXME: Check for segfaults.  */
@@ -760,48 +765,68 @@ void cpu_loop(CPUARMState *env)
                     int arm_fpe=0;
 
                     /* translate softfloat flags to FPSR flags */
-                    if (-rc & float_flag_invalid)
-                      arm_fpe |= BIT_IOC;
-                    if (-rc & float_flag_divbyzero)
-                      arm_fpe |= BIT_DZC;
-                    if (-rc & float_flag_overflow)
-                      arm_fpe |= BIT_OFC;
-                    if (-rc & float_flag_underflow)
-                      arm_fpe |= BIT_UFC;
-                    if (-rc & float_flag_inexact)
-                      arm_fpe |= BIT_IXC;
+                    if (-rc & float_flag_invalid) {
+                        arm_fpe |= BIT_IOC;
+                    }
+                    if (-rc & float_flag_divbyzero) {
+                        arm_fpe |= BIT_DZC;
+                    }
+                    if (-rc & float_flag_overflow) {
+                        arm_fpe |= BIT_OFC;
+                    }
+                    if (-rc & float_flag_underflow) {
+                        arm_fpe |= BIT_UFC;
+                    }
+                    if (-rc & float_flag_inexact) {
+                        arm_fpe |= BIT_IXC;
+                    }
 
                     FPSR fpsr = ts->fpa.fpsr;
                     //printf("fpsr 0x%x, arm_fpe 0x%x\n",fpsr,arm_fpe);
 
                     if (fpsr & (arm_fpe << 16)) { /* exception enabled? */
-                      info.si_signo = TARGET_SIGFPE;
-                      info.si_errno = 0;
+                        info.si_signo = TARGET_SIGFPE;
+                        info.si_errno = 0;
 
-                      /* ordered by priority, least first */
-                      if (arm_fpe & BIT_IXC) info.si_code = TARGET_FPE_FLTRES;
-                      if (arm_fpe & BIT_UFC) info.si_code = TARGET_FPE_FLTUND;
-                      if (arm_fpe & BIT_OFC) info.si_code = TARGET_FPE_FLTOVF;
-                      if (arm_fpe & BIT_DZC) info.si_code = TARGET_FPE_FLTDIV;
-                      if (arm_fpe & BIT_IOC) info.si_code = TARGET_FPE_FLTINV;
+                        /* ordered by priority, least first */
+                        if (arm_fpe & BIT_IXC) {
+                            info.si_code = TARGET_FPE_FLTRES;
+                        }
+                        if (arm_fpe & BIT_UFC) {
+                            info.si_code = TARGET_FPE_FLTUND;
+                        }
+                        if (arm_fpe & BIT_OFC) {
+                            info.si_code = TARGET_FPE_FLTOVF;
+                        }
+                        if (arm_fpe & BIT_DZC) {
+                            info.si_code = TARGET_FPE_FLTDIV;
+                        }
+                        if (arm_fpe & BIT_IOC) {
+                            info.si_code = TARGET_FPE_FLTINV;
+                        }
 
-                      info._sifields._sigfault._addr = env->regs[15];
-                      queue_signal(env, info.si_signo, &info);
+                        info._sifields._sigfault._addr = env->regs[15];
+                        queue_signal(env, info.si_signo, &info);
                     } else {
-                      env->regs[15] += 4;
+                        env->regs[15] += 4;
                     }
 
                     /* accumulate unenabled exceptions */
-                    if ((!(fpsr & BIT_IXE)) && (arm_fpe & BIT_IXC))
-                      fpsr |= BIT_IXC;
-                    if ((!(fpsr & BIT_UFE)) && (arm_fpe & BIT_UFC))
-                      fpsr |= BIT_UFC;
-                    if ((!(fpsr & BIT_OFE)) && (arm_fpe & BIT_OFC))
-                      fpsr |= BIT_OFC;
-                    if ((!(fpsr & BIT_DZE)) && (arm_fpe & BIT_DZC))
-                      fpsr |= BIT_DZC;
-                    if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC))
-                      fpsr |= BIT_IOC;
+                    if ((!(fpsr & BIT_IXE)) && (arm_fpe & BIT_IXC)) {
+                        fpsr |= BIT_IXC;
+                    }
+                    if ((!(fpsr & BIT_UFE)) && (arm_fpe & BIT_UFC)) {
+                        fpsr |= BIT_UFC;
+                    }
+                    if ((!(fpsr & BIT_OFE)) && (arm_fpe & BIT_OFC)) {
+                        fpsr |= BIT_OFC;
+                    }
+                    if ((!(fpsr & BIT_DZE)) && (arm_fpe & BIT_DZC)) {
+                        fpsr |= BIT_DZC;
+                    }
+                    if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC)) {
+                        fpsr |= BIT_IOC;
+                    }
                     ts->fpa.fpsr=fpsr;
                 } else { /* everything OK */
                     /* increment PC */
@@ -916,18 +941,18 @@ void cpu_loop(CPUARMState *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         case EXCP_KERNEL_TRAP:
-            if (do_kernel_trap(env))
-              goto error;
+            if (do_kernel_trap(env)) {
+                goto error;
+            }
             break;
         case EXCP_YIELD:
             /* nothing to do here for user-mode, just resume guest code */
@@ -1244,8 +1269,9 @@ static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
     index = (index + cwp * 16) % (16 * env->nwindows);
     /* wrap handling : if cwp is on the last window, then we use the
        registers 'after' the end */
-    if (index < 8 && env->cwp == env->nwindows - 1)
+    if (index < 8 && env->cwp == env->nwindows - 1) {
         index += 16 * env->nwindows;
+    }
     return index;
 }
 
@@ -1257,8 +1283,9 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #ifdef TARGET_SPARC64
-    if (sp_ptr & 3)
+    if (sp_ptr & 3) {
         sp_ptr += SPARC64_STACK_BIAS;
+    }
 #endif
 #if defined(DEBUG_WIN)
     printf("win_overflow: sp_ptr=0x" TARGET_ABI_FMT_lx " save_cwp=%d\n",
@@ -1303,8 +1330,9 @@ static void restore_window(CPUSPARCState *env)
     cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #ifdef TARGET_SPARC64
-    if (sp_ptr & 3)
+    if (sp_ptr & 3) {
         sp_ptr += SPARC64_STACK_BIAS;
+    }
 #endif
 #if defined(DEBUG_WIN)
     printf("win_underflow: sp_ptr=0x" TARGET_ABI_FMT_lx " load_cwp=%d\n",
@@ -1317,8 +1345,9 @@ static void restore_window(CPUSPARCState *env)
     }
 #ifdef TARGET_SPARC64
     env->canrestore++;
-    if (env->cleanwin < env->nwindows - 1)
+    if (env->cleanwin < env->nwindows - 1) {
         env->cleanwin++;
+    }
     env->cansave--;
 #else
     env->wim = new_wim;
@@ -1334,11 +1363,13 @@ static void flush_windows(CPUSPARCState *env)
         /* if restore would invoke restore_window(), then we can stop */
         cwp1 = cpu_cwp_inc(env, env->cwp + offset);
 #ifndef TARGET_SPARC64
-        if (env->wim & (1 << cwp1))
+        if (env->wim & (1 << cwp1)) {
             break;
+        }
 #else
-        if (env->canrestore == 0)
+        if (env->canrestore == 0) {
             break;
+        }
         env->cansave++;
         env->canrestore--;
 #endif
@@ -1448,10 +1479,11 @@ void cpu_loop (CPUSPARCState *env)
                 info.si_errno = 0;
                 /* XXX: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
-                if (trapnr == TT_DFAULT)
+                if (trapnr == TT_DFAULT) {
                     info._sifields._sigfault._addr = env->dmmuregs[4];
-                else
+                } else {
                     info._sifields._sigfault._addr = cpu_tsptr(env)->tpc;
+                }
                 queue_signal(env, info.si_signo, &info);
             }
             break;
@@ -1483,13 +1515,12 @@ void cpu_loop (CPUSPARCState *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         default:
@@ -2577,13 +2608,12 @@ done_syscall:
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         case EXCP_SC:
@@ -2845,13 +2875,12 @@ void cpu_loop(CPUSH4State *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         case 0xa0:
@@ -2919,13 +2948,12 @@ void cpu_loop(CPUCRISState *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         default:
@@ -3033,13 +3061,12 @@ void cpu_loop(CPUMBState *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         default:
@@ -3134,13 +3161,12 @@ void cpu_loop(CPUM68KState *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, &info);
-                  }
+                }
             }
             break;
         default:
@@ -4605,10 +4631,12 @@ int main(int argc, char **argv, char **envp)
         env->pc = regs->pc;
         env->npc = regs->npc;
         env->y = regs->y;
-        for(i = 0; i < 8; i++)
+        for (i = 0; i < 8; i++) {
             env->gregs[i] = regs->u_regs[i];
-        for(i = 0; i < 8; i++)
+        }
+        for (i = 0; i < 8; i++) {
             env->regwptr[i] = regs->u_regs[i + 8];
+        }
     }
 #elif defined(TARGET_PPC)
     {
