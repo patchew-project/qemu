@@ -285,6 +285,11 @@ STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 
+uint64_t helper_bswap32x2(uint64_t x)
+{
+    return deposit64((x >> 32), 32, 32, (x));
+}
+
 #undef HI_IDX
 #undef LO_IDX
 
