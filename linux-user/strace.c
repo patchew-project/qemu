@@ -1696,6 +1696,74 @@ print_rt_sigprocmask(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_syslog
+static void
+print_syslog_action(abi_ulong arg, int last)
+{
+    switch (arg) {
+        case TARGET_SYSLOG_ACTION_CLOSE: {
+            gemu_log("%s%s", "SYSLOG_ACTION_CLOSE", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_OPEN: {
+            gemu_log("%s%s", "SYSLOG_ACTION_OPEN", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ: {
+            gemu_log("%s%s", "SYSLOG_ACTION_READ", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ_ALL: {
+            gemu_log("%s%s", "SYSLOG_ACTION_READ_ALL", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_READ_CLEAR: {
+            gemu_log("%s%s", "SYSLOG_ACTION_READ_CLEAR", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CLEAR: {
+            gemu_log("%s%s", "SYSLOG_ACTION_CLEAR", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_OFF: {
+            gemu_log("%s%s", "SYSLOG_ACTION_CONSOLE_OFF", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_ON: {
+            gemu_log("%s%s", "SYSLOG_ACTION_CONSOLE_ON", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_CONSOLE_LEVEL: {
+            gemu_log("%s%s", "SYSLOG_ACTION_CONSOLE_LEVEL", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_SIZE_UNREAD: {
+            gemu_log("%s%s", "SYSLOG_ACTION_SIZE_UNREAD", get_comma(last));
+            break;
+        }
+        case TARGET_SYSLOG_ACTION_SIZE_BUFFER: {
+            gemu_log("%s%s", "SYSLOG_ACTION_SIZE_BUFFER", get_comma(last));
+            break;
+        }
+        default: {
+            print_raw_param("%ld", arg, last);
+        }
+    }
+}
+
+static void
+print_syslog(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_syslog_action(arg0, 0);
+    print_pointer(arg1, 0);
+    print_raw_param("%d", arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #ifdef TARGET_NR_mknod
 static void
 print_mknod(const struct syscallname *name,

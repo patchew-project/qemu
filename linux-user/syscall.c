@@ -9219,14 +9219,25 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_setsockopt(arg1, arg2, arg3, arg4, (socklen_t) arg5);
         break;
 #endif
-
+#ifdef TARGET_NR_syslog
     case TARGET_NR_syslog:
-        if (!(p = lock_user_string(arg2)))
-            goto efault;
-        ret = get_errno(sys_syslog((int)arg1, p, (int)arg3));
-        unlock_user(p, arg2, 0);
+        {
+            if (((int)arg1 == TARGET_SYSLOG_ACTION_READ) ||
+                ((int)arg1 == TARGET_SYSLOG_ACTION_READ_ALL) ||
+                ((int)arg1 == TARGET_SYSLOG_ACTION_READ_CLEAR)) {
+                p = lock_user_string(arg2);
+                if (!p) {
+                    ret = -TARGET_EINVAL;
+                    goto fail;
+                }
+                ret = get_errno(sys_syslog((int)arg1, p, (int)arg3));
+                unlock_user(p, arg2, 0);
+            } else {
+                ret = get_errno(sys_syslog((int)arg1, NULL, (int)arg3));
+            }
+        }
         break;
-
+#endif
     case TARGET_NR_setitimer:
         {
             struct itimerval value, ovalue, *pvalue;
