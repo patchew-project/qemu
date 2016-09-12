@@ -113,7 +113,9 @@ void tcp_start_outgoing_migration(MigrationState *s,
                                   Error **errp)
 {
     SocketAddress *saddr = tcp_build_address(host_port, errp);
-    socket_start_outgoing_migration(s, saddr, errp);
+    if (!*errp) {
+        socket_start_outgoing_migration(s, saddr, errp);
+    }
 }
 
 void unix_start_outgoing_migration(MigrationState *s,
@@ -175,7 +177,9 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
 {
     SocketAddress *saddr = tcp_build_address(host_port, errp);
-    socket_start_incoming_migration(saddr, errp);
+    if (!*errp) {
+        socket_start_incoming_migration(saddr, errp);
+    }
 }
 
 void unix_start_incoming_migration(const char *path, Error **errp)
