@@ -290,6 +290,12 @@ uint64_t helper_bswap32x2(uint64_t x)
     return deposit64((x >> 32), 32, 32, (x));
 }
 
+uint64_t helper_bswap16x4(uint64_t x)
+{
+    uint64_t m = 0x00ff00ff00ff00ffull;
+    return ((x & m) << 8) | ((x >> 8) & m);
+}
+
 #undef HI_IDX
 #undef LO_IDX
 
