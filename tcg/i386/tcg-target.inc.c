@@ -1202,7 +1202,8 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     TCGType ttype = TCG_TYPE_I32;
     TCGType tlbtype = TCG_TYPE_I32;
     int trexw = 0, hrexw = 0, tlbrexw = 0;
-    int a_bits = get_alignment_bits(opc);
+    unsigned a_bits = get_alignment_bits(opc);
+    unsigned s_bits = opc & MO_SIZE;
     target_ulong tlb_mask;
 
     if (TCG_TARGET_REG_BITS == 64) {
@@ -1220,17 +1221,16 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     }
 
     tcg_out_mov(s, tlbtype, r0, addrlo);
-    if (a_bits >= 0) {
-        /* A byte access or an alignment check required */
+    /* If the required alignment is at least as large as the access, simply
+       copy the address and mask.  For lesser alignments, check that we don't
+       cross pages for the complete access.  */
+    if (a_bits >= s_bits) {
         tcg_out_mov(s, ttype, r1, addrlo);
-        tlb_mask = TARGET_PAGE_MASK | ((1 << a_bits) - 1);
     } else {
-        /* For unaligned access check that we don't cross pages using
-           the page address of the last byte.  */
         tcg_out_modrm_offset(s, OPC_LEA + trexw, r1, addrlo,
-                             (1 << (opc & MO_SIZE)) - 1);
-        tlb_mask = TARGET_PAGE_MASK;
+                             nbits(s_bits) - nbits(a_bits));
     }
+    tlb_mask = TARGET_PAGE_MASK | nbits(a_bits);
 
     tcg_out_shifti(s, SHIFT_SHR + tlbrexw, r0,
                    TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
