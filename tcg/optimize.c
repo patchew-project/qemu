@@ -542,6 +542,7 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
 void tcg_optimize(TCGContext *s)
 {
     int oi, oi_next, nb_temps, nb_globals;
+    TCGArg *prev_mb_args = NULL;
 
     /* Array VALS has an element for each temp.
        If this temp holds a constant then its value is kept in VALS' element.
@@ -1294,6 +1295,59 @@ void tcg_optimize(TCGContext *s)
                 }
             }
             break;
+        }
+
+        /* Eliminate duplicate and redundant fence instructions.  */
+        if (prev_mb_args) {
+            TCGArg pop, cop;
+            TCGBar pty, cty;
+
+            switch (opc) {
+            case INDEX_op_mb:
+                pop = prev_mb_args[0];
+                cop = args[0];
+                pty = pop & 0xF0;
+                cty = cop & 0xF0;
+
+                if (cty == pty) {
+                    /* Two barriers of the same type.  Merge the set of
+                     * memories to which this applies.  */
+                    pop |= cop & 0x0F;
+                } else {
+                    /* Merge a weaker barrier into a stronger one,
+                     * or two weaker barriers into a stronger one.
+                     *   mb; strl => mb; st
+                     *   ldaq; mb => ld; mb
+                     *   ldaq; strl => ld; mb; st
+                     * Other combinations are also merged into a strong
+                     * barrier.  This is stricter than specified but for
+                     * the purposes of TCG is better than not optimizing.
+                     */
+                    pop = TCG_BAR_SC | ((cop | pop) & 0x0F);
+                }
+                /* Change the previous barrier to the merged state.
+                 * Then we can remove the current barrier.  */
+                prev_mb_args[0] = pop;
+                tcg_op_remove(s, op);
+                break;
+
+            default:
+                /* Opcodes that end the block stop the optimization.  */
+                if ((def->flags & TCG_OPF_BB_END) == 0) {
+                    break;
+                }
+                /* fallthru */
+            case INDEX_op_qemu_ld_i32:
+            case INDEX_op_qemu_ld_i64:
+            case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_st_i64:
+            case INDEX_op_call:
+                /* Opcodes that touch guest memory stop the optimization.  */
+                prev_mb_args = NULL;
+                break;
+            }
+        } else if (opc == INDEX_op_mb) {
+            prev_mb_args = args;
         }
     }
 }
