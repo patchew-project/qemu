@@ -292,11 +292,11 @@ void cpu_loop(CPUX86State *env)
     abi_ulong ret;
     target_siginfo_t info;
 
-    for(;;) {
+    for (;;) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
-        switch(trapnr) {
+        switch (trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
             ret = do_syscall(env,
@@ -738,11 +738,11 @@ void cpu_loop(CPUARMState *env)
     uint32_t addr;
     abi_ulong ret;
 
-    for(;;) {
+    for (;;) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
-        switch(trapnr) {
+        switch (trapnr) {
         case EXCP_UDEF:
             {
                 TaskState *ts = cs->opaque;
@@ -762,7 +762,7 @@ void cpu_loop(CPUARMState *env)
                     info._sifields._sigfault._addr = env->regs[15];
                     queue_signal(env, info.si_signo, &info);
                 } else if (rc < 0) { /* FP exception */
-                    int arm_fpe=0;
+                    int arm_fpe = 0;
 
                     /* translate softfloat flags to FPSR flags */
                     if (-rc & float_flag_invalid) {
@@ -827,7 +827,7 @@ void cpu_loop(CPUARMState *env)
                     if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC)) {
                         fpsr |= BIT_IOC;
                     }
-                    ts->fpa.fpsr=fpsr;
+                    ts->fpa.fpsr = fpsr;
                 } else { /* everything OK */
                     /* increment PC */
                     env->regs[15] += 4;
@@ -867,7 +867,7 @@ void cpu_loop(CPUARMState *env)
                     /* nop */
                 } else if (n == ARM_NR_semihosting
                            || n == ARM_NR_thumb_semihosting) {
-                    env->regs[0] = do_arm_semihosting (env);
+                    env->regs[0] = do_arm_semihosting(env);
                 } else if (n == 0 || n >= ARM_SYSCALL_BASE || env->thumb) {
                     /* linux syscall */
                     if (env->thumb || n == 0) {
@@ -876,7 +876,7 @@ void cpu_loop(CPUARMState *env)
                         n -= ARM_SYSCALL_BASE;
                         env->eabi = 0;
                     }
-                    if ( n > ARM_NR_BASE) {
+                    if (n > ARM_NR_BASE) {
                         switch (n) {
                         case ARM_NR_cacheflush:
                             /* nop */
@@ -1291,7 +1291,7 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
     printf("win_overflow: sp_ptr=0x" TARGET_ABI_FMT_lx " save_cwp=%d\n",
            sp_ptr, cwp1);
 #endif
-    for(i = 0; i < 16; i++) {
+    for (i = 0; i < 16; i++) {
         /* FIXME - what to do if put_user() fails? */
         put_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
@@ -1338,7 +1338,7 @@ static void restore_window(CPUSPARCState *env)
     printf("win_underflow: sp_ptr=0x" TARGET_ABI_FMT_lx " load_cwp=%d\n",
            sp_ptr, cwp1);
 #endif
-    for(i = 0; i < 16; i++) {
+    for (i = 0; i < 16; i++) {
         /* FIXME - what to do if get_user() fails? */
         get_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
@@ -1359,7 +1359,7 @@ static void flush_windows(CPUSPARCState *env)
     int offset, cwp1;
 
     offset = 1;
-    for(;;) {
+    for (;;) {
         /* if restore would invoke restore_window(), then we can stop */
         cwp1 = cpu_cwp_inc(env, env->cwp + offset);
 #ifndef TARGET_SPARC64
@@ -1386,7 +1386,7 @@ static void flush_windows(CPUSPARCState *env)
 #endif
 }
 
-void cpu_loop (CPUSPARCState *env)
+void cpu_loop(CPUSPARCState *env)
 {
     CPUState *cs = CPU(sparc_env_get_cpu(env));
     int trapnr;
@@ -1411,7 +1411,7 @@ void cpu_loop (CPUSPARCState *env)
         case 0x110:
         case 0x16d:
 #endif
-            ret = do_syscall (env, env->gregs[1],
+            ret = do_syscall(env, env->gregs[1],
                               env->regwptr[0], env->regwptr[1],
                               env->regwptr[2], env->regwptr[3],
                               env->regwptr[4], env->regwptr[5],
@@ -1524,11 +1524,11 @@ void cpu_loop (CPUSPARCState *env)
             }
             break;
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            printf("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
-        process_pending_signals (env);
+        process_pending_signals(env);
     }
 }
 
@@ -1561,7 +1561,7 @@ uint32_t cpu_ppc_load_atbu(CPUPPCState *env)
 }
 
 uint32_t cpu_ppc601_load_rtcu(CPUPPCState *env)
-__attribute__ (( alias ("cpu_ppc_load_tbu") ));
+__attribute__((alias("cpu_ppc_load_tbu")));
 
 uint32_t cpu_ppc601_load_rtcl(CPUPPCState *env)
 {
@@ -1569,12 +1569,12 @@ uint32_t cpu_ppc601_load_rtcl(CPUPPCState *env)
 }
 
 /* XXX: to be fixed */
-int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp)
+int ppc_dcr_read(ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp)
 {
     return -1;
 }
 
-int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
+int ppc_dcr_write(ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
 {
     return -1;
 }
@@ -1628,9 +1628,9 @@ static int do_store_exclusive(CPUPPCState *env)
                     if (val2 == env->reserve_val2) {
                         if (msr_le) {
                             val2 = val;
-                            val = env->gpr[reg+1];
+                            val = env->gpr[reg + 1];
                         } else {
-                            val2 = env->gpr[reg+1];
+                            val2 = env->gpr[reg + 1];
                         }
                         segv = put_user_u64(val, addr);
                         if (!segv) {
@@ -1665,11 +1665,11 @@ void cpu_loop(CPUPPCState *env)
     int trapnr;
     target_ulong ret;
 
-    for(;;) {
+    for (;;) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
-        switch(trapnr) {
+        switch (trapnr) {
         case POWERPC_EXCP_NONE:
             /* Just go on */
             break;
@@ -2511,11 +2511,11 @@ void cpu_loop(CPUMIPSState *env)
     unsigned int syscall_num;
 # endif
 
-    for(;;) {
+    for (;;) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
-        switch(trapnr) {
+        switch (trapnr) {
         case EXCP_SYSCALL:
             env->active_tc.PC += 4;
 # ifdef TARGET_ABI_MIPSO32
@@ -2893,11 +2893,11 @@ void cpu_loop(CPUSH4State *env)
             break;
 
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            printf("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
-        process_pending_signals (env);
+        process_pending_signals(env);
     }
 }
 #endif
@@ -2957,11 +2957,11 @@ void cpu_loop(CPUCRISState *env)
             }
             break;
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            printf("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
-        process_pending_signals (env);
+        process_pending_signals(env);
     }
 }
 #endif
@@ -3049,7 +3049,7 @@ void cpu_loop(CPUMBState *env)
                     queue_signal(env, info.si_signo, &info);
                     break;
                 default:
-                    printf ("Unhandled hw-exception: 0x%x\n",
+                    printf("Unhandled hw-exception: 0x%x\n",
                             env->sregs[SR_ESR] & ESR_EC_MASK);
                     cpu_dump_state(cs, stderr, fprintf, 0);
                     exit(EXIT_FAILURE);
@@ -3070,11 +3070,11 @@ void cpu_loop(CPUMBState *env)
             }
             break;
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            printf("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
-        process_pending_signals (env);
+        process_pending_signals(env);
     }
 }
 #endif
@@ -3089,11 +3089,11 @@ void cpu_loop(CPUM68KState *env)
     target_siginfo_t info;
     TaskState *ts = cs->opaque;
 
-    for(;;) {
+    for (;;) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
-        switch(trapnr) {
+        switch (trapnr) {
         case EXCP_ILLEGAL:
             {
                 if (ts->sim_syscalls) {
@@ -3405,11 +3405,11 @@ void cpu_loop(CPUAlphaState *env)
             /* Just indicate that signals should be handled asap.  */
             break;
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            printf("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
-        process_pending_signals (env);
+        process_pending_signals(env);
     }
 }
 #endif /* TARGET_ALPHA */
@@ -3536,7 +3536,7 @@ void cpu_loop(CPUS390XState *env)
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
-        process_pending_signals (env);
+        process_pending_signals(env);
     }
 }
 
@@ -4111,7 +4111,7 @@ static void usage(int exitcode)
         }
     }
 
-    printf("%-*s %-*s Description\n", maxarglen+1, "Argument",
+    printf("%-*s %-*s Description\n", maxarglen + 1, "Argument",
             maxenvlen, "Env-variable");
 
     for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
@@ -4279,7 +4279,7 @@ int main(int argc, char **argv, char **envp)
     /* Zero out image_info */
     memset(info, 0, sizeof(struct image_info));
 
-    memset(&bprm, 0, sizeof (bprm));
+    memset(&bprm, 0, sizeof(bprm));
 
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
@@ -4393,7 +4393,7 @@ int main(int argc, char **argv, char **envp)
      * Prepare copy of argv vector for target.
      */
     target_argc = argc - optind;
-    target_argv = calloc(target_argc + 1, sizeof (char *));
+    target_argv = calloc(target_argc + 1, sizeof(char *));
     if (target_argv == NULL) {
         (void) fprintf(stderr, "Unable to allocate memory for target_argv\n");
         exit(EXIT_FAILURE);
@@ -4519,8 +4519,8 @@ int main(int argc, char **argv, char **envp)
     env->idt.limit = 255;
 #endif
     env->idt.base = target_mmap(0, sizeof(uint64_t) * (env->idt.limit + 1),
-                                PROT_READ|PROT_WRITE,
-                                MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+                                PROT_READ | PROT_WRITE,
+                                MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     idt_table = g2h(env->idt.base);
     set_idt(0, 0);
     set_idt(1, 0);
@@ -4548,8 +4548,8 @@ int main(int argc, char **argv, char **envp)
     {
         uint64_t *gdt_table;
         env->gdt.base = target_mmap(0, sizeof(uint64_t) * TARGET_GDT_ENTRIES,
-                                    PROT_READ|PROT_WRITE,
-                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+                                    PROT_READ | PROT_WRITE,
+                                    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
         env->gdt.limit = sizeof(uint64_t) * TARGET_GDT_ENTRIES - 1;
         gdt_table = g2h(env->gdt.base);
 #ifdef TARGET_ABI32
@@ -4603,7 +4603,7 @@ int main(int argc, char **argv, char **envp)
         int i;
         cpsr_write(env, regs->uregs[16], CPSR_USER | CPSR_EXEC,
                    CPSRWriteByInstr);
-        for(i = 0; i < 16; i++) {
+        for (i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
         }
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -4650,7 +4650,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 #endif
         env->nip = regs->nip;
-        for(i = 0; i < 32; i++) {
+        for (i = 0; i < 32; i++) {
             env->gpr[i] = regs->gpr[i];
         }
     }
@@ -4716,7 +4716,7 @@ int main(int argc, char **argv, char **envp)
     {
         int i;
 
-        for(i = 0; i < 32; i++) {
+        for (i = 0; i < 32; i++) {
             env->active_tc.gpr[i] = regs->regs[i];
         }
         env->active_tc.PC = regs->cp0_epc & ~(target_ulong)1;
@@ -4753,7 +4753,7 @@ int main(int argc, char **argv, char **envp)
     {
         int i;
 
-        for(i = 0; i < 16; i++) {
+        for (i = 0; i < 16; i++) {
             env->gregs[i] = regs->regs[i];
         }
         env->pc = regs->pc;
@@ -4762,7 +4762,7 @@ int main(int argc, char **argv, char **envp)
     {
         int i;
 
-        for(i = 0; i < 28; i++) {
+        for (i = 0; i < 28; i++) {
             env->ir[i] = ((abi_ulong *)regs)[i];
         }
         env->ir[IR_SP] = regs->usp;
