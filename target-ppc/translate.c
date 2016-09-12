@@ -3064,7 +3064,7 @@ static void gen_eieio(DisasContext *ctx)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static inline void gen_check_tlb_flush(DisasContext *ctx)
+static inline void gen_check_tlb_flush(DisasContext *ctx, uint32_t global)
 {
     TCGv_i32 t;
     TCGLabel *l;
@@ -3076,12 +3076,13 @@ static inline void gen_check_tlb_flush(DisasContext *ctx)
     t = tcg_temp_new_i32();
     tcg_gen_ld_i32(t, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
     tcg_gen_brcondi_i32(TCG_COND_EQ, t, 0, l);
-    gen_helper_check_tlb_flush(cpu_env);
+    tcg_gen_movi_i32(t, global);
+    gen_helper_check_tlb_flush(cpu_env, t);
     gen_set_label(l);
     tcg_temp_free_i32(t);
 }
 #else
-static inline void gen_check_tlb_flush(DisasContext *ctx) { }
+static inline void gen_check_tlb_flush(DisasContext *ctx, uint32_t global) { }
 #endif
 
 /* isync */
@@ -3092,7 +3093,7 @@ static void gen_isync(DisasContext *ctx)
      * kernel mode however so check MSR_PR
      */
     if (!ctx->pr) {
-        gen_check_tlb_flush(ctx);
+        gen_check_tlb_flush(ctx, 0);
     }
     gen_stop_exception(ctx);
 }
@@ -3257,7 +3258,7 @@ static void gen_sync(DisasContext *ctx)
      * check MSR_PR as well.
      */
     if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
-        gen_check_tlb_flush(ctx);
+        gen_check_tlb_flush(ctx, 1);
     }
 }
 
@@ -4463,11 +4464,10 @@ static void gen_tlbsync(DisasContext *ctx)
 #else
     CHK_HV;
 
-    /* tlbsync is a nop for server, ptesync handles delayed tlb flush,
-     * embedded however needs to deal with tlbsync. We don't try to be
-     * fancy and swallow the overhead of checking for both.
-     */
-    gen_check_tlb_flush(ctx);
+    /* BookS does both ptesync and tlbsync make tlbsync a nop for server */
+    if (ctx->insns_flags & PPC_BOOKE) {
+        gen_check_tlb_flush(ctx, 1);
+    }
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 

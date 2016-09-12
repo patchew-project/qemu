@@ -18,7 +18,7 @@ DEF_HELPER_1(rfid, void, env)
 DEF_HELPER_1(hrfid, void, env)
 DEF_HELPER_2(store_lpcr, void, env, tl)
 #endif
-DEF_HELPER_1(check_tlb_flush, void, env)
+DEF_HELPER_2(check_tlb_flush, void, env, i32)
 #endif
 
 DEF_HELPER_3(lmw, void, env, tl, i32)
