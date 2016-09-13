@@ -228,6 +228,7 @@ qemu_new_crypto_legacy_hw(CryptoClientInfo *info,
     CryptoLegacyHWState *crypto;
     CryptoClientState **peers = conf->peers.ccs;
     int i, queues = MAX(1, conf->peers.queues);
+    int has_set = 0;
 
     assert(info->type == CRYPTO_CLIENT_OPTIONS_KIND_LEGACY_HW);
     assert(info->size >= sizeof(CryptoLegacyHWState));
@@ -242,6 +243,22 @@ qemu_new_crypto_legacy_hw(CryptoClientInfo *info,
                               NULL);
         crypto->ccs[i].queue_index = i;
         crypto->ccs[i].ready = true;
+        /* The mask bits of crypto_services and algos in
+           CryptoLegacyHWConf is set only once */
+        if (has_set == 0 && peers[i]) {
+            conf->crypto_services = peers[i]->crypto_services;
+            conf->cipher_algo_l = peers[i]->cipher_algo_l;
+            conf->cipher_algo_h = peers[i]->cipher_algo_h;
+            conf->hash_algo = peers[i]->hash_algo;
+            conf->mac_algo_l = peers[i]->mac_algo_l;
+            conf->mac_algo_h = peers[i]->mac_algo_h;
+            conf->asym_algo = peers[i]->asym_algo;
+            conf->kdf_algo = peers[i]->kdf_algo;
+            conf->aead_algo = peers[i]->aead_algo;
+            conf->primitive_algo = peers[i]->primitive_algo;
+
+            has_set = 1;
+        }
     }
 
     return crypto;
