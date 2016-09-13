@@ -22,6 +22,8 @@
 #include "hw/virtio/virtio-crypto.h"
 #include "hw/virtio/virtio-access.h"
 
+static int32_t virtio_crypto_flush_dataq(VirtIOCryptoQueue *q);
+
 static void virtio_crypto_process(VirtIOCrypto *vcrypto)
 {
 }
@@ -29,6 +31,14 @@ static void virtio_crypto_process(VirtIOCrypto *vcrypto)
 static inline int virtio_crypto_vq2q(int queue_index)
 {
     return queue_index;
+}
+
+static VirtIOCryptoQueue *
+virtio_crypto_get_subqueue(CryptoClientState *cc)
+{
+    VirtIOCrypto *vcrypto = qemu_get_crypto_legacy_hw_opaque(cc);
+
+    return &vcrypto->vqs[cc->queue_index];
 }
 
 static void
@@ -255,12 +265,366 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static CryptoSymOpInfo *
+virtio_crypto_cipher_op_helper(VirtIODevice *vdev,
+           struct virtio_crypto_cipher_para *para,
+           struct virtio_crypto_cipher_output *out,
+           uint32_t aad_len,
+           uint64_t aad_data_addr)
+{
+    CryptoSymOpInfo *op_info;
+    uint32_t src_len, dst_len;
+    uint32_t iv_len;
+    size_t max_len, curr_size = 0;
+    hwaddr iv_gpa, src_gpa;
+    void *iv_hva, *src_hva, *aad_hva;
+    hwaddr len;
+
+    iv_len = para->iv_len;
+    src_len = para->src_data_len;
+    dst_len = para->dst_data_len;
+
+    max_len = iv_len + aad_len + src_len + dst_len;
+    op_info = g_malloc0(sizeof(CryptoSymOpInfo) + max_len);
+    op_info->iv_len = iv_len;
+    op_info->src_len = src_len;
+    op_info->dst_len = dst_len;
+    op_info->aad_len = aad_len;
+    /* handle the initilization vector */
+    if (op_info->iv_len > 0) {
+        len = op_info->iv_len;
+        DPRINTF("iv_len=%" PRIu32 "\n", len);
+        op_info->iv = op_info->data + curr_size;
+
+        iv_gpa = out->iv_addr;
+        iv_hva = cpu_physical_memory_map(iv_gpa, &len, false);
+        memcpy(op_info->iv, iv_hva, len);
+        cpu_physical_memory_unmap(iv_hva, len, false, len);
+        curr_size += len;
+    }
+
+    /* handle additional authentication data if exist */
+    if (op_info->aad_len > 0) {
+        len = op_info->aad_len;
+        DPRINTF("aad_len=%" PRIu32 "\n", len);
+        op_info->aad_data = op_info->data + curr_size;
+
+        aad_hva = cpu_physical_memory_map(aad_data_addr, &len, false);
+        memcpy(op_info->aad_data, aad_hva, len);
+        cpu_physical_memory_unmap(aad_hva, len, false, len);
+        curr_size += len;
+    }
+
+    /* handle the source data */
+    if (op_info->src_len > 0) {
+        len = op_info->src_len;
+        DPRINTF("src_len=%" PRIu32 "\n", len);
+        op_info->src = op_info->data + curr_size;
+
+        src_gpa = out->src_data_addr;
+        src_hva = cpu_physical_memory_map(src_gpa, &len, false);
+        memcpy(op_info->src, src_hva, len);
+        cpu_physical_memory_unmap(src_hva, len, false, len);
+        curr_size += len;
+    }
+    op_info->dst = op_info->data + curr_size;
+    DPRINTF("dst_len=%" PRIu32 "\n", op_info->dst_len);
+
+    return op_info;
+}
+
+static void
+virtio_crypto_sym_input_data_helper(VirtIODevice *vdev,
+                void *idata_hva,
+                uint32_t status,
+                CryptoSymOpInfo *sym_op_info)
+{
+    struct virtio_crypto_sym_input *idata = idata_hva;
+    hwaddr dst_gpa, len;
+    void *dst_hva;
+
+    idata->status = status;
+    if (status != VIRTIO_CRYPTO_OP_OK) {
+        return;
+    }
+
+    /* save the cipher result */
+    dst_gpa = idata->dst_data_addr;
+    /* Note: length of dest_data is equal to length of src_data for cipher */
+    len = sym_op_info->src_len;
+    dst_hva = cpu_physical_memory_map(dst_gpa, &len, true);
+    memcpy(dst_hva, sym_op_info->dst, len);
+    cpu_physical_memory_unmap(dst_hva, len, true, len);
+
+    if (sym_op_info->op_type ==
+                      VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
+        hwaddr digest_gpa;
+        void *digest_hva;
+
+        /* save the digest result */
+        digest_gpa = idata->digest_result_addr;
+        len = sym_op_info->dst_len - sym_op_info->src_len;
+        digest_hva = cpu_physical_memory_map(digest_gpa, &len, true);
+        memcpy(digest_hva, sym_op_info->dst + sym_op_info->src_len, len);
+        cpu_physical_memory_unmap(digest_hva, len, true, len);
+    }
+}
+
+static void virtio_crypto_tx_complete(CryptoClientState *cc,
+                                      int ret)
+{
+    VirtIOCrypto *vcrypto = qemu_get_crypto_legacy_hw_opaque(cc);
+    VirtIOCryptoQueue *q = virtio_crypto_get_subqueue(cc);
+    VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
+    uint32_t flags = q->async_tx.flags;
+
+    if (flags == QEMU_CRYPTO_PACKET_FLAG_SYM) {
+        CryptoSymOpInfo *sym_op_info = q->async_tx.op_info;
+
+        if (ret > 0) {
+            virtio_crypto_sym_input_data_helper(vdev,
+                                    q->async_tx.idata_hva,
+                                    VIRTIO_CRYPTO_OP_OK,
+                                    sym_op_info);
+        } else if (ret == -1 || ret == 0) {
+            virtio_crypto_sym_input_data_helper(vdev,
+                                    q->async_tx.idata_hva,
+                                    VIRTIO_CRYPTO_OP_ERR,
+                                    sym_op_info);
+        } else if (ret == -VIRTIO_CRYPTO_OP_BADMSG) {
+            virtio_crypto_sym_input_data_helper(vdev,
+                                    q->async_tx.idata_hva,
+                                    VIRTIO_CRYPTO_OP_BADMSG,
+                                    sym_op_info);
+        } else if (ret == -VIRTIO_CRYPTO_OP_INVSESS) {
+            virtio_crypto_sym_input_data_helper(vdev,
+                                    q->async_tx.idata_hva,
+                                    VIRTIO_CRYPTO_OP_INVSESS,
+                                    sym_op_info);
+        }
+    }
+
+    virtqueue_push(q->dataq, q->async_tx.elem,
+                sizeof(struct virtio_crypto_op_data_req));
+    virtio_notify(vdev, q->dataq);
+
+    g_free(q->async_tx.elem);
+    q->async_tx.elem = NULL;
+
+    virtio_queue_set_notification(q->dataq, 1);
+    virtio_crypto_flush_dataq(q);
+}
+
+static void
+virtio_crypto_handle_sym_req(VirtIOCrypto *vcrypto,
+               struct virtio_crypto_sym_data_req *req,
+               CryptoSymOpInfo **sym_op_info,
+               void **idata_hva,
+               VirtQueueElement *elem)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
+    uint32_t op_type;
+    void *idata;
+    size_t idata_offset;
+    struct iovec *iov = elem->in_sg;
+    CryptoSymOpInfo *op_info;
+
+    op_type = req->op_type;
+
+    if (op_type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
+        op_info = virtio_crypto_cipher_op_helper(vdev, &req->u.cipher.para,
+                                              &req->u.cipher.odata, 0, 0);
+        op_info->op_type = op_type;
+        /* calculate the offset of input data */
+        idata_offset = offsetof(struct virtio_crypto_op_data_req,
+                                u.sym_req.u.cipher.idata.input);
+        idata = (void *)iov[0].iov_base + idata_offset;
+
+    } else if (op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
+        uint32_t aad_len;
+        uint64_t aad_data_addr;
+
+        aad_len = req->u.chain.odata.aad_len;
+        aad_data_addr = req->u.chain.odata.aad_data_addr;
+        /* cipher part */
+        op_info = virtio_crypto_cipher_op_helper(vdev, &req->u.cipher.para,
+                                              &req->u.cipher.odata, aad_len,
+                                              aad_data_addr);
+        op_info->op_type = op_type;
+
+        /* calculate the offset of input data */
+        idata_offset = offsetof(struct virtio_crypto_op_data_req,
+                                u.sym_req.u.chain.idata.input);
+        idata = (void *)iov[0].iov_base + idata_offset;
+    } else {
+        /* VIRTIO_CRYPTO_SYM_OP_NONE */
+        error_report("unsupported cipher type");
+        exit(1);
+    }
+
+    *sym_op_info = op_info;
+    *idata_hva = idata;
+}
+
+static int32_t virtio_crypto_flush_dataq(VirtIOCryptoQueue *q)
+{
+    VirtIOCrypto *vcrypto = q->vcrypto;
+    VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
+    VirtQueueElement *elem;
+    int32_t num_packets = 0;
+    int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(q->dataq));
+    struct virtio_crypto_op_data_req req;
+    size_t s;
+    int ret;
+    struct iovec *iov;
+    unsigned int iov_cnt;
+    uint32_t opcode;
+    uint64_t session_id;
+    CryptoSymOpInfo *sym_op_info = NULL;
+    void *idata_hva = NULL;
+
+    if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        return num_packets;
+    }
+
+    if (q->async_tx.elem) {
+        virtio_queue_set_notification(q->dataq, 0);
+        return num_packets;
+    }
+
+    for (;;) {
+        elem = virtqueue_pop(q->dataq, sizeof(VirtQueueElement));
+        if (!elem) {
+            break;
+        }
+
+        if (elem->in_num < 1 ||
+            iov_size(elem->in_sg, elem->in_num) < sizeof(req)) {
+            error_report("virtio-crypto dataq missing headers");
+            exit(1);
+        }
+
+        iov_cnt = elem->in_num;
+        iov = elem->in_sg;
+
+        s = iov_to_buf(iov, iov_cnt, 0, &req, sizeof(req));
+        assert(s == sizeof(req));
+        opcode = req.header.opcode;
+        session_id = req.header.session_id;
+
+        switch (opcode) {
+        case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
+        case VIRTIO_CRYPTO_CIPHER_DECRYPT:
+            virtio_crypto_handle_sym_req(vcrypto,
+                             &req.u.sym_req,
+                             &sym_op_info,
+                             &idata_hva,
+                             elem);
+            sym_op_info->session_id = session_id;
+            ret = qemu_send_crypto_packet_async(
+                 qemu_get_crypto_subqueue(vcrypto->crypto, queue_index),
+                                      QEMU_CRYPTO_PACKET_FLAG_SYM,
+                                      sym_op_info, virtio_crypto_tx_complete);
+            if (ret == 0) {
+                virtio_queue_set_notification(q->dataq, 0);
+                q->async_tx.elem = elem;
+                q->async_tx.flags = QEMU_CRYPTO_PACKET_FLAG_SYM;
+                q->async_tx.idata_hva = idata_hva;
+                q->async_tx.op_info = sym_op_info;
+                return -EBUSY;
+            } else if (ret < 0) {
+                virtio_crypto_sym_input_data_helper(vdev, idata_hva,
+                                VIRTIO_CRYPTO_OP_ERR,
+                                sym_op_info);
+                goto drop;
+            } else { /* ret > 0 */
+                virtio_crypto_sym_input_data_helper(vdev, idata_hva,
+                                VIRTIO_CRYPTO_OP_OK,
+                                sym_op_info);
+            }
+            break;
+        case VIRTIO_CRYPTO_HASH:
+        case VIRTIO_CRYPTO_MAC:
+        case VIRTIO_CRYPTO_AEAD_ENCRYPT:
+        case VIRTIO_CRYPTO_AEAD_DECRYPT:
+        default:
+            error_report("virtio-crypto unsupported dataq opcode: %u",
+                         opcode);
+            exit(1);
+        }
+
+drop:
+        virtqueue_push(q->dataq, elem, sizeof(req));
+        virtio_notify(vdev, q->dataq);
+
+        if (++num_packets >= vcrypto->tx_burst) {
+            break;
+        }
+    }
+    return num_packets;
+}
+
 static void virtio_crypto_handle_dataq_bh(VirtIODevice *vdev, VirtQueue *vq)
 {
+    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
+    int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(vq));
+    VirtIOCryptoQueue *q = &vcrypto->vqs[queue_index];
+
+    if (unlikely(q->tx_waiting)) {
+        return;
+    }
+    q->tx_waiting = 1;
+    /* This happens when device was stopped but VCPU wasn't. */
+    if (!vdev->vm_running) {
+        return;
+    }
+    virtio_queue_set_notification(vq, 0);
+    qemu_bh_schedule(q->tx_bh);
 }
 
 static void virtio_crypto_dataq_bh(void *opaque)
 {
+    VirtIOCryptoQueue *q = opaque;
+    VirtIOCrypto *vcrypto = q->vcrypto;
+    VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
+    int32_t ret;
+
+    /* This happens when device was stopped but BH wasn't. */
+    if (!vdev->vm_running) {
+        /* Make sure tx waiting is set, so we'll run when restarted. */
+        assert(q->tx_waiting);
+        return;
+    }
+
+    q->tx_waiting = 0;
+
+    /* Just in case the driver is not ready on more */
+    if (unlikely(!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))) {
+        return;
+    }
+
+    ret = virtio_crypto_flush_dataq(q);
+    if (ret == -EBUSY) {
+        return; /* Notification re-enable handled by tx_complete */
+    }
+
+    /* If we flush a full burst of packets, assume there are
+     * more coming and immediately reschedule */
+    if (ret >= vcrypto->tx_burst) {
+        qemu_bh_schedule(q->tx_bh);
+        q->tx_waiting = 1;
+        return;
+    }
+
+    /* If less than a full burst, re-enable notification and flush
+     * anything that may have come in while we weren't looking.  If
+     * we find something, assume the guest is still active and reschedule */
+    virtio_queue_set_notification(q->dataq, 1);
+    if (virtio_crypto_flush_dataq(q) > 0) {
+        virtio_queue_set_notification(q->dataq, 0);
+        qemu_bh_schedule(q->tx_bh);
+        q->tx_waiting = 1;
+    }
 }
 
 static void virtio_crypto_add_queue(VirtIOCrypto *vcrypto, int index)
