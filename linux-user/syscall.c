@@ -1030,7 +1030,8 @@ abi_long do_brk(abi_ulong new_brk)
     new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page);
     mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
-                                        MAP_ANON|MAP_PRIVATE, 0, 0));
+                                        MAP_ANON | MAP_PRIVATE | MAP_FIXED,
+                                        0, 0));
 
     if (mapped_addr == brk_page) {
         /* Heap contents are initialized to zero, as for anonymous
