@@ -3969,8 +3969,24 @@ contents of @code{iv.b64} to the second secret
 ETEXI
 
 DEF("cryptodev", HAS_ARG, QEMU_OPTION_cryptodev,
-    "",
+    "-cryptodev cryptodev-linux,id=str[,fd=h]\n"
+    "           configure a cryptodev-linux cryptodev backend with ID 'str'\n"
+    "           use 'fd=h' to connect to an already opened '/dev/crypto' fd\n",
     QEMU_ARCH_ALL)
+
+STEXI
+@item -cryptodev cryptodev-linux,id=@var{id}[,fd=@var{h}]
+configure a cryptodev backend with ID @var{id}.
+
+Example:
+@example
+#launch a QEMU instance with one virtio-crypto device,
+#which connected a cryptodev-linux backend device.
+qemu-system-x86_64 linux.img -cryptodev cryptodev-linux,id=cryptodev0 \
+                  -device virtio-crypto-pci,cryptodev=cryptodev0
+
+@end example
+ETEXI
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

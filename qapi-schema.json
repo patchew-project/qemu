@@ -4603,6 +4603,20 @@
     '*vectors': 'uint32' } }
 
 ##
+# @CryptodevLinuxOptions
+#
+# Cryptodev-linux cryptodev backend. Cryptodev-linux is a device that
+# allows access to Linux kernel cryptographic drivers; thus allowing
+# of userspace applications to take advantage of hardware accelerators.
+#
+# @fd: #optional file descriptor of an already opened cryptodev chardev
+#
+# Since 2.7
+##
+{ 'struct': 'CryptodevLinuxOptions',
+  'data': {
+    '*fd':    'int' } }
+##
 # @CryptoClientOptions
 #
 # A discriminated record of crypto device traits.
@@ -4611,7 +4625,8 @@
 #
 ##
 { 'union': 'CryptoClientOptions',
-  'data': {'legacy-hw':   'CryptoLegacyHWOptions'} }
+  'data': {'legacy-hw':   'CryptoLegacyHWOptions',
+           'cryptodev-linux': 'CryptodevLinuxOptions'} }
 
 ##
 # @Cryptodev
