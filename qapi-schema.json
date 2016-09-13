@@ -2118,6 +2118,11 @@
 # Returns: Nothing on success
 #
 # Since 1.5
+#
+# Example:
+#
+# -> { "execute": "cpu-add", "arguments": { "id": 2 } }
+# <- { "return": {} }
 ##
 { 'command': 'cpu-add', 'data': {'id': 'int'} }
 
