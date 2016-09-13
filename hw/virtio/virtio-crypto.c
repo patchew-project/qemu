@@ -146,6 +146,32 @@ err:
     return -1;
 }
 
+static void
+virtio_crypto_handle_close_session(VirtIOCrypto *vcrypto,
+         struct virtio_crypto_destroy_session_req *close_sess_req,
+         uint32_t queue_id)
+{
+    int ret;
+    CryptoClientState *cc = vcrypto->crypto->ccs;
+    uint64_t session_id;
+    uint32_t status;
+    int queue_index = virtio_crypto_vq2q(queue_id);
+
+    session_id = close_sess_req->session_id;
+    DPRINTF("close session, id=%" PRIu64 "\n", session_id);
+    cc = qemu_get_crypto_subqueue(vcrypto->crypto, queue_index);
+    ret = qemu_crypto_close_session(cc, session_id);
+    if (ret == 0) {
+        status = VIRTIO_CRYPTO_OP_OK;
+    } else {
+        error_report("destroy session failed");
+        status = VIRTIO_CRYPTO_OP_ERR;
+    }
+
+    /* Set the result, notify the frontend driver soon */
+    close_sess_req->status = status;
+}
+
 static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
@@ -185,12 +211,15 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
             break;
         case VIRTIO_CRYPTO_CIPHER_DESTROY_SESSION:
-        case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
         case VIRTIO_CRYPTO_HASH_DESTROY_SESSION:
-        case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
         case VIRTIO_CRYPTO_MAC_DESTROY_SESSION:
-        case VIRTIO_CRYPTO_AEAD_CREATE_SESSION:
         case VIRTIO_CRYPTO_AEAD_DESTROY_SESSION:
+            virtio_crypto_handle_close_session(vcrypto,
+                   &ctrl.u.destroy_session, queue_id);
+            break;
+        case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
+        case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
+        case VIRTIO_CRYPTO_AEAD_CREATE_SESSION:
         default:
             error_report("virtio-crypto unsupported ctrl opcode: %u",
                          opcode);
