@@ -327,7 +327,7 @@
 ##
 # @ChardevBackendInfo:
 #
-# Information about a character device backend
+# Information about a character device backend.
 #
 # @name: The backend name
 #
@@ -338,11 +338,32 @@
 ##
 # @query-chardev-backends:
 #
-# Returns information about character device backends.
+# Returns information about available character device backends.
 #
 # Returns: a list of @ChardevBackendInfo
 #
 # Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-chardev-backends" }
+# <- {
+#       "return":[
+#          {
+#             "name":"udp"
+#          },
+#          {
+#             "name":"tcp"
+#          },
+#          {
+#             "name":"unix"
+#          },
+#          {
+#             "name":"spiceport"
+#          }
+#       ]
+#    }
+#
 ##
 { 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
 
