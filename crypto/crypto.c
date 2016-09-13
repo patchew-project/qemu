@@ -291,3 +291,71 @@ void qemu_del_crypto_legacy_hw(CryptoLegacyHWState *crypto)
 
     g_free(crypto);
 }
+
+CryptoLegacyHWState *qemu_get_crypto_legacy_hw(CryptoClientState *cc)
+{
+    CryptoClientState *cc0 = cc - cc->queue_index;
+
+    return (CryptoLegacyHWState *)((void *)cc0 - cc->info->size);
+}
+
+void *qemu_get_crypto_legacy_hw_opaque(CryptoClientState *cc)
+{
+    CryptoLegacyHWState *crypto = qemu_get_crypto_legacy_hw(cc);
+
+    return crypto->opaque;
+}
+
+int qemu_find_crypto_clients_except(const char *id, CryptoClientState **ccs,
+                                 CryptoClientOptionsKind type, int max)
+{
+    CryptoClientState *cc;
+    int ret = 0;
+
+    QTAILQ_FOREACH(cc, &crypto_clients, next) {
+        if (cc->info->type == type) {
+            continue;
+        }
+        if (!id || !strcmp(cc->name, id)) {
+            if (ret < max) {
+                ccs[ret] = cc;
+            }
+            ret++;
+        }
+    }
+
+    return ret;
+}
+
+int qemu_crypto_create_session(CryptoClientState *cc,
+                               CryptoSymSessionInfo *info,
+                               uint64_t *session_id)
+{
+    int ret = -1;
+    CryptoClientState *peer = cc->peer;
+
+    if (!peer || !peer->ready) {
+        return ret;
+    }
+
+    if (peer->info->create_session) {
+        ret = peer->info->create_session(peer, info, session_id);
+    }
+    return ret;
+}
+
+int qemu_crypto_close_session(CryptoClientState *cc,
+                               uint64_t session_id)
+{
+    int ret = -1;
+    CryptoClientState *peer = cc->peer;
+
+    if (!peer || !peer->ready) {
+        return ret;
+    }
+
+    if (peer->info->close_session) {
+        ret = peer->info->close_session(peer, session_id);
+    }
+    return ret;
+}
