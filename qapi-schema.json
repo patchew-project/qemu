@@ -128,7 +128,7 @@
 ##
 # @KvmInfo:
 #
-# Information about support for KVM acceleration
+# Information about support for KVM acceleration.
 #
 # @enabled: true if KVM acceleration is active
 #
@@ -141,11 +141,17 @@
 ##
 # @query-kvm:
 #
-# Returns information about KVM acceleration
+# Returns information about KVM acceleration.
 #
 # Returns: @KvmInfo
 #
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-kvm" }
+# <- { "return": { "enabled": true, "present": true } }
+#
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
