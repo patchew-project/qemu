@@ -22,6 +22,8 @@
 #include "qapi/visitor.h"
 #include "sysemu/char.h"
 #include "sysemu/iothread.h"
+#include "crypto/crypto.h"
+
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,
                         char *(*print)(void *ptr),
@@ -430,3 +432,87 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
     }
     nd->instantiated = 1;
 }
+
+/* --- cryptodev device --- */
+static void get_cryptodev(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    CryptoLegacyHWPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
+    char *p = g_strdup(peers_ptr->ccs[0] ? peers_ptr->ccs[0]->name : "");
+    visit_type_str(v, name, &p, errp);
+    g_free(p);
+}
+
+static void set_cryptodev(Object *obj, Visitor *v, const char *name,
+                          void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    CryptoLegacyHWPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
+    CryptoClientState **ccs = peers_ptr->ccs;
+    CryptoClientState *peers[MAX_CRYPTO_QUEUE_NUM];
+    Error *local_err = NULL;
+    int queues, err = 0, i = 0;
+    char *str;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_str(v, name, &str, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    queues = qemu_find_crypto_clients_except(str, peers,
+                                          CRYPTO_CLIENT_OPTIONS_KIND_LEGACY_HW,
+                                          MAX_CRYPTO_QUEUE_NUM);
+    if (queues == 0) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    if (queues > MAX_CRYPTO_QUEUE_NUM) {
+        error_setg(errp,
+          "queues of backend '%s'(%d) exceeds QEMU limitation(%d)",
+                   str, queues, MAX_CRYPTO_QUEUE_NUM);
+        goto out;
+    }
+
+    for (i = 0; i < queues; i++) {
+        if (peers[i] == NULL) {
+            err = -ENOENT;
+            goto out;
+        }
+
+        if (peers[i]->peer) {
+            err = -EEXIST;
+            goto out;
+        }
+
+        if (ccs[i]) {
+            err = -EINVAL;
+            goto out;
+        }
+
+        ccs[i] = peers[i];
+        ccs[i]->queue_index = i;
+    }
+
+    peers_ptr->queues = queues;
+
+out:
+    error_set_from_qdev_prop_error(errp, err, dev, prop, str);
+    g_free(str);
+}
+
+PropertyInfo qdev_prop_cryptodev = {
+    .name  = "str",
+    .description = "ID of a cryptodev to use as a backend",
+    .get   = get_cryptodev,
+    .set   = set_cryptodev,
+};
