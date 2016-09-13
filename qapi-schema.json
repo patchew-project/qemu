@@ -945,6 +945,12 @@
 #                certificate identity can be validated. (Since 2.7)
 #
 # Since: 2.4
+#
+# Example:
+#
+# -> { "execute": "migrate-set-parameters" ,
+#      "arguments": { "compress-level": 1 } }
+#
 ##
 { 'command': 'migrate-set-parameters',
   'data': { '*compress-level': 'int',
