@@ -62,7 +62,8 @@ static int64_t
 virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
                struct virtio_crypto_sym_create_session_req *sess_req,
                uint32_t queue_id,
-               uint64_t *session_id)
+               uint64_t *session_id,
+               VirtQueueElement *elem)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
     CryptoSymSessionInfo info;
@@ -74,6 +75,8 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
     void *auth_key_hva;
     struct virtio_crypto_session_input *input;
     hwaddr len;
+    size_t input_offset;
+    struct iovec *iov = elem->in_sg;
 
     memset(&info, 0, sizeof(info));
     op_type = sess_req->op_type;
@@ -83,13 +86,19 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
         virtio_crypto_cipher_session_helper(vdev, &info,
                            &sess_req->u.cipher.para,
                            &sess_req->u.cipher.out);
-        input = &sess_req->u.cipher.input;
+        /* calculate the offset of input data */
+        input_offset = offsetof(struct virtio_crypto_op_ctrl_req,
+                          u.sym_create_session.u.cipher.input);
+        input = (void *)iov[0].iov_base + input_offset;
     } else if (op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
         /* cipher part */
         virtio_crypto_cipher_session_helper(vdev, &info,
                            &sess_req->u.chain.para.cipher_param,
                            &sess_req->u.chain.out.cipher);
-        input = &sess_req->u.chain.input;
+        /* calculate the offset of input data */
+        input_offset = offsetof(struct virtio_crypto_op_ctrl_req,
+                                u.sym_create_session.u.chain.input);
+        input = (void *)iov[0].iov_base + input_offset;
         /* hash part */
         info.alg_chain_order = sess_req->u.chain.para.alg_chain_order;
         info.add_len = sess_req->u.chain.para.aad_len;
@@ -120,6 +129,10 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
             goto err;
         }
     } else {
+        /* calculate the offset of input data */
+        input_offset = offsetof(struct virtio_crypto_op_ctrl_req,
+                                u.sym_create_session.u.cipher.input);
+        input = (void *)iov[0].iov_base + input_offset;
         /* VIRTIO_CRYPTO_SYM_OP_NONE */
         error_report("unsupported cipher type");
         goto err;
@@ -149,13 +162,17 @@ err:
 static void
 virtio_crypto_handle_close_session(VirtIOCrypto *vcrypto,
          struct virtio_crypto_destroy_session_req *close_sess_req,
-         uint32_t queue_id)
+         uint32_t queue_id,
+         VirtQueueElement *elem)
 {
     int ret;
     CryptoClientState *cc = vcrypto->crypto->ccs;
     uint64_t session_id;
     uint32_t status;
     int queue_index = virtio_crypto_vq2q(queue_id);
+    struct iovec *iov = elem->in_sg;
+    size_t status_offset;
+    void *in_status_ptr;
 
     session_id = close_sess_req->session_id;
     DPRINTF("close session, id=%" PRIu64 "\n", session_id);
@@ -168,8 +185,12 @@ virtio_crypto_handle_close_session(VirtIOCrypto *vcrypto,
         status = VIRTIO_CRYPTO_OP_ERR;
     }
 
+    /* calculate the offset of status bits */
+    status_offset = offsetof(struct virtio_crypto_op_ctrl_req,
+                             u.destroy_session.status);
+    in_status_ptr = (void *)iov[0].iov_base + status_offset;
     /* Set the result, notify the frontend driver soon */
-    close_sess_req->status = status;
+    memcpy(in_status_ptr, &status, sizeof(status));
 }
 
 static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
@@ -207,7 +228,8 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             virtio_crypto_create_sym_session(vcrypto,
                              &ctrl.u.sym_create_session,
                              queue_id,
-                             &session_id);
+                             &session_id,
+                             elem);
 
             break;
         case VIRTIO_CRYPTO_CIPHER_DESTROY_SESSION:
@@ -215,7 +237,8 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         case VIRTIO_CRYPTO_MAC_DESTROY_SESSION:
         case VIRTIO_CRYPTO_AEAD_DESTROY_SESSION:
             virtio_crypto_handle_close_session(vcrypto,
-                   &ctrl.u.destroy_session, queue_id);
+                   &ctrl.u.destroy_session, queue_id,
+                   elem);
             break;
         case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
         case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
