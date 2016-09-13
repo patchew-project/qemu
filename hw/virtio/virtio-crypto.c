@@ -265,24 +265,176 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static void virtio_crypto_map_iovec(unsigned int *p_num_sg, hwaddr *addr,
+                               struct iovec *iov,
+                               unsigned int max_num_sg,
+                               hwaddr pa, size_t sz,
+                               bool is_write)
+{
+    unsigned num_sg = *p_num_sg;
+    assert(num_sg <= max_num_sg);
+
+    if (!sz) {
+        error_report("virtio-crypto: zero sized buffers are not allowed");
+        exit(1);
+    }
+
+    while (sz) {
+        hwaddr len = sz;
+
+        if (num_sg == max_num_sg) {
+            error_report("virtio-crypto: too many entries "
+                        "in the scatter gather list");
+            exit(1);
+        }
+
+        iov[num_sg].iov_base = cpu_physical_memory_map(pa, &len, is_write);
+        iov[num_sg].iov_len = len;
+        addr[num_sg] = pa;
+
+        sz -= len;
+        pa += len;
+        num_sg++;
+    }
+    *p_num_sg = num_sg;
+}
+
+static void virtio_crypto_unmap_iovec(VirtIOCryptoBuffer *buf,
+                               unsigned int len,
+                               bool is_write)
+{
+    unsigned int offset;
+    int i;
+
+    if (is_write) {
+        offset = 0;
+        for (i = 0; i < buf->num; i++) {
+            size_t size = MIN(len - offset, buf->sg[i].iov_len);
+
+            cpu_physical_memory_unmap(buf->sg[i].iov_base,
+                                      buf->sg[i].iov_len,
+                                      1, size);
+
+            offset += size;
+        }
+    } else {
+        for (i = 0; i < buf->num; i++) {
+            cpu_physical_memory_unmap(buf->sg[i].iov_base,
+                                      buf->sg[i].iov_len,
+                                      0, buf->sg[i].iov_len);
+        }
+    }
+}
+
+static void *virtio_crypto_read_next_iovec(VirtIODevice *vdev,
+                                struct virtio_crypto_iovec *iovec,
+                                bool is_write,
+                                struct iovec *iov,
+                                unsigned int *num)
+{
+    struct virtio_crypto_iovec *iovec_hva;
+    hwaddr pa;
+    hwaddr len;
+
+    /* If this descriptor says it doesn't chain, we're done. */
+    if (!(iovec->flags & VIRTIO_CRYPTO_IOVEC_F_NEXT)) {
+        return NULL;
+    }
+
+    pa = iovec->next_iovec;
+    len = sizeof(*iovec_hva);
+    iovec_hva = cpu_physical_memory_map(pa, &len, is_write);
+    assert(len == sizeof(*iovec_hva));
+
+    iov[*num].iov_base = iovec_hva;
+    iov[*num].iov_len = len;
+    (*num)++;
+
+    return iovec_hva;
+}
+
+static void *virtio_crypto_alloc_buf(unsigned num)
+{
+    VirtIOCryptoBuffer *buf;
+    size_t addr_ofs = QEMU_ALIGN_UP(sizeof(*buf), __alignof__(buf->addr[0]));
+    size_t addr_end = addr_ofs + num * sizeof(buf->addr[0]);
+    size_t sg_ofs = QEMU_ALIGN_UP(addr_end, __alignof__(buf->sg[0]));
+    size_t sg_end = sg_ofs + num * sizeof(buf->sg[0]);
+
+    buf = g_malloc(sg_end);
+    buf->num = num;
+
+    buf->addr = (void *)buf + addr_ofs;
+    buf->sg = (void *)buf + sg_ofs;
+    return buf;
+}
+
+static void *virtio_crypto_iovec_read(VirtIODevice *vdev,
+                      struct virtio_crypto_iovec *iovec,
+                      bool is_write)
+{
+
+    VirtIOCryptoBuffer *buf;
+    hwaddr addr[VIRTIO_CRYPTO_SG_MAX];
+    struct iovec iov[VIRTIO_CRYPTO_SG_MAX];
+    unsigned int num = 0;
+    /* Save virtio_crypto_iov structure's hva information in sg_list */
+    struct iovec vc_iov[VIRTIO_CRYPTO_SG_MAX];
+    unsigned int vc_num = 0;
+    unsigned int i;
+
+    struct virtio_crypto_iovec *p_iovec = iovec;
+
+    /* Collect all the sgs */
+    do {
+        virtio_crypto_map_iovec(&num, addr, iov,
+                           VIRTIO_CRYPTO_SG_MAX,
+                           p_iovec->addr, p_iovec->len,
+                           is_write);
+    } while ((p_iovec = virtio_crypto_read_next_iovec(vdev,
+                p_iovec, false, vc_iov, &vc_num))
+                != NULL);
+
+    /* Now copy what we have collected and mapped */
+    buf = virtio_crypto_alloc_buf(num);
+    for (i = 0; i < num; i++) {
+        buf->addr[i] = addr[i];
+        buf->sg[i] = iov[i];
+    }
+    /* Unmap all virtio_crypto_iov structure if exists */
+    for (i = 0; i < vc_num; i++) {
+        cpu_physical_memory_unmap(vc_iov[i].iov_base,
+                                  vc_iov[i].iov_len,
+                                  false, vc_iov[i].iov_len);
+    }
+
+    return buf;
+}
+
 static CryptoSymOpInfo *
 virtio_crypto_cipher_op_helper(VirtIODevice *vdev,
            struct virtio_crypto_cipher_para *para,
            struct virtio_crypto_cipher_output *out,
-           uint32_t aad_len,
-           uint64_t aad_data_addr)
+           struct virtio_crypto_iovec *add_data)
 {
     CryptoSymOpInfo *op_info;
     uint32_t src_len, dst_len;
     uint32_t iv_len;
     size_t max_len, curr_size = 0;
-    hwaddr iv_gpa, src_gpa;
-    void *iv_hva, *src_hva, *aad_hva;
+    hwaddr iv_gpa;
+    void *iv_hva;
     hwaddr len;
+    uint32_t aad_len = 0;
+    VirtIOCryptoBuffer *buf;
+    size_t s;
 
     iv_len = para->iv_len;
     src_len = para->src_data_len;
     dst_len = para->dst_data_len;
+
+    if (add_data) {
+        aad_len = add_data->len;
+    }
 
     max_len = iv_len + aad_len + src_len + dst_len;
     op_info = g_malloc0(sizeof(CryptoSymOpInfo) + max_len);
@@ -305,27 +457,32 @@ virtio_crypto_cipher_op_helper(VirtIODevice *vdev,
 
     /* handle additional authentication data if exist */
     if (op_info->aad_len > 0) {
-        len = op_info->aad_len;
         DPRINTF("aad_len=%" PRIu32 "\n", len);
         op_info->aad_data = op_info->data + curr_size;
 
-        aad_hva = cpu_physical_memory_map(aad_data_addr, &len, false);
-        memcpy(op_info->aad_data, aad_hva, len);
-        cpu_physical_memory_unmap(aad_hva, len, false, len);
-        curr_size += len;
+        buf = virtio_crypto_iovec_read(vdev, add_data, false);
+        s = iov_to_buf(buf->sg, buf->num, 0, op_info->aad_data,
+                       op_info->aad_len);
+        assert(s == op_info->aad_len);
+
+        virtio_crypto_unmap_iovec(buf, op_info->aad_len, false);
+        g_free(buf);
+        curr_size += op_info->aad_len;
     }
 
     /* handle the source data */
     if (op_info->src_len > 0) {
-        len = op_info->src_len;
-        DPRINTF("src_len=%" PRIu32 "\n", len);
+        DPRINTF("src_len=%" PRIu32 "\n", op_info->src_len);
         op_info->src = op_info->data + curr_size;
 
-        src_gpa = out->src_data_addr;
-        src_hva = cpu_physical_memory_map(src_gpa, &len, false);
-        memcpy(op_info->src, src_hva, len);
-        cpu_physical_memory_unmap(src_hva, len, false, len);
-        curr_size += len;
+        buf = virtio_crypto_iovec_read(vdev, &out->src_data, false);
+        s = iov_to_buf(buf->sg, buf->num, 0, op_info->src, op_info->src_len);
+        assert(s == op_info->src_len);
+
+        virtio_crypto_unmap_iovec(buf, op_info->src_len, false);
+        g_free(buf);
+
+        curr_size += op_info->src_len;
     }
     op_info->dst = op_info->data + curr_size;
     DPRINTF("dst_len=%" PRIu32 "\n", op_info->dst_len);
@@ -340,21 +497,24 @@ virtio_crypto_sym_input_data_helper(VirtIODevice *vdev,
                 CryptoSymOpInfo *sym_op_info)
 {
     struct virtio_crypto_sym_input *idata = idata_hva;
-    hwaddr dst_gpa, len;
-    void *dst_hva;
+    hwaddr len;
+    VirtIOCryptoBuffer *buf;
+    size_t s;
 
     idata->status = status;
     if (status != VIRTIO_CRYPTO_OP_OK) {
         return;
     }
 
-    /* save the cipher result */
-    dst_gpa = idata->dst_data_addr;
+    buf = virtio_crypto_iovec_read(vdev, &idata->dst_data, true);
     /* Note: length of dest_data is equal to length of src_data for cipher */
     len = sym_op_info->src_len;
-    dst_hva = cpu_physical_memory_map(dst_gpa, &len, true);
-    memcpy(dst_hva, sym_op_info->dst, len);
-    cpu_physical_memory_unmap(dst_hva, len, true, len);
+    /* save the cipher result */
+    s = iov_from_buf(buf->sg, buf->num, 0, sym_op_info->dst, len);
+    assert(s == len);
+
+    virtio_crypto_unmap_iovec(buf, len, false);
+    g_free(buf);
 
     if (sym_op_info->op_type ==
                       VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
@@ -363,8 +523,12 @@ virtio_crypto_sym_input_data_helper(VirtIODevice *vdev,
 
         /* save the digest result */
         digest_gpa = idata->digest_result_addr;
-        len = sym_op_info->dst_len - sym_op_info->src_len;
+        len = idata->digest_result_len;
+        if (len != sym_op_info->dst_len - sym_op_info->src_len) {
+            len = sym_op_info->dst_len - sym_op_info->src_len;
+        }
         digest_hva = cpu_physical_memory_map(digest_gpa, &len, true);
+        /* find the digest result, then copy it into guest's memory */
         memcpy(digest_hva, sym_op_info->dst + sym_op_info->src_len, len);
         cpu_physical_memory_unmap(digest_hva, len, true, len);
     }
@@ -433,23 +597,17 @@ virtio_crypto_handle_sym_req(VirtIOCrypto *vcrypto,
 
     if (op_type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
         op_info = virtio_crypto_cipher_op_helper(vdev, &req->u.cipher.para,
-                                              &req->u.cipher.odata, 0, 0);
+                                              &req->u.cipher.odata, NULL);
         op_info->op_type = op_type;
         /* calculate the offset of input data */
         idata_offset = offsetof(struct virtio_crypto_op_data_req,
                                 u.sym_req.u.cipher.idata.input);
         idata = (void *)iov[0].iov_base + idata_offset;
-
     } else if (op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
-        uint32_t aad_len;
-        uint64_t aad_data_addr;
-
-        aad_len = req->u.chain.odata.aad_len;
-        aad_data_addr = req->u.chain.odata.aad_data_addr;
         /* cipher part */
         op_info = virtio_crypto_cipher_op_helper(vdev, &req->u.cipher.para,
-                                              &req->u.cipher.odata, aad_len,
-                                              aad_data_addr);
+                                              &req->u.cipher.odata,
+                                              &req->u.chain.odata.add_data);
         op_info->op_type = op_type;
 
         /* calculate the offset of input data */

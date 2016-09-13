@@ -44,6 +44,18 @@ do { printf("virtio_crypto: " fmt , ## __VA_ARGS__); } while (0)
  * and latency. */
 #define VIRTIO_CRYPTO_TX_BURST 256
 
+/* Max entries of scatter gather list in one virtio-crypto buffer */
+#define VIRTIO_CRYPTO_SG_MAX 256
+
+typedef struct VirtIOCryptoBuffer {
+    unsigned int num;
+    /* Guest physical address */
+    hwaddr *addr;
+    /* Store host virtual address and length */
+    struct iovec *sg;
+    uint8_t data[0];
+} VirtIOCryptoBuffer;
+
 typedef struct VirtIOCryptoConf {
     int32_t txburst;
 } VirtIOCryptoConf;

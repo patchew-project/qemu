@@ -6,6 +6,21 @@
 #include "standard-headers/linux/virtio_types.h"
 
 
+struct virtio_crypto_iovec {
+    /* Guest physical address */
+    __virtio64 addr;
+    /* Length of guest physical address */
+    __virtio32 len;
+
+/* This marks a buffer as continuing via the next field */
+#define VIRTIO_CRYPTO_IOVEC_F_NEXT 1
+    /* The flags as indicated above. */
+    __virtio32 flags;
+    /* Pointer to next struct virtio_crypto_iovec if flags & NEXT */
+    __virtio64 next_iovec;
+};
+
+
 #define VIRTIO_CRYPTO_SERVICE_CIPHER (0)
 #define VIRTIO_CRYPTO_SERVICE_HASH (1)
 #define VIRTIO_CRYPTO_SERVICE_MAC  (2)
@@ -263,13 +278,14 @@ struct virtio_crypto_op_header {
 };
 
 struct virtio_crypto_sym_input {
-    /* destination data guest address, it's useless for plain HASH and MAC */
-    __virtio64 dst_data_addr;
+    /* destination data, it's useless for plain HASH and MAC */
+    struct virtio_crypto_iovec dst_data;
     /* digest result guest address, it's useless for plain cipher algos */
     __virtio64 digest_result_addr;
+    /* digest result length which is the same with session para above */
+    __virtio32 digest_result_len;
 
     __virtio32 status;
-    __virtio32 padding;
 };
 
 struct virtio_crypto_cipher_para {
@@ -286,8 +302,10 @@ struct virtio_crypto_cipher_input {
 };
 
 struct virtio_crypto_cipher_output {
-    __virtio64 iv_addr; /* iv guest address */
-    __virtio64 src_data_addr; /* source data guest address */
+    /* iv guest address */
+    __virtio64 iv_addr;
+    /* source data */
+    struct virtio_crypto_iovec src_data;
 };
 
 struct virtio_crypto_hash_input {
@@ -295,10 +313,8 @@ struct virtio_crypto_hash_input {
 };
 
 struct virtio_crypto_hash_output {
-    /* source data guest address */
-    __virtio64 src_data_addr;
-    /* length of source data */
-    __virtio32 src_data_len;
+    /* source data */
+    struct virtio_crypto_iovec src_data;
     __virtio32 padding;
 };
 
@@ -326,8 +342,10 @@ struct virtio_crypto_aead_input {
 
 struct virtio_crypto_aead_output {
     __virtio64 iv_addr; /* iv guest address */
-    __virtio64 src_data_addr; /* source data guest address */
-    __virtio64 add_data_addr; /* additional auth data guest address */
+    /* source data */
+    struct virtio_crypto_iovec src_data;
+    /* additional auth data guest address */
+    struct virtio_crypto_iovec add_data;
 };
 
 struct virtio_crypto_cipher_data_req {
@@ -357,12 +375,12 @@ struct virtio_crypto_alg_chain_data_para {
 };
 
 struct virtio_crypto_alg_chain_data_output {
+    /* Device-writable part */
     struct virtio_crypto_cipher_output cipher;
 
     /* Device-readable part */
-    __virtio64 aad_data_addr; /* additional auth data guest address */
-    __virtio32 aad_len; /* length of additional auth data */
-    __virtio32 padding;
+    /* additional auth data guest address */
+    struct virtio_crypto_iovec add_data;
 };
 
 struct virtio_crypto_alg_chain_data_input {
