@@ -205,7 +205,7 @@
 ##
 # @StatusInfo:
 #
-# Information about VCPU run state
+# Information about VCPU run state.
 #
 # @running: true if all VCPUs are runnable, false if not runnable
 #
@@ -223,11 +223,17 @@
 ##
 # @query-status:
 #
-# Query the run status of all VCPUs
+# Query the run status of all VCPUs.
 #
 # Returns: @StatusInfo reflecting all VCPUs
 #
 # Since:  0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-status" }
+# <- { "return": { "running": true, "singlestep": false, "status": "running" } }
+#
 ##
 { 'command': 'query-status', 'returns': 'StatusInfo' }
 
