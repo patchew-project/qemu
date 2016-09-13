@@ -33,10 +33,50 @@
 
 #define MAX_CRYPTO_QUEUE_NUM  64
 
+#define  QEMU_CRYPTO_PACKET_FLAG_NONE (0)
+#define  QEMU_CRYPTO_PACKET_FLAG_SYM (1 << 0)
+
+typedef struct CryptoSymSessionInfo {
+    uint8_t op_code;
+    uint8_t op_type;
+    uint8_t direction;
+    uint32_t cipher_alg;
+    uint32_t key_len;
+    uint8_t *cipher_key;
+
+    uint32_t hash_alg;
+    uint8_t hash_mode;
+    uint32_t hash_result_len;
+    uint8_t alg_chain_order;
+    uint32_t auth_key_len;
+    uint32_t add_len;
+    uint8_t *auth_key;
+} CryptoSymSessionInfo;
+
+typedef struct CryptoSymOpInfo {
+    uint64_t session_id;
+    uint8_t op_type; /* cipher or algo chainning */
+    uint8_t *src;
+    uint8_t *dst;
+    uint8_t *iv;
+    uint8_t *aad_data; /* additional auth data */
+    uint32_t aad_len;
+    uint32_t iv_len;
+    uint32_t src_len;
+    /* the dst_len is equal to src_len + hash_result_len
+     * if hash alg configured */
+    uint32_t dst_len;
+    uint8_t data[0];
+} CryptoSymOpInfo;
+
 typedef void (CryptoPoll)(CryptoClientState *, bool);
 typedef void (CryptoCleanup) (CryptoClientState *);
 typedef void (CryptoClientDestructor)(CryptoClientState *);
 typedef void (CryptoHWStatusChanged)(CryptoClientState *);
+typedef int (CryptoCreateSymSession)(CryptoClientState *,
+                              CryptoSymSessionInfo *, uint64_t *);
+typedef int (CryptoCloseSession)(CryptoClientState *, uint64_t);
+typedef int (CryptoDoSymOp)(CryptoClientState *, CryptoSymOpInfo *);
 
 typedef struct CryptoClientInfo {
     CryptoClientOptionsKind type;
@@ -45,6 +85,9 @@ typedef struct CryptoClientInfo {
     CryptoCleanup *cleanup;
     CryptoPoll *poll;
     CryptoHWStatusChanged *hw_status_changed;
+    CryptoCreateSymSession *create_session;
+    CryptoCloseSession *close_session;
+    CryptoDoSymOp *do_sym_op;
 } CryptoClientInfo;
 
 struct CryptoClientState {
@@ -57,6 +100,21 @@ struct CryptoClientState {
     char info_str[256];
     CryptoQueue *incoming_queue;
     unsigned int queue_index;
+
+    /* Supported service mask */
+    uint32_t crypto_services;
+
+    /* Detailed algorithms mask */
+    uint32_t cipher_algo_l;
+    uint32_t cipher_algo_h;
+    uint32_t hash_algo;
+    uint32_t mac_algo_l;
+    uint32_t mac_algo_h;
+    uint32_t asym_algo;
+    uint32_t kdf_algo;
+    uint32_t aead_algo;
+    uint32_t primitive_algo;
+
     CryptoClientDestructor *destructor;
 };
 
@@ -69,6 +127,20 @@ typedef struct CryptoLegacyHWPeers {
 
 typedef struct CryptoLegacyHWConf {
     CryptoLegacyHWPeers peers;
+
+    /* Supported service mask */
+    uint32_t crypto_services;
+
+    /* Detailed algorithms mask */
+    uint32_t cipher_algo_l;
+    uint32_t cipher_algo_h;
+    uint32_t hash_algo;
+    uint32_t mac_algo_l;
+    uint32_t mac_algo_h;
+    uint32_t asym_algo;
+    uint32_t kdf_algo;
+    uint32_t aead_algo;
+    uint32_t primitive_algo;
 } CryptoLegacyHWConf;
 
 typedef struct CryptoLegacyHWState {
@@ -103,5 +175,18 @@ void qemu_del_crypto_legacy_hw(CryptoLegacyHWState *crypto);
 
 CryptoClientState *
 qemu_get_crypto_subqueue(CryptoLegacyHWState *crypto, int queue_index);
+
+CryptoLegacyHWState *qemu_get_crypto_legacy_hw(CryptoClientState *cc);
+
+void *qemu_get_crypto_legacy_hw_opaque(CryptoClientState *cc);
+
+int qemu_find_crypto_clients_except(const char *id, CryptoClientState **ccs,
+                                 CryptoClientOptionsKind type, int max);
+
+int qemu_crypto_create_session(CryptoClientState *cc,
+                               CryptoSymSessionInfo *info,
+                               uint64_t *session_id);
+int qemu_crypto_close_session(CryptoClientState *cc,
+                               uint64_t session_id);
 
 #endif /* QCRYPTO_CRYPTO_H__ */
