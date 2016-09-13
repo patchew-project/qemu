@@ -102,9 +102,9 @@
 #
 # Guest name information.
 #
-# @name: #optional The name of the guest
+# @name: #optional the name of the guest
 #
-# Since 0.14.0
+# Since: 0.14.0
 ##
 { 'struct': 'NameInfo', 'data': {'*name': 'str'} }
 
@@ -115,7 +115,13 @@
 #
 # Returns: @NameInfo of the guest
 #
-# Since 0.14.0
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-name" }
+# <- { "return": { "name": "qemu-name" } }
+#
 ##
 { 'command': 'query-name', 'returns': 'NameInfo' }
 
