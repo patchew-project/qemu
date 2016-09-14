@@ -32,6 +32,9 @@ def generate(events, backend):
     out('    TRACE_EVENT_COUNT',
         '} TraceEventID;')
 
+    for e in events:
+        out('extern uint16_t TRACE_%s_DSTATE;' % e.name.upper())
+
     # per-vCPU event identifiers
     out('typedef enum {')
 

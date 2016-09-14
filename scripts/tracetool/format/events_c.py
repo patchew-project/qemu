@@ -25,6 +25,9 @@ def generate(events, backend):
         '#include "trace/control.h"',
         '')
 
+    for e in events:
+        out('uint16_t TRACE_%s_DSTATE;' % e.name.upper())
+
     out('TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
 
     for e in events:
@@ -34,7 +37,8 @@ def generate(events, backend):
             vcpu_id = "TRACE_VCPU_EVENT_COUNT"
         out('    { .id = %(id)s, .vcpu_id = %(vcpu_id)s,'
             ' .name = \"%(name)s\",'
-            ' .sstate = %(sstate)s },',
+            ' .sstate = %(sstate)s,',
+            ' .dstate = &%(id)s_DSTATE, }, ',
             id = "TRACE_" + e.name.upper(),
             vcpu_id = vcpu_id,
             name = e.name,
