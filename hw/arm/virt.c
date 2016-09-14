@@ -91,6 +91,7 @@ typedef struct {
     bool secure;
     bool highmem;
     int32_t gic_version;
+    bool pmu;
 } VirtMachineState;
 
 #define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME("virt")
@@ -1317,6 +1318,11 @@ static void machvirt_init(MachineState *machine)
             }
         }
 
+        if (vms->pmu) {
+            /* Note: the property name is "pmu", not "has_pmu" */
+            object_property_set_bool(cpuobj, true, "pmu", NULL);
+        }
+
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
             object_property_set_int(cpuobj, vbi->memmap[VIRT_CPUPERIPHS].base,
                                     "reset-cbar", &error_abort);
@@ -1510,6 +1516,8 @@ static void virt_2_7_instance_init(Object *obj)
     object_property_set_description(obj, "gic-version",
                                     "Set GIC version. "
                                     "Valid values are 2, 3 and host", NULL);
+    /* Default PMU is on for 2.7 */
+    vms->pmu = true;
 }
 
 static void virt_machine_2_7_options(MachineClass *mc)
@@ -1522,7 +1530,11 @@ DEFINE_VIRT_MACHINE_AS_LATEST(2, 7)
 
 static void virt_2_6_instance_init(Object *obj)
 {
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
     virt_2_7_instance_init(obj);
+    /* Default PMU is off for 2.6 */
+    vms->pmu = false;
 }
 
 static void virt_machine_2_6_options(MachineClass *mc)
