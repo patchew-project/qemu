@@ -79,5 +79,7 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
             clear_bit(vcpu_id, vcpu->trace_dstate);
             trace_events_dstate[id]--;
         }
+        /* TODO: do not wait until the current TB finishes */
+        cpu_tb_cache_set_request(vcpu);
     }
 }

@@ -1166,6 +1166,29 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 #endif
 }
 
+void cpu_tb_cache_set_request(CPUState *cpu)
+{
+    /*
+     * Request is taken from cpu->trace_dstate and lazily applied into
+     * cpu->tb_cache_idx at cpu_tb_cache_set_apply().
+     */
+    /* NOTE: Checked by all TBs in gen_tb_start(). */
+    cpu->tcg_exit_req = true;
+}
+
+bool cpu_tb_cache_set_requested(CPUState *cpu)
+{
+    return !bitmap_equal(cpu->trace_dstate, cpu->tb_cache_idx,
+                         TRACE_VCPU_EVENT_COUNT);
+}
+
+void cpu_tb_cache_set_apply(CPUState *cpu)
+{
+    bitmap_copy(cpu->tb_cache_idx, cpu->tb_cache_idx,
+                TRACE_VCPU_EVENT_COUNT);
+    tb_flush_jmp_cache_all(cpu);
+}
+
 /* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,
