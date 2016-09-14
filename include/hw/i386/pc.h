@@ -381,6 +381,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     HW_COMPAT_2_7
 
 #define PC_COMPAT_2_6 \
+    PC_COMPAT_2_7 \
     HW_COMPAT_2_6 \
     {\
         .driver   = "fw_cfg_io",\
