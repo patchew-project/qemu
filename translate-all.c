@@ -851,8 +851,7 @@ void tb_flush(CPUState *cpu)
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
     CPU_FOREACH(cpu) {
-        memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
-        cpu->tb_flushed = true;
+        tb_flush_jmp_cache_all(cpu);
     }
 
     qht_reset_size(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
@@ -1577,6 +1576,12 @@ void tb_check_watchpoint(CPUState *cpu)
         addr = get_page_addr_code(env, pc);
         tb_invalidate_phys_range(addr, addr + 1);
     }
+}
+
+void tb_flush_jmp_cache_all(CPUState *cpu)
+{
+    memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
+    cpu->tb_flushed = true;
 }
 
 #ifndef CONFIG_USER_ONLY
