@@ -6579,7 +6579,7 @@ static inline abi_long target_ftruncate64(void *cpu_env, abi_long arg1,
 }
 #endif
 
-#ifdef TARGET_NR_adjtimex
+#if defined(TARGET_NR_adjtimex) || defined(TARGET_NR_clock_adjtime)
 static inline abi_long target_to_host_timex(struct timex *host_buf,
                                             abi_long target_addr)
 {
@@ -9503,6 +9503,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(adjtimex(&host_buf));
             if (!is_error(ret) && arg1) {
                 if (host_to_target_timex(arg1, &host_buf) != 0) {
+                    goto efault;
+                }
+            }
+        }
+        break;
+#endif
+#ifdef TARGET_NR_clock_adjtime
+    case TARGET_NR_clock_adjtime:
+        {
+            struct timex host_buf;
+
+            if (target_to_host_timex(&host_buf, arg2) != 0) {
+                goto efault;
+            }
+            ret = get_errno(clock_adjtime(arg1, &host_buf));
+            if (!is_error(ret) && arg1) {
+                if (host_to_target_timex(arg2, &host_buf) != 0) {
                     goto efault;
                 }
             }
