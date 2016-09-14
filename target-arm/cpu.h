@@ -155,6 +155,7 @@ typedef struct CPUARMState {
      */
     uint32_t pstate;
     uint32_t aarch64; /* 1 if CPU is in aarch64 state; inverse of PSTATE.nRW */
+    uint32_t tbflags;
 
     /* Frequently accessed CPSR bits are stored separately for efficiency.
        This contains all the other bits.  Use cpsr_{read,write} to access
@@ -2370,10 +2371,17 @@ static inline uint32_t cpu_dynamic_tb_cpu_flags(CPUARMState *env)
     return flags;
 }
 
+static inline uint32_t cpu_get_tb_cpu_flags(CPUARMState *env)
+{
+    uint32_t flags = 0;
+
+    return flags;
+}
+
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
-    *flags = cpu_dynamic_tb_cpu_flags(env);
+    *flags = env->tbflags | cpu_dynamic_tb_cpu_flags(env);
 
     if (is_a64(env)) {
         *pc = env->pc;

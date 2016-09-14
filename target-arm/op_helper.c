@@ -479,6 +479,7 @@ void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
 {
     cpsr_write(env, val, CPSR_ERET_MASK, CPSRWriteExceptionReturn);
 
+    env->tbflags = cpu_get_tb_cpu_flags(env);
     arm_call_el_change_hook(arm_env_get_cpu(env));
 }
 
@@ -975,6 +976,7 @@ void HELPER(exception_return)(CPUARMState *env)
         env->pc = env->elr_el[cur_el];
     }
 
+    env->tbflags = cpu_get_tb_cpu_flags(env);
     arm_call_el_change_hook(arm_env_get_cpu(env));
 
     return;
@@ -1325,4 +1327,9 @@ uint32_t HELPER(ror_cc)(CPUARMState *env, uint32_t x, uint32_t i)
         env->CF = (x >> (shift - 1)) & 1;
         return ((uint32_t)x >> shift) | (x << (32 - shift));
     }
+}
+
+uint32_t HELPER(compute_tbflags)(CPUARMState *env)
+{
+    return cpu_get_tb_cpu_flags(env);
 }

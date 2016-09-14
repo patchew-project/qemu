@@ -68,6 +68,7 @@ TCGv_i64 cpu_exclusive_val;
 TCGv_i64 cpu_exclusive_test;
 TCGv_i32 cpu_exclusive_info;
 #endif
+TCGv_i32 cpu_tbflags;
 
 /* FIXME:  These should be removed.  */
 static TCGv_i32 cpu_F0s, cpu_F1s;
@@ -107,6 +108,8 @@ void arm_translate_init(void)
     cpu_exclusive_info = tcg_global_mem_new_i32(cpu_env,
         offsetof(CPUARMState, exclusive_info), "exclusive_info");
 #endif
+    cpu_tbflags = tcg_global_mem_new_i32(cpu_env,
+        offsetof(CPUARMState, tbflags), "tbflags");
 
     a64_translate_init();
 }
@@ -1135,6 +1138,7 @@ static void gen_exception_insn(DisasContext *s, int offset, int excp,
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 static inline void gen_lookup_tb(DisasContext *s)
 {
+    gen_helper_compute_tbflags(cpu_tbflags, cpu_env);
     tcg_gen_movi_i32(cpu_R[15], s->pc & ~1);
     s->is_jmp = DISAS_JUMP;
 }
@@ -7630,12 +7634,16 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             /* I/O operations must end the TB here (whether read or write) */
             gen_io_end();
             gen_lookup_tb(s);
-        } else if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
+        } else if (!isread) {
             /* We default to ending the TB on a coprocessor register write,
              * but allow this to be suppressed by the register definition
              * (usually only necessary to work around guest bugs).
              */
-            gen_lookup_tb(s);
+            if (ri->type & ARM_CP_SUPPRESS_TB_END) {
+                gen_helper_compute_tbflags(cpu_tbflags, cpu_env);
+            } else {
+                gen_lookup_tb(s);
+            }
         }
 
         return 0;

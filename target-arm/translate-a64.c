@@ -1520,6 +1520,10 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         }
     }
 
+    if (!isread) {
+        gen_helper_compute_tbflags(cpu_tbflags, cpu_env);
+    }
+
     if ((s->tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
         /* I/O operations must end the TB here (whether read or write) */
         gen_io_end();

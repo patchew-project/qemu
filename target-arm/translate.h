@@ -81,6 +81,7 @@ extern TCGv_i64 cpu_exclusive_val;
 extern TCGv_i64 cpu_exclusive_test;
 extern TCGv_i32 cpu_exclusive_info;
 #endif
+extern TCGv_i32 cpu_tbflags;
 
 static inline int arm_dc_feature(DisasContext *dc, int feature)
 {

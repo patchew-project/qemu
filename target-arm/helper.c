@@ -6068,6 +6068,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     addr = ldl_phys(cs->as, env->v7m.vecbase + env->v7m.exception * 4);
     env->regs[15] = addr & 0xfffffffe;
     env->thumb = addr & 1;
+    env->tbflags = cpu_get_tb_cpu_flags(env);
 }
 
 /* Function used to synchronize QEMU's AArch64 register set with AArch32
@@ -6642,6 +6643,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
         arm_cpu_do_interrupt_aarch32(cs);
     }
 
+    env->tbflags = cpu_get_tb_cpu_flags(env);
     arm_call_el_change_hook(cpu);
 
     if (!kvm_enabled()) {
