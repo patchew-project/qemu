@@ -66,7 +66,8 @@ def generate(events, backend):
 
         out('void %(name_tcg)s(%(args_api)s)',
             '{',
-            '    %(name)s(%(args_call)s);',
+            # NOTE: the check was already performed at TCG-generation time
+            '    __nocheck__%(name)s(%(args_call)s);',
             '}',
             name_tcg="helper_%s_proxy" % e.api(),
             name=e.api(),

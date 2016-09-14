@@ -29,6 +29,19 @@ def generate(events, backend):
     backend.generate_begin(events)
 
     for e in events:
+        # tracer without checks
+        out('',
+            'static inline void __nocheck__%(api)s(%(args)s)',
+            '{',
+            api=e.api(),
+            args=e.args)
+
+        if "disable" not in e.properties:
+            backend.generate(e)
+
+        out('}')
+
+        # tracer wrapper with checks (per-vCPU tracing)
         if "vcpu" in e.properties:
             trace_cpu = next(iter(e.args))[1]
             cond = "trace_event_get_vcpu_state(%(cpu)s,"\
@@ -44,15 +57,13 @@ def generate(events, backend):
             'static inline void %(api)s(%(args)s)',
             '{',
             '    if (%(cond)s) {',
+            '        __nocheck__%(api)s(%(names)s);',
+            '    }',
+            '}',
             api=e.api(),
             args=e.args,
+            names=", ".join(e.args.names()),
             cond=cond)
-
-        if "disable" not in e.properties:
-            backend.generate(e)
-
-        out('    }',
-            '}')
 
     backend.generate_end(events)
 

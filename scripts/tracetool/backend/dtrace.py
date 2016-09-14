@@ -41,6 +41,6 @@ def generate_h_begin(events):
 
 
 def generate_h(event):
-    out('        QEMU_%(uppername)s(%(argnames)s);',
+    out('    QEMU_%(uppername)s(%(argnames)s);',
         uppername=event.name.upper(),
         argnames=", ".join(event.args.names()))
