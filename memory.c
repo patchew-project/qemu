@@ -943,10 +943,6 @@ static void memory_region_destructor_ram(MemoryRegion *mr)
 {
     qemu_ram_free(mr->ram_block);
 }
-
-static void memory_region_destructor_rom_device(MemoryRegion *mr)
-{
-    qemu_ram_free(mr->ram_block);
 }
 
 static bool memory_region_need_escape(char c)
@@ -1405,7 +1401,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->opaque = opaque;
     mr->terminates = true;
     mr->rom_device = true;
-    mr->destructor = memory_region_destructor_rom_device;
+    mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc(size, mr, errp);
 }
 
