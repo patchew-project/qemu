@@ -2867,9 +2867,9 @@ void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
 }
 
 
-void helper_check_tlb_flush(CPUPPCState *env)
+void helper_check_tlb_flush(CPUPPCState *env, unsigned int global)
 {
-    check_tlb_flush(env);
+    check_tlb_flush(env, global);
 }
 
 /*****************************************************************************/
