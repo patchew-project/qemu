@@ -605,7 +605,8 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                 }
                 ps2_put_keycode(s, keycode & 0xff);
             } else {
-                ps2_queue(&s->common, key->down ? 0x00 : 0x80);
+                qemu_log_mask(LOG_UNIMP,
+                              "ps2: ignoring key with qcode %d\n", qcode);
             }
         }
     } else if (s->scancode_set == 2) {
@@ -644,13 +645,9 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                     ps2_put_keycode(s, 0xf0);
                 }
                 ps2_put_keycode(s, keycode & 0xff);
-            } else if (key->down) {
-                ps2_queue(&s->common, 0x00);
-            } else if (s->translate) {
-                ps2_queue(&s->common, 0x80);
             } else {
-                ps2_queue(&s->common, 0xf0);
-                ps2_queue(&s->common, 0x00);
+                qemu_log_mask(LOG_UNIMP,
+                              "ps2: ignoring key with qcode %d\n", qcode);
             }
         }
     } else if (s->scancode_set == 3) {
@@ -661,13 +658,9 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                 ps2_put_keycode(s, 0xf0);
             }
             ps2_put_keycode(s, keycode);
-        } else if (key->down) {
-            ps2_queue(&s->common, 0x00);
-        } else if (s->translate) {
-            ps2_queue(&s->common, 0x80);
         } else {
-            ps2_queue(&s->common, 0xf0);
-            ps2_queue(&s->common, 0x00);
+            qemu_log_mask(LOG_UNIMP,
+                          "ps2: ignoring key with qcode %d\n", qcode);
         }
     }
 }
