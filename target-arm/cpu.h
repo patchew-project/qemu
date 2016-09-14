@@ -2319,31 +2319,30 @@ static inline bool arm_cpu_bswap_data(CPUARMState *env)
 }
 #endif
 
-static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline uint32_t cpu_dynamic_tb_cpu_flags(CPUARMState *env)
 {
+    uint32_t flags = 0;
+
     if (is_a64(env)) {
-        *pc = env->pc;
-        *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
+        flags |= ARM_TBFLAG_AARCH64_STATE_MASK;
     } else {
-        *pc = env->regs[15];
-        *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
+        flags |= (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
             | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
             | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
             | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
             | (arm_sctlr_b(env) << ARM_TBFLAG_SCTLR_B_SHIFT);
         if (!(access_secure_reg(env))) {
-            *flags |= ARM_TBFLAG_NS_MASK;
+            flags |= ARM_TBFLAG_NS_MASK;
         }
         if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)
             || arm_el_is_aa64(env, 1)) {
-            *flags |= ARM_TBFLAG_VFPEN_MASK;
+            flags |= ARM_TBFLAG_VFPEN_MASK;
         }
-        *flags |= (extract32(env->cp15.c15_cpar, 0, 2)
+        flags |= (extract32(env->cp15.c15_cpar, 0, 2)
                    << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
-    *flags |= (cpu_mmu_index(env, false) << ARM_TBFLAG_MMUIDX_SHIFT);
+    flags |= (cpu_mmu_index(env, false) << ARM_TBFLAG_MMUIDX_SHIFT);
     /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
      * states defined in the ARM ARM for software singlestep:
      *  SS_ACTIVE   PSTATE.SS   State
@@ -2352,21 +2351,35 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
      *     1            1       Active-not-pending
      */
     if (arm_singlestep_active(env)) {
-        *flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
+        flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
         if (is_a64(env)) {
             if (env->pstate & PSTATE_SS) {
-                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+                flags |= ARM_TBFLAG_PSTATE_SS_MASK;
             }
         } else {
             if (env->uncached_cpsr & PSTATE_SS) {
-                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+                flags |= ARM_TBFLAG_PSTATE_SS_MASK;
             }
         }
     }
     if (arm_cpu_data_is_big_endian(env)) {
-        *flags |= ARM_TBFLAG_BE_DATA_MASK;
+        flags |= ARM_TBFLAG_BE_DATA_MASK;
     }
-    *flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
+    flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
+
+    return flags;
+}
+
+static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
+                                        target_ulong *cs_base, uint32_t *flags)
+{
+    *flags = cpu_dynamic_tb_cpu_flags(env);
+
+    if (is_a64(env)) {
+        *pc = env->pc;
+    } else {
+        *pc = env->regs[15];
+    }
 
     *cs_base = 0;
 }
