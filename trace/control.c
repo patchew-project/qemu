@@ -125,6 +125,26 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
     return NULL;
 }
 
+void trace_event_iter_init(TraceEventIter *iter, const char *pattern)
+{
+    iter->event = 0;
+    iter->pattern = pattern;
+}
+
+TraceEvent *trace_event_iter_next(TraceEventIter *iter)
+{
+    while (iter->event < TRACE_EVENT_COUNT) {
+        if (!iter->pattern ||
+            pattern_glob(iter->pattern,
+                         trace_event_get_name(&(trace_events[iter->event])))) {
+            return &(trace_events[iter->event]);
+        }
+        iter->event++;
+    }
+
+    return NULL;
+}
+
 void trace_list_events(void)
 {
     int i;
