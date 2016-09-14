@@ -3845,15 +3845,18 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         [SOCKOP_getsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
     };
     abi_long a[6]; /* max 6 args */
+    unsigned i;
 
-    /* first, collect the arguments in a[] according to ac[] */
-    if (num >= 0 && num < ARRAY_SIZE(ac)) {
-        unsigned i;
-        assert(ARRAY_SIZE(a) >= ac[num]); /* ensure we have space for args */
-        for (i = 0; i < ac[num]; ++i) {
-            if (get_user_ual(a[i], vptr + i * sizeof(abi_long)) != 0) {
-                return -TARGET_EFAULT;
-            }
+    /* check the range of the first argument num */
+    if (num < 0 || num > ARRAY_SIZE(ac)) {
+        return -TARGET_EINVAL;
+    }
+
+    /* collect the arguments in a[] according to ac[] */
+    assert(ARRAY_SIZE(a) >= ac[num]); /* ensure we have space for args */
+    for (i = 0; i < ac[num]; ++i) {
+        if (get_user_ual(a[i], vptr + i * sizeof(abi_long)) != 0) {
+            return -TARGET_EFAULT;
         }
     }
 
@@ -3901,7 +3904,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         return do_getsockopt(a[0], a[1], a[2], a[3], a[4]);
     default:
         gemu_log("Unsupported socketcall: %d\n", num);
-        return -TARGET_ENOSYS;
+        return -TARGET_EINVAL;
     }
 }
 #endif
