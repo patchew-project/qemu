@@ -1349,6 +1349,7 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
 static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos)
 {
     int ret;
+    Error *err = NULL;
 
     vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
                                     sizeof(unsigned long));
@@ -1356,12 +1357,14 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos)
                     vdev->bars[vdev->msix->table_bar].region.mem,
                     vdev->msix->table_bar, vdev->msix->table_offset,
                     vdev->bars[vdev->msix->pba_bar].region.mem,
-                    vdev->msix->pba_bar, vdev->msix->pba_offset, pos);
+                    vdev->msix->pba_bar, vdev->msix->pba_offset, pos,
+                    &err);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_report("vfio: msix_init failed");
+        error_prepend(&err, "vfio: msix_init failed: ");
+        error_report_err(err);
         return ret;
     }
 
