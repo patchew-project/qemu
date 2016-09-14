@@ -1967,6 +1967,9 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         if (local_err) {
             error_propagate(errp, local_err);
             do_pci_unregister_device(pci_dev);
+            if (pc->exit) {
+                pc->exit(pci_dev);
+            }
             return;
         }
     }
