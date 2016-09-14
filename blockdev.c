@@ -811,7 +811,7 @@ QemuOptsList qemu_legacy_drive_opts = {
 
         /* Options that are passed on, but have special semantics with -drive */
         {
-            .name = "read-only",
+            .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
@@ -877,7 +877,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
         { "group",          "throttling.group" },
 
-        { "readonly",       "read-only" },
+        { "readonly",       BDRV_OPT_READ_ONLY },
     };
 
     for (i = 0; i < ARRAY_SIZE(opt_renames); i++) {
@@ -949,7 +949,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* copy-on-read is disabled with a warning for read-only devices */
-    read_only |= qemu_opt_get_bool(legacy_opts, "read-only", false);
+    read_only |= qemu_opt_get_bool(legacy_opts, BDRV_OPT_READ_ONLY, false);
     copy_on_read = qemu_opt_get_bool(legacy_opts, "copy-on-read", false);
 
     if (read_only && copy_on_read) {
@@ -957,7 +957,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         copy_on_read = false;
     }
 
-    qdict_put(bs_opts, "read-only",
+    qdict_put(bs_opts, BDRV_OPT_READ_ONLY,
               qstring_from_str(read_only ? "on" : "off"));
     qdict_put(bs_opts, "copy-on-read",
               qstring_from_str(copy_on_read ? "on" :"off"));
@@ -4046,7 +4046,7 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "write error action",
         },{
-            .name = "read-only",
+            .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
@@ -4165,7 +4165,7 @@ static QemuOptsList qemu_root_bds_opts = {
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
         },{
-            .name = "read-only",
+            .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
         },{
