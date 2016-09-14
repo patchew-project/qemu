@@ -282,6 +282,7 @@ struct qemu_work_item {
  * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to queued_work_*.
  * @queued_work_first: First asynchronous work pending.
+ * @tb_cache_idx: Index of current TB cache.
  * @trace_dstate: Dynamic tracing state of events for this vCPU (bitmask).
  *
  * State of one CPU core or thread.
@@ -350,7 +351,8 @@ struct CPUState {
     struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
 
-    /* Used for events with 'vcpu' and *without* the 'disabled' properties */
+    /* Used for events with 'vcpu' and *without* the 'disable' properties */
+    DECLARE_BITMAP(tb_cache_idx, TRACE_VCPU_EVENT_COUNT);
     DECLARE_BITMAP(trace_dstate, TRACE_VCPU_EVENT_COUNT);
 
     /* TODO Move common fields from CPUArchState here. */

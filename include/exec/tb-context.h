@@ -32,7 +32,7 @@ typedef struct TBContext TBContext;
 struct TBContext {
 
     TranslationBlock *tbs;
-    struct qht htable;
+    struct qht *htables;
     int nb_tbs;
     /* any access to the tbs or the page table must use this lock */
     QemuMutex tb_lock;

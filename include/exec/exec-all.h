@@ -211,6 +211,10 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
 #define USE_DIRECT_JUMP
 #endif
 
+/**
+ * TranslationBlock:
+ * @tb_cache_idx: Index of physical TB cache where this TB has been allocated.
+ */
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
@@ -262,6 +266,8 @@ struct TranslationBlock {
      */
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_list_first;
+
+    DECLARE_BITMAP(tb_cache_idx, TRACE_VCPU_EVENT_COUNT);
 };
 
 void tb_free(TranslationBlock *tb);
