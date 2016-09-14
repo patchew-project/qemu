@@ -28,8 +28,8 @@
  * Opaque generic description of a tracing event.
  */
 typedef struct TraceEvent {
-    TraceEventID id;
-    TraceEventVCPUID vcpu_id;
+    uint32_t id;
+    uint32_t vcpu_id;
     const char * name;
     const bool sstate;
     uint16_t *dstate;
