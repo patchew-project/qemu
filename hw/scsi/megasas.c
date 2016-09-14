@@ -155,11 +155,6 @@ static bool megasas_use_queue64(MegasasState *s)
     return s->flags & MEGASAS_MASK_USE_QUEUE64;
 }
 
-static bool megasas_use_msix(MegasasState *s)
-{
-    return s->msix != ON_OFF_AUTO_OFF;
-}
-
 static bool megasas_is_jbod(MegasasState *s)
 {
     return s->flags & MEGASAS_MASK_USE_JBOD;
@@ -2295,9 +2290,7 @@ static void megasas_scsi_uninit(PCIDevice *d)
 {
     MegasasState *s = MEGASAS(d);
 
-    if (megasas_use_msix(s)) {
-        msix_uninit(d, &s->mmio_io, &s->mmio_io);
-    }
+    msix_uninit(d, &s->mmio_io, &s->mmio_io);
     msi_uninit(d);
 }
 
@@ -2349,7 +2342,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,
                           "megasas-mmio", 0x4000);
-    if (megasas_use_msix(s)) {
+    if (s->msix != ON_OFF_AUTO_OFF) {
         ret = msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
                         &s->mmio_io, b->mmio_bar, 0x3800, 0x68, &err);
         /* Any error other than -ENOTSUP(board's MSI support is broken)
@@ -2364,9 +2357,13 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
             error_propagate(errp, err);
             return;
         }
-        assert(!err || d->msix == ON_OFF_AUTO_AUTO);
+        assert(!err || s->msix == ON_OFF_AUTO_AUTO);
         /* With msix=auto, we fall back to MSI off silently */
         error_free(err);
+    }
+
+    if (msix_enabled(dev)) {
+        msix_vector_use(dev, 0);
     }
 
     memory_region_init_io(&s->port_io, OBJECT(s), &megasas_port_ops, s,
@@ -2383,10 +2380,6 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
                      PCI_BASE_ADDRESS_SPACE_IO, &s->port_io);
     pci_register_bar(dev, b->mmio_bar, bar_type, &s->mmio_io);
     pci_register_bar(dev, 3, bar_type, &s->queue_io);
-
-    if (megasas_use_msix(s)) {
-        msix_vector_use(dev, 0);
-    }
 
     s->fw_state = MFI_FWSTATE_READY;
     if (!s->sas_addr) {
