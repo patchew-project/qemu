@@ -71,7 +71,7 @@ static uint32_t trace_event_get_id(TraceEvent *ev);
  *
  * Get the per-vCPU identifier of an event.
  *
- * Special value #TRACE_VCPU_EVENT_COUNT means the event is not vCPU-specific
+ * Special value (uint32_t)-1 means the event is not vCPU-specific
  * (does not have the "vcpu" property).
  */
 static uint32_t trace_event_get_vcpu_id(TraceEvent *ev);

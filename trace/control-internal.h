@@ -38,7 +38,7 @@ static inline uint32_t trace_event_get_vcpu_id(TraceEvent *ev)
 
 static inline bool trace_event_is_vcpu(TraceEvent *ev)
 {
-    return ev->vcpu_id != TRACE_VCPU_EVENT_COUNT;
+    return ev->vcpu_id != (uint32_t)-1;
 }
 
 static inline const char * trace_event_get_name(TraceEvent *ev)
