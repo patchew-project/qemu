@@ -2320,17 +2320,15 @@ static inline bool arm_cpu_bswap_data(CPUARMState *env)
 }
 #endif
 
-static inline uint32_t cpu_dynamic_tb_cpu_flags(CPUARMState *env)
+static inline uint32_t cpu_get_tb_cpu_flags(CPUARMState *env)
 {
     uint32_t flags = 0;
 
     if (is_a64(env)) {
         flags |= ARM_TBFLAG_AARCH64_STATE_MASK;
     } else {
-        flags |= (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
-            | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
+        flags |= (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
             | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
-            | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
             | (arm_sctlr_b(env) << ARM_TBFLAG_SCTLR_B_SHIFT);
         if (!(access_secure_reg(env))) {
             flags |= ARM_TBFLAG_NS_MASK;
@@ -2371,9 +2369,14 @@ static inline uint32_t cpu_dynamic_tb_cpu_flags(CPUARMState *env)
     return flags;
 }
 
-static inline uint32_t cpu_get_tb_cpu_flags(CPUARMState *env)
+static inline uint32_t cpu_dynamic_tb_cpu_flags(CPUARMState *env)
 {
     uint32_t flags = 0;
+
+    if (!is_a64(env)) {
+        flags |= (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
+            | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT);
+    }
 
     return flags;
 }
