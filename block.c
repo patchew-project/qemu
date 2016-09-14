@@ -913,6 +913,8 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
+    update_flags_from_options(&bs->open_flags, opts);
+
     driver_name = qemu_opt_get(opts, "driver");
     drv = bdrv_find_format(driver_name);
     assert(drv != NULL);
@@ -973,9 +975,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
 
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
-
-    /* Apply cache mode options */
-    update_flags_from_options(&bs->open_flags, opts);
 
     /* Open the image, either directly or using a protocol */
     open_flags = bdrv_open_flags(bs, bs->open_flags);
