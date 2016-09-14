@@ -3335,9 +3335,11 @@ void info_trace_events_completion(ReadLineState *rs, int nb_args, const char *st
     len = strlen(str);
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
-        TraceEventID id;
-        for (id = 0; id < trace_event_count(); id++) {
-            const char *event_name = trace_event_get_name(trace_event_id(id));
+        TraceEventIter iter;
+        TraceEvent *ev;
+        trace_event_iter_init(&iter, NULL);
+        while ((ev = trace_event_iter_next(&iter)) != NULL) {
+            const char *event_name = trace_event_get_name(ev);
             if (!strncmp(str, event_name, len)) {
                 readline_add_completion(rs, event_name);
             }
@@ -3352,9 +3354,11 @@ void trace_event_completion(ReadLineState *rs, int nb_args, const char *str)
     len = strlen(str);
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
-        TraceEventID id;
-        for (id = 0; id < trace_event_count(); id++) {
-            const char *event_name = trace_event_get_name(trace_event_id(id));
+        TraceEventIter iter;
+        TraceEvent *ev;
+        trace_event_iter_init(&iter, NULL);
+        while ((ev = trace_event_iter_next(&iter)) != NULL) {
+            const char *event_name = trace_event_get_name(ev);
             if (!strncmp(str, event_name, len)) {
                 readline_add_completion(rs, event_name);
             }
