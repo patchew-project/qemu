@@ -20,6 +20,82 @@
 #define _PPC_PNV_H
 
 #include "hw/boards.h"
+#include "hw/sysbus.h"
+
+#define TYPE_PNV_CHIP "powernv-chip"
+#define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
+#define PNV_CHIP_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvChipClass, (klass), TYPE_PNV_CHIP)
+#define PNV_CHIP_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvChipClass, (obj), TYPE_PNV_CHIP)
+
+typedef enum PnvChipType {
+    PNV_CHIP_POWER8E,     /* AKA Murano (default) */
+    PNV_CHIP_POWER8,      /* AKA Venice */
+    PNV_CHIP_POWER8NVL,   /* AKA Naples */
+    PNV_CHIP_POWER9,      /* AKA Nimbus */
+} PnvChipType;
+
+typedef struct PnvChip {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    uint32_t     chip_id;
+} PnvChip;
+
+typedef struct PnvChipClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+
+    /*< public >*/
+    const char *cpu_model;
+    PnvChipType  chip_type;
+    uint64_t     chip_cfam_id;
+
+    void (*realize)(PnvChip *dev, Error **errp);
+} PnvChipClass;
+
+#define TYPE_PNV_CHIP_POWER8E TYPE_PNV_CHIP "-POWER8E"
+#define PNV_CHIP_POWER8E(obj) \
+    OBJECT_CHECK(PnvChipPower8E, (obj), TYPE_PNV_CHIP_POWER8E)
+
+typedef struct PnvChipPower8E {
+    PnvChip pnv_chip;
+} PnvChipPower8E;
+
+#define TYPE_PNV_CHIP_POWER8 TYPE_PNV_CHIP "-POWER8"
+#define PNV_CHIP_POWER8(obj) \
+    OBJECT_CHECK(PnvChipPower8, (obj), TYPE_PNV_CHIP_POWER8)
+
+typedef struct PnvChipPower8 {
+    PnvChip pnv_chip;
+} PnvChipPower8;
+
+#define TYPE_PNV_CHIP_POWER8NVL TYPE_PNV_CHIP "-POWER8NVL"
+#define PNV_CHIP_POWER8NVL(obj) \
+    OBJECT_CHECK(PnvChipPower8NVL, (obj), TYPE_PNV_CHIP_POWER8NVL)
+
+typedef struct PnvChipPower8NVL {
+    PnvChip pnv_chip;
+} PnvChipPower8NVL;
+
+#define TYPE_PNV_CHIP_POWER9 TYPE_PNV_CHIP "-POWER9"
+#define PNV_CHIP_POWER9(obj) \
+    OBJECT_CHECK(PnvChipPower9, (obj), TYPE_PNV_CHIP_POWER9)
+
+typedef struct PnvChipPower9 {
+    PnvChip pnv_chip;
+} PnvChipPower9;
+
+/*
+ * This generates a HW chip id depending on an index:
+ *
+ *    0x0, 0x1, 0x10, 0x11, 0x20, 0x21, ...
+ *
+ * Is this correct ?
+ */
+#define CHIP_HWID(i) ((((i) & 0x3e) << 3) | ((i) & 0x1))
 
 #define TYPE_POWERNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 #define POWERNV_MACHINE(obj) \
@@ -31,6 +107,9 @@ typedef struct PnvMachineState {
 
     uint32_t initrd_base;
     long initrd_size;
+
+    uint32_t  num_chips;
+    PnvChip   **chips;
 } PnvMachineState;
 
 #define POWERNV_FDT_ADDR                0x01000000
