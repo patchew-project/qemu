@@ -15,7 +15,7 @@
 #include "qom/object.h"
 #include "qom/qom-qobject.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp-input-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 
 void object_property_set_qobject(Object *obj, QObject *value,
@@ -23,7 +23,7 @@ void object_property_set_qobject(Object *obj, QObject *value,
 {
     Visitor *v;
     /* TODO: Should we reject, rather than ignore, excess input? */
-    v = qmp_input_visitor_new(value, false);
+    v = qobject_input_visitor_new(value, false);
     object_property_set(obj, v, name, errp);
     visit_free(v);
 }
