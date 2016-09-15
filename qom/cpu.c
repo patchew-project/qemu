@@ -333,6 +333,9 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
         cpu_synchronize_post_init(cpu);
         cpu_resume(cpu);
     }
+
+    /* NOTE: latest generic point where the cpu is fully relized */
+    trace_init_vcpu(cpu);
 }
 
 static void cpu_common_initfn(Object *obj)
