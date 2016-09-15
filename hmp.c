@@ -25,7 +25,7 @@
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/util.h"
@@ -1695,20 +1695,14 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    QemuOpts *opts;
     Visitor *v;
     Object *obj = NULL;
+    QDict *pdict = qdict_clone_shallow(qdict);
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
-    if (err) {
-        hmp_handle_error(mon, &err);
-        return;
-    }
-
-    v = opts_visitor_new(opts);
-    obj = user_creatable_add(qdict, v, &err);
+    v = qobject_string_input_visitor_new(QOBJECT(pdict));
+    obj = user_creatable_add(pdict, v, &err);
     visit_free(v);
-    qemu_opts_del(opts);
+    QDECREF(pdict);
 
     if (err) {
         hmp_handle_error(mon, &err);
