@@ -84,6 +84,7 @@ typedef struct {
     MachineClass parent;
     VirtBoardInfo *daughterboard;
     bool disallow_affinity_adjustment;
+    bool pmu_default_on;
 } VirtMachineClass;
 
 typedef struct {
@@ -1317,6 +1318,11 @@ static void machvirt_init(MachineState *machine)
             }
         }
 
+        if (vmc->pmu_default_on) {
+            /* Property name is "pmu", defined in arm_cpu_has_pmu_property */
+            object_property_set_bool(cpuobj, true, "pmu", NULL);
+        }
+
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
             object_property_set_int(cpuobj, vbi->memmap[VIRT_CPUPERIPHS].base,
                                     "reset-cbar", &error_abort);
@@ -1514,6 +1520,9 @@ static void virt_2_7_instance_init(Object *obj)
 
 static void virt_machine_2_7_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
+    vmc->pmu_default_on = true;
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(2, 7)
 
@@ -1532,5 +1541,9 @@ static void virt_machine_2_6_options(MachineClass *mc)
     virt_machine_2_7_options(mc);
     SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_6);
     vmc->disallow_affinity_adjustment = true;
+    /* Disable PMU for 2.6 and down as PMU support was first introduced
+     * and enabled in 2.7.
+     */
+    vmc->pmu_default_on = false;
 }
 DEFINE_VIRT_MACHINE(2, 6)
