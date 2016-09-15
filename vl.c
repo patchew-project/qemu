@@ -4361,6 +4361,7 @@ int main(int argc, char **argv, char **envp)
         configure_icount(icount_opts, &error_abort);
         qemu_opts_del(icount_opts);
     }
+    replay_vmstate_register();
 
     if (default_net) {
         QemuOptsList *net = qemu_find_opts("net");

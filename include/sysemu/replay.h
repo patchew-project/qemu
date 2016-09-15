@@ -147,6 +147,10 @@ void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
 
 /* VM state operations */
 
+/* Registers replay VMState.
+   Should be called before virtual devices initialization
+   to make cached timers available for post_load functions. */
+void replay_vmstate_register(void);
 /*! Called at the start of execution.
     Loads or saves initial vmstate depending on execution mode. */
 void replay_vmstate_init(void);

@@ -67,6 +67,8 @@ typedef struct ReplayState {
     unsigned int data_kind;
     /*! Flag which indicates that event is not processed yet. */
     unsigned int has_unread_data;
+    /*! Temporary variable for saving current log offset. */
+    uint64_t file_offset;
 } ReplayState;
 extern ReplayState replay_state;
 
