@@ -11679,7 +11679,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             target_to_host_itimerspec(&hspec_new, arg3);
             ret = get_errno(
                           timer_settime(htimer, arg2, &hspec_new, &hspec_old));
-            host_to_target_itimerspec(arg2, &hspec_old);
+            host_to_target_itimerspec(arg4, &hspec_old);
         }
         break;
     }
