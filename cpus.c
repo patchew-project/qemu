@@ -745,6 +745,7 @@ static int do_vm_stop(RunState state)
     }
 
     bdrv_drain_all();
+    replay_disable_events();
     ret = blk_flush_all();
 
     return ret;
