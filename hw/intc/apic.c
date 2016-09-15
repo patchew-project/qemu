@@ -163,7 +163,7 @@ static void apic_local_deliver(APICCommonState *s, int vector)
 
 void apic_deliver_pic_intr(DeviceState *dev, int level)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
 
     if (level) {
         apic_local_deliver(s, APIC_LVT_LINT0);
@@ -373,7 +373,7 @@ static void apic_update_irq(APICCommonState *s)
 
 void apic_poll_irq(DeviceState *dev)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
 
     apic_sync_vapic(s, SYNC_FROM_VAPIC);
     apic_update_irq(s);
@@ -479,7 +479,7 @@ static void apic_startup(APICCommonState *s, int vector_num)
 
 void apic_sipi(DeviceState *dev)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
 
     cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
 
@@ -493,7 +493,7 @@ static void apic_deliver(DeviceState *dev, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t trigger_mode)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICCommonState *apic_iter;
@@ -550,7 +550,7 @@ static bool apic_check_pic(APICCommonState *s)
 
 int apic_get_interrupt(DeviceState *dev)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
     int intno;
 
     /* if the APIC is installed or enabled, we let the 8259 handle the
@@ -584,7 +584,7 @@ int apic_get_interrupt(DeviceState *dev)
 
 int apic_accept_pic_intr(DeviceState *dev)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
     uint32_t lvt0;
 
     if (!s)
@@ -663,7 +663,7 @@ static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
     if (!dev) {
         return 0;
     }
-    s = APIC_COMMON(dev);
+    s = APIC(dev);
 
     index = (addr >> 4) & 0xff;
     switch(index) {
@@ -766,7 +766,7 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
     if (!dev) {
         return;
     }
-    s = APIC_COMMON(dev);
+    s = APIC(dev);
 
     trace_apic_mem_writel(addr, val);
 
@@ -870,7 +870,7 @@ static const MemoryRegionOps apic_io_ops = {
 
 static void apic_realize(DeviceState *dev, Error **errp)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
 
     if (s->id >= MAX_APICS) {
         error_setg(errp, "%s initialization failed. APIC ID %d is invalid",
@@ -889,7 +889,7 @@ static void apic_realize(DeviceState *dev, Error **errp)
 
 static void apic_unrealize(DeviceState *dev, Error **errp)
 {
-    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonState *s = APIC(dev);
 
     timer_del(s->timer);
     timer_free(s->timer);

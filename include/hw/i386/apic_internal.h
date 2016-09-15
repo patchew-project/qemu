@@ -131,6 +131,10 @@ typedef struct APICCommonState APICCommonState;
 #define APIC_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(APICCommonClass, (obj), TYPE_APIC_COMMON)
 
+#define TYPE_APIC "apic"
+#define APIC(obj) \
+    OBJECT_CHECK(APICCommonState, (obj), TYPE_APIC)
+
 typedef struct APICCommonClass
 {
     DeviceClass parent_class;
