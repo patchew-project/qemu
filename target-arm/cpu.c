@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internals.h"
@@ -509,6 +510,10 @@ static Property arm_cpu_rvbar_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+/* use property name "pmu" to match other archs and virt tools */
+static Property arm_cpu_has_pmu_property =
+    DEFINE_PROP_BOOL("pmu", ARMCPU, has_pmu, false);
+
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
@@ -552,6 +557,11 @@ static void arm_cpu_post_init(Object *obj)
 #endif
     }
 
+    if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_pmu_property,
+                                 &error_abort);
+    }
+
     if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_has_mpu_property,
                                  &error_abort);
@@ -576,6 +586,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     ARMCPU *cpu = ARM_CPU(dev);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
+    static bool pmu_warned;
 
     /* Some features automatically imply others: */
     if (arm_feature(env, ARM_FEATURE_V8)) {
@@ -646,6 +657,17 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         cpu->id_pfr1 &= ~0xf0;
         cpu->id_aa64pfr0 &= ~0xf000;
+    }
+
+    if (cpu->has_pmu && !kvm_enabled()) {
+        cpu->has_pmu = false;
+        if (!pmu_warned) {
+            error_report("warning: pmu can't be enabled without KVM acceleration");
+            pmu_warned = true;
+        }
+    }
+    if (!cpu->has_pmu) {
+        unset_feature(env, ARM_FEATURE_PMU);
     }
 
     if (!arm_feature(env, ARM_FEATURE_EL2)) {
