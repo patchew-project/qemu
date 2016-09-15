@@ -63,6 +63,25 @@ typedef struct PnvXScom {
 #define PNV_XSCOM_BASE(chip)                                    \
     (0x3fc0000000000ull + ((uint64_t)(chip)) * PNV_XSCOM_SIZE)
 
+/*
+ * Layout of Xscom PCB addresses for EX core 1
+ *
+ *   GPIO        0x1100xxxx
+ *   SCOM        0x1101xxxx
+ *   OHA         0x1102xxxx
+ *   CLOCK CTL   0x1103xxxx
+ *   FIR         0x1104xxxx
+ *   THERM       0x1105xxxx
+ *   <reserved>  0x1106xxxx
+ *               ..
+ *               0x110Exxxx
+ *   PCB SLAVE   0x110Fxxxx
+ */
+
+#define PNV_XSCOM_EX_BASE         0x10000000
+#define PNV_XSCOM_EX_CORE_BASE(i) (PNV_XSCOM_EX_BASE | (((uint64_t)i) << 24))
+#define PNV_XSCOM_EX_CORE_SIZE    0x100000
+
 extern int pnv_xscom_populate_fdt(PnvXScom *xscom, void *fdt, int offset);
 
 /*

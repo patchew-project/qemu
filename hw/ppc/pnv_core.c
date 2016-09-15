@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "target-ppc/cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
@@ -56,6 +57,51 @@ static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
     qemu_register_reset(powernv_cpu_reset, cpu);
     powernv_cpu_reset(cpu);
 }
+
+/*
+ * These values are read by the powernv hw monitors under Linux
+ */
+#define DTS_RESULT0     0x50000
+#define DTS_RESULT1     0x50001
+
+static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
+                                    unsigned int width)
+{
+    uint32_t offset = pnv_xscom_pcba(opaque, addr);
+    uint64_t val = 0;
+
+    /* The result should be 38 C */
+    switch (offset) {
+    case DTS_RESULT0:
+        val = 0x26f024f023f0000ull;
+        break;
+    case DTS_RESULT1:
+        val = 0x24f000000000000ull;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx,
+                  addr);
+    }
+
+    return val;
+}
+
+static void pnv_core_xscom_write(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned int width)
+{
+    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx,
+                  addr);
+}
+
+static const MemoryRegionOps pnv_core_xscom_ops = {
+    .read = pnv_core_xscom_read,
+    .write = pnv_core_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
 
 static void pnv_core_realize_child(Object *child, Error **errp)
 {
@@ -117,6 +163,11 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
             goto err;
         }
     }
+
+    snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
+    memory_region_init_io(&pc->xscom_regs, OBJECT(dev), &pnv_core_xscom_ops,
+                          pc, name, pnv_xscom_addr(PNV_XSCOM_INTERFACE(dev),
+                                                   PNV_XSCOM_EX_CORE_SIZE));
     return;
 
 err:
@@ -169,6 +220,10 @@ static void pnv_core_register_types(void)
             .instance_size = sizeof(PnvCore),
             .class_init = pnv_core_class_init,
             .class_data = (void *) pnv_core_models[i],
+            .interfaces    = (InterfaceInfo[]) {
+                { TYPE_PNV_XSCOM_INTERFACE },
+                { }
+            }
         };
         ti.name = pnv_core_typename(pnv_core_models[i]);
         type_register(&ti);
