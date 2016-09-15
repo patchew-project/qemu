@@ -32,6 +32,8 @@
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 
+#include "hw/ppc/pnv_xscom.h"
+
 #include <libfdt.h>
 
 #define FDT_MAX_SIZE            0x00100000
@@ -218,6 +220,8 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
     size_t typesize = object_type_get_instance_size(typename);
     int i;
 
+    pnv_xscom_populate_fdt(&chip->xscom, fdt, 0);
+
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
 
@@ -397,6 +401,28 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
     return (chip->chip_id << 8) | (core_id << 2);
 }
 
+static uint64_t pnv_chip_xscom_addr_p8(uint32_t pcba)
+{
+    return (((uint64_t) pcba << 4) & ~0xfful) | ((pcba << 3) & 0x78);
+}
+
+static uint64_t pnv_chip_xscom_addr_p9(uint32_t pcba)
+{
+    return (uint64_t) pcba << 3;
+}
+
+static uint32_t pnv_chip_xscom_pcba_p8(uint64_t addr)
+{
+        addr &= (PNV_XSCOM_SIZE - 1);
+        return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
+}
+
+static uint32_t pnv_chip_xscom_pcba_p9(uint64_t addr)
+{
+        addr &= (PNV_XSCOM_SIZE - 1);
+        return addr >> 3;
+}
+
 /* Allowed core identifiers on a POWER8 Processor Chip :
  *
  * <EX0 reserved>
@@ -433,6 +459,8 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
+    k->xscom_addr = pnv_chip_xscom_addr_p8;
+    k->xscom_pcba = pnv_chip_xscom_pcba_p8;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -453,6 +481,8 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
+    k->xscom_addr = pnv_chip_xscom_addr_p8;
+    k->xscom_pcba = pnv_chip_xscom_pcba_p8;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -473,6 +503,8 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
+    k->xscom_addr = pnv_chip_xscom_addr_p8;
+    k->xscom_pcba = pnv_chip_xscom_pcba_p8;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -493,6 +525,8 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
+    k->xscom_addr = pnv_chip_xscom_addr_p9;
+    k->xscom_pcba = pnv_chip_xscom_pcba_p9;
     dc->desc = "PowerNV Chip POWER9";
 }
 
@@ -527,6 +561,16 @@ static void pnv_chip_core_sanitize(PnvChip *chip)
     chip->cores_mask &= pcc->cores_mask;
 }
 
+static void pnv_chip_init(Object *obj)
+{
+    PnvChip *chip = PNV_CHIP(obj);
+
+    object_initialize(&chip->xscom, sizeof(chip->xscom), TYPE_PNV_XSCOM);
+    object_property_add_child(obj, "xscom", OBJECT(&chip->xscom), NULL);
+    object_property_add_const_link(OBJECT(&chip->xscom), "chip",
+                                   OBJECT(chip), &error_abort);
+}
+
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
@@ -539,6 +583,12 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
         return;
     }
+
+    /* XSCOM bridge */
+    object_property_set_bool(OBJECT(&chip->xscom), true, "realized",
+                             &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&chip->xscom), 0,
+                    PNV_XSCOM_BASE(chip->chip_id));
 
     /* Early checks on the core settings */
     pnv_chip_core_sanitize(chip);
@@ -597,6 +647,7 @@ static const TypeInfo pnv_chip_info = {
     .name          = TYPE_PNV_CHIP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .class_init    = pnv_chip_class_init,
+    .instance_init = pnv_chip_init,
     .class_size    = sizeof(PnvChipClass),
     .abstract      = true,
 };
