@@ -37,6 +37,10 @@ int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
 
 
+void parse_option_bool(const char *name, const char *value, bool *ret,
+                       Error **errp);
+void parse_option_number(const char *name, const char *value,
+                         uint64_t *ret, Error **errp);
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp);
 bool has_help_option(const char *param);
