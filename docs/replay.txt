@@ -196,6 +196,14 @@ is recorded to the log. In replay phase the queue is matched with
 events read from the log. Therefore block devices requests are processed
 deterministically.
 
+blkdriver also supports overlay option, which allows creating persistent
+overlay file for saving and reloading VM snapshots in record/replay modes.
+Replay mechanism automatically creates one snapshot named 'replay_init' to
+allow rewinding execution while replaying.
+Overlay file may be specified as follows:
+ -drive driver=blkreplay,if=none,image=img-direct,
+        overlay=overlay.qcow2,id=img-blkreplay
+
 Network devices
 ---------------
 
