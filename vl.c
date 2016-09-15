@@ -4593,6 +4593,8 @@ int main(int argc, char **argv, char **envp)
         if (load_vmstate(loadvm) < 0) {
             autostart = 0;
         }
+    } else {
+        replay_vmstate_init();
     }
 
     qdev_prop_check_globals();
