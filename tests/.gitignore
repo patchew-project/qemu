@@ -61,7 +61,7 @@ test-qobject-input-strict
 test-qobject-input-visitor
 test-qmp-introspect.[ch]
 test-qmp-marshal.c
-test-qmp-output-visitor
+test-qobject-output-visitor
 test-rcu-list
 test-replication
 test-rfifolock
