@@ -42,6 +42,9 @@ typedef struct PnvChip {
 
     /*< public >*/
     uint32_t     chip_id;
+
+    uint32_t  nr_cores;
+    uint64_t  cores_mask;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -52,6 +55,7 @@ typedef struct PnvChipClass {
     const char *cpu_model;
     PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
+    uint64_t     cores_mask;
 
     void (*realize)(PnvChip *dev, Error **errp);
 } PnvChipClass;
