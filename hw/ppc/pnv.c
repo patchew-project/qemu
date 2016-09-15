@@ -569,6 +569,14 @@ static void pnv_chip_init(Object *obj)
     object_property_add_child(obj, "xscom", OBJECT(&chip->xscom), NULL);
     object_property_add_const_link(OBJECT(&chip->xscom), "chip",
                                    OBJECT(chip), &error_abort);
+
+    /*
+     * Add the lpc controller as an XScom child as we need to populate
+     * the device tree for the isa bus.
+     */
+    object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
+    object_property_add_child(OBJECT(&chip->xscom), "lpc",
+                              OBJECT(&chip->lpc), NULL);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -625,6 +633,13 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                          &PNV_CORE(pnv_core)->xscom_regs);
     }
     g_free(typename);
+
+    /* Create LPC controller */
+    object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
+                             &error_fatal);
+    memory_region_add_subregion(&chip->xscom.xscom_mr,
+                                pcc->xscom_addr(PNV_XSCOM_LPC_BASE),
+                                &chip->lpc.xscom_regs);
 
     if (pcc->realize) {
         pcc->realize(chip, errp);
