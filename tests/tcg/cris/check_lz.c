@@ -45,5 +45,5 @@ int main(void)
 {
 	check_lz();
 	pass();
-	exit(0);
+	exit(EXIT_SUCCESS);
 }

@@ -11,5 +11,5 @@ main (void)
     y += x;
   if (y != x + 1)
     abort ();
-  exit (0);
+  exit(EXIT_SUCCESS);
 }

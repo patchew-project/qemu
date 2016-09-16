@@ -16,5 +16,5 @@ int main (void)
       || !S_ISDIR (buf.st_mode))
     abort ();
   printf ("pass\n");
-  exit (0);
+  exit(EXIT_SUCCESS);
 }

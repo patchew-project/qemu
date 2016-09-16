@@ -23,5 +23,5 @@ int main (int argc, char *argv[])
       || !S_ISREG (buf.st_mode))
     abort ();
   printf ("pass\n");
-  exit (0);
+  exit(EXIT_SUCCESS);
 }

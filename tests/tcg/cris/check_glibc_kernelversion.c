@@ -112,5 +112,5 @@ int main(void)
 	if (version < __LINUX_KERNEL_VERSION)
 		err();
 	pass();
-	exit(0);
+	exit(EXIT_SUCCESS);
 }

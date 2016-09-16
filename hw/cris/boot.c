@@ -88,13 +88,13 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
     if (image_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 li->image_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (li->cmdline && (kcmdline_len = strlen(li->cmdline))) {
         if (kcmdline_len > 256) {
             fprintf(stderr, "Too long CRIS kernel cmdline (max 256)\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         pstrcpy_targphys("cmdline", 0x40000000, 256, li->cmdline);
     }

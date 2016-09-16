@@ -14,5 +14,5 @@ main (void)
   if (t == (time_t) -1 || t != x)
     abort ();
   printf ("pass\n");
-  exit (0);
+  exit(EXIT_SUCCESS);
 }

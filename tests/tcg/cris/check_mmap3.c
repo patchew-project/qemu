@@ -29,5 +29,5 @@ int main (int argc, char *argv[])
     abort ();
 
   printf ("pass\n");
-  exit (0);
+  exit(EXIT_SUCCESS);
 }

@@ -12,7 +12,7 @@ static inline int mystrlen(char *s) {
 void pass(void) {
 	char s[] = "passed.\n";
 	write (1, s, sizeof (s) - 1);
-	exit (0);
+	exit(EXIT_SUCCESS);
 }
 
 void _fail(char *reason) {

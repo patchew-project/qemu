@@ -52,5 +52,5 @@ int main (int argc, char *argv[])
 
 ok:
   printf ("pass\n");
-  exit (0);
+  exit(EXIT_SUCCESS);
 }

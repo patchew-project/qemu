@@ -16,7 +16,7 @@ int main ()
       || (p6 = malloc (8191*1024)) == NULL)
   {
     printf ("fail\n");
-    exit (1);
+    exit(EXIT_FAILURE);
   }
 
   free (p1);
@@ -30,10 +30,10 @@ int main ()
   if (p1 == NULL)
   {
     printf ("fail\n");
-    exit (1);
+    exit(EXIT_FAILURE);
   }
   free (p1);
 
   printf ("pass\n");
-  exit (0);
+  exit(EXIT_SUCCESS);
 }
