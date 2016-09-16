@@ -59,7 +59,7 @@ static void shix_init(MachineState *machine)
     cpu = cpu_sh4_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Allocate memory space */
@@ -82,7 +82,7 @@ static void shix_init(MachineState *machine)
     ret = load_image_targphys(bios_name, 0, 0x4000);
     if (ret < 0 && !qtest_enabled()) {
         error_report("Could not load SHIX bios '%s'", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Register peripherals */

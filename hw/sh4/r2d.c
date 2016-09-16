@@ -249,7 +249,7 @@ static void r2d_init(MachineState *machine)
     cpu = cpu_sh4_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -318,7 +318,7 @@ static void r2d_init(MachineState *machine)
                                           INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET);
         if (kernel_size < 0) {
           fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-          exit(1);
+          exit(EXIT_FAILURE);
         }
 
         /* initialization which should be done by firmware */
@@ -338,7 +338,7 @@ static void r2d_init(MachineState *machine)
 
         if (initrd_size < 0) {
           fprintf(stderr, "qemu: could not load initrd '%s'\n", initrd_filename);
-          exit(1);
+          exit(EXIT_FAILURE);
         }
 
         /* initialization which should be done by firmware */
