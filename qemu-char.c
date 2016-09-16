@@ -408,7 +408,7 @@ int qemu_chr_fe_get_msgfd(CharDriverState *s)
     if (s->replay) {
         fprintf(stderr,
                 "Replay: get msgfd is not supported for serial devices yet\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return res;
 }
@@ -633,7 +633,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
             {
                  const char *term =  "QEMU: Terminated\n\r";
                  qemu_chr_fe_write_all(chr, (uint8_t *)term, strlen(term));
-                 exit(0);
+                 exit(EXIT_SUCCESS);
                  break;
             }
         case 's':
@@ -4083,7 +4083,7 @@ void qemu_chr_fe_claim_no_fail(CharDriverState *s)
     if (qemu_chr_fe_claim(s) != 0) {
         fprintf(stderr, "%s: error chardev \"%s\" already used\n",
                 __func__, s->label);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

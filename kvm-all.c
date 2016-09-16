@@ -1488,7 +1488,7 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
         ret = kvm_vm_enable_cap(s, KVM_CAP_S390_IRQCHIP, 0);
         if (ret < 0) {
             fprintf(stderr, "Enable kernel irqchip failed: %s\n", strerror(-ret));
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } else {
         return;
@@ -1500,14 +1500,14 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
     if (ret == 0) {
         if (machine_kernel_irqchip_split(machine)) {
             perror("Split IRQ chip mode not supported.");
-            exit(1);
+            exit(EXIT_FAILURE);
         } else {
             ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
         }
     }
     if (ret < 0) {
         fprintf(stderr, "Create kernel irqchip failed: %s\n", strerror(-ret));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     kvm_kernel_irqchip = true;
@@ -1632,7 +1632,7 @@ static int kvm_init(MachineState *ms)
                 fprintf(stderr, "Number of %s cpus requested (%d) exceeds "
                         "the maximum cpus supported by KVM (%d)\n",
                         nc->name, nc->num, hard_vcpus_limit);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         nc++;

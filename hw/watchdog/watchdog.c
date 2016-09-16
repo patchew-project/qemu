@@ -120,7 +120,7 @@ void watchdog_perform_action(void)
 
     case WDT_POWEROFF:          /* same as 'quit' command in monitor */
         qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_POWEROFF, &error_abort);
-        exit(0);
+        exit(EXIT_SUCCESS);
 
     case WDT_PAUSE:             /* same as 'stop' command in monitor */
         /* In a timer callback, when vm_stop calls qemu_clock_enable

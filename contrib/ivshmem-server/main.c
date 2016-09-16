@@ -77,7 +77,7 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
         switch (c) {
         case 'h': /* help */
             ivshmem_server_usage(argv[0]);
-            exit(0);
+            exit(EXIT_SUCCESS);
             break;
 
         case 'v': /* verbose */
@@ -107,7 +107,7 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             if (err) {
                 error_report_err(err);
                 ivshmem_server_help(argv[0]);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             break;
 
@@ -115,14 +115,14 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             if (parse_uint_full(optarg, &v, 0) < 0) {
                 fprintf(stderr, "cannot parse n_vectors\n");
                 ivshmem_server_help(argv[0]);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             args->n_vectors = v;
             break;
 
         default:
             ivshmem_server_usage(argv[0]);
-            exit(1);
+            exit(EXIT_FAILURE);
             break;
         }
     }
@@ -131,13 +131,13 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
         fprintf(stderr, "too many requested vectors (max is %d)\n",
                 IVSHMEM_SERVER_MAX_VECTORS);
         ivshmem_server_help(argv[0]);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (args->verbose == 1 && args->foreground == 0) {
         fprintf(stderr, "cannot use verbose in daemon mode\n");
         ivshmem_server_help(argv[0]);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

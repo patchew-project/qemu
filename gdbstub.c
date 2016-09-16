@@ -891,7 +891,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case 'k':
         /* Kill the target */
         fprintf(stderr, "\nQEMU: Terminated via GDBstub\n");
-        exit(0);
+        exit(EXIT_SUCCESS);
     case 'D':
         /* Detach packet */
         gdb_breakpoint_remove_all();

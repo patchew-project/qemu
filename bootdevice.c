@@ -173,7 +173,7 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
         if (i->bootindex == bootindex) {
             error_report("Two devices with same boot index %d", bootindex);
-            exit(1);
+            exit(EXIT_FAILURE);
         } else if (i->bootindex < bootindex) {
             continue;
         }

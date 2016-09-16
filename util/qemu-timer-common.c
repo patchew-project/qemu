@@ -38,7 +38,7 @@ static void __attribute__((constructor)) init_get_clock(void)
     ret = QueryPerformanceFrequency(&freq);
     if (ret == 0) {
         fprintf(stderr, "Could not calibrate ticks\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     clock_freq = freq.QuadPart;
 }

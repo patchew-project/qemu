@@ -687,11 +687,11 @@ int main(int argc, char **argv)
             break;
         case 'V':
             version(argv[0]);
-            exit(0);
+            exit(EXIT_SUCCESS);
             break;
         case 'h':
             usage(argv[0]);
-            exit(0);
+            exit(EXIT_SUCCESS);
             break;
         case '?':
             error_report("Try `%s --help' for more information.", argv[0]);
@@ -730,7 +730,7 @@ int main(int argc, char **argv)
     }
 
     if (!trace_init_backends()) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     trace_init_file(trace_file);
     qemu_set_log(LOG_TRACE);
