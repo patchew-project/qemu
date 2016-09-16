@@ -114,7 +114,7 @@ milkymist_init(MachineState *machine)
     cpu = cpu_lm32_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "qemu: unable to find CPU '%s'\n", cpu_model);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     env = &cpu->env;
@@ -155,7 +155,7 @@ milkymist_init(MachineState *machine)
     if (!kernel_filename && !dinfo && !bios_filename && !qtest_enabled()) {
         fprintf(stderr, "qemu: could not load Milkymist One bios '%s'\n",
                 bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     g_free(bios_filename);
 
@@ -194,7 +194,7 @@ milkymist_init(MachineState *machine)
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 

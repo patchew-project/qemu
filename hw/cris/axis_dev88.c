@@ -351,7 +351,7 @@ void axisdev88_init(MachineState *machine)
         cris_load_image(cpu, &li);
     } else if (!qtest_enabled()) {
         fprintf(stderr, "Kernel image must be specified\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

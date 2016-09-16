@@ -52,7 +52,7 @@ static void tricore_load_kernel(CPUTriCoreState *env)
     if (kernel_size <= 0) {
         error_report("qemu: no kernel file '%s'",
                 tricoretb_binfo.kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env->PC = entry;
 
@@ -77,7 +77,7 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
     cpu = cpu_tricore_init(machine->cpu_model);
     if (!cpu) {
         error_report("Unable to find CPU definition");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
     memory_region_init_ram(ext_cram, NULL, "powerlink_ext_c.ram", 2*1024*1024,
