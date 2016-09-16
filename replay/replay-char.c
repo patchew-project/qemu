@@ -56,7 +56,7 @@ void replay_chr_be_write(CharDriverState *s, uint8_t *buf, int len)
     event->id = find_char_driver(s);
     if (event->id < 0) {
         fprintf(stderr, "Replay: cannot find char driver\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     event->buf = g_malloc(len);
     memcpy(event->buf, buf, len);
@@ -116,7 +116,7 @@ void replay_char_write_event_load(int *res, int *offset)
     } else {
         replay_mutex_unlock();
         error_report("Missing character write event in the replay log");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -140,7 +140,7 @@ int replay_char_read_all_load(uint8_t *buf)
     } else {
         replay_mutex_unlock();
         error_report("Missing character read all event in the replay log");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

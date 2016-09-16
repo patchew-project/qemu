@@ -61,5 +61,5 @@ int64_t replay_read_clock(ReplayClockKind kind)
     }
 
     error_report("REPLAY INTERNAL ERROR %d", __LINE__);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
