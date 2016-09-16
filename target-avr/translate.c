@@ -82,11 +82,10 @@ void avr_translate_init(void)
     done_init = 1;
 }
 
-static void decode_opc(AVRCPU *cpu, DisasContext *ctx, InstInfo *inst)
+static void decode_opc(DisasContext *ctx, InstInfo *inst)
 {
-    CPUAVRState *env = &cpu->env;
-
-    inst->opcode = cpu_ldl_code(env, inst->cpc * 2);/* pc points to words */
+    /* PC points to words.  */
+    inst->opcode = cpu_ldl_code(ctx->env, inst->cpc * 2);
     inst->length = 16;
     inst->translate = NULL;
 
@@ -118,6 +117,7 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
 
     pc_start = tb->pc / 2;
     ctx.tb = tb;
+    ctx.env = env;
     ctx.memidx = 0;
     ctx.bstate = BS_NONE;
     ctx.singlestep = cs->singlestep_enabled;
@@ -143,7 +143,7 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
 
     /* decode first instruction */
     ctx.inst[0].cpc = pc_start;
-    decode_opc(cpu, &ctx, &ctx.inst[0]);
+    decode_opc(&ctx, &ctx.inst[0]);
     do {
         /* set curr/next PCs */
         cpc = ctx.inst[0].cpc;
@@ -151,7 +151,7 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
 
         /* decode next instruction */
         ctx.inst[1].cpc = ctx.inst[0].npc;
-        decode_opc(cpu, &ctx, &ctx.inst[1]);
+        decode_opc(&ctx, &ctx.inst[1]);
 
         /* translate current instruction */
         tcg_gen_insn_start(cpc);
@@ -172,7 +172,7 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
         }
 
         if (ctx.inst[0].translate) {
-            ctx.bstate = ctx.inst[0].translate(env, &ctx, ctx.inst[0].opcode);
+            ctx.bstate = ctx.inst[0].translate(&ctx, ctx.inst[0].opcode);
         }
 
         if (num_insns >= max_insns) {
@@ -202,7 +202,7 @@ void gen_intermediate_code(CPUAVRState *env, struct TranslationBlock *tb)
         switch (ctx.bstate) {
         case BS_STOP:
         case BS_NONE:
-            gen_goto_tb(env, &ctx, 0, npc);
+            gen_goto_tb(&ctx, 0, npc);
             break;
         case BS_EXCP:
             tcg_gen_exit_tb(0);

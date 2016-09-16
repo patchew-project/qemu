@@ -69,8 +69,7 @@ uint32_t get_opcode(uint8_t const *code, unsigned bitBase, unsigned bitSize);
 typedef struct DisasContext DisasContext;
 typedef struct InstInfo InstInfo;
 
-typedef int (*translate_function_t)(CPUAVRState *env, DisasContext *ctx,
-                                        uint32_t opcode);
+typedef int (*translate_function_t)(DisasContext *ctx, uint32_t opcode);
 struct InstInfo {
     target_long cpc;
     target_long npc;
@@ -82,6 +81,7 @@ struct InstInfo {
 /* This is the state at translation time. */
 struct DisasContext {
     struct TranslationBlock *tb;
+    CPUAVRState *env;
 
     InstInfo inst[2];/* two consecutive instructions */
 
@@ -94,12 +94,9 @@ struct DisasContext {
 void avr_decode(uint32_t pc, uint32_t *length, uint32_t opcode,
                         translate_function_t *translate);
 
-static inline void gen_goto_tb(CPUAVRState *env, DisasContext *ctx,
-                        int n, target_ulong dest)
+static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
-    TranslationBlock *tb;
-
-    tb = ctx->tb;
+    TranslationBlock *tb = ctx->tb;
 
     if (ctx->singlestep == 0) {
         tcg_gen_goto_tb(n);
