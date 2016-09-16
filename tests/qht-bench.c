@@ -432,7 +432,7 @@ static void parse_args(int argc, char *argv[])
             break;
         case 'h':
             usage_complete(argc, argv);
-            exit(0);
+            exit(EXIT_SUCCESS);
         case 'k':
             init_size = atol(optarg);
             break;

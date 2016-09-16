@@ -23,5 +23,5 @@ static inline int write(int fd, const char * buf, int len)
 void _start(void)
 {
     write(1, "Hello World\n", 12);
-    exit(0);
+    exit(EXIT_SUCCESS);
 }

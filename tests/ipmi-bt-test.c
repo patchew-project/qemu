@@ -383,16 +383,16 @@ static void open_socket(void)
     emu_lfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (emu_lfd == -1) {
         perror("socket");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (bind(emu_lfd, (struct sockaddr *) &myaddr, sizeof(myaddr)) == -1) {
         perror("bind");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     addrlen = sizeof(myaddr);
     if (getsockname(emu_lfd, (struct sockaddr *) &myaddr , &addrlen) == -1) {
         perror("getsockname");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     emu_port = ntohs(myaddr.sin_port);
     assert(listen(emu_lfd, 1) != -1);

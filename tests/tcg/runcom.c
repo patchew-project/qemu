@@ -27,7 +27,7 @@ static void usage(void)
     printf("runcom version 0.1 (c) 2003 Fabrice Bellard\n"
            "usage: runcom file.com\n"
            "VM86 Run simple .com DOS executables (linux vm86 test mode)\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 static inline void set_bit(uint8_t *a, unsigned int bit)
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
                     MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
     if (vm86_mem == MAP_FAILED) {
         perror("mmap");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 #ifdef SIGTEST
     {
@@ -101,12 +101,12 @@ int main(int argc, char **argv)
     fd = open(filename, O_RDONLY);
     if (fd < 0) {
         perror(filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     ret = read(fd, vm86_mem + COM_BASE_ADDR, 65536 - 256);
     if (ret < 0) {
         perror("read");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     close(fd);
 
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
                 ah = (r->eax >> 8) & 0xff;
                 switch(ah) {
                 case 0x00: /* exit */
-                    exit(0);
+                    exit(EXIT_SUCCESS);
                 case 0x02: /* write char */
                     {
                         uint8_t c = r->edx;
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
         default:
             fprintf(stderr, "unhandled vm86 return code (0x%x)\n", ret);
             dump_regs(&ctx.regs);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }

@@ -68,7 +68,7 @@ static void
 vubr_die(const char *s)
 {
     perror(s);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 static int
@@ -389,7 +389,7 @@ vubr_message_read(int conn_fd, VhostUserMsg *vmsg)
     if (rc == 0) {
         vubr_die("recvmsg");
         fprintf(stderr, "Peer disconnected.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (rc < 0) {
         vubr_die("recvmsg");
@@ -413,7 +413,7 @@ vubr_message_read(int conn_fd, VhostUserMsg *vmsg)
                 "Error: too big message request: %d, size: vmsg->size: %u, "
                 "while sizeof(vmsg->payload) = %zu\n",
                 vmsg->request, vmsg->size, sizeof(vmsg->payload));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (vmsg->size) {
@@ -421,7 +421,7 @@ vubr_message_read(int conn_fd, VhostUserMsg *vmsg)
         if (rc == 0) {
             vubr_die("recvmsg");
             fprintf(stderr, "Peer disconnected.\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (rc < 0) {
             vubr_die("recvmsg");
@@ -572,7 +572,7 @@ vubr_post_buffer(VubrDev *dev, VubrVirtq *vq, uint8_t *buf, int32_t len)
         if (!(desc[i].flags & VRING_DESC_F_WRITE)) {
             /* FIXME: we should find writable descriptor. */
             fprintf(stderr, "Error: descriptor is not writable. Exiting.\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         void *chunk_start = (void *)(uintptr_t)gpa_to_va(dev, desc[i].addr);
@@ -1276,14 +1276,14 @@ vubr_set_host(struct sockaddr_in *saddr, const char *host)
     if (isdigit(host[0])) {
         if (!inet_aton(host, &saddr->sin_addr)) {
             fprintf(stderr, "inet_aton() failed.\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } else {
         struct hostent *he = gethostbyname(host);
 
         if (!he) {
             fprintf(stderr, "gethostbyname() failed.\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         saddr->sin_addr = *(struct in_addr *)he->h_addr;
     }
@@ -1304,13 +1304,13 @@ vubr_backend_udp_setup(VubrDev *dev,
     lport = strtol(local_port, (char **)&r, 0);
     if (r == local_port) {
         fprintf(stderr, "lport parsing failed.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     rport = strtol(remote_port, (char **)&r, 0);
     if (r == remote_port) {
         fprintf(stderr, "rport parsing failed.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     struct sockaddr_in si_local = {

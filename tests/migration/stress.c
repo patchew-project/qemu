@@ -51,7 +51,7 @@ static __attribute__((noreturn)) void exit_failure(void)
                 argv0, gettid(), strerror(errno));
         abort();
     } else {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -64,7 +64,7 @@ static __attribute__((noreturn)) void exit_success(void)
                 argv0, gettid(), strerror(errno));
         abort();
     } else {
-        exit(0);
+        exit(EXIT_SUCCESS);
     }
 }
 

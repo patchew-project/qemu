@@ -182,7 +182,7 @@ QTestState *qtest_init(const char *extra_args)
                                   qmp_socket_path,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     s->fd = socket_accept(sock);
@@ -284,7 +284,7 @@ static GString *qtest_recv_line(QTestState *s)
 
         if (len == -1 || len == 0) {
             fprintf(stderr, "Broken pipe\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         g_string_append_len(s->rx, buffer, len);
@@ -355,7 +355,7 @@ static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
         fprintf(stderr, "QMP JSON response parsing failed\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     g_assert(qobject_type(obj) == QTYPE_QDICT);
@@ -381,7 +381,7 @@ QDict *qmp_fd_receive(int fd)
 
         if (len == -1 || len == 0) {
             fprintf(stderr, "Broken pipe\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (log) {

@@ -179,7 +179,7 @@ static void perftestrun(int nthreads, int duration, int nreaders, int nupdaters)
         (double)n_reads),
            ((duration * 1000*1000*1000.*(double)nupdaters) /
         (double)n_updates));
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 static void perftest(int nreaders, int duration)
@@ -362,7 +362,7 @@ static void stresstest(int nreaders, int duration)
         printf(" %lld", rcu_stress_count[i]);
     }
     printf("\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 /* GTest interface */

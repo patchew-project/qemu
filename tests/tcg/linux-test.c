@@ -53,7 +53,7 @@ void error1(const char *filename, int line, const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 int __chk_error(const char *filename, int line, int ret)
@@ -334,7 +334,7 @@ void test_socket(void)
         client_fd = client_socket();
         send(client_fd, socket_msg, sizeof(socket_msg), 0);
         close(client_fd);
-        exit(0);
+        exit(EXIT_SUCCESS);
     }
     len = sizeof(sockaddr);
     fd = chk_error(accept(server_fd, (struct sockaddr *)&sockaddr, &len));

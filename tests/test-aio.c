@@ -834,7 +834,7 @@ int main(int argc, char **argv)
     ctx = aio_context_new(&local_error);
     if (!ctx) {
         error_reportf_err(local_error, "Failed to create AIO Context: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     src = aio_get_g_source(ctx);
     g_source_attach(src, NULL);

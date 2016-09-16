@@ -172,7 +172,7 @@ static void test_io(void)
 
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) < 0) {
        perror("socketpair");
-       exit(1);
+       exit(EXIT_FAILURE);
     }
 
     FD_ZERO(&fds);
@@ -203,7 +203,7 @@ static void test_io(void)
                        continue;
                    } else {
                        perror("send");
-                       exit(1);
+                       exit(EXIT_FAILURE);
                    }
                } while(k < j);
            }
@@ -211,7 +211,7 @@ static void test_io(void)
        iov_free(iov, niov);
        g_free(buf);
        g_free(siov);
-       exit(0);
+       exit(EXIT_SUCCESS);
 
     } else {
        /* reader & verifier */
@@ -243,7 +243,7 @@ static void test_io(void)
                        continue;
                    } else {
                        perror("recv");
-                       exit(1);
+                       exit(EXIT_FAILURE);
                    }
                } while(k < j);
                test_iov_bytes(iov, niov, i, j - i);
