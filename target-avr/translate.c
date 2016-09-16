@@ -105,8 +105,8 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 
 #include "exec/gen-icount.h"
 #include "translate-inst.h"
-#include "translate-inst.c"
-#include "decode.c"
+#include "translate-inst.inc.c"
+#include "decode.inc.c"
 
 void avr_translate_init(void)
 {
