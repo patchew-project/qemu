@@ -154,7 +154,7 @@ static void mips_jazz_init(MachineState *machine,
     cpu = cpu_mips_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
@@ -197,7 +197,7 @@ static void mips_jazz_init(MachineState *machine,
     }
     if ((bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) && !qtest_enabled()) {
         error_report("Could not load MIPS bios '%s'", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Init CPU internal devices */
@@ -278,10 +278,10 @@ static void mips_jazz_init(MachineState *machine,
             break;
         } else if (is_help_option(nd->model)) {
             fprintf(stderr, "qemu: Supported NICs: dp83932\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         } else {
             fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -293,7 +293,7 @@ static void mips_jazz_init(MachineState *machine,
     /* Floppy */
     if (drive_get_max_bus(IF_FLOPPY) >= MAX_FD) {
         fprintf(stderr, "qemu: too many floppy drives\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     for (n = 0; n < MAX_FD; n++) {
         fds[n] = drive_get(IF_FLOPPY, 0, n);

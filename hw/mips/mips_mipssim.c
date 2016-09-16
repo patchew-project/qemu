@@ -80,7 +80,7 @@ static int64_t load_kernel(void)
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* load initrd */
@@ -94,7 +94,7 @@ static int64_t load_kernel(void)
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
                         loaderparams.initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
                 initrd_offset, loaderparams.ram_size - initrd_offset);
@@ -102,7 +102,7 @@ static int64_t load_kernel(void)
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                     loaderparams.initrd_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
     return entry;
@@ -165,7 +165,7 @@ mips_mipssim_init(MachineState *machine)
     cpu = cpu_mips_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -201,7 +201,7 @@ mips_mipssim_init(MachineState *machine)
         /* Bail out if we have neither a kernel image nor boot vector code. */
         error_report("Could not load MIPS bios '%s', and no "
                      "-kernel argument was specified", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     } else {
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;

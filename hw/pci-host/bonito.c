@@ -451,7 +451,7 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     if (idsel == 0) {
         fprintf(stderr, "error in bonito pci config address " TARGET_FMT_plx
             ",pcimap_cfg=%x\n", addr, s->regs[BONITO_PCIMAP_CFG]);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     pciaddr = PCI_ADDR(pci_bus_num(phb->bus), devno, funno, regno);
     DPRINTF("cfgaddr %x pciaddr %x busno %x devno %d funno %d regno %d\n",

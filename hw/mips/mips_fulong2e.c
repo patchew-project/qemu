@@ -121,7 +121,7 @@ static int64_t load_kernel (CPUMIPSState *env)
                  (uint64_t *)&kernel_high, 0, EM_MIPS, 1, 0) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* load initrd */
@@ -135,7 +135,7 @@ static int64_t load_kernel (CPUMIPSState *env)
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
                         loaderparams.initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
                                      initrd_offset, ram_size - initrd_offset);
@@ -143,7 +143,7 @@ static int64_t load_kernel (CPUMIPSState *env)
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                     loaderparams.initrd_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -281,7 +281,7 @@ static void mips_fulong2e_init(MachineState *machine)
     cpu = cpu_mips_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -329,7 +329,7 @@ static void mips_fulong2e_init(MachineState *machine)
         if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
             !kernel_filename && !qtest_enabled()) {
             error_report("Could not load MIPS bios '%s'", bios_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -346,7 +346,7 @@ static void mips_fulong2e_init(MachineState *machine)
     isa_bus = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
     if (!isa_bus) {
         fprintf(stderr, "vt82c686b_init error\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Interrupt controller */

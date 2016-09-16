@@ -803,7 +803,7 @@ static int64_t load_kernel (void)
                  big_endian, EM_MIPS, 1, 0) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Sanity check where the kernel has been linked */
@@ -811,7 +811,7 @@ static int64_t load_kernel (void)
         if (kernel_entry & 0x80000000ll) {
             error_report("KVM guest kernels must be linked in useg. "
                          "Did you forget to enable CONFIG_KVM_GUEST?");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
@@ -819,7 +819,7 @@ static int64_t load_kernel (void)
         if (!(kernel_entry & 0x80000000ll)) {
             error_report("KVM guest kernels aren't supported with TCG. "
                          "Did you unintentionally enable CONFIG_KVM_GUEST?");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
@@ -836,7 +836,7 @@ static int64_t load_kernel (void)
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
                         loaderparams.initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
                                               initrd_offset,
@@ -845,7 +845,7 @@ static int64_t load_kernel (void)
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                     loaderparams.initrd_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -921,7 +921,7 @@ static void create_cpu_without_cps(const char *cpu_model,
         cpu = cpu_mips_init(cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         /* Init internal devices */
@@ -950,7 +950,7 @@ static void create_cps(MaltaState *s, const char *cpu_model,
     object_property_set_bool(OBJECT(s->cps), true, "realized", &err);
     if (err != NULL) {
         error_report("%s", error_get_pretty(err));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
@@ -1037,7 +1037,7 @@ void mips_malta_init(MachineState *machine)
         fprintf(stderr,
                 "qemu: Too much memory for this machine: %d MB, maximum 2048 MB\n",
                 ((unsigned int)ram_size / (1 << 20)));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* register RAM at high address where it is undisturbed by IO */
@@ -1121,7 +1121,7 @@ void mips_malta_init(MachineState *machine)
         if (kvm_enabled()) {
             error_report("KVM enabled but no -kernel argument was specified. "
                          "Booting from flash is not supported with KVM.");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /* Load firmware from flash. */
         if (!dinfo) {
@@ -1141,7 +1141,7 @@ void mips_malta_init(MachineState *machine)
                 !kernel_filename && !qtest_enabled()) {
                 error_report("Could not load MIPS bios '%s', and no "
                              "-kernel argument was specified", bios_name);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         /* In little endian mode the 32bit words in the bios are swapped,
