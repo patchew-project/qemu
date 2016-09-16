@@ -63,7 +63,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
     if (kernel_size <= 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loader_params->kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* load initrd */
@@ -78,7 +78,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
                         loader_params->initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             initrd_size = load_image_targphys(loader_params->initrd_filename,
                                               initrd_offset,
@@ -87,7 +87,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
         if (initrd_size == (target_ulong)-1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                     loader_params->initrd_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }
@@ -121,7 +121,7 @@ static void moxiesim_init(MachineState *machine)
     cpu = cpu_moxie_init(cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 

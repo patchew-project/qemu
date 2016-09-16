@@ -105,7 +105,7 @@ static void put_unused(QEMUFile *f, void *pv, size_t size)
 {
     fprintf(stderr, "uint16_from_uint8 is used only for backwards compatibility.\n");
     fprintf(stderr, "Never should be used to write a new state.\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 static const VMStateInfo vmstate_hack_uint16_from_uint8 = {
