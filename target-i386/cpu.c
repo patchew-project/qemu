@@ -3097,7 +3097,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     mce_init(cpu);
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    cs->nr_cores = smp_cores;
+    cs->nr_threads = smp_threads;
+#else
     if (tcg_enabled()) {
         AddressSpace *newas = g_new(AddressSpace, 1);
 
