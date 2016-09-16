@@ -207,7 +207,7 @@ static uint64_t sun4u_load_kernel(const char *kernel_filename,
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /* load initrd above kernel */
         *initrd_size = 0;
@@ -220,7 +220,7 @@ static uint64_t sun4u_load_kernel(const char *kernel_filename,
             if ((int)*initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         if (*initrd_size > 0) {
@@ -647,7 +647,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     }
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -760,7 +760,7 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
     cpu = cpu_sparc_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 

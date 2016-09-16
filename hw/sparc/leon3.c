@@ -130,7 +130,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     cpu = cpu_sparc_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -152,7 +152,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         fprintf(stderr,
                 "qemu: Too much memory for this machine: %d, maximum 1G\n",
                 (unsigned int)(ram_size / (1024 * 1024)));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(ram, NULL, "leon3.ram", ram_size);
@@ -180,18 +180,18 @@ static void leon3_generic_hw_init(MachineState *machine)
     if (bios_size > prom_size) {
         fprintf(stderr, "qemu: could not load prom '%s': file too big\n",
                 filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (bios_size > 0) {
         ret = load_image_targphys(filename, 0x00000000, bios_size);
         if (ret < 0 || ret > prom_size) {
             fprintf(stderr, "qemu: could not load prom '%s'\n", filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } else if (kernel_filename == NULL && !qtest_enabled()) {
         fprintf(stderr, "Can't read bios image %s\n", filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     g_free(filename);
 
@@ -205,7 +205,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (bios_size <= 0) {
             /* If there is no bios/monitor, start the application.  */

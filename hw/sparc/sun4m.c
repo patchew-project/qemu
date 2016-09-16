@@ -295,7 +295,7 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         /* load initrd */
@@ -307,7 +307,7 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         if (initrd_size > 0) {
@@ -737,7 +737,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     }
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -807,7 +807,7 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size,
                 "qemu: Too much memory for this machine: %d, maximum %d\n",
                 (unsigned int)(RAM_size / (1024 * 1024)),
                 (unsigned int)(max_mem / (1024 * 1024)));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     dev = qdev_create(NULL, "memory");
     s = SYS_BUS_DEVICE(dev);
@@ -850,7 +850,7 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
     cpu = cpu_sparc_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -944,21 +944,21 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         error_report("Unsupported depth: %d", graphic_depth);
-        exit (1);
+        exit(EXIT_FAILURE);
     }
     num_vsimms = 0;
     if (num_vsimms == 0) {
         if (vga_interface_type == VGA_CG3) {
             if (graphic_depth != 8) {
                 error_report("Unsupported depth: %d", graphic_depth);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             if (!(graphic_width == 1024 && graphic_height == 768) &&
                 !(graphic_width == 1152 && graphic_height == 900)) {
                 error_report("Unsupported resolution: %d x %d", graphic_width,
                              graphic_height);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             /* sbus irq 5 */
@@ -968,13 +968,13 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
             /* If no display specified, default to TCX */
             if (graphic_depth != 8 && graphic_depth != 24) {
                 error_report("Unsupported depth: %d", graphic_depth);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             if (!(graphic_width == 1024 && graphic_height == 768)) {
                 error_report("Unsupported resolution: %d x %d",
                              graphic_width, graphic_height);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             tcx_init(hwdef->tcx_base, slavio_irq[11], 0x00100000,
@@ -1025,7 +1025,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
         fprintf(stderr, "qemu: too many SCSI bus\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     esp_init(hwdef->esp_base, 2,
