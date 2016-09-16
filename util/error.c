@@ -39,7 +39,7 @@ static void error_handle_fatal(Error **errp, Error *err)
     }
     if (errp == &error_fatal) {
         error_report_err(err);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

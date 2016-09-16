@@ -165,7 +165,7 @@ void trace_enable_events(const char *line_buf)
     if (is_help_option(line_buf)) {
         trace_list_events();
         if (cur_mon == NULL) {
-            exit(0);
+            exit(EXIT_SUCCESS);
         }
     } else {
         do_trace_enable_events(line_buf);
@@ -188,7 +188,7 @@ static void trace_init_events(const char *fname)
     fp = fopen(fname, "r");
     if (!fp) {
         error_report("%s", strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     while (fgets(line_buf, sizeof(line_buf), fp)) {
         loc_set_file(fname, ++line_idx);
@@ -204,7 +204,7 @@ static void trace_init_events(const char *fname)
     if (fclose(fp) != 0) {
         loc_set_file(fname, 0);
         error_report("%s", strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     loc_pop(&loc);
 }
@@ -224,7 +224,7 @@ void trace_init_file(const char *file)
     if (file) {
         fprintf(stderr, "error: -trace file=...: "
                 "option not supported by the selected tracing backends\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 #endif
 }
@@ -258,7 +258,7 @@ char *trace_opt_parse(const char *optarg)
     QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
                                              optarg, true);
     if (!opts) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (qemu_opt_get(opts, "enable")) {
         trace_enable_events(qemu_opt_get(opts, "enable"));
