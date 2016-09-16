@@ -3154,7 +3154,7 @@ void vnc_display_init(const char *id)
     }
 
     if (!vs->kbd_layout)
-        exit(1);
+        exit(EXIT_FAILURE);
 
     vs->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
     vs->connections_limit = 32;
@@ -3929,7 +3929,7 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
     vnc_display_open(id, &local_err);
     if (local_err != NULL) {
         error_reportf_err(local_err, "Failed to start VNC server: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return 0;
 }

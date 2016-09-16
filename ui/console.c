@@ -1389,7 +1389,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         if (dcl->con->gl) {
             fprintf(stderr, "can't register two opengl displays (%s, %s)\n",
                     dcl->ops->dpy_name, dcl->con->gl->ops->dpy_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         dcl->con->gl = dcl;
     }

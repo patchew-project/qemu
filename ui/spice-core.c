@@ -333,7 +333,7 @@ static int parse_name(const char *string, const char *optname,
         return value;
     }
     error_report("spice: invalid %s: %s", optname, string);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 static const char *stream_video_names[] = {
@@ -605,7 +605,7 @@ static int add_channel(void *opaque, const char *name, const char *value,
         if (!*tls_port) {
             error_report("spice: tried to setup tls-channel"
                          " without specifying a TLS port");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         security = SPICE_CHANNEL_SECURITY_SSL;
     }
@@ -622,7 +622,7 @@ static int add_channel(void *opaque, const char *name, const char *value,
     }
     if (rc != 0) {
         error_report("spice: failed to set channel security for %s", value);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return 0;
 }
@@ -661,11 +661,11 @@ void qemu_spice_init(void)
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
     if (port < 0 || port > 65535) {
         error_report("spice port is out of range");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (tls_port < 0 || tls_port > 65535) {
         error_report("spice tls-port is out of range");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     password = qemu_opt_get(opts, "password");
 
@@ -736,7 +736,7 @@ void qemu_spice_init(void)
     if (qemu_opt_get_bool(opts, "sasl", 0)) {
         if (spice_server_set_sasl(spice_server, 1) == -1) {
             error_report("spice: failed to enable sasl");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         auth = "sasl";
     }
@@ -755,7 +755,7 @@ void qemu_spice_init(void)
 #else
         error_report("this qemu build does not support the "
                      "\"disable-agent-file-xfer\" option");
-        exit(1);
+        exit(EXIT_FAILURE);
 #endif
     }
 
@@ -803,7 +803,7 @@ void qemu_spice_init(void)
     spice_server_set_sasl_appname(spice_server, "qemu");
     if (spice_server_init(spice_server, &core_interface) != 0) {
         error_report("failed to initialize spice server");
-        exit(1);
+        exit(EXIT_FAILURE);
     };
     using_spice = 1;
 
@@ -831,11 +831,11 @@ void qemu_spice_init(void)
         if ((port != 0) || (tls_port != 0)) {
             error_report("SPICE GL support is local-only for now and "
                          "incompatible with -spice port/tls-port");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (egl_rendernode_init() != 0) {
             error_report("Failed to initialize EGL render node for SPICE GL");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         display_opengl = 1;
     }
@@ -847,7 +847,7 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
     if (!spice_server) {
         if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
             error_report("Oops: spice configured but not active");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /*
          * Create a spice server instance.

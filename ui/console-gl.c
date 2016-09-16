@@ -46,7 +46,7 @@ ConsoleGLState *console_gl_init_context(void)
     gls->texture_blit_prog = qemu_gl_create_compile_link_program
         (texture_blit_vert_src, texture_blit_frag_src);
     if (!gls->texture_blit_prog) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     gls->texture_blit_vao =

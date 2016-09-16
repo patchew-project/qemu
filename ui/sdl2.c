@@ -783,7 +783,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     if (SDL_Init(flags)) {
         fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
                 SDL_GetError());
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
 
