@@ -512,7 +512,7 @@ static void ppc_prep_init(MachineState *machine)
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         env = &cpu->env;
 
@@ -537,7 +537,7 @@ static void ppc_prep_init(MachineState *machine)
                                           ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /* load initrd */
         if (initrd_filename) {
@@ -547,7 +547,7 @@ static void ppc_prep_init(MachineState *machine)
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else {
             initrd_base = 0;
@@ -569,13 +569,13 @@ static void ppc_prep_init(MachineState *machine)
         }
         if (ppc_boot_device == '\0') {
             fprintf(stderr, "No valid boot device for Mac99 machine\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("Only 6xx bus is supported on PREP machine");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     dev = qdev_create(NULL, "raven-pcihost");
@@ -590,7 +590,7 @@ static void ppc_prep_init(MachineState *machine)
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (pci_bus == NULL) {
         fprintf(stderr, "Couldn't create PCI host controller.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     sysctrl->contiguous_map_irq = qdev_get_gpio_in(dev, 0);
 

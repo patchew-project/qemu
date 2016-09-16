@@ -99,7 +99,7 @@ static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
     cpu = cpu_ppc_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -284,7 +284,7 @@ static void virtex_init(MachineState *machine)
             if (initrd_size < 0) {
                 error_report("couldn't load ram disk '%s'",
                              machine->initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             high = ROUND_UP(high + initrd_size, 4);
         }

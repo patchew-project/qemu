@@ -116,7 +116,7 @@ static void ppc_heathrow_init(MachineState *machine)
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         env = &cpu->env;
 
@@ -130,7 +130,7 @@ static void ppc_heathrow_init(MachineState *machine)
         fprintf(stderr,
                 "qemu: Too much memory for this machine: %d MB, maximum 2047 MB\n",
                 ((unsigned int)ram_size / (1 << 20)));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(ram, NULL, "ppc_heathrow.ram",
@@ -158,7 +158,7 @@ static void ppc_heathrow_init(MachineState *machine)
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         error_report("could not load PowerPC bios '%s'", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (linux_boot) {
@@ -184,7 +184,7 @@ static void ppc_heathrow_init(MachineState *machine)
                                               ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /* load initrd */
         if (initrd_filename) {
@@ -194,7 +194,7 @@ static void ppc_heathrow_init(MachineState *machine)
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             cmdline_base = round_page(initrd_base + initrd_size);
         } else {
@@ -228,7 +228,7 @@ static void ppc_heathrow_init(MachineState *machine)
         }
         if (ppc_boot_device == '\0') {
             fprintf(stderr, "No valid boot device for G3 Beige machine\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -251,7 +251,7 @@ static void ppc_heathrow_init(MachineState *machine)
             break;
         default:
             error_report("Bus model not supported on OldWorld Mac machine");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -265,7 +265,7 @@ static void ppc_heathrow_init(MachineState *machine)
     /* init basic PC hardware */
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("Only 6xx bus is supported on heathrow machine");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     pic = heathrow_pic_init(&pic_mem, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic,

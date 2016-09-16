@@ -67,7 +67,7 @@ static void icp_get_kvm_state(ICPState *ss)
     if (ret != 0) {
         error_report("Unable to retrieve KVM interrupt controller state"
                 " for CPU %ld: %s", kvm_arch_vcpu_id(ss->cs), strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     ss->xirr = state >> KVM_REG_PPC_ICP_XISR_SHIFT;
@@ -164,7 +164,7 @@ static void ics_get_kvm_state(ICSState *ics)
         if (ret != 0) {
             error_report("Unable to retrieve KVM interrupt controller state"
                     " for IRQ %d: %s", i + ics->offset, strerror(errno));
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         irq->server = state & KVM_XICS_DESTINATION_MASK;
@@ -353,7 +353,7 @@ static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
     if (ret < 0) {
         error_report("Unable to connect CPU%ld to kernel XICS: %s",
                      kvm_arch_vcpu_id(cs), strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     ss->cap_irq_xics_enabled = true;
 }

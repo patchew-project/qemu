@@ -323,7 +323,7 @@ static long gethugepagesize(const char *mem_path)
     if (ret != 0) {
         fprintf(stderr, "Couldn't statfs() memory path: %s\n",
                 strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
 #define HUGETLBFS_MAGIC       0x958458f6
@@ -2063,7 +2063,7 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_PAPR, 0);
     if (ret) {
         error_report("This vCPU type or KVM version does not support PAPR");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Update the capability flag so we sync the right information
@@ -2084,7 +2084,7 @@ void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_EPR, 0, mpic_proxy);
     if (ret && mpic_proxy) {
         error_report("This KVM version does not support EPR");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

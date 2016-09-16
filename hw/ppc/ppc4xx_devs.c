@@ -60,7 +60,7 @@ PowerPCCPU *ppc4xx_init(const char *cpu_model,
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find PowerPC %s CPU definition\n",
                 cpu_model);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 

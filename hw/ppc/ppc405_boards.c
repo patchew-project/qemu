@@ -266,13 +266,13 @@ static void ref405ep_init(MachineState *machine)
             g_free(filename);
             if (bios_size < 0 || bios_size > BIOS_SIZE) {
                 error_report("Could not load PowerPC BIOS '%s'", bios_name);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             bios_size = (bios_size + 0xfff) & ~0xfff;
             memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
         } else if (!qtest_enabled() || kernel_filename != NULL) {
             error_report("Could not load PowerPC BIOS '%s'", bios_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         } else {
             /* Avoid an uninitialized variable warning */
             bios_size = -1;
@@ -329,7 +329,7 @@ static void ref405ep_init(MachineState *machine)
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         printf("Load kernel size %ld at " TARGET_FMT_lx,
                kernel_size, kernel_base);
@@ -341,7 +341,7 @@ static void ref405ep_init(MachineState *machine)
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else {
             initrd_base = 0;
@@ -564,13 +564,13 @@ static void taihu_405ep_init(MachineState *machine)
             g_free(filename);
             if (bios_size < 0 || bios_size > BIOS_SIZE) {
                 error_report("Could not load PowerPC BIOS '%s'", bios_name);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             bios_size = (bios_size + 0xfff) & ~0xfff;
             memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
         } else if (!qtest_enabled()) {
             error_report("Could not load PowerPC BIOS '%s'", bios_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         memory_region_set_readonly(bios, true);
     }
@@ -613,7 +613,7 @@ static void taihu_405ep_init(MachineState *machine)
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /* load initrd */
         if (initrd_filename) {
@@ -624,7 +624,7 @@ static void taihu_405ep_init(MachineState *machine)
                 fprintf(stderr,
                         "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else {
             initrd_base = 0;

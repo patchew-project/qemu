@@ -196,7 +196,7 @@ static void ppc_core99_init(MachineState *machine)
         cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         env = &cpu->env;
 
@@ -231,7 +231,7 @@ static void ppc_core99_init(MachineState *machine)
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         error_report("could not load PowerPC bios '%s'", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (linux_boot) {
@@ -258,7 +258,7 @@ static void ppc_core99_init(MachineState *machine)
                                               ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         /* load initrd */
         if (initrd_filename) {
@@ -268,7 +268,7 @@ static void ppc_core99_init(MachineState *machine)
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             cmdline_base = round_page(initrd_base + initrd_size);
         } else {
@@ -294,7 +294,7 @@ static void ppc_core99_init(MachineState *machine)
         }
         if (ppc_boot_device == '\0') {
             fprintf(stderr, "No valid boot device for Mac99 machine\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -350,7 +350,7 @@ static void ppc_core99_init(MachineState *machine)
 #endif /* defined(TARGET_PPC64) */
         default:
             error_report("Bus model not supported on mac99 machine");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
