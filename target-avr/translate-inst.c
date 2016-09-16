@@ -18,10 +18,6 @@
  *  <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#include "translate.h"
-#include "translate-inst.h"
-#include "qemu/bitops.h"
-
 static void gen_add_CHf(TCGv R, TCGv Rd, TCGv Rr)
 {
     TCGv t1 = tcg_temp_new_i32();
@@ -249,7 +245,7 @@ static TCGv gen_get_zaddr(void)
  *  Adds two registers and the contents of the C Flag and places the result in
  *  the destination register Rd.
  */
-int avr_translate_ADC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ADC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[ADC_Rd(opcode)];
     TCGv Rr = cpu_r[ADC_Rr(opcode)];
@@ -276,7 +272,7 @@ int avr_translate_ADC(DisasContext *ctx, uint32_t opcode)
  *  Adds two registers without the C Flag and places the result in the
  *  destination register Rd.
  */
-int avr_translate_ADD(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ADD(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[ADD_Rd(opcode)];
     TCGv Rr = cpu_r[ADD_Rr(opcode)];
@@ -305,7 +301,7 @@ int avr_translate_ADD(DisasContext *ctx, uint32_t opcode)
  *  instruction is not available in all devices. Refer to the device specific
  *  instruction set summary.
  */
-int avr_translate_ADIW(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ADIW(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_ADIW_SBIW) == false) {
         gen_helper_unsupported(cpu_env);
@@ -355,7 +351,7 @@ int avr_translate_ADIW(DisasContext *ctx, uint32_t opcode)
  *  Performs the logical AND between the contents of register Rd and register
  *  Rr and places the result in the destination register Rd.
  */
-int avr_translate_AND(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_AND(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[AND_Rd(opcode)];
     TCGv Rr = cpu_r[AND_Rr(opcode)];
@@ -384,7 +380,7 @@ int avr_translate_AND(DisasContext *ctx, uint32_t opcode)
  *  Performs the logical AND between the contents of register Rd and a constant
  *  and places the result in the destination register Rd.
  */
-int avr_translate_ANDI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ANDI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[16 + ANDI_Rd(opcode)];
     int Imm = (ANDI_Imm(opcode));
@@ -404,7 +400,7 @@ int avr_translate_ANDI(DisasContext *ctx, uint32_t opcode)
  *  signed value by two without changing its sign. The Carry Flag can be used to
  *  round the result.
  */
-int avr_translate_ASR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ASR(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[ASR_Rd(opcode)];
     TCGv t1 = tcg_temp_new_i32();
@@ -435,7 +431,7 @@ int avr_translate_ASR(DisasContext *ctx, uint32_t opcode)
 /*
  *  Clears a single Flag in SREG.
  */
-int avr_translate_BCLR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BCLR(DisasContext *ctx, uint32_t opcode)
 {
     switch (BCLR_Bit(opcode)) {
     case 0x00:
@@ -470,7 +466,7 @@ int avr_translate_BCLR(DisasContext *ctx, uint32_t opcode)
 /*
  *  Copies the T Flag in the SREG (Status Register) to bit b in register Rd.
  */
-int avr_translate_BLD(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BLD(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[BLD_Rd(opcode)];
     TCGv t1 = tcg_temp_new_i32();
@@ -491,7 +487,7 @@ int avr_translate_BLD(DisasContext *ctx, uint32_t opcode)
  *  parameter k is the offset from PC and is represented in two's complement
  *  form.
  */
-int avr_translate_BRBC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BRBC(DisasContext *ctx, uint32_t opcode)
 {
     TCGLabel *taken = gen_new_label();
     int Imm = sextract32(BRBC_Imm(opcode), 0, 7);
@@ -536,7 +532,7 @@ int avr_translate_BRBC(DisasContext *ctx, uint32_t opcode)
  *  PC in either direction (PC - 63 < = destination <= PC + 64). The parameter k
  *  is the offset from PC and is represented in two's complement form.
  */
-int avr_translate_BRBS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BRBS(DisasContext *ctx, uint32_t opcode)
 {
     TCGLabel *taken = gen_new_label();
     int Imm = sextract32(BRBS_Imm(opcode), 0, 7);
@@ -578,7 +574,7 @@ int avr_translate_BRBS(DisasContext *ctx, uint32_t opcode)
 /*
  *  Sets a single Flag or bit in SREG.
  */
-int avr_translate_BSET(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BSET(DisasContext *ctx, uint32_t opcode)
 {
     switch (BSET_Bit(opcode)) {
     case 0x00:
@@ -620,7 +616,7 @@ int avr_translate_BSET(DisasContext *ctx, uint32_t opcode)
  *  is not available in all devices. Refer to the device specific instruction
  *  set summary.
  */
-int avr_translate_BREAK(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BREAK(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_BREAK) == false) {
         gen_helper_unsupported(cpu_env);
@@ -635,7 +631,7 @@ int avr_translate_BREAK(DisasContext *ctx, uint32_t opcode)
 /*
  *  Stores bit b from Rd to the T Flag in SREG (Status Register).
  */
-int avr_translate_BST(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_BST(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[BST_Rd(opcode)];
 
@@ -652,7 +648,7 @@ int avr_translate_BST(DisasContext *ctx, uint32_t opcode)
  *  CALL.  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-int avr_translate_CALL(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_CALL(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_JMP_CALL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -673,7 +669,7 @@ int avr_translate_CALL(DisasContext *ctx, uint32_t opcode)
  *  Clears a specified bit in an I/O Register. This instruction operates on
  *  the lower 32 I/O Registers -- addresses 0-31.
  */
-int avr_translate_CBI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_CBI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(CBI_Imm(opcode));
@@ -693,7 +689,7 @@ int avr_translate_CBI(DisasContext *ctx, uint32_t opcode)
  *  between the contents of register Rd and the complement of the constant mask
  *  K. The result will be placed in register Rd.
  */
-int avr_translate_COM(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_COM(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[COM_Rd(opcode)];
     TCGv R = tcg_temp_new_i32();
@@ -714,7 +710,7 @@ int avr_translate_COM(DisasContext *ctx, uint32_t opcode)
  *  None of the registers are changed. All conditional branches can be used
  *  after this instruction.
  */
-int avr_translate_CP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_CP(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[CP_Rd(opcode)];
     TCGv Rr = cpu_r[CP_Rr(opcode)];
@@ -738,7 +734,7 @@ int avr_translate_CP(DisasContext *ctx, uint32_t opcode)
  *  also takes into account the previous carry. None of the registers are
  *  changed. All conditional branches can be used after this instruction.
  */
-int avr_translate_CPC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_CPC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[CPC_Rd(opcode)];
     TCGv Rr = cpu_r[CPC_Rr(opcode)];
@@ -768,7 +764,7 @@ int avr_translate_CPC(DisasContext *ctx, uint32_t opcode)
  *  The register is not changed. All conditional branches can be used after this
  *  instruction.
  */
-int avr_translate_CPI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_CPI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[16 + CPI_Rd(opcode)];
     int Imm = CPI_Imm(opcode);
@@ -793,7 +789,7 @@ int avr_translate_CPI(DisasContext *ctx, uint32_t opcode)
  *  This instruction performs a compare between two registers Rd and Rr, and
  *  skips the next instruction if Rd = Rr.
  */
-int avr_translate_CPSE(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_CPSE(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[CPSE_Rd(opcode)];
     TCGv Rr = cpu_r[CPSE_Rr(opcode)];
@@ -817,7 +813,7 @@ int avr_translate_CPSE(DisasContext *ctx, uint32_t opcode)
  *  BREQ and BRNE branches can be expected to perform consistently.  When
  *  operating on two's complement values, all signed branches are available.
  */
-int avr_translate_DEC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_DEC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[DEC_Rd(opcode)];
 
@@ -851,7 +847,7 @@ int avr_translate_DEC(DisasContext *ctx, uint32_t opcode)
  *  affect the result in the final ciphertext or plaintext, but reduces
  *  execution time.
  */
-int avr_translate_DES(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_DES(DisasContext *ctx, uint32_t opcode)
 {
     /* TODO: */
     if (avr_feature(ctx->env, AVR_FEATURE_DES) == false) {
@@ -871,7 +867,7 @@ int avr_translate_DES(DisasContext *ctx, uint32_t opcode)
  *  during EICALL.  This instruction is not available in all devices. Refer to
  *  the device specific instruction set summary.
  */
-int avr_translate_EICALL(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_EICALL(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_EIJMP_EICALL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -895,7 +891,7 @@ int avr_translate_EICALL(DisasContext *ctx, uint32_t opcode)
  *  memory space. See also IJMP.  This instruction is not available in all
  *  devices. Refer to the device specific instruction set summary.
  */
-int avr_translate_EIJMP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_EIJMP(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_EIJMP_EICALL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -924,7 +920,7 @@ int avr_translate_EIJMP(DisasContext *ctx, uint32_t opcode)
  *  instruction is not available in all devices. Refer to the device specific
  *  instruction set summary.
  */
-int avr_translate_ELPM1(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ELPM1(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_ELPM) == false) {
         gen_helper_unsupported(cpu_env);
@@ -942,7 +938,7 @@ int avr_translate_ELPM1(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_ELPM2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ELPM2(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_ELPM) == false) {
         gen_helper_unsupported(cpu_env);
@@ -960,7 +956,7 @@ int avr_translate_ELPM2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_ELPMX(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ELPMX(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_ELPMX) == false) {
         gen_helper_unsupported(cpu_env);
@@ -986,7 +982,7 @@ int avr_translate_ELPMX(DisasContext *ctx, uint32_t opcode)
  *  Performs the logical EOR between the contents of register Rd and
  *  register Rr and places the result in the destination register Rd.
  */
-int avr_translate_EOR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_EOR(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[EOR_Rd(opcode)];
     TCGv Rr = cpu_r[EOR_Rr(opcode)];
@@ -1003,7 +999,7 @@ int avr_translate_EOR(DisasContext *ctx, uint32_t opcode)
  *  This instruction performs 8-bit x 8-bit -> 16-bit unsigned
  *  multiplication and shifts the result one bit left.
  */
-int avr_translate_FMUL(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_FMUL(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MUL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1036,7 +1032,7 @@ int avr_translate_FMUL(DisasContext *ctx, uint32_t opcode)
  *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication
  *  and shifts the result one bit left.
  */
-int avr_translate_FMULS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_FMULS(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MUL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1075,7 +1071,7 @@ int avr_translate_FMULS(DisasContext *ctx, uint32_t opcode)
  *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication
  *  and shifts the result one bit left.
  */
-int avr_translate_FMULSU(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_FMULSU(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MUL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1114,7 +1110,7 @@ int avr_translate_FMULSU(DisasContext *ctx, uint32_t opcode)
  *  CALL.  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-int avr_translate_ICALL(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ICALL(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_IJMP_ICALL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1137,7 +1133,7 @@ int avr_translate_ICALL(DisasContext *ctx, uint32_t opcode)
  *  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-int avr_translate_IJMP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_IJMP(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_IJMP_ICALL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1154,7 +1150,7 @@ int avr_translate_IJMP(DisasContext *ctx, uint32_t opcode)
  *  Loads data from the I/O Space (Ports, Timers, Configuration Registers,
  *  etc.) into register Rd in the Register File.
  */
-int avr_translate_IN(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_IN(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[IN_Rd(opcode)];
     int Imm = IN_Imm(opcode);
@@ -1175,7 +1171,7 @@ int avr_translate_IN(DisasContext *ctx, uint32_t opcode)
  *  BREQ and BRNE branches can be expected to perform consistently. When
  *  operating on two's complement values, all signed branches are available.
  */
-int avr_translate_INC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_INC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[INC_Rd(opcode)];
 
@@ -1193,7 +1189,7 @@ int avr_translate_INC(DisasContext *ctx, uint32_t opcode)
  *  RJMP.  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.0
  */
-int avr_translate_JMP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_JMP(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_JMP_CALL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1233,7 +1229,7 @@ static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
     }
 }
 
-int avr_translate_LAC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LAC(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_RMW) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1270,7 +1266,7 @@ int avr_translate_LAC(DisasContext *ctx, uint32_t opcode)
  *  The Z-pointer Register is left unchanged by the operation. This instruction
  *  is especially suited for setting status bits stored in SRAM.
  */
-int avr_translate_LAS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LAS(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_RMW) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1306,7 +1302,7 @@ int avr_translate_LAS(DisasContext *ctx, uint32_t opcode)
  *  The Z-pointer Register is left unchanged by the operation. This instruction
  *  is especially suited for changing status bits stored in SRAM.
  */
-int avr_translate_LAT(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LAT(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_RMW) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1357,7 +1353,7 @@ int avr_translate_LAT(DisasContext *ctx, uint32_t opcode)
  *  operation as LPM since the program memory is mapped to the data memory
  *  space.
  */
-int avr_translate_LDX1(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDX1(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDX1_Rd(opcode)];
     TCGv addr = gen_get_xaddr();
@@ -1369,7 +1365,7 @@ int avr_translate_LDX1(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LDX2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDX2(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDX2_Rd(opcode)];
     TCGv addr = gen_get_xaddr();
@@ -1384,7 +1380,7 @@ int avr_translate_LDX2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LDX3(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDX3(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDX3_Rd(opcode)];
     TCGv addr = gen_get_xaddr();
@@ -1423,7 +1419,7 @@ int avr_translate_LDX3(DisasContext *ctx, uint32_t opcode)
  *  be used to achieve the same operation as LPM since the program memory is
  *  mapped to the data memory space.
  */
-int avr_translate_LDY2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDY2(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDY2_Rd(opcode)];
     TCGv addr = gen_get_yaddr();
@@ -1438,7 +1434,7 @@ int avr_translate_LDY2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LDY3(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDY3(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDY3_Rd(opcode)];
     TCGv addr = gen_get_yaddr();
@@ -1452,7 +1448,7 @@ int avr_translate_LDY3(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LDDY(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDDY(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDDY_Rd(opcode)];
     TCGv addr = gen_get_yaddr();
@@ -1494,7 +1490,7 @@ int avr_translate_LDDY(DisasContext *ctx, uint32_t opcode)
  *  space.  For using the Z-pointer for table lookup in Program memory see the
  *  LPM and ELPM instructions.
  */
-int avr_translate_LDZ2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDZ2(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDZ2_Rd(opcode)];
     TCGv addr = gen_get_zaddr();
@@ -1509,7 +1505,7 @@ int avr_translate_LDZ2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LDZ3(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDZ3(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDZ3_Rd(opcode)];
     TCGv addr = gen_get_zaddr();
@@ -1524,7 +1520,7 @@ int avr_translate_LDZ3(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LDDZ(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDDZ(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDDZ_Rd(opcode)];
     TCGv addr = gen_get_zaddr();
@@ -1541,7 +1537,7 @@ int avr_translate_LDDZ(DisasContext *ctx, uint32_t opcode)
 /*
     Loads an 8 bit constant directly to register 16 to 31.
  */
-int avr_translate_LDI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[16 + LDI_Rd(opcode)];
     int imm = LDI_Imm(opcode);
@@ -1563,7 +1559,7 @@ int avr_translate_LDI(DisasContext *ctx, uint32_t opcode)
  *  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-int avr_translate_LDS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LDS(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LDS_Rd(opcode)];
     TCGv addr = tcg_temp_new_i32();
@@ -1595,7 +1591,7 @@ int avr_translate_LDS(DisasContext *ctx, uint32_t opcode)
  *  available in all devices. Refer to the device specific instruction set
  *  summary
  */
-int avr_translate_LPM1(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LPM1(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_LPM) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1618,7 +1614,7 @@ int avr_translate_LPM1(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LPM2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LPM2(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_LPM) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1641,7 +1637,7 @@ int avr_translate_LPM2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_LPMX(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LPMX(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_LPMX) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1676,7 +1672,7 @@ int avr_translate_LPMX(DisasContext *ctx, uint32_t opcode)
  *  loaded into the C Flag of the SREG. This operation effectively divides an
  *  unsigned value by two. The C Flag can be used to round the result.
  */
-int avr_translate_LSR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_LSR(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[LSR_Rd(opcode)];
 
@@ -1694,7 +1690,7 @@ int avr_translate_LSR(DisasContext *ctx, uint32_t opcode)
  *  register Rr is left unchanged, while the destination register Rd is loaded
  *  with a copy of Rr.
  */
-int avr_translate_MOV(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_MOV(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[MOV_Rd(opcode)];
     TCGv Rr = cpu_r[MOV_Rr(opcode)];
@@ -1711,7 +1707,7 @@ int avr_translate_MOV(DisasContext *ctx, uint32_t opcode)
  *  instruction is not available in all devices. Refer to the device specific
  *  instruction set summary.
  */
-int avr_translate_MOVW(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_MOVW(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MOVW) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1733,7 +1729,7 @@ int avr_translate_MOVW(DisasContext *ctx, uint32_t opcode)
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit unsigned multiplication.
  */
-int avr_translate_MUL(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_MUL(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MUL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1765,7 +1761,7 @@ int avr_translate_MUL(DisasContext *ctx, uint32_t opcode)
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication.
  */
-int avr_translate_MULS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_MULS(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MUL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1805,7 +1801,7 @@ int avr_translate_MULS(DisasContext *ctx, uint32_t opcode)
  *  This instruction performs 8-bit x 8-bit -> 16-bit multiplication of a
  *  signed and an unsigned number.
  */
-int avr_translate_MULSU(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_MULSU(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_MUL) == false) {
         gen_helper_unsupported(cpu_env);
@@ -1842,7 +1838,7 @@ int avr_translate_MULSU(DisasContext *ctx, uint32_t opcode)
  *  Replaces the contents of register Rd with its two's complement; the
  *  value $80 is left unchanged.
  */
-int avr_translate_NEG(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_NEG(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[SUB_Rd(opcode)];
     TCGv t0 = tcg_const_i32(0);
@@ -1868,7 +1864,7 @@ int avr_translate_NEG(DisasContext *ctx, uint32_t opcode)
 /*
  *  This instruction performs a single cycle No Operation.
  */
-int avr_translate_NOP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_NOP(DisasContext *ctx, uint32_t opcode)
 {
 
     /* NOP */
@@ -1880,7 +1876,7 @@ int avr_translate_NOP(DisasContext *ctx, uint32_t opcode)
  *  Performs the logical OR between the contents of register Rd and register
  *  Rr and places the result in the destination register Rd.
  */
-int avr_translate_OR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_OR(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[OR_Rd(opcode)];
     TCGv Rr = cpu_r[OR_Rr(opcode)];
@@ -1900,7 +1896,7 @@ int avr_translate_OR(DisasContext *ctx, uint32_t opcode)
  *  Performs the logical OR between the contents of register Rd and a
  *  constant and places the result in the destination register Rd.
  */
-int avr_translate_ORI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ORI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[16 + ORI_Rd(opcode)];
     int Imm = (ORI_Imm(opcode));
@@ -1917,7 +1913,7 @@ int avr_translate_ORI(DisasContext *ctx, uint32_t opcode)
  *  Stores data from register Rr in the Register File to I/O Space (Ports,
  *  Timers, Configuration Registers, etc.).
  */
-int avr_translate_OUT(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_OUT(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[OUT_Rd(opcode)];
     int Imm = OUT_Imm(opcode);
@@ -1936,7 +1932,7 @@ int avr_translate_OUT(DisasContext *ctx, uint32_t opcode)
  *  available in all devices. Refer to the device specific instruction set
  *  summary.
  */
-int avr_translate_POP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_POP(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[POP_Rd(opcode)];
 
@@ -1952,7 +1948,7 @@ int avr_translate_POP(DisasContext *ctx, uint32_t opcode)
  *  not available in all devices. Refer to the device specific instruction set
  *  summary.
  */
-int avr_translate_PUSH(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_PUSH(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[PUSH_Rd(opcode)];
 
@@ -1970,7 +1966,7 @@ int avr_translate_PUSH(DisasContext *ctx, uint32_t opcode)
  *  address location. The Stack Pointer uses a post-decrement scheme during
  *  RCALL.
  */
-int avr_translate_RCALL(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_RCALL(DisasContext *ctx, uint32_t opcode)
 {
     int ret = ctx->inst[0].npc;
     int dst = ctx->inst[0].npc + sextract32(RCALL_Imm(opcode), 0, 12);
@@ -1985,7 +1981,7 @@ int avr_translate_RCALL(DisasContext *ctx, uint32_t opcode)
  *  Returns from subroutine. The return address is loaded from the STACK.
  *  The Stack Pointer uses a preincrement scheme during RET.
  */
-int avr_translate_RET(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_RET(DisasContext *ctx, uint32_t opcode)
 {
     gen_pop_ret(ctx, cpu_pc);
 
@@ -2002,7 +1998,7 @@ int avr_translate_RET(DisasContext *ctx, uint32_t opcode)
  *  the application program. The Stack Pointer uses a pre-increment scheme
  *  during RETI.
  */
-int avr_translate_RETI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_RETI(DisasContext *ctx, uint32_t opcode)
 {
     gen_pop_ret(ctx, cpu_pc);
 
@@ -2019,7 +2015,7 @@ int avr_translate_RETI(DisasContext *ctx, uint32_t opcode)
  *  instruction can address the entire memory from every address location. See
  *  also JMP.
  */
-int avr_translate_RJMP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_RJMP(DisasContext *ctx, uint32_t opcode)
 {
     int dst = ctx->inst[0].npc + sextract32(RJMP_Imm(opcode), 0, 12);
 
@@ -2035,7 +2031,7 @@ int avr_translate_RJMP(DisasContext *ctx, uint32_t opcode)
  *  LSR it effectively divides multi-byte unsigned values by two. The Carry Flag
  *  can be used to round the result.
  */
-int avr_translate_ROR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_ROR(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[ROR_Rd(opcode)];
     TCGv t0 = tcg_temp_new_i32();
@@ -2057,7 +2053,7 @@ int avr_translate_ROR(DisasContext *ctx, uint32_t opcode)
  *  Subtracts two registers and subtracts with the C Flag and places the
  *  result in the destination register Rd.
  */
-int avr_translate_SBC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[SBC_Rd(opcode)];
     TCGv Rr = cpu_r[SBC_Rr(opcode)];
@@ -2083,7 +2079,7 @@ int avr_translate_SBC(DisasContext *ctx, uint32_t opcode)
 /*
  *  SBCI -- Subtract Immediate with Carry
  */
-int avr_translate_SBCI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBCI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[16 + SBCI_Rd(opcode)];
     TCGv Rr = tcg_const_i32(SBCI_Imm(opcode));
@@ -2111,7 +2107,7 @@ int avr_translate_SBCI(DisasContext *ctx, uint32_t opcode)
  *  Sets a specified bit in an I/O Register. This instruction operates on
  *  the lower 32 I/O Registers -- addresses 0-31.
  */
-int avr_translate_SBI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(SBI_Imm(opcode));
@@ -2131,7 +2127,7 @@ int avr_translate_SBI(DisasContext *ctx, uint32_t opcode)
  *  next instruction if the bit is cleared. This instruction operates on the
  *  lower 32 I/O Registers -- addresses 0-31.
  */
-int avr_translate_SBIC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBIC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(SBIC_Imm(opcode));
@@ -2158,7 +2154,7 @@ int avr_translate_SBIC(DisasContext *ctx, uint32_t opcode)
  *  next instruction if the bit is set. This instruction operates on the lower
  *  32 I/O Registers -- addresses 0-31.
  */
-int avr_translate_SBIS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBIS(DisasContext *ctx, uint32_t opcode)
 {
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(SBIS_Imm(opcode));
@@ -2187,7 +2183,7 @@ int avr_translate_SBIS(DisasContext *ctx, uint32_t opcode)
  *  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-int avr_translate_SBIW(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBIW(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_ADIW_SBIW) == false) {
         gen_helper_unsupported(cpu_env);
@@ -2237,7 +2233,7 @@ int avr_translate_SBIW(DisasContext *ctx, uint32_t opcode)
  *  This instruction tests a single bit in a register and skips the next
  *  instruction if the bit is cleared.
  */
-int avr_translate_SBRC(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBRC(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rr = cpu_r[SBRC_Rr(opcode)];
     TCGv t0 = tcg_temp_new_i32();
@@ -2260,7 +2256,7 @@ int avr_translate_SBRC(DisasContext *ctx, uint32_t opcode)
  *  This instruction tests a single bit in a register and skips the next
  *  instruction if the bit is set.
  */
-int avr_translate_SBRS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SBRS(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rr = cpu_r[SBRS_Rr(opcode)];
     TCGv t0 = tcg_temp_new_i32();
@@ -2283,7 +2279,7 @@ int avr_translate_SBRS(DisasContext *ctx, uint32_t opcode)
  *  This instruction sets the circuit in sleep mode defined by the MCU
  *  Control Register.
  */
-int avr_translate_SLEEP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SLEEP(DisasContext *ctx, uint32_t opcode)
 {
     gen_helper_sleep(cpu_env);
 
@@ -2307,7 +2303,7 @@ int avr_translate_SLEEP(DisasContext *ctx, uint32_t opcode)
  *  determines the instruction high byte, and R0 determines the instruction low
  *  byte.
  */
-int avr_translate_SPM(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SPM(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_SPM) == false) {
         gen_helper_unsupported(cpu_env);
@@ -2319,7 +2315,7 @@ int avr_translate_SPM(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_SPMX(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SPMX(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_SPMX) == false) {
         gen_helper_unsupported(cpu_env);
@@ -2331,7 +2327,7 @@ int avr_translate_SPMX(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STX1(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STX1(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STX1_Rr(opcode)];
     TCGv addr = gen_get_xaddr();
@@ -2343,7 +2339,7 @@ int avr_translate_STX1(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STX2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STX2(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STX2_Rr(opcode)];
     TCGv addr = gen_get_xaddr();
@@ -2357,7 +2353,7 @@ int avr_translate_STX2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STX3(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STX3(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STX3_Rr(opcode)];
     TCGv addr = gen_get_xaddr();
@@ -2371,7 +2367,7 @@ int avr_translate_STX3(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STY2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STY2(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STY2_Rd(opcode)];
     TCGv addr = gen_get_yaddr();
@@ -2385,7 +2381,7 @@ int avr_translate_STY2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STY3(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STY3(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STY3_Rd(opcode)];
     TCGv addr = gen_get_yaddr();
@@ -2399,7 +2395,7 @@ int avr_translate_STY3(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STDY(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STDY(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STDY_Rd(opcode)];
     TCGv addr = gen_get_yaddr();
@@ -2413,7 +2409,7 @@ int avr_translate_STDY(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STZ2(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STZ2(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STZ2_Rd(opcode)];
     TCGv addr = gen_get_zaddr();
@@ -2428,7 +2424,7 @@ int avr_translate_STZ2(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STZ3(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STZ3(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STZ3_Rd(opcode)];
     TCGv addr = gen_get_zaddr();
@@ -2443,7 +2439,7 @@ int avr_translate_STZ3(DisasContext *ctx, uint32_t opcode)
     return BS_NONE;
 }
 
-int avr_translate_STDZ(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STDZ(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STDZ_Rd(opcode)];
     TCGv addr = gen_get_zaddr();
@@ -2469,7 +2465,7 @@ int avr_translate_STDZ(DisasContext *ctx, uint32_t opcode)
  *  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-int avr_translate_STS(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_STS(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[STS_Rd(opcode)];
     TCGv addr = tcg_temp_new_i32();
@@ -2490,7 +2486,7 @@ int avr_translate_STS(DisasContext *ctx, uint32_t opcode)
  *  Subtracts two registers and places the result in the destination
  *  register Rd.
  */
-int avr_translate_SUB(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SUB(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[SUB_Rd(opcode)];
     TCGv Rr = cpu_r[SUB_Rr(opcode)];
@@ -2517,7 +2513,7 @@ int avr_translate_SUB(DisasContext *ctx, uint32_t opcode)
  *  destination register Rd. This instruction is working on Register R16 to R31
  *  and is very well suited for operations on the X, Y, and Z-pointers.
  */
-int avr_translate_SUBI(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SUBI(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[16 + SUBI_Rd(opcode)];
     TCGv Rr = tcg_const_i32(SUBI_Imm(opcode));
@@ -2544,7 +2540,7 @@ int avr_translate_SUBI(DisasContext *ctx, uint32_t opcode)
 /*
  *  Swaps high and low nibbles in a register.
  */
-int avr_translate_SWAP(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_SWAP(DisasContext *ctx, uint32_t opcode)
 {
     TCGv Rd = cpu_r[SWAP_Rd(opcode)];
     TCGv t0 = tcg_temp_new_i32();
@@ -2567,7 +2563,7 @@ int avr_translate_SWAP(DisasContext *ctx, uint32_t opcode)
  *  executed within a limited time given by the WD prescaler. See the Watchdog
  *  Timer hardware specification.
  */
-int avr_translate_WDR(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_WDR(DisasContext *ctx, uint32_t opcode)
 {
     gen_helper_wdr(cpu_env);
 
@@ -2583,7 +2579,7 @@ int avr_translate_WDR(DisasContext *ctx, uint32_t opcode)
  *  is left unchanged by the operation. This instruction is especially suited
  *  for writing/reading status bits stored in SRAM.
  */
-int avr_translate_XCH(DisasContext *ctx, uint32_t opcode)
+static int avr_translate_XCH(DisasContext *ctx, uint32_t opcode)
 {
     if (avr_feature(ctx->env, AVR_FEATURE_RMW) == false) {
         gen_helper_unsupported(cpu_env);

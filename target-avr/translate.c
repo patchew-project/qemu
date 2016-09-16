@@ -18,32 +18,95 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#include "translate.h"
 
-TCGv_env cpu_env;
+#include "qemu/osdep.h"
+#include "tcg/tcg.h"
+#include "cpu.h"
+#include "exec/exec-all.h"
+#include "disas/disas.h"
+#include "tcg-op.h"
+#include "exec/cpu_ldst.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
+#include "exec/log.h"
 
-TCGv cpu_pc;
+static TCGv_env cpu_env;
 
-TCGv cpu_Cf;
-TCGv cpu_Zf;
-TCGv cpu_Nf;
-TCGv cpu_Vf;
-TCGv cpu_Sf;
-TCGv cpu_Hf;
-TCGv cpu_Tf;
-TCGv cpu_If;
+static TCGv cpu_pc;
 
-TCGv cpu_rampD;
-TCGv cpu_rampX;
-TCGv cpu_rampY;
-TCGv cpu_rampZ;
+static TCGv cpu_Cf;
+static TCGv cpu_Zf;
+static TCGv cpu_Nf;
+static TCGv cpu_Vf;
+static TCGv cpu_Sf;
+static TCGv cpu_Hf;
+static TCGv cpu_Tf;
+static TCGv cpu_If;
 
-TCGv cpu_r[32];
-TCGv cpu_eind;
-TCGv cpu_sp;
+static TCGv cpu_rampD;
+static TCGv cpu_rampX;
+static TCGv cpu_rampY;
+static TCGv cpu_rampZ;
+
+static TCGv cpu_r[32];
+static TCGv cpu_eind;
+static TCGv cpu_sp;
+
+#define REG(x) (cpu_r[x])
+
+enum {
+    BS_NONE = 0, /* Nothing special (none of the below) */
+    BS_STOP = 1, /* We want to stop translation for any reason */
+    BS_BRANCH = 2, /* A branch condition is reached */
+    BS_EXCP = 3, /* An exception condition is reached */
+};
+
+uint32_t get_opcode(uint8_t const *code, unsigned bitBase, unsigned bitSize);
+
+typedef struct DisasContext DisasContext;
+typedef struct InstInfo InstInfo;
+
+typedef int (*translate_function_t)(DisasContext *ctx, uint32_t opcode);
+struct InstInfo {
+    target_long cpc;
+    target_long npc;
+    uint32_t opcode;
+    translate_function_t translate;
+    unsigned length;
+};
+
+/* This is the state at translation time. */
+struct DisasContext {
+    struct TranslationBlock *tb;
+    CPUAVRState *env;
+
+    InstInfo inst[2];/* two consecutive instructions */
+
+    /* Routine used to access memory */
+    int memidx;
+    int bstate;
+    int singlestep;
+};
+
+static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+{
+    TranslationBlock *tb = ctx->tb;
+
+    if (ctx->singlestep == 0) {
+        tcg_gen_goto_tb(n);
+        tcg_gen_movi_i32(cpu_pc, dest);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
+    } else {
+        tcg_gen_movi_i32(cpu_pc, dest);
+        gen_helper_debug(cpu_env);
+        tcg_gen_exit_tb(0);
+    }
+}
 
 #include "exec/gen-icount.h"
-#define REG(x) (cpu_r[x])
+#include "translate-inst.h"
+#include "translate-inst.c"
+#include "decode.c"
 
 void avr_translate_init(void)
 {

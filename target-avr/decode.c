@@ -18,10 +18,8 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#include <stdint.h>
-#include "translate.h"
-
-void avr_decode(uint32_t pc, uint32_t *l, uint32_t c, translate_function_t *t)
+static void avr_decode(uint32_t pc, uint32_t *l, uint32_t c,
+                       translate_function_t *t)
 {
     uint32_t opc = extract32(c, 0, 16);
     switch (opc & 0x0000d000) {
