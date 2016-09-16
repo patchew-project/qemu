@@ -854,7 +854,7 @@ static void load_linux(PCMachineState *pcms,
         MIN(ARRAY_SIZE(header), kernel_size)) {
         fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
                 kernel_filename, strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* kernel protocol version */
@@ -957,14 +957,14 @@ static void load_linux(PCMachineState *pcms,
     if (initrd_filename) {
         if (protocol < 0x200) {
             fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         initrd_size = get_image_size(initrd_filename);
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                     initrd_filename, strerror(errno));
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         initrd_addr = (initrd_max-initrd_size) & ~4095;
@@ -988,7 +988,7 @@ static void load_linux(PCMachineState *pcms,
     setup_size = (setup_size+1)*512;
     if (setup_size > kernel_size) {
         fprintf(stderr, "qemu: invalid kernel header\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     kernel_size -= setup_size;
 
@@ -997,11 +997,11 @@ static void load_linux(PCMachineState *pcms,
     fseek(f, 0, SEEK_SET);
     if (fread(setup, 1, setup_size, f) != setup_size) {
         fprintf(stderr, "fread() failed\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (fread(kernel, 1, kernel_size, f) != kernel_size) {
         fprintf(stderr, "fread() failed\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     fclose(f);
 
@@ -1009,14 +1009,14 @@ static void load_linux(PCMachineState *pcms,
     if (dtb_filename) {
         if (protocol < 0x209) {
             fprintf(stderr, "qemu: Linux kernel too old to load a dtb\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         dtb_size = get_image_size(dtb_filename);
         if (dtb_size <= 0) {
             fprintf(stderr, "qemu: error reading dtb %s: %s\n",
                     dtb_filename, strerror(errno));
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         setup_data_offset = QEMU_ALIGN_UP(kernel_size, 16);
@@ -1171,13 +1171,13 @@ void pc_cpus_init(PCMachineState *pcms)
     model_pieces = g_strsplit(machine->cpu_model, ",", 2);
     if (!model_pieces[0]) {
         error_report("Invalid/empty CPU model name");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     oc = cpu_class_by_name(TYPE_X86_CPU, model_pieces[0]);
     if (oc == NULL) {
         error_report("Unable to find CPU definition: %s", model_pieces[0]);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     typename = object_class_get_name(oc);
     cc = CPU_CLASS(oc);
@@ -1195,7 +1195,7 @@ void pc_cpus_init(PCMachineState *pcms)
     if (pcms->apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
         error_report("max_cpus is too large. APIC ID of last CPU is %u",
                      pcms->apic_id_limit - 1);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     pcms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
@@ -2096,7 +2096,7 @@ bool pc_machine_is_smm_enabled(PCMachineState *pcms)
 
     if (pcms->smm == ON_OFF_AUTO_ON) {
         error_report("System Management Mode not supported by this hypervisor.");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return false;
 }

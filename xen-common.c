@@ -92,13 +92,13 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
 
     if (xs == NULL) {
         fprintf(stderr, "xenstore connection not initialized\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
     if (!xs_write(xs, XBT_NULL, path, state, strlen(state))) {
         fprintf(stderr, "error recording dm state\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

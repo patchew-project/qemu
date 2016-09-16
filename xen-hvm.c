@@ -1320,7 +1320,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
 err:
     error_report("xen hardware virtual machine initialisation failed");
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 void destroy_hvm_domain(bool reboot)

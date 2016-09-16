@@ -332,7 +332,7 @@ static void smbios_validate_table(void)
     if (smbios_type4_count && smbios_type4_count != expect_t4_count) {
         error_report("Expected %d SMBIOS Type 4 tables, got %d instead",
                      expect_t4_count, smbios_type4_count);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -733,7 +733,7 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
                           SMBIOS_MAX_TYPE+1, 2) < SMBIOS_MAX_TYPE+1) {
             error_report("can't process fields for smbios "
                          "types > 1 on machine versions < 2.1!");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } else {
         g_free(smbios_entries);
@@ -898,7 +898,7 @@ void smbios_entry_add(QemuOpts *opts)
         size = get_image_size(val);
         if (size == -1 || size < sizeof(struct smbios_structure_header)) {
             error_report("Cannot read SMBIOS file %s", val);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         /*
@@ -912,13 +912,13 @@ void smbios_entry_add(QemuOpts *opts)
 
         if (load_image(val, (uint8_t *)header) != size) {
             error_report("Failed to load SMBIOS file %s", val);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (test_bit(header->type, have_fields_bitmap)) {
             error_report("can't load type %d struct, fields already specified!",
                          header->type);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         set_bit(header->type, have_binfile_bitmap);
 
@@ -964,12 +964,12 @@ void smbios_entry_add(QemuOpts *opts)
 
         if (type > SMBIOS_MAX_TYPE) {
             error_report("out of range!");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (test_bit(type, have_binfile_bitmap)) {
             error_report("can't add fields, binary file already loaded!");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         set_bit(type, have_fields_bitmap);
 
@@ -985,7 +985,7 @@ void smbios_entry_add(QemuOpts *opts)
             if (val) {
                 if (sscanf(val, "%hhu.%hhu", &type0.major, &type0.minor) != 2) {
                     error_report("Invalid release");
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
                 type0.have_major_minor = true;
             }
@@ -1003,7 +1003,7 @@ void smbios_entry_add(QemuOpts *opts)
             if (val) {
                 if (qemu_uuid_parse(val, qemu_uuid) != 0) {
                     error_report("Invalid UUID");
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
                 qemu_uuid_set = true;
             }
@@ -1047,10 +1047,10 @@ void smbios_entry_add(QemuOpts *opts)
         default:
             error_report("Don't know how to build fields for SMBIOS type %ld",
                          type);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
     error_report("Must specify type= or file=");
-    exit(1);
+    exit(EXIT_FAILURE);
 }

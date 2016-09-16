@@ -37,7 +37,7 @@ static void xen_init_pv(MachineState *machine)
     /* Initialize backend core & drivers */
     if (xen_be_init() != 0) {
         fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     switch (xen_mode) {
@@ -52,18 +52,18 @@ static void xen_init_pv(MachineState *machine)
         if (xen_domain_build_pv(kernel_filename, initrd_filename,
                                 kernel_cmdline) < 0) {
             fprintf(stderr, "xen pv domain creation failed\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         break;
     }
 #endif
     case XEN_EMULATE:
         fprintf(stderr, "xen emulation not implemented (yet)\n");
-        exit(1);
+        exit(EXIT_FAILURE);
         break;
     default:
         fprintf(stderr, "unhandled xen_mode %d\n", xen_mode);
-        exit(1);
+        exit(EXIT_FAILURE);
         break;
     }
 

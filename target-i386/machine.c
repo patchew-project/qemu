@@ -142,7 +142,7 @@ static const VMStateDescription vmstate_mtrr_var = {
 static void put_fpreg_error(QEMUFile *f, void *opaque, size_t size)
 {
     fprintf(stderr, "call put_fpreg() with invalid arguments\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 /* XXX: add that in a FPU generic layer */

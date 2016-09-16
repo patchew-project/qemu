@@ -2473,7 +2473,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
         !kvm_irqchip_is_split()) {
         error_report("Intel Interrupt Remapping cannot work with "
                      "kernel-irqchip=on, please use 'split|off'.");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

@@ -150,7 +150,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
             error_report("%s", fatal_errmsg);
             loc_pop(&loc);
             g_free(fatal_errmsg);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         phys_addr -= size;
@@ -204,7 +204,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     if (ret != 0) {
     bios_error:
         fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", bios_name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     g_free(filename);
 
@@ -246,7 +246,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         /* Older KVM cannot execute from device memory. So, flash memory
          * cannot be used unless the readonly memory kvm capability is present. */
         fprintf(stderr, "qemu: pflash with kvm requires KVM readonly memory support\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     pc_system_flash_init(rom_memory);

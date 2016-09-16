@@ -193,7 +193,7 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
         } else {
             fprintf(stderr, "KVM_GET_SUPPORTED_CPUID failed: %s\n",
                     strerror(-r));
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
     return cpuid;
@@ -426,7 +426,7 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 static void hardware_memory_error(void)
 {
     fprintf(stderr, "Hardware memory error!\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
@@ -3228,7 +3228,7 @@ void kvm_arch_init_irq_routing(KVMState *s)
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
             if (kvm_irqchip_add_msi_route(s, 0, NULL) < 0) {
                 error_report("Could not enable split IRQ mode.");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -3242,7 +3242,7 @@ int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
         if (ret) {
             error_report("Could not enable split irqchip mode: %s",
                          strerror(-ret));
-            exit(1);
+            exit(EXIT_FAILURE);
         } else {
             DPRINTF("Enabled KVM_CAP_SPLIT_IRQCHIP\n");
             kvm_split_irqchip = true;
