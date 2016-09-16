@@ -16,6 +16,7 @@
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
 #include "coth.h"
+#include "fsdev/qemu-fsdev-throttle.h"
 
 int v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t st_mode,
                    V9fsStatDotl *v9stat)
@@ -242,6 +243,7 @@ int v9fs_co_pwritev(V9fsPDU *pdu, V9fsFidState *fidp,
     int err;
     V9fsState *s = pdu->s;
 
+    fsdev_throttle_request(s->ctx.fst, true, iov->iov_len);
     if (v9fs_request_cancelled(pdu)) {
         return -EINTR;
     }
@@ -261,6 +263,7 @@ int v9fs_co_preadv(V9fsPDU *pdu, V9fsFidState *fidp,
     int err;
     V9fsState *s = pdu->s;
 
+    fsdev_throttle_request(s->ctx.fst, false, iov->iov_len);
     if (v9fs_request_cancelled(pdu)) {
         return -EINTR;
     }
