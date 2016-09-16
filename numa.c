@@ -298,7 +298,7 @@ void parse_numa_opts(MachineClass *mc)
     int i;
 
     if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, NULL, NULL)) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     assert(max_numa_nodeid <= MAX_NODES);
@@ -308,7 +308,7 @@ void parse_numa_opts(MachineClass *mc)
         /* Report large node IDs first, to make mistakes easier to spot */
         if (!numa_info[i].present) {
             error_report("numa: Node ID missing: %d", i);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -352,7 +352,7 @@ void parse_numa_opts(MachineClass *mc)
             error_report("total memory for NUMA nodes (0x%" PRIx64 ")"
                          " should equal RAM size (0x" RAM_ADDR_FMT ")",
                          numa_total, ram_size);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         for (i = 0; i < nb_numa_nodes; i++) {
@@ -416,7 +416,7 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
         if (err) {
             error_report_err(err);
             if (mem_prealloc) {
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             /* Legacy behavior: if allocation failed, fall back to
@@ -426,7 +426,7 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
         }
 #else
         fprintf(stderr, "-mem-path not supported on this host\n");
-        exit(1);
+        exit(EXIT_FAILURE);
 #endif
     } else {
         memory_region_init_ram(mr, owner, name, ram_size, &error_fatal);
@@ -461,7 +461,7 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
             error_report("memory backend %s is used multiple times. Each "
                          "-numa option must use a different memdev value.",
                          path);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         host_memory_backend_set_mapped(backend, true);
