@@ -22,6 +22,8 @@ typedef struct DisasContext {
     int user;
 #endif
     ARMMMUIdx mmu_idx; /* MMU index to use for normal loads/stores */
+    bool tbi0;         /* TBI0 for EL0/1 or TBI for EL2/3 */
+    bool tbi1;         /* TBI1 for EL0/1  */
     bool ns;        /* Use non-secure CPREG bank on access */
     int fp_excp_el; /* FP exception EL or 0 if enabled */
     /* Flag indicating that exceptions from secure mode are routed to EL3. */
@@ -127,6 +129,7 @@ static inline int default_exception_el(DisasContext *s)
 void a64_translate_init(void);
 void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb);
 void gen_a64_set_pc_im(uint64_t val);
+void gen_a64_set_pc_reg(DisasContext *s, unsigned int rn);
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                             fprintf_function cpu_fprintf, int flags);
 #else
