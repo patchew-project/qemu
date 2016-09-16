@@ -213,7 +213,7 @@ static void mcf5208evb_init(MachineState *machine)
     cpu = cpu_m68k_init(cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find m68k CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -241,7 +241,7 @@ static void mcf5208evb_init(MachineState *machine)
 
     if (nb_nics > 1) {
         fprintf(stderr, "Too many NICs\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (nd_table[0].used)
         mcf_fec_init(address_space_mem, &nd_table[0],
@@ -275,7 +275,7 @@ static void mcf5208evb_init(MachineState *machine)
             return;
         }
         fprintf(stderr, "Kernel image must be specified\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
@@ -292,7 +292,7 @@ static void mcf5208evb_init(MachineState *machine)
     }
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     env->pc = entry;

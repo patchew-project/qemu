@@ -45,7 +45,7 @@ static void an5206_init(MachineState *machine)
     cpu = cpu_m68k_init(cpu_model);
     if (!cpu) {
         error_report("Unable to find m68k CPU definition");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -72,7 +72,7 @@ static void an5206_init(MachineState *machine)
             return;
         }
         fprintf(stderr, "Kernel image must be specified\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
@@ -89,7 +89,7 @@ static void an5206_init(MachineState *machine)
     }
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     env->pc = entry;

@@ -37,7 +37,7 @@ static void dummy_m68k_init(MachineState *machine)
     cpu = cpu_m68k_init(cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find m68k CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -67,7 +67,7 @@ static void dummy_m68k_init(MachineState *machine)
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } else {
         entry = 0;
