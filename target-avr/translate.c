@@ -90,6 +90,8 @@ static void decode_opc(AVRCPU *cpu, DisasContext *ctx, InstInfo *inst)
     inst->length = 16;
     inst->translate = NULL;
 
+    avr_decode(inst->cpc, &inst->length, inst->opcode, &inst->translate);
+
     if (inst->length == 16) {
         inst->npc = inst->cpc + 1;
         /* get opcode as 16bit value */
