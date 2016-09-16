@@ -52,7 +52,7 @@
 #define PFLASH_BUG(fmt, ...) \
 do { \
     fprintf(stderr, "PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
-    exit(1); \
+    exit(EXIT_FAILURE); \
 } while(0)
 
 /* #define PFLASH_DEBUG */

@@ -2418,7 +2418,7 @@ static void dump_map_entry(OutputFormat output_format, MapEntry *e,
     case OFORMAT_HUMAN:
         if (e->data && !e->has_offset) {
             error_report("File contains external, encrypted or compressed clusters.");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (e->data && !e->zero) {
             printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
@@ -3870,7 +3870,7 @@ int main(int argc, char **argv)
     optind = 0;
 
     if (!trace_init_backends()) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     trace_init_file(trace_file);
     qemu_set_log(LOG_TRACE);
