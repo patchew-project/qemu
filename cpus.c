@@ -159,7 +159,7 @@ int64_t cpu_get_icount_raw(void)
     if (cpu) {
         if (!cpu->can_do_io) {
             fprintf(stderr, "Bad icount read\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         icount -= (cpu->icount_decr.u16.low + cpu->icount_extra);
     }
@@ -829,7 +829,7 @@ static void qemu_kvm_eat_signals(CPUState *cpu)
         r = sigtimedwait(&waitset, &siginfo, &ts);
         if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
             perror("sigtimedwait");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         switch (r) {
@@ -845,7 +845,7 @@ static void qemu_kvm_eat_signals(CPUState *cpu)
         r = sigpending(&chkset);
         if (r == -1) {
             perror("sigpending");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
 }
@@ -882,7 +882,7 @@ static void qemu_kvm_init_cpu_signals(CPUState *cpu)
     r = kvm_set_signal_mask(cpu, &set);
     if (r) {
         fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -1070,7 +1070,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     r = kvm_init_vcpu(cpu);
     if (r < 0) {
         fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     qemu_kvm_init_cpu_signals(cpu);
@@ -1100,7 +1100,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 {
 #ifdef _WIN32
     fprintf(stderr, "qtest is not supported under Windows\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 #else
     CPUState *cpu = arg;
     sigset_t waitset;
@@ -1130,7 +1130,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
         } while (r == -1 && (errno == EAGAIN || errno == EINTR));
         if (r == -1) {
             perror("sigwait");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         qemu_mutex_lock_iothread();
         current_cpu = cpu;
@@ -1213,7 +1213,7 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
     err = pthread_kill(cpu->thread->thread, SIG_IPI);
     if (err) {
         fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 #else /* _WIN32 */
     abort();

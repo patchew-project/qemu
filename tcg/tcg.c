@@ -1269,7 +1269,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
                         if (target_parse_constraint(&def->args_ct[i], &ct_str) < 0) {
                             fprintf(stderr, "Invalid constraint '%s' for arg %d of operation '%s'\n",
                                     ct_str, i, def->name);
-                            exit(1);
+                            exit(EXIT_FAILURE);
                         }
                     }
                 }

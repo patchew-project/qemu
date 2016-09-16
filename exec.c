@@ -1801,7 +1801,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                     fprintf(stderr, "Could not remap addr: "
                             RAM_ADDR_FMT "@" RAM_ADDR_FMT "\n",
                             length, addr);
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
                 memory_try_enable_merging(vaddr, length);
                 qemu_ram_setup_dump(vaddr, length);

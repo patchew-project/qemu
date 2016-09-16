@@ -491,7 +491,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
             cc->do_unassigned_access(cpu, addr, false, true, 0, 4);
         } else {
             report_bad_exec(cpu, addr);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
     p = (void *)((uintptr_t)addr + env1->tlb_table[mmu_idx][page_index].addend);

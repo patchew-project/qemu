@@ -722,7 +722,7 @@ static inline void code_gen_alloc(size_t tb_size)
     tcg_ctx.code_gen_buffer = alloc_code_gen_buffer();
     if (tcg_ctx.code_gen_buffer == NULL) {
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Estimate a good size for the number of TBs we can support.  We
