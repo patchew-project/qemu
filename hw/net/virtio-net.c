@@ -893,7 +893,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         if (iov_size(elem->in_sg, elem->in_num) < sizeof(status) ||
             iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
             error_report("virtio-net ctrl missing headers");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         iov_cnt = elem->out_num;
@@ -1131,12 +1131,12 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
                          i, n->mergeable_rx_bufs, offset, size,
                          n->guest_hdr_len, n->host_hdr_len,
                          vdev->guest_features);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (elem->in_num < 1) {
             error_report("virtio-net receive queue contains no in buffers");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         sg = elem->in_sg;
@@ -1239,14 +1239,14 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         out_sg = elem->out_sg;
         if (out_num < 1) {
             error_report("virtio-net header not in first element");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (n->has_vnet_hdr) {
             if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
                 n->guest_hdr_len) {
                 error_report("virtio-net header incorrect");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             if (n->needs_vnet_hdr_swap) {
                 virtio_net_hdr_swap(vdev, (void *) &mhdr);
