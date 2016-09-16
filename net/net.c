@@ -840,9 +840,9 @@ void qemu_check_nic_model(NICInfo *nd, const char *model)
     models[1] = NULL;
 
     if (qemu_show_nic_models(nd->model, models))
-        exit(0);
+        exit(EXIT_SUCCESS);
     if (qemu_find_nic_model(nd, models, model) < 0)
-        exit(1);
+        exit(EXIT_FAILURE);
 }
 
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,

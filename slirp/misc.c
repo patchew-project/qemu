@@ -172,7 +172,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
         fprintf(stderr, "Error: execvp of %s failed: %s\n",
                 argv[0], strerror(errno));
 		close(0); close(1); close(2); /* XXX */
-		exit(1);
+                exit(EXIT_FAILURE);
 
 	 default:
 		qemu_add_child_watch(pid);
