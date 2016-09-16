@@ -658,7 +658,7 @@ void cpu_loop(CPUSPARCState *env)
 #endif
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit (1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -708,7 +708,7 @@ static void usage(void)
            TARGET_NAME,
            interp_prefix,
            x86_stack_size);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 THREAD CPUState *thread_cpu;
@@ -752,7 +752,7 @@ int main(int argc, char **argv)
 
     if ((envlist = envlist_create()) == NULL) {
         (void) fprintf(stderr, "Unable to allocate envlist\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* add current environment into the list */
@@ -793,7 +793,7 @@ int main(int argc, char **argv)
             envlist_free(envlist);
             if ((envlist = envlist_create()) == NULL) {
                 (void) fprintf(stderr, "Unable to allocate envlist\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else if (!strcmp(r, "U")) {
             r = argv[optind++];
@@ -815,7 +815,7 @@ int main(int argc, char **argv)
             if (qemu_host_page_size == 0 ||
                 (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
                 fprintf(stderr, "page size must be a power of two\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else if (!strcmp(r, "g")) {
             gdbstub_port = atoi(argv[optind++]);
@@ -828,7 +828,7 @@ int main(int argc, char **argv)
 #if defined(cpu_list)
                     cpu_list(stdout, &fprintf);
 #endif
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else if (!strcmp(r, "B")) {
            guest_base = strtol(argv[optind++], NULL, 0);
@@ -867,7 +867,7 @@ int main(int argc, char **argv)
         mask = qemu_str_to_log_mask(log_mask);
         if (!mask) {
             qemu_print_log_usage(stdout);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         qemu_set_log(mask);
     }
@@ -878,7 +878,7 @@ int main(int argc, char **argv)
     filename = argv[optind];
 
     if (!trace_init_backends()) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     trace_init_file(trace_file);
 
@@ -914,7 +914,7 @@ int main(int argc, char **argv)
     cpu = cpu_init(cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = cpu->env_ptr;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
@@ -1010,7 +1010,7 @@ int main(int argc, char **argv)
     /* enable 64 bit mode if possible */
     if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
         fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env->cr[4] |= CR4_PAE_MASK;
     env->efer |= MSR_EFER_LMA | MSR_EFER_LME;
