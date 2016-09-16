@@ -1,0 +1,213 @@
+cpu:
+    name: avr
+    instructions:
+        - ADC:
+            opcode: 0001 11 hRr[1] Rd[5] lRr[4]
+        - ADD:
+            opcode: 0000 11 hRr[1] Rd[5] lRr[4]
+        - ADIW:
+            opcode: 1001 0110 hImm[2] Rd[2] lImm[4]
+        - AND:
+            opcode: 0010 00 hRr[1] Rd[5] lRr[4]
+        - ANDI:
+            opcode: 0111 hImm[4] Rd[4] lImm[4]
+        - ASR:
+            opcode: 1001 010 Rd[5] 0101
+        - BCLR:
+            opcode: 1001 0100 1 Bit[3] 1000
+        - BLD:
+            opcode: 1111 100 Rd[5] 0 Bit[3]
+        - BRBC:
+            opcode: 1111 01 Imm[7] Bit[3]
+        - BRBS:
+            opcode: 1111 00 Imm[7] Bit[3]
+        - BREAK:
+            opcode: 1001 0101 1001 1000
+        - BSET:
+            opcode: 1001 0100 0 Bit[3] 1000
+        - BST:
+            opcode: 1111 101 Rd[5] 0 Bit[3]
+        - CALL:
+            opcode: 1001 010 hImm[5] 111 lImm[17]
+        - CBI:
+            opcode: 1001 1000 Imm[5] Bit[3]
+        - COM:
+            opcode: 1001 010 Rd[5] 0000
+        - CP:
+            opcode: 0001 01 hRr[1] Rd[5] lRr[4]
+        - CPC:
+            opcode: 0000 01 hRr[1] Rd[5] lRr[4]
+        - CPI:
+            opcode: 0011 hImm[4] Rd[4] lImm[4]
+        - CPSE:
+            opcode: 0001 00 hRr[1] Rd[5] lRr[4]
+        - DEC:
+            opcode: 1001 010 Rd[5] 1010
+        - DES:
+            opcode: 1001 0100 Imm[4] 1011
+        - EICALL:
+            opcode: 1001 0101 0001 1001
+        - EIJMP:
+            opcode: 1001 0100 0001 1001
+        - ELPM1:
+            opcode: 1001 0101 1101 1000
+        - ELPM2:
+            opcode: 1001 000 Rd[5] 0110
+        - ELPMX:
+            opcode: 1001 000 Rd[5] 0111
+        - EOR:
+            opcode: 0010 01 hRr[1] Rd[5] lRr[4]
+        - FMUL:
+            opcode: 0000 0011 0 Rd[3] 1 Rr[3]
+        - FMULS:
+            opcode: 0000 0011 1 Rd[3] 0 Rr[3]
+        - FMULSU:
+            opcode: 0000 0011 1 Rd[3] 1 Rr[3]
+        - ICALL:
+            opcode: 1001 0101 0000 1001
+        - IJMP:
+            opcode: 1001 0100 0000 1001
+        - IN:
+            opcode: 1011 0 hImm[2] Rd[5] lImm[4]
+        - INC:
+            opcode: 1001 010 Rd[5] 0011
+        - JMP:
+            opcode: 1001 010 hImm[5] 110 lImm[17]
+        - LAC:
+            opcode: 1001 001 Rr[5] 0110
+        - LAS:
+            opcode: 1001 001 Rr[5] 0101
+        - LAT:
+            opcode: 1001 001 Rr[5] 0111
+        - LDX1:
+            opcode: 1001 000 Rd[5] 1100
+        - LDX2:
+            opcode: 1001 000 Rd[5] 1101
+        - LDX3:
+            opcode: 1001 000 Rd[5] 1110
+#        - LDY1:
+#            opcode: 1000 000 Rd[5] 1000
+        - LDY2:
+            opcode: 1001 000 Rd[5] 1001
+        - LDY3:
+            opcode: 1001 000 Rd[5] 1010
+        - LDDY:
+            opcode: 10 hImm[1] 0 mImm[2] 0 Rd[5] 1 lImm[3]
+#        - LDZ1:
+#            opcode: 1000 000 Rd[5] 0000
+        - LDZ2:
+            opcode: 1001 000 Rd[5] 0001
+        - LDZ3:
+            opcode: 1001 000 Rd[5] 0010
+        - LDDZ:
+            opcode: 10 hImm[1] 0 mImm[2] 0 Rd[5] 0 lImm[3]
+        - LDI:
+            opcode: 1110 hImm[4] Rd[4] lImm[4]
+        - LDS:
+            opcode: 1001 000 Rd[5] 0000 Imm[16]
+#        - LDS16:
+#            opcode: 1010 0 hImm[3] Rd[4] lImm[4]
+        - LPM1:
+            opcode: 1001 0101 1100 1000
+        - LPM2:
+            opcode: 1001 000 Rd[5] 0100
+        - LPMX:
+            opcode: 1001 000 Rd[5] 0101
+        - LSR:
+            opcode: 1001 010 Rd[5] 0110
+        - MOV:
+            opcode: 0010 11 hRr[1] Rd[5] lRr[4]
+        - MOVW:
+            opcode: 0000 0001 Rd[4] Rr[4]
+        - MUL:
+            opcode: 1001 11 hRr[1] Rd[5] lRr[4]
+        - MULS:
+            opcode: 0000 0010 Rd[4] Rr[4]
+        - MULSU:
+            opcode: 0000 0011 0 Rd[3] 0 Rr[3]
+        - NEG:
+            opcode: 1001 010 Rd[5] 0001
+        - NOP:
+            opcode: 0000 0000 0000 0000
+        - OR:
+            opcode: 0010 10 hRr[1] Rd[5] lRr[4]
+        - ORI:
+            opcode: 0110 hImm[4] Rd[4] lImm[4]
+        - OUT:
+            opcode: 1011 1 hImm[2] Rd[5] lImm[4]
+        - POP:
+            opcode: 1001 000 Rd[5] 1111
+        - PUSH:
+            opcode: 1001 001 Rd[5] 1111
+        - RCALL:
+            opcode: 1101 Imm[12]
+        - RET:
+            opcode: 1001 0101 0000 1000
+        - RETI:
+            opcode: 1001 0101 0001 1000
+        - RJMP:
+            opcode: 1100 Imm[12]
+        - ROR:
+            opcode: 1001 010 Rd[5] 0111
+        - SBC:
+            opcode: 0000 10 hRr[1] Rd[5] lRr[4]
+        - SBCI:
+            opcode: 0100 hImm[4] Rd[4] lImm[4]
+        - SBI:
+            opcode: 1001 1010 Imm[5] Bit[3]
+        - SBIC:
+            opcode: 1001 1001 Imm[5] Bit[3]
+        - SBIS:
+            opcode: 1001 1011 Imm[5] Bit[3]
+        - SBIW:
+            opcode: 1001 0111 hImm[2] Rd[2] lImm[4]
+#        - SBR:
+#            opcode: 0110 hImm[4] Rd[4] lImm[4]
+        - SBRC:
+            opcode: 1111 110 Rr[5] 0 Bit[3]
+        - SBRS:
+            opcode: 1111 111 Rr[5] 0 Bit[3]
+        - SLEEP:
+            opcode: 1001 0101 1000 1000
+        - SPM:
+            opcode: 1001 0101 1110 1000
+        - SPMX:
+            opcode: 1001 0101 1111 1000
+        - STX1:
+            opcode: 1001 001 Rr[5] 1100
+        - STX2:
+            opcode: 1001 001 Rr[5] 1101
+        - STX3:
+            opcode: 1001 001 Rr[5] 1110
+#        - STY1:
+#            opcode: 1000 001 Rd[5] 1000
+        - STY2:
+            opcode: 1001 001 Rd[5] 1001
+        - STY3:
+            opcode: 1001 001 Rd[5] 1010
+        - STDY:
+            opcode: 10 hImm[1] 0 mImm[2] 1 Rd[5] 1 lImm[3]
+#        - STZ1:
+#            opcode: 1000 001 Rd[5] 0000
+        - STZ2:
+            opcode: 1001 001 Rd[5] 0001
+        - STZ3:
+            opcode: 1001 001 Rd[5] 0010
+        - STDZ:
+            opcode: 10 hImm[1] 0 mImm[2] 1 Rd[5] 0 lImm[3]
+        - STS:
+            opcode: 1001 001 Rd[5] 0000 Imm[16]
+#        - STS16:
+#            opcode: 1010 1 hImm[3] Rd[4] lImm[4]
+        - SUB:
+            opcode: 0001 10 hRr[1] Rd[5] lRr[4]
+        - SUBI:
+            opcode: 0101 hImm[4] Rd[4] lImm[4]
+        - SWAP:
+            opcode: 1001 010 Rd[5] 0010
+#        - TST:
+#            opcode: 0010 00 Rd[10]
+        - WDR:
+            opcode: 1001 0101 1010 1000
+        - XCH:
+            opcode: 1001 001 Rd[5] 0100
