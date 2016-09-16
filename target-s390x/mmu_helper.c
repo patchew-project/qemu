@@ -414,7 +414,7 @@ static bool lowprot_enabled(const CPUS390XState *env)
     default:
         /* We don't support access register mode */
         error_report("unsupported addressing mode");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

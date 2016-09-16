@@ -385,7 +385,7 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
     default:
         error_report("Requested CPU state is not a valid S390 CPU state: %u",
                      cpu_state);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (kvm_enabled() && cpu->env.cpu_state != cpu_state) {
         kvm_s390_set_cpu_state(cpu, cpu_state);
