@@ -115,6 +115,7 @@ AVR
 M: Michael Rolnik <mrolnik@gmail.com>
 S: Maintained
 F: target-avr/
+F: hw/avr/
 
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
