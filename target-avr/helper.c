@@ -28,6 +28,7 @@
 #include "exec/cpu_ldst.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
+#include "exec/ioport.h"
 
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
@@ -79,11 +80,11 @@ void avr_cpu_do_interrupt(CPUState *cs)
 
     if (avr_feature(env, AVR_FEATURE_3_BYTE_PC)) {
         cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >>  8);
+        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
         cpu_stb_data(env, env->sp--, (ret & 0xff0000) >> 16);
     } else if (avr_feature(env, AVR_FEATURE_2_BYTE_PC)) {
         cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >>  8);
+        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
     } else {
         cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
     }
@@ -126,12 +127,48 @@ void tlb_fill(CPUState *cs, target_ulong vaddr, MMUAccessType access_type,
     if (mmu_idx == MMU_CODE_IDX) {
         paddr = PHYS_BASE_CODE + vaddr - VIRT_BASE_CODE;
         prot = PAGE_READ | PAGE_EXEC;
+    } else if (vaddr - VIRT_BASE_REGS < AVR_REGS) {
+        /*
+         * this is a write into CPU registers, exit and rebuilt this TB
+         * to use full write
+         */
+        AVRCPU *cpu = AVR_CPU(cs);
+        CPUAVRState *env = &cpu->env;
+        env->fullacc = 1;
+        cpu_loop_exit_restore(cs, retaddr);
     } else {
+        /*
+         * this is a write into memory. nothing special
+         */
         paddr = PHYS_BASE_DATA + vaddr - VIRT_BASE_DATA;
         prot = PAGE_READ | PAGE_WRITE;
     }
 
     tlb_set_page_with_attrs(cs, vaddr, paddr, attrs, prot, mmu_idx, page_size);
+}
+
+void helper_sleep(CPUAVRState *env)
+{
+    CPUState *cs = CPU(avr_env_get_cpu(env));
+
+    cs->exception_index = EXCP_HLT;
+    cpu_loop_exit(cs);
+}
+
+void helper_unsupported(CPUAVRState *env)
+{
+    CPUState *cs = CPU(avr_env_get_cpu(env));
+
+    /*
+     *  I count not find what happens on the real platform, so
+     *  it's EXCP_DEBUG for meanwhile
+     */
+    cs->exception_index = EXCP_DEBUG;
+    if (qemu_loglevel_mask(LOG_UNIMP)) {
+        qemu_log("UNSUPPORTED\n");
+        cpu_dump_state(cs, qemu_logfile, fprintf, 0);
+    }
+    cpu_loop_exit(cs);
 }
 
 void helper_debug(CPUAVRState *env)
@@ -140,4 +177,179 @@ void helper_debug(CPUAVRState *env)
 
     cs->exception_index = EXCP_DEBUG;
     cpu_loop_exit(cs);
+}
+
+void helper_wdr(CPUAVRState *env)
+{
+    CPUState *cs = CPU(avr_env_get_cpu(env));
+
+    /* WD is not implemented yet, placeholder */
+    cs->exception_index = EXCP_DEBUG;
+    cpu_loop_exit(cs);
+}
+
+/*
+ * This function implements IN instruction
+ *
+ * It does the following
+ * a.  if an IO register belongs to CPU, its value is read and returned
+ * b.  otherwise io address is translated to mem address and physical memory
+ *     is read.
+ * c.  it caches the value for sake of SBI, SBIC, SBIS & CBI implementation
+ *
+ */
+target_ulong helper_inb(CPUAVRState *env, uint32_t port)
+{
+    target_ulong data = 0;
+
+    switch (port) {
+    case 0x38: /* RAMPD */
+        data = 0xff & (env->rampD >> 16);
+        break;
+    case 0x39: /* RAMPX */
+        data = 0xff & (env->rampX >> 16);
+        break;
+    case 0x3a: /* RAMPY */
+        data = 0xff & (env->rampY >> 16);
+        break;
+    case 0x3b: /* RAMPZ */
+        data = 0xff & (env->rampZ >> 16);
+        break;
+    case 0x3c: /* EIND */
+        data = 0xff & (env->eind >> 16);
+        break;
+    case 0x3d: /* SPL */
+        data = env->sp & 0x00ff;
+        break;
+    case 0x3e: /* SPH */
+        data = env->sp >> 8;
+        break;
+    case 0x3f: /* SREG */
+        data = cpu_get_sreg(env);
+        break;
+    default:
+        /*
+         * CPU does not know how to read this register, pass it to the
+         * device/board
+         */
+        cpu_physical_memory_read(PHYS_BASE_REGS + port + AVR_CPU_IO_REGS_BASE,
+                                 &data, 1);
+    }
+
+    return data;
+}
+
+/*
+ *  This function implements OUT instruction
+ *
+ *  It does the following
+ *  a.  if an IO register belongs to CPU, its value is written into the register
+ *  b.  otherwise io address is translated to mem address and physical memory
+ *      is written.
+ *  c.  it caches the value for sake of SBI, SBIC, SBIS & CBI implementation
+ *
+ */
+void helper_outb(CPUAVRState *env, uint32_t port, uint32_t data)
+{
+    data &= 0x000000ff;
+
+    switch (port) {
+    case 0x04:
+        {
+            CPUState *cpu = CPU(avr_env_get_cpu(env));
+            qemu_irq irq = qdev_get_gpio_in(DEVICE(cpu), 3);
+            qemu_set_irq(irq, 1);
+        }
+        break;
+    case 0x38: /* RAMPD */
+        if (avr_feature(env, AVR_FEATURE_RAMPD)) {
+            env->rampD = (data & 0xff) << 16;
+        }
+        break;
+    case 0x39: /* RAMPX */
+        if (avr_feature(env, AVR_FEATURE_RAMPX)) {
+            env->rampX = (data & 0xff) << 16;
+        }
+        break;
+    case 0x3a: /* RAMPY */
+        if (avr_feature(env, AVR_FEATURE_RAMPY)) {
+            env->rampY = (data & 0xff) << 16;
+        }
+        break;
+    case 0x3b: /* RAMPZ */
+        if (avr_feature(env, AVR_FEATURE_RAMPZ)) {
+            env->rampZ = (data & 0xff) << 16;
+        }
+        break;
+    case 0x3c: /* EIDN */
+        env->eind = (data & 0xff) << 16;
+        break;
+    case 0x3d: /* SPL */
+        env->sp = (env->sp & 0xff00) | (data);
+        break;
+    case 0x3e: /* SPH */
+        if (avr_feature(env, AVR_FEATURE_2_BYTE_SP)) {
+            env->sp = (env->sp & 0x00ff) | (data << 8);
+        }
+        break;
+    case 0x3f: /* SREG */
+        cpu_set_sreg(env, data);
+        break;
+    default:
+        /*
+         * CPU does not know how to write this register, pass it to the
+         * device/board
+         */
+        cpu_physical_memory_write(PHYS_BASE_REGS + port + AVR_CPU_IO_REGS_BASE,
+                                  &data, 1);
+    }
+}
+
+/*
+ *  this function implements LD instruction when there is a posibility to read
+ *  from a CPU register
+ */
+target_ulong helper_fullrd(CPUAVRState *env, uint32_t addr)
+{
+    uint8_t data;
+
+    env->fullacc = false;
+    switch (addr) {
+    case AVR_CPU_REGS_BASE ... AVR_CPU_REGS_LAST:
+        /* CPU registers */
+        data = env->r[addr - AVR_CPU_REGS_BASE];
+        break;
+    case AVR_CPU_IO_REGS_BASE ... AVR_CPU_IO_REGS_LAST:
+        /* CPU IO registers */
+        data = helper_inb(env, addr);
+        break;
+    default:
+        /* memory */
+        cpu_physical_memory_read(PHYS_BASE_DATA + addr - VIRT_BASE_DATA,
+                                 &data, 1);
+    }
+    return data;
+}
+
+/*
+ *  this function implements LD instruction when there is a posibility to write
+ *  into a CPU register
+ */
+void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
+{
+    env->fullacc = false;
+    switch (addr) {
+    case AVR_CPU_REGS_BASE ... AVR_CPU_REGS_LAST:
+        /* CPU registers */
+        env->r[addr - AVR_CPU_REGS_BASE] = data;
+        break;
+    case AVR_CPU_IO_REGS_BASE ... AVR_CPU_IO_REGS_LAST:
+        /* CPU IO registers */
+        helper_outb(env, data, addr);
+        break;
+    default:
+        /* memory */
+        cpu_physical_memory_write(PHYS_BASE_DATA + addr - VIRT_BASE_DATA,
+                                  &data, 1);
+    }
 }
