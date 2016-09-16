@@ -671,7 +671,7 @@ static void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
 
         if (!g_file_get_contents(image_name, &contents, &length, NULL)) {
             fprintf(stderr, "failed to load \"%s\"\n", image_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         size = length;
         data = (uint8_t *)contents;
@@ -745,7 +745,7 @@ static uint64_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
                    1, data_swab);
     if (ret <= 0) {
         /* The header loaded but the image didn't */
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     return ret;
@@ -782,7 +782,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
              * DTB to the base of RAM for the bootloader to pick up.
              */
             if (load_dtb(info->loader_start, info, 0) < 0) {
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -874,7 +874,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
                 elf_low_addr = 0;
             }
             if (load_dtb(info->loader_start, info, elf_low_addr) < 0) {
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -899,7 +899,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 info->kernel_filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     info->entry = entry;
     if (is_linux) {
@@ -919,7 +919,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initrd '%s'\n",
                         info->initrd_filename);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         } else {
             initrd_size = 0;
@@ -956,7 +956,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
             /* Place the DTB after the initrd in memory with alignment. */
             dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size, align);
             if (load_dtb(dtb_start, info, 0) < 0) {
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             fixupcontext[FIXUP_ARGPTR] = dtb_start;
         } else {
@@ -965,7 +965,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
                 fprintf(stderr, "qemu: RAM size must be less than 4GB to boot"
                         " Linux kernel using ATAGS (try passing a device tree"
                         " using -dtb)\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         fixupcontext[FIXUP_ENTRYPOINT] = entry;

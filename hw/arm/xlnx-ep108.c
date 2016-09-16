@@ -43,7 +43,7 @@ static void xlnx_ep108_init(MachineState *machine)
         error_report("ERROR: RAM size 0x%" PRIx64 " above max supported of "
                      "0x%llx", ram_size,
                      XLNX_ZYNQMP_MAX_RAM_SIZE);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (ram_size < 0x08000000) {
@@ -76,7 +76,7 @@ static void xlnx_ep108_init(MachineState *machine)
         g_free(bus_name);
         if (!bus) {
             error_report("No SD bus found for SD card %d", i);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         carddev = qdev_create(bus, TYPE_SD_CARD);
         qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);

@@ -2067,7 +2067,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
 
     if (revision && strncmp(revision, "pxa27", 5)) {
         fprintf(stderr, "Machine requires a PXA27x processor.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (!revision)
         revision = "pxa270";
@@ -2075,7 +2075,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->cpu = cpu_arm_init(revision);
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     s->reset = qemu_allocate_irq(pxa2xx_reset, s, 0);
 
@@ -2108,7 +2108,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     s->mmc = pxa2xx_mmci_init(address_space, 0x41100000,
                     blk_by_legacy_dinfo(dinfo),
@@ -2207,7 +2207,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->cpu = cpu_arm_init("pxa255");
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     s->reset = qemu_allocate_irq(pxa2xx_reset, s, 0);
 
@@ -2239,7 +2239,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     s->mmc = pxa2xx_mmci_init(address_space, 0x41100000,
                     blk_by_legacy_dinfo(dinfo),

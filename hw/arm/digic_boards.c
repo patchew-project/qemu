@@ -69,7 +69,7 @@ static void digic4_board_init(DigicBoard *board)
     object_property_set_bool(OBJECT(s->digic), true, "realized", &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't realize DIGIC SoC: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     digic4_board_setup_ram(s, board->ram_size);
@@ -107,13 +107,13 @@ static void digic_load_rom(DigicBoardState *s, hwaddr addr,
 
         if (!fn) {
             error_report("Couldn't find rom image '%s'.", filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         rom_size = load_image_targphys(fn, addr, max_size);
         if (rom_size < 0 || rom_size > max_size) {
             error_report("Couldn't load rom image '%s'.", filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         g_free(fn);
     }

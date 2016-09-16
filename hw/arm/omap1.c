@@ -3864,7 +3864,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     s->cpu = cpu_arm_init(core);
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     s->sdram_size = sdram_size;
     s->sram_size = OMAP15XX_SRAM_SIZE;
@@ -3996,7 +3996,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
         fprintf(stderr, "qemu: missing SecureDigital device\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     s->mmc = omap_mmc_init(0xfffb7800, system_memory,
                            blk_by_legacy_dinfo(dinfo),

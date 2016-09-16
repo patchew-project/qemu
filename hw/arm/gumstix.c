@@ -63,7 +63,7 @@ static void connex_init(MachineState *machine)
     if (!dinfo && !qtest_enabled()) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -76,7 +76,7 @@ static void connex_init(MachineState *machine)
                                sector_len, connex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Interrupt line of NIC is connected to GPIO line 36 */
@@ -101,7 +101,7 @@ static void verdex_init(MachineState *machine)
     if (!dinfo && !qtest_enabled()) {
         fprintf(stderr, "A flash image must be given with the "
                 "'pflash' parameter\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -114,7 +114,7 @@ static void verdex_init(MachineState *machine)
                                sector_len, verdex_rom / sector_len,
                                2, 0, 0, 0, 0, be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Interrupt line of NIC is connected to GPIO line 99 */

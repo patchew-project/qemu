@@ -1051,7 +1051,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
         break;
     default:
         fprintf(stderr, "%s: Bad color depth\n", __FUNCTION__);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     vmstate_register(NULL, 0, &vmstate_pxa2xx_lcdc, s);

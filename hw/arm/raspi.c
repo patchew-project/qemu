@@ -99,7 +99,7 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
                                 ram_size - FIRMWARE_ADDR);
         if (r < 0) {
             error_report("Failed to load firmware from %s", machine->firmware);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         binfo.entry = FIRMWARE_ADDR;
@@ -147,7 +147,7 @@ static void raspi2_init(MachineState *machine)
     bus = qdev_get_child_bus(DEVICE(&s->soc), "sd-bus");
     if (bus == NULL) {
         error_report("No SD bus found in SOC object");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     carddev = qdev_create(bus, TYPE_SD_CARD);
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);

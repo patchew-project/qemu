@@ -1592,14 +1592,14 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
 
     if (strncmp(rev, "sa1110", 6)) {
         error_report("Machine requires a SA1110 processor.");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     s->cpu = cpu_arm_init(rev);
 
     if (!s->cpu) {
         error_report("Unable to find CPU definition");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(&s->sdram, NULL, "strongarm.sdram",

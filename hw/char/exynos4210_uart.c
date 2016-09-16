@@ -601,7 +601,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
         if (channel >= MAX_SERIAL_PORTS) {
             error_report("Only %d serial ports are supported by QEMU",
                          MAX_SERIAL_PORTS);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         chr = serial_hds[channel];
         if (!chr) {
@@ -609,7 +609,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
             chr = qemu_chr_new(label, "null", NULL);
             if (!(chr)) {
                 error_report("Can't assign serial port to UART%d", channel);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
     }

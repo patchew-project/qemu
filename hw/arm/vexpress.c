@@ -210,7 +210,7 @@ static void init_cpus(const char *cpu_model, const char *privdev,
 
     if (!cpu_oc) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Create the actual CPUs */
@@ -275,7 +275,7 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
     if (ram_size > 0x40000000) {
         /* 1GB is the maximum the address space permits */
         fprintf(stderr, "vexpress-a9: cannot model more than 1GB RAM\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(ram, NULL, "vexpress.highmem",
@@ -368,7 +368,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
         uint64_t rsz = ram_size;
         if (rsz > (30ULL * 1024 * 1024 * 1024)) {
             fprintf(stderr, "vexpress-a15: cannot model more than 30GB RAM\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -571,19 +571,19 @@ static void vexpress_common_init(MachineState *machine)
             error_report("The contents of the first flash device may be "
                          "specified with -bios or with -drive if=pflash... "
                          "but you cannot use both options at once");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (!fn) {
             error_report("Could not find ROM image '%s'", bios_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         image_size = load_image_targphys(fn, map[VE_NORFLASH0],
                                          VEXPRESS_FLASH_SIZE);
         g_free(fn);
         if (image_size < 0) {
             error_report("Could not load ROM image '%s'", bios_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -653,7 +653,7 @@ static void vexpress_common_init(MachineState *machine)
                                        dinfo);
     if (!pflash0) {
         fprintf(stderr, "vexpress: error registering flash 0.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (map[VE_NORFLASHALIAS] != -1) {
@@ -668,7 +668,7 @@ static void vexpress_common_init(MachineState *machine)
     if (!ve_pflash_cfi01_register(map[VE_NORFLASH1], "vexpress.flash1",
                                   dinfo)) {
         fprintf(stderr, "vexpress: error registering flash 1.\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     sram_size = 0x2000000;

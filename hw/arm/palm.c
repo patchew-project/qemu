@@ -261,7 +261,7 @@ static void palmte_init(MachineState *machine)
 
     if (!rom_loaded && !kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Kernel or ROM image must be specified\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Load the kernel.  */

@@ -52,7 +52,7 @@ static void sabrelite_init(MachineState *machine)
     if (machine->ram_size > FSL_IMX6_MMDC_SIZE) {
         error_report("RAM size " RAM_ADDR_FMT " above max supported (%08x)",
                      machine->ram_size, FSL_IMX6_MMDC_SIZE);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     object_initialize(&s->soc, sizeof(s->soc), TYPE_FSL_IMX6);
@@ -62,7 +62,7 @@ static void sabrelite_init(MachineState *machine)
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
     if (err != NULL) {
         error_report("%s", error_get_pretty(err));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(&s->ram, NULL, "sabrelite.ram",

@@ -284,12 +284,12 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         if (sysboot_filename != NULL) {
             if (load_image_targphys(sysboot_filename, 0xfff88000, 0x8000) < 0) {
                 error_report("Unable to load %s", bios_name);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             g_free(sysboot_filename);
         } else {
             error_report("Unable to find %s", bios_name);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 

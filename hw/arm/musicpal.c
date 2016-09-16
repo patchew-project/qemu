@@ -1594,7 +1594,7 @@ static void musicpal_init(MachineState *machine)
     cpu = cpu_arm_init(cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* For now we use a fixed - the original - RAM size */
@@ -1634,7 +1634,7 @@ static void musicpal_init(MachineState *machine)
         if (flash_size != 8*1024*1024 && flash_size != 16*1024*1024 &&
             flash_size != 32*1024*1024) {
             fprintf(stderr, "Invalid flash image size\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         /*

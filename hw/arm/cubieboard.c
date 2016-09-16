@@ -44,26 +44,26 @@ static void cubieboard_init(MachineState *machine)
     object_property_set_int(OBJECT(&s->a10->emac), 1, "phy-addr", &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't set phy address: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     object_property_set_int(OBJECT(&s->a10->timer), 32768, "clk0-freq", &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't set clk0 frequency: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     object_property_set_int(OBJECT(&s->a10->timer), 24000000, "clk1-freq",
                             &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't set clk1 frequency: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     object_property_set_bool(OBJECT(s->a10), true, "realized", &err);
     if (err != NULL) {
         error_reportf_err(err, "Couldn't realize Allwinner A10: ");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(&s->sdram, NULL, "cubieboard.ram",

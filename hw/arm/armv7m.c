@@ -188,7 +188,7 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
     cpu = cpu_arm_init(cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = &cpu->env;
 
@@ -209,7 +209,7 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
 
     if (!kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Guest image must be specified (using -kernel)\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (kernel_filename) {
@@ -221,7 +221,7 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
         }
         if (image_size < 0) {
             error_report("Could not load kernel '%s'", kernel_filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
