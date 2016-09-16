@@ -28,7 +28,8 @@
 #define DPRINTF(fmt, ...) \
 do { printf("lsi_scsi: " fmt , ## __VA_ARGS__); } while (0)
 #define BADF(fmt, ...) \
-do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
+do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); \
+     exit(EXIT_FAILURE); } while (0)
 #else
 #define DPRINTF(fmt, ...) do {} while(0)
 #define BADF(fmt, ...) \
@@ -1205,7 +1206,7 @@ again:
             break;
         default:
             BADF("Unimplemented phase %d\n", s->sstat1 & PHASE_MASK);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         s->dfifo = s->dbc & 0xff;
         s->ctest5 = (s->ctest5 & 0xfc) | ((s->dbc >> 8) & 3);
@@ -1276,7 +1277,7 @@ again:
                 }
                 if (insn & (1 << 9)) {
                     BADF("Target mode not implemented\n");
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
                 if (insn & (1 << 10))
                     s->carry = 1;

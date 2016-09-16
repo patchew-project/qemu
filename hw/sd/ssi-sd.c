@@ -23,7 +23,8 @@
 #define DPRINTF(fmt, ...) \
 do { printf("ssi_sd: " fmt , ## __VA_ARGS__); } while (0)
 #define BADF(fmt, ...) \
-do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
+do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__); \
+     exit(EXIT_FAILURE); } while (0)
 #else
 #define DPRINTF(fmt, ...) do {} while(0)
 #define BADF(fmt, ...) \
