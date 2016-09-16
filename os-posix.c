@@ -121,11 +121,11 @@ void os_set_proc_name(const char *s)
        This simple way is enough for `top'. */
     if (prctl(PR_SET_NAME, name)) {
         perror("unable to change process name");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 #else
     fprintf(stderr, "Change of process name not supported by your OS\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 #endif
 }
 
@@ -141,14 +141,14 @@ void os_parse_cmd_args(int index, const char *optarg)
         error_report("The -smb option is deprecated. "
                      "Please use '-netdev user,smb=...' instead.");
         if (net_slirp_smb(optarg) < 0)
-            exit(1);
+            exit(EXIT_FAILURE);
         break;
 #endif
     case QEMU_OPTION_runas:
         user_pwd = getpwnam(optarg);
         if (!user_pwd) {
             fprintf(stderr, "User \"%s\" doesn't exist\n", optarg);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         break;
     case QEMU_OPTION_chroot:
@@ -170,20 +170,20 @@ static void change_process_uid(void)
     if (user_pwd) {
         if (setgid(user_pwd->pw_gid) < 0) {
             fprintf(stderr, "Failed to setgid(%d)\n", user_pwd->pw_gid);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
             fprintf(stderr, "Failed to initgroups(\"%s\", %d)\n",
                     user_pwd->pw_name, user_pwd->pw_gid);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (setuid(user_pwd->pw_uid) < 0) {
             fprintf(stderr, "Failed to setuid(%d)\n", user_pwd->pw_uid);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (setuid(0) != -1) {
             fprintf(stderr, "Dropping privileges failed\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }
@@ -193,11 +193,11 @@ static void change_root(void)
     if (chroot_dir) {
         if (chroot(chroot_dir) < 0) {
             fprintf(stderr, "chroot failed\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         if (chdir("/")) {
             perror("not able to chdir to /");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -210,7 +210,7 @@ void os_daemonize(void)
         int fds[2];
 
         if (pipe(fds) == -1) {
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         pid = fork();
@@ -229,7 +229,7 @@ void os_daemonize(void)
             exit(len == 1 && status == 0 ? 0 : 1);
 
         } else if (pid < 0) {
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         close(fds[0]);
@@ -240,9 +240,9 @@ void os_daemonize(void)
 
         pid = fork();
         if (pid > 0) {
-            exit(0);
+            exit(EXIT_SUCCESS);
         } else if (pid < 0) {
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         umask(027);
 
@@ -260,11 +260,11 @@ void os_setup_post(void)
     if (daemonize) {
         if (chdir("/")) {
             perror("not able to chdir to /");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         TFR(fd = qemu_open("/dev/null", O_RDWR));
         if (fd == -1) {
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -288,7 +288,7 @@ void os_setup_post(void)
             len = write(daemon_pipe, &status, 1);
         } while (len < 0 && errno == EINTR);
         if (len != 1) {
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }
