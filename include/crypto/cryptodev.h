@@ -56,12 +56,94 @@ typedef struct QCryptoCryptoDevBackendClientState
                      QCryptoCryptoDevBackendClientState;
 typedef struct QCryptoCryptoDevBackend QCryptoCryptoDevBackend;
 
+enum QCryptoCryptoDevBackendAlgType {
+    QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM,
+    QCRYPTO_CRYPTODEV_BACKEND_ALG__MAX,
+};
+
+/**
+ * QCryptoCryptoDevBackendSymSessionInfo:
+ *
+ * @op_code: operation code (refer to virtio_crypto.h)
+ * @cipher_alg: algorithm type of CIPHER
+ * @key_len: byte length of cipher key
+ * @hash_alg: algorithm type of HASH/MAC
+ * @hash_result_len: byte length of HASH operation result
+ * @auth_key_len: byte length of authenticated key
+ * @add_len: byte length of additional authenticated data
+ * @op_type: operation type (refer to virtio_crypto.h)
+ * @direction: encryption or direction for CIPHER
+ * @hash_mode: HASH mode for HASH operation (refer to virtio_crypto.h)
+ * @alg_chain_order: order of algorithm chaining (CIPHER then HASH,
+ *                   or HASH then CIPHER)
+ * @cipher_key: pointer to a key of CIPHER
+ * @auth_key: pointer to an authenticated key of MAC
+ *
+ */
+typedef struct QCryptoCryptoDevBackendSymSessionInfo {
+    /* corresponding with virtio crypto spec */
+    uint32_t op_code;
+    uint32_t cipher_alg;
+    uint32_t key_len;
+    uint32_t hash_alg;
+    uint32_t hash_result_len;
+    uint32_t auth_key_len;
+    uint32_t add_len;
+    uint8_t op_type;
+    uint8_t direction;
+    uint8_t hash_mode;
+    uint8_t alg_chain_order;
+    uint8_t *cipher_key;
+    uint8_t *auth_key;
+} QCryptoCryptoDevBackendSymSessionInfo;
+
+/**
+ * QCryptoCryptoDevBackendSymOpInfo:
+ *
+ * @session_id: session index which was previously
+ *              created by qcrypto_cryptodev_backend_sym_create_session()
+ * @aad_len: byte length of additional authenticated data
+ * @iv_len: byte length of initialization vector
+ * @src_len: byte length of source data
+ * @dst_len: byte length of destination data, which is equal to
+ *           src_len + hash_result_len if HASH alg configured
+ * @op_type: operation type (refer to virtio_crypto.h)
+ * @iv: pointer to the initialization vector of CIPHER
+ * @src: pointer to the source data
+ * @dst: pointer to the destination data
+ * @dst: pointer to the additional authenticated data
+ * @data[0]: pointer to the extensional memory by one memory allocation
+ *
+ */
+typedef struct QCryptoCryptoDevBackendSymOpInfo {
+    uint64_t session_id;
+    uint32_t aad_len;
+    uint32_t iv_len;
+    uint32_t src_len;
+    /* dst_len is equal to src_len + hash_result_len if hash alg configured */
+    uint32_t dst_len;
+    uint8_t op_type; /* cipher or algo chainning */
+    uint8_t *iv;
+    uint8_t *src;
+    uint8_t *dst;
+    uint8_t *aad_data; /* additional auth data */
+    uint8_t data[0];
+} QCryptoCryptoDevBackendSymOpInfo;
 
 typedef struct QCryptoCryptoDevBackendClass {
     ObjectClass parent_class;
 
     void (*init)(QCryptoCryptoDevBackend *backend, Error **errp);
     void (*cleanup)(QCryptoCryptoDevBackend *backend, Error **errp);
+
+    int64_t (*create_session)(QCryptoCryptoDevBackend *backend,
+                       QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+                       uint32_t queue_index, Error **errp);
+    int (*close_session)(QCryptoCryptoDevBackend *backend,
+                           uint64_t session_id, Error **errp);
+    int (*do_sym_op)(QCryptoCryptoDevBackend *backend,
+                     QCryptoCryptoDevBackendSymOpInfo *op_info,
+                     uint32_t queue_index, Error **errp);
 } QCryptoCryptoDevBackendClass;
 
 
@@ -137,9 +219,57 @@ void qcrypto_cryptodev_backend_free_client(
  *
  * Clean the resouce associated with @backend that realizaed
  * by the specific backend's init() callback
- */                  
+ */
 void qcrypto_cryptodev_backend_cleanup(
            QCryptoCryptoDevBackend *backend,
            Error **errp);
+
+/**
+ * qcrypto_cryptodev_backend_sym_create_session:
+ * @backend: the cryptodev backend object
+ * @sess_info: parameters needed by session creating
+ * @queue_index: queue index of cryptodev backend client
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Create a session for symmetric algorithms
+ *
+ * Returns: session id on success, or -1 on error
+ */
+int64_t qcrypto_cryptodev_backend_sym_create_session(
+           QCryptoCryptoDevBackend *backend,
+           QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+           uint32_t queue_index, Error **errp);
+
+/**
+ * qcrypto_cryptodev_backend_sym_close_session:
+ * @backend: the cryptodev backend object
+ * @session_id: the session id that
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Close a session for symmetric algorithms which was previously
+ * created by qcrypto_cryptodev_backend_sym_create_session()
+ *
+ * Returns: 0 on success, or Negative on error
+ */
+int qcrypto_cryptodev_backend_sym_close_session(
+           QCryptoCryptoDevBackend *backend,
+           uint64_t session_id, Error **errp);
+
+/**
+ * qcrypto_cryptodev_backend_sym_operation:
+ * @backend: the cryptodev backend object
+ * @op_info: parameters needed by symmetric crypto operation
+ * @queue_index: queue index of cryptodev backend client
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Do symmetric crypto operation, such as encryption and
+ * decryption
+ *
+ * Returns: 0 on success, or Negative on error
+ */
+int qcrypto_cryptodev_backend_sym_operation(
+                 QCryptoCryptoDevBackend *backend,
+                 QCryptoCryptoDevBackendSymOpInfo *op_info,
+                 uint32_t queue_index, Error **errp);
 
 #endif /* QCRYPTO_CRYPTODEV_H */
