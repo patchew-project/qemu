@@ -1987,6 +1987,24 @@ static inline void feat2prop(char *s)
     }
 }
 
+/* Return the feature property name for a feature flag bit */
+static char *x86_cpu_feature_name(FeatureWord w, int bitnr)
+{
+    char **parts, *r;
+
+    /*TODO: This can be simplified later, by:
+     * 1) Moving the aliases outside the feat_names array
+     *    (making g_strsplit() unnecessary)
+     * 2) Replacing "_" with "-" on all entries
+     *    (making feat2prop() unnecessary)
+     */
+    parts = g_strsplit(feature_word_info[w].feat_names[bitnr], "|", 2);
+    r = g_strdup(parts[0]);
+    feat2prop(r);
+    g_strfreev(parts);
+    return r;
+}
+
 /* Compatibily hack to maintain legacy +-feat semantic,
  * where +-feat overwrites any feature set by
  * feat=on|feat even if the later is parsed after +-feat
@@ -2105,6 +2123,41 @@ static void x86_cpu_report_filtered_features(X86CPU *cpu)
     }
 }
 
+/* Check for missing features that may prevent the CPU class from
+ * running using the current machine and accelerator.
+ */
+static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
+                                                 strList **missing_feats)
+{
+    X86CPU *xc;
+    FeatureWord w;
+
+    if (xcc->kvm_required && !kvm_enabled()) {
+        strList *new = g_new0(strList, 1);
+        new->value = g_strdup("kvm");;
+        *missing_feats = new;
+        return;
+    }
+
+    xc = X86_CPU(object_new(object_class_get_name(OBJECT_CLASS(xcc))));
+    if (x86_cpu_filter_features(xc)) {
+        for (w = 0; w < FEATURE_WORDS; w++) {
+            uint32_t filtered = xc->filtered_features[w];
+            int i;
+            for (i = 0; i < 32; i++) {
+                if (filtered & (1UL << i)) {
+                    strList *new = g_new0(strList, 1);
+                    new->value = x86_cpu_feature_name(w, i);
+                    new->next = *missing_feats;
+                    *missing_feats = new;
+                }
+            }
+        }
+    }
+
+    object_unref(OBJECT(xc));
+}
+
 /* Print all cpuid feature names in featureset
  */
 static void listflags(FILE *f, fprintf_function print, const char **featureset)
@@ -2197,6 +2250,8 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
 
     info = g_malloc0(sizeof(*info));
     info->name = x86_cpu_class_get_model_name(cc);
+    x86_cpu_class_check_missing_features(cc, &info->unavailable_features);
+    info->has_unavailable_features = true;
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
