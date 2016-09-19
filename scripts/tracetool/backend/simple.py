@@ -80,7 +80,7 @@ def generate_c(event):
         '        return;',
         '    }',
         '',
-        '    if (trace_record_start(&rec, %(event_id)s, %(size_str)s)) {',
+        '    if (trace_record_start(&rec, %(event_id)s_EV.id, %(size_str)s)) {',
         '        return; /* Trace Buffer Full, Event Dropped ! */',
         '    }',
         cond=cond,

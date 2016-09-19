@@ -28,11 +28,16 @@ def generate(events, backend):
     for e in events:
         out('uint16_t %s;' % e.api(e.QEMU_DSTATE))
 
+    next_id = 0
+    next_vcpu_id = 0
     for e in events:
+        id = next_id
+        next_id += 1
         if "vcpu" in e.properties:
-            vcpu_id = "TRACE_VCPU_" + e.name.upper()
+            vcpu_id = next_vcpu_id
+            next_vcpu_id += 1
         else:
-            vcpu_id = "TRACE_VCPU_EVENT_COUNT"
+            vcpu_id = "TRACE_VCPU_EVENT_NONE"
         out('TraceEvent %(event)s = {',
             '  .id = %(id)s,',
             '  .vcpu_id = %(vcpu_id)s,',
@@ -41,17 +46,18 @@ def generate(events, backend):
             '  .dstate = &%(dstate)s ',
             '};',
             event = "TRACE_" + e.name.upper() + "_EV",
-            id = "TRACE_" + e.name.upper(),
+            id = id,
             vcpu_id = vcpu_id,
             name = e.name,
             sstate = "TRACE_%s_ENABLED" % e.name.upper(),
             dstate = e.api(e.QEMU_DSTATE))
 
-    out('TraceEvent *trace_events[TRACE_EVENT_COUNT] = {')
+    out('TraceEvent *trace_events[] = {')
 
     for e in events:
         out('&%(event)s,',
             event = "TRACE_" + e.name.upper() + "_EV")
 
-    out('};',
+    out('  NULL,',
+        '};',
         '')
