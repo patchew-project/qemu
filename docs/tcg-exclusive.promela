@@ -123,7 +123,6 @@ byte has_waiter[N_CPUS];
         }                                                                    \
         :: else -> skip;                                                     \
     fi;                                                                      \
-    exclusive_idle();                                                        \
     MUTEX_UNLOCK(mutex);
 
 // Promela processes
