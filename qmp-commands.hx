@@ -83,7 +83,7 @@ EQMP
 
     {
         .name       = "eject",
-        .args_type  = "force:-f,device:B",
+        .args_type  = "force:-f,device:B?,id:s?",
         .mhandler.cmd_new = qmp_marshal_eject,
     },
 
@@ -95,12 +95,14 @@ Eject a removable medium.
 
 Arguments: 
 
-- force: force ejection (json-bool, optional)
-- device: device name (json-string)
+- "force": force ejection (json-bool, optional)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 
 Example:
 
--> { "execute": "eject", "arguments": { "device": "ide1-cd0" } }
+-> { "execute": "eject", "arguments": { "id": "ide0-1-0" } }
 <- { "return": {} }
 
 Note: The "force" argument defaults to false.
