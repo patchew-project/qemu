@@ -319,3 +319,8 @@ void trace_init_vcpu_events(void)
         }
     }
 }
+
+uint32_t trace_get_vcpu_event_count(void)
+{
+    return TRACE_VCPU_EVENT_COUNT;
+}

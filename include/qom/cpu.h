@@ -27,7 +27,6 @@
 #include "qemu/bitmap.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
-#include "trace/generated-events.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
@@ -350,8 +349,10 @@ struct CPUState {
     struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
 
-    /* Used for events with 'vcpu' and *without* the 'disabled' properties */
-    DECLARE_BITMAP(trace_dstate, TRACE_VCPU_EVENT_COUNT);
+    /* Used for events with 'vcpu' and *without* the 'disabled' properties
+     * Dynamically allocated based on BITS_TO_LONGS(trace_get_vcpu_event_count())
+     */
+    unsigned long *trace_dstate;
 
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index; /* used by alpha TCG */
