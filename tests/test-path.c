@@ -1,13 +1,5 @@
-/* Test path override code */
-#include "config-host.h"
-#include "util/cutils.c"
-#include "util/hexdump.c"
-#include "util/iov.c"
-#include "util/path.c"
-#include "util/qemu-timer-common.c"
-#include <stdarg.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include "qemu/osdep.h"
+#include "qemu/path.h"
 
 void qemu_log(const char *fmt, ...);
 

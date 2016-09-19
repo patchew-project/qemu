@@ -31,7 +31,7 @@ ifneq ($(ARCH),i386)
 I386_TESTS+=run-test-x86_64
 endif
 
-TESTS = test_path
+TESTS =
 ifneq ($(call find-in-path, $(CC_I386)),)
 TESTS += $(I386_TESTS)
 endif
@@ -75,14 +75,7 @@ run-test-mmap: test-mmap
 run-runcom: runcom
 	-$(QEMU) ./runcom $(SRC_PATH)/tests/pi_10.com
 
-run-test_path: test_path
-	./test_path
-
 # rules to compile tests
-
-test_path: test_path.o
-
-test_path.o: test_path.c
 
 hello-i386: hello-i386.c
 	$(CC_I386) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
