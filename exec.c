@@ -3601,6 +3601,7 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
     int l;
     hwaddr phys_addr;
     target_ulong page;
+    bool is_memcpy_access;
 
     while (len > 0) {
         int asidx;
@@ -3616,13 +3617,32 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         if (l > len)
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
+
         if (is_write) {
+            /* if ram/rom region we access the memory 
+               via memcpy instead of via the cpu */
+            hwaddr mr_len, addr1;
+            AddressSpace *as = cpu->cpu_ases[asidx].as;
+            MemoryRegion *mr = address_space_translate(as, phys_addr, &addr1, &mr_len, is_write);
+            is_memcpy_access  = memory_region_is_ram(mr) || memory_region_is_romd(mr);
+            if(mr_len < len) {
+                /* TODO, mimic more of the loop over mr chunks as 
+                   done in cpu_physical_memory_write_internal */ 
+                printf("warning: we dont know whether all bytes "
+                       "to be written are ram/rom or io\n");
+            }
+        }
+        else {
+            is_memcpy_access = false;
+        }
+        
+        if (is_write && is_memcpy_access) {
             cpu_physical_memory_write_rom(cpu->cpu_ases[asidx].as,
                                           phys_addr, buf, l);
         } else {
             address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
                              MEMTXATTRS_UNSPECIFIED,
-                             buf, l, 0);
+                             buf, l, is_write);
         }
         len -= l;
         buf += l;
