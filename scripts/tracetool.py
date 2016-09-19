@@ -15,6 +15,8 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 
 import sys
 import getopt
+import os.path
+import re
 
 from tracetool import error_write, out
 import tracetool.backend
@@ -60,6 +62,24 @@ Options:
     else:
         sys.exit(1)
 
+def find_git_root(dirname):
+    while dirname != "":
+        git = os.path.join(dirname, ".git")
+        if os.path.exists(git):
+            return dirname
+        dirname = os.path.dirname(dirname)
+
+    raise ValueError("Cannot find .git directory for %s",
+                     filename)
+
+def make_group_name(filename):
+    dirname = os.path.dirname(filename)
+    gitdir = find_git_root(dirname)
+    dirname = dirname[len(gitdir):]
+
+    if dirname == "":
+        return "common"
+    return re.sub(r"/|-", "_", dirname)
 
 def main(args):
     global _SCRIPT
@@ -134,8 +154,10 @@ def main(args):
     with open(args[0], "r") as fh:
         events = tracetool.read_events(fh)
 
+    group = make_group_name(args[0])
+
     try:
-        tracetool.generate(events, arg_format, arg_backends,
+        tracetool.generate(events, group, arg_format, arg_backends,
                            binary=binary, probe_prefix=probe_prefix)
     except tracetool.TracetoolError as e:
         error_opt(str(e))
