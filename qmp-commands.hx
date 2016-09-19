@@ -4382,7 +4382,7 @@ EQMP
 
     {
         .name       = "x-blockdev-remove-medium",
-        .args_type  = "device:s",
+        .args_type  = "device:s?,id:s?",
         .mhandler.cmd_new = qmp_marshal_x_blockdev_remove_medium,
     },
 
@@ -4400,18 +4400,20 @@ Stay away from it unless you want to help with its development.
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 
 Example:
 
 -> { "execute": "x-blockdev-remove-medium",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "id": "ide0-1-0" } }
 
 <- { "error": { "class": "GenericError",
-                "desc": "Tray of device 'ide1-cd0' is not open" } }
+                "desc": "Tray of device 'ide0-1-0' is not open" } }
 
 -> { "execute": "blockdev-open-tray",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "id": "ide0-1-0" } }
 
 <- { "timestamp": { "seconds": 1418751627,
                     "microseconds": 549958 },
@@ -4422,7 +4424,7 @@ Example:
 <- { "return": {} }
 
 -> { "execute": "x-blockdev-remove-medium",
-     "arguments": { "device": "ide1-cd0" } }
+     "arguments": { "device": "ide0-1-0" } }
 
 <- { "return": {} }
 
