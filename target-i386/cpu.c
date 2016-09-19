@@ -2071,6 +2071,40 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     }
 }
 
+/*
+ * Filters CPU feature words based on host availability of each feature.
+ *
+ * Returns: 0 if all flags are supported by the host, non-zero otherwise.
+ */
+static int x86_cpu_filter_features(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    FeatureWord w;
+    int rv = 0;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        uint32_t host_feat =
+            x86_cpu_get_supported_feature_word(w, cpu->migratable);
+        uint32_t requested_features = env->features[w];
+        env->features[w] &= host_feat;
+        cpu->filtered_features[w] = requested_features & ~env->features[w];
+        if (cpu->filtered_features[w]) {
+            rv = 1;
+        }
+    }
+
+    return rv;
+}
+
+static void x86_cpu_report_filtered_features(X86CPU *cpu)
+{
+    FeatureWord w;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        report_unavailable_features(w, cpu->filtered_features[w]);
+    }
+}
+
 /* Print all cpuid feature names in featureset
  */
 static void listflags(FILE *f, fprintf_function print, const char **featureset)
@@ -2198,40 +2232,6 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
         r &= x86_cpu_get_migratable_flags(w);
     }
     return r;
-}
-
-/*
- * Filters CPU feature words based on host availability of each feature.
- *
- * Returns: 0 if all flags are supported by the host, non-zero otherwise.
- */
-static int x86_cpu_filter_features(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-    FeatureWord w;
-    int rv = 0;
-
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        uint32_t host_feat =
-            x86_cpu_get_supported_feature_word(w, cpu->migratable);
-        uint32_t requested_features = env->features[w];
-        env->features[w] &= host_feat;
-        cpu->filtered_features[w] = requested_features & ~env->features[w];
-        if (cpu->filtered_features[w]) {
-            rv = 1;
-        }
-    }
-
-    return rv;
-}
-
-static void x86_cpu_report_filtered_features(X86CPU *cpu)
-{
-    FeatureWord w;
-
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        report_unavailable_features(w, cpu->filtered_features[w]);
-    }
 }
 
 static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
