@@ -44,17 +44,36 @@ _supported_os Linux
 
 _make_test_img 64M
 
+if test "$IMGOPTSSYNTAX" = "true"
+then
+    SYSEMU_DRIVE_ARG=id=drv,if=none,$TEST_IMG
+    SYSEMU_EXTRA_ARGS=""
+    IO_DRIVE_ARG="$TEST_IMG"
+    IO_EXTRA_ARGS="--image-opts"
+    if [ -n "$IMGKEYSECRET" ]; then
+	SECRET_ARG="secret,id=keysec0,data=$IMGKEYSECRET"
+	SYSEMU_EXTRA_ARGS="$SYSEMU_EXTRA_ARGS -object $SECRET_ARG"
+	IO_EXTRA_ARGS="$IO_EXTRA_ARGS --object $SECRET_ARG"
+    fi
+else
+    SYSEMU_DRIVE_ARG=id=drv,if=none,file="$TEST_IMG",driver=raw,file.driver=$IMGFMT
+    SYSEMU_EXTRA_ARGS=""
+    IO_DRIVE_ARG="json:{'driver': 'raw', 'file': {'driver': '$IMGFMT', 'file': {'filename': '$TEST_IMG'}}}"
+    IO_EXTRA_ARGS=""
+fi
+
+
 echo "{'execute': 'qmp_capabilities'}
       {'execute': 'human-monitor-command',
        'arguments': {'command-line': 'qemu-io drv \"write -P 42 0 64k\"'}}
       {'execute': 'quit'}" \
-    | $QEMU -qmp stdio -nographic -nodefaults \
-            -drive id=drv,if=none,file="$TEST_IMG",driver=raw,file.driver=$IMGFMT \
+    | $QEMU -qmp stdio -nographic -nodefaults $SYSEMU_EXTRA_ARGS \
+            -drive $SYSEMU_DRIVE_ARG \
     | _filter_qmp | _filter_qemu_io
 $QEMU_IO -c 'read -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
 
 $QEMU_IO_PROG -c 'read -P 42 0 64k' \
-    "json:{'driver': 'raw', 'file': {'driver': '$IMGFMT', 'file': {'filename': '$TEST_IMG'}}}" \
+    $IO_EXTRA_ARGS "$IO_DRIVE_ARG" \
     | _filter_qemu_io
 
 # success, all done
