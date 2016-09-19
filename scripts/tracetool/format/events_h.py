@@ -21,7 +21,12 @@ def generate(events, backend):
         '',
         '#ifndef TRACE__GENERATED_EVENTS_H',
         '#define TRACE__GENERATED_EVENTS_H',
-        '')
+        '',
+        '#include "trace/event-internal.h"',
+        )
+
+    for e in events:
+        out('extern TraceEvent TRACE_%s_EV;' % e.name.upper())
 
     # event identifiers
     out('typedef enum {')
@@ -58,6 +63,5 @@ def generate(events, backend):
                 enabled=enabled)
         out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
 
-    out('#include "trace/event-internal.h"',
-        '',
+    out('',
         '#endif  /* TRACE__GENERATED_EVENTS_H */')
