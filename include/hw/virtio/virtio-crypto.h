@@ -36,6 +36,17 @@ do { printf("virtio_crypto: " fmt , ## __VA_ARGS__); } while (0)
 #define VIRTIO_CRYPTO_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_CRYPTO)
 
+/* Max entries of scatter gather list in one virtio-crypto buffer */
+#define VIRTIO_CRYPTO_SG_MAX 256
+
+typedef struct VirtIOCryptoBuffer {
+    unsigned int num;
+    /* Guest physical address */
+    hwaddr *addr;
+    /* Store host virtual address and length */
+    struct iovec *sg;
+    uint8_t data[0];
+} VirtIOCryptoBuffer;
 
 typedef struct VirtIOCryptoConf {
     QCryptoCryptoDevBackend *cryptodev;
