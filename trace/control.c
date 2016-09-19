@@ -28,12 +28,6 @@
 #include "monitor/monitor.h"
 
 int trace_events_enabled_count;
-/*
- * Interpretation depends on wether the event has the 'vcpu' property:
- * - false: Boolean value indicating whether the event is active.
- * - true : Integral counting the number of vCPUs that have this event enabled.
- */
-uint16_t trace_events_dstate[TRACE_EVENT_COUNT];
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -294,11 +288,10 @@ void trace_init_vcpu_events(void)
         if (trace_event_is_vcpu(ev) &&
             trace_event_get_state_static(ev) &&
             trace_event_get_state_dynamic(ev)) {
-            TraceEventID id = trace_event_get_id(ev);
             /* check preconditions */
-            assert(trace_events_dstate[id] == 1);
+            assert(*ev->dstate == 1);
             /* disable early-init state ... */
-            trace_events_dstate[id] = 0;
+            *ev->dstate = 0;
             trace_events_enabled_count--;
             /* ... and properly re-enable */
             trace_event_set_state_dynamic(ev, true);
