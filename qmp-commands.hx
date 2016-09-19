@@ -2084,7 +2084,7 @@ EQMP
 
     {
         .name       = "block_set_io_throttle",
-        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,bps_max_length:l?,bps_rd_max_length:l?,bps_wr_max_length:l?,iops_max_length:l?,iops_rd_max_length:l?,iops_wr_max_length:l?,iops_size:l?,group:s?",
+        .args_type  = "device:B?,id:s?,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,bps_max_length:l?,bps_rd_max_length:l?,bps_wr_max_length:l?,iops_max_length:l?,iops_rd_max_length:l?,iops_wr_max_length:l?,iops_size:l?,group:s?",
         .mhandler.cmd_new = qmp_marshal_block_set_io_throttle,
     },
 
@@ -2096,7 +2096,9 @@ Change I/O throttle limits for a block drive.
 
 Arguments:
 
-- "device": device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "bps": total throughput limit in bytes per second (json-int)
 - "bps_rd": read throughput limit in bytes per second (json-int)
 - "bps_wr": write throughput limit in bytes per second (json-int)
@@ -2120,7 +2122,7 @@ Arguments:
 
 Example:
 
--> { "execute": "block_set_io_throttle", "arguments": { "device": "virtio0",
+-> { "execute": "block_set_io_throttle", "arguments": { "id": "ide0-1-0",
                                                "bps": 1000000,
                                                "bps_rd": 0,
                                                "bps_wr": 0,
