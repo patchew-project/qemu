@@ -4430,7 +4430,7 @@ EQMP
 
     {
         .name       = "x-blockdev-insert-medium",
-        .args_type  = "device:s,node-name:s",
+        .args_type  = "device:s?,id:s?,node-name:s",
         .mhandler.cmd_new = qmp_marshal_x_blockdev_insert_medium,
     },
 
@@ -4447,7 +4447,9 @@ Stay away from it unless you want to help with its development.
 
 Arguments:
 
-- "device": block device name (json-string)
+- "device": block device name (deprecated, use @id instead)
+            (json-string, optional)
+- "id": the name or QOM path of the guest device (json-string, optional)
 - "node-name": root node of the BDS tree to insert into the block device
 
 Example:
@@ -4461,7 +4463,7 @@ Example:
 <- { "return": {} }
 
 -> { "execute": "x-blockdev-insert-medium",
-     "arguments": { "device": "ide1-cd0",
+     "arguments": { "id": "ide0-1-0",
                     "node-name": "node0" } }
 
 <- { "return": {} }
