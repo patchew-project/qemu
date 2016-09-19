@@ -87,6 +87,26 @@ static void virtio_crypto_reset(VirtIODevice *vdev)
     }
 }
 
+static void virtio_crypto_init_config(VirtIODevice *vdev)
+{
+    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
+
+    vcrypto->conf.crypto_services =
+                     vcrypto->conf.cryptodev->conf.crypto_services;
+    vcrypto->conf.cipher_algo_l =
+                     vcrypto->conf.cryptodev->conf.cipher_algo_l;
+    vcrypto->conf.cipher_algo_h =
+                     vcrypto->conf.cryptodev->conf.cipher_algo_h;
+    vcrypto->conf.hash_algo = vcrypto->conf.cryptodev->conf.hash_algo;
+    vcrypto->conf.mac_algo_l = vcrypto->conf.cryptodev->conf.mac_algo_l;
+    vcrypto->conf.mac_algo_h = vcrypto->conf.cryptodev->conf.mac_algo_h;
+    vcrypto->conf.asym_algo = vcrypto->conf.cryptodev->conf.asym_algo;
+    vcrypto->conf.kdf_algo = vcrypto->conf.cryptodev->conf.kdf_algo;
+    vcrypto->conf.aead_algo = vcrypto->conf.cryptodev->conf.aead_algo;
+    vcrypto->conf.primitive_algo =
+                     vcrypto->conf.cryptodev->conf.primitive_algo;
+}
+
 static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -120,6 +140,7 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
     } else {
         vcrypto->status |= VIRTIO_CRYPTO_S_HW_READY;
     }
+    virtio_crypto_init_config(vdev);
     register_savevm(dev, "virtio-crypto", -1, 1, virtio_crypto_save,
                     virtio_crypto_load, vcrypto);
 }
@@ -140,7 +161,23 @@ static Property virtio_crypto_properties[] = {
 
 static void virtio_crypto_get_config(VirtIODevice *vdev, uint8_t *config)
 {
+    VirtIOCrypto *c = VIRTIO_CRYPTO(vdev);
+    struct virtio_crypto_config crypto_cfg;
 
+    crypto_cfg.status = c->status;
+    crypto_cfg.max_dataqueues = c->max_queues;
+    crypto_cfg.crypto_services = c->conf.crypto_services;
+    crypto_cfg.cipher_algo_l = c->conf.cipher_algo_l;
+    crypto_cfg.cipher_algo_h = c->conf.cipher_algo_h;
+    crypto_cfg.hash_algo = c->conf.hash_algo;
+    crypto_cfg.mac_algo_l = c->conf.mac_algo_l;
+    crypto_cfg.mac_algo_h = c->conf.mac_algo_h;
+    crypto_cfg.asym_algo = c->conf.asym_algo;
+    crypto_cfg.kdf_algo = c->conf.kdf_algo;
+    crypto_cfg.aead_algo = c->conf.aead_algo;
+    crypto_cfg.primitive_algo = c->conf.primitive_algo;
+
+    memcpy(config, &crypto_cfg, c->config_size);
 }
 
 static void virtio_crypto_set_config(VirtIODevice *vdev, const uint8_t *config)
