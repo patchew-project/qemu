@@ -142,6 +142,11 @@ _timestamp()
     echo -n " [$now]"
 }
 
+_timestamp_args()
+{
+    echo "# ARGS: protocol=$IMGPROTO, format=$IMGFMT"
+}
+
 _wrapup()
 {
     # for hangcheck ...
@@ -158,13 +163,14 @@ _wrapup()
         if [ -f check.time -a -f $tmp.time ]
         then
             cat check.time $tmp.time \
-            | $AWK_PROG '
+            | grep -v '# ' | $AWK_PROG '
         { t[$1] = $2 }
 END        { if (NR > 0) {
             for (i in t) print i " " t[i]
           }
         }' \
             | sort -n >$tmp.out
+            _timestamp_args >> $tmp.out
             mv $tmp.out check.time
         fi
 
@@ -223,7 +229,18 @@ echo "preamble" > "${TEST_DIR}"/check.sts
 # don't leave old full output behind on a clean run
 rm -f check.full
 
-[ -f check.time ] || touch check.time
+# Check if previously recorded times were for the same
+# image format/protocol, otherwise discard them
+if test -f check.time
+then
+   OLDARGS=`grep ARGS check.time`
+   NEWARGS=`_timestamp_args`
+   if test "x$OLDARGS" != "x$NEWARGS"
+   then
+       rm -f check.time
+   fi
+fi
+touch check.time
 
 FULL_IMGFMT_DETAILS=`_full_imgfmt_details`
 FULL_IMGPROTO_DETAILS=`_full_imgproto_details`
