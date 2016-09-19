@@ -27,6 +27,7 @@ crypto-obj-y += block.o
 crypto-obj-y += block-qcow.o
 crypto-obj-y += block-luks.o
 crypto-obj-y += cryptodev.o
+crypto-obj-$(CONFIG_GCRYPT) += cryptodev-gcrypt.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o

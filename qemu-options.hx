@@ -3894,6 +3894,24 @@ Dump the network traffic on netdev @var{dev} to the file specified by
 The file format is libpcap, so it can be analyzed with tools such as tcpdump
 or Wireshark.
 
+@item -object cryptodev-backend-gcrypt,id=@var{id}[,queues=@var{queues}]
+
+Creates a cryptodev backend which executes crypto opreation from
+the gcrypt library on the host. The @var{id} parameter is
+a unique ID that will be used to reference this cryptodev backend from
+the @option{virtio-crypto} device. The @var{queues} parameter is optional,
+which specify the queue number of cryptodev backend, the default of
+@var{queues} is 1.
+
+@example
+
+ # qemu-system-x86_64 \
+   [...] \
+       -object cryptodev-backend-gcrypt,id=cryptodev0 \
+       -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+   [...]
+@end example
+
 @item -object secret,id=@var{id},data=@var{string},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
 @item -object secret,id=@var{id},file=@var{filename},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
 
