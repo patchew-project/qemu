@@ -191,11 +191,17 @@ void start_exclusive(void)
     if (pending_cpus > 1) {
         qemu_cond_wait(&exclusive_cond, &qemu_cpu_list_mutex);
     }
+
+    /* Can release mutex, no one will enter another exclusive
+     * section until end_exclusive resets pending_cpus to 0.
+     */
+    qemu_mutex_unlock(&qemu_cpu_list_mutex);
 }
 
 /* Finish an exclusive operation.  Releases qemu_cpu_list_mutex.  */
 void end_exclusive(void)
 {
+    qemu_mutex_lock(&qemu_cpu_list_mutex);
     pending_cpus = 0;
     qemu_cond_broadcast(&exclusive_resume);
     qemu_mutex_unlock(&qemu_cpu_list_mutex);
