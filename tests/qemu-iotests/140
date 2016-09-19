@@ -66,7 +66,7 @@ fi
 
 keep_stderr=y \
 _launch_qemu $SYSEMU_EXTRA_ARGS -drive $SYSEMU_DRIVE_ARG \
-    2> >(_filter_nbd)
+    2> >(_filter_nbd| _filter_qemu)
 
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'qmp_capabilities' }" \
