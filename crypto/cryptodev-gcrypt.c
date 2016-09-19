@@ -266,7 +266,7 @@ static int qcrypto_cryptodev_backend_gcrypt_sym_operation(
             return -VIRTIO_CRYPTO_OP_ERR;
         }
     }
-    return 0;
+    return VIRTIO_CRYPTO_OP_OK;
 }
 
 static void qcrypto_cryptodev_backend_gcrypt_cleanup(
