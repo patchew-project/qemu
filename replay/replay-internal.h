@@ -71,6 +71,9 @@ extern unsigned int replay_data_kind;
 /* File for replay writing */
 extern FILE *replay_file;
 
+/* Default name of the initial VM snapshot */
+extern char *replay_snapshot;
+
 void replay_put_byte(uint8_t byte);
 void replay_put_event(uint8_t event);
 void replay_put_word(uint16_t word);
