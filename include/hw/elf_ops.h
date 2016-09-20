@@ -348,6 +348,8 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             mem_size = ph->p_memsz; /* Size of the ROM */
             file_size = ph->p_filesz; /* Size of the allocated data */
             data = g_malloc0(file_size);
+            data = qemu_memalign(getpagesize(), file_size);
+            qemu_madvise(data, file_size, MADV_MERGEABLE);
             if (ph->p_filesz > 0) {
                 if (lseek(fd, ph->p_offset, SEEK_SET) < 0) {
                     goto fail;

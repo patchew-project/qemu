@@ -867,7 +867,7 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
 
     rom->datasize = rom->romsize;
-    rom->data     = g_malloc0(rom->datasize);
+    rom->data     = qemu_memalign(getpagesize(), rom->datasize);
     lseek(fd, 0, SEEK_SET);
     rc = read(fd, rom->data, rom->datasize);
     if (rc != rom->datasize) {
@@ -875,6 +875,7 @@ int rom_add_file(const char *file, const char *fw_dir,
                 rom->name, rc, rom->datasize);
         goto err;
     }
+    qemu_madvise(rom->data, rom->datasize, MADV_MERGEABLE);
     close(fd);
     rom_insert(rom);
     if (rom->fw_file && fw_cfg) {
@@ -915,7 +916,7 @@ err:
     if (fd != -1)
         close(fd);
 
-    g_free(rom->data);
+    free(rom->data);
     g_free(rom->path);
     g_free(rom->name);
     if (fw_dir) {
@@ -940,8 +941,9 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
     rom->addr     = addr;
     rom->romsize  = max_len ? max_len : len;
     rom->datasize = len;
-    rom->data     = g_malloc0(rom->datasize);
+    rom->data     = qemu_memalign(getpagesize(), rom->datasize);
     memcpy(rom->data, blob, len);
+    qemu_madvise(rom->data, rom->datasize, MADV_MERGEABLE);
     rom_insert(rom);
     if (fw_file_name && fw_cfg) {
         char devpath[100];
@@ -1013,7 +1015,7 @@ static void rom_reset(void *unused)
         }
         if (rom->isrom) {
             /* rom needs to be written only once */
-            g_free(rom->data);
+            free(rom->data);
             rom->data = NULL;
         }
         /*
