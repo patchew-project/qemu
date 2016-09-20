@@ -1600,6 +1600,7 @@ static QTAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
 static int reset_requested;
 static int shutdown_requested, shutdown_signal = -1;
 static pid_t shutdown_pid;
+static char *shutdown_cmd;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
@@ -1636,9 +1637,11 @@ static void qemu_kill_report(void)
              */
             error_report("terminating on signal %d", shutdown_signal);
         } else {
-            error_report("terminating on signal %d from pid " FMT_pid,
-                         shutdown_signal, shutdown_pid);
+            error_report("terminating on signal %d from pid " FMT_pid " (%s)",
+                         shutdown_signal, shutdown_pid,
+                         shutdown_cmd ? shutdown_cmd : "");
         }
+        g_free(shutdown_cmd);
         shutdown_signal = -1;
     }
 }
@@ -1809,6 +1812,7 @@ void qemu_system_killed(int signal, pid_t pid)
 {
     shutdown_signal = signal;
     shutdown_pid = pid;
+    shutdown_cmd = qemu_get_pid_name(pid);
     no_shutdown = 0;
 
     /* Cannot call qemu_system_shutdown_request directly because
