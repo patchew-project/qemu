@@ -67,6 +67,8 @@ typedef struct ReplayState {
     unsigned int data_kind;
     /*! Flag which indicates that event is not processed yet. */
     unsigned int has_unread_data;
+    /*! Temporary variable for saving current log offset. */
+    uint64_t file_offset;
 } ReplayState;
 extern ReplayState replay_state;
 
@@ -169,5 +171,12 @@ void replay_event_net_run(void *opaque);
 void replay_event_net_save(void *opaque);
 /*! Reads network from the file. */
 void *replay_event_net_load(void);
+
+/* VMState-related functions */
+
+/* Registers replay VMState.
+   Should be called before virtual devices initialization
+   to make cached timers available for post_load functions. */
+void replay_vmstate_register(void);
 
 #endif
