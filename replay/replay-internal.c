@@ -65,7 +65,7 @@ void replay_put_array(const uint8_t *buf, size_t size)
 {
     if (replay_file) {
         replay_put_dword(size);
-        fwrite(buf, 1, size, replay_file);
+        (void)(fwrite(buf, 1, size, replay_file)+1);
     }
 }
 
