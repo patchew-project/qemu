@@ -2221,7 +2221,7 @@ int vfio_populate_vga(VFIOPCIDevice *vdev)
     return 0;
 }
 
-static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
+static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
@@ -2231,18 +2231,18 @@ static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     /* Sanity check device */
     if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_PCI)) {
         error_setg(errp, "this isn't a PCI device");
-        goto error;
+        return;
     }
 
     if (vbasedev->num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
         error_setg(errp, "unexpected number of io regions %u",
                    vbasedev->num_regions);
-        goto error;
+        return;
     }
 
     if (vbasedev->num_irqs < VFIO_PCI_MSIX_IRQ_INDEX + 1) {
         error_setg(errp, "unexpected number of irqs %u", vbasedev->num_irqs);
-        goto error;
+        return;
     }
 
     for (i = VFIO_PCI_BAR0_REGION_INDEX; i < VFIO_PCI_ROM_REGION_INDEX; i++) {
@@ -2254,7 +2254,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 
         if (ret) {
             error_setg_errno(errp, -ret, "failed to get region %d info", i);
-            goto error;
+            return;
         }
 
         QLIST_INIT(&vdev->bars[i].quirks);
@@ -2264,7 +2264,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
                                VFIO_PCI_CONFIG_REGION_INDEX, &reg_info);
     if (ret) {
         error_setg_errno(errp, -ret, "failed to get config info");
-        goto error;
+        return;
     }
 
     trace_vfio_populate_device_config(vdev->vbasedev.name,
@@ -2285,7 +2285,7 @@ static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
         if (ret) {
             error_setg_errno(errp, -ret,
                 "device does not support requested feature x-vga");
-            goto error;
+            return;
         }
     }
 
@@ -2295,7 +2295,6 @@ static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
         trace_vfio_populate_device_get_irq_info_failure();
-        ret = 0;
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
@@ -2303,9 +2302,6 @@ static int vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
                      "Could not enable error recovery for the device",
                      vbasedev->name);
     }
-
-error:
-    return ret;
 }
 
 static void vfio_put_device(VFIOPCIDevice *vdev)
@@ -2577,7 +2573,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    ret = vfio_populate_device(vdev, &err);
+    vfio_populate_device(vdev, &err);
     if (err) {
         goto error;
     }
