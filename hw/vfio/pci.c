@@ -2511,7 +2511,7 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
-static int vfio_initfn(PCIDevice *pdev)
+static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     VFIODevice *vbasedev_iter;
@@ -2531,9 +2531,9 @@ static int vfio_initfn(PCIDevice *pdev)
     }
 
     if (stat(vdev->vbasedev.sysfsdev, &st) < 0) {
-        error_setg(&err, "no such host device");
-        ret = -errno;
-        goto error;
+        error_setg(errp, "no such host device");
+        error_prepend(errp, ERR_PREFIX, vdev->vbasedev.sysfsdev);
+        return;
     }
 
     vdev->vbasedev.name = g_strdup(basename(vdev->vbasedev.sysfsdev));
@@ -2545,9 +2545,8 @@ static int vfio_initfn(PCIDevice *pdev)
     g_free(tmp);
 
     if (len <= 0 || len >= sizeof(group_path)) {
-        error_setg_errno(&err, len < 0 ? errno : ENAMETOOLONG,
+        error_setg_errno(errp, len < 0 ? errno : ENAMETOOLONG,
                          "no iommu_group found");
-        ret = len < 0 ? -errno : -ENAMETOOLONG;
         goto error;
     }
 
@@ -2555,24 +2554,21 @@ static int vfio_initfn(PCIDevice *pdev)
 
     group_name = basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_setg_errno(&err, errno, "failed to read %s", group_path);
-        ret = -errno;
+        error_setg_errno(errp, errno, "failed to read %s", group_path);
         goto error;
     }
 
-    trace_vfio_initfn(vdev->vbasedev.name, groupid);
+    trace_vfio_realize(vdev->vbasedev.name, groupid);
 
     group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), &err);
     if (!group) {
-        ret = -ENOENT;
         goto error;
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vdev->vbasedev.name) == 0) {
-            error_setg(&err, "device is already attached");
+            error_setg(errp, "device is already attached");
             vfio_put_group(group);
-            ret = -EBUSY;
             goto error;
         }
     }
@@ -2594,7 +2590,7 @@ static int vfio_initfn(PCIDevice *pdev)
                 vdev->config_offset);
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
         ret = ret < 0 ? -errno : -EFAULT;
-        error_setg_errno(&err, -ret, "failed to read device config space");
+        error_setg_errno(errp, -ret, "failed to read device config space");
         goto error;
     }
 
@@ -2611,8 +2607,7 @@ static int vfio_initfn(PCIDevice *pdev)
      */
     if (vdev->vendor_id != PCI_ANY_ID) {
         if (vdev->vendor_id >= 0xffff) {
-            error_setg(&err, "invalid PCI vendor ID provided");
-            ret = -EINVAL;
+            error_setg(errp, "invalid PCI vendor ID provided");
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_VENDOR_ID, vdev->vendor_id, ~0);
@@ -2623,8 +2618,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->device_id != PCI_ANY_ID) {
         if (vdev->device_id > 0xffff) {
-            error_setg(&err, "invalid PCI device ID provided");
-            ret = -EINVAL;
+            error_setg(errp, "invalid PCI device ID provided");
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_DEVICE_ID, vdev->device_id, ~0);
@@ -2635,8 +2629,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->sub_vendor_id != PCI_ANY_ID) {
         if (vdev->sub_vendor_id > 0xffff) {
-            error_setg(&err, "invalid PCI subsystem vendor ID provided");
-            ret = -EINVAL;
+            error_setg(errp, "invalid PCI subsystem vendor ID provided");
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_VENDOR_ID,
@@ -2647,8 +2640,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     if (vdev->sub_device_id != PCI_ANY_ID) {
         if (vdev->sub_device_id > 0xffff) {
-            error_setg(&err, "invalid PCI subsystem device ID provided");
-            ret = -EINVAL;
+            error_setg(errp, "invalid PCI subsystem device ID provided");
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_ID, vdev->sub_device_id, ~0);
@@ -2702,10 +2694,9 @@ static int vfio_initfn(PCIDevice *pdev)
         struct vfio_region_info *opregion;
 
         if (vdev->pdev.qdev.hotplugged) {
-            error_setg(&err,
+            error_setg(errp,
                        "cannot support IGD OpRegion feature on hotplugged "
                        "device");
-            ret = -EINVAL;
             goto out_teardown;
         }
 
@@ -2713,7 +2704,7 @@ static int vfio_initfn(PCIDevice *pdev)
                         VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                         VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
         if (ret) {
-            error_setg_errno(&err, -ret,
+            error_setg_errno(errp, -ret,
                              "does not support requested IGD OpRegion feature");
             goto out_teardown;
         }
@@ -2721,7 +2712,6 @@ static int vfio_initfn(PCIDevice *pdev)
         vfio_pci_igd_opregion_init(vdev, opregion, &err);
         g_free(opregion);
         if (err) {
-            ret = -EINVAL;
             goto out_teardown;
         }
     }
@@ -2743,6 +2733,7 @@ static int vfio_initfn(PCIDevice *pdev)
         pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
         ret = vfio_intx_enable(vdev, &err);
         if (ret) {
+            error_setg_errno(errp, -ret, "failed to enable intx");
             goto out_teardown;
         }
     }
@@ -2751,17 +2742,18 @@ static int vfio_initfn(PCIDevice *pdev)
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
 
-    return 0;
+    return;
 
 out_teardown:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
 error:
-    if (err) {
-        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    error_propagate(errp, err);
+
+    if (*errp) {
+        error_prepend(errp, ERR_PREFIX, vdev->vbasedev.name);
     }
-    return ret;
 }
 
 static void vfio_instance_finalize(Object *obj)
@@ -2890,7 +2882,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vfio_pci_vmstate;
     dc->desc = "VFIO-based PCI device assignment";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    pdc->init = vfio_initfn;
+    pdc->realize = vfio_realize;
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
