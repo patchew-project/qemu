@@ -1286,7 +1286,7 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
  * need to first look for where the MSI-X table lives.  So we
  * unfortunately split MSI-X setup across two functions.
  */
-static int vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
+static void vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     uint8_t pos;
     uint16_t ctrl;
@@ -1296,25 +1296,25 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
 
     pos = pci_find_capability(&vdev->pdev, PCI_CAP_ID_MSIX);
     if (!pos) {
-        return 0;
+        return;
     }
 
     if (pread(fd, &ctrl, sizeof(ctrl),
               vdev->config_offset + pos + PCI_MSIX_FLAGS) != sizeof(ctrl)) {
         error_setg_errno(errp, errno, "failed to read PCI MSIX FLAGS");
-        return -errno;
+        return;
     }
 
     if (pread(fd, &table, sizeof(table),
               vdev->config_offset + pos + PCI_MSIX_TABLE) != sizeof(table)) {
         error_setg_errno(errp, errno, "failed to read PCI MSIX TABLE");
-        return -errno;
+        return;
     }
 
     if (pread(fd, &pba, sizeof(pba),
               vdev->config_offset + pos + PCI_MSIX_PBA) != sizeof(pba)) {
         error_setg_errno(errp, errno, "failed to read PCI MSIX PBA");
-        return -errno;
+        return;
     }
 
     ctrl = le16_to_cpu(ctrl);
@@ -1347,7 +1347,7 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
             error_setg(errp, "hardware reports invalid configuration, "
                        "MSIX PBA outside of specified BAR");
             g_free(msix);
-            return -EINVAL;
+            return;
         }
     }
 
@@ -1356,8 +1356,6 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
     vdev->msix = msix;
 
     vfio_pci_fixup_msix_region(vdev);
-
-    return 0;
 }
 
 static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
@@ -2669,7 +2667,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     vfio_pci_size_rom(vdev);
 
-    ret = vfio_msix_early_setup(vdev, &err);
+    vfio_msix_early_setup(vdev, &err);
     if (err) {
         goto error;
     }
