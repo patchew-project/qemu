@@ -892,8 +892,8 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
         if (iov_size(elem->in_sg, elem->in_num) < sizeof(status) ||
             iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
-            error_report("virtio-net ctrl missing headers");
-            exit(1);
+            virtio_error(vdev, "virtio-net ctrl missing headers");
+            return;
         }
 
         iov_cnt = elem->out_num;
