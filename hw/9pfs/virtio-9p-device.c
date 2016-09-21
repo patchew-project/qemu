@@ -56,13 +56,23 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
             break;
         }
 
-        BUG_ON(elem->out_num == 0 || elem->in_num == 0);
+        if (elem->out_num == 0 || elem->in_num == 0) {
+            virtio_error(vdev,
+                         "The guest sent a VirtFS request without headers");
+            pdu_free(pdu);
+            return;
+        }
         QEMU_BUILD_BUG_ON(sizeof out != 7);
 
         v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                          &out, sizeof out);
-        BUG_ON(len != sizeof out);
+        if (len != sizeof out) {
+            virtio_error(vdev, "The guest sent a malformed VirtFS request: "
+                         "header size is %zd, should be 7", len);
+            pdu_free(pdu);
+            return;
+        }
 
         pdu->size = le32_to_cpu(out.size_le);
 
