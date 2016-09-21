@@ -161,7 +161,7 @@ static void mcf_fec_do_tx(mcf_fec_state *s)
         mcf_fec_read_bd(&bd, addr);
         DPRINTF("tx_bd %x flags %04x len %d data %08x\n",
                 addr, bd.flags, bd.length, bd.data);
-        if ((bd.flags & FEC_BD_R) == 0) {
+        if (!bd.length || (bd.flags & FEC_BD_R) == 0) {
             /* Run out of descriptors to transmit.  */
             break;
         }
