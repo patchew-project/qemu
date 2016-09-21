@@ -52,17 +52,24 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
 
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
-            pdu_free(pdu);
-            break;
+            goto out_free_pdu;
         }
 
-        BUG_ON(elem->out_num == 0 || elem->in_num == 0);
+        if (elem->out_num == 0 || elem->in_num == 0) {
+            virtio_error(vdev,
+                         "The guest sent a VirtFS request without headers");
+            goto out_free_pdu;
+        }
         QEMU_BUILD_BUG_ON(sizeof(out) != 7);
 
         v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                          &out, sizeof(out));
-        BUG_ON(len != sizeof(out));
+        if (len != sizeof(out)) {
+            virtio_error(vdev, "The guest sent a malformed VirtFS request: "
+                         "header size is %zd, should be 7", len);
+            goto out_free_pdu;
+        }
 
         pdu->size = le32_to_cpu(out.size_le);
 
@@ -72,6 +79,11 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         qemu_co_queue_init(&pdu->complete);
         pdu_submit(pdu);
     }
+
+    return;
+
+out_free_pdu:
+    pdu_free(pdu);
 }
 
 static uint64_t virtio_9p_get_features(VirtIODevice *vdev, uint64_t features,
