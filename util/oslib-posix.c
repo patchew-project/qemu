@@ -46,6 +46,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/sysctl.h>
+#include <libutil.h>
 #endif
 
 #include "qemu/mmap-alloc.h"
@@ -427,6 +428,42 @@ int qemu_read_password(char *buf, int buf_size)
     buf[i] = '\0';
     printf("\n");
     return ret;
+}
+
+
+char *qemu_get_pid_name(pid_t pid)
+{
+    char *name = NULL;
+    char *pid_path;
+    char buf[PATH_MAX];
+    size_t len;
+
+#if defined(__FreeBSD__)
+    /* BSDs don't have /proc, but they provide a nice substitute */
+    struct kinfo_proc *proc = kinfo_getproc(pid);
+    if (proc) {
+        name = g_strdup(proc->ki_comm);
+        free(proc);
+    }
+#else
+    /* Assume a system with reasonable procfs */
+    FILE *f;
+
+    pid_path = g_strdup_printf("/proc/%d/cmdline", pid);
+    f = fopen(pid_path, "r");
+    if (!f) {
+        return NULL;
+    }
+
+    len = fread(buf, 1, sizeof(buf), f);
+    if (len) {
+        name = g_strdup(buf);
+    }
+    fclose(f);
+
+#endif
+
+    return name;
 }
 
 
