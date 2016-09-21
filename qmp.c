@@ -665,7 +665,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
 void qmp_object_add(const char *type, const char *id,
                     bool has_props, QObject *props, Error **errp)
 {
-    const QDict *pdict = NULL;
+    QDict *pdict;
     Visitor *v;
     Object *obj;
 
@@ -675,13 +675,18 @@ void qmp_object_add(const char *type, const char *id,
             error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
             return;
         }
+    } else {
+        pdict = qdict_new();
     }
 
-    v = qmp_input_visitor_new(props, true);
+    v = qmp_input_visitor_new(QOBJECT(pdict), true);
     obj = user_creatable_add_type(type, id, pdict, v, errp);
     visit_free(v);
     if (obj) {
         object_unref(obj);
+    }
+    if (!props) {
+        qobject_decref(QOBJECT(pdict));
     }
 }
 
