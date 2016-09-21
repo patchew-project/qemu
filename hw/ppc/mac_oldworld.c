@@ -363,8 +363,10 @@ static int heathrow_kvm_type(const char *arg)
     return 2;
 }
 
-static void heathrow_machine_init(MachineClass *mc)
+static void heathrow_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Heathrow based PowerMAC";
     mc->init = ppc_heathrow_init;
     mc->max_cpus = MAX_CPUS;
@@ -376,4 +378,15 @@ static void heathrow_machine_init(MachineClass *mc)
     mc->kvm_type = heathrow_kvm_type;
 }
 
-DEFINE_MACHINE("g3beige", heathrow_machine_init)
+static const TypeInfo heathrow_machine_info = {
+    .name          = MACHINE_TYPE_NAME("g3beige"),
+    .parent        = TYPE_MACHINE,
+    .class_init    = heathrow_machine_class_init,
+};
+
+static void heathrow_machine_register_types(void)
+{
+    type_register_static(&heathrow_machine_info);
+}
+
+type_init(heathrow_machine_register_types)
