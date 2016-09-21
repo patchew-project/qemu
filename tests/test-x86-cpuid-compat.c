@@ -91,5 +91,11 @@ int main(int argc, char **argv)
     /* if xlevel2 is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed", "-cpu 486,xlevel2=0xC0000002,+xstore", "xlevel2", 0xC0000002);
 
+    /* Compatibility test for older machine-types that don't auto-increase level/xlevel/xlevel2: */
+
+    add_cpuid_test("x86/cpuid/auto-level/pc-2.7", "-machine pc-i440fx-2.7 -cpu 486,+arat,+avx512vbmi,+xsaveopt", "level", 1);
+    add_cpuid_test("x86/cpuid/auto-xlevel/pc-2.7", "-machine pc-i440fx-2.7 -cpu 486,+3dnow,+sse4a,+invtsc,+npt", "xlevel", 0);
+    add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7", "-machine pc-i440fx-2.7 -cpu 486,+xstore", "xlevel2", 0);
+
     return g_test_run();
 }
