@@ -81,10 +81,9 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
     virtio_scsi_free_req(req);
 }
 
-static void virtio_scsi_bad_req(void)
+static void virtio_scsi_bad_req(VirtIOSCSIReq *req)
 {
-    error_report("wrong size for virtio-scsi headers");
-    exit(1);
+    virtio_error(req->vdev, "wrong size for virtio-scsi headers");
 }
 
 static size_t qemu_sgl_concat(VirtIOSCSIReq *req, struct iovec *iov,
@@ -387,7 +386,7 @@ static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
 
     if (iov_to_buf(req->elem.out_sg, req->elem.out_num, 0,
                 &type, sizeof(type)) < sizeof(type)) {
-        virtio_scsi_bad_req();
+        virtio_scsi_bad_req(req);
         return;
     }
 
@@ -395,7 +394,8 @@ static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
     if (type == VIRTIO_SCSI_T_TMF) {
         if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICtrlTMFReq),
                     sizeof(VirtIOSCSICtrlTMFResp)) < 0) {
-            virtio_scsi_bad_req();
+            virtio_scsi_bad_req(req);
+            return;
         } else {
             r = virtio_scsi_do_tmf(s, req);
         }
@@ -404,7 +404,8 @@ static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
                type == VIRTIO_SCSI_T_AN_SUBSCRIBE) {
         if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICtrlANReq),
                     sizeof(VirtIOSCSICtrlANResp)) < 0) {
-            virtio_scsi_bad_req();
+            virtio_scsi_bad_req(req);
+            return;
         } else {
             req->resp.an.event_actual = 0;
             req->resp.an.response = VIRTIO_SCSI_S_OK;
@@ -708,7 +709,8 @@ void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     }
 
     if (virtio_scsi_parse_req(req, 0, sizeof(VirtIOSCSIEvent))) {
-        virtio_scsi_bad_req();
+        virtio_scsi_bad_req(req);
+        goto out;
     }
 
     evt = &req->resp.event;
