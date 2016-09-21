@@ -85,7 +85,7 @@ static void a9_gtimer_update(A9GTimerState *s, bool sync)
             while (gtb->compare < update.new) {
                 DB_PRINT("Compare event happened for CPU %d\n", i);
                 gtb->status = 1;
-                if (gtb->control & R_CONTROL_AUTO_INCREMENT) {
+                if (gtb->inc && gtb->control & R_CONTROL_AUTO_INCREMENT) {
                     DB_PRINT("Auto incrementing timer compare by %" PRId32 "\n",
                              gtb->inc);
                     gtb->compare += gtb->inc;
