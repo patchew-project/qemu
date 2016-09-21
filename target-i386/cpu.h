@@ -1111,9 +1111,12 @@ typedef struct CPUX86State {
     struct {} end_reset_fields;
 
     /* processor features (e.g. for CPUID insn) */
-    uint32_t cpuid_level;
-    uint32_t cpuid_xlevel;
-    uint32_t cpuid_xlevel2;
+    /* Minimum level/xlevel/xlevel2, based on CPU model + features */
+    uint32_t cpuid_min_level, cpuid_min_xlevel, cpuid_min_xlevel2;
+    /* Maximum level/xlevel/xlevel2 value for auto-assignment: */
+    uint32_t cpuid_max_level, cpuid_max_xlevel, cpuid_max_xlevel2;
+    /* Actual level/xlevel/xlevel2 value: */
+    uint32_t cpuid_level, cpuid_xlevel, cpuid_xlevel2;
     uint32_t cpuid_vendor1;
     uint32_t cpuid_vendor2;
     uint32_t cpuid_vendor3;
@@ -1217,6 +1220,12 @@ struct X86CPU {
 
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
+
+    /* Enable auto level-increase for CPUID[7].ECX features */
+    bool cpuid_auto_level_7_0_ecx;
+
+    /* Enable auto level-increase for CPUID[6] features */
+    bool cpuid_auto_level_6;
 
     /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
     bool fill_mtrr_mask;

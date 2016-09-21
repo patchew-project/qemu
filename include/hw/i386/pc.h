@@ -376,7 +376,32 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_7 \
     PC_COMPAT_2_8 \
-    HW_COMPAT_2_7
+    HW_COMPAT_2_7 \
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "cpuid-auto-level-6",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "cpuid-auto-level-7-0-ecx",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "max-level",\
+        .value    = stringify(7),\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "max-xlevel",\
+        .value    = stringify(0),\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "max-xlevel2",\
+        .value    = stringify(0),\
+    },
 
 #define PC_COMPAT_2_6 \
     HW_COMPAT_2_6 \
