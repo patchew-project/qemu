@@ -135,6 +135,12 @@ static int coroutine_fn blkreplay_co_flush(BlockDriverState *bs)
     return ret;
 }
 
+static bool blkreplay_recurse_is_first_non_filter(BlockDriverState *bs,
+                                                  BlockDriverState *candidate)
+{
+    return bdrv_recurse_is_first_non_filter(bs->file->bs, candidate);
+}
+
 static BlockDriver bdrv_blkreplay = {
     .format_name            = "blkreplay",
     .protocol_name          = "blkreplay",
@@ -150,6 +156,9 @@ static BlockDriver bdrv_blkreplay = {
     .bdrv_co_pwrite_zeroes  = blkreplay_co_pwrite_zeroes,
     .bdrv_co_pdiscard       = blkreplay_co_pdiscard,
     .bdrv_co_flush          = blkreplay_co_flush,
+
+    .is_filter              = true,
+    .bdrv_recurse_is_first_non_filter = blkreplay_recurse_is_first_non_filter,
 };
 
 static void bdrv_blkreplay_init(void)
