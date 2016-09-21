@@ -295,6 +295,7 @@ void replay_configure(QemuOpts *opts)
 
     replay_snapshot = g_strdup(qemu_opt_get(opts, "rrsnapshot"));
 
+    replay_vmstate_register();
     replay_enable(fname, mode);
 
 out:
