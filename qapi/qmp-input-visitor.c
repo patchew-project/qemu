@@ -322,11 +322,13 @@ static void qmp_input_type_str(Visitor *v, const char *name, char **obj,
     QObject *qobj = qmp_input_get_object(qiv, name, true, errp);
     QString *qstr = qobject_to_qstring(qobj);
 
+    if (obj) {
+        *obj = NULL;
+    }
     if (!qobj) {
         return;
     }
     if (!qstr) {
-        *obj = NULL;
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "string");
         return;
@@ -368,6 +370,9 @@ static void qmp_input_type_any(Visitor *v, const char *name, QObject **obj,
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true, errp);
 
+    if (obj) {
+        *obj = NULL;
+    }
     if (!qobj) {
         return;
     }
