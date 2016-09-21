@@ -26,6 +26,7 @@
 #define HEADER_SIZE                 (sizeof(uint32_t) + sizeof(uint64_t))
 
 ReplayMode replay_mode = REPLAY_MODE_NONE;
+char *replay_snapshot;
 
 /* Name of replay file  */
 static char *replay_filename;
@@ -291,6 +292,8 @@ void replay_configure(QemuOpts *opts)
         exit(1);
     }
 
+    replay_snapshot = g_strdup(qemu_opt_get(opts, "rrsnapshot"));
+
     replay_enable(fname, mode);
 
 out:
@@ -343,6 +346,9 @@ void replay_finish(void)
         g_free(replay_filename);
         replay_filename = NULL;
     }
+
+    g_free(replay_snapshot);
+    replay_snapshot = NULL;
 
     replay_finish_events();
     replay_mutex_destroy();
