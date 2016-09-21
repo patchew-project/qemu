@@ -2300,6 +2300,10 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
             error_setg(errp, "CPU hot unplug not supported on this machine");
             return;
         }
+        if (!kvm_enabled()) {
+            error_setg(errp, "CPU hot unplug not supported in TCG mode");
+            return;
+        }
         spapr_core_unplug(hotplug_dev, dev, errp);
     }
 }
