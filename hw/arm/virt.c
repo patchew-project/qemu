@@ -84,6 +84,7 @@ typedef struct {
     MachineClass parent;
     VirtBoardInfo *daughterboard;
     bool disallow_affinity_adjustment;
+    bool pmu_default_on;
 } VirtMachineClass;
 
 typedef struct {
@@ -1287,6 +1288,8 @@ static void machvirt_init(MachineState *machine)
 
     for (n = 0; n < smp_cpus; n++) {
         Object *cpuobj = object_new(typename);
+        ARMCPU *cpu = ARM_CPU(cpuobj);
+
         if (!vmc->disallow_affinity_adjustment) {
             /* Adjust MPIDR like 64-bit KVM hosts, which incorporate the
              * GIC's target-list limitations. 32-bit KVM hosts currently
@@ -1315,6 +1318,12 @@ static void machvirt_init(MachineState *machine)
                 object_property_set_bool(cpuobj, true,
                                          "start-powered-off", NULL);
             }
+        }
+
+        if (cpu->has_pmu == ON_OFF_AUTO_AUTO &&
+            object_property_find(cpuobj, "pmu", NULL)) {
+            cpu->has_pmu = vmc->pmu_default_on ? ON_OFF_AUTO_ON :
+                ON_OFF_AUTO_OFF;
         }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
@@ -1514,6 +1523,9 @@ static void virt_2_7_instance_init(Object *obj)
 
 static void virt_machine_2_7_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
+    vmc->pmu_default_on = true;
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(2, 7)
 
@@ -1532,5 +1544,9 @@ static void virt_machine_2_6_options(MachineClass *mc)
     virt_machine_2_7_options(mc);
     SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_6);
     vmc->disallow_affinity_adjustment = true;
+    /* Disable PMU for 2.6 and down as PMU support was first introduced
+     * and enabled in 2.7.
+     */
+    vmc->pmu_default_on = false;
 }
 DEFINE_VIRT_MACHINE(2, 6)
