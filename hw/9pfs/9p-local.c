@@ -436,8 +436,8 @@ static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
                              const struct iovec *iov,
                              int iovcnt, off_t offset)
 {
-    ssize_t ret
-;
+    ssize_t ret;
+
 #ifdef CONFIG_PREADV
     ret = pwritev(fs->fd, iov, iovcnt, offset);
 #else
@@ -1237,6 +1237,11 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
         error_report("fsdev: No path specified");
         return -1;
     }
+
+    if (fsdev_throttle_configure_iolimits(opts, &fse->fst) < 0) {
+        return -1;
+    }
+
     fse->path = g_strdup(path);
 
     return 0;
