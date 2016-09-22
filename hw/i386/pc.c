@@ -778,7 +778,6 @@ static FWCfgState *bochs_bios_init(AddressSpace *as, PCMachineState *pcms)
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
     for (i = 0; i < max_cpus; i++) {
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
-        assert(apic_id < pcms->apic_id_limit);
         j = numa_get_node_for_cpu(i);
         if (j < nb_numa_nodes) {
             numa_fw_cfg[apic_id + 1] = cpu_to_le64(j);
@@ -1190,12 +1189,6 @@ void pc_cpus_init(PCMachineState *pcms)
      * This is used for FW_CFG_MAX_CPUS. See comments on bochs_bios_init().
      */
     pcms->apic_id_limit = x86_cpu_apic_id_from_index(max_cpus - 1) + 1;
-    if (pcms->apic_id_limit > ACPI_CPU_HOTPLUG_ID_LIMIT) {
-        error_report("max_cpus is too large. APIC ID of last CPU is %u",
-                     pcms->apic_id_limit - 1);
-        exit(1);
-    }
-
     pcms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
                                     sizeof(CPUArchId) * max_cpus);
     for (i = 0; i < max_cpus; i++) {
