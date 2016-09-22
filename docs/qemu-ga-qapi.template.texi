@@ -1,0 +1,58 @@
+\input texinfo
+@setfilename qemu-ga-qapi
+@documentlanguage en
+@exampleindent 0
+@paragraphindent 0
+
+@settitle QEMU-GA QAPI Reference Manual
+
+@ifinfo
+@direntry
+* QEMU-GA-QAPI: (qemu-doc).    QEMU-GA QAPI Reference Manual
+@end direntry
+@end ifinfo
+
+@iftex
+@titlepage
+@sp 7
+@center @titlefont{{QEMU Guest Agent {version}}}
+@sp 1
+@center @titlefont{{QAPI Reference Manual}}
+@sp 3
+@end titlepage
+@end iftex
+
+@ifnottex
+@node Top
+@top
+
+This is the QEMU Guest Agent QAPI reference for QEMU {version}.
+
+@menu
+* API Reference::
+* Commands and Events Index::
+* Data Types Index::
+@end menu
+
+@end ifnottex
+
+@contents
+
+@node API Reference
+@chapter API Reference
+
+@c man begin DESCRIPTION
+{qapi}
+@c man end
+
+@c man begin SEEALSO
+The HTML documentation of QEMU for more precise information.
+@c man end
+
+@node Commands and Events Index
+@unnumbered Commands and Events Index
+@printindex fn
+@node Data Types Index
+@unnumbered Data Types Index
+@printindex tp
+@bye
