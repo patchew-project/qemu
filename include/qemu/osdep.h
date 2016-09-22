@@ -64,6 +64,7 @@ extern int daemon(int, int);
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/sysmacros.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
