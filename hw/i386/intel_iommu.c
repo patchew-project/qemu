@@ -32,6 +32,7 @@
 #include "hw/pci-host/q35.h"
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
+#include "kvm_i386.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -2483,6 +2484,12 @@ static void vtd_realize(DeviceState *dev, Error **errp)
         !kvm_irqchip_is_split()) {
         error_report("Intel Interrupt Remapping cannot work with "
                      "kernel-irqchip=on, please use 'split|off'.");
+        exit(1);
+    }
+
+    if (s->eim_supported && kvm_irqchip_in_kernel() &&
+        !kvm_enable_x2apic()) {
+        error_report("EIM requires support from the KVM side (X2APIC_API).");
         exit(1);
     }
 }
