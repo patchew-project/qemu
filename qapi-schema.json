@@ -120,9 +120,12 @@
 #
 # @present: true if KVM acceleration is built into this executable
 #
-# Since: 0.14.0
+# @mem_encryption: true if Memory Encryption is active
+#
+# Since: 2.8.0
 ##
-{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool',
+            'mem_encryption' : 'bool'} }
 
 ##
 # @query-kvm:
