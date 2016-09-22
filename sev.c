@@ -1082,6 +1082,24 @@ sev_guest_launch_finish(void *handle)
 }
 
 static int
+sev_debug_decrypt(SEVState *s, uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    int ret;
+    struct kvm_sev_dbg_decrypt *dbg;
+
+    dbg = g_malloc0(sizeof(*dbg));
+    dbg->src_addr = (unsigned long)src;
+    dbg->dst_addr = (unsigned long)dst;
+    dbg->length = len;
+
+    ret = sev_ioctl(KVM_SEV_DBG_DECRYPT, dbg);
+    DPRINTF("SEV: DBG_DECRYPT src %#lx dst %#lx len %#x\n",
+            (uint64_t)src, (uint64_t)dst, len);
+    g_free(dbg);
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
     SEVState *s = kvm_memory_encryption_get_handle();
@@ -1102,9 +1120,9 @@ sev_mem_read(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
     SEVState *s = kvm_memory_encryption_get_handle();
 
     assert(s != NULL);
+    assert(attrs.debug || s->state != SEV_STATE_RUNNING);
 
-    // fill in the code in next patches
-    return 0;
+    return sev_debug_decrypt(s, dst, src, len);
 }
 
 void
