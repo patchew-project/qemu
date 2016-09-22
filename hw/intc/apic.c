@@ -900,6 +900,11 @@ static void apic_unrealize(DeviceState *dev, Error **errp)
     local_apics[s->id] = NULL;
 }
 
+static void apic_send_msi_struct(MSIMessage *msi)
+{
+    apic_send_msi(msi->address, msi->data);
+}
+
 static void apic_class_init(ObjectClass *klass, void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
@@ -913,6 +918,7 @@ static void apic_class_init(ObjectClass *klass, void *data)
     k->external_nmi = apic_external_nmi;
     k->pre_save = apic_pre_save;
     k->post_load = apic_post_load;
+    k->send_msi = apic_send_msi_struct;
 }
 
 static const TypeInfo apic_info = {
