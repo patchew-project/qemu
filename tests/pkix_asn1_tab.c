@@ -4,6 +4,14 @@
  */
 
 #include "qemu/osdep.h"
+#if !(defined WIN32) && \
+    defined(CONFIG_TASN1) && \
+    (LIBGNUTLS_VERSION_NUMBER >= 0x020600)
+#define QCRYPTO_HAVE_TLS_TEST_SUPPORT
+#endif
+
+#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
+
 #include <libtasn1.h>
 
 const ASN1_ARRAY_TYPE pkix_asn1_tab[] = {
@@ -1103,3 +1111,4 @@ const ASN1_ARRAY_TYPE pkix_asn1_tab[] = {
   {0, 1048586, "2"},
   {0, 0, 0}
 };
+#endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
