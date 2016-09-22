@@ -1389,6 +1389,13 @@ void pc_memory_init(PCMachineState *pcms,
         e820_add_entry(0x100000000ULL, pcms->above_4g_mem_size, E820_RAM);
     }
 
+    /* if memory encryption is enabled then set the memory encryption
+     * ops so that any read and write to guest RAM from hypervisor will
+     * go through encryption routines. */
+    if (kvm_memory_encryption_enabled()) {
+        kvm_memory_encryption_set_memory_region(ram);
+    }
+
     if (!pcmc->has_reserved_memory &&
         (machine->ram_slots ||
          (machine->maxram_size > machine->ram_size))) {
