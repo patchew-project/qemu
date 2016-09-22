@@ -558,6 +558,68 @@ zero write commands. You may even choose "unmap" if @var{discard} is set
 to "unmap" to allow a zero write to be converted to an UNMAP operation.
 @end table
 
+@item Driver-specific options for @code{file}
+@table @code
+@item filename
+The path to the image file in the local filesystem
+@item aio
+Specifies the AIO backend (threads/native, default: threads)
+@end table
+
+@item Driver-specific options for @code{raw}
+@table @code
+@item file
+Reference to or definition of the data source block device
+@end table
+
+@item Driver-specific options for @code{qcow2}
+@table @code
+@item file
+Reference to or definition of the data source block device
+
+@item backing
+Reference to or definition of the backing file block device (if missing, taken
+from the image file content). It is allowed to pass an empty string here in
+order to disable the default backing file.
+
+@item lazy-refcounts
+Whether to enable the lazy refcounts feature (on/off, default is taken from the
+image file)
+
+@item cache-size
+The maximum total size of the L2 table and refcount block caches in bytes
+
+@item l2-cache-size
+The maximum size of the L2 table cache in bytes
+
+@item refcount-cache-size
+The maximum size of the refcount block cache in bytes
+
+@item cache-clean-interval
+Clean unused entries in the L2 and refcount caches. The interval is in seconds.
+The default value is 0 and it disables this feature.
+
+@item pass-discard-request
+Whether discard requests to the qcow2 device should be forwarded to the data
+source (on/off)
+
+@item pass-discard-snapshot
+Whether discard requests for the data source should be issued when a snapshot
+operation (e.g. deleting a snapshot) frees clusters in the qcow2 file (on/off)
+
+@item pass-discard-other
+Whether discard requests for the data source should be issued on other
+occasions where a cluster gets freed (on/off)
+
+@item overlap-check
+Which overlap checks to perform for writes to the image
+(none/constant/cache/all, defaults to 'cached'). For details or finer
+granularity control refer to the QAPI documentation of @code{blockdev-add}.
+@end table
+
+@item Driver-specific options for other drivers
+Please refer to the QAPI documentation of the @code{blockdev-add} QMP command.
+
 @end table
 
 ETEXI
