@@ -22,6 +22,19 @@
 #include "hw/pci/pci.h"
 #include "qemu/event_notifier.h"
 #include "sysemu/kvm.h"
+#include "qemu/error-report.h"
+
+/* Type: 0 for MMIO write, 1 for PIO write. */
+typedef void (*pci_testdev_write_op)(void *opaque, hwaddr addr,
+                                     uint64_t val, unsigned size, int type);
+typedef uint64_t (*pci_testdev_read_op)(void *opaque, hwaddr addr,
+                                        unsigned size);
+
+struct testcase {
+    const char *name;
+    pci_testdev_write_op write_op;
+    pci_testdev_read_op read_op;
+};
 
 typedef struct PCITestDevHdr {
     uint8_t test;
@@ -85,6 +98,8 @@ typedef struct PCITestDevState {
     MemoryRegion portio;
     IOTest *tests;
     int current;
+    char *testcase_name;
+    struct testcase *testcase;
 } PCITestDevState;
 
 #define TYPE_PCI_TEST_DEV "pci-testdev"
@@ -200,22 +215,58 @@ pci_testdev_read(void *opaque, hwaddr addr, unsigned size)
     return buf[addr];
 }
 
+/*
+ * To add a new test, we need to implement both write_op and read_op,
+ * and add a new "struct testcase" into the global pci_testcases[].
+ */
+struct testcase pci_testcases[] = {
+    {"eventfd", pci_testdev_write, pci_testdev_read},
+    {NULL, NULL, NULL},
+};
+
+#define FOREACH_TEST_CASE(n) for (n = &pci_testcases[0]; n->name; n++)
+
+static struct testcase *
+pci_testdev_find_testcase(char *name)
+{
+    struct testcase *test;
+
+    FOREACH_TEST_CASE(test) {
+        if (!strcmp(test->name, name)) {
+            return test;
+        }
+    }
+    return NULL;
+}
+
+static uint64_t
+pci_testdev_common_read(void *opaque, hwaddr addr, unsigned size)
+{
+    PCITestDevState *d = opaque;
+    pci_testdev_read_op read_op = d->testcase->read_op;
+    return read_op(opaque, addr, size);
+}
+
 static void
 pci_testdev_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                        unsigned size)
 {
-    pci_testdev_write(opaque, addr, val, size, 0);
+    PCITestDevState *d = opaque;
+    pci_testdev_write_op write_op = d->testcase->write_op;
+    write_op(opaque, addr, val, size, 0);
 }
 
 static void
 pci_testdev_pio_write(void *opaque, hwaddr addr, uint64_t val,
                        unsigned size)
 {
-    pci_testdev_write(opaque, addr, val, size, 1);
+    PCITestDevState *d = opaque;
+    pci_testdev_write_op write_op = d->testcase->write_op;
+    write_op(opaque, addr, val, size, 1);
 }
 
 static const MemoryRegionOps pci_testdev_mmio_ops = {
-    .read = pci_testdev_read,
+    .read = pci_testdev_common_read,
     .write = pci_testdev_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
@@ -225,7 +276,7 @@ static const MemoryRegionOps pci_testdev_mmio_ops = {
 };
 
 static const MemoryRegionOps pci_testdev_pio_ops = {
-    .read = pci_testdev_read,
+    .read = pci_testdev_common_read,
     .write = pci_testdev_pio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
@@ -281,6 +332,21 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
         assert(r >= 0);
         test->hasnotifier = true;
     }
+
+    if (!d->testcase_name) {
+        d->testcase_name = (char *)"eventfd";
+    }
+
+    d->testcase = pci_testdev_find_testcase(d->testcase_name);
+    if (!d->testcase) {
+        struct testcase *test;
+        error_report("Invalid test case. Currently support: {");
+        FOREACH_TEST_CASE(test) {
+            error_report("\t\"%s\", ", test->name);
+        }
+        error_report("}");
+        exit(1);
+    }
 }
 
 static void
@@ -305,6 +371,11 @@ static void qdev_pci_testdev_reset(DeviceState *dev)
     pci_testdev_reset(d);
 }
 
+static Property pci_testdev_properties[] = {
+    DEFINE_PROP_STRING("testcase", PCITestDevState, testcase_name),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pci_testdev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -319,6 +390,7 @@ static void pci_testdev_class_init(ObjectClass *klass, void *data)
     dc->desc = "PCI Test Device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->reset = qdev_pci_testdev_reset;
+    dc->props = pci_testdev_properties;
 }
 
 static const TypeInfo pci_testdev_info = {
