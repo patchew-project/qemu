@@ -4186,3 +4186,15 @@ QemuOptsList qemu_drive_opts = {
         { /* end of list */ }
     },
 };
+
+QemuOptsList qemu_blockdev_opts = {
+    .name = "blockdev",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_blockdev_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};
