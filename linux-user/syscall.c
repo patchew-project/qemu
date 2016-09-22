@@ -7450,7 +7450,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
 
     if (fake_open->filename) {
         const char *tmpdir;
-        char filename[PATH_MAX];
+        char filename[128];
         int fd, r;
 
         /* create temporary file to map stat to */
@@ -9666,9 +9666,42 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_bdflush:
         goto unimplemented;
 #endif
-#ifdef TARGET_NR_sysfs
+#if defined(TARGET_NR_sysfs)
     case TARGET_NR_sysfs:
-        goto unimplemented;
+        switch (arg1) {
+        case 1:
+            {
+                p = lock_user_string(arg2);
+                if (!p) {
+                    goto efault;
+                }
+                ret = get_errno(syscall(__NR_sysfs, arg1, p));
+                unlock_user(p, arg2, 0);
+            }
+            break;
+        case 2:
+            {
+                char buf[PATH_MAX];
+                memset(buf, 0, PATH_MAX);
+                ret = get_errno(syscall(__NR_sysfs, arg1, arg2, buf));
+                if (!is_error(ret)) {
+                    int len = PATH_MAX;
+                    if (len > strlen(buf)) {
+                        len = strlen(buf);
+                    }
+                    if (copy_to_user(arg3, buf, len) != 0) {
+                        goto efault;
+                    }
+                }
+            }
+            break;
+        case 3:
+            ret = get_errno(syscall(__NR_sysfs, arg1));
+            break;
+        default:
+            ret = -EINVAL;
+        }
+        break;
 #endif
     case TARGET_NR_personality:
         ret = get_errno(personality(arg1));
