@@ -782,8 +782,21 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 	@perl -p -e 's|\Q$(SRC_PATH)\E/||g' $*.test.err | diff -q $(SRC_PATH)/$*.err -
 	@diff -q $(SRC_PATH)/$*.exit $*.test.exit
 
-# Consolidated targets
+tests-cleanfiles = *.o
+tests-cleanfiles += .gitignore
+tests-cleanfiles += qht-bench$(EXESUF)
+tests-cleanfiles += qapi-schema/*.test.*
+tests-cleanfiles += test-qapi-event.[ch]
+tests-cleanfiles += test-qapi-types.[ch]
+tests-cleanfiles += test-qapi-visit.[ch]
+tests-cleanfiles += test-qmp-introspect.[ch]
+tests-cleanfiles += test-qmp-commands.h
+tests-cleanfiles += test-qmp-marshal.c
+tests-cleanfiles += $(subst tests/,,$(check-unit-y))
+tests-cleanfiles += $(subst tests/,,$(check-qtest-y))
+tests-cleanfiles += $(patsubst tests/%,%,$(QEMU_IOTESTS_HELPERS-y))
 
+# Consolidated targets
 .PHONY: check-qapi-schema check-qtest check-unit check check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y))
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
@@ -792,14 +805,19 @@ check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-qapi-schema check-unit check-qtest
 check-clean:
 	$(MAKE) -C tests/tcg clean
-	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
-	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)) $(check-qtest-generic-y))
-
+	(cd tests && rm -rf $(tests-cleanfiles))
 clean: check-clean
 
 # Build the help program automatically
 
 all: $(QEMU_IOTESTS_HELPERS-y)
+
+ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
+$(SRC_PATH)/tests/.gitignore:
+	$(call quiet-command, echo "$(tests-cleanfiles)" | xargs -n1 | sort > $@, \
+	  " GEN $(@F)")
+Makefile: $(SRC_PATH)/tests/.gitignore
+endif
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)
