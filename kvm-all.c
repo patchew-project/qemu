@@ -36,6 +36,8 @@
 #include "qemu/event_notifier.h"
 #include "trace.h"
 #include "hw/irq.h"
+#include "sysemu/security-policy.h"
+#include "sysemu/sev.h"
 
 #include "hw/boards.h"
 
@@ -101,6 +103,12 @@ struct KVMState
 #endif
     KVMMemoryListener memory_listener;
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
+
+    /* memory encryption support */
+    void *mem_encrypt_handle;
+    int (*mem_encrypt_start)(void *handle);
+    int (*mem_encrypt_finish)(void *handle);
+    void (*mem_encrypt_ops)(void *handle, MemoryRegion *mr);
 };
 
 KVMState *kvm_state;
@@ -125,6 +133,42 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(DESTROY_MEMORY_REGION_WORKS),
     KVM_CAP_LAST_INFO
 };
+
+bool kvm_memory_encryption_enabled(void)
+{
+    return kvm_state->mem_encrypt_handle ? true : false;
+}
+
+int kvm_memory_encryption_start(void)
+{
+    if (kvm_state->mem_encrypt_start) {
+        return kvm_state->mem_encrypt_start(kvm_state->mem_encrypt_handle);
+    }
+
+    return -1;
+}
+
+int kvm_memory_encryption_finish(void)
+{
+    if (kvm_state->mem_encrypt_finish) {
+        return kvm_state->mem_encrypt_finish(kvm_state->mem_encrypt_handle);
+    }
+
+    return -1;
+}
+
+void kvm_memory_encryption_set_memory_region(MemoryRegion *mr)
+{
+    if (kvm_state->mem_encrypt_ops) {
+        return kvm_state->mem_encrypt_ops(kvm_state->mem_encrypt_handle,
+                                          mr);
+    }
+}
+
+void *kvm_memory_encryption_get_handle(void)
+{
+    return kvm_state->mem_encrypt_handle;
+}
 
 int kvm_get_max_memslots(void)
 {
@@ -1744,6 +1788,33 @@ static int kvm_init(MachineState *ms)
     }
 
     kvm_state = s;
+
+    if (ms->security_policy) {
+        char *id;
+
+        /* if security-policy is enabled  then check whether memory encryption
+         * property is defined. If so, enable hardware memory encryption.
+         */
+        id = security_policy_get_memory_encryption_id(ms->security_policy);
+        if (id) {
+
+            /* check if its SEV guest policy */
+            if (has_sev_guest_policy(id)) {
+                kvm_state->mem_encrypt_handle = sev_guest_init(id);
+                if (!kvm_state->mem_encrypt_handle) {
+                    fprintf(stderr,
+                            "failed to initialize Secure Encrypted"
+                            " Virutalization (SEV) guest\n");
+                    goto err;
+                }
+                kvm_state->mem_encrypt_start = sev_guest_launch_start;
+                kvm_state->mem_encrypt_finish = sev_guest_launch_finish;
+                kvm_state->mem_encrypt_ops = sev_guest_set_ops;
+            }
+
+            g_free(id);
+        }
+    }
 
     if (kvm_eventfds_allowed) {
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;

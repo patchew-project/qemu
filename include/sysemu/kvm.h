@@ -56,6 +56,7 @@ extern bool kvm_ioeventfd_any_length_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
+
 /**
  * kvm_irqchip_in_kernel:
  *
@@ -217,6 +218,11 @@ int kvm_has_intx_set_mask(void);
 int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUState *cpu);
 int kvm_destroy_vcpu(CPUState *cpu);
+bool kvm_memory_encryption_enabled(void);
+int kvm_memory_encryption_start(void);
+int kvm_memory_encryption_finish(void);
+void *kvm_memory_encryption_get_handle(void);
+void kvm_memory_encryption_set_memory_region(MemoryRegion *mr);
 
 #ifdef NEED_CPU_H
 #include "cpu.h"
