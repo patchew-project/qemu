@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sev.h"
 #include "sysemu/cpus.h"
 #include "kvm_i386.h"
 
@@ -2209,6 +2210,10 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     char host_vendor[CPUID_VENDOR_SZ + 1];
     FeatureWord w;
 
+    if (sev_enabled()) {
+        def->xlevel = MAX(0x8000001f, def->xlevel);
+    }
+
     object_property_set_int(OBJECT(cpu), def->level, "level", errp);
     object_property_set_int(OBJECT(cpu), def->family, "family", errp);
     object_property_set_int(OBJECT(cpu), def->model, "model", errp);
@@ -2670,6 +2675,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
+        }
+        break;
+    case 0x8000001F:
+        if (sev_enabled()) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
         }
         break;
     case 0xC0000000:
