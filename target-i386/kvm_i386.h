@@ -41,4 +41,5 @@ int kvm_device_msix_set_vector(KVMState *s, uint32_t dev_id, uint32_t vector,
 int kvm_device_msix_assign(KVMState *s, uint32_t dev_id);
 int kvm_device_msix_deassign(KVMState *s, uint32_t dev_id);
 
+bool kvm_has_x2apic_ids(void);
 #endif
