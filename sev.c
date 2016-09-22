@@ -910,9 +910,31 @@ static const TypeInfo qsev_receive_info = {
 };
 
 static int
+sev_ioctl(int cmd, void *data)
+{
+    int ret;
+    struct kvm_sev_issue_cmd input;
+
+    input.cmd = cmd;
+    input.opaque = (__u64)data;
+    ret = kvm_vm_ioctl(kvm_state, KVM_SEV_ISSUE_CMD, &input);
+    if (ret) {
+        fprintf(stderr, "sev_ioctl failed cmd=%#x, ret=%d(%#010x)\n",
+                cmd, ret, input.ret_code);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int
 sev_launch_start(SEVState *s)
 {
     int ret;
+
+    if (s->state == SEV_STATE_LAUNCHING) {
+        return 0;
+    }
 
     ret = sev_launch_info_get_params(s->launch_id, &s->launch_start,
                                      &s->launch_update, &s->launch_finish);
@@ -920,7 +942,13 @@ sev_launch_start(SEVState *s)
         return -1;
     }
 
-    // add the command to launch guest in next patches
+    ret = sev_ioctl(KVM_SEV_LAUNCH_START, s->launch_start);
+    if (ret < 0) {
+        return -1;
+    }
+
+    s->state = SEV_STATE_LAUNCHING;
+    DPRINTF("SEV: LAUNCH_START\n");
     return 0;
 }
 
