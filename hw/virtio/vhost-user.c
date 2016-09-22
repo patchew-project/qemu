@@ -578,6 +578,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     if (err < 0) {
         return err;
     }
+    dev->features = features;
 
     if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
         dev->backend_features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
