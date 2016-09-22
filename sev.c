@@ -955,7 +955,21 @@ sev_launch_start(SEVState *s)
 static int
 sev_launch_finish(SEVState *s)
 {
-    // add the command to finalize the launch in next patches
+    int ret;
+    struct kvm_sev_launch_finish *finish = s->launch_finish;
+
+    assert(s->state == SEV_STATE_LAUNCHING);
+
+    ret = sev_ioctl(KVM_SEV_LAUNCH_FINISH, finish);
+    if (ret) {
+        return -1;
+    }
+
+    DPRINTF("SEV: LAUNCH_FINISH ");
+    DPRINTF_U8_PTR(" measurement", finish->measurement,
+                   sizeof(finish->measurement));
+
+    s->state = SEV_STATE_RUNNING;
     return 0;
 }
 
@@ -1058,7 +1072,6 @@ sev_guest_launch_finish(void *handle)
 
     if (s->state == SEV_STATE_LAUNCHING) {
         return sev_launch_finish(s);
-        // use launch_finish commands
     } else if (s->state == SEV_STATE_RECEIVING) {
         // use receive_finish commands
     } else {
