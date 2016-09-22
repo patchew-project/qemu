@@ -2004,6 +2004,11 @@ static const MemoryRegionOps vtd_mem_ops = {
 
 static Property vtd_properties[] = {
     DEFINE_PROP_UINT32("version", IntelIOMMUState, version, 0),
+    /*
+     * TODO: currently EIM is disabled by default. We can enable this
+     * after fully support x2apic.
+     */
+    DEFINE_PROP_BOOL("eim", IntelIOMMUState, eim_supported, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2360,7 +2365,10 @@ static void vtd_init(IntelIOMMUState *s)
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
-        s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM | VTD_ECAP_MHMV;
+        s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
+        if (s->eim_supported) {
+            s->ecap |= VTD_ECAP_EIM;
+        }
     }
 
     vtd_reset_context_cache(s);
@@ -2463,6 +2471,12 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     pci_setup_iommu(bus, vtd_host_dma_iommu, dev);
     /* Pseudo address space under root PCI bus. */
     pcms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
+
+    /* EIM bit requires IR */
+    if (s->eim_supported && !x86_iommu->intr_supported) {
+        error_report("EIM (Extended Interrupt Mode) bit requires intremap=on");
+        exit(1);
+    }
 
     /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
     if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
