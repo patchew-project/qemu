@@ -55,6 +55,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
+#include "sysemu/kvm.h"
 
 #include <zlib.h>
 
@@ -997,6 +998,13 @@ static void rom_reset(void *unused)
 {
     Rom *rom;
 
+    /* create the memory encryption context before we copy any data
+     * from internal ROM to guest RAM.
+     */
+    if (kvm_memory_encryption_enabled()) {
+        kvm_memory_encryption_start();
+    }
+
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
             continue;
@@ -1023,6 +1031,11 @@ static void rom_reset(void *unused)
          * CPU definitely fetches its instructions from the just written data.
          */
         cpu_flush_icache_range(rom->addr, rom->datasize);
+    }
+
+    /* delete the memory encryption context after we are done with copying */
+    if (kvm_memory_encryption_enabled()) {
+        kvm_memory_encryption_finish();
     }
 }
 
