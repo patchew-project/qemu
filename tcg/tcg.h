@@ -32,7 +32,7 @@
 #include "tcg-target.h"
 
 /* XXX: make safe guess about sizes */
-#define MAX_OP_PER_INSTR 266
+#define MAX_OP_PER_INSTR 395
 
 #if HOST_LONG_BITS == 32
 #define MAX_OPC_PARAM_PER_ARG 2
