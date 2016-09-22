@@ -9623,6 +9623,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#if defined(TARGET_NR_clock_adjtime)
+    case TARGET_NR_clock_adjtime:
+        {
+            struct timex host_buf;
+
+            if (target_to_host_timex(&host_buf, arg2) != 0) {
+                goto efault;
+            }
+            ret = get_errno(clock_adjtime(arg1, &host_buf));
+            if (!is_error(ret)) {
+                if (host_to_target_timex(arg2, &host_buf) != 0) {
+                    goto efault;
+                }
+            }
+        }
+        break;
+#endif
 #ifdef TARGET_NR_create_module
     case TARGET_NR_create_module:
 #endif
