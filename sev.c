@@ -959,6 +959,25 @@ sev_launch_finish(SEVState *s)
     return 0;
 }
 
+static int
+sev_launch_update(SEVState *s, uint8_t *addr, uint32_t len)
+{
+    int ret;
+    struct kvm_sev_launch_update *data = s->launch_update;
+
+    assert(s->state == SEV_STATE_LAUNCHING);
+    data->address = (__u64)addr;
+    data->length = len;
+
+    ret = sev_ioctl(KVM_SEV_LAUNCH_UPDATE, data);
+    if (ret) {
+        return ret;
+    }
+
+    DPRINTF("SEV: LAUNCH_UPDATE %#lx+%#x\n", (unsigned long)addr, len);
+    return 0;
+}
+
 /**
  * Function returns 'true' if id is a valid QSevGuestInfo object.
  */
@@ -1056,7 +1075,11 @@ sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 
     assert(s != NULL);
 
-    // fill in the code in next patches
+    if (s->state == SEV_STATE_LAUNCHING) {
+        memcpy(dst, src, len);
+        return sev_launch_update(s, dst, len);
+    }
+
     return 0;
 }
 
