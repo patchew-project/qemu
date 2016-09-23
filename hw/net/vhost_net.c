@@ -425,11 +425,17 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
 {
     VHostNetState *net = get_vhost_net(nc);
     const VhostOps *vhost_ops = net->dev.vhost_ops;
-
-    nc->vring_enable = enable;
+    int ret;
 
     if (vhost_ops && vhost_ops->vhost_set_vring_enable) {
-        return vhost_ops->vhost_set_vring_enable(&net->dev, enable);
+        ret = vhost_ops->vhost_set_vring_enable(&net->dev, enable);
+        /*
+         * Try to enable vring feature.
+         * If protocol features aren't negotiated, return 0 for back compat.
+         */
+        if (ret == 0) {
+            nc->vring_enable = enable;
+        }
     }
 
     return 0;
