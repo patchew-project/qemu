@@ -1570,6 +1570,7 @@ void blk_update_root_state(BlockBackend *blk)
     blk->root_state.open_flags    = blk->root->bs->open_flags;
     blk->root_state.read_only     = blk->root->bs->read_only;
     blk->root_state.detect_zeroes = blk->root->bs->detect_zeroes;
+    blk->root_state.aio_context   = blk->root->bs->aio_context;
 }
 
 /*
@@ -1579,7 +1580,13 @@ void blk_update_root_state(BlockBackend *blk)
  */
 void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
 {
+    AioContext *ctx = blk->root_state.aio_context;
     bs->detect_zeroes = blk->root_state.detect_zeroes;
+    if (ctx && ctx != qemu_get_aio_context()) {
+        aio_context_acquire(ctx);
+        bdrv_set_aio_context(bs, ctx);
+        aio_context_release(ctx);
+    }
 }
 
 /*

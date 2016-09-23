@@ -534,6 +534,7 @@ struct BlockBackendRootState {
     int open_flags;
     bool read_only;
     BlockdevDetectZeroesOptions detect_zeroes;
+    AioContext *aio_context;
 };
 
 typedef enum BlockMirrorBackingMode {
