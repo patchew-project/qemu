@@ -329,6 +329,8 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
 
     cpu_fprintf(f, "dumping local APIC state for CPU %-2u\n\n",
                 CPU(cpu)->cpu_index);
+    cpu_fprintf(f, "apicbase 0x%x ID %d Version %d\n", s->apicbase, s->id,
+                s->version);
     dump_apic_lvt(f, cpu_fprintf, "LVT0", lvt[APIC_LVT_LINT0], false);
     dump_apic_lvt(f, cpu_fprintf, "LVT1", lvt[APIC_LVT_LINT1], false);
     dump_apic_lvt(f, cpu_fprintf, "LVTPC", lvt[APIC_LVT_PERFORM], false);
@@ -336,16 +338,25 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
     dump_apic_lvt(f, cpu_fprintf, "LVTTHMR", lvt[APIC_LVT_THERMAL], false);
     dump_apic_lvt(f, cpu_fprintf, "LVTT", lvt[APIC_LVT_TIMER], true);
 
-    cpu_fprintf(f, "Timer\t DCR=0x%x (divide by %u) initial_count = %u\n",
+    cpu_fprintf(f, "Timer\t DCR=0x%x (divide by %u) initial_count=%u\n",
                 s->divide_conf & APIC_DCR_MASK,
                 divider_conf(s->divide_conf),
                 s->initial_count);
+    cpu_fprintf(f, "     \t count_shift=%d iclt=%" PRId64 " next=%" PRId64
+                   " expiry=%" PRId64 "\n",
+                s->count_shift, s->initial_count_load_time,
+                s->next_time, s->timer_expiry);
 
     cpu_fprintf(f, "SPIV\t 0x%08x APIC %s, focus=%s, spurious vec %u\n",
                 s->spurious_vec,
                 s->spurious_vec & APIC_SPURIO_ENABLED ? "enabled" : "disabled",
                 s->spurious_vec & APIC_SPURIO_FOCUS ? "on" : "off",
                 s->spurious_vec & APIC_VECTOR_MASK);
+
+    cpu_fprintf(f, "SIPI\t vector %d wait %d\n", s->sipi_vector,
+                s->wait_for_sipi);
+    cpu_fprintf(f, "vAPIC\t control %d paddr 0x%" HWADDR_PRIX "\n",
+                s->vapic_control, s->vapic_paddr);
 
     dump_apic_icr(f, cpu_fprintf, s, &cpu->env);
 
