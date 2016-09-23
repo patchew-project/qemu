@@ -123,6 +123,9 @@ int main(int argc, char **argv)
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
+#include "qapi-visit.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/dealloc-visitor.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -1169,6 +1172,42 @@ static int cleanup_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 #define PFLASH_OPTS ""
 #define MTD_OPTS ""
 #define SD_OPTS ""
+
+static int blockdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    BlockdevOptions *options = NULL;
+    Visitor *v = NULL;
+    Error *local_err = NULL;
+
+    QDict *opts_dict = qemu_opts_to_qdict(opts, NULL);
+    QObject *crumpled = qdict_crumple(opts_dict, true, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    v = qobject_string_input_visitor_new(crumpled);
+    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+    visit_complete(v, opts);
+
+    qmp_blockdev_add(options, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+fail:
+    qapi_free_BlockdevOptions(options);
+    visit_free(v);
+    QDECREF(opts_dict);
+    qobject_decref(crumpled);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+    return !!local_err;
+}
 
 static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
@@ -3028,6 +3067,7 @@ int main(int argc, char **argv, char **envp)
     module_call_init(MODULE_INIT_QAPI);
 
     qemu_add_opts(&qemu_drive_opts);
+    qemu_add_opts(&qemu_blockdev_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
     qemu_add_drive_opts(&qemu_drive_opts);
@@ -3160,6 +3200,13 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_drive:
                 if (drive_def(optarg) == NULL) {
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_blockdev:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("blockdev"),
+                                               optarg, false);
+                if (opts == NULL) {
                     exit(1);
                 }
                 break;
@@ -4450,6 +4497,12 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* open the virtual block devices */
+    if (qemu_opts_foreach(qemu_find_opts("blockdev"), blockdev_init_func,
+                          NULL, &err)) {
+        error_report_err(err);
+        exit(1);
+    }
+
     if (snapshot || replay_mode != REPLAY_MODE_NONE) {
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot,
                           NULL, NULL);
