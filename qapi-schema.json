@@ -65,6 +65,7 @@
 { 'enum': 'LostTickPolicy',
   'data': ['discard', 'delay', 'merge', 'slew' ] }
 
+##
 # @add_client
 #
 # Allow client connections for VNC, Spice and socket based
@@ -439,6 +440,7 @@
            'cache-miss': 'int', 'cache-miss-rate': 'number',
            'overflow': 'int' } }
 
+##
 # @MigrationStatus:
 #
 # An enumeration of migration status.
@@ -617,6 +619,7 @@
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
+##
 # @MigrationParameter
 #
 # Migration parameters enumeration
@@ -665,7 +668,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname'] }
 
-#
+##
 # @migrate-set-parameters
 #
 # Set the following migration parameters
@@ -710,7 +713,7 @@
             '*tls-creds': 'str',
             '*tls-hostname': 'str'} }
 
-#
+##
 # @MigrationParameters
 #
 # @compress-level: compression level
@@ -2172,6 +2175,7 @@
 ##
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
+##
 # @xen-save-devices-state:
 #
 # Save the state of all devices to file. The RAM and the block devices
@@ -3359,6 +3363,7 @@
             'modelb': 'CpuModelInfo' },
   'returns': 'CpuModelBaselineInfo' }
 
+##
 # @AddfdInfo:
 #
 # Information about a file descriptor that was added to an fd set.
