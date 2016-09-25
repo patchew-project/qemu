@@ -4414,14 +4414,16 @@
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
-## @ACPISlotType
+##
+# @ACPISlotType
 #
 # @DIMM: memory slot
 # @CPU: logical CPU slot (since 2.7)
 #
 { 'enum': 'ACPISlotType', 'data': [ 'DIMM', 'CPU' ] }
 
-## @ACPIOSTInfo
+##
+# @ACPIOSTInfo
 #
 # OSPM Status Indication for a device
 # For description of possible values of @source and @status fields
