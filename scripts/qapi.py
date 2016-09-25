@@ -122,6 +122,79 @@ class QAPIExprError(Exception):
             "%s:%d: %s" % (self.info['file'], self.info['line'], self.msg)
 
 
+class QAPIDoc:
+    def __init__(self, comment):
+        self.symbol = None
+        self.comment = "" # the main symbol comment
+        self.args = OrderedDict()
+        # meta is for Since:, Notes:, Examples:, Returns:...
+        self.meta = OrderedDict()
+        # the current section to populate, array of [dict, key, comment...]
+        self.section = None
+
+        for line in comment.split('\n'):
+            # remove multiple spaces
+            sline = ' '.join(line.split())
+            # take the first word out
+            split = sline.split(' ', 1)
+            key = split[0]
+
+            if key.startswith("@"):
+                key = key[1:].rstrip(':')
+                sline = split[1] if len(split) > 1 else ""
+                if self.symbol is None:
+                    # the first is the section symbol
+                    self.symbol = key
+                else:
+                    # else an arg
+                    self.start_section(self.args, key)
+            elif self.symbol and \
+                    key in ("Returns:",
+                            # special case for Since often used without:
+                            "Since:", "Since",
+                            # those are often singular or plural
+                            "Note:", "Notes:",
+                            "Example:", "Examples:"):
+                sline = split[1] if len(split) > 1 else ""
+                line = None
+                # new "meta" section
+                self.start_section(self.meta, key.rstrip(':'))
+
+            if self.section and self.section[1].startswith("Example"):
+                # example is verbatim
+                self.append_comment(line)
+            else:
+                self.append_comment(sline)
+
+        self.end_section()
+
+    def append_comment(self, line):
+        """Adds a comment to the current section, or the symbol comment"""
+        if line is None:
+            return
+        if self.section is not None:
+            if self.section[-1] == "" and line == "":
+                self.end_section()
+            else:
+                self.section.append(line)
+        elif self.comment == "":
+            self.comment = line
+        else:
+            self.comment += "\n" + line
+
+    def end_section(self):
+        if self.section is not None:
+            dic = self.section[0]
+            key = self.section[1]
+            doc = "\n".join(self.section[2:])
+            dic[key] = doc
+            self.section = None
+
+    def start_section(self, dic, key):
+        self.end_section()
+        self.section = [dic, key]  # .. remaining elems will be the doc
+
+
 class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included=[], incl_info=None):
@@ -137,11 +210,14 @@ class QAPISchemaParser(object):
         self.line = 1
         self.line_pos = 0
         self.exprs = []
+        self.comment = None
+        self.apidoc = incl_info['doc'] if incl_info else []
         self.accept()
 
         while self.tok is not None:
             expr_info = {'file': fname, 'line': self.line,
-                         'parent': self.incl_info}
+                         'parent': self.incl_info, 'doc': self.apidoc}
+            self.apidoc = []
             expr = self.get_expr(False)
             if isinstance(expr, dict) and "include" in expr:
                 if len(expr) != 1:
@@ -162,6 +238,8 @@ class QAPISchemaParser(object):
                     inf = inf['parent']
                 # skip multiple include of the same file
                 if incl_abs_fname in previously_included:
+                    expr_info['doc'].extend(self.apidoc)
+                    self.apidoc = expr_info['doc']
                     continue
                 try:
                     fobj = open(incl_abs_fname, 'r')
@@ -176,6 +254,12 @@ class QAPISchemaParser(object):
                              'info': expr_info}
                 self.exprs.append(expr_elem)
 
+    def append_doc(self):
+        if self.comment:
+            apidoc = QAPIDoc(self.comment)
+            self.apidoc.append(apidoc)
+            self.comment = None
+
     def accept(self):
         while True:
             self.tok = self.src[self.cursor]
@@ -184,8 +268,20 @@ class QAPISchemaParser(object):
             self.val = None
 
             if self.tok == '#':
-                self.cursor = self.src.find('\n', self.cursor)
+                end = self.src.find('\n', self.cursor)
+                line = self.src[self.cursor:end+1]
+                # start a comment section after ##
+                if line[0] == "#":
+                    if self.comment is None:
+                        self.comment = ""
+                # skip modeline
+                elif line.find("-*") == -1 and self.comment is not None:
+                    self.comment += line
+                if self.src[end] == "\n" and self.src[end+1] == "\n":
+                    self.append_doc()
+                self.cursor = end
             elif self.tok in "{}:,[]":
+                self.append_doc()
                 return
             elif self.tok == "'":
                 string = ''
