@@ -269,6 +269,7 @@ qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 gen-out-type = $(subst .,-,$(suffix $@))
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
+qapi-py += $(SRC_PATH)/scripts/qapi2texi.py
 
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h :\
 $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
@@ -558,8 +559,22 @@ qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx $(SRC_PATH)/scripts/hxtool
 qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
+qemu-qapi.txt: qemu-qapi.texi
+	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --plaintext $< -o $@,\
+	"  GEN   $@")
+
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
+
+qemu-qapi.texi: $(qapi-modules) $(qapi-py) \
+	$(SRC_PATH)/docs/qemu-qapi.template.texi
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py \
+	$(SRC_PATH)/docs/qemu-qapi.template.texi $(VERSION) $< > $@,"  GEN   $@")
+
+qemu-ga-qapi.texi: $(SRC_PATH)/qga/qapi-schema.json $(qapi-py) \
+	$(SRC_PATH)/docs/qemu-ga-qapi.template.texi
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py \
+	$(SRC_PATH)/docs/qemu-ga-qapi.template.texi $(VERSION) $< > $@,"  GEN   $@")
 
 qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
 	$(call quiet-command, \
