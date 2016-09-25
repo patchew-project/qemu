@@ -94,6 +94,9 @@ HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS+=docs/qemu-qapi.txt qemu-qapi.7
+DOCS+=docs/qemu-ga-qapi.txt qemu-ga-qapi.7
+DOCS+=qemu-qapi.pdf qemu-ga-qapi.pdf
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
@@ -400,6 +403,9 @@ distclean: clean
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -f qemu-tech.info qemu-tech.aux qemu-tech.cp qemu-tech.dvi qemu-tech.fn qemu-tech.info qemu-tech.ky qemu-tech.log qemu-tech.pdf qemu-tech.pg qemu-tech.toc qemu-tech.tp qemu-tech.vr
+	rm -f qemu-qapi.info qemu-qapi.aux qemu-qapi.cp qemu-qapi.dvi qemu-qapi.fn qemu-qapi.info qemu-qapi.ky qemu-qapi.log qemu-qapi.pdf qemu-qapi.pg qemu-qapi.toc qemu-qapi.tp qemu-qapi.vr qemu-ga-qapi.info qemu-ga-qapi.aux qemu-ga-qapi.cp qemu-ga-qapi.dvi qemu-ga-qapi.fn qemu-ga-qapi.info qemu-ga-qapi.ky qemu-ga-qapi.log qemu-ga-qapi.pdf qemu-ga-qapi.pg qemu-ga-qapi.toc qemu-ga-qapi.tp qemu-ga-qapi.vr
+	rm -f qemu-qapi.7 qemu-ga-qapi.7
+	rm -f docs/qemu-qapi.txt
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -436,10 +442,12 @@ endif
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(qemu_docdir)"
-	$(INSTALL_DATA) $(SRC_PATH)/docs/qmp-commands.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-qapi.txt "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man7"
+	$(INSTALL_DATA) qemu-qapi.7 "$(DESTDIR)$(mandir)/man7"
 ifneq ($(TOOLS),)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
@@ -447,6 +455,8 @@ ifneq ($(TOOLS),)
 endif
 ifneq (,$(findstring qemu-ga,$(TOOLS)))
 	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
+	$(INSTALL_DATA) docs/qemu-ga-qapi.txt "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) qemu-ga-qapi.7 "$(DESTDIR)$(mandir)/man7"
 endif
 endif
 ifdef CONFIG_VIRTFS
@@ -559,7 +569,7 @@ qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx $(SRC_PATH)/scripts/hxtool
 qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
-qemu-qapi.txt: qemu-qapi.texi
+docs/%-qapi.txt: %-qapi.texi
 	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --plaintext $< -o $@,\
 	"  GEN   $@")
 
@@ -607,10 +617,22 @@ qemu-ga.8: qemu-ga.texi
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-ga.pod > $@, \
 	  "  GEN   $@")
 
-dvi: qemu-doc.dvi qemu-tech.dvi
-html: qemu-doc.html qemu-tech.html
-info: qemu-doc.info qemu-tech.info
-pdf: qemu-doc.pdf qemu-tech.pdf
+qemu-qapi.7: qemu-qapi.texi
+	$(call quiet-command, \
+	 perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-qapi.pod && \
+	 $(POD2MAN) --section=7 --center=" " --release=" " qemu-qapi.pod > $@, \
+	 "  GEN   $@")
+
+qemu-ga-qapi.7: qemu-ga-qapi.texi
+	$(call quiet-command, \
+	 perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-ga-qapi.pod && \
+	 $(POD2MAN) --section=7 --center=" " --release=" " qemu-ga-qapi.pod > $@, \
+	 "  GEN   $@")
+
+dvi: qemu-doc.dvi qemu-tech.dvi qemu-qapi.dvi qemu-ga-qapi.dvi
+html: qemu-doc.html qemu-tech.html qemu-qapi.html qemu-ga-qapi.html
+info: qemu-doc.info qemu-tech.info qemu-qapi.info qemu-ga-qapi.info
+pdf: qemu-doc.pdf qemu-tech.pdf qemu-qapi.pdf qemu-ga-qapi.pdf
 
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
