@@ -33,6 +33,16 @@
 
 bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        RISCVCPU *cpu = RISCV_CPU(cs);
+        CPURISCVState *env = &cpu->env;
+        int interruptno = cpu_riscv_hw_interrupts_pending(env);
+        if (interruptno + 1) {
+            cs->exception_index = 0x70000000U | interruptno;
+            riscv_cpu_do_interrupt(cs);
+            return true;
+        }
+    }
     return false;
 }
 
@@ -255,6 +265,40 @@ int riscv_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     return ret;
 }
 
+#ifdef RISCV_DEBUG_INTERRUPT
+static const char * const riscv_excp_names[12] = {
+    "misaligned fetch",
+    "fault fetch",
+    "illegal instruction",
+    "Breakpoint",
+    "misaligned load",
+    "fault load",
+    "misaligned store",
+    "fault store",
+    "user_ecall",
+    "supervisor_ecall",
+    "hypervisor_ecall",
+    "machine_ecall",
+};
+
+static const char * const riscv_interrupt_names[14] = {
+    "",
+    "S Soft interrupt",
+    "H Soft interrupt",
+    "M Soft interrupt",
+    "",
+    "S Timer interrupt",
+    "H Timer interrupt",
+    "M Timer interrupt",
+    "",
+    "S Ext interrupt",
+    "H Ext interrupt",
+    "M Ext interrupt",
+    "COP interrupt",
+    "Host interrupt"
+};
+#endif     /* RISCV_DEBUG_INTERRUPT */
+
 /*
  * Handle Traps
  *
@@ -263,4 +307,114 @@ int riscv_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
  */
 void riscv_cpu_do_interrupt(CPUState *cs)
 {
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+
+    #ifdef RISCV_DEBUG_INTERRUPT
+    if (cs->exception_index & 0x70000000) {
+        fprintf(stderr, "core   0: exception trap_%s, epc 0x" TARGET_FMT_lx "\n"
+                , riscv_interrupt_names[cs->exception_index & 0x0fffffff],
+                env->PC);
+    } else {
+        fprintf(stderr, "core   0: exception trap_%s, epc 0x" TARGET_FMT_lx "\n"
+                , riscv_excp_names[cs->exception_index], env->PC);
+    }
+    #endif
+
+    if (cs->exception_index == RISCV_EXCP_BREAKPOINT) {
+        fprintf(stderr, "debug mode not implemented\n");
+    }
+
+    /* skip dcsr cause check */
+
+    target_ulong fixed_cause = 0;
+    if (cs->exception_index & (0x70000000)) {
+        /* hacky for now. the MSB (bit 63) indicates interrupt but cs->exception
+           index is only 32 bits wide */
+        fixed_cause = cs->exception_index & 0x0FFFFFFF;
+        fixed_cause |= (1L << 63);
+    } else {
+        /* fixup User ECALL -> correct priv ECALL */
+        if (cs->exception_index == RISCV_EXCP_U_ECALL) {
+            switch (env->priv) {
+            case PRV_U:
+                fixed_cause = RISCV_EXCP_U_ECALL;
+                break;
+            case PRV_S:
+                fixed_cause = RISCV_EXCP_S_ECALL;
+                break;
+            case PRV_H:
+                fixed_cause = RISCV_EXCP_H_ECALL;
+                break;
+            case PRV_M:
+                fixed_cause = RISCV_EXCP_M_ECALL;
+                break;
+            }
+        } else {
+            fixed_cause = cs->exception_index;
+        }
+    }
+
+    target_ulong backup_epc = env->PC;
+
+    target_ulong bit = fixed_cause;
+    target_ulong deleg = env->csr[CSR_MEDELEG];
+
+    int hasbadaddr =
+        (fixed_cause == RISCV_EXCP_INST_ADDR_MIS) ||
+        (fixed_cause == RISCV_EXCP_INST_ACCESS_FAULT) ||
+        (fixed_cause == RISCV_EXCP_LOAD_ADDR_MIS) ||
+        (fixed_cause == RISCV_EXCP_STORE_AMO_ADDR_MIS) ||
+        (fixed_cause == RISCV_EXCP_LOAD_ACCESS_FAULT) ||
+        (fixed_cause == RISCV_EXCP_STORE_AMO_ACCESS_FAULT);
+
+    if (bit & ((target_ulong)1 << (TARGET_LONG_BITS - 1))) {
+        deleg = env->csr[CSR_MIDELEG], bit &= ~(1L << (TARGET_LONG_BITS - 1));
+    }
+
+    if (env->priv <= PRV_S && bit < 64 && ((deleg >> bit) & 1)) {
+        /* handle the trap in S-mode */
+        /* No need to check STVEC for misaligned - lower 2 bits cannot be set */
+        env->PC = env->csr[CSR_STVEC];
+        env->csr[CSR_SCAUSE] = fixed_cause;
+        env->csr[CSR_SEPC] = backup_epc;
+
+        if (hasbadaddr) {
+            #ifdef RISCV_DEBUG_INTERRUPT
+            fprintf(stderr, "core   0: badaddr 0x" TARGET_FMT_lx "\n",
+                    env->badaddr);
+            #endif
+            env->csr[CSR_SBADADDR] = env->badaddr;
+        }
+
+        target_ulong s = env->csr[CSR_MSTATUS];
+        s = set_field(s, MSTATUS_SPIE, get_field(s, MSTATUS_UIE << env->priv));
+        s = set_field(s, MSTATUS_SPP, env->priv);
+        s = set_field(s, MSTATUS_SIE, 0);
+        csr_write_helper(env, s, CSR_MSTATUS);
+        set_privilege(env, PRV_S);
+    } else {
+        /* No need to check MTVEC for misaligned - lower 2 bits cannot be set */
+        env->PC = env->csr[CSR_MTVEC];
+        env->csr[CSR_MEPC] = backup_epc;
+        env->csr[CSR_MCAUSE] = fixed_cause;
+
+        if (hasbadaddr) {
+            #ifdef RISCV_DEBUG_INTERRUPT
+            fprintf(stderr, "core   0: badaddr 0x" TARGET_FMT_lx "\n",
+                    env->badaddr);
+            #endif
+            env->csr[CSR_MBADADDR] = env->badaddr;
+        }
+
+        target_ulong s = env->csr[CSR_MSTATUS];
+        s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_UIE << env->priv));
+        s = set_field(s, MSTATUS_MPP, env->priv);
+        s = set_field(s, MSTATUS_MIE, 0);
+        csr_write_helper(env, s, CSR_MSTATUS);
+        set_privilege(env, PRV_M);
+    }
+    /* TODO yield load reservation  */
+
+    cs->exception_index = EXCP_NONE; /* mark handled to qemu */
 }
