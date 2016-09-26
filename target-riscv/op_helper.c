@@ -39,6 +39,11 @@ void set_privilege(CPURISCVState *env, target_ulong newpriv)
     env->priv = newpriv;
 }
 
+static int validate_vm(target_ulong vm)
+{
+    return vm == VM_SV32 || vm == VM_SV39 || vm == VM_SV48 || vm == VM_MBARE;
+}
+
 /* Exceptions processing helpers */
 static inline void QEMU_NORETURN do_raise_exception_err(CPURISCVState *env,
                                           uint32_t exception, uintptr_t pc)
@@ -83,6 +88,180 @@ target_ulong helper_mulhsu(CPURISCVState *env, target_ulong arg1,
 inline void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         target_ulong csrno)
 {
+    #ifdef RISCV_DEBUG_PRINT
+    fprintf(stderr, "Write CSR reg: 0x" TARGET_FMT_lx "\n", csrno);
+    fprintf(stderr, "Write CSR val: 0x" TARGET_FMT_lx "\n", val_to_write);
+    #endif
+
+    uint64_t delegable_ints = MIP_SSIP | MIP_STIP | MIP_SEIP | (1 << IRQ_COP);
+    uint64_t all_ints = delegable_ints | MIP_MSIP | MIP_MTIP;
+
+    switch (csrno) {
+    case CSR_FFLAGS:
+        env->csr[CSR_MSTATUS] |= MSTATUS_FS | MSTATUS64_SD;
+        env->csr[CSR_FFLAGS] = val_to_write & (FSR_AEXC >> FSR_AEXC_SHIFT);
+        break;
+    case CSR_FRM:
+        env->csr[CSR_MSTATUS] |= MSTATUS_FS | MSTATUS64_SD;
+        env->csr[CSR_FRM] = val_to_write & (FSR_RD >> FSR_RD_SHIFT);
+        break;
+    case CSR_FCSR:
+        env->csr[CSR_MSTATUS] |= MSTATUS_FS | MSTATUS64_SD;
+        env->csr[CSR_FFLAGS] = (val_to_write & FSR_AEXC) >> FSR_AEXC_SHIFT;
+        env->csr[CSR_FRM] = (val_to_write & FSR_RD) >> FSR_RD_SHIFT;
+        break;
+    case CSR_MSTATUS: {
+        target_ulong mstatus = env->csr[CSR_MSTATUS];
+        if ((val_to_write ^ mstatus) &
+            (MSTATUS_VM | MSTATUS_MPP | MSTATUS_MPRV | MSTATUS_PUM |
+             MSTATUS_MXR)) {
+            helper_tlb_flush(env);
+        }
+
+        /* no extension support */
+        target_ulong mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE
+            | MSTATUS_MPIE | MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV
+            | MSTATUS_PUM | MSTATUS_MXR;
+
+        if (validate_vm(get_field(val_to_write, MSTATUS_VM))) {
+            mask |= MSTATUS_VM;
+        }
+        if (validate_priv(get_field(val_to_write, MSTATUS_MPP))) {
+            mask |= MSTATUS_MPP;
+        }
+
+        mstatus = (mstatus & ~mask) | (val_to_write & mask);
+
+        int dirty = (mstatus & MSTATUS_FS) == MSTATUS_FS;
+        dirty |= (mstatus & MSTATUS_XS) == MSTATUS_XS;
+        mstatus = set_field(mstatus, MSTATUS64_SD, dirty);
+        env->csr[CSR_MSTATUS] = mstatus;
+        break;
+    }
+    case CSR_MIP: {
+        target_ulong mask = MIP_SSIP | MIP_STIP;
+        env->csr[CSR_MIP] = (env->csr[CSR_MIP] & ~mask) |
+            (val_to_write & mask);
+        if (env->csr[CSR_MIP] & MIP_SSIP) {
+            qemu_irq_raise(SSIP_IRQ);
+        } else {
+            qemu_irq_lower(SSIP_IRQ);
+        }
+        if (env->csr[CSR_MIP] & MIP_STIP) {
+            qemu_irq_raise(STIP_IRQ);
+        } else {
+            qemu_irq_lower(STIP_IRQ);
+        }
+        if (env->csr[CSR_MIP] & MIP_MSIP) {
+            qemu_irq_raise(MSIP_IRQ);
+        } else {
+            qemu_irq_lower(MSIP_IRQ);
+        }
+        break;
+    }
+    case CSR_MIE: {
+        env->csr[CSR_MIE] = (env->csr[CSR_MIE] & ~all_ints) |
+            (val_to_write & all_ints);
+        break;
+    }
+    case CSR_MIDELEG:
+        env->csr[CSR_MIDELEG] = (env->csr[CSR_MIDELEG] & ~delegable_ints)
+                                | (val_to_write & delegable_ints);
+        break;
+    case CSR_MEDELEG: {
+        target_ulong mask = 0;
+        mask |= 1ULL << (RISCV_EXCP_INST_ADDR_MIS);
+        mask |= 1ULL << (RISCV_EXCP_INST_ACCESS_FAULT);
+        mask |= 1ULL << (RISCV_EXCP_ILLEGAL_INST);
+        mask |= 1ULL << (RISCV_EXCP_BREAKPOINT);
+        mask |= 1ULL << (RISCV_EXCP_LOAD_ADDR_MIS);
+        mask |= 1ULL << (RISCV_EXCP_LOAD_ACCESS_FAULT);
+        mask |= 1ULL << (RISCV_EXCP_STORE_AMO_ADDR_MIS);
+        mask |= 1ULL << (RISCV_EXCP_STORE_AMO_ACCESS_FAULT);
+        mask |= 1ULL << (RISCV_EXCP_U_ECALL);
+        mask |= 1ULL << (RISCV_EXCP_S_ECALL);
+        mask |= 1ULL << (RISCV_EXCP_H_ECALL);
+        mask |= 1ULL << (RISCV_EXCP_M_ECALL);
+        env->csr[CSR_MEDELEG] = (env->csr[CSR_MEDELEG] & ~mask)
+                                | (val_to_write & mask);
+        break;
+    }
+    case CSR_MUCOUNTEREN:
+        env->csr[CSR_MUCOUNTEREN] = val_to_write & 7;
+        break;
+    case CSR_MSCOUNTEREN:
+        env->csr[CSR_MSCOUNTEREN] = val_to_write & 7;
+        break;
+    case CSR_SSTATUS: {
+        target_ulong ms = env->csr[CSR_MSTATUS];
+        target_ulong mask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP
+                            | SSTATUS_FS | SSTATUS_XS | SSTATUS_PUM;
+        ms = (ms & ~mask) | (val_to_write & mask);
+        csr_write_helper(env, ms, CSR_MSTATUS);
+        break;
+    }
+    case CSR_SIP: {
+        target_ulong next_mip = (env->csr[CSR_MIP] & ~env->csr[CSR_MIDELEG])
+                                | (val_to_write & env->csr[CSR_MIDELEG]);
+        csr_write_helper(env, next_mip, CSR_MIP);
+        /* note: stw_phys should be done by the call to set MIP if necessary, */
+        /* so we don't do it here */
+        break;
+    }
+    case CSR_SIE: {
+        target_ulong next_mie = (env->csr[CSR_MIE] & ~env->csr[CSR_MIDELEG])
+                                | (val_to_write & env->csr[CSR_MIDELEG]);
+        csr_write_helper(env, next_mie, CSR_MIE);
+        break;
+    }
+    case CSR_SPTBR: {
+        env->csr[CSR_SPTBR] = val_to_write & (((target_ulong)1 <<
+                              (TARGET_PHYS_ADDR_SPACE_BITS - PGSHIFT)) - 1);
+        break;
+    }
+    case CSR_SEPC:
+        env->csr[CSR_SEPC] = val_to_write;
+        break;
+    case CSR_STVEC:
+        env->csr[CSR_STVEC] = val_to_write >> 2 << 2;
+        break;
+    case CSR_SSCRATCH:
+        env->csr[CSR_SSCRATCH] = val_to_write;
+        break;
+    case CSR_SCAUSE:
+        env->csr[CSR_SCAUSE] = val_to_write;
+        break;
+    case CSR_SBADADDR:
+        env->csr[CSR_SBADADDR] = val_to_write;
+        break;
+    case CSR_MEPC:
+        env->csr[CSR_MEPC] = val_to_write;
+        break;
+    case CSR_MTVEC:
+        env->csr[CSR_MTVEC] = val_to_write >> 2 << 2;
+        break;
+    case CSR_MSCRATCH:
+        env->csr[CSR_MSCRATCH] = val_to_write;
+        break;
+    case CSR_MCAUSE:
+        env->csr[CSR_MCAUSE] = val_to_write;
+        break;
+    case CSR_MBADADDR:
+        env->csr[CSR_MBADADDR] = val_to_write;
+        break;
+    case CSR_DCSR:
+        printf("DEBUG NOT SUPPORTED\n");
+        exit(1);
+        break;
+    case CSR_DPC:
+        printf("DEBUG NOT SUPPORTED\n");
+        exit(1);
+        break;
+    case CSR_DSCRATCH:
+        printf("DEBUG NOT SUPPORTED\n");
+        exit(1);
+        break;
+    }
 }
 
 /*
@@ -92,6 +271,151 @@ inline void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
  */
 inline target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
 {
+    int csrno2 = (int)csrno;
+    #ifdef RISCV_DEBUG_PRINT
+    fprintf(stderr, "READ CSR 0x%x\n", csrno2);
+    #endif
+
+    switch (csrno2) {
+    case CSR_FFLAGS:
+        return env->csr[CSR_FFLAGS];
+    case CSR_FRM:
+        return env->csr[CSR_FRM];
+    case CSR_FCSR:
+        return env->csr[CSR_FFLAGS] << FSR_AEXC_SHIFT |
+               env->csr[CSR_FRM] << FSR_RD_SHIFT;
+    case CSR_TIME:
+    case CSR_INSTRET:
+    case CSR_CYCLE:
+        if ((env->csr[CSR_MUCOUNTEREN] >> (csrno2 & (63))) & 1) {
+            return csr_read_helper(env, csrno2 + (CSR_MCYCLE - CSR_CYCLE));
+        }
+        break;
+    case CSR_STIME:
+    case CSR_SINSTRET:
+    case CSR_SCYCLE:
+        if ((env->csr[CSR_MSCOUNTEREN] >> (csrno2 & (63))) & 1) {
+            return csr_read_helper(env, csrno2 + (CSR_MCYCLE - CSR_SCYCLE));
+        }
+        break;
+    case CSR_MUCOUNTEREN:
+        return env->csr[CSR_MUCOUNTEREN];
+    case CSR_MSCOUNTEREN:
+        return env->csr[CSR_MSCOUNTEREN];
+    case CSR_MUCYCLE_DELTA:
+        return 0; /* as spike does */
+    case CSR_MUTIME_DELTA:
+        return 0; /* as spike does */
+    case CSR_MUINSTRET_DELTA:
+        return 0; /* as spike does */
+    case CSR_MSCYCLE_DELTA:
+        return 0; /* as spike does */
+    case CSR_MSTIME_DELTA:
+        return 0; /* as spike does */
+    case CSR_MSINSTRET_DELTA:
+        return 0; /* as spike does */
+    case CSR_MUCYCLE_DELTAH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_MUTIME_DELTAH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_MUINSTRET_DELTAH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_MSCYCLE_DELTAH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_MSTIME_DELTAH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_MSINSTRET_DELTAH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    /* notice the lack of CSR_MTIME - this is handled by throwing an exception
+       and letting the handler read from the RTC */
+    case CSR_MCYCLE:
+        /* Read instret here */
+        break;
+    case CSR_MINSTRET:
+        /* Read instret here */
+        break;
+    case CSR_MCYCLEH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_MINSTRETH:
+        printf("CSR 0x%x unsupported on RV64\n", csrno2);
+        exit(1);
+    case CSR_SSTATUS: {
+        target_ulong mask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP
+                            | SSTATUS_FS | SSTATUS_XS | SSTATUS_PUM;
+        target_ulong sstatus = env->csr[CSR_MSTATUS] & mask;
+        if ((sstatus & SSTATUS_FS) == SSTATUS_FS ||
+                (sstatus & SSTATUS_XS) == SSTATUS_XS) {
+            sstatus |= SSTATUS64_SD;
+        }
+        return sstatus;
+    }
+    case CSR_SIP:
+        return env->csr[CSR_MIP] & env->csr[CSR_MIDELEG];
+    case CSR_SIE:
+        return env->csr[CSR_MIE] & env->csr[CSR_MIDELEG];
+    case CSR_SEPC:
+        return env->csr[CSR_SEPC];
+    case CSR_SBADADDR:
+        return env->csr[CSR_SBADADDR];
+    case CSR_STVEC:
+        return env->csr[CSR_STVEC];
+    case CSR_SCAUSE:
+        return env->csr[CSR_SCAUSE];
+    case CSR_SPTBR:
+        return env->csr[CSR_SPTBR];
+    case CSR_SSCRATCH:
+        return env->csr[CSR_SSCRATCH];
+    case CSR_MSTATUS:
+        return env->csr[CSR_MSTATUS];
+    case CSR_MIP:
+        return env->csr[CSR_MIP];
+    case CSR_MIE:
+        return env->csr[CSR_MIE];
+    case CSR_MEPC:
+        return env->csr[CSR_MEPC];
+    case CSR_MSCRATCH:
+        return env->csr[CSR_MSCRATCH];
+    case CSR_MCAUSE:
+        return env->csr[CSR_MCAUSE];
+    case CSR_MBADADDR:
+        return env->csr[CSR_MBADADDR];
+    case CSR_MISA:
+        return env->csr[CSR_MISA];
+    case CSR_MARCHID:
+        return 0; /* as spike does */
+    case CSR_MIMPID:
+        return 0; /* as spike does */
+    case CSR_MVENDORID:
+        return 0; /* as spike does */
+    case CSR_MHARTID:
+        return 0;
+    case CSR_MTVEC:
+        return env->csr[CSR_MTVEC];
+    case CSR_MEDELEG:
+        return env->csr[CSR_MEDELEG];
+    case CSR_MIDELEG:
+        return env->csr[CSR_MIDELEG];
+    case CSR_TDRSELECT:
+        return 0; /* as spike does */
+    case CSR_DCSR:
+        printf("DEBUG NOT IMPLEMENTED\n");
+        exit(1);
+    case CSR_DPC:
+        printf("DEBUG NOT IMPLEMENTED\n");
+        exit(1);
+    case CSR_DSCRATCH:
+        printf("DEBUG NOT IMPLEMENTED\n");
+        exit(1);
+    }
+    /* used by e.g. MTIME read */
+    helper_raise_exception(env, RISCV_EXCP_ILLEGAL_INST);
     return 0;
 }
 
