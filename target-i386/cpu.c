@@ -2998,6 +2998,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         cpu->env.features[w] &= ~minus_features[w];
     }
 
+    if (!kvm_enabled() || !cpu->expose_kvm) {
+        env->features[FEAT_KVM] = 0;
+    }
+
     if (env->features[FEAT_7_0_EBX] && env->cpuid_level < 7) {
         env->cpuid_level = 7;
     }
