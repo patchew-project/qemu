@@ -29,6 +29,7 @@
 #include "hw/usb.h"
 #include "hw/xen/xen_backend.h"
 #include "monitor/qdev.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
@@ -47,11 +48,15 @@
         struct timeval tv;                                          \
                                                                     \
         gettimeofday(&tv, NULL);                                    \
-        xen_be_printf(xendev, lvl, "%8ld.%06ld xen-usb(%s):" fmt,   \
+        xen_be_printf(xendev, 0, "%8ld.%06ld xen-usb(%s):" fmt,   \
                       tv.tv_sec, tv.tv_usec, __func__, ##args);     \
     }
 #define TR_BUS(xendev, fmt, args...) TR(xendev, 2, fmt, ##args)
 #define TR_REQ(xendev, fmt, args...) TR(xendev, 3, fmt, ##args)
+
+#define TYPE_USBBACK            "xen-pvusb"
+#define USBBACK_DEVICE(obj) \
+     OBJECT_CHECK(USBBACKDevice, (obj), TYPE_USBBACK)
 
 #define USBBACK_MAXPORTS        USBIF_PIPE_PORT_MASK
 #define USB_DEV_ADDR_SIZE       (USBIF_PIPE_DEV_MASK + 1)
@@ -67,6 +72,7 @@ struct usbif_ctrlrequest {
 
 struct usbback_info;
 struct usbback_req;
+struct USBBACKDevice;
 
 struct usbback_stub {
     USBDevice     *dev;
@@ -101,6 +107,8 @@ struct usbback_hotplug {
 
 struct usbback_info {
     struct XenDevice         xendev;  /* must be first */
+    char                     id[24];
+    struct USBBACKDevice     *dev;
     USBBus                   bus;
     void                     *urb_sring;
     void                     *conn_sring;
@@ -115,6 +123,10 @@ struct usbback_info {
     struct usbback_stub      *addr_table[USB_DEV_ADDR_SIZE];
     QEMUBH                   *bh;
 };
+
+typedef struct USBBACKDevice {
+    DeviceState qdev;
+} USBBACKDevice;
 
 static struct usbback_req *usbback_get_req(struct usbback_info *usbif)
 {
@@ -712,14 +724,9 @@ static void usbback_portid_detach(struct usbback_info *usbif, unsigned port)
 
 static void usbback_portid_remove(struct usbback_info *usbif, unsigned port)
 {
-    USBPort *p;
-
     if (!usbif->ports[port - 1].dev) {
         return;
     }
-
-    p = &(usbif->ports[port - 1].port);
-    snprintf(p->path, sizeof(p->path), "%d", 99);
 
     object_unparent(OBJECT(usbif->ports[port - 1].dev));
     usbif->ports[port - 1].dev = NULL;
@@ -733,10 +740,10 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 {
     unsigned speed;
     char *portname;
-    USBPort *p;
     Error *local_err = NULL;
     QDict *qdict;
     QemuOpts *opts;
+    char tmp[32];
 
     if (usbif->ports[port - 1].dev) {
         return;
@@ -749,11 +756,14 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
         return;
     }
     portname++;
-    p = &(usbif->ports[port - 1].port);
-    snprintf(p->path, sizeof(p->path), "%s", portname);
 
     qdict = qdict_new();
     qdict_put(qdict, "driver", qstring_from_str("usb-host"));
+    snprintf(tmp, sizeof(tmp), "%s.0", usbif->id);
+    qdict_put(qdict, "bus", qstring_from_str(tmp));
+    snprintf(tmp, sizeof(tmp), "%s-%u", usbif->id, port);
+    qdict_put(qdict, "id", qstring_from_str(tmp));
+    qdict_put(qdict, "port", qint_from_int(port));
     qdict_put(qdict, "hostbus", qint_from_int(atoi(busid)));
     qdict_put(qdict, "hostport", qstring_from_str(portname));
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
@@ -765,7 +775,6 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
         goto err;
     }
     QDECREF(qdict);
-    snprintf(p->path, sizeof(p->path), "%d", port);
     speed = usbif->ports[port - 1].dev->speed;
     switch (speed) {
     case USB_SPEED_LOW:
@@ -799,7 +808,6 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 
 err:
     QDECREF(qdict);
-    snprintf(p->path, sizeof(p->path), "%d", 99);
     xen_be_printf(&usbif->xendev, 0, "device %s could not be opened\n", busid);
 }
 
@@ -1009,16 +1017,36 @@ static void usbback_alloc(struct XenDevice *xendev)
     struct usbback_info *usbif;
     USBPort *p;
     unsigned int i, max_grants;
+    Error *local_err = NULL;
+    QDict *qdict;
+    QemuOpts *opts;
 
     usbif = container_of(xendev, struct usbback_info, xendev);
 
-    usb_bus_new(&usbif->bus, sizeof(usbif->bus), &xen_usb_bus_ops, xen_sysdev);
+    snprintf(usbif->id, sizeof(usbif->id), TYPE_USBBACK "-%d", xendev->dev);
+    qdict = qdict_new();
+    qdict_put(qdict, "driver", qstring_from_str(TYPE_USBBACK));
+    qdict_put(qdict, "id", qstring_from_str(usbif->id));
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
+    if (local_err) {
+        QDECREF(qdict);
+        xen_be_printf(xendev, 0, "qemu_opts_from_qdict failed\n");
+        return;
+    }
+    usbif->dev = USBBACK_DEVICE(qdev_device_add(opts, &local_err));
+    QDECREF(qdict);
+    if (!usbif->dev) {
+        xen_be_printf(xendev, 0, "qdev_device_add failed\n");
+        return;
+    }
+
+    usb_bus_new(&usbif->bus, sizeof(usbif->bus), &xen_usb_bus_ops,
+                DEVICE(usbif->dev));
     for (i = 0; i < USBBACK_MAXPORTS; i++) {
         p = &(usbif->ports[i].port);
         usb_register_port(&usbif->bus, p, usbif, i, &xen_usb_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL |
                           USB_SPEED_MASK_HIGH);
-        snprintf(p->path, sizeof(p->path), "%d", 99);
     }
 
     QTAILQ_INIT(&usbif->req_free_q);
@@ -1067,6 +1095,7 @@ static int usbback_free(struct XenDevice *xendev)
 
     usb_bus_release(&usbif->bus);
     object_unparent(OBJECT(&usbif->bus));
+    object_unparent(OBJECT(usbif->dev));
 
     TR_BUS(xendev, "finished\n");
 
@@ -1093,6 +1122,32 @@ struct XenDevOps xen_usb_ops = {
     .event           = usbback_event,
 };
 
+static Property usbback_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void usbback_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    TR_BUS(NULL, "\n");
+    dc->props   = usbback_properties;
+    set_bit(DEVICE_CATEGORY_USB, dc->categories);
+}
+
+static const TypeInfo usbback_type_info = {
+    .name          = TYPE_USBBACK,
+    .parent        = TYPE_XENSYSDEV,
+    .class_init    = usbback_class_init,
+    .instance_size = sizeof(USBBACKDevice),
+};
+
+static void usbback_register_types(void)
+{
+    type_register_static(&usbback_type_info);
+}
+
+type_init(usbback_register_types)
 #else /* USBIF_SHORT_NOT_OK */
 
 static int usbback_not_supported(void)
