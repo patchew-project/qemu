@@ -184,6 +184,9 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
     if (!drv) {
         return -ENOMEDIUM;
     }
+    if (drv->is_filter) {
+        return 0;
+    }
     if (drv->bdrv_snapshot_goto) {
         return drv->bdrv_snapshot_goto(bs, snapshot_id);
     }
