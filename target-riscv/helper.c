@@ -36,16 +36,223 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+/* get_physical_address - get the physical address for this virtual address
+ *
+ * Do a page table walk to obtain the physical address corresponding to a
+ * virtual address. Returns 0 if the translation was successful
+ *
+ * Adapted from Spike's mmu_t::translate and mmu_t::walk
+ *
+ */
+static int get_physical_address(CPURISCVState *env, hwaddr *physical,
+                                int *prot, target_ulong address,
+                                MMUAccessType access_type, int mmu_idx)
+{
+    /* NOTE: the env->PC value visible here will not be
+     * correct, but the value visible to the exception handler
+     * (riscv_cpu_do_interrupt) is correct */
+
+    *prot = 0;
+    CPUState *cs = CPU(riscv_env_get_cpu(env));
+
+    target_ulong mode = env->priv;
+    if (access_type != MMU_INST_FETCH) {
+        if (get_field(env->csr[CSR_MSTATUS], MSTATUS_MPRV)) {
+            mode = get_field(env->csr[CSR_MSTATUS], MSTATUS_MPP);
+        }
+    }
+    if (get_field(env->csr[CSR_MSTATUS], MSTATUS_VM) == VM_MBARE) {
+        mode = PRV_M;
+    }
+
+    /* check to make sure that mmu_idx and mode that we get matches */
+    if (unlikely(mode != mmu_idx)) {
+        fprintf(stderr, "MODE, mmu_idx mismatch\n");
+        exit(1);
+    }
+
+    if (mode == PRV_M) {
+        target_ulong msb_mask = (2UL << (TARGET_LONG_BITS - 1)) - 1;
+                                        /*0x7FFFFFFFFFFFFFFF; */
+        *physical = address & msb_mask;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return TRANSLATE_SUCCESS;
+    }
+
+    target_ulong addr = address;
+    int supervisor = mode == PRV_S;
+    int pum = get_field(env->csr[CSR_MSTATUS], MSTATUS_PUM);
+    int mxr = get_field(env->csr[CSR_MSTATUS], MSTATUS_MXR);
+
+    int levels, ptidxbits, ptesize;
+    switch (get_field(env->csr[CSR_MSTATUS], MSTATUS_VM)) {
+    case VM_SV32:
+      levels = 2;
+      ptidxbits = 10;
+      ptesize = 4;
+      break;
+    case VM_SV39:
+      levels = 3;
+      ptidxbits = 9;
+      ptesize = 8;
+      break;
+    case VM_SV48:
+      levels = 4;
+      ptidxbits = 9;
+      ptesize = 8;
+      break;
+    default:
+      printf("unsupported MSTATUS_VM value\n");
+      exit(1);
+    }
+
+    int va_bits = PGSHIFT + levels * ptidxbits;
+    target_ulong mask = (1L << (TARGET_LONG_BITS - (va_bits - 1))) - 1;
+    target_ulong masked_msbs = (addr >> (va_bits - 1)) & mask;
+    if (masked_msbs != 0 && masked_msbs != mask) {
+        return TRANSLATE_FAIL;
+    }
+
+    target_ulong base = env->csr[CSR_SPTBR] << PGSHIFT;
+    int ptshift = (levels - 1) * ptidxbits;
+    int i;
+    for (i = 0; i < levels; i++, ptshift -= ptidxbits) {
+        target_ulong idx = (addr >> (PGSHIFT + ptshift)) &
+                           ((1 << ptidxbits) - 1);
+
+        /* check that physical address of PTE is legal */
+        target_ulong pte_addr = base + idx * ptesize;
+
+        /* PTE must reside in memory */
+        if (!(pte_addr >= DRAM_BASE && pte_addr < (DRAM_BASE + env->memsize))) {
+            printf("PTE was not in DRAM region\n");
+            exit(1);
+            break;
+        }
+
+        target_ulong pte = ldq_phys(cs->as, pte_addr);
+        target_ulong ppn = pte >> PTE_PPN_SHIFT;
+
+        if (PTE_TABLE(pte)) { /* next level of page table */
+            base = ppn << PGSHIFT;
+        } else if ((pte & PTE_U) ? supervisor && pum : !supervisor) {
+            break;
+        } else if (!(pte & PTE_V) || (!(pte & PTE_R) && (pte & PTE_W))) {
+            break;
+        } else if (access_type == MMU_INST_FETCH ? !(pte & PTE_X) :
+                  access_type == MMU_DATA_LOAD ?  !(pte & PTE_R) &&
+                  !(mxr && (pte & PTE_X)) : !((pte & PTE_R) && (pte & PTE_W))) {
+            break;
+        } else {
+            /* set accessed and possibly dirty bits.
+               we only put it in the TLB if it has the right stuff */
+            stq_phys(cs->as, pte_addr, ldq_phys(cs->as, pte_addr) | PTE_A |
+                    ((access_type == MMU_DATA_STORE) * PTE_D));
+
+            /* for superpage mappings, make a fake leaf PTE for the TLB's
+               benefit. */
+            target_ulong vpn = addr >> PGSHIFT;
+            *physical = (ppn | (vpn & ((1L << ptshift) - 1))) << PGSHIFT;
+
+            /* we do not give all prots indicated by the PTE
+             * this is because future accesses need to do things like set the
+             * dirty bit on the PTE
+             *
+             * at this point, we assume that protection checks have occurred */
+            if (supervisor) {
+                if ((pte & PTE_X) && access_type == MMU_INST_FETCH) {
+                    *prot |= PAGE_EXEC;
+                } else if ((pte & PTE_W) && access_type == MMU_DATA_STORE) {
+                    *prot |= PAGE_WRITE;
+                } else if ((pte & PTE_R) && access_type == MMU_DATA_LOAD) {
+                    *prot |= PAGE_READ;
+                } else {
+                    printf("err in translation prots");
+                    exit(1);
+                }
+            } else {
+                if ((pte & PTE_X) && access_type == MMU_INST_FETCH) {
+                    *prot |= PAGE_EXEC;
+                } else if ((pte & PTE_W) && access_type == MMU_DATA_STORE) {
+                    *prot |= PAGE_WRITE;
+                } else if ((pte & PTE_R) && access_type == MMU_DATA_LOAD) {
+                    *prot |= PAGE_READ;
+                } else {
+                    printf("err in translation prots");
+                    exit(1);
+                }
+            }
+            return TRANSLATE_SUCCESS;
+        }
+    }
+    return TRANSLATE_FAIL;
+}
+#endif
+
+static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
+                                MMUAccessType access_type)
+{
+    CPUState *cs = CPU(riscv_env_get_cpu(env));
+    int exception = 0;
+    if (access_type == MMU_INST_FETCH) { /* inst access */
+        exception = RISCV_EXCP_INST_ACCESS_FAULT;
+        env->badaddr = address;
+    } else if (access_type == MMU_DATA_STORE) { /* store access */
+        exception = RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
+        env->badaddr = address;
+    } else if (access_type == MMU_DATA_LOAD) { /* load access */
+        exception = RISCV_EXCP_LOAD_ACCESS_FAULT;
+        env->badaddr = address;
+    } else {
+        fprintf(stderr, "FAIL: invalid access_type\n");
+        exit(1);
+    }
+    cs->exception_index = exception;
+}
+
+#if !defined(CONFIG_USER_ONLY)
 hwaddr riscv_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    return 0;
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    hwaddr phys_addr;
+    int prot;
+    int mem_idx = cpu_mmu_index(&cpu->env, false);
+
+    if (get_physical_address(&cpu->env, &phys_addr, &prot, addr, 0, mem_idx)) {
+        return -1;
+    }
+    return phys_addr;
 }
 #endif
 
 int riscv_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
         MMUAccessType access_type, int mmu_idx)
 {
-    return 0;
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    hwaddr physical;
+    physical = 0; /* stop gcc complaining */
+    int prot;
+    int ret = 0;
+
+    qemu_log_mask(CPU_LOG_MMU,
+            "%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " access_type %d mmu_idx \
+             %d\n", __func__, env->PC, address, access_type, mmu_idx);
+
+    ret = get_physical_address(env, &physical, &prot, address, access_type,
+                               mmu_idx);
+    qemu_log_mask(CPU_LOG_MMU,
+            "%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
+             " prot %d\n",
+             __func__, address, ret, physical, prot);
+    if (ret == TRANSLATE_SUCCESS) {
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
+                     physical & TARGET_PAGE_MASK,
+                     prot, mmu_idx, TARGET_PAGE_SIZE);
+    } else if (ret == TRANSLATE_FAIL) {
+        raise_mmu_exception(env, address, access_type);
+    }
+    return ret;
 }
 
 /*
