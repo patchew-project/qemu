@@ -54,6 +54,9 @@ struct XenDevice {
     QTAILQ_ENTRY(XenDevice) next;
 };
 
+#define TYPE_XENSYSDEV "xensysdev"
+#define TYPE_XENSYSBUS "xen-sysbus"
+
 /* ------------------------------------------------------------- */
 
 /* variables */
@@ -62,6 +65,7 @@ extern xenforeignmemory_handle *xen_fmem;
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
 extern DeviceState *xen_sysdev;
+extern BusState *xen_sysbus;
 
 /* xenstore helper functions */
 int xenstore_mkdir(char *path, int p);

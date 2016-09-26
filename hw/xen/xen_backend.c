@@ -29,13 +29,13 @@
 #include "hw/sysbus.h"
 #include "sysemu/char.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "hw/xen/xen_backend.h"
 
 #include <xen/grant_table.h>
 
-#define TYPE_XENSYSDEV "xensysdev"
-
 DeviceState *xen_sysdev;
+BusState *xen_sysbus;
 
 /* ------------------------------------------------------------- */
 
@@ -750,6 +750,8 @@ int xen_be_init(void)
 
     xen_sysdev = qdev_create(NULL, TYPE_XENSYSDEV);
     qdev_init_nofail(xen_sysdev);
+    xen_sysbus = qbus_create(TYPE_XENSYSBUS, DEVICE(xen_sysdev), "xen-sysbus");
+    qbus_set_bus_hotplug_handler(xen_sysbus, &error_abort);
 
     return 0;
 
@@ -862,6 +864,15 @@ void xen_be_printf(struct XenDevice *xendev, int msg_level, const char *fmt, ...
     qemu_log_flush();
 }
 
+static const TypeInfo xensysbus_info = {
+    .name       = TYPE_XENSYSBUS,
+    .parent     = TYPE_BUS,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
+};
+
 static int xen_sysdev_init(SysBusDevice *dev)
 {
     return 0;
@@ -878,6 +889,7 @@ static void xen_sysdev_class_init(ObjectClass *klass, void *data)
 
     k->init = xen_sysdev_init;
     dc->props = xen_sysdev_properties;
+    dc->bus_type = TYPE_XENSYSBUS;
 }
 
 static const TypeInfo xensysdev_info = {
@@ -889,7 +901,8 @@ static const TypeInfo xensysdev_info = {
 
 static void xenbe_register_types(void)
 {
+    type_register_static(&xensysbus_info);
     type_register_static(&xensysdev_info);
 }
 
-type_init(xenbe_register_types);
+type_init(xenbe_register_types)
