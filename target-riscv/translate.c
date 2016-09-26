@@ -1158,6 +1158,112 @@ static inline void gen_fp_arith(DisasContext *ctx, uint32_t opc, int rd,
     tcg_temp_free(write_int_rd);
 }
 
+static inline void gen_system(DisasContext *ctx, uint32_t opc,
+                      int rd, int rs1, int csr)
+{
+    TCGv source1, csr_store, dest, rs1_pass, imm_rs1;
+    source1 = tcg_temp_new();
+    csr_store = tcg_temp_new();
+    dest = tcg_temp_new();
+    rs1_pass = tcg_temp_new();
+    imm_rs1 = tcg_temp_new();
+    gen_get_gpr(source1, rs1);
+    tcg_gen_movi_tl(rs1_pass, rs1);
+    tcg_gen_movi_tl(csr_store, csr); /* copy into temp reg to feed to helper */
+
+    switch (opc) {
+    case OPC_RISC_ECALL:
+        switch (csr) {
+        case 0x0: /* ECALL */
+            /* always generates U-level ECALL, fixed in do_interrupt handler */
+            generate_exception(ctx, RISCV_EXCP_U_ECALL);
+            tcg_gen_exit_tb(0); /* no chaining */
+            ctx->bstate = BS_BRANCH;
+            break;
+        case 0x1: /* EBREAK */
+            generate_exception(ctx, RISCV_EXCP_BREAKPOINT);
+            tcg_gen_exit_tb(0); /* no chaining */
+            ctx->bstate = BS_BRANCH;
+            break;
+        case 0x002: /* URET */
+            printf("URET unimplemented\n");
+            exit(1);
+            break;
+        case 0x102: /* SRET */
+            tcg_gen_movi_tl(cpu_PC, ctx->pc);
+            gen_helper_sret(cpu_PC, cpu_env, cpu_PC);
+            tcg_gen_exit_tb(0); /* no chaining */
+            ctx->bstate = BS_BRANCH;
+            break;
+        case 0x202: /* HRET */
+            printf("HRET unimplemented\n");
+            exit(1);
+            break;
+        case 0x302: /* MRET */
+            tcg_gen_movi_tl(cpu_PC, ctx->pc);
+            gen_helper_mret(cpu_PC, cpu_env, cpu_PC);
+            tcg_gen_exit_tb(0); /* no chaining */
+            ctx->bstate = BS_BRANCH;
+            break;
+        case 0x7b2: /* DRET */
+            printf("DRET unimplemented\n");
+            exit(1);
+            break;
+        case 0x105: /* WFI */
+            /* nop for now, as in spike */
+            break;
+        case 0x104: /* SFENCE.VM */
+            gen_helper_tlb_flush(cpu_env);
+            break;
+        default:
+            kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+            break;
+        }
+        break;
+    default:
+        tcg_gen_movi_tl(cpu_PC, ctx->pc);
+        tcg_gen_movi_tl(imm_rs1, rs1);
+        switch (opc) {
+        case OPC_RISC_CSRRW:
+            gen_helper_csrrw(dest, cpu_env, source1, csr_store, cpu_PC);
+            break;
+        case OPC_RISC_CSRRS:
+            gen_helper_csrrs(dest, cpu_env, source1, csr_store, cpu_PC,
+                    rs1_pass);
+            break;
+        case OPC_RISC_CSRRC:
+            gen_helper_csrrc(dest, cpu_env, source1, csr_store, cpu_PC,
+                    rs1_pass);
+            break;
+        case OPC_RISC_CSRRWI:
+            gen_helper_csrrw(dest, cpu_env, imm_rs1, csr_store, cpu_PC);
+            break;
+        case OPC_RISC_CSRRSI:
+            gen_helper_csrrs(dest, cpu_env, imm_rs1, csr_store, cpu_PC,
+                             rs1_pass);
+            break;
+        case OPC_RISC_CSRRCI:
+            gen_helper_csrrc(dest, cpu_env, imm_rs1, csr_store, cpu_PC,
+                             rs1_pass);
+            break;
+        default:
+            kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+            break;
+        }
+        gen_set_gpr(rd, dest);
+        /* end tb since we may be changing priv modes, to get mmu_index right */
+        tcg_gen_movi_tl(cpu_PC, ctx->pc + 4);
+        tcg_gen_exit_tb(0); /* no chaining */
+        ctx->bstate = BS_BRANCH;
+        break;
+    }
+    tcg_temp_free(source1);
+    tcg_temp_free(csr_store);
+    tcg_temp_free(dest);
+    tcg_temp_free(rs1_pass);
+    tcg_temp_free(imm_rs1);
+}
+
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)
 {
     int rs1;
@@ -1285,6 +1391,19 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
     case OPC_RISC_FP_ARITH:
         gen_fp_arith(ctx, MASK_OP_FP_ARITH(ctx->opcode), rd, rs1, rs2,
                      GET_RM(ctx->opcode));
+        break;
+    case OPC_RISC_FENCE:
+        /* standard fence is nop, fence_i flushes TB (like an icache): */
+        if (ctx->opcode & 0x1000) { /* FENCE_I */
+            gen_helper_fence_i(cpu_env);
+            tcg_gen_movi_tl(cpu_PC, ctx->pc + 4);
+            tcg_gen_exit_tb(0); /* no chaining */
+            ctx->bstate = BS_BRANCH;
+        }
+        break;
+    case OPC_RISC_SYSTEM:
+        gen_system(ctx, MASK_OP_SYSTEM(ctx->opcode), rd, rs1,
+                   (ctx->opcode & 0xFFF00000) >> 20);
         break;
     default:
         kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
