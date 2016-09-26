@@ -1649,6 +1649,15 @@ const char *const %(c_name)s_lookup[] = {
     return ret
 
 
+def gen_enum_value_str(name, values):
+    return mcgen('''
+
+#define %(c_name)s_value_str "%(value_str)s"
+''',
+                c_name=c_name(name),
+                value_str=", ".join(["'%s'" % c for c in values]))
+
+
 def gen_enum(name, values, prefix=None):
     # append automatically generated _MAX value
     enum_values = values + ['_MAX']
