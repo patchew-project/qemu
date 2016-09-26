@@ -50,6 +50,16 @@ void helper_raise_exception_mbadaddr(CPURISCVState *env, uint32_t exception,
     do_raise_exception_err(env, exception, 0);
 }
 
+#if defined(TARGET_RISCV64)
+target_ulong helper_mulhsu(CPURISCVState *env, target_ulong arg1,
+                          target_ulong arg2)
+{
+    int64_t a = arg1;
+    uint64_t b = arg2;
+    return (int64_t)((__int128_t)a * b >> 64);
+}
+#endif
+
 #ifndef CONFIG_USER_ONLY
 void riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                    MMUAccessType access_type, int mmu_idx,
