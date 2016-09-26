@@ -1,1 +1,3 @@
 obj-y += riscv_rtc.o
+obj-y += htif/elf_symb.o
+obj-y += htif/htif.o
