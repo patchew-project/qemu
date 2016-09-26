@@ -72,6 +72,10 @@ static const char * const fpr_regnames[] = {
   "fs8", "fs9", "fs10", "fs11", "ft8", "ft9", "ft10", "ft11"
 };
 
+/* convert riscv funct3 to qemu memop for load/store */
+static int tcg_memop_lookup[] = { MO_SB, MO_TESW, MO_TESL, MO_TEQ, MO_UB,
+    MO_TEUW, MO_TEUL };
+
 static inline void generate_exception(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_PC, ctx->pc);
@@ -538,6 +542,105 @@ static inline void gen_branch(DisasContext *ctx, uint32_t opc, int rs1, int rs2,
     ctx->bstate = BS_BRANCH;
 }
 
+static inline void gen_load(DisasContext *ctx, uint32_t opc, int rd, int rs1,
+        int16_t imm)
+{
+    target_long uimm = (target_long)imm; /* sign ext 16->64 bits */
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_get_gpr(t0, rs1);
+    tcg_gen_addi_tl(t0, t0, uimm); /* */
+    int memop = (opc >> 12) & 0x7;
+
+#if defined(TARGET_RISCV64)
+    if (memop == 0x7) {
+#else
+    if (memop == 0x7 || memop == 0x3 || memop == 0x6) {
+#endif
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+    } else {
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, tcg_memop_lookup[memop]);
+    }
+
+    gen_set_gpr(rd, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+static inline void gen_store(DisasContext *ctx, uint32_t opc, int rs1, int rs2,
+        int16_t imm)
+{
+    target_long uimm = (target_long)imm; /* sign ext 16->64 bits */
+
+    TCGv t0 = tcg_temp_new();
+    TCGv dat = tcg_temp_new();
+    gen_get_gpr(t0, rs1);
+    tcg_gen_addi_tl(t0, t0, uimm);
+    gen_get_gpr(dat, rs2);
+    int memop = (opc >> 12) & 0x7;
+
+#if defined(TARGET_RISCV64)
+    if (memop > 0x3) {
+#else
+    if (memop > 0x2) {
+#endif
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+    } else {
+        tcg_gen_qemu_st_tl(dat, t0, ctx->mem_idx, tcg_memop_lookup[memop]);
+    }
+
+    tcg_temp_free(t0);
+    tcg_temp_free(dat);
+}
+
+static inline void gen_fp_load(DisasContext *ctx, uint32_t opc, int rd,
+        int rs1, int16_t imm)
+{
+    target_long uimm = (target_long)imm; /* sign ext 16->64 bits */
+    TCGv t0 = tcg_temp_new();
+    gen_get_gpr(t0, rs1);
+    tcg_gen_addi_tl(t0, t0, uimm);
+
+    switch (opc) {
+    case OPC_RISC_FLW:
+        tcg_gen_qemu_ld_i64(cpu_fpr[rd], t0, ctx->mem_idx, MO_TEUL);
+        break;
+    case OPC_RISC_FLD:
+        tcg_gen_qemu_ld_i64(cpu_fpr[rd], t0, ctx->mem_idx, MO_TEQ);
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
+    tcg_temp_free(t0);
+}
+
+static inline void gen_fp_store(DisasContext *ctx, uint32_t opc, int rs1,
+        int rs2, int16_t imm)
+{
+    target_long uimm = (target_long)imm; /* sign ext 16->64 bits */
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_get_gpr(t0, rs1);
+    tcg_gen_addi_tl(t0, t0, uimm);
+
+    switch (opc) {
+    case OPC_RISC_FSW:
+        tcg_gen_qemu_st_i64(cpu_fpr[rs2], t0, ctx->mem_idx, MO_TEUL);
+        break;
+    case OPC_RISC_FSD:
+        tcg_gen_qemu_st_i64(cpu_fpr[rs2], t0, ctx->mem_idx, MO_TEQ);
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)
 {
     int rs1;
@@ -611,6 +714,13 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
         gen_branch(ctx, MASK_OP_BRANCH(ctx->opcode), rs1, rs2,
                    GET_B_IMM(ctx->opcode));
         break;
+    case OPC_RISC_LOAD:
+        gen_load(ctx, MASK_OP_LOAD(ctx->opcode), rd, rs1, imm);
+        break;
+    case OPC_RISC_STORE:
+        gen_store(ctx, MASK_OP_STORE(ctx->opcode), rs1, rs2,
+                  GET_STORE_IMM(ctx->opcode));
+        break;
     case OPC_RISC_ARITH_IMM:
 #if defined(TARGET_RISCV64)
     case OPC_RISC_ARITH_IMM_W:
@@ -628,6 +738,13 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
             break; /* NOP */
         }
         gen_arith(ctx, MASK_OP_ARITH(ctx->opcode), rd, rs1, rs2);
+        break;
+    case OPC_RISC_FP_LOAD:
+        gen_fp_load(ctx, MASK_OP_FP_LOAD(ctx->opcode), rd, rs1, imm);
+        break;
+    case OPC_RISC_FP_STORE:
+        gen_fp_store(ctx, MASK_OP_FP_STORE(ctx->opcode), rs1, rs2,
+                     GET_STORE_IMM(ctx->opcode));
         break;
     default:
         kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
