@@ -2405,8 +2405,9 @@ sub process {
 		}
 # check of hardware specific defines
 # we have e.g. CONFIG_LINUX and CONFIG_WIN32 for common cases
-# where they might be necessary.
-		if ($line =~ m@^.\s*\#\s*if.*\b__@) {
+# where they might be necessary. Skip test on linux-user and bsd-user
+# where arch defines are needed
+		if (!($realfile =~ /^(linux|bsd)-user/) &&  $line =~ m@^.\s*\#\s*if.*\b__@) {
 			ERROR("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
