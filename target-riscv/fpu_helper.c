@@ -355,3 +355,228 @@ target_ulong helper_fclass_s(CPURISCVState *env, uint64_t frs1)
     frs1 = float32_classify(frs1, &env->fp_status);
     return frs1;
 }
+
+uint64_t helper_fadd_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
+                       uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_add(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fsub_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
+                       uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_sub(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fmul_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
+                       uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_mul(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fdiv_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
+                       uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_div(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fsgnj_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = (frs1 & ~INT64_MIN) | (frs2 & INT64_MIN);
+    return frs1;
+}
+
+uint64_t helper_fsgnjn_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = (frs1 & ~INT64_MIN) | ((~frs2) & INT64_MIN);
+    return frs1;
+}
+
+uint64_t helper_fsgnjx_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = frs1 ^ (frs2 & INT64_MIN);
+    return frs1;
+}
+
+uint64_t helper_fmin_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = float64_is_any_nan(frs2) ||
+           float64_lt_quiet(frs1, frs2, &env->fp_status) ? frs1 : frs2;
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fmax_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = float64_is_any_nan(frs2) ||
+           float64_le_quiet(frs2, frs1, &env->fp_status) ? frs1 : frs2;
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fcvt_s_d(CPURISCVState *env, uint64_t rs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    rs1 = float64_to_float32(rs1, &env->fp_status);
+    set_fp_exceptions();
+    return rs1;
+}
+
+uint64_t helper_fcvt_d_s(CPURISCVState *env, uint64_t rs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    rs1 = float32_to_float64(rs1, &env->fp_status);
+    set_fp_exceptions();
+    return rs1;
+}
+
+uint64_t helper_fsqrt_d(CPURISCVState *env, uint64_t frs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_sqrt(frs1, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+target_ulong helper_fle_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = float64_le(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+target_ulong helper_flt_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = float64_lt(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+target_ulong helper_feq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
+{
+    frs1 = float64_eq(frs1, frs2, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+target_ulong helper_fcvt_w_d(CPURISCVState *env, uint64_t frs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = (int64_t)((int32_t)float64_to_int32(frs1, &env->fp_status));
+    set_fp_exceptions();
+    return frs1;
+}
+
+target_ulong helper_fcvt_wu_d(CPURISCVState *env, uint64_t frs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = (int64_t)((int32_t)float64_to_uint32(frs1, &env->fp_status));
+    set_fp_exceptions();
+    return frs1;
+}
+
+#if defined(TARGET_RISCV64)
+uint64_t helper_fcvt_l_d(CPURISCVState *env, uint64_t frs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_to_int64(frs1, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+
+uint64_t helper_fcvt_lu_d(CPURISCVState *env, uint64_t frs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    frs1 = float64_to_uint64(frs1, &env->fp_status);
+    set_fp_exceptions();
+    return frs1;
+}
+#endif
+
+uint64_t helper_fcvt_d_w(CPURISCVState *env, target_ulong rs1, uint64_t rm)
+{
+    uint64_t res;
+    set_float_rounding_mode(RM, &env->fp_status);
+    res = int32_to_float64((int32_t)rs1, &env->fp_status);
+    set_fp_exceptions();
+    return res;
+}
+
+uint64_t helper_fcvt_d_wu(CPURISCVState *env, target_ulong rs1, uint64_t rm)
+{
+    uint64_t res;
+    set_float_rounding_mode(RM, &env->fp_status);
+    res = uint32_to_float64((uint32_t)rs1, &env->fp_status);
+    set_fp_exceptions();
+    return res;
+}
+
+#if defined(TARGET_RISCV64)
+uint64_t helper_fcvt_d_l(CPURISCVState *env, uint64_t rs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    rs1 = int64_to_float64(rs1, &env->fp_status);
+    set_fp_exceptions();
+    return rs1;
+}
+
+uint64_t helper_fcvt_d_lu(CPURISCVState *env, uint64_t rs1, uint64_t rm)
+{
+    set_float_rounding_mode(RM, &env->fp_status);
+    rs1 = uint64_to_float64(rs1, &env->fp_status);
+    set_fp_exceptions();
+    return rs1;
+}
+#endif
+
+/* adapted from spike */
+#define isNaNF64UI(ui) (UINT64_C(0xFFE0000000000000) \
+                       < (uint64_t)((uint_fast64_t)ui << 1))
+#define signF64UI(a) ((bool)((uint64_t) a >> 63))
+#define expF64UI(a) ((int_fast16_t)(a >> 52) & 0x7FF)
+#define fracF64UI(a) (a & UINT64_C(0x000FFFFFFFFFFFFF))
+
+union ui64_f64 { uint64_t ui; uint64_t f; };
+
+uint_fast16_t float64_classify(uint64_t a, float_status *status)
+{
+    union ui64_f64 uA;
+    uint_fast64_t uiA;
+
+    uA.f = a;
+    uiA = uA.ui;
+
+    uint_fast16_t infOrNaN = expF64UI(uiA) == 0x7FF;
+    uint_fast16_t subnormalOrZero = expF64UI(uiA) == 0;
+    bool sign = signF64UI(uiA);
+
+    return
+        (sign && infOrNaN && fracF64UI(uiA) == 0)        << 0 |
+        (sign && !infOrNaN && !subnormalOrZero)            << 1 |
+        (sign && subnormalOrZero && fracF64UI(uiA))        << 2 |
+        (sign && subnormalOrZero && fracF64UI(uiA) == 0)   << 3 |
+        (!sign && infOrNaN && fracF64UI(uiA) == 0)         << 7 |
+        (!sign && !infOrNaN && !subnormalOrZero)           << 6 |
+        (!sign && subnormalOrZero && fracF64UI(uiA))       << 5 |
+        (!sign && subnormalOrZero && fracF64UI(uiA) == 0)  << 4 |
+        (isNaNF64UI(uiA) &&  float64_is_signaling_nan(uiA, status)) << 8 |
+        (isNaNF64UI(uiA) && !float64_is_signaling_nan(uiA, status)) << 9;
+}
+
+target_ulong helper_fclass_d(CPURISCVState *env, uint64_t frs1)
+{
+    frs1 = float64_classify(frs1, &env->fp_status);
+    return frs1;
+}
