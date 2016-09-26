@@ -5756,6 +5756,12 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
   ;;
+  riscv32)
+    TARGET_BASE_ARCH=riscv
+  ;;
+  riscv64)
+    TARGET_BASE_ARCH=riscv
+  ;;
   moxie)
   ;;
   or32)
