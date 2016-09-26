@@ -163,7 +163,7 @@ static void init_virtio_dev(TestServer *s)
     QVirtioPCIDevice *dev;
     uint32_t features;
 
-    bus = qpci_init_pc();
+    bus = qpci_init_pc(NULL);
     g_assert_nonnull(bus);
 
     dev = qvirtio_pci_device_find(bus, VIRTIO_ID_NET);
