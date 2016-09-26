@@ -261,6 +261,10 @@ static void host_memory_backend_init(Object *obj)
                              HostMemPolicy_lookup,
                              host_memory_backend_get_policy,
                              host_memory_backend_set_policy, NULL);
+    object_property_set_description(obj, "policy",
+                                    "Data format: one of "
+                                    HostMemPolicy_value_str,
+                                    &error_abort);
 }
 
 MemoryRegion *

@@ -237,6 +237,10 @@ qcrypto_tls_creds_class_init(ObjectClass *oc, void *data)
                                    qcrypto_tls_creds_prop_get_endpoint,
                                    qcrypto_tls_creds_prop_set_endpoint,
                                    NULL);
+    object_class_property_set_description(oc, "endpoint",
+                                          "Data format: one of "
+                                          QCryptoTLSCredsEndpoint_value_str,
+                                          &error_abort);
     object_class_property_add_str(oc, "priority",
                                   qcrypto_tls_creds_prop_get_priority,
                                   qcrypto_tls_creds_prop_set_priority,
