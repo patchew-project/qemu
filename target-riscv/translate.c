@@ -792,6 +792,95 @@ static inline void gen_atomic(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(dat);
 }
 
+static inline void gen_fp_fmadd(DisasContext *ctx, uint32_t opc, int rd,
+        int rs1, int rs2, int rs3, int rm)
+{
+    TCGv_i64 rm_reg = tcg_temp_new_i64();
+    tcg_gen_movi_i64(rm_reg, rm);
+
+    switch (opc) {
+    case OPC_RISC_FMADD_S:
+        gen_helper_fmadd_s(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                           cpu_fpr[rs3], rm_reg);
+        break;
+    case OPC_RISC_FMADD_D:
+        gen_helper_fmadd_d(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                           cpu_fpr[rs3], rm_reg);
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
+    tcg_temp_free_i64(rm_reg);
+
+}
+
+static inline void gen_fp_fmsub(DisasContext *ctx, uint32_t opc, int rd,
+        int rs1, int rs2, int rs3, int rm)
+{
+    TCGv_i64 rm_reg = tcg_temp_new_i64();
+    tcg_gen_movi_i64(rm_reg, rm);
+
+    switch (opc) {
+    case OPC_RISC_FMSUB_S:
+        gen_helper_fmsub_s(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                           cpu_fpr[rs3], rm_reg);
+        break;
+    case OPC_RISC_FMSUB_D:
+        gen_helper_fmsub_d(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                           cpu_fpr[rs3], rm_reg);
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
+    tcg_temp_free_i64(rm_reg);
+}
+
+static inline void gen_fp_fnmsub(DisasContext *ctx, uint32_t opc, int rd,
+        int rs1, int rs2, int rs3, int rm)
+{
+    TCGv_i64 rm_reg = tcg_temp_new_i64();
+    tcg_gen_movi_i64(rm_reg, rm);
+
+    switch (opc) {
+    case OPC_RISC_FNMSUB_S:
+        gen_helper_fnmsub_s(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                            cpu_fpr[rs3], rm_reg);
+        break;
+    case OPC_RISC_FNMSUB_D:
+        gen_helper_fnmsub_d(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                            cpu_fpr[rs3], rm_reg);
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
+    tcg_temp_free_i64(rm_reg);
+}
+
+static inline void gen_fp_fnmadd(DisasContext *ctx, uint32_t opc, int rd,
+        int rs1, int rs2, int rs3, int rm)
+{
+    TCGv_i64 rm_reg = tcg_temp_new_i64();
+    tcg_gen_movi_i64(rm_reg, rm);
+
+    switch (opc) {
+    case OPC_RISC_FNMADD_S:
+        gen_helper_fnmadd_s(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                            cpu_fpr[rs3], rm_reg);
+        break;
+    case OPC_RISC_FNMADD_D:
+        gen_helper_fnmadd_d(cpu_fpr[rd], cpu_env, cpu_fpr[rs1], cpu_fpr[rs2],
+                            cpu_fpr[rs3], rm_reg);
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
+    tcg_temp_free_i64(rm_reg);
+}
+
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)
 {
     int rs1;
@@ -899,6 +988,22 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
         break;
     case OPC_RISC_ATOMIC:
         gen_atomic(ctx, MASK_OP_ATOMIC(ctx->opcode), rd, rs1, rs2);
+        break;
+    case OPC_RISC_FMADD:
+        gen_fp_fmadd(ctx, MASK_OP_FP_FMADD(ctx->opcode), rd, rs1, rs2,
+                     GET_RS3(ctx->opcode), GET_RM(ctx->opcode));
+        break;
+    case OPC_RISC_FMSUB:
+        gen_fp_fmsub(ctx, MASK_OP_FP_FMSUB(ctx->opcode), rd, rs1, rs2,
+                     GET_RS3(ctx->opcode), GET_RM(ctx->opcode));
+        break;
+    case OPC_RISC_FNMSUB:
+        gen_fp_fnmsub(ctx, MASK_OP_FP_FNMSUB(ctx->opcode), rd, rs1, rs2,
+                      GET_RS3(ctx->opcode), GET_RM(ctx->opcode));
+        break;
+    case OPC_RISC_FNMADD:
+        gen_fp_fnmadd(ctx, MASK_OP_FP_FNMADD(ctx->opcode), rd, rs1, rs2,
+                      GET_RS3(ctx->opcode), GET_RM(ctx->opcode));
         break;
     default:
         kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
