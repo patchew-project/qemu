@@ -335,10 +335,10 @@ inline target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
     /* notice the lack of CSR_MTIME - this is handled by throwing an exception
        and letting the handler read from the RTC */
     case CSR_MCYCLE:
-        /* Read instret here */
+        return cpu_riscv_read_instret(env);
         break;
     case CSR_MINSTRET:
-        /* Read instret here */
+        return cpu_riscv_read_instret(env);
         break;
     case CSR_MCYCLEH:
         printf("CSR 0x%x unsupported on RV64\n", csrno2);
