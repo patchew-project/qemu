@@ -27,6 +27,8 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
+#include "instmap.h"
+
 #define RISCV_DEBUG_DISAS 0
 
 /* global register indices */
@@ -124,6 +126,68 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)
 {
+    int rd;
+    uint32_t op;
+    target_long ubimm;
+
+    /* We do not do misaligned address check here: the address should never be
+     * misaligned at this point. Instructions that set PC must do the check,
+     * since epc must be the address of the instruction that caused us to
+     * perform the misaligned instruction fetch */
+
+    op = MASK_OP_MAJOR(ctx->opcode);
+    rd = GET_RD(ctx->opcode);
+
+    switch (op) {
+    case OPC_RISC_LUI:
+        if (rd == 0) {
+            break; /* NOP */
+        }
+        tcg_gen_movi_tl(cpu_gpr[rd], (ctx->opcode & 0xFFFFF000));
+        tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+        break;
+    case OPC_RISC_AUIPC:
+        if (rd == 0) {
+            break; /* NOP */
+        }
+        tcg_gen_movi_tl(cpu_gpr[rd], (ctx->opcode & 0xFFFFF000));
+        tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+        tcg_gen_addi_tl(cpu_gpr[rd], cpu_gpr[rd], ctx->pc);
+        break;
+    case OPC_RISC_JAL: {
+            TCGv nextpc = tcg_temp_local_new();
+            TCGv testpc = tcg_temp_local_new();
+            TCGLabel *misaligned = gen_new_label();
+            TCGLabel *done = gen_new_label();
+            ubimm = (target_long) (GET_JAL_IMM(ctx->opcode));
+            tcg_gen_movi_tl(nextpc, ctx->pc + ubimm);
+            /* check misaligned: */
+            tcg_gen_andi_tl(testpc, nextpc, 0x3);
+            tcg_gen_brcondi_tl(TCG_COND_NE, testpc, 0x0, misaligned);
+            if (rd != 0) {
+                tcg_gen_movi_tl(cpu_gpr[rd], ctx->pc + 4);
+            }
+
+#ifdef DISABLE_CHAINING_JAL
+            tcg_gen_mov_tl(cpu_PC, nextpc);
+            tcg_gen_exit_tb(0);
+#else
+            gen_goto_tb(ctx, 0, ctx->pc + ubimm); /* must use this for safety */
+#endif
+            tcg_gen_br(done);
+            gen_set_label(misaligned);
+            /* throw exception for misaligned case */
+            generate_exception_mbadaddr(ctx, RISCV_EXCP_INST_ADDR_MIS);
+            gen_set_label(done);
+            ctx->bstate = BS_BRANCH;
+            tcg_temp_free(nextpc);
+            tcg_temp_free(testpc);
+        }
+        break;
+    default:
+        kill_unknown(ctx, RISCV_EXCP_ILLEGAL_INST);
+        break;
+    }
 }
 
 void gen_intermediate_code(CPURISCVState *env, TranslationBlock *tb)
