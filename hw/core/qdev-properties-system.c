@@ -78,8 +78,7 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
         if (bs) {
-            blk = blk_new();
-            blk_insert_bs(blk, bs);
+            blk = blk_new_with_root(bs);
             blk_created = true;
         }
     }

@@ -53,10 +53,9 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
  * BlockDriverState inserted. */
 static BlockBackend *create_blk(const char *name)
 {
-    BlockBackend *blk = blk_new();
     BlockDriverState *bs = bdrv_new();
+    BlockBackend *blk = blk_new_with_root(bs);
 
-    blk_insert_bs(blk, bs);
     bdrv_unref(bs);
 
     if (name) {

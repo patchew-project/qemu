@@ -816,8 +816,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
     BlockBackend *blk;
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
 
-    blk = blk_new();
-    blk_insert_bs(blk, bs);
+    blk = blk_new_with_root(bs);
     blk_set_enable_write_cache(blk, !writethrough);
 
     exp->refcount = 1;

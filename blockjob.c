@@ -148,8 +148,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         return NULL;
     }
 
-    blk = blk_new();
-    blk_insert_bs(blk, bs);
+    blk = blk_new_with_root(bs);
 
     job = g_malloc0(driver->instance_size);
     error_setg(&job->blocker, "block device is in use by block job: %s",

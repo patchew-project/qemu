@@ -260,11 +260,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     }
 
 
-    s->base = blk_new();
-    blk_insert_bs(s->base, base);
+    s->base = blk_new_with_root(base);
 
-    s->top = blk_new();
-    blk_insert_bs(s->top, top);
+    s->top = blk_new_with_root(top);
 
     s->active = bs;
 
@@ -314,11 +312,9 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    src = blk_new();
-    blk_insert_bs(src, bs);
+    src = blk_new_with_root(bs);
 
-    backing = blk_new();
-    blk_insert_bs(backing, bs->backing->bs);
+    backing = blk_new_with_root(bs->backing->bs);
 
     length = blk_getlength(src);
     if (length < 0) {

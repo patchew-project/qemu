@@ -601,8 +601,7 @@ void backup_start(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    job->target = blk_new();
-    blk_insert_bs(job->target, target);
+    job->target = blk_new_with_root(target);
 
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;

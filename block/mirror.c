@@ -941,8 +941,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    s->target = blk_new();
-    blk_insert_bs(s->target, target);
+    s->target = blk_new_with_root(target);
 
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;

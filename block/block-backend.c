@@ -115,12 +115,7 @@ static const BdrvChildRole child_root = {
     .drained_end        = blk_root_drained_end,
 };
 
-/*
- * Create a new BlockBackend with a reference count of one.
- * Store an error through @errp on failure, unless it's null.
- * Return the new BlockBackend on success, null on failure.
- */
-BlockBackend *blk_new(void)
+static BlockBackend *blk_new_with_ctx(AioContext *ctx)
 {
     BlockBackend *blk;
 
@@ -135,6 +130,23 @@ BlockBackend *blk_new(void)
     notifier_list_init(&blk->insert_bs_notifiers);
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
+    return blk;
+}
+
+/*
+ * Create a new BlockBackend with a reference count of one.
+ * Store an error through @errp on failure, unless it's null.
+ * Return the new BlockBackend on success, null on failure.
+ */
+BlockBackend *blk_new(void)
+{
+    return blk_new_with_ctx(qemu_get_aio_context());
+}
+
+BlockBackend *blk_new_with_root(BlockDriverState *root)
+{
+    BlockBackend *blk = blk_new_with_ctx(bdrv_get_aio_context(root));
+    blk_insert_bs(blk, root);
     return blk;
 }
 
