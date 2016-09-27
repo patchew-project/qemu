@@ -101,7 +101,7 @@ typedef struct {
 
 /* --------------------------------------------------------------------- */
 
-#define UAS_STREAM_BM_ATTR  4
+#define UAS_STREAM_BM_ATTR  5
 #define UAS_MAX_STREAMS     (1 << UAS_STREAM_BM_ATTR)
 
 typedef struct UASDevice UASDevice;
