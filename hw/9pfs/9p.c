@@ -955,6 +955,11 @@ static void v9fs_version(void *opaque)
         offset = err;
         goto out;
     }
+
+    if (!version.data) {
+        offset = -EINVAL;
+        goto out;
+    }
     trace_v9fs_version(pdu->tag, pdu->id, s->msize, version.data);
 
     virtfs_reset(pdu);
