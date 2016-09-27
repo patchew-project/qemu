@@ -1825,12 +1825,16 @@ static void v9fs_read(void *opaque)
             } while (len == -EINTR && !pdu->cancelled);
             if (len < 0) {
                 /* IO error return the error */
+                qemu_iovec_destroy(&qiov);
+                qemu_iovec_destroy(&qiov_full);
                 err = len;
                 goto out;
             }
         } while (count < max_count && len > 0);
         err = pdu_marshal(pdu, offset, "d", count);
         if (err < 0) {
+            qemu_iovec_destroy(&qiov);
+            qemu_iovec_destroy(&qiov_full);
             goto out;
         }
         err += offset + count;
