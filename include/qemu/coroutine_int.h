@@ -28,7 +28,7 @@
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
 
-#define COROUTINE_STACK_SIZE (1 << 20)
+#define COROUTINE_STACK_SIZE 61440
 
 typedef enum {
     COROUTINE_YIELD = 1,
