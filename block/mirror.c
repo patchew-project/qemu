@@ -1043,7 +1043,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
     mirror_start_job(job_id, bs, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, false, cb, opaque, &local_err,
-                     &commit_active_job_driver, false, base, auto_complete);
+                     &commit_active_job_driver, true, base, auto_complete);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
