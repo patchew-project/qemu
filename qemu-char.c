@@ -2787,8 +2787,7 @@ static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
     s->write_msgfds_num = 0;
 
     if (!s->connected ||
-        !qio_channel_has_feature(s->ioc,
-                                 QIO_CHANNEL_FEATURE_FD_PASS)) {
+        !qio_channel_has_feature(s->ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
         return -1;
     }
 

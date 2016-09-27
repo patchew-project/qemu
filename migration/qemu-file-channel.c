@@ -105,8 +105,7 @@ static int channel_shutdown(void *opaque,
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
 
-    if (qio_channel_has_feature(ioc,
-                                QIO_CHANNEL_FEATURE_SHUTDOWN)) {
+    if (qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN)) {
         QIOChannelShutdown mode;
         if (rd && wr) {
             mode = QIO_CHANNEL_SHUTDOWN_BOTH;

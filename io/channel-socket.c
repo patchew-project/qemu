@@ -55,7 +55,7 @@ qio_channel_socket_new(void)
     sioc->fd = -1;
 
     ioc = QIO_CHANNEL(sioc);
-    ioc->features |= (1 << QIO_CHANNEL_FEATURE_SHUTDOWN);
+    ioc->features |= QIO_CHANNEL_FEATURE_SHUTDOWN;
 
 #ifdef WIN32
     ioc->event = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -107,12 +107,12 @@ qio_channel_socket_set_fd(QIOChannelSocket *sioc,
 #ifndef WIN32
     if (sioc->localAddr.ss_family == AF_UNIX) {
         QIOChannel *ioc = QIO_CHANNEL(sioc);
-        ioc->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
+        ioc->features |= QIO_CHANNEL_FEATURE_FD_PASS;
     }
 #endif /* WIN32 */
     if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &val, &len) == 0 && val) {
         QIOChannel *ioc = QIO_CHANNEL(sioc);
-        ioc->features |= (1 << QIO_CHANNEL_FEATURE_LISTEN);
+        ioc->features |= QIO_CHANNEL_FEATURE_LISTEN;
     }
 
     return 0;
@@ -380,7 +380,7 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
 
 #ifndef WIN32
     if (cioc->localAddr.ss_family == AF_UNIX) {
-        QIO_CHANNEL(cioc)->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
+        QIO_CHANNEL(cioc)->features |= QIO_CHANNEL_FEATURE_FD_PASS;
     }
 #endif /* WIN32 */
 
@@ -403,7 +403,8 @@ static void qio_channel_socket_finalize(Object *obj)
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
 
     if (ioc->fd != -1) {
-        if (QIO_CHANNEL(ioc)->features & QIO_CHANNEL_FEATURE_LISTEN) {
+        if (qio_channel_has_feature(QIO_CHANNEL(ioc),
+                                    QIO_CHANNEL_FEATURE_LISTEN)) {
             Error *err = NULL;
 
             socket_listen_cleanup(ioc->fd, &err);

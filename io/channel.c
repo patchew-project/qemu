@@ -23,12 +23,10 @@
 #include "qapi/error.h"
 #include "qemu/coroutine.h"
 
-bool qio_channel_has_feature(QIOChannel *ioc,
-                             QIOChannelFeature feature)
+bool qio_channel_has_feature(QIOChannel *ioc, QIOChannelFeature feature)
 {
-    return ioc->features & (1 << feature);
+    return ioc->features & feature;
 }
-
 
 ssize_t qio_channel_readv_full(QIOChannel *ioc,
                                const struct iovec *iov,
@@ -40,7 +38,7 @@ ssize_t qio_channel_readv_full(QIOChannel *ioc,
     QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if ((fds || nfds) &&
-        !(ioc->features & (1 << QIO_CHANNEL_FEATURE_FD_PASS))) {
+        !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
         error_setg_errno(errp, EINVAL,
                          "Channel does not support file descriptor passing");
         return -1;
@@ -60,7 +58,7 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
     QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if ((fds || nfds) &&
-        !(ioc->features & (1 << QIO_CHANNEL_FEATURE_FD_PASS))) {
+        !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
         error_setg_errno(errp, EINVAL,
                          "Channel does not support file descriptor passing");
         return -1;
