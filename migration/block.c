@@ -445,6 +445,7 @@ static void init_blk_migration(QEMUFile *f)
         BlockDriverState *bs = bmds_bs[i].bs;
 
         if (bmds) {
+            blk_set_aio_context(bmds->blk, bdrv_get_aio_context(bs));
             blk_insert_bs(bmds->blk, bs);
 
             alloc_aio_bitmap(bmds);
