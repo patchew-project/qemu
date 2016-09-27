@@ -511,8 +511,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
 static void xhci_xfer_report(XHCITransfer *xfer);
 static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v);
 static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v);
-static USBEndpoint *xhci_epid_to_usbep(XHCIState *xhci,
-                                       unsigned int slotid, unsigned int epid);
+static USBEndpoint *xhci_epid_to_usbep(XHCIEPContext *epctx);
 
 static const char *TRBType_names[] = {
     [TRB_RESERVED]                     = "TRB_RESERVED",
@@ -1190,7 +1189,7 @@ static int xhci_epmask_to_eps_with_streams(XHCIState *xhci,
         }
 
         epctx = slot->eps[i - 1];
-        ep = xhci_epid_to_usbep(xhci, slotid, i);
+        ep = xhci_epid_to_usbep(epctx);
         if (!epctx || !epctx->nr_pstreams || !ep) {
             continue;
         }
@@ -1521,7 +1520,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
         xhci_ep_free_xfer(xfer);
     }
 
-    ep = xhci_epid_to_usbep(xhci, slotid, epid);
+    ep = xhci_epid_to_usbep(epctx);
     if (ep) {
         usb_device_ep_stopped(ep->dev, ep);
     }
@@ -1863,7 +1862,6 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer,
 
 static int xhci_setup_packet(XHCITransfer *xfer)
 {
-    XHCIState *xhci = xfer->epctx->xhci;
     USBEndpoint *ep;
     int dir;
 
@@ -1872,7 +1870,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     if (xfer->packet.ep) {
         ep = xfer->packet.ep;
     } else {
-        ep = xhci_epid_to_usbep(xhci, xfer->epctx->slotid, xfer->epctx->epid);
+        ep = xhci_epid_to_usbep(xfer->epctx);
         if (!ep) {
             DPRINTF("xhci: slot %d has no device\n",
                     xfer->slotid);
@@ -2252,7 +2250,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         }
     }
 
-    ep = xhci_epid_to_usbep(xhci, epctx->slotid, epctx->epid);
+    ep = xhci_epid_to_usbep(epctx);
     if (ep) {
         usb_device_flush_ep_queue(ep->dev, ep);
     }
@@ -3517,17 +3515,20 @@ static int xhci_find_epid(USBEndpoint *ep)
     }
 }
 
-static USBEndpoint *xhci_epid_to_usbep(XHCIState *xhci,
-                                       unsigned int slotid, unsigned int epid)
+static USBEndpoint *xhci_epid_to_usbep(XHCIEPContext *epctx)
 {
-    assert(slotid >= 1 && slotid <= xhci->numslots);
+    USBPort *uport;
+    uint32_t token;
 
-    if (!xhci->slots[slotid - 1].uport) {
+    if (!epctx) {
         return NULL;
     }
-
-    return usb_ep_get(xhci->slots[slotid - 1].uport->dev,
-                      (epid & 1) ? USB_TOKEN_IN : USB_TOKEN_OUT, epid >> 1);
+    uport = epctx->xhci->slots[epctx->slotid - 1].uport;
+    token = (epctx->epid & 1) ? USB_TOKEN_IN : USB_TOKEN_OUT;
+    if (!uport) {
+        return NULL;
+    }
+    return usb_ep_get(uport->dev, token, epctx->epid >> 1);
 }
 
 static void xhci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,
