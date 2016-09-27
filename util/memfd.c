@@ -30,6 +30,9 @@
 #include <glib/gprintf.h>
 
 #include "qemu/memfd.h"
+#include "qmp-commands.h"
+#include "qemu-common.h"
+#include "sysemu/sysemu.h"
 
 #ifdef CONFIG_MEMFD
 #include <sys/memfd.h>
@@ -94,11 +97,32 @@ void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
             return NULL;
         }
     } else {
+        int ret = 0;
         const char *tmpdir = g_get_tmp_dir();
+        UuidInfo *uinfo;
+        NameInfo *ninfo;
         gchar *fname;
 
-        fname = g_strdup_printf("%s/memfd-XXXXXX", tmpdir);
+        uinfo = qmp_query_uuid(NULL);
+
+        ret = strcmp(uinfo->UUID, UUID_NONE);
+        if (ret == 0) {
+            ninfo = qmp_query_name(NULL);
+            if (ninfo->has_name) {
+                fname = g_strdup_printf("%s/memfd-%s-XXXXXX", tmpdir,
+                                        ninfo->name);
+            } else {
+                fname = g_strdup_printf("%s/memfd-XXXXXX", tmpdir);
+            }
+            qapi_free_NameInfo(ninfo);
+        } else {
+            fname = g_strdup_printf("%s/memfd-%s-XXXXXX", tmpdir,
+                                    uinfo->UUID);
+        }
+
         mfd = mkstemp(fname);
+
+        qapi_free_UuidInfo(uinfo);
         unlink(fname);
         g_free(fname);
 
