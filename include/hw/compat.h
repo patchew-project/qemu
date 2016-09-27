@@ -6,6 +6,11 @@
         .driver   = "virtio-pci",\
         .property = "page-per-vq",\
         .value    = "on",\
+    },\
+    {\
+        .driver   = "virtio-serial-device",\
+        .property = "emergency-write",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_6 \
