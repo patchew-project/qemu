@@ -38,6 +38,7 @@ static void cpc_run_vp(MIPSCPCState *cpc, uint64_t vp_run)
         uint64_t i = 1ULL << cs->cpu_index;
         if (i & vp_run & ~cpc->vp_running) {
             cpu_reset(cs);
+            qemu_cpu_kick(cs);
             cpc->vp_running |= i;
         }
     }
