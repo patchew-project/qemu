@@ -3281,6 +3281,21 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
+static void blockdev_set_aio_context(BlockDriverState *bs, AioContext *ctx,
+                                     Error **errp)
+{
+    if (bdrv_get_aio_context(bs) != ctx) {
+        if (!bdrv_has_blk(bs)) {
+            /* The target BDS is not attached, we can safely move it to another
+             * AioContext. */
+            bdrv_set_aio_context(bs, ctx);
+        } else {
+            error_setg(errp, "Target is attached to a different thread from "
+                             "source.");
+        }
+    }
+}
+
 void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
 {
     BlockDriverState *bs;
@@ -3317,16 +3332,10 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
         goto out;
     }
 
-    if (bdrv_get_aio_context(target_bs) != aio_context) {
-        if (!bdrv_has_blk(target_bs)) {
-            /* The target BDS is not attached, we can safely move it to another
-             * AioContext. */
-            bdrv_set_aio_context(target_bs, aio_context);
-        } else {
-            error_setg(errp, "Target is attached to a different thread from "
-                             "source.");
-            goto out;
-        }
+    blockdev_set_aio_context(target_bs, aio_context, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
     }
     backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
                  NULL, backup->compress, backup->on_source_error,
@@ -3538,7 +3547,11 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         goto out;
     }
 
-    bdrv_set_aio_context(target_bs, aio_context);
+    blockdev_set_aio_context(target_bs, aio_context, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
 
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
                            arg->has_replaces, arg->replaces, arg->sync,
