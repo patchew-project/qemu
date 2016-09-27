@@ -31,6 +31,7 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 struct BlockBackend {
     char *name;
     int refcnt;
+    AioContext *aio_context;
     BdrvChild *root;
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link;         /* for block_backends */
@@ -121,6 +122,7 @@ static BlockBackend *blk_new_with_ctx(AioContext *ctx)
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
+    blk->aio_context = ctx;
     blk_set_enable_write_cache(blk, true);
 
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
@@ -510,6 +512,8 @@ void blk_remove_bs(BlockBackend *blk)
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
     bdrv_ref(bs);
+
+    assert(blk->aio_context == bdrv_get_aio_context(bs));
     blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
@@ -1413,13 +1417,7 @@ void blk_op_unblock_all(BlockBackend *blk, Error *reason)
 
 AioContext *blk_get_aio_context(BlockBackend *blk)
 {
-    BlockDriverState *bs = blk_bs(blk);
-
-    if (bs) {
-        return bdrv_get_aio_context(bs);
-    } else {
-        return qemu_get_aio_context();
-    }
+    return blk->aio_context;
 }
 
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
@@ -1432,7 +1430,19 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
     BlockDriverState *bs = blk_bs(blk);
 
+    blk->aio_context = new_context;
+
     if (bs) {
+        AioContext *ctx = bdrv_get_aio_context(bs);
+
+        if (ctx == new_context) {
+            return;
+        }
+        /* Moving context around happens when a block device is
+         * enabling/disabling data plane, in which case we own the root BDS and
+         * it cannot be associated with another AioContext. */
+        assert(ctx == qemu_get_aio_context() ||
+               new_context == qemu_get_aio_context());
         if (blk->public.throttle_state) {
             throttle_timers_detach_aio_context(&blk->public.throttle_timers);
         }
