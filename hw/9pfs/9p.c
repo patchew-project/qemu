@@ -1272,7 +1272,7 @@ static int v9fs_walk_marshal(V9fsPDU *pdu, uint16_t nwnames, V9fsQID *qids)
 
 static bool name_is_illegal(const char *name)
 {
-    return !*name || strchr(name, '/') != NULL;
+    return !name || !*name || strchr(name, '/') != NULL;
 }
 
 static bool not_same_qid(const V9fsQID *qid1, const V9fsQID *qid2)
