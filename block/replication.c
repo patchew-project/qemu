@@ -624,7 +624,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
         commit_active_start("replication-commit", s->active_disk->bs,
                             s->secondary_disk->bs, 0, BLOCKDEV_ON_ERROR_REPORT,
                             replication_done,
-                            bs, errp, true);
+                            bs, errp, true, false);
         break;
     default:
         aio_context_release(aio_context);

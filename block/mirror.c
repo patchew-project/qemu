@@ -1002,7 +1002,8 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockdevOnError on_error,
                          BlockCompletionFunc *cb,
                          void *opaque, Error **errp,
-                         bool auto_complete)
+                         bool auto_complete,
+                         bool unmap)
 {
     int64_t length, base_length;
     int orig_base_flags;
@@ -1042,7 +1043,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
 
     mirror_start_job(job_id, bs, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
-                     on_error, on_error, false, cb, opaque, &local_err,
+                     on_error, on_error, unmap, cb, opaque, &local_err,
                      &commit_active_job_driver, false, base, auto_complete);
     if (local_err) {
         error_propagate(errp, local_err);

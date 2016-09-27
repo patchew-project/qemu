@@ -694,13 +694,15 @@ void commit_start(const char *job_id, BlockDriverState *bs,
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
  * @auto_complete: Auto complete the job.
+ * @unmap: Unmap zero clusters on base.
  *
  */
 void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockDriverState *base, int64_t speed,
                          BlockdevOnError on_error,
                          BlockCompletionFunc *cb,
-                         void *opaque, Error **errp, bool auto_complete);
+                         void *opaque, Error **errp, bool auto_complete,
+                         bool unmap);
 /*
  * mirror_start:
  * @job_id: The id of the newly-created job, or %NULL to use the
