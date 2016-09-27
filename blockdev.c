@@ -2478,6 +2478,7 @@ out:
 static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
                                             BlockDriverState *bs, Error **errp)
 {
+    AioContext *ctx;
     bool has_device;
 
     /* For BBs without a device, we can exchange the BDS tree at will */
@@ -2498,6 +2499,12 @@ static void qmp_blockdev_insert_anon_medium(BlockBackend *blk,
         return;
     }
 
+    ctx = blk_get_aio_context(blk);
+    if (ctx != bdrv_get_aio_context(bs)) {
+        aio_context_acquire(ctx);
+        bdrv_set_aio_context(bs, ctx);
+        aio_context_release(ctx);
+    }
     blk_insert_bs(blk, bs);
 
     if (!blk_dev_has_tray(blk)) {
