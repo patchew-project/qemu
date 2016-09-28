@@ -206,6 +206,33 @@ static void gen_stxvw4x(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_stxvh8x(DisasContext *ctx)
+{
+    TCGv_i64 xsh = cpu_vsrh(xS(ctx->opcode));
+    TCGv_i64 xsl = cpu_vsrl(xS(ctx->opcode));
+    TCGv EA;
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    if (ctx->le_mode) {
+        gen_helper_bswap16x4(xsh, xsh);
+        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_addi_tl(EA, EA, 8);
+        gen_helper_bswap16x4(xsl, xsl);
+        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEQ);
+    } else {
+        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_addi_tl(EA, EA, 8);
+        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEQ);
+    }
+    tcg_temp_free(EA);
+}
+
 #define MV_VSRW(name, tcgop1, tcgop2, target, source)           \
 static void gen_##name(DisasContext *ctx)                       \
 {                                                               \
