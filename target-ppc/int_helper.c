@@ -1561,7 +1561,6 @@ void helper_vpmsumd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #endif
 }
 
-
 #if defined(HOST_WORDS_BIGENDIAN)
 #define PKBIG 1
 #else
@@ -1741,6 +1740,43 @@ VEXTULX_DO(vextublx, 1)
 VEXTULX_DO(vextuhlx, 2)
 VEXTULX_DO(vextuwlx, 4)
 #undef VEXTULX_DO
+
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VEXTURX_DO(name, elem)                                          \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)          \
+{                                                                       \
+    target_ulong r = 0;                                                 \
+    int i;                                                              \
+    int index = a & 0xf;                                                \
+    for (i = elem - 1; i >= 0; i--) {                                   \
+        r = r << 8;                                                     \
+        if ((15 - i - index) >= 0) {                                    \
+            r = r | b->u8[15 - i - index];                              \
+        }                                                               \
+    }                                                                   \
+    return r;                                                           \
+}
+#else
+#define VEXTURX_DO(name, elem)                                          \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)          \
+{                                                                       \
+    target_ulong r = 0;                                                 \
+    int i;                                                              \
+    int index = 15 - (a & 0xf);                                         \
+    for (i = elem - 1; i >= 0; i--) {                                   \
+        r = r << 8;                                                     \
+        if ((15 + i - index) <= 15) {                                   \
+            r = r | b->u8[15 + i - index];                              \
+        }                                                               \
+    }                                                                   \
+    return r;                                                           \
+}
+#endif
+
+VEXTURX_DO(vextubrx, 1)
+VEXTURX_DO(vextuhrx, 2)
+VEXTURX_DO(vextuwrx, 4)
+#undef VEXTURX_DO
 
 /* The specification says that the results are undefined if all of the
  * shift counts are not identical.  We check to make sure that they are
