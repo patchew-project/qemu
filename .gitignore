@@ -20,6 +20,7 @@
 /trace/generated-ust.c
 /ui/shader/texture-blit-frag.h
 /ui/shader/texture-blit-vert.h
+module_block.h
 *-timestamp
 /*-softmmu
 /*-darwin-user
