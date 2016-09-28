@@ -1705,6 +1705,43 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VEXTULX_DO(name, elem)                                  \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+{                                                               \
+    target_ulong r = 0;                                         \
+    int i;                                                      \
+    int index = a & 0xf;                                        \
+    for (i = 0; i < elem; i++) {                                \
+        r = r << 8;                                             \
+        if (index + i <= 15) {                                  \
+            r = r | b->u8[index + i];                           \
+        }                                                       \
+    }                                                           \
+    return r;                                                   \
+}
+#else
+#define VEXTULX_DO(name, elem)                                  \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+{                                                               \
+    target_ulong r = 0;                                         \
+    int i;                                                      \
+    int index = 15 - (a & 0xf);                                 \
+    for (i = 0; i < elem; i++) {                                \
+        r = r << 8;                                             \
+        if (index - i >= 0) {                                   \
+            r = r | b->u8[index - i];                           \
+        }                                                       \
+    }                                                           \
+    return r;                                                   \
+}
+#endif
+
+VEXTULX_DO(vextublx, 1)
+VEXTULX_DO(vextuhlx, 2)
+VEXTULX_DO(vextuwlx, 4)
+#undef VEXTULX_DO
+
 /* The specification says that the results are undefined if all of the
  * shift counts are not identical.  We check to make sure that they are
  * to conform to what real hardware appears to do.  */
