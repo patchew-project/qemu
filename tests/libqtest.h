@@ -17,6 +17,7 @@
 #ifndef LIBQTEST_H
 #define LIBQTEST_H
 
+#include "qemu/bswap.h"
 #include "qapi/qmp/qdict.h"
 
 typedef struct QTestState QTestState;
@@ -890,6 +891,62 @@ static inline bool target_big_endian(void)
 {
     return qtest_big_endian(global_qtest);
 }
+
+/* Endianness conversion function between target cpu and specified endianess
+ *
+ * uint16_t target_le16_to_cpu(uint16_t v);
+ * uint32_t target_le32_to_cpu(uint32_t v);
+ * uint64_t target_le64_to_cpu(uint64_t v);
+ * uint16_t target_be16_to_cpu(uint16_t v);
+ * uint32_t target_be32_to_cpu(uint32_t v);
+ * uint64_t target_be64_to_cpu(uint64_t v);
+ *
+ * Convert the value @v from the specified format to the native
+ * endianness of the target CPU by byteswapping if necessary, and
+ * return the converted value.
+ *
+ * uint16_t target_cpu_to_le16(uint16_t v);
+ * uint32_t target_cpu_to_le32(uint32_t v);
+ * uint64_t target_cpu_to_le64(uint64_t v);
+ * uint16_t target_cpu_to_be16(uint16_t v);
+ * uint32_t target_cpu_to_be32(uint32_t v);
+ * uint64_t target_cpu_to_be64(uint64_t v);
+ *
+ * Convert the value @v from the native endianness of the target CPU to
+ * the specified format by byteswapping if necessary, and return
+ * the converted value.
+ *
+ * Both target_X_to_cpu() and target_cpu_to_X() perform the same operation; you
+ * should use whichever one is better documenting of the function your
+ * code is performing.
+ *
+ */
+
+#define le_bswap(s, v, size) (qtest_big_endian(s) ? bswap ## size(v) : (v))
+#define be_bswap(s, v, size) (qtest_big_endian(s) ? (v) : bswap ## size(v))
+
+#define TARGET_CPU_CONVERT(endian, size, type)\
+static inline type target_ ## endian ## size ## _to_cpu(type v)\
+{\
+    return glue(endian, _bswap)(global_qtest, v, size);\
+} \
+\
+static inline type target_cpu_to_ ## endian ## size(type v)\
+{\
+    return glue(endian, _bswap)(global_qtest, v, size);\
+}
+
+TARGET_CPU_CONVERT(be, 16, uint16_t)
+TARGET_CPU_CONVERT(be, 32, uint32_t)
+TARGET_CPU_CONVERT(be, 64, uint64_t)
+
+TARGET_CPU_CONVERT(le, 16, uint16_t)
+TARGET_CPU_CONVERT(le, 32, uint32_t)
+TARGET_CPU_CONVERT(le, 64, uint64_t)
+
+#undef TARGET_CPU_CONVERT
+#undef be_bswap
+#undef le_bswap
 
 QDict *qmp_fd_receive(int fd);
 void qmp_fd_sendv(int fd, const char *fmt, va_list ap);
