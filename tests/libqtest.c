@@ -37,6 +37,7 @@ struct QTestState
     bool irq_level[MAX_IRQ];
     GString *rx;
     pid_t qemu_pid;  /* our child QEMU process */
+    bool big_endian;
 };
 
 static GHookList abrt_hooks;
@@ -146,6 +147,52 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     g_hook_prepend(&abrt_hooks, hook);
 }
 
+static bool arch_is_big_endian(const char *arch)
+{
+    int i;
+    static const struct {
+        const char *arch;
+        bool big_endian;
+    } endianness[] = {
+        { "aarch64", false },
+        { "alpha", false },
+        { "arm", false },
+        { "cris", false },
+        { "i386", false },
+        { "lm32", true },
+        { "m68k", true },
+        { "microblaze", true },
+        { "microblazeel", false },
+        { "mips", true },
+        { "mips64", true },
+        { "mips64el", false },
+        { "mipsel", false },
+        { "moxie", true },
+        { "or32", true },
+        { "ppc", true },
+        { "ppc64", true },
+        { "ppcemb", true },
+        { "s390x", true },
+        { "sh4", false },
+        { "sh4eb", true },
+        { "sparc", true },
+        { "sparc64", true },
+        { "unicore32", false },
+        { "x86_64", false },
+        { "xtensa", false },
+        { "xtensaeb", true },
+        { "tricore", false },
+        {},
+    };
+
+    for (i = 0; endianness[i].arch; i++) {
+        if (strcmp(endianness[i].arch, arch) == 0) {
+            return endianness[i].big_endian;
+        }
+    }
+    g_assert_not_reached();
+}
+
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
@@ -208,6 +255,8 @@ QTestState *qtest_init(const char *extra_args)
     if (getenv("QTEST_STOP")) {
         kill(s->qemu_pid, SIGSTOP);
     }
+
+    s->big_endian = arch_is_big_endian(qtest_get_arch());
 
     return s;
 }
@@ -886,50 +935,7 @@ char *hmp(const char *fmt, ...)
     return ret;
 }
 
-bool qtest_big_endian(void)
+bool qtest_big_endian(QTestState *s)
 {
-    const char *arch = qtest_get_arch();
-    int i;
-
-    static const struct {
-        const char *arch;
-        bool big_endian;
-    } endianness[] = {
-        { "aarch64", false },
-        { "alpha", false },
-        { "arm", false },
-        { "cris", false },
-        { "i386", false },
-        { "lm32", true },
-        { "m68k", true },
-        { "microblaze", true },
-        { "microblazeel", false },
-        { "mips", true },
-        { "mips64", true },
-        { "mips64el", false },
-        { "mipsel", false },
-        { "moxie", true },
-        { "or32", true },
-        { "ppc", true },
-        { "ppc64", true },
-        { "ppcemb", true },
-        { "s390x", true },
-        { "sh4", false },
-        { "sh4eb", true },
-        { "sparc", true },
-        { "sparc64", true },
-        { "unicore32", false },
-        { "x86_64", false },
-        { "xtensa", false },
-        { "xtensaeb", true },
-        {},
-    };
-
-    for (i = 0; endianness[i].arch; i++) {
-        if (strcmp(endianness[i].arch, arch) == 0) {
-            return endianness[i].big_endian;
-        }
-    }
-
-    return false;
+    return s->big_endian;
 }
