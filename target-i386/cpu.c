@@ -602,7 +602,10 @@ static uint32_t x86_cpu_get_migratable_flags(FeatureWord w)
         uint32_t f = 1U << i;
         /* If the feature name is unknown, it is not supported by QEMU yet */
         if (!wi->feat_names[i]) {
-            continue;
+            if (w != FEAT_XSAVE_COMP_LO &&
+                w != FEAT_XSAVE_COMP_HI) {
+                continue;
+            }
         }
         /* Skip features known to QEMU, but explicitly marked as unmigratable */
         if (wi->unmigratable_flags & f) {
