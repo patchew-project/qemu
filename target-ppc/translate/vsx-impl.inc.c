@@ -257,6 +257,29 @@ static void gen_mtvsrdd(DisasContext *ctx)
     tcg_gen_mov_i64(cpu_vsrl(xT(ctx->opcode)), cpu_gpr[rB(ctx->opcode)]);
 }
 
+static void gen_mtvsrws(DisasContext *ctx)
+{
+    TCGv_i64 tmp1 = tcg_temp_new_i64();
+
+    if (xT(ctx->opcode) < 32) {
+        if (unlikely(!ctx->vsx_enabled)) {
+            gen_exception(ctx, POWERPC_EXCP_VSXU);
+            return;
+        }
+    } else {
+        if (unlikely(!ctx->altivec_enabled)) {
+            gen_exception(ctx, POWERPC_EXCP_VPU);
+            return;
+        }
+    }
+
+    tcg_gen_andi_i64(tmp1, cpu_gpr[rA(ctx->opcode)], 0xFFFFFFFF);
+    tcg_gen_deposit_i64(cpu_vsrl(xT(ctx->opcode)), tmp1, tmp1, 32, 32);
+    tcg_gen_mov_i64(cpu_vsrh(xT(ctx->opcode)), cpu_vsrl(xT(ctx->opcode)));
+
+    tcg_temp_free_i64(tmp1);
+}
+
 #endif
 
 static void gen_xxpermdi(DisasContext *ctx)
