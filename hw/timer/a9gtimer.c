@@ -72,7 +72,7 @@ static void a9_gtimer_update(A9GTimerState *s, bool sync)
 {
 
     A9GTimerUpdate update = a9_gtimer_get_update(s);
-    int i;
+    uint32_t i, inc;
     int64_t next_cdiff = 0;
 
     for (i = 0; i < s->num_cpu; ++i) {
@@ -82,16 +82,14 @@ static void a9_gtimer_update(A9GTimerState *s, bool sync)
         if ((s->control & R_CONTROL_TIMER_ENABLE) &&
                 (gtb->control & R_CONTROL_COMP_ENABLE)) {
             /* R2p0+, where the compare function is >= */
-            while (gtb->compare < update.new) {
-                DB_PRINT("Compare event happened for CPU %d\n", i);
-                gtb->status = 1;
-                if (gtb->control & R_CONTROL_AUTO_INCREMENT) {
-                    DB_PRINT("Auto incrementing timer compare by %" PRId32 "\n",
-                             gtb->inc);
-                    gtb->compare += gtb->inc;
-                } else {
-                    break;
-                }
+            DB_PRINT("Compare event happened for CPU %d\n", i);
+            gtb->status = 1;
+            if (gtb->control & R_CONTROL_AUTO_INCREMENT
+                && gtb->compare < update.new) {
+                inc = ((update.new - gtb->compare - 1) / gtb->inc) * gtb->inc;
+                DB_PRINT("Auto incrementing timer compare by %"
+                                                            PRId32 "\n", inc);
+                gtb->compare += inc;
             }
             cdiff = (int64_t)gtb->compare - (int64_t)update.new + 1;
             if (cdiff > 0 && (cdiff < next_cdiff || !next_cdiff)) {
@@ -210,7 +208,7 @@ static void a9_gtimer_write(void *opaque, hwaddr addr, uint64_t value,
         gtb->compare = deposit64(gtb->compare, shift, 32, value);
         break;
     case R_AUTO_INCREMENT:
-        gtb->inc = value;
+        gtb->inc = value ? value : 1;
         return;
     default:
         return;
