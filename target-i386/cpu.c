@@ -2156,6 +2156,10 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
         r = kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid_eax,
                                                     wi->cpuid_ecx,
                                                     wi->cpuid_reg);
+        if ((w == FEAT_XSAVE_COMP_LO) ||
+            (w == FEAT_XSAVE_COMP_HI)) {
+            return r;
+        }
     } else if (tcg_enabled()) {
         r = wi->tcg_features;
     } else {
