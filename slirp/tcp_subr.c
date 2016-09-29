@@ -247,7 +247,7 @@ tcp_newtcpcb(struct socket *so)
 {
 	register struct tcpcb *tp;
 
-	tp = (struct tcpcb *)malloc(sizeof(*tp));
+	tp = (struct tcpcb *)g_malloc(sizeof(*tp));
 	if (tp == NULL)
 		return ((struct tcpcb *)0);
 

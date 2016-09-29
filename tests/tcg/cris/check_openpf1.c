@@ -17,7 +17,7 @@ int main (int argc, char *argv[])
   FILE *f;
   if (argv[0][0] != '/')
     {
-      fnam = malloc (strlen (argv[0]) + 2);
+      fnam = g_malloc (strlen (argv[0]) + 2);
       if (fnam == NULL)
 	abort ();
       strcpy (fnam, "/");

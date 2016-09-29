@@ -31,7 +31,7 @@ namespace vixl {
 
 Disassembler::Disassembler() {
   buffer_size_ = 256;
-  buffer_ = reinterpret_cast<char*>(malloc(buffer_size_));
+  buffer_ = reinterpret_cast<char*>(g_malloc(buffer_size_));
   buffer_pos_ = 0;
   own_buffer_ = true;
   code_address_offset_ = 0;

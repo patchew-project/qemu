@@ -1886,7 +1886,7 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
 
       /* Then create a sorted table of pointers
 	 that point into the unsorted table.  */
-      opc_pointer[0] = malloc (sizeof (struct m68k_opcode *)
+      opc_pointer[0] = g_malloc (sizeof (struct m68k_opcode *)
                                * m68k_numopcodes);
       opcodes[0] = opc_pointer[0];
 
