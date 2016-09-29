@@ -729,27 +729,51 @@ GCOV_OPTIONS = -n $(if $(V),-f,)
 # gtester tests, possibly with verbose output
 
 .PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
-$(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: $(check-qtest-y)
-	$(if $(CONFIG_GCOV),@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda,)
-	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
+
+run-tests = $(call quiet-command,\
+		$(if $(QTEST_TARGET), \
+			QTEST_QEMU_BINARY=$(QTEST_TARGET)-softmmu/qemu-system-$(QTEST_TARGET)) \
 		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$((RANDOM % 255 + 1))} \
-		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER $@")
-	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y) $(gcov-files-generic-y); do \
+		gtester $1 $(GTESTER_OPTIONS) -m=$(SPEED),"GTESTER $2")
+
+ifneq ($(CONFIG_GCOV),)
+
+check-qtest-%: QTEST_TARGET=$*
+$(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: $(check-qtest-y)
+	@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda
+	$(call run-tests, $(check-qtest-$*-y), $@)
+	@for f in $(gcov-files-$*-y) $(gcov-files-generic-y); do \
 	  echo Gcov report for $$f:;\
 	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
-	done,)
+	done
 
 .PHONY: $(patsubst %, check-%, $(check-unit-y))
 $(patsubst %, check-%, $(check-unit-y)): check-%: %
-	$(if $(CONFIG_GCOV),@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda,)
-	$(call quiet-command, \
-		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$((RANDOM % 255 + 1))} \
-		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $*,"GTESTER $*")
-	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$(subst tests/,,$*)-y) $(gcov-files-generic-y); do \
+	@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda
+	$(call run-tests, $*, $*)
+	@for f in $(gcov-files-$(subst tests/,,$*)-y) $(gcov-files-generic-y); do \
 	  echo Gcov report for $$f:;\
 	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
-	done,)
+	done
+
+else
+
+run-test-%: tests/%
+	$(call run-tests, $<, $<)
+
+$(foreach target, $(QTEST_TARGETS), \
+	$(eval check-qtest-$(target): QTEST_TARGET := $(target)) \
+	$(eval check-qtest-$(target): $(patsubst tests/%, run-test-%, \
+                                             $(check-qtest-y) \
+                                             $(check-qtest-$(target)-y) \
+                                             $(check-qtest-generic-y))) \
+)
+$(patsubst %, check-%, $(check-unit-y)): check-tests/%: run-test-%
+
+endif
+
+.PHONY: $(patsubst %, check-%, $(check-unit-y))
 
 # gtester tests with XML output
 
