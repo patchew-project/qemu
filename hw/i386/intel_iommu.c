@@ -2011,6 +2011,8 @@ static const MemoryRegionOps vtd_mem_ops = {
 
 static Property vtd_properties[] = {
     DEFINE_PROP_UINT32("version", IntelIOMMUState, version, 0),
+    DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
+                            ON_OFF_AUTO_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2367,7 +2369,11 @@ static void vtd_init(IntelIOMMUState *s)
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
-        s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM | VTD_ECAP_MHMV;
+        s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
+        if (s->intr_eim == ON_OFF_AUTO_ON) {
+            s->ecap |= VTD_ECAP_EIM;
+        }
+        assert(s->intr_eim != ON_OFF_AUTO_AUTO);
     }
 
     vtd_reset_context_cache(s);
@@ -2464,6 +2470,18 @@ static void vtd_realize(DeviceState *dev, Error **errp)
         error_report("Intel Interrupt Remapping cannot work with "
                      "kernel-irqchip=on, please use 'split|off'.");
         exit(1);
+    }
+
+    if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu->intr_supported) {
+        error_report("intel-iommu,eim=on cannot be selected without "
+                     "intremap=on.");
+        exit(1);
+    }
+    if (s->intr_eim == ON_OFF_AUTO_AUTO && !x86_iommu->intr_supported) {
+        s->intr_eim = ON_OFF_AUTO_OFF;
+    }
+    if (s->intr_eim == ON_OFF_AUTO_AUTO) {
+        s->intr_eim = ON_OFF_AUTO_ON;
     }
 
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
