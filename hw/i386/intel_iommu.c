@@ -32,6 +32,7 @@
 #include "hw/pci-host/q35.h"
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
+#include "kvm_i386.h"
 
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
@@ -2481,7 +2482,20 @@ static void vtd_realize(DeviceState *dev, Error **errp)
         s->intr_eim = ON_OFF_AUTO_OFF;
     }
     if (s->intr_eim == ON_OFF_AUTO_AUTO) {
-        s->intr_eim = ON_OFF_AUTO_ON;
+        s->intr_eim = kvm_irqchip_in_kernel() ? ON_OFF_AUTO_ON
+                                              : ON_OFF_AUTO_OFF;
+    }
+    if (s->intr_eim == ON_OFF_AUTO_ON) {
+        if (kvm_irqchip_in_kernel() && !kvm_enable_x2apic()) {
+            error_report("intel-iommu,eim=on requires support on the KVM side "
+                         "(X2APIC_API, first shipped in v4.7).");
+            exit(1);
+        }
+        if (!kvm_irqchip_in_kernel()) {
+            error_report("intel-iommu,eim=on requires "
+                         "accel=kvm,kernel-irqchip=split.");
+            exit(1);
+        }
     }
 
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
