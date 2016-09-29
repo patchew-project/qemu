@@ -278,11 +278,11 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1_ECX] = {
         .feat_names = {
             "pni|sse3" /* Intel,AMD sse3 */, "pclmulqdq|pclmuldq", "dtes64", "monitor",
-            "ds_cpl", "vmx", "smx", "est",
+            "ds-cpl", "vmx", "smx", "est",
             "tm2", "ssse3", "cid", NULL,
             "fma", "cx16", "xtpr", "pdcm",
-            NULL, "pcid", "dca", "sse4.1|sse4_1",
-            "sse4.2|sse4_2", "x2apic", "movbe", "popcnt",
+            NULL, "pcid", "dca", "sse4.1|sse4-1",
+            "sse4.2|sse4-2", "x2apic", "movbe", "popcnt",
             "tsc-deadline", "aes", "xsave", "osxsave",
             "avx", "f16c", "rdrand", "hypervisor",
         },
@@ -302,7 +302,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL /* mtrr */, NULL /* pge */, NULL /* mca */, NULL /* cmov */,
             NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
             "nx|xd", NULL, "mmxext", NULL /* mmx */,
-            NULL /* fxsr */, "fxsr_opt|ffxsr", "pdpe1gb", "rdtscp",
+            NULL /* fxsr */, "fxsr-opt|ffxsr", "pdpe1gb", "rdtscp",
             NULL, "lm|i64", "3dnowext", "3dnow",
         },
         .cpuid_eax = 0x80000001, .cpuid_reg = R_EDX,
@@ -310,13 +310,13 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_8000_0001_ECX] = {
         .feat_names = {
-            "lahf_lm", "cmp_legacy", "svm", "extapic",
+            "lahf-lm", "cmp-legacy", "svm", "extapic",
             "cr8legacy", "abm", "sse4a", "misalignsse",
             "3dnowprefetch", "osvw", "ibs", "xop",
             "skinit", "wdt", NULL, "lwp",
-            "fma4", "tce", NULL, "nodeid_msr",
-            NULL, "tbm", "topoext", "perfctr_core",
-            "perfctr_nb", NULL, NULL, NULL,
+            "fma4", "tce", NULL, "nodeid-msr",
+            NULL, "tbm", "topoext", "perfctr-core",
+            "perfctr-nb", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
         .cpuid_eax = 0x80000001, .cpuid_reg = R_ECX,
@@ -338,8 +338,8 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_KVM] = {
         .feat_names = {
-            "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
-            "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", "kvm_pv_unhalt",
+            "kvmclock", "kvm-nopiodelay", "kvm-mmu", "kvmclock",
+            "kvm-asyncpf", "kvm-steal-time", "kvm-pv-eoi", "kvm-pv-unhalt",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -399,9 +399,9 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_SVM] = {
         .feat_names = {
-            "npt", "lbrv", "svm_lock", "nrip_save",
-            "tsc_scale", "vmcb_clean",  "flushbyasid", "decodeassists",
-            NULL, NULL, "pause_filter", NULL,
+            "npt", "lbrv", "svm-lock", "nrip-save",
+            "tsc-scale", "vmcb-clean",  "flushbyasid", "decodeassists",
+            NULL, NULL, "pause-filter", NULL,
             "pfthreshold", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -413,7 +413,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_7_0_EBX] = {
         .feat_names = {
-            "fsgsbase", "tsc_adjust", NULL, "bmi1",
+            "fsgsbase", "tsc-adjust", NULL, "bmi1",
             "hle", "avx2", NULL, "smep",
             "bmi2", "erms", "invpcid", "rtm",
             NULL, NULL, "mpx", NULL,
@@ -3331,7 +3331,8 @@ static void x86_cpu_register_feature_bit_props(X86CPU *cpu,
 
     names = g_strsplit(fi->feat_names[bitnr], "|", 0);
 
-    feat2prop(names[0]);
+    /* Property names should use "-" instead of "_" */
+    assert(!strchr(names[0], '_'));
     x86_cpu_register_bit_prop(cpu, names[0], &cpu->env.features[w], bitnr);
 
     for (i = 1; names[i]; i++) {
