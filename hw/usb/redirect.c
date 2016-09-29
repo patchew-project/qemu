@@ -2250,7 +2250,7 @@ static int usbredir_get_bufpq(QEMUFile *f, void *priv, size_t unused)
         bufp->len = qemu_get_be32(f);
         bufp->status = qemu_get_be32(f);
         bufp->offset = 0;
-        bufp->data = qemu_oom_check(malloc(bufp->len)); /* regular malloc! */
+        bufp->data = qemu_oom_check(g_malloc(bufp->len)); /* regular malloc! */
         bufp->free_on_destroy = bufp->data;
         qemu_get_buffer(f, bufp->data, bufp->len);
         QTAILQ_INSERT_TAIL(&endp->bufpq, bufp, next);

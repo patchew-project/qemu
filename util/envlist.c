@@ -25,7 +25,7 @@ envlist_create(void)
 {
 	envlist_t *envlist;
 
-	if ((envlist = malloc(sizeof (*envlist))) == NULL)
+	if ((envlist = g_malloc(sizeof (*envlist))) == NULL)
 		return (NULL);
 
 	QLIST_INIT(&envlist->el_entries);
@@ -161,7 +161,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
 		envlist->el_count++;
 	}
 
-	if ((entry = malloc(sizeof (*entry))) == NULL)
+	if ((entry = g_malloc(sizeof (*entry))) == NULL)
 		return (errno);
 	if ((entry->ev_var = strdup(env)) == NULL) {
 		free(entry);
@@ -225,7 +225,7 @@ envlist_to_environ(const envlist_t *envlist, size_t *count)
 	struct envlist_entry *entry;
 	char **env, **penv;
 
-	penv = env = malloc((envlist->el_count + 1) * sizeof (char *));
+	penv = env = g_malloc((envlist->el_count + 1) * sizeof (char *));
 	if (env == NULL)
 		return (NULL);
 

@@ -868,7 +868,7 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
             return ~(abi_ulong)0UL;
 
         elf_phdata =  (struct elf_phdr *)
-                malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
+                g_malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
 
         if (!elf_phdata)
           return ~((abi_ulong)0UL);
@@ -1064,13 +1064,13 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 
  found:
     /* Now know where the strtab and symtab are.  Snarf them. */
-    s = malloc(sizeof(*s));
-    syms = malloc(symtab.sh_size);
+    s = g_malloc(sizeof(*s));
+    syms = g_malloc(symtab.sh_size);
     if (!syms) {
         free(s);
         return;
     }
-    s->disas_strtab = strings = malloc(strtab.sh_size);
+    s->disas_strtab = strings = g_malloc(strtab.sh_size);
     if (!s->disas_strtab) {
         free(s);
         free(syms);
@@ -1191,7 +1191,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     }
 
     /* Now read in all of the header information */
-    elf_phdata = (struct elf_phdr *)malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
+    elf_phdata = (struct elf_phdr *)g_malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
     if (elf_phdata == NULL) {
         return -ENOMEM;
     }
@@ -1244,7 +1244,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
              * is an a.out format binary
              */
 
-            elf_interpreter = (char *)malloc(elf_ppnt->p_filesz);
+            elf_interpreter = (char *)g_malloc(elf_ppnt->p_filesz);
 
             if (elf_interpreter == NULL) {
                 free (elf_phdata);

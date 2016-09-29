@@ -52,7 +52,7 @@ sbreserve(struct sbuf *sb, int size)
 			   sb->sb_datalen = 0;
 		}
 	} else {
-		sb->sb_wptr = sb->sb_rptr = sb->sb_data = (char *)malloc(size);
+		sb->sb_wptr = sb->sb_rptr = sb->sb_data = (char *)g_malloc(size);
 		sb->sb_cc = 0;
 		if (sb->sb_wptr)
 		   sb->sb_datalen = size;

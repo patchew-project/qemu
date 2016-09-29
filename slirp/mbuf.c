@@ -71,7 +71,7 @@ m_get(Slirp *slirp)
 	DEBUG_CALL("m_get");
 
 	if (slirp->m_freelist.qh_link == &slirp->m_freelist) {
-		m = (struct mbuf *)malloc(SLIRP_MSIZE);
+		m = (struct mbuf *)g_malloc(SLIRP_MSIZE);
 		if (m == NULL) goto end_error;
 		slirp->mbuf_alloced++;
 		if (slirp->mbuf_alloced > MBUF_THRESH)
@@ -165,7 +165,7 @@ m_inc(struct mbuf *m, int size)
         } else {
 	  char *dat;
 	  datasize = m->m_data - m->m_dat;
-	  dat = (char *)malloc(size);
+	  dat = (char *)g_malloc(size);
 	  memcpy(dat, m->m_dat, m->m_size);
 
 	  m->m_ext = dat;
