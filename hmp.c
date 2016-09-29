@@ -304,6 +304,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: '%s'",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
             params->tls_hostname ? : "");
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_X_CHECKPOINT_DELAY],
+            params->x_checkpoint_delay);
         monitor_printf(mon, "\n");
     }
 
@@ -1263,6 +1266,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     bool has_tls_creds = false;
     bool has_tls_hostname = false;
     bool use_int_value = false;
+    bool has_x_checkpoint_delay = false;
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
@@ -1286,6 +1290,8 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
                 has_cpu_throttle_increment = true;
+            case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
+                has_x_checkpoint_delay = true;
                 break;
             case MIGRATION_PARAMETER_TLS_CREDS:
                 has_tls_creds = true;
@@ -1310,6 +1316,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                                        has_cpu_throttle_increment, valueint,
                                        has_tls_creds, valuestr,
                                        has_tls_hostname, valuestr,
+                                       has_x_checkpoint_delay, valueint,
                                        &err);
             break;
         }

@@ -2913,6 +2913,7 @@ Set migration parameters
                           throttled for auto-converge (json-int)
 - "cpu-throttle-increment": set throttle increasing percentage for
                             auto-converge (json-int)
+- "x-checkpoint-delay": set the delay time for periodic checkpoint (json-int)
 
 Arguments:
 
