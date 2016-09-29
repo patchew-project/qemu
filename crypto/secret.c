@@ -352,6 +352,36 @@ qcrypto_secret_complete(UserCreatable *uc, Error **errp)
     object_property_set_bool(OBJECT(uc), true, "loaded", errp);
 }
 
+static void
+qcrypto_secret_instance_init(Object *obj)
+{
+    object_property_add_bool(obj, "loaded",
+                             qcrypto_secret_prop_get_loaded,
+                             qcrypto_secret_prop_set_loaded,
+                             NULL);
+    object_property_add_enum(obj, "format",
+                             "QCryptoSecretFormat",
+                             QCryptoSecretFormat_lookup,
+                             qcrypto_secret_prop_get_format,
+                             qcrypto_secret_prop_set_format,
+                             NULL);
+    object_property_add_str(obj, "data",
+                            qcrypto_secret_prop_get_data,
+                            qcrypto_secret_prop_set_data,
+                            NULL);
+    object_property_add_str(obj, "file",
+                            qcrypto_secret_prop_get_file,
+                            qcrypto_secret_prop_set_file,
+                            NULL);
+    object_property_add_str(obj, "keyid",
+                            qcrypto_secret_prop_get_keyid,
+                            qcrypto_secret_prop_set_keyid,
+                            NULL);
+    object_property_add_str(obj, "iv",
+                            qcrypto_secret_prop_get_iv,
+                            qcrypto_secret_prop_set_iv,
+                            NULL);
+}
 
 static void
 qcrypto_secret_finalize(Object *obj)
@@ -371,33 +401,6 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = qcrypto_secret_complete;
-
-    object_class_property_add_bool(oc, "loaded",
-                                   qcrypto_secret_prop_get_loaded,
-                                   qcrypto_secret_prop_set_loaded,
-                                   NULL);
-    object_class_property_add_enum(oc, "format",
-                                   "QCryptoSecretFormat",
-                                   QCryptoSecretFormat_lookup,
-                                   qcrypto_secret_prop_get_format,
-                                   qcrypto_secret_prop_set_format,
-                                   NULL);
-    object_class_property_add_str(oc, "data",
-                                  qcrypto_secret_prop_get_data,
-                                  qcrypto_secret_prop_set_data,
-                                  NULL);
-    object_class_property_add_str(oc, "file",
-                                  qcrypto_secret_prop_get_file,
-                                  qcrypto_secret_prop_set_file,
-                                  NULL);
-    object_class_property_add_str(oc, "keyid",
-                                  qcrypto_secret_prop_get_keyid,
-                                  qcrypto_secret_prop_set_keyid,
-                                  NULL);
-    object_class_property_add_str(oc, "iv",
-                                  qcrypto_secret_prop_get_iv,
-                                  qcrypto_secret_prop_set_iv,
-                                  NULL);
 }
 
 
@@ -489,6 +492,7 @@ static const TypeInfo qcrypto_secret_info = {
     .parent = TYPE_OBJECT,
     .name = TYPE_QCRYPTO_SECRET,
     .instance_size = sizeof(QCryptoSecret),
+    .instance_init = qcrypto_secret_instance_init,
     .instance_finalize = qcrypto_secret_finalize,
     .class_size = sizeof(QCryptoSecretClass),
     .class_init = qcrypto_secret_class_init,

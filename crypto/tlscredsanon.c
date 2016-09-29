@@ -173,6 +173,16 @@ qcrypto_tls_creds_anon_complete(UserCreatable *uc, Error **errp)
 
 
 static void
+qcrypto_tls_creds_anon_instance_init(Object *obj)
+{
+    object_property_add_bool(obj, "loaded",
+                             qcrypto_tls_creds_anon_prop_get_loaded,
+                             qcrypto_tls_creds_anon_prop_set_loaded,
+                             NULL);
+}
+
+
+static void
 qcrypto_tls_creds_anon_finalize(Object *obj)
 {
     QCryptoTLSCredsAnon *creds = QCRYPTO_TLS_CREDS_ANON(obj);
@@ -187,11 +197,6 @@ qcrypto_tls_creds_anon_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = qcrypto_tls_creds_anon_complete;
-
-    object_class_property_add_bool(oc, "loaded",
-                                   qcrypto_tls_creds_anon_prop_get_loaded,
-                                   qcrypto_tls_creds_anon_prop_set_loaded,
-                                   NULL);
 }
 
 
@@ -199,6 +204,7 @@ static const TypeInfo qcrypto_tls_creds_anon_info = {
     .parent = TYPE_QCRYPTO_TLS_CREDS,
     .name = TYPE_QCRYPTO_TLS_CREDS_ANON,
     .instance_size = sizeof(QCryptoTLSCredsAnon),
+    .instance_init = qcrypto_tls_creds_anon_instance_init,
     .instance_finalize = qcrypto_tls_creds_anon_finalize,
     .class_size = sizeof(QCryptoTLSCredsAnonClass),
     .class_init = qcrypto_tls_creds_anon_class_init,
