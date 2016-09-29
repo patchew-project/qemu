@@ -2458,6 +2458,7 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(MACHINE_GET_CLASS(pcms));
     PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
@@ -2481,11 +2482,14 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     if (s->intr_eim == ON_OFF_AUTO_AUTO && !x86_iommu->intr_supported) {
         s->intr_eim = ON_OFF_AUTO_OFF;
     }
+    if (s->intr_eim == ON_OFF_AUTO_AUTO && pcmc->buggy_intel_iommu_eim) {
+        s->intr_eim = ON_OFF_AUTO_ON;
+    }
     if (s->intr_eim == ON_OFF_AUTO_AUTO) {
         s->intr_eim = kvm_irqchip_in_kernel() ? ON_OFF_AUTO_ON
                                               : ON_OFF_AUTO_OFF;
     }
-    if (s->intr_eim == ON_OFF_AUTO_ON) {
+    if (s->intr_eim == ON_OFF_AUTO_ON && !pcmc->buggy_intel_iommu_eim) {
         if (kvm_irqchip_in_kernel() && !kvm_enable_x2apic()) {
             error_report("intel-iommu,eim=on requires support on the KVM side "
                          "(X2APIC_API, first shipped in v4.7).");
