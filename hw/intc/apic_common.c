@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -296,6 +297,13 @@ static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
 
 static const VMStateDescription vmstate_apic_common;
 
+APICCommonClass *apic_class;
+
+APICCommonClass *apic_get_class(void)
+{
+    return apic_class;
+}
+
 static void apic_common_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
@@ -305,6 +313,9 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
 
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
+
+    assert(apic_class == info || !apic_class);
+    apic_class = info;
 
     /* Note: We need at least 1M to map the VAPIC option ROM */
     if (!vapic && s->vapic_control & VAPIC_ENABLE_MASK &&
