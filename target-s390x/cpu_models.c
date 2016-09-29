@@ -865,10 +865,32 @@ static void set_feature_group(Object *obj, Visitor *v, const char *name,
     }
 }
 
+static bool get_is_migration_safe(Object *obj, Error **errp)
+{
+    return S390_CPU_GET_CLASS(obj)->is_migration_safe;
+}
+
+static bool get_is_static(Object *obj, Error **errp)
+{
+    return S390_CPU_GET_CLASS(obj)->is_static;
+}
+
+static char *get_description(Object *obj, Error **errp)
+{
+    return g_strdup(S390_CPU_GET_CLASS(obj)->desc);
+}
+
 void s390_cpu_model_register_props(Object *obj)
 {
     S390FeatGroup group;
     S390Feat feat;
+
+    object_property_add_bool(obj, "migration-safe", get_is_migration_safe,
+                             NULL, NULL);
+    object_property_add_bool(obj, "static", get_is_static,
+                             NULL, NULL);
+    object_property_add_str(obj, "description", get_description, NULL,
+                            NULL);
 
     for (feat = 0; feat < S390_FEAT_MAX; feat++) {
         const S390FeatDef *def = s390_feat_def(feat);
@@ -941,31 +963,6 @@ static void s390_cpu_model_finalize(Object *obj)
 
     g_free(cpu->model);
     cpu->model = NULL;
-}
-
-static bool get_is_migration_safe(Object *obj, Error **errp)
-{
-    return S390_CPU_GET_CLASS(obj)->is_migration_safe;
-}
-
-static bool get_is_static(Object *obj, Error **errp)
-{
-    return S390_CPU_GET_CLASS(obj)->is_static;
-}
-
-static char *get_description(Object *obj, Error **errp)
-{
-    return g_strdup(S390_CPU_GET_CLASS(obj)->desc);
-}
-
-void s390_cpu_model_class_register_props(ObjectClass *oc)
-{
-    object_class_property_add_bool(oc, "migration-safe", get_is_migration_safe,
-                                   NULL, NULL);
-    object_class_property_add_bool(oc, "static", get_is_static,
-                                   NULL, NULL);
-    object_class_property_add_str(oc, "description", get_description, NULL,
-                                  NULL);
 }
 
 #ifdef CONFIG_KVM
