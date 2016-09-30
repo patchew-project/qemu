@@ -23,7 +23,7 @@
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "crypto/block.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
 
@@ -206,7 +206,11 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
     ret = g_new0(QCryptoBlockOpenOptions, 1);
     ret->format = format;
 
-    v = opts_visitor_new(opts);
+    v = qobject_input_visitor_new_opts(opts, false, 0, false, false,
+                                       &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
@@ -252,7 +256,11 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
     ret = g_new0(QCryptoBlockCreateOptions, 1);
     ret->format = format;
 
-    v = opts_visitor_new(opts);
+    v = qobject_input_visitor_new_opts(opts, false, 0, false, false,
+                                       &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
