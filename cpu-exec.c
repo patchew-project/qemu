@@ -185,7 +185,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
             cc->synchronize_from_tb(cpu, last_tb);
         } else {
             assert(cc->set_pc);
-            cc->set_pc(cpu, last_tb->pc);
+            cc->set_pc(cpu, atomic_read(&last_tb->pc));
         }
     }
     if (tb_exit == TB_EXIT_REQUESTED) {
@@ -235,13 +235,13 @@ static bool tb_cmp(const void *p, const void *d)
     const TranslationBlock *tb = p;
     const struct tb_desc *desc = d;
 
-    if (tb->pc == desc->pc &&
-        tb->page_addr[0] == desc->phys_page1 &&
-        tb->cs_base == desc->cs_base &&
-        tb->flags == desc->flags &&
+    if (atomic_read(&tb->pc) == desc->pc &&
+        atomic_read(&tb->page_addr[0]) == desc->phys_page1 &&
+        atomic_read(&tb->cs_base) == desc->cs_base &&
+        atomic_read(&tb->flags) == desc->flags &&
         !atomic_read(&tb->invalid)) {
         /* check next page if needed */
-        if (tb->page_addr[1] == -1) {
+        if (atomic_read(&tb->page_addr[1]) == -1) {
             return true;
         } else {
             tb_page_addr_t phys_page2;
@@ -249,7 +249,7 @@ static bool tb_cmp(const void *p, const void *d)
 
             virt_page2 = (desc->pc & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
             phys_page2 = get_page_addr_code(desc->env, virt_page2);
-            if (tb->page_addr[1] == phys_page2) {
+            if (atomic_read(&tb->page_addr[1]) == phys_page2) {
                 return true;
             }
         }
@@ -507,7 +507,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
         return;
     }
 
-    trace_exec_tb(tb, tb->pc);
+    trace_exec_tb(tb, atomic_read(&tb->pc));
     ret = cpu_tb_exec(cpu, tb);
     *last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
     *tb_exit = ret & TB_EXIT_MASK;

@@ -200,6 +200,17 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
 #define USE_DIRECT_JUMP
 #endif
 
+/*
+ * TranslationBlock
+ *
+ * This structure represents a single translated block of code. The
+ * actual code is referenced via tc_ptr. This structure is accessed
+ * across multiple QEMU threads so for C11 compliance all fields
+ * should be access with at least relaxed atomic primitives. Fields
+ * that are updated after initial generation, mainly those involved
+ * with patching jumps and chaining TBs, need stronger guarantees to
+ * prevent corruption.
+ */
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */

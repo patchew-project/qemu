@@ -773,9 +773,10 @@ static TranslationBlock *tb_alloc(target_ulong pc)
         return NULL;
     }
     tb = &tcg_ctx.tb_ctx.tbs[tcg_ctx.tb_ctx.nb_tbs++];
-    tb->pc = pc;
-    tb->cflags = 0;
-    tb->invalid = false;
+
+    atomic_set(&tb->pc, pc);
+    atomic_set(&tb->cflags, 0);
+    atomic_set(&tb->invalid, false);
     return tb;
 }
 
@@ -1095,7 +1096,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
     bool page_already_protected;
 #endif
 
-    tb->page_addr[n] = page_addr;
+    atomic_set(&tb->page_addr[n], page_addr);
     p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
     tb->page_next[n] = p->first_tb;
 #ifndef CONFIG_USER_ONLY
@@ -1156,7 +1157,7 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     if (phys_page2 != -1) {
         tb_alloc_page(tb, 1, phys_page2);
     } else {
-        tb->page_addr[1] = -1;
+        atomic_set(&tb->page_addr[1], -1);
     }
 
     /* add in the hash table */
