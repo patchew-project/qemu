@@ -728,12 +728,6 @@ static int fetch_active_ports_list(QEMUFile *f,
     return 0;
 }
 
-static int virtio_serial_load(QEMUFile *f, void *opaque, size_t size)
-{
-    /* The virtio device */
-    return virtio_load(VIRTIO_DEVICE(opaque), f, 3);
-}
-
 static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
                                      int version_id)
 {
@@ -1075,7 +1069,7 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
 }
 
 /* Note: 'console' is used for backwards compatibility */
-VMSTATE_VIRTIO_DEVICE(console, 3, virtio_serial_load, virtio_vmstate_save);
+VIRTIO_DEF_DEVICE_VMSD(console, 3)
 
 static Property virtio_serial_properties[] = {
     DEFINE_PROP_UINT32("max_ports", VirtIOSerial, serial.max_virtserial_ports,
