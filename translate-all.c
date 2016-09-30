@@ -1198,10 +1198,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
     gen_code_buf = tcg_ctx.code_gen_ptr;
-    tb->tc_ptr = gen_code_buf;
-    tb->cs_base = cs_base;
-    tb->flags = flags;
-    tb->cflags = cflags;
+    atomic_set(&tb->tc_ptr, gen_code_buf);
+    atomic_set(&tb->cs_base, cs_base);
+    atomic_set(&tb->flags, flags);
+    atomic_set(&tb->cflags, cflags);
 
 #ifdef CONFIG_PROFILER
     tcg_ctx.tb_count1++; /* includes aborted translations because of

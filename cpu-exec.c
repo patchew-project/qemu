@@ -140,7 +140,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     uintptr_t ret;
     TranslationBlock *last_tb;
     int tb_exit;
-    uint8_t *tb_ptr = itb->tc_ptr;
+    uint8_t *tb_ptr = atomic_read(&itb->tc_ptr);
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
                            "Trace %p [" TARGET_FMT_lx "] %s\n",
@@ -291,8 +291,8 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
        is executed. */
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
     tb = atomic_rcu_read(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)]);
-    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
-                 tb->flags != flags)) {
+    if (unlikely(!tb || atomic_read(&tb->pc) != pc || atomic_read(&tb->cs_base) != cs_base ||
+                 atomic_read(&tb->flags) != flags)) {
         tb = tb_htable_lookup(cpu, pc, cs_base, flags);
         if (!tb) {
 
