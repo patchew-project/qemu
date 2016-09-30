@@ -124,7 +124,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     BlockBackend *blk;
     BlockJob *job;
 
-    assert(cb);
     if (bs->job) {
         error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
@@ -218,7 +217,20 @@ static void block_job_completed_single(BlockJob *job)
             job->driver->abort(job);
         }
     }
-    job->cb(job->opaque, job->ret);
+
+    if (job->cb) {
+        job->cb(job->opaque, job->ret);
+    }
+    if (block_job_is_cancelled(job)) {
+        block_job_event_cancelled(job);
+    } else {
+        const char *msg = NULL;
+        if (job->ret < 0) {
+            msg = strerror(-job->ret);
+        }
+        block_job_event_completed(job, msg);
+    }
+
     if (job->txn) {
         QLIST_REMOVE(job, txn_list);
         block_job_txn_unref(job->txn);

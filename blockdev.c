@@ -2905,31 +2905,6 @@ out:
     aio_context_release(aio_context);
 }
 
-static void block_job_cb(void *opaque, int ret)
-{
-    /* Note that this function may be executed from another AioContext besides
-     * the QEMU main loop.  If you need to access anything that assumes the
-     * QEMU global mutex, use a BH or introduce a mutex.
-     */
-
-    BlockDriverState *bs = opaque;
-    const char *msg = NULL;
-
-    trace_block_job_cb(bs, bs->job, ret);
-
-    assert(bs->job);
-
-    if (ret < 0) {
-        msg = strerror(-ret);
-    }
-
-    if (block_job_is_cancelled(bs->job)) {
-        block_job_event_cancelled(bs->job);
-    } else {
-        block_job_event_completed(bs->job, msg);
-    }
-}
-
 void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_backing_file, const char *backing_file,
@@ -2981,7 +2956,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     base_name = has_backing_file ? backing_file : base_name;
 
     stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
-                 has_speed ? speed : 0, on_error, block_job_cb, bs, &local_err);
+                 has_speed ? speed : 0, on_error, NULL, bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -3084,10 +3059,10 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             goto out;
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs, speed,
-                            on_error, block_job_cb, bs, &local_err, false);
+                            on_error, NULL, bs, &local_err, false);
     } else {
         commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
-                     on_error, block_job_cb, bs,
+                     on_error, NULL, bs,
                      has_backing_file ? backing_file : NULL, &local_err);
     }
     if (local_err != NULL) {
@@ -3208,7 +3183,7 @@ static void do_drive_backup(DriveBackup *backup, BlockJobTxn *txn, Error **errp)
 
     backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
                  bmap, backup->compress, backup->on_source_error,
-                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
+                 backup->on_target_error, NULL, bs, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3278,7 +3253,7 @@ void do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn, Error **errp)
     }
     backup_start(backup->job_id, bs, target_bs, backup->speed, backup->sync,
                  NULL, backup->compress, backup->on_source_error,
-                 backup->on_target_error, block_job_cb, bs, txn, &local_err);
+                 backup->on_target_error, NULL, bs, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }
@@ -3358,7 +3333,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync, backing_mode,
                  on_source_error, on_target_error, unmap,
-                 block_job_cb, bs, errp);
+                 NULL, bs, errp);
 }
 
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
