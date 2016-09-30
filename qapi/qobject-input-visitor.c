@@ -20,6 +20,7 @@
 #include "qemu-common.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/cutils.h"
 
 #define QIV_STACK_SIZE 1024
 
@@ -263,6 +264,28 @@ static void qobject_input_type_int64(Visitor *v, const char *name, int64_t *obj,
     *obj = qint_get_int(qint);
 }
 
+
+static void qobject_input_type_int64_autocast(Visitor *v, const char *name,
+                                              int64_t *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                                true));
+    int64_t ret;
+
+    if (!qstr || !qstr->string) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "string");
+        return;
+    }
+
+    if (qemu_strtoll(qstr->string, NULL, 0, &ret) < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+        return;
+    }
+    *obj = ret;
+}
+
 static void qobject_input_type_uint64(Visitor *v, const char *name,
                                       uint64_t *obj, Error **errp)
 {
@@ -279,6 +302,27 @@ static void qobject_input_type_uint64(Visitor *v, const char *name,
     *obj = qint_get_int(qint);
 }
 
+static void qobject_input_type_uint64_autocast(Visitor *v, const char *name,
+                                               uint64_t *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                                true));
+    unsigned long long ret;
+
+    if (!qstr || !qstr->string) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "string");
+        return;
+    }
+
+    if (parse_uint_full(qstr->string, &ret, 0) < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+        return;
+    }
+    *obj = ret;
+}
+
 static void qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
                                     Error **errp)
 {
@@ -292,6 +336,22 @@ static void qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
     }
 
     *obj = qbool_get_bool(qbool);
+}
+
+static void qobject_input_type_bool_autocast(Visitor *v, const char *name,
+                                             bool *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                                true));
+
+    if (!qstr || !qstr->string) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "string");
+        return;
+    }
+
+    parse_option_bool(name, qstr->string, obj, errp);
 }
 
 static void qobject_input_type_str(Visitor *v, const char *name, char **obj,
@@ -335,6 +395,30 @@ static void qobject_input_type_number(Visitor *v, const char *name, double *obj,
                "number");
 }
 
+static void qobject_input_type_number_autocast(Visitor *v, const char *name,
+                                               double *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                                true));
+    char *endp;
+
+    if (!qstr || !qstr->string) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "string");
+        return;
+    }
+
+    errno = 0;
+    *obj = strtod(qstr->string, &endp);
+    if (errno == 0 && endp != qstr->string && *endp == '\0') {
+        return;
+    }
+
+    error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+               "number");
+}
+
 static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
                                    Error **errp)
 {
@@ -354,6 +438,22 @@ static void qobject_input_type_null(Visitor *v, const char *name, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "null");
     }
+}
+
+static void qobject_input_type_size_autocast(Visitor *v, const char *name,
+                                             uint64_t *obj, Error **errp)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                                true));
+
+    if (!qstr || !qstr->string) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "string");
+        return;
+    }
+
+    parse_option_size(name, qstr->string, obj, errp);
 }
 
 static void qobject_input_optional(Visitor *v, const char *name, bool *present)
@@ -407,6 +507,38 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict)
     v->visitor.optional = qobject_input_optional;
     v->visitor.free = qobject_input_free;
     v->strict = strict;
+
+    v->root = obj;
+    qobject_incref(obj);
+
+    return &v->visitor;
+}
+
+Visitor *qobject_input_visitor_new_autocast(QObject *obj)
+{
+    QObjectInputVisitor *v;
+
+    v = g_malloc0(sizeof(*v));
+
+    v->visitor.type = VISITOR_INPUT;
+    v->visitor.start_struct = qobject_input_start_struct;
+    v->visitor.check_struct = qobject_input_check_struct;
+    v->visitor.end_struct = qobject_input_pop;
+    v->visitor.start_list = qobject_input_start_list;
+    v->visitor.next_list = qobject_input_next_list;
+    v->visitor.end_list = qobject_input_pop;
+    v->visitor.start_alternate = qobject_input_start_alternate;
+    v->visitor.type_int64 = qobject_input_type_int64_autocast;
+    v->visitor.type_uint64 = qobject_input_type_uint64_autocast;
+    v->visitor.type_bool = qobject_input_type_bool_autocast;
+    v->visitor.type_str = qobject_input_type_str;
+    v->visitor.type_number = qobject_input_type_number_autocast;
+    v->visitor.type_any = qobject_input_type_any;
+    v->visitor.type_null = qobject_input_type_null;
+    v->visitor.type_size = qobject_input_type_size_autocast;
+    v->visitor.optional = qobject_input_optional;
+    v->visitor.free = qobject_input_free;
+    v->strict = true;
 
     v->root = obj;
     qobject_incref(obj);
