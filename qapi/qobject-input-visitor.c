@@ -753,6 +753,7 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
                                         bool autocreate_list,
                                         size_t autocreate_struct_levels,
                                         bool permit_int_ranges,
+                                        bool permit_repeated_opts,
                                         Error **errp)
 {
     QDict *pdict;
@@ -760,7 +761,9 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
     Visitor *v = NULL;
 
     pdict = qemu_opts_to_qdict(opts, NULL,
-                               QEMU_OPTS_REPEAT_POLICY_LAST,
+                               permit_repeated_opts ?
+                               QEMU_OPTS_REPEAT_POLICY_ALL :
+                               QEMU_OPTS_REPEAT_POLICY_ERROR,
                                errp);
     if (!pdict) {
         goto cleanup;

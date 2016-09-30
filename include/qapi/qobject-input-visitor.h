@@ -112,6 +112,11 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
  * qobject_input_visitor_new_autocast() method. See the docs
  * of that method for further details on processing behaviour.
  *
+ * If the @permit_repeated_opts parameter is true, then the input
+ * @opts is allowed to contain repeated keys and they will be
+ * turned into a QList. If it is false, then repeated keys will
+ * result in an error being reported.
+ *
  * The returned input visitor should be released by calling
  * visit_free() when no longer required.
  */
@@ -119,6 +124,7 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
                                         bool autocreate_list,
                                         size_t autocreate_struct_levels,
                                         bool permit_int_ranges,
+                                        bool permit_repeated_opts,
                                         Error **errp);
 
 #endif
