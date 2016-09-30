@@ -217,7 +217,9 @@ static void block_job_completed_single(BlockJob *job)
             job->driver->abort(job);
         }
     }
-
+    if (job->driver->clean) {
+        job->driver->clean(job);
+    }
     if (job->cb) {
         job->cb(job->opaque, job->ret);
     }
@@ -230,7 +232,6 @@ static void block_job_completed_single(BlockJob *job)
         }
         block_job_event_completed(job, msg);
     }
-
     if (job->txn) {
         QLIST_REMOVE(job, txn_list);
         block_job_txn_unref(job->txn);
