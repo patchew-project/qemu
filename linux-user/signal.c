@@ -73,12 +73,14 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGPWR] = TARGET_SIGPWR,
     [SIGSYS] = TARGET_SIGSYS,
     /* next signals stay the same */
+#ifdef __SIGRTMIN
     /* Nasty hack: Reverse SIGRTMIN and SIGRTMAX to avoid overlap with
        host libpthread signals.  This assumes no one actually uses SIGRTMAX :-/
        To fix this properly we need to do manual signal delivery multiplexed
        over a single host signal.  */
     [__SIGRTMIN] = __SIGRTMAX,
     [__SIGRTMAX] = __SIGRTMIN,
+#endif
 };
 static uint8_t target_to_host_signal_table[_NSIG];
 
