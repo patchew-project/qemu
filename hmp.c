@@ -25,7 +25,7 @@
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/util.h"
@@ -1696,21 +1696,30 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    QemuOpts *opts;
     Visitor *v;
     Object *obj = NULL;
+    QObject *pobj;
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
+    pobj = qdict_crumple(qdict, true, &err);
     if (err) {
-        hmp_handle_error(mon, &err);
-        return;
+        goto cleanup;
     }
 
-    v = opts_visitor_new(opts);
-    obj = user_creatable_add(qdict, v, &err);
+    /*
+     * We need autocreate_list=true + permit_int_ranges=true
+     * in order to maintain compat with OptsVisitor creation
+     * of the 'numa' object which had an int16List property.
+     *
+     * We need autocreate_structs=1, because at the CLI level
+     * we have the object type + properties in the same flat
+     * struct, even though at the QMP level they are nested.
+     */
+    v = qobject_input_visitor_new_autocast(pobj, true, 1, true);
+    obj = user_creatable_add(qobject_to_qdict(pobj), v, &err);
     visit_free(v);
-    qemu_opts_del(opts);
 
+ cleanup:
+    qobject_decref(pobj);
     if (err) {
         hmp_handle_error(mon, &err);
     }
