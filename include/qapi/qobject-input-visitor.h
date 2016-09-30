@@ -42,6 +42,19 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  * represented as strings. i.e. if visiting a boolean, the value should
  * be a QString whose contents represent a valid boolean.
  *
+ * If @autocreate_list is true, then as an alternative to a normal QList,
+ * list values can be stored as a QString or QDict instead, which will
+ * be interpreted as representing single element lists. This should only
+ * by used if compatibility is required with the OptsVisitor which allowed
+ * repeated keys, without list indexes, to represent lists. e.g. set this
+ * to true if you have compatibility requirements for
+ *
+ *   -arg foo=hello,foo=world
+ *
+ * to be treated as equivalent to the preferred syntax:
+ *
+ *   -arg foo.0=hello,foo.1=world
+ *
  * The visitor always operates in strict mode, requiring all dict keys
  * to be consumed during visitation. An error will be reported if this
  * does not happen.
@@ -49,7 +62,8 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  * The returned input visitor should be released by calling
  * visit_free() when no longer required.
  */
-Visitor *qobject_input_visitor_new_autocast(QObject *obj);
+Visitor *qobject_input_visitor_new_autocast(QObject *obj,
+                                            bool autocreate_list);
 
 
 /**
@@ -64,6 +78,8 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj);
  * The returned input visitor should be released by calling
  * visit_free() when no longer required.
  */
-Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts, Error **errp);
+Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
+                                        bool autocreate_list,
+                                        Error **errp);
 
 #endif

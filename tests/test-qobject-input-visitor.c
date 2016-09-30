@@ -42,6 +42,7 @@ static void visitor_input_teardown(TestInputVisitorData *data,
    functions (and not in main()). */
 static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
                                                  bool strict, bool autocast,
+                                                 bool autocreate_list,
                                                  const char *json_string,
                                                  va_list *ap)
 {
@@ -52,17 +53,20 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
 
     if (autocast) {
         assert(strict);
-        data->qiv = qobject_input_visitor_new_autocast(data->obj);
+        data->qiv = qobject_input_visitor_new_autocast(data->obj,
+                                                       autocreate_list);
     } else {
+        assert(!autocreate_list);
         data->qiv = qobject_input_visitor_new(data->obj, strict);
     }
     g_assert(data->qiv);
     return data->qiv;
 }
 
-static GCC_FMT_ATTR(4, 5)
+static GCC_FMT_ATTR(5, 6)
 Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
                                       bool strict, bool autocast,
+                                      bool autocreate_list,
                                       const char *json_string, ...)
 {
     Visitor *v;
@@ -70,6 +74,7 @@ Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
 
     va_start(ap, json_string);
     v = visitor_input_test_init_internal(data, strict, autocast,
+                                         autocreate_list,
                                          json_string, &ap);
     va_end(ap);
     return v;
@@ -83,7 +88,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, true, false,
+    v = visitor_input_test_init_internal(data, true, false, false,
                                          json_string, &ap);
     va_end(ap);
     return v;
@@ -99,7 +104,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    return visitor_input_test_init_internal(data, true, false,
+    return visitor_input_test_init_internal(data, true, false, false,
                                             json_string, NULL);
 }
 
@@ -139,7 +144,7 @@ static void test_visitor_in_int_autocast(TestInputVisitorData *data,
     Error *err = NULL;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true,
+    v = visitor_input_test_init_full(data, true, true, false,
                                      "%" PRId64, value);
     visit_type_int(v, NULL, &res, &err);
     error_free_or_abort(&err);
@@ -151,7 +156,7 @@ static void test_visitor_in_int_str_autocast(TestInputVisitorData *data,
     int64_t res = 0, value = -42;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true,
+    v = visitor_input_test_init_full(data, true, true, false,
                                      "\"-42\"");
 
     visit_type_int(v, NULL, &res, &error_abort);
@@ -190,7 +195,7 @@ static void test_visitor_in_bool_autocast(TestInputVisitorData *data,
     Error *err = NULL;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true, "true");
+    v = visitor_input_test_init_full(data, true, true, false, "true");
 
     visit_type_bool(v, NULL, &res, &err);
     error_free_or_abort(&err);
@@ -202,7 +207,7 @@ static void test_visitor_in_bool_str_autocast(TestInputVisitorData *data,
     bool res = false;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true, "\"yes\"");
+    v = visitor_input_test_init_full(data, true, true, false, "\"yes\"");
 
     visit_type_bool(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, true);
@@ -240,7 +245,7 @@ static void test_visitor_in_number_autocast(TestInputVisitorData *data,
     Error *err = NULL;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true, "%f", value);
+    v = visitor_input_test_init_full(data, true, true, false, "%f", value);
 
     visit_type_number(v, NULL, &res, &err);
     error_free_or_abort(&err);
@@ -252,7 +257,7 @@ static void test_visitor_in_number_str_autocast(TestInputVisitorData *data,
     double res = 0, value = 3.14;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true, "\"3.14\"");
+    v = visitor_input_test_init_full(data, true, true, false, "\"3.14\"");
 
     visit_type_number(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
@@ -277,7 +282,7 @@ static void test_visitor_in_size_str_autocast(TestInputVisitorData *data,
     uint64_t res, value = 500 * 1024 * 1024;
     Visitor *v;
 
-    v = visitor_input_test_init_full(data, true, true, "\"500M\"");
+    v = visitor_input_test_init_full(data, true, true, false, "\"500M\"");
 
     visit_type_size(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
@@ -396,6 +401,59 @@ static void test_visitor_in_list(TestInputVisitorData *data,
     g_assert(!head);
 }
 
+static void test_visitor_in_list_autocreate_none(TestInputVisitorData *data,
+                                                 const void *unused)
+{
+    UserDefOneList *head = NULL;
+    Visitor *v;
+    Error *err = NULL;
+
+    v = visitor_input_test_init_full(data, true, true, false,
+                                     "{ 'string': 'string0', 'integer': 42 }");
+
+    visit_type_UserDefOneList(v, NULL, &head, &err);
+    error_free_or_abort(&err);
+    g_assert(head == NULL);
+}
+
+static void test_visitor_in_list_autocreate_dict(TestInputVisitorData *data,
+                                                 const void *unused)
+{
+    UserDefOneList *head = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init_full(data, true, true, true,
+                                     "{ 'string': 'string0', 'integer': '42' }");
+
+    visit_type_UserDefOneList(v, NULL, &head, &error_abort);
+    g_assert(head != NULL);
+
+    g_assert_cmpstr(head->value->string, ==, "string0");
+    g_assert_cmpint(head->value->integer, ==, 42);
+    g_assert(head->next == NULL);
+
+    qapi_free_UserDefOneList(head);
+    head = NULL;
+}
+
+static void test_visitor_in_list_autocreate_int(TestInputVisitorData *data,
+                                                const void *unused)
+{
+    uint32List *head = NULL;
+    Visitor *v;
+
+    /* Verify that we auto-create a single element list from the int */
+    v = visitor_input_test_init_full(data, true, true, true, "'42'");
+
+    visit_type_uint32List(v, NULL, &head, &error_abort);
+    g_assert(head != NULL);
+
+    g_assert_cmpint(head->value, ==, 42);
+
+    qapi_free_uint32List(head);
+    head = NULL;
+}
+
 static void test_visitor_in_any(TestInputVisitorData *data,
                                 const void *unused)
 {
@@ -452,7 +510,7 @@ static void test_visitor_in_null(TestInputVisitorData *data,
      * when input is not null.
      */
 
-    v = visitor_input_test_init_full(data, false, false,
+    v = visitor_input_test_init_full(data, false, false, false,
                                      "{ 'a': null, 'b': '' }");
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_type_null(v, "a", &error_abort);
@@ -1040,6 +1098,12 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_struct_nested);
     input_visitor_test_add("/visitor/input/list",
                            NULL, test_visitor_in_list);
+    input_visitor_test_add("/visitor/input/list-autocreate-noautocast",
+                           NULL, test_visitor_in_list_autocreate_none);
+    input_visitor_test_add("/visitor/input/list-autocreate-autocast",
+                           NULL, test_visitor_in_list_autocreate_dict);
+    input_visitor_test_add("/visitor/input/list-autocreate-int",
+                           NULL, test_visitor_in_list_autocreate_int);
     input_visitor_test_add("/visitor/input/any",
                            NULL, test_visitor_in_any);
     input_visitor_test_add("/visitor/input/null",

@@ -48,6 +48,10 @@ struct QObjectInputVisitor
 
     /* True to reject parse in visit_end_struct() if unvisited keys remain. */
     bool strict;
+
+    /* Whether we can auto-create single element lists when
+     * encountering a non-QList type */
+    bool autocreate_list;
 };
 
 static QObjectInputVisitor *to_qiv(Visitor *v)
@@ -108,6 +112,7 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
     assert(obj);
     tos->obj = obj;
     tos->qapi = qapi;
+    qobject_incref(obj);
 
     if (qiv->strict && qobject_type(obj) == QTYPE_QDICT) {
         h = g_hash_table_new(g_str_hash, g_str_equal);
@@ -147,6 +152,7 @@ static void qobject_input_stack_object_free(StackObject *tos)
     if (tos->h) {
         g_hash_table_unref(tos->h);
     }
+    qobject_decref(tos->obj);
 
     g_free(tos);
 }
@@ -197,7 +203,7 @@ static void qobject_input_start_list(Visitor *v, const char *name,
     QObject *qobj = qobject_input_get_object(qiv, name, true);
     const QListEntry *entry;
 
-    if (!qobj || qobject_type(qobj) != QTYPE_QLIST) {
+    if (!qobj || (!qiv->autocreate_list && qobject_type(qobj) != QTYPE_QLIST)) {
         if (list) {
             *list = NULL;
         }
@@ -206,7 +212,16 @@ static void qobject_input_start_list(Visitor *v, const char *name,
         return;
     }
 
-    entry = qobject_input_push(qiv, qobj, list, errp);
+    if (qobject_type(qobj) != QTYPE_QLIST) {
+        QList *tmplist = qlist_new();
+        qlist_append_obj(tmplist, qobj);
+        qobject_incref(qobj);
+        entry = qobject_input_push(qiv, QOBJECT(tmplist), list, errp);
+        QDECREF(tmplist);
+    } else {
+        entry = qobject_input_push(qiv, qobj, list, errp);
+    }
+
     if (list) {
         if (entry) {
             *list = g_malloc0(size);
@@ -514,7 +529,8 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict)
     return &v->visitor;
 }
 
-Visitor *qobject_input_visitor_new_autocast(QObject *obj)
+Visitor *qobject_input_visitor_new_autocast(QObject *obj,
+                                            bool autocreate_list)
 {
     QObjectInputVisitor *v;
 
@@ -539,6 +555,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj)
     v->visitor.optional = qobject_input_optional;
     v->visitor.free = qobject_input_free;
     v->strict = true;
+    v->autocreate_list = autocreate_list;
 
     v->root = obj;
     qobject_incref(obj);
@@ -548,6 +565,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj)
 
 
 Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
+                                        bool autocreate_list,
                                         Error **errp)
 {
     QDict *pdict;
@@ -564,7 +582,8 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
         goto cleanup;
     }
 
-    v = qobject_input_visitor_new_autocast(pobj);
+    v = qobject_input_visitor_new_autocast(pobj,
+                                           autocreate_list);
  cleanup:
     qobject_decref(pobj);
     QDECREF(pdict);
