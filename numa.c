@@ -23,14 +23,14 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/numa.h"
+#include "sysemu/numa_int.h"
 #include "exec/cpu-common.h"
 #include "qemu/bitmap.h"
 #include "qom/cpu.h"
 #include "qemu/error-report.h"
 #include "include/exec/cpu-common.h" /* for RAM_ADDR_FMT */
 #include "qapi-visit.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "hw/boards.h"
 #include "sysemu/hostmem.h"
 #include "qmp-commands.h"
@@ -45,10 +45,10 @@ QemuOptsList qemu_numa_opts = {
     .desc = { { 0 } } /* validated with OptsVisitor */
 };
 
-static int have_memdevs = -1;
-static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
-                             * For all nodes, nodeid < max_numa_nodeid
-                             */
+int have_memdevs = -1;
+int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
+                      * For all nodes, nodeid < max_numa_nodeid
+                      */
 int nb_numa_nodes;
 NodeInfo numa_info[MAX_NODES];
 
@@ -189,6 +189,9 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     if (node->has_mem) {
         uint64_t mem_size = node->mem;
         const char *mem_str = qemu_opt_get(opts, "mem");
+        if (!mem_str) {
+            mem_str = qemu_opt_get(opts, "data.mem");
+        }
         /* Fix up legacy suffix-less format */
         if (g_ascii_isdigit(mem_str[strlen(mem_str) - 1])) {
             mem_size <<= 20;
@@ -211,16 +214,27 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
-static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
+int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
     NumaOptions *object = NULL;
     Error *err = NULL;
+    Visitor *v;
 
-    {
-        Visitor *v = opts_visitor_new(opts);
-        visit_type_NumaOptions(v, NULL, &object, &err);
-        visit_free(v);
+    /*
+     * Needs autocreate_list=true, permit_int_ranges=true and
+     * permit_repeated_opts=true in order to support existing
+     * syntax for 'cpus' parameter which is an int list.
+     *
+     * Needs autocreate_struct_levels=1, because existing syntax
+     * used a nested struct in the QMP schema with a flat namespace
+     * in the CLI args.
+     */
+    v = qobject_input_visitor_new_opts(opts, true, 1, true, true, &err);
+    if (err) {
+        goto end;
     }
+    visit_type_NumaOptions(v, NULL, &object, &err);
+    visit_free(v);
 
     if (err) {
         goto end;

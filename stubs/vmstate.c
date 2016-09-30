@@ -23,3 +23,7 @@ void vmstate_unregister(DeviceState *dev,
                         void *opaque)
 {
 }
+
+void vmstate_register_ram_global(struct MemoryRegion *memory)
+{
+}
