@@ -21,7 +21,7 @@
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qobject-input-visitor.h"
-#include "qapi/qmp-output-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi-types.h"
@@ -1022,7 +1022,7 @@ static void qmp_serialize(void *native_in, void **datap,
 {
     QmpSerializeData *d = g_malloc0(sizeof(*d));
 
-    d->qov = qmp_output_visitor_new(&d->obj);
+    d->qov = qobject_output_visitor_new(&d->obj);
     visit(d->qov, &native_in, errp);
     *datap = d;
 }
