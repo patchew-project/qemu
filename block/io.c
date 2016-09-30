@@ -291,7 +291,7 @@ void bdrv_drain_all(void)
         AioContext *aio_context = blk_get_aio_context(job->blk);
 
         aio_context_acquire(aio_context);
-        block_job_pause(job);
+        block_job_pause(job, false);
         aio_context_release(aio_context);
     }
 

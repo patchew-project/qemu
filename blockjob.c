@@ -104,7 +104,7 @@ static void block_job_detach_aio_context(void *opaque)
     /* In case the job terminates during aio_poll()... */
     block_job_ref(job);
 
-    block_job_pause(job);
+    block_job_pause(job, false);
 
     if (!job->paused) {
         /* If job is !job->busy this kicks it into the next pause point. */
@@ -343,14 +343,22 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
-void block_job_pause(BlockJob *job)
+void block_job_pause(BlockJob *job, bool user)
 {
     job->pause_count++;
+    if (user) {
+        job->user_paused = true;
+    }
 }
 
 static bool block_job_should_pause(BlockJob *job)
 {
     return job->pause_count > 0;
+}
+
+bool block_job_paused(BlockJob *job)
+{
+    return job ? job->user_paused : 0;
 }
 
 void coroutine_fn block_job_pause_point(BlockJob *job)
@@ -386,6 +394,7 @@ void block_job_resume(BlockJob *job)
     if (job->pause_count) {
         return;
     }
+    job->user_paused = false;
     block_job_enter(job);
 }
 
@@ -592,8 +601,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                     action, &error_abort);
     if (action == BLOCK_ERROR_ACTION_STOP) {
         /* make the pause user visible, which will be resumed from QMP. */
-        job->user_paused = true;
-        block_job_pause(job);
+        block_job_pause(job, true);
         block_job_iostatus_set_err(job, error);
     }
     return action;

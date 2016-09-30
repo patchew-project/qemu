@@ -347,10 +347,19 @@ void coroutine_fn block_job_pause_point(BlockJob *job);
 /**
  * block_job_pause:
  * @job: The job to be paused.
+ * @user: Requested explicitly via user?
  *
  * Asynchronously pause the specified job.
  */
-void block_job_pause(BlockJob *job);
+void block_job_pause(BlockJob *job, bool user);
+
+/**
+ * block_job_paused:
+ * @job: The job to query.
+ *
+ * Returns true if the job is user-paused.
+ */
+bool block_job_paused(BlockJob *job);
 
 /**
  * block_job_resume:
