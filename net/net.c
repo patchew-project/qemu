@@ -43,7 +43,7 @@
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
 #include "qapi-visit.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
@@ -1069,7 +1069,21 @@ int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     void *object = NULL;
     Error *err = NULL;
     int ret = -1;
-    Visitor *v = opts_visitor_new(opts);
+    /*
+     * Needs autocreate_lists=true in order support existing
+     * syntax for list options where the bare key is repeated
+     *
+     * Needs autocreate_struct_levels=3 in order to deal with
+     * 3 level nesting in NetLegacy option args, which was
+     * exposed as a flat namespace with OptVisitor
+     */
+    Visitor *v = qobject_input_visitor_new_opts(opts, true, 3, false, true,
+                                                &err);
+
+    if (err) {
+        error_propagate(errp, err);
+        return -1;
+    }
 
     {
         /* Parse convenience option format ip6-net=fec0::0[/64] */
