@@ -803,13 +803,6 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     }
 }
 
-static void virtio_blk_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-
-    virtio_save(vdev, f);
-}
-    
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
@@ -826,14 +819,6 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
         req = req->next;
     }
     qemu_put_sbyte(f, 0);
-}
-
-static int virtio_blk_load(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIOBlock *s = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-
-    return virtio_load(vdev, f, 2);
 }
 
 static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -956,7 +941,7 @@ static void virtio_blk_instance_init(Object *obj)
                                   DEVICE(obj), NULL);
 }
 
-VMSTATE_VIRTIO_DEVICE(blk, 2, virtio_blk_load, virtio_blk_save);
+VIRTIO_DEF_DEVICE_VMSD(blk, 2)
 
 static Property virtio_blk_properties[] = {
     DEFINE_BLOCK_PROPERTIES(VirtIOBlock, conf.conf),
