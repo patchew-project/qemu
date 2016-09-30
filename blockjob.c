@@ -161,7 +161,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
-    job->busy          = true;
+    job->busy          = false;
+    job->paused        = true;
     job->refcnt        = 1;
     bs->job = job;
 
@@ -182,6 +183,15 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
     return job;
+}
+
+void block_job_start(BlockJob *job)
+{
+    assert(job && !job->co && job->paused && !job->busy && job->driver->start);
+    job->paused = false;
+    job->busy = true;
+    job->co = qemu_coroutine_create(job->driver->start, job);
+    qemu_coroutine_enter(job->co);
 }
 
 void block_job_ref(BlockJob *job)
@@ -220,18 +230,24 @@ static void block_job_completed_single(BlockJob *job)
     if (job->driver->clean) {
         job->driver->clean(job);
     }
+
     if (job->cb) {
         job->cb(job->opaque, job->ret);
     }
-    if (block_job_is_cancelled(job)) {
-        block_job_event_cancelled(job);
-    } else {
-        const char *msg = NULL;
-        if (job->ret < 0) {
-            msg = strerror(-job->ret);
+
+    /* Emit events only if we actually started */
+    if (job->co) {
+        if (block_job_is_cancelled(job)) {
+            block_job_event_cancelled(job);
+        } else {
+            const char *msg = NULL;
+            if (job->ret < 0) {
+                msg = strerror(-job->ret);
+            }
+            block_job_event_completed(job, msg);
         }
-        block_job_event_completed(job, msg);
     }
+
     if (job->txn) {
         QLIST_REMOVE(job, txn_list);
         block_job_txn_unref(job->txn);
@@ -335,7 +351,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
 void block_job_complete(BlockJob *job, Error **errp)
 {
-    if (job->pause_count || job->cancelled || !job->driver->complete) {
+    if (job->pause_count || job->cancelled ||
+        !job->co || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
         return;
@@ -364,6 +381,8 @@ bool block_job_paused(BlockJob *job)
 
 void coroutine_fn block_job_pause_point(BlockJob *job)
 {
+    assert(job && job->co);
+
     if (!block_job_should_pause(job)) {
         return;
     }
@@ -408,9 +427,14 @@ void block_job_enter(BlockJob *job)
 
 void block_job_cancel(BlockJob *job)
 {
-    job->cancelled = true;
-    block_job_iostatus_reset(job);
-    block_job_enter(job);
+    if (job->co) {
+        job->cancelled = true;
+        block_job_iostatus_reset(job);
+        block_job_enter(job);
+    } else {
+        /* Job was queued but unstarted. Perform cleanup. */
+        block_job_completed(job, -ECANCELED);
+    }
 }
 
 bool block_job_is_cancelled(BlockJob *job)

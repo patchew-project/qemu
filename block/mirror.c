@@ -969,9 +969,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     bdrv_op_block_all(target, s->common.blocker);
 
-    s->common.co = qemu_coroutine_create(s->common.driver->start, s);
     trace_mirror_start(bs, s, s->common.co, opaque);
-    qemu_coroutine_enter(s->common.co);
+    block_job_start(&s->common);
 }
 
 void mirror_start(const char *job_id, BlockDriverState *bs,

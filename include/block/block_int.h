@@ -763,6 +763,14 @@ void backup_start(const char *job_id, BlockDriverState *bs,
                   BlockCompletionFunc *cb, void *opaque,
                   BlockJobTxn *txn, Error **errp);
 
+/**
+ * block_job_start:
+ * @job: The job object as returned by @block_job_create.
+ *
+ * Begins execution of a block job.
+ */
+void block_job_start(BlockJob *job);
+
 void hmp_drive_add_node(Monitor *mon, const char *optstr);
 
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
