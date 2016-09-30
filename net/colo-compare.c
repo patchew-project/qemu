@@ -92,10 +92,6 @@ typedef struct CompareClass {
     ObjectClass parent_class;
 } CompareClass;
 
-typedef struct CompareChardevProps {
-    bool is_socket;
-} CompareChardevProps;
-
 enum {
     PRIMARY_IN = 0,
     SECONDARY_IN,
@@ -564,56 +560,22 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
     }
 }
 
-static int compare_chardev_opts(void *opaque,
-                                const char *name, const char *value,
-                                Error **errp)
-{
-    CompareChardevProps *props = opaque;
-
-    if (strcmp(name, "backend") == 0 &&
-        strcmp(value, "socket") == 0) {
-        props->is_socket = true;
-        return 0;
-    } else if (strcmp(name, "host") == 0 ||
-              (strcmp(name, "port") == 0) ||
-              (strcmp(name, "server") == 0) ||
-              (strcmp(name, "wait") == 0) ||
-              (strcmp(name, "path") == 0)) {
-        return 0;
-    } else {
-        error_setg(errp,
-                   "COLO-compare does not support a chardev with option %s=%s",
-                   name, value);
-        return -1;
-    }
-}
-
-/*
- * Return 0 is success.
- * Return 1 is failed.
- */
 static int find_and_check_chardev(CharDriverState **chr,
                                   char *chr_name,
                                   Error **errp)
 {
-    CompareChardevProps props;
-
     *chr = qemu_chr_find(chr_name);
     if (*chr == NULL) {
         error_setg(errp, "Device '%s' not found",
                    chr_name);
-        return 1;
+        return -1;
     }
 
-    memset(&props, 0, sizeof(props));
-    if (qemu_opt_foreach((*chr)->opts, compare_chardev_opts, &props, errp)) {
-        return 1;
-    }
+    if (!strstr((*chr)->filename, "tcp")) {
+        error_setg(errp, "chardev \"%s\" is not a tcp socket, filename '%s'",
+                   chr_name, (*chr)->filename);
+        return -1;
 
-    if (!props.is_socket) {
-        error_setg(errp, "chardev \"%s\" is not a tcp socket",
-                   chr_name);
-        return 1;
     }
     return 0;
 }
@@ -660,15 +622,15 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    if (find_and_check_chardev(&s->chr_pri_in, s->pri_indev, errp)) {
+    if (find_and_check_chardev(&s->chr_pri_in, s->pri_indev, errp) < 0) {
         return;
     }
 
-    if (find_and_check_chardev(&s->chr_sec_in, s->sec_indev, errp)) {
+    if (find_and_check_chardev(&s->chr_sec_in, s->sec_indev, errp) < 0) {
         return;
     }
 
-    if (find_and_check_chardev(&s->chr_out, s->outdev, errp)) {
+    if (find_and_check_chardev(&s->chr_out, s->outdev, errp) < 0) {
         return;
     }
 
