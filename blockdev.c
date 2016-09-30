@@ -3544,7 +3544,7 @@ static BlockJob *find_block_job(const char *id, AioContext **aio_context,
         return NULL;
     }
 
-    *aio_context = blk_get_aio_context(job->blk);
+    *aio_context = block_job_get_aio_context(job);
     aio_context_acquire(*aio_context);
 
     return job;
@@ -3889,7 +3889,7 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
-        AioContext *aio_context = blk_get_aio_context(job->blk);
+        AioContext *aio_context = block_job_get_aio_context(job);
 
         aio_context_acquire(aio_context);
         elem->value = block_job_query(job);

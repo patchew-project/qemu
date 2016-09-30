@@ -78,7 +78,7 @@ BlockJob *block_job_get(const char *id)
  * block_job_defer_to_main_loop() where it runs in the QEMU main loop.  Code
  * that supports both cases uses this helper function.
  */
-static AioContext *block_job_get_aio_context(BlockJob *job)
+AioContext *block_job_get_aio_context(BlockJob *job)
 {
     return job->deferred_to_main_loop ?
            qemu_get_aio_context() :

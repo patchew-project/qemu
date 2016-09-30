@@ -513,4 +513,13 @@ void block_job_txn_unref(BlockJobTxn *txn);
  */
 void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
 
+/**
+ * block_job_get_aio_context:
+ * @job: Job to get the aio_context for
+ *
+ * Fetch the current context for the given BlockJob. May be the main loop if
+ * the job has already deferred to main for final cleanup.
+ */
+AioContext *block_job_get_aio_context(BlockJob *job);
+
 #endif

@@ -288,7 +288,7 @@ void bdrv_drain_all(void)
     GSList *aio_ctxs = NULL, *ctx;
 
     while ((job = block_job_next(job))) {
-        AioContext *aio_context = blk_get_aio_context(job->blk);
+        AioContext *aio_context = block_job_get_aio_context(job);
 
         aio_context_acquire(aio_context);
         block_job_pause(job, false);
@@ -347,7 +347,7 @@ void bdrv_drain_all(void)
 
     job = NULL;
     while ((job = block_job_next(job))) {
-        AioContext *aio_context = blk_get_aio_context(job->blk);
+        AioContext *aio_context = block_job_get_aio_context(job);
 
         aio_context_acquire(aio_context);
         block_job_resume(job);
