@@ -814,15 +814,16 @@ static int qdict_is_list(QDict *maybe_list, Error **errp)
 
 /**
  * qdict_crumple:
- * @src: the original flat dictionary (only scalar values) to crumple
+ * @src: the original dictionary to crumple
  * @recursive: true to recursively crumple nested dictionaries
  *
- * Takes a flat dictionary whose keys use '.' separator to indicate
- * nesting, and values are scalars, and crumples it into a nested
- * structure. If the @recursive parameter is false, then only the
- * first level of structure implied by the keys will be crumpled. If
- * @recursive is true, then the input will be recursively crumpled to
- * expand all levels of structure in the keys.
+ * Takes a dictionary whose keys use '.' separator to indicate
+ * nesting, crumples it into a nested structure. The values in
+ * @src are permitted to be scalars or compound typee. If the
+ * @recursive parameter is false, then only the first level of
+ * structure implied by the keys will be crumpled. If @recursive
+ * is true, then the input will be recursively crumpled to expand
+ * all levels of structure in the keys.
  *
  * To include a literal '.' in a key name, it must be escaped as '..'
  *
@@ -843,7 +844,10 @@ static int qdict_is_list(QDict *maybe_list, Error **errp)
  * The following scenarios in the input dict will result in an
  * error being returned:
  *
- *  - Any values in @src are non-scalar types
+ *  - If a key in @src has a value that is non-scalar, and
+ *    a later key implies creation of a compound type. e.g.
+ *    if 'foo' point to a 'QList' or 'QDict', then it is
+ *    not permitted to also have 'foo.NNN' keys later.
  *  - If keys in @src imply that a particular level is both a
  *    list and a dict. e.g., "foo.0.bar" and "foo.eek.bar".
  *  - If keys in @src imply that a particular level is a list,
@@ -864,21 +868,26 @@ QObject *qdict_crumple(const QDict *src, bool recursive, Error **errp)
     char *prefix = NULL;
     const char *suffix = NULL;
     int is_list;
+    QDict *compound;
 
+    compound = qdict_new();
     two_level = qdict_new();
 
     /* Step 1: split our totally flat dict into a two level dict */
     for (ent = qdict_first(src); ent != NULL; ent = qdict_next(src, ent)) {
-        if (qobject_type(ent->value) == QTYPE_QDICT ||
-            qobject_type(ent->value) == QTYPE_QLIST) {
-            error_setg(errp, "Value %s is not a scalar",
-                       ent->key);
-            goto error;
-        }
-
         qdict_split_flat_key(ent->key, &prefix, &suffix);
 
         child = qdict_get(two_level, prefix);
+
+        if (qdict_haskey(compound, prefix)) {
+            error_setg(errp, "Key %s is already set as a list/dict", prefix);
+            goto error;
+        }
+        if (qobject_type(ent->value) == QTYPE_QLIST ||
+            qobject_type(ent->value) == QTYPE_QDICT) {
+            qobject_incref(ent->value);
+            qdict_put_obj(compound, prefix, ent->value);
+        }
         if (suffix) {
             if (child) {
                 if (qobject_type(child) != QTYPE_QDICT) {
@@ -913,7 +922,8 @@ QObject *qdict_crumple(const QDict *src, bool recursive, Error **errp)
         for (ent = qdict_first(two_level); ent != NULL;
              ent = qdict_next(two_level, ent)) {
 
-            if (qobject_type(ent->value) == QTYPE_QDICT) {
+            if (qobject_type(ent->value) == QTYPE_QDICT &&
+                !qdict_haskey(compound, ent->key)) {
                 child = qdict_crumple(qobject_to_qdict(ent->value),
                                       recursive, errp);
                 if (!child) {
@@ -961,10 +971,13 @@ QObject *qdict_crumple(const QDict *src, bool recursive, Error **errp)
         dst = QOBJECT(multi_level);
     }
 
+    QDECREF(compound);
+
     return dst;
 
  error:
     g_free(prefix);
+    QDECREF(compound);
     QDECREF(multi_level);
     QDECREF(two_level);
     qobject_decref(dst);

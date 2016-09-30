@@ -844,6 +844,173 @@ static void qdict_crumple_test_bad_inputs(void)
     QDECREF(src);
 }
 
+static void qdict_crumple_test_non_flat_list_ok(void)
+{
+    QDict *src, *dst, *vnc, *listen;
+    QObject *child, *res;
+    QList *list;
+    QString *match;
+
+    src = qdict_new();
+    list = qlist_new();
+    qlist_append(list, qstring_from_str("fred"));
+    qlist_append(list, qstring_from_str("bob"));
+
+    qdict_put(src, "vnc.listen.addr", qstring_from_str("127.0.0.1"));
+    qdict_put(src, "vnc.listen.port", qstring_from_str("5901"));
+    qdict_put(src, "match", list);
+
+    res = qdict_crumple(src, true, &error_abort);
+
+    g_assert_cmpint(qobject_type(res), ==, QTYPE_QDICT);
+
+    dst = qobject_to_qdict(res);
+
+    g_assert_cmpint(qdict_size(dst), ==, 2);
+
+    child = qdict_get(dst, "vnc");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    vnc = qobject_to_qdict(child);
+
+    child = qdict_get(vnc, "listen");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    listen = qobject_to_qdict(child);
+    g_assert_cmpstr("127.0.0.1", ==, qdict_get_str(listen, "addr"));
+    g_assert_cmpstr("5901", ==, qdict_get_str(listen, "port"));
+
+    child = qdict_get(dst, "match");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QLIST);
+    list = qobject_to_qlist(child);
+
+    g_assert_cmpint(qlist_size(list), ==, 2);
+
+    child = qlist_pop(list);
+    g_assert(child);
+    match = qobject_to_qstring(child);
+    g_assert_cmpstr("fred", ==, qstring_get_str(match));
+    qobject_decref(child);
+
+    child = qlist_pop(list);
+    g_assert(child);
+    match = qobject_to_qstring(child);
+    g_assert_cmpstr("bob", ==, qstring_get_str(match));
+    qobject_decref(child);
+
+    child = qlist_pop(list);
+    g_assert(!child);
+
+    QDECREF(src);
+    QDECREF(dst);
+}
+
+
+static void qdict_crumple_test_non_flat_list_bad(void)
+{
+    QDict *src;
+    QObject *res;
+    QList *list;
+    Error *err = NULL;
+
+    src = qdict_new();
+    list = qlist_new();
+    qlist_append(list, qstring_from_str("fred"));
+    qlist_append(list, qstring_from_str("bob"));
+
+    qdict_put(src, "vnc.listen.addr", qstring_from_str("127.0.0.1"));
+    qdict_put(src, "vnc.listen.port", qstring_from_str("5901"));
+    qdict_put(src, "match.0", qstring_from_str("frank"));
+    qdict_put(src, "match", list);
+
+    res = qdict_crumple(src, false, &err);
+    g_assert(!res);
+    error_free_or_abort(&err);
+
+    QDECREF(src);
+}
+
+
+static void qdict_crumple_test_non_flat_dict_ok(void)
+{
+    QDict *src, *dst, *rule, *vnc, *acl;
+    QObject *child, *res;
+    QList *rules;
+
+    vnc = qdict_new();
+    qdict_put(vnc, "listen.addr", qstring_from_str("127.0.0.1"));
+    qdict_put(vnc, "listen.port", qstring_from_str("5901"));
+
+    src = qdict_new();
+    qdict_put(src, "vnc", vnc);
+    qdict_put(src, "acl.rules.0.match", qstring_from_str("fred"));
+    qdict_put(src, "acl.rules.0.policy", qstring_from_str("allow"));
+    qdict_put(src, "acl.rules.1.match", qstring_from_str("bob"));
+    qdict_put(src, "acl.rules.1.policy", qstring_from_str("deny"));
+
+    res = qdict_crumple(src, true, &error_abort);
+
+    g_assert_cmpint(qobject_type(res), ==, QTYPE_QDICT);
+
+    dst = qobject_to_qdict(res);
+
+    g_assert_cmpint(qdict_size(dst), ==, 2);
+
+    child = qdict_get(dst, "vnc");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    vnc = qobject_to_qdict(child);
+
+    g_assert_cmpstr("127.0.0.1", ==, qdict_get_str(vnc, "listen.addr"));
+    g_assert_cmpstr("5901", ==, qdict_get_str(vnc, "listen.port"));
+
+    child = qdict_get(dst, "acl");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QDICT);
+    acl = qobject_to_qdict(child);
+
+    child = qdict_get(acl, "rules");
+    g_assert_cmpint(qobject_type(child), ==, QTYPE_QLIST);
+    rules = qobject_to_qlist(child);
+    g_assert_cmpint(qlist_size(rules), ==, 2);
+
+    rule = qobject_to_qdict(qlist_pop(rules));
+    g_assert_cmpint(qdict_size(rule), ==, 2);
+    g_assert_cmpstr("fred", ==, qdict_get_str(rule, "match"));
+    g_assert_cmpstr("allow", ==, qdict_get_str(rule, "policy"));
+    QDECREF(rule);
+
+    rule = qobject_to_qdict(qlist_pop(rules));
+    g_assert_cmpint(qdict_size(rule), ==, 2);
+    g_assert_cmpstr("bob", ==, qdict_get_str(rule, "match"));
+    g_assert_cmpstr("deny", ==, qdict_get_str(rule, "policy"));
+    QDECREF(rule);
+
+    QDECREF(src);
+    QDECREF(dst);
+}
+
+
+static void qdict_crumple_test_non_flat_dict_bad(void)
+{
+    QDict *src, *vnc;
+    QObject *res;
+    Error *err = NULL;
+
+    vnc = qdict_new();
+    qdict_put(vnc, "listen.addr", qstring_from_str("127.0.0.1"));
+
+    src = qdict_new();
+    qdict_put(src, "vnc", vnc);
+    qdict_put(src, "vnc.listen.port", qstring_from_str("5901"));
+    qdict_put(src, "acl.rules.0.match", qstring_from_str("fred"));
+    qdict_put(src, "acl.rules.0.policy", qstring_from_str("allow"));
+    qdict_put(src, "acl.rules.1.match", qstring_from_str("bob"));
+    qdict_put(src, "acl.rules.1.policy", qstring_from_str("deny"));
+
+    res = qdict_crumple(src, true, &err);
+    g_assert(!res);
+    error_free_or_abort(&err);
+
+    QDECREF(src);
+}
+
 
 /*
  * Errors test-cases
@@ -1002,6 +1169,14 @@ int main(int argc, char **argv)
                     qdict_crumple_test_empty);
     g_test_add_func("/public/crumple/bad_inputs",
                     qdict_crumple_test_bad_inputs);
+    g_test_add_func("/public/crumple/non-flat-list-ok",
+                    qdict_crumple_test_non_flat_list_ok);
+    g_test_add_func("/public/crumple/non-flat-list-bad",
+                    qdict_crumple_test_non_flat_list_bad);
+    g_test_add_func("/public/crumple/non-flat-dict-ok",
+                    qdict_crumple_test_non_flat_dict_ok);
+    g_test_add_func("/public/crumple/non-flat-dict-bad",
+                    qdict_crumple_test_non_flat_dict_bad);
 
     /* The Big one */
     if (g_test_slow()) {
