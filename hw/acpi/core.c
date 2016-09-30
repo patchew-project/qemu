@@ -25,7 +25,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/config-file.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi-visit.h"
 #include "qapi-event.h"
 
@@ -237,14 +237,14 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
     char **cur;
     size_t bloblen = 0;
     char unsigned *blob = NULL;
+    Visitor *v;
 
-    {
-        Visitor *v;
-
-        v = opts_visitor_new(opts);
-        visit_type_AcpiTableOptions(v, NULL, &hdrs, &err);
-        visit_free(v);
+    v = qobject_input_visitor_new_opts(opts, false, 0, false, false, &err);
+    if (err) {
+        goto out;
     }
+    visit_type_AcpiTableOptions(v, NULL, &hdrs, &err);
+    visit_free(v);
 
     if (err) {
         goto out;
