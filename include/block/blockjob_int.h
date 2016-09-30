@@ -305,7 +305,7 @@ void block_job_enter(BlockJob *job);
 void block_job_event_cancelled(BlockJob *job);
 
 /**
- * block_job_ready:
+ * block_job_event_completed:
  * @job: The job which is now ready to complete.
  * @msg: Error message. Only present on failure.
  *
@@ -314,8 +314,8 @@ void block_job_event_cancelled(BlockJob *job);
 void block_job_event_completed(BlockJob *job, const char *msg);
 
 /**
- * block_job_ready:
- * @job: The job which is now ready to complete.
+ * block_job_event_ready:
+ * @job: The job which is now ready to be completed.
  *
  * Send a BLOCK_JOB_READY event for the specified job.
  */
