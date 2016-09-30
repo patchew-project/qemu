@@ -51,4 +51,19 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  */
 Visitor *qobject_input_visitor_new_autocast(QObject *obj);
 
+
+/**
+ * Create a new input visitor that converts @opts to a QAPI object.
+ *
+ * The QemuOpts will be converted into a QObject using the
+ * qdict_crumple() method to automatically create structs
+ * and lists. The resulting QDict will then be passed to the
+ * qobject_input_visitor_new_autocast() method. See the docs
+ * of that method for further details on processing behaviour.
+ *
+ * The returned input visitor should be released by calling
+ * visit_free() when no longer required.
+ */
+Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts, Error **errp);
+
 #endif

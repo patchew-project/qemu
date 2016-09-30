@@ -1058,7 +1058,7 @@ void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
  * TODO We'll want to use types appropriate for opt->desc->type, but
  * this is enough for now.
  */
-QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
+QDict *qemu_opts_to_qdict(const QemuOpts *opts, QDict *qdict)
 {
     QemuOpt *opt;
     QObject *val;

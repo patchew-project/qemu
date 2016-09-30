@@ -545,3 +545,28 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj)
 
     return &v->visitor;
 }
+
+
+Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
+                                        Error **errp)
+{
+    QDict *pdict;
+    QObject *pobj = NULL;
+    Visitor *v = NULL;
+
+    pdict = qemu_opts_to_qdict(opts, NULL);
+    if (!pdict) {
+        goto cleanup;
+    }
+
+    pobj = qdict_crumple(pdict, true, errp);
+    if (!pobj) {
+        goto cleanup;
+    }
+
+    v = qobject_input_visitor_new_autocast(pobj);
+ cleanup:
+    qobject_decref(pobj);
+    QDECREF(pdict);
+    return v;
+}
