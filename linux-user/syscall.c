@@ -107,6 +107,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/if_bridge.h>
 #endif
 #include <linux/audit.h>
+#include <linux/fcntl.h>
 #include "linux_loop.h"
 #include "uname.h"
 
