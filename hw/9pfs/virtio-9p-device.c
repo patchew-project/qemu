@@ -97,11 +97,6 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     g_free(cfg);
 }
 
-static int virtio_9p_load(QEMUFile *f, void *opaque, size_t size)
-{
-    return virtio_load(VIRTIO_DEVICE(opaque), f, 1);
-}
-
 static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -168,7 +163,7 @@ void virtio_init_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
 
 /* virtio-9p device */
 
-VMSTATE_VIRTIO_DEVICE(9p, 1, virtio_9p_load, virtio_vmstate_save);
+VIRTIO_DEF_DEVICE_VMSD(9p, 1)
 
 static Property virtio_9p_properties[] = {
     DEFINE_PROP_STRING("mount_tag", V9fsVirtioState, state.fsconf.tag),
