@@ -175,7 +175,6 @@ bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq);
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f);
-void virtio_vmstate_save(QEMUFile *f, void *opaque, size_t size);
 void virtio_save_as_vmsi_put(QEMUFile *f, void *opaque, size_t size);
 int virtio_load_as_vmsi_get(QEMUFile *f, void *opaque, size_t size);
 
@@ -201,25 +200,6 @@ int virtio_load_as_vmsi_get(QEMUFile *f, void *opaque, size_t size);
         },                                    \
         __VA_ARGS__                           \
     };
-
-#define VMSTATE_VIRTIO_DEVICE(devname, v, getf, putf) \
-    static const VMStateDescription vmstate_virtio_ ## devname = { \
-        .name = "virtio-" #devname ,          \
-        .minimum_version_id = v,              \
-        .version_id = v,                      \
-        .fields = (VMStateField[]) {          \
-            {                                 \
-                .name = "virtio",             \
-                .info = &(const VMStateInfo) {\
-                        .name = "virtio",     \
-                        .get = getf,          \
-                        .put = putf,          \
-                    },                        \
-                .flags = VMS_SINGLE,          \
-            },                                \
-            VMSTATE_END_OF_LIST()             \
-        }                                     \
-    }
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id);
 
