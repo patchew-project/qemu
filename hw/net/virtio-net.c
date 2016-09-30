@@ -1498,17 +1498,6 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     virtio_net_set_queues(n);
 }
 
-static void virtio_net_save(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-
-    /* At this point, backend must be stopped, otherwise
-     * it might keep writing to memory. */
-    assert(!n->vhost_started);
-    virtio_save(vdev, f);
-}
-
 static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -1542,14 +1531,6 @@ static void virtio_net_save_device(VirtIODevice *vdev, QEMUFile *f)
     if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
         qemu_put_be64(f, n->curr_guest_offloads);
     }
-}
-
-static int virtio_net_load(QEMUFile *f, void *opaque, size_t size)
-{
-    VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
-
-    return virtio_load(vdev, f, VIRTIO_NET_VM_VERSION);
 }
 
 static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
@@ -1854,8 +1835,17 @@ static void virtio_net_instance_init(Object *obj)
                                   DEVICE(n), NULL);
 }
 
-VMSTATE_VIRTIO_DEVICE(net, VIRTIO_NET_VM_VERSION, virtio_net_load,
-                      virtio_net_save);
+static void virtio_net_pre_save(void *opaque)
+{
+    VirtIONet *n = opaque;
+
+    /* At this point, backend must be stopped, otherwise
+     * it might keep writing to memory. */
+    assert(!n->vhost_started);
+}
+
+VIRTIO_DEF_DEVICE_VMSD(net, VIRTIO_NET_VM_VERSION,
+    .pre_save = virtio_net_pre_save)
 
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),
