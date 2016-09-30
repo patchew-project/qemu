@@ -364,9 +364,9 @@ static int passthru_initfn(CCIDCardState *base)
     return 0;
 }
 
-static int passthru_exitfn(CCIDCardState *base)
+static void passthru_exitfn(CCIDCardState *base)
 {
-    return 0;
+    return;
 }
 
 static VMStateDescription passthru_vmstate = {
