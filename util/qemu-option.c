@@ -125,25 +125,30 @@ int get_param_value(char *buf, int buf_size,
     return get_next_param_value(buf, buf_size, tag, &str);
 }
 
-static void parse_option_bool(const char *name, const char *value, bool *ret,
-                              Error **errp)
+void parse_option_bool(const char *name, const char *value, bool *ret,
+                       Error **errp)
 {
     if (value != NULL) {
-        if (!strcmp(value, "on")) {
-            *ret = 1;
-        } else if (!strcmp(value, "off")) {
-            *ret = 0;
+        if (strcmp(value, "on") == 0 ||
+            strcmp(value, "yes") == 0 ||
+            strcmp(value, "y") == 0) {
+            *ret = true;
+        } else if (strcmp(value, "off") == 0 ||
+            strcmp(value, "no") == 0 ||
+            strcmp(value, "n") == 0) {
+            *ret = false;
         } else {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name, "'on' or 'off'");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+                       "'on', 'yes', 'y', 'off', 'no' or 'n'");
+            return;
         }
     } else {
-        *ret = 1;
+        *ret = true;
     }
 }
 
-static void parse_option_number(const char *name, const char *value,
-                                uint64_t *ret, Error **errp)
+void parse_option_number(const char *name, const char *value,
+                         uint64_t *ret, Error **errp)
 {
     char *postfix;
     uint64_t number;
