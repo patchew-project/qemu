@@ -2158,14 +2158,11 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
 
 /*
  * Filters CPU feature words based on host availability of each feature.
- *
- * Returns: 0 if all flags are supported by the host, non-zero otherwise.
  */
-static int x86_cpu_filter_features(X86CPU *cpu)
+static void x86_cpu_filter_features(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     FeatureWord w;
-    int rv = 0;
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         uint32_t host_feat =
@@ -2173,15 +2170,22 @@ static int x86_cpu_filter_features(X86CPU *cpu)
         uint32_t requested_features = env->features[w];
         env->features[w] &= host_feat;
         cpu->filtered_features[w] = requested_features & ~env->features[w];
-        if (cpu->filtered_features[w]) {
-            if (cpu->check_cpuid || cpu->enforce_cpuid) {
-                report_unavailable_features(w, cpu->filtered_features[w]);
-            }
-            rv = 1;
-        }
     }
+}
 
-    return rv;
+/* Report list of filtered features to stderr.
+ * Returns true if some features were found to be filtered, false otherwise
+ */
+static bool x86_cpu_report_filtered_features(X86CPU *cpu)
+{
+    FeatureWord w;
+    uint32_t filtered = 0;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        filtered |= cpu->filtered_features[w];
+        report_unavailable_features(w, cpu->filtered_features[w]);
+    }
+    return filtered;
 }
 
 static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
@@ -3077,12 +3081,15 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
     }
 
-    if (x86_cpu_filter_features(cpu) && cpu->enforce_cpuid) {
-        error_setg(&local_err,
-                   kvm_enabled() ?
-                       "Host doesn't support requested features" :
-                       "TCG doesn't support requested features");
-        goto out;
+    x86_cpu_filter_features(cpu);
+    if (cpu->check_cpuid || cpu->enforce_cpuid) {
+        if (x86_cpu_report_filtered_features(cpu) && cpu->enforce_cpuid) {
+            error_setg(&local_err,
+                       kvm_enabled() ?
+                           "Host doesn't support requested features" :
+                           "TCG doesn't support requested features");
+            goto out;
+        }
     }
 
     /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
