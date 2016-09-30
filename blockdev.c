@@ -914,7 +914,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
     /* Get a QDict for processing the options */
     bs_opts = qdict_new();
-    qemu_opts_to_qdict(all_opts, bs_opts);
+    qemu_opts_to_qdict(all_opts, bs_opts, QEMU_OPTS_REPEAT_POLICY_LAST,
+                       &error_abort);
 
     legacy_opts = qemu_opts_create(&qemu_legacy_drive_opts, NULL, 0,
                                    &error_abort);
@@ -3804,8 +3805,8 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr)
         return;
     }
 
-    qdict = qemu_opts_to_qdict(opts, NULL);
-
+    qdict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                               &error_abort);
     if (!qdict_get_try_str(qdict, "node-name")) {
         QDECREF(qdict);
         error_report("'node-name' needs to be specified");

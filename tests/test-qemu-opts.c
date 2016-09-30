@@ -421,6 +421,130 @@ static void test_qemu_opts_set(void)
     g_assert(opts == NULL);
 }
 
+
+static void test_qemu_opts_to_qdict_repeat_last(void)
+{
+    QemuOpts *opts;
+    QDict *dict;
+
+    /* dynamically initialized (parsed) opts */
+    opts = qemu_opts_parse(&opts_list_03,
+                           "size=1024,nodes=10,nodes=4-5,nodes=1-2,policy=bind",
+                           false, NULL);
+    g_assert(opts);
+
+    dict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                              &error_abort);
+    g_assert(dict);
+
+
+    g_assert_cmpstr(qdict_get_str(dict, "size"), ==, "1024");
+    g_assert_cmpstr(qdict_get_str(dict, "nodes"), ==, "1-2");
+    g_assert(!qdict_haskey(dict, "nodes.0"));
+    g_assert(!qdict_haskey(dict, "nodes.1"));
+    g_assert(!qdict_haskey(dict, "nodes.2"));
+    g_assert_cmpstr(qdict_get_str(dict, "policy"), ==, "bind");
+    QDECREF(dict);
+
+    qemu_opts_del(opts);
+    qemu_opts_reset(&opts_list_03);
+}
+
+
+static void test_qemu_opts_to_qdict_repeat_all(void)
+{
+    QemuOpts *opts;
+    QDict *dict;
+    QList *list;
+    const QListEntry *ent;
+    QString *str;
+
+    /* dynamically initialized (parsed) opts */
+    opts = qemu_opts_parse(&opts_list_03,
+                           "size=1024,nodes=10,nodes=4-5,nodes=1-2,policy=bind",
+                           false, NULL);
+    g_assert(opts);
+
+    dict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_ALL,
+                              &error_abort);
+    g_assert(dict);
+
+    g_assert_cmpstr(qdict_get_str(dict, "size"), ==, "1024");
+    g_assert(qdict_haskey(dict, "nodes"));
+    list = qobject_to_qlist(qdict_get(dict, "nodes"));
+    g_assert(list);
+
+    ent = qlist_first(list);
+    g_assert(ent);
+    str = qobject_to_qstring(ent->value);
+    g_assert(str);
+    g_assert_cmpstr(qstring_get_str(str), ==, "10");
+
+    ent = qlist_next(ent);
+    g_assert(ent);
+    str = qobject_to_qstring(ent->value);
+    g_assert(str);
+    g_assert_cmpstr(qstring_get_str(str), ==, "4-5");
+
+    ent = qlist_next(ent);
+    g_assert(ent);
+    str = qobject_to_qstring(ent->value);
+    g_assert(str);
+    g_assert_cmpstr(qstring_get_str(str), ==, "1-2");
+
+    ent = qlist_next(ent);
+    g_assert(!ent);
+
+    g_assert_cmpstr(qdict_get_str(dict, "policy"), ==, "bind");
+    QDECREF(dict);
+
+    qemu_opts_del(opts);
+    qemu_opts_reset(&opts_list_03);
+}
+
+static void test_qemu_opts_to_qdict_repeat_err_fail(void)
+{
+    QemuOpts *opts;
+    QDict *dict;
+    Error *err = NULL;
+
+    /* dynamically initialized (parsed) opts */
+    opts = qemu_opts_parse(&opts_list_03,
+                           "size=1024,nodes=10,nodes=4-5,nodes=1-2,policy=bind",
+                           false, NULL);
+    g_assert(opts);
+
+    dict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_ERROR,
+                              &err);
+    error_free_or_abort(&err);
+    g_assert(!dict);
+
+    qemu_opts_del(opts);
+    qemu_opts_reset(&opts_list_03);
+}
+
+static void test_qemu_opts_to_qdict_repeat_err_ok(void)
+{
+    QemuOpts *opts;
+    QDict *dict;
+
+    /* dynamically initialized (parsed) opts */
+    opts = qemu_opts_parse(&opts_list_03,
+                           "size=1024,nodes=10,policy=bind",
+                           false, NULL);
+    g_assert(opts);
+
+    dict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_ERROR,
+                              &error_abort);
+    g_assert_cmpstr(qdict_get_str(dict, "size"), ==, "1024");
+    g_assert_cmpstr(qdict_get_str(dict, "nodes"), ==, "10");
+    g_assert_cmpstr(qdict_get_str(dict, "policy"), ==, "bind");
+
+    QDECREF(dict);
+    qemu_opts_del(opts);
+    qemu_opts_reset(&opts_list_03);
+}
+
 int main(int argc, char *argv[])
 {
     register_opts();
@@ -435,6 +559,14 @@ int main(int argc, char *argv[])
     g_test_add_func("/qemu-opts/opt_unset", test_qemu_opt_unset);
     g_test_add_func("/qemu-opts/opts_reset", test_qemu_opts_reset);
     g_test_add_func("/qemu-opts/opts_set", test_qemu_opts_set);
+    g_test_add_func("/qemu-opts/to_qdict/repeat-last",
+                    test_qemu_opts_to_qdict_repeat_last);
+    g_test_add_func("/qemu-opts/to_qdict/repeat-all",
+                    test_qemu_opts_to_qdict_repeat_all);
+    g_test_add_func("/qemu-opts/to_qdict/repeat-err-fail",
+                    test_qemu_opts_to_qdict_repeat_err_fail);
+    g_test_add_func("/qemu-opts/to_qdict/repeat-err-ok",
+                    test_qemu_opts_to_qdict_repeat_err_ok);
     g_test_run();
     return 0;
 }

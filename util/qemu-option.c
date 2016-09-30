@@ -1057,23 +1057,73 @@ void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
  * The QDict values are of type QString.
  * TODO We'll want to use types appropriate for opt->desc->type, but
  * this is enough for now.
+ *
+ * If the @opts contains multiple occurrences of the same key,
+ * then the @repeatPolicy parameter determines how they are to
+ * be handled. Traditional behaviour was to only store the
+ * last occurrence, but if @repeatPolicy is set to
+ * QEMU_OPTS_REPEAT_POLICY_ALL, then a QList will be returned
+ * containing all values, for any key with multiple occurrences.
+ * The QEMU_OPTS_REPEAT_POLICY_ERROR value can be used to fail
+ * conversion with an error if multiple occurrences of a key
+ * are seen.
  */
-QDict *qemu_opts_to_qdict(const QemuOpts *opts, QDict *qdict)
+QDict *qemu_opts_to_qdict(const QemuOpts *opts, QDict *qdict,
+                          QemuOptsRepeatPolicy repeatPolicy,
+                          Error **errp)
 {
     QemuOpt *opt;
-    QObject *val;
+    QObject *val, *prevval;
+    QList *list;
+    QDict *ret;
 
-    if (!qdict) {
-        qdict = qdict_new();
+    if (qdict) {
+        ret = qdict;
+    } else {
+        ret = qdict_new();
     }
     if (opts->id) {
-        qdict_put(qdict, "id", qstring_from_str(opts->id));
+        qdict_put(ret, "id", qstring_from_str(opts->id));
     }
     QTAILQ_FOREACH(opt, &opts->head, next) {
         val = QOBJECT(qstring_from_str(opt->str));
-        qdict_put_obj(qdict, opt->name, val);
+
+        if (qdict_haskey(ret, opt->name)) {
+            switch (repeatPolicy) {
+            case QEMU_OPTS_REPEAT_POLICY_ERROR:
+                error_setg(errp, "Option '%s' appears more than once",
+                           opt->name);
+                qobject_decref(val);
+                if (!qdict) {
+                    QDECREF(ret);
+                }
+                return NULL;
+
+            case QEMU_OPTS_REPEAT_POLICY_ALL:
+                prevval = qdict_get(ret, opt->name);
+                if (qobject_type(prevval) == QTYPE_QLIST) {
+                    /* Already identified this key as a list */
+                    list = qobject_to_qlist(prevval);
+                } else {
+                    /* Replace current scalar with a list */
+                    list = qlist_new();
+                    qobject_incref(prevval);
+                    qlist_append_obj(list, prevval);
+                    qdict_put_obj(ret, opt->name, QOBJECT(list));
+                }
+                qlist_append_obj(list, val);
+                break;
+
+            case QEMU_OPTS_REPEAT_POLICY_LAST:
+                /* Just discard previously set value */
+                qdict_put_obj(ret, opt->name, val);
+                break;
+            }
+        } else {
+            qdict_put_obj(ret, opt->name, val);
+        }
     }
-    return qdict;
+    return ret;
 }
 
 /* Validate parsed opts against descriptions where no

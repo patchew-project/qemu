@@ -181,7 +181,8 @@ static BlockBackend *start_primary(void)
     opts = qemu_opts_parse_noisily(&qemu_drive_opts, cmdline, false);
     g_free(cmdline);
 
-    qdict = qemu_opts_to_qdict(opts, NULL);
+    qdict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                               &error_abort);
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
@@ -311,7 +312,8 @@ static BlockBackend *start_secondary(void)
     opts = qemu_opts_parse_noisily(&qemu_drive_opts, cmdline, false);
     g_free(cmdline);
 
-    qdict = qemu_opts_to_qdict(opts, NULL);
+    qdict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                               &error_abort);
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
@@ -336,7 +338,8 @@ static BlockBackend *start_secondary(void)
     opts = qemu_opts_parse_noisily(&qemu_drive_opts, cmdline, false);
     g_free(cmdline);
 
-    qdict = qemu_opts_to_qdict(opts, NULL);
+    qdict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                               &error_abort);
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
 

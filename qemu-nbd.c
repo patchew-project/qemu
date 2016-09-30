@@ -859,7 +859,8 @@ int main(int argc, char **argv)
             qemu_opts_reset(&file_opts);
             exit(EXIT_FAILURE);
         }
-        options = qemu_opts_to_qdict(opts, NULL);
+        options = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                                     &error_abort);
         qemu_opts_reset(&file_opts);
         blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     } else {

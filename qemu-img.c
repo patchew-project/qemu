@@ -273,7 +273,9 @@ static BlockBackend *img_open_opts(const char *optstr,
     QDict *options;
     Error *local_err = NULL;
     BlockBackend *blk;
-    options = qemu_opts_to_qdict(opts, NULL);
+    options = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                                 &error_abort);
+
     blk = blk_new_open(NULL, NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Could not open '%s': ", optstr);

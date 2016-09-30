@@ -2642,7 +2642,8 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                 if (!opts) {
                     goto fail;
                 }
-                qemu_opts_to_qdict(opts, qdict);
+                qemu_opts_to_qdict(opts, qdict, QEMU_OPTS_REPEAT_POLICY_LAST,
+                                   &error_abort);
                 qemu_opts_del(opts);
             }
             break;

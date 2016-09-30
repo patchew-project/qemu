@@ -759,7 +759,9 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
     QObject *pobj = NULL;
     Visitor *v = NULL;
 
-    pdict = qemu_opts_to_qdict(opts, NULL);
+    pdict = qemu_opts_to_qdict(opts, NULL,
+                               QEMU_OPTS_REPEAT_POLICY_LAST,
+                               errp);
     if (!pdict) {
         goto cleanup;
     }

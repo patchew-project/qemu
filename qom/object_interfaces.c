@@ -161,7 +161,8 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
     Object *obj = NULL;
 
     v = opts_visitor_new(opts);
-    pdict = qemu_opts_to_qdict(opts, NULL);
+    pdict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                               &error_abort);
 
     obj = user_creatable_add(pdict, v, errp);
     visit_free(v);

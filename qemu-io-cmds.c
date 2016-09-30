@@ -1952,7 +1952,8 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     }
 
     qopts = qemu_opts_find(&reopen_opts, NULL);
-    opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
+    opts = qopts ? qemu_opts_to_qdict(qopts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                                      &error_abort) : NULL;
     qemu_opts_reset(&reopen_opts);
 
     brq = bdrv_reopen_queue(NULL, bs, opts, flags);

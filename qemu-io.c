@@ -207,7 +207,8 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     }
 
     qopts = qemu_opts_find(&empty_opts, NULL);
-    opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
+    opts = qopts ? qemu_opts_to_qdict(qopts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                                      &error_abort) : NULL;
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
@@ -593,7 +594,8 @@ int main(int argc, char **argv)
             if (!qopts) {
                 exit(1);
             }
-            opts = qemu_opts_to_qdict(qopts, NULL);
+            opts = qemu_opts_to_qdict(qopts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+                                      &error_abort);
             openfile(NULL, flags, writethrough, opts);
         } else {
             if (format) {
