@@ -45,7 +45,7 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  * If @autocreate_list is true, then as an alternative to a normal QList,
  * list values can be stored as a QString or QDict instead, which will
  * be interpreted as representing single element lists. This should only
- * by used if compatibility is required with the OptsVisitor which allowed
+ * be used if compatibility is required with the OptsVisitor which allowed
  * repeated keys, without list indexes, to represent lists. e.g. set this
  * to true if you have compatibility requirements for
  *
@@ -55,6 +55,22 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  *
  *   -arg foo.0=hello,foo.1=world
  *
+ * If @autocreate_struct_levels is non-zero, then when visiting structs,
+ * if the corresponding QDict is not found, it will automatically create
+ * a QDict containing all remaining unvisited options. This should only
+ * be used if compatibility is required with the OptsVisitor which flatten
+ * structs so that all keys were at the same level. e.g. set this to a
+ * non-zero number if you compatibility requirements for
+ *
+ *   -arg type=person,surname=blogs,forename=fred
+ *
+ * to be treated as equivalent to the perferred syntax
+ *
+ *   -arg type=person,data.surname=blogs,data.forename=fred
+ *
+ * The value given determines how many levels of structs are allowed to
+ * be flattened in this way.
+ *
  * The visitor always operates in strict mode, requiring all dict keys
  * to be consumed during visitation. An error will be reported if this
  * does not happen.
@@ -63,7 +79,8 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  * visit_free() when no longer required.
  */
 Visitor *qobject_input_visitor_new_autocast(QObject *obj,
-                                            bool autocreate_list);
+                                            bool autocreate_list,
+                                            size_t autocreate_struct_levels);
 
 
 /**
@@ -80,6 +97,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
  */
 Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
                                         bool autocreate_list,
+                                        size_t autocreate_struct_levels,
                                         Error **errp);
 
 #endif

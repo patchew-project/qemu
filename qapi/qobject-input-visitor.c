@@ -52,6 +52,14 @@ struct QObjectInputVisitor
     /* Whether we can auto-create single element lists when
      * encountering a non-QList type */
     bool autocreate_list;
+
+    /* Current depth of recursion into structs */
+    size_t struct_level;
+
+    /* Numbers of levels at which we will
+     * consider auto-creating a struct containing
+     * remaining unvisited items */
+    size_t autocreate_struct_levels;
 };
 
 static QObjectInputVisitor *to_qiv(Visitor *v)
@@ -79,7 +87,12 @@ static QObject *qobject_input_get_object(QObjectInputVisitor *qiv,
 
     if (qobject_type(qobj) == QTYPE_QDICT) {
         assert(name);
-        ret = qdict_get(qobject_to_qdict(qobj), name);
+        if (qiv->autocreate_struct_levels &&
+            !g_hash_table_contains(tos->h, name)) {
+            ret = NULL;
+        } else {
+            ret = qdict_get(qobject_to_qdict(qobj), name);
+        }
         if (tos->h && consume && ret) {
             bool removed = g_hash_table_remove(tos->h, name);
             assert(removed);
@@ -114,7 +127,8 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
     tos->qapi = qapi;
     qobject_incref(obj);
 
-    if (qiv->strict && qobject_type(obj) == QTYPE_QDICT) {
+    if ((qiv->autocreate_struct_levels || qiv->strict) &&
+        qobject_type(obj) == QTYPE_QDICT) {
         h = g_hash_table_new(g_str_hash, g_str_equal);
         qdict_iter(qobject_to_qdict(obj), qdict_add_key, h);
         tos->h = h;
@@ -163,6 +177,9 @@ static void qobject_input_pop(Visitor *v, void **obj)
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
 
     assert(tos && tos->qapi == obj);
+    if (tos->h != NULL) {
+        qiv->struct_level--;
+    }
     QSLIST_REMOVE_HEAD(&qiv->stack, node);
     qobject_input_stack_object_free(tos);
 }
@@ -171,12 +188,38 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
                                        size_t size, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
-    QObject *qobj = qobject_input_get_object(qiv, name, true);
+    QObject *qobj;
+    QDict *subopts = NULL;
     Error *err = NULL;
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
 
+    qobj = qobject_input_get_object(qiv, name, true);
     if (obj) {
         *obj = NULL;
     }
+
+    if (!qobj && (qiv->struct_level < qiv->autocreate_struct_levels)) {
+        /* Create a new dict that contains all the currently
+         * unvisited items */
+        if (tos) {
+            GHashTableIter iter;
+            const char *key;
+
+            subopts = qdict_new();
+
+            g_hash_table_iter_init(&iter, tos->h);
+            while (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
+                QObject *val = qdict_get(qobject_to_qdict(tos->obj), key);
+                qobject_incref(val);
+                qdict_put_obj(subopts, key, val);
+            }
+            g_hash_table_remove_all(tos->h);
+            qobj = QOBJECT(subopts);
+        } else {
+            qobj = qiv->root;
+        }
+    }
+
     if (!qobj || qobject_type(qobj) != QTYPE_QDICT) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "QDict");
@@ -184,6 +227,7 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
     }
 
     qobject_input_push(qiv, qobj, obj, &err);
+    qiv->struct_level++;
     if (err) {
         error_propagate(errp, err);
         return;
@@ -192,6 +236,7 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
     if (obj) {
         *obj = g_malloc0(size);
     }
+    QDECREF(subopts);
 }
 
 
@@ -530,7 +575,8 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict)
 }
 
 Visitor *qobject_input_visitor_new_autocast(QObject *obj,
-                                            bool autocreate_list)
+                                            bool autocreate_list,
+                                            size_t autocreate_struct_levels)
 {
     QObjectInputVisitor *v;
 
@@ -556,6 +602,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
     v->visitor.free = qobject_input_free;
     v->strict = true;
     v->autocreate_list = autocreate_list;
+    v->autocreate_struct_levels = autocreate_struct_levels;
 
     v->root = obj;
     qobject_incref(obj);
@@ -566,6 +613,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
 
 Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
                                         bool autocreate_list,
+                                        size_t autocreate_struct_levels,
                                         Error **errp)
 {
     QDict *pdict;
@@ -583,7 +631,8 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
     }
 
     v = qobject_input_visitor_new_autocast(pobj,
-                                           autocreate_list);
+                                           autocreate_list,
+                                           autocreate_struct_levels);
  cleanup:
     qobject_decref(pobj);
     QDECREF(pdict);

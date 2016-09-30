@@ -40,11 +40,13 @@ static void visitor_input_teardown(TestInputVisitorData *data,
 /* The various test_init functions are provided instead of a test setup
    function so that the JSON string used by the tests are kept in the test
    functions (and not in main()). */
-static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
-                                                 bool strict, bool autocast,
-                                                 bool autocreate_list,
-                                                 const char *json_string,
-                                                 va_list *ap)
+static Visitor *
+visitor_input_test_init_internal(TestInputVisitorData *data,
+                                 bool strict, bool autocast,
+                                 bool autocreate_list,
+                                 size_t autocreate_struct_levels,
+                                 const char *json_string,
+                                 va_list *ap)
 {
     visitor_input_teardown(data, NULL);
 
@@ -53,10 +55,11 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
 
     if (autocast) {
         assert(strict);
-        data->qiv = qobject_input_visitor_new_autocast(data->obj,
-                                                       autocreate_list);
+        data->qiv = qobject_input_visitor_new_autocast(
+            data->obj, autocreate_list, autocreate_struct_levels);
     } else {
         assert(!autocreate_list);
+        assert(!autocreate_struct_levels);
         data->qiv = qobject_input_visitor_new(data->obj, strict);
     }
     g_assert(data->qiv);
@@ -74,7 +77,7 @@ Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
 
     va_start(ap, json_string);
     v = visitor_input_test_init_internal(data, strict, autocast,
-                                         autocreate_list,
+                                         autocreate_list, 0,
                                          json_string, &ap);
     va_end(ap);
     return v;
@@ -88,7 +91,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, true, false, false,
+    v = visitor_input_test_init_internal(data, true, false, false, 0,
                                          json_string, &ap);
     va_end(ap);
     return v;
@@ -104,7 +107,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    return visitor_input_test_init_internal(data, true, false, false,
+    return visitor_input_test_init_internal(data, true, false, false, 0,
                                             json_string, NULL);
 }
 
@@ -370,6 +373,109 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
     g_assert(udp->dict1->has_dict3 == false);
 
     qapi_free_UserDefTwo(udp);
+}
+
+static void test_visitor_in_struct_autocreate(TestInputVisitorData *data,
+                                              const void *unused)
+{
+    Visitor *v;
+    int64_t vlan;
+    char *id = NULL;
+    char *type;
+    int64_t fd;
+    char *script = NULL;
+
+    v = visitor_input_test_init_internal(
+        data, true, true, false, 3,
+        "{ 'vlan': '1', 'id': 'foo', 'type': 'tap', 'fd': '3', "
+        "'script': 'ifup' }", NULL);
+
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+
+    visit_type_int64(v, "vlan", &vlan, &error_abort);
+    visit_type_str(v, "id", &id, &error_abort);
+
+    visit_start_struct(v, "opts", NULL, 0, &error_abort);
+    visit_type_str(v, "type", &type, &error_abort);
+
+    visit_start_struct(v, "data", NULL, 0, &error_abort);
+
+    visit_type_int64(v, "fd", &fd, &error_abort);
+    visit_type_str(v, "script", &script, &error_abort);
+
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+
+    g_assert_cmpstr(id, ==, "foo");
+    g_assert_cmpint(vlan, ==, 1);
+    g_assert_cmpstr(type, ==, "tap");
+    g_assert_cmpstr(script, ==, "ifup");
+    g_assert_cmpint(fd, ==, 3);
+
+    g_free(id);
+    g_free(type);
+    g_free(script);
+}
+
+static void test_visitor_in_struct_autocreate_extra(TestInputVisitorData *data,
+                                                    const void *unused)
+{
+    Visitor *v;
+    int64_t vlan;
+    char *id = NULL;
+    char *type;
+    int64_t fd;
+    char *script = NULL;
+    Error *err = NULL;
+
+    v = visitor_input_test_init_internal(
+        data, true, true, false, 3,
+        "{ 'vlan': '1', 'id': 'foo', 'type': 'tap', 'fd': '3', "
+        "'script': 'ifup' }", NULL);
+
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+
+    visit_type_int64(v, "vlan", &vlan, &error_abort);
+
+    visit_start_struct(v, "opts", NULL, 0, &error_abort);
+    visit_type_str(v, "type", &type, &error_abort);
+
+    visit_start_struct(v, "data", NULL, 0, &error_abort);
+
+    visit_type_int64(v, "fd", &fd, &error_abort);
+    visit_type_str(v, "script", &script, &error_abort);
+
+    /* We've not visited 'id' so should see a complaint */
+    visit_check_struct(v, &err);
+    error_free_or_abort(&err);
+    visit_end_struct(v, NULL);
+
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+
+    /* We can't visit stuff in the base struct after
+     * we auto-created child structs */
+    visit_type_str(v, "id", &id, &err);
+    error_free_or_abort(&err);
+
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+
+    g_assert_cmpstr(id, ==, NULL);
+    g_assert_cmpint(vlan, ==, 1);
+    g_assert_cmpstr(type, ==, "tap");
+    g_assert_cmpstr(script, ==, "ifup");
+    g_assert_cmpint(fd, ==, 3);
+
+    g_free(id);
+    g_free(type);
+    g_free(script);
 }
 
 static void test_visitor_in_list(TestInputVisitorData *data,
@@ -1096,6 +1202,10 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_struct);
     input_visitor_test_add("/visitor/input/struct-nested",
                            NULL, test_visitor_in_struct_nested);
+    input_visitor_test_add("/visitor/input/struct-autocreate",
+                           NULL, test_visitor_in_struct_autocreate);
+    input_visitor_test_add("/visitor/input/struct-autocreate-extra",
+                           NULL, test_visitor_in_struct_autocreate_extra);
     input_visitor_test_add("/visitor/input/list",
                            NULL, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/list-autocreate-noautocast",
