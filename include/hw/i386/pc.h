@@ -143,6 +143,8 @@ struct PCMachineClass {
     bool save_tsc_khz;
     /* generate legacy CPU hotplug AML */
     bool legacy_cpu_hotplug;
+    /* enable buggy Intel-IOMMU EIM by default */
+    bool buggy_intel_iommu_eim;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

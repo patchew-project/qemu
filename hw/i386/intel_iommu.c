@@ -2456,9 +2456,11 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
-static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
+static bool vtd_decide_config(IntelIOMMUState *s, PCMachineState *pcms,
+                              Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(MACHINE_GET_CLASS(pcms));
 
     /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
     if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
@@ -2473,11 +2475,11 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     }
 
     if (s->intr_eim == ON_OFF_AUTO_AUTO) {
-        s->intr_eim = x86_iommu->intr_supported && kvm_irqchip_in_kernel() ?
+        s->intr_eim = (kvm_irqchip_in_kernel() || pcmc->buggy_intel_iommu_eim)
+                      && x86_iommu->intr_supported ?
                                               ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
-
-    if (s->intr_eim == ON_OFF_AUTO_ON) {
+    if (s->intr_eim == ON_OFF_AUTO_ON && !pcmc->buggy_intel_iommu_eim) {
         if (kvm_irqchip_in_kernel() && !kvm_enable_x2apic()) {
             error_setg(errp, "eim=on requires support on the KVM side"
                              "(X2APIC_API, first shipped in v4.7)");
@@ -2502,7 +2504,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     VTD_DPRINTF(GENERAL, "");
     x86_iommu->type = TYPE_INTEL;
 
-    if (!vtd_decide_config(s, errp)) {
+    if (!vtd_decide_config(s, pcms, errp)) {
         return;
     }
 
