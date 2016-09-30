@@ -15,7 +15,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "block/nbd.h"
-#include "block/blockjob.h"
+#include "block/blockjob_int.h"
 #include "block/block_int.h"
 #include "block/block_backup.h"
 #include "sysemu/block-backend.h"

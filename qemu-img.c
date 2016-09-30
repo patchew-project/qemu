@@ -37,7 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
-#include "block/blockjob.h"
+#include "block/blockjob_int.h"
 #include "block/qapi.h"
 #include "crypto/init.h"
 #include "trace/control.h"
