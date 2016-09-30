@@ -45,6 +45,7 @@ visitor_input_test_init_internal(TestInputVisitorData *data,
                                  bool strict, bool autocast,
                                  bool autocreate_list,
                                  size_t autocreate_struct_levels,
+                                 bool permit_int_ranges,
                                  const char *json_string,
                                  va_list *ap)
 {
@@ -56,10 +57,12 @@ visitor_input_test_init_internal(TestInputVisitorData *data,
     if (autocast) {
         assert(strict);
         data->qiv = qobject_input_visitor_new_autocast(
-            data->obj, autocreate_list, autocreate_struct_levels);
+            data->obj, autocreate_list, autocreate_struct_levels,
+            permit_int_ranges);
     } else {
         assert(!autocreate_list);
         assert(!autocreate_struct_levels);
+        assert(!permit_int_ranges);
         data->qiv = qobject_input_visitor_new(data->obj, strict);
     }
     g_assert(data->qiv);
@@ -77,7 +80,7 @@ Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
 
     va_start(ap, json_string);
     v = visitor_input_test_init_internal(data, strict, autocast,
-                                         autocreate_list, 0,
+                                         autocreate_list, 0, false,
                                          json_string, &ap);
     va_end(ap);
     return v;
@@ -91,7 +94,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, true, false, false, 0,
+    v = visitor_input_test_init_internal(data, true, false, false, 0, false,
                                          json_string, &ap);
     va_end(ap);
     return v;
@@ -107,7 +110,7 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    return visitor_input_test_init_internal(data, true, false, false, 0,
+    return visitor_input_test_init_internal(data, true, false, false, 0, false,
                                             json_string, NULL);
 }
 
@@ -386,7 +389,7 @@ static void test_visitor_in_struct_autocreate(TestInputVisitorData *data,
     char *script = NULL;
 
     v = visitor_input_test_init_internal(
-        data, true, true, false, 3,
+        data, true, true, false, 3, false,
         "{ 'vlan': '1', 'id': 'foo', 'type': 'tap', 'fd': '3', "
         "'script': 'ifup' }", NULL);
 
@@ -435,7 +438,7 @@ static void test_visitor_in_struct_autocreate_extra(TestInputVisitorData *data,
     Error *err = NULL;
 
     v = visitor_input_test_init_internal(
-        data, true, true, false, 3,
+        data, true, true, false, 3, false,
         "{ 'vlan': '1', 'id': 'foo', 'type': 'tap', 'fd': '3', "
         "'script': 'ifup' }", NULL);
 
@@ -559,6 +562,88 @@ static void test_visitor_in_list_autocreate_int(TestInputVisitorData *data,
     qapi_free_uint32List(head);
     head = NULL;
 }
+
+typedef struct {
+    const char *range_str;
+    bool expect_fail;
+    int64_t *values;
+    size_t nvalues;
+} TestIntRangeData;
+
+static void test_visitor_in_list_autocast_int_range(TestInputVisitorData *data,
+                                                    const void *opaque)
+{
+    const TestIntRangeData *idata = opaque;
+    int64List *item, *head = NULL;
+    Visitor *v;
+    size_t i;
+    Error *err = NULL;
+
+    /* Verify that we auto-expand signed int ranges */
+    v = visitor_input_test_init_internal(data, true, true, true, 0, true,
+                                         idata->range_str, NULL);
+
+    visit_type_int64List(v, NULL, &head, &err);
+    if (idata->expect_fail) {
+        error_free_or_abort(&err);
+        g_assert(head == NULL);
+    } else {
+        g_assert(err == NULL);
+        g_assert(head != NULL);
+        for (i = 0, item = head; item != NULL && i < idata->nvalues;
+             item = item->next, i++) {
+            if (idata->values != NULL) {
+                g_assert_cmpint(item->value, ==, idata->values[i]);
+            }
+        }
+        g_assert_cmpint(i, ==, idata->nvalues);
+
+        qapi_free_int64List(head);
+        head = NULL;
+    }
+}
+
+typedef struct {
+    const char *range_str;
+    bool expect_fail;
+    uint64_t *values;
+    size_t nvalues;
+} TestUIntRangeData;
+
+static void test_visitor_in_list_autocast_uint_range(TestInputVisitorData *data,
+                                                     const void *opaque)
+{
+    const TestUIntRangeData *idata = opaque;
+    uint64List *item, *head = NULL;
+    Visitor *v;
+    size_t i;
+    Error *err = NULL;
+
+    /* Verify that we auto-expand signed int ranges */
+    v = visitor_input_test_init_internal(data, true, true, true, 0, true,
+                                         idata->range_str, NULL);
+
+    visit_type_uint64List(v, NULL, &head, &err);
+    if (idata->expect_fail) {
+        g_assert(err != NULL);
+        g_assert(head == NULL);
+    } else {
+        g_assert(err == NULL);
+        g_assert(head != NULL);
+
+        for (i = 0, item = head; item != NULL && i < idata->nvalues;
+             item = item->next, i++) {
+            if (idata->values != NULL) {
+                g_assert_cmpint(item->value, ==, idata->values[i]);
+            }
+        }
+        g_assert_cmpint(i, ==, idata->nvalues);
+
+        qapi_free_uint64List(head);
+        head = NULL;
+    }
+}
+
 
 static void test_visitor_in_any(TestInputVisitorData *data,
                                 const void *unused)
@@ -1252,6 +1337,104 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_native_list_string);
     input_visitor_test_add("/visitor/input/native_list/number",
                            NULL, test_visitor_in_native_list_number);
+
+#define INT_RANGE_TEST(suffix, str, expect_fail, values, nvalues)       \
+    TestIntRangeData idata ## suffix =                                  \
+        { str, expect_fail, values, nvalues };                          \
+    input_visitor_test_add("/visitor/input/int-list-autocast-" #suffix, \
+                           &idata ## suffix,                            \
+                           test_visitor_in_list_autocast_int_range)
+
+#define UINT_RANGE_TEST(suffix, str, expect_fail, values, nvalues)      \
+    TestUIntRangeData udata ## suffix =                                 \
+        { str, expect_fail, values, nvalues };                          \
+    input_visitor_test_add("/visitor/input/uint-list-autocast-" #suffix,\
+                           &udata ## suffix,                            \
+                           test_visitor_in_list_autocast_uint_range)
+
+
+    int64_t multvals[] = { -1, 0, -11, -10, -9, 5, -16, -15, -14, -13, 14,
+                           15, 7, 2, 3, 9, 10, 11, 12, -7, -6, -5, -4, -3 };
+    INT_RANGE_TEST(multiple,
+                   "['-1-0','-11--9','5-5',"         \
+                   "'-16--13','14-15',"              \
+                   "'7','2-3','9-12','-7--3']",
+                   false, multvals, G_N_ELEMENTS(multvals));
+
+    INT_RANGE_TEST(errno,
+                   "'0x7fffffffffffffff-0x8000000000000000'",
+                   true, NULL, 0);
+    INT_RANGE_TEST(incomplete, "'5-'",
+                   true, NULL, 0);
+    INT_RANGE_TEST(trailing, "'5-6z'",
+                   true, NULL, 0);
+    INT_RANGE_TEST(empty, "\"6-5\"",
+                   true, NULL, 0);
+    int64_t negvals[] = { -10, -9, -8, -7 };
+    INT_RANGE_TEST(neg, "\"-10--7\"",
+                   false, negvals, G_N_ELEMENTS(negvals));
+    INT_RANGE_TEST(minval,
+                   "'-0x8000000000000000--0x8000000000000000'",
+                   false, (int64_t[]){ -0x8000000000000000 }, 1);
+    INT_RANGE_TEST(maxval,
+                   "'0x7fffffffffffffff-0x7fffffffffffffff'",
+                   false, (int64_t[]){ 0x7fffffffffffffff }, 1);
+
+    UINT_RANGE_TEST(errno,
+                    "'0xffffffffffffffff-0x10000000000000000'",
+                    true, NULL, 0);
+    UINT_RANGE_TEST(incomplete, "'5-'",
+                    true, NULL, 0);
+    UINT_RANGE_TEST(trailing, "'5-6z'",
+                    true, NULL, 0);
+    UINT_RANGE_TEST(empty, "'6-5'",
+                    true, NULL, 0);
+    UINT_RANGE_TEST(neg, "\"-10--7\"",
+                    true, NULL, 0);
+    UINT_RANGE_TEST(minval, "'0-0'",
+                    false, (uint64_t[]){ 0 }, 1);
+    UINT_RANGE_TEST(maxval,
+                    "'0xffffffffffffffff-0xffffffffffffffff'",
+                    false, (uint64_t[]){ 0xffffffffffffffff }, 1);
+
+    /* Test maximum range sizes. The macro value is open-coded here
+     * *intentionally*; the test case must use concrete values by design. If
+     * QIV_RANGE_MAX is changed, the following values need to be
+     * recalculated as well. The assert and this comment should help with it.
+     */
+    g_assert(QIV_RANGE_MAX == 65536);
+
+    /* The unsigned case is simple, a u64-u64 difference can always be
+     * represented as a u64.
+     */
+    UINT_RANGE_TEST(max,
+                    "'0-65535'",
+                    false, NULL, QIV_RANGE_MAX);
+    UINT_RANGE_TEST(2big,
+                    "'0-65536'",
+                    true, NULL, 0);
+
+    INT_RANGE_TEST(max_pos_a,
+                   "'0x7fffffffffff0000-0x7fffffffffffffff'",
+                   false, NULL, 100);
+    INT_RANGE_TEST(max_pos_b,
+                   "'0x7ffffffffffeffff-0x7ffffffffffffffe'",
+                   false, NULL, 100);
+    INT_RANGE_TEST(max_neg_a,
+                   "'-0x8000000000000000--0x7fffffffffff0001'",
+                   false, NULL, 100);
+    INT_RANGE_TEST(max_neg_b,
+                   "'-0x7fffffffffffffff--0x7fffffffffff0000'",
+                   false, NULL, 100);
+    INT_RANGE_TEST(2big_pos,
+                   "'0x7ffffffffffeffff-0x7fffffffffffffff'",
+                   true, NULL, 0);
+    INT_RANGE_TEST(2big_neg,
+                   "'-0x8000000000000000--0x7fffffffffff0000'",
+                   true, NULL, 0);
+    INT_RANGE_TEST(2big_neg_pos,
+                   "'-0x8000000000000000-0x7fffffffffffffff'",
+                   true, NULL, 0);
 
     g_test_run();
 

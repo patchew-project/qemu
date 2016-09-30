@@ -19,6 +19,12 @@
 
 typedef struct QObjectInputVisitor QObjectInputVisitor;
 
+/* Inclusive upper bound on the size of any flattened range. This is a safety
+ * (= anti-annoyance) measure; wrong ranges should not cause long startup
+ * delays nor exhaust virtual memory.
+ */
+#define QIV_RANGE_MAX 65536
+
 /**
  * Create a new input visitor that converts @obj to a QAPI object.
  *
@@ -71,6 +77,19 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  * The value given determines how many levels of structs are allowed to
  * be flattened in this way.
  *
+ * If @permit_int_ranges is true, then when visiting a list of integers,
+ * the integer value strings may encode ranges eg a single element
+ * containing "5-7" is treated as if there were three elements "5", "6",
+ * "7". This should only be used if compatibility is required with the
+ * OptsVisitor which would allow integer ranges. e.g. set this to true
+ * if you have compatibility requirements for
+ *
+ *   -arg val=5-8
+ *
+ * to be treated as equivalent to the preferred syntax:
+ *
+ *   -arg val.0=5,val.1=6,val.2=7,val.3=8
+ *
  * The visitor always operates in strict mode, requiring all dict keys
  * to be consumed during visitation. An error will be reported if this
  * does not happen.
@@ -80,7 +99,8 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict);
  */
 Visitor *qobject_input_visitor_new_autocast(QObject *obj,
                                             bool autocreate_list,
-                                            size_t autocreate_struct_levels);
+                                            size_t autocreate_struct_levels,
+                                            bool permit_int_ranges);
 
 
 /**
@@ -98,6 +118,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
 Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
                                         bool autocreate_list,
                                         size_t autocreate_struct_levels,
+                                        bool permit_int_ranges,
                                         Error **errp);
 
 #endif

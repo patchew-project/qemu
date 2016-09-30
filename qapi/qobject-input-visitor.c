@@ -31,6 +31,8 @@ typedef struct StackObject
 
     GHashTable *h;           /* If obj is dict: unvisited keys */
     const QListEntry *entry; /* If obj is list: unvisited tail */
+    uint64_t range_val;
+    uint64_t range_limit;
 
     QSLIST_ENTRY(StackObject) node;
 } StackObject;
@@ -60,6 +62,10 @@ struct QObjectInputVisitor
      * consider auto-creating a struct containing
      * remaining unvisited items */
     size_t autocreate_struct_levels;
+
+    /* Whether int lists can have single values representing
+     * ranges of values */
+    bool permit_int_ranges;
 };
 
 static QObjectInputVisitor *to_qiv(Visitor *v)
@@ -282,7 +288,7 @@ static GenericList *qobject_input_next_list(Visitor *v, GenericList *tail,
     QObjectInputVisitor *qiv = to_qiv(v);
     StackObject *so = QSLIST_FIRST(&qiv->stack);
 
-    if (!so->entry) {
+    if ((so->range_val == so->range_limit) && !so->entry) {
         return NULL;
     }
     tail->next = g_malloc0(size);
@@ -329,21 +335,87 @@ static void qobject_input_type_int64_autocast(Visitor *v, const char *name,
                                               int64_t *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
-    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
-                                                                true));
+    QString *qstr;
     int64_t ret;
+    const char *end = NULL;
+    StackObject *tos;
+    bool inlist = false;
 
+    /* Preferentially generate values from a range, before
+     * trying to consume another QList element */
+    tos = QSLIST_FIRST(&qiv->stack);
+    if (tos) {
+        if ((int64_t)tos->range_val < (int64_t)tos->range_limit) {
+            *obj = tos->range_val + 1;
+            tos->range_val++;
+            return;
+        } else {
+            inlist = tos->entry != NULL;
+        }
+    }
+
+    qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                       true));
     if (!qstr || !qstr->string) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "string");
         return;
     }
 
-    if (qemu_strtoll(qstr->string, NULL, 0, &ret) < 0) {
+    if (qemu_strtoll(qstr->string, &end, 0, &ret) < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
         return;
     }
     *obj = ret;
+
+    /*
+     * If we have string that represents an integer range (5-24),
+     * parse the end of the range and set things up so we'll process
+     * the rest of the range before consuming another element
+     * from the QList.
+     */
+    if (end && *end) {
+        if (!qiv->permit_int_ranges) {
+            error_setg(errp,
+                       "Integer ranges are not permitted here");
+            return;
+        }
+        if (!inlist) {
+            error_setg(errp,
+                       "Integer ranges are only permitted when "
+                       "visiting list parameters");
+            return;
+        }
+        if (*end != '-') {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+                       "a number range");
+            return;
+        }
+        end++;
+        if (qemu_strtoll(end, NULL, 0, &ret) < 0) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+            return;
+        }
+        if (*obj > ret) {
+            error_setg(errp,
+                       "Parameter '%s' range start %" PRIu64
+                       " must be less than (or equal to) %" PRIu64,
+                       name, *obj, ret);
+            return;
+        }
+
+        if ((*obj <= (INT64_MAX - QIV_RANGE_MAX)) &&
+            (ret >= (*obj + QIV_RANGE_MAX))) {
+            error_setg(errp,
+                       "Parameter '%s' range must be less than %d",
+                       name, QIV_RANGE_MAX);
+            return;
+        }
+        if (*obj != ret) {
+            tos->range_val = *obj;
+            tos->range_limit = ret;
+        }
+    }
 }
 
 static void qobject_input_type_uint64(Visitor *v, const char *name,
@@ -366,21 +438,85 @@ static void qobject_input_type_uint64_autocast(Visitor *v, const char *name,
                                                uint64_t *obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
-    QString *qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
-                                                                true));
+    QString *qstr;
     unsigned long long ret;
+    char *end = NULL;
+    StackObject *tos;
+    bool inlist = false;
 
+    /* Preferentially generate values from a range, before
+     * trying to consume another QList element */
+    tos = QSLIST_FIRST(&qiv->stack);
+    if (tos) {
+        if (tos->range_val < tos->range_limit) {
+            *obj = tos->range_val + 1;
+            tos->range_val++;
+            return;
+        } else {
+            inlist = tos->entry != NULL;
+        }
+    }
+
+    qstr = qobject_to_qstring(qobject_input_get_object(qiv, name,
+                                                       true));
     if (!qstr || !qstr->string) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "string");
         return;
     }
 
-    if (parse_uint_full(qstr->string, &ret, 0) < 0) {
+    if (parse_uint(qstr->string, &ret, &end, 0) < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
         return;
     }
     *obj = ret;
+
+    /*
+     * If we have string that represents an integer range (5-24),
+     * parse the end of the range and set things up so we'll process
+     * the rest of the range before consuming another element
+     * from the QList.
+     */
+    if (end && *end) {
+        if (!qiv->permit_int_ranges) {
+            error_setg(errp,
+                       "Integer ranges are not permitted here");
+            return;
+        }
+        if (!inlist) {
+            error_setg(errp,
+                       "Integer ranges are only permitted when "
+                       "visiting list parameters");
+            return;
+        }
+        if (*end != '-') {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+                       "a number range");
+            return;
+        }
+        end++;
+        if (parse_uint_full(end, &ret, 0) < 0) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+            return;
+        }
+        if (*obj > ret) {
+            error_setg(errp,
+                       "Parameter '%s' range start %" PRIu64
+                       " must be less than (or equal to) %llu",
+                       name, *obj, ret);
+            return;
+        }
+        if ((ret - *obj) > (QIV_RANGE_MAX - 1)) {
+            error_setg(errp,
+                       "Parameter '%s' range must be less than %d",
+                       name, QIV_RANGE_MAX);
+            return;
+        }
+        if (*obj != ret) {
+            tos->range_val = *obj;
+            tos->range_limit = ret;
+        }
+    }
 }
 
 static void qobject_input_type_bool(Visitor *v, const char *name, bool *obj,
@@ -576,7 +712,8 @@ Visitor *qobject_input_visitor_new(QObject *obj, bool strict)
 
 Visitor *qobject_input_visitor_new_autocast(QObject *obj,
                                             bool autocreate_list,
-                                            size_t autocreate_struct_levels)
+                                            size_t autocreate_struct_levels,
+                                            bool permit_int_ranges)
 {
     QObjectInputVisitor *v;
 
@@ -603,6 +740,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
     v->strict = true;
     v->autocreate_list = autocreate_list;
     v->autocreate_struct_levels = autocreate_struct_levels;
+    v->permit_int_ranges = permit_int_ranges;
 
     v->root = obj;
     qobject_incref(obj);
@@ -614,6 +752,7 @@ Visitor *qobject_input_visitor_new_autocast(QObject *obj,
 Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
                                         bool autocreate_list,
                                         size_t autocreate_struct_levels,
+                                        bool permit_int_ranges,
                                         Error **errp)
 {
     QDict *pdict;
@@ -632,7 +771,8 @@ Visitor *qobject_input_visitor_new_opts(const QemuOpts *opts,
 
     v = qobject_input_visitor_new_autocast(pobj,
                                            autocreate_list,
-                                           autocreate_struct_levels);
+                                           autocreate_struct_levels,
+                                           permit_int_ranges);
  cleanup:
     qobject_decref(pobj);
     QDECREF(pdict);
