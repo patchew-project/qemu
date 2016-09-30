@@ -2056,6 +2056,12 @@ static void pxa2xx_reset(void *opaque, int line, int level)
     }
 }
 
+static void pxa_reset_cb(void *opaque)
+{
+    PXA2xxState *s = opaque;
+    cpu_reset(CPU(s->cpu));
+}
+
 /* Initialise a PXA270 integrated chip (ARM based core).  */
 PXA2xxState *pxa270_init(MemoryRegion *address_space,
                          unsigned int sdram_size, const char *revision)
@@ -2192,6 +2198,8 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
     qdev_connect_gpio_out(s->gpio, 1, s->reset);
+
+    qemu_register_reset(pxa_reset_cb, s);
     return s;
 }
 
