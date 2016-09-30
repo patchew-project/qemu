@@ -404,11 +404,6 @@ static void virtio_balloon_save_device(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_be32(f, s->actual);
 }
 
-static int virtio_balloon_load(QEMUFile *f, void *opaque, size_t size)
-{
-    return virtio_load(VIRTIO_DEVICE(opaque), f, 1);
-}
-
 static int virtio_balloon_load_device(VirtIODevice *vdev, QEMUFile *f,
                                       int version_id)
 {
@@ -494,7 +489,7 @@ static void virtio_balloon_instance_init(Object *obj)
                         NULL, s, NULL);
 }
 
-VMSTATE_VIRTIO_DEVICE(balloon, 1, virtio_balloon_load, virtio_vmstate_save);
+VIRTIO_DEF_DEVICE_VMSD(balloon, 1)
 
 static Property virtio_balloon_properties[] = {
     DEFINE_PROP_BIT("deflate-on-oom", VirtIOBalloon, host_features,
