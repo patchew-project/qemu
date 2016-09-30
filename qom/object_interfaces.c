@@ -4,7 +4,8 @@
 #include "qemu/module.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-output-visitor.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qemu/option.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
 {
@@ -63,12 +64,16 @@ Object *user_creatable_add(const QDict *qdict,
     if (local_err) {
         goto out_visit;
     }
-    visit_check_struct(v, &local_err);
+
+    obj = user_creatable_add_type(type, id, pdict, v, &local_err);
     if (local_err) {
         goto out_visit;
     }
 
-    obj = user_creatable_add_type(type, id, pdict, v, &local_err);
+    visit_check_struct(v, &local_err);
+    if (local_err) {
+        goto out_visit;
+    }
 
 out_visit:
     visit_end_struct(v, NULL);
@@ -114,7 +119,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
+    visit_start_struct(v, "props", NULL, 0, &local_err);
     if (local_err) {
         goto out;
     }
@@ -158,14 +163,32 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
 {
     Visitor *v;
     QDict *pdict;
+    QObject *pobj;
     Object *obj = NULL;
 
-    v = opts_visitor_new(opts);
-    pdict = qemu_opts_to_qdict(opts, NULL, QEMU_OPTS_REPEAT_POLICY_LAST,
+    pdict = qemu_opts_to_qdict(opts, NULL,
+                               QEMU_OPTS_REPEAT_POLICY_ALL,
                                &error_abort);
 
-    obj = user_creatable_add(pdict, v, errp);
+    pobj = qdict_crumple(pdict, true, errp);
+    if (!pobj) {
+        goto cleanup;
+    }
+    /*
+     * We need autocreate_list=true + permit_int_ranges=true
+     * in order to maintain compat with OptsVisitor creation
+     * of the 'numa' object which had an int16List property.
+     *
+     * We need autocreate_structs=1, because at the CLI level
+     * we have the object type + properties in the same flat
+     * struct, even though at the QMP level they are nested.
+     */
+    v = qobject_input_visitor_new_autocast(pobj, true, 1, true);
+
+    obj = user_creatable_add(qobject_to_qdict(pobj), v, errp);
     visit_free(v);
+    qobject_decref(pobj);
+ cleanup:
     QDECREF(pdict);
     return obj;
 }

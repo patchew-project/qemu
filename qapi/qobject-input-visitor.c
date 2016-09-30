@@ -204,7 +204,7 @@ static void qobject_input_start_struct(Visitor *v, const char *name, void **obj,
         *obj = NULL;
     }
 
-    if (!qobj && (qiv->struct_level < qiv->autocreate_struct_levels)) {
+    if (!qobj && (qiv->struct_level <= qiv->autocreate_struct_levels)) {
         /* Create a new dict that contains all the currently
          * unvisited items */
         if (tos) {
