@@ -409,6 +409,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     int64_t active_length, hidden_length, disk_length;
     AioContext *aio_context;
     Error *local_err = NULL;
+    BlockJob *job;
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -496,16 +497,18 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
-        backup_start("replication-backup", s->secondary_disk->bs,
-                     s->hidden_disk->bs, 0, MIRROR_SYNC_MODE_NONE, NULL, false,
-                     BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
-                     backup_job_completed, s, NULL, &local_err);
+        job = backup_job_create("replication-backup", s->secondary_disk->bs,
+                                s->hidden_disk->bs, 0, MIRROR_SYNC_MODE_NONE,
+                                NULL, false, BLOCKDEV_ON_ERROR_REPORT,
+                                BLOCKDEV_ON_ERROR_REPORT, backup_job_completed,
+                                s, NULL, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             backup_job_cleanup(s);
             aio_context_release(aio_context);
             return;
         }
+        block_job_start(job);
         break;
     default:
         aio_context_release(aio_context);
