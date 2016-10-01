@@ -144,7 +144,7 @@ static void amdvi_assign_andq(AMDVIState *s, hwaddr addr, uint64_t val)
 static void amdvi_generate_msi_interrupt(AMDVIState *s)
 {
     MSIMessage msg;
-    MemTxAttrs attrs;
+    MemTxAttrs attrs = {0, 0};
 
     attrs.requester_id = pci_requester_id(&s->pci.dev);
 
@@ -185,7 +185,7 @@ static void amdvi_setevent_bits(uint64_t *buffer, uint64_t value, int start,
                                 int length)
 {
     int index = start / 64, bitpos = start % 64;
-    uint64_t mask = ((1 << length) - 1) << bitpos;
+    uint64_t mask = ((1UL << length) - 1) << bitpos;
     buffer[index] &= ~mask;
     buffer[index] |= (value << bitpos) & mask;
 }
@@ -334,7 +334,7 @@ static void amdvi_update_iotlb(AMDVIState *s, uint16_t devid,
                                uint16_t domid)
 {
     AMDVIIOTLBEntry *entry = g_malloc(sizeof(*entry));
-    uint64_t *key = g_malloc(sizeof(key));
+    uint64_t *key = g_malloc(sizeof(*key));
     uint64_t gfn = gpa >> AMDVI_PAGE_SHIFT_4K;
 
     /* don't cache erroneous translations */
@@ -1135,6 +1135,7 @@ static void amdvi_reset(DeviceState *dev)
 
 static void amdvi_realize(DeviceState *dev, Error **err)
 {
+    int ret = 0;
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
     PCIBus *bus = PC_MACHINE(qdev_get_machine())->bus;
@@ -1147,8 +1148,11 @@ static void amdvi_realize(DeviceState *dev, Error **err)
     object_property_set_bool(OBJECT(&s->pci), true, "realized", err);
     s->capab_offset = pci_add_capability(&s->pci.dev, AMDVI_CAPAB_ID_SEC, 0,
                                          AMDVI_CAPAB_SIZE);
-    pci_add_capability(&s->pci.dev, PCI_CAP_ID_MSI, 0, AMDVI_CAPAB_REG_SIZE);
+    assert(s->capab_offset > 0);
+    ret = pci_add_capability(&s->pci.dev, PCI_CAP_ID_MSI, 0, AMDVI_CAPAB_REG_SIZE);
+    assert(ret > 0);
     pci_add_capability(&s->pci.dev, PCI_CAP_ID_HT, 0, AMDVI_CAPAB_REG_SIZE);
+    assert(ret > 0);
 
     /* set up MMIO */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_mem_ops, s, "amdvi-mmio",
