@@ -136,6 +136,8 @@ typedef struct BDRVRawState {
     int type;
     int open_flags;
     size_t buf_align;
+    uint64_t offset;
+    uint64_t assumed_size;
 
 #ifdef CONFIG_XFS
     bool is_xfs:1;
@@ -154,6 +156,7 @@ typedef struct BDRVRawReopenState {
 
 static int fd_open(BlockDriverState *bs);
 static int64_t raw_getlength(BlockDriverState *bs);
+static int64_t raw_getlength_real(BlockDriverState *bs);
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
@@ -399,6 +402,16 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "File name of the image",
         },
+        {
+            .name = "offset",
+            .type = QEMU_OPT_SIZE,
+            .help = "Offset into the file"
+        },
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
         { /* end of list */ }
     },
 };
@@ -412,11 +425,23 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     const char *filename = NULL;
     int fd, ret;
     struct stat st;
+    int64_t real_size;
 
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    s->offset = qemu_opt_get_size(opts, "offset", 0);
+    s->assumed_size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+
+    if (((bs->drv != &bdrv_file) || !bs->read_only) &&
+        ((s->offset > 0) || (s->assumed_size > 0))) {
+        error_setg(errp, "offset and size options are allowed only for "
+                         "files in read-only mode");
         ret = -EINVAL;
         goto fail;
     }
@@ -442,6 +467,23 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
     s->fd = fd;
+
+    /* Check size and offset */
+    real_size = raw_getlength_real(bs);
+    if (real_size < (s->offset + s->assumed_size)) {
+        if (s->assumed_size == 0) {
+            error_setg(errp, "The offset has to be smaller than actual size "
+                             "of the containing file (%ld) ",
+                             real_size);
+        } else {
+            error_setg(errp, "The sum of offset (%lu) and size (%lu) has to "
+                             "be smaller than actual size of the containing "
+                             "file (%ld) ",
+                             s->offset, s->assumed_size, real_size);
+        }
+        ret = -EINVAL;
+        goto fail;
+    }
 
 #ifdef CONFIG_LINUX_AIO
     if (!raw_use_aio(bdrv_flags) && (bdrv_flags & BDRV_O_NATIVE_AIO)) {
@@ -1271,6 +1313,19 @@ static int coroutine_fn raw_co_preadv(BlockDriverState *bs, uint64_t offset,
                                       uint64_t bytes, QEMUIOVector *qiov,
                                       int flags)
 {
+    BDRVRawState *s = bs->opaque;
+    if (s->assumed_size > 0) {
+        if (offset > s->assumed_size) {
+            /* Attempt to read beyond EOF */
+            return 0;
+        } else if ((offset + bytes) > s->assumed_size) {
+            /* Trying to read more than is available */
+            bytes = s->assumed_size - offset;
+        }
+    }
+
+    offset += s->offset;
+
     return raw_co_prw(bs, offset, bytes, qiov, QEMU_AIO_READ);
 }
 
@@ -1348,7 +1403,7 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
 }
 
 #ifdef __OpenBSD__
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_real(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -1367,7 +1422,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__NetBSD__)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_real(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -1392,7 +1447,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__sun__)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_real(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     struct dk_minfo minfo;
@@ -1423,7 +1478,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
     return size;
 }
 #elif defined(CONFIG_BSD)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_real(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -1497,7 +1552,7 @@ again:
     return size;
 }
 #else
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_real(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1516,6 +1571,28 @@ static int64_t raw_getlength(BlockDriverState *bs)
 }
 #endif
 
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (s->assumed_size > 0) {
+        return (int64_t)s->assumed_size;
+    }
+
+    int64_t size = raw_getlength_real(bs);
+    if (s->offset > 0) {
+        if (s->offset > size) {
+            /* The size has changed! We didn't expect that. */
+            return -EIO;
+        }
+        size -= s->offset;
+    }
+
+    return size;
+}
+
+
+
 static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
 {
     struct stat st;
@@ -1524,7 +1601,15 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
     if (fstat(s->fd, &st) < 0) {
         return -errno;
     }
-    return (int64_t)st.st_blocks * 512;
+    uint64_t size = st.st_blocks * 512;
+    /* If the file is sparse we have no idea which part of the file is
+     * allocated and which is not. So we just make sure the returned value is
+     * not greater than what we're working with.
+     */
+    if (s->assumed_size > 0 && s->assumed_size < size) {
+        size = s->assumed_size;
+    }
+    return (int64_t)size;
 }
 
 static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
