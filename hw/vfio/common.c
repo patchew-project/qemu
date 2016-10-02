@@ -34,6 +34,7 @@
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 struct vfio_group_head vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -1115,7 +1116,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
+VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 {
     VFIOGroup *group;
     char path[32];
@@ -1127,8 +1128,8 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
             if (group->container->space->as == as) {
                 return group;
             } else {
-                error_report("vfio: group %d used in multiple address spaces",
-                             group->groupid);
+                error_setg(errp, "group %d used in multiple address spaces",
+                           group->groupid);
                 return NULL;
             }
         }
@@ -1139,19 +1140,20 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
     group->fd = qemu_open(path, O_RDWR);
     if (group->fd < 0) {
-        error_report("vfio: error opening %s: %m", path);
+        error_setg_errno(errp, errno, "failed to open %s", path);
         goto free_group_exit;
     }
 
     if (ioctl(group->fd, VFIO_GROUP_GET_STATUS, &status)) {
-        error_report("vfio: error getting group status: %m");
+        error_setg_errno(errp, errno, "failed to get group %d status", groupid);
         goto close_fd_exit;
     }
 
     if (!(status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
-        error_report("vfio: error, group %d is not viable, please ensure "
-                     "all devices within the iommu_group are bound to their "
-                     "vfio bus driver.", groupid);
+        error_setg(errp, "group %d is not viable", groupid);
+        error_append_hint(errp,
+                          "Please ensure all devices within the iommu_group "
+                          "are bound to their vfio bus driver.\n");
         goto close_fd_exit;
     }
 
@@ -1159,7 +1161,7 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as)
     QLIST_INIT(&group->device_list);
 
     if (vfio_connect_container(group, as)) {
-        error_report("vfio: failed to setup container for group %d", groupid);
+        error_setg(errp, "failed to setup container for group %d", groupid);
         goto close_fd_exit;
     }
 
