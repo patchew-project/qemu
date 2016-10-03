@@ -24,6 +24,7 @@
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/pnv_psi.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -57,6 +58,7 @@ typedef struct PnvChip {
 
     PnvLpcController lpc;
     XICSNative   xics;
+    PnvPsiController psi;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -145,5 +147,9 @@ typedef struct PnvMachineState {
  */
 #define PNV_XICS_BASE         0x0003ffff80000000ull
 #define PNV_XICS_SIZE         0x0000000000100000ull
+
+#define PNV_PSIHB_BAR         0x0003fffe80000000ull
+#define PNV_PSIHB_BAR_SIZE    0x0000000000100000ull
+
 
 #endif /* _PPC_PNV_H */

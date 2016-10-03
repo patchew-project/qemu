@@ -318,15 +318,24 @@ static void ppc_powernv_reset(void)
  * have a CPLD that will collect the SerIRQ and shoot them as a
  * single level interrupt to the P8 chip. So let's setup a hook
  * for doing just that.
- *
- * Note: The actual interrupt input isn't emulated yet, this will
- * come with the PSI bridge model.
  */
 static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 {
-    /* We don't yet emulate the PSI bridge which provides the external
-     * interrupt, so just drop interrupts on the floor
-     */
+    static uint32_t irqstate;
+    uint32_t old_state = irqstate;
+    PnvPsiController *psi = opaque;
+
+    if (n >= ISA_NUM_IRQS) {
+        return;
+    }
+    if (level) {
+        irqstate |= 1u << n;
+    } else {
+        irqstate &= ~(1u << n);
+    }
+    if (irqstate != old_state) {
+        pnv_psi_irq_set(psi, PSIHB_IRQ_EXTERNAL, irqstate != 0);
+    }
 }
 
 static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
@@ -355,8 +364,8 @@ static ISABus *pnv_isa_create(PnvChip *chip)
     if (pcc->chip_type == PNV_CHIP_POWER8NVL) {
         irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler, lpc, ISA_NUM_IRQS);
     } else {
-        irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler_cpld, NULL,
-                                  ISA_NUM_IRQS);
+        irqs = qemu_allocate_irqs(pnv_lpc_isa_irq_handler_cpld, &chip->psi,
+                                 ISA_NUM_IRQS);
     }
 
     isa_bus_irqs(isa_bus, irqs);
@@ -639,6 +648,9 @@ static void pnv_chip_init(Object *obj)
 
     object_initialize(&chip->xics, sizeof(chip->xics), TYPE_XICS_NATIVE);
     object_property_add_child(obj, "xics", OBJECT(&chip->xics), NULL);
+
+    object_initialize(&chip->psi, sizeof(chip->psi), TYPE_PNV_PSI);
+    object_property_add_child(obj, "psi", OBJECT(&chip->psi), NULL);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -712,6 +724,16 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                          &PNV_CORE(pnv_core)->xscom_regs);
     }
     g_free(typename);
+
+
+    /* Create PSI */
+    object_property_set_bool(OBJECT(&chip->psi), true, "realized",
+                             &error_fatal);
+    memory_region_add_subregion(&chip->xscom, PNV_XSCOM_PSI_BASE << 3,
+                                &chip->psi.xscom_regs);
+
+    /* link in the PSI ICS */
+    xics_insert_ics(XICS_COMMON(&chip->xics), &chip->psi.ics);
 
     /* Create LPC controller */
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
