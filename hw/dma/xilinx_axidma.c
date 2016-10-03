@@ -256,13 +256,14 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
                                  StreamSlave *tx_control_dev)
 {
     uint32_t prev_d;
-    unsigned char txbuf[16 * 1024];
+    unsigned char *txbuf;
     unsigned int txlen;
 
     if (!stream_running(s) || stream_idle(s)) {
         return;
     }
 
+    txbuf = g_malloc(16 * 1024);
     while (1) {
         stream_desc_load(s, s->regs[R_CURDESC]);
 
@@ -304,6 +305,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSlave *tx_data_dev,
             break;
         }
     }
+    g_free(txbuf);
 }
 
 static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
