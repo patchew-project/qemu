@@ -22,6 +22,7 @@
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/ppc/pnv_xscom.h"
+#include "hw/ppc/pnv_lpc.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -52,6 +53,8 @@ typedef struct PnvChip {
     uint32_t  nr_cores;
     uint64_t  cores_mask;
     void      *cores;
+
+    PnvLpcController lpc;
 } PnvChip;
 
 typedef struct PnvChipClass {
