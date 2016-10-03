@@ -208,5 +208,6 @@ ICSState *xics_find_source(XICSState *icp, int irq);
 
 void xics_hmp_info_pic(Monitor *mon, const QDict *qdict);
 ICPState *xics_find_icp(XICSState *xics, int cpu_index);
+void xics_insert_ics(XICSState *xics, ICSState *ics);
 
 #endif /* XICS_H */
