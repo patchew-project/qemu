@@ -186,6 +186,12 @@ enum VMStateFlags {
      * to determine the number of entries in the array. Only valid in
      * combination with one of VMS_VARRAY*. */
     VMS_MULTIPLY_ELEMENTS = 0x4000,
+    /* For fields which need customized handling, such as QTAILQ in queue.h.
+     * When this flag is set in VMStateField, info->get/put will
+     * be used in vmstate_load/save_state instead of recursive call.
+     * User should implement set info to handle the concerned data structure.
+     */
+    VMS_LINKED            = 0x8000,
 };
 
 struct VMStateField {
@@ -246,6 +252,7 @@ extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
 extern const VMStateInfo vmstate_info_unused_buffer;
 extern const VMStateInfo vmstate_info_bitmap;
+extern const VMStateInfo vmstate_info_qtailq;
 
 #define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
@@ -655,6 +662,25 @@ extern const VMStateInfo vmstate_info_bitmap;
     .info         = &vmstate_info_bitmap,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
     .offset       = offsetof(_state, _field),                        \
+}
+
+/* For QTAILQ that need customized handling
+ * _type: type of QTAILQ element
+ * _next: name of QTAILQ entry field in QTAILQ element
+ * _vmsd: VMSD for QTAILQ element
+ * size: size of QTAILQ element
+ * start: offset of QTAILQ entry in QTAILQ element
+ */
+#define VMSTATE_QTAILQ_V(_field, _state, _version, _vmsd, _type, _next)  \
+{                                                                        \
+    .name         = (stringify(_field)),                                 \
+    .version_id   = (_version),                                          \
+    .vmsd         = &(_vmsd),                                            \
+    .size         = sizeof(_type),                                       \
+    .info         = &vmstate_info_qtailq,                                \
+    .flags        = VMS_LINKED,                                          \
+    .offset       = offsetof(_state, _field),                            \
+    .start        = offsetof(_type, _next),                              \
 }
 
 /* _f : field name
