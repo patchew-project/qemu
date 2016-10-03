@@ -2450,7 +2450,8 @@ static void vmxnet3_put_tx_stats_to_file(QEMUFile *f,
     qemu_put_be64(f, tx_stat->pktsTxDiscard);
 }
 
-static int vmxnet3_get_txq_descr(QEMUFile *f, void *pv, size_t size)
+static int vmxnet3_get_txq_descr(QEMUFile *f, void *pv, size_t size,
+    VMStateField *field)
 {
     Vmxnet3TxqDescr *r = pv;
 
@@ -2464,7 +2465,8 @@ static int vmxnet3_get_txq_descr(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void vmxnet3_put_txq_descr(QEMUFile *f, void *pv, size_t size)
+static void vmxnet3_put_txq_descr(QEMUFile *f, void *pv, size_t size,
+    VMStateField *field, QJSON *vmdesc)
 {
     Vmxnet3TxqDescr *r = pv;
 
@@ -2511,7 +2513,8 @@ static void vmxnet3_put_rx_stats_to_file(QEMUFile *f,
     qemu_put_be64(f, rx_stat->pktsRxError);
 }
 
-static int vmxnet3_get_rxq_descr(QEMUFile *f, void *pv, size_t size)
+static int vmxnet3_get_rxq_descr(QEMUFile *f, void *pv, size_t size,
+    VMStateField *field)
 {
     Vmxnet3RxqDescr *r = pv;
     int i;
@@ -2529,7 +2532,8 @@ static int vmxnet3_get_rxq_descr(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void vmxnet3_put_rxq_descr(QEMUFile *f, void *pv, size_t size)
+static void vmxnet3_put_rxq_descr(QEMUFile *f, void *pv, size_t size,
+    VMStateField *field, QJSON *vmdesc)
 {
     Vmxnet3RxqDescr *r = pv;
     int i;
@@ -2574,7 +2578,8 @@ static const VMStateInfo rxq_descr_info = {
     .put = vmxnet3_put_rxq_descr
 };
 
-static int vmxnet3_get_int_state(QEMUFile *f, void *pv, size_t size)
+static int vmxnet3_get_int_state(QEMUFile *f, void *pv, size_t size,
+    VMStateField *field)
 {
     Vmxnet3IntState *r = pv;
 
@@ -2585,7 +2590,8 @@ static int vmxnet3_get_int_state(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void vmxnet3_put_int_state(QEMUFile *f, void *pv, size_t size)
+static void vmxnet3_put_int_state(QEMUFile *f, void *pv, size_t size,
+    VMStateField *field, QJSON *vmdesc)
 {
     Vmxnet3IntState *r = pv;
 

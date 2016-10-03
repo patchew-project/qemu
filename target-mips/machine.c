@@ -20,7 +20,7 @@ static int cpu_post_load(void *opaque, int version_id)
 
 /* FPU state */
 
-static int get_fpr(QEMUFile *f, void *pv, size_t size)
+static int get_fpr(QEMUFile *f, void *pv, size_t size, VMStateField *field)
 {
     int i;
     fpr_t *v = pv;
@@ -31,7 +31,8 @@ static int get_fpr(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_fpr(QEMUFile *f, void *pv, size_t size)
+static void put_fpr(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                    QJSON *vmdesc)
 {
     int i;
     fpr_t *v = pv;
@@ -125,7 +126,7 @@ const VMStateDescription vmstate_mvp = {
 
 /* TLB state */
 
-static int get_tlb(QEMUFile *f, void *pv, size_t size)
+static int get_tlb(QEMUFile *f, void *pv, size_t size, VMStateField *field)
 {
     r4k_tlb_t *v = pv;
     uint16_t flags;
@@ -152,7 +153,8 @@ static int get_tlb(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-static void put_tlb(QEMUFile *f, void *pv, size_t size)
+static void put_tlb(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                    QJSON *vmdesc)
 {
     r4k_tlb_t *v = pv;
 

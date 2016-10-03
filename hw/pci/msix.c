@@ -587,12 +587,14 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
     dev->msix_vector_poll_notifier = NULL;
 }
 
-static void put_msix_state(QEMUFile *f, void *pv, size_t size)
+static void put_msix_state(QEMUFile *f, void *pv, size_t size,
+                           VMStateField *field, QJSON *vmdesc)
 {
     msix_save(pv, f);
 }
 
-static int get_msix_state(QEMUFile *f, void *pv, size_t size)
+static int get_msix_state(QEMUFile *f, void *pv, size_t size,
+                          VMStateField *field)
 {
     msix_load(pv, f);
     return 0;

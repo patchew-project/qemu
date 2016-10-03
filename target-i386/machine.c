@@ -139,7 +139,8 @@ static const VMStateDescription vmstate_mtrr_var = {
 #define VMSTATE_MTRR_VARS(_field, _state, _n, _v)                    \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_mtrr_var, MTRRVar)
 
-static void put_fpreg_error(QEMUFile *f, void *opaque, size_t size)
+static void put_fpreg_error(QEMUFile *f, void *opaque, size_t size,
+                            VMStateField *field, QJSON *vmdesc)
 {
     fprintf(stderr, "call put_fpreg() with invalid arguments\n");
     exit(0);
@@ -167,7 +168,8 @@ static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
     p->exp = e;
 }
 
-static int get_fpreg(QEMUFile *f, void *opaque, size_t size)
+static int get_fpreg(QEMUFile *f, void *opaque, size_t size,
+                     VMStateField *field)
 {
     FPReg *fp_reg = opaque;
     uint64_t mant;
@@ -179,7 +181,8 @@ static int get_fpreg(QEMUFile *f, void *opaque, size_t size)
     return 0;
 }
 
-static void put_fpreg(QEMUFile *f, void *opaque, size_t size)
+static void put_fpreg(QEMUFile *f, void *opaque, size_t size,
+                      VMStateField *field, QJSON *vmdesc)
 {
     FPReg *fp_reg = opaque;
     uint64_t mant;
@@ -197,7 +200,8 @@ static const VMStateInfo vmstate_fpreg = {
     .put  = put_fpreg,
 };
 
-static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size)
+static int get_fpreg_1_mmx(QEMUFile *f, void *opaque, size_t size,
+                           VMStateField *field)
 {
     union x86_longdouble *p = opaque;
     uint64_t mant;
@@ -214,7 +218,8 @@ static const VMStateInfo vmstate_fpreg_1_mmx = {
     .put  = put_fpreg_error,
 };
 
-static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size)
+static int get_fpreg_1_no_mmx(QEMUFile *f, void *opaque, size_t size,
+                              VMStateField *field)
 {
     union x86_longdouble *p = opaque;
     uint64_t mant;
@@ -276,14 +281,16 @@ static bool less_than_7(void *opaque, int version_id)
     return version_id < 7;
 }
 
-static int get_uint64_as_uint32(QEMUFile *f, void *pv, size_t size)
+static int get_uint64_as_uint32(QEMUFile *f, void *pv, size_t size,
+                                VMStateField *field)
 {
     uint64_t *v = pv;
     *v = qemu_get_be32(f);
     return 0;
 }
 
-static void put_uint64_as_uint32(QEMUFile *f, void *pv, size_t size)
+static void put_uint64_as_uint32(QEMUFile *f, void *pv, size_t size,
+                                 VMStateField *field, QJSON *vmdesc)
 {
     uint64_t *v = pv;
     qemu_put_be32(f, *v);

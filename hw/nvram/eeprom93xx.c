@@ -94,14 +94,16 @@ struct _eeprom_t {
    This is a Big hack, but it is how the old state did it.
  */
 
-static int get_uint16_from_uint8(QEMUFile *f, void *pv, size_t size)
+static int get_uint16_from_uint8(QEMUFile *f, void *pv, size_t size,
+                                 VMStateField *field)
 {
     uint16_t *v = pv;
     *v = qemu_get_ubyte(f);
     return 0;
 }
 
-static void put_unused(QEMUFile *f, void *pv, size_t size)
+static void put_unused(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                       QJSON *vmdesc)
 {
     fprintf(stderr, "uint16_from_uint8 is used only for backwards compatibility.\n");
     fprintf(stderr, "Never should be used to write a new state.\n");

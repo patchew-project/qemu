@@ -1467,7 +1467,8 @@ static const VMStateDescription vmstate_virtio_ringsize = {
     }
 };
 
-static int get_extra_state(QEMUFile *f, void *pv, size_t size)
+static int get_extra_state(QEMUFile *f, void *pv, size_t size,
+                           VMStateField *field)
 {
     VirtIODevice *vdev = pv;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -1480,7 +1481,8 @@ static int get_extra_state(QEMUFile *f, void *pv, size_t size)
     }
 }
 
-static void put_extra_state(QEMUFile *f, void *pv, size_t size)
+static void put_extra_state(QEMUFile *f, void *pv, size_t size,
+                            VMStateField *field, QJSON *vmdesc)
 {
     VirtIODevice *vdev = pv;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
