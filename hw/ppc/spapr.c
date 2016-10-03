@@ -1239,6 +1239,36 @@ static bool version_before_3(void *opaque, int version_id)
     return version_id < 3;
 }
 
+static bool spapr_ccs_list_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+    return !QTAILQ_EMPTY(&spapr->ccs_list);
+}
+
+static const VMStateDescription vmstate_spapr_ccs = {
+    .name = "spaprconfigureconnectorstate",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(drc_index, sPAPRConfigureConnectorState),
+        VMSTATE_INT32(fdt_offset, sPAPRConfigureConnectorState),
+        VMSTATE_INT32(fdt_depth, sPAPRConfigureConnectorState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_ccs_list = {
+    .name = "spaprccslist",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_ccs_list_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_QTAILQ_V(ccs_list, sPAPRMachineState, 1,
+                         vmstate_spapr_ccs, sPAPRConfigureConnectorState, next),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1254,6 +1284,10 @@ static const VMStateDescription vmstate_spapr = {
         VMSTATE_PPC_TIMEBASE_V(tb, sPAPRMachineState, 2),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_spapr_ccs_list,
+        NULL
+    }
 };
 
 static int htab_save_setup(QEMUFile *f, void *opaque)
