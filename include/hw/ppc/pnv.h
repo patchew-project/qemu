@@ -57,7 +57,7 @@ typedef struct PnvChip {
     uint64_t  cores_mask;
     void      *cores;
 
-    PnvLpcController lpc;
+    PnvLpcController *lpc;
     XICSNative   xics;
     PnvPsiController psi;
     PnvOCC           occ;
@@ -153,5 +153,12 @@ typedef struct PnvMachineState {
 #define PNV_PSIHB_BAR         0x0003fffe80000000ull
 #define PNV_PSIHB_BAR_SIZE    0x0000000000100000ull
 
+
+/*
+ * POWER9 MMIO regions
+ */
+#define PNV_POWER9_MMIO_BASE   0x006000000000000ull
+#define PNV_POWER9_LPCM_BASE   (PNV_POWER9_MMIO_BASE + 0x30000000000ull)
+#define PNV_POWER9_LPCM_SIZE   0x100000000ull
 
 #endif /* _PPC_PNV_H */

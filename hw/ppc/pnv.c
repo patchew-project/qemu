@@ -237,6 +237,8 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
         xics_native_populate_icp(chip, fdt, 0, pnv_core->pir, smt);
     }
 
+    pnv_lpc_populate(chip, fdt, 0);
+
     /* Put all the memory in one node on chip 0 until we find a way to
      * specify different ranges for each chip
      */
@@ -355,7 +357,7 @@ static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
 
 static ISABus *pnv_isa_create(PnvChip *chip)
 {
-    PnvLpcController *lpc = &chip->lpc;
+    PnvLpcController *lpc = chip->lpc;
     ISABus *isa_bus;
     qemu_irq *irqs;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
@@ -653,9 +655,6 @@ static void pnv_chip_init(Object *obj)
 
     chip->xscom_base = pcc->xscom_base;
 
-    object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
-    object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
-
     object_initialize(&chip->xics, sizeof(chip->xics), TYPE_XICS_NATIVE);
     object_property_add_child(obj, "xics", OBJECT(&chip->xics), NULL);
 
@@ -667,11 +666,6 @@ static void pnv_chip_init(Object *obj)
     object_property_add_const_link(OBJECT(&chip->occ), "psi",
                                    OBJECT(&chip->psi), &error_abort);
 
-    /*
-     * The LPC controller needs PSI to generate interrupts
-     */
-    object_property_add_const_link(OBJECT(&chip->lpc), "psi",
-                                   OBJECT(&chip->psi), &error_abort);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -757,10 +751,24 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     xics_insert_ics(XICS_COMMON(&chip->xics), &chip->psi.ics);
 
     /* Create LPC controller */
-    object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
+    typename = g_strdup_printf(TYPE_PNV_LPC "-%s", pcc->cpu_model);
+    chip->lpc = PNV_LPC(object_new(typename));
+    object_property_add_child(OBJECT(chip), "lpc", OBJECT(chip->lpc), NULL);
+
+    /* The LPC controller needs PSI to generate interrupts  */
+    object_property_add_const_link(OBJECT(chip->lpc), "psi",
+                                   OBJECT(&chip->psi), &error_abort);
+    object_property_set_bool(OBJECT(chip->lpc), true, "realized",
                              &error_fatal);
-    memory_region_add_subregion(&chip->xscom, PNV_XSCOM_LPC_BASE << 3,
-                                &chip->lpc.xscom_regs);
+
+    if (PNV_CHIP_GET_CLASS(chip)->chip_type != PNV_CHIP_POWER9) {
+        memory_region_add_subregion(&chip->xscom, PNV_XSCOM_LPC_BASE << 3,
+                                    &chip->lpc->xscom_regs);
+    } else {
+        memory_region_add_subregion(get_system_memory(), PNV_POWER9_LPCM_BASE,
+                                    &chip->lpc->xscom_regs);
+    }
+
 
     /* Create the simplified OCC model */
     object_property_set_bool(OBJECT(&chip->occ), true, "realized",

@@ -28,6 +28,7 @@
 #include "hw/ppc/fdt.h"
 
 #include <libfdt.h>
+#include "exec/address-spaces.h"
 
 enum {
     ECCB_CTL    = 0,
@@ -91,6 +92,88 @@ enum {
 #define LPC_HC_REGS_OPB_SIZE    0x00001000
 
 
+int pnv_lpc_populate(PnvChip *chip, void *fdt, int offset)
+{
+    PnvLpcClass *plc = PNV_LPC_GET_CLASS(chip->lpc);
+
+    if (plc->populate) {
+        return plc->populate(chip, fdt, offset);
+    }
+    return 0;
+}
+
+static int pnv_lpc_power9_populate(PnvChip *chip, void *fdt, int root_offset)
+{
+    const char compat[] = "ibm,power9-lpcm-opb\0simple-bus";
+    const char lpc_compat[] = "ibm,power9-lpc\0ibm,lpc";
+    char *name;
+    int offset, lpcm_offset;
+    /* should depend on a MMIO base address of the chip */
+    uint64_t lpcm_addr = PNV_POWER9_LPCM_BASE;
+    /* TODO: build the ranges properly, array of :
+     *              { offset, addr hi, addr low, size }
+     */
+    uint32_t ranges[4] = { 0,
+                           cpu_to_be32(lpcm_addr >> 32),
+                           cpu_to_be32((uint32_t)lpcm_addr),
+                           cpu_to_be32(PNV_POWER9_LPCM_SIZE / 2),
+    };
+    uint32_t reg[2];
+
+    /*
+     * OPB bus
+     */
+    name = g_strdup_printf("lpcm-opb@%"PRIx64, lpcm_addr);
+    lpcm_offset = fdt_add_subnode(fdt, root_offset, name);
+    _FDT(lpcm_offset);
+    g_free(name);
+    _FDT((fdt_setprop_cell(fdt, lpcm_offset, "#address-cells", 1)));
+    _FDT((fdt_setprop_cell(fdt, lpcm_offset, "#size-cells", 1)));
+    _FDT((fdt_setprop(fdt, lpcm_offset, "compatible", compat, sizeof(compat))));
+    _FDT((fdt_setprop_cell(fdt, lpcm_offset, "ibm,chip-id", chip->chip_id)));
+   _FDT((fdt_setprop(fdt, lpcm_offset, "ranges", ranges, sizeof(ranges))));
+
+    /*
+     * OPB Master registers
+     */
+    name = g_strdup_printf("opb-master@%x", LPC_OPB_REGS_OPB_ADDR);
+    offset = fdt_add_subnode(fdt, lpcm_offset, name);
+    _FDT(offset);
+    g_free(name);
+
+    reg[0] = cpu_to_be32(LPC_OPB_REGS_OPB_ADDR);
+    reg[1] = cpu_to_be32(LPC_OPB_REGS_OPB_SIZE);
+    _FDT((fdt_setprop(fdt, offset, "reg", reg, sizeof(reg))));
+    _FDT((fdt_setprop_string(fdt, offset, "compatible",
+                             "ibm,power9-lpcm-opb-master")));
+
+    /*
+     * LPC Host Controller registers
+     */
+    name = g_strdup_printf("lpc-controller@%x", LPC_HC_REGS_OPB_ADDR);
+    offset = fdt_add_subnode(fdt, lpcm_offset, name);
+    _FDT(offset);
+    g_free(name);
+
+    reg[0] = cpu_to_be32(LPC_HC_REGS_OPB_ADDR);
+    reg[1] = cpu_to_be32(LPC_HC_REGS_OPB_SIZE);
+    _FDT((fdt_setprop(fdt, offset, "reg", reg, sizeof(reg))));
+    _FDT((fdt_setprop_string(fdt, offset, "compatible",
+                             "ibm,power9-lpc-controller")));
+
+    name = g_strdup_printf("lpc@%x", LPC_FW_OPB_ADDR);
+    offset = fdt_add_subnode(fdt, lpcm_offset, name);
+    _FDT(offset);
+    g_free(name);
+    _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 2)));
+    _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
+    _FDT((fdt_setprop(fdt, offset, "primary", NULL, 0)));
+    _FDT((fdt_setprop(fdt, offset, "compatible", lpc_compat,
+                      sizeof(lpc_compat))));
+
+    return 0;
+}
+
 /*
  * TODO: the "primary" cell should only be added on chip 0. This is
  * how skiboot chooses the default LPC controller on multichip
@@ -99,7 +182,8 @@ enum {
  * It would be easly done if we can change the populate() interface to
  * replace the PnvXScomInterface parameter by a PnvChip one
  */
-static int pnv_lpc_populate(PnvXScomInterface *dev, void *fdt, int xscom_offset)
+static int pnv_lpc_power8_populate(PnvXScomInterface *dev, void *fdt,
+                                   int xscom_offset)
 {
     const char compat[] = "ibm,power8-lpc\0ibm,lpc";
     char *name;
@@ -246,6 +330,74 @@ static const MemoryRegionOps pnv_lpc_xscom_ops = {
     .valid.max_access_size = 8,
     .impl.min_access_size = 8,
     .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static uint64_t pnv_lpc_mmio_read(void *opaque, hwaddr addr, unsigned size)
+{
+    PnvLpcController *lpc = PNV_LPC(opaque);
+    uint64_t val = 0;
+    uint32_t opb_addr = addr & ECCB_CTL_ADDR_MASK;
+    MemTxResult result;
+
+    switch (size) {
+    case 4:
+        val = address_space_ldl(&lpc->opb_as, opb_addr, MEMTXATTRS_UNSPECIFIED,
+                                &result);
+        break;
+    case 1:
+        val = address_space_ldub(&lpc->opb_as, opb_addr, MEMTXATTRS_UNSPECIFIED,
+                                 &result);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "OPB read failed at @0x%"
+                      HWADDR_PRIx " invalid size %d\n", addr, size);
+        return 0;
+    }
+
+    if (result != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR, "OPB read failed at @0x%"
+                      HWADDR_PRIx "\n", addr);
+    }
+
+    return val;
+}
+
+static void pnv_lpc_mmio_write(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
+{
+    PnvLpcController *lpc = PNV_LPC(opaque);
+    uint32_t opb_addr = addr & ECCB_CTL_ADDR_MASK;
+    MemTxResult result;
+
+    switch (size) {
+    case 4:
+        address_space_stl(&lpc->opb_as, opb_addr, val, MEMTXATTRS_UNSPECIFIED,
+                          &result);
+         break;
+    case 1:
+        address_space_stb(&lpc->opb_as, opb_addr, val, MEMTXATTRS_UNSPECIFIED,
+                          &result);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "OPB write failed at @0x%"
+                      HWADDR_PRIx " invalid size %d\n", addr, size);
+        return;
+    }
+
+    if (result != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR, "OPB write failed at @0x%"
+                      HWADDR_PRIx "\n", addr);
+    }
+}
+
+static const MemoryRegionOps pnv_lpc_mmio_ops = {
+    .read = pnv_lpc_mmio_read,
+    .write = pnv_lpc_mmio_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -426,9 +578,29 @@ static const MemoryRegionOps opb_master_ops = {
     },
 };
 
+static void pnv_lpc_power8_realize(DeviceState *dev, Error **errp)
+{
+    PnvLpcController *lpc = PNV_LPC(dev);
+
+    /* XScom region for LPC registers */
+    memory_region_init_io(&lpc->xscom_regs, OBJECT(dev),
+                          &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
+                          PNV_XSCOM_LPC_SIZE << 3);
+}
+
+static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
+{
+    PnvLpcController *lpc = PNV_LPC(dev);
+
+    /* Initialize MMIO region */
+    memory_region_init_io(&lpc->xscom_regs, OBJECT(dev), &pnv_lpc_mmio_ops, lpc,
+                          "lpcm", PNV_POWER9_LPCM_SIZE);
+}
+
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
     PnvLpcController *lpc = PNV_LPC(dev);
+    PnvLpcClass *plc = PNV_LPC_GET_CLASS(dev);
     Object *obj;
     Error *error = NULL;
 
@@ -470,11 +642,6 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&lpc->opb_mr, LPC_HC_REGS_OPB_ADDR,
                                 &lpc->lpc_hc_regs);
 
-    /* XScom region for LPC registers */
-    memory_region_init_io(&lpc->xscom_regs, OBJECT(dev),
-                          &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
-                          PNV_XSCOM_LPC_SIZE << 3);
-
     /* get PSI object from chip */
     obj = object_property_get_link(OBJECT(dev), "psi", &error);
     if (!obj) {
@@ -483,32 +650,96 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
         return;
     }
     lpc->psi = PNV_PSI(obj);
+
+    plc->realize(dev, errp);
 }
 
-static void pnv_lpc_class_init(ObjectClass *klass, void *data)
+static void pnv_lpc_power8_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
+    PnvLpcClass *plc = PNV_LPC_CLASS(klass);
 
-    xdc->populate = pnv_lpc_populate;
+    xdc->populate = pnv_lpc_power8_populate;
 
     dc->realize = pnv_lpc_realize;
+    plc->realize = pnv_lpc_power8_realize;
 }
 
-static const TypeInfo pnv_lpc_info = {
-    .name          = TYPE_PNV_LPC,
-    .parent        = TYPE_DEVICE,
+static const TypeInfo pnv_lpc_power8e_info = {
+    .name          = TYPE_PNV_LPC_POWER8E,
+    .parent        = TYPE_PNV_LPC,
     .instance_size = sizeof(PnvLpcController),
-    .class_init    = pnv_lpc_class_init,
+    .class_init    = pnv_lpc_power8_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }
 };
 
+static const TypeInfo pnv_lpc_power8_info = {
+    .name          = TYPE_PNV_LPC_POWER8,
+    .parent        = TYPE_PNV_LPC,
+    .instance_size = sizeof(PnvLpcController),
+    .class_init    = pnv_lpc_power8_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_PNV_XSCOM_INTERFACE },
+        { }
+    }
+};
+
+static const TypeInfo pnv_lpc_power8nvl_info = {
+    .name          = TYPE_PNV_LPC_POWER8NVL,
+    .parent        = TYPE_PNV_LPC,
+    .instance_size = sizeof(PnvLpcController),
+    .class_init    = pnv_lpc_power8_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_PNV_XSCOM_INTERFACE },
+        { }
+    }
+};
+
+static void pnv_lpc_power9_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvLpcClass *plc = PNV_LPC_CLASS(klass);
+
+    dc->realize = pnv_lpc_realize;
+    plc->realize = pnv_lpc_power9_realize;
+    plc->populate = pnv_lpc_power9_populate;
+}
+
+static const TypeInfo pnv_lpc_power9_info = {
+    .name          = TYPE_PNV_LPC_POWER9,
+    .parent        = TYPE_PNV_LPC,
+    .instance_size = sizeof(PnvLpcController),
+    .class_init    = pnv_lpc_power9_class_init,
+};
+
+static void pnv_lpc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = pnv_lpc_realize;
+    dc->desc = "PowerNV LPC Controller";
+}
+
+static const TypeInfo pnv_lpc_info = {
+    .name          = TYPE_PNV_LPC,
+    .parent        = TYPE_DEVICE,
+    .class_init    = pnv_lpc_class_init,
+    .class_size    = sizeof(PnvLpcClass),
+    .abstract      = true,
+};
+
+
 static void pnv_lpc_register_types(void)
 {
     type_register_static(&pnv_lpc_info);
+    type_register_static(&pnv_lpc_power8e_info);
+    type_register_static(&pnv_lpc_power8_info);
+    type_register_static(&pnv_lpc_power8nvl_info);
+    type_register_static(&pnv_lpc_power9_info);
 }
 
 type_init(pnv_lpc_register_types)

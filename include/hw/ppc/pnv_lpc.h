@@ -22,8 +22,13 @@
 #define TYPE_PNV_LPC "pnv-lpc"
 #define PNV_LPC(obj) \
      OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV_LPC)
+#define PNV_LPC_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvLpcClass, (klass), TYPE_PNV_LPC)
+#define PNV_LPC_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvLpcClass, (obj), TYPE_PNV_LPC)
 
 typedef struct PnvPsiController PnvPsiController;
+typedef struct PnvChip PnvChip;
 
 typedef struct PnvLpcController {
     DeviceState parent;
@@ -68,7 +73,35 @@ typedef struct PnvLpcController {
     MemoryRegion xscom_regs;
 } PnvLpcController;
 
+typedef struct PnvLpcClass {
+    DeviceClass parent_class;
+
+    int (*populate)(PnvChip *chip, void *fdt, int offset);
+    void (*realize)(DeviceState *dev, Error **errp);
+} PnvLpcClass;
+
+
+#define TYPE_PNV_LPC_POWER8E TYPE_PNV_LPC "-POWER8E"
+#define PNV_LPC_POWER8E(obj) \
+    OBJECT_CHECK(PnvLpc, (obj), TYPE_PNV_LPC_POWER8E)
+
+#define TYPE_PNV_LPC_POWER8 TYPE_PNV_LPC "-POWER8"
+#define PNV_LPC_POWER8(obj) \
+    OBJECT_CHECK(PnvLpc, (obj), TYPE_PNV_LPC_POWER8)
+
+#define TYPE_PNV_LPC_POWER8NVL TYPE_PNV_LPC "-POWER8NVL"
+#define PNV_LPC_POWER8NVL(obj) \
+    OBJECT_CHECK(PnvLpc, (obj), TYPE_PNV_LPC_POWER8NVL)
+
+#define TYPE_PNV_LPC_POWER9 TYPE_PNV_LPC "-POWER9"
+#define PNV_LPC_POWER9(obj) \
+    OBJECT_CHECK(PnvLpc, (obj), TYPE_PNV_LPC_POWER9)
+
+
+
 #define   LPC_HC_IRQ_SERIRQ0            0x80000000 /* all bits down to ... */
 void pnv_lpc_eval_irqs(PnvLpcController *lpc);
+
+int pnv_lpc_populate(PnvChip *chip, void *fdt, int root_offset);
 
 #endif /* _PPC_PNV_LPC_H */
