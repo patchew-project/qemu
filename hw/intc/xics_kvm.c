@@ -326,13 +326,10 @@ static const TypeInfo ics_kvm_info = {
  */
 static void xics_kvm_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
 {
-    CPUState *cs;
-    ICPState *ss;
+    CPUState *cs = CPU(cpu);
+    ICPState *ss = xics_find_icp(xics, cs->cpu_index);
     KVMXICSState *xicskvm = XICS_SPAPR_KVM(xics);
     int ret;
-
-    cs = CPU(cpu);
-    ss = &xics->ss[cs->cpu_index];
 
     assert(cs->cpu_index < xics->nr_servers);
     if (xicskvm->kernel_xics_fd == -1) {

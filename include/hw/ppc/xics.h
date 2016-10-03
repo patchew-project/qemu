@@ -76,6 +76,7 @@ struct XICSStateClass {
     void (*cpu_setup)(XICSState *icp, PowerPCCPU *cpu);
     void (*set_nr_irqs)(XICSState *icp, uint32_t nr_irqs, Error **errp);
     void (*set_nr_servers)(XICSState *icp, uint32_t nr_servers, Error **errp);
+    ICPState *(*find_icp)(XICSState *xics, int cpu_index);
 };
 
 struct XICSState {
@@ -206,5 +207,6 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 ICSState *xics_find_source(XICSState *icp, int irq);
 
 void xics_hmp_info_pic(Monitor *mon, const QDict *qdict);
+ICPState *xics_find_icp(XICSState *xics, int cpu_index);
 
 #endif /* XICS_H */

@@ -48,12 +48,32 @@ int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
     return -1;
 }
 
+ICPState *xics_find_icp(XICSState *xics, int cpu_index)
+{
+    XICSStateClass *xsc = XICS_COMMON_GET_CLASS(xics);
+    ICPState *icp = xsc->find_icp(xics, cpu_index);
+
+    assert(icp);
+
+    return icp;
+}
+
+static ICPState *xics_get_icp(XICSState *xics, CPUState *cs)
+{
+    ICPState *ss;
+
+    assert(cs->cpu_index < xics->nr_servers);
+
+    ss = &xics->ss[cs->cpu_index];
+    ss->cs = cs;
+    return ss;
+}
+
 void xics_cpu_destroy(XICSState *xics, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *ss = &xics->ss[cs->cpu_index];
+    ICPState *ss = xics_find_icp(xics, cs->cpu_index);
 
-    assert(cs->cpu_index < xics->nr_servers);
     assert(cs == ss->cs);
 
     ss->output = NULL;
@@ -64,12 +84,8 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    ICPState *ss = &xics->ss[cs->cpu_index];
+    ICPState *ss = xics_get_icp(xics, cs);
     XICSStateClass *info = XICS_COMMON_GET_CLASS(xics);
-
-    assert(cs->cpu_index < xics->nr_servers);
-
-    ss->cs = cs;
 
     if (info->cpu_setup) {
         info->cpu_setup(xics, cpu);
@@ -94,6 +110,12 @@ void xics_cpu_setup(XICSState *xics, PowerPCCPU *cpu)
 /*
  * XICS Common class - parent for emulated XICS and KVM-XICS
  */
+
+static ICPState *xics_common_find_icp(XICSState *xics, int cpu_index)
+{
+    return &xics->ss[cpu_index];
+}
+
 static void xics_common_reset(DeviceState *d)
 {
     XICSState *xics = XICS_COMMON(d);
@@ -191,8 +213,10 @@ static void xics_common_initfn(Object *obj)
 static void xics_common_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    XICSStateClass *xsc = XICS_COMMON_CLASS(oc);
 
     dc->reset = xics_common_reset;
+    xsc->find_icp = xics_common_find_icp;
 }
 
 static const TypeInfo xics_common_info = {
@@ -261,7 +285,7 @@ static void icp_check_ipi(ICPState *ss)
 
 static void icp_resend(XICSState *xics, int server)
 {
-    ICPState *ss = xics->ss + server;
+    ICPState *ss = xics_find_icp(xics, server);
     ICSState *ics;
 
     if (ss->mfrr < CPPR(ss)) {
@@ -274,7 +298,7 @@ static void icp_resend(XICSState *xics, int server)
 
 void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
 {
-    ICPState *ss = xics->ss + server;
+    ICPState *ss = xics_find_icp(xics, server);
     uint8_t old_cppr;
     uint32_t old_xisr;
 
@@ -301,7 +325,7 @@ void icp_set_cppr(XICSState *xics, int server, uint8_t cppr)
 
 void icp_set_mfrr(XICSState *xics, int server, uint8_t mfrr)
 {
-    ICPState *ss = xics->ss + server;
+    ICPState *ss = xics_find_icp(xics, server);
 
     ss->mfrr = mfrr;
     if (mfrr < CPPR(ss)) {
@@ -333,7 +357,7 @@ uint32_t icp_ipoll(ICPState *ss, uint32_t *mfrr)
 
 void icp_eoi(XICSState *xics, int server, uint32_t xirr)
 {
-    ICPState *ss = xics->ss + server;
+    ICPState *ss = xics_find_icp(xics, server);
     ICSState *ics;
     uint32_t irq;
 
@@ -354,7 +378,7 @@ void icp_eoi(XICSState *xics, int server, uint32_t xirr)
 static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 {
     XICSState *xics = ics->xics;
-    ICPState *ss = xics->ss + server;
+    ICPState *ss = xics_find_icp(xics, server);
 
     trace_xics_icp_irq(server, nr, priority);
 
