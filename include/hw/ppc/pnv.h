@@ -25,6 +25,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_psi.h"
+#include "hw/ppc/pnv_occ.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -59,6 +60,7 @@ typedef struct PnvChip {
     PnvLpcController lpc;
     XICSNative   xics;
     PnvPsiController psi;
+    PnvOCC           occ;
 } PnvChip;
 
 typedef struct PnvChipClass {
