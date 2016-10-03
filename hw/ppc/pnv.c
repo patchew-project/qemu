@@ -340,7 +340,17 @@ static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 
 static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
 {
-     /* XXX TODO */
+    PnvLpcController *lpc = opaque;
+
+    if (n >= ISA_NUM_IRQS) {
+        return;
+    }
+
+    /* The Naples HW latches the 1 levels, clearing is done by SW */
+    if (level) {
+        lpc->lpc_hc_irqstat |= LPC_HC_IRQ_SERIRQ0 >> n;
+        pnv_lpc_eval_irqs(lpc);
+    }
 }
 
 static ISABus *pnv_isa_create(PnvChip *chip)
@@ -655,6 +665,12 @@ static void pnv_chip_init(Object *obj)
     object_initialize(&chip->occ, sizeof(chip->occ), TYPE_PNV_OCC);
     object_property_add_child(obj, "occ", OBJECT(&chip->occ), NULL);
     object_property_add_const_link(OBJECT(&chip->occ), "psi",
+                                   OBJECT(&chip->psi), &error_abort);
+
+    /*
+     * The LPC controller needs PSI to generate interrupts
+     */
+    object_property_add_const_link(OBJECT(&chip->lpc), "psi",
                                    OBJECT(&chip->psi), &error_abort);
 }
 
