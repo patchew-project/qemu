@@ -1239,11 +1239,31 @@ static bool version_before_3(void *opaque, int version_id)
     return version_id < 3;
 }
 
+static bool spapr_pending_events_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+    return !QTAILQ_EMPTY(&spapr->pending_events);
+}
+
 static bool spapr_ccs_list_needed(void *opaque)
 {
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
     return !QTAILQ_EMPTY(&spapr->ccs_list);
 }
+
+static const VMStateDescription vmstate_spapr_event_entry = {
+    .name = "spapreventlogentry",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(log_type, sPAPREventLogEntry),
+        VMSTATE_BOOL(exception, sPAPREventLogEntry),
+        VMSTATE_UINT32(data_size, sPAPREventLogEntry),
+        VMSTATE_VARRAY_UINT32_ALLOC(data, sPAPREventLogEntry, data_size,
+                                    0, vmstate_info_uint8, uint8_t),
+        VMSTATE_END_OF_LIST()
+  },
+};
 
 static const VMStateDescription vmstate_spapr_ccs = {
     .name = "spaprconfigureconnectorstate",
@@ -1253,6 +1273,18 @@ static const VMStateDescription vmstate_spapr_ccs = {
         VMSTATE_UINT32(drc_index, sPAPRConfigureConnectorState),
         VMSTATE_INT32(fdt_offset, sPAPRConfigureConnectorState),
         VMSTATE_INT32(fdt_depth, sPAPRConfigureConnectorState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_pending_events = {
+    .name = "spaprpendingevents",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_pending_events_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_QTAILQ_V(pending_events, sPAPRMachineState, 1,
+                         vmstate_spapr_event_entry, sPAPREventLogEntry, next),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -1285,6 +1317,7 @@ static const VMStateDescription vmstate_spapr = {
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
+        &vmstate_spapr_pending_events,
         &vmstate_spapr_ccs_list,
         NULL
     }
