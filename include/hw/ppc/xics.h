@@ -205,4 +205,6 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 
 ICSState *xics_find_source(XICSState *icp, int irq);
 
+void xics_hmp_info_pic(Monitor *mon, const QDict *qdict);
+
 #endif /* XICS_H */

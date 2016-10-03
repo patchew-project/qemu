@@ -35,6 +35,7 @@
 #include "hw/ppc/xics.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
 
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
 {
@@ -631,6 +632,57 @@ static int ics_simple_dispatch_post_load(void *opaque, int version_id)
     }
 
     return 0;
+}
+
+static int xics_hmp_info_pic_child(Object *child, void *opaque)
+{
+    Monitor *mon = opaque;
+
+    if (object_dynamic_cast(child, TYPE_XICS_COMMON)) {
+        XICSState *xics = XICS_COMMON(child);
+        ICSState *ics;
+        uint32_t i;
+
+        for (i = 0; i < xics->nr_servers; i++) {
+            ICPState *icp = &xics->ss[i];
+
+            if (!icp->output) {
+                continue;
+            }
+            monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                           i, icp->xirr, icp->xirr_owner,
+                           icp->pending_priority, icp->mfrr);
+        }
+
+        QLIST_FOREACH(ics, &xics->ics, list) {
+            monitor_printf(mon, "ICS %4x..%4x %p\n",
+                           ics->offset, ics->offset + ics->nr_irqs - 1, ics);
+
+            if (!ics->irqs) {
+                continue;
+            }
+
+            for (i = 0; i < ics->nr_irqs; i++) {
+                ICSIRQState *irq = ics->irqs + i;
+
+                if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+                    continue;
+                }
+                monitor_printf(mon, "  %4x %s %02x %02x\n",
+                               ics->offset + i,
+                               (irq->flags & XICS_FLAGS_IRQ_LSI) ?
+                               "LSI" : "MSI",
+                               irq->priority, irq->status);
+            }
+        }
+    }
+    return 0;
+}
+
+void xics_hmp_info_pic(Monitor *mon, const QDict *qdict)
+{
+    object_child_foreach_recursive(OBJECT(qdev_get_machine()),
+                                   xics_hmp_info_pic_child, mon);
 }
 
 static const VMStateDescription vmstate_ics_simple_irq = {

@@ -91,6 +91,10 @@
 #include "hw/s390x/storage-keys.h"
 #endif
 
+#if defined(TARGET_PPC)
+#include "hw/ppc/ppc.h"
+#endif
+
 /*
  * Supported types:
  *

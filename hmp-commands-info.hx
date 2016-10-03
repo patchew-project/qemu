@@ -203,6 +203,8 @@ ETEXI
         .cmd        = sun4m_hmp_info_pic,
 #elif defined(TARGET_LM32)
         .cmd        = lm32_hmp_info_pic,
+#elif defined(TARGET_PPC)
+        .cmd        = ppc_hmp_info_pic,
 #else
         .cmd        = hmp_info_pic,
 #endif
