@@ -32,6 +32,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 
+#include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
@@ -223,6 +224,7 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
     char *typename = pnv_core_typename(pcc->cpu_model);
     size_t typesize = object_type_get_instance_size(typename);
     int i;
+    int smt = 1; /* TCG does not support more for the moment */
 
     pnv_xscom_populate(chip, fdt, 0);
 
@@ -230,6 +232,9 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
 
         powernv_create_core_node(chip, pnv_core, fdt);
+
+        /* Interrupt presentation controllers (ICP). One per core. */
+        xics_native_populate_icp(chip, fdt, 0, pnv_core->pir, smt);
     }
 
     /* Put all the memory in one node on chip 0 until we find a way to
@@ -631,6 +636,9 @@ static void pnv_chip_init(Object *obj)
 
     object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
+
+    object_initialize(&chip->xics, sizeof(chip->xics), TYPE_XICS_NATIVE);
+    object_property_add_child(obj, "xics", OBJECT(&chip->xics), NULL);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -641,6 +649,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     char *typename = pnv_core_typename(pcc->cpu_model);
     size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;
+    int smt = 1; /* TCG does not support more for the moment */
 
     if (!object_class_by_name(typename)) {
         error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
@@ -661,6 +670,13 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, error);
         return;
     }
+
+    /* Set up Interrupt Controller before we create the VCPUs */
+    object_property_set_int(OBJECT(&chip->xics), smp_cpus * smt / smp_threads,
+                            "nr_servers",  &error_fatal);
+    object_property_set_bool(OBJECT(&chip->xics), true, "realized",
+                             &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&chip->xics), 0, PNV_XICS_BASE);
 
     chip->cores = g_malloc0(typesize * chip->nr_cores);
 
@@ -684,6 +700,8 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(pnv_core),
                                 pcc->core_pir(chip, core_hwid),
                                 "pir", &error_fatal);
+        object_property_add_const_link(OBJECT(pnv_core), "xics",
+                                       OBJECT(&chip->xics), &error_fatal);
         object_property_set_bool(OBJECT(pnv_core), true, "realized",
                                  &error_fatal);
         object_unref(OBJECT(pnv_core));

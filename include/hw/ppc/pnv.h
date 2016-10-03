@@ -23,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_lpc.h"
+#include "hw/ppc/xics.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -55,6 +56,7 @@ typedef struct PnvChip {
     void      *cores;
 
     PnvLpcController lpc;
+    XICSNative   xics;
 } PnvChip;
 
 typedef struct PnvChipClass {
