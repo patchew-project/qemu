@@ -495,6 +495,11 @@ int register_savevm_live(DeviceState *dev,
                          void *opaque)
 {
     SaveStateEntry *se;
+    /* when it is a device and it provides a way to get instance_id,
+     * we will use it and skip setting idstr and compat.
+     */
+    bool flag = (dev != NULL) &&
+                (DEVICE_GET_CLASS(dev)->dev_get_instance_id != NULL);
 
     se = g_new0(SaveStateEntry, 1);
     se->version_id = version_id;
@@ -507,7 +512,7 @@ int register_savevm_live(DeviceState *dev,
         se->is_ram = 1;
     }
 
-    if (dev) {
+    if (dev && !flag) {
         char *id = qdev_get_dev_path(dev);
         if (id) {
             pstrcpy(se->idstr, sizeof(se->idstr), id);
@@ -523,6 +528,9 @@ int register_savevm_live(DeviceState *dev,
     }
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
+    if (flag) {
+        instance_id = DEVICE_GET_CLASS(dev)->dev_get_instance_id(dev);
+    }
     if (instance_id == -1) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
@@ -580,6 +588,11 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    int required_for_version)
 {
     SaveStateEntry *se;
+    /* when it is a device and it provides a way to get instance_id,
+     * we will use it and skip setting idstr and compat.
+     */
+    bool flag = (dev != NULL) &&
+                (DEVICE_GET_CLASS(dev)->dev_get_instance_id != NULL);
 
     /* If this triggers, alias support can be dropped for the vmsd. */
     assert(alias_id == -1 || required_for_version >= vmsd->minimum_version_id);
@@ -591,7 +604,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     se->vmsd = vmsd;
     se->alias_id = alias_id;
 
-    if (dev) {
+    if (dev && !flag) {
         char *id = qdev_get_dev_path(dev);
         if (id) {
             pstrcpy(se->idstr, sizeof(se->idstr), id);
@@ -607,6 +620,9 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     }
     pstrcat(se->idstr, sizeof(se->idstr), vmsd->name);
 
+    if (flag) {
+        instance_id = DEVICE_GET_CLASS(dev)->dev_get_instance_id(dev);
+    }
     if (instance_id == -1) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
