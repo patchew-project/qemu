@@ -110,6 +110,8 @@ typedef struct PnvMachineState {
 
     uint32_t  num_chips;
     PnvChip   **chips;
+
+    ISABus *isa_bus;
 } PnvMachineState;
 
 #define POWERNV_FDT_ADDR                0x01000000
