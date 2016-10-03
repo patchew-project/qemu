@@ -118,7 +118,26 @@ struct ICPState {
     uint8_t mfrr;
     qemu_irq output;
     bool cap_irq_xics_enabled;
+
+    /*
+     * for XICSNative (not used by Linux).
+     */
+    uint32_t links[3];
 };
+
+#define TYPE_XICS_NATIVE "xics-native"
+#define XICS_NATIVE(obj) OBJECT_CHECK(XICSNative, (obj), TYPE_XICS_NATIVE)
+#define XICS_NATIVE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XICSStateClass, (klass), TYPE_XICS_NATIVE)
+#define XICS_NATIVE_GET_CLASS(obj) \
+     OBJECT_CLASS_CHECK(XICSStateClass, (obj), TYPE_XICS_NATIVE)
+
+typedef struct XICSNative {
+    XICSState parent_obj;
+
+    GHashTable *pir_table;
+    MemoryRegion icp_mmio;
+} XICSNative;
 
 #define TYPE_ICS_BASE "ics-base"
 #define ICS_BASE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_BASE)
@@ -209,5 +228,10 @@ ICSState *xics_find_source(XICSState *icp, int irq);
 void xics_hmp_info_pic(Monitor *mon, const QDict *qdict);
 ICPState *xics_find_icp(XICSState *xics, int cpu_index);
 void xics_insert_ics(XICSState *xics, ICSState *ics);
+
+typedef struct PnvChip PnvChip;
+
+void xics_native_populate_icp(PnvChip *chip, void *fdt, int offset,
+                              uint32_t base, uint32_t count);
 
 #endif /* XICS_H */
