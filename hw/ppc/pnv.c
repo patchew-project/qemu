@@ -620,6 +620,10 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                                  &error_fatal);
         object_unref(OBJECT(pnv_core));
         i++;
+
+        memory_region_add_subregion(&chip->xscom,
+                         PNV_XSCOM_EX_CORE_BASE(core_hwid) << 3,
+                         &PNV_CORE(pnv_core)->xscom_regs);
     }
     g_free(typename);
 }
