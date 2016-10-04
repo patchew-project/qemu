@@ -10929,6 +10929,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 #ifdef TARGET_NR_fadvise64
     case TARGET_NR_fadvise64:
+#ifdef TARGET_MIPS
+        ret = -host_to_target_errno(
+                  posix_fadvise64(arg1,
+                                  target_offset64(arg3, arg4),
+                                  target_offset64(arg5, arg6),
+                                  arg7));
+#else
         /* 5 args: fd, offset (high, low), len, advice */
         if (regpairs_aligned(cpu_env)) {
             /* offset is in (3,4), len in 5 and advice in 6 */
@@ -10940,6 +10947,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = -host_to_target_errno(posix_fadvise(arg1,
                                                   target_offset64(arg2, arg3),
                                                   arg4, arg5));
+#endif
         break;
 #endif
 
