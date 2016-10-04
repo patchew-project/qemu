@@ -34,6 +34,7 @@ void audio_init(void);
 int kvm_available(void);
 int xen_available(void);
 
+void arch_qmp_commands_init(void);
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp);
 CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *mode,

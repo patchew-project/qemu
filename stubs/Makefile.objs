@@ -1,3 +1,4 @@
+stub-obj-y += arch-qmp-commands-init.o
 stub-obj-y += arch-query-cpu-def.o
 stub-obj-y += arch-query-cpu-model-expansion.o
 stub-obj-y += arch-query-cpu-model-comparison.o

@@ -19,6 +19,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/dispatch.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
@@ -588,6 +589,14 @@ CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelInfo *infoa,
     baseline_info->model = g_malloc0(sizeof(*baseline_info->model));
     cpu_info_from_model(baseline_info->model, &model, true);
     return baseline_info;
+}
+
+void arch_qmp_commands_init(void)
+{
+    qmp_enable_command("query-cpu-model-expansion");
+    qmp_enable_command("query-cpu-model-baseline");
+    qmp_enable_command("query-cpu-model-comparison");
+    qmp_enable_command("query-cpu-model-definitions");
 }
 #endif
 

@@ -92,6 +92,7 @@ int main(int argc, char **argv)
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/dispatch.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu-options.h"
@@ -3030,6 +3031,15 @@ int main(int argc, char **argv, char **envp)
 
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_QAPI);
+
+    /* These commands are unavailable by default. Architectures that
+     * support them should enable them in arch_qmp_commands_init()
+     */
+    qmp_disable_command("query-cpu-model-expansion");
+    qmp_disable_command("query-cpu-model-baseline");
+    qmp_disable_command("query-cpu-model-comparison");
+    qmp_disable_command("query-cpu-model-definitions");
+    arch_qmp_commands_init();
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);

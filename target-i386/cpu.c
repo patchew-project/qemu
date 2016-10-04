@@ -29,6 +29,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/dispatch.h"
 
 #include "qapi-types.h"
 #include "qapi-visit.h"
@@ -3568,3 +3569,8 @@ static void x86_cpu_register_types(void)
 }
 
 type_init(x86_cpu_register_types)
+
+void arch_qmp_commands_init(void)
+{
+    qmp_enable_command("query-cpu-model-definitions");
+}

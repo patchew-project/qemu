@@ -25,6 +25,8 @@
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp-target.h"
+#include "qapi/qmp/dispatch.h"
+#include "sysemu/arch_init.h"
 #include "hmp.h"
 
 static target_long monitor_get_ccr (const struct MonitorDef *md, int val)
@@ -144,4 +146,9 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
 #endif
 
     return -EINVAL;
+}
+
+void arch_qmp_commands_init(void)
+{
+    qmp_enable_command("query-cpu-model-definitions");
 }

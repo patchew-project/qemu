@@ -21,6 +21,8 @@
  */
 #include "qemu/osdep.h"
 #include "qmp-commands.h"
+#include "qapi/qmp/dispatch.h"
+#include "sysemu/arch_init.h"
 #include "hw/boards.h"
 #include "kvm_arm.h"
 
@@ -80,4 +82,9 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     head = gic_cap_list_add(head, v3);
 
     return head;
+}
+
+void arch_qmp_commands_init(void)
+{
+    qmp_enable_command("query-cpu-model-definitions");
 }
