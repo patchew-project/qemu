@@ -368,12 +368,12 @@ static void test_migrate(void)
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         init_bootfile_x86(bootpath);
-        cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
+        cmd_src = g_strdup_printf("-machine accel=best -m 150M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -drive file=%s,format=raw",
                                   tmpfs, bootpath);
-        cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
+        cmd_dst = g_strdup_printf("-machine accel=best -m 150M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -drive file=%s,format=raw"
@@ -381,12 +381,12 @@ static void test_migrate(void)
                                   tmpfs, bootpath, uri);
     } else if (strcmp(arch, "ppc64") == 0) {
         init_bootfile_ppc(bootpath);
-        cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
+        cmd_src = g_strdup_printf("-machine accel=best -m 256M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -drive file=%s,if=pflash,format=raw",
                                   tmpfs, bootpath);
-        cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
+        cmd_dst = g_strdup_printf("-machine accel=best -m 256M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s",
