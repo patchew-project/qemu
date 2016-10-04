@@ -156,7 +156,8 @@ static void xencons_send(struct XenConsole *con)
     if (len < 1) {
         if (!con->backlog) {
             con->backlog = 1;
-            xen_be_printf(&con->xendev, 1, "backlog piling up, nobody listening?\n");
+            xen_be_printf(&con->xendev, 1,
+                         "backlog piling up, nobody listening?\n");
         }
     } else {
         buffer_advance(&con->buffer, len);
@@ -247,7 +248,8 @@ static int con_initialise(struct XenDevice *xendev)
         }
     }
 
-    xen_be_printf(xendev, 1, "ring mfn %d, remote port %d, local port %d, limit %zd\n",
+    xen_be_printf(xendev, 1,
+                 "ring mfn %d, remote port %d, local port %d, limit %zd\n",
 		  con->ring_ref,
 		  con->xendev.remote_port,
 		  con->xendev.local_port,
