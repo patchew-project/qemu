@@ -55,7 +55,9 @@ available machines. Supported machine properties are:
 This is used to enable an accelerator. Depending on the target architecture,
 kvm, xen, or tcg can be available. By default, tcg is used. If there is more
 than one accelerator specified, the next one is used if the previous one fails
-to initialize.
+to initialize. You can ask to use the best accelerator with "accel=best". If
+you want to use one accelerator and if it is not available, the best one, you
+can use, for instance, "accel=kvm:best".
 @item kernel_irqchip=on|off
 Controls in-kernel irqchip support for the chosen accelerator when available.
 @item gfx_passthru=on|off

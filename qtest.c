@@ -698,6 +698,7 @@ static void qtest_accel_class_init(ObjectClass *oc, void *data)
     ac->available = qtest_available;
     ac->init_machine = qtest_init_accel;
     ac->allowed = &qtest_allowed;
+    ac->priority = -1;
 }
 
 #define TYPE_QTEST_ACCEL ACCEL_CLASS_NAME("qtest")

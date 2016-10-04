@@ -60,6 +60,38 @@ static AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
+static void accel_filter_best(ObjectClass *klass, void *opaque)
+{
+    AccelClass **best = opaque;
+    AccelClass *ac = ACCEL_CLASS(klass);
+
+    if (ac->available && !ac->available()) {
+        return;
+    }
+
+    if (ac->priority < 0) {
+        return;
+    }
+
+    if (*best == NULL) {
+        *best = ac;
+        return;
+    }
+
+    if (ac->priority > (*best)->priority) {
+        *best = ac;
+    }
+}
+
+static AccelClass *accel_find_best(void)
+{
+    AccelClass *best = NULL;
+
+    object_class_foreach(accel_filter_best, TYPE_ACCEL, false, &best);
+
+    return ACCEL_CLASS(best);
+}
+
 static int accel_init_machine(AccelClass *acc, MachineState *ms)
 {
     ObjectClass *oc = OBJECT_CLASS(acc);
@@ -97,15 +129,22 @@ void configure_accelerator(MachineState *ms)
             p++;
         }
         p = get_opt_name(buf, sizeof(buf), p, ':');
-        acc = accel_find(buf);
-        if (!acc) {
-            fprintf(stderr, "\"%s\" accelerator not found.\n", buf);
-            continue;
-        }
-        if (acc->available && !acc->available()) {
-            printf("%s not supported for this target\n",
-                   acc->name);
-            continue;
+        if (strcmp(buf, "best") == 0) {
+            acc = accel_find_best();
+            if (acc == NULL) {
+                break;
+            }
+        } else {
+            acc = accel_find(buf);
+            if (!acc) {
+                fprintf(stderr, "\"%s\" accelerator not found.\n", buf);
+                continue;
+            }
+            if (acc->available && !acc->available()) {
+                printf("%s not supported for this target\n",
+                       acc->name);
+                continue;
+            }
         }
         ret = accel_init_machine(acc, ms);
         if (ret < 0) {
@@ -137,6 +176,7 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "tcg";
     ac->init_machine = tcg_init;
     ac->allowed = &tcg_allowed;
+    ac->priority = 10;
 }
 
 #define TYPE_TCG_ACCEL ACCEL_CLASS_NAME("tcg")

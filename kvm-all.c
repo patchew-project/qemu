@@ -2469,6 +2469,7 @@ static void kvm_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "KVM";
     ac->init_machine = kvm_init;
     ac->allowed = &kvm_allowed;
+    ac->priority = 100;
 }
 
 static const TypeInfo kvm_accel_type = {

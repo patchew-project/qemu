@@ -140,6 +140,7 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "Xen";
     ac->init_machine = xen_init;
     ac->allowed = &xen_allowed;
+    ac->priority = 100;
 }
 
 #define TYPE_XEN_ACCEL ACCEL_CLASS_NAME("xen")

@@ -40,6 +40,7 @@ typedef struct AccelClass {
     int (*available)(void);
     int (*init_machine)(MachineState *ms);
     bool *allowed;
+    int priority;
 } AccelClass;
 
 #define TYPE_ACCEL "accel"
