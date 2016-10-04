@@ -315,7 +315,7 @@ static void usbback_do_response(struct usbback_req *usbback_req, int32_t status,
         RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&usbif->urb_ring, notify);
 
         if (notify) {
-            xen_be_send_notify(xendev);
+            xen_pv_send_notify(xendev);
         }
     }
 
@@ -591,7 +591,7 @@ static void usbback_hotplug_notify(struct usbback_info *usbif)
 
     /* Check for full ring. */
     if ((RING_SIZE(ring) - ring->rsp_prod_pvt - ring->req_cons) == 0) {
-        xen_be_send_notify(&usbif->xendev);
+        xen_pv_send_notify(&usbif->xendev);
         return;
     }
 
@@ -610,7 +610,7 @@ static void usbback_hotplug_notify(struct usbback_info *usbif)
     RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(ring, notify);
 
     if (notify) {
-        xen_be_send_notify(&usbif->xendev);
+        xen_pv_send_notify(&usbif->xendev);
     }
 
     TR_BUS(&usbif->xendev, "hotplug port %d speed %d\n", usb_hp->port,
