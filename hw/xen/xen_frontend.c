@@ -39,7 +39,7 @@ int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,
     return xenstore_read_uint64(xendev->fe, node, uval);
 }
 
-void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
+void xen_fe_frontend_changed(struct XenDevice *xendev, const char *node)
 {
     int fe_state;
 
@@ -85,6 +85,6 @@ void xenstore_update_fe(char *watch, struct XenDevice *xendev)
     }
     node = watch + len + 1;
 
-    xen_be_frontend_changed(xendev, node);
+    xen_fe_frontend_changed(xendev, node);
     xen_be_check_state(xendev);
 }
