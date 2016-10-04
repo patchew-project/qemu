@@ -2220,6 +2220,33 @@ print_kill(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_sysfs
+static void
+print_sysfs(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    /* arg0 is normally 1, 2, or 3 */
+    switch (arg0) {
+    case 1:
+        print_raw_param("%d", arg0, 0);
+        print_string(arg1, 1);
+        break;
+    case 2:
+        print_raw_param("%d", arg0, 0);
+        print_raw_param("%u", arg1, 0);
+        print_pointer(arg2, 1);
+        break;
+    /* if arg0 is 3, desired output is the same as default */
+    default:
+        print_raw_param("%d", arg0, 1);
+        break;
+    }
+    print_syscall_epilogue(name);
+}
+#endif
+
 /*
  * An array of all of the syscalls we know about
  */

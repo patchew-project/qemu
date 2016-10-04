@@ -1476,7 +1476,7 @@
 { TARGET_NR_sys_epoll_wait, "sys_epoll_wait" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sysfs
-{ TARGET_NR_sysfs, "sysfs" , NULL, NULL, NULL },
+{ TARGET_NR_sysfs, "sysfs" , NULL, print_sysfs, NULL },
 #endif
 #ifdef TARGET_NR_sysinfo
 { TARGET_NR_sysinfo, "sysinfo" , NULL, NULL, NULL },
