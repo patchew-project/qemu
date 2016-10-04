@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "hw/usb.h"
 #include "hw/xen/xen_backend.h"
+#include "hw/xen/xen_frontend.h"
 #include "monitor/qdev.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qint.h"
