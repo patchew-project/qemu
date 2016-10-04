@@ -563,9 +563,8 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
         }
     } else {
         if (!l2_cache_size_set && !refcount_cache_size_set) {
-            *l2_cache_size = MAX(DEFAULT_L2_CACHE_BYTE_SIZE,
-                                 (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
-                                 * s->cluster_size);
+            *l2_cache_size = (bs->total_sectors * BDRV_SECTOR_SIZE * 8
+                              + s->cluster_size - 1) / s->cluster_size;
             *refcount_cache_size = *l2_cache_size
                                  / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
         } else if (!l2_cache_size_set) {
