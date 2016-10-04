@@ -442,7 +442,7 @@ static QemuOptsList qcow2_runtime_opts = {
         },
         {
             .name = QCOW2_OPT_CACHE_SIZE,
-            .type = QEMU_OPT_SIZE,
+            .type = QEMU_OPT_STRING,
             .help = "Maximum combined metadata (L2 tables and refcount blocks) "
                     "cache size",
         },
@@ -525,18 +525,28 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t combined_cache_size;
-    bool l2_cache_size_set, refcount_cache_size_set, combined_cache_size_set;
+    bool l2_cache_size_set, refcount_cache_size_set;
+    const char *combined_cache_size_set;
 
     combined_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_CACHE_SIZE);
     l2_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_SIZE);
     refcount_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_REFCOUNT_CACHE_SIZE);
 
-    combined_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_CACHE_SIZE, 0);
     *l2_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_L2_CACHE_SIZE, 0);
     *refcount_cache_size = qemu_opt_get_size(opts,
                                              QCOW2_OPT_REFCOUNT_CACHE_SIZE, 0);
 
     if (combined_cache_size_set) {
+        if (strcasecmp(combined_cache_size_set, "max"))
+            parse_option_size(QCOW2_OPT_CACHE_SIZE, combined_cache_size_set,
+                              &combined_cache_size, &error_abort);
+        else
+            combined_cache_size =
+                (bs->total_sectors * BDRV_SECTOR_SIZE * 8
+                 + s->cluster_size - 1) / s->cluster_size
+                * (DEFAULT_L2_REFCOUNT_SIZE_RATIO + 1)
+                / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
+
         if (l2_cache_size_set && refcount_cache_size_set) {
             error_setg(errp, QCOW2_OPT_CACHE_SIZE ", " QCOW2_OPT_L2_CACHE_SIZE
                        " and " QCOW2_OPT_REFCOUNT_CACHE_SIZE " may not be set "

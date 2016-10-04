@@ -114,9 +114,10 @@ There are three options available, and all of them take bytes:
 
 "l2-cache-size":         maximum size of the L2 table cache
 "refcount-cache-size":   maximum size of the refcount block cache
-"cache-size":            maximum size of both caches combined
+"cache-size":            maximum size of both caches combined, or
+                         "max" to cover entire disk
 
-There are two things that need to be taken into account:
+There are several things that need to be taken into account:
 
  - Both caches must have a size that is a multiple of the cluster
    size.
@@ -125,11 +126,16 @@ There are two things that need to be taken into account:
    adjust the others so that the L2 cache is 4 times bigger than the
    refcount cache.
 
+ - If you set cache-size to the special value "max", QEMU will
+   automatically size both caches to cover the entire virtual disk.
+
 This means that these options are equivalent:
 
    -drive file=hd.qcow2,l2-cache-size=2097152
    -drive file=hd.qcow2,refcount-cache-size=524288
    -drive file=hd.qcow2,cache-size=2621440
+   -drive file=hd.qcow2,cache-size=max [assuming hd.qcow2 is 16 GB
+                                        with 64 KB clusters]
 
 The reason for this 1/4 ratio is to ensure that both caches cover the
 same amount of disk space. Note however that this is only valid with
