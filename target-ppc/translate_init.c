@@ -9678,11 +9678,6 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    cpu_exec_init(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
-    }
     cpu_exec_realize(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -10439,6 +10434,7 @@ static void ppc_cpu_initfn(Object *obj)
     CPUPPCState *env = &cpu->env;
 
     cs->env_ptr = env;
+    cpu_exec_init(cs, &error_abort);
 
     env->msr_mask = pcc->msr_mask;
     env->mmu_model = pcc->mmu_model;
