@@ -309,6 +309,14 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: '%s'",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
             params->has_tls_hostname ? params->tls_hostname : "");
+        assert(params->has_max_bandwidth);
+        monitor_printf(mon, " %s: %" PRId64 " bytes/second",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_MAX_BANDWIDTH],
+            params->max_bandwidth);
+        assert(params->has_downtime_limit);
+        monitor_printf(mon, " %s: %" PRId64 " milliseconds",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_DOWNTIME_LIMIT],
+            params->downtime_limit);
         monitor_printf(mon, "\n");
     }
 
@@ -1200,6 +1208,7 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+/* Kept for backwards compatibility */
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 {
     double value = qdict_get_double(qdict, "value");
@@ -1218,6 +1227,7 @@ void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
     }
 }
 
+/* Kept for backwards compatibility */
 void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
 {
     int64_t value = qdict_get_int(qdict, "value");
@@ -1258,7 +1268,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
 {
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
+    int64_t valuebw = 0;
     long valueint = 0;
+    char *endp;
     Error *err = NULL;
     bool use_int_value = false;
     int i;
@@ -1295,6 +1307,20 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 p.has_tls_hostname = true;
                 p.tls_hostname = (char *) valuestr;
                 break;
+            case MIGRATION_PARAMETER_MAX_BANDWIDTH:
+                p.has_max_bandwidth = true;
+                valuebw = qemu_strtosz(valuestr, &endp);
+                if (valuebw < 0 || (size_t)valuebw != valuebw
+                    || *endp != '\0') {
+                    error_setg(&err, "Invalid size %s", valuestr);
+                    goto cleanup;
+                }
+                p.max_bandwidth = valuebw;
+                break;
+            case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
+                p.has_downtime_limit = true;
+                use_int_value = true;
+                break;
             }
 
             if (use_int_value) {
@@ -1310,6 +1336,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 p.decompress_threads = valueint;
                 p.cpu_throttle_initial = valueint;
                 p.cpu_throttle_increment = valueint;
+                p.downtime_limit = valueint;
             }
 
             qmp_migrate_set_parameters(&p, &err);
