@@ -50,6 +50,29 @@ struct ClkList {
     QLIST_ENTRY(ClkList) node;
 };
 
+typedef struct ClockInitElement {
+    const char *name;      /* Name to give to the clock. */
+    size_t offset;         /* Offset of the qemu_clk field in the object. */
+    qemu_clk_on_rate_update_cb cb;
+} ClockInitElement;
+
+#define DEVICE_CLOCK(_state, _field, _cb) {                                  \
+    .name = #_field,                                                         \
+    .offset = offsetof(_state, _field),                                      \
+    .cb = _cb                                                                \
+}
+
+#define DEVICE_CLOCK_END() {                                                 \
+    .name = NULL                                                             \
+}
+
+/**
+ * qemu_clk_init_device:
+ * @obj: the Object which need to be initialized.
+ * @array: the array of ClockInitElement to be used.
+ */
+void qemu_clk_init_device(Object *obj, ClockInitElement *array);
+
 /**
  * qemu_clk_attach_to_device:
  * @dev: the device on which the clock need to be attached.
