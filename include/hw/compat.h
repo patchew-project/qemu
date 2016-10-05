@@ -10,6 +10,10 @@
         .driver   = "ioapic",\
         .property = "version",\
         .value    = "0x11",\
+    },{\
+        .driver   = "intel-iommu",\
+        .property = "buggy_eim",\
+        .value    = "true",\
     },
 
 #define HW_COMPAT_2_6 \
