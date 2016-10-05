@@ -38,7 +38,9 @@
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 
-#define EN_OPTSTR ":exportname="
+#define EN_OPTSTR "exportname"
+
+#define PATH_PARAM      (1u << 0)
 
 typedef struct BDRVNBDState {
     NbdClientSession client;
@@ -46,6 +48,46 @@ typedef struct BDRVNBDState {
     /* For nbd_refresh_filename() */
     char *path, *host, *port, *export, *tlscredsid;
 } BDRVNBDState;
+
+/*
+ * helpers for dealing with option parsing
+ * to ease futher params adding and managing
+ */
+
+/*
+ *  @param_flags - bit flags defining a set of param names to be parsed
+ */
+static bool parse_query_params(QueryParams *qp, QDict *options,
+                               unsigned int param_flags)
+{
+    int i;
+    for (i = 0; i < qp->n; i++) {
+        QueryParam *param = &qp->p[i];
+
+        if ((PATH_PARAM & param_flags) &&
+            strcmp(param->name, "socket") == 0) {
+            qdict_put(options, "path", qstring_from_str(param->value));
+            continue;
+        }
+
+    }
+    return true;
+}
+
+static bool find_prohibited_params(QueryParams *qp, unsigned int param_flags)
+{
+    int i;
+    for (i = 0; i < qp->n; i++) {
+        QueryParam *param = &qp->p[i];
+
+        if ((PATH_PARAM & param_flags) &&
+            strcmp(param->name, "socket") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 static int nbd_parse_uri(const char *filename, QDict *options)
 {
@@ -79,18 +121,18 @@ static int nbd_parse_uri(const char *filename, QDict *options)
     }
 
     qp = query_params_parse(uri->query);
-    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
-        ret = -EINVAL;
-        goto out;
-    }
 
     if (is_unix) {
         /* nbd+unix:///export?socket=path */
-        if (uri->server || uri->port || strcmp(qp->p[0].name, "socket")) {
+        if (uri->server || uri->port) {
             ret = -EINVAL;
             goto out;
         }
-        qdict_put(options, "path", qstring_from_str(qp->p[0].value));
+
+        if (!parse_query_params(qp, options, PATH_PARAM)) {
+            ret = -EINVAL;
+            goto out;
+        }
     } else {
         QString *host;
         /* nbd[+tcp]://host[:port]/export */
@@ -113,6 +155,11 @@ static int nbd_parse_uri(const char *filename, QDict *options)
             qdict_put(options, "port", qstring_from_str(port_str));
             g_free(port_str);
         }
+
+        if (find_prohibited_params(qp, PATH_PARAM)) {
+            ret = -EINVAL;
+            goto out;
+        }
     }
 
 out:
@@ -127,7 +174,7 @@ static void nbd_parse_filename(const char *filename, QDict *options,
                                Error **errp)
 {
     char *file;
-    char *export_name;
+    char *opt_str;
     const char *host_spec;
     const char *unixpath;
 
@@ -150,17 +197,6 @@ static void nbd_parse_filename(const char *filename, QDict *options,
 
     file = g_strdup(filename);
 
-    export_name = strstr(file, EN_OPTSTR);
-    if (export_name) {
-        if (export_name[strlen(EN_OPTSTR)] == 0) {
-            goto out;
-        }
-        export_name[0] = 0; /* truncate 'file' */
-        export_name += strlen(EN_OPTSTR);
-
-        qdict_put(options, "export", qstring_from_str(export_name));
-    }
-
     /* extract the host_spec - fail if it's not nbd:... */
     if (!strstart(file, "nbd:", &host_spec)) {
         error_setg(errp, "File name string for NBD must start with 'nbd:'");
@@ -173,8 +209,40 @@ static void nbd_parse_filename(const char *filename, QDict *options,
 
     /* are we a UNIX or TCP socket? */
     if (strstart(host_spec, "unix:", &unixpath)) {
+        opt_str = (char *) unixpath;
+
+        /* do we have any options? */
+        /* unixpath could be unix: or unix:something:options */
+        opt_str = strchr(opt_str, ':');
+
+        /* if we have any options then "divide" */
+        /* the path and the options by replacing the last colon with "\0" */
+        if (opt_str != NULL) {
+            /* truncate 'unixpath' replacing the last ":" */
+            char *colon_pos = opt_str;
+            colon_pos[0] = '\0';
+            opt_str++;
+        }
         qdict_put(options, "path", qstring_from_str(unixpath));
     } else {
+        /* host_spec could be ip:port or ip:port:options */
+        int i;
+        opt_str = (char *)host_spec;
+        for (i = 0; i < 2; i++) {
+            opt_str = strchr(opt_str, ':');
+            if (opt_str == NULL) {
+                break;
+            }
+            opt_str++;
+        }
+
+        /* the same idea with dividing as above */
+        if (opt_str != NULL) {
+            /* truncate 'host_name' replacing the last ":" */
+            char *second_colon_pos = opt_str - 1;
+            second_colon_pos[0] = '\0';
+        }
+
         InetSocketAddress *addr = NULL;
 
         addr = inet_parse(host_spec, errp);
@@ -185,6 +253,43 @@ static void nbd_parse_filename(const char *filename, QDict *options,
         qdict_put(options, "host", qstring_from_str(addr->host));
         qdict_put(options, "port", qstring_from_str(addr->port));
         qapi_free_InetSocketAddress(addr);
+    }
+
+    /* opt_str == NULL means no options given */
+    if (opt_str != NULL) {
+        static QemuOptsList file_opts = {
+            .name = "file_opts",
+            .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+            .desc = {
+                {
+                    .name = EN_OPTSTR,
+                    .type = QEMU_OPT_STRING,
+                    .help = "Name of the NBD export to open",
+                },
+            },
+        };
+
+        QemuOpts *opts = qemu_opts_create(&file_opts, NULL, 0, errp);
+        if (opts == NULL) {
+            error_setg(errp, "Can't parse file options");
+            goto out;
+        }
+
+        Error *local_err = NULL;
+        qemu_opts_do_parse(opts, opt_str, NULL, &local_err);
+        if (local_err) {
+            error_setg(errp, "Can't parse file options");
+            qemu_opts_del(opts);
+            goto out;
+        }
+
+        const char *value;
+        value = qemu_opt_get(opts, EN_OPTSTR);
+        if (value) {
+            qdict_put(options, "export", qstring_from_str(value));
+        }
+
+        qemu_opts_del(opts);
     }
 
 out:
