@@ -148,4 +148,13 @@ void qemu_clk_set_callback(qemu_clk clk,
                            qemu_clk_on_rate_update_cb cb,
                            void *opaque);
 
+/**
+ * qemu_clk_print:
+ * @dev: the device for which the clock need to be printed.
+ *
+ * Print the clock information for a given device.
+ *
+ */
+void qemu_clk_print(Monitor *mon, DeviceState *dev, int indent);
+
 #endif /* QEMU_CLOCK_H */
