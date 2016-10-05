@@ -1201,7 +1201,6 @@ static void *file_ram_alloc(RAMBlock *block,
     char *c;
     void *area = MAP_FAILED;
     int fd = -1;
-    int64_t page_size;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
@@ -1256,17 +1255,17 @@ static void *file_ram_alloc(RAMBlock *block,
          */
     }
 
-    page_size = qemu_fd_getpagesize(fd);
-    block->mr->align = MAX(page_size, QEMU_VMALLOC_ALIGN);
+    block->page_size = qemu_fd_getpagesize(fd);
+    block->mr->align = MAX(block->page_size, QEMU_VMALLOC_ALIGN);
 
-    if (memory < page_size) {
+    if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
-                   "or larger than page size 0x%" PRIx64,
-                   memory, page_size);
+                   "or larger than page size 0x%zx",
+                   memory, block->page_size);
         goto error;
     }
 
-    memory = ROUND_UP(memory, page_size);
+    memory = ROUND_UP(memory, block->page_size);
 
     /*
      * ftruncate is not supported by hugetlbfs in older
@@ -1419,6 +1418,11 @@ void qemu_ram_unset_idstr(RAMBlock *block)
     if (block) {
         memset(block->idstr, 0, sizeof(block->idstr));
     }
+}
+
+size_t qemu_ram_pagesize(RAMBlock *rb)
+{
+    return rb->page_size;
 }
 
 static int memory_try_enable_merging(void *addr, size_t len)
@@ -1660,6 +1664,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     new_block->max_length = max_size;
     assert(max_size >= size);
     new_block->fd = -1;
+    new_block->page_size = getpagesize();
     new_block->host = host;
     if (host) {
         new_block->flags |= RAM_PREALLOC;
