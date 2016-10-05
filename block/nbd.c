@@ -36,18 +36,34 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qbool.h"
 #include "qemu/cutils.h"
 
 #define EN_OPTSTR "exportname"
+#define ZI_OPTSTR "zero-init"
 
 #define PATH_PARAM      (1u << 0)
+#define ZERO_INIT_PARAM (1u << 1)
 
 typedef struct BDRVNBDState {
     NbdClientSession client;
 
     /* For nbd_refresh_filename() */
     char *path, *host, *port, *export, *tlscredsid;
+    bool zero_init;
 } BDRVNBDState;
+
+static bool set_option_zero_init(QDict *options, const char *value)
+{
+    if (strcmp(value, "on") == 0) {
+        qdict_put(options, "zero-init", qbool_from_bool(true));
+    } else if (strcmp(value, "off") == 0) {
+        qdict_put(options, "zero-init", qbool_from_bool(false));
+    } else {
+        return false;
+    }
+    return true;
+}
 
 /*
  * helpers for dealing with option parsing
@@ -69,7 +85,13 @@ static bool parse_query_params(QueryParams *qp, QDict *options,
             qdict_put(options, "path", qstring_from_str(param->value));
             continue;
         }
-
+        if ((ZERO_INIT_PARAM & param_flags) &&
+            strcmp(param->name, "zero-init") == 0) {
+            if (!set_option_zero_init(options, param->value)) {
+                return false;
+            }
+            continue;
+        }
     }
     return true;
 }
@@ -123,13 +145,13 @@ static int nbd_parse_uri(const char *filename, QDict *options)
     qp = query_params_parse(uri->query);
 
     if (is_unix) {
-        /* nbd+unix:///export?socket=path */
+        /* nbd+unix:///export?socket=path{,zero-init=[on|off]} */
         if (uri->server || uri->port) {
             ret = -EINVAL;
             goto out;
         }
 
-        if (!parse_query_params(qp, options, PATH_PARAM)) {
+        if (!parse_query_params(qp, options, PATH_PARAM | ZERO_INIT_PARAM)) {
             ret = -EINVAL;
             goto out;
         }
@@ -160,6 +182,11 @@ static int nbd_parse_uri(const char *filename, QDict *options)
             ret = -EINVAL;
             goto out;
         }
+
+        if (!parse_query_params(qp, options, ZERO_INIT_PARAM)) {
+            ret = -EINVAL;
+            goto out;
+        }
     }
 
 out:
@@ -186,6 +213,8 @@ static void nbd_parse_filename(const char *filename, QDict *options,
                          "at the same time");
         return;
     }
+
+    set_option_zero_init(options, "off");
 
     if (strstr(filename, "://")) {
         int ret = nbd_parse_uri(filename, options);
@@ -266,6 +295,11 @@ static void nbd_parse_filename(const char *filename, QDict *options,
                     .type = QEMU_OPT_STRING,
                     .help = "Name of the NBD export to open",
                 },
+                {
+                    .name = ZI_OPTSTR,
+                    .type = QEMU_OPT_BOOL,
+                    .help = "Zero-initialized image flag",
+                },
             },
         };
 
@@ -289,6 +323,11 @@ static void nbd_parse_filename(const char *filename, QDict *options,
             qdict_put(options, "export", qstring_from_str(value));
         }
 
+        value = qemu_opt_get(opts, ZI_OPTSTR);
+        if (value) {
+            qdict_put(options, ZI_OPTSTR,
+                      qbool_from_bool(strcmp(value, "on") == 0));
+        }
         qemu_opts_del(opts);
     }
 
@@ -336,6 +375,8 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
     s->client.is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
 
     s->export = g_strdup(qemu_opt_get(opts, "export"));
+
+    s->zero_init = strcmp(qemu_opt_get(opts, "zero-init"), "on") == 0;
 
     return saddr;
 }
@@ -426,6 +467,11 @@ static QemuOptsList nbd_runtime_opts = {
             .name = "tls-creds",
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
+        },
+        {
+            .name = "zero-init",
+            .type = QEMU_OPT_BOOL,
+            .help = "Zero-initialized image flag",
         },
     },
 };
@@ -585,7 +631,17 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
                       QOBJECT(qstring_from_str(s->tlscredsid)));
     }
 
+    if (s->zero_init) {
+        qdict_put(opts, "zero-init", qbool_from_bool(true));
+    }
+
     bs->full_open_options = opts;
+}
+
+static int nbd_has_zero_init(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+    return s->zero_init;
 }
 
 static BlockDriver bdrv_nbd = {
@@ -604,6 +660,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_has_zero_init         = nbd_has_zero_init,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -622,6 +679,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_has_zero_init         = nbd_has_zero_init,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -640,6 +698,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_has_zero_init         = nbd_has_zero_init,
 };
 
 static void bdrv_nbd_init(void)
