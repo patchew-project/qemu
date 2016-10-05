@@ -145,11 +145,13 @@ colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u\n"
 
 # Hot-plug a new virtual (guest) CPU
 #
+# Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_enter(void)
 
 # Reset the state of a virtual (guest) CPU
 #
+# Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_reset(void)
 
