@@ -37,6 +37,62 @@
     }                                                                        \
 } while (0);
 
+void qemu_clk_refresh(qemu_clk clk)
+{
+    qemu_clk_update_rate(clk, clk->in_rate);
+}
+
+void qemu_clk_update_rate(qemu_clk clk, uint64_t rate)
+{
+    ClkList *child;
+
+    clk->in_rate = rate;
+    clk->out_rate = rate;
+
+    if (clk->cb) {
+        clk->out_rate = clk->cb(clk->opaque, rate);
+    }
+
+    DPRINTF("%s output rate updated to %" PRIu64 "\n",
+            object_get_canonical_path(OBJECT(clk)),
+            clk->out_rate);
+
+    QLIST_FOREACH(child, &clk->bound, node) {
+        qemu_clk_update_rate(child->clk, clk->out_rate);
+    }
+}
+
+void qemu_clk_bind_clock(qemu_clk out, qemu_clk in)
+{
+    ClkList *child;
+
+    child = g_malloc(sizeof(child));
+    assert(child);
+    child->clk = in;
+    QLIST_INSERT_HEAD(&out->bound, child, node);
+    qemu_clk_update_rate(in, out->out_rate);
+}
+
+void qemu_clk_unbind(qemu_clk out, qemu_clk in)
+{
+    ClkList *child, *next;
+
+    QLIST_FOREACH_SAFE(child, &out->bound, node, next) {
+        if (child->clk == in) {
+            QLIST_REMOVE(child, node);
+            g_free(child);
+        }
+    }
+}
+
+void qemu_clk_set_callback(qemu_clk clk,
+                           qemu_clk_on_rate_update_cb cb,
+                           void *opaque)
+{
+    clk->cb = cb;
+    clk->opaque = opaque;
+}
+
 void qemu_clk_attach_to_device(DeviceState *dev, qemu_clk clk,
                                const char *name)
 {
