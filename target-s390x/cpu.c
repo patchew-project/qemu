@@ -207,10 +207,6 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
         goto out;
     }
 
-    cpu_exec_init(cs, &err);
-    if (err != NULL) {
-        goto out;
-    }
     cpu_exec_realize(cs, &err);
     if (err != NULL) {
         goto out;
@@ -293,6 +289,7 @@ static void s390_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
+    cpu_exec_init(cs, &error_abort);
     object_property_add(OBJECT(cpu), "id", "int64_t", s390x_cpu_get_id,
                         s390x_cpu_set_id, NULL, NULL, NULL);
     s390_cpu_model_register_props(obj);
@@ -444,12 +441,6 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_core_xml_file = "s390x-core64.xml";
     cc->gdb_arch_name = s390_gdb_arch_name;
 
-    /*
-     * Reason: s390_cpu_realizefn() calls cpu_exec_init(), which saves
-     * the object in cpus -> dangling pointer after final
-     * object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
     s390_cpu_model_class_register_props(oc);
 }
 
