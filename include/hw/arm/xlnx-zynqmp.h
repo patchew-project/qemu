@@ -86,6 +86,8 @@ typedef struct XlnxZynqMPState {
     XlnxDPState dp;
     XlnxDPDMAState dpdma;
 
+    Object *crf;
+
     char *boot_cpu;
     ARMCPU *boot_cpu_ptr;
 
