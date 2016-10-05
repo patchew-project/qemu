@@ -33,8 +33,30 @@
 typedef struct qemu_clk {
     /*< private >*/
     Object parent_obj;
+    char *name;            /* name of this clock in the device. */
 } *qemu_clk;
 
+/**
+ * qemu_clk_attach_to_device:
+ * @dev: the device on which the clock need to be attached.
+ * @clk: the clock which need to be attached.
+ * @name: the name of the clock can't be NULL.
+ *
+ * Attach @clk named @name to the device @dev.
+ *
+ */
+void qemu_clk_attach_to_device(DeviceState *dev, qemu_clk clk,
+                               const char *name);
+
+/**
+ * qemu_clk_get_pin:
+ * @dev: the device which contain the clock.
+ * @name: the name of the clock.
+ *
+ * Get the clock named @name located in the device @dev, or NULL if not found.
+ *
+ * Returns the clock named @name contained in @dev.
+ */
+qemu_clk qemu_clk_get_pin(DeviceState *dev, const char *name);
+
 #endif /* QEMU_CLOCK_H */
-
-
