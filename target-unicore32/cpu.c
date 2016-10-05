@@ -117,6 +117,7 @@ static void uc32_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(cs, &error_abort);
+    cpu_exec_realize(cs, &error_abort);
 
 #ifdef CONFIG_USER_ONLY
     env->uncached_asr = ASR_MODE_USER;

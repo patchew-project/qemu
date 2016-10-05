@@ -815,6 +815,7 @@ static void sparc_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(cs, &error_abort);
+    cpu_exec_realize(cs, &error_abort);
 
     if (tcg_enabled()) {
         gen_intermediate_code_init(env);

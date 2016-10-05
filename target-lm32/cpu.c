@@ -161,6 +161,7 @@ static void lm32_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(cs, &error_abort);
+    cpu_exec_realize(cs, &error_abort);
 
     env->flags = 0;
 

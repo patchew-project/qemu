@@ -259,6 +259,7 @@ static void superh_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(cs, &error_abort);
+    cpu_exec_realize(cs, &error_abort);
 
     env->movcal_backup_tail = &(env->movcal_backup);
 

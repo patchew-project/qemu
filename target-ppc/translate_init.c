@@ -9683,6 +9683,11 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+    cpu_exec_realize(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
 #if !defined(CONFIG_USER_ONLY)
     cpu->cpu_dt_id = (cs->cpu_index / smp_threads) * max_smt

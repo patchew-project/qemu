@@ -211,6 +211,10 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     if (err != NULL) {
         goto out;
     }
+    cpu_exec_realize(cs, &err);
+    if (err != NULL) {
+        goto out;
+    }
     scc->next_cpu_id++;
 
 #if !defined(CONFIG_USER_ONLY)

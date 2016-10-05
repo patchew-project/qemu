@@ -96,6 +96,7 @@ static void tricore_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     cpu_exec_init(cs, &error_abort);
+    cpu_exec_realize(cs, &error_abort);
 
     if (tcg_enabled()) {
         tricore_tcg_init();
