@@ -9899,6 +9899,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
         break;
+#if defined(TARGET_NR_preadv) && defined(CONFIG_PREADV)
+    case TARGET_NR_preadv:
+        {
+            struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+            if (vec != NULL) {
+                ret = get_errno(preadv(arg1, vec, arg3, arg4));
+                unlock_iovec(vec, arg2, arg3, 1);
+            } else {
+                ret = -host_to_target_errno(errno);
+           }
+        }
+        break;
+#endif
     case TARGET_NR_getsid:
         ret = get_errno(getsid(arg1));
         break;
