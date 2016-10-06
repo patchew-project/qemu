@@ -1217,6 +1217,17 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**
+ * memory_region_find_by_name: Locates the first #MemoryRegion within @mr
+ * whose name matches @name
+ *
+ * @mr: the root MemoryRegion
+ * @name: name of the target MemoryRegion
+ *
+ * Returns the matched memory region or NULL
+ */
+MemoryRegion *memory_region_find_by_name(MemoryRegion *mr, const char *name);
+
+/**
  * memory_global_dirty_log_sync: synchronize the dirty log for all memory
  *
  * Synchronizes the dirty page log for all address spaces.
