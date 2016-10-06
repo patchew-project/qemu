@@ -3318,6 +3318,19 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# pwritev probe
+cat > $TMPC <<EOF
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+int main(void) { return pwritev(0, 0, 0, 0); }
+EOF
+pwritev=no
+if compile_prog "" "" ; then
+  pwritev=yes
+fi
+
+##########################################
 # fdt probe
 # fdt support is mandatory for at least some target architectures,
 # so insist on it if we're building those system emulators.
@@ -4902,6 +4915,7 @@ echo "RDMA support      $rdma"
 echo "TCG interpreter   $tcg_interpreter"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
+echo "pwritev support   $pwritev"
 echo "fdatasync         $fdatasync"
 echo "madvise           $madvise"
 echo "posix_madvise     $posix_madvise"
@@ -5298,6 +5312,9 @@ if test "$iovec" = "yes" ; then
 fi
 if test "$preadv" = "yes" ; then
   echo "CONFIG_PREADV=y" >> $config_host_mak
+fi
+if test "$pwritev" = "yes" ; then
+  echo "CONFIG_PWRITEV=y" >> $config_host_mak
 fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak
