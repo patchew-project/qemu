@@ -94,6 +94,7 @@ struct CharDriverState {
     int is_mux;
     int mux_idx;
     guint fd_in_tag;
+    /* Be aware that in some cases @opts might be NULL. */
     QemuOpts *opts;
     bool replay;
     QTAILQ_ENTRY(CharDriverState) next;

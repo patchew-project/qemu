@@ -614,6 +614,11 @@ int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
     QemuOpt *opt;
     int rc;
 
+    if (!opts) {
+        /* Done, trivially. */
+        return 0;
+    }
+
     QTAILQ_FOREACH(opt, &opts->head, next) {
         rc = func(opaque, opt->name, opt->str, errp);
         if (rc) {
