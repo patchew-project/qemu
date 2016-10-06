@@ -2087,8 +2087,18 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
     Error *local_err = NULL;
+    BlockJob *job = NULL;
 
     assert(bs_queue != NULL);
+
+    /* Pause all block jobs */
+    while ((job = block_job_next(job))) {
+        AioContext *aio_context = blk_get_aio_context(job->blk);
+
+        aio_context_acquire(aio_context);
+        block_job_pause(job);
+        aio_context_release(aio_context);
+    }
 
     bdrv_drain_all();
 
@@ -2120,6 +2130,17 @@ cleanup:
         g_free(bs_entry);
     }
     g_free(bs_queue);
+
+    /* Resume all block jobs */
+    job = NULL;
+    while ((job = block_job_next(job))) {
+        AioContext *aio_context = blk_get_aio_context(job->blk);
+
+        aio_context_acquire(aio_context);
+        block_job_resume(job);
+        aio_context_release(aio_context);
+    }
+
     return ret;
 }
 
