@@ -30,6 +30,8 @@
 #include "qapi-visit.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
+#include "hw/virtio/virtio-crypto.h"
+
 
 static QTAILQ_HEAD(, QCryptoCryptoDevBackendClientState) crypto_clients;
 
@@ -105,7 +107,7 @@ int qcrypto_cryptodev_backend_sym_close_session(
     return -1;
 }
 
-int qcrypto_cryptodev_backend_sym_operation(
+static int qcrypto_cryptodev_backend_sym_operation(
                  QCryptoCryptoDevBackend *backend,
                  QCryptoCryptoDevBackendSymOpInfo *op_info,
                  uint32_t queue_index, Error **errp)
@@ -117,7 +119,29 @@ int qcrypto_cryptodev_backend_sym_operation(
         return bc->do_sym_op(backend, op_info, queue_index, errp);
     }
 
-    return -1;
+    return -VIRTIO_CRYPTO_ERR;
+}
+
+int qcrypto_cryptodev_backend_crypto_operation(
+                 QCryptoCryptoDevBackend *backend,
+                 void *opaque,
+                 uint32_t queue_index, Error **errp)
+{
+    VirtIOCryptoReq *req = opaque;
+
+    if (req->flags == QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM) {
+        QCryptoCryptoDevBackendSymOpInfo *op_info;
+        op_info = req->u.sym_op_info;
+
+        return qcrypto_cryptodev_backend_sym_operation(backend,
+                         op_info, queue_index, errp);
+    } else {
+        error_setg(errp, "Unsupported cryptodev alg type: %" PRIu32 "",
+                   req->flags);
+       return -VIRTIO_CRYPTO_NOTSUPP;
+    }
+
+    return -VIRTIO_CRYPTO_ERR;
 }
 
 static void

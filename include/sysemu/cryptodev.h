@@ -264,20 +264,21 @@ int qcrypto_cryptodev_backend_sym_close_session(
            uint32_t queue_index, Error **errp);
 
 /**
- * qcrypto_cryptodev_backend_sym_operation:
+ * qcrypto_cryptodev_backend_crypto_operation:
  * @backend: the cryptodev backend object
- * @op_info: parameters needed by symmetric crypto operation
+ * @opaque: pointer to a VirtIOCryptoReq object
  * @queue_index: queue index of cryptodev backend client
  * @errp: pointer to a NULL-initialized error object
  *
- * Do symmetric crypto operation, such as encryption and
+ * Do crypto operation, such as encryption and
  * decryption
  *
- * Returns: 0 on success, or Negative on error
+ * Returns: VIRTIO_CRYPTO_OK on success,
+ *         or -VIRTIO_CRYPTO_* on error
  */
-int qcrypto_cryptodev_backend_sym_operation(
+int qcrypto_cryptodev_backend_crypto_operation(
                  QCryptoCryptoDevBackend *backend,
-                 QCryptoCryptoDevBackendSymOpInfo *op_info,
+                 void *opaque,
                  uint32_t queue_index, Error **errp);
 
 #endif /* QCRYPTO_CRYPTODEV_H */
