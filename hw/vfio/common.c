@@ -212,6 +212,34 @@ static int vfio_dma_unmap(VFIOContainer *container,
     return 0;
 }
 
+/**
+ * vfio_register_msi_iova: registers the MSI iova region
+ *
+ * @container: container handle
+ * @iova: base IOVA of the MSI region
+ * @size: size of the MSI IOVA region
+ */
+int vfio_register_msi_iova(VFIOContainer *container, hwaddr iova,
+                           ram_addr_t size);
+int vfio_register_msi_iova(VFIOContainer *container, hwaddr iova,
+                           ram_addr_t size)
+{
+    int ret;
+    struct vfio_iommu_type1_dma_map map = {
+        .argsz = sizeof(map),
+        .flags = VFIO_DMA_MAP_FLAG_RESERVED_MSI_IOVA,
+        .iova = iova,
+        .size = size,
+    };
+
+    ret = ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map);
+
+    if (ret) {
+        error_report("VFIO_MAP_DMA/RESERVED_MSI_IOVA: %m");
+    }
+    return ret;
+}
+
 static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
                         ram_addr_t size, void *vaddr, bool readonly)
 {
