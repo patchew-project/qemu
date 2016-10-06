@@ -37,6 +37,7 @@ struct QTestState
     bool irq_level[MAX_IRQ];
     GString *rx;
     pid_t qemu_pid;  /* our child QEMU process */
+    bool big_endian;
 };
 
 static GHookList abrt_hooks;
@@ -144,89 +145,6 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     hook->data = (void *)data;
 
     g_hook_prepend(&abrt_hooks, hook);
-}
-
-QTestState *qtest_init(const char *extra_args)
-{
-    QTestState *s;
-    int sock, qmpsock, i;
-    gchar *socket_path;
-    gchar *qmp_socket_path;
-    gchar *command;
-    const char *qemu_binary;
-
-    qemu_binary = getenv("QTEST_QEMU_BINARY");
-    g_assert(qemu_binary != NULL);
-
-    s = g_malloc(sizeof(*s));
-
-    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
-    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
-
-    sock = init_socket(socket_path);
-    qmpsock = init_socket(qmp_socket_path);
-
-    qtest_add_abrt_handler(kill_qemu_hook_func, s);
-
-    s->qemu_pid = fork();
-    if (s->qemu_pid == 0) {
-        setenv("QEMU_AUDIO_DRV", "none", true);
-        command = g_strdup_printf("exec %s "
-                                  "-qtest unix:%s,nowait "
-                                  "-qtest-log %s "
-                                  "-qmp unix:%s,nowait "
-                                  "-machine accel=qtest "
-                                  "-display none "
-                                  "%s", qemu_binary, socket_path,
-                                  getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
-                                  qmp_socket_path,
-                                  extra_args ?: "");
-        execlp("/bin/sh", "sh", "-c", command, NULL);
-        exit(1);
-    }
-
-    s->fd = socket_accept(sock);
-    if (s->fd >= 0) {
-        s->qmp_fd = socket_accept(qmpsock);
-    }
-    unlink(socket_path);
-    unlink(qmp_socket_path);
-    g_free(socket_path);
-    g_free(qmp_socket_path);
-
-    g_assert(s->fd >= 0 && s->qmp_fd >= 0);
-
-    s->rx = g_string_new("");
-    for (i = 0; i < MAX_IRQ; i++) {
-        s->irq_level[i] = false;
-    }
-
-    /* Read the QMP greeting and then do the handshake */
-    qtest_qmp_discard_response(s, "");
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
-
-    if (getenv("QTEST_STOP")) {
-        kill(s->qemu_pid, SIGSTOP);
-    }
-
-    return s;
-}
-
-void qtest_quit(QTestState *s)
-{
-    qtest_instances = g_list_remove(qtest_instances, s);
-    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
-
-    /* Uninstall SIGABRT handler on last instance */
-    if (!qtest_instances) {
-        cleanup_sigabrt_handler();
-    }
-
-    kill_qemu(s);
-    close(s->fd);
-    close(s->qmp_fd);
-    g_string_free(s->rx, true);
-    g_free(s);
 }
 
 static void socket_send(int fd, const char *buf, size_t size)
@@ -346,6 +264,99 @@ typedef struct {
     JSONMessageParser parser;
     QDict *response;
 } QMPResponseParser;
+
+QTestState *qtest_init(const char *extra_args)
+{
+    QTestState *s;
+    int sock, qmpsock, i;
+    gchar *socket_path;
+    gchar *qmp_socket_path;
+    gchar *command;
+    const char *qemu_binary;
+    gchar **args;
+
+    qemu_binary = getenv("QTEST_QEMU_BINARY");
+    g_assert(qemu_binary != NULL);
+
+    s = g_malloc(sizeof(*s));
+
+    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+
+    sock = init_socket(socket_path);
+    qmpsock = init_socket(qmp_socket_path);
+
+    qtest_add_abrt_handler(kill_qemu_hook_func, s);
+
+    s->qemu_pid = fork();
+    if (s->qemu_pid == 0) {
+        setenv("QEMU_AUDIO_DRV", "none", true);
+        command = g_strdup_printf("exec %s "
+                                  "-qtest unix:%s,nowait "
+                                  "-qtest-log %s "
+                                  "-qmp unix:%s,nowait "
+                                  "-machine accel=qtest "
+                                  "-display none "
+                                  "%s", qemu_binary, socket_path,
+                                  getenv("QTEST_LOG") ? "/dev/fd/2"
+                                                      : "/dev/null",
+                                  qmp_socket_path,
+                                  extra_args ?: "");
+        execlp("/bin/sh", "sh", "-c", command, NULL);
+        exit(1);
+    }
+
+    s->fd = socket_accept(sock);
+    if (s->fd >= 0) {
+        s->qmp_fd = socket_accept(qmpsock);
+    }
+    unlink(socket_path);
+    unlink(qmp_socket_path);
+    g_free(socket_path);
+    g_free(qmp_socket_path);
+
+    g_assert(s->fd >= 0 && s->qmp_fd >= 0);
+
+    s->rx = g_string_new("");
+    for (i = 0; i < MAX_IRQ; i++) {
+        s->irq_level[i] = false;
+    }
+
+    /* Read the QMP greeting and then do the handshake */
+    qtest_qmp_discard_response(s, "");
+    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+
+    if (getenv("QTEST_STOP")) {
+        kill(s->qemu_pid, SIGSTOP);
+    }
+
+    /* ask endianness of the target */
+
+    qtest_sendf(s, "endianness\n");
+    args = qtest_rsp(s, 1);
+    g_assert(strcmp(args[1], "big") == 0 || strcmp(args[1], "little") == 0);
+    s->big_endian = strcmp(args[1], "big") == 0;
+    g_strfreev(args);
+
+    return s;
+}
+
+void qtest_quit(QTestState *s)
+{
+    qtest_instances = g_list_remove(qtest_instances, s);
+    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
+
+    /* Uninstall SIGABRT handler on last instance */
+    if (!qtest_instances) {
+        cleanup_sigabrt_handler();
+    }
+
+    kill_qemu(s);
+    close(s->fd);
+    close(s->qmp_fd);
+    g_string_free(s->rx, true);
+    g_free(s);
+}
 
 static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
 {
@@ -886,50 +897,7 @@ char *hmp(const char *fmt, ...)
     return ret;
 }
 
-bool qtest_big_endian(void)
+bool qtest_big_endian(QTestState *s)
 {
-    const char *arch = qtest_get_arch();
-    int i;
-
-    static const struct {
-        const char *arch;
-        bool big_endian;
-    } endianness[] = {
-        { "aarch64", false },
-        { "alpha", false },
-        { "arm", false },
-        { "cris", false },
-        { "i386", false },
-        { "lm32", true },
-        { "m68k", true },
-        { "microblaze", true },
-        { "microblazeel", false },
-        { "mips", true },
-        { "mips64", true },
-        { "mips64el", false },
-        { "mipsel", false },
-        { "moxie", true },
-        { "or32", true },
-        { "ppc", true },
-        { "ppc64", true },
-        { "ppcemb", true },
-        { "s390x", true },
-        { "sh4", false },
-        { "sh4eb", true },
-        { "sparc", true },
-        { "sparc64", true },
-        { "unicore32", false },
-        { "x86_64", false },
-        { "xtensa", false },
-        { "xtensaeb", true },
-        {},
-    };
-
-    for (i = 0; endianness[i].arch; i++) {
-        if (strcmp(endianness[i].arch, arch) == 0) {
-            return endianness[i].big_endian;
-        }
-    }
-
-    return false;
+    return s->big_endian;
 }
