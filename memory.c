@@ -2166,6 +2166,22 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     return ret;
 }
 
+MemoryRegion *memory_region_find_by_name(MemoryRegion *root,
+                                         const char *name)
+{
+    MemoryRegion *other;
+
+    QTAILQ_FOREACH(other, &root->subregions, subregions_link) {
+        if (!strcmp(other->name, name)) {
+            memory_region_ref(other);
+            return other;
+        } else {
+            memory_region_find_by_name(other, name);
+        }
+    }
+    return NULL;
+}
+
 bool memory_region_present(MemoryRegion *container, hwaddr addr)
 {
     MemoryRegion *mr;
