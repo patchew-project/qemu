@@ -215,3 +215,45 @@ uint32_t helper_itof(CPUTriCoreState *env, uint32_t arg)
     }
     return (uint32_t)f_result;
 }
+
+uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_arg = make_float32(arg);
+    uint32_t result;
+    int32_t flags;
+    result = float32_to_uint32_round_to_zero(f_arg, &env->fp_status);
+
+    flags = f_get_excp_flags(env);
+    if (flags) {
+        if (float32_is_any_nan(f_arg)) {
+            flags |= float_flag_invalid;
+            result = 0;
+        /* f_real(D[a]) < 0.0 */
+        } else if (float32_lt_quiet(f_arg, 0.0, &env->fp_status)) {
+            flags |= float_flag_invalid;
+            result = 0;
+        /* f_real(D[a]) > 2^32 -1  */
+        } else if (float32_lt_quiet(0x4f800000, f_arg, &env->fp_status)) {
+            flags |= float_flag_invalid;
+            result = 0xffffffff;
+        } else {
+            flags &= ~float_flag_invalid;
+        }
+        /* once invalid flag has been set, we cannot set inexact anymore
+           since each FPU operation can only assert ONE flag. (see
+           TriCore ISA Manual Vol. 1 (11-9)) */
+        if (!(flags & float_flag_invalid)) {
+            if (!float32_eq(f_arg, make_float32(result), &env->fp_status)) {
+                flags |= float_flag_inexact;
+            } else {
+                flags &= ~float_flag_inexact;
+            }
+        } else {
+            flags &= ~float_flag_inexact;
+        }
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+    return result;
+}
