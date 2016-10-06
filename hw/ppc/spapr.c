@@ -2376,12 +2376,15 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
                                 unsigned n_dma, uint32_t *liobns, Error **errp)
 {
     const uint64_t base_buid = 0x800000020000000ULL;
-    const hwaddr phb0_base = 0x10000000000ULL; /* 1 TiB */
     const hwaddr phb_spacing = 0x1000000000ULL; /* 64 GiB */
     const hwaddr mmio_offset = 0xa0000000; /* 2 GiB + 512 MiB */
     const hwaddr pio_offset = 0x80000000; /* 2 GiB */
     const uint32_t max_index = 255;
+    const hwaddr phb0_alignment = 0x10000000000ULL; /* 1 TiB */
 
+    uint64_t max_hotplug_addr = spapr->hotplug_memory.base +
+        memory_region_size(&spapr->hotplug_memory.mr);
+    hwaddr phb0_base = QEMU_ALIGN_UP(max_hotplug_addr, phb0_alignment);
     hwaddr phb_base;
     int i;
 
