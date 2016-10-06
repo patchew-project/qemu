@@ -910,6 +910,8 @@ safe_syscall3(ssize_t, readv, int, fd, const struct iovec *, iov, int, iovcnt)
 safe_syscall3(ssize_t, writev, int, fd, const struct iovec *, iov, int, iovcnt)
 safe_syscall4(ssize_t, preadv, int, fd, const struct iovec *, iov, int, iovcnt,
               off_t, offset)
+safe_syscall4(ssize_t, pwritev, int, fd, const struct iovec *, iov, int, iovcnt,
+              off_t, offset)
 safe_syscall3(int, connect, int, fd, const struct sockaddr *, addr,
               socklen_t, addrlen)
 safe_syscall6(ssize_t, sendto, int, fd, const void *, buf, size_t, len,
@@ -9908,6 +9910,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (vec != NULL) {
                 ret = get_errno(safe_preadv(arg1, vec, arg3, arg4));
                 unlock_iovec(vec, arg2, arg3, 1);
+            } else {
+                ret = -host_to_target_errno(errno);
+           }
+        }
+        break;
+#endif
+#if defined(TARGET_NR_pwritev)
+    case TARGET_NR_pwritev:
+        {
+            struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+            if (vec != NULL) {
+                ret = get_errno(safe_pwritev(arg1, vec, arg3, arg4));
+                unlock_iovec(vec, arg2, arg3, 0);
             } else {
                 ret = -host_to_target_errno(errno);
            }
