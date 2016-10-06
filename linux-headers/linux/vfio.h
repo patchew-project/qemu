@@ -8,8 +8,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef VFIO_H
-#define VFIO_H
+#ifndef _UAPIVFIO_H
+#define _UAPIVFIO_H
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
@@ -488,7 +488,35 @@ struct vfio_iommu_type1_info {
 	__u32	argsz;
 	__u32	flags;
 #define VFIO_IOMMU_INFO_PGSIZES (1 << 0)	/* supported page sizes info */
-	__u64	iova_pgsizes;		/* Bitmap of supported page sizes */
+#define VFIO_IOMMU_INFO_CAPS	(1 << 1)	/* Info supports caps */
+	__u64	iova_pgsizes;	/* Bitmap of supported page sizes */
+	__u32	__resv;
+	__u32   cap_offset;	/* Offset within info struct of first cap */
+};
+
+#define VFIO_IOMMU_TYPE1_INFO_CAP_MSI_GEOMETRY	1
+
+/*
+ * The MSI geometry capability allows to report the MSI IOVA geometry:
+ * - either the MSI IOVAs are constrained within a reserved IOVA aperture
+ *   whose boundaries are given by [@aperture_start, @aperture_end].
+ *   this is typically the case on x86 host. The userspace is not allowed
+ *   to map userspace memory at IOVAs intersecting this range using
+ *   VFIO_IOMMU_MAP_DMA.
+ * - or the MSI IOVAs are not requested to belong to any reserved range;
+ *   in that case the userspace must provide an IOVA window characterized by
+ *   @size and @alignment using VFIO_IOMMU_MAP_DMA with RESERVED_MSI_IOVA flag.
+ */
+struct vfio_iommu_type1_info_cap_msi_geometry {
+	struct vfio_info_cap_header header;
+	__u32 flags;
+#define VFIO_IOMMU_MSI_GEOMETRY_RESERVED (1 << 0) /* reserved geometry */
+	/* not reserved */
+	__u32 order; /* iommu page order used for aperture alignment*/
+	__u64 size; /* IOVA aperture size (bytes) the userspace must provide */
+	/* reserved */
+	__u64 aperture_start;
+	__u64 aperture_end;
 };
 
 #define VFIO_IOMMU_GET_INFO _IO(VFIO_TYPE, VFIO_BASE + 12)
@@ -498,12 +526,21 @@ struct vfio_iommu_type1_info {
  *
  * Map process virtual addresses to IO virtual addresses using the
  * provided struct vfio_dma_map. Caller sets argsz. READ &/ WRITE required.
+ *
+ * In case RESERVED_MSI_IOVA flag is set, the API only aims at registering an
+ * IOVA region that will be used on some platforms to map the host MSI frames.
+ * In that specific case, vaddr is ignored. Once registered, an MSI reserved
+ * IOVA region stays until the container is closed.
+ * The requirement for provisioning such reserved IOVA range can be checked by
+ * checking the VFIO_IOMMU_TYPE1_INFO_CAP_MSI_GEOMETRY capability.
  */
 struct vfio_iommu_type1_dma_map {
 	__u32	argsz;
 	__u32	flags;
 #define VFIO_DMA_MAP_FLAG_READ (1 << 0)		/* readable from device */
 #define VFIO_DMA_MAP_FLAG_WRITE (1 << 1)	/* writable from device */
+/* reserved iova for MSI vectors*/
+#define VFIO_DMA_MAP_FLAG_RESERVED_MSI_IOVA (1 << 2)
 	__u64	vaddr;				/* Process virtual address */
 	__u64	iova;				/* IO virtual address */
 	__u64	size;				/* Size of mapping (bytes) */
@@ -519,7 +556,8 @@ struct vfio_iommu_type1_dma_map {
  * Caller sets argsz.  The actual unmapped size is returned in the size
  * field.  No guarantee is made to the user that arbitrary unmaps of iova
  * or size different from those used in the original mapping call will
- * succeed.
+ * succeed. Once registered, an MSI region cannot be unmapped and stays
+ * until the container is closed.
  */
 struct vfio_iommu_type1_dma_unmap {
 	__u32	argsz;
@@ -688,4 +726,4 @@ struct vfio_iommu_spapr_tce_remove {
 
 /* ***************************************************************** */
 
-#endif /* VFIO_H */
+#endif /* _UAPIVFIO_H */
