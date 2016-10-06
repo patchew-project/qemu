@@ -900,6 +900,27 @@ static void vfio_put_address_space(VFIOAddressSpace *space)
     }
 }
 
+static int vfio_get_iommu_type1_info(int fd,
+                                     struct vfio_iommu_type1_info **pinfo)
+{
+    size_t argsz = sizeof(struct vfio_iommu_type1_info);
+
+    *pinfo = g_malloc0(argsz);
+retry:
+    (*pinfo)->argsz =  argsz;
+
+    if (ioctl(fd, VFIO_IOMMU_GET_INFO, *pinfo)) {
+        return -errno;
+    }
+    if ((*pinfo)->argsz > argsz) {
+        argsz = (*pinfo)->argsz;
+        *pinfo = g_realloc(*pinfo, argsz);
+        goto retry;
+    }
+    return 0;
+}
+
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 {
     VFIOContainer *container;
@@ -937,7 +958,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
         ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
         bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
-        struct vfio_iommu_type1_info info;
+        struct vfio_iommu_type1_info *pinfo;
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
@@ -961,14 +982,14 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
          * existing Type1 IOMMUs generally support any IOVA we're
          * going to actually try in practice.
          */
-        info.argsz = sizeof(info);
-        ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
+        vfio_get_iommu_type1_info(fd, &pinfo);
         /* Ignore errors */
-        if (ret || !(info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
+        if (ret || !(pinfo->flags & VFIO_IOMMU_INFO_PGSIZES)) {
             /* Assume 4k IOVA page size */
-            info.iova_pgsizes = 4096;
+            pinfo->iova_pgsizes = 4096;
         }
-        vfio_host_win_add(container, 0, (hwaddr)-1, info.iova_pgsizes);
+        vfio_host_win_add(container, 0, (hwaddr)(-1), pinfo->iova_pgsizes);
+        g_free(pinfo);
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU) ||
                ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU)) {
         struct vfio_iommu_spapr_tce_info info;
