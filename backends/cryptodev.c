@@ -75,6 +75,51 @@ void qcrypto_cryptodev_backend_cleanup(
     backend->ready = false;
 }
 
+int64_t qcrypto_cryptodev_backend_sym_create_session(
+           QCryptoCryptoDevBackend *backend,
+           QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+           uint32_t queue_index, Error **errp)
+{
+    QCryptoCryptoDevBackendClass *bc =
+                      QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+
+    if (bc->create_session) {
+        return bc->create_session(backend, sess_info, queue_index, errp);
+    }
+
+    return -1;
+}
+
+int qcrypto_cryptodev_backend_sym_close_session(
+           QCryptoCryptoDevBackend *backend,
+           uint64_t session_id,
+           uint32_t queue_index, Error **errp)
+{
+    QCryptoCryptoDevBackendClass *bc =
+                      QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+
+    if (bc->close_session) {
+        return bc->close_session(backend, session_id, queue_index, errp);
+    }
+
+    return -1;
+}
+
+int qcrypto_cryptodev_backend_sym_operation(
+                 QCryptoCryptoDevBackend *backend,
+                 QCryptoCryptoDevBackendSymOpInfo *op_info,
+                 uint32_t queue_index, Error **errp)
+{
+    QCryptoCryptoDevBackendClass *bc =
+                      QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+
+    if (bc->do_sym_op) {
+        return bc->do_sym_op(backend, op_info, queue_index, errp);
+    }
+
+    return -1;
+}
+
 static void
 qcrypto_cryptodev_backend_get_queues(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
