@@ -6848,6 +6848,9 @@ static void decode_rr1_mul(CPUTriCoreState *env, DisasContext *ctx)
         GEN_HELPER_UU(mulr_h, cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2], n);
         gen_calc_usb_mulr_h(cpu_gpr_d[r3]);
         break;
+    case OPC2_32_RR_UPDFL:
+        gen_helper_updfl(cpu_env, cpu_gpr_d[r1]);
+        break;
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
