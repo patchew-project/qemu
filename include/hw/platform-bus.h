@@ -54,4 +54,11 @@ int platform_bus_get_irqn(PlatformBusDevice *platform_bus, SysBusDevice *sbdev,
 hwaddr platform_bus_get_mmio_addr(PlatformBusDevice *pbus, SysBusDevice *sbdev,
                                   int n);
 
+/**
+ * platform_bus_map_region: map a MemoryRegion into the platform bus
+ * @pbus: platform bus handle
+ * @mr: memory region handle
+ */
+void platform_bus_map_region(PlatformBusDevice *pbus, MemoryRegion *mr);
+
 #endif /* HW_PLATFORM_BUS_H */

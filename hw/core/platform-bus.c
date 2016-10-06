@@ -24,6 +24,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 
 
 /*
@@ -127,16 +128,14 @@ static void platform_bus_map_irq(PlatformBusDevice *pbus, SysBusDevice *sbdev,
     sysbus_connect_irq(sbdev, n, pbus->irqs[irqn]);
 }
 
-static void platform_bus_map_mmio(PlatformBusDevice *pbus, SysBusDevice *sbdev,
-                                  int n)
+void platform_bus_map_region(PlatformBusDevice *pbus, MemoryRegion *mr)
 {
-    MemoryRegion *sbdev_mr = sysbus_mmio_get_region(sbdev, n);
-    uint64_t size = memory_region_size(sbdev_mr);
+    uint64_t size = memory_region_size(mr);
     uint64_t alignment = (1ULL << (63 - clz64(size + size - 1)));
     uint64_t off;
     bool found_region = false;
 
-    if (memory_region_is_mapped(sbdev_mr)) {
+    if (memory_region_is_mapped(mr)) {
         /* Region is already mapped, nothing to do */
         return;
     }
@@ -153,13 +152,21 @@ static void platform_bus_map_mmio(PlatformBusDevice *pbus, SysBusDevice *sbdev,
     }
 
     if (!found_region) {
-        error_report("Platform Bus: Can not fit MMIO region of size %"PRIx64,
-                     size);
-        exit(1);
+        error_setg(&error_fatal,
+                   "Platform Bus: Can not fit region %s of size %"PRIx64,
+                   mr->name, size);
     }
 
-    /* Map the device's region into our Platform Bus MMIO space */
-    memory_region_add_subregion(&pbus->mmio, off, sbdev_mr);
+    /* Map the region into our Platform Bus MMIO space */
+    memory_region_add_subregion(&pbus->mmio, off, mr);
+}
+
+static void platform_bus_map_mmio(PlatformBusDevice *pbus, SysBusDevice *sbdev,
+                                  int n)
+{
+    MemoryRegion *sbdev_mr = sysbus_mmio_get_region(sbdev, n);
+
+    platform_bus_map_region(pbus, sbdev_mr);
 }
 
 /*
