@@ -140,6 +140,7 @@
 #define ERDP_EHB        (1<<3)
 
 #define TRB_SIZE 16
+#define TRB_MAX  4000
 typedef struct XHCITRB {
     uint64_t parameter;
     uint32_t status;
@@ -999,9 +1000,10 @@ static void xhci_ring_init(XHCIState *xhci, XHCIRing *ring,
 static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
                                dma_addr_t *addr)
 {
+    uint16_t trbcnt = 0;
     PCIDevice *pci_dev = PCI_DEVICE(xhci);
 
-    while (1) {
+    while (trbcnt++ < TRB_MAX) {
         TRBType type;
         pci_dma_read(pci_dev, ring->dequeue, trb, TRB_SIZE);
         trb->addr = ring->dequeue;
@@ -1032,6 +1034,8 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
             }
         }
     }
+
+    return 0;
 }
 
 static int xhci_ring_chain_length(XHCIState *xhci, const XHCIRing *ring)
