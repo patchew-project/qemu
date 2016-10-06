@@ -42,7 +42,8 @@ struct sPAPRMachineClass {
     const char *tcg_default_cpu; /* which (TCG) CPU to simulate by default */
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, hwaddr *pio_size,
-                          hwaddr *mmio, hwaddr *mmio_size,
+                          hwaddr *mmio32, hwaddr *mmio32_size,
+                          hwaddr *mmio64, hwaddr *mmio64_size,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
 };
 
