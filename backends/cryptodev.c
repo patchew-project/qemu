@@ -33,16 +33,16 @@
 #include "hw/virtio/virtio-crypto.h"
 
 
-static QTAILQ_HEAD(, QCryptoCryptoDevBackendClientState) crypto_clients;
+static QTAILQ_HEAD(, CryptoDevBackendClient) crypto_clients;
 
 
-QCryptoCryptoDevBackendClientState *
-qcrypto_cryptodev_backend_new_client(const char *model,
+CryptoDevBackendClient *
+cryptodev_backend_new_client(const char *model,
                                     const char *name)
 {
-    QCryptoCryptoDevBackendClientState *cc;
+    CryptoDevBackendClient *cc;
 
-    cc = g_malloc0(sizeof(QCryptoCryptoDevBackendClientState));
+    cc = g_malloc0(sizeof(CryptoDevBackendClient));
     cc->model = g_strdup(model);
     if (name) {
         cc->name = g_strdup(name);
@@ -53,8 +53,8 @@ qcrypto_cryptodev_backend_new_client(const char *model,
     return cc;
 }
 
-void qcrypto_cryptodev_backend_free_client(
-                  QCryptoCryptoDevBackendClientState *cc)
+void cryptodev_backend_free_client(
+                  CryptoDevBackendClient *cc)
 {
     QTAILQ_REMOVE(&crypto_clients, cc, next);
     g_free(cc->name);
@@ -63,12 +63,12 @@ void qcrypto_cryptodev_backend_free_client(
     g_free(cc);
 }
 
-void qcrypto_cryptodev_backend_cleanup(
-             QCryptoCryptoDevBackend *backend,
+void cryptodev_backend_cleanup(
+             CryptoDevBackend *backend,
              Error **errp)
 {
-    QCryptoCryptoDevBackendClass *bc =
-                  QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+    CryptoDevBackendClass *bc =
+                  CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->cleanup) {
         bc->cleanup(backend, errp);
@@ -77,13 +77,13 @@ void qcrypto_cryptodev_backend_cleanup(
     backend->ready = false;
 }
 
-int64_t qcrypto_cryptodev_backend_sym_create_session(
-           QCryptoCryptoDevBackend *backend,
-           QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+int64_t cryptodev_backend_sym_create_session(
+           CryptoDevBackend *backend,
+           CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
-    QCryptoCryptoDevBackendClass *bc =
-                      QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+    CryptoDevBackendClass *bc =
+                      CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->create_session) {
         return bc->create_session(backend, sess_info, queue_index, errp);
@@ -92,13 +92,13 @@ int64_t qcrypto_cryptodev_backend_sym_create_session(
     return -1;
 }
 
-int qcrypto_cryptodev_backend_sym_close_session(
-           QCryptoCryptoDevBackend *backend,
+int cryptodev_backend_sym_close_session(
+           CryptoDevBackend *backend,
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
-    QCryptoCryptoDevBackendClass *bc =
-                      QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+    CryptoDevBackendClass *bc =
+                      CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->close_session) {
         return bc->close_session(backend, session_id, queue_index, errp);
@@ -107,13 +107,13 @@ int qcrypto_cryptodev_backend_sym_close_session(
     return -1;
 }
 
-static int qcrypto_cryptodev_backend_sym_operation(
-                 QCryptoCryptoDevBackend *backend,
-                 QCryptoCryptoDevBackendSymOpInfo *op_info,
+static int cryptodev_backend_sym_operation(
+                 CryptoDevBackend *backend,
+                 CryptoDevBackendSymOpInfo *op_info,
                  uint32_t queue_index, Error **errp)
 {
-    QCryptoCryptoDevBackendClass *bc =
-                      QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(backend);
+    CryptoDevBackendClass *bc =
+                      CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->do_sym_op) {
         return bc->do_sym_op(backend, op_info, queue_index, errp);
@@ -122,18 +122,18 @@ static int qcrypto_cryptodev_backend_sym_operation(
     return -VIRTIO_CRYPTO_ERR;
 }
 
-int qcrypto_cryptodev_backend_crypto_operation(
-                 QCryptoCryptoDevBackend *backend,
+int cryptodev_backend_crypto_operation(
+                 CryptoDevBackend *backend,
                  void *opaque,
                  uint32_t queue_index, Error **errp)
 {
     VirtIOCryptoReq *req = opaque;
 
-    if (req->flags == QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM) {
-        QCryptoCryptoDevBackendSymOpInfo *op_info;
+    if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
+        CryptoDevBackendSymOpInfo *op_info;
         op_info = req->u.sym_op_info;
 
-        return qcrypto_cryptodev_backend_sym_operation(backend,
+        return cryptodev_backend_sym_operation(backend,
                          op_info, queue_index, errp);
     } else {
         error_setg(errp, "Unsupported cryptodev alg type: %" PRIu32 "",
@@ -145,20 +145,20 @@ int qcrypto_cryptodev_backend_crypto_operation(
 }
 
 static void
-qcrypto_cryptodev_backend_get_queues(Object *obj, Visitor *v, const char *name,
+cryptodev_backend_get_queues(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    QCryptoCryptoDevBackend *backend = QCRYPTO_CRYPTODEV_BACKEND(obj);
+    CryptoDevBackend *backend = CRYPTODEV_BACKEND(obj);
     uint32_t value = backend->conf.peers.queues;
 
     visit_type_uint32(v, name, &value, errp);
 }
 
 static void
-qcrypto_cryptodev_backend_set_queues(Object *obj, Visitor *v, const char *name,
+cryptodev_backend_set_queues(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    QCryptoCryptoDevBackend *backend = QCRYPTO_CRYPTODEV_BACKEND(obj);
+    CryptoDevBackend *backend = CRYPTODEV_BACKEND(obj);
     Error *local_err = NULL;
     uint32_t value;
 
@@ -177,10 +177,10 @@ out:
 }
 
 static void
-qcrypto_cryptodev_backend_complete(UserCreatable *uc, Error **errp)
+cryptodev_backend_complete(UserCreatable *uc, Error **errp)
 {
-    QCryptoCryptoDevBackend *backend = QCRYPTO_CRYPTODEV_BACKEND(uc);
-    QCryptoCryptoDevBackendClass *bc = QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(uc);
+    CryptoDevBackend *backend = CRYPTODEV_BACKEND(uc);
+    CryptoDevBackendClass *bc = CRYPTODEV_BACKEND_GET_CLASS(uc);
     Error *local_err = NULL;
 
     if (bc->init) {
@@ -197,39 +197,39 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void qcrypto_cryptodev_backend_instance_init(Object *obj)
+static void cryptodev_backend_instance_init(Object *obj)
 {
     object_property_add(obj, "queues", "int",
-                          qcrypto_cryptodev_backend_get_queues,
-                          qcrypto_cryptodev_backend_set_queues,
+                          cryptodev_backend_get_queues,
+                          cryptodev_backend_set_queues,
                           NULL, NULL, NULL);
     /* Initialize devices' queues property to 1 */
     object_property_set_int(obj, 1, "queues", NULL);
 }
 
-static void qcrypto_cryptodev_backend_finalize(Object *obj)
+static void cryptodev_backend_finalize(Object *obj)
 {
 
 }
 
 static void
-qcrypto_cryptodev_backend_class_init(ObjectClass *oc, void *data)
+cryptodev_backend_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
-    ucc->complete = qcrypto_cryptodev_backend_complete;
+    ucc->complete = cryptodev_backend_complete;
 
     QTAILQ_INIT(&crypto_clients);
 }
 
-static const TypeInfo qcrypto_cryptodev_backend_info = {
-    .name = TYPE_QCRYPTO_CRYPTODEV_BACKEND,
+static const TypeInfo cryptodev_backend_info = {
+    .name = TYPE_CRYPTODEV_BACKEND,
     .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QCryptoCryptoDevBackend),
-    .instance_init = qcrypto_cryptodev_backend_instance_init,
-    .instance_finalize = qcrypto_cryptodev_backend_finalize,
-    .class_size = sizeof(QCryptoCryptoDevBackendClass),
-    .class_init = qcrypto_cryptodev_backend_class_init,
+    .instance_size = sizeof(CryptoDevBackend),
+    .instance_init = cryptodev_backend_instance_init,
+    .instance_finalize = cryptodev_backend_finalize,
+    .class_size = sizeof(CryptoDevBackendClass),
+    .class_init = cryptodev_backend_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
@@ -237,9 +237,9 @@ static const TypeInfo qcrypto_cryptodev_backend_info = {
 };
 
 static void
-qcrypto_cryptodev_backend_register_types(void)
+cryptodev_backend_register_types(void)
 {
-    type_register_static(&qcrypto_cryptodev_backend_info);
+    type_register_static(&cryptodev_backend_info);
 }
 
-type_init(qcrypto_cryptodev_backend_register_types);
+type_init(cryptodev_backend_register_types);

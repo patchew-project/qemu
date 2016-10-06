@@ -35,7 +35,7 @@ static inline int virtio_crypto_vq2q(int queue_index)
 
 static int
 virtio_crypto_cipher_session_helper(VirtIODevice *vdev,
-           QCryptoCryptoDevBackendSymSessionInfo *info,
+           CryptoDevBackendSymSessionInfo *info,
            struct virtio_crypto_cipher_session_para *cipher_para,
            struct iovec *iov, unsigned int *out_num)
 {
@@ -72,7 +72,7 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
                struct iovec *iov, unsigned int out_num)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
-    QCryptoCryptoDevBackendSymSessionInfo info;
+    CryptoDevBackendSymSessionInfo info;
     int64_t session_id;
     int queue_index;
     uint32_t op_type;
@@ -142,7 +142,7 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
     }
 
     queue_index = virtio_crypto_vq2q(queue_id);
-    session_id = qcrypto_cryptodev_backend_sym_create_session(
+    session_id = cryptodev_backend_sym_create_session(
                                      vcrypto->cryptodev,
                                      &info, queue_index, &local_err);
     if (session_id >= 0) {
@@ -178,7 +178,7 @@ virtio_crypto_handle_close_session(VirtIOCrypto *vcrypto,
     session_id = virtio_ldq_p(vdev, &close_sess_req->session_id);
     DPRINTF("close session, id=%" PRIu64 "\n", session_id);
 
-    ret = qcrypto_cryptodev_backend_sym_close_session(
+    ret = cryptodev_backend_sym_close_session(
               vcrypto->cryptodev, session_id, queue_id, &local_err);
     if (ret == 0) {
         status = VIRTIO_CRYPTO_OK;
@@ -309,7 +309,7 @@ static void virtio_crypto_init_request(VirtIOCrypto *vcrypto, VirtQueue *vq,
 static void virtio_crypto_free_request(VirtIOCryptoReq *req)
 {
     if (req) {
-        if (req->flags == QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM) {
+        if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
             g_free(req->u.sym_op_info);
         }
         g_free(req);
@@ -320,7 +320,7 @@ static void
 virtio_crypto_sym_input_data_helper(VirtIODevice *vdev,
                 VirtIOCryptoReq *req,
                 uint32_t status,
-                QCryptoCryptoDevBackendSymOpInfo *sym_op_info)
+                CryptoDevBackendSymOpInfo *sym_op_info)
 {
     size_t s, len;
 
@@ -355,7 +355,7 @@ static void virtio_crypto_req_complete(VirtIOCryptoReq *req, uint32_t status)
     VirtIOCrypto *vcrypto = req->vcrypto;
     VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
 
-    if (req->flags == QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM) {
+    if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
         virtio_crypto_sym_input_data_helper(vdev, req, status,
                                             req->u.sym_op_info);
     }
@@ -375,7 +375,7 @@ virtio_crypto_get_request(VirtIOCrypto *s, VirtQueue *vq)
     return req;
 }
 
-static QCryptoCryptoDevBackendSymOpInfo *
+static CryptoDevBackendSymOpInfo *
 virtio_crypto_sym_op_helper(VirtIODevice *vdev,
            struct virtio_crypto_cipher_para *para,
            uint32_t aad_len,
@@ -383,7 +383,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
            uint32_t hash_result_len,
            uint32_t hash_start_src_offset)
 {
-    QCryptoCryptoDevBackendSymOpInfo *op_info;
+    CryptoDevBackendSymOpInfo *op_info;
     uint32_t src_len, dst_len;
     uint32_t iv_len;
     size_t max_len, curr_size = 0;
@@ -394,7 +394,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
     dst_len = virtio_ldl_p(vdev, &para->dst_data_len);
 
     max_len = iv_len + aad_len + src_len + dst_len + hash_result_len;
-    op_info = g_malloc0(sizeof(QCryptoCryptoDevBackendSymOpInfo) + max_len);
+    op_info = g_malloc0(sizeof(CryptoDevBackendSymOpInfo) + max_len);
     op_info->iv_len = iv_len;
     op_info->src_len = src_len;
     op_info->dst_len = dst_len;
@@ -467,12 +467,12 @@ err:
 static int
 virtio_crypto_handle_sym_req(VirtIOCrypto *vcrypto,
                struct virtio_crypto_sym_data_req *req,
-               QCryptoCryptoDevBackendSymOpInfo **sym_op_info,
+               CryptoDevBackendSymOpInfo **sym_op_info,
                struct iovec *iov, unsigned int out_num)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
     uint32_t op_type;
-    QCryptoCryptoDevBackendSymOpInfo *op_info;
+    CryptoDevBackendSymOpInfo *op_info;
 
     op_type = virtio_ldl_p(vdev, &req->op_type);
 
@@ -527,7 +527,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     unsigned out_num;
     uint32_t opcode, status = VIRTIO_CRYPTO_ERR;
     uint64_t session_id;
-    QCryptoCryptoDevBackendSymOpInfo *sym_op_info = NULL;
+    CryptoDevBackendSymOpInfo *sym_op_info = NULL;
     Error *local_err = NULL;
 
     if (elem->out_num < 1 || elem->in_num < 1) {
@@ -581,9 +581,9 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
         sym_op_info->session_id = session_id;
 
         /* Set request's parameter */
-        request->flags = QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM;
+        request->flags = CRYPTODEV_BACKEND_ALG_SYM;
         request->u.sym_op_info = sym_op_info;
-        ret = qcrypto_cryptodev_backend_crypto_operation(vcrypto->cryptodev,
+        ret = cryptodev_backend_crypto_operation(vcrypto->cryptodev,
                                 request, queue_index, &local_err);
         if (ret < 0) {
             status = -ret;
@@ -781,7 +781,7 @@ static void virtio_crypto_instance_init(Object *obj)
     vcrypto->config_size = sizeof(struct virtio_crypto_config);
 
     object_property_add_link(obj, "cryptodev",
-                             TYPE_QCRYPTO_CRYPTODEV_BACKEND,
+                             TYPE_CRYPTODEV_BACKEND,
                              (Object **)&vcrypto->conf.cryptodev,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);

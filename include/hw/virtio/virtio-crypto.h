@@ -43,7 +43,7 @@ struct virtio_crypto_inhdr
 };
 
 typedef struct VirtIOCryptoConf {
-    QCryptoCryptoDevBackend *cryptodev;
+    CryptoDevBackend *cryptodev;
 
     /* Supported service mask */
     uint32_t crypto_services;
@@ -73,7 +73,7 @@ typedef struct VirtIOCryptoReq {
     VirtQueue *vq;
     struct VirtIOCrypto *vcrypto;
     union {
-        QCryptoCryptoDevBackendSymOpInfo *sym_op_info;
+        CryptoDevBackendSymOpInfo *sym_op_info;
     } u;
 } VirtIOCryptoReq;
 
@@ -83,7 +83,7 @@ typedef struct VirtIOCrypto {
     VirtQueue *ctrl_vq;
 
     VirtIOCryptoConf conf;
-    QCryptoCryptoDevBackend *cryptodev;
+    CryptoDevBackend *cryptodev;
 
     uint32_t max_queues;
     uint32_t status;

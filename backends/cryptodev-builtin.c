@@ -30,41 +30,41 @@
 
 
 /**
- * @TYPE_QCRYPTO_CRYPTODEV_BACKEND_BUILTIN:
+ * @TYPE_CRYPTODEV_BACKEND_BUILTIN:
  * name of backend that uses QEMU cipher API
  */
-#define TYPE_QCRYPTO_CRYPTODEV_BACKEND_BUILTIN "cryptodev-backend-builtin"
+#define TYPE_CRYPTODEV_BACKEND_BUILTIN "cryptodev-backend-builtin"
 
-#define QCRYPTO_CRYPTODEV_BACKEND_BUILTIN(obj) \
-    OBJECT_CHECK(QCryptoCryptoDevBackendBuiltin, \
-                 (obj), TYPE_QCRYPTO_CRYPTODEV_BACKEND_BUILTIN)
+#define CRYPTODEV_BACKEND_BUILTIN(obj) \
+    OBJECT_CHECK(CryptoDevBackendBuiltin, \
+                 (obj), TYPE_CRYPTODEV_BACKEND_BUILTIN)
 
-typedef struct QCryptoCryptoDevBackendBuiltin
-                         QCryptoCryptoDevBackendBuiltin;
+typedef struct CryptoDevBackendBuiltin
+                         CryptoDevBackendBuiltin;
 
-typedef struct QCryptoCryptoDevBackendBuiltinSession {
+typedef struct CryptoDevBackendBuiltinSession {
     QCryptoCipher *cipher;
     uint8_t direction; /* encryption or decryption */
     uint8_t type; /* cipher? hash? aead? */
-    QTAILQ_ENTRY(QCryptoCryptoDevBackendBuiltinSession) next;
-} QCryptoCryptoDevBackendBuiltinSession;
+    QTAILQ_ENTRY(CryptoDevBackendBuiltinSession) next;
+} CryptoDevBackendBuiltinSession;
 
 /* Max number of symmetric sessions */
 #define MAX_NUM_SESSIONS 256
 
 
-struct QCryptoCryptoDevBackendBuiltin {
-    QCryptoCryptoDevBackend parent_obj;
+struct CryptoDevBackendBuiltin {
+    CryptoDevBackend parent_obj;
 
-    QCryptoCryptoDevBackendBuiltinSession *sessions[MAX_NUM_SESSIONS];
+    CryptoDevBackendBuiltinSession *sessions[MAX_NUM_SESSIONS];
 };
 
 static void cryptodev_builtin_init(
-             QCryptoCryptoDevBackend *backend, Error **errp)
+             CryptoDevBackend *backend, Error **errp)
 {
     /* Only support one queue */
     int queues = backend->conf.peers.queues;
-    QCryptoCryptoDevBackendClientState *cc;
+    CryptoDevBackendClient *cc;
 
     if (queues != 1) {
         error_setg(errp,
@@ -72,7 +72,7 @@ static void cryptodev_builtin_init(
         return;
     }
 
-    cc = qcrypto_cryptodev_backend_new_client(
+    cc = cryptodev_backend_new_client(
               "cryptodev-builtin", NULL);
     cc->info_str = g_strdup_printf("cryptodev-builtin0");
     cc->queue_index = 0;
@@ -88,7 +88,7 @@ static void cryptodev_builtin_init(
 
 static int
 cryptodev_builtin_get_unused_session_index(
-                 QCryptoCryptoDevBackendBuiltin *builtin)
+                 CryptoDevBackendBuiltin *builtin)
 {
     size_t i;
 
@@ -121,15 +121,15 @@ cryptodev_builtin_get_aes_algo(uint32_t key_len, Error **errp)
 }
 
 static int cryptodev_builtin_create_cipher_session(
-                    QCryptoCryptoDevBackendBuiltin *builtin,
-                    QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+                    CryptoDevBackendBuiltin *builtin,
+                    CryptoDevBackendSymSessionInfo *sess_info,
                     Error **errp)
 {
     int algo;
     int mode;
     QCryptoCipher *cipher;
     int index;
-    QCryptoCryptoDevBackendBuiltinSession *sess;
+    CryptoDevBackendBuiltinSession *sess;
 
     if (sess_info->op_type != VIRTIO_CRYPTO_SYM_OP_CIPHER) {
         error_setg(errp, "Unsupported optype :%u", sess_info->op_type);
@@ -186,7 +186,7 @@ static int cryptodev_builtin_create_cipher_session(
         return -1;
     }
 
-    sess = g_new0(QCryptoCryptoDevBackendBuiltinSession, 1);
+    sess = g_new0(CryptoDevBackendBuiltinSession, 1);
     sess->cipher = cipher;
     sess->direction = sess_info->direction;
     sess->type = sess_info->op_type;
@@ -197,12 +197,12 @@ static int cryptodev_builtin_create_cipher_session(
 }
 
 static int64_t cryptodev_builtin_sym_create_session(
-           QCryptoCryptoDevBackend *backend,
-           QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+           CryptoDevBackend *backend,
+           CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
-    QCryptoCryptoDevBackendBuiltin *builtin =
-                      QCRYPTO_CRYPTODEV_BACKEND_BUILTIN(backend);
+    CryptoDevBackendBuiltin *builtin =
+                      CRYPTODEV_BACKEND_BUILTIN(backend);
     int64_t session_id = -1;
     int ret;
 
@@ -228,12 +228,12 @@ static int64_t cryptodev_builtin_sym_create_session(
 }
 
 static int cryptodev_builtin_sym_close_session(
-           QCryptoCryptoDevBackend *backend,
+           CryptoDevBackend *backend,
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
-    QCryptoCryptoDevBackendBuiltin *builtin =
-                      QCRYPTO_CRYPTODEV_BACKEND_BUILTIN(backend);
+    CryptoDevBackendBuiltin *builtin =
+                      CRYPTODEV_BACKEND_BUILTIN(backend);
 
     if (session_id >= MAX_NUM_SESSIONS ||
               builtin->sessions[session_id] == NULL) {
@@ -249,13 +249,13 @@ static int cryptodev_builtin_sym_close_session(
 }
 
 static int cryptodev_builtin_sym_operation(
-                 QCryptoCryptoDevBackend *backend,
-                 QCryptoCryptoDevBackendSymOpInfo *op_info,
+                 CryptoDevBackend *backend,
+                 CryptoDevBackendSymOpInfo *op_info,
                  uint32_t queue_index, Error **errp)
 {
-    QCryptoCryptoDevBackendBuiltin *builtin =
-                      QCRYPTO_CRYPTODEV_BACKEND_BUILTIN(backend);
-    QCryptoCryptoDevBackendBuiltinSession *sess;
+    CryptoDevBackendBuiltin *builtin =
+                      CRYPTODEV_BACKEND_BUILTIN(backend);
+    CryptoDevBackendBuiltinSession *sess;
     int ret;
 
     if (op_info->session_id >= MAX_NUM_SESSIONS ||
@@ -290,14 +290,14 @@ static int cryptodev_builtin_sym_operation(
 }
 
 static void cryptodev_builtin_cleanup(
-             QCryptoCryptoDevBackend *backend,
+             CryptoDevBackend *backend,
              Error **errp)
 {
-    QCryptoCryptoDevBackendBuiltin *builtin =
-                      QCRYPTO_CRYPTODEV_BACKEND_BUILTIN(backend);
+    CryptoDevBackendBuiltin *builtin =
+                      CRYPTODEV_BACKEND_BUILTIN(backend);
     size_t i;
     int queues = backend->conf.peers.queues;
-    QCryptoCryptoDevBackendClientState *cc;
+    CryptoDevBackendClient *cc;
 
     for (i = 0; i < MAX_NUM_SESSIONS; i++) {
         if (builtin->sessions[i] != NULL) {
@@ -311,7 +311,7 @@ static void cryptodev_builtin_cleanup(
     for (i = 0; i < queues; i++) {
         cc = backend->conf.peers.ccs[i];
         if (cc) {
-            qcrypto_cryptodev_backend_free_client(cc);
+            cryptodev_backend_free_client(cc);
             backend->conf.peers.ccs[i] = NULL;
         }
     }
@@ -320,7 +320,7 @@ static void cryptodev_builtin_cleanup(
 static void
 cryptodev_builtin_class_init(ObjectClass *oc, void *data)
 {
-    QCryptoCryptoDevBackendClass *bc = QCRYPTO_CRYPTODEV_BACKEND_CLASS(oc);
+    CryptoDevBackendClass *bc = CRYPTODEV_BACKEND_CLASS(oc);
 
     bc->init = cryptodev_builtin_init;
     bc->cleanup = cryptodev_builtin_cleanup;
@@ -330,10 +330,10 @@ cryptodev_builtin_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo cryptodev_builtin_info = {
-    .name = TYPE_QCRYPTO_CRYPTODEV_BACKEND_BUILTIN,
-    .parent = TYPE_QCRYPTO_CRYPTODEV_BACKEND,
+    .name = TYPE_CRYPTODEV_BACKEND_BUILTIN,
+    .parent = TYPE_CRYPTODEV_BACKEND,
     .class_init = cryptodev_builtin_class_init,
-    .instance_size = sizeof(QCryptoCryptoDevBackendBuiltin),
+    .instance_size = sizeof(CryptoDevBackendBuiltin),
 };
 
 static void

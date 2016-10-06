@@ -27,42 +27,42 @@
 #include "qemu-common.h"
 
 /**
- * QCryptoCryptoDevBackend:
+ * CryptoDevBackend:
  *
- * The QCryptoCryptoDevBackend object is an interface
+ * The CryptoDevBackend object is an interface
  * for different cryptodev backends, which provides crypto
  * operation wrapper.
  *
  */
 
-#define TYPE_QCRYPTO_CRYPTODEV_BACKEND "cryptodev-backend"
+#define TYPE_CRYPTODEV_BACKEND "cryptodev-backend"
 
-#define QCRYPTO_CRYPTODEV_BACKEND(obj) \
-    OBJECT_CHECK(QCryptoCryptoDevBackend, \
-                 (obj), TYPE_QCRYPTO_CRYPTODEV_BACKEND)
-#define QCRYPTO_CRYPTODEV_BACKEND_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(QCryptoCryptoDevBackendClass, \
-                 (obj), TYPE_QCRYPTO_CRYPTODEV_BACKEND)
-#define QCRYPTO_CRYPTODEV_BACKEND_CLASS(klass) \
-    OBJECT_CLASS_CHECK(QCryptoCryptoDevBackendClass, \
-                (klass), TYPE_QCRYPTO_CRYPTODEV_BACKEND)
+#define CRYPTODEV_BACKEND(obj) \
+    OBJECT_CHECK(CryptoDevBackend, \
+                 (obj), TYPE_CRYPTODEV_BACKEND)
+#define CRYPTODEV_BACKEND_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(CryptoDevBackendClass, \
+                 (obj), TYPE_CRYPTODEV_BACKEND)
+#define CRYPTODEV_BACKEND_CLASS(klass) \
+    OBJECT_CLASS_CHECK(CryptoDevBackendClass, \
+                (klass), TYPE_CRYPTODEV_BACKEND)
 
 
 #define MAX_CRYPTO_QUEUE_NUM  64
 
-typedef struct QCryptoCryptoDevBackendConf QCryptoCryptoDevBackendConf;
-typedef struct QCryptoCryptoDevBackendPeers QCryptoCryptoDevBackendPeers;
-typedef struct QCryptoCryptoDevBackendClientState
-                     QCryptoCryptoDevBackendClientState;
-typedef struct QCryptoCryptoDevBackend QCryptoCryptoDevBackend;
+typedef struct CryptoDevBackendConf CryptoDevBackendConf;
+typedef struct CryptoDevBackendPeers CryptoDevBackendPeers;
+typedef struct CryptoDevBackendClient
+                     CryptoDevBackendClient;
+typedef struct CryptoDevBackend CryptoDevBackend;
 
-enum QCryptoCryptoDevBackendAlgType {
-    QCRYPTO_CRYPTODEV_BACKEND_ALG_SYM,
-    QCRYPTO_CRYPTODEV_BACKEND_ALG__MAX,
+enum CryptoDevBackendAlgType {
+    CRYPTODEV_BACKEND_ALG_SYM,
+    CRYPTODEV_BACKEND_ALG__MAX,
 };
 
 /**
- * QCryptoCryptoDevBackendSymSessionInfo:
+ * CryptoDevBackendSymSessionInfo:
  *
  * @op_code: operation code (refer to virtio_crypto.h)
  * @cipher_alg: algorithm type of CIPHER
@@ -80,7 +80,7 @@ enum QCryptoCryptoDevBackendAlgType {
  * @auth_key: point to an authenticated key of MAC
  *
  */
-typedef struct QCryptoCryptoDevBackendSymSessionInfo {
+typedef struct CryptoDevBackendSymSessionInfo {
     /* corresponding with virtio crypto spec */
     uint32_t op_code;
     uint32_t cipher_alg;
@@ -95,13 +95,13 @@ typedef struct QCryptoCryptoDevBackendSymSessionInfo {
     uint8_t alg_chain_order;
     uint8_t *cipher_key;
     uint8_t *auth_key;
-} QCryptoCryptoDevBackendSymSessionInfo;
+} CryptoDevBackendSymSessionInfo;
 
 /**
- * QCryptoCryptoDevBackendSymOpInfo:
+ * CryptoDevBackendSymOpInfo:
  *
  * @session_id: session index which was previously
- *              created by qcrypto_cryptodev_backend_sym_create_session()
+ *              created by cryptodev_backend_sym_create_session()
  * @aad_len: byte length of additional authenticated data
  * @iv_len: byte length of initialization vector or counter
  * @src_len: byte length of source data
@@ -118,7 +118,7 @@ typedef struct QCryptoCryptoDevBackendSymSessionInfo {
  * @data[0]: point to the extensional memory by one memory allocation
  *
  */
-typedef struct QCryptoCryptoDevBackendSymOpInfo {
+typedef struct CryptoDevBackendSymOpInfo {
     uint64_t session_id;
     uint32_t aad_len;
     uint32_t iv_len;
@@ -133,41 +133,41 @@ typedef struct QCryptoCryptoDevBackendSymOpInfo {
     uint8_t *aad_data;
     uint8_t *digest_result;
     uint8_t data[0];
-} QCryptoCryptoDevBackendSymOpInfo;
+} CryptoDevBackendSymOpInfo;
 
-typedef struct QCryptoCryptoDevBackendClass {
+typedef struct CryptoDevBackendClass {
     ObjectClass parent_class;
 
-    void (*init)(QCryptoCryptoDevBackend *backend, Error **errp);
-    void (*cleanup)(QCryptoCryptoDevBackend *backend, Error **errp);
+    void (*init)(CryptoDevBackend *backend, Error **errp);
+    void (*cleanup)(CryptoDevBackend *backend, Error **errp);
 
-    int64_t (*create_session)(QCryptoCryptoDevBackend *backend,
-                       QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+    int64_t (*create_session)(CryptoDevBackend *backend,
+                       CryptoDevBackendSymSessionInfo *sess_info,
                        uint32_t queue_index, Error **errp);
-    int (*close_session)(QCryptoCryptoDevBackend *backend,
+    int (*close_session)(CryptoDevBackend *backend,
                            uint64_t session_id,
                            uint32_t queue_index, Error **errp);
-    int (*do_sym_op)(QCryptoCryptoDevBackend *backend,
-                     QCryptoCryptoDevBackendSymOpInfo *op_info,
+    int (*do_sym_op)(CryptoDevBackend *backend,
+                     CryptoDevBackendSymOpInfo *op_info,
                      uint32_t queue_index, Error **errp);
-} QCryptoCryptoDevBackendClass;
+} CryptoDevBackendClass;
 
 
-struct QCryptoCryptoDevBackendClientState {
+struct CryptoDevBackendClient {
     char *model;
     char *name;
     char *info_str;
     unsigned int queue_index;
-    QTAILQ_ENTRY(QCryptoCryptoDevBackendClientState) next;
+    QTAILQ_ENTRY(CryptoDevBackendClient) next;
 };
 
-struct QCryptoCryptoDevBackendPeers {
-    QCryptoCryptoDevBackendClientState *ccs[MAX_CRYPTO_QUEUE_NUM];
+struct CryptoDevBackendPeers {
+    CryptoDevBackendClient *ccs[MAX_CRYPTO_QUEUE_NUM];
     uint32_t queues;
 };
 
-struct QCryptoCryptoDevBackendConf {
-    QCryptoCryptoDevBackendPeers peers;
+struct CryptoDevBackendConf {
+    CryptoDevBackendPeers peers;
 
     /* Supported service mask */
     uint32_t crypto_services;
@@ -184,15 +184,15 @@ struct QCryptoCryptoDevBackendConf {
     uint32_t primitive_algo;
 };
 
-struct QCryptoCryptoDevBackend {
+struct CryptoDevBackend {
     Object parent_obj;
 
     bool ready;
-    QCryptoCryptoDevBackendConf conf;
+    CryptoDevBackendConf conf;
 };
 
 /**
- * qcrypto_cryptodev_backend_new_client:
+ * cryptodev_backend_new_client:
  * @model: the cryptodev backend model
  * @name: the cryptodev backend name, can be NULL
  *
@@ -200,38 +200,38 @@ struct QCryptoCryptoDevBackend {
  * with the @name in the model @model.
  *
  * The returned object must be released with
- * qcrypto_cryptodev_backend_free_client() when no
+ * cryptodev_backend_free_client() when no
  * longer required
  *
  * Returns: a new cryptodev backend client object
  */
-QCryptoCryptoDevBackendClientState *
-qcrypto_cryptodev_backend_new_client(const char *model,
+CryptoDevBackendClient *
+cryptodev_backend_new_client(const char *model,
                                     const char *name);
 /**
- * qcrypto_cryptodev_backend_free_client:
+ * cryptodev_backend_free_client:
  * @cc: the cryptodev backend client object
  *
  * Release the memory associated with @cc that
- * was previously allocated by qcrypto_cryptodev_backend_new_client()
+ * was previously allocated by cryptodev_backend_new_client()
  */
-void qcrypto_cryptodev_backend_free_client(
-                  QCryptoCryptoDevBackendClientState *cc);
+void cryptodev_backend_free_client(
+                  CryptoDevBackendClient *cc);
 
 /**
- * qcrypto_cryptodev_backend_cleanup:
+ * cryptodev_backend_cleanup:
  * @backend: the cryptodev backend object
  * @errp: pointer to a NULL-initialized error object
  *
  * Clean the resouce associated with @backend that realizaed
  * by the specific backend's init() callback
  */
-void qcrypto_cryptodev_backend_cleanup(
-           QCryptoCryptoDevBackend *backend,
+void cryptodev_backend_cleanup(
+           CryptoDevBackend *backend,
            Error **errp);
 
 /**
- * qcrypto_cryptodev_backend_sym_create_session:
+ * cryptodev_backend_sym_create_session:
  * @backend: the cryptodev backend object
  * @sess_info: parameters needed by session creating
  * @queue_index: queue index of cryptodev backend client
@@ -241,30 +241,30 @@ void qcrypto_cryptodev_backend_cleanup(
  *
  * Returns: session id on success, or -1 on error
  */
-int64_t qcrypto_cryptodev_backend_sym_create_session(
-           QCryptoCryptoDevBackend *backend,
-           QCryptoCryptoDevBackendSymSessionInfo *sess_info,
+int64_t cryptodev_backend_sym_create_session(
+           CryptoDevBackend *backend,
+           CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp);
 
 /**
- * qcrypto_cryptodev_backend_sym_close_session:
+ * cryptodev_backend_sym_close_session:
  * @backend: the cryptodev backend object
  * @session_id: the session id
  * @queue_index: queue index of cryptodev backend client
  * @errp: pointer to a NULL-initialized error object
  *
  * Close a session for symmetric algorithms which was previously
- * created by qcrypto_cryptodev_backend_sym_create_session()
+ * created by cryptodev_backend_sym_create_session()
  *
  * Returns: 0 on success, or Negative on error
  */
-int qcrypto_cryptodev_backend_sym_close_session(
-           QCryptoCryptoDevBackend *backend,
+int cryptodev_backend_sym_close_session(
+           CryptoDevBackend *backend,
            uint64_t session_id,
            uint32_t queue_index, Error **errp);
 
 /**
- * qcrypto_cryptodev_backend_crypto_operation:
+ * cryptodev_backend_crypto_operation:
  * @backend: the cryptodev backend object
  * @opaque: pointer to a VirtIOCryptoReq object
  * @queue_index: queue index of cryptodev backend client
@@ -276,8 +276,8 @@ int qcrypto_cryptodev_backend_sym_close_session(
  * Returns: VIRTIO_CRYPTO_OK on success,
  *         or -VIRTIO_CRYPTO_* on error
  */
-int qcrypto_cryptodev_backend_crypto_operation(
-                 QCryptoCryptoDevBackend *backend,
+int cryptodev_backend_crypto_operation(
+                 CryptoDevBackend *backend,
                  void *opaque,
                  uint32_t queue_index, Error **errp);
 
