@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/accel.h"
-#include "hw/boards.h"
 #include "qemu-common.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
