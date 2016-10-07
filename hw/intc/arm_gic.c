@@ -147,7 +147,8 @@ static void gic_set_irq_11mpcore(GICState *s, int irq, int level,
 {
     if (level) {
         GIC_SET_LEVEL(irq, cm);
-        if (GIC_TEST_EDGE_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
+        if (GIC_TEST_EDGE_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)
+                || (!GIC_TEST_ACTIVE(irq, cm) &&  s->revision == REV_NVIC)) {
             DPRINTF("Set %d pending mask %x\n", irq, target);
             GIC_SET_PENDING(irq, target);
         }
