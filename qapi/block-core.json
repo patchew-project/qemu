@@ -2316,7 +2316,7 @@
 #
 # Since: 1.7
 ##
-{ 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
+{ 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
 
 ##
 # @x-blockdev-del:
