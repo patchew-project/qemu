@@ -156,16 +156,33 @@ bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
-static void bdrv_drain_recurse(BlockDriverState *bs)
+static bool bdrv_drain_poll(BlockDriverState *bs)
+{
+    bool waited = false;
+
+    while (atomic_read(&bs->in_flight) > 0) {
+        aio_poll(bdrv_get_aio_context(bs), true);
+        waited = true;
+    }
+    return waited;
+}
+
+static bool bdrv_drain_io_recurse(BlockDriverState *bs)
 {
     BdrvChild *child;
+    bool waited;
+
+    waited = bdrv_drain_poll(bs);
 
     if (bs->drv && bs->drv->bdrv_drain) {
         bs->drv->bdrv_drain(bs);
     }
+
     QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_drain_recurse(child->bs);
+        waited |= bdrv_drain_io_recurse(child->bs);
     }
+
+    return waited;
 }
 
 typedef struct {
@@ -173,14 +190,6 @@ typedef struct {
     BlockDriverState *bs;
     bool done;
 } BdrvCoDrainData;
-
-static void bdrv_drain_poll(BlockDriverState *bs)
-{
-    while (bdrv_requests_pending(bs)) {
-        /* Keep iterating */
-        aio_poll(bdrv_get_aio_context(bs), true);
-    }
-}
 
 static void bdrv_co_drain_bh_cb(void *opaque)
 {
@@ -218,6 +227,20 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
     assert(data.done);
 }
 
+static void bdrv_co_drain_io_recurse(BlockDriverState *bs)
+{
+    BdrvChild *child;
+
+    bdrv_co_yield_to_drain(bs);
+    if (bs->drv && bs->drv->bdrv_drain) {
+        bs->drv->bdrv_drain(bs);
+    }
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_co_drain_io_recurse(child->bs);
+    }
+}
+
 void bdrv_drained_begin(BlockDriverState *bs)
 {
     if (!bs->quiesce_counter++) {
@@ -226,11 +249,10 @@ void bdrv_drained_begin(BlockDriverState *bs)
     }
 
     bdrv_io_unplugged_begin(bs);
-    bdrv_drain_recurse(bs);
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs);
+        bdrv_co_drain_io_recurse(bs);
     } else {
-        bdrv_drain_poll(bs);
+        bdrv_drain_io_recurse(bs);
     }
     bdrv_io_unplugged_end(bs);
 }
@@ -299,7 +321,6 @@ void bdrv_drain_all(void)
         aio_context_acquire(aio_context);
         bdrv_parent_drained_begin(bs);
         bdrv_io_unplugged_begin(bs);
-        bdrv_drain_recurse(bs);
         aio_context_release(aio_context);
 
         if (!g_slist_find(aio_ctxs, aio_context)) {
@@ -322,10 +343,7 @@ void bdrv_drain_all(void)
             aio_context_acquire(aio_context);
             for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
-                    if (bdrv_requests_pending(bs)) {
-                        aio_poll(aio_context, true);
-                        waited = true;
-                    }
+                    waited |= bdrv_drain_io_recurse(bs);
                 }
             }
             aio_context_release(aio_context);
