@@ -807,12 +807,16 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
         return ret;
     }
 
+    bdrv_inc_in_flight(blk_bs(blk));
+
     /* throttling disk I/O */
     if (blk->public.throttle_state) {
         throttle_group_co_io_limits_intercept(blk, bytes, false);
     }
 
-    return bdrv_co_preadv(blk->root, offset, bytes, qiov, flags);
+    ret = bdrv_co_preadv(blk->root, offset, bytes, qiov, flags);
+    bdrv_dec_in_flight(blk_bs(blk));
+    return ret;
 }
 
 int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
@@ -828,6 +832,8 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
         return ret;
     }
 
+    bdrv_inc_in_flight(blk_bs(blk));
+
     /* throttling disk I/O */
     if (blk->public.throttle_state) {
         throttle_group_co_io_limits_intercept(blk, bytes, true);
@@ -837,7 +843,9 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
         flags |= BDRV_REQ_FUA;
     }
 
-    return bdrv_co_pwritev(blk->root, offset, bytes, qiov, flags);
+    ret = bdrv_co_pwritev(blk->root, offset, bytes, qiov, flags);
+    bdrv_dec_in_flight(blk_bs(blk));
+    return ret;
 }
 
 typedef struct BlkRwCo {
@@ -930,6 +938,8 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
 static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
+
+    bdrv_dec_in_flight(acb->common.bs);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
@@ -940,6 +950,7 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
 {
     struct BlockBackendAIOCB *acb;
 
+    bdrv_inc_in_flight(blk_bs(blk));
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
     acb->blk = blk;
     acb->ret = ret;
@@ -962,6 +973,7 @@ static const AIOCBInfo blk_aio_em_aiocb_info = {
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
 {
     if (acb->has_returned) {
+        bdrv_dec_in_flight(acb->common.bs);
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
         qemu_aio_unref(acb);
     }
@@ -983,6 +995,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     BlkAioEmAIOCB *acb;
     Coroutine *co;
 
+    bdrv_inc_in_flight(blk_bs(blk));
     acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
