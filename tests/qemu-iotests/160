@@ -64,6 +64,7 @@ for skip in $TEST_SKIP_BLOCKS; do
     echo "== Compare the images with qemu-img compare =="
 
     $QEMU_IMG compare "$TEST_IMG.out.dd" "$TEST_IMG.out"
+    rm -f "$TEST_IMG.out.dd"
 done
 
 echo
