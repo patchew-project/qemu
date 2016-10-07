@@ -4522,6 +4522,13 @@ static CharDriverState *qmp_chardev_open_socket(const char *id,
 
     s->addr = QAPI_CLONE(SocketAddress, sock->addr);
 
+    if (is_listen) {
+        qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_NETWORK_SERVER);
+    }
+    if (s->is_unix) {
+        qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
+    }
+
     chr->opaque = s;
     chr->chr_wait_connected = tcp_chr_wait_connected;
     chr->chr_write = tcp_chr_write;
@@ -4603,6 +4610,19 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
         return NULL;
     }
     return qemu_chr_open_udp(sioc, common, errp);
+}
+
+
+bool qemu_chr_has_feature(CharDriverState *chr,
+                          CharDriverFeature feature)
+{
+    return test_bit(feature, chr->features);
+}
+
+void qemu_chr_set_feature(CharDriverState *chr,
+                           CharDriverFeature feature)
+{
+    return set_bit(feature, chr->features);
 }
 
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,

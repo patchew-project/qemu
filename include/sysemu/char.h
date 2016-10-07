@@ -9,6 +9,7 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
 
 /* character device */
 
@@ -58,6 +59,19 @@ struct ParallelIOArg {
 
 typedef void IOEventHandler(void *opaque, int event);
 
+typedef enum {
+    /* Whether the chardev acts as a network server and can
+     * thus support qemu_chr_wait_connected() to wait for
+     * incoming clients */
+    QEMU_CHAR_FEATURE_NETWORK_SERVER,
+    /* Whether it is possible to send/recv file descriptors
+     * over the data channel */
+    QEMU_CHAR_FEATURE_FD_PASS,
+
+    QEMU_CHAR_FEATURE_LAST,
+} CharDriverFeature;
+
+
 struct CharDriverState {
     QemuMutex chr_write_lock;
     void (*init)(struct CharDriverState *s);
@@ -96,6 +110,7 @@ struct CharDriverState {
     guint fd_in_tag;
     QemuOpts *opts;
     bool replay;
+    DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
     QTAILQ_ENTRY(CharDriverState) next;
 };
 
@@ -438,6 +453,10 @@ int qemu_chr_add_client(CharDriverState *s, int fd);
 CharDriverState *qemu_chr_find(const char *name);
 bool chr_is_ringbuf(const CharDriverState *chr);
 
+bool qemu_chr_has_feature(CharDriverState *chr,
+                          CharDriverFeature feature);
+void qemu_chr_set_feature(CharDriverState *chr,
+                          CharDriverFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
 void register_char_driver(const char *name, ChardevBackendKind kind,
