@@ -11,9 +11,14 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #include "qapi-types.h"
 
+typedef enum {
+    QEMU_SOCK_NONBLOCK = 1,
+} QemuSockFlags;
+
 /* misc helpers */
-int qemu_socket(int domain, int type, int protocol);
-int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
+int qemu_socket(int domain, int type, int protocol, QemuSockFlags flags);
+int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen,
+                QemuSockFlags flags);
 int socket_set_cork(int fd, int v);
 int socket_set_nodelay(int fd);
 void qemu_set_block(int fd);

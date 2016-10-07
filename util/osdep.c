@@ -267,12 +267,21 @@ ssize_t qemu_write_full(int fd, const void *buf, size_t count)
 /*
  * Opens a socket with FD_CLOEXEC set
  */
-int qemu_socket(int domain, int type, int protocol)
+int qemu_socket(int domain, int type, int protocol, QemuSockFlags flags)
 {
     int ret;
 
-#ifdef SOCK_CLOEXEC
-    ret = socket(domain, type | SOCK_CLOEXEC, protocol);
+    /* Require both SOCK_CLOEXEC and SOCK_NONBLOCK to avoid additional cases
+     * with only one defined.  Both were added to POSIX in Austin Group #411 so
+     * chances are good they come in a pair.
+     */
+#if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
+    int new_type = type | SOCK_CLOEXEC;
+    if (flags & QEMU_SOCK_NONBLOCK) {
+        new_type |= SOCK_NONBLOCK;
+    }
+
+    ret = socket(domain, new_type, protocol);
     if (ret != -1 || errno != EINVAL) {
         return ret;
     }
@@ -280,6 +289,9 @@ int qemu_socket(int domain, int type, int protocol)
     ret = socket(domain, type, protocol);
     if (ret >= 0) {
         qemu_set_cloexec(ret);
+        if (flags & QEMU_SOCK_NONBLOCK) {
+            qemu_set_nonblock(ret);
+        }
     }
 
     return ret;
@@ -288,12 +300,17 @@ int qemu_socket(int domain, int type, int protocol)
 /*
  * Accept a connection and set FD_CLOEXEC
  */
-int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen,
+                QemuSockFlags flags)
 {
     int ret;
 
 #ifdef CONFIG_ACCEPT4
-    ret = accept4(s, addr, addrlen, SOCK_CLOEXEC);
+    int accept_flags = SOCK_CLOEXEC;
+    if (flags & QEMU_SOCK_NONBLOCK) {
+        accept_flags |= SOCK_NONBLOCK;
+    }
+    ret = accept4(s, addr, addrlen, accept_flags);
     if (ret != -1 || errno != ENOSYS) {
         return ret;
     }
@@ -301,6 +318,9 @@ int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
     ret = accept(s, addr, addrlen);
     if (ret >= 0) {
         qemu_set_cloexec(ret);
+        if (flags & QEMU_SOCK_NONBLOCK) {
+            qemu_set_nonblock(ret);
+        }
     }
 
     return ret;

@@ -79,7 +79,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
     struct ip *ip = mtod(m, struct ip *);
     struct sockaddr_in addr;
 
-    so->s = qemu_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    so->s = qemu_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP, 0);
     if (so->s == -1) {
         return -1;
     }

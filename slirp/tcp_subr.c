@@ -398,12 +398,11 @@ int tcp_fconnect(struct socket *so, unsigned short af)
   DEBUG_CALL("tcp_fconnect");
   DEBUG_ARG("so = %p", so);
 
-  ret = so->s = qemu_socket(af, SOCK_STREAM, 0);
+  ret = so->s = qemu_socket(af, SOCK_STREAM, 0, QEMU_SOCK_NONBLOCK);
   if (ret >= 0) {
     int opt, s=so->s;
     struct sockaddr_storage addr;
 
-    qemu_set_nonblock(s);
     socket_set_fast_reuse(s);
     opt = 1;
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
@@ -473,12 +472,12 @@ void tcp_connect(struct socket *inso)
 
     tcp_mss(sototcpcb(so), 0);
 
-    s = accept(inso->s, (struct sockaddr *)&addr, &addrlen);
+    s = qemu_accept(inso->s, (struct sockaddr *)&addr, &addrlen,
+                    QEMU_SOCK_NONBLOCK);
     if (s < 0) {
         tcp_close(sototcpcb(so)); /* This will sofree() as well */
         return;
     }
-    qemu_set_nonblock(s);
     socket_set_fast_reuse(s);
     opt = 1;
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
