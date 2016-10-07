@@ -4605,6 +4605,13 @@ static CharDriverState *qmp_chardev_open_udp(const char *id,
     return qemu_chr_open_udp(sioc, common, errp);
 }
 
+
+bool qemu_chr_is_network_server(CharDriverState *chr)
+{
+    return chr->chr_wait_connected != NULL;
+}
+
+
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
                                Error **errp)
 {

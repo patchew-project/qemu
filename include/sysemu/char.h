@@ -438,6 +438,7 @@ int qemu_chr_add_client(CharDriverState *s, int fd);
 CharDriverState *qemu_chr_find(const char *name);
 bool chr_is_ringbuf(const CharDriverState *chr);
 
+bool qemu_chr_is_network_server(CharDriverState *chr);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
 void register_char_driver(const char *name, ChardevBackendKind kind,
