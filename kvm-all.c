@@ -1196,7 +1196,7 @@ static KVMMSIRoute *kvm_lookup_msi_route(KVMState *s, MSIMessage msg)
     QTAILQ_FOREACH(route, &s->msi_hashtab[hash], entry) {
         if (route->kroute.u.msi.address_lo == (uint32_t)msg.address &&
             route->kroute.u.msi.address_hi == (msg.address >> 32) &&
-            route->kroute.u.msi.data == le32_to_cpu(msg.data)) {
+            route->kroute.u.msi.data == msg.data) {
             return route;
         }
     }
@@ -1211,7 +1211,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     if (kvm_direct_msi_allowed) {
         msi.address_lo = (uint32_t)msg.address;
         msi.address_hi = msg.address >> 32;
-        msi.data = le32_to_cpu(msg.data);
+        msi.data = msg.data;
         msi.flags = 0;
         memset(msi.pad, 0, sizeof(msi.pad));
 
@@ -1233,7 +1233,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
         route->kroute.flags = 0;
         route->kroute.u.msi.address_lo = (uint32_t)msg.address;
         route->kroute.u.msi.address_hi = msg.address >> 32;
-        route->kroute.u.msi.data = le32_to_cpu(msg.data);
+        route->kroute.u.msi.data = msg.data;
 
         kvm_add_routing_entry(s, &route->kroute);
         kvm_irqchip_commit_routes(s);
@@ -1275,7 +1275,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     kroute.flags = 0;
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
-    kroute.u.msi.data = le32_to_cpu(msg.data);
+    kroute.u.msi.data = msg.data;
     if (kvm_msi_devid_required()) {
         kroute.flags = KVM_MSI_VALID_DEVID;
         kroute.u.msi.devid = pci_requester_id(dev);
@@ -1312,7 +1312,7 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
     kroute.flags = 0;
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
-    kroute.u.msi.data = le32_to_cpu(msg.data);
+    kroute.u.msi.data = msg.data;
     if (kvm_msi_devid_required()) {
         kroute.flags = KVM_MSI_VALID_DEVID;
         kroute.u.msi.devid = pci_requester_id(dev);
