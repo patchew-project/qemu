@@ -21,6 +21,7 @@
 #include "sysemu/char.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
+#include "qemu/cutils.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
@@ -38,6 +39,10 @@
 #define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
+
+#define HVM_XS_DM_ACPI_ROOT              "/hvmloader/dm-acpi"
+#define HVM_XS_DM_ACPI_ADDRESS           HVM_XS_DM_ACPI_ROOT"/address"
+#define HVM_XS_DM_ACPI_LENGTH            HVM_XS_DM_ACPI_ROOT"/length"
 
 static MemoryRegion ram_memory, ram_640k, ram_lo, ram_hi;
 static MemoryRegion *framebuffer;
@@ -87,6 +92,14 @@ typedef struct XenPhysmap {
     QLIST_ENTRY(XenPhysmap) list;
 } XenPhysmap;
 
+typedef struct XenAcpiBuf {
+    ram_addr_t base;
+    ram_addr_t length;
+    ram_addr_t used;
+} XenAcpiBuf;
+
+static XenAcpiBuf *guest_acpi_buf;
+
 typedef struct XenIOState {
     ioservid_t ioservid;
     shared_iopage_t *shared_page;
@@ -110,6 +123,8 @@ typedef struct XenIOState {
     QLIST_HEAD(, XenPhysmap) physmap;
     hwaddr free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
+
+    XenAcpiBuf acpi_buf;
 
     Notifier exit;
     Notifier suspend;
@@ -1181,6 +1196,66 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
     xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
 }
 
+static int guest_acpi_buf_init(XenIOState *state)
+{
+    char path[80], *value;
+    unsigned int len;
+
+    guest_acpi_buf = &state->acpi_buf;
+
+    snprintf(path, sizeof(path),
+             "/local/domain/%d"HVM_XS_DM_ACPI_ADDRESS, xen_domid);
+    value = xs_read(state->xenstore, 0, path, &len);
+    if (!value) {
+        return -EINVAL;
+    }
+    if (qemu_strtoull(value, NULL, 16, &guest_acpi_buf->base)) {
+        return -EINVAL;
+    }
+
+    snprintf(path, sizeof(path),
+             "/local/domain/%d"HVM_XS_DM_ACPI_LENGTH, xen_domid);
+    value = xs_read(state->xenstore, 0, path, &len);
+    if (!value) {
+        return -EINVAL;
+    }
+    if (qemu_strtoull(value, NULL, 16, &guest_acpi_buf->length)) {
+        return -EINVAL;
+    }
+
+    guest_acpi_buf->used = 0;
+
+    return 0;
+}
+
+static ram_addr_t guest_acpi_buf_alloc(size_t length)
+{
+    ram_addr_t addr;
+
+    if (guest_acpi_buf->length - guest_acpi_buf->used < length) {
+        return 0;
+    }
+
+    addr = guest_acpi_buf->base + guest_acpi_buf->used;
+    guest_acpi_buf->used += length;
+
+    return addr;
+}
+
+static int xen_acpi_needed(PCMachineState *pcms)
+{
+    return 0;
+}
+
+static int xen_acpi_init(PCMachineState *pcms, XenIOState *state)
+{
+    if (!xen_acpi_needed(pcms)) {
+        return 0;
+    }
+
+    return guest_acpi_buf_init(state);
+}
+
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 {
     int i, rc;
@@ -1316,6 +1391,13 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     }
     xen_be_register_common();
     xen_read_physmap(state);
+
+    /* Initialize ACPI */
+    if (xen_acpi_init(pcms, state)) {
+        error_report("failed to initialize xen ACPI");
+        goto err;
+    }
+
     return;
 
 err:
@@ -1391,4 +1473,102 @@ void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
     } else {
         memory_global_dirty_log_stop();
     }
+}
+
+static int xs_write_guest_acpi_blob_key(const char *name,
+                                        const char *key, const char *value)
+{
+    XenIOState *state = container_of(guest_acpi_buf, XenIOState, acpi_buf);
+    char path[80];
+
+    snprintf(path, sizeof(path),
+             "/local/domain/%d"HVM_XS_DM_ACPI_ROOT"/%s/%s",
+             xen_domid, name, key);
+    if (!xs_write(state->xenstore, 0, path, value, strlen(value))) {
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static size_t xen_memcpy_to_guest(ram_addr_t gpa,
+                                  const char *buf, size_t length)
+{
+    size_t copied = 0, size;
+    ram_addr_t s, e, offset, cur = gpa;
+    xen_pfn_t cur_pfn;
+    void *page;
+
+    if (!buf || !length) {
+        return 0;
+    }
+
+    s = gpa & TARGET_PAGE_MASK;
+    e = gpa + length;
+    if (e < s) {
+        return 0;
+    }
+
+    while (cur < e) {
+        cur_pfn = cur >> TARGET_PAGE_BITS;
+        offset = cur - (cur_pfn << TARGET_PAGE_BITS);
+        size = (length >= TARGET_PAGE_SIZE - offset) ?
+               TARGET_PAGE_SIZE - offset : length;
+
+        page = xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ | PROT_WRITE,
+                                    1, &cur_pfn, NULL);
+        if (!page) {
+            break;
+        }
+
+        memcpy(page + offset, buf, size);
+        xenforeignmemory_unmap(xen_fmem, page, 1);
+
+        copied += size;
+        buf += size;
+        cur += size;
+        length -= size;
+    }
+
+    return copied;
+}
+
+int xen_acpi_copy_to_guest(const char *name, const char *data, size_t length,
+                           int type)
+{
+    char value[21];
+    ram_addr_t buf_addr;
+    int rc;
+
+    if (type != XEN_ACPI_TABLE && type != XEN_ACPI_NSDEV) {
+        return -EINVAL;
+    }
+
+    buf_addr = guest_acpi_buf_alloc(length);
+    if (!buf_addr) {
+        return -ENOMEM;
+    }
+    if (xen_memcpy_to_guest(buf_addr, data, length) != length) {
+        return -EIO;
+    }
+
+    snprintf(value, sizeof(value), "%d", type);
+    rc = xs_write_guest_acpi_blob_key(name, "type", value);
+    if (rc) {
+        return rc;
+    }
+
+    snprintf(value, sizeof(value), "%"PRIu64, buf_addr - guest_acpi_buf->base);
+    rc = xs_write_guest_acpi_blob_key(name, "offset", value);
+    if (rc) {
+        return rc;
+    }
+
+    snprintf(value, sizeof(value), "%"PRIu64, length);
+    rc = xs_write_guest_acpi_blob_key(name, "length", value);
+    if (rc) {
+        return rc;
+    }
+
+    return 0;
 }

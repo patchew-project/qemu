@@ -47,4 +47,10 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length);
 
 void xen_register_framebuffer(struct MemoryRegion *mr);
 
+#define XEN_ACPI_TABLE 0
+#define XEN_ACPI_NSDEV 1
+
+int xen_acpi_copy_to_guest(const char *name, const char *data, size_t length,
+                           int type);
+
 #endif /* QEMU_HW_XEN_H */
