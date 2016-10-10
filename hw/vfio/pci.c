@@ -1898,8 +1898,8 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
      * Also put INTx Disable in known state.
      */
     cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
-    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-             PCI_COMMAND_INTX_DISABLE);
+    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER) |
+             PCI_COMMAND_INTX_DISABLE;
     vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
 }
 
