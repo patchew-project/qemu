@@ -108,7 +108,15 @@ typedef struct CryptoDevBackendSymSessionInfo {
  * @dst_len: byte length of destination data
  * @digest_result_len: byte length of hash digest result
  * @hash_start_src_offset: Starting point for hash processing, specified
- *                 as number of bytes from start of packet in source data
+ *  as number of bytes from start of packet in source data, only used for
+ *  algorithm chain
+ * @cipher_start_src_offset: Starting point for cipher processing, specified
+ *  as number of bytes from start of packet in source data, only used for
+ *  algorithm chain
+ * @len_to_hash: byte length of source data on which the hash
+ *  operation will be computed, only used for algorithm chain
+ * @len_to_cipher: byte length of source data on which the cipher
+ *  operation will be computed, only used for algorithm chain
  * @op_type: operation type (refer to virtio_crypto.h)
  * @iv: point to the initialization vector or counter
  * @src: point to the source data
@@ -126,6 +134,9 @@ typedef struct CryptoDevBackendSymOpInfo {
     uint32_t dst_len;
     uint32_t digest_result_len;
     uint32_t hash_start_src_offset;
+    uint32_t cipher_start_src_offset;
+    uint32_t len_to_hash;
+    uint32_t len_to_cipher;
     uint8_t op_type;
     uint8_t *iv;
     uint8_t *src;

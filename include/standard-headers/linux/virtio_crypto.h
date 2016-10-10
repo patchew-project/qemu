@@ -301,7 +301,15 @@ struct virtio_crypto_mac_data_req {
 };
 
 struct virtio_crypto_alg_chain_data_para {
-    struct virtio_crypto_cipher_para cipher;
+    __virtio32 iv_len;
+    /* Length of source data */
+    __virtio32 src_data_len;
+    /* Length of destination data */
+    __virtio32 dst_data_len;
+    /* Starting point for cipher processing in source data */
+    __virtio32 cipher_start_src_offset;
+    /* Length of the source data that the cipher will be computed on */
+    __virtio32 len_to_cipher;
     /* Starting point for hash processing in source data */
     __virtio32 hash_start_src_offset;
     /* Length of the source data that the hash will be computed on */
@@ -310,6 +318,7 @@ struct virtio_crypto_alg_chain_data_para {
     __virtio32 aad_len;
     /* Length of the hash result */
     __virtio32 hash_result_len;
+    __virtio32 reserved;
 };
 
 struct virtio_crypto_alg_chain_data_req {
