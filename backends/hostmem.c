@@ -27,6 +27,8 @@ QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
 #endif
 
+#include "hw/xen/xen.h"
+
 static void
 host_memory_backend_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
@@ -291,6 +293,13 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     if (bc->alloc) {
         bc->alloc(backend, &local_err);
         if (local_err) {
+            goto out;
+        }
+
+        /* The backend storage of MEMORY_BACKEND_XEN is managed by Xen,
+         * so no further work in this function is needed.
+         */
+        if (xen_enabled() && !backend->mr.ram_block) {
             goto out;
         }
 
