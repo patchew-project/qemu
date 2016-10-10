@@ -386,6 +386,65 @@ static inline void gdb_continue(GDBState *s)
 #endif
 }
 
+/* Resume execution, per CPU actions. */
+static int gdb_continue_partial(GDBState *s, char def, CPUState **scpus,
+                                                            CPUState **ccpus)
+{
+    int res = 0;
+#ifdef CONFIG_USER_ONLY
+    s->running_state = 1;
+#else
+    CPUState *cpu;
+    int cx;
+
+    if (!runstate_needs_reset()) {
+        /*
+         * XXX vm_start also calls qemu_vmstop_requested(&requested); here, is
+         * it actually important? it's static in vl.c
+         */
+        cpu_enable_ticks();
+        runstate_set(RUN_STATE_RUNNING);
+        vm_state_notify(1, RUN_STATE_RUNNING);
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+        if (def == 0) {
+            for (cx = 0; scpus && scpus[cx]; cx++) {
+                cpu_single_step(scpus[cx], sstep_flags);
+                cpu_resume(scpus[cx]);
+            }
+            for (cx = 0; ccpus && ccpus[cx]; cx++) {
+                cpu_resume(ccpus[cx]);
+            }
+        } else if (def == 'c' || def == 'C') {
+            for (cx = 0; scpus && scpus[cx]; cx++) {
+                cpu_single_step(scpus[cx], sstep_flags);
+            }
+            CPU_FOREACH(cpu) {
+                cpu_resume(cpu);
+            }
+        } else if (def == 's' || def == 'S') {
+            CPU_FOREACH(cpu) {
+                cpu_single_step(cpu, sstep_flags);
+            }
+            for (cx = 0; ccpus && ccpus[cx]; cx++) {
+                cpu_single_step(cpu, 0);
+            }
+            CPU_FOREACH(cpu) {
+                cpu_resume(cpu);
+            }
+        } else {
+            res = -1;
+        }
+        /*
+         * XXX vm_start also calls qapi_event_send_resume(&error_abort); here,
+         * is it actually important? moreover I can't find where it's defined,
+         * and calling it here yields a compiler error.
+         */
+        /* qapi_event_send_resume(&error_abort); */
+    }
+#endif
+    return res;
+}
+
 static void put_buffer(GDBState *s, const uint8_t *buf, int len)
 {
 #ifdef CONFIG_USER_ONLY
@@ -829,62 +888,114 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         return RS_IDLE;
     case 'v':
         if (strncmp(p, "Cont", 4) == 0) {
-            int res_signal, res_thread;
+            CPUState **s_cpus, **c_cpus;
+            CPUState *curcpu;
+            int idx, signal, broadcast_action = 0;
+            int scnt, ccnt;
+            char default_action = 0;
+            char cur_action = 0;
+            unsigned long tmp;
 
             p += 4;
             if (*p == '?') {
                 put_packet(s, "vCont;c;C;s;S");
                 break;
             }
-            res = 0;
-            res_signal = 0;
-            res_thread = 0;
-            while (*p) {
-                int action, signal;
+            if (*p != ';') {
+                goto unknown_command;
+            }
 
-                if (*p++ != ';') {
-                    res = 0;
+            for (idx = scnt = 0; p[idx]; idx++) {
+                if (p[idx] == ';') {
+                    scnt++;
+                }
+            }
+            s_cpus = g_malloc((scnt + 1) * sizeof(*s_cpus));
+            c_cpus = g_malloc((scnt + 1) * sizeof(*c_cpus));
+            scnt = ccnt = 0;
+            signal = 0;
+
+            /*
+             * For us: vCont[;action[:thread-id]]...
+             * where action can be one of c s C<sig> S<sig>
+             */
+            res = 0;
+            while (*p) {
+                if (*p != ';') {
+                    res = -1;
                     break;
                 }
-                action = *p++;
-                signal = 0;
-                if (action == 'C' || action == 'S') {
-                    signal = gdb_signal_to_target(strtoul(p, (char **)&p, 16));
-                    if (signal == -1) {
-                        signal = 0;
+                p++; /* skip the ; */
+
+                if (*p == 'C' || *p == 'S' || *p == 'c' || *p == 's') {
+                    cur_action = *p;
+                    if (*p == 'C' || *p == 'S') {
+                        (void) qemu_strtoul(p + 1, &p, 16, &tmp);
+                        signal = gdb_signal_to_target(tmp);
+                    } else {
+                        p++;
                     }
-                } else if (action != 'c' && action != 's') {
-                    res = 0;
+                    /* thread specified. special values: -1 = all, 0 = any */
+                    if (*p == ':') {
+                        if (broadcast_action) {
+                            res = -22;
+                            break;
+                        }
+                        p++;
+                        if ((p[0] == '-') && (p[1] == '1')) {
+                            if (broadcast_action || scnt || ccnt) {
+                                res = -22;
+                                break;
+                            }
+                            broadcast_action = cur_action;
+                            p += 2;
+                            continue;
+                        }
+                        (void) qemu_strtoul(p, &p, 16, &tmp);
+                        idx = tmp;
+                        /* 0 means any thread, so we pick the first */
+                        idx = idx ? idx : 1;
+                        curcpu = find_cpu(idx);
+                        if (!curcpu) {
+                            res = -22;
+                            break;
+                        }
+                        if (cur_action == 's' || cur_action == 'S') {
+                            s_cpus[scnt++] = curcpu;
+                        } else {
+                            c_cpus[ccnt++] = curcpu;
+                        }
+                    } else { /* no thread specified */
+                        if (default_action != 0) {
+                            res = -22; /* error */
+                            break;
+                        }
+                        default_action = cur_action;
+                    }
+                } else { /* unknown/invalid/unsupported command */
+                    res = -1;
                     break;
-                }
-                thread = 0;
-                if (*p == ':') {
-                    thread = strtoull(p+1, (char **)&p, 16);
-                }
-                action = tolower(action);
-                if (res == 0 || (res == 'c' && action == 's')) {
-                    res = action;
-                    res_signal = signal;
-                    res_thread = thread;
                 }
             }
             if (res) {
-                if (res_thread != -1 && res_thread != 0) {
-                    cpu = find_cpu(res_thread);
-                    if (cpu == NULL) {
-                        put_packet(s, "E22");
-                        break;
-                    }
-                    s->c_cpu = cpu;
+                g_free(s_cpus);
+                g_free(c_cpus);
+                if (res == -1) {
+                    goto unknown_command;
                 }
-                if (res == 's') {
-                    cpu_single_step(s->c_cpu, sstep_flags);
-                }
-                s->signal = res_signal;
-                gdb_continue(s);
-                return RS_IDLE;
+                put_packet(s, "E22");
+                break;
             }
-            break;
+            s->signal = signal;
+            s_cpus[scnt] = c_cpus[ccnt] = NULL;
+            if (broadcast_action) {
+                gdb_continue_partial(s, broadcast_action, NULL, NULL);
+            } else {
+                gdb_continue_partial(s, default_action, s_cpus, c_cpus);
+            }
+            g_free(s_cpus);
+            g_free(c_cpus);
+            return RS_IDLE;
         } else {
             goto unknown_command;
         }
