@@ -25,6 +25,7 @@
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
+#include "exec/ram_addr.h"
 
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/params.h>
@@ -201,6 +202,8 @@ static void xen_ram_init(PCMachineState *pcms,
     uint64_t user_lowmem = object_property_get_int(qdev_get_machine(),
                                                    PC_MACHINE_MAX_RAM_BELOW_4G,
                                                    &error_abort);
+    MachineState *machine = MACHINE(pcms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
 
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(xen limit, user limit).
@@ -251,6 +254,39 @@ static void xen_ram_init(PCMachineState *pcms,
                                  &ram_memory, 0x100000000ULL,
                                  pcms->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
+    }
+
+    /* reserve hotplug memory region for vNVDIMM */
+    if (pcmc->has_reserved_memory &&
+        (machine->ram_size < machine->maxram_size)) {
+        ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
+
+        if (QEMU_ALIGN_UP(machine->maxram_size,
+                          TARGET_PAGE_SIZE) != machine->maxram_size) {
+            error_report("maximum memory size must by aligned to multiple of "
+                         "%d bytes", TARGET_PAGE_SIZE);
+            exit(EXIT_FAILURE);
+        }
+
+        pcms->hotplug_memory.base =
+            ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
+
+        if (pcmc->enforce_aligned_dimm) {
+            /* size hotplug region assuming 1G page max alignment per slot */
+            hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
+        }
+
+        if ((pcms->hotplug_memory.base + hotplug_mem_size) <
+            hotplug_mem_size) {
+            error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
+                         machine->maxram_size);
+            exit(EXIT_FAILURE);
+        }
+
+        memory_region_init(&pcms->hotplug_memory.mr, OBJECT(pcms),
+                           "hotplug-memory", hotplug_mem_size);
+        memory_region_add_subregion(sysmem, pcms->hotplug_memory.base,
+                                    &pcms->hotplug_memory.mr);
     }
 }
 
