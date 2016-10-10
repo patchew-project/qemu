@@ -4645,3 +4645,32 @@
 # Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+
+##
+# @NvdimmInfo
+#
+# Information about an NVDIMM device.
+#
+# @mem-path: the backend file of the NVDIMM device
+#
+# @slot: the slot index of the NVDIMM device
+#
+# @spa: the 64-bit SPA base address of the NVDIMM device
+#
+# @length: the 64-bit size in bytes of the NVDIMM device
+#
+# Since 2.8
+##
+{ 'struct': 'NvdimmInfo',
+  'data': {'mem-path' : 'str', 'slot': 'int', 'spa': 'int', 'length': 'int'} }
+
+##
+# @query-nvdimms:
+#
+# Returns information about each NVDIMM device
+#
+# Returns: a list of @NvdimmInfo for each device
+#
+# Since: 2.8
+##
+{ 'command': 'query-nvdimms', 'returns': ['NvdimmInfo'] }

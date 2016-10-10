@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
+#include "qmp-commands.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -180,3 +181,37 @@ static void nvdimm_register_types(void)
 }
 
 type_init(nvdimm_register_types)
+
+NvdimmInfoList *qmp_query_nvdimms(Error **errp)
+{
+    NvdimmInfoList *info_list = NULL;
+    NvdimmInfoList *info;
+    GSList *device_list = nvdimm_get_plugged_device_list();
+
+    while (device_list) {
+        DeviceState *dev = device_list->data;
+        PCDIMMDevice *parent = PC_DIMM(OBJECT(dev));
+        const char *mem_path;
+
+        info = g_new0(NvdimmInfoList, 1);
+        info->value = g_new0(NvdimmInfo, 1);
+
+        mem_path = object_property_get_str(OBJECT(parent->hostmem),
+                                           "mem-path", NULL);
+        info->value->mem_path = mem_path ? strdup(mem_path) : NULL;
+
+        info->value->slot = object_property_get_int(OBJECT(dev),
+                                                    PC_DIMM_SLOT_PROP, NULL);
+        info->value->spa = object_property_get_int(OBJECT(dev),
+                                                   PC_DIMM_ADDR_PROP, NULL);
+        info->value->length = object_property_get_int(OBJECT(dev),
+                                                      PC_DIMM_SIZE_PROP, NULL);
+
+        info->next = info_list;
+        info_list = info;
+        device_list = device_list->next;
+    }
+
+    g_slist_free(device_list);
+    return info_list;
+}

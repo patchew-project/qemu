@@ -57,7 +57,7 @@ static int nvdimm_plugged_device_list(Object *obj, void *opaque)
  * Note: it is the caller's responsibility to free the list to avoid
  * memory leak.
  */
-static GSList *nvdimm_get_plugged_device_list(void)
+GSList *nvdimm_get_plugged_device_list(void)
 {
     GSList *list = NULL;
 

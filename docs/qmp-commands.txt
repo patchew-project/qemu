@@ -3803,3 +3803,39 @@ Example for pc machine type started with
             "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
          }
        ]}
+
+EQMP
+
+    {
+        .name       = "query-nvdimms",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_query_nvdimms,
+    },
+
+SQMP
+Show plugged NVDIMM devices
+---------------------------
+
+Arguments: None.
+
+Example for pc machine type started with
+-object memory-backend-file,id=mem1,mem-path=/path/to/nvm1,size=4G
+-device nvdimm,id=nvdimm1,memdev=mem1
+-object memory-backend-file,id=mem2,mem-path=/path/to/nvm2,size=8G
+-device nvdimm,id=nvdimm2,memdev=mem2:
+
+-> { "execute": "query-nvdimms" }
+<- { "returns": [
+      {
+         "mem-path": "/path/to/nvm1",
+	 "slot": 0,
+	 "spa": 17179869184,
+	 "length": 4294967296
+      },
+      {
+         "mem-path": "/path/to/nvm2",
+	 "slot": 1,
+	 "spa": 21474836480,
+	 "length": 8589934592
+      }
+   ]}
