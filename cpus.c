@@ -170,7 +170,8 @@ int64_t cpu_get_icount_raw(void)
 static int64_t cpu_get_icount_locked(void)
 {
     int64_t icount = cpu_get_icount_raw();
-    return timers_state.qemu_icount_bias + cpu_icount_to_ns(icount);
+    int64_t ns = cpu_icount_to_ns(icount);
+    return atomic_read(&timers_state.qemu_icount_bias) + ns;
 }
 
 int64_t cpu_get_icount(void)
@@ -206,7 +207,7 @@ int64_t cpu_get_ticks(void)
     }
 
     ticks = timers_state.cpu_ticks_offset;
-    if (timers_state.cpu_ticks_enabled) {
+    if (atomic_read(&timers_state.cpu_ticks_enabled)) {
         ticks += cpu_get_host_ticks();
     }
 
@@ -225,8 +226,8 @@ static int64_t cpu_get_clock_locked(void)
 {
     int64_t time;
 
-    time = timers_state.cpu_clock_offset;
-    if (timers_state.cpu_ticks_enabled) {
+    time = atomic_read(&timers_state.cpu_clock_offset);
+    if (atomic_read(&timers_state.cpu_ticks_enabled)) {
         time += get_clock();
     }
 
