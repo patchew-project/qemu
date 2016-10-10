@@ -2138,11 +2138,21 @@ static int virtio_device_start_ioeventfd_impl(VirtIODevice *vdev)
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
-        r = set_host_notifier_internal(proxy, qbus, n, true, true);
+        r = set_host_notifier_internal(proxy, qbus, n, true);
         if (r < 0) {
             err = r;
             goto assign_error;
         }
+        virtio_queue_set_host_notifier_fd_handler(&vdev->vq[n], true, true);
+    }
+
+    for (n = 0; n < VIRTIO_QUEUE_MAX; n++) {
+        /* Kick right away to begin processing requests already in vring */
+        VirtQueue *vq = &vdev->vq[n];;
+        if (!vq->vring.num) {
+            continue;
+        }
+        event_notifier_set(&vq->host_notifier);
     }
     return 0;
 
@@ -2152,7 +2162,7 @@ assign_error:
             continue;
         }
 
-        r = set_host_notifier_internal(proxy, qbus, n, false, false);
+        r = set_host_notifier_internal(proxy, qbus, n, false);
         assert(r >= 0);
     }
     return err;
@@ -2176,7 +2186,7 @@ static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
         if (!virtio_queue_get_num(vdev, n)) {
             continue;
         }
-        r = set_host_notifier_internal(proxy, qbus, n, false, false);
+        r = set_host_notifier_internal(proxy, qbus, n, false);
         assert(r >= 0);
     }
 }
