@@ -286,7 +286,7 @@ static int cryptodev_builtin_sym_operation(
             return -VIRTIO_CRYPTO_ERR;
         }
     }
-    return 0;
+    return VIRTIO_CRYPTO_OK;
 }
 
 static void cryptodev_builtin_cleanup(
