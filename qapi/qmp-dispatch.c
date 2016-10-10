@@ -95,13 +95,20 @@ static QObject *do_qmp_dispatch(QObject *request, QmpReturn *qret, Error **errp)
         QINCREF(args);
     }
 
-    cmd->fn(args, &ret, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
-        g_assert(!ret);
-    } else if (!ret) {
-        ret = QOBJECT(qdict_new());
+    switch (cmd->type) {
+    case QCT_NORMAL:
+        cmd->fn(args, &ret, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+        } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
+            g_assert(!ret);
+        } else if (!ret) {
+            ret = QOBJECT(qdict_new());
+        }
+        break;
+    case QCT_ASYNC:
+        cmd->fn_async(args, qret);
+        break;
     }
 
     QDECREF(args);
