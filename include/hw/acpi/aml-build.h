@@ -232,6 +232,8 @@ Aml *init_aml_allocator(void);
  */
 void free_aml_allocator(void);
 
+Aml *aml_alloc(void);
+
 /**
  * aml_append:
  * @parent_ctx: context to which @child element is added

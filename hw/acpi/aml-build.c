@@ -287,7 +287,7 @@ build_append_named_dword(GArray *array, const char *name_format, ...)
 
 static GPtrArray *alloc_list;
 
-static Aml *aml_alloc(void)
+Aml *aml_alloc(void)
 {
     Aml *var = g_new0(typeof(*var), 1);
 

@@ -925,17 +925,22 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
                               GArray *table_data, BIOSLinker *linker,
                               GArray *dsm_dma_arrea)
 {
-    Aml *ssdt, *sb_scope, *dev, *field;
+    Aml *ssdt, *sb_scope = NULL, *dev, *field;
     int mem_addr_offset, nvdimm_ssdt;
 
     acpi_add_table(table_offsets, table_data);
 
     ssdt = init_aml_allocator();
-    acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
-    sb_scope = aml_scope("\\_SB");
+    if (xen_enabled()) {
+        dev = aml_alloc();
+    } else {
+        acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
-    dev = aml_device("NVDR");
+        sb_scope = aml_scope("\\_SB");
+
+        dev = aml_device("NVDR");
+    }
 
     /*
      * ACPI 6.0: 9.20 NVDIMM Devices:
@@ -1014,25 +1019,32 @@ static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
 
     nvdimm_build_nvdimm_devices(device_list, dev);
 
-    aml_append(sb_scope, dev);
-    aml_append(ssdt, sb_scope);
+    if (xen_enabled()) {
+        build_append_named_dword(dev->buf, NVDIMM_ACPI_MEM_ADDR);
+        xen_acpi_copy_to_guest("NVDR", dev->buf->data, dev->buf->len,
+                               XEN_ACPI_NSDEV);
+    } else {
+        aml_append(sb_scope, dev);
+        aml_append(ssdt, sb_scope);
 
-    nvdimm_ssdt = table_data->len;
+        nvdimm_ssdt = table_data->len;
 
-    /* copy AML table into ACPI tables blob and patch header there */
-    g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
-    mem_addr_offset = build_append_named_dword(table_data,
-                                               NVDIMM_ACPI_MEM_ADDR);
+        /* copy AML table into ACPI tables blob and patch header there */
+        g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
+        mem_addr_offset = build_append_named_dword(table_data,
+                                                   NVDIMM_ACPI_MEM_ADDR);
 
-    bios_linker_loader_alloc(linker,
-                             NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
-                             sizeof(NvdimmDsmIn), false /* high memory */);
-    bios_linker_loader_add_pointer(linker,
-        ACPI_BUILD_TABLE_FILE, mem_addr_offset, sizeof(uint32_t),
-        NVDIMM_DSM_MEM_FILE, 0);
-    build_header(linker, table_data,
-        (void *)(table_data->data + nvdimm_ssdt),
-        "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");
+        bios_linker_loader_alloc(linker,
+                                 NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
+                                 sizeof(NvdimmDsmIn), false /* high memory */);
+        bios_linker_loader_add_pointer(linker,
+                                       ACPI_BUILD_TABLE_FILE, mem_addr_offset,
+                                       sizeof(uint32_t),
+                                       NVDIMM_DSM_MEM_FILE, 0);
+        build_header(linker, table_data,
+                     (void *)(table_data->data + nvdimm_ssdt),
+                     "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");
+    }
     free_aml_allocator();
 }
 
