@@ -83,9 +83,32 @@ The greeting message format is:
 2.2.1 Capabilities
 ------------------
 
-As of the date this document was last revised, no server or client
-capability strings have been defined.
+- "async"
 
+This capability indicates that the server can handle async commands.
+An async command is a regular message request with the "id" member
+mandatory (see 2.3), but the reply may be delayed.
+
+The client should match the incoming replies with the "id" member
+associated with the requests.
+
+If both the server and the client have the "async" capability, the
+client is allowed to make requests while previous async requests are
+pending. The responses may come out of order.
+
+If the client doesn't have the "async" capability, it may still call
+an async command, and make multiple outstanding calls. In this case,
+the commands are processed in order, so the replies will also be in
+order (pipelining).
+
+When a client is disconnected, the pending commands are not
+necessarily canceled. But the future clients will not get replies
+from commands they didn't make (they might receive side-effects
+events).
+
+Note that even without "async", a client may receive events from the
+server between a request and its reply, and must thus be prepared to
+handle it.
 
 2.3 Issuing Commands
 --------------------
