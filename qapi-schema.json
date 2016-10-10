@@ -37,7 +37,7 @@
 #
 # Enable QMP capabilities.
 #
-# Arguments: None.
+# @capabilities: #optional an array of QMPCapability (since 2.8)
 #
 # Example:
 #
@@ -51,7 +51,7 @@
 # Since: 0.13
 #
 ##
-{ 'command': 'qmp_capabilities' }
+{ 'command': 'qmp_capabilities', 'data': { '*capabilities': ['QMPCapability'] } }
 
 ##
 # @LostTickPolicy:
