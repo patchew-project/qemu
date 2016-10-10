@@ -130,6 +130,10 @@
 { 'command': 'boxed-struct', 'boxed': true, 'data': 'UserDefZero' }
 { 'command': 'boxed-union', 'data': 'UserDefNativeListUnion', 'boxed': true }
 
+# async
+{ 'command': 'user-async', 'data': { 'a': 'int', '*b': 'int' },
+  'returns': 'UserDefB', 'async': true  }
+
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:
 #
