@@ -3571,9 +3571,18 @@
 #
 # Returns: Nothing on success
 #
+# Note: the operation can be cancelled and the file not written if the
+# client disconnects before completion.
+#
 # Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "screendump", "arguments": { "filename": "/tmp/image" }, id: X }
+# <- { "return": {}, id: X }
+#
 ##
-{ 'command': 'screendump', 'data': {'filename': 'str'} }
+{ 'command': 'screendump', 'data': {'filename': 'str'}, 'async': true }
 
 
 ##
