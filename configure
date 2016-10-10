@@ -1725,6 +1725,19 @@ if test "$cocoa" = "yes"; then
     sdl=no
 fi
 
+# Some versions of Mac OS X incorrectly define SIZE_MAX
+cat > $TMPC << EOF
+#include <stdint.h>
+#include <stdio.h>
+int main(int argc, char *argv[]) {
+    return printf("%zu", SIZE_MAX);
+}
+EOF
+
+if ! compile_object -Werror ; then
+    QEMU_CFLAGS="-DSIZE_MAX_BROKEN $QEMU_CFLAGS"
+fi
+
 ##########################################
 # L2TPV3 probe
 
