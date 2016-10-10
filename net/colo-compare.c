@@ -235,8 +235,8 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
         fprintf(stderr, "Secondary len = %d\n", spkt->size);
         qemu_hexdump((char *)spkt->data, stderr, "colo-compare", spkt->size);
 
-        g_free(sdebug);
-        g_free(ddebug);
+        free(sdebug);
+        free(ddebug);
     }
 
     return res;
