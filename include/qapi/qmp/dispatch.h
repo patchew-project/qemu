@@ -17,13 +17,22 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
 
-typedef void (QmpDispatchReturn) (QObject *rsp, void *opaque);
+typedef struct QmpClient QmpClient;
+
+typedef void (QmpDispatchReturn) (QmpClient *client, QObject *rsp);
 
 typedef struct QmpReturn {
     QDict *rsp;
-    QmpDispatchReturn *return_cb;
-    void *opaque;
+    QmpClient *client;
+
+    QLIST_ENTRY(QmpReturn) link;
 } QmpReturn;
+
+struct QmpClient {
+    QmpDispatchReturn *return_cb;
+
+    QLIST_HEAD(, QmpReturn) pending;
+};
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
@@ -46,8 +55,9 @@ void qmp_register_command(const char *name, QmpCommandFunc *fn,
                           QmpCommandOptions options);
 void qmp_unregister_command(const char *name);
 QmpCommand *qmp_find_command(const char *name);
-void qmp_dispatch(QObject *request, QDict *rsp,
-                  QmpDispatchReturn *return_cb, void *opaque);
+void qmp_client_init(QmpClient *client, QmpDispatchReturn *return_cb);
+void qmp_client_destroy(QmpClient *client);
+void qmp_dispatch(QmpClient *client, QObject *request, QDict *rsp);
 void qmp_disable_command(const char *name);
 void qmp_enable_command(const char *name);
 bool qmp_command_is_enabled(const QmpCommand *cmd);
@@ -61,7 +71,7 @@ void qmp_for_each_command(qmp_cmd_callback_fn fn, void *opaque);
  * qmp_return{_error}:
  *
  * Construct the command reply, and call the
- * return_cb() associated with the dispatch.
+ * return_cb() associated with the QmpClient.
  *
  * Finally, free the QmpReturn.
  */
