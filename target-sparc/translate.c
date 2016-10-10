@@ -2652,17 +2652,9 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
         break;
 
     default:
-        {
-            TCGv_i32 r_asi = tcg_const_i32(da.asi);
-
-            save_state(dc);
-            gen_helper_ldda_asi(cpu_env, addr, r_asi);
-            tcg_temp_free_i32(r_asi);
-
-            tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUSPARCState, qt0.high));
-            tcg_gen_ld_i64(lo, cpu_env, offsetof(CPUSPARCState, qt0.low));
-        }
-        break;
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
+        return;
     }
 
     gen_store_gpr(dc, rd, hi);
@@ -2705,20 +2697,8 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
         break;
 
     default:
-        {
-            TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_Q);
-            TCGv_i64 t64;
-
-            save_state(dc);
-
-            t64 = tcg_temp_new_i64();
-            tcg_gen_concat_tl_i64(t64, lo, hi);
-            gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_mop);
-            tcg_temp_free_i32(r_mop);
-            tcg_temp_free_i32(r_asi);
-            tcg_temp_free_i64(t64);
-        }
+        /* ??? Should be DAE_invalid_asi.  */
+        gen_exception(dc, TT_DATA_ACCESS);
         break;
     }
 }
