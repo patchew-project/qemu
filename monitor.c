@@ -168,6 +168,7 @@ typedef struct {
      */
     bool in_command_mode;       /* are we in command mode? */
     bool has_async;             /* the client has async capability */
+    QObject *suspended;
     QmpClient client;
 } MonitorQMP;
 
@@ -3677,8 +3678,9 @@ static int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return (mon->suspend_cnt == 0) ? 1 : 0;
+    return (mon->suspend_cnt == 0 && !mon->qmp.suspended) ? 1 : 0;
 }
+
 
 static bool invalid_qmp_mode(const Monitor *mon, const char *cmd,
                              Error **errp)
@@ -3756,11 +3758,33 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
     return input_dict;
 }
 
+static void monitor_qmp_suspend(Monitor *mon, QObject *req)
+{
+    assert(monitor_is_qmp(mon));
+    assert(!mon->qmp.suspended);
+
+    qobject_incref(req);
+    mon->qmp.suspended = req;
+}
+
+static void monitor_qmp_resume(Monitor *mon)
+{
+    assert(monitor_is_qmp(mon));
+    assert(mon->qmp.suspended);
+
+    qobject_decref(mon->qmp.suspended);
+    mon->qmp.suspended = NULL;
+}
+
 static void qmp_dispatch_return(QmpClient *client, QObject *rsp)
 {
     Monitor *mon = container_of(client, Monitor, qmp.client);
 
     monitor_json_emitter(mon, rsp);
+
+    if (mon->qmp.suspended) {
+        monitor_qmp_resume(mon);
+    }
 }
 
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
@@ -3799,6 +3823,12 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     }
 
     qmp_dispatch(&mon->qmp.client, req, rqdict);
+
+    /* suspend if the command is on-going and client doesn't support async */
+    if (!QLIST_EMPTY(&mon->qmp.client.pending) && !mon->qmp.has_async) {
+        monitor_qmp_suspend(mon, req);
+    }
+
     qobject_decref(req);
     return;
 
