@@ -47,6 +47,8 @@ void xen_modified_memory(ram_addr_t start, ram_addr_t length);
 
 void xen_register_framebuffer(struct MemoryRegion *mr);
 
+void xen_acpi_setup(PCMachineState *pcms);
+
 #define XEN_ACPI_TABLE 0
 #define XEN_ACPI_NSDEV 1
 

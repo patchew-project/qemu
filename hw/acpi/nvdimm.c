@@ -32,6 +32,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/xen/xen.h"
 
 static int nvdimm_plugged_device_list(Object *obj, void *opaque)
 {
@@ -389,6 +390,13 @@ static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
     build_header(linker, table_data,
                  (void *)(table_data->data + header), "NFIT",
                  sizeof(NvdimmNfitHeader) + structures->len, 1, NULL, NULL);
+
+    if (xen_enabled()) {
+        xen_acpi_copy_to_guest("NFIT", table_data->data + header,
+                               sizeof(NvdimmNfitHeader) + structures->len,
+                               XEN_ACPI_TABLE);
+    }
+
     g_array_free(structures, true);
 }
 

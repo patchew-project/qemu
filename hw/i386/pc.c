@@ -1269,10 +1269,14 @@ void pc_machine_done(Notifier *notifier, void *data)
         }
     }
 
-    acpi_setup();
-    if (pcms->fw_cfg) {
-        pc_build_smbios(pcms->fw_cfg);
-        pc_build_feature_control_file(pcms);
+    if (xen_enabled()) {
+        xen_acpi_setup(pcms);
+    } else {
+        acpi_setup();
+        if (pcms->fw_cfg) {
+            pc_build_smbios(pcms->fw_cfg);
+            pc_build_feature_control_file(pcms);
+        }
     }
 }
 
