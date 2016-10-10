@@ -36,6 +36,11 @@ do { \
 #define VIRTIO_CRYPTO_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_CRYPTO)
 
+/* This is the last element of the write scatter-gather list */
+struct virtio_crypto_inhdr
+{
+    uint32_t status;
+};
 
 typedef struct VirtIOCryptoConf {
     CryptoDevBackend *cryptodev;
@@ -61,8 +66,10 @@ typedef struct VirtIOCryptoReq {
     VirtQueueElement elem;
     /* flags of operation, such as type of algorithm */
     uint32_t flags;
-    /* address of in data (Device to Driver) */
-    void *idata_hva;
+    struct virtio_crypto_inhdr *in;
+    struct iovec *in_iov; /* Head address of dest iovec */
+    unsigned int in_num; /* Number of dest iovec */
+    size_t in_len;
     VirtQueue *vq;
     struct VirtIOCrypto *vcrypto;
     union {
