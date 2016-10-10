@@ -21,6 +21,18 @@
 { 'include': 'qapi/introspect.json' }
 
 ##
+# @QMPCapability
+#
+# QMP protocol capabilities
+#
+# @async: enables async messages
+#
+# Since: 2.8
+##
+{ 'enum': 'QMPCapability',
+  'data': ['async'] }
+
+##
 # @qmp_capabilities:
 #
 # Enable QMP capabilities.

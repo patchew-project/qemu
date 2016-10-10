@@ -16,18 +16,30 @@ from qapi import *
 import re
 
 
-def gen_command_decl(name, arg_type, boxed, ret_type):
-    return mcgen('''
+def gen_command_decl(name, arg_type, boxed, ret_type, async):
+    if async:
+        extra = "QmpReturn *qret"
+    else:
+        extra = 'Error **errp'
+
+    if async:
+        return mcgen('''
+void qmp_%(name)s(%(params)s);
+void qmp_%(name)s_return(QmpReturn *qret%(c_type)s);
+''',
+                     c_type=(", " + ret_type.c_type() if ret_type else ""),
+                     name=c_name(name),
+                     params=gen_params(arg_type, boxed, extra))
+    else:
+        return mcgen('''
 %(c_type)s qmp_%(c_name)s(%(params)s);
 ''',
-                 c_type=(ret_type and ret_type.c_type()) or 'void',
-                 c_name=c_name(name),
-                 params=gen_params(arg_type, boxed, 'Error **errp'))
+                     c_type=(ret_type and ret_type.c_type()) or 'void',
+                     c_name=c_name(name),
+                     params=gen_params(arg_type, boxed, extra))
 
 
-def gen_call(name, arg_type, boxed, ret_type):
-    ret = ''
-
+def gen_argstr(arg_type, boxed):
     argstr = ''
     if boxed:
         assert arg_type and not arg_type.is_empty()
@@ -39,6 +51,13 @@ def gen_call(name, arg_type, boxed, ret_type):
                 argstr += 'arg.has_%s, ' % c_name(memb.name)
             argstr += 'arg.%s, ' % c_name(memb.name)
 
+    return argstr
+
+
+def gen_call(name, arg_type, boxed, ret_type):
+    ret = ''
+
+    argstr = gen_argstr(arg_type, boxed)
     lhs = ''
     if ret_type:
         lhs = 'retval = '
@@ -59,6 +78,50 @@ def gen_call(name, arg_type, boxed, ret_type):
                      c_name=ret_type.c_name())
     return ret
 
+
+def gen_async_call(name, arg_type, boxed):
+    argstr = gen_argstr(arg_type, boxed)
+
+    push_indent()
+    ret = mcgen('''
+
+qmp_%(c_name)s(%(args)sqret);
+''',
+                c_name=c_name(name), args=argstr)
+
+    pop_indent()
+    return ret
+
+
+def gen_async_return(name, ret_type):
+    if ret_type:
+        return mcgen('''
+
+void qmp_%(c_name)s_return(QmpReturn *qret, %(ret_type)s ret_in)
+{
+    Error *err = NULL;
+    QObject *ret_out = NULL;
+
+    qmp_marshal_output_%(ret_c_name)s(ret_in, &ret_out, &err);
+
+    if (err) {
+        qmp_return_error(qret, err);
+    } else {
+        qmp_return(qret, ret_out);
+    }
+}
+''',
+                     c_name=c_name(name),
+                     ret_type=ret_type.c_type(), ret_c_name=ret_type.c_name())
+    else:
+        return mcgen('''
+
+void qmp_%(c_name)s_return(QmpReturn *qret)
+{
+    qmp_return(qret, QOBJECT(qdict_new()));
+}
+''',
+                     c_name=c_name(name))
 
 def gen_marshal_output(ret_type):
     return mcgen('''
@@ -83,18 +146,22 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
 
 
-def gen_marshal_proto(name):
-    return 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
+def gen_marshal_proto(name, async):
+    if async:
+        tmpl = 'void qmp_marshal_%s(QDict *args, QmpReturn *qret)'
+    else:
+        tmpl = 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)'
+    return tmpl % c_name(name)
 
 
-def gen_marshal_decl(name):
+def gen_marshal_decl(name, async):
     return mcgen('''
 %(proto)s;
 ''',
-                 proto=gen_marshal_proto(name))
+                 proto=gen_marshal_proto(name, async))
 
 
-def gen_marshal(name, arg_type, boxed, ret_type):
+def gen_marshal(name, arg_type, boxed, ret_type, async):
     have_args = arg_type and not arg_type.is_empty()
 
     ret = mcgen('''
@@ -103,9 +170,9 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 {
     Error *err = NULL;
 ''',
-                proto=gen_marshal_proto(name))
+                proto=gen_marshal_proto(name, async))
 
-    if ret_type:
+    if ret_type and not async:
         ret += mcgen('''
     %(c_type)s retval;
 ''',
@@ -152,12 +219,28 @@ def gen_marshal(name, arg_type, boxed, ret_type):
     }
 ''')
 
-    ret += gen_call(name, arg_type, boxed, ret_type)
+    if async:
+        ret += gen_async_call(name, arg_type, boxed)
+    else:
+        ret += gen_call(name, arg_type, boxed, ret_type)
 
     ret += mcgen('''
 
 out:
+''')
+
+    if async:
+         ret += mcgen('''
+    if (err) {
+        qmp_return_error(qret, err);
+    }
+''')
+    else:
+        ret += mcgen('''
     error_propagate(errp, err);
+''')
+
+    ret += mcgen('''
     visit_free(v);
 ''')
 
@@ -192,15 +275,17 @@ out:
     return ret
 
 
-def gen_register_command(name, success_response):
+def gen_register_command(name, success_response, async):
     options = 'QCO_NO_OPTIONS'
     if not success_response:
         options = 'QCO_NO_SUCCESS_RESP'
-
+    func = 'qmp_register_command'
+    if async:
+        func = 'qmp_register_async_command'
     ret = mcgen('''
-    qmp_register_command("%(name)s", qmp_marshal_%(c_name)s, %(opts)s);
+    %(func)s("%(name)s", qmp_marshal_%(c_name)s, %(opts)s);
 ''',
-                name=name, c_name=c_name(name),
+                func=func, name=name, c_name=c_name(name),
                 opts=options)
     return ret
 
@@ -239,16 +324,19 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = None
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, async):
         if not gen:
             return
-        self.decl += gen_command_decl(name, arg_type, boxed, ret_type)
+        self.decl += gen_command_decl(name, arg_type, boxed,
+                                      ret_type, async)
         if ret_type and ret_type not in self._visited_ret_types:
             self._visited_ret_types.add(ret_type)
             self.defn += gen_marshal_output(ret_type)
-        self.decl += gen_marshal_decl(name)
-        self.defn += gen_marshal(name, arg_type, boxed, ret_type)
-        self._regy += gen_register_command(name, success_response)
+        if async:
+            self.defn += gen_async_return(name, ret_type)
+        self.decl += gen_marshal_decl(name, async)
+        self.defn += gen_marshal(name, arg_type, boxed, ret_type, async)
+        self._regy += gen_register_command(name, success_response, async)
 
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
@@ -306,6 +394,7 @@ fdef.write(mcgen('''
 fdecl.write(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/dispatch.h"
 #include "qapi/error.h"
 
 ''',

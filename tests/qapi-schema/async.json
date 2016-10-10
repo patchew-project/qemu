@@ -1,0 +1,1 @@
+{ 'command': 'screendump-async', 'data': {'filename': 'str'}, 'async': true }

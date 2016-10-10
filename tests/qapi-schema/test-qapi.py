@@ -36,11 +36,12 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         self._print_variants(variants)
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, async):
         print 'command %s %s -> %s' % \
             (name, arg_type and arg_type.name, ret_type and ret_type.name)
-        print '   gen=%s success_response=%s boxed=%s' % \
-            (gen, success_response, boxed)
+        print '   gen=%s success_response=%s boxed=%s%s' % \
+            (gen, success_response, boxed,
+             ' async=True' if async else '')
 
     def visit_event(self, name, info, arg_type, boxed):
         print 'event %s %s' % (name, arg_type and arg_type.name)
