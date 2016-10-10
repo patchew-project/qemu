@@ -4657,3 +4657,25 @@
 # Since: 2.7
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+
+##
+# @qtest-timeout:
+#
+# @duration: the time before timeout expires (in seconds)
+#
+# Test command that replies after @duration seconds.
+#
+# Example:
+#
+# -> { "execute": "qtest-timeout",
+#      "arguments": { "duration": 5 } }
+# ... after 5s
+# <- { "return": {} }
+#
+# Note: this command is only available with a qtest machine
+#
+# Since: 2.8
+##
+{ 'command': 'qtest-timeout',
+  'data': {'duration': 'int'},
+  'gen': false } # so we can can register it manually when qtest is enabled
