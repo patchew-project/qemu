@@ -85,21 +85,28 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
     return ret;
 }
 
+static void dispatch_cmd_return(QObject *resp, void *opaque)
+{
+    assert(resp != NULL);
+    assert(!qdict_haskey(qobject_to_qdict(resp), "error"));
+}
 
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
     QDict *req = qdict_new();
-    QObject *resp;
 
     qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd")));
 
-    resp = qmp_dispatch(QOBJECT(req), NULL);
-    assert(resp != NULL);
-    assert(!qdict_haskey(qobject_to_qdict(resp), "error"));
+    qmp_dispatch(QOBJECT(req), NULL, dispatch_cmd_return, NULL);
 
-    qobject_decref(resp);
     QDECREF(req);
+}
+
+static void dispatch_cmd_error_return(QObject *resp, void *opaque)
+{
+    assert(resp != NULL);
+    assert(qdict_haskey(qobject_to_qdict(resp), "error"));
 }
 
 /* test commands that return an error due to invalid parameters */
@@ -111,11 +118,7 @@ static void test_dispatch_cmd_failure(void)
 
     qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd2")));
 
-    resp = qmp_dispatch(QOBJECT(req), NULL);
-    assert(resp != NULL);
-    assert(qdict_haskey(qobject_to_qdict(resp), "error"));
-
-    qobject_decref(resp);
+    qmp_dispatch(QOBJECT(req), NULL, dispatch_cmd_error_return, NULL);
     QDECREF(req);
 
     /* check that with extra arguments it throws an error */
@@ -125,28 +128,29 @@ static void test_dispatch_cmd_failure(void)
 
     qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd")));
 
-    resp = qmp_dispatch(QOBJECT(req), NULL);
-    assert(resp != NULL);
-    assert(qdict_haskey(qobject_to_qdict(resp), "error"));
-
-    qobject_decref(resp);
+    qmp_dispatch(QOBJECT(req), NULL, dispatch_cmd_error_return, NULL);
     QDECREF(req);
+}
+
+static QObject *dispatch_ret;
+
+static void qmp_dispatch_return(QObject *resp_obj, void *opaque)
+{
+    QDict *resp = qobject_to_qdict(resp_obj);
+    assert(resp && !qdict_haskey(resp, "error"));
+    dispatch_ret = qdict_get(resp, "return");
+    assert(dispatch_ret);
+    qobject_incref(dispatch_ret);
 }
 
 static QObject *test_qmp_dispatch(QDict *req)
 {
-    QObject *resp_obj;
-    QDict *resp;
     QObject *ret;
 
-    resp_obj = qmp_dispatch(QOBJECT(req), NULL);
-    assert(resp_obj);
-    resp = qobject_to_qdict(resp_obj);
-    assert(resp && !qdict_haskey(resp, "error"));
-    ret = qdict_get(resp, "return");
-    assert(ret);
-    qobject_incref(ret);
-    qobject_decref(resp_obj);
+    qmp_dispatch(QOBJECT(req), NULL, qmp_dispatch_return, NULL);
+    ret = dispatch_ret;
+    dispatch_ret = NULL;
+
     return ret;
 }
 

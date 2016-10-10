@@ -17,6 +17,14 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
 
+typedef void (QmpDispatchReturn) (QObject *rsp, void *opaque);
+
+typedef struct QmpReturn {
+    QDict *rsp;
+    QmpDispatchReturn *return_cb;
+    void *opaque;
+} QmpReturn;
+
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
 typedef enum QmpCommandOptions
@@ -38,7 +46,8 @@ void qmp_register_command(const char *name, QmpCommandFunc *fn,
                           QmpCommandOptions options);
 void qmp_unregister_command(const char *name);
 QmpCommand *qmp_find_command(const char *name);
-QObject *qmp_dispatch(QObject *request, QDict *rsp);
+void qmp_dispatch(QObject *request, QDict *rsp,
+                  QmpDispatchReturn *return_cb, void *opaque);
 void qmp_disable_command(const char *name);
 void qmp_enable_command(const char *name);
 bool qmp_command_is_enabled(const QmpCommand *cmd);
@@ -47,5 +56,16 @@ bool qmp_has_success_response(const QmpCommand *cmd);
 QObject *qmp_build_error_object(Error *err);
 typedef void (*qmp_cmd_callback_fn)(QmpCommand *cmd, void *opaque);
 void qmp_for_each_command(qmp_cmd_callback_fn fn, void *opaque);
+
+/*
+ * qmp_return{_error}:
+ *
+ * Construct the command reply, and call the
+ * return_cb() associated with the dispatch.
+ *
+ * Finally, free the QmpReturn.
+ */
+void qmp_return(QmpReturn *qret, QObject *cmd_rsp);
+void qmp_return_error(QmpReturn *qret, Error *err);
 
 #endif
