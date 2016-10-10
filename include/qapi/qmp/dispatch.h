@@ -38,7 +38,7 @@ void qmp_register_command(const char *name, QmpCommandFunc *fn,
                           QmpCommandOptions options);
 void qmp_unregister_command(const char *name);
 QmpCommand *qmp_find_command(const char *name);
-QObject *qmp_dispatch(QObject *request);
+QObject *qmp_dispatch(QObject *request, QDict *rsp);
 void qmp_disable_command(const char *name);
 void qmp_enable_command(const char *name);
 bool qmp_command_is_enabled(const QmpCommand *cmd);

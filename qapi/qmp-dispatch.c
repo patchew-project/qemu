@@ -116,15 +116,14 @@ QObject *qmp_build_error_object(Error *err)
                               error_get_pretty(err));
 }
 
-QObject *qmp_dispatch(QObject *request)
+QObject *qmp_dispatch(QObject *request, QDict *rsp)
 {
     Error *err = NULL;
     QObject *ret;
-    QDict *rsp;
 
     ret = do_qmp_dispatch(request, &err);
 
-    rsp = qdict_new();
+    rsp = rsp ?: qdict_new();
     if (err) {
         qdict_put_obj(rsp, "error", qmp_build_error_object(err));
         error_free(err);
