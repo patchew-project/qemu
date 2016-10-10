@@ -977,11 +977,14 @@ static inline void gen_op_eval_fbo(TCGv dst, TCGv src,
 }
 
 static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
-                               target_ulong pc2, TCGv r_cond)
+                               target_ulong pc2)
 {
     TCGLabel *l1 = gen_new_label();
+    TCGv tmp = get_temp_tl(dc);
 
-    tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
+    tcg_gen_mov_tl(tmp, cpu_cond);
+    tcg_gen_discard_tl(cpu_cond);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, tmp, 0, l1);
 
     gen_goto_tb(dc, 0, pc1, pc1 + 4);
 
@@ -993,8 +996,11 @@ static void gen_branch_a(DisasContext *dc, target_ulong pc1)
 {
     TCGLabel *l1 = gen_new_label();
     target_ulong npc = dc->npc;
+    TCGv tmp = get_temp_tl(dc);
 
-    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_cond, 0, l1);
+    tcg_gen_mov_tl(tmp, cpu_cond);
+    tcg_gen_discard_tl(cpu_cond);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, tmp, 0, l1);
 
     gen_goto_tb(dc, 0, npc, pc1);
 
@@ -1024,6 +1030,7 @@ static void gen_branch_n(DisasContext *dc, target_ulong pc1)
         tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, z, t, cpu_npc);
         tcg_temp_free(t);
         tcg_temp_free(z);
+        tcg_gen_discard_tl(cpu_cond);
 
         dc->pc = DYNAMIC_PC;
     }
@@ -1036,6 +1043,7 @@ static inline void gen_generic_branch(DisasContext *dc)
     TCGv zero = tcg_const_tl(0);
 
     tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, zero, npc0, npc1);
+    tcg_gen_discard_tl(cpu_cond);
 
     tcg_temp_free(npc0);
     tcg_temp_free(npc1);
@@ -5629,7 +5637,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
         gen_op_next_insn();
     } else if (dc->npc == JUMP_PC) {
         /* we can do a static jump */
-        gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+        gen_branch2(dc, dc->jump_pc[0], dc->jump_pc[1]);
         dc->is_br = 1;
     } else {
         dc->pc = dc->npc;
