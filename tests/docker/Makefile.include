@@ -134,40 +134,12 @@ docker-run: docker-qemu-src
 			/var/tmp/qemu/run 				\
 			$(TEST), "  RUN $(TEST) in ${IMAGE}")
 
+# Run targets:
 #
-# Verification targets
-#
-# These targets help verify the test (CMD) and docker tag (IMAGE) are
-# part of the built in set of tests and images. You can still call the
-# docker-run target directly for testsing against arbitary images.
-#
-
-docker-verify-image-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-verify-image-\([^@]*\)@\(.*\)/\2/')
-docker-verify-image-%:
-	@if test -z "$(IMAGE)";			 	\
-		then echo "Invalid image"; exit 1; 	\
-	fi
-	$(if $(filter $(IMAGE), $(DOCKER_IMAGES)), ,		\
-		echo "$(IMAGE) is not a known image"; exit 1)	\
-
-docker-verify-test-%: CMD = $(shell echo '$@' | sed -e 's/docker-verify-test-\([^@]*\)@\(.*\)/\1/')
-docker-verify-test-%:
-	@if test -z "$(CMD)"; 				\
-		then echo "Invalid test"; exit 1; 	\
-	fi
-	$(if $(filter $(CMD), $(DOCKER_TESTS)), ,	\
-		echo "$(CMD) is not a known test"; exit 1)
-
-# Run targets
-#
-# This will take a target such as docker-test-foo@bar and verify that:
-#  - the test test-foo is a known test
-#  - the image bar is a known image
-#
-# It will then call the docker-run
+# Of the form docker-TEST-FOO@IMAGE-BAR which will then be expanded into a call to "make docker-run"
 docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
 docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
-docker-run-%: docker-verify-image-% docker-verify-test-%
+docker-run-%:
 	@make docker-run TEST=$(CMD) IMAGE=qemu:$(IMAGE)
 
 docker-clean:
