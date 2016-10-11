@@ -32,8 +32,11 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/uri.h"
+#include "qapi-visit.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qmp-input-visitor.h"
+#include "qapi/qmp-output-visitor.h"
 
 /* DEBUG_SSH=1 enables the DPRINTF (debugging printf) statements in
  * this block driver code.
@@ -73,6 +76,8 @@ typedef struct BDRVSSHState {
      * updated if it changes (eg by writing at the end of the file).
      */
     LIBSSH2_SFTP_ATTRIBUTES attrs;
+
+    InetSocketAddress *inet;
 
     /* Used to warn if 'flush' is not supported. */
     char *hostport;
@@ -263,7 +268,9 @@ static bool ssh_has_filename_options_conflict(QDict *options, Error **errp)
             !strcmp(qe->key, "port") ||
             !strcmp(qe->key, "path") ||
             !strcmp(qe->key, "user") ||
-            !strcmp(qe->key, "host_key_check"))
+            !strcmp(qe->key, "host_key_check") ||
+            !strcmp(qe->key, "server") ||
+            !strncmp(qe->key, "server.", 7))
         {
             error_setg(errp, "Option '%s' cannot be used with a file name",
                        qe->key);
@@ -555,13 +562,71 @@ static QemuOptsList ssh_runtime_opts = {
     },
 };
 
+static bool ssh_process_legacy_socket_options(QDict *output_opts,
+                                              QemuOpts *legacy_opts,
+                                              Error **errp)
+{
+    const char *host = qemu_opt_get(legacy_opts, "host");
+    const char *port = qemu_opt_get(legacy_opts, "port");
+
+    if (!host && port) {
+        error_setg(errp, "port may not be used without host");
+        return false;
+    }
+
+    if (!host) {
+        error_setg(errp, "No hostname was specified");
+        return false;
+    } else {
+        qdict_put(output_opts, "server.host", qstring_from_str(host));
+        qdict_put(output_opts, "server.port",
+                  qstring_from_str(port ?: stringify(22)));
+    }
+
+    return true;
+}
+
+static InetSocketAddress *ssh_config(BDRVSSHState *s, QDict *options,
+                                     Error **errp)
+{
+    InetSocketAddress *inet = NULL;
+    QDict *addr = NULL;
+    QObject *crumpled_addr = NULL;
+    Visitor *iv = NULL;
+    Error *local_error = NULL;
+
+    qdict_extract_subqdict(options, &addr, "server.");
+    if (!qdict_size(addr)) {
+        error_setg(errp, "SSH server address missing");
+        goto out;
+    }
+
+    crumpled_addr = qdict_crumple(addr, true, errp);
+    if (!crumpled_addr) {
+        goto out;
+    }
+
+    iv = qmp_input_visitor_new(crumpled_addr, true);
+    visit_type_InetSocketAddress(iv, NULL, &inet, &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        goto out;
+    }
+
+out:
+    QDECREF(addr);
+    qobject_decref(crumpled_addr);
+    visit_free(iv);
+    return inet;
+}
+
 static int connect_to_ssh(BDRVSSHState *s, QDict *options,
                           int ssh_flags, int creat_mode, Error **errp)
 {
     int r, ret;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
-    const char *host, *user, *path, *host_key_check;
+    const char *user, *path, *host_key_check;
     int port;
 
     opts = qemu_opts_create(&ssh_runtime_opts, NULL, 0, &error_abort);
@@ -572,14 +637,10 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         goto err;
     }
 
-    host = qemu_opt_get(opts, "host");
-    if (!host) {
+    if (!ssh_process_legacy_socket_options(options, opts, errp)) {
         ret = -EINVAL;
-        error_setg(errp, "No hostname was specified");
         goto err;
     }
-
-    port = qemu_opt_get_number(opts, "port", 22);
 
     path = qemu_opt_get(opts, "path");
     if (!path) {
@@ -603,9 +664,16 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         host_key_check = "yes";
     }
 
+    /* Pop the config into our state object, Exit if invalid */
+    s->inet = ssh_config(s, options, errp);
+    if (!s->inet) {
+        goto err;
+    }
+
     /* Construct the host:port name for inet_connect. */
     g_free(s->hostport);
-    s->hostport = g_strdup_printf("%s:%d", host, port);
+    port = atoi(s->inet->port);
+    s->hostport = g_strdup_printf("%s:%d", s->inet->host, port);
 
     /* Open the socket and connect. */
     s->sock = inet_connect(s->hostport, errp);
@@ -634,7 +702,8 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Check the remote host's key against known_hosts. */
-    ret = check_host_key(s, host, port, host_key_check, errp);
+    ret = check_host_key(s, s->inet->host, port, host_key_check,
+                         errp);
     if (ret < 0) {
         goto err;
     }
