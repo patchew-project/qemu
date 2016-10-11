@@ -104,11 +104,11 @@ static int replication_open(BlockDriverState *bs, QDict *options,
     } else if (!strcmp(mode, "secondary")) {
         s->mode = REPLICATION_MODE_SECONDARY;
         top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);
-        s->top_id = g_strdup(top_id);
-        if (!s->top_id) {
+        if (!top_id) {
             error_setg(&local_err, "Missing the option top-id");
             goto fail;
         }
+        s->top_id = g_strdup(top_id);
     } else {
         error_setg(&local_err,
                    "The option mode's value should be primary or secondary");
