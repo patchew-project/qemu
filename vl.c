@@ -2407,8 +2407,9 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     if (qemu_opt_get_bool(opts, "pretty", 0))
         flags |= MONITOR_USE_PRETTY;
 
-    if (qemu_opt_get_bool(opts, "default", 0))
-        flags |= MONITOR_IS_DEFAULT;
+    if (qemu_opt_get_bool(opts, "default", 0)) {
+        error_report("option 'default' is deprecated");
+    }
 
     chardev = qemu_opt_get(opts, "chardev");
     chr = qemu_chr_find(chardev);

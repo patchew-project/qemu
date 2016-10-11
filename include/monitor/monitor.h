@@ -9,10 +9,9 @@
 extern Monitor *cur_mon;
 
 /* flags for monitor_init */
-#define MONITOR_IS_DEFAULT    0x01
-#define MONITOR_USE_READLINE  0x02
-#define MONITOR_USE_CONTROL   0x04
-#define MONITOR_USE_PRETTY    0x08
+#define MONITOR_USE_READLINE  0x01
+#define MONITOR_USE_CONTROL   0x02
+#define MONITOR_USE_PRETTY    0x04
 
 bool monitor_cur_is_qmp(void);
 
