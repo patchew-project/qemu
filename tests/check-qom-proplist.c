@@ -500,6 +500,33 @@ static void test_dummy_iterator(void)
 }
 
 
+static void test_dummy_class_iterator(void)
+{
+    ObjectClass *klass = object_class_by_name(TYPE_DUMMY);
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+    bool seensv = false, seenav = false, seentype;
+
+    object_class_property_iter_init(&iter, klass);
+    while ((prop = object_property_iter_next(&iter))) {
+        if (g_str_equal(prop->name, "sv")) {
+            seensv = true;
+        } else if (g_str_equal(prop->name, "av")) {
+            seenav = true;
+        } else if (g_str_equal(prop->name, "type")) {
+            /* This prop comes from the base Object class */
+            seentype = true;
+        } else {
+            g_printerr("Found prop '%s'\n", prop->name);
+            g_assert_not_reached();
+        }
+    }
+    g_assert(seenav);
+    g_assert(seensv);
+    g_assert(seentype);
+}
+
+
 static void test_dummy_delchild(void)
 {
     Object *parent = object_get_objects_root();
@@ -528,6 +555,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qom/proplist/badenum", test_dummy_badenum);
     g_test_add_func("/qom/proplist/getenum", test_dummy_getenum);
     g_test_add_func("/qom/proplist/iterator", test_dummy_iterator);
+    g_test_add_func("/qom/proplist/class_iterator", test_dummy_class_iterator);
     g_test_add_func("/qom/proplist/delchild", test_dummy_delchild);
 
     return g_test_run();
