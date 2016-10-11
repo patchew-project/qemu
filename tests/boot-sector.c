@@ -69,10 +69,15 @@ static uint8_t boot_sector[0x7e000] = {
 };
 
 /* Create boot disk file.  */
-int boot_sector_init(const char *fname)
+int boot_sector_init(char *fname)
 {
-    FILE *f = fopen(fname, "w");
+    FILE *f = NULL;
+    int fd;
 
+    fd = mkstemp(fname);
+    if (fd != -1) {
+        f = fdopen(fd, "w");
+    }
     if (!f) {
         fprintf(stderr, "Couldn't open \"%s\": %s", fname, strerror(errno));
         return 1;
