@@ -188,7 +188,6 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
 {
     struct tcphdr *ptcp, *stcp;
     int res;
-    char *sdebug, *ddebug;
 
     trace_colo_compare_main("compare tcp");
     if (ppkt->size != spkt->size) {
@@ -219,11 +218,9 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
                 (spkt->size - ETH_HLEN));
 
     if (res != 0 && trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
-        sdebug = strdup(inet_ntoa(ppkt->ip->ip_src));
-        ddebug = strdup(inet_ntoa(ppkt->ip->ip_dst));
-        fprintf(stderr, "%s: src/dst: %s/%s p: seq/ack=%u/%u"
-                " s: seq/ack=%u/%u res=%d flags=%x/%x\n",
-                __func__, sdebug, ddebug,
+        trace_colo_compare_pkt_info(__func__,
+                inet_ntoa(ppkt->ip->ip_src),
+                inet_ntoa(ppkt->ip->ip_dst),
                 (unsigned int)ntohl(ptcp->th_seq),
                 (unsigned int)ntohl(ptcp->th_ack),
                 (unsigned int)ntohl(stcp->th_seq),
@@ -235,8 +232,6 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
         fprintf(stderr, "Secondary len = %d\n", spkt->size);
         qemu_hexdump((char *)spkt->data, stderr, "colo-compare", spkt->size);
 
-        g_free(sdebug);
-        g_free(ddebug);
     }
 
     return res;
