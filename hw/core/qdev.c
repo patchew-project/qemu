@@ -775,6 +775,34 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 }
 
 /**
+ * qdev_property_set_to_default:
+ * @dev: Device where the property will be reset
+ * @prop: The qdev property definition
+ * @errp: location to store error information
+ *
+ * Reset the value of property @prop in @dev to its default value.
+ * On error, store error in @errp.
+ */
+static void qdev_property_set_to_default(DeviceState *dev, Property *prop,
+                                         Error **errp)
+{
+    Object *obj = OBJECT(dev);
+
+    if (prop->qtype == QTYPE_NONE) {
+        return;
+    }
+
+    if (prop->qtype == QTYPE_QBOOL) {
+        object_property_set_bool(obj, prop->defval, prop->name, errp);
+    } else if (prop->info->enum_table) {
+        object_property_set_str(obj, prop->info->enum_table[prop->defval],
+                                prop->name, errp);
+    } else if (prop->qtype == QTYPE_QINT) {
+        object_property_set_int(obj, prop->defval, prop->name, errp);
+    }
+}
+
+/**
  * qdev_property_add_static:
  * @dev: Device to add the property to.
  * @prop: The qdev property definition.
@@ -813,18 +841,7 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
                                     prop->info->description,
                                     &error_abort);
 
-    if (prop->qtype == QTYPE_NONE) {
-        return;
-    }
-
-    if (prop->qtype == QTYPE_QBOOL) {
-        object_property_set_bool(obj, prop->defval, prop->name, &error_abort);
-    } else if (prop->info->enum_table) {
-        object_property_set_str(obj, prop->info->enum_table[prop->defval],
-                                prop->name, &error_abort);
-    } else if (prop->qtype == QTYPE_QINT) {
-        object_property_set_int(obj, prop->defval, prop->name, &error_abort);
-    }
+    qdev_property_set_to_default(dev, prop, &error_abort);
 }
 
 /* @qdev_alias_all_properties - Add alias properties to the source object for
