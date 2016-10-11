@@ -314,7 +314,7 @@ static void pl011_class_init(ObjectClass *oc, void *data)
 
     dc->realize = pl011_realize;
     dc->vmsd = &vmstate_pl011;
-    dc->props = pl011_properties;
+    qdev_class_set_props(dc, pl011_properties);
 }
 
 static const TypeInfo pl011_arm_info = {

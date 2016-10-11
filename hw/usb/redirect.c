@@ -2500,7 +2500,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->alloc_streams  = usbredir_alloc_streams;
     uc->free_streams   = usbredir_free_streams;
     dc->vmsd           = &usbredir_vmstate;
-    dc->props          = usbredir_properties;
+    qdev_class_set_props(dc, usbredir_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

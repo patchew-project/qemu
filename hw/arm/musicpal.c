@@ -427,7 +427,7 @@ static void mv88w8618_eth_class_init(ObjectClass *klass, void *data)
 
     k->init = mv88w8618_eth_init;
     dc->vmsd = &mv88w8618_eth_vmsd;
-    dc->props = mv88w8618_eth_properties;
+    qdev_class_set_props(dc, mv88w8618_eth_properties);
 }
 
 static const TypeInfo mv88w8618_eth_info = {
