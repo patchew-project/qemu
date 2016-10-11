@@ -153,7 +153,7 @@ static void serial_update_parameters(SerialState *s)
     int speed, parity, data_bits, stop_bits, frame_size;
     QEMUSerialSetParams ssp;
 
-    if (s->divider == 0)
+    if (s->divider == 0 || s->divider > s->baudbase)
         return;
 
     /* Start bit. */
