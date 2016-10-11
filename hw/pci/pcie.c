@@ -683,7 +683,7 @@ void pcie_add_capability(PCIDevice *dev,
            in the linked list */
         next = pcie_find_capability_list(dev, 0, &prev);
 
-        assert(prev >= PCI_CONFIG_SPACE_SIZE);
+        //assert(prev >= PCI_CONFIG_SPACE_SIZE);
         assert(next == 0);
         pcie_ext_cap_set_next(dev, prev, offset);
     }
