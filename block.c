@@ -1605,7 +1605,7 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;
     QemuOpts *opts = NULL;
-    BlockDriverState *bs_snapshot;
+    BlockDriverState *bs_snapshot = NULL;
     int ret;
 
     /* if snapshot, we create a temporary backing file and open it
@@ -1657,13 +1657,10 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
     bdrv_ref(bs_snapshot);
     bdrv_append(bs_snapshot, bs);
 
-    g_free(tmp_filename);
-    return bs_snapshot;
-
 out:
     QDECREF(snapshot_options);
     g_free(tmp_filename);
-    return NULL;
+    return bs_snapshot;
 }
 
 /*
