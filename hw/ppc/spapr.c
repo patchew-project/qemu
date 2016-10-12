@@ -285,7 +285,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(max_cpus)};
-    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
     char *buf;
 
     add_str(hypertas, "hcall-pft");
@@ -350,9 +349,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
 
     /* /chosen */
     _FDT((fdt_begin_node(fdt, "chosen")));
-
-    /* Set Form1_affinity */
-    _FDT((fdt_property(fdt, "ibm,architecture-vec-5", vec5, sizeof(vec5))));
 
     _FDT((fdt_property_string(fdt, "bootargs", kernel_cmdline)));
     _FDT((fdt_property(fdt, "linux,initrd-start",
@@ -858,14 +854,28 @@ static int spapr_populate_cas_updates(sPAPRMachineState *spapr, void *fdt,
                                       sPAPROptionVector *ov5_updates)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    int ret = 0;
+    int ret = 0, offset;
 
     /* Generate ibm,dynamic-reconfiguration-memory node if required */
     if (spapr_ovec_test(ov5_updates, OV5_DRCONF_MEMORY)) {
         g_assert(smc->dr_lmb_enabled);
         ret = spapr_populate_drconf_memory(spapr, fdt);
+        if (ret) {
+            goto out;
+        }
     }
 
+    offset = fdt_path_offset(fdt, "/chosen");
+    if (offset < 0) {
+        offset = fdt_add_subnode(fdt, 0, "chosen");
+        if (offset < 0) {
+            return offset;
+        }
+    }
+    ret = spapr_ovec_populate_dt(fdt, offset, spapr->ov5_cas,
+                                 "ibm,architecture-vec-5");
+
+out:
     return ret;
 }
 
@@ -1803,6 +1813,8 @@ static void ppc_spapr_init(MachineState *machine)
         spapr_ovec_set(spapr->ov5, OV5_DRCONF_MEMORY);
         spapr_validate_node_memory(machine, &error_fatal);
     }
+
+    spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
 
     /* init CPUs */
     if (machine->cpu_model == NULL) {
