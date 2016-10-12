@@ -1979,6 +1979,7 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
 {
+/*
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
 
     if (new & IOMMU_NOTIFIER_MAP) {
@@ -1989,6 +1990,7 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
                      PCI_FUNC(vtd_as->devfn));
         exit(1);
     }
+*/
 }
 
 static const VMStateDescription vtd_vmstate = {
@@ -2322,14 +2324,31 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     VTDBus *vtd_bus = g_hash_table_lookup(s->vtd_as_by_busptr, &key);
     VTDAddressSpace *vtd_dev_as;
 
+    /* Yi: add for debug */
+    printf("------------------------------\n"
+           "YiLiu - %s()\n"
+           " bus: 0x%llx\n"
+           " s: 0x%llx\n"
+           " s->vtd_as_by_busptr: 0x%llx,"
+           " devfn: 0x%x\n",
+           __func__,
+           (unsigned long long int) bus,
+           (unsigned long long int) s,
+           (unsigned long long int) s->vtd_as_by_busptr,
+           (unsigned int) devfn);
+
     if (!vtd_bus) {
+        printf(" lookup result: no vtd_bus, allocate one\n");
         /* No corresponding free() */
         vtd_bus = g_malloc0(sizeof(VTDBus) + sizeof(VTDAddressSpace *) * \
                             X86_IOMMU_PCI_DEVFN_MAX);
         vtd_bus->bus = bus;
         key = (uintptr_t)bus;
         g_hash_table_insert(s->vtd_as_by_busptr, &key, vtd_bus);
+    } else {
+        printf(" lookup result: got vtd_bus\n");
     }
+    printf(" vtd_bus: 0x%llx\n", (unsigned long long int) vtd_bus);
 
     vtd_dev_as = vtd_bus->dev_as[devfn];
 
@@ -2350,6 +2369,23 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         address_space_init(&vtd_dev_as->as,
                            &vtd_dev_as->iommu, "intel_iommu");
     }
+
+    {/* Yi: code snippet for debug, dump the vtd_as_by_busptr
+        to see if all the allocated vtd_bus are still there */
+        GHashTableIter iter;
+        g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
+        while (g_hash_table_iter_next(&iter, NULL, (void **)&vtd_bus)) {
+            if (pci_bus_num(vtd_bus->bus) == pci_bus_num(bus)) {
+                printf("  vtd_bus in s->vtd_as_by_busptr: 0x%llx\n",
+                                        (unsigned long long int) vtd_bus);
+            }
+        }
+        /* look up hash table again */
+        vtd_bus = g_hash_table_lookup(s->vtd_as_by_busptr, &key);
+        printf("    lookup hash_table again, vtd_bus: 0x%llx\n",
+                                  (unsigned long long int) vtd_bus);
+    }
+
     return vtd_dev_as;
 }
 
