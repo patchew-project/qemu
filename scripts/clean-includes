@@ -14,14 +14,17 @@
 # the top-level directory.
 
 # Usage:
-#   clean-includes [--git subjectprefix] file ...
+#   clean-includes [--git subjectprefix] [--ignore-duphead] file ...
 # or
-#   clean-includes [--git subjectprefix] --all
+#   clean-includes [--git subjectprefix] [--ignore-duphead] --all
 #
 # If the --git subjectprefix option is given, then after making
 # the changes to the files this script will create a git commit
 # with the subject line "subjectprefix: Clean up includes"
 # and a boilerplate commit message.
+#
+# If --ignore-duphead option is used, then check for duplicate
+# header files will be skipped.
 #
 # Using --all will cause clean-includes to run on the whole source
 # tree (excluding certain directories which are known not to need
@@ -45,23 +48,36 @@
 
 
 GIT=no
+DUPHEAD=yes
 
 # Extended regular expression defining files to ignore when using --all
 XDIRREGEX='^(tests/tcg|tests/multiboot|pc-bios|disas/libvixl)'
 
-if [ $# -ne 0 ] && [ "$1" = "--git" ]; then
-    if [ $# -eq 1 ]; then
-        echo "--git option requires an argument"
-        exit 1
-    fi
-    GITSUBJ="$2"
-    GIT=yes
-    shift
-    shift
-fi
+while true
+do
+    case $1 in
+    "--git")
+         if [ $# -eq 1 ]; then
+             echo "--git option requires an argument"
+             exit 1
+         fi
+         GITSUBJ="$2"
+         GIT=yes
+         shift
+         shift
+         ;;
+    "--ignore-duphead")
+        DUPHEAD=no
+        shift
+        ;;
+    *)
+        break
+        ;;
+   esac
+done
 
 if [ $# -eq 0 ]; then
-    echo "Usage: clean-includes [--git subjectprefix] [--all | foo.c ...]"
+    echo "Usage: clean-includes [--git subjectprefix] [--ignore-duphead] [--all | foo.c ...]"
     echo "(modifies the files in place)"
     exit 1
 fi
@@ -153,6 +169,14 @@ for f in "$@"; do
             ))' "$f"
 
 done
+
+if [ "$DUPHEAD" = "yes" ]; then
+    grep "^#include" $@ | sort | uniq -c | awk '{if ($1 > 1) print $0}'
+    if [ $? -eq 0 ]; then
+        echo "Found duplicate header file includes. Please check the above files manually."
+        exit 1
+    fi
+fi
 
 if [ "$GIT" = "yes" ]; then
     git add -- "$@"
