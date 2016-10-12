@@ -1232,6 +1232,9 @@ static inline AArch64DecodeFn *lookup_disas_fn(const AArch64DecodeTable *table,
  */
 static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
 {
+    /*If/when address size is 56 bits, this could overflow into address tag
+     * byte, and that byte should be fixed per ARM ARM spec.
+     */
     uint64_t addr = s->pc + sextract32(insn, 0, 26) * 4 - 4;
 
     if (insn & (1U << 31)) {
@@ -1259,6 +1262,9 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
     sf = extract32(insn, 31, 1);
     op = extract32(insn, 24, 1); /* 0: CBZ; 1: CBNZ */
     rt = extract32(insn, 0, 5);
+    /*If/when address size is 56 bits, this could overflow into address tag
+     * byte, and that byte should be fixed per ARM ARM spec.
+     */
     addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
 
     tcg_cmp = read_cpu_reg(s, rt, sf);
@@ -1287,6 +1293,9 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
 
     bit_pos = (extract32(insn, 31, 1) << 5) | extract32(insn, 19, 5);
     op = extract32(insn, 24, 1); /* 0: TBZ; 1: TBNZ */
+    /*If/when address size is 56 bits, this could overflow into address tag
+     * byte, and that byte should be fixed per ARM ARM spec.
+     */
     addr = s->pc + sextract32(insn, 5, 14) * 4 - 4;
     rt = extract32(insn, 0, 5);
 
@@ -1316,6 +1325,9 @@ static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
         unallocated_encoding(s);
         return;
     }
+    /*If/when address size is 56 bits, this could overflow into address tag
+     * byte, and that byte should be fixed per ARM ARM spec.
+     */
     addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
     cond = extract32(insn, 0, 4);
 
