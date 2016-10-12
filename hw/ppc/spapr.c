@@ -1816,6 +1816,11 @@ static void ppc_spapr_init(MachineState *machine)
 
     spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
 
+    /* use dedicated HP event source if guest supports it */
+    if (spapr->use_hotplug_event_source) {
+        spapr_ovec_set(spapr->ov5, OV5_HP_EVT);
+    }
+
     /* init CPUs */
     if (machine->cpu_model == NULL) {
         machine->cpu_model = kvm_enabled() ? "host" : smc->tcg_default_cpu;
@@ -2172,15 +2177,38 @@ static void spapr_set_kvm_type(Object *obj, const char *value, Error **errp)
     spapr->kvm_type = g_strdup(value);
 }
 
+static bool spapr_get_legacy_hotplug_events(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return !spapr->use_hotplug_event_source;
+}
+
+static void spapr_set_legacy_hotplug_events(Object *obj, bool value,
+                                            Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->use_hotplug_event_source = !value;
+}
+
 static void spapr_machine_initfn(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
 
     spapr->htab_fd = -1;
+    spapr->use_hotplug_event_source = true;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
     object_property_set_description(obj, "kvm-type",
                                     "Specifies the KVM virtualization mode (HV, PR)",
+                                    NULL);
+    object_property_add_bool(obj, "legacy-hotplug-events",
+                            spapr_get_legacy_hotplug_events,
+                            spapr_set_legacy_hotplug_events,
+                            NULL);
+    object_property_set_description(obj, "legacy-hotplug-events",
+                                    "Use deprecated EPOW mechanism for hotplug events",
                                     NULL);
 }
 
@@ -2518,6 +2546,9 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", true);
 
 static void spapr_machine_2_7_instance_options(MachineState *machine)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+
+    spapr->use_hotplug_event_source = false;
 }
 
 static void spapr_machine_2_7_class_options(MachineClass *mc)

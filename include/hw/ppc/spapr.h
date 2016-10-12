@@ -74,6 +74,7 @@ struct sPAPRMachineState {
     uint32_t check_exception_irq;
     Notifier epow_notifier;
     QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
+    bool use_hotplug_event_source;
 
     /* Migration state */
     int htab_save_index;
