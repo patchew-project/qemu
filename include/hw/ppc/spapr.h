@@ -69,6 +69,7 @@ struct sPAPRMachineState {
     bool has_graphics;
     sPAPROptionVector *ov5;
     sPAPROptionVector *ov5_cas;
+    bool cas_reboot;
 
     uint32_t check_exception_irq;
     Notifier epow_notifier;
@@ -580,7 +581,8 @@ void spapr_events_init(sPAPRMachineState *sm);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  target_ulong addr, target_ulong size,
-                                 bool cpu_update);
+                                 bool cpu_update,
+                                 sPAPROptionVector *ov5_updates);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
 void spapr_tce_table_enable(sPAPRTCETable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,
