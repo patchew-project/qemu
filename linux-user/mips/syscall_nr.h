@@ -363,3 +363,6 @@
 #define TARGET_NR_userfaultfd           (TARGET_NR_Linux + 357)
 #define TARGET_NR_membarrier            (TARGET_NR_Linux + 358)
 #define TARGET_NR_mlock2                (TARGET_NR_Linux + 359)
+#define TARGET_NR_copy_file_range       (TARGET_NR_Linux + 360)
+#define TARGET_NR_preadv2               (TARGET_NR_Linux + 361)
+#define TARGET_NR_pwritev2              (TARGET_NR_Linux + 362)
