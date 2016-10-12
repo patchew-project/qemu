@@ -275,8 +275,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
                                    hwaddr initrd_size,
                                    hwaddr kernel_size,
                                    bool little_endian,
-                                   const char *kernel_cmdline,
-                                   uint32_t epow_irq)
+                                   const char *kernel_cmdline)
 {
     void *fdt;
     uint32_t start_prop = cpu_to_be32(initrd_base);
@@ -437,7 +436,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_end_node(fdt)));
 
     /* event-sources */
-    spapr_events_fdt_skel(fdt, epow_irq);
+    spapr_events_fdt_skel(fdt);
 
     /* /hypervisor node */
     if (kvm_enabled()) {
@@ -1944,7 +1943,7 @@ static void ppc_spapr_init(MachineState *machine)
     }
     g_free(filename);
 
-    /* Set up EPOW events infrastructure */
+    /* Set up RTAS event infrastructure */
     spapr_events_init(spapr);
 
     /* Set up the RTC RTAS interfaces */
@@ -2076,8 +2075,7 @@ static void ppc_spapr_init(MachineState *machine)
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(initrd_base, initrd_size,
                                             kernel_size, kernel_le,
-                                            kernel_cmdline,
-                                            spapr->check_exception_irq);
+                                            kernel_cmdline);
     assert(spapr->fdt_skel != NULL);
 
     /* used by RTAS */
