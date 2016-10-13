@@ -10432,7 +10432,6 @@ static void ppc_cpu_initfn(Object *obj)
     CPUPPCState *env = &cpu->env;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs);
 
     env->msr_mask = pcc->msr_mask;
     env->mmu_model = pcc->mmu_model;

@@ -167,7 +167,6 @@ static void lm32_cpu_initfn(Object *obj)
     static bool tcg_initialized;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs);
 
     env->flags = 0;
 

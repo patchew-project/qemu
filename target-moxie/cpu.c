@@ -82,7 +82,6 @@ static void moxie_cpu_initfn(Object *obj)
     static int inited;
 
     cs->env_ptr = &cpu->env;
-    cpu_exec_init(cs);
 
     if (tcg_enabled() && !inited) {
         inited = 1;

@@ -265,7 +265,6 @@ static void superh_cpu_initfn(Object *obj)
     CPUSH4State *env = &cpu->env;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs);
 
     env->movcal_backup_tail = &(env->movcal_backup);
 

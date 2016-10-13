@@ -3368,7 +3368,6 @@ static void x86_cpu_initfn(Object *obj)
     FeatureWord w;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs);
 
     object_property_add(obj, "family", "int",
                         x86_cpuid_version_get_family,

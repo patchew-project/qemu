@@ -124,7 +124,6 @@ static void xtensa_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     env->config = xcc->config;
-    cpu_exec_init(cs);
 
     if (tcg_enabled() && !tcg_inited) {
         tcg_inited = true;

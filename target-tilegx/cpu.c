@@ -114,7 +114,6 @@ static void tilegx_cpu_initfn(Object *obj)
     static bool tcg_initialized;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs);
 
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;

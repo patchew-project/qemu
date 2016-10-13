@@ -206,7 +206,6 @@ static void mb_cpu_initfn(Object *obj)
     static bool tcg_initialized;
 
     cs->env_ptr = env;
-    cpu_exec_init(cs);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
