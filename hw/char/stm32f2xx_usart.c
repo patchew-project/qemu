@@ -213,8 +213,18 @@ static void stm32f2xx_usart_realize(DeviceState *dev, Error **errp)
     STM32F2XXUsartState *s = STM32F2XX_USART(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, stm32f2xx_usart_can_receive,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, stm32f2xx_usart_can_receive,
                               stm32f2xx_usart_receive, NULL, s);
+    }
+}
+
+static void stm32f2xx_usart_unrealize(DeviceState *dev, Error **errp)
+{
+    STM32F2XXUsartState *s = STM32F2XX_USART(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -225,6 +235,7 @@ static void stm32f2xx_usart_class_init(ObjectClass *klass, void *data)
     dc->reset = stm32f2xx_usart_reset;
     dc->props = stm32f2xx_usart_properties;
     dc->realize = stm32f2xx_usart_realize;
+    dc->unrealize = stm32f2xx_usart_unrealize;
 }
 
 static const TypeInfo stm32f2xx_usart_info = {

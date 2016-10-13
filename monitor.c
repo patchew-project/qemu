@@ -187,6 +187,7 @@ typedef struct {
 
 struct Monitor {
     CharDriverState *chr;
+    int chr_tag;
     int reset_seen;
     int flags;
     int suspend_cnt;
@@ -582,7 +583,7 @@ static void monitor_data_init(Monitor *mon)
 static void monitor_data_destroy(Monitor *mon)
 {
     if (mon->chr) {
-        qemu_chr_add_handlers(mon->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(mon->chr, mon->chr_tag);
     }
     if (monitor_is_qmp(mon)) {
         json_message_parser_destroy(&mon->qmp.parser);
@@ -3988,13 +3989,15 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     if (monitor_is_qmp(mon)) {
-        qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
-                              monitor_qmp_event, mon);
+        mon->chr_tag =
+            qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
+                                  monitor_qmp_event, mon);
         qemu_chr_fe_set_echo(chr, true);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
     } else {
-        qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
-                              monitor_event, mon);
+        mon->chr_tag =
+            qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
+                                  monitor_event, mon);
     }
 
     qemu_mutex_lock(&monitor_lock);

@@ -142,6 +142,7 @@ typedef struct TestServer {
     gchar *mig_path;
     gchar *chr_name;
     CharDriverState *chr;
+    int chr_tag;
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
@@ -458,8 +459,9 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
     server->chr = qemu_chr_new(server->chr_name, chr_path, NULL);
     g_free(chr_path);
 
-    qemu_chr_add_handlers(server->chr, chr_can_read, chr_read,
-                          chr_event, server);
+    server->chr_tag =
+        qemu_chr_add_handlers(server->chr, chr_can_read, chr_read,
+                              chr_event, server);
 }
 
 static void test_server_listen(TestServer *server)
@@ -484,6 +486,7 @@ static gboolean _test_server_free(TestServer *server)
 {
     int i;
 
+    qemu_chr_remove_handlers(server->chr, server->chr_tag);
     qemu_chr_delete(server->chr);
 
     for (i = 0; i < server->fds_num; i++) {

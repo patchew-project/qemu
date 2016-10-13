@@ -54,6 +54,7 @@ typedef struct ETRAXSerial {
 
     MemoryRegion mmio;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
 
     int pending_tx;
@@ -232,9 +233,19 @@ static void etraxfs_ser_realize(DeviceState *dev, Error **errp)
     ETRAXSerial *s = ETRAX_SERIAL(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr,
                               serial_can_receive, serial_receive,
                               serial_event, s);
+    }
+}
+
+static void etraxfs_ser_unrealize(DeviceState *dev, Error **errp)
+{
+    ETRAXSerial *s = ETRAX_SERIAL(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -245,6 +256,7 @@ static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
     dc->reset = etraxfs_ser_reset;
     dc->props = etraxfs_ser_properties;
     dc->realize = etraxfs_ser_realize;
+    dc->unrealize = etraxfs_ser_unrealize;
 }
 
 static const TypeInfo etraxfs_ser_info = {

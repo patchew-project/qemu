@@ -62,6 +62,7 @@ struct MilkymistUartState {
 
     MemoryRegion regs_region;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
 
     uint32_t regs[R_MAX];
@@ -201,7 +202,17 @@ static void milkymist_uart_realize(DeviceState *dev, Error **errp)
     MilkymistUartState *s = MILKYMIST_UART(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    }
+}
+
+static void milkymist_uart_unrealize(DeviceState *dev, Error **errp)
+{
+    MilkymistUartState *s = MILKYMIST_UART(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -237,6 +248,7 @@ static void milkymist_uart_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = milkymist_uart_realize;
+    dc->unrealize = milkymist_uart_unrealize;
     dc->reset = milkymist_uart_reset;
     dc->vmsd = &vmstate_milkymist_uart;
     dc->props = milkymist_uart_properties;

@@ -475,8 +475,21 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
                                           fifo_trigger_update, s);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_receive, uart_receive,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, uart_can_receive, uart_receive,
                               uart_event, s);
+    }
+}
+
+static void cadence_uart_unrealize(DeviceState *dev, Error **errp)
+{
+    CadenceUARTState *s = CADENCE_UART(dev);
+
+    timer_del(s->fifo_trigger_handle);
+    timer_free(s->fifo_trigger_handle);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -530,6 +543,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = cadence_uart_realize;
+    dc->unrealize = cadence_uart_unrealize;
     dc->vmsd = &vmstate_cadence_uart;
     dc->reset = cadence_uart_reset;
     dc->props = cadence_uart_properties;

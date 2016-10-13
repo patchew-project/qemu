@@ -36,6 +36,7 @@ typedef struct PL011State {
     int read_count;
     int read_trigger;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
     const unsigned char *id;
 } PL011State;
@@ -303,8 +304,18 @@ static void pl011_realize(DeviceState *dev, Error **errp)
     PL011State *s = PL011(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, pl011_can_receive, pl011_receive,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
+    }
+}
+
+static void pl011_unrealize(DeviceState *dev, Error **errp)
+{
+    PL011State *s = PL011(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -313,6 +324,7 @@ static void pl011_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = pl011_realize;
+    dc->unrealize = pl011_unrealize;
     dc->vmsd = &vmstate_pl011;
     dc->props = pl011_properties;
 }

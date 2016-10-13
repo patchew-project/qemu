@@ -44,6 +44,7 @@ struct XenConsole {
     int               ring_ref;
     void              *sring;
     CharDriverState   *chr;
+    int               chr_tag;
     int               backlog;
 };
 
@@ -237,8 +238,9 @@ static int con_initialise(struct XenDevice *xendev)
     xen_be_bind_evtchn(&con->xendev);
     if (con->chr) {
         if (qemu_chr_fe_claim(con->chr) == 0) {
-            qemu_chr_add_handlers(con->chr, xencons_can_receive,
-                                  xencons_receive, NULL, con);
+            con->chr_tag =
+                qemu_chr_add_handlers(con->chr, xencons_can_receive,
+                                      xencons_receive, NULL, con);
         } else {
             xen_be_printf(xendev, 0,
                           "xen_console_init error chardev %s already used\n",
@@ -260,7 +262,7 @@ static void con_disconnect(struct XenDevice *xendev)
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
     if (con->chr) {
-        qemu_chr_add_handlers(con->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(con->chr, con->chr_tag);
         qemu_chr_fe_release(con->chr);
     }
     xen_be_unbind_evtchn(&con->xendev);

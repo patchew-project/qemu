@@ -49,6 +49,7 @@ typedef struct PassthruState PassthruState;
 struct PassthruState {
     CCIDCardState base;
     CharDriverState *cs;
+    int chr_tag;
     uint8_t  vscard_in_data[VSCARD_IN_SIZE];
     uint32_t vscard_in_pos;
     uint32_t vscard_in_hdr;
@@ -347,7 +348,7 @@ static int passthru_initfn(CCIDCardState *base)
     card->vscard_in_hdr = 0;
     if (card->cs) {
         DPRINTF(card, D_INFO, "initing chardev\n");
-        qemu_chr_add_handlers(card->cs,
+        card->chr_tag = qemu_chr_add_handlers(card->cs,
             ccid_card_vscard_can_read,
             ccid_card_vscard_read,
             ccid_card_vscard_event, card);
@@ -366,6 +367,12 @@ static int passthru_initfn(CCIDCardState *base)
 
 static int passthru_exitfn(CCIDCardState *base)
 {
+    PassthruState *card = PASSTHRU_CCID_CARD(base);
+
+    if (card->cs) {
+        qemu_chr_remove_handlers(card->cs, card->chr_tag);
+    }
+
     return 0;
 }
 

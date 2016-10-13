@@ -68,6 +68,7 @@ typedef struct {
     uint32_t usart_gtpr;
 
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
 } STM32F2XXUsartState;
 #endif /* HW_STM32F2XX_USART_H */

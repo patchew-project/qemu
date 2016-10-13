@@ -79,6 +79,7 @@ typedef struct UART {
     qemu_irq irq;
 
     CharDriverState *chr;
+    int chr_tag;
 
     /* registers */
     uint32_t status;
@@ -242,7 +243,8 @@ static int grlib_apbuart_init(SysBusDevice *dev)
 {
     UART *uart = GRLIB_APB_UART(dev);
 
-    qemu_chr_add_handlers(uart->chr,
+    uart->chr_tag =
+        qemu_chr_add_handlers(uart->chr,
                           grlib_apbuart_can_receive,
                           grlib_apbuart_receive,
                           grlib_apbuart_event,
@@ -271,6 +273,15 @@ static void grlib_apbuart_reset(DeviceState *d)
     uart->current = 0;
 }
 
+static void grlib_apbuart_unrealize(DeviceState *d, Error **errp)
+{
+    UART *uart = GRLIB_APB_UART(d);
+
+    if (uart->chr) {
+        qemu_chr_remove_handlers(uart->chr, uart->chr_tag);
+    }
+}
+
 static Property grlib_apbuart_properties[] = {
     DEFINE_PROP_CHR("chrdev", UART, chr),
     DEFINE_PROP_END_OF_LIST(),
@@ -284,6 +295,7 @@ static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
     k->init = grlib_apbuart_init;
     dc->reset = grlib_apbuart_reset;
     dc->props = grlib_apbuart_properties;
+    dc->unrealize = grlib_apbuart_unrealize;
 }
 
 static const TypeInfo grlib_apbuart_info = {

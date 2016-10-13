@@ -38,6 +38,7 @@ typedef struct DigicUartState {
 
     MemoryRegion regs_region;
     CharDriverState *chr;
+    int chr_tag;
 
     uint32_t reg_rx;
     uint32_t reg_st;

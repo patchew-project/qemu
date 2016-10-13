@@ -21,6 +21,7 @@
 typedef struct VhostUserState {
     NetClientState nc;
     CharDriverState *chr;
+    int chr_tag;
     VHostNetState *vhost_net;
     guint watch;
     uint64_t acked_features;
@@ -151,7 +152,7 @@ static void vhost_user_cleanup(NetClientState *nc)
         s->vhost_net = NULL;
     }
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
         qemu_chr_fe_release(s->chr);
         s->chr = NULL;
     }
@@ -258,14 +259,15 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     }
 
     s = DO_UPCAST(VhostUserState, nc, nc0);
+    s->chr_tag =
+        qemu_chr_add_handlers(chr, NULL, NULL,
+                              net_vhost_user_event, nc0->name);
     do {
         Error *err = NULL;
         if (qemu_chr_wait_connected(chr, &err) < 0) {
             error_report_err(err);
             return -1;
         }
-        qemu_chr_add_handlers(chr, NULL, NULL,
-                              net_vhost_user_event, nc0->name);
     } while (!s->started);
 
     assert(s->vhost_net);

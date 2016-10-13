@@ -104,6 +104,7 @@ typedef struct {
     QEMUSerialSetParams params;
     int latency;        /* ms */
     CharDriverState *cs;
+    int chr_tag;
 } USBSerialState;
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
@@ -499,12 +500,22 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
         return;
     }
 
-    qemu_chr_add_handlers(s->cs, usb_serial_can_read, usb_serial_read,
-                          usb_serial_event, s);
+    s->chr_tag =
+        qemu_chr_add_handlers(s->cs, usb_serial_can_read, usb_serial_read,
+                              usb_serial_event, s);
     usb_serial_handle_reset(dev);
 
     if (s->cs->be_open && !dev->attached) {
         usb_device_attach(dev, &error_abort);
+    }
+}
+
+static void usb_serial_unrealize(USBDevice *dev, Error **errp)
+{
+    USBSerialState *s = USB_SERIAL_DEV(dev);
+
+    if (s->cs) {
+        qemu_chr_remove_handlers(s->cs, s->chr_tag);
     }
 }
 
@@ -590,6 +601,7 @@ static void usb_serial_dev_class_init(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_serial_realize;
+    uc->unrealize      = usb_serial_unrealize;
     uc->handle_reset   = usb_serial_handle_reset;
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;

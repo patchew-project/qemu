@@ -182,6 +182,7 @@ typedef struct Exynos4210UartState {
     Exynos4210UartFIFO   tx;
 
     CharDriverState  *chr;
+    int chr_tag;
     qemu_irq          irq;
 
     uint32_t channel;
@@ -640,10 +641,18 @@ static int exynos4210_uart_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    qemu_chr_add_handlers(s->chr, exynos4210_uart_can_receive,
+    s->chr_tag =
+        qemu_chr_add_handlers(s->chr, exynos4210_uart_can_receive,
                           exynos4210_uart_receive, exynos4210_uart_event, s);
 
     return 0;
+}
+
+static void exynos4210_uart_unrealize(DeviceState *dev, Error **errp)
+{
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+
+    qemu_chr_remove_handlers(s->chr, s->chr_tag);
 }
 
 static Property exynos4210_uart_properties[] = {
@@ -663,6 +672,7 @@ static void exynos4210_uart_class_init(ObjectClass *klass, void *data)
     dc->reset = exynos4210_uart_reset;
     dc->props = exynos4210_uart_properties;
     dc->vmsd = &vmstate_exynos4210_uart;
+    dc->unrealize = exynos4210_uart_unrealize;
 }
 
 static const TypeInfo exynos4210_uart_info = {

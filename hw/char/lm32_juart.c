@@ -45,6 +45,7 @@ struct LM32JuartState {
     SysBusDevice parent_obj;
 
     CharDriverState *chr;
+    int chr_tag;
 
     uint32_t jtx;
     uint32_t jrx;
@@ -121,7 +122,17 @@ static void lm32_juart_realize(DeviceState *dev, Error **errp)
     LM32JuartState *s = LM32_JUART(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, juart_can_rx, juart_rx, juart_event, s);
+        s->chr_tag = qemu_chr_add_handlers(s->chr, juart_can_rx,
+                                           juart_rx, juart_event, s);
+    }
+}
+
+static void lm32_juart_unrealize(DeviceState *dev, Error **errp)
+{
+    LM32JuartState *s = LM32_JUART(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -149,6 +160,7 @@ static void lm32_juart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lm32_juart;
     dc->props = lm32_juart_properties;
     dc->realize = lm32_juart_realize;
+    dc->unrealize = lm32_juart_unrealize;
 }
 
 static const TypeInfo lm32_juart_info = {

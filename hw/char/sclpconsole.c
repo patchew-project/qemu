@@ -32,6 +32,7 @@ typedef struct ASCIIConsoleData {
 typedef struct SCLPConsole {
     SCLPEvent event;
     CharDriverState *chr;
+    int chr_tag;
     uint8_t iov[SIZE_BUFFER_VT220];
     uint32_t iov_sclp;      /* offset in buf for SCLP read operation       */
     uint32_t iov_bs;        /* offset in buf for char layer read operation */
@@ -228,7 +229,8 @@ static int console_init(SCLPEvent *event)
     }
     console_available = true;
     if (scon->chr) {
-        qemu_chr_add_handlers(scon->chr, chr_can_read,
+        scon->chr_tag =
+            qemu_chr_add_handlers(scon->chr, chr_can_read,
                               chr_read, NULL, scon);
     }
 
@@ -250,6 +252,11 @@ static void console_reset(DeviceState *dev)
 
 static int console_exit(SCLPEvent *event)
 {
+    SCLPConsole *scon = SCLP_CONSOLE(event);
+
+    if (scon->chr) {
+        qemu_chr_remove_handlers(scon->chr, scon->chr_tag);
+    }
     return 0;
 }
 

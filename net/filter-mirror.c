@@ -39,6 +39,7 @@ typedef struct MirrorState {
     char *indev;
     char *outdev;
     CharDriverState *chr_in;
+    int chr_in_tag;
     CharDriverState *chr_out;
     SocketReadState rs;
 } MirrorState;
@@ -110,7 +111,8 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
     ret = net_fill_rstate(&s->rs, buf, size);
 
     if (ret == -1) {
-        qemu_chr_add_handlers(s->chr_in, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(s->chr_in, s->chr_in_tag);
+        s->chr_in_tag = -1;
     }
 }
 
@@ -121,7 +123,8 @@ static void redirector_chr_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_CLOSED:
-        qemu_chr_add_handlers(s->chr_in, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(s->chr_in, s->chr_in_tag);
+        s->chr_in_tag = -1;
         break;
     default:
         break;
@@ -185,7 +188,8 @@ static void filter_redirector_cleanup(NetFilterState *nf)
     MirrorState *s = FILTER_REDIRECTOR(nf);
 
     if (s->chr_in) {
-        qemu_chr_add_handlers(s->chr_in, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(s->chr_in, s->chr_in_tag);
+        s->chr_in_tag = -1;
         qemu_chr_fe_release(s->chr_in);
     }
     if (s->chr_out) {
@@ -228,6 +232,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(nf);
 
+    s->chr_in_tag = -1;
     if (!s->indev && !s->outdev) {
         error_setg(errp, "filter redirector needs 'indev' or "
                    "'outdev' at least one property set");
@@ -251,7 +256,8 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         }
 
         qemu_chr_fe_claim_no_fail(s->chr_in);
-        qemu_chr_add_handlers(s->chr_in, redirector_chr_can_read,
+        s->chr_in_tag =
+            qemu_chr_add_handlers(s->chr_in, redirector_chr_can_read,
                               redirector_chr_read, redirector_chr_event, nf);
     }
 

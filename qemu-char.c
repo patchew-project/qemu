@@ -569,6 +569,7 @@ struct MuxDriver {
     CharDriverState *drv;
     int focus;
     int mux_cnt;
+    int mux_tag;
     int term_got_escape;
     int max_size;
     /* Intermediate input buffer allows to catch escape sequences even if the
@@ -850,8 +851,8 @@ static int mux_chr_new_handler_tag(CharDriverState *chr, GMainContext *context)
     }
 
     /* Fix up the real driver with mux routines */
-    if (d->mux_cnt == 0) {
-        qemu_chr_add_handlers_full(d->drv, mux_chr_can_read,
+    if (d->mux_tag == -1) {
+        d->mux_tag = qemu_chr_add_handlers_full(d->drv, mux_chr_can_read,
                                                 mux_chr_read,
                                                 mux_chr_event,
                                                 chr, context);
@@ -897,6 +898,7 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
     chr->opaque = d;
     d->drv = drv;
     d->focus = -1;
+    d->mux_tag = -1;
     chr->chr_close = mux_chr_close;
     chr->chr_write = mux_chr_write;
     chr->chr_update_read_handler = mux_chr_update_read_handler;

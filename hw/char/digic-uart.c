@@ -148,7 +148,17 @@ static void digic_uart_realize(DeviceState *dev, Error **errp)
     DigicUartState *s = DIGIC_UART(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    }
+}
+
+static void digic_uart_unrealize(DeviceState *dev, Error **errp)
+{
+    DigicUartState *s = DIGIC_UART(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -182,6 +192,7 @@ static void digic_uart_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = digic_uart_realize;
+    dc->unrealize = digic_uart_unrealize;
     dc->reset = digic_uart_reset;
     dc->vmsd = &vmstate_digic_uart;
     dc->props = digic_uart_properties;

@@ -398,9 +398,13 @@ void sh_serial_init(MemoryRegion *sysmem,
     s->chr = chr;
 
     if (chr) {
+        int tag;
+
         qemu_chr_fe_claim_no_fail(chr);
-        qemu_chr_add_handlers(chr, sh_serial_can_receive1, sh_serial_receive1,
-			      sh_serial_event, s);
+        tag = qemu_chr_add_handlers(chr, sh_serial_can_receive1,
+                                    sh_serial_receive1,
+                                    sh_serial_event, s);
+        assert(tag != -1);
     }
 
     s->eri = eri_source;

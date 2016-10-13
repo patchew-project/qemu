@@ -106,6 +106,7 @@ struct USBRedirDevice {
     USBDevice dev;
     /* Properties */
     CharDriverState *cs;
+    int chr_tag;
     uint8_t debug;
     char *filter_str;
     int32_t bootindex;
@@ -1375,6 +1376,7 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     USBRedirDevice *dev = USB_REDIRECT(udev);
     int i;
 
+    dev->chr_tag = -1;
     if (dev->cs == NULL) {
         error_setg(errp, QERR_MISSING_PARAMETER, "chardev");
         return;
@@ -1406,10 +1408,18 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     dev->compatible_speedmask = USB_SPEED_MASK_FULL | USB_SPEED_MASK_HIGH;
 
     /* Let the backend know we are ready */
-    qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
+    dev->chr_tag =
+        qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
     qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
+}
+
+static void usbredir_unrealize(USBDevice *udev, Error **errp)
+{
+    USBRedirDevice *dev = USB_REDIRECT(udev);
+
+    qemu_chr_remove_handlers(dev->cs, dev->chr_tag);
 }
 
 static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
@@ -2493,6 +2503,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize        = usbredir_realize;
+    uc->unrealize      = usbredir_unrealize;
     uc->product_desc   = "USB Redirection Device";
     uc->handle_destroy = usbredir_handle_destroy;
     uc->cancel_packet  = usbredir_cancel_packet;

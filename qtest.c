@@ -39,6 +39,7 @@ bool qtest_allowed;
 static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
 static CharDriverState *qtest_chr;
+static int qtest_chr_tag;
 static GString *inbuf;
 static int irq_levels[MAX_IRQ];
 static qemu_timeval start_time;
@@ -679,7 +680,8 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
         qtest_log_fp = stderr;
     }
 
-    qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
+    qtest_chr_tag =
+        qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
     qemu_chr_fe_set_echo(chr, true);
 
     inbuf = g_string_new("");

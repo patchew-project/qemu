@@ -97,6 +97,7 @@ typedef struct IMXSerialState {
 
     qemu_irq irq;
     CharDriverState *chr;
+    int chr_tag;
 } IMXSerialState;
 
 #endif

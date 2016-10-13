@@ -63,6 +63,7 @@ typedef struct IPMIBmcExtern {
     IPMIBmc parent;
 
     CharDriverState *chr;
+    int chr_tag;
 
     bool connected;
 
@@ -447,7 +448,17 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_chr_add_handlers(ibe->chr, can_receive, receive, chr_event, ibe);
+    ibe->chr_tag =
+        qemu_chr_add_handlers(ibe->chr, can_receive, receive, chr_event, ibe);
+}
+
+static void ipmi_bmc_extern_unrealize(DeviceState *dev, Error **errp)
+{
+    IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(dev);
+
+    if (ibe->chr) {
+        qemu_chr_remove_handlers(ibe->chr, ibe->chr_tag);
+    }
 }
 
 static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
@@ -512,6 +523,7 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
     bk->handle_command = ipmi_bmc_extern_handle_command;
     bk->handle_reset = ipmi_bmc_extern_handle_reset;
     dc->realize = ipmi_bmc_extern_realize;
+    dc->unrealize = ipmi_bmc_extern_unrealize;
     dc->props = ipmi_bmc_extern_properties;
 }
 

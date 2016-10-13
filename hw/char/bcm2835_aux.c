@@ -283,8 +283,18 @@ static void bcm2835_aux_realize(DeviceState *dev, Error **errp)
     BCM2835AuxState *s = BCM2835_AUX(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, bcm2835_aux_can_receive,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, bcm2835_aux_can_receive,
                               bcm2835_aux_receive, NULL, s);
+    }
+}
+
+static void bcm2835_aux_unrealize(DeviceState *dev, Error **errp)
+{
+    BCM2835AuxState *s = BCM2835_AUX(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -298,6 +308,7 @@ static void bcm2835_aux_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = bcm2835_aux_realize;
+    dc->unrealize = bcm2835_aux_unrealize;
     dc->vmsd = &vmstate_bcm2835_aux;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->props = bcm2835_aux_props;

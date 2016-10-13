@@ -1765,6 +1765,7 @@ struct PXA2xxFIrState {
     qemu_irq tx_dma;
     uint32_t enable;
     CharDriverState *chr;
+    int chr_tag;
 
     uint8_t control[3];
     uint8_t status[2];
@@ -1975,8 +1976,18 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
 
     if (s->chr) {
         qemu_chr_fe_claim_no_fail(s->chr);
-        qemu_chr_add_handlers(s->chr, pxa2xx_fir_is_empty,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, pxa2xx_fir_is_empty,
                         pxa2xx_fir_rx, pxa2xx_fir_event, s);
+    }
+}
+
+static void pxa2xx_fir_unrealize(DeviceState *dev, Error **errp)
+{
+    PXA2xxFIrState *s = PXA2XX_FIR(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -2013,6 +2024,7 @@ static void pxa2xx_fir_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pxa2xx_fir_realize;
+    dc->unrealize = pxa2xx_fir_unrealize;
     dc->vmsd = &pxa2xx_fir_vmsd;
     dc->props = pxa2xx_fir_properties;
     dc->reset = pxa2xx_fir_reset;

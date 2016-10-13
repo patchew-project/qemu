@@ -25,6 +25,7 @@ typedef struct RngEgd
     RngBackend parent;
 
     CharDriverState *chr;
+    int chr_tag;
     char *chr_name;
 } RngEgd;
 
@@ -107,8 +108,11 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
     }
 
     /* FIXME we should resubmit pending requests when the CDS reconnects. */
-    qemu_chr_add_handlers(s->chr, rng_egd_chr_can_read, rng_egd_chr_read,
-                          NULL, s);
+    if (s->chr_tag == -1) {
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, rng_egd_chr_can_read,
+                                  rng_egd_chr_read, NULL, s);
+    }
 }
 
 static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
@@ -137,6 +141,9 @@ static char *rng_egd_get_chardev(Object *obj, Error **errp)
 
 static void rng_egd_init(Object *obj)
 {
+    RngEgd *s = RNG_EGD(obj);
+
+    s->chr_tag = -1;
     object_property_add_str(obj, "chardev",
                             rng_egd_get_chardev, rng_egd_set_chardev,
                             NULL);
@@ -147,7 +154,7 @@ static void rng_egd_finalize(Object *obj)
     RngEgd *s = RNG_EGD(obj);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
         qemu_chr_fe_release(s->chr);
     }
 

@@ -319,10 +319,20 @@ static void imx_serial_realize(DeviceState *dev, Error **errp)
     IMXSerialState *s = IMX_SERIAL(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, imx_can_receive, imx_receive,
-                              imx_event, s);
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, imx_can_receive, imx_receive,
+                                  imx_event, s);
     } else {
         DPRINTF("No char dev for uart\n");
+    }
+}
+
+static void imx_serial_unrealize(DeviceState *dev, Error **errp)
+{
+    IMXSerialState *s = IMX_SERIAL(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -347,6 +357,7 @@ static void imx_serial_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = imx_serial_realize;
+    dc->unrealize = imx_serial_unrealize;
     dc->vmsd = &vmstate_imx_serial;
     dc->reset = imx_serial_reset_at_boot;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

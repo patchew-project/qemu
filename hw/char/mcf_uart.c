@@ -27,6 +27,7 @@ typedef struct {
     int rx_enabled;
     qemu_irq irq;
     CharDriverState *chr;
+    int chr_tag;
 } mcf_uart_state;
 
 /* UART Status Register bits.  */
@@ -284,7 +285,8 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
     s->irq = irq;
     if (chr) {
         qemu_chr_fe_claim_no_fail(chr);
-        qemu_chr_add_handlers(chr, mcf_uart_can_receive, mcf_uart_receive,
+        s->chr_tag =
+            qemu_chr_add_handlers(chr, mcf_uart_can_receive, mcf_uart_receive,
                               mcf_uart_event, s);
     }
     mcf_uart_reset(s);

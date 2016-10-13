@@ -94,6 +94,7 @@ typedef struct SCC2698Block SCC2698Block;
 struct SCC2698Channel {
     IPOctalState *ipoctal;
     CharDriverState *dev;
+    int chr_tag;
     bool rx_enabled;
     uint8_t mr[2];
     uint8_t mr_idx;
@@ -547,11 +548,25 @@ static void ipoctal_realize(DeviceState *dev, Error **errp)
 
         /* Redirect IP-Octal channels to host character devices */
         if (ch->dev) {
-            qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
+            ch->chr_tag = qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
                                   hostdev_receive, hostdev_event, ch);
             DPRINTF("Redirecting channel %u to %s\n", i, ch->dev->label);
         } else {
             DPRINTF("Could not redirect channel %u, no chardev set\n", i);
+        }
+    }
+}
+
+static void ipoctal_unrealize(DeviceState *dev, Error **errp)
+{
+    IPOctalState *s = IPOCTAL(dev);
+    unsigned i;
+
+    for (i = 0; i < N_CHANNELS; i++) {
+        SCC2698Channel *ch = &s->ch[i];
+
+        if (ch->dev) {
+            qemu_chr_remove_handlers(ch->dev, ch->chr_tag);
         }
     }
 }
@@ -574,6 +589,7 @@ static void ipoctal_class_init(ObjectClass *klass, void *data)
     IPackDeviceClass *ic = IPACK_DEVICE_CLASS(klass);
 
     ic->realize     = ipoctal_realize;
+    ic->unrealize   = ipoctal_unrealize;
     ic->io_read     = io_read;
     ic->io_write    = io_write;
     ic->id_read     = id_read;

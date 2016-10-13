@@ -56,6 +56,7 @@ typedef struct XilinxUARTLite {
 
     MemoryRegion mmio;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
 
     uint8_t rx_fifo[8];
@@ -213,8 +214,19 @@ static void xilinx_uartlite_realize(DeviceState *dev, Error **errp)
 {
     XilinxUARTLite *s = XILINX_UARTLITE(dev);
 
-    if (s->chr)
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    if (s->chr) {
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    }
+}
+
+static void xilinx_uartlite_unrealize(DeviceState *dev, Error **errp)
+{
+    XilinxUARTLite *s = XILINX_UARTLITE(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
+    }
 }
 
 static void xilinx_uartlite_init(Object *obj)
@@ -234,6 +246,7 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 
     dc->reset = xilinx_uartlite_reset;
     dc->realize = xilinx_uartlite_realize;
+    dc->unrealize = xilinx_uartlite_unrealize;
     dc->props = xilinx_uartlite_properties;
 }
 

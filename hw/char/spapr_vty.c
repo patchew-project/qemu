@@ -12,6 +12,7 @@
 typedef struct VIOsPAPRVTYDevice {
     VIOsPAPRDevice sdev;
     CharDriverState *chardev;
+    int chr_tag;
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
 } VIOsPAPRVTYDevice;
@@ -74,8 +75,18 @@ static void spapr_vty_realize(VIOsPAPRDevice *sdev, Error **errp)
         return;
     }
 
-    qemu_chr_add_handlers(dev->chardev, vty_can_receive,
+    dev->chr_tag =
+        qemu_chr_add_handlers(dev->chardev, vty_can_receive,
                           vty_receive, NULL, dev);
+}
+
+static void spapr_vty_unrealize(DeviceState *s, Error **errp)
+{
+    VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(s);
+
+    if (dev->chardev) {
+        qemu_chr_remove_handlers(dev->chardev, dev->chr_tag);
+    }
 }
 
 /* Forward declaration */
@@ -173,6 +184,7 @@ static void spapr_vty_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->props = spapr_vty_properties;
     dc->vmsd = &vmstate_spapr_vty;
+    dc->unrealize = spapr_vty_unrealize;
 }
 
 static const TypeInfo spapr_vty_info = {

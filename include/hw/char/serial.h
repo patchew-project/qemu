@@ -53,6 +53,7 @@ struct SerialState {
     int thr_ipending;
     qemu_irq irq;
     CharDriverState *chr;
+    int chr_tag;
     int last_break_enable;
     int it_shift;
     int baudbase;

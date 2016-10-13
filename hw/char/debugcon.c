@@ -40,6 +40,7 @@
 typedef struct DebugconState {
     MemoryRegion io;
     CharDriverState *chr;
+    int chr_tag;
     uint32_t readback;
 } DebugconState;
 
@@ -85,32 +86,32 @@ static const MemoryRegionOps debugcon_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void debugcon_realize_core(DebugconState *s, Error **errp)
-{
-    if (!s->chr) {
-        error_setg(errp, "Can't create debugcon device, empty char device");
-        return;
-    }
-
-    qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, s);
-}
-
 static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
     ISADebugconState *isa = ISA_DEBUGCON_DEVICE(dev);
     DebugconState *s = &isa->state;
-    Error *err = NULL;
 
-    debugcon_realize_core(s, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    if (!s->chr) {
+        error_setg(errp, "Can't create debugcon device, empty char device");
         return;
     }
+
+    /* necessary to start the be */
+    s->chr_tag = qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, s);
+
     memory_region_init_io(&s->io, OBJECT(dev), &debugcon_ops, s,
                           TYPE_ISA_DEBUGCON_DEVICE, 1);
     memory_region_add_subregion(isa_address_space_io(d),
                                 isa->iobase, &s->io);
+}
+
+static void debugcon_isa_unrealizefn(DeviceState *dev, Error **errp)
+{
+    ISADebugconState *isa = ISA_DEBUGCON_DEVICE(dev);
+    DebugconState *s = &isa->state;
+
+    qemu_chr_remove_handlers(s->chr, s->chr_tag);
 }
 
 static Property debugcon_isa_properties[] = {
@@ -125,6 +126,7 @@ static void debugcon_isa_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = debugcon_isa_realizefn;
+    dc->unrealize = debugcon_isa_unrealizefn;
     dc->props = debugcon_isa_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }

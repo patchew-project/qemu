@@ -89,6 +89,7 @@ typedef struct ChannelState {
     uint8_t wregs[SERIAL_REGS], rregs[SERIAL_REGS];
     SERIOQueue queue;
     CharDriverState *chr;
+    int chr_tag;
     int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
     int disabled;
     int clock;
@@ -1015,7 +1016,8 @@ static void escc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < 2; i++) {
         if (s->chn[i].chr) {
             s->chn[i].clock = s->frequency / 2;
-            qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
+            s->chn[i].chr_tag =
+                qemu_chr_add_handlers(s->chn[i].chr, serial_can_receive,
                                   serial_receive1, serial_event, &s->chn[i]);
         }
     }
@@ -1027,6 +1029,18 @@ static void escc_realize(DeviceState *dev, Error **errp)
     if (s->chn[1].type == kbd) {
         s->chn[1].hs = qemu_input_handler_register((DeviceState *)(&s->chn[1]),
                                                    &sunkbd_handler);
+    }
+}
+
+static void escc_unrealize(DeviceState *dev, Error **errp)
+{
+    ESCCState *s = ESCC(dev);
+    unsigned int i;
+
+    for (i = 0; i < 2; i++) {
+        if (s->chn[i].chr) {
+            qemu_chr_remove_handlers(s->chn[i].chr, s->chn[i].chr_tag);
+        }
     }
 }
 
@@ -1047,6 +1061,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
 
     dc->reset = escc_reset;
     dc->realize = escc_realize;
+    dc->unrealize = escc_unrealize;
     dc->vmsd = &vmstate_escc;
     dc->props = escc_properties;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

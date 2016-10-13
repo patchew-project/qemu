@@ -89,6 +89,7 @@ typedef struct IVShmemState {
     /* exactly one of these two may be set */
     HostMemoryBackend *hostmem; /* with interrupts */
     CharDriverState *server_chr; /* without interrupts */
+    int server_chr_tag;
 
     /* registers */
     uint32_t intrmask;
@@ -841,6 +842,8 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
 
+    s->server_chr_tag = -1;
+
     /* IRQFD requires MSI */
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD) &&
         !ivshmem_has_feature(s, IVSHMEM_MSI)) {
@@ -893,8 +896,9 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
             return;
         }
 
-        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
-                              ivshmem_read, NULL, s);
+        s->server_chr_tag =
+            qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
+                                  ivshmem_read, NULL, s);
 
         if (ivshmem_setup_interrupts(s) < 0) {
             error_setg(errp, "failed to initialize interrupts");
@@ -955,6 +959,10 @@ static void ivshmem_exit(PCIDevice *dev)
     }
 
     g_free(s->msi_vectors);
+
+    if (s->server_chr) {
+        qemu_chr_remove_handlers(s->server_chr, s->server_chr_tag);
+    }
 }
 
 static int ivshmem_pre_load(void *opaque)

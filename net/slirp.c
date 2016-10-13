@@ -683,6 +683,7 @@ int net_slirp_smb(const char *exported_dir)
 
 struct GuestFwd {
     CharDriverState *hd;
+    int chr_tag;
     struct in_addr server;
     int port;
     Slirp *slirp;
@@ -765,8 +766,9 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
         fwd->slirp = s->slirp;
 
         qemu_chr_fe_claim_no_fail(fwd->hd);
-        qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
-                              NULL, fwd);
+        fwd->chr_tag =
+            qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
+                                  NULL, fwd);
     }
     return 0;
 

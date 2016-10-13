@@ -304,6 +304,7 @@ typedef struct GDBState {
     int running_state;
 #else
     CharDriverState *chr;
+    int chr_tag;
     CharDriverState *mon_chr;
 #endif
     char syscall_buf[256];
@@ -1724,6 +1725,7 @@ int gdbserver_start(const char *device)
     GDBState *s;
     char gdbstub_device_name[128];
     CharDriverState *chr = NULL;
+    int chr_tag = -1;
     CharDriverState *mon_chr;
     ChardevCommon common = { 0 };
 
@@ -1750,8 +1752,9 @@ int gdbserver_start(const char *device)
             return -1;
 
         qemu_chr_fe_claim_no_fail(chr);
-        qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
-                              gdb_chr_event, NULL);
+        chr_tag =
+            qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
+                                  gdb_chr_event, NULL);
     }
 
     s = gdbserver_state;
@@ -1766,14 +1769,17 @@ int gdbserver_start(const char *device)
         mon_chr->chr_write = gdb_monitor_write;
         monitor_init(mon_chr, 0);
     } else {
-        if (s->chr)
+        if (s->chr) {
+            qemu_chr_remove_handlers(s->chr, s->chr_tag);
             qemu_chr_delete(s->chr);
+        }
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));
     }
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->chr = chr;
+    s->chr_tag = chr_tag;
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;
     s->current_syscall_cb = NULL;

@@ -913,6 +913,7 @@ typedef struct StrongARMUARTState {
 
     MemoryRegion iomem;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
 
     uint8_t utcr0;
@@ -1240,12 +1241,27 @@ static void strongarm_uart_init(Object *obj)
     s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_tx, s);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr,
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr,
                         strongarm_uart_can_receive,
                         strongarm_uart_receive,
                         strongarm_uart_event,
                         s);
     }
+}
+
+static void strongarm_uart_finalize(Object *obj)
+{
+    StrongARMUARTState *s = STRONGARM_UART(obj);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
+    }
+
+    timer_del(s->tx_timer);
+    timer_free(s->tx_timer);
+    timer_del(s->rx_timeout_timer);
+    timer_free(s->rx_timeout_timer);
 }
 
 static void strongarm_uart_reset(DeviceState *dev)
@@ -1327,6 +1343,7 @@ static const TypeInfo strongarm_uart_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMUARTState),
     .instance_init = strongarm_uart_init,
+    .instance_finalize = strongarm_uart_finalize,
     .class_init    = strongarm_uart_class_init,
 };
 

@@ -38,6 +38,7 @@ typedef struct OprtnsCommand {
 typedef struct SCLPConsoleLM {
     SCLPEvent event;
     CharDriverState *chr;
+    int chr_tag;
     bool echo;                  /* immediate echo of input if true        */
     uint32_t write_errors;      /* errors writing to char layer           */
     uint32_t length;            /* length of byte stream in buffer        */
@@ -313,7 +314,9 @@ static int console_init(SCLPEvent *event)
     console_available = true;
 
     if (scon->chr) {
-        qemu_chr_add_handlers(scon->chr, chr_can_read, chr_read, NULL, scon);
+        scon->chr_tag =
+            qemu_chr_add_handlers(scon->chr, chr_can_read,
+                                  chr_read, NULL, scon);
     }
 
     return 0;
@@ -321,6 +324,12 @@ static int console_init(SCLPEvent *event)
 
 static int console_exit(SCLPEvent *event)
 {
+    SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
+
+    if (scon->chr) {
+        qemu_chr_remove_handlers(scon->chr, scon->chr_tag);
+    }
+
     return 0;
 }
 

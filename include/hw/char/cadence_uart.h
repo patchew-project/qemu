@@ -45,6 +45,7 @@ typedef struct {
     uint32_t tx_count;
     uint64_t char_tx_time;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
     QEMUTimer *fifo_trigger_handle;
 } CadenceUARTState;

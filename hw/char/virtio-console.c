@@ -25,6 +25,7 @@ typedef struct VirtConsole {
     VirtIOSerialPort parent_obj;
 
     CharDriverState *chr;
+    int chr_tag;
     guint watch;
 } VirtConsole;
 
@@ -189,12 +190,14 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
          */
         if (k->is_console) {
             vcon->chr->explicit_fe_open = 0;
-            qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
+            vcon->chr_tag =
+                qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
                                   NULL, vcon);
             virtio_serial_open(port);
         } else {
             vcon->chr->explicit_fe_open = 1;
-            qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
+            vcon->chr_tag =
+                qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
                                   chr_event, vcon);
         }
     }
@@ -206,6 +209,9 @@ static void virtconsole_unrealize(DeviceState *dev, Error **errp)
 
     if (vcon->watch) {
         g_source_remove(vcon->watch);
+    }
+    if (vcon->chr) {
+        qemu_chr_remove_handlers(vcon->chr, vcon->chr_tag);
     }
 }
 

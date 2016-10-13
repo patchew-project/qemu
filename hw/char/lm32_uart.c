@@ -98,6 +98,7 @@ struct LM32UartState {
 
     MemoryRegion iomem;
     CharDriverState *chr;
+    int chr_tag;
     qemu_irq irq;
 
     uint32_t regs[R_MAX];
@@ -268,7 +269,17 @@ static void lm32_uart_realize(DeviceState *dev, Error **errp)
     LM32UartState *s = LM32_UART(dev);
 
     if (s->chr) {
-        qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+        s->chr_tag =
+            qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+    }
+}
+
+static void lm32_uart_unrealize(DeviceState *dev, Error **errp)
+{
+    LM32UartState *s = LM32_UART(dev);
+
+    if (s->chr) {
+        qemu_chr_remove_handlers(s->chr, s->chr_tag);
     }
 }
 
@@ -295,6 +306,7 @@ static void lm32_uart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lm32_uart;
     dc->props = lm32_uart_properties;
     dc->realize = lm32_uart_realize;
+    dc->unrealize = lm32_uart_unrealize;
 }
 
 static const TypeInfo lm32_uart_info = {

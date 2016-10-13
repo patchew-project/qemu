@@ -893,8 +893,9 @@ void serial_realize_core(SerialState *s, Error **errp)
     s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) fifo_timeout_int, s);
     qemu_register_reset(serial_reset, s);
 
-    qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
-                          serial_event, s);
+    s->chr_tag =
+        qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
+                              serial_event, s);
     fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
     fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
     serial_reset(s);
@@ -902,7 +903,9 @@ void serial_realize_core(SerialState *s, Error **errp)
 
 void serial_exit_core(SerialState *s)
 {
-    qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+    qemu_chr_remove_handlers(s->chr, s->chr_tag);
+    s->chr_tag = -1;
+
     qemu_unregister_reset(serial_reset, s);
 }
 
@@ -933,6 +936,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->irq = irq;
     s->baudbase = baudbase;
     s->chr = chr;
+    s->chr_tag = -1;
     serial_realize_core(s, &error_fatal);
 
     vmstate_register(NULL, base, &vmstate_serial, s);
