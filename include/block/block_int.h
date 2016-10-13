@@ -62,8 +62,6 @@
 enum BdrvTrackedRequestType {
     BDRV_TRACKED_READ,
     BDRV_TRACKED_WRITE,
-    BDRV_TRACKED_FLUSH,
-    BDRV_TRACKED_IOCTL,
     BDRV_TRACKED_DISCARD,
 };
 
@@ -443,7 +441,7 @@ struct BlockDriverState {
                          note this is a reference count */
 
     CoQueue flush_queue;            /* Serializing flush queue */
-    BdrvTrackedRequest *active_flush_req; /* Flush request in flight */
+    bool active_flush_req;          /* Flush request in flight? */
     unsigned int write_gen;         /* Current data generation */
     unsigned int flushed_gen;       /* Flushed write generation */
 
@@ -471,7 +469,8 @@ struct BlockDriverState {
     /* Callback before write request is processed */
     NotifierWithReturnList before_write_notifiers;
 
-    /* number of in-flight serialising requests */
+    /* number of in-flight requests; overall and serialising */
+    unsigned int in_flight;
     unsigned int serialising_in_flight;
 
     /* Offset after the highest byte written to */
@@ -784,6 +783,9 @@ bool bdrv_requests_pending(BlockDriverState *bs);
 
 void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out);
 void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in);
+
+void bdrv_inc_in_flight(BlockDriverState *bs);
+void bdrv_dec_in_flight(BlockDriverState *bs);
 
 void blockdev_close_all_bdrv_states(void);
 
