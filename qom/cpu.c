@@ -367,7 +367,7 @@ static void cpu_common_initfn(Object *obj)
 static void cpu_common_finalize(Object *obj)
 {
     CPUState *cpu = CPU(obj);
-    cpu_exec_exit(cpu);
+    cpu_exec_unrealize(CPU(obj));
     g_free(cpu->trace_dstate);
 }
 

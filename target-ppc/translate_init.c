@@ -9678,7 +9678,8 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    cpu_exec_init(cs, &local_err);
+    cpu_exec_init(cs);
+    cpu_exec_realize(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
@@ -9910,7 +9911,7 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
     opc_handler_t **table, **table_2;
     int i, j, k;
 
-    cpu_exec_exit(CPU(dev));
+    cpu_exec_unrealize(CPU(dev));
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (env->opcodes[i] == &invalid_handler) {

@@ -207,7 +207,8 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
         goto out;
     }
 
-    cpu_exec_init(cs, &err);
+    cpu_exec_init(cs);
+    cpu_exec_realize(cs, &err);
     if (err != NULL) {
         goto out;
     }
