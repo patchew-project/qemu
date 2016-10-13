@@ -438,4 +438,36 @@ struct {                                                                \
 #define QTAILQ_PREV(elm, headname, field) \
         (*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
 
+/*
+ * Offsets of layout of a tail queue head.
+ */
+#define QTAILQ_FIRST_OFFSET 0
+#define QTAILQ_LAST_OFFSET (sizeof(void *))
+
+/*
+ * Offsets of layout of a tail queue element.
+ */
+#define QTAILQ_NEXT_OFFSET 0
+#define QTAILQ_PREV_OFFSET (sizeof(void *))
+
+/*
+ * Tail queue tranversal using pointer arithmetic.
+ */
+#define QTAILQ_RAW_FOREACH(elm, head, entry)                                   \
+        for ((elm) = *((void **) ((char *) (head) + QTAILQ_FIRST_OFFSET));     \
+             (elm);                                                            \
+             (elm) =                                                           \
+                 *((void **) ((char *) (elm) + (entry) + QTAILQ_NEXT_OFFSET)))
+/*
+ * Tail queue insertion using pointer arithmetic.
+ */
+#define QTAILQ_RAW_INSERT_TAIL(head, elm, entry) do {                          \
+        *((void **) ((char *) (elm) + (entry) + QTAILQ_NEXT_OFFSET)) = NULL;   \
+        *((void **) ((char *) (elm) + (entry) + QTAILQ_PREV_OFFSET)) =         \
+            *((void **) ((char *) (head) + QTAILQ_LAST_OFFSET));               \
+        **((void ***)((char *) (head) + QTAILQ_LAST_OFFSET)) = (elm);          \
+        *((void **) ((char *) (head) + QTAILQ_LAST_OFFSET)) =                  \
+            (void *) ((char *) (elm) + (entry) + QTAILQ_NEXT_OFFSET);          \
+} while (/*CONSTCOND*/0)
+
 #endif /* QEMU_SYS_QUEUE_H */

@@ -5,6 +5,7 @@
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/queue.h"
 #include "trace.h"
 #include "migration/qjson.h"
 
@@ -945,4 +946,62 @@ const VMStateInfo vmstate_info_bitmap = {
     .name = "bitmap",
     .get = get_bitmap,
     .put = put_bitmap,
+};
+
+/*get for QTAILQ */
+static int get_qtailq(QEMUFile *f, void *pv, size_t unused_size,
+                      VMStateField *field)
+{
+    int ret = 0;
+    const VMStateDescription *vmsd = field->vmsd;
+    size_t size = field->size;
+    size_t entry = field->start;
+    int version_id = field->version_id;
+    void *elm;
+
+    trace_get_qtailq(vmsd->name, version_id);
+    if (version_id > vmsd->version_id) {
+        trace_get_qtailq_end(vmsd->name, "too new", -EINVAL);
+        return -EINVAL;
+    }
+    if (version_id < vmsd->minimum_version_id) {
+        trace_get_qtailq_end(vmsd->name, "too old", -EINVAL);
+        return -EINVAL;
+    }
+
+    while (qemu_get_byte(f)) {
+        elm =  g_malloc(size);
+        ret = vmstate_load_state(f, vmsd, elm, version_id);
+        if (ret) {
+            return ret;
+        }
+        QTAILQ_RAW_INSERT_TAIL(pv, elm, entry);
+    }
+
+    trace_get_qtailq_end(vmsd->name, "end", ret);
+    return ret;
+}
+
+/* put for QTAILQ */
+static void put_qtailq(QEMUFile *f, void *pv, size_t unused_size,
+                       VMStateField *field, QJSON *vmdesc)
+{
+    const VMStateDescription *vmsd = field->vmsd;
+    size_t entry = field->start;
+    void *elm;
+
+    trace_put_qtailq(vmsd->name, vmsd->version_id);
+
+    QTAILQ_RAW_FOREACH(elm, pv, entry) {
+        qemu_put_byte(f, true);
+        vmstate_save_state(f, vmsd, elm, vmdesc);
+    }
+    qemu_put_byte(f, false);
+
+    trace_put_qtailq_end(vmsd->name, "end");
+}
+const VMStateInfo vmstate_info_qtailq = {
+    .name = "qtailq",
+    .get  = get_qtailq,
+    .put  = put_qtailq,
 };
