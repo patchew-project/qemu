@@ -384,6 +384,73 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt_tbl_offset)
 }
 
 static void
+build_iort(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
+{
+    int iort_start = table_data->len;
+    AcpiIortTable *iort;
+    AcpiIortNode *iort_node;
+    AcpiIortItsGroup *its;
+    AcpiIortRC *rc;
+    AcpiIortIdMapping *idmap;
+    size_t node_size;
+
+    /* at the moment if there is no its, no need to build the IORT */
+    if (!its_class_name() || guest_info->no_its) {
+        return;
+    }
+
+    iort = acpi_data_push(table_data, sizeof(*iort));
+
+    iort->length = sizeof(*iort);
+    iort->node_offset = table_data->len - iort_start;
+
+    /* ITS group node featuring a single ITS identifier */
+    iort->node_count++;
+    node_size =  sizeof(*its) + sizeof(uint32_t);
+    its = acpi_data_push(table_data, node_size);
+
+    iort_node = &its->iort_node;
+    iort_node->type = ACPI_IORT_NODE_ITS_GROUP;
+    iort_node->length = node_size;
+    iort->length += iort_node->length;
+
+    iort_node->mapping_count = 0;  /* ITS groups do not have IDs */
+    iort_node->mapping_offset = 0; /* no ID array */
+    its->its_count = 1;            /* single ITS identifier */
+    its->identifiers[0] = 0;       /* ID = 0 as described in the MADT */
+
+    /* Root Complex Node with a single ID mapping*/
+    iort->node_count++;
+    node_size = sizeof(*rc) + sizeof(*idmap);
+    rc = acpi_data_push(table_data, node_size);
+
+    iort_node = &rc->iort_node;
+    iort_node->type = ACPI_IORT_NODE_PCI_ROOT_COMPLEX;
+    iort_node->length = node_size;
+    iort->length += iort_node->length;
+
+    iort_node->mapping_count = 1;
+    iort_node->mapping_offset = sizeof(*rc);
+
+    rc->memory_properties.cache_coherency = ACPI_IORT_NODE_COHERENT;
+    rc->memory_properties.hints = 0;
+    rc->memory_properties.memory_flags = 0;
+    rc->ats_attribute = 0;      /* does not support ATS */
+    rc->pci_segment_number = 0; /* MCFG _SEG */
+
+    /* fill array of ID mappings */
+    idmap = &rc->id_mapping_array[0];
+    idmap->input_base = 0;
+    idmap->id_count = 0xFFFF;
+    idmap->output_base = 0;
+    idmap->output_reference = iort->node_offset;
+    idmap->flags = 0;
+
+    build_header(linker, table_data, (void *)(table_data->data + iort_start),
+                 "IORT", table_data->len - iort_start, 0, NULL, NULL);
+}
+
+static void
 build_spcr(GArray *table_data, BIOSLinker *linker, VirtGuestInfo *guest_info)
 {
     AcpiSerialPortConsoleRedirection *spcr;
@@ -678,6 +745,7 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
      * MADT
      * MCFG
      * DSDT
+     * IORT = ACPI 6.0
      */
 
     /* DSDT is pointed to by FADT */
@@ -704,6 +772,9 @@ void virt_acpi_build(VirtGuestInfo *guest_info, AcpiBuildTables *tables)
         acpi_add_table(table_offsets, tables_blob);
         build_srat(tables_blob, tables->linker, guest_info);
     }
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_iort(tables_blob, tables->linker, guest_info);
 
     /* RSDT is pointed to by RSDP */
     rsdt = tables_blob->len;
