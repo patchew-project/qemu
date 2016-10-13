@@ -526,6 +526,15 @@ int qemu_chr_add_handlers(CharDriverState *s,
                                       fd_event, opaque, NULL);
 }
 
+void qemu_chr_remove_handlers(CharDriverState *s, int tag)
+{
+    if (tag < 0) {
+        return;
+    }
+    /* FIXME: recycle mux tag */
+    qemu_chr_set_handlers(s, NULL, NULL, NULL, NULL, NULL, tag);
+}
+
 static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     return len;

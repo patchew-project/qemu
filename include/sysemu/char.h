@@ -453,6 +453,15 @@ int qemu_chr_add_handlers_full(CharDriverState *s,
                                 void *opaque,
                                 GMainContext *context);
 
+/**
+ * @qemu_chr_remove_handlers:
+ *
+ * @tag: the tag returned from qemu_chr_add_handlers()
+ *
+ * Remove the frontend callbacks.
+ */
+void qemu_chr_remove_handlers(CharDriverState *s, int tag);
+
 void qemu_chr_be_generic_open(CharDriverState *s);
 void qemu_chr_accept_input(CharDriverState *s);
 int qemu_chr_add_client(CharDriverState *s, int fd);
