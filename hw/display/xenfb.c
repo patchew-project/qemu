@@ -511,38 +511,45 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
     int max_width, max_height;
 
     if (fb_len_lim > fb_len_max) {
-        xen_be_printf(&xenfb->c.xendev, 0, "fb size limit %zu exceeds %zu, corrected\n",
+        xen_be_printf(&xenfb->c.xendev, 0,
+                     "fb size limit %zu exceeds %zu, corrected\n",
                       fb_len_lim, fb_len_max);
         fb_len_lim = fb_len_max;
     }
     if (fb_len_lim && fb_len > fb_len_lim) {
-        xen_be_printf(&xenfb->c.xendev, 0, "frontend fb size %zu limited to %zu\n",
+        xen_be_printf(&xenfb->c.xendev, 0,
+                     "frontend fb size %zu limited to %zu\n",
                       fb_len, fb_len_lim);
         fb_len = fb_len_lim;
     }
     if (depth != 8 && depth != 16 && depth != 24 && depth != 32) {
-        xen_be_printf(&xenfb->c.xendev, 0, "can't handle frontend fb depth %d\n",
+        xen_be_printf(&xenfb->c.xendev, 0,
+                     "can't handle frontend fb depth %d\n",
                       depth);
         return -1;
     }
     if (row_stride <= 0 || row_stride > fb_len) {
-        xen_be_printf(&xenfb->c.xendev, 0, "invalid frontend stride %d\n", row_stride);
+        xen_be_printf(&xenfb->c.xendev, 0, "invalid frontend stride %d\n",
+                      row_stride);
         return -1;
     }
     max_width = row_stride / (depth / 8);
     if (width < 0 || width > max_width) {
-        xen_be_printf(&xenfb->c.xendev, 0, "invalid frontend width %d limited to %d\n",
+        xen_be_printf(&xenfb->c.xendev, 0,
+                     "invalid frontend width %d limited to %d\n",
                       width, max_width);
         width = max_width;
     }
     if (offset < 0 || offset >= fb_len) {
-        xen_be_printf(&xenfb->c.xendev, 0, "invalid frontend offset %d (max %zu)\n",
+        xen_be_printf(&xenfb->c.xendev, 0,
+                     "invalid frontend offset %d (max %zu)\n",
                       offset, fb_len - 1);
         return -1;
     }
     max_height = (fb_len - offset) / row_stride;
     if (height < 0 || height > max_height) {
-        xen_be_printf(&xenfb->c.xendev, 0, "invalid frontend height %d limited to %d\n",
+        xen_be_printf(&xenfb->c.xendev, 0,
+                     "invalid frontend height %d limited to %d\n",
                       height, max_height);
         height = max_height;
     }
@@ -554,7 +561,8 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
     xenfb->offset = offset;
     xenfb->up_fullscreen = 1;
     xenfb->do_resize = 1;
-    xen_be_printf(&xenfb->c.xendev, 1, "framebuffer %dx%dx%d offset %d stride %d\n",
+    xen_be_printf(&xenfb->c.xendev, 1,
+                 "framebuffer %dx%dx%d offset %d stride %d\n",
                   width, height, depth, offset, row_stride);
     return 0;
 }
@@ -722,7 +730,8 @@ static void xenfb_update(void *opaque)
             break;
         }
         dpy_gfx_replace_surface(xenfb->c.con, surface);
-        xen_be_printf(&xenfb->c.xendev, 1, "update: resizing: %dx%d @ %d bpp%s\n",
+        xen_be_printf(&xenfb->c.xendev, 1,
+                     "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
                       is_buffer_shared(surface) ? " (shared)" : "");
         xenfb->up_fullscreen = 1;
@@ -733,7 +742,8 @@ static void xenfb_update(void *opaque)
         xen_be_printf(&xenfb->c.xendev, 3, "update: fullscreen\n");
         xenfb_guest_copy(xenfb, 0, 0, xenfb->width, xenfb->height);
     } else if (xenfb->up_count) {
-        xen_be_printf(&xenfb->c.xendev, 3, "update: %d rects\n", xenfb->up_count);
+        xen_be_printf(&xenfb->c.xendev, 3, "update: %d rects\n",
+                      xenfb->up_count);
         for (i = 0; i < xenfb->up_count; i++)
             xenfb_guest_copy(xenfb,
                              xenfb->up_rects[i].x,
