@@ -390,21 +390,42 @@ virtio_crypto_get_request(VirtIOCrypto *s, VirtQueue *vq)
 
 static CryptoDevBackendSymOpInfo *
 virtio_crypto_sym_op_helper(VirtIODevice *vdev,
-           struct virtio_crypto_cipher_para *para,
-           uint32_t aad_len,
-           struct iovec *iov, unsigned int out_num,
-           uint32_t hash_result_len,
-           uint32_t hash_start_src_offset)
+           struct virtio_crypto_cipher_para *cipher_para,
+           struct virtio_crypto_alg_chain_data_para *alg_chain_para,
+           struct iovec *iov, unsigned int out_num)
 {
     CryptoDevBackendSymOpInfo *op_info;
-    uint32_t src_len, dst_len;
-    uint32_t iv_len;
+    uint32_t src_len = 0, dst_len = 0;
+    uint32_t iv_len = 0;
+    uint32_t aad_len = 0, hash_result_len = 0;
+    uint32_t hash_start_src_offset = 0, len_to_hash = 0;
+    uint32_t cipher_start_src_offset = 0, len_to_cipher = 0;
+
     size_t max_len, curr_size = 0;
     size_t s;
 
-    iv_len = virtio_ldl_p(vdev, &para->iv_len);
-    src_len = virtio_ldl_p(vdev, &para->src_data_len);
-    dst_len = virtio_ldl_p(vdev, &para->dst_data_len);
+    /* Plain cipher */
+    if (cipher_para) {
+        iv_len = virtio_ldl_p(vdev, &cipher_para->iv_len);
+        src_len = virtio_ldl_p(vdev, &cipher_para->src_data_len);
+        dst_len = virtio_ldl_p(vdev, &cipher_para->dst_data_len);
+    } else if (alg_chain_para) { /* Algorithm chain */
+        iv_len = virtio_ldl_p(vdev, &alg_chain_para->iv_len);
+        src_len = virtio_ldl_p(vdev, &alg_chain_para->src_data_len);
+        dst_len = virtio_ldl_p(vdev, &alg_chain_para->dst_data_len);
+
+        aad_len = virtio_ldl_p(vdev, &alg_chain_para->aad_len);
+        hash_result_len = virtio_ldl_p(vdev,
+                              &alg_chain_para->hash_result_len);
+        hash_start_src_offset = virtio_ldl_p(vdev,
+                         &alg_chain_para->hash_start_src_offset);
+        cipher_start_src_offset = virtio_ldl_p(vdev,
+                         &alg_chain_para->cipher_start_src_offset);
+        len_to_cipher = virtio_ldl_p(vdev, &alg_chain_para->len_to_cipher);
+        len_to_hash = virtio_ldl_p(vdev, &alg_chain_para->len_to_hash);
+    } else {
+        return NULL;
+    }
 
     max_len = iv_len + aad_len + src_len + dst_len + hash_result_len;
     op_info = g_malloc0(sizeof(CryptoDevBackendSymOpInfo) + max_len);
@@ -414,6 +435,9 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
     op_info->aad_len = aad_len;
     op_info->digest_result_len = hash_result_len;
     op_info->hash_start_src_offset = hash_start_src_offset;
+    op_info->len_to_hash = len_to_hash;
+    op_info->cipher_start_src_offset = cipher_start_src_offset;
+    op_info->len_to_cipher = len_to_cipher;
     /* Handle the initilization vector */
     if (op_info->iv_len > 0) {
         DPRINTF("iv_len=%" PRIu32 "\n", op_info->iv_len);
@@ -491,25 +515,15 @@ virtio_crypto_handle_sym_req(VirtIOCrypto *vcrypto,
 
     if (op_type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
         op_info = virtio_crypto_sym_op_helper(vdev, &req->u.cipher.para,
-                                              0, iov, out_num, 0, 0);
+                                              NULL, iov, out_num);
         if (!op_info) {
             return -EFAULT;
         }
         op_info->op_type = op_type;
     } else if (op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
-        uint32_t aad_len, hash_result_len;
-        uint32_t hash_start_src_offset;
-
-        aad_len = virtio_ldl_p(vdev, &req->u.chain.para.aad_len);
-        hash_result_len = virtio_ldl_p(vdev,
-                              &req->u.chain.para.hash_result_len);
-        hash_start_src_offset = virtio_ldl_p(vdev,
-                         &req->u.chain.para.hash_start_src_offset);
-        /* cipher part */
-        op_info = virtio_crypto_sym_op_helper(vdev, &req->u.chain.para.cipher,
-                                              aad_len, iov, out_num,
-                                              hash_result_len,
-                                              hash_start_src_offset);
+        op_info = virtio_crypto_sym_op_helper(vdev, NULL,
+                                              &req->u.chain.para,
+                                              iov, out_num);
         if (!op_info) {
             return -EFAULT;
         }

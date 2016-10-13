@@ -265,6 +265,12 @@ static int cryptodev_builtin_sym_operation(
         return -VIRTIO_CRYPTO_INVSESS;
     }
 
+    if (op_info->op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
+        error_setg(errp,
+               "Algorithm chain is unsupported for cryptdoev-builtin");
+        return -VIRTIO_CRYPTO_NOTSUPP;
+    }
+
     sess = builtin->sessions[op_info->session_id];
 
     ret = qcrypto_cipher_setiv(sess->cipher, op_info->iv,
