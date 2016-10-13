@@ -68,6 +68,7 @@
 #include "qapi-visit.h"
 #include "qom/cpu.h"
 #include "hw/nmi.h"
+#include "hw/i386/intel_iommu.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1262,6 +1263,18 @@ void pc_machine_done(Notifier *notifier, void *data)
         if (mc->max_cpus > 255) {
             fw_cfg_add_file(pcms->fw_cfg, "etc/boot-cpus", &pcms->boot_cpus_le,
                             sizeof(pcms->boot_cpus_le));
+        }
+    }
+
+    if (pcms->apic_id_limit > 255) {
+        IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
+
+        if (!iommu || !iommu->x86_iommu.intr_supported ||
+            iommu->intr_eim != ON_OFF_AUTO_ON) {
+            error_report("current -smp configuration requires "
+                         "Extended Interrupt Mode enabled. "
+                         "IOMMU should have eim=on option set");
+            exit(EXIT_FAILURE);
         }
     }
 }
