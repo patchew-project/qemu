@@ -786,6 +786,7 @@ void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in);
 
 void bdrv_inc_in_flight(BlockDriverState *bs);
 void bdrv_dec_in_flight(BlockDriverState *bs);
+void bdrv_wakeup(BlockDriverState *bs);
 
 void blockdev_close_all_bdrv_states(void);
 

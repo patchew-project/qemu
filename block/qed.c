@@ -354,7 +354,9 @@ static void qed_start_need_check_timer(BDRVQEDState *s)
 static void qed_cancel_need_check_timer(BDRVQEDState *s)
 {
     trace_qed_cancel_need_check_timer(s);
-    timer_del(s->need_check_timer);
+    if (s->need_check_timer) {
+        timer_del(s->need_check_timer);
+    }
 }
 
 static void bdrv_qed_detach_aio_context(BlockDriverState *bs)
