@@ -5,14 +5,15 @@
 #include "hw/boards.h"
 #include "migration/cpu.h"
 
-static int get_fpcr(QEMUFile *f, void *opaque, size_t size)
+static int get_fpcr(QEMUFile *f, void *opaque, size_t size, VMStateField *field)
 {
     CPUAlphaState *env = opaque;
     cpu_alpha_store_fpcr(env, qemu_get_be64(f));
     return 0;
 }
 
-static void put_fpcr(QEMUFile *f, void *opaque, size_t size)
+static void put_fpcr(QEMUFile *f, void *opaque, size_t size,
+                     VMStateField *field, QJSON *vmdesc)
 {
     CPUAlphaState *env = opaque;
     qemu_put_be64(f, cpu_alpha_load_fpcr(env));
