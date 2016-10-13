@@ -185,7 +185,6 @@ static void release_chr(Object *obj, const char *name, void *opaque)
     CharDriverState *chr = *ptr;
 
     if (chr) {
-        qemu_chr_add_handlers(chr, NULL, NULL, NULL, NULL);
         qemu_chr_fe_release(chr);
     }
 }
