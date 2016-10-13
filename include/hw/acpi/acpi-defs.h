@@ -609,4 +609,95 @@ typedef struct AcpiDmarHardwareUnit AcpiDmarHardwareUnit;
 /* Masks for Flags field above */
 #define ACPI_DMAR_INCLUDE_PCI_ALL   1
 
+/*
+ * Input Output Remapping Table (IORT)
+ * Conforms to "IO Remapping Table System Software on ARM Platforms",
+ * Document number: ARM DEN 0049B, October 2015
+ */
+
+struct AcpiIortTable {
+    ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
+    uint32_t node_count;
+    uint32_t node_offset;
+    uint32_t reserved;
+} QEMU_PACKED;
+typedef struct AcpiIortTable AcpiIortTable;
+
+/*
+ * IORT subtables
+ */
+
+struct AcpiIortNode {
+    uint8_t  type;
+    uint16_t length;
+    uint8_t  revision;
+    uint32_t reserved;
+    uint32_t mapping_count;
+    uint32_t mapping_offset;
+} QEMU_PACKED;
+typedef struct AcpiIortNode AcpiIortNode;
+
+/* Values for subtable Type above */
+enum {
+        ACPI_IORT_NODE_ITS_GROUP = 0x00,
+        ACPI_IORT_NODE_NAMED_COMPONENT = 0x01,
+        ACPI_IORT_NODE_PCI_ROOT_COMPLEX = 0x02,
+        ACPI_IORT_NODE_SMMU = 0x03,
+        ACPI_IORT_NODE_SMMU_V3 = 0x04
+};
+
+struct AcpiIortIdMapping {
+    uint32_t input_base;
+    uint32_t id_count;
+    uint32_t output_base;
+    uint32_t output_reference;
+    uint32_t flags;
+} QEMU_PACKED;
+typedef struct AcpiIortIdMapping AcpiIortIdMapping;
+
+/* Masks for Flags field above for IORT subtable */
+#define ACPI_IORT_ID_SINGLE_MAPPING (1)
+
+struct AcpiIortMemoryAccess {
+    uint32_t cache_coherency;
+    uint8_t  hints;
+    uint16_t reserved;
+    uint8_t  memory_flags;
+} QEMU_PACKED;
+typedef struct AcpiIortMemoryAccess AcpiIortMemoryAccess;
+
+/* Values for cache_coherency field above */
+#define ACPI_IORT_NODE_COHERENT         0x00000001
+#define ACPI_IORT_NODE_NOT_COHERENT     0x00000000
+
+/* Masks for Hints field above */
+#define ACPI_IORT_HT_TRANSIENT          (1)
+#define ACPI_IORT_HT_WRITE              (1 << 1)
+#define ACPI_IORT_HT_READ               (1 << 2)
+#define ACPI_IORT_HT_OVERRIDE           (1 << 3)
+
+/* Masks for memory_flags field above */
+#define ACPI_IORT_MF_COHERENCY          (1)
+#define ACPI_IORT_MF_ATTRIBUTES         (1 << 1)
+
+/*
+ * IORT node specific subtables
+ */
+
+struct AcpiIortItsGroup {
+    AcpiIortNode iort_node;
+    uint32_t its_count;
+    uint32_t identifiers[0];
+} QEMU_PACKED;
+typedef struct AcpiIortItsGroup AcpiIortItsGroup;
+
+struct AcpiIortRC {
+    AcpiIortNode iort_node;
+    AcpiIortMemoryAccess memory_properties;
+    uint32_t ats_attribute;
+    uint32_t pci_segment_number;
+    AcpiIortIdMapping id_mapping_array[0];
+} QEMU_PACKED;
+typedef struct AcpiIortRC AcpiIortRC;
+
 #endif
