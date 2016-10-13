@@ -107,7 +107,7 @@ struct BlockJob {
     BlockBackend *blk;
 
     /**
-     * The ID of the block job.
+     * The ID of the block job. May be NULL for internal jobs.
      */
     char *id;
 
@@ -333,7 +333,7 @@ bool block_job_is_cancelled(BlockJob *job);
  *
  * Return information about a job.
  */
-BlockJobInfo *block_job_query(BlockJob *job);
+BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
 
 /**
  * block_job_pause_point:
@@ -503,5 +503,13 @@ void block_job_txn_unref(BlockJobTxn *txn);
  * to release the reference that is automatically grabbed here.
  */
 void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
+
+/**
+ * block_job_is_internal:
+ * @job: The job to determine if it is user-visible or not.
+ *
+ * Returns true if the job should not be visible to the management layer.
+ */
+bool block_job_is_internal(BlockJob *job);
 
 #endif
