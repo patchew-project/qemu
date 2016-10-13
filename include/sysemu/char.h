@@ -81,7 +81,7 @@ struct CharDriverState {
                          const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s,
-                                    GMainContext *context);
+                                    GMainContext *context, int tag);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     int (*get_msgfds)(struct CharDriverState *s, int* fds, int num);
     int (*set_msgfds)(struct CharDriverState *s, int *fds, int num);
@@ -432,14 +432,21 @@ void qemu_chr_be_write_impl(CharDriverState *s, uint8_t *buf, int len);
  */
 void qemu_chr_be_event(CharDriverState *s, int event);
 
-void qemu_chr_add_handlers(CharDriverState *s,
+/**
+ * @qemu_chr_add_handlers:
+ *
+ * Register the frontend callbacks.
+ *
+ * Returns: a tag associated with the handlers, or -1 on error.
+ */
+int qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,
                            IOEventHandler *fd_event,
                            void *opaque);
 
 /* This API can make handler run in the context what you pass to. */
-void qemu_chr_add_handlers_full(CharDriverState *s,
+int qemu_chr_add_handlers_full(CharDriverState *s,
                                 IOCanReadHandler *fd_can_read,
                                 IOReadHandler *fd_read,
                                 IOEventHandler *fd_event,
