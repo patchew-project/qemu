@@ -470,6 +470,7 @@ struct BlockDriverState {
     NotifierWithReturnList before_write_notifiers;
 
     /* number of in-flight requests; overall and serialising */
+    bool wakeup;
     unsigned int in_flight;
     unsigned int serialising_in_flight;
 
