@@ -29,6 +29,7 @@
 #include "hw/sh4/sh.h"
 #include "sysemu/char.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 
 //#define DEBUG_SERIAL
 
@@ -403,7 +404,7 @@ void sh_serial_init(MemoryRegion *sysmem,
         qemu_chr_fe_claim_no_fail(chr);
         tag = qemu_chr_add_handlers(chr, sh_serial_can_receive1,
                                     sh_serial_receive1,
-                                    sh_serial_event, s);
+                                    sh_serial_event, s, NULL, &error_abort);
         assert(tag != -1);
     }
 

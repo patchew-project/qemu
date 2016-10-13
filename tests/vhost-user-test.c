@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
+#include "qapi/error.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
 #include "qemu/sockets.h"
@@ -461,7 +462,7 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
 
     server->chr_tag =
         qemu_chr_add_handlers(server->chr, chr_can_read, chr_read,
-                              chr_event, server);
+                              chr_event, server, NULL, &error_abort);
 }
 
 static void test_server_listen(TestServer *server)

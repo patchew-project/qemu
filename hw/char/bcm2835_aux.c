@@ -285,7 +285,7 @@ static void bcm2835_aux_realize(DeviceState *dev, Error **errp)
     if (s->chr) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, bcm2835_aux_can_receive,
-                              bcm2835_aux_receive, NULL, s);
+                                  bcm2835_aux_receive, NULL, s, NULL, errp);
     }
 }
 

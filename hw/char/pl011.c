@@ -306,7 +306,7 @@ static void pl011_realize(DeviceState *dev, Error **errp)
     if (s->chr) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, pl011_can_receive, pl011_receive,
-                              pl011_event, s);
+                                  pl011_event, s, NULL, errp);
     }
 }
 

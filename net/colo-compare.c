@@ -481,21 +481,36 @@ static void *colo_compare_thread(void *opaque)
     GMainContext *worker_context;
     GMainLoop *compare_loop;
     CompareState *s = opaque;
+    Error *err = NULL;
 
     worker_context = g_main_context_new();
 
     s->chr_pri_tag =
-        qemu_chr_add_handlers_full(s->chr_pri_in, compare_chr_can_read,
-                                   compare_pri_chr_in, NULL, s, worker_context);
+        qemu_chr_add_handlers(s->chr_pri_in, compare_chr_can_read,
+                              compare_pri_chr_in, NULL, s,
+                              worker_context, &err);
+    if (err) {
+        goto end;
+    }
+
     s->chr_sec_tag =
-        qemu_chr_add_handlers_full(s->chr_sec_in, compare_chr_can_read,
-                                   compare_sec_chr_in, NULL, s, worker_context);
+        qemu_chr_add_handlers(s->chr_sec_in, compare_chr_can_read,
+                              compare_sec_chr_in, NULL, s,
+                              worker_context, &err);
+    if (err) {
+        goto end;
+    }
 
     compare_loop = g_main_loop_new(worker_context, FALSE);
 
     g_main_loop_run(compare_loop);
 
     g_main_loop_unref(compare_loop);
+
+end:
+    if (err) {
+        error_report_err(err);
+    }
     g_main_context_unref(worker_context);
     return NULL;
 }

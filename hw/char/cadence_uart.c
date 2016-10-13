@@ -477,7 +477,7 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
     if (s->chr) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, uart_can_receive, uart_receive,
-                              uart_event, s);
+                                  uart_event, s, NULL, errp);
     }
 }
 

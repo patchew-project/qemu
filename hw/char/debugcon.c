@@ -98,7 +98,10 @@ static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* necessary to start the be */
-    s->chr_tag = qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, s);
+    s->chr_tag = qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, s, NULL, errp);
+    if (s->chr_tag == -1) {
+        return;
+    }
 
     memory_region_init_io(&s->io, OBJECT(dev), &debugcon_ops, s,
                           TYPE_ISA_DEBUGCON_DEVICE, 1);

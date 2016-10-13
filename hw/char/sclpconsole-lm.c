@@ -18,6 +18,7 @@
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
@@ -304,8 +305,8 @@ static const VMStateDescription vmstate_sclplmconsole = {
 static int console_init(SCLPEvent *event)
 {
     static bool console_available;
-
     SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
+    Error *err = NULL;
 
     if (console_available) {
         error_report("Multiple line-mode operator consoles are not supported");
@@ -316,7 +317,11 @@ static int console_init(SCLPEvent *event)
     if (scon->chr) {
         scon->chr_tag =
             qemu_chr_add_handlers(scon->chr, chr_can_read,
-                                  chr_read, NULL, scon);
+                                  chr_read, NULL, scon, NULL, &err);
+        if (err) {
+            error_report_err(err);
+            return -1;
+        }
     }
 
     return 0;

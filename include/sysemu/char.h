@@ -441,19 +441,12 @@ void qemu_chr_be_event(CharDriverState *s, int event);
  */
 G_GNUC_WARN_UNUSED_RESULT
 int qemu_chr_add_handlers(CharDriverState *s,
-                           IOCanReadHandler *fd_can_read,
-                           IOReadHandler *fd_read,
-                           IOEventHandler *fd_event,
-                           void *opaque);
-
-/* This API can make handler run in the context what you pass to. */
-G_GNUC_WARN_UNUSED_RESULT
-int qemu_chr_add_handlers_full(CharDriverState *s,
-                                IOCanReadHandler *fd_can_read,
-                                IOReadHandler *fd_read,
-                                IOEventHandler *fd_event,
-                                void *opaque,
-                                GMainContext *context);
+                          IOCanReadHandler *fd_can_read,
+                          IOReadHandler *fd_read,
+                          IOEventHandler *fd_event,
+                          void *opaque,
+                          GMainContext *context,
+                          Error **errp);
 
 /**
  * @qemu_chr_remove_handlers:

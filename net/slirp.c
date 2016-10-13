@@ -40,6 +40,7 @@
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
+#include "qapi/error.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
@@ -704,6 +705,7 @@ static void guestfwd_read(void *opaque, const uint8_t *buf, int size)
 static int slirp_guestfwd(SlirpState *s, const char *config_str,
                           int legacy_format)
 {
+    Error *err = NULL;
     struct in_addr server = { .s_addr = 0 };
     struct GuestFwd *fwd;
     const char *p;
@@ -768,7 +770,11 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
         qemu_chr_fe_claim_no_fail(fwd->hd);
         fwd->chr_tag =
             qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
-                                  NULL, fwd);
+                                  NULL, fwd, NULL, &err);
+        if (fwd->chr_tag < 0) {
+            error_report_err(err);
+            return -1;
+        }
     }
     return 0;
 

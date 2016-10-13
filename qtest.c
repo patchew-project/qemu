@@ -680,8 +680,11 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
         qtest_log_fp = stderr;
     }
 
-    qtest_chr_tag =
-        qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
+    qtest_chr_tag = qemu_chr_add_handlers(chr, qtest_can_read, qtest_read,
+                                          qtest_event, chr, NULL, errp);
+    if (qtest_chr_tag == -1) {
+        return;
+    }
     qemu_chr_fe_set_echo(chr, true);
 
     inbuf = g_string_new("");

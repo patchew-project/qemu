@@ -192,13 +192,16 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
             vcon->chr->explicit_fe_open = 0;
             vcon->chr_tag =
                 qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
-                                  NULL, vcon);
+                                      NULL, vcon, NULL, errp);
+            if (vcon->chr_tag == -1) {
+                return;
+            }
             virtio_serial_open(port);
         } else {
             vcon->chr->explicit_fe_open = 1;
             vcon->chr_tag =
                 qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read,
-                                  chr_event, vcon);
+                                      chr_event, vcon, NULL, errp);
         }
     }
 }

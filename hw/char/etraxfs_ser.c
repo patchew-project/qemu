@@ -235,8 +235,8 @@ static void etraxfs_ser_realize(DeviceState *dev, Error **errp)
     if (s->chr) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr,
-                              serial_can_receive, serial_receive,
-                              serial_event, s);
+                                  serial_can_receive, serial_receive,
+                                  serial_event, s, NULL, errp);
     }
 }
 

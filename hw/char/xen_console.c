@@ -26,6 +26,7 @@
 #include "hw/hw.h"
 #include "sysemu/char.h"
 #include "hw/xen/xen_backend.h"
+#include "qapi/error.h"
 
 #include <xen/io/console.h>
 
@@ -200,6 +201,7 @@ static int con_init(struct XenDevice *xendev)
         con->chr = serial_hds[con->xendev.dev];
     } else {
         snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
+        /* FIXME: leaks on destroy & initialize error */
         con->chr = qemu_chr_new(label, output, NULL);
     }
 
@@ -213,6 +215,7 @@ out:
 static int con_initialise(struct XenDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
+    Error *err = NULL;
     int limit;
 
     if (xenstore_read_int(con->console, "ring-ref", &con->ring_ref) == -1)
@@ -240,7 +243,13 @@ static int con_initialise(struct XenDevice *xendev)
         if (qemu_chr_fe_claim(con->chr) == 0) {
             con->chr_tag =
                 qemu_chr_add_handlers(con->chr, xencons_can_receive,
-                                      xencons_receive, NULL, con);
+                                      xencons_receive, NULL, con, NULL, &err);
+            if (con->chr_tag == -1) {
+                xen_be_printf(xendev, 0, "error: %s\n",
+                              error_get_pretty(err));
+                error_free(err);
+                con->chr = NULL;
+            }
         } else {
             xen_be_printf(xendev, 0,
                           "xen_console_init error chardev %s already used\n",

@@ -111,7 +111,7 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
     if (s->chr_tag == -1) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, rng_egd_chr_can_read,
-                                  rng_egd_chr_read, NULL, s);
+                                  rng_egd_chr_read, NULL, s, NULL, errp);
     }
 }
 

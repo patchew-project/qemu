@@ -234,7 +234,7 @@ static void net_vhost_user_event(void *opaque, int event)
 
 static int net_vhost_user_init(NetClientState *peer, const char *device,
                                const char *name, CharDriverState *chr,
-                               int queues)
+                               int queues, Error **errp)
 {
     NetClientState *nc, *nc0 = NULL;
     VhostUserState *s;
@@ -261,11 +261,13 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     s = DO_UPCAST(VhostUserState, nc, nc0);
     s->chr_tag =
         qemu_chr_add_handlers(chr, NULL, NULL,
-                              net_vhost_user_event, nc0->name);
+                              net_vhost_user_event, nc0->name, NULL, errp);
+    if (s->chr_tag == -1) {
+        return -1;
+    }
+
     do {
-        Error *err = NULL;
-        if (qemu_chr_wait_connected(chr, &err) < 0) {
-            error_report_err(err);
+        if (qemu_chr_wait_connected(chr, errp) < 0) {
             return -1;
         }
     } while (!s->started);
@@ -351,5 +353,5 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
         return -1;
     }
 
-    return net_vhost_user_init(peer, "vhost_user", name, chr, queues);
+    return net_vhost_user_init(peer, "vhost_user", name, chr, queues, errp);
 }

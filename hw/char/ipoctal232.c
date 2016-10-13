@@ -549,7 +549,10 @@ static void ipoctal_realize(DeviceState *dev, Error **errp)
         /* Redirect IP-Octal channels to host character devices */
         if (ch->dev) {
             ch->chr_tag = qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
-                                  hostdev_receive, hostdev_event, ch);
+                              hostdev_receive, hostdev_event, ch, NULL, errp);
+            if (ch->chr_tag == -1) {
+                return;
+            }
             DPRINTF("Redirecting channel %u to %s\n", i, ch->dev->label);
         } else {
             DPRINTF("Could not redirect channel %u, no chardev set\n", i);

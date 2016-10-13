@@ -258,7 +258,11 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         qemu_chr_fe_claim_no_fail(s->chr_in);
         s->chr_in_tag =
             qemu_chr_add_handlers(s->chr_in, redirector_chr_can_read,
-                              redirector_chr_read, redirector_chr_event, nf);
+                                  redirector_chr_read, redirector_chr_event,
+                                  nf, NULL, errp);
+        if (s->chr_in_tag == -1) {
+            return;
+        }
     }
 
     if (s->outdev) {

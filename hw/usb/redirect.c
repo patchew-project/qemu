@@ -1410,7 +1410,11 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     /* Let the backend know we are ready */
     dev->chr_tag =
         qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
-                          usbredir_chardev_read, usbredir_chardev_event, dev);
+                              usbredir_chardev_read, usbredir_chardev_event,
+                              dev, NULL, errp);
+    if (dev->chr_tag == -1) {
+        return;
+    }
 
     qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
 }

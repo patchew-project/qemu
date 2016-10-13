@@ -77,7 +77,7 @@ static void spapr_vty_realize(VIOsPAPRDevice *sdev, Error **errp)
 
     dev->chr_tag =
         qemu_chr_add_handlers(dev->chardev, vty_can_receive,
-                          vty_receive, NULL, dev);
+                              vty_receive, NULL, dev, NULL, errp);
 }
 
 static void spapr_vty_unrealize(DeviceState *s, Error **errp)

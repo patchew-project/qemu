@@ -39,6 +39,7 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 
 //#define DEBUG
 
@@ -1246,7 +1247,7 @@ static void strongarm_uart_init(Object *obj)
                         strongarm_uart_can_receive,
                         strongarm_uart_receive,
                         strongarm_uart_event,
-                        s);
+                        s, NULL, &error_abort);
     }
 }
 

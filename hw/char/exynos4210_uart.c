@@ -24,6 +24,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 
 #include "hw/arm/exynos4210.h"
 
@@ -633,6 +634,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
 static int exynos4210_uart_init(SysBusDevice *dev)
 {
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    Error *err = NULL;
 
     /* memory mapping */
     memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_uart_ops, s,
@@ -643,7 +645,12 @@ static int exynos4210_uart_init(SysBusDevice *dev)
 
     s->chr_tag =
         qemu_chr_add_handlers(s->chr, exynos4210_uart_can_receive,
-                          exynos4210_uart_receive, exynos4210_uart_event, s);
+                              exynos4210_uart_receive, exynos4210_uart_event,
+                              s, NULL, &err);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
 
     return 0;
 }

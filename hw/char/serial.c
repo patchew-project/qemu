@@ -895,7 +895,11 @@ void serial_realize_core(SerialState *s, Error **errp)
 
     s->chr_tag =
         qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
-                              serial_event, s);
+                              serial_event, s, NULL, errp);
+    if (s->chr_tag == -1) {
+        return;
+    }
+
     fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
     fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
     serial_reset(s);

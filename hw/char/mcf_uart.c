@@ -10,6 +10,7 @@
 #include "hw/m68k/mcf.h"
 #include "sysemu/char.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 
 typedef struct {
     MemoryRegion iomem;
@@ -287,7 +288,7 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
         qemu_chr_fe_claim_no_fail(chr);
         s->chr_tag =
             qemu_chr_add_handlers(chr, mcf_uart_can_receive, mcf_uart_receive,
-                              mcf_uart_event, s);
+                                  mcf_uart_event, s, NULL, &error_abort);
     }
     mcf_uart_reset(s);
     return s;

@@ -123,7 +123,8 @@ static void lm32_juart_realize(DeviceState *dev, Error **errp)
 
     if (s->chr) {
         s->chr_tag = qemu_chr_add_handlers(s->chr, juart_can_rx,
-                                           juart_rx, juart_event, s);
+                                           juart_rx, juart_event,
+                                           s, NULL, errp);
     }
 }
 

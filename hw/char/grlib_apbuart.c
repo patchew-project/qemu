@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 
 #include "trace.h"
 
@@ -248,7 +249,7 @@ static int grlib_apbuart_init(SysBusDevice *dev)
                           grlib_apbuart_can_receive,
                           grlib_apbuart_receive,
                           grlib_apbuart_event,
-                          uart);
+                          uart, NULL, &error_abort);
 
     sysbus_init_irq(dev, &uart->irq);
 

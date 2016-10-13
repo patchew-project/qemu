@@ -3964,7 +3964,7 @@ static void __attribute__((constructor)) monitor_lock_init(void)
     qemu_mutex_init(&monitor_lock);
 }
 
-void monitor_init(CharDriverState *chr, int flags)
+void monitor_init(CharDriverState *chr, int flags, Error **errp)
 {
     static int is_first_init = 1;
     Monitor *mon;
@@ -3991,13 +3991,19 @@ void monitor_init(CharDriverState *chr, int flags)
     if (monitor_is_qmp(mon)) {
         mon->chr_tag =
             qemu_chr_add_handlers(chr, monitor_can_read, monitor_qmp_read,
-                                  monitor_qmp_event, mon);
+                                  monitor_qmp_event, mon, NULL, errp);
         qemu_chr_fe_set_echo(chr, true);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
     } else {
         mon->chr_tag =
             qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
-                                  monitor_event, mon);
+                                  monitor_event, mon, NULL, errp);
+    }
+
+    if (mon->chr_tag == -1) {
+        monitor_data_destroy(mon);
+        g_free(mon);
+        return;
     }
 
     qemu_mutex_lock(&monitor_lock);

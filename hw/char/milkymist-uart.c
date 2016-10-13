@@ -203,7 +203,8 @@ static void milkymist_uart_realize(DeviceState *dev, Error **errp)
 
     if (s->chr) {
         s->chr_tag =
-            qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
+            qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event,
+                                  s, NULL, errp);
     }
 }
 

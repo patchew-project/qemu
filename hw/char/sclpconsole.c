@@ -20,6 +20,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 
 typedef struct ASCIIConsoleData {
     EventBufferHeader ebh;
@@ -231,7 +232,7 @@ static int console_init(SCLPEvent *event)
     if (scon->chr) {
         scon->chr_tag =
             qemu_chr_add_handlers(scon->chr, chr_can_read,
-                              chr_read, NULL, scon);
+                                  chr_read, NULL, scon, NULL, &error_abort);
     }
 
     return 0;

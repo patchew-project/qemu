@@ -487,20 +487,22 @@ qemu_chr_set_handlers(CharDriverState *s,
     }
 }
 
-static int mux_chr_new_handler_tag(CharDriverState *chr, GMainContext *context);
+static int mux_chr_new_handler_tag(CharDriverState *chr, GMainContext *context,
+                                   Error **errp);
 static void mux_set_focus(MuxDriver *d, int focus);
 
-int qemu_chr_add_handlers_full(CharDriverState *s,
-                               IOCanReadHandler *fd_can_read,
-                               IOReadHandler *fd_read,
-                               IOEventHandler *fd_event,
-                               void *opaque,
-                               GMainContext *context)
+int qemu_chr_add_handlers(CharDriverState *s,
+                          IOCanReadHandler *fd_can_read,
+                          IOReadHandler *fd_read,
+                          IOEventHandler *fd_event,
+                          void *opaque,
+                          GMainContext *context,
+                          Error **errp)
 {
     int tag = 0;
 
     if (s->is_mux) {
-        tag = mux_chr_new_handler_tag(s, context);
+        tag = mux_chr_new_handler_tag(s, context, errp);
         if (tag < 0) {
             return tag;
         }
@@ -514,16 +516,6 @@ int qemu_chr_add_handlers_full(CharDriverState *s,
     }
 
     return tag;
-}
-
-int qemu_chr_add_handlers(CharDriverState *s,
-                          IOCanReadHandler *fd_can_read,
-                          IOReadHandler *fd_read,
-                          IOEventHandler *fd_event,
-                          void *opaque)
-{
-    return qemu_chr_add_handlers_full(s, fd_can_read, fd_read,
-                                      fd_event, opaque, NULL);
 }
 
 void qemu_chr_remove_handlers(CharDriverState *s, int tag)
@@ -841,21 +833,25 @@ static void mux_chr_close(struct CharDriverState *chr)
     g_free(d);
 }
 
-static int mux_chr_new_handler_tag(CharDriverState *chr, GMainContext *context)
+static int mux_chr_new_handler_tag(CharDriverState *chr, GMainContext *context,
+                                   Error **errp)
 {
     MuxDriver *d = chr->opaque;
 
     if (d->mux_cnt >= MAX_MUX) {
-        fprintf(stderr, "Cannot add I/O handlers, MUX array is full\n");
+        error_setg(errp, "Cannot add I/O handlers, MUX array is full");
         return -1;
     }
 
     /* Fix up the real driver with mux routines */
     if (d->mux_tag == -1) {
-        d->mux_tag = qemu_chr_add_handlers_full(d->drv, mux_chr_can_read,
-                                                mux_chr_read,
-                                                mux_chr_event,
-                                                chr, context);
+        d->mux_tag = qemu_chr_add_handlers(d->drv, mux_chr_can_read,
+                                           mux_chr_read,
+                                           mux_chr_event,
+                                           chr, context, errp);
+        if (d->mux_tag == -1) {
+            return -1;
+        }
     }
 
     return d->mux_cnt++;
@@ -4090,11 +4086,16 @@ CharDriverState *qemu_chr_new_noreplay(const char *label, const char *filename,
 
     chr = qemu_chr_new_from_opts(opts, init, &err);
     if (err) {
-        error_report_err(err);
+        goto end;
     }
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
         qemu_chr_fe_claim_no_fail(chr);
-        monitor_init(chr, MONITOR_USE_READLINE);
+        monitor_init(chr, MONITOR_USE_READLINE, &err);
+    }
+
+end:
+    if (err) {
+        error_report_err(err);
     }
     qemu_opts_del(opts);
     return chr;

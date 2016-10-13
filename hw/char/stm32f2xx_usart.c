@@ -215,7 +215,7 @@ static void stm32f2xx_usart_realize(DeviceState *dev, Error **errp)
     if (s->chr) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, stm32f2xx_usart_can_receive,
-                              stm32f2xx_usart_receive, NULL, s);
+                                  stm32f2xx_usart_receive, NULL, s, NULL, errp);
     }
 }
 

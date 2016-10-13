@@ -1754,7 +1754,7 @@ int gdbserver_start(const char *device)
         qemu_chr_fe_claim_no_fail(chr);
         chr_tag =
             qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
-                                  gdb_chr_event, NULL);
+                                  gdb_chr_event, NULL, NULL, &error_abort);
     }
 
     s = gdbserver_state;
@@ -1767,7 +1767,7 @@ int gdbserver_start(const char *device)
         /* Initialize a monitor terminal for gdb */
         mon_chr = qemu_chr_alloc(&common, &error_abort);
         mon_chr->chr_write = gdb_monitor_write;
-        monitor_init(mon_chr, 0);
+        monitor_init(mon_chr, 0, &error_abort);
     } else {
         if (s->chr) {
             qemu_chr_remove_handlers(s->chr, s->chr_tag);

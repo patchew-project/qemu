@@ -14,6 +14,7 @@
 #include "qemu/sockets.h"
 #include "ccid.h"
 #include "cacard/vscard_common.h"
+#include "qapi/error.h"
 
 #define DPRINTF(card, lvl, fmt, ...)                    \
 do {                                                    \
@@ -343,6 +344,7 @@ static const uint8_t *passthru_get_atr(CCIDCardState *base, uint32_t *len)
 static int passthru_initfn(CCIDCardState *base)
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
+    Error *err = NULL;
 
     card->vscard_in_pos = 0;
     card->vscard_in_hdr = 0;
@@ -351,7 +353,12 @@ static int passthru_initfn(CCIDCardState *base)
         card->chr_tag = qemu_chr_add_handlers(card->cs,
             ccid_card_vscard_can_read,
             ccid_card_vscard_read,
-            ccid_card_vscard_event, card);
+            ccid_card_vscard_event, card,
+            NULL, &err);
+        if (err) {
+            error_report_err(err);
+            return -1;
+        }
         ccid_card_vscard_send_init(card);
     } else {
         error_report("missing chardev");

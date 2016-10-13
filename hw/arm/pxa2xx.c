@@ -1978,7 +1978,8 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
         qemu_chr_fe_claim_no_fail(s->chr);
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, pxa2xx_fir_is_empty,
-                        pxa2xx_fir_rx, pxa2xx_fir_event, s);
+                                  pxa2xx_fir_rx, pxa2xx_fir_event,
+                                  s, NULL, errp);
     }
 }
 

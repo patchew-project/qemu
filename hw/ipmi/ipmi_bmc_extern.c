@@ -449,7 +449,8 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
     }
 
     ibe->chr_tag =
-        qemu_chr_add_handlers(ibe->chr, can_receive, receive, chr_event, ibe);
+        qemu_chr_add_handlers(ibe->chr, can_receive, receive,
+                              chr_event, ibe, NULL, errp);
 }
 
 static void ipmi_bmc_extern_unrealize(DeviceState *dev, Error **errp)

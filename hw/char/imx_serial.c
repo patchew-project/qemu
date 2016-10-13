@@ -321,7 +321,7 @@ static void imx_serial_realize(DeviceState *dev, Error **errp)
     if (s->chr) {
         s->chr_tag =
             qemu_chr_add_handlers(s->chr, imx_can_receive, imx_receive,
-                                  imx_event, s);
+                                  imx_event, s, NULL, errp);
     } else {
         DPRINTF("No char dev for uart\n");
     }
