@@ -439,6 +439,7 @@ void qemu_chr_be_event(CharDriverState *s, int event);
  *
  * Returns: a tag associated with the handlers, or -1 on error.
  */
+G_GNUC_WARN_UNUSED_RESULT
 int qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,
@@ -446,6 +447,7 @@ int qemu_chr_add_handlers(CharDriverState *s,
                            void *opaque);
 
 /* This API can make handler run in the context what you pass to. */
+G_GNUC_WARN_UNUSED_RESULT
 int qemu_chr_add_handlers_full(CharDriverState *s,
                                 IOCanReadHandler *fd_can_read,
                                 IOReadHandler *fd_read,
