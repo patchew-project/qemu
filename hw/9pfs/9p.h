@@ -214,6 +214,7 @@ struct V9fsFidState
     uid_t uid;
     int ref;
     int clunked;
+    bool xattrwalk_fid;
     V9fsFidState *next;
     V9fsFidState *rclm_lst;
 };
