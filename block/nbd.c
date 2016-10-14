@@ -41,7 +41,7 @@
 #define EN_OPTSTR ":exportname="
 
 typedef struct BDRVNBDState {
-    NbdClientSession client;
+    NBDClientSession client;
 
     /* For nbd_refresh_filename() */
     char *path, *host, *port, *export, *tlscredsid;
@@ -235,7 +235,7 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QemuOpts *opts, Error **errp)
     return saddr;
 }
 
-NbdClientSession *nbd_get_client_session(BlockDriverState *bs)
+NBDClientSession *nbd_get_client_session(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
     return &s->client;
