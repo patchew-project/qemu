@@ -3253,6 +3253,8 @@ static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
         object_unparent(OBJECT(cpu->apic_state));
         cpu->apic_state = NULL;
     }
+
+    cpu_exec_unrealizefn(CPU(dev));
 }
 
 typedef struct BitProperty {

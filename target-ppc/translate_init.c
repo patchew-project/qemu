@@ -9910,7 +9910,7 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
     opc_handler_t **table, **table_2;
     int i, j, k;
 
-    cpu_exec_exit(CPU(dev));
+    cpu_exec_unrealizefn(CPU(dev));
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (env->opcodes[i] == &invalid_handler) {
