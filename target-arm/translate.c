@@ -4367,7 +4367,7 @@ static void gen_mrs_banked(DisasContext *s, int r, int sysm, int rn)
 static void gen_exception_return(DisasContext *s, TCGv_i32 pc)
 {
     TCGv_i32 tmp;
-    store_reg(s, 15, pc);
+    store_reg_bx(s, 15, pc);
     tmp = load_cpu_field(spsr);
     gen_helper_cpsr_write_eret(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
