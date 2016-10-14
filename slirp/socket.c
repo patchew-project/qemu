@@ -690,7 +690,8 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	addr.sin_addr.s_addr = haddr;
 	addr.sin_port = hport;
 
-	if (((s = qemu_socket(AF_INET,SOCK_STREAM,0)) < 0) ||
+    s = qemu_socket(AF_INET, SOCK_STREAM, 0, 0);
+    if ((s < 0) ||
 	    (socket_set_fast_reuse(s) < 0) ||
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {

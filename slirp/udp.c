@@ -285,7 +285,7 @@ int udp_output(struct socket *so, struct mbuf *m,
 int
 udp_attach(struct socket *so, unsigned short af)
 {
-  so->s = qemu_socket(af, SOCK_DGRAM, 0);
+  so->s = qemu_socket(af, SOCK_DGRAM, 0, 0);
   if (so->s != -1) {
     so->so_expire = curtime + SO_EXPIRE;
     insque(so, &so->slirp->udb);
@@ -334,7 +334,7 @@ udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	if (!so) {
 	    return NULL;
 	}
-	so->s = qemu_socket(AF_INET,SOCK_DGRAM,0);
+    so->s = qemu_socket(AF_INET, SOCK_DGRAM, 0, 0);
 	so->so_expire = curtime + SO_EXPIRE;
 	insque(so, &slirp->udb);
 

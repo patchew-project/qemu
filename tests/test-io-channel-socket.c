@@ -54,7 +54,7 @@ static int check_bind(const char *hostname, bool *has_proto)
         goto cleanup;
     }
 
-    fd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    fd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol, 0);
     if (fd < 0) {
         goto cleanup;
     }

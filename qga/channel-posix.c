@@ -32,12 +32,12 @@ static gboolean ga_channel_listen_accept(GIOChannel *channel,
     g_assert(channel != NULL);
 
     client_fd = qemu_accept(g_io_channel_unix_get_fd(channel),
-                            (struct sockaddr *)&addr, &addrlen);
+                            (struct sockaddr *)&addr, &addrlen,
+                            QEMU_SOCK_NONBLOCK);
     if (client_fd == -1) {
         g_warning("error converting fd to gsocket: %s", strerror(errno));
         goto out;
     }
-    qemu_set_nonblock(client_fd);
     ret = ga_channel_client_add(c, client_fd);
     if (ret) {
         g_warning("error setting up connection");

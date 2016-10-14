@@ -140,14 +140,14 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
     /* accept the incoming connection */
     unaddr_len = sizeof(unaddr);
     newfd = qemu_accept(server->sock_fd,
-                        (struct sockaddr *)&unaddr, &unaddr_len);
+                        (struct sockaddr *)&unaddr, &unaddr_len,
+                        QEMU_SOCK_NONBLOCK);
 
     if (newfd < 0) {
         IVSHMEM_SERVER_DEBUG(server, "cannot accept() %s\n", strerror(errno));
         return -1;
     }
 
-    qemu_set_nonblock(newfd);
     IVSHMEM_SERVER_DEBUG(server, "accept()=%d\n", newfd);
 
     /* allocate new structure for this peer */
