@@ -3158,7 +3158,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             cpu->phys_bits = 32;
         }
     }
-    cpu_exec_init(cs, &error_abort);
+    cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     if (tcg_enabled()) {
         tcg_x86_init();
@@ -3537,11 +3541,6 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->cpu_exec_exit = x86_cpu_exec_exit;
 
     dc->cannot_instantiate_with_device_add_yet = false;
-    /*
-     * Reason: x86_cpu_initfn() calls cpu_exec_init(), which saves the
-     * object in cpus -> dangling pointer after final object_unref().
-     */
-    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo x86_cpu_type_info = {
