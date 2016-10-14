@@ -133,6 +133,7 @@ static int modified_clear_reset(S390CPU *cpu)
     s390_crypto_reset();
     scc->load_normal(CPU(cpu));
     cpu_synchronize_all_post_reset();
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     resume_all_vcpus();
     return 0;
 }
@@ -152,6 +153,7 @@ static int load_normal_reset(S390CPU *cpu)
     scc->initial_cpu_reset(CPU(cpu));
     scc->load_normal(CPU(cpu));
     cpu_synchronize_all_post_reset();
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     resume_all_vcpus();
     return 0;
 }

@@ -1260,9 +1260,25 @@ void resume_all_vcpus(void)
 {
     CPUState *cpu;
 
-    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     CPU_FOREACH(cpu) {
         cpu_resume(cpu);
+    }
+}
+
+/**
+ * resume_some_vcpus - resumes some vCPUs, indicated in a NULL-terminated
+ * array of CPUState *; if the parameter is NULL, all CPUs are resumed.
+ */
+void resume_some_vcpus(CPUState **cpus)
+{
+    int idx;
+
+    if (!cpus) {
+        resume_all_vcpus();
+        return;
+    }
+    for (idx = 0; cpus[idx]; idx++) {
+        cpu_resume(cpus[idx]);
     }
 }
 
@@ -1394,6 +1410,49 @@ int vm_stop(RunState state)
     }
 
     return do_vm_stop(state);
+}
+
+/**
+ * Prepare for (re)starting the VM.
+ * Returns -1 if the vCPUs are not to be restarted (e.g. if they are already
+ * running or in case of an error condition), 0 otherwise.
+ */
+int vm_prepare_start(void)
+{
+    RunState requested;
+    int res = 0;
+
+    qemu_vmstop_requested(&requested);
+    if (runstate_is_running() && requested == RUN_STATE__MAX) {
+        return -1;
+    }
+
+    /* Ensure that a STOP/RESUME pair of events is emitted if a
+     * vmstop request was pending.  The BLOCK_IO_ERROR event, for
+     * example, according to documentation is always followed by
+     * the STOP event.
+     */
+    if (runstate_is_running()) {
+        qapi_event_send_stop(&error_abort);
+        res = -1;
+    } else {
+        replay_enable_events();
+        cpu_enable_ticks();
+        runstate_set(RUN_STATE_RUNNING);
+        vm_state_notify(1, RUN_STATE_RUNNING);
+    }
+
+    /* XXX: is it ok to send this even before actually resuming the CPUs? */
+    qapi_event_send_resume(&error_abort);
+    return res;
+}
+
+void vm_start(void)
+{
+    if (!vm_prepare_start()) {
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
+        resume_all_vcpus();
+    }
 }
 
 /* does a state transition even if the VM is already stopped,

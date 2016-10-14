@@ -446,6 +446,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
         abort();
     }
 
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     resume_all_vcpus();
 
     if (!kvm_enabled()) {
@@ -686,6 +687,7 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
             pause_all_vcpus();
             patch_byte(cpu, env->eip - 2, 0x66);
             patch_byte(cpu, env->eip - 1, 0x90);
+            qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
             resume_all_vcpus();
         }
 
