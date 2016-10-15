@@ -2312,6 +2312,23 @@ static const uint8_t mips_syscall_args[] = {
 #  undef MIPS_SYS
 # endif /* O32 */
 
+#define cmpxchg_user(old, new, gaddr, target_type)			\
+({									\
+    abi_ulong __gaddr = (gaddr);					\
+    target_type *__hptr;						\
+    abi_long __ret = 0;							\
+    if ((__hptr = lock_user(VERIFY_WRITE, __gaddr, sizeof(target_type), 0))) { \
+        if ((old) != atomic_cmpxchg(__hptr, (old), (new)))		\
+            __ret = -TARGET_EAGAIN;					\
+        unlock_user(__hptr, __gaddr, sizeof(target_type));		\
+    } else								\
+        __ret = -TARGET_EFAULT;						\
+    __ret;								\
+})
+
+#define cmpxchg_user_u32(old, new, gaddr) cmpxchg_user((old), (new), (gaddr), uint32_t)
+#define cmpxchg_user_u64(old, new, gaddr) cmpxchg_user((old), (new), (gaddr), uint64_t)
+
 static int do_store_exclusive(CPUMIPSState *env)
 {
     target_ulong addr;
@@ -2342,12 +2359,15 @@ static int do_store_exclusive(CPUMIPSState *env)
                 env->active_tc.gpr[reg] = 0;
             } else {
                 if (d) {
-                    segv = put_user_u64(env->llnewval, addr);
+                    segv = cmpxchg_user_u64(env->llval, env->llnewval, addr);
                 } else {
-                    segv = put_user_u32(env->llnewval, addr);
+                    segv = cmpxchg_user_u32(env->llval, env->llnewval, addr);
                 }
                 if (!segv) {
                     env->active_tc.gpr[reg] = 1;
+                } else if (-TARGET_EAGAIN == segv) {
+                    segv = 0;
+                    env->active_tc.gpr[reg] = 0;
                 }
             }
         }
