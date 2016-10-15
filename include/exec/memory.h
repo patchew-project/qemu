@@ -57,6 +57,7 @@ typedef enum {
     IOMMU_RO   = 1,
     IOMMU_WO   = 2,
     IOMMU_RW   = 3,
+    IOMMU_NO_FAIL  = 4, /* may not be present, don't repport error to guest */
 } IOMMUAccessFlags;
 
 struct IOMMUTLBEntry {
@@ -168,10 +169,9 @@ struct MemoryRegionOps {
 };
 
 typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
-
 struct MemoryRegionIOMMUOps {
     /* Return a TLB entry that contains a given address. */
-    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr, bool is_write);
+    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr, IOMMUAccessFlags flags);
     /* Returns minimum supported page size */
     uint64_t (*get_min_page_size)(MemoryRegion *iommu);
     /* Called when IOMMU Notifier flag changed */
