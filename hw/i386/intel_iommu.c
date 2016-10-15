@@ -2012,6 +2012,7 @@ static const MemoryRegionOps vtd_mem_ops = {
 
 static Property vtd_properties[] = {
     DEFINE_PROP_UINT32("version", IntelIOMMUState, version, 0),
+    DEFINE_PROP_BOOL("cache-mode", IntelIOMMUState, cache_mode_enabled, FALSE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2383,6 +2384,10 @@ static void vtd_init(IntelIOMMUState *s)
 
     if (x86_iommu->intr_supported) {
         s->ecap |= VTD_ECAP_IR | VTD_ECAP_EIM | VTD_ECAP_MHMV;
+    }
+
+    if (s->cache_mode_enabled){
+        s->cap |= VTD_CAP_CM;
     }
 
     vtd_reset_context_cache(s);
