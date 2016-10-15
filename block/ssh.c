@@ -666,13 +666,10 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         goto err;
     }
 
-    /* Construct the host:port name for inet_connect. */
-    g_free(s->hostport);
     port = atoi(s->inet->port);
-    s->hostport = g_strdup_printf("%s:%d", s->inet->host, port);
 
     /* Open the socket and connect. */
-    s->sock = inet_connect(s->hostport, errp);
+    s->sock = inet_connect_saddr(s->inet, errp, NULL, NULL);
     if (s->sock < 0) {
         ret = -EIO;
         goto err;
