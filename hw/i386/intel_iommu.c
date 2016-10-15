@@ -51,6 +51,9 @@ static int vtd_dbgflags = VTD_DBGBIT(GENERAL) | VTD_DBGBIT(CSR);
 #define VTD_DPRINTF(what, fmt, ...) do {} while (0)
 #endif
 
+static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
+                                    uint8_t devfn, VTDContextEntry *ce);
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -140,6 +143,23 @@ static uint64_t vtd_set_clear_mask_quad(IntelIOMMUState *s, hwaddr addr,
     uint64_t new_val = (ldq_le_p(&s->csr[addr]) & ~clear) | mask;
     stq_le_p(&s->csr[addr], new_val);
     return new_val;
+}
+
+static int vtd_get_did_dev(IntelIOMMUState *s, uint8_t bus_num, uint8_t devfn, 
+                           uint16_t * domain_id)
+{
+    VTDContextEntry ce;
+    int ret_fr;
+
+    assert(domain_id);
+
+    ret_fr = vtd_dev_to_context_entry(s, bus_num, devfn, &ce);
+    if (ret_fr){
+        return -1;
+    }
+
+    *domain_id =  VTD_CONTEXT_ENTRY_DID(ce.hi);
+    return 0;
 }
 
 /* GHashTable functions */
@@ -682,9 +702,6 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, IOMMUAccessFlags 
         *reads = (*reads) && (slpte & VTD_SL_R);
         *writes = (*writes) && (slpte & VTD_SL_W);
         if (!(slpte & access_right_check)) {
-            VTD_DPRINTF(GENERAL, "error: lack of %s permission for "
-                        "gpa 0x%"PRIx64 " slpte 0x%"PRIx64,
-                        (flags == IOMMU_WO ? "write" : "read"), gpa, slpte);
             return (flags == IOMMU_RW || flags == IOMMU_WO) ? -VTD_FR_WRITE : -VTD_FR_READ;
         }
         if (vtd_slpte_nonzero_rsvd(slpte, level)) {
@@ -732,9 +749,6 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     }
 
     if (!vtd_context_entry_present(ce)) {
-        VTD_DPRINTF(GENERAL,
-                    "error: context-entry #%"PRIu8 "(bus #%"PRIu8 ") "
-                    "is not present", devfn, bus_num);
         return -VTD_FR_CONTEXT_ENTRY_P;
     } else if ((ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI) ||
                (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO)) {
@@ -1062,6 +1076,55 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
                                 &domain_id);
 }
 
+static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s, 
+                                           uint16_t domain_id, hwaddr addr, 
+                                           uint8_t am)
+{
+    IntelIOMMUNotifierNode * node;
+
+    QLIST_FOREACH(node, &(s->notifiers_list), next){
+        VTDAddressSpace *vtd_as = node->vtd_as; 
+        uint16_t vfio_domain_id; 
+        int ret = vtd_get_did_dev(s, pci_bus_num(vtd_as->bus), vtd_as->devfn, 
+                                  &vfio_domain_id);
+        //int i=0;
+        if (!ret && domain_id == vfio_domain_id){
+            IOMMUTLBEntry entry; 
+            
+            /* notify unmap */
+            if (node->notifier_flag & IOMMU_NOTIFIER_UNMAP){
+                VTD_DPRINTF(GENERAL, "Remove addr 0x%"PRIx64 " mask %d", addr, am);
+                entry.target_as = &address_space_memory;
+                entry.iova = addr & VTD_PAGE_MASK_4K;
+                entry.translated_addr = 0;
+                entry.addr_mask = ~VTD_PAGE_MASK(VTD_PAGE_SHIFT_4K + am);
+                entry.perm = IOMMU_NONE;
+                memory_region_notify_iommu(&node->vtd_as->iommu, entry);
+            }
+       
+            /* notify map */
+            if (node->notifier_flag & IOMMU_NOTIFIER_MAP){
+                hwaddr original_addr = addr;
+                VTD_DPRINTF(GENERAL, "add addr 0x%"PRIx64 " mask %d", addr, am);
+                while (addr < original_addr + (1<<am) * VTD_PAGE_SIZE){
+                    /* call to vtd_iommu_translate */
+                    IOMMUTLBEntry entry = s->iommu_ops.translate(
+                                                            &node->vtd_as->iommu,
+                                                            addr, 
+                                                            IOMMU_NO_FAIL); 
+                    if (entry.perm != IOMMU_NONE){
+                        addr += entry.addr_mask + 1; 
+                        memory_region_notify_iommu(&node->vtd_as->iommu, entry);
+                    } else {
+                        addr += VTD_PAGE_SIZE;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
                                       hwaddr addr, uint8_t am)
 {
@@ -1072,6 +1135,8 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     info.addr = addr;
     info.mask = ~((1 << am) - 1);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
+
+    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am);
 }
 
 /* Flush IOTLB
@@ -1997,14 +2062,37 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
                                           IOMMUNotifierFlag new)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    IntelIOMMUNotifierNode * node = NULL;
 
-    if (new & IOMMU_NOTIFIER_MAP) {
+    if (!s->cache_mode_enabled && new & IOMMU_NOTIFIER_MAP) {
         error_report("Device at bus %s addr %02x.%d requires iommu "
                      "notifier which is currently not supported by "
                      "intel-iommu emulation",
                      vtd_as->bus->qbus.name, PCI_SLOT(vtd_as->devfn),
                      PCI_FUNC(vtd_as->devfn));
         exit(1);
+    }
+
+    /* Add new ndoe if no mapping was exising before this call */
+    if (old == IOMMU_NOTIFIER_NONE){
+        node = g_malloc0(sizeof(*node));
+        node->vtd_as = vtd_as;
+        node->notifier_flag = new;
+        QLIST_INSERT_HEAD(&s->notifiers_list, node, next);
+        return;
+    }
+
+    /* update notifier node with new flags */
+    QLIST_FOREACH(node, &s->notifiers_list, next){
+        if (node->vtd_as == vtd_as){
+            if (new == IOMMU_NOTIFIER_NONE){
+                QLIST_REMOVE(node, next);
+            } else {
+                node->notifier_flag = new;
+            }
+            return;
+        }
     }
 }
 
