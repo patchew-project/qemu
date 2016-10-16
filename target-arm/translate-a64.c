@@ -3243,11 +3243,8 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
                 goto done;
             }
         }
-        if (si == 63 || (si == 31 && ri <= si)) { /* ASR */
-            if (si == 31) {
-                tcg_gen_ext32s_i64(tcg_tmp, tcg_tmp);
-            }
-            tcg_gen_sari_i64(tcg_rd, tcg_tmp, ri);
+        if (ri <= si) { /* ASR, SBFX */
+            tcg_gen_sextract_i64(tcg_rd, tcg_tmp, ri, (si - ri) + 1);
             goto done;
         }
     } else if (opc == 2) { /* UBFM */
@@ -3255,17 +3252,14 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
             tcg_gen_andi_i64(tcg_rd, tcg_tmp, bitmask64(si + 1));
             return;
         }
-        if (si == 63 || (si == 31 && ri <= si)) { /* LSR */
-            if (si == 31) {
-                tcg_gen_ext32u_i64(tcg_tmp, tcg_tmp);
-            }
-            tcg_gen_shri_i64(tcg_rd, tcg_tmp, ri);
-            return;
-        }
         if (si + 1 == ri && si != bitsize - 1) { /* LSL */
             int shift = bitsize - 1 - si;
             tcg_gen_shli_i64(tcg_rd, tcg_tmp, shift);
             goto done;
+        }
+        if (ri <= si) { /* UBFX, LSR */
+            tcg_gen_extract_i64(tcg_rd, tcg_tmp, ri, (si - ri) + 1);
+            return;
         }
     }
 
@@ -3273,23 +3267,27 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
         tcg_gen_movi_i64(tcg_rd, 0);
     }
 
-    /* do the bit move operation */
-    if (si >= ri) {
-        /* Wd<s-r:0> = Wn<s:r> */
-        tcg_gen_shri_i64(tcg_tmp, tcg_tmp, ri);
-        pos = 0;
-        len = (si - ri) + 1;
-    } else {
-        /* Wd<32+s-r,32-r> = Wn<s:0> */
-        pos = bitsize - ri;
-        len = si + 1;
+    /* Do the bit move operation.  Note that above we handled ri <= si,
+       Wd<s-r:0> = Wn<s:r>, via tcg_gen_*extract_i64.  Now we handle
+       the ri > si case, Wd<32+s-r,32-r> = Wn<s:0>, via deposit.  */
+    pos = bitsize - ri;
+    len = si + 1;
+
+    if (opc == 0 && len < ri) {
+        /* SBFM - sign extend the destination field from len to fill
+           the balance of the word.  Let the deposit below insert all
+           of those sign bits.  */
+        tcg_gen_sextract_i64(tcg_tmp, tcg_tmp, 0, len);
+        len = ri;
     }
 
     tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, pos, len);
 
-    if (opc == 0) { /* SBFM - sign extend the destination field */
-        tcg_gen_shli_i64(tcg_rd, tcg_rd, 64 - (pos + len));
-        tcg_gen_sari_i64(tcg_rd, tcg_rd, 64 - (pos + len));
+    if (opc != 1) {
+        /* SBFM or UBFM: We started with zero above, and we haven't
+           modified any bits outside bitsize, therefore the zero-extension
+           below is unneeded.  */
+        return;
     }
 
  done:
