@@ -1977,9 +1977,8 @@ static void gen_rlwinm(DisasContext *ctx)
     if (mb == 0 && me == (31 - sh)) {
         tcg_gen_shli_tl(t_ra, t_rs, sh);
         tcg_gen_ext32u_tl(t_ra, t_ra);
-    } else if (sh != 0 && me == 31 && sh == (32 - mb)) {
-        tcg_gen_ext32u_tl(t_ra, t_rs);
-        tcg_gen_shri_tl(t_ra, t_ra, mb);
+    } else if (me == 31 && (me - mb + 1) + sh <= 32) {
+        tcg_gen_extract_tl(t_ra, t_rs, sh, me - mb + 1);
     } else {
         target_ulong mask;
 #if defined(TARGET_PPC64)
@@ -2094,8 +2093,8 @@ static void gen_rldinm(DisasContext *ctx, int mb, int me, int sh)
 
     if (sh != 0 && mb == 0 && me == (63 - sh)) {
         tcg_gen_shli_tl(t_ra, t_rs, sh);
-    } else if (sh != 0 && me == 63 && sh == (64 - mb)) {
-        tcg_gen_shri_tl(t_ra, t_rs, mb);
+    } else if (me == 63 && (me - mb + 1) + sh <= 64) {
+        tcg_gen_extract_tl(t_ra, t_rs, sh, me - mb + 1);
     } else {
         tcg_gen_rotli_tl(t_ra, t_rs, sh);
         tcg_gen_andi_tl(t_ra, t_ra, MASK(mb, me));
