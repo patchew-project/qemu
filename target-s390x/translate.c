@@ -3134,20 +3134,26 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
         }
     }
 
-    /* In some cases we can implement this with deposit, which can be more
-       efficient on some hosts.  */
-    if (~mask == imask && i3 <= i4) {
+    len = i4 - i3 + 1;
+    pos = 63 - i4;
+    rot = i5 & 63;
+
+    /* In some cases we can implement this with extract.  */
+    if (imask == 0 && pos == 0 && len > 0 && rot + len <= 64) {
+        tcg_gen_extract_i64(o->out, o->in2, rot, len);
+        return NO_EXIT;
+    }
+
+    /* In some cases we can implement this with deposit.  */
+    if (~mask == imask && len > 0) {
         if (s->fields->op2 == 0x5d) {
-            i3 += 32, i4 += 32;
+            pos += 32;
         }
         /* Note that we rotate the bits to be inserted to the lsb, not to
            the position as described in the PoO.  */
-        len = i4 - i3 + 1;
-        pos = 63 - i4;
-        rot = (i5 - pos) & 63;
+        rot = (rot - pos) & 63;
     } else {
-        pos = len = -1;
-        rot = i5 & 63;
+        pos = -1;
     }
 
     /* Rotate the input as necessary.  */
