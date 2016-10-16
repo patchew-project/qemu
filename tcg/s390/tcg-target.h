@@ -66,7 +66,7 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
 #define TCG_TARGET_HAS_deposit_i32      1
-#define TCG_TARGET_HAS_extract_i32      0
+#define TCG_TARGET_HAS_extract_i32      1
 #define TCG_TARGET_HAS_sextract_i32     0
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_add2_i32         1
@@ -97,7 +97,7 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_nand_i64         0
 #define TCG_TARGET_HAS_nor_i64          0
 #define TCG_TARGET_HAS_deposit_i64      1
-#define TCG_TARGET_HAS_extract_i64      0
+#define TCG_TARGET_HAS_extract_i64      1
 #define TCG_TARGET_HAS_sextract_i64     0
 #define TCG_TARGET_HAS_movcond_i64      1
 #define TCG_TARGET_HAS_add2_i64         1
@@ -107,9 +107,11 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_muluh_i64        0
 #define TCG_TARGET_HAS_mulsh_i64        0
 
-extern bool tcg_target_deposit_valid(int ofs, int len);
-#define TCG_TARGET_deposit_i32_valid  tcg_target_deposit_valid
-#define TCG_TARGET_deposit_i64_valid  tcg_target_deposit_valid
+extern bool tcg_target_have_gen_inst(void);
+#define TCG_TARGET_deposit_i32_valid(o,l)  tcg_target_have_gen_inst()
+#define TCG_TARGET_deposit_i64_valid(o,l)  tcg_target_have_gen_inst()
+#define TCG_TARGET_extract_i32_valid(o,l)  tcg_target_have_gen_inst()
+#define TCG_TARGET_extract_i64_valid(o,l)  tcg_target_have_gen_inst()
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R15
