@@ -2143,6 +2143,32 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    OP_32_64(extract):
+        /* Note that TCG_TARGET_extract_*_valid only allows pos=8, len=8,
+           on the off-chance that we can use the high-byte registers.
+           Otherwise we emit the same ext16 + shift pattern that we would
+           have gotten from the normal tcg-op.c expansion.  */
+        if (args[1] < 4 && args[0] < 8) {
+            /* Do not set P_REXB_RM, so that we do get the %[abcd]h regs.  */
+            tcg_out_modrm(s, OPC_MOVZBL, args[0], args[1] + 4);
+        } else {
+            tcg_out_ext16u(s, args[0], args[1]);
+            tcg_out_shifti(s, SHIFT_SHR, args[0], 8);
+        }
+        break;
+
+    case INDEX_op_sextract_i32:
+        /* Note that we don't implement sextract_i64, as we cannot
+           sign-extend to 64-bits without using the REX prefix that
+           explicitly excludes access to the high-byte registers.  */
+        if (args[1] < 4 && args[0] < 8) {
+            tcg_out_modrm(s, OPC_MOVSBL, args[0], args[1] + 4);
+        } else {
+            tcg_out_ext16s(s, args[0], args[1], 0);
+            tcg_out_shifti(s, SHIFT_SAR + rexw, args[0], args[0]);
+        }
+        break;
+
     case INDEX_op_mb:
         tcg_out_mb(s, args[0]);
         break;
@@ -2204,6 +2230,9 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_setcond_i32, { "q", "r", "ri" } },
 
     { INDEX_op_deposit_i32, { "Q", "0", "Q" } },
+    { INDEX_op_extract_i32, { "r", "r" } },
+    { INDEX_op_sextract_i32, { "r", "r" } },
+
     { INDEX_op_movcond_i32, { "r", "r", "ri", "r", "0" } },
 
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
@@ -2265,6 +2294,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_extu_i32_i64, { "r", "r" } },
 
     { INDEX_op_deposit_i64, { "Q", "0", "Q" } },
+    { INDEX_op_extract_i64, { "r", "r" } },
     { INDEX_op_movcond_i64, { "r", "r", "re", "r", "0" } },
 
     { INDEX_op_mulu2_i64, { "a", "d", "a", "r" } },
