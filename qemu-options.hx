@@ -3301,6 +3301,15 @@ This allows for instance switching to monitor to commit changes to the
 disk image.
 ETEXI
 
+DEF("no-panic", 0, QEMU_OPTION_no_panic, \
+    "-no-panic       exit QEMU also in guest panic state\n", QEMU_ARCH_ALL)
+STEXI
+@item -no-panic
+@findex -no-panic
+Exit QEMU on guest panic instead of keeping it alive. This allows for
+instance running tests that are known to panic at the end.
+ETEXI
+
 DEF("loadvm", HAS_ARG, QEMU_OPTION_loadvm, \
     "-loadvm [tag|id]\n" \
     "                start right away with a saved state (loadvm in monitor)\n",

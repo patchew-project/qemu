@@ -164,6 +164,7 @@ int no_hpet = 0;
 int fd_bootchk = 1;
 static int no_reboot;
 int no_shutdown = 0;
+int no_panic = 0;
 int cursor_hide = 1;
 int graphic_rotate = 0;
 const char *watchdog;
@@ -1778,6 +1779,8 @@ void qemu_system_reset(bool report)
 
 void qemu_system_guest_panicked(void)
 {
+    if (no_panic)
+	return qemu_system_shutdown_request();
     if (current_cpu) {
         current_cpu->crash_occurred = true;
     }
@@ -3786,6 +3789,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_shutdown:
                 no_shutdown = 1;
+                break;
+            case QEMU_OPTION_no_panic:
+                no_panic = 1;
                 break;
             case QEMU_OPTION_show_cursor:
                 cursor_hide = 0;
