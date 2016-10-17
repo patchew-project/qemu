@@ -381,6 +381,8 @@ typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
 #define VTD_PAGE_SHIFT_1G           30
 #define VTD_PAGE_MASK_1G            (~((1ULL << VTD_PAGE_SHIFT_1G) - 1))
 
+#define VTD_PAGE_MASK(shift)        (~((1ULL << (shift)) - 1))
+
 struct VTDRootEntry {
     uint64_t val;
     uint64_t rsvd;
