@@ -2168,6 +2168,12 @@ struct target_statfs64 {
 };
 #endif
 
+struct target_ustat {
+        abi_ulong f_tfree;
+        abi_int f_tinode;
+        char f_fname[6];
+        char f_fpack[6];
+};
 
 #define TARGET_F_DUPFD         0       /* dup */
 #define TARGET_F_GETFD         1       /* get close_on_exec */
