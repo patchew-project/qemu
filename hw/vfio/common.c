@@ -34,6 +34,8 @@
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
+#include "hw/platform-bus.h"
+#include "qapi/error.h"
 
 struct vfio_group_head vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -920,12 +922,70 @@ retry:
     return 0;
 }
 
+static struct vfio_info_cap_header *
+vfio_get_iommu_type1_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
+{
+    struct vfio_info_cap_header *hdr;
+    void *ptr = info;
+
+    if (!(info->flags & VFIO_IOMMU_INFO_CAPS)) {
+        return NULL;
+    }
+
+    for (hdr = ptr + info->cap_offset; hdr != ptr; hdr = ptr + hdr->next) {
+        if (hdr->id == id) {
+            return hdr;
+        }
+    }
+    return NULL;
+}
+
+static void vfio_prepare_msi_mapping(struct vfio_iommu_type1_info *info,
+                                     AddressSpace *as, Error **errp)
+{
+    struct vfio_iommu_type1_info_cap_msi_resv *msi_resv;
+    MemoryRegion *pbus_region, *reserved_reg;
+    struct vfio_info_cap_header *hdr;
+    PlatformBusDevice *pbus;
+
+    hdr = vfio_get_iommu_type1_info_cap(info,
+                                        VFIO_IOMMU_TYPE1_INFO_CAP_MSI_RESV);
+    if (!hdr) {
+        return;
+    }
+
+    msi_resv = container_of(hdr, struct vfio_iommu_type1_info_cap_msi_resv,
+                            header);
+    /*
+     * MSI must be iommu mapped: allocate a GPA region located on the
+     * platform bus that the host will be able to use for MSI IOVA allocation
+     */
+    reserved_reg = memory_region_find_by_name(as->root, "reserved-iova");
+    if (reserved_reg) {
+        memory_region_unref(reserved_reg);
+        return;
+    }
+
+    pbus_region = memory_region_find_by_name(as->root, "platform bus");
+    if (!pbus_region) {
+        error_setg(errp, "no platform bus memory container found");
+        return;
+    }
+    pbus = container_of(pbus_region, PlatformBusDevice, mmio);
+    reserved_reg = g_new0(MemoryRegion, 1);
+    memory_region_init_reserved_iova(reserved_reg, OBJECT(pbus),
+                                     "reserved-iova",
+                                     msi_resv->size, &error_fatal);
+    platform_bus_map_region(pbus, reserved_reg);
+    memory_region_unref(pbus_region);
+}
 
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
 {
     VFIOContainer *container;
     int ret, fd;
     VFIOAddressSpace *space;
+    Error *err = NULL;
 
     space = vfio_get_address_space(as);
 
@@ -983,6 +1043,14 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
          * going to actually try in practice.
          */
         vfio_get_iommu_type1_info(fd, &pinfo);
+        vfio_prepare_msi_mapping(pinfo, as, &err);
+        if (err) {
+            error_append_hint(&err,
+                    "Make sure your machine instantiates a platform bus\n");
+            error_report_err(err);
+            goto free_container_exit;
+        }
+
         /* Ignore errors */
         if (ret || !(pinfo->flags & VFIO_IOMMU_INFO_PGSIZES)) {
             /* Assume 4k IOVA page size */
