@@ -1711,7 +1711,8 @@
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'luks', 'null-aio', 'null-co',
             'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-	    'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'replication', 'ssh', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc',
+            'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -1947,6 +1948,27 @@
             '*mport': 'int',
             '*vport': 'int',
             '*segment': 'str' } }
+
+##
+# @BlockdevOptionsSsh
+#
+# @server:              host address
+#
+# @path:                path to the image on the host
+#
+# @user:                #optional user as which to connect, defaults to current
+#                       local user name
+#
+# @host_key_check       #optional defines how and what to check the host
+#                       key against, defaults to "yes"
+#
+# Since 2.8
+##
+{ 'struct': 'BlockdevOptionsSsh',
+  'data': { 'server': 'InetSocketAddress',
+            'path': 'str',
+            '*user': 'str',
+            '*host_key_check': 'str' } }
 
 
 ##
@@ -2277,7 +2299,7 @@
 # TODO rbd: Wait for structured options
       'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
-# TODO ssh: Should take InetSocketAddress for 'host'?
+      'ssh':        'BlockdevOptionsSsh',
       'tftp':       'BlockdevOptionsCurl',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
