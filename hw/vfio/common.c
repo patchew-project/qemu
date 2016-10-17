@@ -214,6 +214,32 @@ static int vfio_dma_unmap(VFIOContainer *container,
     return 0;
 }
 
+/**
+ * vfio_register_msi_iova: registers the MSI iova region
+ *
+ * @container: container handle
+ * @iova: base IOVA of the MSI region
+ * @size: size of the MSI IOVA region
+ */
+static int vfio_register_msi_iova(VFIOContainer *container, hwaddr iova,
+                                  ram_addr_t size)
+{
+    int ret;
+    struct vfio_iommu_type1_dma_map map = {
+        .argsz = sizeof(map),
+        .flags = VFIO_DMA_MAP_FLAG_RESERVED_MSI_IOVA,
+        .iova = iova,
+        .size = size,
+    };
+
+    ret = ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map);
+
+    if (ret) {
+        error_report("VFIO_MAP_DMA/RESERVED_MSI_IOVA: %m");
+    }
+    return ret;
+}
+
 static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
                         ram_addr_t size, void *vaddr, bool readonly)
 {
@@ -285,6 +311,7 @@ static int vfio_host_win_del(VFIOContainer *container, hwaddr min_iova,
 static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 {
     return (!memory_region_is_ram(section->mr) &&
+            !memory_region_is_reserved_iova(section->mr) &&
             !memory_region_is_iommu(section->mr)) ||
            /*
             * Sizing an enabled 64-bit BAR can cause spurious mappings to
@@ -368,7 +395,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     hwaddr iova, end;
     Int128 llend, llsize;
     void *vaddr;
-    int ret;
+    int ret = -1;
     VFIOHostDMAWindow *hostwin;
     bool hostwin_found;
 
@@ -464,26 +491,37 @@ static void vfio_listener_region_add(MemoryListener *listener,
         return;
     }
 
-    /* Here we assume that memory_region_is_ram(section->mr)==true */
+    /* Here we assume that the memory region is ram or reserved iova */
 
-    vaddr = memory_region_get_ram_ptr(section->mr) +
-            section->offset_within_region +
-            (iova - section->offset_within_address_space);
+    if (memory_region_is_ram(section->mr)) {
+        vaddr = memory_region_get_ram_ptr(section->mr) +
+                section->offset_within_region +
+                (iova - section->offset_within_address_space);
 
-    trace_vfio_listener_region_add_ram(iova, end, vaddr);
+        trace_vfio_listener_region_add_ram(iova, end, vaddr);
 
-    llsize = int128_sub(llend, int128_make64(iova));
+        llsize = int128_sub(llend, int128_make64(iova));
 
-    ret = vfio_dma_map(container, iova, int128_get64(llsize),
+        ret = vfio_dma_map(container, iova, int128_get64(llsize),
                        vaddr, section->readonly);
-    if (ret) {
-        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
-                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
-                     container, iova, int128_get64(llsize), vaddr, ret);
-        goto fail;
+        if (ret) {
+            error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
+                         "0x%"HWADDR_PRIx", %p) = %d (%m)",
+                         container, iova, int128_get64(llsize), vaddr, ret);
+            goto fail;
+        }
+        return;
+    } else if (memory_region_is_reserved_iova(section->mr)) {
+        llsize = int128_sub(llend, int128_make64(iova));
+        ret = vfio_register_msi_iova(container, iova, int128_get64(llsize));
+        if (ret) {
+            error_report("vfio_register_msi_iova(%p, 0x%"HWADDR_PRIx", "
+                         "0x%"HWADDR_PRIx") = %d (%m)",
+                         container, iova, int128_get64(llsize), ret);
+            goto fail;
+        }
+        return;
     }
-
-    return;
 
 fail:
     /*
