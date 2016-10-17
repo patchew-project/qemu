@@ -191,6 +191,7 @@ struct MemoryRegion {
     /* The following fields should fit in a cache line */
     bool romd_mode;
     bool ram;
+    bool reserved_iova;
     bool subpage;
     bool readonly; /* For RAM regions */
     bool rom_device;
@@ -385,6 +386,21 @@ void memory_region_init_ram(MemoryRegion *mr,
                             Error **errp);
 
 /**
+ * memory_region_init_reserved_iova:  Initialize reserved iova memory region
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: the name of the region.
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_reserved_iova(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      Error **errp);
+
+/**
  * memory_region_init_resizeable_ram:  Initialize memory region with resizeable
  *                                     RAM.  Accesses into the region will
  *                                     modify memory directly.  Only an initial
@@ -570,6 +586,19 @@ uint64_t memory_region_size(MemoryRegion *mr);
 static inline bool memory_region_is_ram(MemoryRegion *mr)
 {
     return mr->ram;
+}
+
+/**
+ * memory_region_is_reserved_iova: check whether a memory region corresponds to
+   reserved iova
+ *
+ * Returns %true is a memory region is reserved iova
+ *
+ * @mr: the memory region being queried
+ */
+static inline bool memory_region_is_reserved_iova(MemoryRegion *mr)
+{
+    return mr->reserved_iova;
 }
 
 /**
