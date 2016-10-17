@@ -364,7 +364,7 @@ static void vtd_set_frcd_and_update_ppf(IntelIOMMUState *s, uint16_t index)
 /* Must not update F field now, should be done later */
 static void vtd_record_frcd(IntelIOMMUState *s, uint16_t index,
                             uint16_t source_id, hwaddr addr,
-                            VTDFaultReason fault, bool is_write)
+                            VTDFaultReason fault, IOMMUAccessFlags flags)
 {
     uint64_t hi = 0, lo;
     hwaddr frcd_reg_addr = DMAR_FRCD_REG_OFFSET + (((uint64_t)index) << 4);
@@ -373,7 +373,7 @@ static void vtd_record_frcd(IntelIOMMUState *s, uint16_t index,
 
     lo = VTD_FRCD_FI(addr);
     hi = VTD_FRCD_SID(source_id) | VTD_FRCD_FR(fault);
-    if (!is_write) {
+    if (!(flags == IOMMU_WO || flags == IOMMU_RW)) {
         hi |= VTD_FRCD_T;
     }
     vtd_set_quad_raw(s, frcd_reg_addr, lo);
@@ -404,7 +404,7 @@ static bool vtd_try_collapse_fault(IntelIOMMUState *s, uint16_t source_id)
 /* Log and report an DMAR (address translation) fault to software */
 static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
                                   hwaddr addr, VTDFaultReason fault,
-                                  bool is_write)
+                                  IOMMUAccessFlags flags)
 {
     uint32_t fsts_reg = vtd_get_long_raw(s, DMAR_FSTS_REG);
 
@@ -415,7 +415,7 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
         return;
     }
     VTD_DPRINTF(FLOG, "sid 0x%"PRIx16 ", fault %d, addr 0x%"PRIx64
-                ", is_write %d", source_id, fault, addr, is_write);
+                ", flags %d", source_id, fault, addr, flags);
     if (fsts_reg & VTD_FSTS_PFO) {
         VTD_DPRINTF(FLOG, "new fault is not recorded due to "
                     "Primary Fault Overflow");
@@ -433,7 +433,7 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
         return;
     }
 
-    vtd_record_frcd(s, s->next_frcd_reg, source_id, addr, fault, is_write);
+    vtd_record_frcd(s, s->next_frcd_reg, source_id, addr, fault, flags);
 
     if (fsts_reg & VTD_FSTS_PPF) {
         VTD_DPRINTF(FLOG, "there are pending faults already, "
@@ -629,7 +629,8 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
 /* Given the @gpa, get relevant @slptep. @slpte_level will be the last level
  * of the translation, can be used for deciding the size of large page.
  */
-static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
+static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa,
+                            IOMMUAccessFlags flags,
                             uint64_t *slptep, uint32_t *slpte_level,
                             bool *reads, bool *writes)
 {
@@ -649,7 +650,20 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
     }
 
     /* FIXME: what is the Atomics request here? */
-    access_right_check = is_write ? VTD_SL_W : VTD_SL_R;
+    switch (flags) {
+    case IOMMU_WO:
+        access_right_check = VTD_SL_W;
+        break;
+    case IOMMU_RO:
+        access_right_check = VTD_SL_R;
+        break;
+    case IOMMU_RW: /* passthrow */
+    case IOMMU_NO_FAIL:
+        access_right_check = VTD_SL_R | VTD_SL_W;
+        break;
+    default:
+        assert(0);
+    }
 
     while (true) {
         offset = vtd_gpa_level_offset(gpa, level);
@@ -671,8 +685,9 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
         if (!(slpte & access_right_check)) {
             VTD_DPRINTF(GENERAL, "error: lack of %s permission for "
                         "gpa 0x%"PRIx64 " slpte 0x%"PRIx64,
-                        (is_write ? "write" : "read"), gpa, slpte);
-            return is_write ? -VTD_FR_WRITE : -VTD_FR_READ;
+                        (flags == IOMMU_WO ? "write" : "read"), gpa, slpte);
+            return (flags == IOMMU_RW || flags == IOMMU_WO) ?
+                   -VTD_FR_WRITE : -VTD_FR_READ;
         }
         if (vtd_slpte_nonzero_rsvd(slpte, level)) {
             VTD_DPRINTF(GENERAL, "error: non-zero reserved field in second "
@@ -789,11 +804,12 @@ static inline bool vtd_is_interrupt_addr(hwaddr addr)
  *
  * @bus_num: The bus number
  * @devfn: The devfn, which is the  combined of device and function number
- * @is_write: The access is a write operation
+ * @flags: The access is a write operation
  * @entry: IOMMUTLBEntry that contain the addr to be translated and result
  */
 static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
-                                   uint8_t devfn, hwaddr addr, bool is_write,
+                                   uint8_t devfn, hwaddr addr,
+                                   IOMMUAccessFlags flags,
                                    IOMMUTLBEntry *entry)
 {
     IntelIOMMUState *s = vtd_as->iommu_state;
@@ -811,7 +827,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
 
     /* Check if the request is in interrupt address range */
     if (vtd_is_interrupt_addr(addr)) {
-        if (is_write) {
+        if (flags == IOMMU_WO || flags == IOMMU_RW) {
             /* FIXME: since we don't know the length of the access here, we
              * treat Non-DWORD length write requests without PASID as
              * interrupt requests, too. Withoud interrupt remapping support,
@@ -827,7 +843,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         } else {
             VTD_DPRINTF(GENERAL, "error: read request from interrupt address "
                         "gpa 0x%"PRIx64, addr);
-            vtd_report_dmar_fault(s, source_id, addr, VTD_FR_READ, is_write);
+            vtd_report_dmar_fault(s, source_id, addr, VTD_FR_READ, flags);
             return;
         }
     }
@@ -856,12 +872,14 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
         if (ret_fr) {
             ret_fr = -ret_fr;
-            if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
-                VTD_DPRINTF(FLOG, "fault processing is disabled for DMA "
+            if (flags != IOMMU_NO_FAIL) {
+                if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
+                    VTD_DPRINTF(FLOG, "fault processing is disabled for DMA "
                             "requests through this context-entry "
                             "(with FPD Set)");
-            } else {
-                vtd_report_dmar_fault(s, source_id, addr, ret_fr, is_write);
+                } else {
+                    vtd_report_dmar_fault(s, source_id, addr, ret_fr, flags);
+                }
             }
             return;
         }
@@ -874,15 +892,17 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         cc_entry->context_cache_gen = s->context_cache_gen;
     }
 
-    ret_fr = vtd_gpa_to_slpte(&ce, addr, is_write, &slpte, &level,
+    ret_fr = vtd_gpa_to_slpte(&ce, addr, flags, &slpte, &level,
                               &reads, &writes);
     if (ret_fr) {
         ret_fr = -ret_fr;
-        if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
-            VTD_DPRINTF(FLOG, "fault processing is disabled for DMA requests "
-                        "through this context-entry (with FPD Set)");
-        } else {
-            vtd_report_dmar_fault(s, source_id, addr, ret_fr, is_write);
+        if (flags != IOMMU_NO_FAIL) {
+            if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
+                VTD_DPRINTF(FLOG, "fault processing is disabled for DMA "
+                        "requests through this context-entry (with FPD Set)");
+            } else {
+                vtd_report_dmar_fault(s, source_id, addr, ret_fr, flags);
+            }
         }
         return;
     }
@@ -1944,7 +1964,7 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
 }
 
 static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
-                                         bool is_write)
+                                         IOMMUAccessFlags flags)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
@@ -1966,7 +1986,7 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     }
 
     vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn, addr,
-                           is_write, &ret);
+                           flags, &ret);
     VTD_DPRINTF(MMU,
                 "bus %"PRIu8 " slot %"PRIu8 " func %"PRIu8 " devfn %"PRIu8
                 " gpa 0x%"PRIx64 " hpa 0x%"PRIx64, pci_bus_num(vtd_as->bus),
