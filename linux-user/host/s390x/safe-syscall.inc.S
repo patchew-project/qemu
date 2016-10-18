@@ -72,7 +72,8 @@ safe_syscall_base:
 	 */
 safe_syscall_start:
 	/* if signal_pending is non-zero, don't do the call */
-	lt	%r0,0(%r8)
+	l	%r0,0(%r8)
+	ltr	%r0,%r0
 	jne	2f
 	svc	0
 safe_syscall_end:
