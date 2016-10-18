@@ -34,6 +34,11 @@
 #include "qapi/qmp/qstring.h"
 
 #include <xen/io/ring.h>
+
+/* xen/io/usbif.h references PAGE_SIZE without defining it */
+#ifndef PAGE_SIZE
+#define PAGE_SIZE XC_PAGE_SIZE
+#endif
 #include <xen/io/usbif.h>
 
 /*
