@@ -90,12 +90,12 @@ static void verify_state(AHCIQState *ahci)
     g_assert_cmphex(ahci_fingerprint, ==, ahci->fingerprint);
 
     /* If we haven't initialized, this is as much as can be validated. */
-    if (!ahci->hba_base) {
+    if (!ahci->hba_bar.addr) {
         return;
     }
 
     hba_base = (uint64_t)qpci_config_readl(ahci->dev, PCI_BASE_ADDRESS_5);
-    hba_stored = (uint64_t)(uintptr_t)ahci->hba_base;
+    hba_stored = ahci->hba_bar.addr;
     g_assert_cmphex(hba_base, ==, hba_stored);
 
     g_assert_cmphex(ahci_rreg(ahci, AHCI_CAP), ==, ahci->cap);

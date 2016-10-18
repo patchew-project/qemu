@@ -137,7 +137,7 @@ static void ide_test_quit(void)
     qtest_end();
 }
 
-static QPCIDevice *get_pci_device(uint16_t *bmdma_base)
+static QPCIDevice *get_pci_device(QPCIBar *bmdma_bar)
 {
     QPCIDevice *dev;
     uint16_t vendor_id, device_id;
@@ -156,7 +156,7 @@ static QPCIDevice *get_pci_device(uint16_t *bmdma_base)
     g_assert(device_id == PCI_DEVICE_ID_INTEL_82371SB_1);
 
     /* Map bmdma BAR */
-    *bmdma_base = (uint16_t)(uintptr_t) qpci_iomap(dev, 4, NULL);
+    *bmdma_bar = qpci_iomap(dev, 4, NULL);
 
     qpci_device_enable(dev);
 
@@ -182,14 +182,14 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
                             void(*post_exec)(uint64_t sector, int nb_sectors))
 {
     QPCIDevice *dev;
-    uint16_t bmdma_base;
+    QPCIBar bmdma_bar;
     uintptr_t guest_prdt;
     size_t len;
     bool from_dev;
     uint8_t status;
     int flags;
 
-    dev = get_pci_device(&bmdma_base);
+    dev = get_pci_device(&bmdma_bar);
 
     flags = cmd & ~0xff;
     cmd &= 0xff;
@@ -217,14 +217,14 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
     outb(IDE_BASE + reg_device, 0 | LBA);
 
     /* Stop any running transfer, clear any pending interrupt */
-    outb(bmdma_base + bmreg_cmd, 0);
-    outb(bmdma_base + bmreg_status, BM_STS_INTR);
+    qpci_io_writeb(dev, bmdma_bar, bmreg_cmd, 0);
+    qpci_io_writeb(dev, bmdma_bar, bmreg_status, BM_STS_INTR);
 
     /* Setup PRDT */
     len = sizeof(*prdt) * prdt_entries;
     guest_prdt = guest_alloc(guest_malloc, len);
     memwrite(guest_prdt, prdt, len);
-    outl(bmdma_base + bmreg_prdt, guest_prdt);
+    qpci_io_writel(dev, bmdma_bar, bmreg_prdt, guest_prdt);
 
     /* ATA DMA command */
     if (cmd == CMD_PACKET) {
@@ -244,15 +244,16 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
     }
 
     /* Start DMA transfer */
-    outb(bmdma_base + bmreg_cmd, BM_CMD_START | (from_dev ? BM_CMD_WRITE : 0));
+    qpci_io_writeb(dev, bmdma_bar, bmreg_cmd,
+                   BM_CMD_START | (from_dev ? BM_CMD_WRITE : 0));
 
     if (flags & CMDF_ABORT) {
-        outb(bmdma_base + bmreg_cmd, 0);
+        qpci_io_writeb(dev, bmdma_bar, bmreg_cmd, 0);
     }
 
     /* Wait for the DMA transfer to complete */
     do {
-        status = inb(bmdma_base + bmreg_status);
+        status = qpci_io_readb(dev, bmdma_bar, bmreg_status);
     } while ((status & (BM_STS_ACTIVE | BM_STS_INTR)) == BM_STS_ACTIVE);
 
     g_assert_cmpint(get_irq(IDE_PRIMARY_IRQ), ==, !!(status & BM_STS_INTR));
@@ -266,7 +267,7 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
 
     /* Stop DMA transfer if still active */
     if (status & BM_STS_ACTIVE) {
-        outb(bmdma_base + bmreg_cmd, 0);
+        qpci_io_writeb(dev, bmdma_bar, bmreg_cmd, 0);
     }
 
     free_pci_device(dev);
