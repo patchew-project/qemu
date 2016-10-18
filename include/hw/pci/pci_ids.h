@@ -113,6 +113,8 @@
 
 #define PCI_VENDOR_ID_MARVELL            0x11ab
 
+#define PCI_VENDOR_ID_PMC_SIERRA         0x11f8
+
 #define PCI_VENDOR_ID_ENSONIQ            0x1274
 #define PCI_DEVICE_ID_ENSONIQ_ES1370     0x5000
 
