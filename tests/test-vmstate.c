@@ -588,53 +588,6 @@ static void test_complex_vbuffer(void)
 #undef FIELD_EQUAL
 #undef BUFFER_EQUAL
 
-typedef struct {
-    uint32_t vbuff_size;
-    uint8_t *vbuff;
-    uint64_t stuff;
-} TestVBufStart;
-
-static const VMStateDescription vmstate_vbuff_alloc_start = {
-    .name = "test/vbuff_alloc_start",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT64(stuff, TestVBufStart),
-        VMSTATE_UINT32(vbuff_size, TestVBufStart),
-        VMSTATE_VBUFFER_ALLOC_UINT32(vbuff, TestVBufStart, 1, 0, 1, vbuff_size),
-        VMSTATE_END_OF_LIST()
-    }
-
-};
-
-static void load_vmstate_one_obj(const VMStateDescription *vmsd, void *obj,
-        int version_id)
-{
-        QEMUFile *fload = open_test_file(false);
-
-        SUCCESS(vmstate_load_state(fload, vmsd, obj, version_id));
-        qemu_fclose(fload);
-}
-
-static void test_vbuff_alloc_start(void)
-{
-    uint8_t my_vbuff1[] = {0, 1, 2, 3};
-    uint8_t my_vbuff2[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    TestVBufStart sample = {
-        .stuff = 1,
-        .vbuff_size = 3,
-        .vbuff = my_vbuff1,
-    };
-    TestVBufStart load_obj = {
-        .vbuff = my_vbuff2,
-    };
-
-    save_vmstate(&vmstate_vbuff_alloc_start, &sample);
-    load_vmstate_one_obj(&vmstate_vbuff_alloc_start, &load_obj, 1);
-    g_assert_cmpint(load_obj.stuff, ==, 0);
-    g_assert_cmpint((uint64_t) load_obj.vbuff, !=, (uint64_t) my_vbuff2);
-}
-
 int main(int argc, char **argv)
 {
     temp_fd = mkstemp(temp_file);
@@ -650,7 +603,6 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/field_exists/save/noskip", test_save_noskip);
     g_test_add_func("/vmstate/field_exists/save/skip", test_save_skip);
     g_test_add_func("/vmstate/complex/vbuffer", test_complex_vbuffer);
-    g_test_add_func("/vmstate/vbuff/alloc_start", test_vbuff_alloc_start);
     g_test_run();
     close(temp_fd);
     unlink(temp_file);
