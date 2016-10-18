@@ -620,7 +620,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
 
     s->cs_lines = g_new0(qemu_irq, s->num_cs * s->num_busses);
     ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[0]);
-    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[1]);
+
     sysbus_init_irq(sbd, &s->irq);
     for (i = 0; i < s->num_cs * s->num_busses; ++i) {
         sysbus_init_irq(sbd, &s->cs_lines[i]);
