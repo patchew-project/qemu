@@ -170,6 +170,10 @@ static void uart_parameters_setup(CadenceUARTState *s)
     baud_rate = (s->r[R_MR] & UART_MR_CLKS) ?
             UART_INPUT_CLK / 8 : UART_INPUT_CLK;
 
+    if (!s->r[R_BRGR] || !(s->r[R_BDIV] + 1)
+        || baud_rate < (s->r[R_BRGR] * (s->r[R_BDIV] + 1))) {
+        return;
+    }
     ssp.speed = baud_rate / (s->r[R_BRGR] * (s->r[R_BDIV] + 1));
     packet_size = 1;
 
