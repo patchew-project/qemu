@@ -220,6 +220,7 @@ static void qmp_output_free(Visitor *v)
     while (!QSLIST_EMPTY(&qov->stack)) {
         e = QSLIST_FIRST(&qov->stack);
         QSLIST_REMOVE_HEAD(&qov->stack, node);
+        qobject_decref(e->value);
         g_free(e);
     }
 
