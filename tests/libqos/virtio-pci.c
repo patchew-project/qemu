@@ -62,39 +62,43 @@ static void qvirtio_pci_assign_device(QVirtioDevice *d, void *data)
     *vpcidev = (QVirtioPCIDevice *)d;
 }
 
-static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t addr)
+static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
-    return qpci_io_readb(dev->pdev, (void *)(uintptr_t)addr);
+    void *base = dev->addr + VIRTIO_PCI_CONFIG_OFF(dev->pdev->msix_enabled);
+    return qpci_io_readb(dev->pdev, base + off);
 }
 
-static uint16_t qvirtio_pci_config_readw(QVirtioDevice *d, uint64_t addr)
+static uint16_t qvirtio_pci_config_readw(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
-    return qpci_io_readw(dev->pdev, (void *)(uintptr_t)addr);
+    void *base = dev->addr + VIRTIO_PCI_CONFIG_OFF(dev->pdev->msix_enabled);
+    return qpci_io_readw(dev->pdev, base + off);
 }
 
-static uint32_t qvirtio_pci_config_readl(QVirtioDevice *d, uint64_t addr)
+static uint32_t qvirtio_pci_config_readl(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
-    return qpci_io_readl(dev->pdev, (void *)(uintptr_t)addr);
+    void *base = dev->addr + VIRTIO_PCI_CONFIG_OFF(dev->pdev->msix_enabled);
+    return qpci_io_readl(dev->pdev, base + off);
 }
 
-static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t addr)
+static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t off)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)d;
     int i;
     uint64_t u64 = 0;
+    void *base = dev->addr + VIRTIO_PCI_CONFIG_OFF(dev->pdev->msix_enabled);
 
     if (target_big_endian()) {
         for (i = 0; i < 8; ++i) {
             u64 |= (uint64_t)qpci_io_readb(dev->pdev,
-                                (void *)(uintptr_t)addr + i) << (7 - i) * 8;
+                                           base + off + i) << (7 - i) * 8;
         }
     } else {
         for (i = 0; i < 8; ++i) {
             u64 |= (uint64_t)qpci_io_readb(dev->pdev,
-                                (void *)(uintptr_t)addr + i) << i * 8;
+                                           base + off + i) << i * 8;
         }
     }
 
