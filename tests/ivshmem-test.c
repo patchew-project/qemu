@@ -169,7 +169,7 @@ static void test_ivshmem_single(void)
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         data[i] = i;
     }
-    qtest_memwrite(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
+    qpci_memwrite(s->dev, s->mem_base, data, sizeof(data));
 
     /* verify write */
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
@@ -178,7 +178,7 @@ static void test_ivshmem_single(void)
 
     /* read it back and verify read */
     memset(data, 0, sizeof(data));
-    qtest_memread(s->qtest, (uintptr_t)s->mem_base, data, sizeof(data));
+    qpci_memread(s->dev, s->mem_base, data, sizeof(data));
     for (i = 0; i < G_N_ELEMENTS(data); i++) {
         g_assert_cmpuint(data[i], ==, i);
     }
@@ -201,29 +201,29 @@ static void test_ivshmem_pair(void)
 
     /* host write, guest 1 & 2 read */
     memset(tmpshmem, 0x42, TMPSHMSIZE);
-    qtest_memread(s1->qtest, (uintptr_t)s1->mem_base, data, TMPSHMSIZE);
+    qpci_memread(s1->dev, s1->mem_base, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x42);
     }
-    qtest_memread(s2->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    qpci_memread(s2->dev, s2->mem_base, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x42);
     }
 
     /* guest 1 write, guest 2 read */
     memset(data, 0x43, TMPSHMSIZE);
-    qtest_memwrite(s1->qtest, (uintptr_t)s1->mem_base, data, TMPSHMSIZE);
+    qpci_memwrite(s1->dev, s1->mem_base, data, TMPSHMSIZE);
     memset(data, 0, TMPSHMSIZE);
-    qtest_memread(s2->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    qpci_memread(s2->dev, s2->mem_base, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x43);
     }
 
     /* guest 2 write, guest 1 read */
     memset(data, 0x44, TMPSHMSIZE);
-    qtest_memwrite(s2->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    qpci_memwrite(s2->dev, s2->mem_base, data, TMPSHMSIZE);
     memset(data, 0, TMPSHMSIZE);
-    qtest_memread(s1->qtest, (uintptr_t)s2->mem_base, data, TMPSHMSIZE);
+    qpci_memread(s1->dev, s2->mem_base, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
         g_assert_cmpuint(data[i], ==, 0x44);
     }
