@@ -48,6 +48,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/statfs.h>
+#include <ustat.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
 #include <sys/signalfd.h>
@@ -8227,9 +8228,27 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(chroot(p));
         unlock_user(p, arg1, 0);
         break;
-#ifdef TARGET_NR_ustat
+#if defined(TARGET_NR_ustat)
     case TARGET_NR_ustat:
-        goto unimplemented;
+        {
+            struct ustat ust;
+
+            ret = get_errno(ustat(arg1, &ust));
+            if (!is_error(ret)) {
+                struct target_ustat *target_ust;
+
+                if (!lock_user_struct(VERIFY_WRITE, target_ust, arg2, 0)) {
+                    goto efault;
+                }
+                __put_user(ust.f_tfree, &target_ust->f_tfree);
+                __put_user(ust.f_tinode, &target_ust->f_tinode);
+                memcpy(target_ust->f_fname, ust.f_fname, 6);
+                memcpy(target_ust->f_fpack, ust.f_fpack, 6);
+                unlock_user_struct(target_ust, arg2, 1);
+            }
+        }
+        break;
+
 #endif
 #ifdef TARGET_NR_dup2
     case TARGET_NR_dup2:
