@@ -1709,9 +1709,9 @@
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
-            'host_device', 'http', 'https', 'luks', 'null-aio', 'null-co',
-            'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-	    'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'host_device', 'http', 'https', 'luks', 'nfs', 'null-aio',
+            'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
+            'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -2207,6 +2207,54 @@
             '*top-id': 'str' } }
 
 ##
+# @NFSServer
+#
+# Captures the address of the socket
+#
+# @type:        transport type used for NFS (only TCP supported)
+#
+# @host:        host part of the address
+#
+# Since 2.8
+##
+{ 'struct': 'NFSServer',
+  'data': { 'type': 'str',
+            'host': 'str' } }
+
+##
+# @BlockdevOptionsNfs
+#
+# Driver specific block device option for NFS
+#
+# @server:        host address
+#
+# @path:          path of the image on the host
+#
+# @uid:           #optional UID value to use when talking to the server
+#
+# @gid:           #optional GID value to use when talking to the server
+#
+# @tcp-syncnt:    #optional number of SYNs during the session establishment
+#
+# @readahead:     #optional set the readahead size in bytes
+#
+# @pagecache:     #optional set the pagecache size in bytes
+#
+# @debug:         #optional set the NFS debug level (max 2)
+#
+# Since 2.8
+##
+{ 'struct': 'BlockdevOptionsNfs',
+  'data': { 'server': 'NFSServer',
+            'path': 'str',
+            '*uid': 'int',
+            '*gid': 'int',
+            '*tcp-syncnt': 'int',
+            '*readahead': 'int',
+            '*pagecache': 'int',
+            '*debug': 'int' } }
+
+##
 # @BlockdevOptionsCurl
 #
 # Driver specific block device options for the curl backend.
@@ -2264,7 +2312,7 @@
 # TODO iscsi: Wait for structured options
       'luks':       'BlockdevOptionsLUKS',
 # TODO nbd: Should take InetSocketAddress for 'host'?
-# TODO nfs: Wait for structured options
+      'nfs':        'BlockdevOptionsNfs',
       'null-aio':   'BlockdevOptionsNull',
       'null-co':    'BlockdevOptionsNull',
       'parallels':  'BlockdevOptionsGenericFormat',
