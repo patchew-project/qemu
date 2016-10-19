@@ -119,6 +119,17 @@ static struct gcry_thread_cbs qcrypto_gcrypt_thread_impl = {
 
 int qcrypto_init(Error **errp)
 {
+#ifdef CONFIG_GCRYPT
+#ifdef QCRYPTO_INIT_GCRYPT_THREADS
+    gcry_control(GCRYCTL_SET_THREAD_CBS, &qcrypto_gcrypt_thread_impl);
+#endif /* QCRYPTO_INIT_GCRYPT_THREADS */
+    if (!gcry_check_version(GCRYPT_VERSION)) {
+        error_setg(errp, "Unable to initialize gcrypt");
+        return -1;
+    }
+    gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
+#endif
+
 #ifdef CONFIG_GNUTLS
     int ret;
     ret = gnutls_global_init();
@@ -132,17 +143,6 @@ int qcrypto_init(Error **errp)
     gnutls_global_set_log_level(10);
     gnutls_global_set_log_function(qcrypto_gnutls_log);
 #endif
-#endif
-
-#ifdef CONFIG_GCRYPT
-    if (!gcry_check_version(GCRYPT_VERSION)) {
-        error_setg(errp, "Unable to initialize gcrypt");
-        return -1;
-    }
-#ifdef QCRYPTO_INIT_GCRYPT_THREADS
-    gcry_control(GCRYCTL_SET_THREAD_CBS, &qcrypto_gcrypt_thread_impl);
-#endif /* QCRYPTO_INIT_GCRYPT_THREADS */
-    gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 #endif
 
     return 0;
