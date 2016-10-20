@@ -2124,7 +2124,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_SERIAL_USB;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     dc->desc = "Apple USB Controller";
-    dc->props = ohci_pci_properties;
+    device_class_set_props(dc, ohci_pci_properties);
     dc->hotpluggable = false;
     dc->vmsd = &vmstate_ohci;
     dc->reset = usb_ohci_reset_pci;
@@ -2150,7 +2150,7 @@ static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->realize = ohci_realize_pxa;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     dc->desc = "OHCI USB Controller";
-    dc->props = ohci_sysbus_properties;
+    device_class_set_props(dc, ohci_sysbus_properties);
     dc->reset = usb_ohci_reset_sysbus;
 }
 

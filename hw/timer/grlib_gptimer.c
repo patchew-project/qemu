@@ -394,7 +394,7 @@ static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
 
     k->init = grlib_gptimer_init;
     dc->reset = grlib_gptimer_reset;
-    dc->props = grlib_gptimer_properties;
+    device_class_set_props(dc, grlib_gptimer_properties);
 }
 
 static const TypeInfo grlib_gptimer_info = {

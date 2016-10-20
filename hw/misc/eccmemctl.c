@@ -326,7 +326,7 @@ static void ecc_class_init(ObjectClass *klass, void *data)
     k->init = ecc_init1;
     dc->reset = ecc_reset;
     dc->vmsd = &vmstate_ecc;
-    dc->props = ecc_properties;
+    device_class_set_props(dc, ecc_properties);
 }
 
 static const TypeInfo ecc_info = {

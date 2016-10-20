@@ -1029,7 +1029,7 @@ static void fw_cfg_io_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = fw_cfg_io_realize;
-    dc->props = fw_cfg_io_properties;
+    device_class_set_props(dc, fw_cfg_io_properties);
 }
 
 static const TypeInfo fw_cfg_io_info = {
@@ -1086,7 +1086,7 @@ static void fw_cfg_mem_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = fw_cfg_mem_realize;
-    dc->props = fw_cfg_mem_properties;
+    device_class_set_props(dc, fw_cfg_mem_properties);
 }
 
 static const TypeInfo fw_cfg_mem_info = {

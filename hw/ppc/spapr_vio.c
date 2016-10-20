@@ -585,7 +585,7 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
     k->realize = spapr_vio_busdev_realize;
     k->reset = spapr_vio_busdev_reset;
     k->bus_type = TYPE_SPAPR_VIO_BUS;
-    k->props = spapr_vio_props;
+    device_class_set_props(k, spapr_vio_props);
 }
 
 static const TypeInfo spapr_vio_type_info = {

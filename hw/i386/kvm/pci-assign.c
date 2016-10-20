@@ -1861,7 +1861,7 @@ static void assign_class_init(ObjectClass *klass, void *data)
     k->exit         = assigned_exitfn;
     k->config_read  = assigned_dev_pci_read_config;
     k->config_write = assigned_dev_pci_write_config;
-    dc->props       = assigned_dev_properties;
+    device_class_set_props(dc, assigned_dev_properties);
     dc->vmsd        = &vmstate_assigned_device;
     dc->reset       = reset_assigned_device;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

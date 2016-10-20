@@ -340,7 +340,7 @@ static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
 
     k->init = pxa2xx_gpio_initfn;
     dc->desc = "PXA2xx GPIO controller";
-    dc->props = pxa2xx_gpio_properties;
+    device_class_set_props(dc, pxa2xx_gpio_properties);
     dc->vmsd = &vmstate_pxa2xx_gpio_regs;
 }
 

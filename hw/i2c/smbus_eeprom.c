@@ -121,7 +121,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
     sc->read_data = eeprom_read_data;
-    dc->props = smbus_eeprom_properties;
+    device_class_set_props(dc, smbus_eeprom_properties);
     /* Reason: pointer property "data" */
     dc->cannot_instantiate_with_device_add_yet = true;
 }

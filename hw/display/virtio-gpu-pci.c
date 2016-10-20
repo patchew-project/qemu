@@ -47,7 +47,7 @@ static void virtio_gpu_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->props = virtio_gpu_pci_properties;
+    device_class_set_props(dc, virtio_gpu_pci_properties);
     dc->hotpluggable = false;
     k->realize = virtio_gpu_pci_realize;
     pcidev_k->class_id = PCI_CLASS_DISPLAY_OTHER;

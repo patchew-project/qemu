@@ -502,7 +502,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     dc->realize = pci_vpb_realize;
     dc->reset = pci_vpb_reset;
     dc->vmsd = &pci_vpb_vmstate;
-    dc->props = pci_vpb_properties;
+    device_class_set_props(dc, pci_vpb_properties);
     /* Reason: object_unref() hangs */
     dc->cannot_destroy_with_object_finalize_yet = true;
 }

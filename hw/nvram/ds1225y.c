@@ -152,7 +152,7 @@ static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
 
     k->init = nvram_sysbus_initfn;
     dc->vmsd = &vmstate_nvram;
-    dc->props = nvram_sysbus_properties;
+    device_class_set_props(dc, nvram_sysbus_properties);
 }
 
 static const TypeInfo nvram_sysbus_info = {

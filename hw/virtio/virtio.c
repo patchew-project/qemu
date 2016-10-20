@@ -2166,7 +2166,7 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
-    dc->props = virtio_properties;
+    device_class_set_props(dc, virtio_properties);
 }
 
 static const TypeInfo virtio_device_info = {

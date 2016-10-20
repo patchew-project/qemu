@@ -877,7 +877,7 @@ static void xen_sysdev_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = xen_sysdev_init;
-    dc->props = xen_sysdev_properties;
+    device_class_set_props(dc, xen_sysdev_properties);
 }
 
 static const TypeInfo xensysdev_info = {

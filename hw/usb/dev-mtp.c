@@ -1583,7 +1583,7 @@ static void usb_mtp_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usb_mtp_handle_data;
     dc->fw_name = "mtp";
     dc->vmsd = &vmstate_usb_mtp;
-    dc->props = mtp_properties;
+    device_class_set_props(dc, mtp_properties);
 }
 
 static TypeInfo mtp_info = {

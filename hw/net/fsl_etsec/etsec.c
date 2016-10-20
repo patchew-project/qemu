@@ -416,7 +416,7 @@ static void etsec_class_init(ObjectClass *klass, void *data)
 
     dc->realize = etsec_realize;
     dc->reset = etsec_reset;
-    dc->props = etsec_properties;
+    device_class_set_props(dc, etsec_properties);
 }
 
 static TypeInfo etsec_info = {

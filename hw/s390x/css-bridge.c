@@ -125,7 +125,7 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 
     hc->unplug = ccw_device_unplug;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->props = virtual_css_bridge_properties;
+    device_class_set_props(dc, virtual_css_bridge_properties);
 }
 
 static const TypeInfo virtual_css_bridge_info = {
