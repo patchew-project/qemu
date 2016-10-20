@@ -389,6 +389,11 @@ BlockDriverState *blk_bs(BlockBackend *blk)
     return blk->root ? blk->root->bs : NULL;
 }
 
+BdrvChild *blk_root(BlockBackend *blk)
+{
+    return blk->root;
+}
+
 static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
 {
     BdrvChild *child;
