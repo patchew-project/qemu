@@ -897,4 +897,5 @@ void qmp_fd_send(int fd, const char *fmt, ...);
 QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
 QDict *qmp_fd(int fd, const char *fmt, ...);
 
+extern Monitor stubs_silent_monitor;
 #endif
