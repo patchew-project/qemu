@@ -27,8 +27,10 @@
 #include "qemu-common.h"
 #include "migration/migration.h"
 #include "migration/vmstate.h"
+#include "monitor/monitor.h"
 #include "qemu/coroutine.h"
 #include "io/channel-file.h"
+#include "libqtest.h"
 
 static char temp_file[] = "/tmp/vmst.test.XXXXXX";
 static int temp_fd;
@@ -132,6 +134,9 @@ static int load_vmstate(const VMStateDescription *desc,
                         void (*obj_copy)(void *, void*),
                         int version, uint8_t *wire, size_t size)
 {
+    /* Silence errors during the expected failures */
+    cur_mon = &stubs_silent_monitor;
+
     /* We test with zero size */
     obj_copy(obj_clone, obj);
     FAILURE(load_vmstate_one(desc, obj, version, wire, 0));
@@ -154,6 +159,9 @@ static int load_vmstate(const VMStateDescription *desc,
         FAILURE(load_vmstate_one(desc, obj, version, wire + (size/2), size/2));
 
     }
+    /* Now we shouldn't get any more errors - go back to normal */
+    cur_mon = NULL;
+
     obj_copy(obj, obj_clone);
     return load_vmstate_one(desc, obj, version, wire, size);
 }
