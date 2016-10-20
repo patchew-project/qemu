@@ -39,6 +39,17 @@ do { \
 
 typedef struct VirtIOCryptoConf {
     CryptoDevBackend *cryptodev;
+
+    /* Supported service mask */
+    uint32_t crypto_services;
+
+    /* Detailed algorithms mask */
+    uint32_t cipher_algo_l;
+    uint32_t cipher_algo_h;
+    uint32_t hash_algo;
+    uint32_t mac_algo_l;
+    uint32_t mac_algo_h;
+    uint32_t aead_algo;
 } VirtIOCryptoConf;
 
 struct VirtIOCrypto;
