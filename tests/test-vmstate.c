@@ -475,6 +475,119 @@ static void test_load_skip(void)
     qemu_fclose(loading);
 }
 
+/* vBuffer tests */
+#define BUF_SIZE 10
+
+typedef struct TestVBuffer {
+    uint8_t  u8_1;
+    int32_t  buffer_size;
+    uint8_t  *vBuffer_1;
+    uint32_t buffer_alloc_size;
+    uint8_t  *vBuffer_alloc_1;
+    uint8_t  u8_2;
+} TestVBuffer;
+
+/* buffers padded with 0xFE at the end to easier detect overflow */
+uint8_t buf1[BUF_SIZE + 1] = { 1,  2,  3,  4,  5,  6,  7,  8,  9,  0, 0xfe};
+uint8_t buf2[BUF_SIZE + 1] = { 1,  2,  3,  4,  5,  6,  7,  8,  9,  0, 0xfe};
+
+TestVBuffer obj_vbuffer = {
+    .u8_1 = 100,
+    .buffer_size = BUF_SIZE,
+    .vBuffer_1 = buf1,
+    .buffer_alloc_size = BUF_SIZE,
+    .vBuffer_alloc_1 = buf2,
+    .u8_2 = 200,
+};
+
+static const VMStateDescription vmstate_vbuffer = {
+    .name = "complex/vbuffer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(u8_1, TestVBuffer),
+        VMSTATE_VBUFFER(vBuffer_1, TestVBuffer, 1, NULL, 0,
+                        buffer_size),
+        VMSTATE_VBUFFER_ALLOC_UINT32(vBuffer_alloc_1, TestVBuffer, 1, NULL, 0,
+                        buffer_alloc_size),
+        VMSTATE_UINT8(u8_2, TestVBuffer),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+uint8_t wire_vbuffer[] = {
+    /* u8_1 */            0x64,
+    /* vBuffer_1 */       0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                          0x00,
+    /* vBuffer_alloc_1 */ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                          0x00,
+    /* u8_2 */            0xc8,
+    QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
+};
+
+static void obj_vbuffer_copy(void *target, void *source)
+{
+    /* this proc copies all struct TestVBuffer entries from source to target
+       except the vBuffer pointers which should already point to the correct
+       locations. The buffer contents are also copied */
+    TestVBuffer *s = (TestVBuffer *)source;
+    TestVBuffer *t = (TestVBuffer *)target;
+
+    t->u8_1 = s->u8_1;
+    t->u8_2 = s->u8_2;
+    t->buffer_size = s->buffer_size;
+    t->buffer_alloc_size = s->buffer_alloc_size;
+    if (t->vBuffer_1 && s->vBuffer_1) {
+        memcpy(t->vBuffer_1, s->vBuffer_1, BUF_SIZE);
+    }
+    if (t->vBuffer_alloc_1 && s->vBuffer_alloc_1) {
+        memcpy(t->vBuffer_alloc_1, s->vBuffer_alloc_1, BUF_SIZE);
+    }
+}
+
+static void test_complex_vbuffer(void)
+{
+    uint8_t buffer[BUF_SIZE];
+    uint8_t buffer_clone[BUF_SIZE];
+    TestVBuffer obj = {
+        .u8_1 = 0,
+        .buffer_size = BUF_SIZE,
+        .vBuffer_1 = buffer,
+        .buffer_alloc_size = BUF_SIZE,
+        .vBuffer_alloc_1 = NULL,
+        .u8_2 = 0,
+    };
+    TestVBuffer obj_clone = {
+        .u8_1 = 0,
+        .buffer_size = BUF_SIZE,
+        .vBuffer_1 = buffer_clone,
+        .buffer_alloc_size = BUF_SIZE,
+        .vBuffer_alloc_1 = NULL,
+        .u8_2 = 0,
+    };
+
+    memset(buffer, 0, BUF_SIZE);
+    memset(buffer_clone, 0, BUF_SIZE);
+
+    save_vmstate(&vmstate_vbuffer, &obj_vbuffer);
+
+    compare_vmstate(wire_vbuffer, sizeof(wire_vbuffer));
+
+    SUCCESS(load_vmstate(&vmstate_vbuffer, &obj, &obj_clone,
+                         obj_vbuffer_copy, 1, wire_vbuffer,
+                         sizeof(wire_vbuffer)));
+
+#define FIELD_EQUAL(name)  g_assert_cmpint(obj.name, ==, obj_vbuffer.name)
+#define BUFFER_EQUAL(name) SUCCESS(memcmp(obj.name, obj_vbuffer.name, BUF_SIZE))
+
+    FIELD_EQUAL(u8_1);
+    BUFFER_EQUAL(vBuffer_1);
+    BUFFER_EQUAL(vBuffer_alloc_1);
+    FIELD_EQUAL(u8_2);
+}
+#undef FIELD_EQUAL
+#undef BUFFER_EQUAL
+
 int main(int argc, char **argv)
 {
     temp_fd = mkstemp(temp_file);
@@ -489,6 +602,7 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/field_exists/load/skip", test_load_skip);
     g_test_add_func("/vmstate/field_exists/save/noskip", test_save_noskip);
     g_test_add_func("/vmstate/field_exists/save/skip", test_save_skip);
+    g_test_add_func("/vmstate/complex/vbuffer", test_complex_vbuffer);
     g_test_run();
 
     close(temp_fd);
