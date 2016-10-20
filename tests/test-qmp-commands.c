@@ -262,6 +262,23 @@ static void test_dealloc_partial(void)
     qapi_free_UserDefTwo(ud2);
 }
 
+/* test generated enum value str */
+static void test_enum_value_str(void)
+{
+    EnumOne i;
+    char *expected_str = NULL;
+
+    for (i = 0; i < ENUM_ONE__MAX; i++) {
+        if (i == 0) {
+            expected_str = g_strdup_printf("\'%s\'", EnumOne_lookup[i]);
+        } else {
+            expected_str = g_strdup_printf("%s, \'%s\'",
+                                            expected_str, EnumOne_lookup[i]);
+        }
+    }
+    g_assert_cmpstr(EnumOne_value_str, ==, expected_str);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -272,6 +289,7 @@ int main(int argc, char **argv)
     g_test_add_func("/0.15/dispatch_cmd_io", test_dispatch_cmd_io);
     g_test_add_func("/0.15/dealloc_types", test_dealloc_types);
     g_test_add_func("/0.15/dealloc_partial", test_dealloc_partial);
+    g_test_add_func("/0.15/enum_value_str", test_enum_value_str);
 
     module_call_init(MODULE_INIT_QAPI);
     g_test_run();
