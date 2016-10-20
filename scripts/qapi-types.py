@@ -202,9 +202,11 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._btin += gen_enum(name, values, prefix)
             if do_builtins:
                 self.defn += gen_enum_lookup(name, values, prefix)
+                self._btin += gen_enum_value_str(name, values)
         else:
             self._fwdecl += gen_enum(name, values, prefix)
             self.defn += gen_enum_lookup(name, values, prefix)
+            self._fwdecl += gen_enum_value_str(name, values)
 
     def visit_array_type(self, name, info, element_type):
         if isinstance(element_type, QAPISchemaBuiltinType):
