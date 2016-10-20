@@ -747,7 +747,11 @@ ObjectClass *object_get_class(Object *obj)
 
 bool object_class_is_abstract(ObjectClass *klass)
 {
-    return klass->type->abstract;
+    if (type_is_ancestor(klass->type, type_interface)) {
+        return true;
+    } else {
+        return klass->type->abstract;
+    }
 }
 
 const char *object_class_get_name(ObjectClass *klass)
