@@ -63,6 +63,11 @@
 #include "qemu/mmap-alloc.h"
 #endif
 
+#include <sys/ioctl.h>
+#ifdef CONFIG_LINUX
+#include <linux/fs.h>
+#endif
+
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
@@ -90,6 +95,12 @@ static MemoryRegion io_mem_unassigned;
  * This used_length size can change across reboots.
  */
 #define RAM_RESIZEABLE (1 << 2)
+
+/* If the backend of RAM is a file and the RAM size is not identical
+ * to the file size, do not truncate the file to the RAM size. This
+ * flag is used to avoid corrupting the existing data on the file.
+ */
+#define RAM_NOTRUNC    (1 << 3)
 
 #endif
 
@@ -1188,6 +1199,48 @@ void qemu_mutex_unlock_ramlist(void)
 }
 
 #ifdef __linux__
+static uint64_t get_file_size(const char *path, Error **errp)
+{
+    int fd;
+    struct stat st;
+    uint64_t size = 0;
+    Error *local_err = NULL;
+
+    fd = qemu_open(path, O_RDONLY);
+    if (fd < 0) {
+        error_setg(&local_err, "cannot open file");
+        goto out;
+    }
+
+    if (stat(path, &st)) {
+        error_setg(&local_err, "cannot get file stat");
+        goto out_fclose;
+    }
+
+    switch (st.st_mode & S_IFMT) {
+    case S_IFREG:
+        size = st.st_size;
+        break;
+
+    case S_IFBLK:
+        if (ioctl(fd, BLKGETSIZE64, &size)) {
+            error_setg(&local_err, "cannot get size of block device");
+            size = 0;
+        }
+        break;
+
+    default:
+        error_setg(&local_err,
+                   "only block device on Linux and regular file are supported");
+    }
+
+ out_fclose:
+    close(fd);
+ out:
+    error_propagate(errp, local_err);
+    return size;
+}
+
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             const char *path,
@@ -1271,7 +1324,7 @@ static void *file_ram_alloc(RAMBlock *block,
      * If anything goes wrong with it under other filesystems,
      * mmap will fail.
      */
-    if (ftruncate(fd, memory)) {
+    if (!(block->flags & RAM_NOTRUNC) && ftruncate(fd, memory)) {
         perror("ftruncate");
     }
 
@@ -1597,7 +1650,8 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 
 #ifdef __linux__
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
-                                   bool share, const char *mem_path,
+                                   bool share, bool notrunc,
+                                   const char *mem_path,
                                    Error **errp)
 {
     RAMBlock *new_block;
@@ -1619,12 +1673,28 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
+    if (notrunc) {
+        uint64_t file_size = get_file_size(mem_path, &local_err);
+
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return NULL;
+        }
+
+        if (size > file_size) {
+            error_setg(errp,
+                       "notrunc enabled, but size is larger than file size");
+            return NULL;
+        }
+    }
+
     size = HOST_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
+    new_block->flags |= notrunc ? RAM_NOTRUNC : 0;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
     if (!new_block->host) {

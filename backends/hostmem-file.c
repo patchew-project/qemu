@@ -32,6 +32,7 @@ struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
 
     bool share;
+    bool notrunc;
     char *mem_path;
 };
 
@@ -57,7 +58,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         path = object_get_canonical_path(OBJECT(backend));
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
-                                 backend->size, fb->share,
+                                 backend->size, fb->share, fb->notrunc,
                                  fb->mem_path, errp);
         g_free(path);
     }
@@ -103,6 +104,25 @@ static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
     fb->share = value;
 }
 
+static bool file_memory_backend_get_notrunc(Object *o, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    return fb->notrunc;
+}
+
+static void file_memory_backend_set_notrunc(Object *o, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    if (memory_region_size(&backend->mr)) {
+        error_setg(errp, "cannot change property value");
+        return;
+    }
+    fb->notrunc = value;
+}
+
 static void
 file_backend_class_init(ObjectClass *oc, void *data)
 {
@@ -115,6 +135,9 @@ file_backend_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path,
+        &error_abort);
+    object_class_property_add_bool(oc, "notrunc",
+        file_memory_backend_get_notrunc, file_memory_backend_set_notrunc,
         &error_abort);
 }
 

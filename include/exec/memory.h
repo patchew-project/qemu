@@ -418,6 +418,8 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @name: the name of the region.
  * @size: size of the region.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
+ * @notrunc: %true do not truncate the file @path to @size if the
+ *           file size is not identical to @size
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
  */
@@ -426,6 +428,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       const char *name,
                                       uint64_t size,
                                       bool share,
+                                      bool notrunc,
                                       const char *path,
                                       Error **errp);
 #endif
