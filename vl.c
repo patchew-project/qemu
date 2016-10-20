@@ -4100,6 +4100,11 @@ int main(int argc, char **argv, char **envp)
         exit(0);
     }
 
+    if (qemu_opts_foreach(qemu_find_opts("object"), user_creatable_help_func,
+                          NULL, NULL)) {
+        exit(1);
+    }
+
     if (!trace_init_backends()) {
         exit(1);
     }

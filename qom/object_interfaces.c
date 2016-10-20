@@ -5,6 +5,7 @@
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/opts-visitor.h"
+#include "qemu/help_option.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
 {
@@ -210,6 +211,60 @@ void user_creatable_del(const char *id, Error **errp)
         return;
     }
     object_unparent(obj);
+}
+
+int user_creatable_help_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *type = NULL;
+    Object *obj = NULL;
+    ObjectClass *klass;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+
+    type = qemu_opt_get(opts, "qom-type");
+    if (type && is_help_option(type)) {
+        GSList *list;
+        printf("Available object backend types:\n");
+        for (list = object_class_get_list(TYPE_USER_CREATABLE, false);  \
+                list;                                                   \
+                list = list->next) {
+            const char *name;
+            name = object_class_get_name(OBJECT_CLASS(list->data));
+            if (strcmp(name, TYPE_USER_CREATABLE)) {
+                printf("%s\n", name);
+            }
+        }
+        g_slist_free(list);
+        goto out;
+    }
+
+    if (!type || !qemu_opt_has_help_opt(opts)) {
+        return 0;
+    }
+
+    klass = object_class_by_name(type);
+    if (!klass) {
+        printf("invalid object type: %s\n", type);
+        goto out;
+    }
+    if (object_class_is_abstract(klass)) {
+        printf("object type '%s' is abstract\n", type);
+        goto out;
+    }
+    obj = object_new(type);
+    object_property_iter_init(&iter, obj);
+
+    while ((prop = object_property_iter_next(&iter))) {
+        if (prop->description) {
+            printf("%s (%s, %s)\n", prop->name, prop->type, prop->description);
+        } else {
+            printf("%s (%s)\n", prop->name, prop->type);
+        }
+    }
+
+out:
+    object_unref(obj);
+    return 1;
 }
 
 static void register_types(void)
