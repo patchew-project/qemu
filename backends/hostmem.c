@@ -377,6 +377,10 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         HostMemPolicy_lookup,
         host_memory_backend_get_policy,
         host_memory_backend_set_policy, &error_abort);
+    object_class_property_set_description(oc, "policy",
+                                    "Data format: one of "
+                                    HostMemPolicy_value_str,
+                                    &error_abort);
 }
 
 static const TypeInfo host_memory_backend_info = {

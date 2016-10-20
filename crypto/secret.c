@@ -382,6 +382,10 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
                                    qcrypto_secret_prop_get_format,
                                    qcrypto_secret_prop_set_format,
                                    NULL);
+    object_class_property_set_description(oc, "format",
+                                          "Data format: one of "
+                                          QCryptoSecretFormat_value_str,
+                                          &error_abort);
     object_class_property_add_str(oc, "data",
                                   qcrypto_secret_prop_get_data,
                                   qcrypto_secret_prop_set_data,

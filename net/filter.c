@@ -182,6 +182,10 @@ static void netfilter_init(Object *obj)
                              NetFilterDirection_lookup,
                              netfilter_get_direction, netfilter_set_direction,
                              NULL);
+    object_property_set_description(obj, "queue",
+                                    "Data format: one of "
+                                    NetFilterDirection_value_str,
+                                    &error_abort);
     object_property_add_str(obj, "status",
                             netfilter_get_status, netfilter_set_status,
                             NULL);
