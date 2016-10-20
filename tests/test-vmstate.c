@@ -506,9 +506,9 @@ static const VMStateDescription vmstate_vbuffer = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(u8_1, TestVBuffer),
-        VMSTATE_VBUFFER(vBuffer_1, TestVBuffer, 1, NULL, 0,
+        VMSTATE_VBUFFER(vBuffer_1, TestVBuffer, 1, NULL,
                         buffer_size),
-        VMSTATE_VBUFFER_ALLOC_UINT32(vBuffer_alloc_1, TestVBuffer, 1, NULL, 0,
+        VMSTATE_VBUFFER_ALLOC_UINT32(vBuffer_alloc_1, TestVBuffer, 1, NULL,
                         buffer_alloc_size),
         VMSTATE_UINT8(u8_2, TestVBuffer),
         VMSTATE_END_OF_LIST()
