@@ -437,9 +437,9 @@ static void *multifd_send_thread(void *opaque)
             params->address = 0;
             qemu_mutex_unlock(&params->mutex);
 
-            if (qio_channel_write(params->c, (const char *)&address,
-                                  sizeof(uint8_t *), &error_abort)
-                != sizeof(uint8_t*)) {
+            if (qio_channel_write(params->c, (const char *)address,
+                                  TARGET_PAGE_SIZE, &error_abort)
+                != TARGET_PAGE_SIZE) {
                 /* Shuoudn't ever happen */
                 exit(-1);
             }
@@ -551,6 +551,23 @@ static int multifd_send_page(uint8_t *address)
     return i;
 }
 
+static void flush_multifd_send_data(QEMUFile *f)
+{
+    int i, thread_count;
+
+    if (!migrate_multifd()) {
+        return;
+    }
+    qemu_fflush(f);
+    thread_count = migrate_multifd_threads();
+    qemu_mutex_lock(&multifd_send_mutex);
+    for (i = 0; i < thread_count; i++) {
+        while(!multifd_send[i].done) {
+            qemu_cond_wait(&multifd_send_cond, &multifd_send_mutex);
+        }
+    }
+}
+
 struct MultiFDRecvParams {
     /* not changed */
     QemuThread thread;
@@ -575,7 +592,6 @@ static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *params = opaque;
     uint8_t *address;
-    uint8_t *recv_address;
     char start;
 
     qio_channel_read(params->c, &start, 1, &error_abort);
@@ -591,16 +607,10 @@ static void *multifd_recv_thread(void *opaque)
             params->address = 0;
             qemu_mutex_unlock(&params->mutex);
 
-            if (qio_channel_read(params->c, (char *)&recv_address,
-                                 sizeof(uint8_t*), &error_abort)
-                != sizeof(uint8_t *)) {
+            if (qio_channel_read(params->c, (char *)address,
+                                 TARGET_PAGE_SIZE, &error_abort)
+                != TARGET_PAGE_SIZE) {
                 /* shouldn't ever happen */
-                exit(-1);
-            }
-
-            if (address != recv_address) {
-                printf("We received %p what we were expecting %p\n",
-                       recv_address, address);
                 exit(-1);
             }
 
@@ -1126,6 +1136,7 @@ static int ram_multifd_page(QEMUFile *f, PageSearchStatus *pss,
     uint8_t *p;
     RAMBlock *block = pss->block;
     ram_addr_t offset = pss->offset;
+    static int count = 32;
 
     p = block->host + offset;
 
@@ -1137,9 +1148,14 @@ static int ram_multifd_page(QEMUFile *f, PageSearchStatus *pss,
         *bytes_transferred +=
             save_page_header(f, block, offset | RAM_SAVE_FLAG_MULTIFD_PAGE);
         fd_num = multifd_send_page(p);
+        count--;
+        if (!count) {
+            qemu_fflush(f);
+            count = 32;
+        }
+
         qemu_put_be16(f, fd_num);
         *bytes_transferred += 2; /* size of fd_num */
-        qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
         *bytes_transferred += TARGET_PAGE_SIZE;
         pages = 1;
         acct_info.norm_pages++;
@@ -2401,6 +2417,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     }
 
     flush_compressed_data(f);
+    flush_multifd_send_data(f);
     ram_control_after_iterate(f, RAM_CONTROL_FINISH);
 
     rcu_read_unlock();
@@ -2915,7 +2932,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         case RAM_SAVE_FLAG_MULTIFD_PAGE:
             fd_num = qemu_get_be16(f);
             multifd_recv_page(host, fd_num);
-            qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
 
         case RAM_SAVE_FLAG_EOS:
