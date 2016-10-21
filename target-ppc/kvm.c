@@ -2672,3 +2672,17 @@ int kvmppc_enable_hwrng(void)
 
     return kvmppc_enable_hcall(kvm_state, H_RANDOM);
 }
+
+unsigned long get_guest_max_pfn(void)
+{
+    /* To be done */
+
+    return 0;
+}
+
+unsigned long *tighten_guest_free_page_bmap(unsigned long *bmap)
+{
+    /* To be done */
+
+    return bmap;
+}

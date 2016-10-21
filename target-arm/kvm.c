@@ -638,3 +638,17 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     return (data - 32) & 0xffff;
 }
+
+unsigned long get_guest_max_pfn(void)
+{
+    /* To be done */
+
+    return 0;
+}
+
+unsigned long *tighten_guest_free_page_bmap(unsigned long *bmap)
+{
+    /* To be done */
+
+    return bmap;
+}
