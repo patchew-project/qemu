@@ -421,6 +421,7 @@ QemuCond multifd_send_cond;
 static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *params = opaque;
+    uint8_t *address;
     char start = 's';
 
     qio_channel_write(params->c, &start, 1, &error_abort);
@@ -432,8 +433,16 @@ static void *multifd_send_thread(void *opaque)
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
         if (params->address) {
+            address = params->address;
             params->address = 0;
             qemu_mutex_unlock(&params->mutex);
+
+            if (qio_channel_write(params->c, (const char *)&address,
+                                  sizeof(uint8_t *), &error_abort)
+                != sizeof(uint8_t*)) {
+                /* Shuoudn't ever happen */
+                exit(-1);
+            }
             qemu_mutex_lock(&multifd_send_mutex);
             params->done = true;
             qemu_cond_signal(&multifd_send_cond);
@@ -565,6 +574,8 @@ QemuCond  multifd_recv_cond;
 static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *params = opaque;
+    uint8_t *address;
+    uint8_t *recv_address;
     char start;
 
     qio_channel_read(params->c, &start, 1, &error_abort);
@@ -576,8 +587,23 @@ static void *multifd_recv_thread(void *opaque)
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
         if (params->address) {
+            address = params->address;
             params->address = 0;
             qemu_mutex_unlock(&params->mutex);
+
+            if (qio_channel_read(params->c, (char *)&recv_address,
+                                 sizeof(uint8_t*), &error_abort)
+                != sizeof(uint8_t *)) {
+                /* shouldn't ever happen */
+                exit(-1);
+            }
+
+            if (address != recv_address) {
+                printf("We received %p what we were expecting %p\n",
+                       recv_address, address);
+                exit(-1);
+            }
+
             qemu_mutex_lock(&multifd_recv_mutex);
             params->done = true;
             qemu_cond_signal(&multifd_recv_cond);
@@ -2888,10 +2914,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
         case RAM_SAVE_FLAG_MULTIFD_PAGE:
             fd_num = qemu_get_be16(f);
-            if (fd_num != 0) {
-                /* this is yet an unused variable, changed later */
-                fd_num = 0;
-            }
             multifd_recv_page(host, fd_num);
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
