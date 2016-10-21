@@ -46,33 +46,18 @@ static int vmstate_size(void *opaque, VMStateField *field)
             size *= field->size;
         }
     }
-
     return size;
 }
 
-static void *vmstate_base_addr(void *opaque, VMStateField *field, bool alloc)
+static void vmstate_handle_alloc(void *ptr, VMStateField *field, void *opaque)
 {
-    void *base_addr = opaque + field->offset;
-
-    if (field->flags & VMS_POINTER) {
-        if (alloc && (field->flags & VMS_ALLOC)) {
-            gsize size = 0;
-            if (field->flags & VMS_VBUFFER) {
-                size = vmstate_size(opaque, field);
-            } else {
-                int n_elems = vmstate_n_elems(opaque, field);
-                if (n_elems) {
-                    size = n_elems * field->size;
-                }
-            }
-            if (size) {
-                *((void **)base_addr + field->start) = g_malloc(size);
-            }
+    if (field->flags & VMS_POINTER && field->flags & VMS_ALLOC) {
+        gsize size = vmstate_size(opaque, field);
+        size *= vmstate_n_elems(opaque, field);
+        if (size) {
+            *(void **)ptr = g_malloc(size);
         }
-        base_addr = *(void **)base_addr + field->start;
     }
-
-    return base_addr;
 }
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -108,21 +93,30 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
              field->version_id <= version_id)) {
-            void *base_addr = vmstate_base_addr(opaque, field, true);
+            void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
 
+            vmstate_handle_alloc(first_elem, field, opaque);
+            if (field->flags & VMS_POINTER) {
+                first_elem = *(void **)first_elem;
+                assert(first_elem);
+            }
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + size * i;
+                void *curr_elem = first_elem + size * i;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    addr = *(void **)addr;
+                    curr_elem = *(void **)curr_elem;
                 }
-                if (field->flags & VMS_STRUCT) {
-                    ret = vmstate_load_state(f, field->vmsd, addr,
+                if (!curr_elem) {
+                    /* if null pointer check placeholder and do not follow */
+                    assert(field->flags & VMS_ARRAY_OF_POINTER);
+                    vmstate_info_nullptr.get(f, curr_elem, size);
+                } else if (field->flags & VMS_STRUCT) {
+                    ret = vmstate_load_state(f, field->vmsd, curr_elem,
                                              field->vmsd->version_id);
                 } else {
-                    ret = field->info->get(f, addr, size);
+                    ret = field->info->get(f, curr_elem, size);
 
                 }
                 if (ret >= 0) {
@@ -312,25 +306,33 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     while (field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
-            void *base_addr = vmstate_base_addr(opaque, field, false);
+            void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
             int64_t old_offset, written_bytes;
             QJSON *vmdesc_loop = vmdesc;
 
+            if (field->flags & VMS_POINTER) {
+                first_elem = *(void **)first_elem;
+                assert(first_elem);
+            }
             for (i = 0; i < n_elems; i++) {
-                void *addr = base_addr + size * i;
+                void *curr_elem = first_elem + size * i;
 
                 vmsd_desc_field_start(vmsd, vmdesc_loop, field, i, n_elems);
                 old_offset = qemu_ftell_fast(f);
-
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
-                    addr = *(void **)addr;
+                    assert(curr_elem);
+                    curr_elem = *(void **)curr_elem;
                 }
-                if (field->flags & VMS_STRUCT) {
-                    vmstate_save_state(f, field->vmsd, addr, vmdesc_loop);
+                if (!curr_elem) {
+                    /* if null pointer write placeholder and do not follow */
+                    assert(field->flags & VMS_ARRAY_OF_POINTER);
+                    vmstate_info_nullptr.put(f, curr_elem, size);
+                } else if (field->flags & VMS_STRUCT) {
+                    vmstate_save_state(f, field->vmsd, curr_elem, vmdesc_loop);
                 } else {
-                    field->info->put(f, addr, size);
+                    field->info->put(f, curr_elem, size);
                 }
 
                 written_bytes = qemu_ftell_fast(f) - old_offset;
@@ -718,6 +720,27 @@ const VMStateInfo vmstate_info_uint64 = {
     .name = "uint64",
     .get  = get_uint64,
     .put  = put_uint64,
+};
+
+static int get_nullptr(QEMUFile *f, void *pv, size_t size)
+{
+    int8_t tmp;
+    qemu_get_s8s(f, &tmp);
+    assert(tmp == 0);
+    return 0;
+}
+
+static void put_nullptr(QEMUFile *f, void *pv, size_t size)
+{
+    int8_t tmp = 0;
+    assert(pv == NULL);
+    qemu_put_s8s(f, &tmp);
+}
+
+const VMStateInfo vmstate_info_nullptr = {
+    .name = "uint64",
+    .get  = get_nullptr,
+    .put  = put_nullptr,
 };
 
 /* 64 bit unsigned int. See that the received value is the same than the one
