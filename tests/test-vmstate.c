@@ -544,6 +544,44 @@ static void test_arr_ptr_str_no0_load(void)
     }
 }
 
+static void test_arr_ptr_str_0_save(void)
+{
+    TestStructTriv ar[AR_SIZE] = {{.i = 0}, {.i = 1}, {.i = 2}, {.i = 3} };
+    TestArrayOfPtrToStuct sample = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+
+    save_vmstate(&vmsd_arps, &sample); /* fails with SEGFAULT with master */
+}
+
+static void test_arr_ptr_str_0_load(void)
+{
+    TestStructTriv ar_gt[AR_SIZE] = {{.i = 0}, {.i = 0}, {.i = 2}, {.i = 3} };
+    TestStructTriv ar[AR_SIZE] = {};
+    TestArrayOfPtrToStuct obj = {.ar = {&ar[0], NULL, &ar[2], &ar[3]} };
+    int idx;
+    uint8_t wire_sample[] = {
+        0x00, 0x00, 0x00, 0x00,
+        0x00, /* marker for the null pointer */
+        0x00, 0x00, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x03,
+        QEMU_VM_EOF
+    };
+
+    save_buffer(wire_sample, sizeof(wire_sample));
+    SUCCESS(load_vmstate_one(&vmsd_arps, &obj, 1,
+                          wire_sample, sizeof(wire_sample)));
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        /* compare the target array ar with the ground truth array ar_gt */
+        g_assert_cmpint(ar_gt[idx].i, ==, ar[idx].i);
+    }
+    for (idx = 0; idx < AR_SIZE; ++idx) {
+        if (idx == 1) {
+            g_assert_cmpint((uint64_t)(obj.ar[idx]), ==, 0);
+        } else {
+            g_assert_cmpint((uint64_t)(obj.ar[idx]), !=, 0);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     temp_fd = mkstemp(temp_file);
@@ -562,6 +600,9 @@ int main(int argc, char **argv)
                     test_arr_ptr_str_no0_save);
     g_test_add_func("/vmstate/array/ptr/str/no0/load",
                     test_arr_ptr_str_no0_load);
+    g_test_add_func("/vmstate/array/ptr/str/0/save", test_arr_ptr_str_0_save);
+    g_test_add_func("/vmstate/array/ptr/str/0/load",
+                    test_arr_ptr_str_0_load);
     g_test_run();
 
     close(temp_fd);
