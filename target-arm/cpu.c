@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internals.h"
@@ -509,6 +510,10 @@ static Property arm_cpu_rvbar_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+/* use property name "pmu" to match other archs and virt tools */
+static Property arm_cpu_has_pmu_property =
+            DEFINE_PROP_BOOL("pmu", ARMCPU, has_pmu, true);
+
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
@@ -550,6 +555,11 @@ static void arm_cpu_post_init(Object *obj)
                                  OBJ_PROP_LINK_UNREF_ON_RELEASE,
                                  &error_abort);
 #endif
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_PMU) && kvm_enabled()) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_has_pmu_property,
+                                 &error_abort);
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_MPU)) {
@@ -646,6 +656,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         cpu->id_pfr1 &= ~0xf0;
         cpu->id_aa64pfr0 &= ~0xf000;
+    }
+
+    if (!cpu->has_pmu) {
+        unset_feature(env, ARM_FEATURE_PMU);
     }
 
     if (!arm_feature(env, ARM_FEATURE_EL2)) {
