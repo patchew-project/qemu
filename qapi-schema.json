@@ -665,13 +665,16 @@
 # @downtime-limit: set maximum tolerated downtime for migration. maximum
 #                  downtime in milliseconds (Since 2.8)
 #
+# @x-multifd-threads: Number of threads used to migrate data in parallel
+#                     The default value is 1 (since 2.8)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
-           'downtime-limit'] }
+           'downtime-limit', 'x-multifd-threads'] }
 
 #
 # @migrate-set-parameters
@@ -726,6 +729,9 @@
 # @downtime-limit: set maximum tolerated downtime for migration. maximum
 #                  downtime in milliseconds (Since 2.8)
 #
+# @x-multifd-threads: Number of threads used to migrate data in parallel
+#                     The default value is 1 (since 2.8)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -737,7 +743,8 @@
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
             '*max-bandwidth': 'int',
-            '*downtime-limit': 'int'} }
+            '*downtime-limit': 'int',
+            '*x-multifd-threads': 'int'} }
 ##
 # @query-migrate-parameters
 #
