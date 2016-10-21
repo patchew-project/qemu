@@ -396,6 +396,8 @@ struct MultiFDSendParams {
     QemuCond cond;
     QemuMutex mutex;
     bool quit;
+    bool started;
+    QIOChannel *c;
 };
 typedef struct MultiFDSendParams MultiFDSendParams;
 
@@ -404,6 +406,13 @@ static MultiFDSendParams *multifd_send;
 static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *params = opaque;
+    char start = 's';
+
+    qio_channel_write(params->c, &start, 1, &error_abort);
+    qemu_mutex_lock(&params->mutex);
+    params->started = true;
+    qemu_cond_signal(&params->cond);
+    qemu_mutex_unlock(&params->mutex);
 
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
@@ -440,6 +449,7 @@ void migrate_multifd_send_threads_join(void)
         qemu_thread_join(&multifd_send[i].thread);
         qemu_mutex_destroy(&multifd_send[i].mutex);
         qemu_cond_destroy(&multifd_send[i].cond);
+        socket_send_channel_destroy(multifd_send[i].c);
     }
     g_free(multifd_send);
     multifd_send = NULL;
@@ -458,9 +468,20 @@ void migrate_multifd_send_threads_create(void)
         qemu_mutex_init(&multifd_send[i].mutex);
         qemu_cond_init(&multifd_send[i].cond);
         multifd_send[i].quit = false;
+        multifd_send[i].started = false;
+        multifd_send[i].c = socket_send_channel_create();
+        if(!multifd_send[i].c) {
+            printf("Error creating a send channel");
+            exit(0);
+        }
         qemu_thread_create(&multifd_send[i].thread, "multifd_send",
                            multifd_send_thread, &multifd_send[i],
                            QEMU_THREAD_JOINABLE);
+        qemu_mutex_lock(&multifd_send[i].mutex);
+        while (!multifd_send[i].started) {
+            qemu_cond_wait(&multifd_send[i].cond, &multifd_send[i].mutex);
+        }
+        qemu_mutex_unlock(&multifd_send[i].mutex);
     }
 }
 
@@ -469,6 +490,8 @@ struct MultiFDRecvParams {
     QemuCond cond;
     QemuMutex mutex;
     bool quit;
+    bool started;
+    QIOChannel *c;
 };
 typedef struct MultiFDRecvParams MultiFDRecvParams;
 
@@ -477,7 +500,14 @@ static MultiFDRecvParams *multifd_recv;
 static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *params = opaque;
- 
+    char start;
+
+    qio_channel_read(params->c, &start, 1, &error_abort);
+    qemu_mutex_lock(&params->mutex);
+    params->started = true;
+    qemu_cond_signal(&params->cond);
+    qemu_mutex_unlock(&params->mutex);
+
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
         qemu_cond_wait(&params->cond, &params->mutex);
@@ -513,6 +543,7 @@ void migrate_multifd_recv_threads_join(void)
         qemu_thread_join(&multifd_recv[i].thread);
         qemu_mutex_destroy(&multifd_recv[i].mutex);
         qemu_cond_destroy(&multifd_recv[i].cond);
+        socket_send_channel_destroy(multifd_recv[i].c);
     }
     g_free(multifd_recv);
     multifd_recv = NULL;
@@ -531,9 +562,21 @@ void migrate_multifd_recv_threads_create(void)
         qemu_mutex_init(&multifd_recv[i].mutex);
         qemu_cond_init(&multifd_recv[i].cond);
         multifd_recv[i].quit = false;
+        multifd_recv[i].started = false;
+        multifd_recv[i].c = socket_recv_channel_create();
+
+        if(!multifd_recv[i].c) {
+            printf("Error creating a recv channel");
+            exit(0);
+        }
         qemu_thread_create(&multifd_recv[i].thread, "multifd_recv",
                            multifd_recv_thread, &multifd_recv[i],
                            QEMU_THREAD_JOINABLE);
+        qemu_mutex_lock(&multifd_recv[i].mutex);
+        while (!multifd_recv[i].started) {
+            qemu_cond_wait(&multifd_recv[i].cond, &multifd_recv[i].mutex);
+        }
+        qemu_mutex_unlock(&multifd_recv[i].mutex);
     }
 }
 
