@@ -1136,6 +1136,46 @@ const MemoryRegionOps unassigned_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static uint64_t skip_dump_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val = (uint64_t)~0;
+
+    switch (size) {
+    case 1:
+        val = *(uint8_t *)(opaque + addr);
+        break;
+    case 2:
+        val = *(uint16_t *)(opaque + addr);
+        break;
+    case 4:
+        val = *(uint32_t *)(opaque + addr);
+        break;
+    }
+
+    return val;
+}
+
+static void skip_dump_mem_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
+{
+    switch (size) {
+    case 1:
+        *(uint8_t *)(opaque + addr) = (uint8_t)data;
+        break;
+    case 2:
+        *(uint16_t *)(opaque + addr) = (uint16_t)data;
+        break;
+    case 4:
+        *(uint32_t *)(opaque + addr) = (uint32_t)data;
+        break;
+    }
+}
+
+const MemoryRegionOps skip_dump_mem_ops = {
+    .read = skip_dump_mem_read,
+    .write = skip_dump_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 bool memory_region_access_valid(MemoryRegion *mr,
                                 hwaddr addr,
                                 unsigned size,
@@ -1366,6 +1406,10 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
 void memory_region_set_skip_dump(MemoryRegion *mr)
 {
     mr->skip_dump = true;
+    if (mr->ram && mr->ops == &unassigned_mem_ops) {
+        mr->ops = &skip_dump_mem_ops;
+        mr->opaque = mr->ram_block->host;
+    }
 }
 
 void memory_region_init_alias(MemoryRegion *mr,

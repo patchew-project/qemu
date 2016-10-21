@@ -1464,9 +1464,11 @@ void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
     if (is_write) {
-        return memory_region_is_ram(mr) && !mr->readonly;
+        return memory_region_is_ram(mr) &&
+               !mr->readonly && !memory_region_is_skip_dump(mr);
     } else {
-        return memory_region_is_ram(mr) || memory_region_is_romd(mr);
+        return (memory_region_is_ram(mr) && !memory_region_is_skip_dump(mr)) ||
+               memory_region_is_romd(mr);
     }
 }
 
