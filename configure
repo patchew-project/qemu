@@ -5409,6 +5409,9 @@ if test "$rbd" = "yes" ; then
 fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
+if test "$coroutine" = "gthread" ; then
+  echo "CONFIG_COROUTINE_GTHREAD=1" >> $config_host_mak
+fi
 if test "$coroutine_pool" = "yes" ; then
   echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
 else

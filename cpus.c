@@ -47,6 +47,10 @@
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
 
+#ifdef CONFIG_COROUTINE_GTHREAD
+#include "qemu/coroutine.h"
+#endif
+
 #ifndef _WIN32
 #include "qemu/compatfd.h"
 #endif
@@ -1175,9 +1179,18 @@ bool qemu_in_vcpu_thread(void)
 
 static __thread bool iothread_locked = false;
 
+/*
+ * There is a slight wart when using gthread based co-routines. Here
+ * the BQL is held by the main-thread which is suspended until the
+ * co-routines complete.
+ */
 bool qemu_mutex_iothread_locked(void)
 {
+#ifdef CONFIG_COROUTINE_GTHREAD
+    return iothread_locked || qemu_in_coroutine();
+#else
     return iothread_locked;
+#endif
 }
 
 void qemu_mutex_lock_iothread(void)
