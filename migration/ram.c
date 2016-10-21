@@ -543,16 +543,24 @@ static int multifd_send_page(uint8_t *address)
 }
 
 struct MultiFDRecvParams {
+    /* not changed */
     QemuThread thread;
+    QIOChannel *c;
     QemuCond cond;
     QemuMutex mutex;
+    /* proteced by param mutex */
     bool quit;
     bool started;
-    QIOChannel *c;
+    uint8_t *address;
+    /* proteced by multifd mutex */
+    bool done;
 };
 typedef struct MultiFDRecvParams MultiFDRecvParams;
 
 static MultiFDRecvParams *multifd_recv;
+
+QemuMutex multifd_recv_mutex;
+QemuCond  multifd_recv_cond;
 
 static void *multifd_recv_thread(void *opaque)
 {
@@ -567,7 +575,17 @@ static void *multifd_recv_thread(void *opaque)
 
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
-        qemu_cond_wait(&params->cond, &params->mutex);
+        if (params->address) {
+            params->address = 0;
+            qemu_mutex_unlock(&params->mutex);
+            qemu_mutex_lock(&multifd_recv_mutex);
+            params->done = true;
+            qemu_cond_signal(&multifd_recv_cond);
+            qemu_mutex_unlock(&multifd_recv_mutex);
+            qemu_mutex_lock(&params->mutex);
+        } else {
+            qemu_cond_wait(&params->cond, &params->mutex);
+        }
     }
     qemu_mutex_unlock(&params->mutex);
 
@@ -620,8 +638,9 @@ void migrate_multifd_recv_threads_create(void)
         qemu_cond_init(&multifd_recv[i].cond);
         multifd_recv[i].quit = false;
         multifd_recv[i].started = false;
+        multifd_recv[i].done = true;
+        multifd_recv[i].address = 0;
         multifd_recv[i].c = socket_recv_channel_create();
-
         if(!multifd_recv[i].c) {
             printf("Error creating a recv channel");
             exit(0);
@@ -635,6 +654,27 @@ void migrate_multifd_recv_threads_create(void)
         }
         qemu_mutex_unlock(&multifd_recv[i].mutex);
     }
+}
+
+static void multifd_recv_page(uint8_t *address, int fd_num)
+{
+    int thread_count;
+    MultiFDRecvParams *params;
+
+    thread_count = migrate_multifd_threads();
+    assert(fd_num < thread_count);
+    params = &multifd_recv[fd_num];
+
+    qemu_mutex_lock(&multifd_recv_mutex);
+    while (!params->done) {
+        qemu_cond_wait(&multifd_recv_cond, &multifd_recv_mutex);
+    }
+    params->done = false;
+    qemu_mutex_unlock(&multifd_recv_mutex);
+    qemu_mutex_lock(&params->mutex);
+    params->address = address;
+    qemu_cond_signal(&params->cond);
+    qemu_mutex_unlock(&params->mutex);
 }
 
 /**
@@ -2852,6 +2892,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 /* this is yet an unused variable, changed later */
                 fd_num = 0;
             }
+            multifd_recv_page(host, fd_num);
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
 
