@@ -1922,10 +1922,40 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
+    int nr;
 
     vfio_intx_enable(vdev, &err);
     if (err) {
         error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+    }
+
+    for (nr = 0; nr < PCI_NUM_REGIONS - 1; ++nr) {
+        VFIOBAR *bar = &vdev->bars[nr];
+        off_t addr = vdev->config_offset + PCI_BASE_ADDRESS_0 + (4 * nr);
+        uint32_t org = 0;
+        uint64_t val = 0;
+        uint32_t len;
+
+        if (!bar->region.size) {
+            continue;
+        }
+
+        if (pread(vdev->vbasedev.fd, &org, sizeof(org), addr) < 0) {
+            error_report("%s(%s) read bar %d failed: %m", __func__,
+                         vdev->vbasedev.name, nr);
+            continue;
+        }
+
+        val = le32_to_cpu(org);
+        val &= (bar->ioport ? ~PCI_BASE_ADDRESS_IO_MASK :
+                              ~PCI_BASE_ADDRESS_MEM_MASK);
+        val = cpu_to_le64(val);
+
+        len = bar->mem64 ? sizeof(uint64_t) : sizeof(uint32_t);
+        if (pwrite(vdev->vbasedev.fd, &val, len, addr) != len) {
+            error_report("%s(%s) reset bar %d failed: %m", __func__,
+                         vdev->vbasedev.name, nr);
+        }
     }
 }
 
