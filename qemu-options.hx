@@ -1599,7 +1599,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #else
     "-netdev tap,id=str[,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile]\n"
     "         [,br=bridge][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off]\n"
-    "         [,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,queues=n]\n"
+    "         [,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,vhostlog=file|dir][,queues=n]\n"
     "         [,poll-us=n]\n"
     "                configure a host TAP network backend with ID 'str'\n"
     "                connected to a bridge (default=" DEFAULT_BRIDGE_INTERFACE ")\n"
@@ -1618,6 +1618,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use vhost=on to enable experimental in kernel accelerator\n"
     "                    (only has effect for virtio guests which use MSIX)\n"
     "                use vhostforce=on to force vhost on for non-MSIX virtio guests\n"
+    "                use 'vhostlog=file|dir' file or directory for vhost backend log\n"
     "                use 'vhostfd=h' to connect to an already opened vhost net device\n"
     "                use 'vhostfds=x:y:...:z to connect to multiple already opened vhost net devices\n"
     "                use 'queues=n' to specify the number of queues to be created for multiqueue TAP\n"

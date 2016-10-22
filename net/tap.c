@@ -699,6 +699,12 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         }
         options.opaque = (void *)(uintptr_t)vhostfd;
 
+        if (tap->has_vhostlog) {
+            options.vhostlog = g_strdup(tap->vhostlog);
+        } else {
+            options.vhostlog = NULL;
+        }
+
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
             error_setg(errp,

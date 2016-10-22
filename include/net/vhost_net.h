@@ -12,6 +12,7 @@ typedef struct VhostNetOptions {
     NetClientState *net_backend;
     uint32_t busyloop_timeout;
     void *opaque;
+    char *vhostlog;
 } VhostNetOptions;
 
 uint64_t vhost_net_get_max_queues(VHostNetState *net);

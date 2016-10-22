@@ -342,7 +342,7 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
     vsock->vhost_dev.nvqs = ARRAY_SIZE(vsock->vhost_vqs);
     vsock->vhost_dev.vqs = vsock->vhost_vqs;
     ret = vhost_dev_init(&vsock->vhost_dev, (void *)(uintptr_t)vhostfd,
-                         VHOST_BACKEND_TYPE_KERNEL, 0);
+                         VHOST_BACKEND_TYPE_KERNEL, 0, NULL);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "vhost-vsock: vhost_dev_init failed");
         goto err_virtio;

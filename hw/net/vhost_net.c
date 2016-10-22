@@ -171,8 +171,8 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         net->dev.vq_index = net->nc->queue_index * net->dev.nvqs;
     }
 
-    r = vhost_dev_init(&net->dev, options->opaque,
-                       options->backend_type, options->busyloop_timeout);
+    r = vhost_dev_init(&net->dev, options->opaque, options->backend_type,
+                       options->busyloop_timeout, options->vhostlog);
     if (r < 0) {
         goto fail;
     }

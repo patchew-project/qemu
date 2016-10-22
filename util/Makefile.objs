@@ -3,6 +3,7 @@ util-obj-y += bufferiszero.o
 util-obj-$(CONFIG_POSIX) += compatfd.o
 util-obj-$(CONFIG_POSIX) += event_notifier-posix.o
 util-obj-$(CONFIG_POSIX) += mmap-alloc.o
+util-obj-$(CONFIG_POSIX) += mmap-file.o
 util-obj-$(CONFIG_POSIX) += oslib-posix.o
 util-obj-$(CONFIG_POSIX) += qemu-openpty.o
 util-obj-$(CONFIG_POSIX) += qemu-thread-posix.o

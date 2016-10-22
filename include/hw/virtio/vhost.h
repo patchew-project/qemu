@@ -52,6 +52,7 @@ struct vhost_dev {
     uint64_t max_queues;
     bool started;
     bool log_enabled;
+    char *log_filename;
     uint64_t log_size;
     Error *migration_blocker;
     bool memory_changed;
@@ -65,7 +66,8 @@ struct vhost_dev {
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type,
-                   uint32_t busyloop_timeout);
+                   uint32_t busyloop_timeout,
+                   char *vhostlog);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev);

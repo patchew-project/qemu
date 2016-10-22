@@ -20,7 +20,7 @@
 #include "qemu/atomic.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
-#include "qemu/memfd.h"
+#include "qemu/mmap-file.h"
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
@@ -326,7 +326,7 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
     return log_size;
 }
 
-static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
+static struct vhost_log *vhost_log_alloc(char *path, uint64_t size, bool share)
 {
     struct vhost_log *log;
     uint64_t logsize = size * sizeof(*(log->log));
@@ -334,9 +334,7 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
 
     log = g_new0(struct vhost_log, 1);
     if (share) {
-        log->log = qemu_memfd_alloc("vhost-log", logsize,
-                                    F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
-                                    &fd);
+        log->log = qemu_mmap_alloc(path, logsize, &fd);
         memset(log->log, 0, logsize);
     } else {
         log->log = g_malloc0(logsize);
@@ -349,12 +347,12 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
     return log;
 }
 
-static struct vhost_log *vhost_log_get(uint64_t size, bool share)
+static struct vhost_log *vhost_log_get(char *path, uint64_t size, bool share)
 {
     struct vhost_log *log = share ? vhost_log_shm : vhost_log;
 
     if (!log || log->size != size) {
-        log = vhost_log_alloc(size, share);
+        log = vhost_log_alloc(path, size, share);
         if (share) {
             vhost_log_shm = log;
         } else {
@@ -388,8 +386,7 @@ static void vhost_log_put(struct vhost_dev *dev, bool sync)
             g_free(log->log);
             vhost_log = NULL;
         } else if (vhost_log_shm == log) {
-            qemu_memfd_free(log->log, log->size * sizeof(*(log->log)),
-                            log->fd);
+            qemu_mmap_free(log->log, log->size * sizeof(*(log->log)), log->fd);
             vhost_log_shm = NULL;
         }
 
@@ -405,9 +402,12 @@ static bool vhost_dev_log_is_shared(struct vhost_dev *dev)
 
 static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
 {
-    struct vhost_log *log = vhost_log_get(size, vhost_dev_log_is_shared(dev));
-    uint64_t log_base = (uintptr_t)log->log;
     int r;
+    struct vhost_log *log;
+    uint64_t log_base;
+
+    log = vhost_log_get(dev->log_filename, size, vhost_dev_log_is_shared(dev));
+    log_base = (uintptr_t)log->log;
 
     /* inform backend of log switching, this must be done before
        releasing the current log, to ensure no logging is lost */
@@ -1049,7 +1049,8 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 }
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   VhostBackendType backend_type, uint32_t busyloop_timeout)
+                   VhostBackendType backend_type,
+                   uint32_t busyloop_timeout, char *vhostlog)
 {
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
@@ -1118,11 +1119,18 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .priority = 10
     };
 
+    hdev->log = NULL;
+    hdev->log_size = 0;
+    hdev->log_enabled = false;
+    hdev->log_filename = vhostlog ? g_strdup(vhostlog) : NULL;
+    g_free(vhostlog);
+
     if (hdev->migration_blocker == NULL) {
         if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
-        } else if (!qemu_memfd_check()) {
+        } else if (vhost_dev_log_is_shared(hdev) &&
+                !qemu_mmap_check(hdev->log_filename)) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: failed to allocate shared memory");
         }
@@ -1135,9 +1143,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->n_mem_sections = 0;
     hdev->mem_sections = NULL;
-    hdev->log = NULL;
-    hdev->log_size = 0;
-    hdev->log_enabled = false;
     hdev->started = false;
     hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
@@ -1175,6 +1180,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     if (hdev->vhost_ops) {
         hdev->vhost_ops->vhost_backend_cleanup(hdev);
     }
+    g_free(hdev->log_filename);
     assert(!hdev->log);
 
     memset(hdev, 0, sizeof(struct vhost_dev));
@@ -1335,7 +1341,8 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         uint64_t log_base;
 
         hdev->log_size = vhost_get_log_size(hdev);
-        hdev->log = vhost_log_get(hdev->log_size,
+        hdev->log = vhost_log_get(hdev->log_filename,
+                                  hdev->log_size,
                                   vhost_dev_log_is_shared(hdev));
         log_base = (uintptr_t)hdev->log->log;
         r = hdev->vhost_ops->vhost_set_log_base(hdev,

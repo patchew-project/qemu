@@ -2640,6 +2640,8 @@
 #
 # @vhostforce: #optional vhost on for non-MSIX virtio guests
 #
+# @vhostlog: #optional file or directory for vhost backend log
+#
 # @queues: #optional number of queues to be created for multiqueue capable tap
 #
 # @poll-us: #optional maximum number of microseconds that could
@@ -2662,6 +2664,7 @@
     '*vhostfd':    'str',
     '*vhostfds':   'str',
     '*vhostforce': 'bool',
+    '*vhostlog':   'str',
     '*queues':     'uint32',
     '*poll-us':    'uint32'} }
 
