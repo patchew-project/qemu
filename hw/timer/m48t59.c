@@ -639,6 +639,28 @@ static const VMStateDescription vmstate_m48t59 = {
     }
 };
 
+static const VMStateDescription vmstate_m48t59_isa = {
+    .name = "m48t59",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(state, M48txxISAState, 0,
+                       vmstate_m48t59, M48t59State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_m48t59_sys_bus = {
+    .name = "m48t59",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(state, M48txxSysBusState, 0,
+                       vmstate_m48t59, M48t59State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void m48t59_reset_common(M48t59State *NVRAM)
 {
     NVRAM->addr = 0;
@@ -744,8 +766,6 @@ static void m48t59_realize_common(M48t59State *s, Error **errp)
         s->wd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &watchdog_cb, s);
     }
     qemu_get_timedate(&s->alarm, 0);
-
-    vmstate_register(NULL, -1, &vmstate_m48t59, s);
 }
 
 static void m48t59_isa_realize(DeviceState *dev, Error **errp)
@@ -824,6 +844,7 @@ static void m48txx_isa_class_init(ObjectClass *klass, void *data)
     dc->realize = m48t59_isa_realize;
     dc->reset = m48t59_reset_isa;
     dc->props = m48t59_isa_properties;
+    dc->vmsd = &vmstate_m48t59_isa;
     nc->read = m48txx_isa_read;
     nc->write = m48txx_isa_write;
     nc->toggle_lock = m48txx_isa_toggle_lock;
@@ -868,6 +889,7 @@ static void m48txx_sysbus_class_init(ObjectClass *klass, void *data)
     dc->realize = m48t59_realize;
     dc->reset = m48t59_reset_sysbus;
     dc->props = m48t59_sysbus_properties;
+    dc->vmsd = &vmstate_m48t59_sys_bus;
     nc->read = m48txx_sysbus_read;
     nc->write = m48txx_sysbus_write;
     nc->toggle_lock = m48txx_sysbus_toggle_lock;
