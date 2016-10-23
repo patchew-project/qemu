@@ -27,6 +27,7 @@
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 
 #define D(x)
 
@@ -584,14 +585,25 @@ static NetClientInfo net_etraxfs_info = {
     .link_status_changed = eth_set_link,
 };
 
-static int fs_eth_init(SysBusDevice *sbd)
+static void fs_eth_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    ETRAXFSEthState *s = ETRAX_FS_ETH(obj);
+
+    memory_region_init_io(&s->mmio, obj, &eth_ops, s,
+                          "etraxfs-eth", 0x5c);
+    sysbus_init_mmio(sbd, &s->mmio);
+
+    tdk_init(&s->phy);
+}
+
+static void fs_eth_realize(DeviceState *dev, Error **errp)
+{
     ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
 
     if (!s->dma_out || !s->dma_in) {
-        error_report("Unconnected ETRAX-FS Ethernet MAC");
-        return -1;
+        error_setg(errp, "Unconnected ETRAX-FS Ethernet MAC");
+        return;
     }
 
     s->dma_out->client.push = eth_tx_push;
@@ -599,19 +611,11 @@ static int fs_eth_init(SysBusDevice *sbd)
     s->dma_in->client.opaque = s;
     s->dma_in->client.pull = NULL;
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), &eth_ops, s,
-                          "etraxfs-eth", 0x5c);
-    sysbus_init_mmio(sbd, &s->mmio);
-
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,
-                          object_get_typename(OBJECT(s)), dev->id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-
-
-    tdk_init(&s->phy);
     mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);
-    return 0;
 }
 
 static Property etraxfs_eth_properties[] = {
@@ -625,18 +629,18 @@ static Property etraxfs_eth_properties[] = {
 static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = fs_eth_init;
     dc->props = etraxfs_eth_properties;
     /* Reason: pointer properties "dma_out", "dma_in" */
     dc->cannot_instantiate_with_device_add_yet = true;
+    dc->realize = fs_eth_realize;
 }
 
 static const TypeInfo etraxfs_eth_info = {
     .name          = TYPE_ETRAX_FS_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ETRAXFSEthState),
+    .instance_init = fs_eth_init,
     .class_init    = etraxfs_eth_class_init,
 };
 
