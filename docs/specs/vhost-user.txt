@@ -17,28 +17,37 @@ The protocol defines 2 sides of the communication, master and slave. Master is
 the application that shares its virtqueues, in our case QEMU. Slave is the
 consumer of the virtqueues.
 
-In the current implementation QEMU is the Master, and the Slave is intended to
+In the traditional implementation QEMU is the Master, and the Slave is intended to
 be a software Ethernet switch running in user space, such as Snabbswitch.
 
 Master and slave can be either a client (i.e. connecting) or server (listening)
 in the socket communication.
 
+The current vhost-user protocol is extended to support the vhost-pci based inter-VM
+communication. In this case, Slave is a QEMU which runs a vhost-pci server, and
+Master is another QEMU which runs a vhost-pci client.
+
 Message Specification
 ---------------------
 
 Note that all numbers are in the machine native byte order. A vhost-user message
-consists of 3 header fields and a payload:
+consists of 4 header fields and a payload:
 
-------------------------------------
-| request | flags | size | payload |
-------------------------------------
+----------------------------------------------
+| request | flags | conn_id | size | payload |
+----------------------------------------------
 
  * Request: 32-bit type of the request
  * Flags: 32-bit bit field:
    - Lower 2 bits are the version (currently 0x01)
-   - Bit 2 is the reply flag - needs to be sent on each reply from the slave
+   - Bit 2 is the reply flag - needs to be sent on each reply
    - Bit 3 is the need_reply flag - see VHOST_USER_PROTOCOL_F_REPLY_ACK for
      details.
+ * Conn_id: 64-bit connection id to indentify a client socket connection. It is
+            introduced in version 0x02 to support the "1-server-N-client" model
+            and an asynchronous client read implementation. The connection id,
+            0xFFFFFFFFFFFFFFFF, is used by an anonymous client (e.g. a client who
+            has not got its connection id from the server in the initial talk)
  * Size - 32-bit size of the payload
 
 
@@ -97,6 +106,13 @@ Depending on the request type, payload can be:
    log offset: offset from start of supplied file descriptor
        where logging starts (i.e. where guest address 0 would be logged)
 
+* Device info
+   --------------------
+   | virito id | uuid |
+   --------------------
+   Virtio id: 16-bit virtio id of the device
+   UUID: 128-bit UUID to identify the QEMU instance that creates the device
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -109,6 +125,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
         VhostUserLog log;
+        DeviceInfo dev_info;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -119,16 +136,24 @@ The protocol for vhost-user is based on the existing implementation of vhost
 for the Linux Kernel. Most messages that can be sent via the Unix domain socket
 implementing vhost-user have an equivalent ioctl to the kernel implementation.
 
-The communication consists of master sending message requests and slave sending
-message replies. Most of the requests don't require replies. Here is a list of
-the ones that do:
+Traditionally, the communication consists of master sending message requests
+and slave sending message replies. Most of the requests don't require replies.
+Here is a list of the ones that do:
 
  * VHOST_GET_FEATURES
  * VHOST_GET_PROTOCOL_FEATURES
  * VHOST_GET_VRING_BASE
  * VHOST_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_GET_CONN_ID
+ * VHOST_USER_SET_PEER_CONNECTION
 
 [ Also see the section on REPLY_ACK protocol extension. ]
+
+Currently, the communication also supports the Slave (server) sending messages
+to the Master (client). Here is a list of them:
+ * VHOST_USER_SET_FEATURES
+ * VHOST_USER_SET_PEER_CONNECTION (the serve may actively request to disconnect
+   with the client)
 
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
@@ -259,6 +284,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
+#define VHOST_USER_PROTOCOL_F_VHOST_PCI      4
 
 Message types
 -------------
@@ -469,6 +495,43 @@ Message types
       is present in VHOST_USER_GET_PROTOCOL_FEATURES.
       The first 6 bytes of the payload contain the mac address of the guest to
       allow the vhost user backend to construct and broadcast the fake RARP.
+
+ * VHOST_USER_GET_CONN_ID
+
+      Id: 20
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      The client sends this message to the server to ask for its connection id.
+      The connection id is then put into the message header (the conn_id field),
+      so that the server can always know who it is talking with.
+
+* VHOST_USER_SET_DEV_INFO
+
+      Id: 21
+      Equivalent ioctl: N/A
+      Master payload: dev info
+
+      The client sends the producer device info to the server.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_VHOST_PCI has
+      been negotiated.
+
+* VHOST_USER_SET_PEER_CONNECTION
+
+      Id: 22
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      The producer device requests to connect or disconnect to the consumer device.
+      The consumer device may request to disconnect to the producer device. This
+      request should be sent only when VHOST_USER_PROTOCOL_F_VHOST_PCI has been
+      negotiated.
+      Connection request: If the reply message indicates "success", the vhost-pci based
+      inter-VM communication channel has been established.
+      Disconnection request: If the reply message indicates "success", the vhost-pci based
+      inter-VM communication channel has been destroyed.
+      #define VHOST_USER_SET_PEER_CONNECTION_F_OFF 0
+      #define VHOST_USER_SET_PEER_CONNECTION_F_ON 1
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
