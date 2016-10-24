@@ -1274,6 +1274,14 @@ static void *file_ram_alloc(RAMBlock *block,
         goto error;
     }
 
+    if (memory) {
+        memory = memory ?: file_size;
+        memory_region_set_size(block->mr, memory);
+        memory = HOST_PAGE_ALIGN(memory);
+        block->used_length = memory;
+        block->max_length = memory;
+    }
+
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",

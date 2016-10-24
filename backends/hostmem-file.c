@@ -40,10 +40,6 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 {
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(backend);
 
-    if (!backend->size) {
-        error_setg(errp, "can't create backend with size 0");
-        return;
-    }
     if (!fb->mem_path) {
         error_setg(errp, "mem-path property not set");
         return;
@@ -62,6 +58,12 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         g_free(path);
     }
 #endif
+    if (!errp && !backend->size) {
+        backend->size = memory_region_size(&backend->mr);
+        if (!backend->size) {
+            error_setg(errp, "can't create backend with size 0");
+        }
+    }
 }
 
 static char *get_mem_path(Object *o, Error **errp)
