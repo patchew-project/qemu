@@ -248,7 +248,7 @@ int smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command)
         return -1;
     }
     i2c_send(bus, command);
-    i2c_start_transfer(bus, addr, 1);
+    assert(!i2c_start_transfer(bus, addr, 1));
     data = i2c_recv(bus);
     i2c_nack(bus);
     i2c_end_transfer(bus);
@@ -273,7 +273,7 @@ int smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command)
         return -1;
     }
     i2c_send(bus, command);
-    i2c_start_transfer(bus, addr, 1);
+    assert(!i2c_start_transfer(bus, addr, 1));
     data = i2c_recv(bus);
     data |= i2c_recv(bus) << 8;
     i2c_nack(bus);
@@ -302,7 +302,7 @@ int smbus_read_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data)
         return -1;
     }
     i2c_send(bus, command);
-    i2c_start_transfer(bus, addr, 1);
+    assert(!i2c_start_transfer(bus, addr, 1));
     len = i2c_recv(bus);
     if (len > 32) {
         len = 0;
