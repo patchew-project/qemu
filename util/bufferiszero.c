@@ -25,6 +25,10 @@
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
+#include <math.h>
+
+static uint32_t cache_line_factor = 1;
+static uint32_t prefetch_line_dist = 1;
 
 static bool
 buffer_zero_int(const void *buf, size_t len)
@@ -49,7 +53,8 @@ buffer_zero_int(const void *buf, size_t len)
         const uint64_t *e = (uint64_t *)(((uintptr_t)buf + len) & -8);
 
         for (; p + 8 <= e; p += 8) {
-            __builtin_prefetch(p + 8, 0, 0);
+            __builtin_prefetch(p +
+               (8 * cache_line_factor * prefetch_line_dist), 0, 0);
             if (t) {
                 return false;
             }
@@ -293,6 +298,30 @@ bool test_buffer_is_zero_next_accel(void)
 }
 #endif
 
+#if defined(__aarch64__)
+#include "qemu/aarch64-cpuid.h"
+
+static void __attribute__((constructor)) aarch64_init_cache_size(void)
+{
+    uint64_t t;
+
+    /* Use the DZP block size as a proxy for the cacheline size,
+       since the later is not available to userspace.  This seems
+       to work in practice for existing implementations.  */
+    asm("mrs %0, dczid_el0" : "=r"(t));
+    if (pow(2, (t & 0xf)) * 4 >= 128) {
+        cache_line_factor = 2;
+    } else {
+        cache_line_factor = 1;
+    }
+
+    get_aarch64_cpu_id();
+    if (is_thunderx_pass2_cpu()) {
+        prefetch_line_dist = 3;
+    }
+}
+#endif
+
 /*
  * Checks if a buffer is all zeroes
  */
@@ -305,6 +334,12 @@ bool buffer_is_zero(const void *buf, size_t len)
     /* Fetch the beginning of the buffer while we select the accelerator.  */
     __builtin_prefetch(buf, 0, 0);
 
+#if defined(__aarch64__)
+    if (is_thunderx_pass2_cpu()) {
+        __builtin_prefetch(buf + 16, 0, 0);
+        __builtin_prefetch(buf + 32, 0, 0);
+    }
+#endif
     /* Use an optimized zero check if possible.  Note that this also
        includes a check for an unrolled loop over 64-bit integers.  */
     return select_accel_fn(buf, len);
