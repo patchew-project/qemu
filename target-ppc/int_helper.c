@@ -1717,6 +1717,94 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
+#define EXTRACT_BITS(size)                                              \
+static inline uint##size##_t extract_bits_u##size(uint##size##_t reg,   \
+                                                  uint##size##_t start, \
+                                                  uint##size##_t end)   \
+{                                                                       \
+    uint##size##_t nr_mask_bits = end - start + 1;                      \
+    uint##size##_t val = 1;                                             \
+    uint##size##_t mask = (val << nr_mask_bits) - 1;                    \
+    uint##size##_t shifted_reg = reg  >> ((size - 1)  - end);           \
+    return shifted_reg & mask;                                          \
+}
+
+EXTRACT_BITS(64);
+EXTRACT_BITS(32);
+
+#define MASK(size, max_val)                                     \
+static inline uint##size##_t mask_u##size(uint##size##_t start, \
+                                uint##size##_t end)             \
+{                                                               \
+    uint##size##_t ret, max_bit = size - 1;                     \
+                                                                \
+    if (likely(start == 0)) {                                   \
+        ret = max_val << (max_bit - end);                       \
+    } else if (likely(end == max_bit)) {                        \
+        ret = max_val >> start;                                 \
+    } else {                                                    \
+        ret = (((uint##size##_t)(-1ULL)) >> (start)) ^          \
+            (((uint##size##_t)(-1ULL) >> (end)) >> 1);          \
+        if (unlikely(start > end)) {                            \
+            return ~ret;                                        \
+        }                                                       \
+    }                                                           \
+                                                                \
+    return ret;                                                 \
+}
+
+MASK(32, UINT32_MAX);
+MASK(64, UINT64_MAX);
+
+#define LEFT_ROTATE(size)                                            \
+static inline uint##size##_t left_rotate_u##size(uint##size##_t val, \
+                                              uint##size##_t shift)  \
+{                                                                    \
+    if (!shift) {                                                    \
+        return val;                                                  \
+    }                                                                \
+                                                                     \
+    uint##size##_t left_val = extract_bits_u##size(val, 0, shift - 1); \
+    uint##size##_t right_val = val & mask_u##size(shift, size - 1);    \
+                                                                     \
+    return right_val << shift | left_val;                            \
+}
+
+LEFT_ROTATE(32);
+LEFT_ROTATE(64);
+
+#define VRLMI(name, size, element,                                  \
+                     begin_first, begin_last,                       \
+                     end_first, end_last,                           \
+                     shift_first, shift_last)                       \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)        \
+{                                                                   \
+    int i;                                                          \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+        uint##size##_t src1 = a->element[i];                        \
+        uint##size##_t src2 = b->element[i];                        \
+        uint##size##_t src3 = r->element[i];                        \
+        uint##size##_t begin, end, shift, mask, rot_val;            \
+                                                                    \
+        begin = extract_bits_u##size(src2, begin_first, begin_last);\
+        end = extract_bits_u##size(src2, end_first, end_last);      \
+        shift = extract_bits_u##size(src2, shift_first, shift_last);\
+        rot_val = left_rotate_u##size(src1, shift);                 \
+        mask = mask_u##size(begin, end);                            \
+        r->element[i] = (rot_val & mask) | (src3 & ~mask);          \
+    }                                                               \
+}
+
+VRLMI(vrldmi, 64, u64,
+             42, 47,  /* begin_first, begin_last */
+             50, 55,  /* end_first, end_last */
+             58, 63); /* shift_first, shift_last */
+
+VRLMI(vrlwmi, 32, u32,
+             11, 15,  /* begin_first, begin_last */
+             19, 23,  /* end_first, end_last */
+             27, 31); /* shift_first, shift_last */
+
 void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                  ppc_avr_t *c)
 {
