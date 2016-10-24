@@ -1188,6 +1188,15 @@ void qemu_mutex_unlock_ramlist(void)
 }
 
 #ifdef __linux__
+static int64_t get_file_size(int fd)
+{
+    int64_t size = lseek(fd, 0, SEEK_END);
+    if (size < 0) {
+        return -errno;
+    }
+    return size;
+}
+
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             const char *path,
@@ -1199,6 +1208,7 @@ static void *file_ram_alloc(RAMBlock *block,
     char *c;
     void *area = MAP_FAILED;
     int fd = -1;
+    int64_t file_size;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
@@ -1256,6 +1266,14 @@ static void *file_ram_alloc(RAMBlock *block,
     block->page_size = qemu_fd_getpagesize(fd);
     block->mr->align = MAX(block->page_size, QEMU_VMALLOC_ALIGN);
 
+    file_size = get_file_size(fd);
+    if (file_size < 0) {
+        error_setg_errno(errp, file_size,
+                         "can't get size of backing store %s",
+                         path);
+        goto error;
+    }
+
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",
@@ -1266,12 +1284,29 @@ static void *file_ram_alloc(RAMBlock *block,
     memory = ROUND_UP(memory, block->page_size);
 
     /*
+     * Do not extend/shrink the backend file if it's not empty, or its
+     * size does not match the aligned 'size=xxx' option. Otherwise,
+     * it is possible to corrupt the existing data in the file.
+     *
+     * Disabling shrinking is not enough. For example, the current
+     * vNVDIMM implementation stores the guest NVDIMM labels at the
+     * end of the backend file. If the backend file is later extended,
+     * QEMU will not be able to find those labels. Therefore,
+     * extending the non-empty backend file is disabled as well.
+     */
+    if (file_size && file_size != memory) {
+        error_setg(errp, "backing store %s size %"PRId64
+                   " does not math with aligned 'size' option %"PRIu64,
+                   path, file_size, memory);
+        goto error;
+    }
+    /*
      * ftruncate is not supported by hugetlbfs in older
      * hosts, so don't bother bailing out on errors.
      * If anything goes wrong with it under other filesystems,
      * mmap will fail.
      */
-    if (ftruncate(fd, memory)) {
+    if (!file_size && ftruncate(fd, memory)) {
         perror("ftruncate");
     }
 
