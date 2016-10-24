@@ -254,6 +254,16 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
 }
 
 
+static void test_visitor_out_partial_visit(TestOutputVisitorData *data,
+                                           const void *unused)
+{
+    /* Check that aborting mid-visit doesn't leak or double-free */
+    visit_start_struct(data->ov, NULL, NULL, 0, &error_abort);
+    visit_start_struct(data->ov, "nested", NULL, 0, &error_abort);
+    visitor_reset(data);
+}
+
+
 static void test_visitor_out_list(TestOutputVisitorData *data,
                                   const void *unused)
 {
@@ -817,6 +827,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_struct_nested);
     output_visitor_test_add("/visitor/output/struct-errors",
                             &out_visitor_data, test_visitor_out_struct_errors);
+    output_visitor_test_add("/visitor/output/partial-visit",
+                            &out_visitor_data, test_visitor_out_partial_visit);
     output_visitor_test_add("/visitor/output/list",
                             &out_visitor_data, test_visitor_out_list);
     output_visitor_test_add("/visitor/output/any",
