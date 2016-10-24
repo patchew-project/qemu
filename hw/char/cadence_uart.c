@@ -1,5 +1,6 @@
 /*
  * Device model for Cadence UART
+ *  -> http://www.xilinx.com/support/documentation/user_guides/ug585-Zynq-7000-TRM.pdf
  *
  * Copyright (c) 2010 Xilinx Inc.
  * Copyright (c) 2012 Peter A.G. Crosthwaite (peter.crosthwaite@petalogix.com)
@@ -408,6 +409,18 @@ static void uart_write(void *opaque, hwaddr offset,
         case LOCAL_LOOPBACK:
             uart_write_rx_fifo(opaque, (uint8_t *) &value, 1);
             break;
+        }
+        break;
+    case R_BRGR: /* Baud rate generator */
+        s->r[offset] = 0x028B; /* default reset value */
+        if (value >= 0x01 && value <= 0xFFFF) {
+            s->r[offset] = value;
+        }
+        break;
+    case R_BDIV:    /* Baud rate divider */
+        s->r[offset] = 0x0F;
+        if (value >= 0x04 && value <= 0xFF) {
+            s->r[offset] = value;
         }
         break;
     default:
