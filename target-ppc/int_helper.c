@@ -1776,7 +1776,7 @@ LEFT_ROTATE(64);
 #define VRLMI(name, size, element,                                  \
                      begin_first, begin_last,                       \
                      end_first, end_last,                           \
-                     shift_first, shift_last)                       \
+                     shift_first, shift_last, insert)               \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)        \
 {                                                                   \
     int i;                                                          \
@@ -1791,19 +1791,37 @@ void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)        \
         shift = extract_bits_u##size(src2, shift_first, shift_last);\
         rot_val = left_rotate_u##size(src1, shift);                 \
         mask = mask_u##size(begin, end);                            \
-        r->element[i] = (rot_val & mask) | (src3 & ~mask);          \
+        if (insert) {                                               \
+            r->element[i] = (rot_val & mask) | (src3 & ~mask);      \
+        } else {                                                    \
+            r->element[i] = (rot_val & mask);                       \
+        }                                                           \
     }                                                               \
 }
 
 VRLMI(vrldmi, 64, u64,
              42, 47,  /* begin_first, begin_last */
              50, 55,  /* end_first, end_last */
-             58, 63); /* shift_first, shift_last */
+             58, 63,  /* shift_first, shift_last */
+             1);      /* mask and insert */
 
 VRLMI(vrlwmi, 32, u32,
              11, 15,  /* begin_first, begin_last */
              19, 23,  /* end_first, end_last */
-             27, 31); /* shift_first, shift_last */
+             27, 31,  /* shift_first, shift_last */
+             1);      /* mask and insert */
+
+VRLMI(vrldnm, 64, u64,
+             42, 47,  /* begin_first, begin_last */
+             50, 55,  /* end_first, end_last */
+             58, 63,  /* shift_first, shift_last */
+             0);      /* mask only */
+
+VRLMI(vrlwnm, 32, u32,
+             11, 15,  /* begin_first, begin_last */
+             19, 23,  /* end_first, end_last */
+             27, 31,  /* shift_first, shift_last */
+             0);      /* mask only */
 
 void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                  ppc_avr_t *c)
