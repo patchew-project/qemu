@@ -1743,7 +1743,7 @@ MASK(64, UINT64_MAX);
 
 #define VRLMI(name, size, element,                                    \
               begin_last,  end_last, shift_last,                      \
-              num_bits)                                               \
+              num_bits, insert)                                       \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
 {                                                                     \
     int i;                                                            \
@@ -1758,7 +1758,11 @@ void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
         shift = extract##size(src2, size - shift_last - 1, num_bits); \
         rot_val = rol##size(src1, shift);                             \
         mask = mask_u##size(begin, end);                              \
-        r->element[i] = (rot_val & mask) | (src3 & ~mask);            \
+        if (insert) {                                                 \
+            r->element[i] = (rot_val & mask) | (src3 & ~mask);        \
+        } else {                                                      \
+            r->element[i] = (rot_val & mask);                         \
+        }                                                             \
     }                                                                 \
 }
 
@@ -1766,15 +1770,29 @@ VRLMI(vrldmi, 64, u64,
       47,  /* begin_last */
       55,  /* end_last */
       63,  /* shift_last */
-      6    /* num_bits */
-    );
+      6,   /* num_bits */
+      1);  /* mask and insert */
 
 VRLMI(vrlwmi, 32, u32,
       15,  /* begin_last */
       23,  /* end_last */
       31,  /* shift_last */
-      6    /* num_bits */
-    );
+      6,   /* num_bits */
+      1);  /* mask and insert */
+
+VRLMI(vrldnm, 64, u64,
+      47,  /* begin_last */
+      55,  /* end_last */
+      63,  /* shift_last */
+      6,   /* num_bits */
+      0);  /* mask and insert */
+
+VRLMI(vrlwnm, 32, u32,
+      15,  /* begin_last */
+      23,  /* end_last */
+      31,  /* shift_last */
+      6,   /* num_bits */
+      0);  /* mask and insert */
 
 void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                  ppc_avr_t *c)
