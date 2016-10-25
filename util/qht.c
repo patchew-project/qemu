@@ -101,14 +101,14 @@
  * be grabbed first.
  */
 struct qht_bucket {
-    QemuSpin lock;
     QemuSeqLock sequence;
+    QemuSpin lock;
     uint32_t hashes[QHT_BUCKET_ENTRIES];
     void *pointers[QHT_BUCKET_ENTRIES];
     struct qht_bucket *next;
 } QEMU_ALIGNED(QHT_BUCKET_ALIGN);
 
-QEMU_BUILD_BUG_ON(sizeof(struct qht_bucket) > QHT_BUCKET_ALIGN);
+QEMU_BUILD_BUG_ON(sizeof(struct qht_bucket) > 2 * QHT_BUCKET_ALIGN);
 
 /**
  * struct qht_map - structure to track an array of buckets

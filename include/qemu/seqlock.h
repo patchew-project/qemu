@@ -21,7 +21,7 @@ typedef struct QemuSeqLock QemuSeqLock;
 
 struct QemuSeqLock {
     unsigned sequence;
-};
+} QEMU_ALIGNED(64);
 
 static inline void seqlock_init(QemuSeqLock *sl)
 {
