@@ -6751,42 +6751,37 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     return 0;
 }
 
-static inline abi_long target_to_host_itimerspec(struct itimerspec *host_itspec,
+static inline abi_long target_to_host_itimerspec(struct itimerspec *host_its,
                                                  abi_ulong target_addr)
 {
-    struct target_itimerspec *target_itspec;
+    struct target_itimerspec *target_its;
 
-    if (!lock_user_struct(VERIFY_READ, target_itspec, target_addr, 1)) {
+    if (!lock_user_struct(VERIFY_READ, target_its, target_addr, 1)) {
         return -TARGET_EFAULT;
     }
-
-    host_itspec->it_interval.tv_sec =
-                            tswapal(target_itspec->it_interval.tv_sec);
-    host_itspec->it_interval.tv_nsec =
-                            tswapal(target_itspec->it_interval.tv_nsec);
-    host_itspec->it_value.tv_sec = tswapal(target_itspec->it_value.tv_sec);
-    host_itspec->it_value.tv_nsec = tswapal(target_itspec->it_value.tv_nsec);
-
-    unlock_user_struct(target_itspec, target_addr, 1);
+    __get_user(host_its->it_interval.tv_sec, &target_its->it_interval.tv_sec);
+    __get_user(host_its->it_interval.tv_nsec,
+                               &target_its->it_interval.tv_nsec);
+    __get_user(host_its->it_value.tv_sec, &target_its->it_value.tv_sec);
+    __get_user(host_its->it_value.tv_nsec, &target_its->it_value.tv_nsec);
+    unlock_user_struct(target_its, target_addr, 1);
     return 0;
 }
 
 static inline abi_long host_to_target_itimerspec(abi_ulong target_addr,
                                                struct itimerspec *host_its)
 {
-    struct target_itimerspec *target_itspec;
+    struct target_itimerspec *target_its;
 
-    if (!lock_user_struct(VERIFY_WRITE, target_itspec, target_addr, 0)) {
+    if (!lock_user_struct(VERIFY_WRITE, target_its, target_addr, 0)) {
         return -TARGET_EFAULT;
     }
-
-    target_itspec->it_interval.tv_sec = tswapal(host_its->it_interval.tv_sec);
-    target_itspec->it_interval.tv_nsec = tswapal(host_its->it_interval.tv_nsec);
-
-    target_itspec->it_value.tv_sec = tswapal(host_its->it_value.tv_sec);
-    target_itspec->it_value.tv_nsec = tswapal(host_its->it_value.tv_nsec);
-
-    unlock_user_struct(target_itspec, target_addr, 0);
+    __put_user(host_its->it_interval.tv_sec, &target_its->it_interval.tv_sec);
+    __put_user(host_its->it_interval.tv_nsec,
+                               &target_its->it_interval.tv_nsec);
+    __put_user(host_its->it_value.tv_sec, &target_its->it_value.tv_sec);
+    __put_user(host_its->it_value.tv_nsec, &target_its->it_value.tv_nsec);
+    unlock_user_struct(target_its, target_addr, 0);
     return 0;
 }
 
