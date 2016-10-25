@@ -198,6 +198,14 @@ static void versatile_init(MachineState *machine, int board_id)
     int done_smc = 0;
     DriveInfo *dinfo;
 
+    if (machine->ram_size > 0x10000000) {
+        /* devices are starting at address 0x10000000,
+         * Memory cannot overlap with devices.
+         */ 
+        fprintf(stderr, "Memory size cannot exceed 256MB\n");
+        exit(1);
+    }
+
     if (!machine->cpu_model) {
         machine->cpu_model = "arm926";
     }
