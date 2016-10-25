@@ -11444,6 +11444,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+#ifdef TARGET_NR_clock_settime
+    case TARGET_NR_clock_settime:
+    {
+        struct timespec ts;
+        if (target_to_host_timespec(&ts, arg2)) {
+            goto efault;
+        }
+        ret = get_errno(clock_settime(arg1, &ts));
+        break;
+    }
+#endif
 #ifdef TARGET_NR_clock_getres
     case TARGET_NR_clock_getres:
     {
