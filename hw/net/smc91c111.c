@@ -418,7 +418,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             /* Ignore.  */
             return;
         case 2: /* Packet Number Register */
-            s->packet_num = value;
+            s->packet_num = value & (NUM_PACKETS - 1);
             return;
         case 3: case 4: case 5:
             /* Should be readonly, but linux writes to them anyway. Ignore.  */
@@ -444,7 +444,10 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
                 } else {
                     p += (offset & 3);
                 }
-                s->data[n][p] = value;
+                if (n < NUM_PACKETS
+                    && p < sizeof(s->data[n]) / sizeof(s->data[n][0])) {
+                    s->data[n][p] = value;
+                }
             }
             return;
         case 12: /* Interrupt ACK.  */
@@ -590,7 +593,12 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
                 } else {
                     p += (offset & 3);
                 }
-                return s->data[n][p];
+
+                if (n < NUM_PACKETS
+                    && p < sizeof(s->data[n]) / sizeof(s->data[n][0])) {
+                    return s->data[n][p];
+                }
+                return 0x80;
             }
         case 12: /* Interrupt status.  */
             return s->int_level;
