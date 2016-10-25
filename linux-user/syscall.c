@@ -11437,7 +11437,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         struct timespec ts;
         ret = get_errno(clock_gettime(arg1, &ts));
         if (!is_error(ret)) {
-            host_to_target_timespec(arg2, &ts);
+            if (host_to_target_timespec(arg2, &ts)) {
+                goto efault;
+            }
         }
         break;
     }
