@@ -45,6 +45,7 @@
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
 #include "sysemu/numa.h"
+#include "hw/xen/xen.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -2961,6 +2962,11 @@ void acpi_setup(void)
 
     if (!acpi_enabled) {
         ACPI_BUILD_DPRINTF("ACPI disabled. Bailing out.\n");
+        return;
+    }
+
+    if (xen_enabled()) {
+        ACPI_BUILD_DPRINTF("Xen enabled. Bailing out.\n");
         return;
     }
 
