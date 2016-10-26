@@ -203,6 +203,9 @@ static void smc91c111_pop_tx_fifo_done(smc91c111_state *s)
 /* Release the memory allocated to a packet.  */
 static void smc91c111_release_packet(smc91c111_state *s, int packet)
 {
+    if (packet >= NUM_PACKETS || !(packet & s->allocated)) {
+        return;
+    }
     s->allocated &= ~(1 << packet);
     if (s->tx_alloc == 0x80)
         smc91c111_tx_alloc(s);
@@ -224,6 +227,9 @@ static void smc91c111_do_tx(smc91c111_state *s)
         return;
     for (i = 0; i < s->tx_fifo_len; i++) {
         packetnum = s->tx_fifo[i];
+        if (packetnum >= NUM_PACKETS || !(packetnum & s->allocated)) {
+            return;
+        }
         p = &s->data[packetnum][0];
         /* Set status word.  */
         *(p++) = 0x01;
@@ -418,7 +424,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             /* Ignore.  */
             return;
         case 2: /* Packet Number Register */
-            s->packet_num = value;
+            s->packet_num = value & 0x03F;
             return;
         case 3: case 4: case 5:
             /* Should be readonly, but linux writes to them anyway. Ignore.  */
@@ -438,13 +444,17 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
                     n = s->rx_fifo[0];
                 else
                     n = s->packet_num;
-                p = s->ptr & 0x07ff;
+                p = s->ptr;
                 if (s->ptr & 0x4000) {
                     s->ptr = (s->ptr & 0xf800) | ((s->ptr + 1) & 0x7ff);
                 } else {
                     p += (offset & 3);
                 }
-                s->data[n][p] = value;
+                p &= 0x07ff;
+                if (s->allocated < NUM_PACKETS
+                    && n < NUM_PACKETS && n & s->allocated) {
+                    s->data[n][p] = value;
+                }
             }
             return;
         case 12: /* Interrupt ACK.  */
@@ -517,7 +527,8 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
                 int i;
                 int n;
                 n = 0;
-                for (i = 0; i < NUM_PACKETS; i++) {
+                for (i = 0;
+                     s->allocated < NUM_PACKETS && i < NUM_PACKETS; i++) {
                     if (s->allocated & (1 << i))
                         n++;
                 }
@@ -558,9 +569,9 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
         case 0: case 1: /* MMUCR Busy bit.  */
             return 0;
         case 2: /* Packet Number.  */
-            return s->packet_num;
+            return s->packet_num & 0x3F;
         case 3: /* Allocation Result.  */
-            return s->tx_alloc;
+            return s->tx_alloc < NUM_PACKETS ? s->tx_alloc : 0;
         case 4: /* TX FIFO */
             if (s->tx_fifo_done_len == 0)
                 return 0x80;
@@ -584,13 +595,18 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
                     n = s->rx_fifo[0];
                 else
                     n = s->packet_num;
-                p = s->ptr & 0x07ff;
+                p = s->ptr;
                 if (s->ptr & 0x4000) {
                     s->ptr = (s->ptr & 0xf800) | ((s->ptr + 1) & 0x07ff);
                 } else {
                     p += (offset & 3);
                 }
-                return s->data[n][p];
+                p &= 0x07ff;
+                if (s->allocated < NUM_PACKETS
+                    && n < NUM_PACKETS && n & s->allocated) {
+                    return s->data[n][p];
+                }
+                return 0;
             }
         case 12: /* Interrupt status.  */
             return s->int_level;
