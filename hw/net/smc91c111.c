@@ -418,7 +418,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             /* Ignore.  */
             return;
         case 2: /* Packet Number Register */
-            s->packet_num = value;
+            s->packet_num = value & 0x03F;
             return;
         case 3: case 4: case 5:
             /* Should be readonly, but linux writes to them anyway. Ignore.  */
@@ -438,13 +438,16 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
                     n = s->rx_fifo[0];
                 else
                     n = s->packet_num;
-                p = s->ptr & 0x07ff;
+                p = s->ptr;
                 if (s->ptr & 0x4000) {
                     s->ptr = (s->ptr & 0xf800) | ((s->ptr + 1) & 0x7ff);
                 } else {
                     p += (offset & 3);
                 }
-                s->data[n][p] = value;
+                p &= 0x07ff;
+                if (n < NUM_PACKETS && n & s->allocated) {
+                    s->data[n][p] = value;
+                }
             }
             return;
         case 12: /* Interrupt ACK.  */
@@ -584,13 +587,17 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
                     n = s->rx_fifo[0];
                 else
                     n = s->packet_num;
-                p = s->ptr & 0x07ff;
+                p = s->ptr;
                 if (s->ptr & 0x4000) {
                     s->ptr = (s->ptr & 0xf800) | ((s->ptr + 1) & 0x07ff);
                 } else {
                     p += (offset & 3);
                 }
-                return s->data[n][p];
+                p &= 0x07ff;
+                if (n < NUM_PACKETS && n & s->allocated) {
+                    return s->data[n][p];
+                }
+                return 0;
             }
         case 12: /* Interrupt status.  */
             return s->int_level;
