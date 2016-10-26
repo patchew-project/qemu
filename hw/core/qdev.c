@@ -813,6 +813,10 @@ static void qdev_property_set_to_default(DeviceState *dev, Property *prop,
  * Add a static QOM property to @dev for qdev property @prop.
  * On error, store error in @errp.  Static properties access data in a struct.
  * The type of the QOM property is derived from prop->info.
+ *
+ * Do not use this in new code. Either use qdev_class_set_props(),
+ * or register regular QOM properties using object_property_add() or
+ * object_class_property_add().
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop,
                               Error **errp)
