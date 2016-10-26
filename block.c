@@ -2090,7 +2090,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 
     assert(bs_queue != NULL);
 
-    bdrv_drain_all();
+    bdrv_drain_all_begin();
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, &local_err)) {
@@ -2120,6 +2120,9 @@ cleanup:
         g_free(bs_entry);
     }
     g_free(bs_queue);
+
+    bdrv_drain_all_end();
+
     return ret;
 }
 
