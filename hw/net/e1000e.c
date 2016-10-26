@@ -66,9 +66,6 @@ typedef struct E1000EState {
     uint16_t subsys_ven;
     uint16_t subsys;
 
-    uint16_t subsys_ven_used;
-    uint16_t subsys_used;
-
     bool disable_vnet;
 
     E1000ECore core;
@@ -424,9 +421,6 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_ven);
     pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, s->subsys);
 
-    s->subsys_ven_used = s->subsys_ven;
-    s->subsys_used = s->subsys;
-
     /* Define IO/MMIO regions */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
                           "e1000e-mmio", E1000E_MMIO_SIZE);
@@ -530,14 +524,6 @@ static int e1000e_post_load(void *opaque, int version_id)
     E1000EState *s = opaque;
 
     trace_e1000e_cb_post_load();
-
-    if ((s->subsys != s->subsys_used) ||
-        (s->subsys_ven != s->subsys_ven_used)) {
-        fprintf(stderr,
-            "ERROR: Cannot migrate while device properties "
-            "(subsys/subsys_ven) differ");
-        return -1;
-    }
 
     return e1000e_core_post_load(&s->core);
 }
