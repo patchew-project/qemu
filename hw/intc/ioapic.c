@@ -427,7 +427,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
 
     k->realize = ioapic_realize;
     dc->reset = ioapic_reset_common;
-    dc->props = ioapic_properties;
+    device_class_set_props(dc, ioapic_properties);
 }
 
 static const TypeInfo ioapic_info = {

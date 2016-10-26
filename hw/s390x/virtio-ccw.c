@@ -1347,7 +1347,7 @@ static void virtio_ccw_net_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_ccw_net_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_net_properties;
+    device_class_set_props(dc, virtio_ccw_net_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
@@ -1376,7 +1376,7 @@ static void virtio_ccw_blk_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_ccw_blk_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_blk_properties;
+    device_class_set_props(dc, virtio_ccw_blk_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -1405,7 +1405,7 @@ static void virtio_ccw_serial_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_ccw_serial_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_serial_properties;
+    device_class_set_props(dc, virtio_ccw_serial_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
@@ -1434,7 +1434,7 @@ static void virtio_ccw_balloon_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_ccw_balloon_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_balloon_properties;
+    device_class_set_props(dc, virtio_ccw_balloon_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
@@ -1463,7 +1463,7 @@ static void virtio_ccw_scsi_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_ccw_scsi_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_scsi_properties;
+    device_class_set_props(dc, virtio_ccw_scsi_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -1491,7 +1491,7 @@ static void vhost_ccw_scsi_class_init(ObjectClass *klass, void *data)
     k->realize = vhost_ccw_scsi_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = vhost_ccw_scsi_properties;
+    device_class_set_props(dc, vhost_ccw_scsi_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -1531,7 +1531,7 @@ static void virtio_ccw_rng_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_ccw_rng_realize;
     k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_rng_properties;
+    device_class_set_props(dc, virtio_ccw_rng_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
@@ -1657,7 +1657,7 @@ static void virtio_ccw_9p_class_init(ObjectClass *klass, void *data)
     k->exit = virtio_ccw_exit;
     k->realize = virtio_ccw_9p_realize;
     dc->reset = virtio_ccw_reset;
-    dc->props = virtio_ccw_9p_properties;
+    device_class_set_props(dc, virtio_ccw_9p_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
@@ -1708,7 +1708,7 @@ static void vhost_vsock_ccw_class_init(ObjectClass *klass, void *data)
     k->realize = vhost_vsock_ccw_realize;
     k->exit = virtio_ccw_exit;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->props = vhost_vsock_ccw_properties;
+    device_class_set_props(dc, vhost_vsock_ccw_properties);
     dc->reset = virtio_ccw_reset;
 }
 

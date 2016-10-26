@@ -628,7 +628,7 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = fs_eth_init;
-    dc->props = etraxfs_eth_properties;
+    device_class_set_props(dc, etraxfs_eth_properties);
     /* Reason: pointer properties "dma_out", "dma_in" */
     dc->cannot_instantiate_with_device_add_yet = true;
 }

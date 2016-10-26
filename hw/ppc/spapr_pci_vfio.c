@@ -223,7 +223,7 @@ static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = spapr_phb_vfio_properties;
+    device_class_set_props(dc, spapr_phb_vfio_properties);
 }
 
 static const TypeInfo spapr_phb_vfio_info = {

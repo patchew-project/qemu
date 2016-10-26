@@ -848,6 +848,12 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
     } while (class != object_class_by_name(TYPE_DEVICE));
 }
 
+void device_class_set_props(DeviceClass *dc, Property *props)
+{
+    assert(!dc->props);
+    dc->props = props;
+}
+
 static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
 {
     GSList **list = opaque;

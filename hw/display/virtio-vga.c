@@ -186,7 +186,7 @@ static void virtio_vga_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->props = virtio_vga_properties;
+    device_class_set_props(dc, virtio_vga_properties);
     dc->reset = virtio_vga_reset;
     dc->vmsd = &vmstate_virtio_vga;
     dc->hotpluggable = false;

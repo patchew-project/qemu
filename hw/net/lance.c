@@ -163,7 +163,7 @@ static void lance_class_init(ObjectClass *klass, void *data)
     dc->fw_name = "ethernet";
     dc->reset = lance_reset;
     dc->vmsd = &vmstate_lance;
-    dc->props = lance_properties;
+    device_class_set_props(dc, lance_properties);
     /* Reason: pointer property "dma" */
     dc->cannot_instantiate_with_device_add_yet = true;
 }

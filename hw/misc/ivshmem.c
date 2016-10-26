@@ -1074,7 +1074,7 @@ static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
 
     k->realize = ivshmem_plain_realize;
     k->exit = ivshmem_plain_exit;
-    dc->props = ivshmem_plain_properties;
+    device_class_set_props(dc, ivshmem_plain_properties);
     dc->vmsd = &ivshmem_plain_vmsd;
 }
 
@@ -1136,7 +1136,7 @@ static void ivshmem_doorbell_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = ivshmem_doorbell_realize;
-    dc->props = ivshmem_doorbell_properties;
+    device_class_set_props(dc, ivshmem_doorbell_properties);
     dc->vmsd = &ivshmem_doorbell_vmsd;
 }
 
@@ -1304,7 +1304,7 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     k->realize = ivshmem_realize;
     k->revision = 0;
     dc->desc = "Inter-VM shared memory (legacy)";
-    dc->props = ivshmem_properties;
+    device_class_set_props(dc, ivshmem_properties);
     dc->vmsd = &ivshmem_vmsd;
 }
 

@@ -1531,7 +1531,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 
     acc->parent_realize = dc->realize;
     dc->realize = arm_cpu_realizefn;
-    dc->props = arm_cpu_properties;
+    device_class_set_props(dc, arm_cpu_properties);
 
     acc->parent_reset = cc->reset;
     cc->reset = arm_cpu_reset;

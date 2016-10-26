@@ -749,7 +749,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = prom_init1;
-    dc->props = prom_properties;
+    device_class_set_props(dc, prom_properties);
 }
 
 static const TypeInfo prom_info = {
@@ -816,7 +816,7 @@ static void ram_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = ram_init1;
-    dc->props = ram_properties;
+    device_class_set_props(dc, ram_properties);
 }
 
 static const TypeInfo ram_info = {

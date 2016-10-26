@@ -372,7 +372,7 @@ static void xilinx_spi_class_init(ObjectClass *klass, void *data)
 
     k->init = xilinx_spi_init;
     dc->reset = xlx_spi_reset;
-    dc->props = xilinx_spi_properties;
+    device_class_set_props(dc, xilinx_spi_properties);
     dc->vmsd = &vmstate_xilinx_spi;
 }
 

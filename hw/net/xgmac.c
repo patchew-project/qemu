@@ -415,7 +415,7 @@ static void xgmac_enet_class_init(ObjectClass *klass, void *data)
 
     sbc->init = xgmac_enet_init;
     dc->vmsd = &vmstate_xgmac;
-    dc->props = xgmac_properties;
+    device_class_set_props(dc, xgmac_properties);
 }
 
 static const TypeInfo xgmac_enet_info = {

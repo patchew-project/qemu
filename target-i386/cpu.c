@@ -1579,7 +1579,7 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
      * instance_init, because they require KVM to be initialized.
      */
 
-    dc->props = host_x86_cpu_properties;
+    device_class_set_props(dc, host_x86_cpu_properties);
     /* Reason: host_x86_cpu_initfn() dies when !kvm_enabled() */
     dc->cannot_destroy_with_object_finalize_yet = true;
 }
@@ -3651,7 +3651,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     xcc->parent_unrealize = dc->unrealize;
     dc->realize = x86_cpu_realizefn;
     dc->unrealize = x86_cpu_unrealizefn;
-    dc->props = x86_cpu_properties;
+    device_class_set_props(dc, x86_cpu_properties);
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;

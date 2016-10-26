@@ -327,7 +327,7 @@ static void virtio_input_hid_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOInputClass *vic = VIRTIO_INPUT_CLASS(klass);
 
-    dc->props          = virtio_input_hid_properties;
+    device_class_set_props(dc, virtio_input_hid_properties);
     vic->realize       = virtio_input_hid_realize;
     vic->unrealize     = virtio_input_hid_unrealize;
     vic->change_active = virtio_input_hid_change_active;
