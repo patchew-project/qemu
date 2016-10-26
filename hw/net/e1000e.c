@@ -63,7 +63,7 @@ typedef struct E1000EState {
 
     uint32_t ioaddr;
 
-    uint16_t subsys_ven;
+    uint16_t subsys_vendor;
     uint16_t subsys;
 
     bool has_vnet;
@@ -418,7 +418,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
 
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_ven);
+    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_vendor);
     pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, s->subsys);
 
     /* Define IO/MMIO regions */
@@ -524,7 +524,6 @@ static int e1000e_post_load(void *opaque, int version_id)
     E1000EState *s = opaque;
 
     trace_e1000e_cb_post_load();
-
     return e1000e_core_post_load(&s->core);
 }
 
@@ -596,7 +595,7 @@ static const VMStateDescription e1000e_vmstate = {
         VMSTATE_UINT32(core.delayed_causes, E1000EState),
 
         VMSTATE_UINT16(subsys, E1000EState),
-        VMSTATE_UINT16(subsys_ven, E1000EState),
+        VMSTATE_UINT16(subsys_vendor, E1000EState),
 
         VMSTATE_E1000E_INTR_DELAY_TIMER(core.rdtr, E1000EState),
         VMSTATE_E1000E_INTR_DELAY_TIMER(core.radv, E1000EState),
@@ -627,7 +626,7 @@ static const VMStateDescription e1000e_vmstate = {
 static Property e1000e_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000EState, conf),
     DEFINE_PROP_BOOL("vnet", E1000EState, has_vnet, true),
-    DEFINE_PROP_UINT16("subsys_ven", E1000EState, subsys_ven, PCI_VENDOR_ID_INTEL),
+    DEFINE_PROP_UINT16("subsys-vendor", E1000EState, subsys_vendor, PCI_VENDOR_ID_INTEL),
     DEFINE_PROP_UINT16("subsys", E1000EState, subsys, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
