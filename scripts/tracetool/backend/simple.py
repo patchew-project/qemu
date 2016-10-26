@@ -21,7 +21,9 @@ PUBLIC = True
 
 def is_string(arg):
     strtype = ('const char*', 'char*', 'const char *', 'char *')
-    if arg.lstrip().startswith(strtype):
+    non_strtype = ('const char**', 'char**', 'const char **', 'char **')
+    arg_strip = arg.lstrip()
+    if arg_strip.startswith(strtype) and not arg_strip.startswith(non_strtype):
         return True
     else:
         return False
