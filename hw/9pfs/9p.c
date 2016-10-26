@@ -3275,6 +3275,11 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
+    if (file_fidp->fid_type != P9_FID_NONE) {
+        err = -EINVAL;
+        goto out_put_fid;
+    }
+
     /* Make the file fid point to xattr */
     xattr_fidp = file_fidp;
     xattr_fidp->fid_type = P9_FID_XATTR;
@@ -3283,9 +3288,9 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
     xattr_fidp->fs.xattr.flags = flags;
     v9fs_string_init(&xattr_fidp->fs.xattr.name);
     v9fs_string_copy(&xattr_fidp->fs.xattr.name, &name);
-    g_free(xattr_fidp->fs.xattr.value);
     xattr_fidp->fs.xattr.value = g_malloc0(size);
     err = offset;
+out_put_fid:
     put_fid(pdu, file_fidp);
 out_nofid:
     pdu_complete(pdu, err);
