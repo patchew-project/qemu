@@ -638,19 +638,11 @@ static const VMStateDescription e1000e_vmstate = {
     }
 };
 
-static PropertyInfo e1000e_prop_disable_vnet,
-                    e1000e_prop_subsys_ven,
-                    e1000e_prop_subsys;
-
 static Property e1000e_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000EState, conf),
-    DEFINE_PROP_DEFAULT("disable_vnet_hdr", E1000EState, disable_vnet, false,
-                        e1000e_prop_disable_vnet, bool),
-    DEFINE_PROP_DEFAULT("subsys_ven", E1000EState, subsys_ven,
-                        PCI_VENDOR_ID_INTEL,
-                        e1000e_prop_subsys_ven, uint16_t),
-    DEFINE_PROP_DEFAULT("subsys", E1000EState, subsys, 0,
-                        e1000e_prop_subsys, uint16_t),
+    DEFINE_PROP_BOOL("disable_vnet_hdr", E1000EState, disable_vnet, false),
+    DEFINE_PROP_UINT16("subsys_ven", E1000EState, subsys_ven, PCI_VENDOR_ID_INTEL),
+    DEFINE_PROP_UINT16("subsys", E1000EState, subsys, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -672,17 +664,6 @@ static void e1000e_class_init(ObjectClass *class, void *data)
     dc->reset = e1000e_qdev_reset;
     dc->vmsd = &e1000e_vmstate;
     dc->props = e1000e_properties;
-
-    e1000e_prop_disable_vnet = qdev_prop_uint8;
-    e1000e_prop_disable_vnet.description = "Do not use virtio headers, "
-                                           "perform SW offloads emulation "
-                                           "instead";
-
-    e1000e_prop_subsys_ven = qdev_prop_uint16;
-    e1000e_prop_subsys_ven.description = "PCI device Subsystem Vendor ID";
-
-    e1000e_prop_subsys = qdev_prop_uint16;
-    e1000e_prop_subsys.description = "PCI device Subsystem ID";
 
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
