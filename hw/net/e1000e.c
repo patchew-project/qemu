@@ -66,7 +66,7 @@ typedef struct E1000EState {
     uint16_t subsys_ven;
     uint16_t subsys;
 
-    bool disable_vnet;
+    bool has_vnet;
 
     E1000ECore core;
 
@@ -327,7 +327,7 @@ e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), macaddr);
 
     /* Setup virtio headers */
-    if (s->disable_vnet) {
+    if (!s->has_vnet) {
         s->core.has_vnet = false;
         trace_e1000e_cfg_support_virtio(false);
         return;
@@ -626,7 +626,7 @@ static const VMStateDescription e1000e_vmstate = {
 
 static Property e1000e_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000EState, conf),
-    DEFINE_PROP_BOOL("disable_vnet_hdr", E1000EState, disable_vnet, false),
+    DEFINE_PROP_BOOL("vnet", E1000EState, has_vnet, true),
     DEFINE_PROP_UINT16("subsys_ven", E1000EState, subsys_ven, PCI_VENDOR_ID_INTEL),
     DEFINE_PROP_UINT16("subsys", E1000EState, subsys, 0),
     DEFINE_PROP_END_OF_LIST(),
