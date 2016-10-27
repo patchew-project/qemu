@@ -1094,10 +1094,14 @@ DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
 #ifdef CONFIG_XEN
 static void xenfv_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     m->desc = "Xen Fully-virtualized PC";
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen";
     m->hot_add_cpu = pc_hot_add_cpu;
+
+    pcmc->has_acpi_build = false;
 }
 
 DEFINE_PC_MACHINE(xenfv, "xenfv", pc_xen_hvm_init,
