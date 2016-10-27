@@ -88,6 +88,11 @@
 #define QEMU_BUILD_BUG_ON(x) \
     typedef char glue(qemu_build_bug_on__,__LINE__)[(x)?-1:1] __attribute__((unused));
 
+/* Evaluates to 0 or fails; seems to work in an array initialisation unlike
+ * GLIB_STATIC_ASSERT_EXPR.  Fails on true.
+ */
+#define QEMU_BUILD_BUG_EXPR(x) (sizeof(int [(x)?-1:1])-sizeof(int [1]))
+
 #if defined __GNUC__
 # if !QEMU_GNUC_PREREQ(4, 4)
    /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
