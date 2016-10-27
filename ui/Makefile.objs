@@ -17,6 +17,9 @@ common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
 common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
 
+# needed to make gcc accept wide unicode chars without warning
+curses.o-cflags := -std=gnu99
+
 ifeq ($(CONFIG_SDLABI),1.2)
 sdl.mo-objs := sdl.o sdl_zoom.o
 endif
