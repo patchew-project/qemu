@@ -1234,7 +1234,7 @@ static int64_t get_file_size(int fd)
 }
 
 static void *file_ram_alloc(RAMBlock *block,
-                            ram_addr_t memory,
+                            ram_addr_t *memory,
                             const char *path,
                             Error **errp)
 {
@@ -1245,6 +1245,7 @@ static void *file_ram_alloc(RAMBlock *block,
     void *area = MAP_FAILED;
     int fd = -1;
     int64_t file_size;
+    ram_addr_t mem_size = *memory;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
@@ -1309,21 +1310,27 @@ static void *file_ram_alloc(RAMBlock *block,
 
     file_size = get_file_size(fd);
 
-    if (memory < block->page_size) {
+    if (!mem_size && file_size > 0) {
+        mem_size = file_size;
+        memory_region_set_size(block->mr, mem_size);
+    }
+
+    if (mem_size < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",
-                   memory, block->page_size);
+                   mem_size, block->page_size);
         goto error;
     }
 
-    if (file_size > 0 && file_size < memory) {
+    if (file_size > 0 && file_size < mem_size) {
         error_setg(errp, "backing store %s size %"PRId64
                    " does not match 'size' option %"PRIu64,
-                   path, file_size, memory);
+                   path, file_size, mem_size);
         goto error;
     }
 
-    memory = ROUND_UP(memory, block->page_size);
+    mem_size = ROUND_UP(mem_size, block->page_size);
+    *memory = mem_size;
 
     /*
      * ftruncate is not supported by hugetlbfs in older
@@ -1339,11 +1346,11 @@ static void *file_ram_alloc(RAMBlock *block,
      * those labels. Therefore, extending the non-empty backend file
      * is disabled as well.
      */
-    if (!file_size && ftruncate(fd, memory)) {
+    if (!file_size && ftruncate(fd, mem_size)) {
         perror("ftruncate");
     }
 
-    area = qemu_ram_mmap(fd, memory, block->mr->align,
+    area = qemu_ram_mmap(fd, mem_size, block->mr->align,
                          block->flags & RAM_SHARED);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
@@ -1352,7 +1359,7 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     if (mem_prealloc) {
-        os_mem_prealloc(fd, area, memory, errp);
+        os_mem_prealloc(fd, area, mem_size, errp);
         if (errp && *errp) {
             goto error;
         }
@@ -1363,7 +1370,7 @@ static void *file_ram_alloc(RAMBlock *block,
 
 error:
     if (area != MAP_FAILED) {
-        qemu_ram_munmap(area, memory);
+        qemu_ram_munmap(area, mem_size);
     }
     if (unlink_on_error) {
         unlink(path);
@@ -1690,15 +1697,15 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     size = HOST_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
-    new_block->used_length = size;
-    new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->host = file_ram_alloc(new_block, size,
+    new_block->host = file_ram_alloc(new_block, &size,
                                      mem_path, errp);
     if (!new_block->host) {
         g_free(new_block);
         return NULL;
     }
+    new_block->used_length = size;
+    new_block->max_length = size;
 
     ram_block_add(new_block, &local_err);
     if (local_err) {

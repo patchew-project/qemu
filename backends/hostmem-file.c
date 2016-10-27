@@ -39,17 +39,14 @@ static void
 file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 {
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(backend);
+    Error *local_err = NULL;
 
-    if (!backend->size) {
-        error_setg(errp, "can't create backend with size 0");
-        return;
-    }
     if (!fb->mem_path) {
-        error_setg(errp, "mem-path property not set");
-        return;
+        error_setg(&local_err, "mem-path property not set");
+        goto out;
     }
 #ifndef CONFIG_LINUX
-    error_setg(errp, "-mem-path not supported on this host");
+    error_setg(&local_err, "-mem-path not supported on this host");
 #else
     if (!memory_region_size(&backend->mr)) {
         gchar *path;
@@ -58,10 +55,25 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
                                  backend->size, fb->share,
-                                 fb->mem_path, errp);
+                                 fb->mem_path, &local_err);
         g_free(path);
+
+        if (local_err) {
+            goto out;
+        }
+
+        if (!backend->size) {
+            backend->size = memory_region_size(&backend->mr);
+        }
     }
 #endif
+
+    if (!backend->size) {
+        error_setg(&local_err, "can't create backend with size 0");
+    }
+
+ out:
+    error_propagate(errp, local_err);
 }
 
 static char *get_mem_path(Object *o, Error **errp)
