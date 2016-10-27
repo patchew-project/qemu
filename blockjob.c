@@ -118,7 +118,7 @@ static void block_job_detach_aio_context(void *opaque)
 }
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, int64_t speed,
+                       BlockDriverState *bs, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     BlockBackend *blk;
@@ -130,7 +130,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         return NULL;
     }
 
-    if (job_id == NULL) {
+    if (job_id == NULL && !(flags & BLOCK_JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
         if (!*job_id) {
             error_setg(errp, "An explicit job ID is required for this node");
@@ -138,14 +138,21 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
 
-    if (!id_wellformed(job_id)) {
-        error_setg(errp, "Invalid job ID '%s'", job_id);
-        return NULL;
-    }
+    if (job_id) {
+        if (flags & BLOCK_JOB_INTERNAL) {
+            error_setg(errp, "Cannot specify job ID for internal block job");
+            return NULL;
+        }
 
-    if (block_job_get(job_id)) {
-        error_setg(errp, "Job ID '%s' already in use", job_id);
-        return NULL;
+        if (!id_wellformed(job_id)) {
+            error_setg(errp, "Invalid job ID '%s'", job_id);
+            return NULL;
+        }
+
+        if (block_job_get(job_id)) {
+            error_setg(errp, "Job ID '%s' already in use", job_id);
+            return NULL;
+        }
     }
 
     blk = blk_new();

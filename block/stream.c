@@ -222,7 +222,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     StreamBlockJob *s;
 
     s = block_job_create(job_id, &stream_job_driver, bs, speed,
-                         cb, opaque, errp);
+                         BLOCK_JOB_DEFAULT, cb, opaque, errp);
     if (!s) {
         return;
     }
