@@ -83,7 +83,7 @@ static void save_vmstate(const VMStateDescription *desc, void *obj)
     qemu_fclose(f);
 }
 
-static void compare_vmstate(uint8_t *wire, size_t size)
+static void compare_vmstate(const uint8_t *wire, size_t size)
 {
     QEMUFile *f = open_test_file(false);
     uint8_t result[size];
@@ -106,7 +106,7 @@ static void compare_vmstate(uint8_t *wire, size_t size)
 }
 
 static int load_vmstate_one(const VMStateDescription *desc, void *obj,
-                            int version, uint8_t *wire, size_t size)
+                            int version, const uint8_t *wire, size_t size)
 {
     QEMUFile *f;
     int ret;
@@ -130,7 +130,7 @@ static int load_vmstate_one(const VMStateDescription *desc, void *obj,
 static int load_vmstate(const VMStateDescription *desc,
                         void *obj, void *obj_clone,
                         void (*obj_copy)(void *, void*),
-                        int version, uint8_t *wire, size_t size)
+                        int version, const uint8_t *wire, size_t size)
 {
     /* We test with zero size */
     obj_copy(obj_clone, obj);
@@ -282,7 +282,6 @@ static void test_simple_primitive(void)
     FIELD_EQUAL(i64_1);
     FIELD_EQUAL(i64_2);
 }
-#undef FIELD_EQUAL
 
 typedef struct TestStruct {
     uint32_t a, b, c, e;
@@ -475,6 +474,95 @@ static void test_load_skip(void)
     qemu_fclose(loading);
 }
 
+typedef struct TmpTestStruct {
+    TestStruct *parent;
+    int64_t diff;
+} TmpTestStruct;
+
+static void tmp_child_pre_save(void *opaque)
+{
+    struct TmpTestStruct *tts = opaque;
+
+    tts->diff = tts->parent->b - tts->parent->a;
+}
+
+static int tmp_child_post_load(void *opaque, int version_id)
+{
+    struct TmpTestStruct *tts = opaque;
+
+    tts->parent->b = tts->parent->a + tts->diff;
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_tmp_back_to_parent = {
+    .name = "test/tmp_child_parent",
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(f, TestStruct),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_tmp_child = {
+    .name = "test/tmp_child",
+    .pre_save = tmp_child_pre_save,
+    .post_load = tmp_child_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(diff, TmpTestStruct),
+        VMSTATE_STRUCT_POINTER(parent, TmpTestStruct,
+                               vmstate_tmp_back_to_parent, TestStruct),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_with_tmp = {
+    .name = "test/with_tmp",
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(a, TestStruct),
+        VMSTATE_UINT64(d, TestStruct),
+        VMSTATE_WITH_TMP(TestStruct, TmpTestStruct, vmstate_tmp_child),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void obj_tmp_copy(void *target, void *source)
+{
+    memcpy(target, source, sizeof(TestStruct));
+}
+
+static void test_tmp_struct(void)
+{
+    TestStruct obj, obj_clone;
+
+    uint8_t const wire_with_tmp[] = {
+        /* u32 a */ 0x00, 0x00, 0x00, 0x02,
+        /* u64 d */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        /* diff  */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+        /* u64 f */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,
+        QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
+    };
+
+    memset(&obj, 0, sizeof(obj));
+    obj.a = 2;
+    obj.b = 4;
+    obj.d = 1;
+    obj.f = 8;
+    save_vmstate(&vmstate_with_tmp, &obj);
+
+    compare_vmstate(wire_with_tmp, sizeof(wire_with_tmp));
+
+    memset(&obj, 0, sizeof(obj));
+    fprintf(stderr, "test_tmp_struct load\n");
+    SUCCESS(load_vmstate(&vmstate_with_tmp, &obj, &obj_clone,
+                         obj_tmp_copy, 1, wire_with_tmp,
+                         sizeof(wire_with_tmp)));
+    g_assert_cmpint(obj.a, ==, 2); /* From top level vmsd */
+    g_assert_cmpint(obj.b, ==, 4); /* from the post_load */
+    g_assert_cmpint(obj.d, ==, 1); /* From top level vmsd */
+    g_assert_cmpint(obj.f, ==, 8); /* From the child->parent */
+}
+
 int main(int argc, char **argv)
 {
     temp_fd = mkstemp(temp_file);
@@ -489,6 +577,7 @@ int main(int argc, char **argv)
     g_test_add_func("/vmstate/field_exists/load/skip", test_load_skip);
     g_test_add_func("/vmstate/field_exists/save/noskip", test_save_noskip);
     g_test_add_func("/vmstate/field_exists/save/skip", test_save_skip);
+    g_test_add_func("/vmstate/tmp_struct", test_tmp_struct);
     g_test_run();
 
     close(temp_fd);
