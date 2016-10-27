@@ -220,14 +220,15 @@ void timer_get(QEMUFile *f, QEMUTimer *ts)
  * Not in vmstate.c to not add qemu-timer.c as dependency to vmstate.c
  */
 
-static int get_timer(QEMUFile *f, void *pv, size_t size)
+static int get_timer(QEMUFile *f, void *pv, size_t size, VMStateField *field)
 {
     QEMUTimer *v = pv;
     timer_get(f, v);
     return 0;
 }
 
-static void put_timer(QEMUFile *f, void *pv, size_t size)
+static void put_timer(QEMUFile *f, void *pv, size_t size, VMStateField *field,
+                QJSON *vmdesc)
 {
     QEMUTimer *v = pv;
     timer_put(f, v);

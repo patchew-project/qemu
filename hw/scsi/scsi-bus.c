@@ -1945,7 +1945,8 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
 
 /* SCSI request list.  For simplicity, pv points to the whole device */
 
-static void put_scsi_requests(QEMUFile *f, void *pv, size_t size)
+static void put_scsi_requests(QEMUFile *f, void *pv, size_t size,
+                              VMStateField *field, QJSON *vmdesc)
 {
     SCSIDevice *s = pv;
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
@@ -1970,7 +1971,8 @@ static void put_scsi_requests(QEMUFile *f, void *pv, size_t size)
     qemu_put_sbyte(f, 0);
 }
 
-static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
+static int get_scsi_requests(QEMUFile *f, void *pv, size_t size,
+                             VMStateField *field)
 {
     SCSIDevice *s = pv;
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
