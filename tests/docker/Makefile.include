@@ -64,6 +64,22 @@ $(foreach i,$(DOCKER_IMAGES), \
 	) \
 )
 
+# Additional Debian qemu-user images
+#
+# These images are built using the generic debian-bootstrap image and a qemu-user binary
+#
+docker-image-debian-%: DEB_TYPE = $(shell echo '$@' | sed -e 's/docker-image-debian-\([^@]*\)-\(.*\)/\1/')
+docker-image-debian-%: DEB_ARCH = $(shell echo '$@' | sed -e 's/docker-image-debian-\([^@]*\)-\(.*\)/\2/')
+docker-image-debian-%: QEMU_ARCH = $(subst arm64,aarch64,$(subst armhf,arm,$(DEB_ARCH)))
+docker-image-debian-%: QEMU_EXEC=$(BUILD_DIR)/$(QEMU_ARCH)-linux-user/qemu-$(QEMU_ARCH)
+docker-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
+	$(call quiet-command,\
+		DEB_ARCH=$(DEB_ARCH) DEB_TYPE=$(DEB_TYPE) \
+		$(SRC_PATH)/tests/docker/docker.py build qemu:debian-$* $< \
+		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
+		--include-executable=$(QEMU_EXEC),\
+		"BUILD USER","$*")
+
 docker:
 	@echo 'Build QEMU and run tests inside Docker containers'
 	@echo
