@@ -105,12 +105,15 @@ class Docker(object):
         signal.signal(signal.SIGTERM, self._kill_instances)
         signal.signal(signal.SIGHUP, self._kill_instances)
 
-    def _do(self, cmd, quiet=True, infile=None, **kwargs):
+    def _do(self, cmd, quiet=True, infile=None, output=False, **kwargs):
         if quiet:
             kwargs["stdout"] = DEVNULL
         if infile:
             kwargs["stdin"] = infile
-        return subprocess.call(self._command + cmd, **kwargs)
+        if output:
+            return subprocess.check_output(self._command + cmd, **kwargs)
+        else:
+            return subprocess.call(self._command + cmd, **kwargs)
 
     def _do_kill_instances(self, only_known, only_active=True):
         cmd = ["ps", "-q"]
@@ -188,8 +191,8 @@ class Docker(object):
             self._instances.remove(label)
         return ret
 
-    def command(self, cmd, argv, quiet):
-        return self._do([cmd] + argv, quiet=quiet)
+    def command(self, cmd, argv, quiet, output=False):
+        return self._do([cmd] + argv, quiet=quiet, output=output)
 
 class SubCommand(object):
     """A SubCommand template base class"""
@@ -325,8 +328,22 @@ class CleanCommand(SubCommand):
 class ImagesCommand(SubCommand):
     """Run "docker images" command"""
     name = "images"
+    def args(self, parser):
+        parser.add_argument("--repo",
+                            help="List images in the given repository")
+
     def run(self, args, argv):
-        return Docker().command("images", argv, args.quiet)
+        if args.repo:
+            images=[]
+            image_re = re.compile(r"^"+re.escape(args.repo)+r"\s+(\S*)")
+            output = Docker().command("images", argv, args.quiet, output=True)
+            for line in output.split("\n"):
+                search = image_re.search(line)
+                if search:
+                    images.append(search.group(1))
+            print ' '.join(map(str,images))
+        else:
+            return Docker().command("images", argv, args.quiet)
 
 def main():
     parser = argparse.ArgumentParser(description="A Docker helper",
