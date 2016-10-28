@@ -1708,7 +1708,7 @@
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
-            'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
+            'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom', 'vxhs',
             'host_device', 'http', 'https', 'luks', 'null-aio', 'null-co',
             'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
 	    'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
@@ -2220,6 +2220,21 @@
   'data': { 'filename': 'str' } }
 
 ##
+# @BlockdevOptionsVxHS
+#
+# Driver specific block device options for VxHS
+#
+# @vdisk_id:    UUID of VxHS volume
+#
+# @server:      vxhs server IP, port
+#
+# Since: 2.7
+##
+{ 'struct': 'BlockdevOptionsVxHS',
+  'data': { 'vdisk_id': 'str',
+            'server': 'InetSocketAddress' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2283,7 +2298,8 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT'
+      'vvfat':      'BlockdevOptionsVVFAT',
+      'vxhs':       'BlockdevOptionsVxHS'
   } }
 
 ##
