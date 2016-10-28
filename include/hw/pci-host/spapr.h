@@ -79,6 +79,7 @@ struct sPAPRPHBState {
     uint64_t dma64_win_addr;
 
     uint32_t numa_node;
+    char *root_bus_type;
 };
 
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL

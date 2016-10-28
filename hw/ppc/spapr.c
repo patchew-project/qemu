@@ -2532,6 +2532,11 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", true);
         .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,     \
         .property = "mem64_win_size",               \
         .value    = "0",                            \
+    },                                              \
+    {                                               \
+        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,     \
+        .property = "root_bus_type",                \
+        .value    = TYPE_PCI_BUS,                   \
     },
 
 static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,

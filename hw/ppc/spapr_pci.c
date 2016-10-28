@@ -1428,7 +1428,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     bus = pci_register_bus(dev, NULL,
                            pci_spapr_set_irq, pci_spapr_map_irq, sphb,
                            &sphb->memspace, &sphb->iospace,
-                           PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
+                           PCI_DEVFN(0, 0), PCI_NUM_PINS,
+                           sphb->root_bus_type ? sphb->root_bus_type :
+                           TYPE_PCIE_BUS);
     phb->bus = bus;
     qbus_set_hotplug_handler(BUS(phb->bus), DEVICE(sphb), NULL);
 
@@ -1584,6 +1586,7 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_UINT64("pgsz", sPAPRPHBState, page_size_mask,
                        (1ULL << 12) | (1ULL << 16)),
     DEFINE_PROP_UINT32("numa_node", sPAPRPHBState, numa_node, -1),
+    DEFINE_PROP_STRING("root_bus_type", sPAPRPHBState, root_bus_type),
     DEFINE_PROP_END_OF_LIST(),
 };
 
