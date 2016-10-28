@@ -5,6 +5,7 @@
 bool qemu_in_vcpu_thread(void);
 void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);
+void resume_some_vcpus(CPUState **cpus);
 void pause_all_vcpus(void);
 void cpu_stop_current(void);
 void cpu_ticks_init(void);

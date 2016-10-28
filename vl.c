@@ -747,7 +747,7 @@ StatusInfo *qmp_query_status(Error **errp)
     return info;
 }
 
-static bool qemu_vmstop_requested(RunState *r)
+bool qemu_vmstop_requested(RunState *r)
 {
     qemu_mutex_lock(&vmstop_lock);
     *r = vmstop_requested;
@@ -767,34 +767,6 @@ void qemu_system_vmstop_request(RunState state)
     qemu_mutex_unlock(&vmstop_lock);
     qemu_notify_event();
 }
-
-void vm_start(void)
-{
-    RunState requested;
-
-    qemu_vmstop_requested(&requested);
-    if (runstate_is_running() && requested == RUN_STATE__MAX) {
-        return;
-    }
-
-    /* Ensure that a STOP/RESUME pair of events is emitted if a
-     * vmstop request was pending.  The BLOCK_IO_ERROR event, for
-     * example, according to documentation is always followed by
-     * the STOP event.
-     */
-    if (runstate_is_running()) {
-        qapi_event_send_stop(&error_abort);
-    } else {
-        replay_enable_events();
-        cpu_enable_ticks();
-        runstate_set(RUN_STATE_RUNNING);
-        vm_state_notify(1, RUN_STATE_RUNNING);
-        resume_all_vcpus();
-    }
-
-    qapi_event_send_resume(&error_abort);
-}
-
 
 /***********************************************************/
 /* real time host monotonic timer */
@@ -1915,6 +1887,7 @@ static bool main_loop_should_exit(void)
     if (qemu_reset_requested()) {
         pause_all_vcpus();
         qemu_system_reset(VMRESET_REPORT);
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
         resume_all_vcpus();
         if (!runstate_check(RUN_STATE_RUNNING) &&
                 !runstate_check(RUN_STATE_INMIGRATE)) {
@@ -1926,6 +1899,7 @@ static bool main_loop_should_exit(void)
         qemu_system_reset(VMRESET_SILENT);
         notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
         wakeup_reason = QEMU_WAKEUP_REASON_NONE;
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
         resume_all_vcpus();
         qapi_event_send_wakeup(&error_abort);
     }
