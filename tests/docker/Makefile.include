@@ -80,6 +80,10 @@ docker-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 		--include-executable=$(QEMU_EXEC),\
 		"BUILD USER","$*")
 
+DOCKER_USER_IMAGES := debian-stable-armhf debian-stable-arm64
+DOCKER_BUILT_IMAGES := $(shell $(SRC_PATH)/tests/docker/docker.py images --repo qemu)
+DOCKER_UNBUILT_IMAGES := $(filter-out debian-bootstrap, $(filter-out $(DOCKER_BUILT_IMAGES), $(DOCKER_USER_IMAGES) $(DOCKER_IMAGES)))
+
 docker:
 	@echo 'Build QEMU and run tests inside Docker containers'
 	@echo
@@ -96,8 +100,11 @@ docker:
 	@echo '    docker-image-IMAGE:  Build image "IMAGE".'
 	@echo '    docker-run:          For manually running a "TEST" with "IMAGE"'
 	@echo
-	@echo 'Available container images:'
-	@echo '    $(DOCKER_IMAGES)'
+	@echo 'Available built container images:'
+	@echo '    $(DOCKER_BUILT_IMAGES)'
+	@echo
+	@echo 'Available (but unbuilt) container images:'
+	@echo '    $(DOCKER_UNBUILT_IMAGES)'
 	@echo
 	@echo 'Available tests:'
 	@echo '    $(DOCKER_TESTS)'
