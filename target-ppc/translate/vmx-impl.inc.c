@@ -991,6 +991,7 @@ GEN_BCD(bcdadd)
 GEN_BCD(bcdsub)
 GEN_BCD2(bcdcfn)
 GEN_BCD3(bcdctn)
+GEN_BCD2(bcdcfz)
 
 static void gen_xpnd04_1(DisasContext *ctx)
 {
@@ -1005,7 +1006,8 @@ static void gen_xpnd04_1(DisasContext *ctx)
         gen_bcdctn(ctx);
         break;
     case 6:
-        break; /* bcdcfz. */
+        gen_bcdcfz(ctx);
+        break;
     case 7:
         gen_bcdcfn(ctx);
         break;
@@ -1026,7 +1028,8 @@ static void gen_xpnd04_2(DisasContext *ctx)
     case 4:
         break; /* bcdctz. */
     case 6:
-        break; /* bcdcfz. */
+        gen_bcdcfz(ctx);
+        break;
     case 7:
         gen_bcdcfn(ctx);
         break;
