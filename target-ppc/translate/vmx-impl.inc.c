@@ -968,9 +968,29 @@ static void gen_##op(DisasContext *ctx)             \
     tcg_temp_free_i32(ps);                          \
 }
 
+#define GEN_BCD3(op)                                \
+static void gen_##op(DisasContext *ctx)             \
+{                                                   \
+    TCGv_ptr rb, rd;                                \
+                                                    \
+    if (unlikely(!ctx->altivec_enabled)) {          \
+        gen_exception(ctx, POWERPC_EXCP_VPU);       \
+        return;                                     \
+    }                                               \
+                                                    \
+    rb = gen_avr_ptr(rB(ctx->opcode));              \
+    rd = gen_avr_ptr(rD(ctx->opcode));              \
+                                                    \
+    gen_helper_##op(cpu_crf[6], rd, rb);            \
+                                                    \
+    tcg_temp_free_ptr(rb);                          \
+    tcg_temp_free_ptr(rd);                          \
+}
+
 GEN_BCD(bcdadd)
 GEN_BCD(bcdsub)
 GEN_BCD2(bcdcfn)
+GEN_BCD3(bcdctn)
 
 static void gen_xpnd04_1(DisasContext *ctx)
 {
@@ -982,7 +1002,8 @@ static void gen_xpnd04_1(DisasContext *ctx)
     case 4:
         break; /* bcdctz. */
     case 5:
-        break; /* bcdctn. */
+        gen_bcdctn(ctx);
+        break;
     case 6:
         break; /* bcdcfz. */
     case 7:
@@ -1098,3 +1119,4 @@ GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
 #undef GEN_VAFORM_PAIRED
 
 #undef GEN_BCD2
+#undef GEN_BCD3
