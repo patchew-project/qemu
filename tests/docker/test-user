@@ -1,0 +1,18 @@
+#!/bin/bash -e
+#
+# A very simple test that checks qemu-linux-user binaries work
+# correctly in a cross-arch docker container.
+#
+# Copyright (c) 2016 Linaro.
+#
+# Authors:
+#  Alex Bennée <alex.bennee@linaro.org>
+#
+# This work is licensed under the terms of the GNU GPL, version 2
+# or (at your option) any later version. See the COPYING file in
+# the top-level directory.
+
+. common.rc
+
+uname -a
+exit 0
