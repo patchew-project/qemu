@@ -739,12 +739,12 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v,
 }
 
 /**
- * qdev_property_add_legacy:
- * @dev: Device to add the property to.
+ * qdev_class_property_add_legacy:
+ * @oc: Class to add the property to.
  * @prop: The qdev property definition.
  * @errp: location to store error information.
  *
- * Add a legacy QOM property to @dev for qdev property @prop.
+ * Add a legacy QOM property to @oc for qdev property @prop.
  * On error, store error in @errp.
  *
  * Legacy properties are string versions of QOM properties.  The format of
@@ -754,8 +754,8 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v,
  * Do not use this is new code!  QOM Properties added through this interface
  * will be given names in the "legacy" namespace.
  */
-static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
-                                     Error **errp)
+static void qdev_class_property_add_legacy(ObjectClass *oc, Property *prop,
+                                           Error **errp)
 {
     gchar *name;
 
@@ -765,11 +765,12 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     }
 
     name = g_strdup_printf("legacy-%s", prop->name);
-    object_property_add(OBJECT(dev), name, "str",
-                        prop->info->print ? qdev_get_legacy_property : prop->info->get,
-                        NULL,
-                        NULL,
-                        prop, errp);
+    object_class_property_add(oc, name, "str",
+                              prop->info->print ?
+                                  qdev_get_legacy_property :
+                                  prop->info->get,
+                              NULL, NULL,
+                              prop, errp);
 
     g_free(name);
 }
@@ -844,6 +845,48 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     qdev_property_set_to_default(dev, prop, &error_abort);
 }
 
+/**
+ * qdev_class_property_add_static:
+ * @oc: Class to add the property to.
+ * @prop: The qdev property definition.
+ * @errp: location to store error information.
+ *
+ * Add a static QOM property to @oc for qdev property @prop.
+ * On error, store error in @errp.  Static properties access data in a struct.
+ * The type of the QOM property is derived from prop->info.
+ */
+static void qdev_class_property_add_static(ObjectClass *oc, Property *prop,
+                                           Error **errp)
+{
+    Error *local_err = NULL;
+
+    /*
+     * TODO qdev_prop_ptr does not have getters or setters.  It must
+     * go now that it can be replaced with links.  The test should be
+     * removed along with it: all static properties are read/write.
+     */
+    if (!prop->info->get && !prop->info->set) {
+        return;
+    }
+
+    /* Note: prop->info->release is called on device_finalize(),
+     * because it needs to be called on instaqnce destruction, not on
+     * class property removal.
+     */
+    object_class_property_add(oc, prop->name, prop->info->name,
+                              prop->info->get, prop->info->set,
+                              NULL, prop, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    object_class_property_set_description(oc, prop->name,
+                                          prop->info->description,
+                                          &error_abort);
+}
+
 /* @qdev_alias_all_properties - Add alias properties to the source object for
  * all qdev properties on the target DeviceState.
  */
@@ -867,8 +910,15 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
 
 void device_class_set_props(DeviceClass *dc, Property *props)
 {
+    Property *prop;
+    ObjectClass *oc = OBJECT_CLASS(dc);
+
     assert(!dc->props);
     dc->props = props;
+    for (prop = dc->props; prop && prop->name; prop++) {
+        qdev_class_property_add_legacy(oc, prop, &error_abort);
+        qdev_class_property_add_static(oc, prop, &error_abort);
+    }
 }
 
 static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
@@ -1068,8 +1118,7 @@ static void device_initfn(Object *obj)
     class = object_get_class(OBJECT(dev));
     do {
         for (prop = DEVICE_CLASS(class)->props; prop && prop->name; prop++) {
-            qdev_property_add_legacy(dev, prop, &error_abort);
-            qdev_property_add_static(dev, prop, &error_abort);
+            qdev_property_set_to_default(dev, prop, &error_abort);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
@@ -1088,9 +1137,16 @@ static void device_post_init(Object *obj)
 /* Unlink device from bus and free the structure.  */
 static void device_finalize(Object *obj)
 {
+    DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    Property *prop;
     NamedGPIOList *ngl, *next;
 
-    DeviceState *dev = DEVICE(obj);
+    for (prop = dc->props; prop && prop->name; prop++) {
+        if (prop->info->release) {
+            prop->info->release(obj, prop->name, prop);
+        }
+    }
 
     QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
         QLIST_REMOVE(ngl, node);
