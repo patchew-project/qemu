@@ -517,7 +517,7 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
                                                    Error **errp)
 {
     ObjectClass *klass;
-    Object *obj;
+    Object *obj = NULL;
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
     DevicePropertyInfoList *prop_list = NULL;
@@ -536,19 +536,16 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
     }
 
     if (object_class_is_abstract(klass)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "name",
-                   "non-abstract device type");
-        return NULL;
+        object_class_property_iter_init(&iter, klass);
+    } else {
+        if (DEVICE_CLASS(klass)->cannot_destroy_with_object_finalize_yet) {
+            error_setg(errp, "Can't list properties of device '%s'", typename);
+            return NULL;
+        }
+        obj = object_new(typename);
+        object_property_iter_init(&iter, obj);
     }
 
-    if (DEVICE_CLASS(klass)->cannot_destroy_with_object_finalize_yet) {
-        error_setg(errp, "Can't list properties of device '%s'", typename);
-        return NULL;
-    }
-
-    obj = object_new(typename);
-
-    object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
         DevicePropertyInfo *info;
         DevicePropertyInfoList *entry;
