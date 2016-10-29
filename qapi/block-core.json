@@ -1704,12 +1704,13 @@
 # @host_device, @host_cdrom: Since 2.1
 # @gluster: Since 2.7
 # @nbd: Since 2.8
+# @vxhs: Since 2.8
 #
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
-            'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
+            'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom', 'vxhs',
             'host_device', 'http', 'https', 'luks', 'nbd', 'null-aio',
             'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
             'replication', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
@@ -2238,6 +2239,20 @@
             '*export': 'str',
             '*tls-creds': 'str' } }
 
+# @BlockdevOptionsVxHS
+#
+# Driver specific block device options for VxHS
+#
+# @vdisk-id:    UUID of VxHS volume
+#
+# @server:      vxhs server IP, port
+#
+# Since: 2.8
+##
+{ 'struct': 'BlockdevOptionsVxHS',
+  'data': { 'vdisk-id': 'str',
+            'server': 'InetSocketAddress' } }
+
 ##
 # @BlockdevOptions
 #
@@ -2302,7 +2317,8 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT'
+      'vvfat':      'BlockdevOptionsVVFAT',
+      'vxhs':       'BlockdevOptionsVxHS'
   } }
 
 ##
