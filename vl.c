@@ -4311,6 +4311,11 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    if (pid_file && qemu_create_pidfile(pid_file) != 0) {
+        error_report("could not acquire pid file: %s", strerror(errno));
+        exit(1);
+    }
+
     page_size_init();
     socket_init();
 
@@ -4331,11 +4336,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 #endif
-
-    if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        error_report("could not acquire pid file: %s", strerror(errno));
-        exit(1);
-    }
 
     if (qemu_opts_foreach(qemu_find_opts("device"),
                           device_help_func, NULL, NULL)) {
