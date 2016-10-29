@@ -1010,6 +1010,13 @@ void object_property_iter_init(ObjectPropertyIterator *iter,
     iter->nextclass = object_get_class(obj);
 }
 
+void object_class_property_iter_init(ObjectPropertyIterator *iter,
+                                     ObjectClass *klass)
+{
+    g_hash_table_iter_init(&iter->iter, klass->properties);
+    iter->nextclass = object_class_get_parent(klass);
+}
+
 ObjectProperty *object_property_iter_next(ObjectPropertyIterator *iter)
 {
     gpointer key, val;
@@ -1017,8 +1024,7 @@ ObjectProperty *object_property_iter_next(ObjectPropertyIterator *iter)
         if (!iter->nextclass) {
             return NULL;
         }
-        g_hash_table_iter_init(&iter->iter, iter->nextclass->properties);
-        iter->nextclass = object_class_get_parent(iter->nextclass);
+        object_class_property_iter_init(iter, iter->nextclass);
     }
     return val;
 }
