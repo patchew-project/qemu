@@ -301,7 +301,7 @@ static void milkymist_softusb_class_init(ObjectClass *klass, void *data)
     k->init = milkymist_softusb_init;
     dc->reset = milkymist_softusb_reset;
     dc->vmsd = &vmstate_milkymist_softusb;
-    dc->props = milkymist_softusb_properties;
+    device_class_set_props(dc, milkymist_softusb_properties);
 }
 
 static const TypeInfo milkymist_softusb_info = {

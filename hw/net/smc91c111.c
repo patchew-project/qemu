@@ -791,7 +791,7 @@ static void smc91c111_class_init(ObjectClass *klass, void *data)
     k->init = smc91c111_init1;
     dc->reset = smc91c111_reset;
     dc->vmsd = &vmstate_smc91c111;
-    dc->props = smc91c111_properties;
+    device_class_set_props(dc, smc91c111_properties);
 }
 
 static const TypeInfo smc91c111_info = {

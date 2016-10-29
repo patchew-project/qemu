@@ -401,6 +401,12 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
    return bus->hotplug_handler;
 }
 
+/* Set list of static properties for class
+ *
+ * It can be called only once per class.
+ */
+void device_class_set_props(DeviceClass *dc, Property *props);
+
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
 

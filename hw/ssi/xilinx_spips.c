@@ -705,7 +705,7 @@ static void xilinx_spips_class_init(ObjectClass *klass, void *data)
 
     dc->realize = xilinx_spips_realize;
     dc->reset = xilinx_spips_reset;
-    dc->props = xilinx_spips_properties;
+    device_class_set_props(dc, xilinx_spips_properties);
     dc->vmsd = &vmstate_xilinx_spips;
 
     xsc->reg_ops = &spips_ops;

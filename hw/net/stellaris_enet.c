@@ -495,7 +495,7 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = stellaris_enet_init;
-    dc->props = stellaris_enet_properties;
+    device_class_set_props(dc, stellaris_enet_properties);
     dc->vmsd = &vmstate_stellaris_enet;
 }
 

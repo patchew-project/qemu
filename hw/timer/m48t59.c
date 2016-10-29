@@ -822,7 +822,7 @@ static void m48txx_isa_class_init(ObjectClass *klass, void *data)
 
     dc->realize = m48t59_isa_realize;
     dc->reset = m48t59_reset_isa;
-    dc->props = m48t59_isa_properties;
+    device_class_set_props(dc, m48t59_isa_properties);
     nc->read = m48txx_isa_read;
     nc->write = m48txx_isa_write;
     nc->toggle_lock = m48txx_isa_toggle_lock;
@@ -867,7 +867,7 @@ static void m48txx_sysbus_class_init(ObjectClass *klass, void *data)
 
     k->init = m48t59_init1;
     dc->reset = m48t59_reset_sysbus;
-    dc->props = m48t59_sysbus_properties;
+    device_class_set_props(dc, m48t59_sysbus_properties);
     nc->read = m48txx_sysbus_read;
     nc->write = m48txx_sysbus_write;
     nc->toggle_lock = m48txx_sysbus_toggle_lock;

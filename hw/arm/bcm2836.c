@@ -158,7 +158,7 @@ static void bcm2836_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->props = bcm2836_props;
+    device_class_set_props(dc, bcm2836_props);
     dc->realize = bcm2836_realize;
 
     /*
