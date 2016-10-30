@@ -124,6 +124,7 @@ struct QemuConsole {
     int dcls;
     DisplayChangeListener *gl;
     bool gl_block;
+    int window_id;
 
     /* Graphic console state.  */
     Object *device;
@@ -271,6 +272,20 @@ void graphic_hw_gl_block(QemuConsole *con, bool block)
     if (con->hw_ops->gl_block) {
         con->hw_ops->gl_block(con->hw, block);
     }
+}
+
+int qemu_graphic_console_get_window_id(void)
+{
+    if (consoles[0]->console_type == GRAPHIC_CONSOLE) {
+        return consoles[0]->window_id;
+    }
+    return -1;
+}
+
+void qemu_console_set_window_id(int index, int window_id)
+{
+    assert(index >= 0 && index < nb_consoles);
+    consoles[index]->window_id = window_id;
 }
 
 void graphic_hw_invalidate(QemuConsole *con)
