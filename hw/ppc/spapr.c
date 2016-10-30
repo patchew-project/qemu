@@ -2194,6 +2194,7 @@ static void spapr_machine_initfn(Object *obj)
                                     " (required for memory hot-unplug support)",
                                     NULL);
 
+    spapr->max_compat_pvr = CPU_POWERPC_LOGICAL_2_07; /* POWER8 */
     object_property_add(obj, "max-cpu-compat", "str",
                         ppc_compat_prop_get, ppc_compat_prop_set,
                         NULL, &spapr->max_compat_pvr, &error_fatal);
