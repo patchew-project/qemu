@@ -1237,6 +1237,8 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
         error_report("fsdev: No path specified");
         return -1;
     }
+
+    fsdev_throttle_parse_opts(opts, &fse->fst);
     fse->path = g_strdup(path);
 
     return 0;

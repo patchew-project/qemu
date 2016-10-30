@@ -3506,6 +3506,13 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
         error_setg(errp, "share path %s is not a directory", fse->path);
         goto out;
     }
+
+    s->ctx.fst = &fse->fst;
+    if (fsdev_throttle_init(s->ctx.fst) < 0) {
+        error_report("fsdev: Throttle configuration specified is not valid");
+        return -1;
+    }
+
     v9fs_path_free(&path);
 
     rc = 0;
@@ -3520,6 +3527,9 @@ out:
 
 void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
 {
+    if (throttle_enabled(&s->ctx.fst->cfg)) {
+        fsdev_throttle_cleanup(s->ctx.fst);
+    }
     g_free(s->ctx.fs_root);
     g_free(s->tag);
 }
