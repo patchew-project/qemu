@@ -9,6 +9,7 @@
 #include "mmu-hash64.h"
 #include "migration/cpu.h"
 #include "exec/exec-all.h"
+#include "qapi/error.h"
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
@@ -176,6 +177,20 @@ static int cpu_post_load(void *opaque, int version_id)
      * software has to take care of running QEMU in a compatible mode.
      */
     env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
+
+#if defined(TARGET_PPC64)
+    if (cpu->compat_pvr) {
+        Error *local_err = NULL;
+
+        ppc_set_compat(cpu, cpu->compat_pvr, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(local_err);
+            return -1;
+        }
+    }
+#endif
+
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
     cpu_write_xer(env, env->spr[SPR_XER]);
@@ -528,6 +543,24 @@ static const VMStateDescription vmstate_tlbmas = {
     }
 };
 
+static bool compat_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    return cpu->compat_pvr != 0;
+}
+
+static const VMStateDescription vmstate_compat = {
+    .name = "cpu/compat",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = compat_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(compat_pvr, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
     .version_id = 5,
@@ -580,6 +613,7 @@ const VMStateDescription vmstate_ppc_cpu = {
         &vmstate_tlb6xx,
         &vmstate_tlbemb,
         &vmstate_tlbmas,
+        &vmstate_compat,
         NULL
     }
 };
