@@ -15,3 +15,4 @@ obj-y += misc_helper.o
 obj-y += mem_helper.o
 obj-$(CONFIG_USER_ONLY) += user_only_helper.o
 obj-y += gdbstub.o
+obj-$(TARGET_PPC64) += compat.o
