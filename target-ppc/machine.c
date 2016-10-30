@@ -173,10 +173,12 @@ static int cpu_post_load(void *opaque, int version_id)
     target_ulong msr;
 
     /*
-     * We always ignore the source PVR. The user or management
-     * software has to take care of running QEMU in a compatible mode.
+     * If we're operating in compat mode, we should be ok as long as
+     * the destination supports the same compatiblity mode.
+     *
+     * Otherwise, however, we require that the destination has exactly
+     * the same CPU model as the source.
      */
-    env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
 
 #if defined(TARGET_PPC64)
     if (cpu->compat_pvr) {
@@ -188,8 +190,13 @@ static int cpu_post_load(void *opaque, int version_id)
             error_free(local_err);
             return -1;
         }
-    }
+    } else
 #endif
+    {
+        if (env->spr[SPR_PVR] != env->spr_cb[SPR_PVR].default_value) {
+            return -1;
+        }
+    }
 
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
