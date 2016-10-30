@@ -602,10 +602,10 @@ const VMStateDescription vmstate_ppc_cpu = {
         /* FIXME: access_type? */
 
         /* Sanity checking */
-        VMSTATE_UINTTL_EQUAL(env.msr_mask, PowerPCCPU),
-        VMSTATE_UINT64_EQUAL(env.insns_flags, PowerPCCPU),
-        VMSTATE_UINT64_EQUAL(env.insns_flags2, PowerPCCPU),
-        VMSTATE_UINT32_EQUAL(env.nb_BATs, PowerPCCPU),
+        VMSTATE_UNUSED(sizeof(target_ulong) /* msr_mask */
+                       + sizeof(uint64_t) /* insns_flags */
+                       + sizeof(uint64_t) /* insns_flags2 */
+                       + sizeof(uint32_t)), /* nb_BATs */
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
