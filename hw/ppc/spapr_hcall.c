@@ -889,7 +889,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     target_ulong list = ppc64_phys_to_real(args[0]);
     target_ulong ov_table;
     bool explicit_match = false; /* Matched the CPU's real PVR */
-    uint32_t max_compat = cpu->max_compat;
+    uint32_t max_compat = spapr->max_compat_pvr;
     uint32_t best_compat = 0;
     int i;
     sPAPROptionVector *ov5_guest, *ov5_cas_old, *ov5_updates;
