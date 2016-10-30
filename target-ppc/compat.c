@@ -124,6 +124,8 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
         pcr = compat->pcr;
     }
 
+    cpu_synchronize_state(CPU(cpu));
+
     cpu->compat_pvr = compat_pvr;
     env->spr[SPR_PCR] = pcr & pcc->pcr_mask;
 
@@ -135,6 +137,40 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
         }
     }
 }
+
+#if !defined(CONFIG_USER_ONLY)
+typedef struct {
+    uint32_t compat_pvr;
+    Error *err;
+} SetCompatState;
+
+static void do_set_compat(CPUState *cs, void *arg)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    SetCompatState *s = arg;
+
+    ppc_set_compat(cpu, s->compat_pvr, &s->err);
+}
+
+void ppc_set_compat_all(uint32_t compat_pvr, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        SetCompatState s = {
+            .compat_pvr = compat_pvr,
+            .err = NULL,
+        };
+
+        run_on_cpu(cs, do_set_compat, &s);
+
+        if (s.err) {
+            error_propagate(errp, s.err);
+            return;
+        }
+    }
+}
+#endif
 
 int ppc_compat_max_threads(PowerPCCPU *cpu)
 {
