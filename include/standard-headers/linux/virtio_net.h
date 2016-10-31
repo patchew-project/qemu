@@ -57,6 +57,9 @@
 					 * Steering */
 #define VIRTIO_NET_F_CTRL_MAC_ADDR 23	/* Set MAC address */
 
+/* Guest can handle coalesced ipv4-tcp packets */
+#define VIRTIO_NET_F_GUEST_RSC4    41
+
 #ifndef VIRTIO_NET_NO_LEGACY
 #define VIRTIO_NET_F_GSO	6	/* Host handles pkts w/ any GSO type */
 #endif /* VIRTIO_NET_NO_LEGACY */
@@ -94,6 +97,9 @@ struct virtio_net_hdr_v1 {
 #define VIRTIO_NET_HDR_GSO_UDP		3	/* GSO frame, IPv4 UDP (UFO) */
 #define VIRTIO_NET_HDR_GSO_TCPV6	4	/* GSO frame, IPv6 TCP */
 #define VIRTIO_NET_HDR_GSO_ECN		0x80	/* TCP has ECN set */
+#define VIRTIO_NET_HDR_RSC_NONE     5   /* No packets coalesced */
+#define VIRTIO_NET_HDR_RSC_TCPV4    6   /* IPv4 TCP coalesced */
+#define VIRTIO_NET_HDR_RSC_TCPV6    7   /* IPv6 TCP coalesced */
 	uint8_t gso_type;
 	__virtio16 hdr_len;	/* Ethernet + IP + tcp/udp hdrs */
 	__virtio16 gso_size;	/* Bytes to append to hdr_len per frame */
@@ -123,6 +129,14 @@ struct virtio_net_hdr {
 struct virtio_net_hdr_mrg_rxbuf {
 	struct virtio_net_hdr hdr;
 	__virtio16 num_buffers;	/* Number of merged rx buffers */
+};
+
+/* This is the header to use when either one or both of GUEST_RSC4/6
+ * features have been negotiated. */
+struct virtio_net_hdr_rsc {
+    struct virtio_net_hdr_v1 hdr;
+    __virtio16 rsc_pkts;        /* Number of coalesced packets */
+    __virtio16 rsc_dup_acks;    /* Duplicated ack packets */
 };
 #endif /* ...VIRTIO_NET_NO_LEGACY */
 

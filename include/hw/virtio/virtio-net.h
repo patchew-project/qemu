@@ -60,12 +60,15 @@ typedef struct VirtIONet {
     VirtIONetQueue *vqs;
     VirtQueue *ctrl_vq;
     NICState *nic;
+    QTAILQ_HEAD(, NetRscChain) rsc_chains;
+    uint32_t rsc_timeout;
     uint32_t tx_timeout;
     int32_t tx_burst;
     uint32_t has_vnet_hdr;
+    uint32_t has_rsc_hdr;
     size_t host_hdr_len;
     size_t guest_hdr_len;
-    uint32_t host_features;
+    uint64_t host_features;
     uint8_t has_ufo;
     int mergeable_rx_bufs;
     uint8_t promisc;
