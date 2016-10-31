@@ -57,6 +57,10 @@
 /* header length value in ip header without option */
 #define VIRTIO_NET_IP4_HEADER_LENGTH 5
 
+#define ETH_IP6_HDR_SZ (ETH_HDR_SZ + IP6_HDR_SZ)
+#define VIRTIO_NET_IP6_ADDR_SIZE   32      /* ipv6 saddr + daddr */
+#define VIRTIO_NET_MAX_IP6_PAYLOAD VIRTIO_NET_MAX_TCP_PAYLOAD
+
 /* Purge coalesced packets timer interval, This value affects the performance
    a lot, and should be tuned carefully, '300000'(300us) is the recommended
    value to pass the WHQL test, '50000' can gain 2x netperf throughput with
@@ -611,7 +615,8 @@ static uint64_t virtio_net_guest_offloads_by_features(uint32_t features)
 
     if (features & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) {
         return (guest_offloads_mask & features) |
-               (1ULL << VIRTIO_NET_F_GUEST_RSC4);
+               (1ULL << VIRTIO_NET_F_GUEST_RSC4) |
+               (1ULL << VIRTIO_NET_F_GUEST_RSC6);
     } else {
         return guest_offloads_mask & features;
     }
@@ -1612,7 +1617,8 @@ static int virtio_net_load_device(VirtIODevice *vdev, QEMUFile *f,
                                virtio_vdev_has_feature(vdev,
                                                        VIRTIO_F_VERSION_1));
 
-    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_GUEST_RSC4)) {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_GUEST_RSC4)
+        || virtio_vdev_has_feature(vdev, VIRTIO_NET_F_GUEST_RSC6)) {
         n->guest_hdr_len = sizeof(struct virtio_net_hdr_rsc);
         n->host_hdr_len = n->guest_hdr_len;
     }
@@ -1730,6 +1736,24 @@ static void virtio_net_rsc_extract_unit4(NetRscChain *chain,
     unit->payload = htons(*unit->ip_plen) - ip_hdrlen - unit->tcp_hdrlen;
 }
 
+static void virtio_net_rsc_extract_unit6(NetRscChain *chain,
+                                         const uint8_t *buf, NetRscUnit* unit)
+{
+    struct ip6_header *ip6;
+
+    ip6 = (struct ip6_header *)(buf + chain->n->guest_hdr_len
+                                 + sizeof(struct eth_header));
+    unit->ip = ip6;
+    unit->ip_plen = &(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen);
+    unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip)\
+                                        + sizeof(struct ip6_header));
+    unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
+
+    /* There is a difference between payload lenght in ipv4 and v6,
+       ip header is excluded in ipv6 */
+    unit->payload = htons(*unit->ip_plen) - unit->tcp_hdrlen;
+}
+
 static void virtio_net_rsc_ipv4_checksum(struct virtio_net_hdr_rsc *rhdr,
                                          struct ip_header *ip)
 {
@@ -1750,12 +1774,14 @@ static size_t virtio_net_rsc_drain_seg(NetRscChain *chain, NetRscSeg *seg)
 
     h = (struct virtio_net_hdr_rsc *)seg->buf;
     if (seg->is_coalesced) {
-        h->hdr.flags = VIRTIO_NET_HDR_RSC_TCPV4;
-        virtio_net_rsc_ipv4_checksum(h, seg->unit.ip);
+        if (chain->proto == ETH_P_IP) {
+            h->hdr.flags = VIRTIO_NET_HDR_RSC_TCPV4;
+            virtio_net_rsc_ipv4_checksum(h, seg->unit.ip);
+        } else {
+            h->hdr.flags = VIRTIO_NET_HDR_RSC_TCPV6;
+        }
     }
 
-    h = (struct virtio_net_hdr_rsc *)seg->buf;
-    virtio_net_rsc_ipv4_checksum(h, seg->unit.ip);
     h->rsc_pkts = seg->packets;
     h->rsc_dup_acks = seg->dup_ack;
     ret = virtio_net_do_receive(seg->nc, seg->buf, seg->size);
@@ -1813,7 +1839,7 @@ static void virtio_net_rsc_cache_buf(NetRscChain *chain, NetClientState *nc,
     hdr_len = chain->n->guest_hdr_len;
     seg = g_malloc(sizeof(NetRscSeg));
     seg->buf = g_malloc(hdr_len + sizeof(struct eth_header)\
-                   + VIRTIO_NET_MAX_TCP_PAYLOAD);
+                   + sizeof(struct ip6_header) + VIRTIO_NET_MAX_TCP_PAYLOAD);
     memcpy(seg->buf, buf, size);
     seg->size = size;
     seg->packets = 1;
@@ -1824,7 +1850,18 @@ static void virtio_net_rsc_cache_buf(NetRscChain *chain, NetClientState *nc,
     QTAILQ_INSERT_TAIL(&chain->buffers, seg, next);
     chain->stat.cache++;
 
-    virtio_net_rsc_extract_unit4(chain, seg->buf, &seg->unit);
+    switch (chain->proto) {
+    case ETH_P_IP:
+        virtio_net_rsc_extract_unit4(chain, seg->buf, &seg->unit);
+        break;
+
+    case ETH_P_IPV6:
+        virtio_net_rsc_extract_unit6(chain, seg->buf, &seg->unit);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static int32_t virtio_net_rsc_handle_ack(NetRscChain *chain,
@@ -1944,6 +1981,24 @@ static int32_t virtio_net_rsc_coalesce4(NetRscChain *chain, NetRscSeg *seg,
     return virtio_net_rsc_coalesce_data(chain, seg, buf, unit);
 }
 
+static int32_t virtio_net_rsc_coalesce6(NetRscChain *chain, NetRscSeg *seg,
+                        const uint8_t *buf, size_t size, NetRscUnit *unit)
+{
+    struct ip6_header *ip1, *ip2;
+
+    ip1 = (struct ip6_header *)(unit->ip);
+    ip2 = (struct ip6_header *)(seg->unit.ip);
+    if (memcmp(&ip1->ip6_src, &ip2->ip6_src, sizeof(struct in6_address))
+        || memcmp(&ip1->ip6_dst, &ip2->ip6_dst, sizeof(struct in6_address))
+        || (unit->tcp->th_sport ^ seg->unit.tcp->th_sport)
+        || (unit->tcp->th_dport ^ seg->unit.tcp->th_dport)) {
+            chain->stat.no_match++;
+            return RSC_NO_MATCH;
+    }
+
+    return virtio_net_rsc_coalesce_data(chain, seg, buf, unit);
+}
+
 /* Pakcets with 'SYN' should bypass, other flag should be sent after drain
  * to prevent out of order */
 static int virtio_net_rsc_tcp_ctrl_check(NetRscChain *chain,
@@ -1990,7 +2045,11 @@ static size_t virtio_net_rsc_do_coalesce(NetRscChain *chain, NetClientState *nc,
     }
 
     QTAILQ_FOREACH_SAFE(seg, &chain->buffers, next, nseg) {
-        ret = virtio_net_rsc_coalesce4(chain, seg, buf, size, unit);
+        if (chain->proto == ETH_P_IP) {
+            ret = virtio_net_rsc_coalesce4(chain, seg, buf, size, unit);
+        } else {
+            ret = virtio_net_rsc_coalesce6(chain, seg, buf, size, unit);
+        }
 
         if (ret == RSC_FINAL) {
             if (virtio_net_rsc_drain_seg(chain, seg) == 0) {
@@ -2121,13 +2180,82 @@ static size_t virtio_net_rsc_receive4(NetRscChain *chain, NetClientState* nc,
     return virtio_net_rsc_do_coalesce(chain, nc, buf, size, &unit);
 }
 
+static int32_t virtio_net_rsc_sanity_check6(NetRscChain *chain,
+                                            struct ip6_header *ip6,
+                                            const uint8_t *buf, size_t size)
+{
+    uint16_t ip_len;
+
+    if (((ip6->ip6_ctlun.ip6_un1.ip6_un1_flow & 0xF0) >> 4)
+        != IP_HEADER_VERSION_6) {
+        return RSC_BYPASS;
+    }
+
+    /* Both option and protocol is checked in this */
+    if (ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt != IPPROTO_TCP) {
+        chain->stat.bypass_not_tcp++;
+        return RSC_BYPASS;
+    }
+
+    ip_len = htons(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen);
+    if (ip_len < sizeof(struct tcp_header) ||
+        ip_len > (size - chain->n->guest_hdr_len - sizeof(struct eth_header)
+                  - sizeof(struct ip6_header))) {
+        chain->stat.ip_hacked++;
+        return RSC_BYPASS;
+    }
+
+    /* Don't handle packets with ecn flag */
+    if (IP6_ECN(ip6->ip6_ctlun.ip6_un3.ip6_un3_ecn)) {
+        chain->stat.ip_ecn++;
+        return RSC_BYPASS;
+    }
+
+    return RSC_CANDIDATE;
+}
+
+static size_t virtio_net_rsc_receive6(void *opq, NetClientState* nc,
+                                      const uint8_t *buf, size_t size)
+{
+    int32_t ret;
+    uint16_t hdr_len;
+    NetRscChain *chain;
+    NetRscUnit unit;
+
+    chain = (NetRscChain *)opq;
+    hdr_len = ((VirtIONet *)(chain->n))->guest_hdr_len;
+
+    if (size < (hdr_len + sizeof(struct eth_header) + sizeof(struct ip6_header)
+        + sizeof(tcp_header))) {
+        return virtio_net_do_receive(nc, buf, size);
+    }
+
+    virtio_net_rsc_extract_unit6(chain, buf, &unit);
+    if (RSC_CANDIDATE != virtio_net_rsc_sanity_check6(chain,
+                                                 unit.ip, buf, size)) {
+        return virtio_net_do_receive(nc, buf, size);
+    }
+
+    ret = virtio_net_rsc_tcp_ctrl_check(chain, unit.tcp);
+    if (ret == RSC_BYPASS) {
+        return virtio_net_do_receive(nc, buf, size);
+    } else if (ret == RSC_FINAL) {
+        return virtio_net_rsc_drain_flow(chain, nc, buf, size,
+                ((hdr_len + sizeof(struct eth_header)) + 8),
+                VIRTIO_NET_IP6_ADDR_SIZE,
+                hdr_len + sizeof(struct eth_header)
+                + sizeof(struct ip6_header));
+    }
+
+    return virtio_net_rsc_do_coalesce(chain, nc, buf, size, &unit);
+}
 static NetRscChain *virtio_net_rsc_lookup_chain(VirtIONet * n,
                                                 NetClientState *nc,
                                                 uint16_t proto)
 {
     NetRscChain *chain;
 
-    if (proto != (uint16_t)ETH_P_IP) {
+    if ((proto != (uint16_t)ETH_P_IP) && (proto != (uint16_t)ETH_P_IPV6)) {
         return NULL;
     }
 
@@ -2140,8 +2268,13 @@ static NetRscChain *virtio_net_rsc_lookup_chain(VirtIONet * n,
     chain = g_malloc(sizeof(*chain));
     chain->n = n;
     chain->proto = proto;
-    chain->max_payload = VIRTIO_NET_MAX_IP4_PAYLOAD;
-    chain->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+    if (proto == (uint16_t)ETH_P_IP) {
+        chain->max_payload = VIRTIO_NET_MAX_IP4_PAYLOAD;
+        chain->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+    } else {
+        chain->max_payload = VIRTIO_NET_MAX_IP6_PAYLOAD;
+        chain->gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+    }
     chain->drain_timer = timer_new_ns(QEMU_CLOCK_HOST,
                                       virtio_net_rsc_purge, chain);
     memset(&chain->stat, 0, sizeof(chain->stat));
@@ -2173,7 +2306,11 @@ static ssize_t virtio_net_rsc_receive(NetClientState *nc,
         return virtio_net_do_receive(nc, buf, size);
     } else {
         chain->stat.received++;
-        return virtio_net_rsc_receive4(chain, nc, buf, size);
+        if (proto == (uint16_t)ETH_P_IP) {
+            return virtio_net_rsc_receive4(chain, nc, buf, size);
+        } else  {
+            return virtio_net_rsc_receive6(chain, nc, buf, size);
+        }
     }
 }
 
@@ -2184,7 +2321,8 @@ static ssize_t virtio_net_receive(NetClientState *nc,
     struct virtio_net_hdr_rsc *h;
 
     n = qemu_get_nic_opaque(nc);
-    if (n->curr_guest_offloads & (1ULL << VIRTIO_NET_F_GUEST_RSC4)) {
+    if (n->curr_guest_offloads & ((1ULL << VIRTIO_NET_F_GUEST_RSC4) |
+                                  (1ULL << VIRTIO_NET_F_GUEST_RSC6))) {
         h = (struct virtio_net_hdr_rsc *)buf;
         h->hdr.flags = VIRTIO_NET_HDR_RSC_NONE;
         h->rsc_pkts = 0;
@@ -2458,6 +2596,8 @@ static Property virtio_net_properties[] = {
                        VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
     DEFINE_PROP_BIT64("guest_rsc4", VirtIONet, host_features,
                     VIRTIO_NET_F_GUEST_RSC4, true),
+    DEFINE_PROP_BIT64("guest_rsc6", VirtIONet, host_features,
+                    VIRTIO_NET_F_GUEST_RSC6, true),
     DEFINE_PROP_UINT32("rsc_interval", VirtIONet, rsc_timeout,
                       VIRTIO_NET_RSC_INTERVAL),
     DEFINE_PROP_END_OF_LIST(),

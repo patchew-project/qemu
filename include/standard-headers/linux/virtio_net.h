@@ -58,7 +58,10 @@
 #define VIRTIO_NET_F_CTRL_MAC_ADDR 23	/* Set MAC address */
 
 /* Guest can handle coalesced ipv4-tcp packets */
-#define VIRTIO_NET_F_GUEST_RSC4    41
+#define VIRTIO_NET_F_GUEST_RSC4    41 
+
+/* Guest can handle coalesced ipv6-tcp packets */
+#define VIRTIO_NET_F_GUEST_RSC6    42
 
 #ifndef VIRTIO_NET_NO_LEGACY
 #define VIRTIO_NET_F_GSO	6	/* Host handles pkts w/ any GSO type */
@@ -94,6 +97,7 @@ struct virtio_net_hdr_v1 {
 	uint8_t flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	/* Not a GSO frame */
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	/* GSO frame, IPv4 TCP (TSO) */
+#define VIRTIO_NET_HDR_RESERVED     2   /* Reserved */
 #define VIRTIO_NET_HDR_GSO_UDP		3	/* GSO frame, IPv4 UDP (UFO) */
 #define VIRTIO_NET_HDR_GSO_TCPV6	4	/* GSO frame, IPv6 TCP */
 #define VIRTIO_NET_HDR_GSO_ECN		0x80	/* TCP has ECN set */
