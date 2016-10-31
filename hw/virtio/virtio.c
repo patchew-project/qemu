@@ -1490,7 +1490,8 @@ static const VMStateDescription vmstate_virtio_ringsize = {
     }
 };
 
-static int get_extra_state(QEMUFile *f, void *pv, size_t size)
+static int get_extra_state(QEMUFile *f, void *pv, size_t size,
+                           VMStateField *field)
 {
     VirtIODevice *vdev = pv;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -1503,7 +1504,8 @@ static int get_extra_state(QEMUFile *f, void *pv, size_t size)
     }
 }
 
-static void put_extra_state(QEMUFile *f, void *pv, size_t size)
+static void put_extra_state(QEMUFile *f, void *pv, size_t size,
+                            VMStateField *field, QJSON *vmdesc)
 {
     VirtIODevice *vdev = pv;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -1640,13 +1642,15 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 }
 
 /* A wrapper for use as a VMState .put function */
-static void virtio_device_put(QEMUFile *f, void *opaque, size_t size)
+static void virtio_device_put(QEMUFile *f, void *opaque, size_t size,
+                              VMStateField *field, QJSON *vmdesc)
 {
     virtio_save(VIRTIO_DEVICE(opaque), f);
 }
 
 /* A wrapper for use as a VMState .get function */
-static int virtio_device_get(QEMUFile *f, void *opaque, size_t size)
+static int virtio_device_get(QEMUFile *f, void *opaque, size_t size,
+                             VMStateField *field)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
     DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
