@@ -2775,6 +2775,55 @@ uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int j;
+    int cr = 0;
+    uint8_t digit = 0;
+    int sgnb = bcd_get_sgn(b);
+    int zone_lead = (ps) ? 0xF0 : 0x30;
+    int invalid = (sgnb == 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    int eq_flag = (b->u64[HI_IDX] == 0) && ((b->u64[LO_IDX] >> 4) == 0);
+    int ox_flag = ((b->u64[HI_IDX] >> 4) != 0);
+
+    for (i = 0, j = 1; i < 32; i += 2, j++) {
+        digit = bcd_get_digit(b, j, &invalid);
+
+        if (unlikely(invalid)) {
+            break;
+        }
+
+        ret.u8[BCD_DIG_BYTE(i)] = zone_lead + digit;
+    }
+
+    if (ps) {
+        bcd_put_digit(&ret, (sgnb == 1) ? 0xC : 0xD, 1);
+    } else {
+        bcd_put_digit(&ret, (sgnb == 1) ? 0x3 : 0x7, 1);
+    }
+
+    if (!eq_flag) {
+        cr = (sgnb == 1) ? 1 << CRF_GT : 1 << CRF_LT;
+    } else {
+        cr = 1 << CRF_EQ;
+    }
+
+    if (ox_flag) {
+        cr |= 1 << CRF_SO;
+    }
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
