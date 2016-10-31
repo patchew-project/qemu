@@ -2170,6 +2170,13 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
     GdkDisplay *window_display;
+    GdkWindow *gdk_window;
+#ifdef GDK_WINDOWING_X11
+    Window window_id;
+#elif defined(GDK_WINDOWING_WIN32)
+    HWND window_id;
+#endif
+    int i;
 
     if (!gtkinit) {
         fprintf(stderr, "gtk initialization failed\n");
@@ -2232,8 +2239,6 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     {
         VirtualConsole *cur = gd_vc_find_current(s);
         if (cur) {
-            int i;
-
             for (i = 0; i < s->nb_vcs; i++) {
                 VirtualConsole *vc = &s->vc[i];
                 if (vc && vc->type == GD_VC_VTE && vc != cur) {
@@ -2253,6 +2258,22 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     }
 
     gd_set_keycode_type(s);
+
+    gdk_window = gtk_widget_get_window(s->window);
+#ifdef GDK_WINDOWING_X11
+    window_id = GDK_WINDOW_XID(gdk_window);
+#elif defined(GDK_WINDOWING_WIN32)
+    window_id = gdk_win32_window_get_impl_hwnd(gdk_window);
+#endif
+    for (i = 0; ; i++) {
+        /* All consoles share the same window */
+        QemuConsole *con = qemu_console_lookup_by_index(i);
+        if (con) {
+            qemu_console_set_window_id(i, (int) window_id);
+        } else {
+            break;
+        }
+    }
 }
 
 void early_gtk_display_init(int opengl)
