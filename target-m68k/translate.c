@@ -1815,6 +1815,172 @@ DISAS_INSN(arith_im)
     tcg_temp_free(dest);
 }
 
+DISAS_INSN(cas)
+{
+    int opsize;
+    TCGv addr;
+    uint16_t ext;
+    TCGv load;
+    TCGv cmp;
+    TCGMemOp opc;
+
+    switch ((insn >> 9) & 3) {
+    case 1:
+        opsize = OS_BYTE;
+        opc = MO_UB;
+        break;
+    case 2:
+        opsize = OS_WORD;
+        opc = MO_TEUW;
+        break;
+    case 3:
+        opsize = OS_LONG;
+        opc = MO_TEUL;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    opc |= MO_ALIGN;
+
+    ext = read_im16(env, s);
+
+    /* cas Dc,Du,<EA> */
+
+    addr = gen_lea(env, s, insn, opsize);
+    if (IS_NULL_QREG(addr)) {
+        gen_addr_fault(s);
+        return;
+    }
+
+    cmp = gen_extend(DREG(ext, 0), opsize, 0);
+
+    /* if  <EA> == Dc then
+     *     <EA> = Du
+     *     Dc = <EA> (because <EA> == Dc)
+     * else
+     *     Dc = <EA>
+     */
+
+    load = tcg_temp_new();
+    tcg_gen_atomic_cmpxchg_i32(load, addr, cmp, DREG(ext, 6),
+                               IS_USER(s), opc);
+    gen_partset_reg(opsize, DREG(ext, 0), load);
+
+    gen_update_cc_cmp(s, load, cmp, opsize);
+    tcg_temp_free(load);
+}
+
+DISAS_INSN(cas2)
+{
+    int opsize;
+    uint16_t ext1, ext2;
+    TCGv addr1, addr2;
+    TCGv load1, load2;
+    TCGv cmp1, cmp2;
+    TCGv dest, src;
+    TCGv store;
+
+    switch ((insn >> 9) & 3) {
+    case 1:
+        opsize = OS_BYTE;
+        break;
+    case 2:
+        opsize = OS_WORD;
+        break;
+    case 3:
+        opsize = OS_LONG;
+        break;
+    default:
+        abort();
+    }
+
+    /* cas2 Dc1:Dc2,Du1:Du2,(Rn1):(Rn2) */
+
+    ext1 = read_im16(env, s);
+
+    if (ext1 & 0x8000) {
+        /* Address Register */
+        addr1 = AREG(ext1, 12);
+    } else {
+        /* Data Register */
+        addr1 = DREG(ext1, 12);
+    }
+
+    ext2 = read_im16(env, s);
+    if (ext2 & 0x8000) {
+        /* Address Register */
+        addr2 = AREG(ext2, 12);
+    } else {
+        /* Data Register */
+        addr2 = DREG(ext2, 12);
+    }
+
+    /* FIXME: this sequence is not atomic */
+
+    /* if (R1) == Dc1 && (R2) == Dc2 then
+     *     (R1) = Du1
+     *     (R2) = Du2
+     *     Dc1 = (R1) (because Dc1 == (R1))
+     *     Dc2 = (R2) (because Dc2 == (R2))
+     * else
+     *     Dc1 = (R1)
+     *     Dc2 = (R2)
+     */
+
+    load1 = gen_load(s, opsize, addr1, 0);
+    load2 = gen_load(s, opsize, addr2, 0);
+
+    cmp1 = gen_extend(DREG(ext1, 0), opsize, 0);
+    cmp2 = gen_extend(DREG(ext2, 0), opsize, 0);
+
+    /* (R1) - Dc1 -> cc
+     *     if Z
+     *         (R2) - Dc2 -> cc
+     *
+     * with CC_OP_CMP, set dest and src accordingly
+     *    dest - src -> cc
+     */
+
+    dest = tcg_temp_new();
+    tcg_gen_movcond_i32(TCG_COND_EQ, dest,
+                        load1, cmp1,
+                        load2, load1);
+    src = tcg_temp_new();
+    tcg_gen_movcond_i32(TCG_COND_EQ, src,
+                        load1, cmp1,
+                        cmp2, cmp1);
+
+    /* if src == dest then
+     *     (R1) = Du1
+     *     (R2) = Du2
+     */
+
+    store = tcg_temp_new();
+    tcg_gen_movcond_i32(TCG_COND_EQ, store,
+                        dest, src,
+                        DREG(ext1, 6), load1);
+    gen_store(s, opsize, addr1, store);
+
+    tcg_gen_movcond_i32(TCG_COND_EQ, store,
+                        dest, src,
+                        DREG(ext2, 6), load2);
+    gen_store(s, opsize, addr2, store);
+    tcg_temp_free(store);
+
+    /* Dc1 = (R1)
+     * Dc2 = (R2)
+     */
+
+    gen_partset_reg(opsize, DREG(ext1, 0), load1);
+    gen_partset_reg(opsize, DREG(ext2, 0), load2);
+
+    tcg_gen_mov_i32(QREG_CC_N, dest);
+    tcg_temp_free(dest);
+    tcg_gen_mov_i32(QREG_CC_V, src);
+    tcg_temp_free(src);
+    set_cc_op(s, CC_OP_CMPB + opsize);
+}
+
 DISAS_INSN(byterev)
 {
     TCGv reg;
@@ -3599,6 +3765,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(arith_im,  0680, fff8, CF_ISA_A);
     INSN(arith_im,  0c00, ff38, CF_ISA_A);
     INSN(arith_im,  0c00, ff00, M68000);
+    INSN(cas,       08c0, f9c0, CAS);
+    INSN(cas2,      08fc, f9ff, CAS);
     BASE(bitop_im,  0800, ffc0);
     BASE(bitop_im,  0840, ffc0);
     BASE(bitop_im,  0880, ffc0);
