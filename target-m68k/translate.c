@@ -1252,6 +1252,238 @@ DISAS_INSN(divl)
     set_cc_op(s, CC_OP_FLAGS);
 }
 
+static void bcd_add(TCGv src, TCGv dest)
+{
+    TCGv t0, t1;
+
+    /* t1 = (src + 0x066) + dest
+     *    = result with some possible exceding 0x6
+     */
+
+    t0 = tcg_const_i32(0x066);
+    tcg_gen_add_i32(t0, t0, src);
+
+    t1 = tcg_temp_new();
+    tcg_gen_add_i32(t1, t0, dest);
+
+    /* we will remove exceding 0x6 where there is no carry */
+
+    /* t0 = (src + 0x0066) ^ dest
+     *    = t1 without carries
+     */
+
+    tcg_gen_xor_i32(t0, t0, dest);
+
+    /* extract the carries
+     * t0 = t0 ^ t1
+     *    = only the carries
+     */
+
+    tcg_gen_xor_i32(t0, t0, t1);
+
+    /* generate 0x1 where there is no carry */
+
+    tcg_gen_not_i32(t0, t0);
+    tcg_gen_andi_i32(t0, t0, 0x110);
+
+    /* for each 0x10, generate a 0x6 */
+
+    tcg_gen_shri_i32(dest, t0, 2);
+    tcg_gen_shri_i32(t0, t0, 3);
+    tcg_gen_or_i32(dest, dest, t0);
+    tcg_temp_free(t0);
+
+    /* remove the exceding 0x6
+     * for digits that have not generated a carry
+     */
+
+    tcg_gen_sub_i32(dest, t1, dest);
+    tcg_temp_free(t1);
+}
+
+static void bcd_neg(TCGv dest, TCGv src)
+{
+    TCGv t0, t1;
+
+    /* compute the 10's complement
+     *
+     *    bcd_add(0xf99 - (src + X), 0x0001)
+     *
+     *        t1 = 0xF99 - src - X)
+     *        t2 = t1 + 0x066
+     *        t3 = t2 + 0x001
+     *        t4 = t2 ^ 0x001
+     *        t5 = t3 ^ t4
+     *        t6 = ~t5 & 0x110
+     *        t7 = (t6 >> 2) | (t6 >> 3)
+     *        return t3 - t7
+     *
+     * reduced in:
+     *        t2 = 0xFFF + (-src)
+     *        t3 = (-src)
+     *        t4 = t2  ^ (X ^ 1)
+     *        t5 = (t3 - X) ^ t4
+     *        t6 = ~t5 & 0x110
+     *        t7 = (t6 >> 2) | (t6 >> 3)
+     *        return (t3 - X) - t7
+     *
+     */
+
+    tcg_gen_neg_i32(src, src);
+
+    t0 = tcg_temp_new();
+    tcg_gen_addi_i32(t0, src, 0xfff);
+    tcg_gen_xori_i32(t0, t0, 1);
+    tcg_gen_xor_i32(t0, t0, QREG_CC_X);
+    tcg_gen_sub_i32(src, src, QREG_CC_X);
+    tcg_gen_xor_i32(t0, t0, src);
+    tcg_gen_not_i32(t0, t0);
+    tcg_gen_andi_i32(t0, t0, 0x110);
+
+    t1 = tcg_temp_new();
+    tcg_gen_shri_i32(t1, t0, 2);
+    tcg_gen_shri_i32(t0, t0, 3);
+    tcg_gen_or_i32(t0, t0, t1);
+    tcg_temp_free(t1);
+
+    tcg_gen_sub_i32(dest, src, t0);
+    tcg_temp_free(t0);
+}
+
+static void bcd_flags(TCGv val)
+{
+    tcg_gen_andi_i32(QREG_CC_C, val, 0x0ff);
+    tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_C);
+
+    tcg_gen_movi_i32(QREG_CC_X, 0);
+    tcg_gen_andi_i32(val, val, 0xf00);
+    tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_C, val, QREG_CC_X);
+
+    tcg_gen_mov_i32(QREG_CC_X, QREG_CC_C);
+}
+
+DISAS_INSN(abcd_reg)
+{
+    TCGv src;
+    TCGv dest;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    src = gen_extend(DREG(insn, 0), OS_BYTE, 0);
+    dest = gen_extend(DREG(insn, 9), OS_BYTE, 0);
+    bcd_add(src, dest);
+    gen_partset_reg(OS_BYTE, DREG(insn, 9), dest);
+
+    bcd_flags(dest);
+}
+
+DISAS_INSN(abcd_mem)
+{
+    TCGv src;
+    TCGv addr_src;
+    TCGv dest;
+    TCGv addr_dest;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    addr_src = tcg_temp_new();
+    tcg_gen_mov_i32(addr_src, AREG(insn, 0));
+
+    tcg_gen_subi_i32(addr_src, addr_src, opsize_bytes(OS_BYTE));
+    src = gen_load(s, OS_BYTE, addr_src, 0);
+
+    addr_dest = tcg_temp_new();
+    if (REG(insn, 0) == REG(insn, 9)) {
+        tcg_gen_mov_i32(addr_dest, addr_src);
+    } else {
+        tcg_gen_mov_i32(addr_dest, AREG(insn, 9));
+    }
+    tcg_gen_subi_i32(addr_dest, addr_dest, opsize_bytes(OS_BYTE));
+    dest = gen_load(s, OS_BYTE, addr_dest, 0);
+
+    bcd_add(src, dest);
+
+    gen_store(s, OS_BYTE, addr_dest, dest);
+
+    tcg_gen_mov_i32(AREG(insn, 0), addr_src);
+    tcg_temp_free(addr_src);
+    tcg_gen_mov_i32(AREG(insn, 9), addr_dest);
+    tcg_temp_free(addr_dest);
+
+    bcd_flags(dest);
+}
+
+DISAS_INSN(sbcd_reg)
+{
+    TCGv src;
+    TCGv dest;
+    TCGv tmp;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    src = gen_extend(DREG(insn, 0), OS_BYTE, 0);
+    dest = gen_extend(DREG(insn, 9), OS_BYTE, 0);
+
+    tmp = tcg_temp_new();
+    bcd_neg(tmp, src);
+    bcd_add(tmp, dest);
+    tcg_temp_free(tmp);
+
+    gen_partset_reg(OS_BYTE, DREG(insn, 9), dest);
+
+    bcd_flags(dest);
+
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(sbcd_mem)
+{
+    TCGv src;
+    TCGv addr_src;
+    TCGv dest;
+    TCGv addr_dest;
+    TCGv tmp;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    addr_src = AREG(insn, 0);
+    tcg_gen_subi_i32(addr_src, addr_src, opsize_bytes(OS_BYTE));
+    src = gen_load(s, OS_BYTE, addr_src, 0);
+
+    addr_dest = AREG(insn, 9);
+    tcg_gen_subi_i32(addr_dest, addr_dest, opsize_bytes(OS_BYTE));
+    dest = gen_load(s, OS_BYTE, addr_dest, 0);
+
+    tmp = tcg_temp_new();
+    bcd_neg(tmp, src);
+    bcd_add(tmp, dest);
+    tcg_temp_free(tmp);
+
+    gen_store(s, OS_BYTE, addr_dest, dest);
+
+    bcd_flags(dest);
+
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+DISAS_INSN(nbcd)
+{
+    TCGv dest;
+    TCGv addr;
+
+    gen_flush_flags(s); /* !Z is sticky */
+
+    SRC_EA(env, dest, OS_BYTE, 0, &addr);
+
+    bcd_neg(dest, dest);
+
+    DEST_EA(env, insn, OS_BYTE, dest, &addr);
+
+    bcd_flags(dest);
+
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
 DISAS_INSN(addsub)
 {
     TCGv reg;
@@ -3334,6 +3566,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(not,       4600, ff00, M68000);
     INSN(undef,     46c0, ffc0, M68000);
     INSN(move_to_sr, 46c0, ffc0, CF_ISA_A);
+    INSN(nbcd,      4800, ffc0, M68000);
     INSN(linkl,     4808, fff8, M68000);
     BASE(pea,       4840, ffc0);
     BASE(swap,      4840, fff8);
@@ -3385,6 +3618,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(mvzs,      7100, f100, CF_ISA_B);
     BASE(or,        8000, f000);
     BASE(divw,      80c0, f0c0);
+    INSN(sbcd_reg,  8100, f1f8, M68000);
+    INSN(sbcd_mem,  8108, f1f8, M68000);
     BASE(addsub,    9000, f000);
     INSN(undef,     90c0, f0c0, CF_ISA_A);
     INSN(subx_reg,  9180, f1f8, CF_ISA_A);
@@ -3421,6 +3656,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(exg_aa,    c148, f1f8, M68000);
     INSN(exg_da,    c188, f1f8, M68000);
     BASE(mulw,      c0c0, f0c0);
+    INSN(abcd_reg,  c100, f1f8, M68000);
+    INSN(abcd_mem,  c108, f1f8, M68000);
     BASE(addsub,    d000, f000);
     INSN(undef,     d0c0, f0c0, CF_ISA_A);
     INSN(addx_reg,      d180, f1f8, CF_ISA_A);
