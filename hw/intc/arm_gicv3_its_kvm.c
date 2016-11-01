@@ -33,18 +33,18 @@ static int kvm_its_send_msi(GICv3ITSState *s, uint32_t value, uint16_t devid)
 {
     struct kvm_msi msi;
 
-    if (unlikely(!s->translater_gpa_known)) {
+    if (unlikely(!s->translator_gpa_known)) {
         MemoryRegion *mr = &s->iomem_its_translation;
         MemoryRegionSection mrs;
 
         mrs = memory_region_find(mr, 0, 1);
         memory_region_unref(mrs.mr);
-        s->gits_translater_gpa = mrs.offset_within_address_space + 0x40;
-        s->translater_gpa_known = true;
+        s->gits_translator_gpa = mrs.offset_within_address_space + 0x40;
+        s->translator_gpa_known = true;
     }
 
-    msi.address_lo = extract64(s->gits_translater_gpa, 0, 32);
-    msi.address_hi = extract64(s->gits_translater_gpa, 32, 32);
+    msi.address_lo = extract64(s->gits_translator_gpa, 0, 32);
+    msi.address_hi = extract64(s->gits_translator_gpa, 32, 32);
     msi.data = le32_to_cpu(value);
     msi.flags = KVM_MSI_VALID_DEVID;
     msi.devid = devid;

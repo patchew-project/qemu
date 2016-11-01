@@ -38,8 +38,8 @@ struct GICv3ITSState {
     GICv3State *gicv3;
 
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
-    uint64_t gits_translater_gpa;
-    bool translater_gpa_known;
+    uint64_t gits_translator_gpa;
+    bool translator_gpa_known;
 
     /* Registers */
     uint32_t ctlr;
