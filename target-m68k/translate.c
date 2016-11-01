@@ -2227,26 +2227,14 @@ DISAS_INSN(cmpa)
 DISAS_INSN(cmpm)
 {
     int opsize = insn_opsize(insn);
-    TCGv tmp = tcg_temp_new();
-    TCGv src, dst, addr;
+    TCGv src, dst;
 
-    src = gen_load(s, opsize, AREG(insn, 0), 1);
-    /* delay the update after the second gen_load() */
-    tcg_gen_addi_i32(tmp, AREG(insn, 0), opsize_bytes(opsize));
-
-    /* but if the we use the same address register to
-     * read the second value, we must use the updated address
-     */
-    if (REG(insn, 0) == REG(insn, 9)) {
-        addr = tmp;
-    } else {
-        addr = AREG(insn, 9);
-    }
-
-    dst = gen_load(s, opsize, addr, 1);
-    tcg_gen_mov_i32(AREG(insn, 0), tmp);
-    tcg_gen_addi_i32(AREG(insn, 9), addr, opsize_bytes(opsize));
-    tcg_temp_free(tmp);
+    /* Post-increment load (mode 3) from Ay.  */
+    src = gen_ea_mode(env, s, 3, REG(insn, 0), opsize,
+                      NULL_QREG, NULL, EA_LOADS);
+    /* Post-increment load (mode 3) from Ax.  */
+    dst = gen_ea_mode(env, s, 3, REG(insn, 9), opsize,
+                      NULL_QREG, NULL, EA_LOADS);
 
     gen_update_cc_cmp(s, dst, src, opsize);
 }
