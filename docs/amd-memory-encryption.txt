@@ -1,0 +1,153 @@
+Secure Encrypted Virtualization (SEV) is a feature found on AMD processors.
+
+SEV feature allows the memory contents of a virtual machine (VM) to be
+transparently  encrypted with a key unique to the guest VM. The memory
+controller contains a high performance encryption engine which can be
+programmed with multiple keys for used by different VMs in the system.
+The programming and management of these keys is handled by the AMD  Secure
+Processor firmware which exposes commands for these tasks.
+
+At highest level the SEV key management APIs are divided into two sections:
+
+* Platform management commands
+* Guest management commands
+
+In this doc we will focus on Guest management commands. 
+
+SEV is capable of supporting both light-weight virtual containers as well as
+conventional VM within an enterprise cloud environment. In either case, there
+are two parties concerned in the deployment of SEV guest: the guest owner and
+the platform owner. For example, in a cloud environment, the platform owner
+would be cloud vendor and the guest owner would be the user that wishes to run
+their workload in the cloud.
+
+1. Guest Management Commands
+-----------------------------
+
+The guest management commands provide the support for common guest lifecycle
+events. These events include launching, running, snapshotting, migrating and
+decommission guest. The guest management commands are issued through
+KVM_SEV_ISSUE_CMD ioctl.
+
+1.1 Launch
+
+When a guest is launched, its memory must first be encrypted using guest owners
+key before SEV can be enabled in hardware. There are two types of launches:
+
+1.1.1 unencrypted
+
+Boot images (such as bios, kernel, initrd) provided by the guest owner to
+bootstrap the guest is unencrypted. The firmware provides interfaces to
+bootstrap the memory encryption for this purpose: LAUNCH_START, LAUNCH_UPDATE,
+and LAUNCH_FINISH. These three commands together generate a fresh memory
+encryption key for the guest, encrypt guest memory and provide an attestation
+of the successful launch.
+
+LAUNCH_START is called first to create a guest context within the firmware.
+To create this context, qemu user must provide guest's security policy, guest
+owners public Diffie-Hellman key (P-256 defined in section D.1.2.3 of
+[FIPS 186-4]) and nonce. The guest security policy is a 4-byte data structure
+containing several flags that restrict what the hypervisor can do on the running
+SEV guest. The guest security policy should be provided by the guest owner, any
+changes in policy by hypervisor would result in the wrong measurement. The policy
+is applied to the lifetime of the guest. Guest owners public diffie-hellman (pdh)
+key is used to establish a cryptographic session with the guest owner to
+negotiate keys used for attestation. If the hypervisor requests this guest to
+share key with another SEV guest then hypervisor must set 'key-sharing' and
+'handle' in LAUNCH_START command. The key sharing is permitted only if guest
+policy allows it.
+
+LAUNCH_UPDATE encrypts the memory region using the cryptographic context created
+via LAUNCH_START command. If required this command can be called multiple times
+to encrypt different memory regions. The command also calculates the measurement
+of the memory contents as it encrypts.
+
+LAUNCH_FINISH command finalizes the guest launch and generates measurement.
+This measurement is a signature of the memory contents that can be sent to the
+guest owner as an attestation that the memory was encrypted correctly by the
+firmware. The guest owner may wait to provide the guest confidential information
+until it can verify the attestation measurement. Since the guest owner knows the
+initial contents of the guest at boot, the attestation measurement can be
+verified by comparing it to what the guest owner expects.
+
+SEV support can be enabled via 'memory-encryption' parameters defined in
+security-policy object. If memory-encryption is enabled, then hypervisor
+uses MemoryRegionReadWriteOps callbacks to access guest memory.
+
+Before vm_start, rom_reset copies boot images from internal rom to guest memory
+as shown below.
+
+                       +----------------------+
+                       |   qemu_system_reset  |
+                       +----------------------+
+                                |
+                                |
+                                V
+                    +-----------------------------+
+                    |      rom_reset (loader.c)   |
+                    +-----------------------------+
+                           |    |      |
+       +-------------------+    |      +-----------------+
+       |                        |                        |
+       V                        V                        V
+  +--------------+      +------------------+       +----------------+
+  | LAUNCH_START |      | memory_rom_write |       | LAUNCH_FINISH  |
+  +--------------+      +------------------+       +----------------+
+                                |
+                                | 
+                                V
+                         +------------------+
+                         |  LAUNCH_UPDATE   |
+                         +------------------+
+
+Input to LAUNCH_START command can be provided through the properties defined in
+'sev-launch-info' object.
+
+e.g to launch SEV guest from unencrypted boot images
+
+# ${QEMU} \
+      -object sev-launch-info,id=launch0,dh-pub-qx=abcd,dh-pub-qy=1234,nonce=1234\
+      -object sev-guest,id=sev0\
+      -object security-policy,id=mypolicy,memory-encryption=sev0\
+      -machine ...,security-policy=mypolicy
+
+e.g launch this SEV guest using another SEV guest key (key sharing)
+
+# ${QEMU} \
+      -object sev-launch-info,id=launch0,key-sharing=on,handle=1234\
+      -object sev-guest,id=sev0\
+      -object security-policy,id=mypolicy,memory-encryption=sev0\
+      -machine ...,security-policy=mypolicy
+
+1.1.2 pre-encrypted
+
+1.2 Snapshot
+
+1.3 Restore
+
+1.4 Live Migration
+
+1.5 Debugging
+
+Since memory contents of SEV guest is encrypted hence hypervisor access to the
+guest memory will get a cipher text. If guest policy allows debugging, then
+hypervisor is allowed to access guest memory. Hypervisor can use DEBUG_DECRYPT
+command to decrypt guest memory region for debug purposes. Similarly hypervisor
+can use DEBUG_ENCRYPT command to write into guest memory.
+
+2. References
+-----------------
+
+AMD Memory Encryption whitepaper:
+http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
+
+Secure Encrypted Virutualization Key Management:
+http://support.amd.com/TechDocs/55766_SEV-KM API_Spec.pdf
+
+KVM Forum slides:
+http://www.linux-kvm.org/images/7/74/02x08A-Thomas_Lendacky-AMDs_Virtualizatoin_Memory_Encryption_Technology.pdf
+
+AMD64 Architecture Programmer's Manual:
+   http://support.amd.com/TechDocs/24593.pdf
+   SME is section 7.10
+   SEV is section 15.34

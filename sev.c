@@ -1,0 +1,350 @@
+/*
+ * QEMU SEV support
+ *
+ * Copyright Advanced Micro Devices 2016
+ *
+ * Author:
+ *      Brijesh Singh <brijesh.singh@amd.com>
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ *
+ */
+
+#include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qom/object_interfaces.h"
+#include "qemu/base64.h"
+#include "sysemu/kvm.h"
+#include "sysemu/sev.h"
+#include "sysemu/sysemu.h"
+#include "trace.h"
+
+#define DEBUG_SEV
+#ifdef DEBUG_SEV
+#define DPRINTF(fmt, ...) \
+    do { fprintf(stdout, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
+
+static MemoryRegionRAMReadWriteOps sev_ops;
+static bool sev_allowed;
+
+static void
+qsev_guest_finalize(Object *obj)
+{
+}
+
+static void
+qsev_guest_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static QSevGuestInfo *
+lookup_sev_guest_info(const char *id)
+{
+    Object *obj;
+    QSevGuestInfo *info;
+
+    obj = object_resolve_path_component(
+        object_get_objects_root(), id);
+    if (!obj) {
+        return NULL;
+    }
+
+    info = (QSevGuestInfo *)
+            object_dynamic_cast(obj, TYPE_QSEV_GUEST_INFO);
+    if (!info) {
+        return NULL;
+    }
+
+    return info;
+}
+
+static void
+qsev_guest_init(Object *obj)
+{
+    QSevGuestInfo *sev = QSEV_GUEST_INFO(obj);
+
+    object_property_add_link(obj, "launch", TYPE_QSEV_LAUNCH_INFO,
+                             (Object **)&sev->launch_info,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
+}
+
+/* sev guest info */
+static const TypeInfo qsev_guest_info = {
+    .parent = TYPE_OBJECT,
+    .name = TYPE_QSEV_GUEST_INFO,
+    .instance_size = sizeof(QSevGuestInfo),
+    .instance_finalize = qsev_guest_finalize,
+    .class_size = sizeof(QSevGuestInfoClass),
+    .class_init = qsev_guest_class_init,
+    .instance_init = qsev_guest_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
+};
+
+static void
+qsev_launch_finalize(Object *obj)
+{
+}
+
+static char *
+qsev_launch_get_nonce(Object *obj, Error **errp)
+{
+    QSevLaunchInfo *launch = QSEV_LAUNCH_INFO(obj);
+
+    return g_strdup(launch->nonce);
+}
+
+static void
+qsev_launch_set_nonce(Object *obj, const char *value, Error **errp)
+{
+    QSevLaunchInfo *launch = QSEV_LAUNCH_INFO(obj);
+
+    launch->nonce = g_strdup(value);
+}
+
+static char *
+qsev_launch_get_dh_pub_qx(Object *obj, Error **errp)
+{
+    QSevLaunchInfo *launch = QSEV_LAUNCH_INFO(obj);
+
+    return g_strdup(launch->dh_pub_qx);
+}
+
+static void
+qsev_launch_set_dh_pub_qx(Object *obj, const char *value, Error **errp)
+{
+    QSevLaunchInfo *launch = QSEV_LAUNCH_INFO(obj);
+
+    launch->dh_pub_qx = g_strdup(value);
+}
+
+static char *
+qsev_launch_get_dh_pub_qy(Object *obj, Error **errp)
+{
+    QSevLaunchInfo *launch = QSEV_LAUNCH_INFO(obj);
+
+    return g_strdup(launch->dh_pub_qy);
+}
+
+static void
+qsev_launch_set_dh_pub_qy(Object *obj, const char *value, Error **errp)
+{
+    QSevLaunchInfo *launch = QSEV_LAUNCH_INFO(obj);
+
+    launch->dh_pub_qy = g_strdup(value);
+}
+
+static void
+qsev_launch_class_init(ObjectClass *oc, void *data)
+{
+    object_class_property_add_str(oc, "nonce",
+                                  qsev_launch_get_nonce,
+                                  qsev_launch_set_nonce,
+                                  NULL);
+    object_class_property_set_description(oc, "nonce",
+            "a nonce provided by guest owner", NULL);
+
+    object_class_property_add_str(oc, "dh-pub-qx",
+                                  qsev_launch_get_dh_pub_qx,
+                                  qsev_launch_set_dh_pub_qx,
+                                  NULL);
+    object_class_property_set_description(oc, "dh-pub-qx",
+            "Qx parameter of owner's ECDH public key", NULL);
+
+    object_class_property_add_str(oc, "dh-pub-qy",
+                                  qsev_launch_get_dh_pub_qy,
+                                  qsev_launch_set_dh_pub_qy,
+                                  NULL);
+    object_class_property_set_description(oc, "dh-pub-qy",
+            "Qy parameter of owner's ECDH public key", NULL);
+}
+
+static void
+qsev_launch_init(Object *obj)
+{
+}
+
+/* guest launch */
+static const TypeInfo qsev_launch_info = {
+    .parent = TYPE_OBJECT,
+    .name = TYPE_QSEV_LAUNCH_INFO,
+    .instance_size = sizeof(QSevLaunchInfo),
+    .instance_finalize = qsev_launch_finalize,
+    .class_size = sizeof(QSevLaunchInfoClass),
+    .class_init = qsev_launch_class_init,
+    .instance_init = qsev_launch_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
+};
+
+
+static int
+sev_launch_start(SEVState *s)
+{
+    return 0;
+}
+
+static int
+sev_launch_finish(SEVState *s)
+{
+    return 0;
+}
+
+static int
+sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
+{
+    SEVState *s = kvm_memory_encryption_get_handle();
+
+    assert(s != NULL && s->state != SEV_STATE_INVALID);
+
+    return 0;
+}
+
+static int
+sev_mem_read(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
+{
+    SEVState *s = kvm_memory_encryption_get_handle();
+
+    assert(s != NULL && s->state != SEV_STATE_INVALID);
+
+    return 0;
+}
+
+static int
+sev_get_launch_type(SEVState *s)
+{
+    QSevGuestInfo *sev_info = s->sev_info;
+
+    /* if <link>QSevLaunchInfo is set then we are configured to use
+     * launch_info object.
+     */
+    if (object_property_get_link(OBJECT(sev_info), "launch", &error_abort)) {
+        return USE_LAUNCH_INFO;
+    }
+
+    return INVALID_TYPE;
+}
+
+void *
+sev_guest_init(const char *id)
+{
+    Object *obj;
+    SEVState *s;
+
+    s = g_malloc0(sizeof(SEVState));
+    if (!s) {
+        return NULL;
+    }
+
+    s->sev_info = lookup_sev_guest_info(id);
+    if (!s->sev_info) {
+        fprintf(stderr, "'%s' not a valid '%s' object\n",
+                id, TYPE_QSEV_GUEST_INFO);
+        goto err;
+    }
+
+    obj = object_resolve_path_type("", TYPE_QSEV_LAUNCH_INFO, NULL);
+    if (obj) {
+        object_property_set_link(OBJECT(s->sev_info), obj, "launch",
+                &error_abort);
+    }
+
+    sev_allowed = true;
+    return s;
+err:
+    g_free(s);
+    return NULL;
+}
+
+int
+sev_guest_launch_start(void *handle)
+{
+    SEVState *s = (SEVState *)handle;
+
+    assert(s != NULL);
+
+    /* If we are in prelaunch state then create memory encryption context based
+     * on the sev launch object created by user.
+     */
+    if (runstate_check(RUN_STATE_PRELAUNCH)) {
+        if (sev_get_launch_type(s) == USE_LAUNCH_INFO) {
+            return sev_launch_start(s);
+        }
+    }
+
+    return 1;
+}
+
+int
+sev_guest_launch_finish(void *handle)
+{
+    SEVState *s = (SEVState *)handle;
+
+    assert(s != NULL);
+
+    if (s->state == SEV_STATE_LAUNCHING) {
+        return sev_launch_finish(s);
+    }
+
+    return 1;
+}
+
+void
+sev_guest_set_debug_ops(void *handle, MemoryRegion *mr)
+{
+    SEVState *s = (SEVState *)handle;
+
+    assert(s != NULL);
+
+    sev_ops.read = sev_mem_read;
+    sev_ops.write = sev_mem_write;
+
+    memory_region_set_ram_debug_ops(mr, &sev_ops);
+}
+
+int
+sev_guest_mem_dec(void *handle, uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    SEVState *s = (SEVState *)handle;
+
+    assert(s != NULL && s->state != SEV_STATE_INVALID);
+
+    /* use SEV debug command to decrypt memory */
+    return 1;
+}
+
+int
+sev_guest_mem_enc(void *handle, uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    SEVState *s = (SEVState *)handle;
+
+    assert(s != NULL && s->state != SEV_STATE_INVALID);
+
+    /* use SEV debug command to decrypt memory */
+    return 1;
+}
+
+bool
+sev_enabled(void)
+{
+    return sev_allowed;
+}
+
+static void
+sev_policy_register_types(void)
+{
+    type_register_static(&qsev_guest_info);
+    type_register_static(&qsev_launch_info);
+}
+
+type_init(sev_policy_register_types);
