@@ -54,6 +54,7 @@
 #include "qemu/cutils.h"
 #include "io/channel-buffer.h"
 #include "io/channel-file.h"
+#include "sysemu/sev.h"
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
@@ -2027,6 +2028,11 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     Error *local_err = NULL;
     AioContext *aio_context;
 
+    if (sev_enabled()) {
+        monitor_printf(mon, "savevm is not implemented on SEV guest\n");
+        return;
+    }
+
     if (!bdrv_all_can_snapshot(&bs)) {
         monitor_printf(mon, "Device '%s' is writable but does not "
                        "support snapshots.\n", bdrv_get_device_name(bs));
@@ -2175,6 +2181,11 @@ int load_vmstate(const char *name)
     QEMUFile *f;
     int ret;
     AioContext *aio_context;
+
+    if (sev_enabled()) {
+        error_report("loadvm is not implemented on SEV guest\n");
+        return -ENOTSUP;
+    }
 
     if (!bdrv_all_can_snapshot(&bs)) {
         error_report("Device '%s' is writable but does not support snapshots.",
