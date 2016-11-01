@@ -62,6 +62,8 @@ struct PCMachineState {
 
     AcpiNVDIMMState acpi_nvdimm_state;
 
+    bool acpi_build_enabled;
+
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
 
@@ -86,6 +88,7 @@ struct PCMachineState {
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_NVDIMM           "nvdimm"
+#define PC_MACHINE_ACPI_BUILD       "acpi-build"
 
 /**
  * PCMachineClass:

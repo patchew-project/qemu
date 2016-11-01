@@ -2143,6 +2143,20 @@ static bool pc_machine_get_nvdimm(Object *obj, Error **errp)
     return pcms->acpi_nvdimm_state.is_enabled;
 }
 
+static bool pc_machine_get_acpi_build(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->acpi_build_enabled;
+}
+
+static void pc_machine_set_acpi_build(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->acpi_build_enabled = value;
+}
+
 static void pc_machine_set_nvdimm(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2159,6 +2173,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->vmport = ON_OFF_AUTO_AUTO;
     /* nvdimm is disabled on default. */
     pcms->acpi_nvdimm_state.is_enabled = false;
+    /* acpi build is enabled by default. */
+    pcms->acpi_build_enabled = true;
 }
 
 static void pc_machine_reset(void)
@@ -2319,6 +2335,9 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_NVDIMM,
         pc_machine_get_nvdimm, pc_machine_set_nvdimm, &error_abort);
+
+    object_class_property_add_bool(oc, PC_MACHINE_ACPI_BUILD,
+        pc_machine_get_acpi_build, pc_machine_set_acpi_build, &error_abort);
 }
 
 static const TypeInfo pc_machine_info = {
