@@ -33,6 +33,30 @@ static MemoryRegionRAMReadWriteOps sev_ops;
 static bool sev_allowed;
 
 static void
+str_to_uint8_ptr(const char *str, uint8_t *ptr, int count)
+{
+    int i = 0;
+
+    while (*str && i != count) {
+        sscanf(str, "%2hhx", &ptr[i]);
+        str += 2;
+        i++;
+    }
+}
+
+static void
+DPRINTF_U8_PTR(const char *name, const uint8_t *ptr, int count)
+{
+    int i;
+
+    DPRINTF("%s = ", name);
+    for (i = 0; i < count; i++) {
+        DPRINTF("%02hhx", ptr[i]);
+    }
+    DPRINTF("\n");
+}
+
+static void
 qsev_guest_finalize(Object *obj)
 {
 }
@@ -189,8 +213,65 @@ static const TypeInfo qsev_launch_info = {
 
 
 static int
+sev_ioctl(int cmd, void *data)
+{
+    int ret;
+    struct kvm_sev_issue_cmd input;
+
+    input.cmd = cmd;
+    input.opaque = (__u64)data;
+    ret = kvm_vm_ioctl(kvm_state, KVM_SEV_ISSUE_CMD, &input);
+    if (ret) {
+        fprintf(stderr, "sev_ioctl failed cmd=%#x, ret=%d(%#010x)\n",
+                cmd, ret, input.ret_code);
+        return ret;
+    }
+
+    return 0;
+}
+
+static void
+get_sev_property_ptr(Object *obj, const char *name, uint8_t *ptr, int count)
+{
+    char *value;
+
+    value = object_property_get_str(obj, name, &error_abort);
+    str_to_uint8_ptr(value, ptr, count);
+    DPRINTF_U8_PTR(name, ptr, count);
+    g_free(value);
+}
+
+static int
 sev_launch_start(SEVState *s)
 {
+    int ret;
+    Object *obj;
+    struct kvm_sev_launch_start *start;
+
+    if (s->state == SEV_STATE_LAUNCHING) {
+        return 0;
+    }
+
+    start = g_malloc0(sizeof(*start));
+    if (!start) {
+        return 1;
+    }
+
+    obj = object_property_get_link(OBJECT(s->sev_info), "launch", &error_abort);
+    get_sev_property_ptr(obj, "dh-pub-qx", start->dh_pub_qx,
+            sizeof(start->dh_pub_qx));
+    get_sev_property_ptr(obj, "dh-pub-qy", start->dh_pub_qy,
+            sizeof(start->dh_pub_qy));
+    get_sev_property_ptr(obj, "nonce", start->nonce, sizeof(start->nonce));
+    ret = sev_ioctl(KVM_SEV_LAUNCH_START, start);
+    if (ret < 0) {
+        return 1;
+    }
+
+    s->state = SEV_STATE_LAUNCHING;
+    g_free(start);
+
+    DPRINTF("SEV: LAUNCH_START\n");
     return 0;
 }
 
