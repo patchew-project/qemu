@@ -278,7 +278,30 @@ sev_launch_start(SEVState *s)
 static int
 sev_launch_finish(SEVState *s)
 {
-    return 0;
+    int ret;
+    struct kvm_sev_launch_finish *data;
+
+    assert(s->state == SEV_STATE_LAUNCHING);
+
+    data = g_malloc0(sizeof(*data));
+    if (!data) {
+        return 1;
+    }
+
+    ret = sev_ioctl(KVM_SEV_LAUNCH_FINISH, data);
+    if (ret) {
+        goto err;
+    }
+
+    DPRINTF("SEV: LAUNCH_FINISH ");
+    DPRINTF_U8_PTR(" measurement", data->measurement,
+                   sizeof(data->measurement));
+
+    s->state = SEV_STATE_RUNNING;
+err:
+    g_free(data);
+
+    return ret;
 }
 
 static int
