@@ -103,6 +103,17 @@ static inline char *realpath(const char *path, char *resolved_path)
     return resolved_path;
 }
 
+/* POSIX and Mingw32 differ in the name of the stdio lock functions.  */
+
+static inline void qemu_flockfile(FILE *f)
+{
+    _lock_file(f);
+}
+
+static inline void qemu_funlockfile(FILE *f)
+{
+    _unlock_file(f);
+}
 
 /* We wrap all the sockets functions so that we can
  * set errno based on WSAGetLastError()
