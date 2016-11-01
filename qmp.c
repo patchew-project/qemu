@@ -68,6 +68,7 @@ KvmInfo *qmp_query_kvm(Error **errp)
 
     info->enabled = kvm_enabled();
     info->present = kvm_available();
+    info->mem_encryption = kvm_memory_encryption_enabled();
 
     return info;
 }
