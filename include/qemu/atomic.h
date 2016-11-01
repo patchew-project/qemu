@@ -144,9 +144,7 @@
 #define atomic_load_acquire(ptr)                        \
     ({                                                  \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
-    typeof_strip_qual(*ptr) _val;                       \
-    __atomic_load(ptr, &_val, __ATOMIC_ACQUIRE);        \
-    _val;                                               \
+    __atomic_load_n(ptr, __ATOMIC_ACQUIRE);             \
     })
 
 #define atomic_store_release(ptr, i)  do {              \
