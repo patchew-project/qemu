@@ -113,3 +113,24 @@ qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s 
 qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+
+# block/vxhs.c
+vxhs_iio_callback(int error, int reason) "ctx is NULL: error %d, reason %d"
+vxhs_setup_qnio(void *s) "Context to HyperScale IO manager = %p"
+vxhs_iio_callback_chnfail(int err, int error) "QNIO channel failed, no i/o %d, %d"
+vxhs_iio_callback_unknwn(int opcode, int err) "unexpected opcode %d, errno %d"
+vxhs_open_fail(int ret) "Could not open the device. Error = %d"
+vxhs_open_epipe(int ret) "Could not create a pipe for device. Bailing out. Error=%d"
+vxhs_aio_rw_invalid(int req) "Invalid I/O request iodir %d"
+vxhs_aio_rw_ioerr(char *guid, int iodir, uint64_t size, uint64_t off, void *acb, int ret, int err) "IO ERROR (vDisk %s) FOR : Read/Write = %d size = %lu offset = %lu ACB = %p. Error = %d, errno = %d"
+vxhs_get_vdisk_stat_err(char *guid, int ret, int err) "vDisk (%s) stat ioctl failed, ret = %d, errno = %d"
+vxhs_get_vdisk_stat(char *vdisk_guid, uint64_t vdisk_size) "vDisk %s stat ioctl returned size %lu"
+vxhs_qnio_iio_open(const char *ip) "Failed to connect to storage agent on host-ip %s"
+vxhs_qnio_iio_devopen(const char *fname) "Failed to open vdisk device: %s"
+vxhs_complete_aio(void *acb, uint64_t ret) "aio failed acb %p ret %ld"
+vxhs_parse_uri_filename(const char *filename) "URI passed via bdrv_parse_filename %s"
+vxhs_qemu_init_vdisk(const char *vdisk_id) "vdisk-id from json %s"
+vxhs_parse_uri_hostinfo(int num, char *host, int port) "Host %d: IP %s, Port %d"
+vxhs_qemu_init(char *of_vsa_addr, int port) "Adding host %s:%d to BDRVVXHSState"
+vxhs_qemu_init_filename(const char *filename) "Filename passed as %s"
+vxhs_close(char *vdisk_guid) "Closing vdisk %s"
