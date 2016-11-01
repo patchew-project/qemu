@@ -120,20 +120,22 @@
  * same, but this slows down atomic_rcu_read unnecessarily.
  */
 #ifdef __SANITIZE_THREAD__
-#define atomic_rcu_read__nocheck(ptr, valptr)           \
-    __atomic_load(ptr, valptr, __ATOMIC_CONSUME);
+#define atomic_rcu_read__nocheck(ptr)                 \
+    __atomic_load_n(ptr, __ATOMIC_CONSUME);
 #else
-#define atomic_rcu_read__nocheck(ptr, valptr)           \
-    __atomic_load(ptr, valptr, __ATOMIC_RELAXED);       \
-    smp_read_barrier_depends();
+#define atomic_rcu_read__nocheck(ptr)                 \
+    ({                                                \
+    typeof_strip_qual(*ptr) _val;                     \
+    __atomic_load(ptr, &_val, __ATOMIC_RELAXED);      \
+    smp_read_barrier_depends();                       \
+    _val;                                             \
+    })
 #endif
 
 #define atomic_rcu_read(ptr)                          \
     ({                                                \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
-    typeof_strip_qual(*ptr) _val;                     \
-    atomic_rcu_read__nocheck(ptr, &_val);             \
-    _val;                                             \
+    atomic_rcu_read__nocheck(ptr);                    \
     })
 
 #define atomic_rcu_set(ptr, i) do {                   \
@@ -144,9 +146,7 @@
 #define atomic_load_acquire(ptr)                        \
     ({                                                  \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
-    typeof_strip_qual(*ptr) _val;                       \
-    __atomic_load(ptr, &_val, __ATOMIC_ACQUIRE);        \
-    _val;                                               \
+    __atomic_load_n(ptr, __ATOMIC_ACQUIRE);             \
     })
 
 #define atomic_store_release(ptr, i)  do {              \
