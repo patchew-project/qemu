@@ -3149,6 +3149,30 @@ uint32_t ldl_phys(AddressSpace *as, hwaddr addr)
     return address_space_ldl(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
+uint32_t ldl_phys_debug(CPUState *cpu, hwaddr addr)
+{
+    MemTxAttrs attrs = MEMTXATTRS_DEBUG;
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    uint32_t val;
+
+    cpu_physical_memory_rw_debug_internal(cpu->cpu_ases[asidx].as,
+                                          addr, (void *) &val,
+                                          4, attrs, READ_DATA);
+    return tswap32(val);
+}
+
+uint64_t ldq_phys_debug(CPUState *cpu, hwaddr addr)
+{
+    MemTxAttrs attrs = MEMTXATTRS_DEBUG;
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    uint64_t val;
+
+    cpu_physical_memory_rw_debug_internal(cpu->cpu_ases[asidx].as,
+                                          addr, (void *) &val,
+                                          8, attrs, READ_DATA);
+    return val;
+}
+
 uint32_t ldl_le_phys(AddressSpace *as, hwaddr addr)
 {
     return address_space_ldl_le(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
@@ -3657,6 +3681,14 @@ void stq_le_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 void stq_be_phys(AddressSpace *as, hwaddr addr, uint64_t val)
 {
     address_space_stq_be(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+}
+
+void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
+                                  int len, int is_write)
+{
+    cpu_physical_memory_rw_debug_internal(&address_space_memory, addr,
+                                          buf, len, MEMTXATTRS_DEBUG,
+                                          is_write ? WRITE_DATA : READ_DATA);
 }
 
 /* virtual memory access for debug (includes writing to ROM) */
