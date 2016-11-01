@@ -282,11 +282,40 @@ sev_launch_finish(SEVState *s)
 }
 
 static int
+sev_launch_update(SEVState *s, uint8_t *addr, uint32_t len)
+{
+    int ret;
+    struct kvm_sev_launch_update *data;
+
+    data = g_malloc0(sizeof(*data));
+    if (!data) {
+        return 1;
+    }
+
+    data->address = (__u64)addr;
+    data->length = len;
+    ret = sev_ioctl(KVM_SEV_LAUNCH_UPDATE, data);
+    if (ret) {
+        goto err;
+    }
+
+    DPRINTF("SEV: LAUNCH_UPDATE %#lx+%#x\n", (unsigned long)addr, len);
+err:
+    g_free(data);
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
     SEVState *s = kvm_memory_encryption_get_handle();
 
     assert(s != NULL && s->state != SEV_STATE_INVALID);
+
+    if (s->state == SEV_STATE_LAUNCHING) {
+        memcpy(dst, src, len);
+        return sev_launch_update(s, dst, len);
+    }
 
     return 0;
 }
