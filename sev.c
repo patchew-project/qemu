@@ -351,18 +351,41 @@ sev_debug_decrypt(SEVState *s, uint8_t *dst, const uint8_t *src, uint32_t len)
 }
 
 static int
+sev_debug_encrypt(SEVState *s, uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    int ret;
+    struct kvm_sev_dbg_encrypt *dbg;
+
+    dbg = g_malloc0(sizeof(*dbg));
+    if (!dbg) {
+        return 1;
+    }
+
+    dbg->src_addr = (unsigned long)src;
+    dbg->dst_addr = (unsigned long)dst;
+    dbg->length = len;
+
+    ret = sev_ioctl(KVM_SEV_DBG_ENCRYPT, dbg);
+    DPRINTF("SEV: debug encrypt src %#lx dst %#lx len %#x\n",
+            (unsigned long)src, (unsigned long)dst, len);
+    g_free(dbg);
+
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
     SEVState *s = kvm_memory_encryption_get_handle();
 
-    assert(s != NULL && s->state != SEV_STATE_INVALID);
+    assert(attrs.debug || (s != NULL && s->state != SEV_STATE_INVALID));
 
     if (s->state == SEV_STATE_LAUNCHING) {
         memcpy(dst, src, len);
         return sev_launch_update(s, dst, len);
     }
 
-    return 0;
+    return sev_debug_encrypt(s, dst, src, len);
 }
 
 static int
@@ -486,7 +509,7 @@ sev_guest_mem_enc(void *handle, uint8_t *dst, const uint8_t *src, uint32_t len)
     assert(s != NULL && s->state != SEV_STATE_INVALID);
 
     /* use SEV debug command to decrypt memory */
-    return 1;
+    return sev_debug_encrypt((SEVState *)handle, dst, src, len);
 }
 
 bool
