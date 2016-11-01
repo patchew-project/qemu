@@ -36,6 +36,7 @@
 #include "qemu/event_notifier.h"
 #include "trace.h"
 #include "hw/irq.h"
+#include "sysemu/security-policy.h"
 
 #include "hw/boards.h"
 
@@ -101,6 +102,16 @@ struct KVMState
 #endif
     KVMMemoryListener memory_listener;
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
+
+    /* memory encryption support */
+    void *ehandle;
+    int (*mem_encrypt_start)(void *ehandle);
+    int (*mem_encrypt_finish)(void *ehandle);
+    int (*mem_encrypt_dec)(void *ehandle, uint8_t *dst, const uint8_t *src,
+                           uint32_t len);
+    int (*mem_encrypt_enc)(void *ehandle, uint8_t *dst, const uint8_t *src,
+                           uint32_t len);
+    void (*mem_encrypt_debug_ops)(void *ehandle, MemoryRegion *mr);
 };
 
 KVMState *kvm_state;
@@ -126,6 +137,59 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(DESTROY_MEMORY_REGION_WORKS),
     KVM_CAP_LAST_INFO
 };
+
+bool kvm_memory_encryption_enabled(void)
+{
+    return kvm_state->ehandle ? true : false;
+}
+
+int kvm_memory_encryption_start(void)
+{
+    if (kvm_state->mem_encrypt_start) {
+        return kvm_state->mem_encrypt_start(kvm_state->ehandle);
+    }
+
+    return 1;
+}
+
+int kvm_memory_encryption_finish(void)
+{
+    if (kvm_state->mem_encrypt_finish) {
+        return kvm_state->mem_encrypt_finish(kvm_state->ehandle);
+    }
+
+    return 1;
+}
+
+int kvm_memory_encryption_dec(uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    if (kvm_state->mem_encrypt_dec) {
+        return kvm_state->mem_encrypt_dec(kvm_state->ehandle, dst, src, len);
+    }
+
+    return 1;
+}
+
+int kvm_memory_encryption_enc(uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    if (kvm_state->mem_encrypt_enc) {
+        return kvm_state->mem_encrypt_enc(kvm_state->ehandle, dst, src, len);
+    }
+
+    return 1;
+}
+
+void kvm_memory_encryption_set_debug_ops(MemoryRegion *mr)
+{
+    if (kvm_state->mem_encrypt_debug_ops) {
+        return kvm_state->mem_encrypt_debug_ops(kvm_state->ehandle, mr);
+    }
+}
+
+void *kvm_memory_encryption_get_handle(void)
+{
+    return kvm_state->ehandle;
+}
 
 int kvm_get_max_memslots(void)
 {

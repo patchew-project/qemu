@@ -227,6 +227,14 @@ int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUState *cpu);
 int kvm_destroy_vcpu(CPUState *cpu);
 
+bool kvm_memory_encryption_enabled(void);
+int kvm_memory_encryption_start(void);
+int kvm_memory_encryption_finish(void);
+void *kvm_memory_encryption_get_handle(void);
+void kvm_memory_encryption_set_debug_ops(MemoryRegion *mr);
+int kvm_memory_encryption_dec(uint8_t *dst, const uint8_t *src, uint32_t len);
+int kvm_memory_encryption_enc(uint8_t *dst, const uint8_t *src, uint32_t len);
+
 #ifdef NEED_CPU_H
 #include "cpu.h"
 
