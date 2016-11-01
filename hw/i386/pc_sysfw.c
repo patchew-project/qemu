@@ -208,6 +208,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     }
     g_free(filename);
 
+    if (kvm_memory_encryption_enabled()) {
+        kvm_memory_encryption_set_debug_ops(bios);
+    }
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = bios_size;
     if (isa_bios_size > (128 * 1024)) {
@@ -228,6 +231,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     memory_region_add_subregion(rom_memory,
                                 (uint32_t)(-bios_size),
                                 bios);
+
 }
 
 void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
