@@ -2224,6 +2224,33 @@ DISAS_INSN(cmpa)
     gen_update_cc_cmp(s, reg, src, opsize);
 }
 
+DISAS_INSN(cmpm)
+{
+    int opsize = insn_opsize(insn);
+    TCGv tmp = tcg_temp_new();
+    TCGv src, dst, addr;
+
+    src = gen_load(s, opsize, AREG(insn, 0), 1);
+    /* delay the update after the second gen_load() */
+    tcg_gen_addi_i32(tmp, AREG(insn, 0), opsize_bytes(opsize));
+
+    /* but if the we use the same address register to
+     * read the second value, we must use the updated address
+     */
+    if (REG(insn, 0) == REG(insn, 9)) {
+        addr = tmp;
+    } else {
+        addr = AREG(insn, 9);
+    }
+
+    dst = gen_load(s, opsize, addr, 1);
+    tcg_gen_mov_i32(AREG(insn, 0), tmp);
+    tcg_gen_addi_i32(AREG(insn, 9), addr, opsize_bytes(opsize));
+    tcg_temp_free(tmp);
+
+    gen_update_cc_cmp(s, dst, src, opsize);
+}
+
 DISAS_INSN(eor)
 {
     TCGv src;
@@ -3465,6 +3492,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(cmpa,      b1c0, f1c0, CF_ISA_A);
     INSN(cmp,       b000, f100, M68000);
     INSN(eor,       b100, f100, M68000);
+    INSN(cmpm,      b108, f138, M68000);
     INSN(cmpa,      b0c0, f0c0, M68000);
     INSN(eor,       b180, f1c0, CF_ISA_A);
     BASE(and,       c000, f000);
