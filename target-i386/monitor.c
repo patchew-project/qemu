@@ -122,20 +122,22 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
 }
 
 #ifdef TARGET_X86_64
-static void tlb_info_64(Monitor *mon, CPUArchState *env)
+static void tlb_info_64(Monitor *mon, CPUState *cs)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUArchState *env = &cpu->env;
     uint64_t l1, l2, l3, l4;
     uint64_t pml4e, pdpe, pde, pte;
     uint64_t pml4_addr, pdp_addr, pd_addr, pt_addr;
 
     pml4_addr = env->cr[3] & 0x3fffffffff000ULL;
     for (l1 = 0; l1 < 512; l1++) {
-        cpu_physical_memory_read(pml4_addr + l1 * 8, &pml4e, 8);
+        pml4e = ldq_phys_debug(cs, pml4_addr + l1 * 8);
         pml4e = le64_to_cpu(pml4e);
         if (pml4e & PG_PRESENT_MASK) {
             pdp_addr = pml4e & 0x3fffffffff000ULL;
             for (l2 = 0; l2 < 512; l2++) {
-                cpu_physical_memory_read(pdp_addr + l2 * 8, &pdpe, 8);
+                pdpe = ldq_phys_debug(cs, pdp_addr + l2 * 8);
                 pdpe = le64_to_cpu(pdpe);
                 if (pdpe & PG_PRESENT_MASK) {
                     if (pdpe & PG_PSE_MASK) {
@@ -145,7 +147,7 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
                     } else {
                         pd_addr = pdpe & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
-                            cpu_physical_memory_read(pd_addr + l3 * 8, &pde, 8);
+                            pde = ldq_phys_debug(cs, pd_addr + l3 * 8);
                             pde = le64_to_cpu(pde);
                             if (pde & PG_PRESENT_MASK) {
                                 if (pde & PG_PSE_MASK) {
@@ -156,9 +158,8 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
                                 } else {
                                     pt_addr = pde & 0x3fffffffff000ULL;
                                     for (l4 = 0; l4 < 512; l4++) {
-                                        cpu_physical_memory_read(pt_addr
-                                                                 + l4 * 8,
-                                                                 &pte, 8);
+                                        pte = ldq_phys_debug(cs,
+                                                             pt_addr + l4 * 8);
                                         pte = le64_to_cpu(pte);
                                         if (pte & PG_PRESENT_MASK) {
                                             print_pte(mon, (l1 << 39) +
@@ -181,9 +182,14 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
 
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
+    X86CPU *cpu;
+    CPUState *cs;
     CPUArchState *env;
 
-    env = mon_get_cpu_env();
+    cs = mon_get_cpu();
+    cpu = X86_CPU(cs);
+    env = &cpu->env;
+
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         monitor_printf(mon, "PG disabled\n");
@@ -192,7 +198,7 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
     if (env->cr[4] & CR4_PAE_MASK) {
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            tlb_info_64(mon, env);
+            tlb_info_64(mon, cs);
         } else
 #endif
         {
@@ -324,10 +330,12 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env)
 
 
 #ifdef TARGET_X86_64
-static void mem_info_64(Monitor *mon, CPUArchState *env)
+static void mem_info_64(Monitor *mon, CPUState *cs)
 {
     int prot, last_prot;
     uint64_t l1, l2, l3, l4;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUArchState *env = &cpu->env;
     uint64_t pml4e, pdpe, pde, pte;
     uint64_t pml4_addr, pdp_addr, pd_addr, pt_addr, start, end;
 
@@ -335,13 +343,13 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
     last_prot = 0;
     start = -1;
     for (l1 = 0; l1 < 512; l1++) {
-        cpu_physical_memory_read(pml4_addr + l1 * 8, &pml4e, 8);
+        pml4e = ldq_phys_debug(cs, pml4_addr + l1 * 8);
         pml4e = le64_to_cpu(pml4e);
         end = l1 << 39;
         if (pml4e & PG_PRESENT_MASK) {
             pdp_addr = pml4e & 0x3fffffffff000ULL;
             for (l2 = 0; l2 < 512; l2++) {
-                cpu_physical_memory_read(pdp_addr + l2 * 8, &pdpe, 8);
+                pdpe = ldq_phys_debug(cs, pdp_addr + l2 * 8);
                 pdpe = le64_to_cpu(pdpe);
                 end = (l1 << 39) + (l2 << 30);
                 if (pdpe & PG_PRESENT_MASK) {
@@ -353,7 +361,7 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
                     } else {
                         pd_addr = pdpe & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
-                            cpu_physical_memory_read(pd_addr + l3 * 8, &pde, 8);
+                            pde = ldq_phys_debug(cs, pd_addr + l3 * 8);
                             pde = le64_to_cpu(pde);
                             end = (l1 << 39) + (l2 << 30) + (l3 << 21);
                             if (pde & PG_PRESENT_MASK) {
@@ -365,9 +373,8 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
                                 } else {
                                     pt_addr = pde & 0x3fffffffff000ULL;
                                     for (l4 = 0; l4 < 512; l4++) {
-                                        cpu_physical_memory_read(pt_addr
-                                                                 + l4 * 8,
-                                                                 &pte, 8);
+                                        pte = ldq_phys_debug(cs,
+                                                             pt_addr + l4 * 8);
                                         pte = le64_to_cpu(pte);
                                         end = (l1 << 39) + (l2 << 30) +
                                             (l3 << 21) + (l4 << 12);
@@ -404,9 +411,13 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
 
 void hmp_info_mem(Monitor *mon, const QDict *qdict)
 {
+    X86CPU *cpu;
+    CPUState *cs;
     CPUArchState *env;
 
-    env = mon_get_cpu_env();
+    cs = mon_get_cpu();
+    cpu = X86_CPU(cs);
+    env = &cpu->env;
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         monitor_printf(mon, "PG disabled\n");
@@ -415,7 +426,7 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
     if (env->cr[4] & CR4_PAE_MASK) {
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            mem_info_64(mon, env);
+            mem_info_64(mon, cs);
         } else
 #endif
         {
