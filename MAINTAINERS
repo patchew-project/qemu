@@ -148,6 +148,8 @@ M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: target-m68k/
 F: hw/m68k/
+F: include/hw/m68k/
+F: disas/m68k.c
 
 MicroBlaze
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
