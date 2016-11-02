@@ -546,6 +546,7 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
         qdict_put(opts, "tls-creds", qstring_from_str(s->tlscredsid));
     }
 
+    visit_free(ov);
     qdict_flatten(opts);
     bs->full_open_options = opts;
 }
