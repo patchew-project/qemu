@@ -105,6 +105,30 @@ void helper_trapa(CPUSH4State *env, uint32_t tra)
     raise_exception(env, 0x160, 0);
 }
 
+void helper_tas(CPUSH4State *env, uint32_t addr)
+{
+    uint8_t l;
+    uintptr_t ra = GETPC();
+
+    if (parallel_cpus) {
+        /* Tell the main loop we need to serialize this insn.  */
+        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+    } else {
+        /* We're executing in a serial context -- no need to be atomic.  */
+#ifdef CONFIG_USER_ONLY
+        uint8_t *haddr = g2h(addr);
+        l = ldub_p(haddr);
+        stb_p(haddr, l | 0x80);
+#else
+        int mmu_idx = cpu_mmu_index(env, 0);
+        TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+        l = helper_ret_ldub_mmu(env, addr, oi, ra);
+        helper_ret_stb_mmu(env, addr,  l | 0x80, oi, ra);
+#endif
+        env->sr_t = l == 0;
+    }
+}
+
 void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
 {
     if (cpu_sh4_is_cached (env, address))
