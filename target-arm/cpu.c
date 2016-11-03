@@ -424,6 +424,10 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
     } else if (env->thumb) {
         info->print_insn = print_insn_thumb1;
+        info->flags &= ~INSN_ARM_THUMB1_BE32;
+        if (arm_sctlr_b(env)) {
+            info->flags |= INSN_ARM_THUMB1_BE32;
+        }
     } else {
         info->print_insn = print_insn_arm;
     }

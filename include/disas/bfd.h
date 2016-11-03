@@ -291,6 +291,7 @@ typedef struct disassemble_info {
      The bottom 16 bits are for the internal use of the disassembler.  */
   unsigned long flags;
 #define INSN_HAS_RELOC	0x80000000
+#define INSN_ARM_THUMB1_BE32 0x00010000
   PTR private_data;
 
   /* Function used to get bytes to disassemble.  MEMADDR is the

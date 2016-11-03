@@ -3863,10 +3863,11 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
   int           is_data = false;
   unsigned int	size = 4;
   void	 	(*printer) (bfd_vma, struct disassemble_info *, long);
-  int little;
+  int little, is_thumb1_be32 = false;
 
   little = (info->endian == BFD_ENDIAN_LITTLE);
   is_thumb |= (pc & 1);
+  is_thumb1_be32 = (info->flags & INSN_ARM_THUMB1_BE32) != 0;
   pc &= ~(bfd_vma)1;
 
   if (force_thumb)
@@ -3915,11 +3916,22 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
       info->bytes_per_chunk = 2;
       size = 2;
 
-      status = info->read_memory_func (pc, (bfd_byte *)b, 2, info);
-      if (little)
-	given = (b[0]) | (b[1] << 8);
-      else
-	given = (b[1]) | (b[0] << 8);
+      if (is_thumb1_be32) {
+          status = info->read_memory_func(pc & ~3, (bfd_byte *)b, 4, info);
+          assert(little);
+          if ((pc & 2) == 0) {
+              given = b[2] | (b[3] << 8);
+          } else {
+              given = b[0] | (b[1] << 8);
+          }
+      } else {
+          status = info->read_memory_func(pc, (bfd_byte *)b, 2, info);
+          if (little) {
+              given = (b[0]) | (b[1] << 8);
+          } else {
+              given = (b[1]) | (b[0] << 8);
+          }
+      }
 
       if (!status)
 	{
@@ -3929,11 +3941,23 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
 	      || (given & 0xF800) == 0xF000
 	      || (given & 0xF800) == 0xE800)
 	    {
-	      status = info->read_memory_func (pc + 2, (bfd_byte *)b, 2, info);
-	      if (little)
-		given = (b[0]) | (b[1] << 8) | (given << 16);
-	      else
-		given = (b[1]) | (b[0] << 8) | (given << 16);
+              if (is_thumb1_be32) {
+                  status = info->read_memory_func((pc + 2) & ~3,
+                                                  (bfd_byte *)b, 4, info);
+                  if (((pc + 2) & 2) == 0) {
+                      given = b[2] | (b[3] << 8) | (given << 16);
+                  } else {
+                      given = b[0] | (b[1] << 8) | (given << 16);
+                  }
+              } else {
+                  status = info->read_memory_func(pc + 2, (bfd_byte *)b, 2,
+                                                  info);
+                  if (little) {
+                      given = (b[0]) | (b[1] << 8) | (given << 16);
+                  } else {
+                      given = (b[1]) | (b[0] << 8) | (given << 16);
+                  }
+              }
 
 	      printer = print_insn_thumb32;
 	      size = 4;
