@@ -18,6 +18,7 @@
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
+#include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 
 #if defined(TARGET_PPC64) || defined(TARGET_ARM)
@@ -193,4 +194,5 @@ static inline void virtio_tswap64s(VirtIODevice *vdev, uint64_t *s)
 {
     *s = virtio_tswap64(vdev, *s);
 }
-#endif /* QEMU_VIRTIO_ACCESS_H */
+
+#endif /* _QEMU_VIRTIO_ACCESS_H */
