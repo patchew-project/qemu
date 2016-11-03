@@ -2063,6 +2063,19 @@ static void check_watchpoint(int offset, int len, MemTxAttrs attrs, int flags)
         return;
     }
     vaddr = (cpu->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
+#if defined(TARGET_ARM) && !defined(CONFIG_USER_ONLY)
+    /* In BE32 system mode, target memory is stored byteswapped (FIXME:
+       relative to a little-endian host system), and by the time we reach here
+       (via an opcode helper) the addresses of subword accesses have been
+       adjusted to account for that, which means that watchpoints will not
+       match.  Undo the adjustment here.  */
+    if (arm_sctlr_b(env)) {
+        if (len == 1)
+            vaddr ^= 3;
+        else if (len == 2)
+            vaddr ^= 2;
+    }
+#endif
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         if (cpu_watchpoint_address_matches(wp, vaddr, len)
             && (wp->flags & flags)) {
