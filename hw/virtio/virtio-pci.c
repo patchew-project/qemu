@@ -1168,6 +1168,14 @@ static int virtio_pci_query_nvectors(DeviceState *d)
     return proxy->nvectors;
 }
 
+static AddressSpace *virtio_pci_get_dma_as(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+    PCIDevice *dev = &proxy->pci_dev;
+
+    return pci_get_address_space(dev);
+}
+
 static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
                                    struct virtio_pci_cap *cap)
 {
@@ -1624,6 +1632,11 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     }
 
     if (legacy) {
+        if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+            error_setg(errp, "VIRTIO_F_IOMMU_PLATFORM was supported by"
+                       "neither legacy nor transitional device.");
+            return ;
+        }
         /* legacy and transitional */
         pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
                      pci_get_word(config + PCI_VENDOR_ID));
@@ -2544,6 +2557,7 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->ioeventfd_disabled = virtio_pci_ioeventfd_disabled;
     k->ioeventfd_set_disabled = virtio_pci_ioeventfd_set_disabled;
     k->ioeventfd_assign = virtio_pci_ioeventfd_assign;
+    k->get_dma_as = virtio_pci_get_dma_as;
 }
 
 static const TypeInfo virtio_pci_bus_info = {
