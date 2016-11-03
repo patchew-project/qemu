@@ -188,7 +188,17 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;
     cpu_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, (uint8_t *)&size, 4, 0);
+#ifdef CONFIG_USER_ONLY
     size = be32_to_cpu(size);
+#else
+    /* If we're running in BE32 system mode, we don't need to do an explicit
+     * byte swap, because (I think) target memory is already stored in
+     * byte-swapped format.
+     */
+    if (!arm_sctlr_b(env)) {
+        size = be32_to_cpu(size);
+    }
+#endif
     if (is_a64(env)) {
         env->xregs[0] = size;
     } else {
