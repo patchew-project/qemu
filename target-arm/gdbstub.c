@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
+#include "exec/softmmu-arm-semi.h"
 
 /* Old gdb always expect FPA registers.  Newer (xml-aware) gdb only expect
    whatever the target description contains.  Due to a historical mishap
@@ -32,10 +33,22 @@ int arm_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+#ifndef CONFIG_USER_ONLY
+    bool targ_bigendian = arm_bswap_needed(env);
+#endif
 
     if (n < 16) {
         /* Core integer register.  */
+#ifdef CONFIG_USER_ONLY
         return gdb_get_reg32(mem_buf, env->regs[n]);
+#else
+        if (targ_bigendian) {
+            stl_be_p(mem_buf, env->regs[n]);
+        } else {
+            stl_le_p(mem_buf, env->regs[n]);
+        }
+        return 4;
+#endif
     }
     if (n < 24) {
         /* FPA registers.  */
@@ -51,10 +64,28 @@ int arm_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         if (gdb_has_xml) {
             return 0;
         }
+#ifdef CONFIG_USER_ONLY
         return gdb_get_reg32(mem_buf, 0);
+#else
+        if (targ_bigendian) {
+            stl_be_p(mem_buf, 0);
+        } else {
+            stl_le_p(mem_buf, 0);
+        }
+        return 4;
+#endif
     case 25:
         /* CPSR */
+#ifdef CONFIG_USER_ONLY
         return gdb_get_reg32(mem_buf, cpsr_read(env));
+#else
+        if (targ_bigendian) {
+            stl_be_p(mem_buf, cpsr_read(env));
+        } else {
+            stl_le_p(mem_buf, cpsr_read(env));
+        }
+        return 4;
+#endif
     }
     /* Unknown register.  */
     return 0;
@@ -65,8 +96,19 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     uint32_t tmp;
+#ifndef CONFIG_USER_ONLY
+    bool targ_bigendian = arm_bswap_needed(env);
+#endif
 
+#ifdef CONFIG_USER_ONLY
     tmp = ldl_p(mem_buf);
+#else
+    if (targ_bigendian) {
+        tmp = ldl_be_p(mem_buf);
+    } else {
+        tmp = ldl_le_p(mem_buf);
+    }
+#endif
 
     /* Mask out low bit of PC to workaround gdb bugs.  This will probably
        cause problems if we ever implement the Jazelle DBX extensions.  */

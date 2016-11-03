@@ -114,7 +114,7 @@ static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
     return code;
 }
 
-#include "exec/softmmu-semi.h"
+#include "exec/softmmu-arm-semi.h"
 #endif
 
 static target_ulong arm_semi_syscall_len;

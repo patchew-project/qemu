@@ -894,7 +894,21 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         entry = info->loader_start + kernel_load_offset;
         kernel_size = load_image_targphys(info->kernel_filename, entry,
                                           info->ram_size - kernel_load_offset);
-        is_linux = 1;
+        if (kernel_size > 0) {
+            is_linux = 1;
+        } else {
+            /* We've been launched with a kernel of /dev/null or similar.
+             * Infer endianness from the reset value of the SCTLR for this
+             * CPU/board (FIXME: a way of configuring this more nicely).
+             */
+            if (!arm_feature(&cpu->env, ARM_FEATURE_V7) &&
+                (cpu->reset_sctlr & SCTLR_B) != 0)
+                info->endianness = ARM_ENDIANNESS_BE32;
+            else if ((cpu->reset_sctlr & SCTLR_EE) != 0)
+                info->endianness = ARM_ENDIANNESS_BE8;
+            else
+                info->endianness = ARM_ENDIANNESS_LE;
+        }
     }
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",

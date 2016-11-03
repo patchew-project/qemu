@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "exec/cpu-common.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -795,6 +796,17 @@ static void arm926_initfn(Object *obj)
     cpu->reset_sctlr = 0x00090078;
 }
 
+/* FIXME: This is likely not the best way to override or specify endianness
+ * for a CPU/board.
+ */
+static void arm926_be_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    arm926_initfn(obj);
+    cpu->reset_sctlr |= SCTLR_B;
+}
+
 static void arm946_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1263,6 +1275,17 @@ static void cortex_a15_initfn(Object *obj)
     define_arm_cp_regs(cpu, cortexa15_cp_reginfo);
 }
 
+/* FIXME: As arm926_be_initfn, this is likely not the best way to override or
+ * specify endianness for a CPU/board.
+ */
+static void cortex_a15_be_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    cortex_a15_initfn(obj);
+    cpu->reset_sctlr |= SCTLR_EE;
+}
+
 static void ti925t_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1459,6 +1482,7 @@ typedef struct ARMCPUInfo {
 static const ARMCPUInfo arm_cpus[] = {
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
     { .name = "arm926",      .initfn = arm926_initfn },
+    { .name = "arm926-be",   .initfn = arm926_be_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },
     /* What QEMU calls "arm1136-r2" is actually the 1136 r0p2, i.e. an
@@ -1478,6 +1502,7 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },
+    { .name = "cortex-a15-be", .initfn = cortex_a15_be_initfn },
     { .name = "ti925t",      .initfn = ti925t_initfn },
     { .name = "sa1100",      .initfn = sa1100_initfn },
     { .name = "sa1110",      .initfn = sa1110_initfn },
@@ -1538,6 +1563,27 @@ static gchar *arm_gdb_arch_name(CPUState *cs)
     return g_strdup("arm");
 }
 
+#ifndef CONFIG_USER_ONLY
+static int arm_cpu_memory_rw_debug(CPUState *cpu, vaddr address,
+                                   uint8_t *buf, int len, bool is_write)
+{
+    target_ulong addr = address;
+    ARMCPU *armcpu = ARM_CPU(cpu);
+    CPUARMState *env = &armcpu->env;
+
+    if (arm_sctlr_b(env)) {
+        target_ulong i;
+        for (i = 0; i < len; i++) {
+            cpu_memory_rw_debug(cpu, (addr + i) ^ 3, &buf[i], 1, is_write);
+        }
+    } else {
+        cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
+    }
+
+    return 0;
+}
+#endif
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -1555,6 +1601,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->has_work = arm_cpu_has_work;
     cc->cpu_exec_interrupt = arm_cpu_exec_interrupt;
     cc->dump_state = arm_cpu_dump_state;
+#if !defined(CONFIG_USER_ONLY)
+    cc->memory_rw_debug = arm_cpu_memory_rw_debug;
+#endif
     cc->set_pc = arm_cpu_set_pc;
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;
