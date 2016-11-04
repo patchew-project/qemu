@@ -1,0 +1,5 @@
+block-obj-$(CONFIG_TCMU) += tcmu.mo
+
+tcmu.mo-objs       := tcmu.o
+tcmu.mo-cflags     := $(TCMU_CFLAGS)
+tcmu.mo-libs       := $(TCMU_LIBS)
