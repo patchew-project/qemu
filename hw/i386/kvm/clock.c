@@ -22,9 +22,11 @@
 #include "kvm_i386.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
+#include "migration/migration.h"
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
+#include <time.h>
 
 #define TYPE_KVM_CLOCK "kvmclock"
 #define KVM_CLOCK(obj) OBJECT_CHECK(KVMClockState, (obj), TYPE_KVM_CLOCK)
@@ -35,7 +37,13 @@ typedef struct KVMClockState {
     /*< public >*/
 
     uint64_t clock;
+    uint64_t ns;
     bool clock_valid;
+
+    uint64_t advance_clock;
+    struct timespec t_aftervmstop;
+
+    bool adv_clock_enabled;
 } KVMClockState;
 
 struct pvclock_vcpu_time_info {
@@ -100,6 +108,11 @@ static void kvmclock_vm_state_change(void *opaque, int running,
             s->clock = time_at_migration;
         }
 
+        if (s->advance_clock && s->clock + s->advance_clock > s->clock) {
+            s->clock += s->advance_clock;
+            s->advance_clock = 0;
+        }
+
         data.clock = s->clock;
         ret = kvm_vm_ioctl(kvm_state, KVM_SET_CLOCK, &data);
         if (ret < 0) {
@@ -135,6 +148,18 @@ static void kvmclock_vm_state_change(void *opaque, int running,
             abort();
         }
         s->clock = data.clock;
+        /*
+         * Transition from VM-running to VM-stopped via migration?
+         * Record when the VM was stopped.
+         */
+
+        if (state == RUN_STATE_FINISH_MIGRATE &&
+            !migration_in_postcopy(migrate_get_current())) {
+            clock_gettime(CLOCK_MONOTONIC, &s->t_aftervmstop);
+        } else {
+            s->t_aftervmstop.tv_sec = 0;
+            s->t_aftervmstop.tv_nsec = 0;
+        }
 
         /*
          * If the VM is stopped, declare the clock state valid to
@@ -152,6 +177,77 @@ static void kvmclock_realize(DeviceState *dev, Error **errp)
     qemu_add_vm_change_state_handler(kvmclock_vm_state_change, s);
 }
 
+static uint64_t clock_delta(struct timespec *before, struct timespec *after)
+{
+    if (before->tv_sec > after->tv_sec ||
+        (before->tv_sec == after->tv_sec &&
+         before->tv_nsec > after->tv_nsec)) {
+        fprintf(stderr, "clock_delta failed: before=(%ld sec, %ld nsec),"
+                        "after=(%ld sec, %ld nsec)\n", before->tv_sec,
+                        before->tv_nsec, after->tv_sec, after->tv_nsec);
+        abort();
+    }
+
+    return (after->tv_sec - before->tv_sec) * 1000000000ULL +
+            after->tv_nsec - before->tv_nsec;
+}
+
+static void kvmclock_pre_save(void *opaque)
+{
+    KVMClockState *s = opaque;
+    struct timespec now;
+    uint64_t ns;
+
+    if (s->t_aftervmstop.tv_sec == 0) {
+        return;
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    ns = clock_delta(&s->t_aftervmstop, &now);
+
+    /*
+     * Linux guests can overflow if time jumps
+     * forward in large increments.
+     * Cap maximum adjustment to 10 minutes.
+     */
+    ns = MIN(ns, 600000000000ULL);
+
+    if (s->clock + ns > s->clock) {
+        s->ns = ns;
+    }
+}
+
+static int kvmclock_post_load(void *opaque, int version_id)
+{
+    KVMClockState *s = opaque;
+
+    /* save the value from incoming migration */
+    s->advance_clock = s->ns;
+
+    return 0;
+}
+
+static bool kvmclock_ns_needed(void *opaque)
+{
+    KVMClockState *s = opaque;
+
+    return s->adv_clock_enabled;
+}
+
+static const VMStateDescription kvmclock_advance_ns = {
+    .name = "kvmclock/advance_ns",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = kvmclock_ns_needed,
+    .pre_save = kvmclock_pre_save,
+    .post_load = kvmclock_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(ns, KVMClockState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription kvmclock_vmsd = {
     .name = "kvmclock",
     .version_id = 1,
@@ -159,7 +255,16 @@ static const VMStateDescription kvmclock_vmsd = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(clock, KVMClockState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &kvmclock_advance_ns,
+        NULL
     }
+};
+
+static Property kvmclock_properties[] = {
+    DEFINE_PROP_BOOL("advance_clock", KVMClockState, adv_clock_enabled, true),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvmclock_class_init(ObjectClass *klass, void *data)
@@ -168,6 +273,7 @@ static void kvmclock_class_init(ObjectClass *klass, void *data)
 
     dc->realize = kvmclock_realize;
     dc->vmsd = &kvmclock_vmsd;
+    dc->props = kvmclock_properties;
 }
 
 static const TypeInfo kvmclock_info = {
