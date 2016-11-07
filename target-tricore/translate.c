@@ -6034,10 +6034,14 @@ static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
     uint32_t op2;
     int r3, r2, r1;
 
+    TCGv temp;
+
     r3 = MASK_OP_RR_D(ctx->opcode);
     r2 = MASK_OP_RR_S2(ctx->opcode);
     r1 = MASK_OP_RR_S1(ctx->opcode);
     op2 = MASK_OP_RR_OP2(ctx->opcode);
+
+    temp = tcg_temp_new();
 
     switch (op2) {
     case OPC2_32_RR_ABS:
@@ -6224,6 +6228,16 @@ static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
     case OPC2_32_RR_MOV:
         tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r2]);
         break;
+    case OPC2_32_RR_MOV_64:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            CHECK_REG_PAIR(r3);
+            tcg_gen_mov_tl(temp, cpu_gpr_d[r1]);
+            tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r2]);
+            tcg_gen_mov_tl(cpu_gpr_d[r3 + 1], temp);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
     case OPC2_32_RR_NE:
         tcg_gen_setcond_tl(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
                            cpu_gpr_d[r2]);
@@ -6344,6 +6358,7 @@ static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
+    tcg_temp_free(temp);
 }
 
 static void decode_rr_logical_shift(CPUTriCoreState *env, DisasContext *ctx)
