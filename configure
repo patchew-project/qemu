@@ -2926,7 +2926,7 @@ if test "$curses" != "no" ; then
     curses_inc_list="$($pkg_config --cflags ncurses 2>/dev/null):"
     curses_lib_list="$($pkg_config --libs ncurses 2>/dev/null):-lpdcurses"
   else
-    curses_inc_list="$($pkg_config --cflags ncursesw 2>/dev/null):"
+    curses_inc_list="$($pkg_config --cflags ncursesw 2>/dev/null)-I/usr/include/ncursesw:"
     curses_lib_list="$($pkg_config --libs ncursesw 2>/dev/null):-lncursesw:-lcursesw"
   fi
   curses_found=no
