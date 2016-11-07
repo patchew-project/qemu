@@ -693,8 +693,6 @@
 #
 # Set various migration parameters.  See MigrationParameters for details.
 #
-# @x-checkpoint-delay: the delay time between two checkpoints. (Since 2.8)
-#
 # Since: 2.4
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
@@ -1171,7 +1169,7 @@
            '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
 
 ##
-# @VncPriAuth:
+# @VncPrimaryAuth:
 #
 # vnc primary authentication method.
 #
@@ -3174,7 +3172,7 @@
 #
 # @alias: #optional an alias for the machine name
 #
-# @default: #optional whether the machine is default
+# @is-default: #optional whether the machine is default
 #
 # @cpu-max: maximum number of CPUs supported by the machine type
 #           (since 1.5.0)
@@ -3727,7 +3725,6 @@
 #
 # @device: The name of the special file for the device,
 #          i.e. /dev/ttyS0 on Unix or COM1: on Windows
-# @type: What kind of device this is.
 #
 # Since: 1.4
 ##
@@ -3992,7 +3989,7 @@
 #
 # A union referencing different TPM backend types' configuration options
 #
-# @passthrough: The configuration options for the TPM passthrough type
+# @type: 'passthrough' The configuration options for the TPM passthrough type
 #
 # Since: 1.5
 ##
@@ -4000,7 +3997,7 @@
    'data': { 'passthrough' : 'TPMPassthroughOptions' } }
 
 ##
-# @TpmInfo:
+# @TPMInfo:
 #
 # Information about the TPM
 #
@@ -4344,10 +4341,11 @@
 #
 # Input event union.
 #
-# @key: Input event of Keyboard
-# @btn: Input event of pointer buttons
-# @rel: Input event of relative pointer motion
-# @abs: Input event of absolute pointer motion
+# @type: the input type, one of:
+#  - 'key': Input event of Keyboard
+#  - 'btn': Input event of pointer buttons
+#  - 'rel': Input event of relative pointer motion
+#  - 'abs': Input event of absolute pointer motion
 #
 # Since: 2.0
 ##
