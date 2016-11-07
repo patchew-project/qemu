@@ -20,6 +20,7 @@ struct vhost_virtqueue {
     unsigned long long ring_phys;
     unsigned ring_size;
     EventNotifier masked_notifier;
+    struct vhost_dev *dev;
 };
 
 typedef unsigned long vhost_log_chunk_t;
@@ -37,6 +38,7 @@ struct vhost_log {
 
 struct vhost_memory;
 struct vhost_dev {
+    VirtIODevice *vdev;
     MemoryListener memory_listener;
     struct vhost_memory *mem;
     int n_mem_sections;
@@ -61,6 +63,7 @@ struct vhost_dev {
     void *opaque;
     struct vhost_log *log;
     QLIST_ENTRY(vhost_dev) entry;
+    IOMMUNotifier n;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
@@ -90,4 +93,5 @@ bool vhost_has_free_slot(void);
 int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
+void vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
 #endif
