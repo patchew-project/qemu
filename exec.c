@@ -1231,79 +1231,18 @@ void qemu_mutex_unlock_ramlist(void)
 }
 
 #ifdef __linux__
-static int64_t get_file_size(int fd)
-{
-    int64_t size = lseek(fd, 0, SEEK_END);
-    if (size < 0) {
-        return -errno;
-    }
-    return size;
-}
-
 static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
-                            const char *path,
+                            int fd,
+                            bool truncate,
                             Error **errp)
 {
-    bool unlink_on_error = false;
-    char *filename;
-    char *sanitized_name;
-    char *c;
     void *area = MAP_FAILED;
-    int fd = -1;
-    int64_t file_size;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
                    "host lacks kvm mmu notifiers, -mem-path unsupported");
         return NULL;
-    }
-
-    for (;;) {
-        fd = open(path, O_RDWR);
-        if (fd >= 0) {
-            /* @path names an existing file, use it */
-            break;
-        }
-        if (errno == ENOENT) {
-            /* @path names a file that doesn't exist, create it */
-            fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644);
-            if (fd >= 0) {
-                unlink_on_error = true;
-                break;
-            }
-        } else if (errno == EISDIR) {
-            /* @path names a directory, create a file there */
-            /* Make name safe to use with mkstemp by replacing '/' with '_'. */
-            sanitized_name = g_strdup(memory_region_name(block->mr));
-            for (c = sanitized_name; *c != '\0'; c++) {
-                if (*c == '/') {
-                    *c = '_';
-                }
-            }
-
-            filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
-                                       sanitized_name);
-            g_free(sanitized_name);
-
-            fd = mkstemp(filename);
-            if (fd >= 0) {
-                unlink(filename);
-                g_free(filename);
-                break;
-            }
-            g_free(filename);
-        }
-        if (errno != EEXIST && errno != EINTR) {
-            error_setg_errno(errp, errno,
-                             "can't open backing store %s for guest RAM",
-                             path);
-            goto error;
-        }
-        /*
-         * Try again on EINTR and EEXIST.  The latter happens when
-         * something else creates the file between our two open().
-         */
     }
 
     block->page_size = qemu_fd_getpagesize(fd);
@@ -1314,22 +1253,10 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 #endif
 
-    /* If QEMU fails to get the backend file size, i.e. file_size < 0,
-     * it will treat the file as non-empty and not truncate it.
-     */
-    file_size = get_file_size(fd);
-
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",
                    memory, block->page_size);
-        goto error;
-    }
-
-    if (file_size > 0 && file_size < memory) {
-        error_setg(errp, "backing store %s size 0x%" PRIx64
-                   " does not match 'size' option 0x" RAM_ADDR_FMT,
-                   path, file_size, memory);
         goto error;
     }
 
@@ -1340,16 +1267,8 @@ static void *file_ram_alloc(RAMBlock *block,
      * hosts, so don't bother bailing out on errors.
      * If anything goes wrong with it under other filesystems,
      * mmap will fail.
-     *
-     * Do not truncate the non-empty backend file to avoid corrupting
-     * the existing data in the file. Disabling shrinking is not
-     * enough. For example, the current vNVDIMM implementation stores
-     * the guest NVDIMM labels at the end of the backend file. If the
-     * backend file is later extended, QEMU will not be able to find
-     * those labels. Therefore, extending the non-empty backend file
-     * is disabled as well.
      */
-    if (!file_size && ftruncate(fd, memory)) {
+    if (truncate && ftruncate(fd, memory)) {
         perror("ftruncate");
     }
 
@@ -1374,12 +1293,6 @@ static void *file_ram_alloc(RAMBlock *block,
 error:
     if (area != MAP_FAILED) {
         qemu_ram_munmap(area, memory);
-    }
-    if (unlink_on_error) {
-        unlink(path);
-    }
-    if (fd != -1) {
-        close(fd);
     }
     return NULL;
 }
@@ -1674,11 +1587,95 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 }
 
 #ifdef __linux__
+/*
+ * Open the backend file @path and return the file descriptor on
+ * success.
+ *
+ * If @path does not exist, it will be created and true will be
+ * returned via @unlink_on_error.
+ *
+ * If @path is a directory, a temporal file will be created under
+ * @path and its file descriptor will be returned.
+ *
+ * @errp will be set on any errors.
+ */
+static int backend_file_open(const char *path, const char *name,
+                             bool *unlink_on_error, Error **errp)
+{
+    char *filename;
+    char *sanitized_name;
+    char *c;
+    int fd = -1;
+    Error *local_err = NULL;
+
+    for (;;) {
+        fd = open(path, O_RDWR);
+        if (fd >= 0) {
+            /* @path names an existing file, use it */
+            break;
+        }
+        if (errno == ENOENT) {
+            /* @path names a file that doesn't exist, create it */
+            fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644);
+            if (fd >= 0) {
+                *unlink_on_error = true;
+                break;
+            }
+        } else if (errno == EISDIR) {
+            /* @path names a directory, create a file there */
+            /* Make name safe to use with mkstemp by replacing '/' with '_'. */
+            sanitized_name = g_strdup(name);
+            for (c = sanitized_name; *c != '\0'; c++) {
+                if (*c == '/') {
+                    *c = '_';
+                }
+            }
+
+            filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
+                                       sanitized_name);
+            g_free(sanitized_name);
+
+            fd = mkstemp(filename);
+            if (fd >= 0) {
+                unlink(filename);
+                g_free(filename);
+                break;
+            }
+            g_free(filename);
+        }
+        if (errno != EEXIST && errno != EINTR) {
+            error_setg_errno(&local_err, errno,
+                             "can't open backing store %s for guest RAM",
+                             path);
+            break;
+        }
+        /*
+         * Try again on EINTR and EEXIST.  The latter happens when
+         * something else creates the file between our two open().
+         */
+    }
+
+    error_propagate(errp, local_err);
+    return fd;
+}
+
+static int64_t get_file_size(int fd)
+{
+    int64_t size = lseek(fd, 0, SEEK_END);
+    if (size < 0) {
+        return -errno;
+    }
+    return size;
+}
+
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                    bool share, const char *mem_path,
                                    Error **errp)
 {
-    RAMBlock *new_block;
+    RAMBlock *new_block = NULL;
+    int fd = -1;
+    bool unlink_on_error = false;
+    int64_t file_size;
     Error *local_err = NULL;
 
     if (xen_enabled()) {
@@ -1697,22 +1694,53 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
+    fd = backend_file_open(mem_path, memory_region_name(mr), &unlink_on_error,
+                           &local_err);
+    if (fd < 0) {
+        goto out;
+    }
+    /* If QEMU fails to get the backend file size, i.e. file_size < 0,
+     * it will treat the file as non-empty and not truncate it.
+     */
+    file_size = get_file_size(fd);
+
     size = HOST_PAGE_ALIGN(size);
+    if (file_size > 0 && file_size < size) {
+        error_setg(&local_err, "backing store %s size 0x%"PRIx64
+                   " does not match 'size' option 0x"RAM_ADDR_FMT,
+                   mem_path, file_size, size);
+        goto out;
+    }
+
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->host = file_ram_alloc(new_block, size,
-                                     mem_path, errp);
+    /* Do not truncate the non-empty backend file (i.e. file_size != 0)
+     * to avoid corrupting the existing data in the file. Disabling
+     * shrinking is not enough. For example, the current vNVDIMM
+     * implementation stores the guest NVDIMM labels at the end of the
+     * backend file. If the backend file is later extended, QEMU will
+     * not be able to find those labels. Therefore, extending the
+     * non-empty backend file is disabled as well.
+     */
+    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, errp);
     if (!new_block->host) {
-        g_free(new_block);
-        return NULL;
+        goto out;
     }
 
     ram_block_add(new_block, &local_err);
+
+ out:
     if (local_err) {
         g_free(new_block);
+        if (unlink_on_error) {
+            unlink(mem_path);
+        }
+        if (fd >= 0) {
+            close(fd);
+        }
         error_propagate(errp, local_err);
         return NULL;
     }
