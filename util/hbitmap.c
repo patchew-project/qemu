@@ -401,7 +401,7 @@ uint64_t hbitmap_serialization_granularity(const HBitmap *hb)
 {
     /* Require at least 64 bit granularity to be safe on both 64 bit and 32 bit
      * hosts. */
-    return 64 << hb->granularity;
+    return UINT64_C(64) << hb->granularity;
 }
 
 /* Start should be aligned to serialization granularity, chunk size should be
