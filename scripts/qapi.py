@@ -122,6 +122,103 @@ class QAPIExprError(Exception):
             "%s:%d: %s" % (self.info['file'], self.info['line'], self.msg)
 
 
+class QAPIDoc(object):
+    def __init__(self, parser):
+        self.parser = parser
+        self.symbol = None
+        self.body = []
+        # args is {'arg': 'doc', ...}
+        self.args = OrderedDict()
+        # meta is [(Since/Notes/Examples/Returns:, 'doc'), ...]
+        self.meta = []
+        # the current section to populate, array of [dict, key, comment...]
+        self.section = None
+        self.expr_elem = None
+
+    def get_body(self):
+        return "\n".join(self.body)
+
+    def has_meta(self, name):
+        """Returns True if the doc has a meta section 'name'"""
+        return next((True for i in self.meta if i[0] == name), False)
+
+    def append(self, line):
+        """Adds a # comment line, to be parsed and added in a section"""
+        line = line[1:]
+        if len(line) == 0:
+            self._append_section(line)
+            return
+
+        if line[0] != ' ':
+            raise QAPISchemaError(self.parser, "missing space after #")
+
+        line = line[1:]
+        # take the first word out
+        name = line.split(' ', 1)[0]
+        if name.startswith("@") and name.endswith(":"):
+            line = line[len(name):]
+            name = name[1:-1]
+            if self.symbol is None:
+                # the first is the symbol this APIDoc object documents
+                if len(self.body):
+                    raise QAPISchemaError(self.parser, "symbol must come first")
+                self.symbol = name
+            else:
+                # else an arg
+                self._start_args_section(name)
+        elif self.symbol and name in (
+                "Returns:", "Since:",
+                # those are often singular or plural
+                "Note:", "Notes:",
+                "Example:", "Examples:"):
+            # new "meta" section
+            line = line[len(name):]
+            self._start_meta_section(name[:-1])
+
+        self._append_section(line)
+
+    def _start_args_section(self, name):
+        self.end_section()
+        if self.args.has_key(name):
+            raise QAPISchemaError(self.parser, "'%s' arg duplicated" % name)
+        self.section = [self.args, name]
+
+    def _start_meta_section(self, name):
+        self.end_section()
+        if name in ("Returns", "Since") and self.has_meta(name):
+            raise QAPISchemaError(self.parser, "'%s' section duplicated" % name)
+        self.section = [self.meta, name]
+
+    def _append_section(self, line):
+        """Add a comment to the current section, or the comment body"""
+        if self.section:
+            name = self.section[1]
+            if not name.startswith("Example"):
+                # an empty line ends the section, except with Example
+                if len(self.section) > 2 and len(line) == 0:
+                    self.end_section()
+                    return
+                # Example is verbatim
+                line = line.strip()
+            if len(line) > 0:
+                self.section.append(line)
+        else:
+            self.body.append(line.strip())
+
+    def end_section(self):
+        if self.section is not None:
+            target = self.section[0]
+            name = self.section[1]
+            if len(self.section) < 3:
+                raise QAPISchemaError(self.parser, "Empty doc section")
+            doc = "\n".join(self.section[2:])
+            if isinstance(target, dict):
+                target[name] = doc
+            else:
+                target.append((name, doc))
+            self.section = None
+
+
 class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included=[], incl_info=None):
@@ -137,9 +234,15 @@ class QAPISchemaParser(object):
         self.line = 1
         self.line_pos = 0
         self.exprs = []
+        self.docs = []
         self.accept()
 
         while self.tok is not None:
+            if self.tok == '#' and self.val.startswith('##'):
+                doc = self.get_doc()
+                self.docs.append(doc)
+                continue
+
             expr_info = {'file': fname, 'line': self.line,
                          'parent': self.incl_info}
             expr = self.get_expr(False)
@@ -160,6 +263,7 @@ class QAPISchemaParser(object):
                         raise QAPIExprError(expr_info, "Inclusion loop for %s"
                                             % include)
                     inf = inf['parent']
+
                 # skip multiple include of the same file
                 if incl_abs_fname in previously_included:
                     continue
@@ -171,12 +275,40 @@ class QAPISchemaParser(object):
                 exprs_include = QAPISchemaParser(fobj, previously_included,
                                                  expr_info)
                 self.exprs.extend(exprs_include.exprs)
+                self.docs.extend(exprs_include.docs)
             else:
                 expr_elem = {'expr': expr,
                              'info': expr_info}
+                if len(self.docs) > 0:
+                    self.docs[-1].expr_elem = expr_elem
                 self.exprs.append(expr_elem)
 
-    def accept(self):
+    def get_doc(self):
+        if self.val != '##':
+            raise QAPISchemaError(self, "Doc comment not starting with '##'")
+
+        doc = QAPIDoc(self)
+        self.accept(False)
+        while self.tok == '#':
+            if self.val.startswith('##'):
+                # ## ends doc
+                if self.val != '##':
+                    raise QAPISchemaError(self, "non-empty '##' line %s"
+                                          % self.val)
+                self.accept()
+                doc.end_section()
+                return doc
+            else:
+                doc.append(self.val)
+            self.accept(False)
+
+        if self.val != '##':
+            raise QAPISchemaError(self, "Doc comment not finishing with '##'")
+
+        doc.end_section()
+        return doc
+
+    def accept(self, skip_comment=True):
         while True:
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
@@ -184,7 +316,13 @@ class QAPISchemaParser(object):
             self.val = None
 
             if self.tok == '#':
+                if self.src[self.cursor] == '#':
+                    # ## starts a doc comment
+                    skip_comment = False
                 self.cursor = self.src.find('\n', self.cursor)
+                self.val = self.src[self.pos:self.cursor]
+                if not skip_comment:
+                    return
             elif self.tok in "{}:,[]":
                 return
             elif self.tok == "'":
@@ -779,6 +917,41 @@ def check_exprs(exprs):
 
     return exprs
 
+def check_docs(docs):
+    for doc in docs:
+        expr_elem = doc.expr_elem
+        if not expr_elem:
+            continue
+
+        expr = expr_elem['expr']
+        for i in ('enum', 'union', 'alternate', 'struct', 'command', 'event'):
+            if i in expr:
+                meta = i
+                break
+
+        info = expr_elem['info']
+        name = expr[meta]
+        if doc.symbol != name:
+            raise QAPIExprError(info,
+                                "Documentation symbol mismatch '%s' != '%s'"
+                                % (doc.symbol, name))
+        if not 'command' in expr and doc.has_meta('Returns'):
+            raise QAPIExprError(info, "Invalid return documentation")
+
+        doc_args = set(doc.args.keys())
+        if meta == 'union':
+            data = expr.get('base', [])
+        else:
+            data = expr.get('data', [])
+        if isinstance(data, dict):
+            data = data.keys()
+        args = set([k.strip('*') for k in data])
+        if meta == 'alternate' or \
+           (meta == 'union' and not expr.get('discriminator')):
+            args.add('type')
+        if not doc_args.issubset(args):
+            raise QAPIExprError(info, "Members documentation is not a subset of"
+                                " API %r > %r" % (list(doc_args), list(args)))
 
 #
 # Schema compiler frontend
