@@ -152,9 +152,22 @@ Primary:
          children.0.driver=raw
 
   Run qmp command in primary qemu:
-    { 'execute': 'human-monitor-command',
+    { 'execute': 'blockdev-add',
       'arguments': {
-          'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=xxxx,file.port=xxxx,file.export=colo1,node-name=nbd_client1'
+          'driver': 'replication',
+          'node-name': 'nbd_client1',
+          'mode': 'primary',
+          'file': {
+              'driver': 'nbd',
+              'export': 'colo1',
+              'server': {
+                  'type': 'inet',
+                  'data': {
+                      'host': 'xxxx',
+                      'port': 'xxxx'
+                  }
+              }
+          }
       }
     }
     { 'execute': 'x-blockdev-change',
@@ -223,12 +236,11 @@ Primary:
         'child': 'children.1'
     }
   }
-  { 'execute': 'human-monitor-command',
+  { 'execute': 'x-blockdev-del',
     'arguments': {
-        'command-line': 'drive_del xxxx'
+        'node-name': 'nbd_client1'
     }
   }
-  Note: there is no qmp command to remove the blockdev now
 
 Secondary:
   The primary host is down, so we should do the following thing:
