@@ -115,10 +115,12 @@ static void xen_change_state_handler(void *opaque, int running,
 
 static int xen_init(MachineState *ms)
 {
-    PCMachineState *pcms = PC_MACHINE(ms);
+    if (object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE)) {
+        PCMachineState *pcms = PC_MACHINE(ms);
 
-    /* Disable ACPI build because Xen handles it */
-    pcms->acpi_build_enabled = false;
+        /* Disable ACPI build because Xen handles it */
+        pcms->acpi_build_enabled = false;
+    }
 
     xen_xc = xc_interface_open(0, 0, 0);
     if (xen_xc == NULL) {
