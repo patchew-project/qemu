@@ -1676,6 +1676,7 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     int fd = -1;
     bool unlink_on_error = false;
     int64_t file_size;
+    uint64_t mr_size;
     Error *local_err = NULL;
 
     if (xen_enabled()) {
@@ -1703,6 +1704,32 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
      * it will treat the file as non-empty and not truncate it.
      */
     file_size = get_file_size(fd);
+
+    if (!size && file_size >= 0) {
+        if (!file_size) {
+            error_setg(&local_err,
+                       "%s is empty or a directory, 'size' option must be specified",
+                       mem_path);
+            goto out;
+        }
+
+        mr_size = memory_region_size(mr);
+        if (mr_size && mr_size != size) {
+            error_setg(&local_err, "cannot resize non-empty memory region");
+            goto out;
+        }
+        if (!mr_size) {
+            memory_region_set_size(mr, file_size);
+        }
+        size = file_size;
+    }
+
+    if (!size) {
+        error_setg(&local_err,
+                   "cannot get size of %s, 'size' option must be specified",
+                   mem_path);
+        goto out;
+    }
 
     size = HOST_PAGE_ALIGN(size);
     if (file_size > 0 && file_size < size) {
