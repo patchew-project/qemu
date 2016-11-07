@@ -1314,6 +1314,9 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 #endif
 
+    /* If QEMU fails to get the backend file size, i.e. file_size < 0,
+     * it will treat the file as non-empty and not truncate it.
+     */
     file_size = get_file_size(fd);
 
     if (memory < block->page_size) {
