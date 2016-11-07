@@ -95,6 +95,7 @@ static int vhost_scsi_start(VHostSCSI *s)
     if (ret < 0) {
         return ret;
     }
+    VIRTIO_BUS(qbus)->ioeventfd_started = true;
 
     s->dev.acked_features = vdev->guest_features;
     ret = vhost_dev_start(&s->dev, vdev);
@@ -152,6 +153,7 @@ static void vhost_scsi_stop(VHostSCSI *s)
     vhost_scsi_clear_endpoint(s);
     vhost_dev_stop(&s->dev, vdev);
     vhost_dev_disable_notifiers(&s->dev, vdev);
+    VIRTIO_BUS(qbus)->ioeventfd_started = false;
 }
 
 static uint64_t vhost_scsi_get_features(VirtIODevice *vdev,
