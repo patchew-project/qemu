@@ -26,6 +26,7 @@
 #include "hw/ide/ahci.h"
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/xilinx_spips.h"
+#include "hw/timer/arm_generic_timer.h"
 #include "hw/dma/xlnx_dpdma.h"
 #include "hw/display/xlnx_dp.h"
 
@@ -83,6 +84,7 @@ typedef struct XlnxZynqMPState {
     SysbusAHCIState sata;
     SDHCIState sdhci[XLNX_ZYNQMP_NUM_SDHCI];
     XilinxSPIPS spi[XLNX_ZYNQMP_NUM_SPIS];
+    ARMGenTimer arm_gen_timer;
     XlnxDPState dp;
     XlnxDPDMAState dpdma;
 
