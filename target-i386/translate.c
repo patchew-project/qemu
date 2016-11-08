@@ -30,6 +30,7 @@
 
 #include "trace-tcg.h"
 #include "exec/log.h"
+#include "sysemu/hax.h"
 
 
 #define PREFIX_REPZ   0x01
@@ -8421,6 +8422,13 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
         }
 
         pc_ptr = disas_insn(env, dc, pc_ptr);
+
+        if (hax_enabled() && hax_stop_translate(cs)) {
+            gen_jmp_im(pc_ptr - dc->cs_base);
+            gen_eob(dc);
+            break;
+        }
+
         /* stop translation if indicated */
         if (dc->is_jmp)
             break;

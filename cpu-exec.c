@@ -25,6 +25,7 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
+#include "sysemu/hax.h"
 #include "exec/address-spaces.h"
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"
@@ -461,11 +462,24 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
+/*
+ * QEMU emulate can happens because of MMIO or emulation mode, i.e. non-PG mode,
+ * when it's because of MMIO, the MMIO, the interrupt should not be emulated,
+ * because MMIO is emulated for only one instruction now and then back to
+ * HAX kernel
+ */
+static int need_handle_intr_request(CPUState *cpu)
+{
+    if (!hax_enabled() || hax_vcpu_emulation_mode(cpu))
+        return cpu->interrupt_request;
+    return 0;
+}
+
 static inline void cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    int interrupt_request = cpu->interrupt_request;
+    int interrupt_request = need_handle_intr_request(cpu);
 
     if (unlikely(interrupt_request)) {
         if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
@@ -632,10 +646,17 @@ int cpu_exec(CPUState *cpu)
                 break;
             }
 
+            if (hax_enabled() && !hax_vcpu_exec(cpu))
+                longjmp(cpu->jmp_env, 1);
+
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
                 tb = tb_find(cpu, last_tb, tb_exit);
                 cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
+
+                if (hax_enabled() && hax_stop_emulation(cpu))
+                    cpu_loop_exit(cpu);
+
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
                 align_clocks(&sc, cpu);
