@@ -1715,6 +1715,7 @@
 # @host_device, @host_cdrom: Since 2.1
 # @gluster: Since 2.7
 # @nbd, @nfs, @replication, @ssh: Since 2.8
+# @vxhs: Since 2.9
 #
 # Since: 2.0
 ##
@@ -1724,7 +1725,7 @@
             'host_device', 'http', 'https', 'luks', 'nbd', 'nfs', 'null-aio',
             'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
             'replication', 'ssh', 'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc',
-            'vvfat' ] }
+            'vvfat','vxhs' ] }
 
 ##
 # @BlockdevOptionsFile
@@ -2352,6 +2353,21 @@
   'data': { '*offset': 'int', '*size': 'int' } }
 
 ##
+# @BlockdevOptionsVxHS
+#
+# Driver specific block device options for VxHS
+#
+# @vdisk-id:    UUID of VxHS volume
+#
+# @server:      vxhs server IP, port
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsVxHS',
+  'data': { 'vdisk-id': 'str',
+            'server': 'InetSocketAddress' } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.  Many options are available for all
@@ -2415,7 +2431,8 @@
       'vhdx':       'BlockdevOptionsGenericFormat',
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
-      'vvfat':      'BlockdevOptionsVVFAT'
+      'vvfat':      'BlockdevOptionsVVFAT',
+      'vxhs':       'BlockdevOptionsVxHS'
   } }
 
 ##
