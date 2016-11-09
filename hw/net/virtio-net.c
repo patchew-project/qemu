@@ -218,6 +218,16 @@ static void virtio_net_vnet_endian_status(VirtIONet *n, uint8_t status)
     }
 }
 
+static void virtio_net_drop_tx_queue_data(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtQueueElement *elem;
+    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+        virtqueue_push(vq, elem, 0);
+        virtio_notify(vdev, vq);
+        g_free(elem);
+    }
+}
+
 static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -261,6 +271,14 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
                 timer_del(q->tx_timer);
             } else {
                 qemu_bh_cancel(q->tx_bh);
+            }
+            if ((n->status & VIRTIO_NET_S_LINK_UP) == 0 &&
+                (queue_status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+                /* if tx is waiting we are likely have some packets in tx queue
+                 * and disabled notification */
+                q->tx_waiting = 0;
+                virtio_queue_set_notification(q->tx_vq, 1);
+                virtio_net_drop_tx_queue_data(vdev, q->tx_vq);
             }
         }
     }
@@ -1319,6 +1337,11 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q = &n->vqs[vq2q(virtio_get_queue_index(vq))];
 
+    if (unlikely((n->status & VIRTIO_NET_S_LINK_UP) == 0)) {
+        virtio_net_drop_tx_queue_data(vdev, vq);
+        return;
+    }
+
     /* This happens when device was stopped but VCPU wasn't. */
     if (!vdev->vm_running) {
         q->tx_waiting = 1;
@@ -1344,6 +1367,11 @@ static void virtio_net_handle_tx_bh(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q = &n->vqs[vq2q(virtio_get_queue_index(vq))];
+
+    if (unlikely((n->status & VIRTIO_NET_S_LINK_UP) == 0)) {
+        virtio_net_drop_tx_queue_data(vdev, vq);
+        return;
+    }
 
     if (unlikely(q->tx_waiting)) {
         return;
