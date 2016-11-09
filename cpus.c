@@ -25,6 +25,7 @@
 /* Needed early for CONFIG_BSD etc. */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/config-file.h"
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
@@ -148,6 +149,48 @@ typedef struct TimersState {
 } TimersState;
 
 static TimersState timers_state;
+bool mttcg_enabled;
+
+/*
+ * We default to false if we know other options have been enabled
+ * which are currently incompatible with MTTCG. Otherwise when each
+ * guest (target) and host has been updated to support:
+ *   - atomic instructions
+ *   - memory ordering
+ * they can set the appropriate CONFIG flags in ${target}-softmmu.mak
+ * and generated config-host.mak fragments.
+ */
+static bool default_mttcg_enabled(void)
+{
+    QemuOpts *icount_opts = qemu_find_opts_singleton("icount");
+    const char *rr = qemu_opt_get(icount_opts, "rr");
+
+    if (rr) {
+        return false;
+    } else {
+#if defined(CONFIG_MTTCG_TARGET) && defined(CONFIG_MTTCG_HOST)
+        return true;
+#else
+        return false;
+#endif
+    }
+}
+
+void qemu_tcg_configure(QemuOpts *opts, Error **errp)
+{
+    const char *t = qemu_opt_get(opts, "thread");
+    if (t) {
+        if (strcmp(t, "multi") == 0) {
+            mttcg_enabled = true;
+        } else if (strcmp(t, "single") == 0) {
+            mttcg_enabled = false;
+        } else {
+            error_setg(errp, "Invalid 'thread' setting %s", t);
+        }
+    } else {
+        mttcg_enabled = default_mttcg_enabled();
+    }
+}
 
 int64_t cpu_get_icount_raw(void)
 {
