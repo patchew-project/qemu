@@ -122,7 +122,13 @@ static void arm_cpu_reset(CPUState *s)
 
     acc->parent_reset(s);
 
+#ifdef CONFIG_SOFTMMU
+    memset(env, 0, offsetof(CPUARMState, tlb_table));
+    tlb_flush(s, 0);
+#else
     memset(env, 0, offsetof(CPUARMState, features));
+#endif
+
     g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
     g_hash_table_foreach(cpu->cp_regs, cp_reg_check_reset, cpu);
 
