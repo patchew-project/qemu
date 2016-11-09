@@ -255,6 +255,21 @@ static void qemu_laio_completion_cb(EventNotifier *e)
     }
 }
 
+static bool laio_poll(void *opaque)
+{
+    LinuxAioState *s = opaque;
+    struct io_event *events;
+
+    return io_getevents_peek(s->ctx, &events);
+}
+
+static void laio_poll_handler(void *opaque)
+{
+    LinuxAioState *s = opaque;
+
+    qemu_laio_process_completions_and_submit(s);
+}
+
 static void laio_cancel(BlockAIOCB *blockacb)
 {
     struct qemu_laiocb *laiocb = (struct qemu_laiocb *)blockacb;
@@ -440,6 +455,7 @@ BlockAIOCB *laio_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
 void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context)
 {
     aio_set_event_notifier(old_context, &s->e, false, NULL);
+    aio_set_poll_handler(old_context, laio_poll, NULL, s);
     qemu_bh_delete(s->completion_bh);
 }
 
@@ -447,6 +463,7 @@ void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context)
 {
     s->aio_context = new_context;
     s->completion_bh = aio_bh_new(new_context, qemu_laio_completion_bh, s);
+    aio_set_poll_handler(new_context, laio_poll, laio_poll_handler, s);
     aio_set_event_notifier(new_context, &s->e, false,
                            qemu_laio_completion_cb);
 }
