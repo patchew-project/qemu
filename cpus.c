@@ -761,7 +761,6 @@ static inline int64_t qemu_tcg_next_kick(void)
 static void qemu_cpu_kick_rr_cpu(void)
 {
     CPUState *cpu;
-    atomic_mb_set(&exit_request, 1);
     do {
         cpu = atomic_mb_read(&tcg_current_rr_cpu);
         if (cpu) {
@@ -1283,10 +1282,10 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     start_tcg_kick_timer();
 
-    /* process any pending work */
-    atomic_mb_set(&exit_request, 1);
-
     cpu = first_cpu;
+
+    /* process any pending work */
+    cpu->exit_request = 1;
 
     while (1) {
         /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
@@ -1296,7 +1295,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
             cpu = first_cpu;
         }
 
-        for (; cpu != NULL && !exit_request; cpu = CPU_NEXT(cpu)) {
+        while (cpu && !cpu->exit_request) {
             atomic_mb_set(&tcg_current_rr_cpu, cpu);
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
@@ -1316,12 +1315,15 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
                 break;
             }
 
-        } /* for cpu.. */
+            cpu = CPU_NEXT(cpu);
+        } /* while (cpu && !cpu->exit_request).. */
+
         /* Does not need atomic_mb_set because a spurious wakeup is okay.  */
         atomic_set(&tcg_current_rr_cpu, NULL);
 
-        /* Pairs with smp_wmb in qemu_cpu_kick.  */
-        atomic_mb_set(&exit_request, 0);
+        if (cpu && cpu->exit_request) {
+            atomic_mb_set(&cpu->exit_request, 0);
+        }
 
         handle_icount_deadline();
 
