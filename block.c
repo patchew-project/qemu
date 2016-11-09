@@ -1137,6 +1137,13 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto free_and_fail;
     }
 
+    bdrv_load_autoloading_dirty_bitmaps(bs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto free_and_fail;
+    }
+
     assert(bdrv_opt_mem_align(bs) != 0);
     assert(bdrv_min_mem_align(bs) != 0);
     assert(is_power_of_2(bs->bl.request_alignment));
@@ -4092,4 +4099,11 @@ void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
     }
 
     parent_bs->drv->bdrv_del_child(parent_bs, child, errp);
+}
+
+void bdrv_load_autoloading_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+{
+    if (bs->drv && bs->drv->bdrv_load_autoloading_dirty_bitmaps) {
+        bs->drv->bdrv_load_autoloading_dirty_bitmaps(bs, errp);
+    }
 }
