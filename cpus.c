@@ -748,8 +748,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
  */
 
 static QEMUTimer *tcg_kick_vcpu_timer;
-
-static void qemu_cpu_kick_no_halt(void);
+static CPUState *tcg_current_rr_cpu;
 
 #define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 10)
 
@@ -758,10 +757,23 @@ static inline int64_t qemu_tcg_next_kick(void)
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + TCG_KICK_PERIOD;
 }
 
+/* Kick the currently round-robin scheduled vCPU */
+static void qemu_cpu_kick_rr_cpu(void)
+{
+    CPUState *cpu;
+    atomic_mb_set(&exit_request, 1);
+    do {
+        cpu = atomic_mb_read(&tcg_current_rr_cpu);
+        if (cpu) {
+            cpu_exit(cpu);
+        }
+    } while (cpu != atomic_mb_read(&tcg_current_rr_cpu));
+}
+
 static void kick_tcg_thread(void *opaque)
 {
     timer_mod(tcg_kick_vcpu_timer, qemu_tcg_next_kick());
-    qemu_cpu_kick_no_halt();
+    qemu_cpu_kick_rr_cpu();
 }
 
 static void start_tcg_kick_timer(void)
@@ -779,7 +791,6 @@ static void stop_tcg_kick_timer(void)
         tcg_kick_vcpu_timer = NULL;
     }
 }
-
 
 /***********************************************************/
 void hw_error(const char *fmt, ...)
@@ -1291,6 +1302,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
         }
 
         for (; cpu != NULL && !exit_request; cpu = CPU_NEXT(cpu)) {
+            atomic_mb_set(&tcg_current_rr_cpu, cpu);
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
                               (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
@@ -1310,6 +1322,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
             }
 
         } /* for cpu.. */
+        /* Does not need atomic_mb_set because a spurious wakeup is okay.  */
+        atomic_set(&tcg_current_rr_cpu, NULL);
 
         /* Pairs with smp_wmb in qemu_cpu_kick.  */
         atomic_mb_set(&exit_request, 0);
@@ -1342,24 +1356,13 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
 #endif
 }
 
-static void qemu_cpu_kick_no_halt(void)
-{
-    CPUState *cpu;
-    /* Ensure whatever caused the exit has reached the CPU threads before
-     * writing exit_request.
-     */
-    atomic_mb_set(&exit_request, 1);
-    cpu = atomic_mb_read(&tcg_current_cpu);
-    if (cpu) {
-        cpu_exit(cpu);
-    }
-}
-
 void qemu_cpu_kick(CPUState *cpu)
 {
     qemu_cond_broadcast(cpu->halt_cond);
     if (tcg_enabled()) {
-        qemu_cpu_kick_no_halt();
+        cpu_exit(cpu);
+        /* Also ensure current RR cpu is kicked */
+        qemu_cpu_kick_rr_cpu();
     } else {
         qemu_cpu_kick_thread(cpu);
     }
@@ -1400,7 +1403,7 @@ void qemu_mutex_lock_iothread(void)
         atomic_dec(&iothread_requesting_mutex);
     } else {
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
-            qemu_cpu_kick_no_halt();
+            qemu_cpu_kick_rr_cpu();
             qemu_mutex_lock(&qemu_global_mutex);
         }
         atomic_dec(&iothread_requesting_mutex);
