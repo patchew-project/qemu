@@ -18,6 +18,7 @@
 #include "block/block.h"
 #include "qemu/queue.h"
 #include "qemu/sockets.h"
+#include "qemu/cutils.h"
 #ifdef CONFIG_EPOLL_CREATE1
 #include <sys/epoll.h>
 #endif
@@ -32,6 +33,19 @@ struct AioHandler
     bool is_external;
     QLIST_ENTRY(AioHandler) node;
 };
+
+struct AioPollHandler {
+    QLIST_ENTRY(AioPollHandler) node;
+
+    AioPollFn *poll_fn;     /* check whether to invoke io_fn() */
+    IOHandler *io_fn;       /* handler callback */
+    void *opaque;           /* user-defined argument to callbacks */
+
+    bool deleted;
+};
+
+/* How long to poll AioPollHandlers before monitoring file descriptors */
+static int64_t aio_poll_max_ns;
 
 #ifdef CONFIG_EPOLL_CREATE1
 
@@ -264,8 +278,61 @@ void aio_set_event_notifier(AioContext *ctx,
                        is_external, (IOHandler *)io_read, NULL, notifier);
 }
 
+static AioPollHandler *find_aio_poll_handler(AioContext *ctx,
+                                             AioPollFn *poll_fn,
+                                             void *opaque)
+{
+    AioPollHandler *node;
+
+    QLIST_FOREACH(node, &ctx->aio_poll_handlers, node) {
+        if (node->poll_fn == poll_fn &&
+            node->opaque == opaque) {
+            if (!node->deleted) {
+                return node;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+void aio_set_poll_handler(AioContext *ctx,
+                          AioPollFn *poll_fn,
+                          IOHandler *io_fn,
+                          void *opaque)
+{
+    AioPollHandler *node;
+
+    node = find_aio_poll_handler(ctx, poll_fn, opaque);
+    if (!io_fn) { /* remove */
+        if (!node) {
+            return;
+        }
+
+        if (ctx->walking_poll_handlers) {
+            node->deleted = true;
+        } else {
+            QLIST_REMOVE(node, node);
+            g_free(node);
+        }
+    } else { /* add or update */
+        if (!node) {
+            node = g_new(AioPollHandler, 1);
+            QLIST_INSERT_HEAD(&ctx->aio_poll_handlers, node, node);
+        }
+
+        node->poll_fn = poll_fn;
+        node->io_fn = io_fn;
+        node->opaque = opaque;
+    }
+
+    aio_notify(ctx);
+}
+
+
 bool aio_prepare(AioContext *ctx)
 {
+    /* TODO run poll handlers? */
     return false;
 }
 
@@ -400,6 +467,47 @@ static void add_pollfd(AioHandler *node)
     npfd++;
 }
 
+static bool run_poll_handlers(AioContext *ctx)
+{
+    int64_t start_time;
+    unsigned int loop_count = 0;
+    bool fired = false;
+
+    /* Is there any polling to be done? */
+    if (!QLIST_FIRST(&ctx->aio_poll_handlers)) {
+        return false;
+    }
+
+    start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    while (!fired) {
+        AioPollHandler *node;
+        AioPollHandler *tmp;
+
+        QLIST_FOREACH_SAFE(node, &ctx->aio_poll_handlers, node, tmp) {
+            ctx->walking_poll_handlers++;
+            if (!node->deleted && node->poll_fn(node->opaque)) {
+                node->io_fn(node->opaque);
+                fired = true;
+            }
+            ctx->walking_poll_handlers--;
+
+            if (!ctx->walking_poll_handlers && node->deleted) {
+                QLIST_REMOVE(node, node);
+                g_free(node);
+            }
+        }
+
+        loop_count++;
+        if ((loop_count % 1024) == 0 &&
+            qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time >
+            aio_poll_max_ns) {
+            break;
+        }
+    }
+
+    return fired;
+}
+
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
@@ -409,6 +517,15 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     aio_context_acquire(ctx);
     progress = false;
+
+    if (aio_poll_max_ns &&
+        /* see qemu_soonest_timeout() uint64_t hack */
+        (uint64_t)aio_compute_timeout(ctx) > (uint64_t)aio_poll_max_ns) {
+        if (run_poll_handlers(ctx)) {
+            progress = true;
+            blocking = false; /* poll again, don't block */
+        }
+    }
 
     /* aio_notify can avoid the expensive event_notifier_set if
      * everything (file descriptors, bottom halves, timers) will
@@ -484,6 +601,22 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
 void aio_context_setup(AioContext *ctx)
 {
+    if (!aio_poll_max_ns) {
+        int64_t val;
+        const char *env_str = getenv("QEMU_AIO_POLL_MAX_NS");
+
+        if (!env_str) {
+            env_str = "0";
+        }
+
+        if (!qemu_strtoll(env_str, NULL, 10, &val)) {
+            aio_poll_max_ns = val;
+        } else {
+            fprintf(stderr, "Unable to parse QEMU_AIO_POLL_MAX_NS "
+                            "environment variable\n");
+        }
+    }
+
 #ifdef CONFIG_EPOLL_CREATE1
     assert(!ctx->epollfd);
     ctx->epollfd = epoll_create1(EPOLL_CLOEXEC);

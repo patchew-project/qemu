@@ -42,8 +42,10 @@ void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
 void qemu_aio_unref(void *p);
 void qemu_aio_ref(void *p);
 
+typedef struct AioPollHandler AioPollHandler;
 typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
+typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
 
 struct ThreadPool;
@@ -63,6 +65,15 @@ struct AioContext {
      * we're walking and dispatching callbacks.
      */
     int walking_handlers;
+
+    /* The list of registered AIO poll handlers */
+    QLIST_HEAD(, AioPollHandler) aio_poll_handlers;
+
+    /* This is a simple lock used to protect the aio_poll_handlers list.
+     * Specifically, it's used to ensure that no callbacks are removed while
+     * we're walking and dispatching callbacks.
+     */
+    int walking_poll_handlers;
 
     /* Used to avoid unnecessary event_notifier_set calls in aio_notify;
      * accessed with atomic primitives.  If this field is 0, everything
@@ -326,6 +337,11 @@ void aio_set_fd_handler(AioContext *ctx,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         void *opaque);
+
+void aio_set_poll_handler(AioContext *ctx,
+                          AioPollFn *poll_fn,
+                          IOHandler *io_fn,
+                          void *opaque);
 
 /* Register an event notifier and associated callbacks.  Behaves very similarly
  * to event_notifier_set_handler.  Unlike event_notifier_set_handler, these callbacks
