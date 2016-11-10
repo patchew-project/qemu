@@ -37,6 +37,7 @@ $inf = "";
 $ibase = "";
 @ipath = ();
 $encoding = undef;
+@args = ();
 
 while ($_ = shift) {
     if (/^-D(.*)$/) {
@@ -162,7 +163,8 @@ while(<$inf>) {
 	if ($ended =~ /^(?:ifset|ifclear|ignore|menu|iftex)$/) {
 	    $skipping = pop @skstack;
 	    next;
-	} elsif ($ended =~ /^(?:example|smallexample|display)$/) {
+	} elsif ($ended =~ /^(?:example|smallexample|display
+                            |quotation|deftp|deftypefn)$/x) {
 	    $shift = "";
 	    $_ = "";	# need a paragraph break
 	} elsif ($ended =~ /^(?:itemize|enumerate|[fv]?table)$/) {
@@ -321,6 +323,46 @@ while(<$inf>) {
 	    push @columns, $column;
 	}
 	$_ = "\n=item ".join (" : ", @columns)."\n";
+    };
+
+    /^\@(quotation)\s*(.+)?$/ and do {
+        push @endwstack, $endw;
+        $endw = $1;
+        $_ = "\n$2:"
+    };
+
+    /^{(.*)}$|^(.*)$/ and $#args > 0 and do {
+        $kind = $args[0];
+        $arguments = $1 // "";
+        if ($endw eq "deftypefn") {
+            $ret = $args[1];
+            $fname = "B<$args[2]>";
+            $_ = $ret ? "$ret " : "";
+            $_ .= "$fname $arguments ($kind)";
+        } else {
+            $_ = "B<$args[1]> ($kind)\n\n$arguments";
+        }
+        @args = ();
+    };
+
+    /^\@(deftp)\s*(.+)?$/ and do {
+        push @endwstack, $endw;
+        $endw = $1;
+        $arg = $2;
+        $arg =~ s/{([^}]*)}/$1/g;
+        $arg =~ s/\@$//;
+        @args = split (/ /, $arg);
+        $_ = "";
+    };
+
+    /^\@(deftypefn)\s*(.+)?$/ and do {
+        push @endwstack, $endw;
+        $endw = $1;
+        $arg = $2;
+        $arg =~ s/{([^}]*)}/$1/g;
+        $arg =~ s/\@$//;
+        @args = split (/ /, $arg);
+        $_ = "";
     };
 
     /^\@itemx?\s*(.+)?$/ and do {
