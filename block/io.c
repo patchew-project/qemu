@@ -2421,7 +2421,7 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
 {
     BdrvTrackedRequest req;
     int max_pdiscard, ret;
-    int head, align;
+    int head, tail, align;
 
     if (!bs->drv) {
         return -ENOMEDIUM;
@@ -2444,19 +2444,15 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
         return 0;
     }
 
-    /* Discard is advisory, so ignore any unaligned head or tail */
+    /* Discard is advisory, but some devices track and coalesce
+     * unaligned requests, so we must pass everything down rather than
+     * round here.  Still, most devices will just silently ignore
+     * unaligned requests (by returning -ENOTSUP), so we must fragment
+     * the request accordingly.  */
     align = MAX(bs->bl.pdiscard_alignment, bs->bl.request_alignment);
     assert(align % bs->bl.request_alignment == 0);
     head = offset % align;
-    if (head) {
-        head = MIN(count, align - head);
-        count -= head;
-        offset += head;
-    }
-    count = QEMU_ALIGN_DOWN(count, align);
-    if (!count) {
-        return 0;
-    }
+    tail = (offset + count) % align;
 
     bdrv_inc_in_flight(bs);
     tracked_request_begin(&req, bs, offset, count, BDRV_TRACKED_DISCARD);
@@ -2468,11 +2464,25 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
 
     max_pdiscard = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_pdiscard, INT_MAX),
                                    align);
-    assert(max_pdiscard);
+    assert(max_pdiscard >= bs->bl.request_alignment);
 
     while (count > 0) {
         int ret;
-        int num = MIN(count, max_pdiscard);
+        int num = count;
+
+        if (head) {
+            /* Make a small request up to the first aligned sector. */
+            num = MIN(count, align - head);
+            head = (head + num) % align;
+            assert(num < max_pdiscard);
+        } else if (tail && num > align) {
+            /* Shorten the request to the last aligned sector.  */
+            num -= tail;
+        }
+        /* limit request size */
+        if (num > max_pdiscard) {
+            num = max_pdiscard;
+        }
 
         if (bs->drv->bdrv_co_pdiscard) {
             ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
