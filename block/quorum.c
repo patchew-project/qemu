@@ -134,6 +134,11 @@ struct QuorumAIOCB {
     int children_read;          /* how many children have been read from */
 };
 
+typedef struct QuorumCo {
+    QuorumAIOCB *acb;
+    int i;
+} QuorumCo;
+
 static bool quorum_vote(QuorumAIOCB *acb);
 
 static void quorum_aio_finalize(QuorumAIOCB *acb)
@@ -218,15 +223,6 @@ static bool quorum_has_too_much_io_failed(QuorumAIOCB *acb)
     return false;
 }
 
-static void quorum_rewrite_aio_cb(void *opaque, int ret)
-{
-    QuorumAIOCB *acb = opaque;
-
-    /* one less rewrite to do */
-    acb->rewrite_count--;
-    qemu_coroutine_enter_if_inactive(acb->co);
-}
-
 static int read_fifo_child(QuorumAIOCB *acb);
 
 static void quorum_copy_qiov(QEMUIOVector *dest, QEMUIOVector *source)
@@ -293,7 +289,25 @@ static void quorum_report_bad_versions(BDRVQuorumState *s,
     }
 }
 
-static bool quorum_rewrite_bad_versions(BDRVQuorumState *s, QuorumAIOCB *acb,
+static void quorum_rewrite_entry(void *opaque)
+{
+    QuorumCo *co = opaque;
+    QuorumAIOCB *acb = co->acb;
+    BDRVQuorumState *s = acb->bs->opaque;
+    int ret;
+
+    ret = bdrv_co_pwritev(s->children[co->i],
+                          acb->sector_num * BDRV_SECTOR_SIZE,
+                          acb->nb_sectors * BDRV_SECTOR_SIZE,
+                          acb->qiov, 0);
+    (void) ret;
+
+    /* one less rewrite to do */
+    acb->rewrite_count--;
+    qemu_coroutine_enter_if_inactive(acb->co);
+}
+
+static bool quorum_rewrite_bad_versions(QuorumAIOCB *acb,
                                         QuorumVoteValue *value)
 {
     QuorumVoteVersion *version;
@@ -321,9 +335,14 @@ static bool quorum_rewrite_bad_versions(BDRVQuorumState *s, QuorumAIOCB *acb,
             continue;
         }
         QLIST_FOREACH(item, &version->items, next) {
-            bdrv_aio_writev(s->children[item->index], acb->sector_num,
-                            acb->qiov, acb->nb_sectors, quorum_rewrite_aio_cb,
-                            acb);
+            Coroutine *co;
+            QuorumCo data = {
+                .acb = acb,
+                .i = item->index,
+            };
+
+            co = qemu_coroutine_create(quorum_rewrite_entry, &data);
+            qemu_coroutine_enter(co);
         }
     }
 
@@ -577,7 +596,7 @@ static bool quorum_vote(QuorumAIOCB *acb)
 
     /* corruption correction is enabled */
     if (s->rewrite_corrupted) {
-        rewrite = quorum_rewrite_bad_versions(s, acb, &winner->value);
+        rewrite = quorum_rewrite_bad_versions(acb, &winner->value);
     }
 
 free_exit:
@@ -585,11 +604,6 @@ free_exit:
     quorum_free_vote_list(&acb->votes);
     return rewrite;
 }
-
-typedef struct QuorumCo {
-    QuorumAIOCB *acb;
-    int i;
-} QuorumCo;
 
 static void read_quorum_children_entry(void *opaque)
 {
