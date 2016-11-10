@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -7,7 +8,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 
-#define VTERM_BUFSIZE   16
+#define VTERM_BUFSIZE   2048
 
 typedef struct VIOsPAPRVTYDevice {
     VIOsPAPRDevice sdev;
@@ -37,7 +38,15 @@ static void vty_receive(void *opaque, const uint8_t *buf, int size)
         qemu_irq_pulse(spapr_vio_qirq(&dev->sdev));
     }
     for (i = 0; i < size; i++) {
-        assert((dev->in - dev->out) < VTERM_BUFSIZE);
+        if (dev->in - dev->out >= VTERM_BUFSIZE) {
+            static bool reported;
+            if (!reported) {
+                error_report("VTY input buffer exhausted - characters dropped."
+                             " (input size = %i)", size);
+                reported = true;
+            }
+            break;
+        }
         dev->buf[dev->in++ % VTERM_BUFSIZE] = buf[i];
     }
 }
