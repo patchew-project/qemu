@@ -1198,20 +1198,18 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     virtio_device_stop_ioeventfd(vdev);
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
-                                         true);
+        r = virtio_bus_set_host_notifier(vbus, hdev->vq_index + i, true);
         if (r < 0) {
             error_report("vhost VQ %d notifier binding failed: %d", i, -r);
             goto fail_vq;
         }
     }
-    VIRTIO_BUS(qbus)->ioeventfd_started = true;
+    vbus->ioeventfd_started = true;
 
     return 0;
 fail_vq:
     while (--i >= 0) {
-        e = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
-                                         false);
+        e = virtio_bus_set_host_notifier(vbus, hdev->vq_index + i, false);
         if (e < 0) {
             error_report("vhost VQ %d notifier cleanup error: %d", i, -r);
         }
@@ -1230,17 +1228,17 @@ fail:
 void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
     int i, r;
 
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
-                                         false);
+        r = virtio_bus_set_host_notifier(vbus, hdev->vq_index + i, false);
         if (r < 0) {
             error_report("vhost VQ %d notifier cleanup failed: %d", i, -r);
         }
         assert (r >= 0);
     }
-    VIRTIO_BUS(qbus)->ioeventfd_started = false;
+    vbus->ioeventfd_started = false;
     virtio_device_start_ioeventfd(vdev);
 }
 
