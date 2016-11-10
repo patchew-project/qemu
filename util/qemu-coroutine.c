@@ -19,6 +19,7 @@
 #include "qemu/atomic.h"
 #include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
+#include "block/aio.h"
 
 enum {
     POOL_BATCH_SIZE = 64,
@@ -128,6 +129,13 @@ void qemu_coroutine_enter(Coroutine *co)
         return;
     default:
         abort();
+    }
+}
+
+void qemu_coroutine_enter_if_inactive(Coroutine *co)
+{
+    if (!qemu_coroutine_entered(co)) {
+        qemu_coroutine_enter(co);
     }
 }
 
