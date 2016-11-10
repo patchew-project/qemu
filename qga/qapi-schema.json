@@ -833,6 +833,7 @@
 { 'command': 'guest-set-user-password',
   'data': { 'username': 'str', 'password': 'str', 'crypted': 'bool' } }
 
+##
 # @GuestMemoryBlock:
 #
 # @phys-index: Arbitrary guest-specific unique identifier of the MEMORY BLOCK.
@@ -932,6 +933,7 @@
   'data':    {'mem-blks': ['GuestMemoryBlock'] },
   'returns': ['GuestMemoryBlockResponse'] }
 
+##
 # @GuestMemoryBlockInfo:
 #
 # @size: the size (in bytes) of the guest memory blocks,
@@ -955,6 +957,7 @@
 { 'command': 'guest-get-memory-block-info',
   'returns': 'GuestMemoryBlockInfo' }
 
+##
 # @GuestExecStatus:
 #
 # @exited: true if process has already terminated.
