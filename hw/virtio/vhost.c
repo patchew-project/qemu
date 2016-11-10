@@ -1205,6 +1205,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_vq;
         }
     }
+    VIRTIO_BUS(qbus)->ioeventfd_started = true;
 
     return 0;
 fail_vq:
@@ -1239,6 +1240,7 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         }
         assert (r >= 0);
     }
+    VIRTIO_BUS(qbus)->ioeventfd_started = false;
     virtio_device_start_ioeventfd(vdev);
 }
 
