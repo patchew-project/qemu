@@ -23,21 +23,6 @@ int hax_sync_vcpus(void)
     return 0;
 }
 
-void hax_disable(int disable)
-{
-   return;
-}
-
-int hax_pre_init(uint64_t ram_size)
-{
-   return 0;
-}
-
-int hax_get_max_ram(uint64_t *max_ram)
-{
-    return 0;
-}
-
 int hax_populate_ram(uint64_t va, uint32_t size)
 {
     return -ENOSYS;

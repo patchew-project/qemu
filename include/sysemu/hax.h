@@ -25,13 +25,9 @@
 #include "config-host.h"
 #include "qemu-common.h"
 
-int hax_pre_init(uint64_t ram_size);
 int hax_sync_vcpus(void);
-void hax_disable(int disable);
 int hax_init_vcpu(CPUState *cpu);
 int hax_smp_cpu_exec(CPUState *cpu);
-/* get the max haxm ram even before haxm library is initialized */
-int hax_get_max_ram(uint64_t *max_ram);
 int hax_populate_ram(uint64_t va, uint32_t size);
 
 void hax_cpu_synchronize_state(CPUState *cpu);

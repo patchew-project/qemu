@@ -36,6 +36,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/main-loop.h"
 #include "hax-slot.h"
+#include "hw/boards.h"
 
 static const char kHaxVcpuSyncFailed[] = "Failed to sync HAX vcpu context";
 #define derror(msg) do { fprintf(stderr, (msg)); } while (0)
@@ -66,7 +67,7 @@ const uint32_t hax_min_version = 0x3;
 #define HAX_EMULATE_STATE_NONE  0x3
 #define HAX_EMULATE_STATE_INITIAL       0x4
 
-bool hax_allowed;
+static bool hax_allowed;
 
 static void hax_vcpu_sync_state(CPUArchState *env, int modified);
 static int hax_arch_get_registers(CPUArchState *env);
@@ -75,20 +76,11 @@ static int hax_handle_io(CPUArchState *env, uint32_t df, uint16_t port,
 static int hax_handle_fastmmio(CPUArchState *env, struct hax_fastmmio *hft);
 
 struct hax_state hax_global;
-int ret_hax_init;
-static int hax_disabled = 1;
-
-int hax_support = -1;
 
 /* Called after hax_init */
 int hax_enabled(void)
 {
-    return !hax_disabled && hax_support;
-}
-
-void hax_disable(int disable)
-{
-    hax_disabled = disable;
+    return hax_allowed;
 }
 
 static int hax_prepare_emulation(CPUArchState *env)
@@ -456,31 +448,16 @@ static void hax_handle_interrupt(CPUState *cpu, int mask)
     }
 }
 
-int hax_pre_init(uint64_t ram_size)
-{
-    struct hax_state *hax = NULL;
-
-    fprintf(stdout, "Hax is %s\n", hax_disabled ? "disabled" : "enabled");
-    if (hax_disabled) {
-        return 0;
-    }
-    hax = &hax_global;
-    memset(hax, 0, sizeof(struct hax_state));
-    hax->mem_quota = ram_size;
-    fprintf(stdout, "Hax ram_size 0x%llx\n", ram_size);
-
-    return 0;
-}
-
-static int hax_init(void)
+static int hax_init(ram_addr_t ram_size)
 {
     struct hax_state *hax = NULL;
     struct hax_qemu_version qversion;
     int ret;
 
-    hax_support = 0;
-
     hax = &hax_global;
+
+    memset(hax, 0, sizeof(struct hax_state));
+    hax->mem_quota = ram_size;
 
     hax->fd = hax_mod_open();
     if (hax_invalid_fd(hax->fd)) {
@@ -519,7 +496,6 @@ static int hax_init(void)
     qversion.min_version = hax_min_version;
     hax_notify_qemu_version(hax->vm->fd, &qversion);
     cpu_interrupt_handler = hax_handle_interrupt;
-    hax_support = 1;
 
     return ret;
   error:
@@ -535,17 +511,16 @@ static int hax_init(void)
 
 static int hax_accel_init(MachineState *ms)
 {
-    ret_hax_init = hax_init();
+    int ret = hax_init(ms->ram_size);
 
-    if (ret_hax_init && (ret_hax_init != -ENOSPC)) {
+    if (ret && (ret != -ENOSPC)) {
         fprintf(stderr, "No accelerator found.\n");
-        return ret_hax_init;
     } else {
         fprintf(stdout, "HAX is %s and emulator runs in %s mode.\n",
-                !ret_hax_init ? "working" : "not working",
-                !ret_hax_init ? "fast virt" : "emulation");
-        return 0;
+                !ret ? "working" : "not working",
+                !ret ? "fast virt" : "emulation");
     }
+    return ret;
 }
 
 static int hax_handle_fastmmio(CPUArchState *env, struct hax_fastmmio *hft)
