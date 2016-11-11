@@ -31,6 +31,12 @@
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 16
 #define TCG_TARGET_NB_REGS 32
 
+#if UINTPTR_MAX == UINT32_MAX
+# define TCG_TARGET_REG_BITS 32
+#elif UINTPTR_MAX == UINT64_MAX
+# define TCG_TARGET_REG_BITS 64
+#endif
+
 typedef enum {
     TCG_REG_ZERO = 0,
     TCG_REG_AT,
@@ -40,6 +46,7 @@ typedef enum {
     TCG_REG_A1,
     TCG_REG_A2,
     TCG_REG_A3,
+#if TCG_TARGET_REG_BITS == 32
     TCG_REG_T0,
     TCG_REG_T1,
     TCG_REG_T2,
@@ -48,6 +55,16 @@ typedef enum {
     TCG_REG_T5,
     TCG_REG_T6,
     TCG_REG_T7,
+#else
+    TCG_REG_A4,
+    TCG_REG_A5,
+    TCG_REG_A6,
+    TCG_REG_A7,
+    TCG_REG_T0,
+    TCG_REG_T1,
+    TCG_REG_T2,
+    TCG_REG_T3,
+#endif
     TCG_REG_S0,
     TCG_REG_S1,
     TCG_REG_S2,
@@ -131,6 +148,48 @@ extern bool use_mips32r2_instructions;
 #define TCG_TARGET_HAS_neg_i32          0 /* sub  rd, zero, rt   */
 #define TCG_TARGET_HAS_ext8u_i32        0 /* andi rt, rs, 0xff   */
 #define TCG_TARGET_HAS_ext16u_i32       0 /* andi rt, rs, 0xffff */
+
+#if TCG_TARGET_REG_BITS == 64
+#define TCG_TARGET_HAS_extrl_i64_i32    0
+#define TCG_TARGET_HAS_extrh_i64_i32    0
+#define TCG_TARGET_HAS_bswap16_i64      1
+#define TCG_TARGET_HAS_bswap32_i64      1
+#define TCG_TARGET_HAS_bswap64_i64      1
+#define TCG_TARGET_HAS_deposit_i64      1
+#define TCG_TARGET_HAS_div_i64          0
+#define TCG_TARGET_HAS_rem_i64          0
+#define TCG_TARGET_HAS_ext8s_i64        1
+#define TCG_TARGET_HAS_ext16s_i64       1
+#define TCG_TARGET_HAS_ext32s_i64       1
+#define TCG_TARGET_HAS_ext8u_i64        1
+#define TCG_TARGET_HAS_ext16u_i64       1
+#define TCG_TARGET_HAS_ext32u_i64       1
+#define TCG_TARGET_HAS_andc_i64         0
+#define TCG_TARGET_HAS_eqv_i64          0
+#define TCG_TARGET_HAS_nand_i64         0
+#define TCG_TARGET_HAS_nor_i64          0
+#define TCG_TARGET_HAS_neg_i64          1
+#define TCG_TARGET_HAS_not_i64          1
+#define TCG_TARGET_HAS_orc_i64          0
+#define TCG_TARGET_HAS_rot_i64          1
+#define TCG_TARGET_HAS_movcond_i64      0
+#define TCG_TARGET_HAS_muls2_i64        0
+#define TCG_TARGET_HAS_add2_i32         0
+#define TCG_TARGET_HAS_sub2_i32         0
+#define TCG_TARGET_HAS_add2_i64         0
+#define TCG_TARGET_HAS_sub2_i64         0
+#define TCG_TARGET_HAS_mulu2_i64        0
+#define TCG_TARGET_HAS_muluh_i64        0
+#define TCG_TARGET_HAS_mulsh_i64        0
+
+#undef use_movnz_instructions
+#undef use_mips32_instructions
+#undef use_mips32r6_instructions
+
+#define use_movnz_instructions  0
+#define use_mips32_instructions  0
+#define use_mips32r6_instructions  0
+#endif /* TCG_TARGET_REG_BITS == 64 */
 
 #ifdef __OpenBSD__
 #include <machine/sysarch.h>
