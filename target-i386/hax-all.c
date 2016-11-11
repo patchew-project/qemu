@@ -66,9 +66,6 @@ const uint32_t hax_min_version = 0x3;
 #define HAX_EMULATE_STATE_NONE  0x3
 #define HAX_EMULATE_STATE_INITIAL       0x4
 
-#define HAX_NON_UG_PLATFORM 0x0
-#define HAX_UG_PLATFORM     0x1
-
 bool hax_allowed;
 
 static void hax_vcpu_sync_state(CPUArchState *env, int modified);
@@ -82,7 +79,6 @@ int ret_hax_init;
 static int hax_disabled = 1;
 
 int hax_support = -1;
-int ug_support;
 
 /* Called after hax_init */
 int hax_enabled(void)
@@ -95,19 +91,6 @@ void hax_disable(int disable)
     hax_disabled = disable;
 }
 
-/* Called after hax_init */
-int hax_ug_platform(void)
-{
-    return ug_support;
-}
-
-/* Currently non-PG modes are emulated by QEMU */
-int hax_vcpu_emulation_mode(CPUState *cpu)
-{
-    CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
-    return !(env->cr[0] & CR0_PG_MASK);
-}
-
 static int hax_prepare_emulation(CPUArchState *env)
 {
     /* Flush all emulation states */
@@ -115,66 +98,6 @@ static int hax_prepare_emulation(CPUArchState *env)
     tb_flush(ENV_GET_CPU(env));
     /* Sync the vcpu state from hax kernel module */
     hax_vcpu_sync_state(env, 0);
-    return 0;
-}
-
-/*
- * Check whether to break the translation block loop
- * break tbloop after one MMIO emulation, or after finish emulation mode
- */
-static int hax_stop_tbloop(CPUArchState *env)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-    switch (cpu->hax_vcpu->emulation_state) {
-    case HAX_EMULATE_STATE_MMIO:
-        if (cpu->hax_vcpu->resync) {
-            hax_prepare_emulation(env);
-            cpu->hax_vcpu->resync = 0;
-            return 0;
-        }
-        return 1;
-        break;
-    case HAX_EMULATE_STATE_INITIAL:
-    case HAX_EMULATE_STATE_REAL:
-        if (!hax_vcpu_emulation_mode(cpu)) {
-            return 1;
-        }
-        break;
-    default:
-        fprintf(stderr, "Invalid emulation state in hax_sto_tbloop state %x\n",
-                cpu->hax_vcpu->emulation_state);
-        break;
-    }
-
-    return 0;
-}
-
-int hax_stop_emulation(CPUState *cpu)
-{
-    CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
-
-    if (hax_stop_tbloop(env)) {
-        cpu->hax_vcpu->emulation_state = HAX_EMULATE_STATE_NONE;
-        /*
-         * QEMU emulation changes vcpu state,
-         * Sync the vcpu state to HAX kernel module
-         */
-        hax_vcpu_sync_state(env, 1);
-        return 1;
-    }
-
-    return 0;
-}
-
-int hax_stop_translate(CPUState *cpu)
-{
-    struct hax_vcpu_state *vstate = cpu->hax_vcpu;
-
-    assert(vstate->emulation_state);
-    if (vstate->emulation_state == HAX_EMULATE_STATE_MMIO) {
-        return 1;
-    }
-
     return 0;
 }
 
@@ -214,8 +137,9 @@ static int hax_get_capability(struct hax_state *hax)
 
     }
 
-    if ((cap->winfo & HAX_CAP_UG)) {
-        ug_support = 1;
+    if (!(cap->winfo & HAX_CAP_UG)) {
+        fprintf(stderr, "UG mode is not supported by the hardware.\n");
+        return -ENOTSUP;
     }
 
     if (cap->wstatus & HAX_CAP_MEMQUOTA) {
@@ -617,11 +541,6 @@ static int hax_accel_init(MachineState *ms)
         fprintf(stderr, "No accelerator found.\n");
         return ret_hax_init;
     } else {
-        /* need tcg for non-UG platform in real mode */
-        if (!hax_ug_platform()) {
-            tcg_exec_init(tcg_tb_size * 1024 * 1024);
-        }
-
         fprintf(stdout, "HAX is %s and emulator runs in %s mode.\n",
                 !ret_hax_init ? "working" : "not working",
                 !ret_hax_init ? "fast virt" : "emulation");
@@ -755,7 +674,7 @@ void hax_raise_event(CPUState *cpu)
  * 4. QEMU have Signal/event pending
  * 5. An unknown VMX exit happens
  */
-static int hax_vcpu_hax_exec(CPUArchState *env, int ug_platform)
+static int hax_vcpu_hax_exec(CPUArchState *env)
 {
     int ret = 0;
     CPUState *cpu = ENV_GET_CPU(env);
@@ -763,47 +682,31 @@ static int hax_vcpu_hax_exec(CPUArchState *env, int ug_platform)
     struct hax_vcpu_state *vcpu = cpu->hax_vcpu;
     struct hax_tunnel *ht = vcpu->tunnel;
 
-    if (!ug_platform) {
-        if (hax_vcpu_emulation_mode(cpu)) {
-            DPRINTF("Trying to execute vcpu at eip:" TARGET_FMT_lx "\n",
-                    env->eip);
-            return HAX_EMUL_EXITLOOP;
-        }
+    if (!hax_enabled()) {
+        DPRINTF("Trying to vcpu execute at eip:" TARGET_FMT_lx "\n", env->eip);
+        return HAX_EMUL_EXITLOOP;
+    }
 
-        cpu->halted = 0;
+    cpu->halted = 0;
 
-        if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
-            apic_poll_irq(x86_cpu->apic_state);
-        }
-    } else {                        /* UG platform */
-        if (!hax_enabled()) {
-            DPRINTF("Trying to vcpu execute at eip:" TARGET_FMT_lx "\n",
-                    env->eip);
-            return HAX_EMUL_EXITLOOP;
-        }
+    if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
+        cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        apic_poll_irq(x86_cpu->apic_state);
+    }
 
-        cpu->halted = 0;
+    if (cpu->interrupt_request & CPU_INTERRUPT_INIT) {
+        DPRINTF("\nhax_vcpu_hax_exec: handling INIT for %d\n",
+                cpu->cpu_index);
+        do_cpu_init(x86_cpu);
+        hax_vcpu_sync_state(env, 1);
+    }
 
-        if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
-            apic_poll_irq(x86_cpu->apic_state);
-        }
-
-        if (cpu->interrupt_request & CPU_INTERRUPT_INIT) {
-            DPRINTF("\nUG hax_vcpu_hax_exec: handling INIT for %d\n",
-                    cpu->cpu_index);
-            do_cpu_init(x86_cpu);
-            hax_vcpu_sync_state(env, 1);
-        }
-
-        if (cpu->interrupt_request & CPU_INTERRUPT_SIPI) {
-            DPRINTF("UG hax_vcpu_hax_exec: handling SIPI for %d\n",
-                    cpu->cpu_index);
-            hax_vcpu_sync_state(env, 0);
-            do_cpu_sipi(x86_cpu);
-            hax_vcpu_sync_state(env, 1);
-        }
+    if (cpu->interrupt_request & CPU_INTERRUPT_SIPI) {
+        DPRINTF("hax_vcpu_hax_exec: handling SIPI for %d\n",
+                cpu->cpu_index);
+        hax_vcpu_sync_state(env, 0);
+        do_cpu_sipi(x86_cpu);
+        hax_vcpu_sync_state(env, 1);
     }
 
     do {
@@ -815,15 +718,11 @@ static int hax_vcpu_hax_exec(CPUArchState *env, int ug_platform)
         }
 
         hax_vcpu_interrupt(env);
-        if (!ug_platform) {
-            hax_ret = hax_vcpu_run(vcpu);
-        } else {                /* UG platform */
 
-            qemu_mutex_unlock_iothread();
-            hax_ret = hax_vcpu_run(vcpu);
-            qemu_mutex_lock_iothread();
-            current_cpu = cpu;
-        }
+        qemu_mutex_unlock_iothread();
+        hax_ret = hax_vcpu_run(vcpu);
+        qemu_mutex_lock_iothread();
+        current_cpu = cpu;
 
         /* Simply continue the vcpu_run if system call interrupted */
         if (hax_ret == -EINTR || hax_ret == -EAGAIN) {
@@ -939,43 +838,6 @@ void hax_cpu_synchronize_post_init(CPUState *cpu)
     run_on_cpu(cpu, do_hax_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
-/*
- * return 1 when need emulate, 0 when need exit loop
- */
-int hax_vcpu_exec(CPUState *cpu)
-{
-    int next = 0, ret = 0;
-    struct hax_vcpu_state *vcpu;
-    CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
-
-    if (cpu->hax_vcpu->emulation_state != HAX_EMULATE_STATE_NONE) {
-        return 1;
-    }
-
-    vcpu = cpu->hax_vcpu;
-    next = hax_vcpu_hax_exec(env, HAX_NON_UG_PLATFORM);
-    switch (next) {
-    case HAX_EMUL_ONE:
-        ret = 1;
-        vcpu->emulation_state = HAX_EMULATE_STATE_MMIO;
-        hax_prepare_emulation(env);
-        break;
-    case HAX_EMUL_REAL:
-        ret = 1;
-        vcpu->emulation_state = HAX_EMULATE_STATE_REAL;
-        hax_prepare_emulation(env);
-        break;
-    case HAX_EMUL_HLT:
-    case HAX_EMUL_EXITLOOP:
-        break;
-    default:
-        fprintf(stderr, "Unknown hax vcpu exec return %x\n", next);
-        abort();
-    }
-
-    return ret;
-}
-
 int hax_smp_cpu_exec(CPUState *cpu)
 {
     CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
@@ -989,7 +851,7 @@ int hax_smp_cpu_exec(CPUState *cpu)
             break;
         }
 
-        why = hax_vcpu_hax_exec(env, HAX_UG_PLATFORM);
+        why = hax_vcpu_hax_exec(env);
 
         if ((why != HAX_EMUL_HLT) && (why != HAX_EMUL_EXITLOOP)) {
             fprintf(stderr, "Unknown hax vcpu return %x\n", why);

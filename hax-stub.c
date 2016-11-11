@@ -52,23 +52,3 @@ int hax_smp_cpu_exec(CPUState *cpu)
 {
     return -ENOSYS;
 }
-
-int hax_vcpu_exec(CPUState *cpu)
-{
-    return -ENOSYS;
-}
-
-int hax_vcpu_emulation_mode(CPUState *cpu)
-{
-    return 0;
-}
-
-int hax_stop_emulation(CPUState *cpu)
-{
-    return 0;
-}
-
-int hax_stop_translate(CPUState *cpu)
-{
-    return 0;
-}
