@@ -20,14 +20,27 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/arm/xlnx-zynqmp.h"
+#include "hw/gpio/xlnx-axi-gpio.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
 
+#define XLNX_EP108_NUM_AXI_GPIOS 7
+
+/* These can always be changed, but these seven are the default in the reference
+ * board design.
+ */
+static const uint64_t axi_gpio_addr[XLNX_EP108_NUM_AXI_GPIOS] = {
+    0xa1000000, 0x401000000, 0x1001000000, 0xb1000000, 0x501000000,
+    0x4801000000, 0x81000000,
+};
+
 typedef struct XlnxEP108 {
     XlnxZynqMPState soc;
     MemoryRegion ddr_ram;
+
+    XlnxAXIGPIO axi_gpio[XLNX_EP108_NUM_AXI_GPIOS];
 } XlnxEP108;
 
 static struct arm_boot_info xlnx_ep108_binfo;
@@ -104,6 +117,19 @@ static void xlnx_ep108_init(MachineState *machine)
         cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi[i]), 1, cs_line);
+    }
+
+    /* Connect the GPIO devices. These aren't on the board, but they are in
+     * the PL, so we connect them here instead of in the SoC.
+     */
+    for (i = 0; i < XLNX_EP108_NUM_AXI_GPIOS; i++) {
+        object_initialize(&s->axi_gpio[i], sizeof(s->axi_gpio[i]),
+                          TYPE_XLNX_AXI_GPIO);
+        qdev_set_parent_bus(DEVICE(&s->axi_gpio[i]), sysbus_get_default());
+
+        object_property_set_bool(OBJECT(&s->axi_gpio[i]), true, "realized", &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->axi_gpio[i]), 0, axi_gpio_addr[i]);
+        /* The device supports interrupts, but they aren't connected */
     }
 
     xlnx_ep108_binfo.ram_size = ram_size;
