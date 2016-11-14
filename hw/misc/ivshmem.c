@@ -858,7 +858,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &s->ivshmem_mmio);
 
-    if (!s->not_legacy_32bit) {
+    if (s->not_legacy_32bit) {
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
@@ -1033,6 +1033,7 @@ static const VMStateDescription ivshmem_plain_vmsd = {
 
 static Property ivshmem_plain_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
+    DEFINE_PROP_UINT32("use64", IVShmemState, not_legacy_32bit, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1107,6 +1108,7 @@ static Property ivshmem_doorbell_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", IVShmemState, features, IVSHMEM_IOEVENTFD,
                     true),
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
+    DEFINE_PROP_UINT32("use64", IVShmemState, not_legacy_32bit, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
