@@ -158,7 +158,7 @@ static inline void check_tlb_flush(CPUPPCState *env, bool global)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     if (env->tlb_need_flush & TLB_NEED_LOCAL_FLUSH) {
-        tlb_flush(cs, 1);
+        tlb_flush(cs);
         env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
     }
 
@@ -173,7 +173,7 @@ static inline void check_tlb_flush(CPUPPCState *env, bool global)
                 CPUPPCState *other_env = &cpu->env;
 
                 other_env->tlb_need_flush &= ~TLB_NEED_LOCAL_FLUSH;
-                tlb_flush(other_cs, 1);
+                tlb_flush(other_cs);
             }
         }
         env->tlb_need_flush &= ~TLB_NEED_GLOBAL_FLUSH;
