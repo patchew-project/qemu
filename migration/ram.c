@@ -2464,7 +2464,7 @@ static int ram_load_postcopy(QEMUFile *f)
 
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
-    int flags = 0, ret = 0;
+    int flags = 0, ret = 0, invalid_flags;
     static uint64_t seq_iter;
     int len = 0;
     /*
@@ -2479,6 +2479,15 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         ret = -EINVAL;
     }
 
+    invalid_flags = 0;
+
+    if (!migrate_use_xbzrle()) {
+        invalid_flags |= RAM_SAVE_FLAG_XBZRLE;
+    }
+
+    if (!migrate_use_compression()) {
+        invalid_flags |= RAM_SAVE_FLAG_COMPRESS_PAGE;
+    }
     /* This RCU critical section can be very long running.
      * When RCU reclaims in the code start to become numerous,
      * it will be necessary to reduce the granularity of this
@@ -2498,6 +2507,18 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr = qemu_get_be64(f);
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
+
+        if (flags & invalid_flags) {
+            if (flags & invalid_flags  & RAM_SAVE_FLAG_XBZRLE) {
+                error_report("Received an unexpected XBRLE page");
+            }
+            if (flags & invalid_flags  & RAM_SAVE_FLAG_COMPRESS_PAGE) {
+                error_report("Received an unexpected compressed page");
+            }
+
+            ret = -EINVAL;
+            break;
+        }
 
         if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
