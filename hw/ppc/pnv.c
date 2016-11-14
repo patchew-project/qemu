@@ -525,6 +525,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
+    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -546,6 +547,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
+    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -567,6 +569,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
+    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -588,6 +591,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
     k->xscom_base = 0x00603fc00000000ull;
+    k->xscom_core_base = 0x0ull;
     dc->desc = "PowerNV Chip POWER9";
 }
 
@@ -695,7 +699,9 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_unref(OBJECT(pnv_core));
 
         /* Each core has an XSCOM MMIO region */
-        pnv_xscom_add_subregion(chip, PNV_XSCOM_EX_CORE_BASE(core_hwid),
+        pnv_xscom_add_subregion(chip,
+                                PNV_XSCOM_EX_CORE_BASE(pcc->xscom_core_base,
+                                                       core_hwid),
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }
