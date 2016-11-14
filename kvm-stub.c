@@ -157,4 +157,9 @@ bool kvm_has_free_slot(MachineState *ms)
 {
     return false;
 }
+
+bool kvm_arm_supports_timer(void)
+{
+    return false;
+}
 #endif

@@ -227,6 +227,17 @@ int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUState *cpu);
 int kvm_destroy_vcpu(CPUState *cpu);
 
+/**
+ * kvm_arm_supports_timer
+ *
+ * Not all KVM implementations support notifications for the CP15 timers to
+ * user space. This function indicates whether the current KVM implementation
+ * does support them.
+ *
+ * Returns: true if KVM supports using ARM core timers from user space
+ */
+bool kvm_arm_supports_timer(void);
+
 #ifdef NEED_CPU_H
 #include "cpu.h"
 
