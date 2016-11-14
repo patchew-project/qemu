@@ -2191,10 +2191,14 @@ vmxnet3_init_msix(VMXNET3State *s)
                         VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_TABLE,
                         &s->msix_bar,
                         VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_PBA(s),
-                        VMXNET3_MSIX_OFFSET(s));
+                        VMXNET3_MSIX_OFFSET(s), NULL);
+
+    /* Any error other than -ENOTSUP(board's MSI support is broken)
+     * is a programming error. Fall back to INTx on -ENOTSUP */
+    assert(!res || res == -ENOTSUP);
 
     if (0 > res) {
-        VMW_WRPRN("Failed to initialize MSI-X, error %d", res);
+        VMW_WRPRN("Failed to initialize MSI-X, board's MSI support is broken");
         s->msix_used = false;
     } else {
         if (!vmxnet3_use_msix_vectors(s, VMXNET3_MAX_INTRS)) {
