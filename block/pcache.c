@@ -13,7 +13,9 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/rbcache.h"
 
+#define PCACHE_OPT_STATS_SIZE "pcache-stats-size"
 
 static QemuOptsList runtime_opts = {
     .name = "pcache",
@@ -24,9 +26,21 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "[internal use only, will be removed]",
         },
+        {
+            .name = PCACHE_OPT_STATS_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Total volume of requests for statistics",
+        },
         { /* end of list */ }
     },
 };
+
+#define MB_BITS 20
+#define PCACHE_DEFAULT_STATS_SIZE (3 << MB_BITS)
+
+typedef struct BDRVPCacheState {
+    RBCache *req_stats;
+} BDRVPCacheState;
 
 typedef struct PCacheAIOCB {
     Coroutine *co;
@@ -45,9 +59,12 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
 {
+    BDRVPCacheState *s = bs->opaque;
     PCacheAIOCB acb = {
         .co = qemu_coroutine_self(),
     };
+
+    rbcache_search_and_insert(s->req_stats, offset, bytes);
 
     bdrv_aio_preadv(bs->file, offset, qiov, bytes, pcache_aio_cb, &acb);
 
@@ -71,6 +88,13 @@ static coroutine_fn int pcache_co_pwritev(BlockDriverState *bs, uint64_t offset,
     return acb.ret;
 }
 
+static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
+{
+    uint64_t stats_size = qemu_opt_get_size(opts, PCACHE_OPT_STATS_SIZE,
+                                            PCACHE_DEFAULT_STATS_SIZE);
+    s->req_stats = rbcache_create(NULL, NULL, stats_size, RBCACHE_FIFO, s);
+}
+
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
                             Error **errp)
 {
@@ -92,7 +116,9 @@ static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
     if (local_err) {
         ret = -EINVAL;
         error_propagate(errp, local_err);
+        goto fail;
     }
+    pcache_state_init(opts, bs->opaque);
 fail:
     qemu_opts_del(opts);
     return ret;
@@ -100,6 +126,9 @@ fail:
 
 static void pcache_close(BlockDriverState *bs)
 {
+    BDRVPCacheState *s = bs->opaque;
+
+    rbcache_destroy(s->req_stats);
 }
 
 static void pcache_parse_filename(const char *filename, QDict *options,
@@ -122,7 +151,7 @@ static bool pcache_recurse_is_first_non_filter(BlockDriverState *bs,
 static BlockDriver bdrv_pcache = {
     .format_name                        = "pcache",
     .protocol_name                      = "pcache",
-    .instance_size                      = 0,
+    .instance_size                      = sizeof(BDRVPCacheState),
 
     .bdrv_parse_filename                = pcache_parse_filename,
     .bdrv_file_open                     = pcache_file_open,
