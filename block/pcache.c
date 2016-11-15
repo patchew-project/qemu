@@ -83,6 +83,7 @@ typedef struct PCacheNode {
         NODE_STATUS_REMOVE    = 3,
         NODE_STATUS_DELETED   = 4, /* only for debugging */
     } status;
+    uint64_t rdcnt;
     int ref;
 } PCacheNode;
 
@@ -142,9 +143,13 @@ static uint64_t ranges_overlap_size(uint64_t offset1, uint64_t size1,
 static void read_cache_data(PCacheAIOCBRead *acb, PCacheNode *node,
                             uint64_t offset, uint64_t bytes)
 {
+    BDRVPCacheState *s = acb->bs->opaque;
     uint64_t qiov_offs = 0, node_offs = 0;
     uint64_t size;
     uint64_t copy;
+
+    assert(node->status == NODE_STATUS_COMPLETED ||
+           node->status == NODE_STATUS_REMOVE);
 
     if (offset < node->common.offset) {
         qiov_offs = node->common.offset - offset;
@@ -156,6 +161,12 @@ static void read_cache_data(PCacheAIOCBRead *acb, PCacheNode *node,
 
     copy = qemu_iovec_from_buf(acb->qiov, qiov_offs,
                                node->data + node_offs, size);
+    node->rdcnt += size;
+    if (node->rdcnt >= node->common.bytes &&
+        node->status == NODE_STATUS_COMPLETED)
+    {
+        rbcache_remove(s->cache, &node->common);
+    }
     assert(copy == size);
 }
 
@@ -314,6 +325,7 @@ static RBCacheNode *pcache_node_alloc(uint64_t offset, uint64_t bytes,
 
     node->data = g_malloc(bytes);
     node->status = NODE_STATUS_NEW;
+    node->rdcnt = 0;
     node->ref = 1;
     QTAILQ_INIT(&node->wait_list);
 
