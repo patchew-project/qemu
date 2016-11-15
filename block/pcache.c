@@ -362,15 +362,52 @@ out:
     return acb.ret;
 }
 
+static void pcache_aio_write_cb(void *opaque, int ret)
+{
+    PCacheAIOCB *acb = opaque;
+    BDRVPCacheState *s = acb->bs->opaque;
+    uint64_t offset = acb->offset;
+    uint64_t bytes = acb->bytes;
+    uint64_t end_offs = offset + bytes;
+
+    if (ret < 0) {
+        goto out;
+    }
+
+    do {
+        PCacheNode *node = rbcache_search(s->cache, offset, bytes);
+        if (node == NULL) {
+            break;
+        }
+        assert(node->status == NODE_STATUS_COMPLETED ||
+               node->status == NODE_STATUS_INFLIGHT  ||
+               node->status == NODE_STATUS_REMOVE);
+
+        offset = node->common.offset + node->common.bytes;
+        bytes = end_offs - offset;
+
+        if (node->status == NODE_STATUS_COMPLETED) {
+            rbcache_remove(s->cache, &node->common);
+        }
+    } while (end_offs > offset);
+
+out:
+    acb->ret = ret;
+    qemu_coroutine_enter(acb->co);
+}
+
 static coroutine_fn int pcache_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                           uint64_t bytes, QEMUIOVector *qiov,
                                           int flags)
 {
     PCacheAIOCB acb = {
         .co = qemu_coroutine_self(),
+        .bs = bs,
+        .offset = offset,
+        .bytes = bytes,
     };
 
-    bdrv_aio_pwritev(bs->file, offset, qiov, bytes, pcache_aio_cb, &acb);
+    bdrv_aio_pwritev(bs->file, offset, qiov, bytes, pcache_aio_write_cb, &acb);
 
     qemu_coroutine_yield();
 
