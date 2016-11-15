@@ -858,7 +858,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &s->ivshmem_mmio);
 
-    if (!s->not_legacy_32bit) {
+    if (s->not_legacy_32bit) {
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
