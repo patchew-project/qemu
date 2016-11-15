@@ -360,6 +360,40 @@ out:
     rcu_read_unlock();
 }
 
+static void vfio_listener_region_add_iommu(VFIOContainer *container,
+                                           MemoryRegionSection *section,
+                                           hwaddr iova,
+                                           hwaddr end)
+{
+    VFIOGuestIOMMU *giommu;
+
+    QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
+        if (giommu->iommu == section->mr) {
+            /* We have already registered with this MR, skip */
+            return;
+        }
+    }
+
+    trace_vfio_listener_region_add_iommu(iova, end);
+
+    /*
+     * FIXME: For VFIO iommu types which have KVM acceleration to
+     * avoid bouncing all map/unmaps through qemu this way, this
+     * would be the right place to wire that up (tell the KVM
+     * device emulation the VFIO iommu handles to use).
+     */
+    giommu = g_malloc0(sizeof(*giommu));
+    giommu->iommu = section->mr;
+    giommu->iommu_offset = section->offset_within_address_space -
+        section->offset_within_region;
+    giommu->container = container;
+    giommu->n.notify = vfio_iommu_map_notify;
+    giommu->n.notifier_flags = IOMMU_NOTIFIER_ALL;
+    QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
+    memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);
+    memory_region_iommu_replay(giommu->iommu, &giommu->n, false);
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -439,27 +473,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     memory_region_ref(section->mr);
 
     if (memory_region_is_iommu(section->mr)) {
-        VFIOGuestIOMMU *giommu;
-
-        trace_vfio_listener_region_add_iommu(iova, end);
-        /*
-         * FIXME: For VFIO iommu types which have KVM acceleration to
-         * avoid bouncing all map/unmaps through qemu this way, this
-         * would be the right place to wire that up (tell the KVM
-         * device emulation the VFIO iommu handles to use).
-         */
-        giommu = g_malloc0(sizeof(*giommu));
-        giommu->iommu = section->mr;
-        giommu->iommu_offset = section->offset_within_address_space -
-                               section->offset_within_region;
-        giommu->container = container;
-        giommu->n.notify = vfio_iommu_map_notify;
-        giommu->n.notifier_flags = IOMMU_NOTIFIER_ALL;
-        QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
-
-        memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);
-        memory_region_iommu_replay(giommu->iommu, &giommu->n, false);
-
+        vfio_listener_region_add_iommu(container, section, iova, end);
         return;
     }
 
