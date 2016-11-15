@@ -1326,13 +1326,6 @@ static void virtio_set_isr(VirtIODevice *vdev, int value)
     }
 }
 
-void virtio_irq(VirtQueue *vq)
-{
-    trace_virtio_irq(vq);
-    virtio_set_isr(vq->vdev, 0x1);
-    virtio_notify_vector(vq->vdev, vq->vector);
-}
-
 bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     uint16_t old, new;
@@ -1356,6 +1349,17 @@ bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     return !v || vring_need_event(vring_get_used_event(vq), new, old);
 }
 
+void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
+{
+    if (!virtio_should_notify(vdev, vq)) {
+        return;
+    }
+
+    trace_virtio_notify_irqfd(vdev, vq);
+    virtio_set_isr(vq->vdev, 0x1);
+    event_notifier_set(&vq->guest_notifier);
+}
+
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     if (!virtio_should_notify(vdev, vq)) {
@@ -1372,7 +1376,7 @@ void virtio_notify_config(VirtIODevice *vdev)
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))
         return;
 
-    virtio_set_isr(vq->vdev, 0x3);
+    virtio_set_isr(vdev, 0x3);
     vdev->generation++;
     virtio_notify_vector(vdev, vdev->config_vector);
 }
@@ -1990,7 +1994,7 @@ static void virtio_queue_guest_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, guest_notifier);
     if (event_notifier_test_and_clear(n)) {
-        virtio_irq(vq);
+        virtio_notify_vector(vq->vdev, vq->vector);
     }
 }
 
