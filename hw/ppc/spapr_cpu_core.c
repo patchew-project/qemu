@@ -97,16 +97,6 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
     cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
     cpu_ppc_set_papr(cpu);
 
-    if (spapr->max_compat_pvr) {
-        Error *local_err = NULL;
-
-        ppc_set_compat(cpu, spapr->max_compat_pvr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-
     /* Set NUMA node for the added CPUs  */
     i = numa_get_node_for_cpu(cs->cpu_index);
     if (i < nb_numa_nodes) {
