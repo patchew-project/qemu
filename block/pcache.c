@@ -16,6 +16,8 @@
 #include "qemu/rbcache.h"
 #include "trace.h"
 
+// #define PCACHE_DEBUG
+
 #define PCACHE_OPT_STATS_SIZE "pcache-stats-size"
 #define PCACHE_OPT_MAX_AIO_SIZE "pcache-max-aio-size"
 #define PCACHE_OPT_CACHE_SIZE "pcache-full-size"
@@ -66,6 +68,9 @@ typedef struct BDRVPCacheState {
     RBCache *cache;
     uint64_t max_aio_size;
     uint64_t readahead_size;
+#ifdef PCACHE_DEBUG
+    QTAILQ_HEAD(PCacheDeathNodeHead, RBCacheNode) death_node_list;
+#endif
 } BDRVPCacheState;
 
 typedef struct ACBLinkEntry {
@@ -124,13 +129,16 @@ static inline void pcache_node_ref(PCacheNode *node)
     node->ref++;
 }
 
-static void pcache_node_unref(PCacheNode *node)
+static void pcache_node_unref(PCacheNode *node, BDRVPCacheState *s)
 {
     assert(node->ref > 0);
     if (--node->ref == 0) {
         assert(node->status == NODE_STATUS_REMOVE);
         node->status = NODE_STATUS_DELETED;
 
+#ifdef PCACHE_DEBUG
+        QTAILQ_REMOVE(&s->death_node_list, &node->common, entry);
+#endif
         g_free(node->data);
         g_free(node);
     }
@@ -258,7 +266,7 @@ static void pcache_aio_readahead_cb(void *opaque, int ret)
         aio_read_complete(acb_read, ret);
     }
 
-    pcache_node_unref(node);
+    pcache_node_unref(node, acb->bs->opaque);
 
     qemu_coroutine_enter(acb->co);
 }
@@ -330,7 +338,11 @@ static void pcache_node_free(RBCacheNode *rbnode, void *opaque)
            node->status == NODE_STATUS_COMPLETED);
 
     node->status = NODE_STATUS_REMOVE;
-    pcache_node_unref(node);
+#ifdef PCACHE_DEBUG
+    BDRVPCacheState *s = opaque;
+    QTAILQ_INSERT_HEAD(&s->death_node_list, rbnode, entry);
+#endif
+    pcache_node_unref(node, opaque);
 }
 
 static RBCacheNode *pcache_node_alloc(uint64_t offset, uint64_t bytes,
@@ -658,6 +670,9 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
 
     trace_pcache_state_init(stats_size, s->max_aio_size, cache_size,
                             s->readahead_size);
+#ifdef PCACHE_DEBUG
+    QTAILQ_INIT(&s->death_node_list);
+#endif
 }
 
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
@@ -697,6 +712,21 @@ static void pcache_close(BlockDriverState *bs)
 
     rbcache_destroy(s->req_stats);
     rbcache_destroy(s->cache);
+
+#ifdef PCACHE_DEBUG
+    RBCacheNode *rbnode, *next;
+    uint64_t cnt = 0;
+    QTAILQ_FOREACH_SAFE(rbnode, &s->death_node_list, entry, next) {
+        PCacheNode *node = container_of(rbnode, PCacheNode, common);
+        QTAILQ_REMOVE(&s->death_node_list, rbnode, entry);
+        fprintf(stderr, "death node: %jd - %jd, ref: %d, stauts: %d\n",
+                rbnode->offset, rbnode->bytes, node->ref, node->status);
+        g_free(node->data);
+        g_free(node);
+        cnt++;
+    }
+    fprintf(stderr, "death node list: %jd\n", cnt);
+#endif
 }
 
 static void pcache_parse_filename(const char *filename, QDict *options,
