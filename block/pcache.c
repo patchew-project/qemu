@@ -80,13 +80,22 @@ typedef struct PCacheNode {
     int ref;
 } PCacheNode;
 
-typedef struct PCacheAIOCB {
+typedef struct PCacheAIOCBWrite {
     BlockDriverState *bs;
     Coroutine *co;
     uint64_t offset;
     uint64_t bytes;
     int ret;
-} PCacheAIOCB;
+} PCacheAIOCBWrite;
+
+typedef struct PCacheAIOCBRead {
+    BlockDriverState *bs;
+    Coroutine *co;
+    uint64_t offset;
+    uint64_t bytes;
+    QEMUIOVector *qiov;
+    int ret;
+} PCacheAIOCBRead;
 
 typedef struct PCacheAIOCBReadahead {
     BlockDriverState *bs;
@@ -112,9 +121,35 @@ static void pcache_node_unref(PCacheNode *node)
     }
 }
 
-static void pcache_aio_cb(void *opaque, int ret)
+static uint64_t ranges_overlap_size(uint64_t offset1, uint64_t size1,
+                                    uint64_t offset2, uint32_t size2)
 {
-    PCacheAIOCB *acb = opaque;
+    return MIN(offset1 + size1, offset2 + size2) - MAX(offset1, offset2);
+}
+
+static void read_cache_data(PCacheAIOCBRead *acb, PCacheNode *node,
+                            uint64_t offset, uint64_t bytes)
+{
+    uint64_t qiov_offs = 0, node_offs = 0;
+    uint64_t size;
+    uint64_t copy;
+
+    if (offset < node->common.offset) {
+        qiov_offs = node->common.offset - offset;
+    } else {
+        node_offs = offset - node->common.offset;
+    }
+    size = ranges_overlap_size(offset, bytes, node->common.offset,
+                               node->common.bytes);
+
+    copy = qemu_iovec_from_buf(acb->qiov, qiov_offs,
+                               node->data + node_offs, size);
+    assert(copy == size);
+}
+
+static void pcache_aio_read_cb(void *opaque, int ret)
+{
+    PCacheAIOCBRead *acb = opaque;
 
     acb->ret = ret;
     qemu_coroutine_enter(acb->co);
@@ -287,7 +322,7 @@ static PCacheNode *get_readahead_node(BlockDriverState *bs, RBCache *rbcache,
 
 static void coroutine_fn pcache_co_readahead(void *opaque)
 {
-    PCacheAIOCB *acb = g_memdup(opaque, sizeof(*acb));
+    PCacheAIOCBRead *acb = g_memdup(opaque, sizeof(*acb));
     BlockDriverState *bs = acb->bs;
     BDRVPCacheState *s = bs->opaque;
     uint64_t offset;
@@ -327,10 +362,36 @@ out:
     free(acb);
 }
 
-static void pcache_readahead_request(PCacheAIOCB *acb)
+static void pcache_readahead_request(PCacheAIOCBRead *acb)
 {
     Coroutine *co = qemu_coroutine_create(pcache_co_readahead, acb);
     qemu_coroutine_enter(co);
+}
+
+enum {
+    CACHE_MISS,
+    CACHE_HIT,
+    PARTIAL_CACHE_HIT,
+};
+
+static int pcache_lookup_data(PCacheAIOCBRead *acb)
+{
+    BDRVPCacheState *s = acb->bs->opaque;
+
+    PCacheNode *node = rbcache_search(s->cache, acb->offset, acb->bytes);
+    if (node == NULL || node->status != NODE_STATUS_COMPLETED) {
+        return CACHE_MISS;
+    }
+
+    /* Node covers the whole request */
+    if (node->common.offset <= acb->offset &&
+        node->common.offset + node->common.bytes >= acb->offset + acb->bytes)
+    {
+        read_cache_data(acb, node, acb->offset, acb->bytes);
+        return CACHE_HIT;
+    }
+
+    return PARTIAL_CACHE_HIT;
 }
 
 static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
@@ -338,21 +399,29 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
                                          int flags)
 {
     BDRVPCacheState *s = bs->opaque;
-    PCacheAIOCB acb = {
+    PCacheAIOCBRead acb = {
         .co = qemu_coroutine_self(),
         .bs = bs,
         .offset = offset,
         .bytes = bytes,
+        .qiov = qiov,
     };
+    int status;
 
     if (bytes > s->max_aio_size) {
-        bdrv_aio_preadv(bs->file, offset, qiov, bytes, pcache_aio_cb, &acb);
+        bdrv_aio_preadv(bs->file, offset, qiov, bytes,
+                        pcache_aio_read_cb, &acb);
         goto out;
     }
 
     update_req_stats(s->req_stats, offset, bytes);
 
-    bdrv_aio_preadv(bs->file, offset, qiov, bytes, pcache_aio_cb, &acb);
+    status = pcache_lookup_data(&acb);
+    if (status == CACHE_HIT) {
+        return 0;
+    }
+
+    bdrv_aio_preadv(bs->file, offset, qiov, bytes, pcache_aio_read_cb, &acb);
 
     pcache_readahead_request(&acb);
 
@@ -364,7 +433,7 @@ out:
 
 static void pcache_aio_write_cb(void *opaque, int ret)
 {
-    PCacheAIOCB *acb = opaque;
+    PCacheAIOCBWrite *acb = opaque;
     BDRVPCacheState *s = acb->bs->opaque;
     uint64_t offset = acb->offset;
     uint64_t bytes = acb->bytes;
@@ -400,7 +469,7 @@ static coroutine_fn int pcache_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                           uint64_t bytes, QEMUIOVector *qiov,
                                           int flags)
 {
-    PCacheAIOCB acb = {
+    PCacheAIOCBWrite acb = {
         .co = qemu_coroutine_self(),
         .bs = bs,
         .offset = offset,
