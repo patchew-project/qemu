@@ -100,6 +100,11 @@ typedef struct PCacheAIOCBRead {
     uint64_t offset;
     uint64_t bytes;
     QEMUIOVector *qiov;
+    struct {
+        QEMUIOVector qiov;
+        uint64_t offset;
+        uint64_t bytes;
+    } part;
     int ref;
     int ret;
 } PCacheAIOCBRead;
@@ -188,6 +193,10 @@ static void aio_read_complete(PCacheAIOCBRead *acb, int ret)
 static void pcache_aio_read_cb(void *opaque, int ret)
 {
     PCacheAIOCBRead *acb = opaque;
+
+    if (acb->part.qiov.niov != 0) {
+        qemu_iovec_destroy(&acb->part.qiov);
+    }
 
     aio_read_complete(acb, ret);
 }
@@ -421,6 +430,44 @@ static void pcache_readahead_request(PCacheAIOCBRead *acb)
     qemu_coroutine_enter(co);
 }
 
+static void set_part_req(PCacheAIOCBRead *acb, uint64_t offset, uint64_t bytes)
+{
+    acb->part.offset = offset;
+    acb->part.bytes = bytes;
+
+    assert(acb->part.qiov.niov == 0);
+
+    qemu_iovec_init(&acb->part.qiov, acb->qiov->niov);
+    qemu_iovec_concat(&acb->part.qiov, acb->qiov, offset - acb->offset, bytes);
+}
+
+static void pickup_parts_of_cache(PCacheAIOCBRead *acb, PCacheNode *node,
+                                  uint64_t offset, uint64_t bytes)
+{
+    BDRVPCacheState *s = acb->bs->opaque;
+    uint64_t end_offs = offset + bytes;
+
+    do {
+        if (offset < node->common.offset) {
+            set_part_req(acb, offset,  node->common.offset - offset);
+        }
+
+        pcache_aio_read(acb, node);
+
+        offset = node->common.offset + node->common.bytes;
+        if (end_offs <= offset) {
+            break;
+        }
+
+        bytes = end_offs - offset;
+        node = rbcache_search(s->cache, offset, bytes);
+        if (node == NULL) {
+            set_part_req(acb, offset, bytes);
+            break;
+        }
+    } while (true);
+}
+
 enum {
     CACHE_MISS,
     CACHE_HIT,
@@ -444,7 +491,9 @@ static int pcache_lookup_data(PCacheAIOCBRead *acb)
         return CACHE_HIT;
     }
 
-    return PARTIAL_CACHE_HIT;
+    pickup_parts_of_cache(acb, node, acb->offset, acb->bytes);
+
+    return acb->part.qiov.niov == 0 ? CACHE_HIT : PARTIAL_CACHE_HIT;
 }
 
 static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
@@ -471,9 +520,13 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
     update_req_stats(s->req_stats, offset, bytes);
 
     status = pcache_lookup_data(&acb);
-    if (status == CACHE_MISS || status == PARTIAL_CACHE_HIT) {
+    if (status == CACHE_MISS) {
         bdrv_aio_preadv(bs->file, offset, qiov, bytes,
                         pcache_aio_read_cb, &acb);
+    } else if (status == PARTIAL_CACHE_HIT) {
+        assert(acb.part.qiov.niov != 0);
+        bdrv_aio_preadv(bs->file, acb.part.offset, &acb.part.qiov,
+                        acb.part.bytes, pcache_aio_read_cb, &acb);
     }
 
     pcache_readahead_request(&acb);
