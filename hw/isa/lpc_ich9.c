@@ -372,6 +372,8 @@ void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
 
 /* APM */
 
+#define QEMU_ICH9_APM_STS_BROADCAST_SMI 'Q'
+
 static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 {
     ICH9LPCState *lpc = arg;
@@ -386,7 +388,15 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 
     /* SMI_EN = PMBASE + 30. SMI control and enable register */
     if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN) {
-        cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
+        if (lpc->apm.apms == QEMU_ICH9_APM_STS_BROADCAST_SMI) {
+            CPUState *cs;
+
+            CPU_FOREACH(cs) {
+                cpu_interrupt(cs, CPU_INTERRUPT_SMI);
+            }
+        } else {
+            cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
+        }
     }
 }
 
