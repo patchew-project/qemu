@@ -92,6 +92,7 @@ typedef struct PCacheAIOCBWrite {
     Coroutine *co;
     uint64_t offset;
     uint64_t bytes;
+    QEMUIOVector *qiov;
     int ret;
 } PCacheAIOCBWrite;
 
@@ -553,6 +554,24 @@ out:
     return acb.ret;
 }
 
+static void write_cache_data(QEMUIOVector *qiov, PCacheNode *node,
+                             uint64_t offset, uint64_t bytes)
+{
+    uint64_t qiov_offs = 0, node_offs = 0;
+    uint64_t size;
+    uint64_t copy;
+
+    if (offset < node->common.offset) {
+        qiov_offs = node->common.offset - offset;
+    } else {
+        node_offs = offset - node->common.offset;
+    }
+    size = ranges_overlap_size(offset, bytes, node->common.offset,
+                               node->common.bytes);
+    copy = qemu_iovec_to_buf(qiov, qiov_offs, node->data + node_offs, size);
+    assert(copy == size);
+}
+
 static void pcache_aio_write_cb(void *opaque, int ret)
 {
     PCacheAIOCBWrite *acb = opaque;
@@ -578,7 +597,7 @@ static void pcache_aio_write_cb(void *opaque, int ret)
         bytes = end_offs - offset;
 
         if (node->status == NODE_STATUS_COMPLETED) {
-            rbcache_remove(s->cache, &node->common);
+            write_cache_data(acb->qiov, node, acb->offset, acb->bytes);
         }
     } while (end_offs > offset);
 
@@ -596,6 +615,7 @@ static coroutine_fn int pcache_co_pwritev(BlockDriverState *bs, uint64_t offset,
         .bs = bs,
         .offset = offset,
         .bytes = bytes,
+        .qiov = qiov,
     };
 
     bdrv_aio_pwritev(bs->file, offset, qiov, bytes, pcache_aio_write_cb, &acb);
