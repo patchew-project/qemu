@@ -18,6 +18,43 @@
 #include "target-ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
 
+void spapr_cpu_parse_features(sPAPRMachineState *spapr)
+{
+    /*
+     * Backwards compatibility hack:
+
+     *   CPUs had a "compat=" property which didn't make sense for
+     *   anything except pseries.  It was replaced by "max-cpu-compat"
+     *   machine option.  This supports old command lines like
+     *       -cpu POWER8,compat=power7
+     *   By stripping the compat option and applying it to the machine
+     *   before passing it on to the cpu level parser.
+     */
+    gchar **inpieces;
+    int n, i;
+    gchar *compat_str = NULL;
+
+    inpieces = g_strsplit(MACHINE(spapr)->cpu_model, ",", 0);
+    n = g_strv_length(inpieces);
+
+    /* inpieces[0] is the actual model string */
+    for (i = 0; i < n; i++) {
+        if (g_str_has_prefix(inpieces[i], "compat=")) {
+            compat_str = inpieces[i];
+        }
+    }
+
+    if (compat_str) {
+        char *val = compat_str + strlen("compat=");
+        object_property_set_str(OBJECT(spapr), val, "max-cpu-compat",
+                                &error_fatal);
+    }
+
+    ppc_cpu_parse_features(MACHINE(spapr)->cpu_model);
+
+    g_strfreev(inpieces);
+}
+
 static void spapr_cpu_reset(void *opaque)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
@@ -60,10 +97,10 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
     cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
     cpu_ppc_set_papr(cpu);
 
-    if (cpu->max_compat) {
+    if (spapr->max_compat_pvr) {
         Error *local_err = NULL;
 
-        ppc_set_compat(cpu, cpu->max_compat, &local_err);
+        ppc_set_compat(cpu, spapr->max_compat_pvr, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;

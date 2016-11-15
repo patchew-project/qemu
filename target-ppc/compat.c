@@ -23,9 +23,11 @@
 #include "sysemu/cpus.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "cpu-models.h"
 
 typedef struct {
+    const char *name;
     uint32_t pvr;
     uint64_t pcr;
     uint64_t pcr_level;
@@ -37,6 +39,7 @@ static const CompatInfo compat_table[] = {
      * Ordered from oldest to newest - the code relies on this
      */
     { /* POWER6, ISA2.05 */
+        .name = "power6",
         .pvr = CPU_POWERPC_LOGICAL_2_05,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_COMPAT_2_05
                | PCR_TM_DIS | PCR_VSX_DIS,
@@ -44,18 +47,21 @@ static const CompatInfo compat_table[] = {
         .max_threads = 2,
     },
     { /* POWER7, ISA2.06 */
+        .name = "power7",
         .pvr = CPU_POWERPC_LOGICAL_2_06,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     {
+        .name = "power7+",
         .pvr = CPU_POWERPC_LOGICAL_2_06_PLUS,
         .pcr = PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     { /* POWER8, ISA2.07 */
+        .name = "power8",
         .pvr = CPU_POWERPC_LOGICAL_2_07,
         .pcr = PCR_COMPAT_2_07,
         .pcr_level = PCR_COMPAT_2_07,
@@ -181,4 +187,63 @@ int ppc_compat_max_threads(PowerPCCPU *cpu)
     }
 
     return n_threads;
+}
+
+void ppc_compat_prop_get(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    uint32_t compat_pvr = *((uint32_t *)opaque);
+    const char *value;
+
+    if (!compat_pvr) {
+        value = "";
+    } else {
+        const CompatInfo *compat = compat_by_pvr(compat_pvr);
+
+        g_assert(compat);
+
+        value = compat->name;
+    }
+
+    visit_type_str(v, name, (char **)&value, errp);
+}
+
+void ppc_compat_prop_set(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    Error *error = NULL;
+    char *value;
+    uint32_t compat_pvr;
+
+    visit_type_str(v, name, &value, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    if (strcmp(value, "") == 0) {
+        compat_pvr = 0;
+    } else {
+        int i;
+        const CompatInfo *compat = NULL;
+
+        for (i = 0; i < ARRAY_SIZE(compat_table); i++) {
+            if (strcmp(value, compat_table[i].name) == 0) {
+                compat = &compat_table[i];
+                break;
+
+            }
+        }
+
+        if (!compat) {
+            error_setg(errp, "Invalid compatibility mode \"%s\"", value);
+            goto out;
+        }
+        compat_pvr = compat->pvr;
+    }
+
+    *((uint32_t *)opaque) = compat_pvr;
+
+out:
+    g_free(value);
 }
