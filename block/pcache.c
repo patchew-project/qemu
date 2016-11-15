@@ -67,9 +67,15 @@ typedef struct BDRVPCacheState {
     uint64_t readahead_size;
 } BDRVPCacheState;
 
+typedef struct ACBLinkEntry {
+    QTAILQ_ENTRY(ACBLinkEntry) entry;
+    struct PCacheAIOCBRead     *acb;
+} ACBLinkEntry;
+
 typedef struct PCacheNode {
     RBCacheNode common;
     uint8_t *data;
+    QTAILQ_HEAD(, ACBLinkEntry) wait_list;
     enum {
         NODE_STATUS_NEW       = 0,
         NODE_STATUS_INFLIGHT  = 1,
@@ -94,6 +100,7 @@ typedef struct PCacheAIOCBRead {
     uint64_t offset;
     uint64_t bytes;
     QEMUIOVector *qiov;
+    int ref;
     int ret;
 } PCacheAIOCBRead;
 
@@ -147,18 +154,49 @@ static void read_cache_data(PCacheAIOCBRead *acb, PCacheNode *node,
     assert(copy == size);
 }
 
+static void pcache_aio_read(PCacheAIOCBRead *acb, PCacheNode *node)
+{
+    ACBLinkEntry *link;
+
+    if (node->status == NODE_STATUS_COMPLETED) {
+        read_cache_data(acb, node, acb->offset, acb->bytes);
+        return;
+    }
+
+    assert(node->status == NODE_STATUS_INFLIGHT ||
+           node->status == NODE_STATUS_REMOVE);
+
+    link = g_malloc(sizeof(*link));
+    link->acb = acb;
+
+    QTAILQ_INSERT_HEAD(&node->wait_list, link, entry);
+    acb->ref++;
+}
+
+static void aio_read_complete(PCacheAIOCBRead *acb, int ret)
+{
+    if (ret < 0 && acb->ret == 0) {
+        acb->ret = ret;
+    }
+
+    assert(acb->ref > 0);
+    if (--acb->ref == 0) {
+        qemu_coroutine_enter(acb->co);
+    }
+}
+
 static void pcache_aio_read_cb(void *opaque, int ret)
 {
     PCacheAIOCBRead *acb = opaque;
 
-    acb->ret = ret;
-    qemu_coroutine_enter(acb->co);
+    aio_read_complete(acb, ret);
 }
 
 static void pcache_aio_readahead_cb(void *opaque, int ret)
 {
     PCacheAIOCBReadahead *acb = opaque;
     PCacheNode *node = acb->node;
+    ACBLinkEntry *link, *next;
 
     assert(node->status == NODE_STATUS_INFLIGHT ||
            node->status == NODE_STATUS_REMOVE);
@@ -171,6 +209,20 @@ static void pcache_aio_readahead_cb(void *opaque, int ret)
             rbcache_remove(s->cache, &node->common);
         }
     }
+
+    QTAILQ_FOREACH_SAFE(link, &node->wait_list, entry, next) {
+        PCacheAIOCBRead *acb_read = link->acb;
+
+        QTAILQ_REMOVE(&node->wait_list, link, entry);
+        g_free(link);
+
+        if (ret == 0) {
+            read_cache_data(acb_read, node, acb_read->offset, acb_read->bytes);
+        }
+
+        aio_read_complete(acb_read, ret);
+    }
+
     pcache_node_unref(node);
 
     qemu_coroutine_enter(acb->co);
@@ -254,6 +306,7 @@ static RBCacheNode *pcache_node_alloc(uint64_t offset, uint64_t bytes,
     node->data = g_malloc(bytes);
     node->status = NODE_STATUS_NEW;
     node->ref = 1;
+    QTAILQ_INIT(&node->wait_list);
 
     return &node->common;
 }
@@ -379,7 +432,7 @@ static int pcache_lookup_data(PCacheAIOCBRead *acb)
     BDRVPCacheState *s = acb->bs->opaque;
 
     PCacheNode *node = rbcache_search(s->cache, acb->offset, acb->bytes);
-    if (node == NULL || node->status != NODE_STATUS_COMPLETED) {
+    if (node == NULL) {
         return CACHE_MISS;
     }
 
@@ -387,7 +440,7 @@ static int pcache_lookup_data(PCacheAIOCBRead *acb)
     if (node->common.offset <= acb->offset &&
         node->common.offset + node->common.bytes >= acb->offset + acb->bytes)
     {
-        read_cache_data(acb, node, acb->offset, acb->bytes);
+        pcache_aio_read(acb, node);
         return CACHE_HIT;
     }
 
@@ -405,6 +458,7 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
         .offset = offset,
         .bytes = bytes,
         .qiov = qiov,
+        .ref = 1,
     };
     int status;
 
@@ -417,13 +471,16 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
     update_req_stats(s->req_stats, offset, bytes);
 
     status = pcache_lookup_data(&acb);
-    if (status == CACHE_HIT) {
-        return 0;
+    if (status == CACHE_MISS || status == PARTIAL_CACHE_HIT) {
+        bdrv_aio_preadv(bs->file, offset, qiov, bytes,
+                        pcache_aio_read_cb, &acb);
     }
 
-    bdrv_aio_preadv(bs->file, offset, qiov, bytes, pcache_aio_read_cb, &acb);
-
     pcache_readahead_request(&acb);
+
+    if (status == CACHE_HIT && --acb.ref == 0) {
+        return 0;
+    }
 
 out:
     qemu_coroutine_yield();
