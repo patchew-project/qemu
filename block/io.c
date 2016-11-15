@@ -2051,6 +2051,22 @@ int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 /**************************************************************/
 /* async I/Os */
 
+BlockAIOCB *bdrv_aio_preadv(BdrvChild *child, int64_t offset,
+                            QEMUIOVector *qiov, unsigned int bytes,
+                            BlockCompletionFunc *cb, void *opaque)
+{
+    assert(bytes == qiov->size);
+    return bdrv_co_aio_prw_vector(child, offset, qiov, 0, cb, opaque, false);
+}
+
+BlockAIOCB *bdrv_aio_pwritev(BdrvChild *child, int64_t offset,
+                             QEMUIOVector *qiov, unsigned int bytes,
+                             BlockCompletionFunc *cb, void *opaque)
+{
+    assert(bytes == qiov->size);
+    return bdrv_co_aio_prw_vector(child, offset, qiov, 0, cb, opaque, true);
+}
+
 BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
                            QEMUIOVector *qiov, int nb_sectors,
                            BlockCompletionFunc *cb, void *opaque)
