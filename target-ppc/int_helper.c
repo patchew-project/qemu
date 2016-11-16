@@ -2961,6 +2961,36 @@ uint32_t helper_bcdctsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    int sgna = bcd_get_sgn(a);
+    int sgnb = bcd_get_sgn(b);
+    int invalid = (sgna == 0) || (sgnb == 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    for (i = 1; i < 32; i++) {
+        bcd_put_digit(&ret, bcd_get_digit(a, i, &invalid), i);
+        bcd_get_digit(b, i, &invalid);
+
+        if (unlikely(invalid)) {
+            break;
+        }
+    }
+    bcd_put_digit(&ret, bcd_get_digit(b, 0, &invalid), 0);
+
+    cr = bcd_cmp_zero(a);
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
