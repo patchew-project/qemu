@@ -251,7 +251,7 @@ struct PropertyInfo {
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
-    ObjectPropertyRelease *release;
+    void (*release)(DeviceState *dev, Property *prop);
 };
 
 /**

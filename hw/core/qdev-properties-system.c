@@ -112,10 +112,8 @@ fail:
     }
 }
 
-static void release_drive(Object *obj, const char *name, void *opaque)
+static void release_drive(DeviceState *dev, Property *prop)
 {
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
     BlockBackend **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
@@ -210,10 +208,8 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     g_free(str);
 }
 
-static void release_chr(Object *obj, const char *name, void *opaque)
+static void release_chr(DeviceState *dev, Property *prop)
 {
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
     CharBackend *be = qdev_get_prop_ptr(dev, prop);
 
     qemu_chr_fe_deinit(be);

@@ -774,6 +774,14 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     g_free(name);
 }
 
+static void qdev_release_prop(Object *obj, const char *name, void *opaque)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+
+    prop->info->release(dev, prop);
+}
+
 /**
  * qdev_property_add_static:
  * @dev: Device to add the property to.
@@ -801,7 +809,7 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
 
     object_property_add(obj, prop->name, prop->info->name,
                         prop->info->get, prop->info->set,
-                        prop->info->release,
+                        prop->info->release ? qdev_release_prop : NULL,
                         prop, &local_err);
 
     if (local_err) {

@@ -383,10 +383,9 @@ PropertyInfo qdev_prop_uint64 = {
 
 /* --- string --- */
 
-static void release_string(Object *obj, const char *name, void *opaque)
+static void release_string(DeviceState *dev, Property *prop)
 {
-    Property *prop = opaque;
-    g_free(*(char **)qdev_get_prop_ptr(DEVICE(obj), prop));
+    g_free(*(char **)qdev_get_prop_ptr(dev, prop));
 }
 
 static void get_string(Object *obj, Visitor *v, const char *name,
@@ -823,7 +822,7 @@ PropertyInfo qdev_prop_pci_host_devaddr = {
 typedef struct {
     struct Property prop;
     char *propname;
-    ObjectPropertyRelease *release;
+    void (*release)(DeviceState *dev, Property *prop);
 } ArrayElementProperty;
 
 /* object property release callback for array element properties:
@@ -832,9 +831,10 @@ typedef struct {
  */
 static void array_element_release(Object *obj, const char *name, void *opaque)
 {
+    DeviceState *dev = DEVICE(obj);
     ArrayElementProperty *p = opaque;
     if (p->release) {
-        p->release(obj, name, opaque);
+        p->release(dev, &p->prop);
     }
     g_free(p->propname);
     g_free(p);
