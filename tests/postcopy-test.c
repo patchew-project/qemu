@@ -380,17 +380,27 @@ static void test_migrate(void)
                                   " -incoming %s",
                                   tmpfs, bootpath, uri);
     } else if (strcmp(arch, "ppc64") == 0) {
+        const char *accel = "tcg";
+
+        /*
+         * We preferably want to test with KVM, but on ppc64, the test only
+         * works with kvm-hv, not with kvm-pr, so we check that here first
+         */
+        if (access("/sys/module/kvm_hv", F_OK) == 0 &&
+            access("/dev/kvm", R_OK | W_OK) == 0) {
+            accel = "kvm";
+        }
         init_bootfile_ppc(bootpath);
-        cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
+        cmd_src = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -drive file=%s,if=pflash,format=raw",
-                                  tmpfs, bootpath);
-        cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 256M"
+                                  accel, tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s",
-                                  tmpfs, uri);
+                                  accel, tmpfs, uri);
     } else {
         g_assert_not_reached();
     }
