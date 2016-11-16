@@ -2922,6 +2922,45 @@ uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdctsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    uint8_t i;
+    int cr = 0;
+    uint64_t hi = 0;
+    int sgnb = bcd_get_sgn(b);
+    int invalid = (sgnb == 0);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    ret.u64[LO_IDX] = bcd_get_digit(b, 31, &invalid);
+    for (i = 30; i > 0; i--) {
+        mulu64(&ret.u64[LO_IDX], &hi,
+                ret.u64[LO_IDX], 10ULL);
+
+        ret.u64[HI_IDX] = (ret.u64[HI_IDX]) ? ret.u64[HI_IDX] * 10 + hi : hi;
+        ret.u64[LO_IDX] += bcd_get_digit(b, i, &invalid);
+
+        if (unlikely(invalid)) {
+            break;
+        }
+    }
+
+    if (sgnb == -1) {
+        if (ret.s64[HI_IDX] > 0) {
+            ret.s64[HI_IDX] = -ret.s64[HI_IDX];
+        } else {
+            ret.s64[LO_IDX] = -ret.s64[LO_IDX];
+        }
+    }
+
+    cr = bcd_cmp_zero(b);
+
+    if (unlikely(invalid)) {
+        cr = 1 << CRF_SO;
+    }
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
