@@ -2874,6 +2874,54 @@ uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int i;
+    int cr = 0;
+    int ox_flag = 0;
+    uint64_t digit = 0;
+    uint64_t carry = 0;
+    uint64_t lo_value = 0;
+    uint64_t hi_value = 0;
+    uint64_t max = ULLONG_MAX;
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    if (b->s64[HI_IDX] < 0) {
+        hi_value = -b->s64[HI_IDX];
+        lo_value = b->s64[LO_IDX];
+        bcd_put_digit(&ret, 0xD, 0);
+    } else if (b->s64[HI_IDX] == 0 && b->s64[LO_IDX] < 0) {
+        lo_value = -b->s64[LO_IDX];
+        bcd_put_digit(&ret, 0xD, 0);
+    } else {
+        hi_value = b->s64[HI_IDX];
+        lo_value = b->s64[LO_IDX];
+        bcd_put_digit(&ret, bcd_preferred_sgn(0, ps), 0);
+    }
+
+    if (unlikely(hi_value > 0x7e37be2022)) {
+        ox_flag = 1;
+    }
+
+    carry = hi_value;
+    for (i = 0; i < 32; i++, max /= 10, lo_value /= 10) {
+        digit = ((max % 10) * hi_value) + (lo_value % 10) + carry;
+        carry = (digit > 9) ? digit / 10 : 0;
+
+        bcd_put_digit(&ret, (carry) ? digit % 10 : digit, i + 1);
+    }
+
+    cr = bcd_cmp_zero(&ret);
+
+    if (unlikely(ox_flag)) {
+        cr |= 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
