@@ -955,7 +955,6 @@ object_class_property_add(ObjectClass *klass,
                           const char *type,
                           ObjectPropertyAccessor *get,
                           ObjectPropertyAccessor *set,
-                          ObjectPropertyRelease *release,
                           void *opaque,
                           Error **errp)
 {
@@ -975,7 +974,6 @@ object_class_property_add(ObjectClass *klass,
 
     prop->get = get;
     prop->set = set;
-    prop->release = release;
     prop->opaque = opaque;
 
     g_hash_table_insert(klass->properties, g_strdup(name), prop);
@@ -1808,7 +1806,6 @@ void object_class_property_add_str(ObjectClass *klass, const char *name,
     object_class_property_add(klass, name, "string",
                               get ? property_get_str : NULL,
                               set ? property_set_str : NULL,
-                              property_release_str,
                               prop, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1897,7 +1894,6 @@ void object_class_property_add_bool(ObjectClass *klass, const char *name,
     object_class_property_add(klass, name, "bool",
                               get ? property_get_bool : NULL,
                               set ? property_set_bool : NULL,
-                              property_release_bool,
                               prop, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1985,7 +1981,6 @@ void object_class_property_add_enum(ObjectClass *klass, const char *name,
     object_class_property_add(klass, name, typename,
                               get ? property_get_enum : NULL,
                               set ? property_set_enum : NULL,
-                              property_release_enum,
                               prop, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -2082,7 +2077,6 @@ void object_class_property_add_tm(ObjectClass *klass, const char *name,
 
     object_class_property_add(klass, name, "struct tm",
                               get ? property_get_tm : NULL, NULL,
-                              property_release_tm,
                               prop, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -2134,7 +2128,7 @@ void object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
                                          const uint8_t *v, Error **errp)
 {
     object_class_property_add(klass, name, "uint8", property_get_uint8_ptr,
-                              NULL, NULL, (void *)v, errp);
+                              NULL, (void *)v, errp);
 }
 
 void object_property_add_uint16_ptr(Object *obj, const char *name,
@@ -2148,7 +2142,7 @@ void object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
                                           const uint16_t *v, Error **errp)
 {
     object_class_property_add(klass, name, "uint16", property_get_uint16_ptr,
-                              NULL, NULL, (void *)v, errp);
+                              NULL, (void *)v, errp);
 }
 
 void object_property_add_uint32_ptr(Object *obj, const char *name,
@@ -2162,7 +2156,7 @@ void object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
                                           const uint32_t *v, Error **errp)
 {
     object_class_property_add(klass, name, "uint32", property_get_uint32_ptr,
-                              NULL, NULL, (void *)v, errp);
+                              NULL, (void *)v, errp);
 }
 
 void object_property_add_uint64_ptr(Object *obj, const char *name,
@@ -2176,7 +2170,7 @@ void object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
                                           const uint64_t *v, Error **errp)
 {
     object_class_property_add(klass, name, "uint64", property_get_uint64_ptr,
-                              NULL, NULL, (void *)v, errp);
+                              NULL, (void *)v, errp);
 }
 
 typedef struct {

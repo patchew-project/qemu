@@ -372,13 +372,13 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add(oc, "kernel-irqchip", "OnOffSplit",
         NULL, machine_set_kernel_irqchip,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure KVM in-kernel irqchip", &error_abort);
 
     object_class_property_add(oc, "kvm-shadow-mem", "int",
         machine_get_kvm_shadow_mem, machine_set_kvm_shadow_mem,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_set_description(oc, "kvm-shadow-mem",
         "KVM shadow MMU size", &error_abort);
 
@@ -409,7 +409,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add(oc, "phandle-start", "int",
         machine_get_phandle_start, machine_set_phandle_start,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_set_description(oc, "phandle-start",
             "The first phandle ID we may generate dynamically", &error_abort);
 

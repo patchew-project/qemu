@@ -368,11 +368,11 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, "size", "int",
         host_memory_backend_get_size,
         host_memory_backend_set_size,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_add(oc, "host-nodes", "int",
         host_memory_backend_get_host_nodes,
         host_memory_backend_set_host_nodes,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_add_enum(oc, "policy", "HostMemPolicy",
         HostMemPolicy_lookup,
         host_memory_backend_get_policy,

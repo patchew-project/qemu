@@ -945,7 +945,6 @@ ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           const char *type,
                                           ObjectPropertyAccessor *get,
                                           ObjectPropertyAccessor *set,
-                                          ObjectPropertyRelease *release,
                                           void *opaque, Error **errp);
 
 /**

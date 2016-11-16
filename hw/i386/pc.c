@@ -2308,24 +2308,24 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add(oc, PC_MACHINE_MEMHP_REGION_SIZE, "int",
         pc_machine_get_hotplug_memory_region_size, NULL,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
 
     object_class_property_add(oc, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
         pc_machine_get_max_ram_below_4g, pc_machine_set_max_ram_below_4g,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
 
     object_class_property_set_description(oc, PC_MACHINE_MAX_RAM_BELOW_4G,
         "Maximum ram below the 4G boundary (32bit boundary)", &error_abort);
 
     object_class_property_add(oc, PC_MACHINE_SMM, "OnOffAuto",
         pc_machine_get_smm, pc_machine_set_smm,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_set_description(oc, PC_MACHINE_SMM,
         "Enable SMM (pc & q35)", &error_abort);
 
     object_class_property_add(oc, PC_MACHINE_VMPORT, "OnOffAuto",
         pc_machine_get_vmport, pc_machine_set_vmport,
-        NULL, NULL, &error_abort);
+        NULL, &error_abort);
     object_class_property_set_description(oc, PC_MACHINE_VMPORT,
         "Enable vmport (pc & q35)", &error_abort);
 
