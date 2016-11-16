@@ -349,6 +349,15 @@ static void event_notifier_dummy_cb(EventNotifier *e)
 {
 }
 
+/* Polling mode is only available when all event loop resources have polling
+ * functions registered.  The polling loop notices aio_notify() by watching the
+ * ctx->notified field so this dummy function doesn't need to do anything.
+ */
+static bool event_notifier_dummy_poll(void *opaque)
+{
+    return false;
+}
+
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -367,7 +376,7 @@ AioContext *aio_context_new(Error **errp)
                            false,
                            (EventNotifierHandler *)
                            event_notifier_dummy_cb,
-                           NULL);
+                           event_notifier_dummy_poll);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif
