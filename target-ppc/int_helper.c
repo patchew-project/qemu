@@ -2991,6 +2991,15 @@ uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdsetsgn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int sgnb = bcd_get_sgn(b);
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    bcd_put_digit(&ret, bcd_preferred_sgn(sgnb, ps), 0);
+    return helper_bcdcpsgn(r, b, &ret, ps);
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
