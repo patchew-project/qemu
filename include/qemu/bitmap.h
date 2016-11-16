@@ -98,6 +98,11 @@ static inline unsigned long *bitmap_new(long nbits)
     return ptr;
 }
 
+static inline void bitmap_free(unsigned long *bitmap)
+{
+    g_free(bitmap);
+}
+
 static inline void bitmap_zero(unsigned long *dst, long nbits)
 {
     if (small_nbits(nbits)) {
