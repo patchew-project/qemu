@@ -39,6 +39,11 @@ typedef struct BDRVBlkdebugState {
     int state;
     int new_state;
     int align;
+    int max_transfer;
+    int opt_write_zero;
+    int max_write_zero;
+    int opt_discard;
+    int max_discard;
 
     /* For blkdebug_refresh_filename() */
     char *config_file;
@@ -344,6 +349,31 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Required alignment in bytes",
         },
+        {
+            .name = "max-transfer",
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum transfer size in bytes",
+        },
+        {
+            .name = "opt-write-zero",
+            .type = QEMU_OPT_SIZE,
+            .help = "Optimum write zero size in bytes",
+        },
+        {
+            .name = "max-write-zero",
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum write zero size in bytes",
+        },
+        {
+            .name = "opt-discard",
+            .type = QEMU_OPT_SIZE,
+            .help = "Optimum discard size in bytes",
+        },
+        {
+            .name = "max-discard",
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum discard size in bytes",
+        },
         { /* end of list */ }
     },
 };
@@ -354,7 +384,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
-    uint64_t align;
+    uint64_t align, max_transfer;
+    uint64_t opt_write_zero, max_write_zero, opt_discard, max_discard;
     int ret;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
@@ -389,12 +420,59 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     bs->supported_zero_flags = (BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP) &
         bs->file->bs->supported_zero_flags;
 
-    /* Set request alignment */
+    /* Set alignment overrides */
     align = qemu_opt_get_size(opts, "align", 0);
     if (align < INT_MAX && is_power_of_2(align)) {
         s->align = align;
     } else if (align) {
         error_setg(errp, "Invalid alignment");
+        ret = -EINVAL;
+        goto fail_unref;
+    }
+    max_transfer = qemu_opt_get_size(opts, "max-transfer", 0);
+    if (max_transfer < INT_MAX &&
+        QEMU_IS_ALIGNED(max_transfer, MAX(align, BDRV_SECTOR_SIZE))) {
+        s->max_transfer = max_transfer;
+    } else if (max_transfer) {
+        error_setg(errp, "Invalid argument");
+        ret = -EINVAL;
+        goto fail_unref;
+    }
+    opt_write_zero = qemu_opt_get_size(opts, "opt-write-zero", 0);
+    if (opt_write_zero < INT_MAX &&
+        QEMU_IS_ALIGNED(opt_write_zero, MAX(align, BDRV_SECTOR_SIZE))) {
+        s->opt_write_zero = opt_write_zero;
+    } else if (opt_write_zero) {
+        error_setg(errp, "Invalid argument");
+        ret = -EINVAL;
+        goto fail_unref;
+    }
+    max_write_zero = qemu_opt_get_size(opts, "max-write-zero", 0);
+    if (max_write_zero < INT_MAX &&
+        QEMU_IS_ALIGNED(max_write_zero, MAX(opt_write_zero,
+                                         MAX(align, BDRV_SECTOR_SIZE)))) {
+        s->max_write_zero = max_write_zero;
+    } else if (max_write_zero) {
+        error_setg(errp, "Invalid argument");
+        ret = -EINVAL;
+        goto fail_unref;
+    }
+    opt_discard = qemu_opt_get_size(opts, "opt-discard", 0);
+    if (opt_discard < INT_MAX &&
+        QEMU_IS_ALIGNED(opt_discard, MAX(align, BDRV_SECTOR_SIZE))) {
+        s->opt_discard = opt_discard;
+    } else if (opt_discard) {
+        error_setg(errp, "Invalid argument");
+        ret = -EINVAL;
+        goto fail_unref;
+    }
+    max_discard = qemu_opt_get_size(opts, "max-discard", 0);
+    if (max_discard < INT_MAX &&
+        QEMU_IS_ALIGNED(max_discard, MAX(opt_discard,
+                                         MAX(align, BDRV_SECTOR_SIZE)))) {
+        s->max_discard = max_discard;
+    } else if (max_discard) {
+        error_setg(errp, "Invalid argument");
         ret = -EINVAL;
         goto fail_unref;
     }
@@ -806,6 +884,21 @@ static void blkdebug_refresh_limits(BlockDriverState *bs, Error **errp)
 
     if (s->align) {
         bs->bl.request_alignment = s->align;
+    }
+    if (s->max_transfer) {
+        bs->bl.max_transfer = s->max_transfer;
+    }
+    if (s->opt_write_zero) {
+        bs->bl.pwrite_zeroes_alignment = s->opt_write_zero;
+    }
+    if (s->max_write_zero) {
+        bs->bl.max_pwrite_zeroes = s->max_write_zero;
+    }
+    if (s->opt_discard) {
+        bs->bl.pdiscard_alignment = s->opt_discard;
+    }
+    if (s->max_discard) {
+        bs->bl.max_pdiscard = s->max_discard;
     }
 }
 
