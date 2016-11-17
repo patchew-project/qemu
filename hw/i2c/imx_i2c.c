@@ -305,12 +305,16 @@ static const VMStateDescription imx_i2c_vmstate = {
 static void imx_i2c_realize(DeviceState *dev, Error **errp)
 {
     IMXI2CState *s = IMX_I2C(dev);
+    static int bus_count;
+    char name[16];
+
+    snprintf(name, sizeof(name), "i2c.%d", bus_count++);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &imx_i2c_ops, s, TYPE_IMX_I2C,
                           IMX_I2C_MEM_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
-    s->bus = i2c_init_bus(DEVICE(dev), "i2c");
+    s->bus = i2c_init_bus(DEVICE(dev), name);
 }
 
 static void imx_i2c_class_init(ObjectClass *klass, void *data)
