@@ -91,6 +91,8 @@ HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS+=docs/qemu-qmp-ref.html docs/qemu-qmp-ref.7
+DOCS+=docs/qemu-ga-ref.html docs/qemu-ga-ref.7
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
@@ -266,6 +268,7 @@ qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 gen-out-type = $(subst .,-,$(suffix $@))
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
+qapi-py += $(SRC_PATH)/scripts/qapi2texi.py
 
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h :\
 $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
@@ -395,6 +398,11 @@ distclean: clean
 	rm -f qemu-doc.vr
 	rm -f config.log
 	rm -f linux-headers/asm
+	rm -f qemu-ga-qapi.texi qemu-qapi.texi
+	rm -f docs/qemu-qmp-ref.7 docs/qemu-ga-ref.7
+	rm -f docs/qemu-qmp-ref.txt docs/qemu-ga-ref.txt
+	rm -f docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf
+	rm -f docs/qemu-qmp-ref.html docs/qemu-ga-ref.html
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
@@ -431,9 +439,12 @@ endif
 install-doc: $(DOCS)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
 	$(INSTALL_DATA) qemu-doc.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-qmp-ref.html "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man7"
+	$(INSTALL_DATA) docs/qemu-qmp-ref.7 "$(DESTDIR)$(mandir)/man7"
 ifneq ($(TOOLS),)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
@@ -441,6 +452,8 @@ ifneq ($(TOOLS),)
 endif
 ifneq (,$(findstring qemu-ga,$(TOOLS)))
 	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
+	$(INSTALL_DATA) docs/qemu-ga-ref.html "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) docs/qemu-ga-ref.7 "$(DESTDIR)$(mandir)/man7"
 endif
 endif
 ifdef CONFIG_VIRTFS
@@ -528,9 +541,9 @@ ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
 	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
 
 # documentation
-MAKEINFO=makeinfo
+MAKEINFO=makeinfo -D 'VERSION $(VERSION)'
 MAKEINFOFLAGS=--no-headers --no-split --number-sections
-TEXIFLAG=$(if $(V),,--quiet)
+TEXIFLAG=$(if $(V),,--quiet) --command='@set VERSION $(VERSION)'
 %.dvi: %.texi
 	$(call quiet-command,texi2dvi $(TEXIFLAG) -I . $<,"GEN","$@")
 
@@ -542,7 +555,11 @@ TEXIFLAG=$(if $(V),,--quiet)
 	$(call quiet-command,$(MAKEINFO) $< -o $@,"GEN","$@")
 
 %.pdf: %.texi
-	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $<,"GEN","$@")
+	$(call quiet-command,texi2pdf $(TEXIFLAG) -I . $< -o $@,"GEN","$@")
+
+%.txt: %.texi
+	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --plaintext $< -o $@,\
+	"  GEN   $@")
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"GEN","$@")
@@ -555,6 +572,12 @@ qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx $(SRC_PATH)/scripts/hxt
 
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"GEN","$@")
+
+qemu-qapi.texi: $(qapi-modules) $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN" "$@")
+
+qemu-ga-qapi.texi: $(SRC_PATH)/qga/qapi-schema.json $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN","$@")
 
 qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
 	$(call quiet-command, \
@@ -587,15 +610,34 @@ qemu-ga.8: qemu-ga.texi
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-ga.pod > $@, \
 	  "GEN","$@")
 
-dvi: qemu-doc.dvi
-html: qemu-doc.html
-info: qemu-doc.info
-pdf: qemu-doc.pdf
+docs/qemu-qmp-ref.7:
+	$(call quiet-command, \
+	 perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-qmp-ref.pod && \
+	 $(POD2MAN) --section=7 --center=" " --release=" " qemu-qmp-ref.pod > $@, \
+	 "GEN","$@")
+
+docs/qemu-ga-ref.7:
+	$(call quiet-command, \
+	 perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-ga-ref.pod && \
+	 $(POD2MAN) --section=7 --center=" " --release=" " qemu-ga-ref.pod > $@, \
+	 "GEN","$@")
+
+dvi: qemu-doc.dvi docs/qemu-qmp-ref.dvi docs/qemu-ga-ref.dvi
+html: qemu-doc.html docs/qemu-qmp-ref.html docs/qemu-ga-ref.html
+info: qemu-doc.info docs/qemu-qmp-ref.info docs/qemu-ga-ref.info
+pdf: qemu-doc.pdf docs/qemu-qmp-ref.pdf docs/qemu-ga-ref.pdf
 
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi qemu-option-trace.texi \
 	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi \
 	qemu-monitor-info.texi
+
+docs/qemu-ga-ref.dvi docs/qemu-ga-ref.html docs/qemu-ga-ref.info docs/qemu-ga-ref.pdf docs/qemu-ga-ref.txt docs/qemu-ga-ref.7: \
+docs/qemu-ga-ref.texi qemu-ga-qapi.texi
+
+docs/qemu-qmp-ref.dvi docs/qemu-qmp-ref.html docs/qemu-qmp-ref.info docs/qemu-qmp-ref.pdf docs/qemu-qmp-ref.txt docs/qemu-qmp-ref.7: \
+docs/qemu-qmp-ref.texi qemu-qapi.texi
+
 
 ifdef CONFIG_WIN32
 
