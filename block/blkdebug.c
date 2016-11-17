@@ -445,6 +445,15 @@ static BlockAIOCB *blkdebug_aio_readv(BlockDriverState *bs,
     BDRVBlkdebugState *s = bs->opaque;
     BlkdebugRule *rule = NULL;
 
+    /* Sanity check block layer guarantees */
+    assert(QEMU_IS_ALIGNED(sector_num * BDRV_SECTOR_SIZE,
+                           bs->bl.request_alignment));
+    assert(QEMU_IS_ALIGNED(nb_sectors * BDRV_SECTOR_SIZE,
+                           bs->bl.request_alignment));
+    if (bs->bl.max_transfer) {
+        assert(nb_sectors * BDRV_SECTOR_SIZE <= bs->bl.max_transfer);
+    }
+
     QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
         if (rule->options.inject.sector == -1 ||
             (rule->options.inject.sector >= sector_num &&
@@ -467,6 +476,15 @@ static BlockAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
 {
     BDRVBlkdebugState *s = bs->opaque;
     BlkdebugRule *rule = NULL;
+
+    /* Sanity check block layer guarantees */
+    assert(QEMU_IS_ALIGNED(sector_num * BDRV_SECTOR_SIZE,
+                           bs->bl.request_alignment));
+    assert(QEMU_IS_ALIGNED(nb_sectors * BDRV_SECTOR_SIZE,
+                           bs->bl.request_alignment));
+    if (bs->bl.max_transfer) {
+        assert(nb_sectors * BDRV_SECTOR_SIZE <= bs->bl.max_transfer);
+    }
 
     QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
         if (rule->options.inject.sector == -1 ||
