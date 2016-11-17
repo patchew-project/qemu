@@ -1,0 +1,4 @@
+##
+# @food:
+##
+{ 'command': 'foo', 'data': {'a': 'int'} }

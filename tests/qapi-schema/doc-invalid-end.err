@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-invalid-end.json:3:2: Documentation comment must end with '##'

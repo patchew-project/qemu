@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-duplicated-return.json:5:1: Duplicated 'Returns' section

@@ -1,0 +1,6 @@
+##
+# @foo:
+#
+# Note:
+##
+{ 'command': 'foo', 'data': {'a': 'int'} }

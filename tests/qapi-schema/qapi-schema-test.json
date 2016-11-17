@@ -3,6 +3,43 @@
 # This file is a stress test of supported qapi constructs that must
 # parse and compile correctly.
 
+##
+# = Section
+# == subsection
+#
+# Some text foo with *strong* and _emphasis_
+# 1. with a list
+# 2. like that @foo
+#
+# And some code:
+# | $ echo foo
+# | -> do this
+# | <- get that
+#
+# Note: is not a meta
+##
+
+##
+# @TestStruct:
+# @integer: foo
+#           blah
+#
+#           bao
+#
+# @boolean: bar
+# @string: baz
+#
+# body with @var
+#
+# Example:
+#
+# -> { "execute": ... }
+# <- { "return": ... }
+#
+# Since: 2.3
+# Note: a note
+#
+##
 { 'struct': 'TestStruct',
   'data': { 'integer': 'int', 'boolean': 'bool', 'string': 'str' } }
 
@@ -122,6 +159,27 @@
 { 'command': 'user_def_cmd2',
   'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
   'returns': 'UserDefTwo' }
+
+##
+# Another comment
+##
+
+##
+# @guest-get-time:
+#
+# @a: an integer
+# @b: #optional integer
+#
+# @guest-get-time body
+#
+# Returns: returns something
+#
+# Example:
+#
+# -> { "execute": "guest-get-time", ... }
+# <- { "return": "42" }
+#
+##
 
 # Returning a non-dictionary requires a name from the whitelist
 { 'command': 'guest-get-time', 'data': {'a': 'int', '*b': 'int' },

@@ -232,3 +232,52 @@ command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
    gen=True success_response=True boxed=False
 command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
    gen=True success_response=True boxed=False
+doc freeform
+    body=
+= Section
+== subsection
+
+Some text foo with *strong* and _emphasis_
+1. with a list
+2. like that @foo
+
+And some code:
+| $ echo foo
+| -> do this
+| <- get that
+
+Note: is not a meta
+doc symbol=TestStruct expr=('struct', 'TestStruct')
+    arg=integer
+foo
+blah
+
+bao
+    arg=boolean
+bar
+    arg=string
+baz
+    meta=Example
+-> { "execute": ... }
+<- { "return": ... }
+    meta=Since
+2.3
+    meta=Note
+a note
+    body=
+body with @var
+doc freeform
+    body=
+Another comment
+doc symbol=guest-get-time expr=('command', 'guest-get-time')
+    arg=a
+an integer
+    arg=b
+#optional integer
+    meta=Returns
+returns something
+    meta=Example
+-> { "execute": "guest-get-time", ... }
+<- { "return": "42" }
+    body=
+@guest-get-time body

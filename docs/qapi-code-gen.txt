@@ -45,16 +45,13 @@ QAPI parser does not).  At present, there is no place where a QAPI
 schema requires the use of JSON numbers or null.
 
 Comments are allowed; anything between an unquoted # and the following
-newline is ignored.  Although there is not yet a documentation
-generator, a form of stylized comments has developed for consistently
-documenting details about an expression and when it was added to the
-schema.  The documentation is delimited between two lines of ##, then
-the first line names the expression, an optional overview is provided,
-then individual documentation about each member of 'data' is provided,
-and finally, a 'Since: x.y.z' tag lists the release that introduced
-the expression.  Optional members are tagged with the phrase
-'#optional', often with their default value; and extensions added
-after the expression was first released are also given a '(since
+newline is ignored.  The documentation is delimited between two lines
+of ##, then the first line names the expression, an optional overview
+is provided, then individual documentation about each member of 'data'
+is provided, and finally, a 'Since: x.y.z' tag lists the release that
+introduced the expression.  Optional members are tagged with the
+phrase '#optional', often with their default value; and extensions
+added after the expression was first released are also given a '(since
 x.y.z)' comment.  For example:
 
     ##
@@ -73,11 +70,48 @@ x.y.z)' comment.  For example:
     #           (Since 2.0)
     #
     # Since: 0.14.0
+    #
+    # Notes: You can also make a list:
+    #        - with items
+    #        - like this
+    #
+    # Example:
+    #
+    # -> { "execute": ... }
+    # <- { "return": ... }
+    #
     ##
     { 'struct': 'BlockStats',
       'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
                '*parent': 'BlockStats',
                '*backing': 'BlockStats'} }
+
+It's also possible to create documentation sections, such as:
+
+    ##
+    # = Section
+    # == Subsection
+    #
+    # Some text foo with *strong* and _emphasis_
+    # 1. with a list
+    # 2. like that
+    #
+    # And some code:
+    # | $ echo foo
+    # | -> do this
+    # | <- get that
+    #
+    ##
+
+Text *foo* and _foo_ are for "strong" and "emphasis" styles (they do
+not work over multiple lines). @foo is used to reference a symbol.
+
+Lines starting with the following characters and a space:
+- | are examples
+- = are top section
+- == are subsection
+- X. or X) are enumerations (X is any number)
+- o/*/- are itemized list
 
 The schema sets up a series of types, as well as commands and events
 that will use those types.  Forward references are allowed: the parser

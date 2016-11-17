@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-duplicated-arg.json:4:1: 'a' arg duplicated

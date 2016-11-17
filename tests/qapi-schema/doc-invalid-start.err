@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-invalid-start.json:1:1: Junk after '##' at start of documentation comment
