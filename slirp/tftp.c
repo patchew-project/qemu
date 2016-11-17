@@ -326,12 +326,14 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
     return;
   }
 
-  if (strcasecmp(&tp->x.tp_buf[k], "octet") != 0) {
+  if (strcasecmp(&tp->x.tp_buf[k], "octet") == 0) {
+      k += 6;
+  } else if (strcasecmp(&tp->x.tp_buf[k], "netascii") == 0) {
+      k += 9;
+  } else {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
   }
-
-  k += 6; /* skipping octet */
 
   /* do sanity checks on the filename */
   if (!strncmp(req_fname, "../", 3) ||
