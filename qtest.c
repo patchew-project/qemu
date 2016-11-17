@@ -40,7 +40,6 @@ static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
 static CharBackend qtest_chr;
 static GString *inbuf;
-static int irq_levels[MAX_IRQ];
 static qemu_timeval start_time;
 static bool qtest_opened;
 
@@ -160,10 +159,16 @@ static bool qtest_opened;
  *
  *  IRQ raise NUM
  *  IRQ lower NUM
+ *  IRQ_NAMED NAME NUM LEVEL
  *
  * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
  * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
  * NUM=0 even though it is remapped to GSI 2).
+ *
+ *  > irq_set NAME NUM LEVEL
+ *  < OK
+ *
+ *  Set the named input IRQ to the level (0/1)
  */
 
 static int hex2nib(char ch)
@@ -243,17 +248,31 @@ static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
     va_end(ap);
 }
 
+typedef struct qtest_irq {
+    qemu_irq old_irq;
+    char *name;
+    bool last_level;
+} qtest_irq;
+
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
-    qemu_irq old_irq = *(qemu_irq *)opaque;
-    qemu_set_irq(old_irq, level);
+    qtest_irq *data = (qtest_irq *)opaque;
+    level = !!level;
 
-    if (irq_levels[n] != level) {
+    qemu_set_irq(data->old_irq, level);
+
+    if (level != data->last_level) {
         CharBackend *chr = &qtest_chr;
-        irq_levels[n] = level;
         qtest_send_prefix(chr);
-        qtest_sendf(chr, "IRQ %s %d\n",
-                    level ? "raise" : "lower", n);
+
+        if (data->name) {
+            qtest_sendf(chr, "IRQ_NAMED %s %d %d\n",
+                    data->name, n, level);
+        } else {
+            qtest_sendf(chr, "IRQ %s %d\n", level ? "raise" : "lower", n);
+        }
+
+        data->last_level = level;
     }
 }
 
@@ -289,7 +308,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         if (!dev) {
             qtest_send_prefix(chr);
             qtest_send(chr, "FAIL Unknown device\n");
-	    return;
+            return;
         }
 
         if (irq_intercept_dev) {
@@ -299,33 +318,69 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
             } else {
                 qtest_send(chr, "OK\n");
             }
-	    return;
+            return;
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support intercept of named GPIOs yet */
-            if (ngl->name) {
-                continue;
-            }
             if (words[0][14] == 'o') {
                 int i;
                 for (i = 0; i < ngl->num_out; ++i) {
-                    qemu_irq *disconnected = g_new0(qemu_irq, 1);
-                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
-                                                      disconnected, i);
+                    qtest_irq *data = g_new0(qtest_irq, 1);
+                    data->name = ngl->name;
+                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler, data,
+                            i);
 
-                    *disconnected = qdev_intercept_gpio_out(dev, icpt,
+                    data->old_irq = qdev_intercept_gpio_out(dev, icpt,
                                                             ngl->name, i);
                 }
             } else {
-                qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
-                                      ngl->num_in);
+                qtest_irq *data = g_new0(qtest_irq, 1);
+                data->old_irq = *ngl->in;
+                data->name = ngl->name;
+                qemu_irq_intercept_in(ngl->in, qtest_irq_handler, ngl->num_in);
             }
         }
         irq_intercept_dev = dev;
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
 
+    } else if (strcmp(words[0], "irq_set") == 0) {
+        DeviceState *dev;
+        NamedGPIOList *ngl;
+        int level;
+        qemu_irq irq = NULL;
+        int irq_num;
+
+        g_assert(words[1]); /* device */
+        g_assert(words[2]); /* gpio list */
+        g_assert(words[3]); /* gpio line in list */
+        g_assert(words[4]); /* level */
+        dev = DEVICE(object_resolve_path(words[1], NULL));
+        if (!dev) {
+            qtest_send_prefix(chr);
+            qtest_send(chr, "FAIL Unknown device\n");
+            return;
+        }
+
+        irq_num = atoi(words[3]);
+        level = atoi(words[4]);
+
+        QLIST_FOREACH(ngl, &dev->gpios, node) {
+            if (strcmp(words[2], ngl->name) == 0 && ngl->num_in > irq_num) {
+                irq = ngl->in[irq_num];
+            }
+        }
+
+        if (irq == NULL) {
+            qtest_send_prefix(chr);
+            qtest_send(chr, "FAIL Unknown IRQ\n");
+            return;
+        }
+
+        qemu_set_irq(irq, level);
+
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "outb") == 0 ||
                strcmp(words[0], "outw") == 0 ||
                strcmp(words[0], "outl") == 0) {
@@ -622,8 +677,6 @@ static int qtest_can_read(void *opaque)
 
 static void qtest_event(void *opaque, int event)
 {
-    int i;
-
     switch (event) {
     case CHR_EVENT_OPENED:
         /*
@@ -632,9 +685,6 @@ static void qtest_event(void *opaque, int event)
          * used.  Injects an extra reset even when it's not used, and
          * that can mess up tests, e.g. -boot once.
          */
-        for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
-            irq_levels[i] = 0;
-        }
         qemu_gettimeofday(&start_time);
         qtest_opened = true;
         if (qtest_log_fp) {
