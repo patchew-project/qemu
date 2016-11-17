@@ -55,6 +55,8 @@ static VirtIOFeature feature_sizes[] = {
      .end = endof(struct virtio_net_config, status)},
     {.flags = 1 << VIRTIO_NET_F_MQ,
      .end = endof(struct virtio_net_config, max_virtqueue_pairs)},
+    {.flags = 1 << VIRTIO_NET_F_MTU,
+     .end = endof(struct virtio_net_config, mtu)},
     {}
 };
 
@@ -81,6 +83,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 
     virtio_stw_p(vdev, &netcfg.status, n->status);
     virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
+    virtio_stw_p(vdev, &netcfg.mtu, n->mtu);
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, n->config_size);
 }
@@ -635,6 +638,14 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         memset(n->vlans, 0, MAX_VLAN >> 3);
     } else {
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
+    }
+
+    if (virtio_has_feature(features, VIRTIO_NET_F_MTU)) {
+        NetClientState *nc = qemu_get_queue(n->nic);
+
+        if (get_vhost_net(nc->peer)) {
+            n->mtu = vhost_net_get_mtu(get_vhost_net(nc->peer));
+        }
     }
 }
 
@@ -1695,6 +1706,7 @@ static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)
 {
     int i, config_size = 0;
     virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
+    virtio_add_feature(&host_features, VIRTIO_NET_F_MTU);
     for (i = 0; feature_sizes[i].flags != 0; i++) {
         if (host_features & feature_sizes[i].flags) {
             config_size = MAX(feature_sizes[i].end, config_size);
@@ -1922,6 +1934,8 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
     DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
                        VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
+    DEFINE_PROP_BIT("host_mtu", VirtIONet, host_features,
+                    VIRTIO_NET_F_MTU, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
