@@ -217,6 +217,9 @@ static void ppc_core99_init(MachineState *machine)
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        fprintf(stderr, "WARNING: failed to find %s\n", bios_name);
+    }
     memory_region_set_readonly(bios, true);
     memory_region_add_subregion(get_system_memory(), PROM_ADDR, bios);
 
