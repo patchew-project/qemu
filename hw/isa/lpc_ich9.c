@@ -390,6 +390,37 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
     }
 }
 
+static void ich9_apm_status_changed(uint32_t val, void *arg)
+{
+    ICH9LPCState *lpc = arg;
+    uint32_t new_val = 0;
+
+    /* copy the transparent bits */
+    new_val |= val & ICH9_APM_STS_TRANSPARENT_MASK;
+
+    if (val & ICH9_APM_STS_GET_SET_FEATURES) {
+        /* The guest is querying features. Clearing
+         * ICH9_APM_STS_GET_SET_FEATURES means success.
+         */
+
+        /* provide known features */
+        new_val |= ICH9_APM_STS_KNOWN_FEATURES;
+    } else {
+        /* The guest is setting features. */
+        if (val & ICH9_APM_STS_FEATURE_MASK &
+            ~(uint32_t)ICH9_APM_STS_KNOWN_FEATURES) {
+            /* Unknown feature requested, report error. */
+            new_val |= ICH9_APM_STS_GET_SET_FEATURES;
+        } else {
+            /* Set requested features. Clearing ICH9_APM_STS_GET_SET_FEATURES
+             * means success.*/
+            lpc->smi_features = val & ICH9_APM_STS_KNOWN_FEATURES;
+        }
+    }
+
+    lpc->apm.apms = new_val;
+}
+
 /* config:PMBASE */
 static void
 ich9_lpc_pmbase_sci_update(ICH9LPCState *lpc)
@@ -507,6 +538,7 @@ static void ich9_lpc_reset(DeviceState *qdev)
 
     lpc->sci_level = 0;
     lpc->rst_cnt = 0;
+    lpc->smi_features = 0;
 }
 
 /* root complex register block is mapped into memory space */
@@ -634,7 +666,8 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     lpc->isa_bus = isa_bus;
 
     ich9_cc_init(lpc);
-    apm_init(d, &lpc->apm, ich9_apm_ctrl_changed, NULL, lpc);
+    apm_init(d, &lpc->apm, ich9_apm_ctrl_changed, ich9_apm_status_changed,
+             lpc);
 
     lpc->machine_ready.notify = ich9_lpc_machine_ready;
     qemu_add_machine_init_done_notifier(&lpc->machine_ready);
@@ -668,6 +701,24 @@ static const VMStateDescription vmstate_ich9_rst_cnt = {
     }
 };
 
+static bool ich9_smi_features_needed(void *opaque)
+{
+    ICH9LPCState *lpc = opaque;
+
+    return (lpc->smi_features != 0);
+}
+
+static const VMStateDescription vmstate_ich9_smi_features = {
+    .name = "ICH9LPC/smi_features",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ich9_smi_features_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(smi_features, ICH9LPCState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_ich9_lpc = {
     .name = "ICH9LPC",
     .version_id = 1,
@@ -683,6 +734,7 @@ static const VMStateDescription vmstate_ich9_lpc = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_ich9_rst_cnt,
+        &vmstate_ich9_smi_features,
         NULL
     }
 };

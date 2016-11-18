@@ -70,6 +70,9 @@ typedef struct ICH9LPCState {
     Notifier machine_ready;
 
     qemu_irq gsi[GSI_NUM_PINS];
+
+    /* SMI features negotiated via APM_STS */
+    uint8_t smi_features;
 } ICH9LPCState;
 
 Object *ich9_lpc_find(void);
@@ -208,6 +211,11 @@ Object *ich9_lpc_find(void);
 #define ICH9_APM_ACPI_ENABLE                    0x2
 #define ICH9_APM_ACPI_DISABLE                   0x3
 
+/* non-standard bits for the APM_STS register */
+#define ICH9_APM_STS_TRANSPARENT_MASK          0x01
+#define ICH9_APM_STS_GET_SET_FEATURES          0x02
+#define ICH9_APM_STS_KNOWN_FEATURES            0x00
+#define ICH9_APM_STS_FEATURE_MASK              0xfc
 
 /* D31:F3 SMBus controller */
 #define TYPE_ICH9_SMB_DEVICE "ICH9 SMB"

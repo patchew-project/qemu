@@ -1,0 +1,71 @@
+According to the ICH9 specification, the APM_STS (Advanced Power Management
+Status Port) Register, at IO Port 0xB3, is a scratchpad register for passing
+data between the software agent that raises the synchronous SMI, and the SMI
+handler routine in the firmware. It is not coupled to any hardware
+functionality. The register is also known as SMI Data Port.
+
+While the ACPI FADT exposes the SMI Command Port (APM_CNT) to the OS, the Data
+Port is not exposed.
+
+SeaBIOS uses the Data Port values 0x00 and 0x01 in its SMI handler. SeaBIOS
+also relies on the original behavior of QEMU, where writing to the Command
+Port (APM_CNT) would raise the SMI only on the processor writing the port.
+
+OVMF needs dynamically detectable and settable features for SMI behavior. We
+can use the remaining bits in APM_STS for this, without disturbing SeaBIOS.
+
+The following describes the (non-standard) bit definitions in APM_STS.
+
+    7   6   5   4   3   2   1   0
+  +---+---+---+---+---+---+---+---+
+  |   |   |   |   |   |   |   |   |
+  +---+---+---+---+---+---+---+---+
+    ^   ^   ^   ^   ^   ^   ^   ^
+    |   |   |   |   |   |   |   Transparent bit. Whatever bit the firmware
+    |   |   |   |   |   |   |   writes in this position has no effect on
+    |   |   |   |   |   |   |   hardware, and can be read back identically.
+    |   |   |   |   |   |   |
+    |   |   |   |   |   |   Feature negotiation bit.
+    |   |   |   |   |   |
+    Feature bits. All reserved at the moment.
+
+Feature negotiation
+-------------------
+
+Firmware that is enlightened about this feature shall write 1 to the feature
+negotiation bit first (clearing all other bits), then read back the APM_STS
+register. If the feature negotiation bit is set in the result, then QEMU lacks
+the feature negotiation feature, and APM_STS is entirely transparent. Otherwise
+(i.e., the feature negotiation bit is clear in the result), the more
+significant bits (the feature bits) expose the features supported by QEMU. At
+the moment, no features are defined, and all feature bits read as zero.
+
+Once firmware confirms feature negotiation is available, it shall set (select)
+a subset of the advertised feature bits, and clear the feature negotiation bit,
+in a single write to the APM_STS register. In order to verify the result, the
+firmware shall read back the APM_STS register. If the feature negotiation bit
+is clear in the result, then the feature selection was successful. Otherwise,
+the requested features either weren't a subset of the available features, or
+constituted an inconsistent group of features (breaking inter-feature
+dependencies, for example). Regardless of the feature negotiation bit in the
+read back value, the higher order bits (i.e., the individual feature bits) are
+always zero in that value.
+
+SeaBIOS compatibility
+---------------------
+
+Writing 0x00 and 0x01 to APM_STS translates to "clear all features", with the
+following consequences:
+
+- The SMI behavior remains the original QEMU behavior, regardless of any future
+  features / feature bits.
+
+- Reading back APM_STS returns the value previously written. This is because
+
+  - the least significant bit is transparent,
+
+  - clearing all features is a request that always succeeds, hence the feature
+    negotiation bit will read as zero,
+
+  - the feature bits always read as zero after writing zero to the feature
+    negotiation bit.
