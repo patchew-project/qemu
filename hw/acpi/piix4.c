@@ -498,7 +498,7 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     pci_conf[0x3d] = 0x01; // interrupt pin 1
 
     /* APM */
-    apm_init(dev, &s->apm, apm_ctrl_changed, s);
+    apm_init(dev, &s->apm, apm_ctrl_changed, NULL, s);
 
     if (!s->smm_enabled) {
         /* Mark SMM as already inited to prevent SMM from running.  KVM does not

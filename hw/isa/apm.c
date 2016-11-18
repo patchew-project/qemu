@@ -47,11 +47,15 @@ static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
     if (addr == 0) {
         apm->apmc = val;
 
-        if (apm->callback) {
-            (apm->callback)(val, apm->arg);
+        if (apm->cnt_callback) {
+            apm->cnt_callback(val, apm->arg);
         }
     } else {
         apm->apms = val;
+
+        if (apm->sts_callback) {
+            apm->sts_callback(val, apm->arg);
+        }
     }
 }
 
@@ -90,10 +94,11 @@ static const MemoryRegionOps apm_ops = {
     },
 };
 
-void apm_init(PCIDevice *dev, APMState *apm, apm_ctrl_changed_t callback,
-              void *arg)
+void apm_init(PCIDevice *dev, APMState *apm, apm_reg_changed_t cnt_callback,
+              apm_reg_changed_t sts_callback, void *arg)
 {
-    apm->callback = callback;
+    apm->cnt_callback = cnt_callback;
+    apm->sts_callback = sts_callback;
     apm->arg = arg;
 
     /* ioport 0xb2, 0xb3 */
