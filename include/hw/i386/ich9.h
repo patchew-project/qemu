@@ -214,7 +214,8 @@ Object *ich9_lpc_find(void);
 /* non-standard bits for the APM_STS register */
 #define ICH9_APM_STS_TRANSPARENT_MASK          0x01
 #define ICH9_APM_STS_GET_SET_FEATURES          0x02
-#define ICH9_APM_STS_KNOWN_FEATURES            0x00
+#define ICH9_APM_STS_F_BROADCAST_SMI           0x04
+#define ICH9_APM_STS_KNOWN_FEATURES            0x04
 #define ICH9_APM_STS_FEATURE_MASK              0xfc
 
 /* D31:F3 SMBus controller */

@@ -27,7 +27,9 @@ The following describes the (non-standard) bit definitions in APM_STS.
     |   |   |   |   |   |   |
     |   |   |   |   |   |   Feature negotiation bit.
     |   |   |   |   |   |
-    Feature bits. All reserved at the moment.
+    |   |   |   |   |   Broadcast SMI feature bit.
+    |   |   |   |   |
+    Reserved feature bits.
 
 Feature negotiation
 -------------------
@@ -37,8 +39,8 @@ negotiation bit first (clearing all other bits), then read back the APM_STS
 register. If the feature negotiation bit is set in the result, then QEMU lacks
 the feature negotiation feature, and APM_STS is entirely transparent. Otherwise
 (i.e., the feature negotiation bit is clear in the result), the more
-significant bits (the feature bits) expose the features supported by QEMU. At
-the moment, no features are defined, and all feature bits read as zero.
+significant bits (the feature bits) expose the features supported by QEMU.
+Reserved and unsupported feature bits read as zero.
 
 Once firmware confirms feature negotiation is available, it shall set (select)
 a subset of the advertised feature bits, and clear the feature negotiation bit,
@@ -50,6 +52,13 @@ constituted an inconsistent group of features (breaking inter-feature
 dependencies, for example). Regardless of the feature negotiation bit in the
 read back value, the higher order bits (i.e., the individual feature bits) are
 always zero in that value.
+
+The broadcast SMI feature
+-------------------------
+
+Negotiating the broadcast SMI feature causes QEMU to raise the SMI on all VCPUs
+in response to subsequent SMI Command Port (APM_CNT) writes. By default QEMU
+raises the SMI only on the VCPU that writes to the SMI Command Port (APM_CNT).
 
 SeaBIOS compatibility
 ---------------------
