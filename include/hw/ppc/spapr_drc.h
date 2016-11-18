@@ -192,6 +192,15 @@ typedef struct sPAPRDRConnectorClass {
                    void *detach_cb_opaque, Error **errp);
     bool (*release_pending)(sPAPRDRConnector *drc);
     void (*set_signalled)(sPAPRDRConnector *drc);
+
+    /*
+     * QEMU interface for setting detach_cb after migration.
+     * detach_cb in the DRC state is a function pointer that cannot be
+     * migrated. We set it right after migration so that a migrated
+     * hot-unplug event could finish its work.
+     */
+    void (*postmigrate_set_detach_cb)(sPAPRDRConnector *drc,
+                                      spapr_drc_detach_cb *detach_cb);
 } sPAPRDRConnectorClass;
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
