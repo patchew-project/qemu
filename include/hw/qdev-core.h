@@ -139,6 +139,15 @@ typedef struct DeviceClass {
     qdev_initfn init; /* TODO remove, once users are converted to realize */
     qdev_event exit; /* TODO remove, once users are converted to unrealize */
     const char *bus_type;
+
+    /* When this field is set, instead of using the device's QOM path,
+     * SaveStateEntry's for devices will be identified using a combination
+     * of the corresponding VMSD name and an instance_id returned by this
+     * function. This should only be necessary for situations where the
+     * QOM path is anticipated to change and a more stable identifier is
+     * desired to identify a device in the migration stream.
+     */
+    int (*dev_get_instance_id)(DeviceState *dev);
 } DeviceClass;
 
 typedef struct NamedGPIOList NamedGPIOList;
