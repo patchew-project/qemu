@@ -1752,7 +1752,8 @@ fail_invalidate:
     /* If not doing postcopy, vm_start() will be called: let's regain
      * control on images.
      */
-    if (s->state == MIGRATION_STATUS_ACTIVE) {
+    if (s->state == MIGRATION_STATUS_ACTIVE ||
+        s->state == MIGRATION_STATUS_CANCELLING) {
         Error *local_err = NULL;
 
         bdrv_invalidate_cache_all(&local_err);
