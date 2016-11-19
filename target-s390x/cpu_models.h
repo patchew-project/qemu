@@ -23,7 +23,7 @@ typedef struct S390CPUDef {
     uint8_t gen;            /* hw generation identification */
     uint16_t type;          /* cpu type identification */
     uint8_t ec_ga;          /* EC GA version (on which also the BC is based) */
-    uint8_t mha_pow;        /* Maximum Host Adress Power, mha = 2^pow-1 */
+    uint8_t mha_pow;        /* Maximum Host Address Power, mha = 2^pow-1 */
     uint32_t hmfai;         /* hypervisor-managed facilities */
     /* base/min features, must never be changed between QEMU versions */
     S390FeatBitmap base_feat;

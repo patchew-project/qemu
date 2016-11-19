@@ -1579,7 +1579,7 @@ DISAS_INSN(negx)
 
     gen_flush_flags(s); /* compute old Z */
 
-    /* Perform substract with borrow.
+    /* Perform subtract with borrow.
      * (X, N) =  -(src + X);
      */
 
@@ -2067,7 +2067,7 @@ static inline void gen_subx(DisasContext *s, TCGv src, TCGv dest, int opsize)
 
     gen_flush_flags(s); /* compute old Z */
 
-    /* Perform substract with borrow.
+    /* Perform subtract with borrow.
      * (X, N) = dest - (src + X);
      */
 
@@ -2077,7 +2077,7 @@ static inline void gen_subx(DisasContext *s, TCGv src, TCGv dest, int opsize)
     gen_ext(QREG_CC_N, QREG_CC_N, opsize, 1);
     tcg_gen_andi_i32(QREG_CC_X, QREG_CC_X, 1);
 
-    /* Compute signed-overflow for substract.  */
+    /* Compute signed-overflow for subtract.  */
 
     tcg_gen_xor_i32(QREG_CC_V, QREG_CC_N, dest);
     tcg_gen_xor_i32(tmp, dest, src);

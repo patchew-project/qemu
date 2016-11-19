@@ -2234,7 +2234,7 @@ enum {
     PPC_INTERRUPT_CDOORBELL,      /* Critical doorbell interrupt          */
     PPC_INTERRUPT_DOORBELL,       /* Doorbell interrupt                   */
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
-    PPC_INTERRUPT_HMI,            /* Hypervisor Maintainance interrupt    */
+    PPC_INTERRUPT_HMI,            /* Hypervisor Maintenance interrupt     */
     PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
 };
 

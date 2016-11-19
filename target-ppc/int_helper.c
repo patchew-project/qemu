@@ -155,7 +155,7 @@ target_ulong helper_cnttzw(target_ulong t)
 /* if x = 0xab, returns 0xababababababababa */
 #define pattern(x) (((x) & 0xff) * (~(target_ulong)0 / 0xff))
 
-/* substract 1 from each byte, and with inverse, check if MSB is set at each
+/* subtract 1 from each byte, and with inverse, check if MSB is set at each
  * byte.
  * i.e. ((0x00 - 0x01) & ~(0x00)) & 0x80
  *      (0xFF & 0xFF) & 0x80 = 0x80 (zero found)

@@ -139,7 +139,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
     }
 
-    /* Exception targetting modifiers
+    /* Exception targeting modifiers
      *
      * LPES0 is supported on POWER7/8
      * LPES1 is not supported (old iSeries mode)

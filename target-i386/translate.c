@@ -6701,7 +6701,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (s->prefix & PREFIX_LOCK) {
             switch (op) {
             case 0: /* bt */
-                /* Needs no atomic ops; we surpressed the normal
+                /* Needs no atomic ops; we suppressed the normal
                    memory load for LOCK above so do it now.  */
                 gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
                 break;

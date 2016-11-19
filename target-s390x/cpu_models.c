@@ -38,7 +38,7 @@
     }
 
 /*
- * CPU definiton list in order of release. For now, base features of a
+ * CPU definition list in order of release. For now, base features of a
  * following release are always a subset of base features of the previous
  * release. Same is correct for the other feature sets.
  * A BC release always follows the corresponding EC release.
