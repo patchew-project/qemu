@@ -231,7 +231,7 @@ void qio_task_complete(QIOTask *task);
  *
  * Mark the operation as failed, with @err providing
  * details about the failure. The @err may be freed
- * afer the function returns, as the notification
+ * after the function returns, as the notification
  * callback is invoked synchronously. The @task will
  * be freed when this call completes.
  */
