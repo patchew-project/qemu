@@ -162,7 +162,8 @@ class VM(qtest.QEMUQtestMachine):
     def add_drive(self, path, opts='', interface='virtio', format=imgfmt):
         '''Add a virtio-blk drive to the VM'''
         options = ['if=%s' % interface,
-                   'id=drive%d' % self._num_drives]
+                   'id=drive%d' % self._num_drives,
+                   'node-name=drivenode%d' % self._num_drives]
 
         if path is not None:
             options.append('file=%s' % path)
