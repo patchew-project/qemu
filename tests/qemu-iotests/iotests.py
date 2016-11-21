@@ -177,6 +177,12 @@ class VM(qtest.QEMUQtestMachine):
         self._num_drives += 1
         return self
 
+    def add_incoming_migration(self, desc):
+        '''Add an incoming migration to the VM'''
+        self._args.append('-incoming')
+        self._args.append(desc)
+        return self
+
     def pause_drive(self, drive, event=None):
         '''Pause drive r/w operations'''
         if not event:
