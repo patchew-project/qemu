@@ -387,6 +387,9 @@ static void process_incoming_migration_co(void *opaque)
     int ret;
 
     mis = migration_incoming_state_new(f);
+
+    init_dirty_bitmap_incoming_migration();
+
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_ACTIVE);
