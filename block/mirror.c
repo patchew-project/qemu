@@ -76,6 +76,7 @@ typedef struct MirrorOp {
     QEMUIOVector qiov;
     int64_t sector_num;
     int nb_sectors;
+    BlockdevDetectZeroesOptions backup_detect_zeroes;
 } MirrorOp;
 
 static BlockErrorAction mirror_error_action(MirrorBlockJob *s, bool read,
@@ -132,6 +133,8 @@ static void mirror_write_complete(void *opaque, int ret)
 {
     MirrorOp *op = opaque;
     MirrorBlockJob *s = op->s;
+    BlockDriverState *target = s->target;
+    target->detect_zeroes = op->backup_detect_zeroes;
     if (ret < 0) {
         BlockErrorAction action;
 
@@ -148,6 +151,7 @@ static void mirror_read_complete(void *opaque, int ret)
 {
     MirrorOp *op = opaque;
     MirrorBlockJob *s = op->s;
+    BlockDriverState *target = s->target;
     if (ret < 0) {
         BlockErrorAction action;
 
@@ -160,6 +164,9 @@ static void mirror_read_complete(void *opaque, int ret)
         mirror_iteration_done(op, ret);
         return;
     }
+    op->backup_detect_zeroes = target->detect_zeroes;
+    target->detect_zeroes = s->unmap ? BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP :
+        BLOCKDEV_DETECT_ZEROES_OPTIONS_ON;
     blk_aio_pwritev(s->target, op->sector_num * BDRV_SECTOR_SIZE, &op->qiov,
                     0, mirror_write_complete, op);
 }
