@@ -130,7 +130,6 @@ struct QuorumAIOCB {
     QuorumVotes votes;
 
     bool is_read;
-    bool has_completed;
     int vote_ret;
     int children_read;          /* how many children have been read from */
 };
@@ -178,7 +177,6 @@ static QuorumAIOCB *quorum_aio_get(BlockDriverState *bs,
     acb->rewrite_count = 0;
     acb->votes.compare = quorum_sha256_compare;
     QLIST_INIT(&acb->votes.vote_list);
-    acb->has_completed = false;
     acb->is_read = false;
     acb->vote_ret = 0;
 
@@ -231,13 +229,6 @@ static void quorum_rewrite_aio_cb(void *opaque, int ret)
 
     /* one less rewrite to do */
     acb->rewrite_count--;
-
-    /* wait until all rewrite callbacks have completed */
-    if (acb->rewrite_count) {
-        return;
-    }
-
-    acb->has_completed = true;
     qemu_coroutine_enter_if_inactive(acb->co);
 }
 
@@ -286,45 +277,6 @@ static int quorum_fifo_aio_cb(void *opaque, int ret)
     /* FIXME: rewrite failed children if acb->children_read > 1? */
 
     return ret;
-}
-
-static void quorum_aio_cb(void *opaque, int ret)
-{
-    QuorumChildRequest *sacb = opaque;
-    QuorumAIOCB *acb = sacb->parent;
-    BDRVQuorumState *s = acb->bs->opaque;
-    bool rewrite = false;
-    int i;
-
-    sacb->ret = ret;
-    if (ret == 0) {
-        acb->success_count++;
-    } else {
-        quorum_report_bad_acb(sacb, ret);
-    }
-    acb->count++;
-    assert(acb->count <= s->num_children);
-    assert(acb->success_count <= s->num_children);
-    if (acb->count < s->num_children) {
-        return;
-    }
-
-    /* Do the vote on read */
-    if (acb->is_read) {
-        rewrite = quorum_vote(acb);
-        for (i = 0; i < s->num_children; i++) {
-            qemu_vfree(acb->qcrs[i].buf);
-            qemu_iovec_destroy(&acb->qcrs[i].qiov);
-        }
-    } else {
-        quorum_has_too_much_io_failed(acb);
-    }
-
-    /* if no rewrite is done the code will finish right away */
-    if (!rewrite) {
-        acb->has_completed = true;
-        qemu_coroutine_enter_if_inactive(acb->co);
-    }
 }
 
 static void quorum_report_bad_versions(BDRVQuorumState *s,
@@ -645,18 +597,34 @@ static void read_quorum_children_entry(void *opaque)
     QuorumAIOCB *acb = co->acb;
     BDRVQuorumState *s = acb->bs->opaque;
     int i = co->idx;
-    int ret;
+    QuorumChildRequest *sacb = &acb->qcrs[i];
 
-    acb->qcrs[i].bs = s->children[i]->bs;
-    ret = bdrv_co_preadv(s->children[i], acb->sector_num * BDRV_SECTOR_SIZE,
-                         acb->nb_sectors * BDRV_SECTOR_SIZE,
-                         &acb->qcrs[i].qiov, 0);
-    quorum_aio_cb(&acb->qcrs[i], ret);
+    sacb->bs = s->children[i]->bs;
+    sacb->ret = bdrv_co_preadv(s->children[i],
+                               acb->sector_num * BDRV_SECTOR_SIZE,
+                               acb->nb_sectors * BDRV_SECTOR_SIZE,
+                               &acb->qcrs[i].qiov, 0);
+
+    if (sacb->ret == 0) {
+        acb->success_count++;
+    } else {
+        quorum_report_bad_acb(sacb, sacb->ret);
+    }
+
+    acb->count++;
+    assert(acb->count <= s->num_children);
+    assert(acb->success_count <= s->num_children);
+
+    /* Wake up the caller after the last read */
+    if (acb->count == s->num_children) {
+        qemu_coroutine_enter_if_inactive(acb->co);
+    }
 }
 
 static int read_quorum_children(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->bs->opaque;
+    bool rewrite = false;
     int i, ret;
 
     acb->children_read = s->num_children;
@@ -677,7 +645,19 @@ static int read_quorum_children(QuorumAIOCB *acb)
         qemu_coroutine_enter(co);
     }
 
-    if (!acb->has_completed) {
+    while (acb->count < s->num_children) {
+        qemu_coroutine_yield();
+    }
+
+    /* Do the vote on read */
+    rewrite = quorum_vote(acb);
+    for (i = 0; i < s->num_children; i++) {
+        qemu_vfree(acb->qcrs[i].buf);
+        qemu_iovec_destroy(&acb->qcrs[i].qiov);
+    }
+
+    assert(rewrite == !!acb->rewrite_count);
+    while (acb->rewrite_count) {
         qemu_coroutine_yield();
     }
 
@@ -727,12 +707,26 @@ static void write_quorum_entry(void *opaque)
     QuorumAIOCB *acb = co->acb;
     BDRVQuorumState *s = acb->bs->opaque;
     int i = co->idx;
-    int ret;
+    QuorumChildRequest *sacb = &acb->qcrs[i];
 
-    acb->qcrs[i].bs = s->children[i]->bs;
-    ret = bdrv_co_pwritev(s->children[i], acb->sector_num * BDRV_SECTOR_SIZE,
-                          acb->nb_sectors * BDRV_SECTOR_SIZE, acb->qiov, 0);
-    quorum_aio_cb(&acb->qcrs[i], ret);
+    sacb->bs = s->children[i]->bs;
+    sacb->ret = bdrv_co_pwritev(s->children[i],
+                                acb->sector_num * BDRV_SECTOR_SIZE,
+                                acb->nb_sectors * BDRV_SECTOR_SIZE,
+                                acb->qiov, 0);
+    if (sacb->ret == 0) {
+        acb->success_count++;
+    } else {
+        quorum_report_bad_acb(sacb, sacb->ret);
+    }
+    acb->count++;
+    assert(acb->count <= s->num_children);
+    assert(acb->success_count <= s->num_children);
+
+    /* Wake up the caller after the last write */
+    if (acb->count == s->num_children) {
+        qemu_coroutine_enter_if_inactive(acb->co);
+    }
 }
 
 static int quorum_co_writev(BlockDriverState *bs,
@@ -754,9 +748,11 @@ static int quorum_co_writev(BlockDriverState *bs,
         qemu_coroutine_enter(co);
     }
 
-    if (!acb->has_completed) {
+    while (acb->count < s->num_children) {
         qemu_coroutine_yield();
     }
+
+    quorum_has_too_much_io_failed(acb);
 
     ret = acb->vote_ret;
     quorum_aio_finalize(acb);
