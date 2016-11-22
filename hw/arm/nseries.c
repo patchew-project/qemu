@@ -1425,6 +1425,7 @@ static void n800_class_init(ObjectClass *oc, void *data)
     mc->desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)";
     mc->init = n800_init;
     mc->default_boot_order = "";
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 static const TypeInfo n800_type = {
@@ -1440,6 +1441,7 @@ static void n810_class_init(ObjectClass *oc, void *data)
     mc->desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)";
     mc->init = n810_init;
     mc->default_boot_order = "";
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 static const TypeInfo n810_type = {

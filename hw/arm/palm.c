@@ -275,6 +275,7 @@ static void palmte_machine_init(MachineClass *mc)
 {
     mc->desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)";
     mc->init = palmte_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 DEFINE_MACHINE("cheetah", palmte_machine_init)

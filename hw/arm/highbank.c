@@ -407,6 +407,8 @@ static void highbank_class_init(ObjectClass *oc, void *data)
     mc->init = highbank_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
+    machine_class_add_default_bus(mc, "IDE");//FIXME: use macro
 }
 
 static const TypeInfo highbank_type = {
@@ -423,6 +425,8 @@ static void midway_class_init(ObjectClass *oc, void *data)
     mc->init = midway_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
+    machine_class_add_default_bus(mc, "IDE");//FIXME: use macro
 }
 
 static const TypeInfo midway_type = {

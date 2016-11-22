@@ -142,6 +142,7 @@ static void kzm_machine_init(MachineClass *mc)
 {
     mc->desc = "ARM KZM Emulation Baseboard (ARM1136)";
     mc->init = kzm_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 DEFINE_MACHINE("kzm", kzm_machine_init)

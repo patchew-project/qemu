@@ -32,6 +32,7 @@
 #include "exec/address-spaces.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/boards.h"
+#include "hw/usb.h"
 
 #undef DEBUG
 
@@ -154,6 +155,8 @@ static void nuri_class_init(ObjectClass *oc, void *data)
     mc->desc = "Samsung NURI board (Exynos4210)";
     mc->init = nuri_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
 }
 
 static const TypeInfo nuri_type = {
@@ -169,6 +172,8 @@ static void smdkc210_class_init(ObjectClass *oc, void *data)
     mc->desc = "Samsung SMDKC210 board (Exynos4210)";
     mc->init = smdkc210_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
 }
 
 static const TypeInfo smdkc210_type = {

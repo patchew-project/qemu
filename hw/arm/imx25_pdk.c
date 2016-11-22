@@ -148,6 +148,7 @@ static void imx25_pdk_machine_init(MachineClass *mc)
 {
     mc->desc = "ARM i.MX25 PDK board (ARM926)";
     mc->init = imx25_pdk_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 DEFINE_MACHINE("imx25-pdk", imx25_pdk_machine_init)

@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/usb.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -984,6 +985,9 @@ static void akitapda_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sharp SL-C1000 (Akita) PDA (PXA270)";
     mc->init = akita_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 static const TypeInfo akitapda_type = {
@@ -998,6 +1002,9 @@ static void spitzpda_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sharp SL-C3000 (Spitz) PDA (PXA270)";
     mc->init = spitz_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 static const TypeInfo spitzpda_type = {
@@ -1012,6 +1019,9 @@ static void borzoipda_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sharp SL-C3100 (Borzoi) PDA (PXA270)";
     mc->init = borzoi_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 static const TypeInfo borzoipda_type = {

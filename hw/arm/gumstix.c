@@ -41,6 +41,7 @@
 #include "hw/block/flash.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
+#include "hw/usb.h"
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
@@ -128,6 +129,9 @@ static void connex_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Gumstix Connex (PXA255)";
     mc->init = connex_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 static const TypeInfo connex_type = {
@@ -142,6 +146,9 @@ static void verdex_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Gumstix Verdex (PXA270)";
     mc->init = verdex_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 static const TypeInfo verdex_type = {

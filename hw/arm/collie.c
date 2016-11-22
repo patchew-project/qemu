@@ -64,6 +64,7 @@ static void collie_machine_init(MachineClass *mc)
 {
     mc->desc = "Sharp SL-5500 (Collie) PDA (SA-1110)";
     mc->init = collie_init;
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 DEFINE_MACHINE("collie", collie_machine_init)

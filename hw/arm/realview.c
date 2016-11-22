@@ -445,6 +445,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->init = realview_pbx_a9_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 static const TypeInfo realview_pbx_a9_type = {

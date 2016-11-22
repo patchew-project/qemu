@@ -1719,6 +1719,7 @@ static void musicpal_machine_init(MachineClass *mc)
 {
     mc->desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)";
     mc->init = musicpal_init;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 DEFINE_MACHINE("musicpal", musicpal_machine_init)

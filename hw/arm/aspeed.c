@@ -180,6 +180,8 @@ static void ast2500_evb_class_init(ObjectClass *oc, void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_parallel = 1;
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
 }
 
 static const TypeInfo ast2500_evb_type = {

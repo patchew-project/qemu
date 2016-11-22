@@ -82,6 +82,7 @@ static void cubieboard_machine_init(MachineClass *mc)
 {
     mc->desc = "cubietech cubieboard";
     mc->init = cubieboard_init;
+    machine_class_add_default_bus(mc, TYPE_IDE_BUS);//FIXME: use macro
 }
 
 DEFINE_MACHINE("cubieboard", cubieboard_machine_init)

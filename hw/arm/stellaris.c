@@ -1393,6 +1393,8 @@ static void lm3s811evb_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Stellaris LM3S811EVB";
     mc->init = lm3s811evb_init;
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 static const TypeInfo lm3s811evb_type = {
@@ -1407,6 +1409,8 @@ static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Stellaris LM3S6965EVB";
     mc->init = lm3s6965evb_init;
+    machine_class_add_default_bus(mc, "SSI");//FIXME: use macro
+    machine_class_add_default_bus(mc, "i2c-bus");//FIXME: use macro
 }
 
 static const TypeInfo lm3s6965evb_type = {
