@@ -1541,6 +1541,8 @@ MachineInfoList *qmp_query_machines(Error **errp)
         MachineClass *mc = el->data;
         MachineInfoList *entry;
         MachineInfo *info;
+        GList *bus;
+        strList **next_dev;
 
         info = g_malloc0(sizeof(*info));
         if (mc->is_default) {
@@ -1556,6 +1558,15 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->name = g_strdup(mc->name);
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
         info->hotpluggable_cpus = !!mc->query_hotpluggable_cpus;
+
+        next_dev = &info->supported_device_types;
+        for (bus = mc->default_buses; bus; bus = bus->next) {
+            BusClass *bc = BUS_CLASS(object_class_by_name(bus->data));
+            strList *new = g_new0(strList, 1);
+            new->value = g_strdup(bc->device_type);
+            *next_dev = new;
+            next_dev = &new->next;
+        }
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
