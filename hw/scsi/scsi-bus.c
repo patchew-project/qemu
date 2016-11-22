@@ -31,6 +31,7 @@ static void scsi_bus_class_init(ObjectClass *klass, void *data)
 
     k->get_dev_path = scsibus_get_dev_path;
     k->get_fw_dev_path = scsibus_get_fw_dev_path;
+    k->device_type = TYPE_SCSI_DEVICE;
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 

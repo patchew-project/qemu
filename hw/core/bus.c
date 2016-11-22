@@ -208,12 +208,21 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(object_get_typename(OBJECT(dev)));
 }
 
+static char *bus_get_device_type(Object *obj, Error **errp)
+{
+    BusClass *bc = BUS_GET_CLASS(obj);
+    return g_strdup(bc->device_type);
+}
+
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
 
     class->unparent = bus_unparent;
     bc->get_fw_dev_path = default_bus_get_fw_dev_path;
+
+    object_class_property_add_str(class, "device-type",
+                                  bus_get_device_type, NULL, &error_abort);
 }
 
 static void qbus_finalize(Object *obj)

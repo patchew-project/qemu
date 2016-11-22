@@ -207,6 +207,8 @@ struct BusClass {
     int max_dev;
     /* number of automatically allocated bus ids (e.g. ide.0) */
     int automatic_ids;
+    /* type or interface name devices should implement */
+    const char *device_type;
 };
 
 typedef struct BusChild {
