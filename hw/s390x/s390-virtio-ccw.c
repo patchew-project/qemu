@@ -206,6 +206,12 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->use_sclp = 1;
     mc->max_cpus = 248;
     mc->get_hotplug_handler = s390_get_hotplug_handler;
+    machine_class_add_default_bus(mc, TYPE_VIRTUAL_CSS_BUS);
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
+    machine_class_add_default_bus(mc, TYPE_S390_PCI_BUS);
+    machine_class_add_default_bus(mc, "s390-sclp-events-bus");
+    machine_class_add_default_bus(mc, TYPE_VIRTIO_BUS);
+
     hc->plug = s390_machine_device_plug;
     nc->nmi_monitor_handler = s390_nmi;
 }
