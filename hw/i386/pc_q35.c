@@ -292,6 +292,10 @@ static void pc_q35_machine_options(MachineClass *m)
     m->no_floppy = 1;
     m->has_dynamic_sysbus = true;
     m->max_cpus = 288;
+    machine_class_add_default_bus(m, "i2c-bus"); //FIXME: use macro
+    machine_class_add_default_bus(m, TYPE_PCIE_BUS);
+    machine_class_add_default_bus(m, TYPE_ISA_BUS);
+    machine_class_add_default_bus(m, "IDE");//FIXME: use macro
 }
 
 static void pc_q35_2_8_machine_options(MachineClass *m)

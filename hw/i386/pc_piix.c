@@ -435,6 +435,11 @@ static void pc_i440fx_machine_options(MachineClass *m)
     m->hot_add_cpu = pc_hot_add_cpu;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
+    machine_class_add_default_bus(m, "floppy-bus"); //FIXME: use macro
+    machine_class_add_default_bus(m, "i2c-bus"); //FIXME: use macro
+    machine_class_add_default_bus(m, TYPE_PCI_BUS);
+    machine_class_add_default_bus(m, TYPE_ISA_BUS);
+    machine_class_add_default_bus(m, "IDE");//FIXME: use macro
 }
 
 static void pc_i440fx_2_8_machine_options(MachineClass *m)
@@ -1079,6 +1084,9 @@ static void isapc_machine_options(MachineClass *m)
     m->max_cpus = 1;
     m->option_rom_has_mr = true;
     m->rom_file_has_mr = false;
+    machine_class_add_default_bus(m, "floppy-bus"); //FIXME: use macro
+    machine_class_add_default_bus(m, TYPE_ISA_BUS);
+    machine_class_add_default_bus(m, "IDE");//FIXME: use macro
     pcmc->pci_enabled = false;
     pcmc->has_acpi_build = false;
     pcmc->smbios_defaults = false;
@@ -1098,6 +1106,11 @@ static void xenfv_machine_options(MachineClass *m)
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen";
     m->hot_add_cpu = pc_hot_add_cpu;
+    machine_class_add_default_bus(m, "floppy-bus"); //FIXME: use macro
+    machine_class_add_default_bus(m, "i2c-bus"); //FIXME: use macro
+    machine_class_add_default_bus(m, TYPE_PCI_BUS);
+    machine_class_add_default_bus(m, TYPE_ISA_BUS);
+    machine_class_add_default_bus(m, "IDE");//FIXME: use macro
 }
 
 DEFINE_PC_MACHINE(xenfv, "xenfv", pc_xen_hvm_init,

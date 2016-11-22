@@ -12,7 +12,7 @@ logger = logging.getLogger('qemu.tests.machineinfo')
 BLACKLIST = set(['xenpv', 'xenfv'])
 
 # architectures where machines are expected to report all available buses:
-STRICT_ARCHES = set()
+STRICT_ARCHES = set(['x86_64', 'i386'])
 
 class QueryMachinesTest(unittest.TestCase):
     def walkQOMTree(self, vm, path):
