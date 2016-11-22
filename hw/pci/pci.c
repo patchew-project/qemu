@@ -2606,9 +2606,11 @@ MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
     } else if (msi_enabled(dev)) {
         msg = msi_get_message(dev, vector);
     } else {
-        /* Should never happen */
-        error_report("%s: unknown interrupt type", __func__);
-        abort();
+        /*
+         * Device is not configured with MSI/MSI-X yet, let's provide
+         * an empty message to make all device drivers happy.
+         */
+        bzero(&msg, sizeof(msg));
     }
     return msg;
 }
