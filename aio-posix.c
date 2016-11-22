@@ -30,6 +30,8 @@ struct AioHandler
     IOHandler *io_read;
     IOHandler *io_write;
     AioPollFn *io_poll;
+    IOHandler *io_poll_begin;
+    IOHandler *io_poll_end;
     int deleted;
     void *opaque;
     bool is_external;
@@ -274,6 +276,20 @@ void aio_set_fd_handler(AioContext *ctx,
     }
 }
 
+void aio_set_fd_poll(AioContext *ctx, int fd,
+                     IOHandler *io_poll_begin,
+                     IOHandler *io_poll_end)
+{
+    AioHandler *node = find_aio_handler(ctx, fd);
+
+    if (!node) {
+        return;
+    }
+
+    node->io_poll_begin = io_poll_begin;
+    node->io_poll_end = io_poll_end;
+}
+
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
                             bool is_external,
@@ -284,9 +300,53 @@ void aio_set_event_notifier(AioContext *ctx,
                        (IOHandler *)io_read, NULL, io_poll, notifier);
 }
 
+void aio_set_event_notifier_poll(AioContext *ctx,
+                                 EventNotifier *notifier,
+                                 EventNotifierHandler *io_poll_begin,
+                                 EventNotifierHandler *io_poll_end)
+{
+    aio_set_fd_poll(ctx, event_notifier_get_fd(notifier),
+                    (IOHandler *)io_poll_begin,
+                    (IOHandler *)io_poll_end);
+}
+
+static void poll_set_started(AioContext *ctx, bool started)
+{
+    AioHandler *node;
+
+    if (started == ctx->poll_started) {
+        return;
+    }
+
+    ctx->poll_started = started;
+
+    ctx->walking_handlers++;
+    QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        IOHandler *fn;
+
+        if (node->deleted) {
+            continue;
+        }
+
+        if (started) {
+            fn = node->io_poll_begin;
+        } else {
+            fn = node->io_poll_end;
+        }
+
+        if (fn) {
+            fn(node->opaque);
+        }
+    }
+    ctx->walking_handlers--;
+}
+
+
 bool aio_prepare(AioContext *ctx)
 {
-    /* TODO run poll handlers? */
+    /* Poll mode cannot be used with glib's event loop, disable it. */
+    poll_set_started(ctx, false);
+
     return false;
 }
 
@@ -465,6 +525,37 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
     return progress;
 }
 
+/* try_poll_mode:
+ * @ctx: the AioContext
+ * @enable: true to attempt polling, false to stop polling
+ *
+ * If enable is true then ctx->notify_me must be non-zero so this function can
+ * detect aio_notify().
+ *
+ * Note that the caller must have incremented ctx->walking_handlers.
+ *
+ * Returns: true if progress was made, false otherwise
+ */
+static bool try_poll_mode(AioContext *ctx, bool enable)
+{
+    if (enable && aio_poll_max_ns && ctx->poll_disable_cnt == 0) {
+        /* See qemu_soonest_timeout() uint64_t hack */
+        int64_t max_ns = MIN((uint64_t)aio_compute_timeout(ctx),
+                             (uint64_t)aio_poll_max_ns);
+
+        if (max_ns) {
+            poll_set_started(ctx, true);
+
+            if (run_poll_handlers(ctx, max_ns)) {
+                return true;
+            }
+        }
+    }
+
+    poll_set_started(ctx, false);
+    return false;
+}
+
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
@@ -488,27 +579,21 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     ctx->walking_handlers++;
 
-    if (blocking && aio_poll_max_ns && ctx->poll_disable_cnt == 0) {
-        /* See qemu_soonest_timeout() uint64_t hack */
-        int64_t max_ns = MIN((uint64_t)aio_compute_timeout(ctx),
-                             (uint64_t)aio_poll_max_ns);
+    if (try_poll_mode(ctx, blocking)) {
+        /* Skip file descriptor monitoring if polling succeeded.  Just run
+         * BHs and timers.
+         */
 
-        if (max_ns && run_poll_handlers(ctx, max_ns)) {
-            /* Skip file descriptor monitoring if polling succeeded.  Just run
-             * BHs and timers.
-             */
+        atomic_sub(&ctx->notify_me, 2);
+        aio_notify_accept(ctx);
 
-            atomic_sub(&ctx->notify_me, 2);
-            aio_notify_accept(ctx);
+        ctx->walking_handlers--;
 
-            ctx->walking_handlers--;
+        aio_bh_poll(ctx);
+        timerlistgroup_run_timers(&ctx->tlg);
 
-            aio_bh_poll(ctx);
-            timerlistgroup_run_timers(&ctx->tlg);
-
-            aio_context_release(ctx);
-            return true;
-        }
+        aio_context_release(ctx);
+        return true;
     }
 
     assert(npfd == 0);

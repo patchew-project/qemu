@@ -134,6 +134,9 @@ struct AioContext {
     /* Number of AioHandlers without .io_poll() */
     int poll_disable_cnt;
 
+    /* Are we in polling mode or monitoring file descriptors? */
+    bool poll_started;
+
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
     bool epoll_enabled;
@@ -332,6 +335,14 @@ void aio_set_fd_handler(AioContext *ctx,
                         AioPollFn *io_poll,
                         void *opaque);
 
+/* Set polling begin/end callbacks for a file descriptor that has already been
+ * registered with aio_set_fd_handler.  Do nothing if the file descriptor is
+ * not registered.
+ */
+void aio_set_fd_poll(AioContext *ctx, int fd,
+                     IOHandler *io_poll_begin,
+                     IOHandler *io_poll_end);
+
 /* Register an event notifier and associated callbacks.  Behaves very similarly
  * to event_notifier_set_handler.  Unlike event_notifier_set_handler, these callbacks
  * will be invoked when using aio_poll().
@@ -344,6 +355,15 @@ void aio_set_event_notifier(AioContext *ctx,
                             bool is_external,
                             EventNotifierHandler *io_read,
                             AioPollFn *io_poll);
+
+/* Set polling begin/end callbacks for an event notifier that has already been
+ * registered with aio_set_event_notifier.  Do nothing if the event notifier is
+ * not registered.
+ */
+void aio_set_event_notifier_poll(AioContext *ctx,
+                                 EventNotifier *notifier,
+                                 EventNotifierHandler *io_poll_begin,
+                                 EventNotifierHandler *io_poll_end);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
  * to this AioContext.
