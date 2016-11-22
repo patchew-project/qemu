@@ -131,6 +131,9 @@ struct AioContext {
 
     int external_disable_cnt;
 
+    /* Number of AioHandlers without .io_poll() */
+    int poll_disable_cnt;
+
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
     bool epoll_enabled;
