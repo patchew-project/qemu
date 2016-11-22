@@ -2410,29 +2410,38 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                      \
 {                                                                        \
     ppc_vsr_t xa, xb;                                                    \
     uint32_t cc = 0;                                                     \
+    bool vxsnan_flag = false, vxvc_flag = false;                         \
                                                                          \
+    helper_reset_fpstatus(env);                                          \
     getVSR(xA(opcode), &xa, env);                                        \
     getVSR(xB(opcode), &xb, env);                                        \
                                                                          \
-    if (unlikely(float64_is_any_nan(xa.VsrD(0)) ||                       \
-                 float64_is_any_nan(xb.VsrD(0)))) {                      \
-        if (float64_is_signaling_nan(xa.VsrD(0), &env->fp_status) ||     \
-            float64_is_signaling_nan(xb.VsrD(0), &env->fp_status)) {     \
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);       \
-        }                                                                \
-        if (ordered) {                                                   \
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);         \
-        }                                                                \
+    if (float64_is_signaling_nan(xa.VsrD(0), &env->fp_status) ||         \
+        float64_is_signaling_nan(xb.VsrD(0), &env->fp_status)) {         \
+        vxsnan_flag = true;                                              \
         cc = 1;                                                          \
-    } else {                                                             \
-        if (float64_lt(xa.VsrD(0), xb.VsrD(0), &env->fp_status)) {       \
-            cc = 8;                                                      \
-        } else if (!float64_le(xa.VsrD(0), xb.VsrD(0),                   \
-                               &env->fp_status)) { \
-            cc = 4;                                                      \
-        } else {                                                         \
-            cc = 2;                                                      \
+        if (fpscr_ve == 0 && ordered) {                                  \
+            vxvc_flag = true;                                            \
         }                                                                \
+    } else if ((float64_is_quiet_nan(xa.VsrD(0), &env->fp_status) ||     \
+                float64_is_quiet_nan(xb.VsrD(0), &env->fp_status))       \
+               && ordered) {                                             \
+        cc = 1;                                                          \
+        vxvc_flag = true;                                                \
+    }                                                                    \
+    if (vxsnan_flag) {                                                   \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 0);           \
+    }                                                                    \
+    if (vxvc_flag) {                                                     \
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC, 0);             \
+    }                                                                    \
+                                                                         \
+    if (float64_lt(xa.VsrD(0), xb.VsrD(0), &env->fp_status)) {           \
+        cc |= 8;                                                         \
+    } else if (!float64_le(xa.VsrD(0), xb.VsrD(0), &env->fp_status)) {   \
+        cc |= 4;                                                         \
+    } else {                                                             \
+        cc |= 2;                                                         \
     }                                                                    \
                                                                          \
     env->fpscr &= ~(0x0F << FPSCR_FPRF);                                 \
