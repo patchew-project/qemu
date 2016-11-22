@@ -57,6 +57,7 @@
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
 #include "hw/mips/cps.h"
+#include "hw/usb.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -1266,6 +1267,12 @@ static void mips_malta_machine_init(MachineClass *mc)
     mc->init = mips_malta_init;
     mc->max_cpus = 16;
     mc->is_default = 1;
+    machine_class_add_default_bus(mc, "floppy-bus"); //FIXME: use macro
+    machine_class_add_default_bus(mc, "i2c-bus"); //FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
+    machine_class_add_default_bus(mc, TYPE_ISA_BUS);
+    machine_class_add_default_bus(mc, "IDE");//FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
 }
 
 DEFINE_MACHINE("malta", mips_malta_machine_init)

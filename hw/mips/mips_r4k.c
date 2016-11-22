@@ -306,6 +306,8 @@ static void mips_machine_init(MachineClass *mc)
 {
     mc->desc = "mips r4k platform";
     mc->init = mips_r4k_init;
+    machine_class_add_default_bus(mc, TYPE_ISA_BUS);
+    machine_class_add_default_bus(mc, "IDE");//FIXME: use macro
 }
 
 DEFINE_MACHINE("mips", mips_machine_init)
