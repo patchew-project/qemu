@@ -320,6 +320,9 @@ struct BlockDriver {
     void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
                            Error **errp);
 
+    void (*bdrv_load_autoloading_dirty_bitmaps)(BlockDriverState *bs,
+                                                Error **errp);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
