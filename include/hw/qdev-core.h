@@ -406,4 +406,6 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
 
+void device_class_set_bus_type(DeviceClass *dc, const char *bus_type);
+
 #endif

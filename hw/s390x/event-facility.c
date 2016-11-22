@@ -426,7 +426,7 @@ static void event_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->bus_type = TYPE_SCLP_EVENTS_BUS;
+    device_class_set_bus_type(dc, TYPE_SCLP_EVENTS_BUS);
     dc->realize = event_realize;
     dc->unrealize = event_unrealize;
 }

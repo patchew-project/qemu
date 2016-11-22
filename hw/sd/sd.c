@@ -1917,7 +1917,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
     dc->props = sd_properties;
     dc->vmsd = &sd_vmstate;
     dc->reset = sd_reset;
-    dc->bus_type = TYPE_SD_BUS;
+    device_class_set_bus_type(dc, TYPE_SD_BUS);
 
     sc->do_command = sd_do_command;
     sc->write_data = sd_write_data;

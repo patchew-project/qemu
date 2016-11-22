@@ -1487,7 +1487,7 @@ static const TypeInfo ccid_info = {
 static void ccid_card_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->bus_type = TYPE_CCID_BUS;
+    device_class_set_bus_type(k, TYPE_CCID_BUS);
     k->init = ccid_card_init;
     k->exit = ccid_card_exit;
     k->props = ccid_props;

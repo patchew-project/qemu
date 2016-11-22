@@ -2247,7 +2247,7 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
 
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
-    dc->bus_type = TYPE_VIRTIO_BUS;
+    device_class_set_bus_type(dc, TYPE_VIRTIO_BUS);
     dc->props = virtio_properties;
     vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;

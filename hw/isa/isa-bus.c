@@ -233,7 +233,7 @@ static const TypeInfo isabus_bridge_info = {
 static void isa_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->bus_type = TYPE_ISA_BUS;
+    device_class_set_bus_type(k, TYPE_ISA_BUS);
 }
 
 static const TypeInfo isa_device_type_info = {

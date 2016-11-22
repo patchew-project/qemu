@@ -939,7 +939,7 @@ static void s390_pci_device_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "zpci device";
     dc->reset = s390_pci_device_reset;
-    dc->bus_type = TYPE_S390_PCI_BUS;
+    device_class_set_bus_type(dc, TYPE_S390_PCI_BUS);
     dc->realize = s390_pci_device_realize;
     dc->props = s390_pci_device_properties;
 }

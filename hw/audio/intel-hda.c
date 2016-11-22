@@ -1327,7 +1327,7 @@ static void hda_codec_device_class_init(ObjectClass *klass, void *data)
     k->realize = hda_codec_dev_realize;
     k->exit = hda_codec_dev_exit;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);
-    k->bus_type = TYPE_HDA_BUS;
+    device_class_set_bus_type(k, TYPE_HDA_BUS);
     k->props = hda_props;
 }
 

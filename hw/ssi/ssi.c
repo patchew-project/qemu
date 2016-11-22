@@ -80,7 +80,7 @@ static void ssi_slave_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ssi_slave_realize;
-    dc->bus_type = TYPE_SSI_BUS;
+    device_class_set_bus_type(dc, TYPE_SSI_BUS);
     if (!ssc->transfer_raw) {
         ssc->transfer_raw = ssi_transfer_raw_default;
     }

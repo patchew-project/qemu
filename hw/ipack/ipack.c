@@ -81,7 +81,7 @@ static void ipack_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_INPUT, k->categories);
-    k->bus_type = TYPE_IPACK_BUS;
+    device_class_set_bus_type(k, TYPE_IPACK_BUS);
     k->realize = ipack_device_realize;
     k->unrealize = ipack_device_unrealize;
     k->props = ipack_device_props;

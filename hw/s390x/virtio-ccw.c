@@ -1550,7 +1550,7 @@ static void virtio_ccw_device_class_init(ObjectClass *klass, void *data)
     k->unplug = virtio_ccw_busdev_unplug;
     dc->realize = virtio_ccw_busdev_realize;
     dc->exit = virtio_ccw_busdev_exit;
-    dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
+    device_class_set_bus_type(dc, TYPE_VIRTUAL_CSS_BUS);
 }
 
 static const TypeInfo virtio_ccw_device_info = {

@@ -789,7 +789,7 @@ static void usb_device_instance_init(Object *obj)
 static void usb_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->bus_type = TYPE_USB_BUS;
+    device_class_set_bus_type(k, TYPE_USB_BUS);
     k->realize  = usb_qdev_realize;
     k->unrealize = usb_qdev_unrealize;
     k->props    = usb_props;

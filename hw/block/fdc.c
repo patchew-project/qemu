@@ -593,7 +593,7 @@ static void floppy_drive_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = floppy_drive_init;
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
-    k->bus_type = TYPE_FLOPPY_BUS;
+    device_class_set_bus_type(k, TYPE_FLOPPY_BUS);
     k->props = floppy_drive_properties;
     k->desc = "virtual floppy drive";
 }

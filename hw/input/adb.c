@@ -162,7 +162,7 @@ static void adb_device_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = adb_device_realizefn;
-    dc->bus_type = TYPE_ADB_BUS;
+    device_class_set_bus_type(dc, TYPE_ADB_BUS);
 }
 
 static const TypeInfo adb_device_type_info = {
