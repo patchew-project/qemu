@@ -357,6 +357,13 @@ static void machine_init_notify(Notifier *notifier, void *data)
     foreach_dynamic_sysbus_device(error_on_sysbus_device, NULL);
 }
 
+void machine_class_add_default_bus(MachineClass *mc, const char *typename)
+{
+    mc->default_buses =
+        g_list_append(mc->default_buses, g_strdup(typename));
+
+}
+
 static void machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -364,6 +371,8 @@ static void machine_class_init(ObjectClass *oc, void *data)
     /* Default 128 MB as guest ram size */
     mc->default_ram_size = 128 * M_BYTE;
     mc->rom_file_has_mr = true;
+
+    machine_class_add_default_bus(mc, TYPE_SYSTEM_BUS);
 
     object_class_property_add_str(oc, "accel",
         machine_get_accel, machine_set_accel, &error_abort);
@@ -466,13 +475,20 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     if (!object_class_is_abstract(oc)) {
-        MachineClass *mc = MACHINE_CLASS(oc);
         const char *cname = object_class_get_name(oc);
         assert(g_str_has_suffix(cname, TYPE_MACHINE_SUFFIX));
         mc->name = g_strndup(cname,
                             strlen(cname) - strlen(TYPE_MACHINE_SUFFIX));
     }
+
+    /*FIXME: this should be g_list_copy_deep(), but it requires
+     * a more recent GLib version. Should be replaced with something
+     * equivalent.
+     */
+    mc->default_buses = g_list_copy(mc->default_buses);
 }
 
 static void machine_initfn(Object *obj)
