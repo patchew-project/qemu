@@ -558,3 +558,8 @@ BdrvDirtyBitmap *bdrv_next_dirty_bitmap(BlockDriverState *bs,
 
     return QLIST_NEXT(bitmap, list);
 }
+
+char *bdrv_dirty_bitmap_sha256(const BdrvDirtyBitmap *bitmap, Error **errp)
+{
+    return hbitmap_sha256(bitmap->bitmap, errp);
+}
