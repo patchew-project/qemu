@@ -386,6 +386,9 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 #define PCI_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(PCIBusClass, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
+/* Interface implemented by devices that can be plugged on PCIE buses */
+#define INTERFACE_PCIE_DEVICE "PCIE-device"
+
 bool pci_bus_is_express(PCIBus *bus);
 bool pci_bus_is_root(PCIBus *bus);
 void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,

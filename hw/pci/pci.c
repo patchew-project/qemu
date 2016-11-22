@@ -167,8 +167,20 @@ static const TypeInfo pci_bus_info = {
     .class_init = pci_bus_class_init,
 };
 
+static const TypeInfo pcie_interface_info = {
+    .name          = INTERFACE_PCIE_DEVICE,
+    .parent        = TYPE_INTERFACE,
+};
+
+static void pcie_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = INTERFACE_PCIE_DEVICE;
+}
+
 static const TypeInfo pcie_bus_info = {
     .name = TYPE_PCIE_BUS,
+    .class_init = pcie_bus_class_init,
     .parent = TYPE_PCI_BUS,
 };
 
@@ -2627,6 +2639,7 @@ static void pci_register_types(void)
 {
     type_register_static(&pci_bus_info);
     type_register_static(&pcie_bus_info);
+    type_register_static(&pcie_interface_info);
     type_register_static(&pci_device_type_info);
 }
 
