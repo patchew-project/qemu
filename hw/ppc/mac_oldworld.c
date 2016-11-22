@@ -375,6 +375,9 @@ static void heathrow_machine_init(MachineClass *mc)
     /* TOFIX "cad" when Mac floppy is implemented */
     mc->default_boot_order = "cd";
     mc->kvm_type = heathrow_kvm_type;
+    machine_class_add_default_bus(mc, TYPE_IDE_BUS);
+    machine_class_add_default_bus(mc, TYPE_ADB_BUS);
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
 }
 
 DEFINE_MACHINE("g3beige", heathrow_machine_init)

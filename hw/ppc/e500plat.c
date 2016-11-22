@@ -17,6 +17,7 @@
 #include "sysemu/kvm.h"
 #include "hw/pci/pci.h"
 #include "hw/ppc/openpic.h"
+#include "hw/virtio/virtio-bus.h"
 #include "kvm_ppc.h"
 
 static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
@@ -64,6 +65,8 @@ static void e500plat_machine_init(MachineClass *mc)
     mc->init = e500plat_init;
     mc->max_cpus = 32;
     mc->has_dynamic_sysbus = true;
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
+    machine_class_add_default_bus(mc, TYPE_VIRTIO_BUS);
 }
 
 DEFINE_MACHINE("ppce500", e500plat_machine_init)

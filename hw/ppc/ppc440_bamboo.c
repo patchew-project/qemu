@@ -295,6 +295,7 @@ static void bamboo_machine_init(MachineClass *mc)
 {
     mc->desc = "bamboo";
     mc->init = bamboo_init;
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
 }
 
 DEFINE_MACHINE("bamboo", bamboo_machine_init)

@@ -675,6 +675,10 @@ static void prep_machine_init(MachineClass *mc)
     mc->init = ppc_prep_init;
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cad";
+    machine_class_add_default_bus(mc, "floppy-bus"); //FIXME: use macro
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
+    machine_class_add_default_bus(mc, TYPE_ISA_BUS);
+    machine_class_add_default_bus(mc, "IDE");//FIXME: use macro
 }
 
 DEFINE_MACHINE("prep", prep_machine_init)

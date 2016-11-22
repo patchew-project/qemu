@@ -15,6 +15,8 @@
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/ppc/openpic.h"
+#include "hw/pci/pci.h"
+#include "hw/virtio/virtio-bus.h"
 #include "qemu/error-report.h"
 
 static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
@@ -55,6 +57,8 @@ static void ppce500_machine_init(MachineClass *mc)
     mc->desc = "mpc8544ds";
     mc->init = mpc8544ds_init;
     mc->max_cpus = 15;
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
+    machine_class_add_default_bus(mc, TYPE_VIRTIO_BUS);
 }
 
 DEFINE_MACHINE("mpc8544ds", ppce500_machine_init)

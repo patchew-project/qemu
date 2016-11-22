@@ -521,6 +521,10 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cd";
     mc->kvm_type = core99_kvm_type;
+    machine_class_add_default_bus(mc, TYPE_IDE_BUS);
+    machine_class_add_default_bus(mc, TYPE_ADB_BUS);
+    machine_class_add_default_bus(mc, TYPE_PCI_BUS);
+    machine_class_add_default_bus(mc, TYPE_USB_BUS);
 }
 
 static const TypeInfo core99_machine_info = {
