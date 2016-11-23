@@ -16,6 +16,8 @@
 #include "qemu-common.h"
 #include "qapi/qmp-event.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qjson.h"
 
 static QMPEventFuncEmit qmp_emit;
@@ -33,7 +35,7 @@ QMPEventFuncEmit qmp_event_get_func_emit(void)
 static void timestamp_put(QDict *qdict)
 {
     int err;
-    QObject *obj;
+    QDict *stamp;
     qemu_timeval tv;
     int64_t sec, usec;
 
@@ -47,10 +49,10 @@ static void timestamp_put(QDict *qdict)
         usec = tv.tv_usec;
     }
 
-    obj = qobject_from_jsonf("{ 'seconds': %" PRId64 ", "
-                             "'microseconds': %" PRId64 " }",
-                             sec, usec);
-    qdict_put_obj(qdict, "timestamp", obj);
+    stamp = qdict_new();
+    qdict_put(stamp, "seconds", qint_from_int(sec));
+    qdict_put(stamp, "microseconds", qint_from_int(usec));
+    qdict_put(qdict, "timestamp", stamp);
 }
 
 /*
