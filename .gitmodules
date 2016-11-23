@@ -34,3 +34,6 @@
 [submodule "roms/skiboot"]
 	path = roms/skiboot
 	url = git://git.qemu.org/skiboot.git
+[submodule "roms/edk2"]
+	path = roms/edk2
+	url = https://github.com/tianocore/edk2
