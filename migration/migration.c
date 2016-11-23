@@ -832,12 +832,30 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
                    "an integer in the range of 1 to 99");
         return;
     }
+    if (params->has_cpu_throttle_initial &&
+        (100 - params->cpu_throttle_initial <=
+         s->parameters.cpu_throttle_increment)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE " %ld",
+                   "cpu_throttle_initial",
+                   "an integer smaller than",
+                   100 - s->parameters.cpu_throttle_increment);
+        return;
+    }
     if (params->has_cpu_throttle_increment &&
         (params->cpu_throttle_increment < 1 ||
          params->cpu_throttle_increment > 99)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "cpu_throttle_increment",
                    "an integer in the range of 1 to 99");
+        return;
+    }
+    if (params->has_cpu_throttle_increment &&
+        (params->cpu_throttle_increment >=
+         100 - s->parameters.cpu_throttle_initial)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE " %ld",
+                   "cpu_throttle_increment",
+                   "an integer smaller than",
+                   100 - s->parameters.cpu_throttle_initial);
         return;
     }
     if (params->has_max_bandwidth &&
