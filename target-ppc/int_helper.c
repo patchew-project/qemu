@@ -1870,6 +1870,66 @@ VEXTULX_DO(vextuhlx, 2)
 VEXTULX_DO(vextuwlx, 4)
 #undef VEXTULX_DO
 
+#if defined(HOST_WORDS_BIGENDIAN)
+#  if defined(CONFIG_INT128)
+#  define VEXTURX_DO(name, elem)                                \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+{                                                               \
+    target_ulong r = 0;                                         \
+    int size =  elem * 8;                                       \
+    int index = (15 - (a & 0xf) + 1) * 8;                       \
+    r = EXTRACT128(b->u128, (index - size), size);              \
+    return r;                                                   \
+}
+#  else
+#  define VEXTURX_DO(name, elem)                                        \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)          \
+{                                                                       \
+    target_ulong r = 0;                                                 \
+    int i;                                                              \
+    int index = a & 0xf;                                                \
+    for (i = elem - 1; i >= 0; i--) {                                   \
+        r = r << 8;                                                     \
+        if ((15 - i - index) >= 0) {                                    \
+            r = r | b->u8[15 - i - index];                              \
+        }                                                               \
+    }                                                                   \
+    return r;                                                           \
+}
+#  endif
+#else
+#  if defined(CONFIG_INT128)
+#  define VEXTURX_DO(name, elem)                                \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+{                                                               \
+    target_ulong r = 0;                                         \
+    int index = (a & 0xf) * 8;                                  \
+    r = EXTRACT128(b->u128, index, elem * 8);                   \
+    return r;                                                   \
+}
+#  else
+#  define VEXTURX_DO(name, elem)                                        \
+target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)          \
+{                                                                       \
+    target_ulong r = 0;                                                 \
+    int i;                                                              \
+    int index = 15 - (a & 0xf);                                         \
+    for (i = elem - 1; i >= 0; i--) {                                   \
+        r = r << 8;                                                     \
+        if ((15 + i - index) <= 15) {                                   \
+            r = r | b->u8[15 + i - index];                              \
+        }                                                               \
+    }                                                                   \
+    return r;                                                           \
+}
+#  endif
+#endif
+
+VEXTURX_DO(vextubrx, 1)
+VEXTURX_DO(vextuhrx, 2)
+VEXTURX_DO(vextuwrx, 4)
+#undef VEXTURX_DO
+
 /* The specification says that the results are undefined if all of the
  * shift counts are not identical.  We check to make sure that they are
  * to conform to what real hardware appears to do.  */
