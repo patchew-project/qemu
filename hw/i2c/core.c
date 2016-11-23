@@ -142,6 +142,9 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
            start condition.  */
         if (sc->event) {
             sc->event(node->elt, recv ? I2C_START_RECV : I2C_START_SEND);
+            if (node->elt->busy) {
+                return -1;
+            }
         }
     }
     return 0;
