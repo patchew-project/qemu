@@ -2874,6 +2874,51 @@ uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+{
+    int cr;
+    int i;
+    int ox_flag = 0;
+    uint64_t lo_value;
+    uint64_t hi_value;
+    uint64_t max = 0x38d7ea4c68000;
+    ppc_avr_t ret = { .u64 = { 0, 0 } };
+
+    if (b->s64[HI_IDX] < 0) {
+        lo_value = -b->s64[LO_IDX];
+        hi_value = ~b->u64[HI_IDX] + !lo_value;
+        bcd_put_digit(&ret, 0xD, 0);
+    } else {
+        lo_value = b->u64[LO_IDX];
+        hi_value = b->u64[HI_IDX];
+        bcd_put_digit(&ret, bcd_preferred_sgn(0, ps), 0);
+    }
+
+    if (divu128(&lo_value, &hi_value, max)) {
+        ox_flag = 1;
+    } else if (lo_value >= max && hi_value == 0) {
+        ox_flag = 1;
+    }
+
+    for (i = 1; hi_value; hi_value /= 10, i++) {
+        bcd_put_digit(&ret, hi_value % 10, i);
+    }
+
+    for (; lo_value; lo_value /= 10, i++) {
+        bcd_put_digit(&ret, lo_value % 10, i);
+    }
+
+    cr = bcd_cmp_zero(&ret);
+
+    if (unlikely(ox_flag)) {
+        cr |= 1 << CRF_SO;
+    }
+
+    *r = ret;
+
+    return cr;
+}
+
 void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 {
     int i;
