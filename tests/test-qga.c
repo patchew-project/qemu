@@ -852,8 +852,13 @@ static void test_qga_guest_exec(gconstpointer fix)
     /* wait for completion */
     now = g_get_monotonic_time();
     do {
-        ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec-status',"
-                     " 'arguments': { 'pid': %" PRId64 "  } }", pid);
+        char *cmd;
+
+        cmd = g_strdup_printf("{'execute': 'guest-exec-status',"
+                              " 'arguments': { 'pid': %" PRId64 " } }",
+                              pid);
+        ret = qmp_fd(fixture->fd, cmd);
+        g_free(cmd);
         g_assert_nonnull(ret);
         val = qdict_get_qdict(ret, "return");
         exited = qdict_get_bool(val, "exited");
