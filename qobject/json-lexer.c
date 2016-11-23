@@ -59,11 +59,6 @@ enum json_lexer_state {
     IN_NEG_NONZERO_NUMBER,
     IN_KEYWORD,
     IN_ESCAPE,
-    IN_ESCAPE_L,
-    IN_ESCAPE_LL,
-    IN_ESCAPE_I,
-    IN_ESCAPE_I6,
-    IN_ESCAPE_I64,
     IN_WHITESPACE,
     IN_START,
 };
@@ -225,35 +220,12 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     /* escape */
-    [IN_ESCAPE_LL] = {
-        ['d'] = JSON_ESCAPE,
-    },
-
-    [IN_ESCAPE_L] = {
-        ['d'] = JSON_ESCAPE,
-        ['l'] = IN_ESCAPE_LL,
-    },
-
-    [IN_ESCAPE_I64] = {
-        ['d'] = JSON_ESCAPE,
-    },
-
-    [IN_ESCAPE_I6] = {
-        ['4'] = IN_ESCAPE_I64,
-    },
-
-    [IN_ESCAPE_I] = {
-        ['6'] = IN_ESCAPE_I6,
-    },
-
     [IN_ESCAPE] = {
         ['d'] = JSON_ESCAPE,
         ['i'] = JSON_ESCAPE,
         ['p'] = JSON_ESCAPE,
         ['s'] = JSON_ESCAPE,
         ['f'] = JSON_ESCAPE,
-        ['l'] = IN_ESCAPE_L,
-        ['I'] = IN_ESCAPE_I,
     },
 
     /* top level rule */

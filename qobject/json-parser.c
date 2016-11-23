@@ -467,11 +467,6 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
         return QOBJECT(qbool_from_bool(va_arg(*ap, int)));
     } else if (!strcmp(token->str, "%d")) {
         return QOBJECT(qint_from_int(va_arg(*ap, int)));
-    } else if (!strcmp(token->str, "%ld")) {
-        return QOBJECT(qint_from_int(va_arg(*ap, long)));
-    } else if (!strcmp(token->str, "%lld") ||
-               !strcmp(token->str, "%I64d")) {
-        return QOBJECT(qint_from_int(va_arg(*ap, long long)));
     } else if (!strcmp(token->str, "%s")) {
         return QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
     } else if (!strcmp(token->str, "%f")) {
