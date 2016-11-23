@@ -964,7 +964,7 @@ static void vararg_number(void)
     QInt *qint;
     QFloat *qfloat;
     int value = 0x2342;
-    int64_t value64 = 0x2342342343LL;
+    long long value64 = 0x2342342343LL;
     double valuef = 2.323423423;
 
     obj = qobject_from_jsonf("%d", value);
@@ -976,7 +976,7 @@ static void vararg_number(void)
 
     QDECREF(qint);
 
-    obj = qobject_from_jsonf("%" PRId64, value64);
+    obj = qobject_from_jsonf("%lld", value64);
     g_assert(obj != NULL);
     g_assert(qobject_type(obj) == QTYPE_QINT);
 
