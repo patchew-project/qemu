@@ -160,6 +160,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_S16  0x400    /* Signed 16-bit: -32768 - 32767 */
 #define TCG_CT_CONST_P2M1 0x800    /* Power of 2 minus 1.  */
 #define TCG_CT_CONST_N16  0x1000   /* "Negatable" 16-bit: -32767 - 32767 */
+#define TCG_CT_CONST_WSZ  0x2000   /* word size */
 
 static inline bool is_p2m1(tcg_target_long val)
 {
@@ -215,6 +216,9 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     case 'N':
         ct->ct |= TCG_CT_CONST_N16;
         break;
+    case 'W':
+        ct->ct |= TCG_CT_CONST_WSZ;
+        break;
     case 'Z':
         /* We are cheating a bit here, using the fact that the register
            ZERO is also the register number 0. Hence there is no need
@@ -245,6 +249,8 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
         return 1;
     } else if ((ct & TCG_CT_CONST_P2M1)
                && use_mips32r2_instructions && is_p2m1(val)) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_WSZ) && val == 32) {
         return 1;
     }
     return 0;
@@ -313,6 +319,7 @@ typedef enum {
     OPC_SLTU     = OPC_SPECIAL | 0x2B,
     OPC_SELEQZ   = OPC_SPECIAL | 0x35,
     OPC_SELNEZ   = OPC_SPECIAL | 0x37,
+    OPC_CLZ_R6   = OPC_SPECIAL | 0120,
 
     OPC_REGIMM   = 0x01 << 26,
     OPC_BLTZ     = OPC_REGIMM | (0x00 << 16),
@@ -320,6 +327,7 @@ typedef enum {
 
     OPC_SPECIAL2 = 0x1c << 26,
     OPC_MUL_R5   = OPC_SPECIAL2 | 0x002,
+    OPC_CLZ      = OPC_SPECIAL2 | 040,
 
     OPC_SPECIAL3 = 0x1f << 26,
     OPC_EXT      = OPC_SPECIAL3 | 0x000,
@@ -1625,6 +1633,31 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_clz_i32:
+        if (use_mips32r6_instructions) {
+            if (a2 == 32) {
+                tcg_out_opc_reg(s, OPC_CLZ_R6, a0, a1, 0);
+            } else {
+                tcg_out_opc_reg(s, OPC_CLZ_R6, TCG_TMP0, a1, 0);
+                tcg_out_movcond(s, TCG_COND_EQ, a0, a1, 0, a2, TCG_TMP0);
+            }
+        } else {
+            if (a2 == 32) {
+                tcg_out_opc_reg(s, OPC_CLZ, a0, a1, a1);
+            } else if (a0 == a2) {
+                tcg_out_opc_reg(s, OPC_CLZ, TCG_TMP0, a1, a1);
+                tcg_out_opc_reg(s, OPC_MOVN, a0, TCG_TMP0, a1);
+            } else if (a0 != a1) {
+                tcg_out_opc_reg(s, OPC_CLZ, a0, a1, a1);
+                tcg_out_opc_reg(s, OPC_MOVZ, a0, a2, a1);
+            } else {
+                tcg_out_opc_reg(s, OPC_CLZ, TCG_TMP0, a1, a1);
+                tcg_out_opc_reg(s, OPC_MOVZ, TCG_TMP0, a2, a1);
+                tcg_out_mov(s, TCG_TYPE_REG, a0, TCG_TMP0);
+            }
+        }
+        break;
+
     case INDEX_op_bswap32_i32:
         tcg_out_opc_reg(s, OPC_WSBH, a0, 0, a1);
         tcg_out_opc_sa(s, OPC_ROTR, a0, a0, 16);
@@ -1727,6 +1760,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
     { INDEX_op_rotr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_rotl_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_clz_i32,  { "r", "r", "rWZ" } },
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
