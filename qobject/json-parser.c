@@ -461,23 +461,22 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_ESCAPE);
 
+    /* We only accept a fixed subset of printf. In particular, PRId64
+     * is not guaranteed to work; use long long instead of int64_t. */
     if (!strcmp(token->str, "%p")) {
         return va_arg(*ap, QObject *);
     } else if (!strcmp(token->str, "%i")) {
         return QOBJECT(qbool_from_bool(va_arg(*ap, int)));
     } else if (!strcmp(token->str, "%d")) {
         return QOBJECT(qint_from_int(va_arg(*ap, int)));
-    } else if (!strcmp(token->str, "%ld")) {
-        return QOBJECT(qint_from_int(va_arg(*ap, long)));
-    } else if (!strcmp(token->str, "%lld") ||
-               !strcmp(token->str, "%I64d")) {
+    } else if (!strcmp(token->str, "%lld")) {
         return QOBJECT(qint_from_int(va_arg(*ap, long long)));
     } else if (!strcmp(token->str, "%s")) {
         return QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
     } else if (!strcmp(token->str, "%f")) {
         return QOBJECT(qfloat_from_double(va_arg(*ap, double)));
     }
-    return NULL;
+    assert(false);
 }
 
 static QObject *parse_literal(JSONParserContext *ctxt)
