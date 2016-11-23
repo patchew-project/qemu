@@ -189,6 +189,10 @@ int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
     object_unref(obj);
+
+    qemu_opts_del(opts);
+    opts = NULL;
+
     return 0;
 }
 
