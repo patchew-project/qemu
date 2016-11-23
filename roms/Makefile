@@ -37,6 +37,8 @@ find-cross-prefix = $(subst gcc,,$(notdir $(call find-cross-gcc,$(1))))
 powerpc64_cross_prefix := $(call find-cross-prefix,powerpc64)
 powerpc_cross_prefix := $(call find-cross-prefix,powerpc)
 x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
+arm_cross_prefix := $(call find-cross-prefix,arm)
+aarch64_cross_prefix := $(call find-cross-prefix,aarch64)
 
 # tag our seabios builds
 SEABIOS_EXTRAVERSION="-prebuilt.qemu-project.org"
@@ -151,7 +153,31 @@ skiboot:
 	$(MAKE) -C skiboot CROSS=$(powerpc64_cross_prefix)
 	cp skiboot/skiboot.lid ../pc-bios/skiboot.lid
 
-clean:
+
+edk2: edk2-ovmf32 edk2-ovmf64 edk2-arm edk2-aarch64
+
+edk2-ovmf32:
+	sh ./compile-edk2.sh i386 $(x86_64_cross_prefix)
+
+edk2-ovmf64:
+	sh ./compile-edk2.sh x86_64 $(x86_64_cross_prefix)
+
+edk2-arm:
+	sh ./compile-edk2.sh arm $(arm_cross_prefix)
+
+edk2-aarch64:
+	sh ./compile-edk2.sh aarch64 $(aarch64_cross_prefix)
+
+edk2-clean:
+	make -C edk2/BaseTools clean
+	rm -rf edk2/Build
+	rm -rf edk2/Conf/BuildEnv.sh
+	rm -rf edk2/Conf/build_rule.txt
+	rm -rf edk2/Conf/target.txt
+	rm -rf edk2/Conf/tools_def.txt
+
+
+clean: edk2-clean
 	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) -C vgabios clean
 	rm -f vgabios/VGABIOS-lgpl-latest*
