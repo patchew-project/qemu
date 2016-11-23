@@ -1,2 +1,3 @@
 common-obj-$(CONFIG_TPM_TIS) += tpm_tis.o
+common-obj-$(CONFIG_TPM_I2C_ATMEL) += tpm_i2c_atmel.o
 common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o tpm_util.o
