@@ -9426,7 +9426,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_syslog)
     case TARGET_NR_syslog:
         {
-            int len = arg2;
+            int len = arg3;
 
             switch (arg1) {
             case TARGET_SYSLOG_ACTION_CLOSE:         /* Close log */
@@ -9450,13 +9450,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                         goto fail;
                     }
                     ret = 0;
-                    if (len == 0) {
-                        break;
-                    }
-                    p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-                    if (!p) {
-                        ret = -TARGET_EFAULT;
-                        goto fail;
+                    p = NULL;
+                    if (arg2) {
+                        p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+                        if (!p) {
+                            ret = -TARGET_EFAULT;
+                            goto fail;
+                        }
                     }
                     ret = get_errno(sys_syslog((int)arg1, p, (int)arg3));
                     unlock_user(p, arg2, arg3);
