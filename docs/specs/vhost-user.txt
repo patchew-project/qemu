@@ -130,12 +130,14 @@ is a list of the ones that do:
  * VHOST_USER_GET_PROTOCOL_FEATURES
  * VHOST_USER_GET_VRING_BASE
  * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_SET_PEER_CONNECTION
 
 [ Also see the section on REPLY_ACK protocol extension. ]
 
 Currently, the communication also supports the slave actively sending messages
 to the master. Here is a list of them:
  * VHOST_USER_SET_FEATURES
+ * VHOST_USER_SET_PEER_CONNECTION
 
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
@@ -478,6 +480,39 @@ Message types
       is present in VHOST_USER_GET_PROTOCOL_FEATURES.
       The first 6 bytes of the payload contain the mac address of the guest to
       allow the vhost user backend to construct and broadcast the fake RARP.
+
+ * VHOST_USER_SET_PEER_CONNECTION
+
+      Id: 20
+      Equivalent ioctl: N/A
+      Master payload: u64
+      Slave payload: u64
+
+      The slave device requests to connect or disconnect to the master device.
+      The master device may request to disconnect to the slave device.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_VHOST_PCI has
+      been negotiated.
+
+      Connection command (ON): If the reply message indicates "success", the
+      connection status is "active", and the slave can start to transmit and
+      receive packets to the master through the vhost-pci dataplane. Replying of
+      this message is asynchronous, because the device needs to talk to the
+      driver first.
+      Disconnection command (OFF): If the reply message indicates "success", the
+      connection status is "inactive". The slave cannot use the vhost-pci
+      dataplane when the connection is "inactive". Replying of this message is
+      asynchronous, because the device needs to talk to the driver first.
+      Creation command (CREATE): Sent by the master to the slave to request for
+      the creation of a slave device. If the reply messages indicates "success",
+      it means that the slave is able to create a slave device for the master.
+      Destroy command (DESTROY): Sent by the master to the slave to request for
+      the destruction of the slave device. This command should only be sent when
+      the connection is "inactive". No reply is needed for this command.
+
+      #define VHOST_USER_SET_PEER_CONNECTION_F_OFF       0
+      #define VHOST_USER_SET_PEER_CONNECTION_F_ON        1
+      #define VHOST_USER_SET_PEER_CONNECTION_F_CREATE    2
+      #define VHOST_USER_SET_PEER_CONNECTION_F_DESTROY   3
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
