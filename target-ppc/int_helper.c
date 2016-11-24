@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/int128.h"
 #include "cpu.h"
 #include "internal.h"
 #include "exec/exec-all.h"
@@ -1804,6 +1805,53 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
         r->f[i] = float32_log2(b->f[i], &env->vec_status);
     }
 }
+
+#if defined(HOST_WORDS_BIGENDIAN)
+# if defined(CONFIG_INT128)
+# define VEXTULX_DO(name, size)                                     \
+    target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+    {                                                               \
+        int index = (a & 0xf) * 8;                                  \
+        return int128_rshift(b->u128, index) &                      \
+            MAKE_64BIT_MASK(0, size);                               \
+    }
+# else
+# define VEXTULX_DO(name, size)                                     \
+    target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+    {                                                               \
+        int index = (a & 0xf) * 8;                                  \
+        Int128 value = int128_make128(b->u64[LO_IDX],               \
+                                      b->u64[HI_IDX]);              \
+        return int128_rshift(value, index) &                        \
+            MAKE_64BIT_MASK(0, size);                               \
+    }
+# endif
+#else
+# if defined(CONFIG_INT128)
+# define VEXTULX_DO(name, size)                                     \
+    target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+    {                                                               \
+        int index = (15 - (a & 0xf) + 1) * 8;                       \
+        return int128_rshift(b->u128, index - size) &               \
+            MAKE_64BIT_MASK(0, size);                               \
+    }
+# else
+# define VEXTULX_DO(name, size)                                     \
+    target_ulong glue(helper_, name)(target_ulong a, ppc_avr_t *b)  \
+    {                                                               \
+        int index = (15 - (a & 0xf) + 1) * 8;                       \
+        Int128 value = int128_make128(b->u64[LO_IDX],               \
+                                      b->u64[HI_IDX]);              \
+        return int128_rshift(value, index - size) &                 \
+            MAKE_64BIT_MASK(0, size);                               \
+    }
+# endif
+#endif
+
+VEXTULX_DO(vextublx, 8)
+VEXTULX_DO(vextuhlx, 16)
+VEXTULX_DO(vextuwlx, 32)
+#undef VEXTULX_DO
 
 /* The specification says that the results are undefined if all of the
  * shift counts are not identical.  We check to make sure that they are
