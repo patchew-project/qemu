@@ -3544,6 +3544,23 @@ if compile_prog "" "" ; then
   inotify1=yes
 fi
 
+# check if fanotify group of system calls is supported
+fanotify=no
+cat > $TMPC << EOF
+#include <sys/fanotify.h>
+
+int
+main(void)
+{
+    fanotify_init(0,0);
+    fanotify_mark(0,0,0,0,0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  fanotify=yes
+fi
+
 # check if utimensat and futimens are supported
 utimens=no
 cat > $TMPC << EOF
@@ -5347,6 +5364,9 @@ if test "$inotify" = "yes" ; then
 fi
 if test "$inotify1" = "yes" ; then
   echo "CONFIG_INOTIFY1=y" >> $config_host_mak
+fi
+if test "$fanotify" = "yes" ; then
+  echo "CONFIG_FANOTIFY=y" >> $config_host_mak
 fi
 if test "$byteswap_h" = "yes" ; then
   echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
