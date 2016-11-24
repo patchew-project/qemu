@@ -264,11 +264,12 @@ restarted.
 Protocol features
 -----------------
 
-#define VHOST_USER_PROTOCOL_F_MQ             0
-#define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
-#define VHOST_USER_PROTOCOL_F_RARP           2
-#define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
-#define VHOST_USER_PROTOCOL_F_VHOST_PCI      4
+#define VHOST_USER_PROTOCOL_F_MQ               0
+#define VHOST_USER_PROTOCOL_F_LOG_SHMFD        1
+#define VHOST_USER_PROTOCOL_F_RARP             2
+#define VHOST_USER_PROTOCOL_F_REPLY_ACK        3
+#define VHOST_USER_PROTOCOL_F_VHOST_PCI        4
+#define VHOST_USER_PROTOCOL_F_VERSATILE_SLAVE  5
 
 Message types
 -------------
@@ -513,6 +514,16 @@ Message types
       #define VHOST_USER_SET_PEER_CONNECTION_F_ON        1
       #define VHOST_USER_SET_PEER_CONNECTION_F_CREATE    2
       #define VHOST_USER_SET_PEER_CONNECTION_F_DESTROY   3
+
+ * VHOST_USER_SET_DEV_INFO
+
+      Id: 21
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      The master sends the device type info to the slave.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_VERSATILE_SLAVE
+      has been negotiated.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
