@@ -52,18 +52,8 @@
     (stl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
                  (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val))
 
-typedef struct PVSCSIClass {
-    PCIDeviceClass parent_class;
-    DeviceRealize parent_dc_realize;
-} PVSCSIClass;
-
 #define TYPE_PVSCSI "pvscsi"
 #define PVSCSI(obj) OBJECT_CHECK(PVSCSIState, (obj), TYPE_PVSCSI)
-
-#define PVSCSI_DEVICE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PVSCSIClass, (klass), TYPE_PVSCSI)
-#define PVSCSI_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PVSCSIClass, (obj), TYPE_PVSCSI)
 
 /* Compatibility flags for migration */
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT 0
@@ -1262,24 +1252,19 @@ static Property pvscsi_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pvscsi_realize(DeviceState *qdev, Error **errp)
+static void pvscsi_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PVSCSIClass *pvs_c = PVSCSI_DEVICE_GET_CLASS(qdev);
-    PCIDevice *pci_dev = PCI_DEVICE(qdev);
-    PVSCSIState *s = PVSCSI(qdev);
+    PVSCSIState *s = PVSCSI(pci_dev);
 
-    if (!(s->compat_flags & PVSCSI_COMPAT_DISABLE_PCIE)) {
-        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    if (s->compat_flags & PVSCSI_COMPAT_DISABLE_PCIE) {
+        pci_dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
     }
-
-    pvs_c->parent_dc_realize(qdev, errp);
 }
 
 static void pvscsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    PVSCSIClass *pvs_k = PVSCSI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->init = pvscsi_init;
@@ -1288,8 +1273,8 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VMWARE_PVSCSI;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
-    pvs_k->parent_dc_realize = dc->realize;
-    dc->realize = pvscsi_realize;
+    k->realize = pvscsi_pci_realize;
+    k->is_express = 1;
     dc->reset = pvscsi_reset;
     dc->vmsd = &vmstate_pvscsi;
     dc->props = pvscsi_properties;
@@ -1301,7 +1286,6 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pvscsi_info = {
     .name          = TYPE_PVSCSI,
     .parent        = TYPE_PCI_DEVICE,
-    .class_size    = sizeof(PVSCSIClass),
     .instance_size = sizeof(PVSCSIState),
     .class_init    = pvscsi_class_init,
     .interfaces = (InterfaceInfo[]) {
