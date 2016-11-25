@@ -152,7 +152,10 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->realize = pci_bus_realize;
     k->unrealize = pci_bus_unrealize;
     k->reset = pcibus_reset;
-    k->device_type = TYPE_PCI_DEVICE;
+    /* note that TYPE_PCIE_BUS is a TYPE_PCI_BUS subclass,
+     * but overrides BusClass::device_type to INTERFACE_PCIE_DEVICE
+     */
+    k->device_type = INTERFACE_LEGACY_PCI_DEVICE;
 
     pbc->is_root = pcibus_is_root;
     pbc->bus_num = pcibus_num;
@@ -177,8 +180,19 @@ static const TypeInfo legacy_pci_interface_info = {
     .parent        = TYPE_INTERFACE,
 };
 
+static void pcie_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    /* Note that this is the default value for accepted_device_types,
+     * but specific PCIe bus instances may override it.
+     * (e.g. q35 root bus accepts both legacy and PCIe devices).
+     */
+    bc->device_type = INTERFACE_PCIE_DEVICE;
+}
+
 static const TypeInfo pcie_bus_info = {
     .name = TYPE_PCIE_BUS,
+    .class_init = pcie_bus_class_init,
     .parent = TYPE_PCI_BUS,
 };
 
