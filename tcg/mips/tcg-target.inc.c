@@ -696,6 +696,11 @@ static inline void tcg_out_ext32u(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
+static inline void tcg_out_ext32s(TCGContext *s, TCGReg ret, TCGReg arg)
+{
+    tcg_out_opc_reg(s, OPC_ADDU, ret, arg, TCG_REG_ZERO);
+}
+
 static void tcg_out_ldst(TCGContext *s, MIPSInsn opc, TCGReg data,
                          TCGReg addr, intptr_t ofs)
 {
@@ -2023,6 +2028,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i32:
+#if TCG_TARGET_REG_BITS == 64
+        tcg_out_ext32s(s, a0, a0);
+        tcg_out_ext32s(s, a1, a1);
+        /* FALLTHRU */
+#endif
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, a2, a0, a1, arg_label(args[3]));
         break;
@@ -2031,11 +2041,21 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_movcond_i32:
+#if TCG_TARGET_REG_BITS == 64
+        tcg_out_ext32s(s, a1, a1);
+        tcg_out_ext32s(s, a2, a2);
+        /* FALLTHRU */
+#endif
     case INDEX_op_movcond_i64:
         tcg_out_movcond(s, args[5], a0, a1, a2, args[3], args[4]);
         break;
 
     case INDEX_op_setcond_i32:
+#if TCG_TARGET_REG_BITS == 64
+        tcg_out_ext32s(s, a1, a1);
+        tcg_out_ext32s(s, a2, a2);
+        /* FALLTHRU */
+#endif
     case INDEX_op_setcond_i64:
         tcg_out_setcond(s, args[3], a0, a1, a2);
         break;
