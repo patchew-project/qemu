@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
+#include "qapi/clone-visitor.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -1556,6 +1557,11 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->name = g_strdup(mc->name);
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
         info->hotpluggable_cpus = !!mc->query_hotpluggable_cpus;
+        if (mc->always_available_buses) {
+            info->always_available_buses =
+                QAPI_CLONE(MachineBusInfoList, mc->always_available_buses);
+            info->has_always_available_buses = true;
+        }
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;

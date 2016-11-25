@@ -42,6 +42,10 @@ bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
 void machine_register_compat_props(MachineState *machine);
 
+MachineBusInfo *machine_class_add_always_available_bus(MachineClass *mc,
+                                                       const char *bus_id,
+                                                       const char *bus_type);
+
 /**
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
@@ -92,6 +96,8 @@ typedef struct {
  *    size than the target architecture's minimum. (Attempting to create
  *    such a CPU will fail.) Note that changing this is a migration
  *    compatibility break for the machine.
+ * @default_buses:
+ *    List of typenames of buses that are created by default by the machine.
  */
 struct MachineClass {
     /*< private >*/
@@ -131,6 +137,7 @@ struct MachineClass {
     bool option_rom_has_mr;
     bool rom_file_has_mr;
     int minimum_page_bits;
+    MachineBusInfoList *always_available_buses;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);

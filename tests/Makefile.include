@@ -315,6 +315,8 @@ check-qtest-s390x-y = tests/boot-serial-test$(EXESUF)
 
 check-qtest-generic-y += tests/qom-test$(EXESUF)
 
+check-simpleqtest-generic-y += $(SRC_PATH)/tests/qmp-machine-info.py
+
 qapi-schema += alternate-any.json
 qapi-schema += alternate-array.json
 qapi-schema += alternate-base.json

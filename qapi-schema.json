@@ -3163,6 +3163,29 @@
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
 ##
+# @MachineBusInfo
+#
+# Information about a bus present on a machine.
+#
+# @bus-id: Path of the bus. Can be a partial path, as long
+#          as it is not ambiguous and can be used as
+#          the @path argument of @qom-get and @bus argument
+#          of @device_add
+#
+# @bus-type: Type name of the bus
+#
+# @accepted-device-types: List of device types accepted by the bus.
+#                         The type names can be used as the @implements
+#                         parameter of @qom-list-types to find the full
+#                         list of device types accepted by the bus.
+#
+# Since: 2.9.0
+##
+{ 'struct': 'MachineBusInfo',
+  'data': { 'bus-id': 'str', 'bus-type': 'str',
+            'accepted-device-types': [ 'str' ] } }
+
+##
 # @MachineInfo:
 #
 # Information describing a machine.
@@ -3178,12 +3201,24 @@
 #
 # @hotpluggable-cpus: cpu hotplug via -device is supported (since 2.7.0)
 #
+# @always-available-buses: Information on buses that are always available
+#                          on the machine. The buses present on this list
+#                          will be available on the machine even if the
+#                          "-nodefaults" option is present on the command-line.
+#                          The field is not provided by all machines, but if
+#                          it is present software must make no assumptions
+#                          about the buses on the machine, and their IDs, and
+#                          should use this field to build -device arguments.
+#                          configuration options.
+#                          (since 2.9.0)
+#
 # Since: 1.2.0
 ##
 { 'struct': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
             '*is-default': 'bool', 'cpu-max': 'int',
-            'hotpluggable-cpus': 'bool'} }
+            'hotpluggable-cpus': 'bool',
+            '*always-available-buses': [ 'MachineBusInfo' ] } }
 
 ##
 # @query-machines:

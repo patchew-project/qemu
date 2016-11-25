@@ -19,6 +19,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
+#include "qapi/clone-visitor.h"
 
 static char *machine_get_accel(Object *obj, Error **errp)
 {
@@ -357,6 +358,32 @@ static void machine_init_notify(Notifier *notifier, void *data)
     foreach_dynamic_sysbus_device(error_on_sysbus_device, NULL);
 }
 
+
+/* Add an item to always_available_bus list
+ *
+ * The accepted_device_types field is automatically filled using
+ * BusClass::device_type.
+ */
+MachineBusInfo *machine_class_add_always_available_bus(MachineClass *mc,
+                                                       const char *bus_id,
+                                                       const char *bus_type)
+{
+    BusClass *bc = BUS_CLASS(object_class_by_name(bus_type));
+    MachineBusInfo *bi = g_new0(MachineBusInfo, 1);
+    MachineBusInfoList *bl = g_new0(MachineBusInfoList, 1);
+
+    bi->bus_id = g_strdup(bus_id);
+    bi->bus_type = g_strdup(bus_type);
+    bi->accepted_device_types = g_new0(strList, 1);
+    bi->accepted_device_types->value = g_strdup(bc->device_type);
+
+    bl->value = bi;
+    bl->next = mc->always_available_buses;
+    mc->always_available_buses = bl;
+
+    return bi;
+}
+
 static void machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -466,13 +493,17 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     if (!object_class_is_abstract(oc)) {
-        MachineClass *mc = MACHINE_CLASS(oc);
         const char *cname = object_class_get_name(oc);
         assert(g_str_has_suffix(cname, TYPE_MACHINE_SUFFIX));
         mc->name = g_strndup(cname,
                             strlen(cname) - strlen(TYPE_MACHINE_SUFFIX));
     }
+
+    mc->always_available_buses =
+        QAPI_CLONE(MachineBusInfoList, mc->always_available_buses);
 }
 
 static void machine_initfn(Object *obj)
