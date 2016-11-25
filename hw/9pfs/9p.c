@@ -532,10 +532,37 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
     return 0;
 }
 
+static void coroutine_fn pdu_cancel(V9fsPDU *pdu)
+{
+    pdu->cancelled = 1;
+    /*
+     * Wait for pdu to complete.
+     */
+    qemu_co_queue_wait(&pdu->complete);
+    pdu->cancelled = 0;
+    if (!qemu_co_queue_next(&pdu->complete)) {
+        pdu_free(pdu);
+    }
+}
+
 static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
     V9fsFidState *fidp;
+    bool done = false;
+
+    while (!done) {
+        V9fsPDU *cancel_pdu;
+
+        done = true;
+        QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
+            if (cancel_pdu != pdu) {
+                done = false;
+                pdu_cancel(cancel_pdu);
+                break;
+            }
+        }
+    }
 
     /* Free all fids */
     while (s->fid_list) {
@@ -547,6 +574,7 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
         } else {
             free_fid(pdu, fidp);
         }
+        free_fid(pdu, fidp);
     }
 }
 
@@ -669,7 +697,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 
     pdu_push_and_notify(pdu);
 
-    /* Now wakeup anybody waiting in flush for this request */
+    /* Now wakeup anybody waiting in flush or reset for this request */
     if (!qemu_co_queue_next(&pdu->complete)) {
         pdu_free(pdu);
     }
@@ -2354,13 +2382,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
         }
     }
     if (cancel_pdu) {
-        cancel_pdu->cancelled = 1;
-        /*
-         * Wait for pdu to complete.
-         */
-        qemu_co_queue_wait(&cancel_pdu->complete);
-        cancel_pdu->cancelled = 0;
-        pdu_free(cancel_pdu);
+        pdu_cancel(cancel_pdu);
     }
     pdu_complete(pdu, 7);
 }
