@@ -406,16 +406,16 @@ static void edu_class_init(ObjectClass *class, void *data)
     k->class_id = PCI_CLASS_OTHERS;
 }
 
+static const TypeInfo edu_info = {
+    .name          = "edu",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(EduState),
+    .instance_init = edu_instance_init,
+    .class_init    = edu_class_init,
+};
+
 static void pci_edu_register_types(void)
 {
-    static const TypeInfo edu_info = {
-        .name          = "edu",
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(EduState),
-        .instance_init = edu_instance_init,
-        .class_init    = edu_class_init,
-    };
-
     type_register_static(&edu_info);
 }
 type_init(pci_edu_register_types)
