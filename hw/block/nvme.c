@@ -981,7 +981,6 @@ static const TypeInfo nvme_info = {
     .instance_init = nvme_instance_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_LEGACY_PCI_DEVICE },
         { }
     },
 };

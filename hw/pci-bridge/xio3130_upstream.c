@@ -166,6 +166,7 @@ static const TypeInfo xio3130_upstream_info = {
     .parent        = TYPE_PCIE_PORT,
     .class_init    = xio3130_upstream_class_init,
     .interfaces = (InterfaceInfo[]) {
+        /*FIXME: remove INTERFACE_LEGACY_PCI_DEVICE */
         { INTERFACE_PCIE_DEVICE },
         { }
     },

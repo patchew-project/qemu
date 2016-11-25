@@ -209,6 +209,7 @@ static const TypeInfo ioh3420_info = {
     .parent        = TYPE_PCIE_SLOT,
     .class_init    = ioh3420_class_init,
     .interfaces = (InterfaceInfo[]) {
+        /*FIXME: remove INTERFACE_LEGACY_PCI_DEVICE */
         { INTERFACE_PCIE_DEVICE },
         { }
     },

@@ -2527,10 +2527,6 @@ static const TypeInfo megasas_info = {
     .instance_size = sizeof(MegasasState),
     .class_size = sizeof(MegasasBaseClass),
     .abstract = true,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_LEGACY_PCI_DEVICE },
-        { },
-    },
 };
 
 static void megasas_register_types(void)
@@ -2545,14 +2541,18 @@ static void megasas_register_types(void)
             { INTERFACE_PCIE_DEVICE },
             { },
         };
+        InterfaceInfo legacy_interfaces[] = {
+            { INTERFACE_LEGACY_PCI_DEVICE },
+            { },
+        };
 
         type_info.name = info->name;
         type_info.parent = TYPE_MEGASAS_BASE;
         type_info.class_data = (void *)info;
         type_info.class_init = megasas_class_init;
-        if (info->is_express) {
-            type_info.interfaces = pcie_interfaces;
-        }
+        type_info.interfaces = info->is_express ?
+                               pcie_interfaces :
+                               legacy_interfaces;
 
         type_register(&type_info);
     }
