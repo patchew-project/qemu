@@ -52,6 +52,16 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
     pci->bus = pci_bus_new(DEVICE(s), "pcie.0",
                            s->mch.pci_address_space, s->mch.address_space_io,
                            0, TYPE_PCIE_BUS);
+
+    {
+    /* The root PCIe bus is different, and also accepts legacy PCI devices */
+    /*FIXME: we need to find a better plance to encode this information */
+    strList *new = g_new0(strList, 1);
+    new->value = g_strdup(INTERFACE_LEGACY_PCI_DEVICE);
+    new->next = BUS(pci->bus)->accepted_device_types;
+    BUS(pci->bus)->accepted_device_types = new;
+    }
+
     PC_MACHINE(qdev_get_machine())->bus = pci->bus;
     qdev_set_parent_bus(DEVICE(&s->mch), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->mch));
