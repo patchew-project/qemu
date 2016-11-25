@@ -36,6 +36,7 @@ static void isa_bus_class_init(ObjectClass *klass, void *data)
 
     k->print_dev = isabus_dev_print;
     k->get_fw_dev_path = isabus_get_fw_dev_path;
+    k->device_type = TYPE_ISA_DEVICE;
 }
 
 static const TypeInfo isa_dma_info = {

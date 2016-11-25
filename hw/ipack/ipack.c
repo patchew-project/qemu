@@ -106,9 +106,16 @@ static const TypeInfo ipack_device_info = {
     .abstract      = true,
 };
 
+static void ipack_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_IPACK_DEVICE;
+}
+
 static const TypeInfo ipack_bus_info = {
     .name = TYPE_IPACK_BUS,
     .parent = TYPE_BUS,
+    .class_init = ipack_bus_class_init,
     .instance_size = sizeof(IPackBus),
 };
 

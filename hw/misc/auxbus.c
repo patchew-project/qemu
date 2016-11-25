@@ -57,6 +57,7 @@ static void aux_bus_class_init(ObjectClass *klass, void *data)
      * in monitor.
      */
     k->print_dev = aux_slave_dev_print;
+    k->device_type = TYPE_AUX_SLAVE;
 }
 
 AUXBus *aux_init_bus(DeviceState *parent, const char *name)

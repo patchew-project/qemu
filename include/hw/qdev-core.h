@@ -207,6 +207,13 @@ struct BusClass {
     int max_dev;
     /* number of automatically allocated bus ids (e.g. ide.0) */
     int automatic_ids;
+
+    /* default device type for 'accepted-device-type' property
+     *
+     * Most buses return only BusClass::device_type on accepted-device-types,
+     * but on some cases bus instances may override it.
+     */
+    const char *device_type;
 };
 
 typedef struct BusChild {
@@ -228,6 +235,7 @@ struct BusState {
     HotplugHandler *hotplug_handler;
     int max_index;
     bool realized;
+    strList *accepted_device_types;
     QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
 };

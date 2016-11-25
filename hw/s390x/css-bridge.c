@@ -17,6 +17,7 @@
 #include "hw/s390x/css.h"
 #include "ccw-device.h"
 #include "hw/s390x/css-bridge.h"
+#include "hw/s390x/virtio-ccw.h"
 
 /*
  * Invoke device-specific unplug handler, disable the subchannel
@@ -81,6 +82,7 @@ static void virtual_css_bus_class_init(ObjectClass *klass, void *data)
 
     k->reset = virtual_css_bus_reset;
     k->get_dev_path = virtual_css_bus_get_dev_path;
+    k->device_type = TYPE_VIRTIO_CCW_DEVICE;
 }
 
 static const TypeInfo virtual_css_bus_info = {

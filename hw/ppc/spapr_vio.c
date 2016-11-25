@@ -61,6 +61,7 @@ static void spapr_vio_bus_class_init(ObjectClass *klass, void *data)
 
     k->get_dev_path = spapr_vio_get_dev_name;
     k->get_fw_dev_path = spapr_vio_get_dev_name;
+    k->device_type = TYPE_VIO_SPAPR_DEVICE;
 }
 
 static const TypeInfo spapr_vio_bus_info = {

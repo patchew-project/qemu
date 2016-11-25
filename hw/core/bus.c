@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "qapi-visit.h"
 
 static void qbus_set_hotplug_handler_internal(BusState *bus, Object *handler,
                                               Error **errp)
@@ -191,8 +192,15 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
 static void qbus_initfn(Object *obj)
 {
     BusState *bus = BUS(obj);
+    BusClass *bc = BUS_GET_CLASS(bus);
 
     QTAILQ_INIT(&bus->children);
+
+    if (bc->device_type) {
+        bus->accepted_device_types = g_new0(strList, 1);
+        bus->accepted_device_types->value = g_strdup(bc->device_type);
+    }
+
     object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
                              TYPE_HOTPLUG_HANDLER,
                              (Object **)&bus->hotplug_handler,
@@ -208,12 +216,25 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(object_get_typename(OBJECT(dev)));
 }
 
+static void bus_get_device_type(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    BusState *bus = BUS(obj);
+
+    visit_type_strList(v, NULL, &bus->accepted_device_types, errp);
+}
+
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
 
     class->unparent = bus_unparent;
     bc->get_fw_dev_path = default_bus_get_fw_dev_path;
+
+    object_class_property_add(class, "accepted-device-types", "strList",
+                              bus_get_device_type, NULL, NULL, NULL,
+                              &error_abort);
 }
 
 static void qbus_finalize(Object *obj)
