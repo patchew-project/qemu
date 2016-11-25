@@ -4698,10 +4698,6 @@ get_field (const unsigned char *data, enum floatformat_byteorders order,
   return result;
 }
 
-#ifndef min
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
 /* Convert from FMT to a double.
    FROM is the address of the extended float.
    Store the double in *TO.  */

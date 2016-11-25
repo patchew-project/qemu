@@ -30,6 +30,8 @@
  * tcpip.h,v 1.3 1994/08/21 05:27:40 paul Exp
  */
 
+#include "qemu/osdep.h"
+
 #ifndef TCPIP_H
 #define TCPIP_H
 
@@ -85,7 +87,7 @@ struct tcpiphdr {
 /* This is the difference between the size of a tcpiphdr structure, and the
  * size of actual ip+tcp headers, rounded up since we need to align data.  */
 #define TCPIPHDR_DELTA\
-    (max(0,\
+    (MAX(0,\
          (sizeof(struct tcpiphdr)\
           - sizeof(struct ip) - sizeof(struct tcphdr) + 3) & ~3))
 
