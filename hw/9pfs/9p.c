@@ -569,11 +569,7 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
         fidp = s->fid_list;
         s->fid_list = fidp->next;
 
-        if (fidp->ref) {
-            fidp->clunked = 1;
-        } else {
-            free_fid(pdu, fidp);
-        }
+        g_assert(!fidp->ref);
         free_fid(pdu, fidp);
     }
 }
