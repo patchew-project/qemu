@@ -2,6 +2,7 @@
 #define SLIRP_H
 
 #include "qemu/host-utils.h"
+#include "qemu/cutils.h"
 #include "slirp_config.h"
 
 #ifdef _WIN32
@@ -291,10 +292,5 @@ uint8_t tcp_tos(struct socket *);
 int tcp_emu(struct socket *, struct mbuf *);
 int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
-
-#ifndef _WIN32
-#define min(x,y) ((x) < (y) ? (x) : (y))
-#define max(x,y) ((x) > (y) ? (x) : (y))
-#endif
 
 #endif
