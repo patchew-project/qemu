@@ -1723,6 +1723,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     bool pcie_port = pci_bus_is_express(pci_dev->bus) &&
                      !pci_bus_is_root(pci_dev->bus);
 
+    if ((proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE) ||
+        !virtio_pci_modern(proxy)) {
+        pci_dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
+    }
+
     if (!kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
@@ -1855,25 +1860,10 @@ static Property virtio_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void virtio_pci_dc_realize(DeviceState *qdev, Error **errp)
-{
-    VirtioPCIClass *vpciklass = VIRTIO_PCI_GET_CLASS(qdev);
-    VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
-    PCIDevice *pci_dev = &proxy->pci_dev;
-
-    if (!(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE) &&
-        virtio_pci_modern(proxy)) {
-        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
-    }
-
-    vpciklass->parent_dc_realize(qdev, errp);
-}
-
 static void virtio_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
 
     dc->props = virtio_pci_properties;
     k->realize = virtio_pci_realize;
@@ -1881,8 +1871,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
-    vpciklass->parent_dc_realize = dc->realize;
-    dc->realize = virtio_pci_dc_realize;
+    k->is_express = 1;
     dc->reset = virtio_pci_reset;
 }
 
