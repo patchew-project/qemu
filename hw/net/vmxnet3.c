@@ -125,18 +125,8 @@
 
 #define VMXNET_FLAG_IS_SET(field, flag) (((field) & (flag)) == (flag))
 
-typedef struct VMXNET3Class {
-    PCIDeviceClass parent_class;
-    DeviceRealize parent_dc_realize;
-} VMXNET3Class;
-
 #define TYPE_VMXNET3 "vmxnet3"
 #define VMXNET3(obj) OBJECT_CHECK(VMXNET3State, (obj), TYPE_VMXNET3)
-
-#define VMXNET3_DEVICE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(VMXNET3Class, (klass), TYPE_VMXNET3)
-#define VMXNET3_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(VMXNET3Class, (obj), TYPE_VMXNET3)
 
 /* Cyclic ring abstraction */
 typedef struct {
@@ -2288,6 +2278,10 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
     VMXNET3State *s = VMXNET3(pci_dev);
     int ret;
 
+    if (s->compat_flags & VMXNET3_COMPAT_FLAG_DISABLE_PCIE) {
+        pci_dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
+    }
+
     VMW_CBPRN("Starting init...");
 
     memory_region_init_io(&s->bar0, OBJECT(s), &b0_ops, s,
@@ -2682,24 +2676,10 @@ static Property vmxnet3_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void vmxnet3_realize(DeviceState *qdev, Error **errp)
-{
-    VMXNET3Class *vc = VMXNET3_DEVICE_GET_CLASS(qdev);
-    PCIDevice *pci_dev = PCI_DEVICE(qdev);
-    VMXNET3State *s = VMXNET3(qdev);
-
-    if (!(s->compat_flags & VMXNET3_COMPAT_FLAG_DISABLE_PCIE)) {
-        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
-    }
-
-    vc->parent_dc_realize(qdev, errp);
-}
-
 static void vmxnet3_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
-    VMXNET3Class *vc = VMXNET3_DEVICE_CLASS(class);
 
     c->realize = vmxnet3_pci_realize;
     c->exit = vmxnet3_pci_uninit;
@@ -2710,8 +2690,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
     c->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     c->subsystem_id = PCI_DEVICE_ID_VMWARE_VMXNET3;
-    vc->parent_dc_realize = dc->realize;
-    dc->realize = vmxnet3_realize;
+    c->is_express = 1;
     dc->desc = "VMWare Paravirtualized Ethernet v3";
     dc->reset = vmxnet3_qdev_reset;
     dc->vmsd = &vmstate_vmxnet3;
@@ -2722,7 +2701,6 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
 static const TypeInfo vmxnet3_info = {
     .name          = TYPE_VMXNET3,
     .parent        = TYPE_PCI_DEVICE,
-    .class_size    = sizeof(VMXNET3Class),
     .instance_size = sizeof(VMXNET3State),
     .class_init    = vmxnet3_class_init,
     .instance_init = vmxnet3_instance_init,
