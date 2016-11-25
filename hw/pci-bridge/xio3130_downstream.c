@@ -176,7 +176,6 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->is_express = 1;
     k->is_bridge = 1;
     k->config_write = xio3130_downstream_write_config;
     k->init = xio3130_downstream_initfn;
@@ -195,6 +194,10 @@ static const TypeInfo xio3130_downstream_info = {
     .name          = "xio3130-downstream",
     .parent        = TYPE_PCIE_SLOT,
     .class_init    = xio3130_downstream_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
+        { }
+    },
 };
 
 static void xio3130_downstream_register_types(void)

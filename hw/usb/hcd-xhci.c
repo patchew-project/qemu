@@ -3954,7 +3954,6 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
     k->class_id     = PCI_CLASS_SERIAL_USB;
     k->revision     = 0x03;
-    k->is_express   = 1;
 }
 
 static const TypeInfo xhci_info = {
@@ -3962,6 +3961,10 @@ static const TypeInfo xhci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
+        { }
+    },
 };
 
 static void xhci_register_types(void)

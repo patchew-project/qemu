@@ -1962,7 +1962,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     bool is_default_rom;
 
     /* initialize cap_present for pci_is_express() and pci_config_size() */
-    if (pc->is_express) {
+    if (object_class_dynamic_cast(OBJECT_CLASS(pc), INTERFACE_PCIE_DEVICE)) {
         pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
     }
 

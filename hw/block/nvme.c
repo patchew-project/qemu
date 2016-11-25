@@ -957,7 +957,6 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     pc->vendor_id = PCI_VENDOR_ID_INTEL;
     pc->device_id = 0x5845;
     pc->revision = 2;
-    pc->is_express = 1;
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "Non-Volatile Memory Express";
@@ -980,6 +979,10 @@ static const TypeInfo nvme_info = {
     .instance_size = sizeof(NvmeCtrl),
     .class_init    = nvme_class_init,
     .instance_init = nvme_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
+        { }
+    },
 };
 
 static void nvme_register_types(void)

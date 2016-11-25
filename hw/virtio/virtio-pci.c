@@ -1871,7 +1871,6 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
-    k->is_express = 1;
     dc->reset = virtio_pci_reset;
 }
 
@@ -1882,6 +1881,10 @@ static const TypeInfo virtio_pci_info = {
     .class_init    = virtio_pci_class_init,
     .class_size    = sizeof(VirtioPCIClass),
     .abstract      = true,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
+        { }
+    },
 };
 
 /* virtio-blk-pci */

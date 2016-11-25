@@ -1274,7 +1274,6 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
     k->realize = pvscsi_pci_realize;
-    k->is_express = 1;
     dc->reset = pvscsi_reset;
     dc->vmsd = &vmstate_pvscsi;
     dc->props = pvscsi_properties;
@@ -1290,6 +1289,7 @@ static const TypeInfo pvscsi_info = {
     .class_init    = pvscsi_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
+        { INTERFACE_PCIE_DEVICE },
         { }
     }
 };

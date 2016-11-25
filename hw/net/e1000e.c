@@ -666,7 +666,6 @@ static void e1000e_class_init(ObjectClass *class, void *data)
     c->revision = 0;
     c->romfile = "efi-e1000e.rom";
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    c->is_express = 1;
 
     dc->desc = "Intel 82574L GbE Controller";
     dc->reset = e1000e_qdev_reset;
@@ -701,6 +700,10 @@ static const TypeInfo e1000e_info = {
     .instance_size = sizeof(E1000EState),
     .class_init = e1000e_class_init,
     .instance_init = e1000e_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
+        { }
+    },
 };
 
 static void e1000e_register_types(void)

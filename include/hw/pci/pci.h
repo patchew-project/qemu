@@ -229,9 +229,6 @@ typedef struct PCIDeviceClass {
      */
     int is_bridge;
 
-    /* pcie stuff */
-    int is_express;   /* is this device pci express? */
-
     /* rom bar */
     const char *romfile;
 } PCIDeviceClass;
