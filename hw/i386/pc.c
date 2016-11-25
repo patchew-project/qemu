@@ -2298,6 +2298,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;
     mc->reset = pc_machine_reset;
+    machine_class_add_always_available_bus(mc, "sysbus", TYPE_SYSTEM_BUS);
     hc->pre_plug = pc_machine_device_pre_plug_cb;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;

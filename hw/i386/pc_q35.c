@@ -283,6 +283,9 @@ static void pc_q35_init(MachineState *machine)
 
 static void pc_q35_machine_options(MachineClass *m)
 {
+    MachineBusInfo *pcie;
+    strList *new;
+
     m->family = "pc_q35";
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
     m->hot_add_cpu = pc_hot_add_cpu;
@@ -292,6 +295,24 @@ static void pc_q35_machine_options(MachineClass *m)
     m->no_floppy = 1;
     m->has_dynamic_sysbus = true;
     m->max_cpus = 288;
+
+    pcie = machine_class_add_always_available_bus(m, "pcie.0", TYPE_PCIE_BUS);
+    /* The root bus doesn't use the TYPE_PCIE_BUS default: it also accepts
+     * legacy PCI devices.
+     */
+    new = g_new0(strList, 1);
+    new->value = g_strdup(INTERFACE_LEGACY_PCI_DEVICE);
+    new->next = pcie->accepted_device_types;
+    pcie->accepted_device_types = new;
+
+    machine_class_add_always_available_bus(m, "i2c", "i2c-bus"); //FIXME: use macro
+    machine_class_add_always_available_bus(m, "isa.0", TYPE_ISA_BUS);
+    machine_class_add_always_available_bus(m, "ide.0", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.1", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.2", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.3", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.4", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.5", "IDE");//FIXME: use macro
 }
 
 static void pc_q35_2_8_machine_options(MachineClass *m)

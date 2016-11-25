@@ -430,11 +430,26 @@ static void pc_xen_hvm_init(MachineState *machine)
 
 static void pc_i440fx_machine_options(MachineClass *m)
 {
+    MachineBusInfo *pci0;
+
     m->family = "pc_piix";
     m->desc = "Standard PC (i440FX + PIIX, 1996)";
     m->hot_add_cpu = pc_hot_add_cpu;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
+    pci0 = machine_class_add_always_available_bus(m, "pci.0", TYPE_PCI_BUS);
+
+    /* Sanity check to ensure we are reporting only legacy PCI devices as supported */
+    assert(pci0->accepted_device_types != NULL &&
+           pci0->accepted_device_types->next == NULL &&
+           !strcmp(pci0->accepted_device_types->value,
+                     INTERFACE_LEGACY_PCI_DEVICE));
+
+    machine_class_add_always_available_bus(m, "floppy-bus.0", "floppy-bus"); //FIXME: use macro
+    machine_class_add_always_available_bus(m, "i2c", "i2c-bus"); //FIXME: use macro
+    machine_class_add_always_available_bus(m, "isa.0", TYPE_ISA_BUS);
+    machine_class_add_always_available_bus(m, "ide.0", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.1", "IDE");//FIXME: use macro
 }
 
 static void pc_i440fx_2_8_machine_options(MachineClass *m)
@@ -1083,6 +1098,10 @@ static void isapc_machine_options(MachineClass *m)
     m->max_cpus = 1;
     m->option_rom_has_mr = true;
     m->rom_file_has_mr = false;
+    machine_class_add_always_available_bus(m, "floppy-bus.0", "floppy-bus"); //FIXME: use macro
+    machine_class_add_always_available_bus(m, "isa.0", TYPE_ISA_BUS);
+    machine_class_add_always_available_bus(m, "ide.0", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.1", "IDE");//FIXME: use macro
     pcmc->pci_enabled = false;
     pcmc->has_acpi_build = false;
     pcmc->smbios_defaults = false;
@@ -1102,6 +1121,12 @@ static void xenfv_machine_options(MachineClass *m)
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen";
     m->hot_add_cpu = pc_hot_add_cpu;
+    machine_class_add_always_available_bus(m, "floppy-bus.0", "floppy-bus"); //FIXME: use macro
+    machine_class_add_always_available_bus(m, "i2c", "i2c-bus"); //FIXME: use macro
+    machine_class_add_always_available_bus(m, "pci.0", TYPE_PCI_BUS);
+    machine_class_add_always_available_bus(m, "isa.0", TYPE_ISA_BUS);
+    machine_class_add_always_available_bus(m, "ide.0", "IDE");//FIXME: use macro
+    machine_class_add_always_available_bus(m, "ide.1", "IDE");//FIXME: use macro
 }
 
 DEFINE_PC_MACHINE(xenfv, "xenfv", pc_xen_hvm_init,
