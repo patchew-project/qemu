@@ -1003,6 +1003,10 @@ static const TypeInfo ivshmem_common_info = {
     .instance_size = sizeof(IVShmemState),
     .abstract      = true,
     .class_init    = ivshmem_common_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_LEGACY_PCI_DEVICE },
+        { },
+    },
 };
 
 static void ivshmem_check_memdev_is_busy(Object *obj, const char *name,

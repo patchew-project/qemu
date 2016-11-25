@@ -818,6 +818,10 @@ static const TypeInfo pbm_pci_host_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = pbm_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_LEGACY_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pbm_host_class_init(ObjectClass *klass, void *data)

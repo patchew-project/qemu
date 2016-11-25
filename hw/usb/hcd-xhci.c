@@ -3963,6 +3963,7 @@ static const TypeInfo xhci_info = {
     .class_init    = xhci_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
+        { INTERFACE_LEGACY_PCI_DEVICE },
         { }
     },
 };

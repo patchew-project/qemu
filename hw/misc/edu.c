@@ -412,6 +412,10 @@ static const TypeInfo edu_info = {
     .instance_size = sizeof(EduState),
     .instance_init = edu_instance_init,
     .class_init    = edu_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_LEGACY_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pci_edu_register_types(void)

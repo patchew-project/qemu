@@ -715,6 +715,7 @@ static const TypeInfo piix4_pm_info = {
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_ACPI_DEVICE_IF },
+        { INTERFACE_LEGACY_PCI_DEVICE },
         { }
     }
 };

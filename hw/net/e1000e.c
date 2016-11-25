@@ -702,6 +702,7 @@ static const TypeInfo e1000e_info = {
     .instance_init = e1000e_instance_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
+        { INTERFACE_LEGACY_PCI_DEVICE },
         { }
     },
 };

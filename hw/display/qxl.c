@@ -2348,6 +2348,10 @@ static const TypeInfo qxl_pci_type_info = {
     .instance_size = sizeof(PCIQXLDevice),
     .abstract = true,
     .class_init = qxl_pci_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_LEGACY_PCI_DEVICE },
+        { },
+    },
 };
 
 static void qxl_primary_class_init(ObjectClass *klass, void *data)

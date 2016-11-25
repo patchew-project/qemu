@@ -1883,6 +1883,7 @@ static const TypeInfo virtio_pci_info = {
     .abstract      = true,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
+        { INTERFACE_LEGACY_PCI_DEVICE },
         { }
     },
 };

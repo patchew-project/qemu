@@ -161,6 +161,10 @@ static const TypeInfo ehci_pci_type_info = {
     .instance_init = usb_ehci_pci_init,
     .abstract = true,
     .class_init = ehci_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_LEGACY_PCI_DEVICE },
+        { },
+    },
 };
 
 static void ehci_data_class_init(ObjectClass *klass, void *data)

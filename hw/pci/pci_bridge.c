@@ -409,6 +409,10 @@ static const TypeInfo pci_bridge_type_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridge),
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_LEGACY_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pci_bridge_register_types(void)

@@ -2705,6 +2705,7 @@ static const TypeInfo vmxnet3_info = {
     .instance_init = vmxnet3_instance_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
+        { INTERFACE_LEGACY_PCI_DEVICE },
         { }
     },
 };
