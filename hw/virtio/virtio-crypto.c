@@ -856,6 +856,8 @@ static void virtio_crypto_get_config(VirtIODevice *vdev, uint8_t *config)
     stl_le_p(&crypto_cfg.max_cipher_key_len, c->conf.max_cipher_key_len);
     stl_le_p(&crypto_cfg.max_auth_key_len, c->conf.max_auth_key_len);
     stq_le_p(&crypto_cfg.max_size, c->conf.max_size);
+    /* Reserved field */
+    crypto_cfg.reserve = 0;
 
     memcpy(config, &crypto_cfg, c->config_size);
 }
