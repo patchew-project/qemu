@@ -1777,6 +1777,29 @@ static void vfio_check_af_flr(VFIOPCIDevice *vdev, uint8_t pos)
     }
 }
 
+static int vfio_pci_name_to_addr(const char *name, PCIHostDeviceAddress *addr)
+{
+    if (strlen(name) != 12 ||
+        sscanf(name, "%04x:%02x:%02x.%1x", &addr->domain,
+               &addr->bus, &addr->slot, &addr->function) != 4) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
+{
+    PCIHostDeviceAddress tmp;
+
+    if (vfio_pci_name_to_addr(name, &tmp)) {
+        return false;
+    }
+
+    return (tmp.domain == addr->domain && tmp.bus == addr->bus &&
+            tmp.slot == addr->slot && tmp.function == addr->function);
+}
+
 /* return -errno on failure, return 0 on success. */
 static int vfio_get_hot_reset_info(VFIOPCIDevice *vdev,
                                    struct vfio_pci_hot_reset_info **ret_info,
@@ -1935,6 +1958,195 @@ out:
     }
 
     return 0;
+}
+
+static int vfio_device_range_limit(PCIBus *bus)
+{
+    PCIDevice *br = NULL;
+
+    br = pci_bridge_get_device(bus);
+    if (br &&
+        pcie_cap_is_arifwd_enabled(br)) {
+        return 255;
+    }
+
+    return 8;
+}
+
+static void vfio_check_hot_bus_reset(VFIOPCIDevice *vdev, Error **errp)
+{
+    PCIBus *bus = vdev->pdev.bus;
+    struct vfio_pci_hot_reset_info *info = NULL;
+    struct vfio_pci_dependent_device *devices;
+    VFIOGroup *group;
+    int ret, i, devfn, range_limit;
+
+    ret = vfio_get_hot_reset_info(vdev, &info, errp);
+    if (ret) {
+        return;
+    }
+
+    /* List all affected devices by bus reset */
+    devices = &info->devices[0];
+
+    /* Verify that we have all the groups required */
+    for (i = 0; i < info->count; i++) {
+        PCIHostDeviceAddress host;
+        VFIOPCIDevice *tmp;
+        VFIODevice *vbasedev_iter;
+        bool found = false;
+
+        host.domain = devices[i].segment;
+        host.bus = devices[i].bus;
+        host.slot = PCI_SLOT(devices[i].devfn);
+        host.function = PCI_FUNC(devices[i].devfn);
+
+        /* Skip the current device */
+        if (vfio_pci_host_match(&host, vdev->vbasedev.name)) {
+            continue;
+        }
+
+        /* Ensure we own the group of the affected device */
+        QLIST_FOREACH(group, &vfio_group_list, next) {
+            if (group->groupid == devices[i].group_id) {
+                break;
+            }
+        }
+
+        if (!group) {
+            error_setg(errp, "vfio: Cannot enable AER for device %s, "
+                       "depends on group %d which is not owned.",
+                       vdev->vbasedev.name, devices[i].group_id);
+            goto out;
+        }
+
+        /* Ensure all affected devices are on the same bus */
+        QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
+            if (vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+                continue;
+            }
+            tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
+            if (vfio_pci_host_match(&host, tmp->vbasedev.name)) {
+                /*
+                 * AER errors will be broadcast to all functions of a multi-
+                 * function endpoint.  If any of those sibling functions are
+                 * also assigned, they need to have AER enabled or else an
+                 * error may continue to cause a vm_stop condition.  IOW,
+                 * AER setup of this function would be pointless.
+                 */
+                if (!(tmp->features & VFIO_FEATURE_ENABLE_AER)) {
+                    error_setg(errp, "vfio: Cannot enable AER for device %s,"
+                               " which is dependent on device %s on the same"
+                               " slot, which does not enable AER",
+                               vdev->vbasedev.name, tmp->vbasedev.name);
+                    goto out;
+                }
+
+                if (tmp->pdev.bus != bus) {
+                    error_setg(errp, "vfio: Cannot enable AER for device %s,"
+                               " the dependent device %s is not on the same"
+                               " virtual bus",
+                               vdev->vbasedev.name, tmp->vbasedev.name);
+                    goto out;
+                }
+                found = true;
+                break;
+            }
+        }
+
+        /* Ensure all affected devices assigned to VM */
+        if (!found) {
+            error_setg(errp, "vfio: Cannot enable AER for device %s, "
+                       "the dependent device %04x:%02x:%02x.%x "
+                       "is not assigned to VM.",
+                       vdev->vbasedev.name, host.domain, host.bus,
+                       host.slot, host.function);
+            goto out;
+        }
+    }
+
+    /*
+     * The above code verified that all functions in a single device affected
+     * by a bus reset exist on the same bus in the VM.  To further simplify,
+     * we also require that there are no other devices beyond those on the
+     * same VM bus.
+     */
+    range_limit = vfio_device_range_limit(bus);
+    for (devfn = 0; devfn < range_limit; devfn++) {
+        VFIOPCIDevice *tmp;
+        PCIDevice *dev;
+        bool found = false;
+
+        dev = pci_find_device(bus, pci_bus_num(bus),
+                  PCI_DEVFN(PCI_SLOT(vdev->pdev.devfn), devfn));
+
+        if (!dev) {
+            continue;
+        }
+
+        if (!object_dynamic_cast(OBJECT(dev), "vfio-pci")) {
+            error_setg(errp, "vfio: Cannot enable AER for device %s, device"
+                             " %s in slot %d function%d must not be configured"
+                             " on the same virtual bus",
+                             vdev->vbasedev.name, dev->name,
+                             PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
+            goto out;
+        }
+
+        tmp = DO_UPCAST(VFIOPCIDevice, pdev, dev);
+        for (i = 0; i < info->count; i++) {
+            PCIHostDeviceAddress host;
+
+            host.domain = devices[i].segment;
+            host.bus = devices[i].bus;
+            host.slot = PCI_SLOT(devices[i].devfn);
+            host.function = PCI_FUNC(devices[i].devfn);
+
+            if (vfio_pci_host_match(&host, tmp->vbasedev.name)) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            error_setg(errp, "vfio: Cannot enable AER for device %s,"
+                             " affected device %s is not configured"
+                             " on the same virtual bus",
+                       vdev->vbasedev.name, tmp->vbasedev.name);
+            goto out;
+        }
+    }
+
+out:
+    g_free(info);
+    return;
+}
+
+static void vfio_aer_check_host_bus_reset(Error **errp)
+{
+    VFIOGroup *group;
+    VFIODevice *vbasedev;
+    VFIOPCIDevice *vdev;
+    Error *err = NULL;
+
+    /* Check if all vfio-pci devices have bus reset capability */
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (vbasedev->type != VFIO_DEVICE_TYPE_PCI) {
+                continue;
+            }
+            vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+            if (vdev->features & VFIO_FEATURE_ENABLE_AER) {
+                vfio_check_hot_bus_reset(vdev, &err);
+                if (err) {
+                    error_propagate(errp, err);
+                    return;
+                }
+            }
+        }
+    }
+
+    return;
 }
 
 static int vfio_setup_aer(VFIOPCIDevice *vdev, uint8_t cap_ver,
@@ -2162,29 +2374,6 @@ static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
                          vdev->vbasedev.name, nr);
         }
     }
-}
-
-static int vfio_pci_name_to_addr(const char *name, PCIHostDeviceAddress *addr)
-{
-    if (strlen(name) != 12 ||
-        sscanf(name, "%04x:%02x:%02x.%1x", &addr->domain,
-               &addr->bus, &addr->slot, &addr->function) != 4) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
-{
-    PCIHostDeviceAddress tmp;
-
-    if (vfio_pci_name_to_addr(name, &tmp)) {
-        return false;
-    }
-
-    return (tmp.domain == addr->domain && tmp.bus == addr->bus &&
-            tmp.slot == addr->slot && tmp.function == addr->function);
 }
 
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
@@ -2717,6 +2906,21 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static void vfio_pci_machine_done_notify(Notifier *notifier, void *unused)
+{
+    Error *err = NULL;
+
+    vfio_aer_check_host_bus_reset(&err);
+    if (err) {
+        error_report_err(err);
+        exit(1);
+    }
+}
+
+static Notifier machine_notifier = {
+    .notify = vfio_pci_machine_done_notify,
+};
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -3122,6 +3326,15 @@ static const TypeInfo vfio_pci_dev_info = {
 static void register_vfio_pci_dev_type(void)
 {
     type_register_static(&vfio_pci_dev_info);
+
+    /*
+     * The AER configuration may depend on multiple devices, so we cannot
+     * validate consistency after each device is initialized.  We can only
+     * depend on function initialization order (function 0 last) for hotplug
+     * devices, therefore a machine-init-done notifier is used to validate
+     * the configuration after all cold-plug devices are processed.
+     */
+     qemu_add_machine_init_done_notifier(&machine_notifier);
 }
 
 type_init(register_vfio_pci_dev_type)
