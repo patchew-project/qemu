@@ -1942,6 +1942,20 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
     return bus->devices[devfn];
 }
 
+static void pci_function_is_valid(PCIBus *bus, PCIDevice *d, void *opaque)
+{
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(d);
+    Error **errp = opaque;
+
+    if (*errp) {
+        return;
+    }
+
+    if (pc->is_valid_func) {
+        pc->is_valid_func(d, errp);
+    }
+}
+
 static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
@@ -1983,6 +1997,21 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         error_propagate(errp, local_err);
         pci_qdev_unrealize(DEVICE(pci_dev), NULL);
         return;
+    }
+
+    /*
+     *  Hot-added function number 0 indicates the closure of the slot, it is
+     *  time to check whether all functions under the same bus is valid.
+     */
+    if (DEVICE(pci_dev)->hotplugged &&
+        pci_get_function_0(pci_dev) == pci_dev) {
+        pci_for_each_device(bus, pci_bus_num(bus),
+                            pci_function_is_valid, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+            return;
+        }
     }
 }
 
