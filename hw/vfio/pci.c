@@ -3248,6 +3248,19 @@ post_reset:
     vfio_pci_post_reset(vdev);
 }
 
+static void vfio_pci_is_valid(PCIDevice *dev, Error **errp)
+{
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, dev);
+    Error *err = NULL;
+
+    if (vdev->features & VFIO_FEATURE_ENABLE_AER) {
+        vfio_check_hot_bus_reset(vdev, &err);
+        if (err) {
+            error_propagate(errp, err);
+        }
+    }
+}
+
 static void vfio_instance_init(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
@@ -3309,6 +3322,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     pdc->realize = vfio_realize;
     pdc->exit = vfio_exitfn;
+    pdc->is_valid_func = vfio_pci_is_valid;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
     pdc->is_express = 1; /* We might be */
