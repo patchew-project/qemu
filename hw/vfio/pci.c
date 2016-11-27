@@ -1777,6 +1777,49 @@ static void vfio_check_af_flr(VFIOPCIDevice *vdev, uint8_t pos)
     }
 }
 
+/* return -errno on failure, return 0 on success. */
+static int vfio_get_hot_reset_info(VFIOPCIDevice *vdev,
+                                   struct vfio_pci_hot_reset_info **ret_info,
+                                   Error **errp)
+{
+    struct vfio_pci_hot_reset_info *info;
+    int ret, count;
+
+    assert(!(*ret_info));
+
+    info = g_malloc0(sizeof(*info));
+    info->argsz = sizeof(*info);
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret && errno != ENOSPC) {
+        ret = -errno;
+        error_setg(errp, "vfio-pci: fail to get pci hot reset info: %m");
+        goto error;
+    }
+
+    count = info->count;
+
+    info = g_realloc(info, sizeof(*info) +
+                     (count * sizeof(struct vfio_pci_dependent_device)));
+    info->argsz = sizeof(*info) +
+                  (count * sizeof(struct vfio_pci_dependent_device));
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret) {
+        ret = -errno;
+        error_setg(errp, "vfio-pci: fail to get pci hot reset info: %m");
+        goto error;
+    }
+
+    *ret_info = info;
+    info = NULL;
+
+    return 0;
+error:
+    g_free(info);
+    return ret;
+}
+
 static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -2021,12 +2064,13 @@ static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
 static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 {
     VFIOGroup *group;
-    struct vfio_pci_hot_reset_info *info;
+    struct vfio_pci_hot_reset_info *info = NULL;
     struct vfio_pci_dependent_device *devices;
     struct vfio_pci_hot_reset *reset;
     int32_t *fds;
     int ret, i, count;
     bool multi = false;
+    Error *err = NULL;
 
     trace_vfio_pci_hot_reset(vdev->vbasedev.name, single ? "one" : "multi");
 
@@ -2035,12 +2079,9 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     }
     vdev->vbasedev.needs_reset = false;
 
-    info = g_malloc0(sizeof(*info));
-    info->argsz = sizeof(*info);
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
-    if (ret && errno != ENOSPC) {
-        ret = -errno;
+    ret = vfio_get_hot_reset_info(vdev, &info, &err);
+    if (ret) {
+        error_report_err(err);
         if (!vdev->has_pm_reset) {
             error_report("vfio: Cannot reset device %s, "
                          "no available reset mechanism.", vdev->vbasedev.name);
@@ -2048,18 +2089,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
         goto out_single;
     }
 
-    count = info->count;
-    info = g_realloc(info, sizeof(*info) + (count * sizeof(*devices)));
-    info->argsz = sizeof(*info) + (count * sizeof(*devices));
     devices = &info->devices[0];
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
-    if (ret) {
-        ret = -errno;
-        error_report("vfio: hot reset info failed: %m");
-        goto out_single;
-    }
-
     trace_vfio_pci_hot_reset_has_dep_devices(vdev->vbasedev.name);
 
     /* Verify that we have all the groups required */
