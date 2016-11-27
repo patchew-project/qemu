@@ -552,6 +552,34 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     bs->full_open_options = opts;
 }
 
+static char *nbd_dirname(BlockDriverState *bs, Error **errp)
+{
+    BDRVNBDState *s = bs->opaque;
+    const char *host = NULL, *port = NULL, *path = NULL;
+
+    if (s->saddr->type == SOCKET_ADDRESS_KIND_INET) {
+        const InetSocketAddress *inet = s->saddr->u.inet.data;
+        if (!inet->has_ipv4 && !inet->has_ipv6 && !inet->has_to) {
+            host = inet->host;
+            port = inet->port;
+        }
+    } else if (s->saddr->type == SOCKET_ADDRESS_KIND_UNIX) {
+        path = s->saddr->u.q_unix.data->path;
+    }
+
+    if (path) {
+        return g_strdup_printf("nbd:unix:%s:exportname=%s%s", path,
+                               s->export ?: "", s->export ? "/" : "");
+    } else if (host) {
+        return g_strdup_printf("nbd://%s:%s/%s%s", host, port,
+                               s->export ?: "", s->export ? "/" : "");
+    }
+
+    error_setg(errp, "Cannot generate a base directory for NBD node '%s'",
+               bs->filename);
+    return NULL;
+}
+
 static BlockDriver bdrv_nbd = {
     .format_name                = "nbd",
     .protocol_name              = "nbd",
@@ -569,6 +597,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_dirname               = nbd_dirname,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -588,6 +617,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_dirname               = nbd_dirname,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -607,6 +637,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_dirname               = nbd_dirname,
 };
 
 static void bdrv_nbd_init(void)
