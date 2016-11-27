@@ -762,6 +762,12 @@ static BlockDriver bdrv_blkdebug = {
                                 = blkdebug_debug_remove_breakpoint,
     .bdrv_debug_resume          = blkdebug_debug_resume,
     .bdrv_debug_is_suspended    = blkdebug_debug_is_suspended,
+
+    .sgfnt_runtime_opts         = (const char *const[]) { "config",
+                                                          "inject-error.",
+                                                          "set-state.",
+                                                          "suspend.",
+                                                          NULL },
 };
 
 static void bdrv_blkdebug_init(void)
