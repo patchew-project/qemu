@@ -1516,6 +1516,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         goto free_exit;
     }
 
+    if (reference || qdict_size(options)) {
+        /* TODO: Should only be set to true if @options contains actually
+         *       significant runtime options */
+        bs->backing_overridden = true;
+    }
+
     if (bs->backing_format[0] != '\0' && !qdict_haskey(options, "driver")) {
         qdict_put(options, "driver", qstring_from_str(bs->backing_format));
     }
@@ -1659,6 +1665,9 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
     bdrv_ref(bs_snapshot);
     bdrv_append(bs_snapshot, bs);
 
+    bs_snapshot->backing_overridden = true;
+    bdrv_refresh_filename(bs_snapshot);
+
     g_free(tmp_filename);
     return bs_snapshot;
 
@@ -1786,6 +1795,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     backing = qdict_get_try_str(options, "backing");
     if (backing && *backing == '\0') {
         flags |= BDRV_O_NO_BACKING;
+        bs->backing_overridden = true;
         qdict_del(options, "backing");
     }
 
@@ -3959,6 +3969,10 @@ void bdrv_refresh_filename(BlockDriverState *bs)
      * refresh those first */
     QLIST_FOREACH(child, &bs->children, next) {
         bdrv_refresh_filename(child->bs);
+
+        if (child->role == &child_backing && child->bs->backing_overridden) {
+            bs->backing_overridden = true;
+        }
     }
 
     if (drv->bdrv_refresh_filename) {

@@ -891,6 +891,10 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
         assert(!target->backing);
         bdrv_set_backing_hd(target, backing);
+
+        /* The target image's file already has been created with the backing
+         * file we just set, so there is no need to set backing_overridden or
+         * call bdrv_refresh_filename(). */
     }
 
     s->should_complete = true;
