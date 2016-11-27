@@ -888,9 +888,9 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
     if (s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
-        if (backing_bs(target) != backing) {
-            bdrv_set_backing_hd(target, backing);
-        }
+
+        assert(!target->backing);
+        bdrv_set_backing_hd(target, backing);
     }
 
     s->should_complete = true;
