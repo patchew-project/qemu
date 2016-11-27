@@ -2716,18 +2716,56 @@ static void vfio_put_device(VFIOPCIDevice *vdev)
 static void vfio_err_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
+    PCIDevice *dev = &vdev->pdev;
+    Error *err = NULL;
+    PCIEAERMsg msg = {
+        .severity = 0,
+        .source_id = (pci_bus_num(dev->bus) << 8) | dev->devfn,
+    };
+    int len;
+    uint64_t uncor_status;
 
-    if (!event_notifier_test_and_clear(&vdev->err_notifier)) {
+    /* Read the uncorrectable error status from vfio-pci driver via the eventfd */
+    len = read(vdev->err_notifier.rfd, &uncor_status, sizeof(uncor_status));
+    if (len != sizeof(uncor_status)) {
+        error_report("vfio-pci: uncor error status reading returns"
+                     " invalid number of bytes: %d", len);
         return;
     }
 
+    if (!(vdev->features & VFIO_FEATURE_ENABLE_AER)) {
+        goto stop;
+    }
+
     /*
-     * TBD. Retrieve the error details and decide what action
-     * needs to be taken. One of the actions could be to pass
-     * the error to the guest and have the guest driver recover
-     * from the error. This requires that PCIe capabilities be
-     * exposed to the guest. For now, we just terminate the
-     * guest to contain the error.
+     * In case the actual hardware configuration has been changed,
+     * should re-check the bus reset capability here.
+     */
+    vfio_check_hot_bus_reset(vdev, &err);
+    if (err) {
+        error_report_err(err);
+        goto stop;
+    }
+
+    /* Complete the aer msg and send it to root port */
+    if (dev->exp.aer_cap) {
+        uint8_t *aer_cap = dev->config + dev->exp.aer_cap;
+        bool isfatal = uncor_status &
+                       pci_get_long(aer_cap + PCI_ERR_UNCOR_SEVER);
+
+        msg.severity = isfatal ? PCI_ERR_ROOT_CMD_FATAL_EN :
+                                 PCI_ERR_ROOT_CMD_NONFATAL_EN;
+ 
+        error_report("vfio-pci device %d sending AER to root port. uncor"
+                     " status = 0x%"PRIx64, dev->devfn, uncor_status);
+        pcie_aer_msg(dev, &msg);
+        return;
+    }
+
+stop:
+    /*
+     * If the aer capability is not exposed to the guest. we just
+     * terminate the guest to contain the error.
      */
 
     error_report("%s(%s) Unrecoverable error detected. Please collect any data possible and then kill the guest", __func__, vdev->vbasedev.name);
