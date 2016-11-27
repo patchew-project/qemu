@@ -214,12 +214,22 @@ char *bdrv_get_full_backing_filename_from_filename(const char *backed,
 static char *bdrv_make_absolute_filename(BlockDriverState *relative_to,
                                          const char *filename, Error **errp)
 {
-    char *bs_filename = relative_to->exact_filename[0]
-                        ? relative_to->exact_filename
-                        : relative_to->filename;
+    char *dir, *full_name;
 
-    return bdrv_get_full_backing_filename_from_filename(bs_filename, filename,
-                                                        errp);
+    if (filename[0] == '\0' || path_has_protocol(filename) ||
+        path_is_absolute(filename))
+    {
+        return g_strdup(filename);
+    }
+
+    dir = bdrv_dirname(relative_to, errp);
+    if (!dir) {
+        return NULL;
+    }
+
+    full_name = g_strconcat(dir, filename, NULL);
+    g_free(dir);
+    return full_name;
 }
 
 char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp)
