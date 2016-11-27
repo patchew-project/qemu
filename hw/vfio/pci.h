@@ -15,6 +15,7 @@
 #include "qemu-common.h"
 #include "exec/memory.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/vfio/vfio-common.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"
@@ -132,6 +133,8 @@ typedef struct VFIOPCIDevice {
 #define VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT 2
 #define VFIO_FEATURE_ENABLE_IGD_OPREGION \
                                 (1 << VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT)
+#define VFIO_FEATURE_ENABLE_AER_BIT 3
+#define VFIO_FEATURE_ENABLE_AER (1 << VFIO_FEATURE_ENABLE_AER_BIT)
     int32_t bootindex;
     uint32_t igd_gms;
     uint8_t pm_cap;
