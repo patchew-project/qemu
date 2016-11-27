@@ -129,7 +129,7 @@ struct BlockDriver {
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
 
-    void (*bdrv_refresh_filename)(BlockDriverState *bs, QDict *options);
+    void (*bdrv_refresh_filename)(BlockDriverState *bs);
     void (*bdrv_gather_child_options)(BlockDriverState *bs, QDict *target);
     char *(*bdrv_dirname)(BlockDriverState *bs, Error **errp);
 
