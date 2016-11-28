@@ -194,6 +194,16 @@ extern int daemon(int, int);
 #define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))
 #endif
 
+static inline int round_up_pow_of_two(int x)
+{
+	x |= (x >> 1);
+	x |= (x >> 2);
+	x |= (x >> 4);
+	x |= (x >> 8);
+	x |= (x >> 16);
+	return x + 1;
+}
+
 #ifndef DIV_ROUND_UP
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #endif

@@ -122,16 +122,6 @@
 #define SHPC_PCI_TO_IDX(pci_slot) ((pci_slot) - 1)
 #define SHPC_IDX_TO_PHYSICAL(slot) ((slot) + 1)
 
-static int roundup_pow_of_two(int x)
-{
-    x |= (x >> 1);
-    x |= (x >> 2);
-    x |= (x >> 4);
-    x |= (x >> 8);
-    x |= (x >> 16);
-    return x + 1;
-}
-
 static uint16_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
     uint8_t *status = shpc->config + SHPC_SLOT_STATUS(slot);
@@ -654,7 +644,7 @@ int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar, unsigned offset)
 
 int shpc_bar_size(PCIDevice *d)
 {
-    return roundup_pow_of_two(SHPC_SLOT_REG(SHPC_MAX_SLOTS));
+    return round_up_pow_of_two(SHPC_SLOT_REG(SHPC_MAX_SLOTS));
 }
 
 void shpc_cleanup(PCIDevice *d, MemoryRegion *bar)
