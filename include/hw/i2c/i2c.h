@@ -48,6 +48,7 @@ struct I2CSlave
 
     /* Remaining fields for internal use by the I2C code.  */
     uint8_t address;
+    uint8_t busy;
 };
 
 I2CBus *i2c_init_bus(DeviceState *parent, const char *name);
