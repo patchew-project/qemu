@@ -130,6 +130,7 @@ struct BlockDriver {
     int (*bdrv_make_empty)(BlockDriverState *bs);
 
     void (*bdrv_refresh_filename)(BlockDriverState *bs, QDict *options);
+    char *(*bdrv_dirname)(BlockDriverState *bs, Error **errp);
 
     /* aio */
     BlockAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
