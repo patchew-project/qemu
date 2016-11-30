@@ -876,6 +876,9 @@ static BlockDriver bdrv_nfs = {
     .bdrv_refresh_filename          = nfs_refresh_filename,
     .bdrv_dirname                   = nfs_dirname,
 
+    .sgfnt_runtime_opts             = (const char *const[]) { "path", "uid",
+                                                              "gid", NULL },
+
 #ifdef LIBNFS_FEATURE_PAGECACHE
     .bdrv_invalidate_cache          = nfs_invalidate_cache,
 #endif

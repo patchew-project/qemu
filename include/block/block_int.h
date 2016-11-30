@@ -322,6 +322,13 @@ struct BlockDriver {
                            Error **errp);
 
     QLIST_ENTRY(BlockDriver) list;
+
+    /* Pointer to a NULL-terminated array of names of significant options that
+     * can be specified for bdrv_open(). A significant option is one that
+     * changes the data of a BDS.
+     * If this pointer is NULL, the array is considered empty.
+     * "filename" and "driver" are always considered significant. */
+    const char *const *sgfnt_runtime_opts;
 };
 
 typedef struct BlockLimits {
