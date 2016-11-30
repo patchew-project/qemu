@@ -166,7 +166,19 @@ static const TypeInfo palmetto_bmc_type = {
 
 static void ast2500_evb_init(MachineState *machine)
 {
+    AspeedSoCState *soc;
+    I2CBus *i2c12;
+    DeviceState *rx8900;
+
     aspeed_board_init(machine, &aspeed_boards[AST2500_EVB]);
+
+    soc = ASPEED_SOC(object_resolve_path_component(OBJECT(machine), "soc"));
+
+    i2c12 = aspeed_i2c_get_bus((DeviceState *)&soc->i2c, 11);
+    rx8900 = i2c_create_slave(i2c12, "rx8900", 0x32);
+
+    qdev_connect_gpio_out_named(rx8900, "rx8900-interrupt-out", 0,
+            qdev_get_gpio_in(DEVICE(&soc->vic), 22));
 }
 
 static void ast2500_evb_class_init(ObjectClass *oc, void *data)
