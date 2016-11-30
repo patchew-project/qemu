@@ -176,6 +176,34 @@ void qtest_irq_intercept_in(QTestState *s, const char *string);
 void qtest_irq_intercept_out(QTestState *s, const char *string);
 
 /**
+ * irq_attach:
+ * @s: #QTestState instance to operate on.
+ * @name: the name of the GPIO list containing the IRQ
+ * @irq: The IRQ number within the GPIO list to attach to
+ * @irq_cb: The callback to execute when the interrupt changes
+ * @opaque: opaque info to pass to the callback
+ *
+ * Attach a callback to an intercepted interrupt
+ */
+void qtest_irq_attach(QTestState *s, const char *name, int irq,
+        void (*irq_cb)(void *opaque, const char *name, int irq, bool level),
+        void *opaque);
+
+/**
+ * qtest_irq_set
+ * Set an interrupt level
+ * @s: #QTestState instance to operate on.
+ * @id: the device to inject interrupts for
+ * @gpiolist: the GPIO list containing the IRQ
+ * @n: the GPIO within the list
+ * @level: the IRQ level
+ *
+ * Set an interrupt to a nominated level
+ */
+void qtest_irq_set(QTestState *s, const char *id, const char *gpiolist, int n,
+        bool level);
+
+/**
  * qtest_outb:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to write to.
@@ -624,6 +652,37 @@ static inline void irq_intercept_out(const char *string)
 {
     qtest_irq_intercept_out(global_qtest, string);
 }
+
+/**
+ * irq_attach:
+ * @name: the name of the gpio list containing the IRQ
+ * @irq: The IRQ to attach to
+ * @irq_cb: The callback to execute when the interrupt changes
+ * @opaque: opaque info to pass to the callback
+ *
+ * Attach a callback to an intecepted interrupt
+ */
+static inline void irq_attach(const char *name, int irq,
+        void (*irq_cb)(void *opaque, const char *name, int irq, bool level),
+        void *opaque)
+{
+    qtest_irq_attach(global_qtest, name, irq, irq_cb, opaque);
+}
+
+/**
+ * qtest_irq_set
+ * Set an interrupt level
+ * @id: the device to inject interrupts for
+ * @gpiolist: the GPIO list containing the line to seh
+ * @n: the line to set within the list
+ * @level: the IRQ level
+ */
+static inline void irq_set(const char *id, const char *gpiolist, int n,
+        bool level)
+{
+    qtest_irq_set(global_qtest, id, gpiolist, n, level);
+}
+
 
 /**
  * outb:
