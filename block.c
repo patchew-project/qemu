@@ -984,6 +984,12 @@ QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },
+        {
+            .name = "base-directory",
+            .type = QEMU_OPT_STRING,
+            .help = "String to prepend to filenames relative to this BDS for "
+                    "making them absolute",
+        },
         { /* end of list */ }
     },
 };
@@ -1046,6 +1052,8 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         ret = -EINVAL;
         goto fail_opts;
     }
+
+    bs->dirname = g_strdup(qemu_opt_get(opts, "base-directory"));
 
     bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
@@ -2489,6 +2497,8 @@ static void bdrv_delete(BlockDriverState *bs)
     assert(!bs->refcnt);
 
     bdrv_close(bs);
+
+    g_free(bs->dirname);
 
     /* remove from list, if necessary */
     if (bs->node_name[0] != '\0') {
@@ -4096,6 +4106,10 @@ void bdrv_refresh_filename(BlockDriverState *bs)
 char *bdrv_dirname(BlockDriverState *bs, Error **errp)
 {
     BlockDriver *drv = bs->drv;
+
+    if (bs->dirname) {
+        return g_strdup(bs->dirname);
+    }
 
     if (!drv) {
         error_setg(errp, "Node '%s' is ejected", bs->node_name);

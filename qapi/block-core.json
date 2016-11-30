@@ -2367,6 +2367,14 @@
 #                 (default: false)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
+# @base-directory #optional May be specified for any node. Normally, whenever a
+#                 filename is specified which is supposed to be relative to this
+#                 node (such as relative backing filenames), the base directory
+#                 to be used is the directory the image file of this node is in,
+#                 which is simply prepended to the relative filename. Using this
+#                 option, the string which is prepended (i.e. the base
+#                 directory) can be overridden.
+#                 (Since 2.9)
 #
 # Remaining options are determined by the block driver.
 #
@@ -2375,6 +2383,7 @@
 { 'union': 'BlockdevOptions',
   'base': { 'driver': 'BlockdevDriver',
             '*node-name': 'str',
+            '*base-directory': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
             '*read-only': 'bool',
