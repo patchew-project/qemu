@@ -2072,6 +2072,16 @@ void hmp_object_del(Monitor *mon, const QDict *qdict)
 
     user_creatable_del(id, &err);
     hmp_handle_error(mon, &err);
+
+    /* if object was defined on the command-line, remove its corresponding
+     * option group entry
+     */
+    if (err == NULL) {
+        QemuOptsList *opt_group = qemu_find_opts_err("object", &err);
+        if (opt_group) {
+            qemu_opts_del(qemu_opts_find(opt_group, id));
+        }
+    }
 }
 
 void hmp_info_memdev(Monitor *mon, const QDict *qdict)

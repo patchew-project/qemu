@@ -686,6 +686,16 @@ void qmp_object_add(const char *type, const char *id,
 void qmp_object_del(const char *id, Error **errp)
 {
     user_creatable_del(id, errp);
+
+    /* if object was defined on the command-line, remove its corresponding
+     * option group entry
+     */
+    if (!(errp && *errp)) {
+        QemuOptsList *opt_group = qemu_find_opts_err("object", errp);
+        if (opt_group) {
+            qemu_opts_del(qemu_opts_find(opt_group, id));
+        }
+    }
 }
 
 MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
