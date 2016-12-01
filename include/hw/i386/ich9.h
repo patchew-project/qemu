@@ -17,7 +17,8 @@
 void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);
 PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin);
-void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled);
+void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled,
+                      uint64_t smi_host_features);
 I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 void ich9_generate_smi(void);
@@ -63,6 +64,15 @@ typedef struct ICH9LPCState {
      */
     uint8_t rst_cnt;
     MemoryRegion rst_cnt_mem;
+
+    /* SMI feature negotiation via fw_cfg */
+    uint8_t smi_host_features[8];     /* guest-visible, read-only, little
+                                       * endian uint64_t */
+    uint8_t smi_guest_features[8];    /* guest-visible, read-write, little
+                                       * endian uint64_t */
+    uint8_t smi_features_ok;          /* guest-visible, read-only; selecting it
+                                       * triggers feature lockdown */
+    uint64_t smi_negotiated_features; /* guest-invisible, host endian */
 
     /* isa bus */
     ISABus *isa_bus;
