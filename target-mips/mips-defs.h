@@ -50,7 +50,11 @@
 /* Chip specific instructions. */
 #define		INSN_LOONGSON2E  0x20000000
 #define		INSN_LOONGSON2F  0x40000000
+#define         INSN_LOONGSON3A  0x10000000
 #define		INSN_VR54XX	0x80000000
+#define         INSN_LOONGSON2   (INSN_LOONGSON2E | INSN_LOONGSON2F)
+#define         INSN_LOONGSON3   (INSN_LOONGSON3A)
+#define         INSN_LOONGSON    (INSN_LOONGSON2 | INSN_LOONGSON3)
 
 /* MIPS CPU defines. */
 #define		CPU_MIPS1	(ISA_MIPS1)
@@ -70,6 +74,7 @@
 /* MIPS Technologies "Release 2" */
 #define		CPU_MIPS32R2	(CPU_MIPS32 | ISA_MIPS32R2)
 #define		CPU_MIPS64R2	(CPU_MIPS64 | CPU_MIPS32R2 | ISA_MIPS64R2)
+#define         CPU_LOONGSON3A  (CPU_MIPS64R2 | INSN_LOONGSON3A)
 
 /* MIPS Technologies "Release 3" */
 #define CPU_MIPS32R3 (CPU_MIPS32R2 | ISA_MIPS32R3)
