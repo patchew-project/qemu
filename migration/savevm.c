@@ -1973,6 +1973,10 @@ int qemu_loadvm_state(QEMUFile *f)
         ret = qemu_file_get_error(f);
     }
 
+    if (xen_enabled()) {
+        return ret;
+    }
+
     /*
      * Try to read in the VMDESC section as well, so that dumping tools that
      * intercept our migration stream have the chance to see it.
