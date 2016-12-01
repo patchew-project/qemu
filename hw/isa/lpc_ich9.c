@@ -439,7 +439,14 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 
     /* SMI_EN = PMBASE + 30. SMI control and enable register */
     if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN) {
-        cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
+        if (lpc->smi_negotiated_features & ICH9_LPC_SMI_F_BROADCAST) {
+            CPUState *cs;
+            CPU_FOREACH(cs) {
+                cpu_interrupt(cs, CPU_INTERRUPT_SMI);
+            }
+        } else {
+            cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
+        }
     }
 }
 

@@ -250,4 +250,7 @@ Object *ich9_lpc_find(void);
 #define ICH9_SMB_HST_D1                         0x06
 #define ICH9_SMB_HOST_BLOCK_DB                  0x07
 
+/* bits used in fw_cfg SMI feature negotiation */
+#define ICH9_LPC_SMI_F_BROADCAST               (UINT64_C(1) << 0)
+
 #endif /* HW_ICH9_H */
