@@ -35,8 +35,6 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 
-#define FW_CFG_FILE_SLOTS_DFLT 0x20
-
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME
 

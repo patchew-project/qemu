@@ -28,8 +28,10 @@
 #define FW_CFG_SETUP_DATA       0x18
 #define FW_CFG_FILE_DIR         0x19
 
-#define FW_CFG_FILE_FIRST       0x20
-#define FW_CFG_FILE_SLOTS_TRAD  0x10
+#define FW_CFG_FILE_FIRST       0x20 /* never change this */
+#define FW_CFG_FILE_SLOTS_TRAD  0x10 /* never change this */
+#define FW_CFG_FILE_SLOTS_DFLT  0x20 /* update HW_COMPAT_xxx in sync */
+
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
 #define FW_CFG_ARCH_LOCAL       0x8000
