@@ -230,7 +230,9 @@ static void pc_q35_init(MachineState *machine)
                          (pcms->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */
-    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms), 0);
+    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms),
+                     pcmc->get_smi_host_features == NULL ? 0 :
+                     pcmc->get_smi_host_features());
 
     /* ahci and SATA device, for q35 1 ahci controller is built-in */
     ahci = pci_create_simple_multifunction(host_bus,
@@ -269,6 +271,22 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+static uint64_t pc_q35_get_smi_host_features(void)
+{
+    uint64_t host_features = 0;
+
+    /* The host features are computed only at startup, they don't depend on
+     * guest actions. For now we only advertise SMI broadcast if VCPU hot-plug
+     * / hot-unplug are disabled. In the future we might advertise it
+     * unconditionally, but negotiate it only if VCPU hot-plug / hot-unplug are
+     * disabled, or if the guest negotiates another feature bit (VCPU parking).
+     */
+    if (smp_cpus == max_cpus) {
+        host_features |= ICH9_LPC_SMI_F_BROADCAST;
+    }
+    return host_features;
+}
+
 #define DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \
     static void pc_init_##suffix(MachineState *machine) \
     { \
@@ -283,6 +301,7 @@ static void pc_q35_init(MachineState *machine)
 
 static void pc_q35_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     m->family = "pc_q35";
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
     m->hot_add_cpu = pc_hot_add_cpu;
@@ -292,6 +311,7 @@ static void pc_q35_machine_options(MachineClass *m)
     m->no_floppy = 1;
     m->has_dynamic_sysbus = true;
     m->max_cpus = 288;
+    pcmc->get_smi_host_features = pc_q35_get_smi_host_features;
 }
 
 static void pc_q35_2_9_machine_options(MachineClass *m)
@@ -305,8 +325,10 @@ DEFINE_Q35_MACHINE(v2_9, "pc-q35-2.9", NULL,
 
 static void pc_q35_2_8_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_2_9_machine_options(m);
     m->alias = NULL;
+    pcmc->get_smi_host_features = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_8);
 }
 

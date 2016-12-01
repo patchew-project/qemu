@@ -118,6 +118,7 @@ struct PCMachineClass {
     /* Methods: */
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
+    uint64_t (*get_smi_host_features)(void);
 
     /* Device configuration: */
     bool pci_enabled;
