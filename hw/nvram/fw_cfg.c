@@ -928,7 +928,7 @@ static void fw_cfg_init1(DeviceState *dev)
 }
 
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
-                                AddressSpace *dma_as)
+                                AddressSpace *dma_as, uint32_t file_slots)
 {
     DeviceState *dev;
     FWCfgState *s;
@@ -942,11 +942,10 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
         qdev_prop_set_bit(dev, "dma_enabled", false);
     }
 
-    /* Once we expose the "file_slots" property to callers of
-     * fw_cfg_init_io_dma(), the following setting should become conditional on
-     * the input parameter being lower than the current value of the property.
-     */
-    qdev_prop_set_uint32(dev, "file_slots", FW_CFG_FILE_SLOTS_TRAD);
+    if (file_slots < object_property_get_int(OBJECT(dev), "file_slots",
+                                             &error_abort)) {
+        qdev_prop_set_uint32(dev, "file_slots", file_slots);
+    }
 
     fw_cfg_init1(dev);
     s = FW_CFG(dev);
@@ -966,7 +965,7 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
 
 FWCfgState *fw_cfg_init_io(uint32_t iobase)
 {
-    return fw_cfg_init_io_dma(iobase, 0, NULL);
+    return fw_cfg_init_io_dma(iobase, 0, NULL, FW_CFG_FILE_SLOTS_TRAD);
 }
 
 FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,

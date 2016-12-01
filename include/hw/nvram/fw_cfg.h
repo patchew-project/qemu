@@ -175,7 +175,7 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename, void *data,
                          size_t len);
 
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
-                                AddressSpace *dma_as);
+                                AddressSpace *dma_as, uint32_t file_slots);
 FWCfgState *fw_cfg_init_io(uint32_t iobase);
 FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr);
 FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
