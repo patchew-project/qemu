@@ -262,9 +262,9 @@ static int i2c_slave_qdev_init(DeviceState *dev)
 
     if (sc->init) {
         return sc->init(s);
-    } else {
-        return 0;
     }
+
+    return 0;
 }
 
 DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
