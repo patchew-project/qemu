@@ -26,6 +26,20 @@ static struct arm_boot_info aspeed_board_binfo = {
     .nb_cpus = 1,
 };
 
+typedef struct IRQConfig {
+    const char *name;
+    int irq;
+    int nvic_irq;
+} IRQConfig;
+
+typedef struct AspeedI2CDevice {
+    const char *type;
+    uint8_t address;
+    int bus;
+    /* device_inputs not yet implemented */
+    const IRQConfig *device_outputs;
+} AspeedI2CDevice;
+
 typedef struct AspeedBoardState {
     AspeedSoCState soc;
     MemoryRegion ram;
@@ -34,6 +48,7 @@ typedef struct AspeedBoardState {
 typedef struct AspeedBoardConfig {
     const char *soc_name;
     uint32_t hw_strap1;
+    const AspeedI2CDevice *i2c_devices;
 } AspeedBoardConfig;
 
 enum {
@@ -64,9 +79,25 @@ enum {
         SCU_HW_STRAP_MAC0_RGMII) &                                      \
         ~SCU_HW_STRAP_2ND_BOOT_WDT)
 
+static const IRQConfig rx8900_out[] = {
+        {"rx8900-interrupt-out", 0, 22},
+        {NULL}
+};
+
+static const AspeedI2CDevice ast2500_i2c_devices[] = {
+        {"rx8900", 0x32, 11, rx8900_out},
+        {NULL}
+};
+
 static const AspeedBoardConfig aspeed_boards[] = {
-    [PALMETTO_BMC] = { "ast2400-a0", PALMETTO_BMC_HW_STRAP1 },
-    [AST2500_EVB]  = { "ast2500-a1", AST2500_EVB_HW_STRAP1 },
+    [PALMETTO_BMC] = {
+        "ast2400-a0", PALMETTO_BMC_HW_STRAP1,
+        NULL
+    },
+    [AST2500_EVB]  = {
+        "ast2500-a1", AST2500_EVB_HW_STRAP1,
+        ast2500_i2c_devices
+    },
 };
 
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
@@ -92,6 +123,27 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
 
         cs_line = qdev_get_gpio_in_named(fl->flash, SSI_GPIO_CS, 0);
         sysbus_connect_irq(SYS_BUS_DEVICE(s), i + 1, cs_line);
+    }
+}
+
+static void aspeed_i2c_init(AspeedBoardState *bmc,
+        const AspeedBoardConfig *cfg)
+{
+    AspeedSoCState *soc = &bmc->soc;
+    const AspeedI2CDevice *dev;
+    const IRQConfig *out;
+
+    for (dev = cfg->i2c_devices; dev != NULL && dev->type != NULL; dev++) {
+        I2CBus *i2c_bus = aspeed_i2c_get_bus((DeviceState *)&soc->i2c,
+                                             dev->bus);
+        DeviceState *i2c_slave = i2c_create_slave(i2c_bus, dev->type,
+                                                  dev->address);
+
+        for (out = dev->device_outputs; out != NULL && out->name != NULL;
+                out++) {
+            qdev_connect_gpio_out_named(i2c_slave, out->name, out->irq,
+                    qdev_get_gpio_in(DEVICE(&soc->vic), out->nvic_irq));
+        }
     }
 }
 
@@ -136,6 +188,8 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
     aspeed_board_binfo.ram_size = ram_size;
     aspeed_board_binfo.loader_start = sc->info->sdram_base;
+
+    aspeed_i2c_init(bmc, cfg);
 
     arm_load_kernel(ARM_CPU(first_cpu), &aspeed_board_binfo);
 }
