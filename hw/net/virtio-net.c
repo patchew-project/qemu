@@ -77,7 +77,7 @@ static int vq2q(int queue_index)
 static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
-    struct virtio_net_config netcfg;
+    struct virtio_net_config netcfg = {};
 
     virtio_stw_p(vdev, &netcfg.status, n->status);
     virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
