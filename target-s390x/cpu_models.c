@@ -448,6 +448,10 @@ CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type
     /* convert it back to a static representation */
     expansion_info = g_malloc0(sizeof(*expansion_info));
     expansion_info->model = g_malloc0(sizeof(*expansion_info->model));
+
+    /* We always expand to a static and migration-safe CpuModelInfo */
+    expansion_info->q_static = true;
+    expansion_info->migration_safe = true;
     cpu_info_from_model(expansion_info->model, &s390_model, delta_changes);
     return expansion_info;
 }

@@ -3291,6 +3291,15 @@
 #        migration-safe, but allows tooling to get an insight and work with
 #        model details.
 #
+# Note: When a non-migration-safe CPU model is expanded in static mode, some
+# features enabled by the CPU model may be omitted, because they can't be
+# implemented by a static CPU model definition (e.g. cache info passthrough and
+# PMU passthrough in x86). If you need an accurate representation of the
+# features enabled by a non-migration-safe CPU model, use @full. If you need a
+# static representation that will keep ABI compatibility even when changing QEMU
+# version or machine-type, use @static (but keep in mind that some features may
+# be omitted).
+#
 # Since: 2.8.0
 ##
 { 'enum': 'CpuModelExpansionType',
@@ -3304,10 +3313,24 @@
 #
 # @model: the expanded CpuModelInfo.
 #
+# @migration-safe: the expanded CPU model in @model is a migration-safe
+#                  CPU model. See @CpuDefinitionInfo.migration-safe.
+#                  If expansion type was @static, this is always true.
+#                  (since 2.9)
+#
+# @static: the expanded CPU model in @model is a static CPU model.
+#          See @CpuDefinitionInfo.static. If expansion type was @static,
+#          this is always true.
+#          (since 2.9)
+#
+# query-cpu-model-expansion with static expansion type should always
+# return a static and migration-safe expansion.
+#
 # Since: 2.8.0
 ##
 { 'struct': 'CpuModelExpansionInfo',
-  'data': { 'model': 'CpuModelInfo' } }
+  'data': { 'model': 'CpuModelInfo', 'static': 'bool',
+            'migration-safe': 'bool' } }
 
 
 ##
