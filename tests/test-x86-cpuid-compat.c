@@ -4,6 +4,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 #include "libqtest.h"
 
 static char *get_cpu0_qom_path(void)
@@ -51,6 +52,22 @@ typedef struct CpuidTestArgs {
     const char *property;
     int64_t expected_value;
 } CpuidTestArgs;
+
+static void test_commas(void)
+{
+    char *path;
+    QString *value;
+
+    qtest_start("-cpu 'qemu64,fpu=on,model-id=A CPU with commas,,fpu=off'");
+    path = get_cpu0_qom_path();
+    value = qobject_to_qstring(qom_get(path, "model-id"));
+    g_assert_true(qom_get_bool(path, "fpu"));
+    g_assert_cmpstr(qstring_get_str(value), ==, "A CPU with commas,fpu=off");
+    qtest_end();
+
+    QDECREF(value);
+    g_free(path);
+}
 
 static void test_cpuid_prop(const void *data)
 {
@@ -131,6 +148,8 @@ int main(int argc, char **argv)
                     test_plus_minus_subprocess);
     g_test_add_func("/x86/cpuid/parsing-plus-minus", test_plus_minus);
 #endif
+
+    g_test_add_func("/x86/parsing/commas", test_commas);
 
     /* Original level values for CPU models: */
     add_cpuid_test("x86/cpuid/phenom/level",
