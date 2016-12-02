@@ -1,0 +1,15 @@
+*.txt
+configure
+GNUmakefile
+makefile
+Makefile
+*.mak
+qapi-schema*.json
+qapi/*.json
+include/qapi/visitor.h
+include/qapi/visitor-impl.h
+scripts/qapi.py
+scripts/*.py
+*.h
+qapi/qapi-visit-core.c
+*.c
