@@ -24,13 +24,17 @@ class QEMUMachine(object):
     '''A QEMU VM'''
 
     def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
-                 monitor_address=None, socket_scm_helper=None, debug=False):
+                 monitor_address=None, socket_scm_helper=None, debug=False,
+                 logging=True):
         if name is None:
             name = "qemu-%d" % os.getpid()
         if monitor_address is None:
             monitor_address = os.path.join(test_dir, name + "-monitor.sock")
         self._monitor_address = monitor_address
-        self._qemu_log_path = os.path.join(test_dir, name + ".log")
+        if logging:
+            self._qemu_log_path = os.path.join(test_dir, name + ".log")
+        else:
+            self._qemu_log_path = None
         self._popen = None
         self._binary = binary
         self._args = list(args) # Force copy args in case we modify them
@@ -91,6 +95,8 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
+        if self._qemu_log_path is None:
+            return
         with open(self._qemu_log_path, "r") as fh:
             self._iolog = fh.read()
 
@@ -115,17 +121,24 @@ class QEMUMachine(object):
     def _post_shutdown(self):
         if not isinstance(self._monitor_address, tuple):
             self._remove_if_exists(self._monitor_address)
-        self._remove_if_exists(self._qemu_log_path)
+        if self._qemu_log_path is not None:
+            self._remove_if_exists(self._qemu_log_path)
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
         devnull = open('/dev/null', 'rb')
-        qemulog = open(self._qemu_log_path, 'wb')
+        if self._qemu_log_path is not None:
+            qemulog = open(self._qemu_log_path, 'wb')
+            stdout=qemulog
+            stderr=subprocess.STDOUT
+        else:
+            stdout=None
+            stderr=None
         try:
             self._pre_launch()
             args = self._wrapper + [self._binary] + self._base_args() + self._args
-            self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
-                                           stderr=subprocess.STDOUT, shell=False)
+            self._popen = subprocess.Popen(args, stdin=devnull, stdout=stdout,
+                                           stderr=stderr, shell=False)
             self._post_launch()
         except:
             if self._popen:
