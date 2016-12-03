@@ -20,9 +20,21 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
+#include <inttypes.h>
+#include <math.h>
+#include <fenv.h>
 
 #define float64_snan_to_qnan(x) ((x) | 0x0008000000000000ULL)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
+
+#define DEBUG_FPU 0
+
+#define DPRINTF(fmt, ...) do {                       \
+    if (DEBUG_FPU) {                                 \
+        printf("FPU: " fmt , ## __VA_ARGS__);        \
+    }                                                \
+} while (0);
+
 
 /*****************************************************************************/
 /* Floating point operations helpers */
@@ -281,29 +293,36 @@ static inline void float_inexact_excp(CPUPPCState *env)
 
 static inline void fpscr_set_rounding_mode(CPUPPCState *env)
 {
-    int rnd_type;
+    int rnd_type, result = 0;
 
     /* Set rounding mode */
     switch (fpscr_rn) {
     case 0:
         /* Best approximation (round to nearest) */
         rnd_type = float_round_nearest_even;
+        result = fesetround(FE_TONEAREST);
         break;
     case 1:
         /* Smaller magnitude (round toward zero) */
         rnd_type = float_round_to_zero;
+        result = fesetround(FE_TOWARDZERO);
         break;
     case 2:
         /* Round toward +infinite */
         rnd_type = float_round_up;
+        result = fesetround(FE_UPWARD);
         break;
     default:
     case 3:
         /* Round toward -infinite */
         rnd_type = float_round_down;
+        result = fesetround(FE_DOWNWARD);
         break;
     }
     set_float_rounding_mode(rnd_type, &env->fp_status);
+    if (result != 0) {
+        printf("Error: rounding mode was not set\n");
+    }
 }
 
 void helper_fpscr_clrbit(CPUPPCState *env, uint32_t bit)
@@ -534,6 +553,7 @@ void helper_float_check_status(CPUPPCState *env)
 void helper_reset_fpstatus(CPUPPCState *env)
 {
     set_float_exception_flags(0, &env->fp_status);
+    feclearexcept(FE_ALL_EXCEPT);
 }
 
 /* fadd - fadd. */
@@ -737,15 +757,93 @@ uint64_t helper_frim(CPUPPCState *env, uint64_t arg)
     return do_fri(env, arg, float_round_down);
 }
 
-/* fmadd - fmadd. */
+#define I_NEED_SPEED 1
+#ifdef I_NEED_SPEED
+
+union Converter {
+    uint64_t i;
+    double d;
+};
+
+typedef union Converter Converter;
+
+/* fmadd - fmadd. - fast */
 uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                       uint64_t arg3)
 {
+    DPRINTF("Fast helper_fmadd() called\n");
+    Converter farg1, farg2, farg3, result;
+
+    farg1.i = arg1;
+    farg2.i = arg2;
+    farg3.i = arg3;
+
+    DPRINTF("farg1.d = %f\n", farg1.d);
+    DPRINTF("farg2.d = %f\n", farg2.d);
+    DPRINTF("farg3.d = %f\n", farg3.d);
+
+    /* if signalling NaN operation */
+    if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
+                 float64_is_signaling_nan(farg2.d, &env->fp_status) ||
+                 float64_is_signaling_nan(farg3.d, &env->fp_status))) {
+        float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+    }
+
+    result.d = fma(farg1.d, farg2.d, farg3.d); /* fused multiply-add function */
+    if (fetestexcept(FE_INEXACT)) {
+        DPRINTF("FE_INEXACT\n");
+        float_inexact_excp(env);
+    }
+    if (fetestexcept(FE_INVALID)) {
+        DPRINTF("FE_INVALID\n");
+
+        /* 0 * infinity */
+        if ((fpclassify(farg1.d) == FP_ZERO) && isinf(farg2.d)) {
+            result.i = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        }
+
+        /* infinity * 0 */
+        else if (isinf(farg1.d) && (fpclassify(farg2.d) == FP_ZERO)) {
+            result.i = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
+        }
+
+        /* infinity - infinity */
+        else if (isinf(farg1.d * farg2.d) && isinf(farg3.d) && (signbit(farg3.d) != 0)) {
+            result.i = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+        }
+    }
+    if (fetestexcept(FE_OVERFLOW)) {
+        DPRINTF("FE_OVERFLOW\n");
+        float_overflow_excp(env);
+    }
+    if (fetestexcept(FE_UNDERFLOW)) {
+        DPRINTF("FE_UNDERFLOW\n");
+        float_underflow_excp(env);
+    }
+
+    DPRINTF("result.d = %f\n", result.d);
+    DPRINTF("result.i = 0x%" PRIx64 "\n", result.i);
+
+    return result.i;
+}
+
+#else
+
+/* fmadd - fmadd. - original */
+uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                      uint64_t arg3)
+{
+    DPRINTF("old helper_fmadd() called\n");
+
     CPU_DoubleU farg1, farg2, farg3;
 
     farg1.ll = arg1;
     farg2.ll = arg2;
     farg3.ll = arg3;
+
+    DPRINTF("farg1.d = %f\n", farg1.d);
+    DPRINTF("farg2.d = %f\n", farg2.d);
+    DPRINTF("farg3.d = %f\n", farg3.d);
 
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
@@ -775,9 +873,10 @@ uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
             farg1.d = float128_to_float64(ft0_128, &env->fp_status);
         }
     }
-
+    DPRINTF("farg1.ll = 0x%" PRIx64 "\n", farg1.ll);
     return farg1.ll;
 }
+#endif
 
 /* fmsub - fmsub. */
 uint64_t helper_fmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
