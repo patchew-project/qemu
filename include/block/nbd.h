@@ -72,6 +72,7 @@ typedef struct NBDReply NBDReply;
 #define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
 #define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
 #define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6)     /* Send WRITE_ZEROES */
+#define NBD_FLAG_HAS_ZERO_INIT  (1 << 8)        /* Send HAS_ZERO_INIT */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -109,6 +110,8 @@ enum {
     NBD_CMD_TRIM = 4,
     /* 5 reserved for failed experiment NBD_CMD_CACHE */
     NBD_CMD_WRITE_ZEROES = 6,
+    /* 7 reserved for STRUCTURED_REPLY */
+    NBD_CMD_HAS_ZERO_INIT = 8,
 };
 
 #define NBD_DEFAULT_PORT	10809

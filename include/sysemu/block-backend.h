@@ -156,6 +156,7 @@ int blk_flush(BlockBackend *blk);
 int blk_commit_all(void);
 void blk_drain(BlockBackend *blk);
 void blk_drain_all(void);
+int blk_has_zero_init(BlockBackend *blk);
 void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
                       BlockdevOnError on_write_error);
 BlockdevOnError blk_get_on_error(BlockBackend *blk, bool is_read);

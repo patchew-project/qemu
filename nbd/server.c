@@ -617,7 +617,8 @@ static coroutine_fn int nbd_negotiate(NBDClientNewData *data)
     int rc;
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
-                              NBD_FLAG_SEND_WRITE_ZEROES);
+                              NBD_FLAG_SEND_WRITE_ZEROES |
+                              NBD_FLAG_HAS_ZERO_INIT);
     bool oldStyle;
     size_t len;
 
@@ -1317,6 +1318,13 @@ static void nbd_trip(void *opaque)
             LOG("discard failed");
             reply.error = -ret;
         }
+        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+            goto out;
+        }
+        break;
+    case NBD_CMD_HAS_ZERO_INIT:
+        TRACE("Request type is HAS_ZERO_INIT");
+        reply.error = !blk_has_zero_init(exp->blk);
         if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
         }

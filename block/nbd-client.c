@@ -376,6 +376,34 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
                        false, nbd_reply_ready, NULL, bs);
 }
 
+int nbd_client_co_has_zero_init(BlockDriverState *bs)
+{
+    NBDClientSession *client = nbd_get_client_session(bs);
+    NBDRequest request = { .type = NBD_CMD_HAS_ZERO_INIT };
+    NBDReply reply;
+    ssize_t ret;
+
+    if (!(client->nbdflags & NBD_FLAG_HAS_ZERO_INIT)) {
+        return 0;
+    }
+
+    request.from = 0;
+    request.len = 0;
+
+    nbd_coroutine_start(client, &request);
+    ret = nbd_co_send_request(bs, &request, NULL);
+    if (ret < 0) {
+        reply.error = -ret;
+    } else {
+        nbd_co_receive_reply(client, &request, &reply, NULL);
+    }
+    nbd_coroutine_end(client, &request);
+    if (reply.error == 0) {
+        return 1;
+    }
+    return 0;
+}
+
 void nbd_client_close(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);

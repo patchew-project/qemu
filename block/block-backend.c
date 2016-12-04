@@ -1239,6 +1239,11 @@ void blk_drain_all(void)
     bdrv_drain_all();
 }
 
+int blk_has_zero_init(BlockBackend *blk)
+{
+        return bdrv_has_zero_init(blk_bs(blk));
+}
+
 void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
                       BlockdevOnError on_write_error)
 {

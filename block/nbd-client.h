@@ -56,5 +56,6 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
 void nbd_client_detach_aio_context(BlockDriverState *bs);
 void nbd_client_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context);
+int nbd_client_co_has_zero_init(BlockDriverState *bs);
 
 #endif /* NBD_CLIENT_H */
