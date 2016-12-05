@@ -531,21 +531,28 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             aio_context_release(aio_context);
             return;
         }
-        bdrv_op_block_all(top_bs, s->blocker);
-        bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
-        job = backup_job_create(NULL, s->secondary_disk->bs, s->hidden_disk->bs,
-                                0, MIRROR_SYNC_MODE_NONE, NULL, false,
+        /*
+         * Only in the case of non-shared disk,
+         * the backup job is in the secondary side
+         */
+        if (!s->is_shared_disk) {
+            bdrv_op_block_all(top_bs, s->blocker);
+            bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
+            job = backup_job_create(NULL, s->secondary_disk->bs,
+                                s->hidden_disk->bs, 0,
+                                MIRROR_SYNC_MODE_NONE, NULL, false,
                                 BLOCKDEV_ON_ERROR_REPORT,
                                 BLOCKDEV_ON_ERROR_REPORT, BLOCK_JOB_INTERNAL,
                                 backup_job_completed, bs, NULL, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            backup_job_cleanup(bs);
-            aio_context_release(aio_context);
-            return;
+            if (local_err) {
+                error_propagate(errp, local_err);
+                backup_job_cleanup(bs);
+                aio_context_release(aio_context);
+                return;
+            }
+            block_job_start(job);
         }
-        block_job_start(job);
 
         secondary_do_checkpoint(s, errp);
         break;
@@ -575,14 +582,16 @@ static void replication_do_checkpoint(ReplicationState *rs, Error **errp)
     case REPLICATION_MODE_PRIMARY:
         break;
     case REPLICATION_MODE_SECONDARY:
-        if (!s->secondary_disk->bs->job) {
-            error_setg(errp, "Backup job was cancelled unexpectedly");
-            break;
-        }
-        backup_do_checkpoint(s->secondary_disk->bs->job, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            break;
+        if (!s->is_shared_disk) {
+            if (!s->secondary_disk->bs->job) {
+                error_setg(errp, "Backup job was cancelled unexpectedly");
+                break;
+            }
+            backup_do_checkpoint(s->secondary_disk->bs->job, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                break;
+            }
         }
         secondary_do_checkpoint(s, errp);
         break;
@@ -663,7 +672,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
          * before the BDS is closed, because we will access hidden
          * disk, secondary disk in backup_job_completed().
          */
-        if (s->secondary_disk->bs->job) {
+        if (!s->is_shared_disk && s->secondary_disk->bs->job) {
             block_job_cancel_sync(s->secondary_disk->bs->job);
         }
 
