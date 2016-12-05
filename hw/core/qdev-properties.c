@@ -1119,11 +1119,20 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
 void qdev_prop_set_globals(DeviceState *dev)
 {
     ObjectClass *class = object_get_class(OBJECT(dev));
+    GSList *class_list = NULL;
 
     do {
-        qdev_prop_set_globals_for_type(dev, object_class_get_name(class));
+        class_list = g_slist_prepend(class_list, class);
         class = object_class_get_parent(class);
     } while (class);
+
+    do {
+        GSList *head = class_list;
+
+        qdev_prop_set_globals_for_type(dev, object_class_get_name(head->data));
+        class_list = g_slist_next(head);
+        g_slist_free_1(head);
+    } while (class_list);
 }
 
 /* --- 64bit unsigned int 'size' type --- */
