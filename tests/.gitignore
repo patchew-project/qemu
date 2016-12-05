@@ -82,5 +82,6 @@ test-xbzrle
 test-netfilter
 test-filter-mirror
 test-filter-redirector
+test-char
 *-test
 qapi-schema/*.test.*
