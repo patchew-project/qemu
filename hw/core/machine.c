@@ -554,6 +554,25 @@ static void machine_class_finalize(ObjectClass *klass, void *data)
     g_free(mc->name);
 }
 
+static void register_compat_prop(const char *driver,
+                                 const char *property,
+                                 const char *value)
+{
+    GlobalProperty *p = g_new0(GlobalProperty, 1);
+    /* Machine compat_props must never cause errors: */
+    p->errp = &error_abort;
+    p->driver = driver;
+    p->property = property;
+    p->value = value;
+    qdev_prop_register_global(p);
+}
+
+static void machine_register_compat_for_subclass(ObjectClass *oc, void *opaque)
+{
+    GlobalProperty *p = opaque;
+    register_compat_prop(object_class_get_name(oc), p->property, p->value);
+}
+
 void machine_register_compat_props(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -565,10 +584,20 @@ void machine_register_compat_props(MachineState *machine)
     }
 
     for (i = 0; i < mc->compat_props->len; i++) {
+        ObjectClass *oc;
         p = g_array_index(mc->compat_props, GlobalProperty *, i);
-        /* Machine compat_props must never cause errors: */
-        p->errp = &error_abort;
-        qdev_prop_register_global(p);
+        oc = object_class_by_name(p->driver);
+        if (oc && object_class_is_abstract(oc)) {
+            /* temporary hack to make sure we will never override
+             * globals set explicitly on -global: if an abstract class
+             * is on compat_props, register globals for each of their
+             * subclasses instead.
+             */
+            object_class_foreach(machine_register_compat_for_subclass,
+                                 p->driver, false, p);
+        } else {
+            register_compat_prop(p->driver, p->property, p->value);
+        }
     }
 }
 
