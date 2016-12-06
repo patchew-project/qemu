@@ -26,11 +26,123 @@
         .property = "format_transport_address",\
         .value    = "off",\
     },{\
-        .driver   = "virtio-pci",\
+        .driver   = "virtio-scsi-pci",\
         .property = "disable-modern",\
         .value    = "on",\
     },{\
-        .driver   = "virtio-pci",\
+        .driver   = "virtio-scsi-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-blk-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-blk-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-balloon-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-balloon-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-serial-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-serial-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-net-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-net-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-9p-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-9p-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-rng-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-rng-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-input-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-input-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-input-hid-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-input-hid-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-keyboard-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-keyboard-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-mouse-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-mouse-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-tablet-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-tablet-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-input-host-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-input-host-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-gpu-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-gpu-pci",\
+        .property = "disable-legacy",\
+        .value    = "off",\
+    },{\
+        .driver   = "virtio-crypto-pci",\
+        .property = "disable-modern",\
+        .value    = "on",\
+    },{\
+        .driver   = "virtio-crypto-pci",\
         .property = "disable-legacy",\
         .value    = "off",\
     },
