@@ -148,19 +148,19 @@ class QAPISchemaParser(object):
             expr = self.get_expr(False)
             if isinstance(expr, dict) and "include" in expr:
                 if len(expr) != 1:
-                    raise QAPISemError(info, "Invalid 'include' directive")
+                    raise QAPIParseError(self, "Invalid 'include' directive")
                 include = expr["include"]
                 if not isinstance(include, str):
-                    raise QAPISemError(info,
-                                       "Value of 'include' must be a string")
+                    raise QAPIParseError(self,
+                                         "Value of 'include' must be a string")
                 incl_abs_fname = os.path.join(os.path.dirname(abs_fname),
                                               include)
                 # catch inclusion cycle
                 inf = info
                 while inf:
                     if incl_abs_fname == os.path.abspath(inf['file']):
-                        raise QAPISemError(info, "Inclusion loop for %s"
-                                           % include)
+                        raise QAPIParseError(self, "Inclusion loop for %s"
+                                             % include)
                     inf = inf['parent']
                 # skip multiple include of the same file
                 if incl_abs_fname in previously_included:
@@ -168,7 +168,8 @@ class QAPISchemaParser(object):
                 try:
                     fobj = open(incl_abs_fname, 'r')
                 except IOError as e:
-                    raise QAPISemError(info, '%s: %s' % (e.strerror, include))
+                    raise QAPIParseError(self, '%s: %s' %
+                                         (e.strerror, include))
                 exprs_include = QAPISchemaParser(fobj, previously_included,
                                                  info)
                 self.exprs.extend(exprs_include.exprs)
