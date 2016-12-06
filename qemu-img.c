@@ -3559,6 +3559,9 @@ static void bench_cb(void *opaque, int ret)
     }
 
     while (b->n > b->in_flight && b->in_flight < b->nrreq) {
+        b->in_flight++;
+        b->offset += b->step;
+        b->offset %= b->image_size;
         if (b->write) {
             acb = blk_aio_pwritev(b->blk, b->offset, b->qiov, 0,
                                   bench_cb, b);
@@ -3570,9 +3573,6 @@ static void bench_cb(void *opaque, int ret)
             error_report("Failed to issue request");
             exit(EXIT_FAILURE);
         }
-        b->in_flight++;
-        b->offset += b->step;
-        b->offset %= b->image_size;
     }
 }
 
