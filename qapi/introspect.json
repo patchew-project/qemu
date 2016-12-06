@@ -77,18 +77,17 @@
 ##
 # @SchemaInfo:
 #
+# Additional members depend on the value of @meta-type.
+#
 # @name: the entity's name, inherited from @base.
 #        Commands and events have the name defined in the QAPI schema.
 #        Unlike command and event names, type names are not part of
 #        the wire ABI.  Consequently, type names are meaningless
 #        strings here, although they are still guaranteed unique
-#        regardless of @meta-type.
-#
-# All references to other SchemaInfo are by name.
+#        regardless of @meta-type. All references to other SchemaInfo
+#        are by name.
 #
 # @meta-type: the entity's meta type, inherited from @base.
-#
-# Additional members depend on the value of @meta-type.
 #
 # Since: 2.5
 ##
@@ -134,9 +133,9 @@
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
-# @values: the enumeration type's values, in no particular order.
-#
 # Values of this type are JSON string on the wire.
+#
+# @values: the enumeration type's values, in no particular order.
 #
 # Since: 2.5
 ##
@@ -148,9 +147,9 @@
 #
 # Additional SchemaInfo members for meta-type 'array'.
 #
-# @element-type: the array type's element type.
-#
 # Values of this type are JSON array on the wire.
+#
+# @element-type: the array type's element type.
 #
 # Since: 2.5
 ##
@@ -162,6 +161,8 @@
 #
 # Additional SchemaInfo members for meta-type 'object'.
 #
+# Values of this type are JSON object on the wire.
+#
 # @members: the object type's (non-variant) members, in no particular order.
 #
 # @tag: #optional the name of the member serving as type tag.
@@ -172,8 +173,6 @@
 #            @tag is present.  The variants are in no particular order,
 #            and may even differ from the order of the values of the
 #            enum type of the @tag.
-#
-# Values of this type are JSON object on the wire.
 #
 # Since: 2.5
 ##
@@ -225,11 +224,11 @@
 #
 # Additional SchemaInfo members for meta-type 'alternate'.
 #
+# On the wire, this can be any of the members.
+#
 # @members: the alternate type's members, in no particular order.
 #           The members' wire encoding is distinct, see
 #           docs/qapi-code-gen.txt section Alternate types.
-#
-# On the wire, this can be any of the members.
 #
 # Since: 2.5
 ##
@@ -258,10 +257,9 @@
 #
 # @ret-type: the name of the command's result type.
 #
-# TODO @success-response (currently irrelevant, because it's QGA, not QMP)
-#
 # Since: 2.5
 ##
+# TODO @success-response (currently irrelevant, because it's QGA, not QMP)
 { 'struct': 'SchemaInfoCommand',
   'data': { 'arg-type': 'str', 'ret-type': 'str' } }
 

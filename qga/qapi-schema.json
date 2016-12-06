@@ -186,12 +186,12 @@
 # Initiate guest-activated shutdown. Note: this is an asynchronous
 # shutdown request, with no guarantee of successful shutdown.
 #
-# @mode: #optional "halt", "powerdown" (default), or "reboot"
-#
 # This command does NOT return a response on success. Success condition
 # is indicated by the VM exiting with a zero exit status or, when
 # running with --no-shutdown, by issuing the query-status QMP command
 # to confirm the VM status is "shutdown".
+#
+# @mode: #optional "halt", "powerdown" (default), or "reboot"
 #
 # Since: 0.15.0
 ##
@@ -815,20 +815,21 @@
 #
 # @username: the user account whose password to change
 # @password: the new password entry string, base64 encoded
+#
+#            The @password parameter must always be base64 encoded before
+#            transmission, even if already crypt()d, to ensure it is 8-bit
+#            safe when passed as JSON.
+#
 # @crypted: true if password is already crypt()d, false if raw
 #
-# If the @crypted flag is true, it is the caller's responsibility
-# to ensure the correct crypt() encryption scheme is used. This
-# command does not attempt to interpret or report on the encryption
-# scheme. Refer to the documentation of the guest operating system
-# in question to determine what is supported.
+#           If the @crypted flag is true, it is the caller's responsibility
+#           to ensure the correct crypt() encryption scheme is used. This
+#           command does not attempt to interpret or report on the encryption
+#           scheme. Refer to the documentation of the guest operating system
+#           in question to determine what is supported.
 #
-# Not all guest operating systems will support use of the
-# @crypted flag, as they may require the clear-text password
-#
-# The @password parameter must always be base64 encoded before
-# transmission, even if already crypt()d, to ensure it is 8-bit
-# safe when passed as JSON.
+#           Not all guest operating systems will support use of the
+#           @crypted flag, as they may require the clear-text password
 #
 # Returns: Nothing on success.
 #

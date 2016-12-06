@@ -30,12 +30,12 @@
 #
 # Information of a tracing event.
 #
+# An event is per-vCPU if it has the "vcpu" property in the "trace-events"
+# files.
+#
 # @name: Event name.
 # @state: Tracing state.
 # @vcpu: Whether this is a per-vCPU event (since 2.7).
-#
-# An event is per-vCPU if it has the "vcpu" property in the "trace-events"
-# files.
 #
 # Since: 2.2
 ##
@@ -72,11 +72,6 @@
 #
 # Set the dynamic tracing state of events.
 #
-# @name: Event name pattern (case-sensitive glob).
-# @enable: Whether to enable tracing.
-# @ignore-unavailable: #optional Do not match unavailable events with @name.
-# @vcpu: #optional The vCPU to act upon (all by default; since 2.7).
-#
 # An event's state is modified if:
 # - its name matches the @name pattern, and
 # - if @vcpu is given, the event has the "vcpu" property.
@@ -85,6 +80,11 @@
 # setting their state on the specified vCPU. Special case: if @name is an exact
 # match, @vcpu is given and the event does not have the "vcpu" property, an
 # error is returned.
+#
+# @name: Event name pattern (case-sensitive glob).
+# @enable: Whether to enable tracing.
+# @ignore-unavailable: #optional Do not match unavailable events with @name.
+# @vcpu: #optional The vCPU to act upon (all by default; since 2.7).
 #
 # Since: 2.2
 ##

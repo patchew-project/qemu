@@ -1946,10 +1946,10 @@
 #
 # Set XBZRLE cache size
 #
-# @value: cache size in bytes
-#
-# The size will be rounded down to the nearest power of 2.
 # The cache size can be modified before and during ongoing migration
+#
+# @value: cache size in bytes. The size will be rounded down to the
+#         nearest power of 2.
 #
 # Returns: nothing on success
 #
@@ -2293,15 +2293,15 @@
 ##
 # @device_add:
 #
+# Add a device.
+#
+# Additional arguments depend on the type.
+#
 # @driver: the name of the new device's driver
 #
 # @bus: #optional the device's parent bus (device tree path)
 #
 # @id: #optional the device's ID, must be unique
-#
-# Additional arguments depend on the type.
-#
-# Add a device.
 #
 # Notes:
 # 1. For detailed information about this command, please refer to the
@@ -2319,13 +2319,13 @@
 #                     "mac": "52:54:00:12:34:56" } }
 # <- { "return": {} }
 #
+# Since: 0.13
+##
 # TODO This command effectively bypasses QAPI completely due to its
 # "additional arguments" business.  It shouldn't have been added to
 # the schema in this form.  It should be qapified properly, or
 # replaced by a properly qapified command.
 #
-# Since: 0.13
-##
 { 'command': 'device_add',
   'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
   'gen': false } # so we can get the additional arguments
@@ -2499,9 +2499,9 @@
 #
 # Dump guest's storage keys
 #
-# @filename: the path to the file to dump to
-#
 # This command is only supported on s390 architecture.
+#
+# @filename: the path to the file to dump to
 #
 # Since: 2.5
 ##
@@ -2513,23 +2513,24 @@
 #
 # Add a network backend.
 #
+# Additional arguments depend on the type.
+#
 # @type: the type of network backend.  Current valid values are 'user', 'tap',
 #        'vde', 'socket', 'dump' and 'bridge'
 #
 # @id: the name of the new network backend
-#
-# Additional arguments depend on the type.
-#
-# TODO This command effectively bypasses QAPI completely due to its
-# "additional arguments" business.  It shouldn't have been added to
-# the schema in this form.  It should be qapified properly, or
-# replaced by a properly qapified command.
 #
 # Since: 0.14.0
 #
 # Returns: Nothing on success
 #          If @type is not a valid network backend, DeviceNotFound
 ##
+#
+# TODO This command effectively bypasses QAPI completely due to its
+# "additional arguments" business.  It shouldn't have been added to
+# the schema in this form.  It should be qapified properly, or
+# replaced by a properly qapified command.
+#
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str'},
   'gen': false }                # so we can get the additional arguments
@@ -3209,6 +3210,22 @@
 #
 # Virtual CPU definition.
 #
+# @unavailable-features is a list of QOM property names that
+# represent CPU model attributes that prevent the CPU from running.
+# If the QOM property is read-only, that means there's no known
+# way to make the CPU model run in the current host. Implementations
+# that choose not to provide specific information return the
+# property name "type".
+# If the property is read-write, it means that it MAY be possible
+# to run the CPU model in the current host if that property is
+# changed. Management software can use it as hints to suggest or
+# choose an alternative for the user, or just to generate meaningful
+# error messages explaining why the CPU model can't be used.
+# If @unavailable-features is an empty list, the CPU model is
+# runnable using the current host and machine-type.
+# If @unavailable-features is not present, runnability
+# information for the CPU is not available.
+#
 # @name: the name of the CPU definition
 #
 # @migration-safe: #optional whether a CPU definition can be safely used for
@@ -3226,22 +3243,6 @@
 # @unavailable-features: #optional List of properties that prevent
 #                        the CPU model from running in the current
 #                        host. (since 2.8)
-#
-# @unavailable-features is a list of QOM property names that
-# represent CPU model attributes that prevent the CPU from running.
-# If the QOM property is read-only, that means there's no known
-# way to make the CPU model run in the current host. Implementations
-# that choose not to provide specific information return the
-# property name "type".
-# If the property is read-write, it means that it MAY be possible
-# to run the CPU model in the current host if that property is
-# changed. Management software can use it as hints to suggest or
-# choose an alternative for the user, or just to generate meaningful
-# error messages explaining why the CPU model can't be used.
-# If @unavailable-features is an empty list, the CPU model is
-# runnable using the current host and machine-type.
-# If @unavailable-features is not present, runnability
-# information for the CPU is not available.
 #
 # Since: 1.2.0
 ##
@@ -3381,16 +3382,16 @@
 #
 # The result of a CPU model comparison.
 #
-# @result: The result of the compare operation.
-# @responsible-properties: List of properties that led to the comparison result
-#                          not being identical.
-#
 # @responsible-properties is a list of QOM property names that led to
 # both CPUs not being detected as identical. For identical models, this
 # list is empty.
 # If a QOM property is read-only, that means there's no known way to make the
 # CPU models identical. If the special property name "type" is included, the
 # models are by definition not identical and cannot be made identical.
+#
+# @result: The result of the compare operation.
+# @responsible-properties: List of properties that led to the comparison result
+#                          not being identical.
 #
 # Since: 2.8.0
 ##
@@ -3617,16 +3618,16 @@
 ##
 # @QKeyCode:
 #
+# An enumeration of key name.
+#
+# This is used by the send-key command.
+#
 # @unmapped: since 2.0
 # @pause: since 2.0
 # @ro: since 2.4
 # @kp_comma: since 2.4
 # @kp_equals: since 2.6
 # @power: since 2.6
-#
-# An enumeration of key name.
-#
-# This is used by the send-key command.
 #
 # Since: 1.3.0
 #

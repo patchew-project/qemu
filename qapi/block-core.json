@@ -1977,10 +1977,9 @@
 # @user:                #optional user as which to connect, defaults to current
 #                       local user name
 #
-# TODO: Expose the host_key_check option in QMP
-#
 # Since: 2.8
 ##
+# TODO: Expose the host_key_check option in QMP
 { 'struct': 'BlockdevOptionsSsh',
   'data': { 'server': 'InetSocketAddress',
             'path': 'str',
@@ -2164,8 +2163,6 @@
 #
 # Details for connecting to a gluster server
 #
-# @type:       Transport type used for gluster connection
-#
 # This is similar to SocketAddress, only distinction:
 #
 # 1. GlusterServer is a flat union, SocketAddress is a simple union.
@@ -2177,6 +2174,8 @@
 #
 # GlusterServer is actually not Gluster-specific, its a
 # compatibility evolved into an alternate for SocketAddress.
+#
+# @type:       Transport type used for gluster connection
 #
 # Since: 2.7
 ##
@@ -2356,8 +2355,9 @@
 ##
 # @BlockdevOptions:
 #
-# Options for creating a block device.  Many options are available for all
-# block devices, independent of the block driver:
+# Options for creating a block device.  Many options are available for
+# all block devices, independent of the block driver, remaining
+# options are determined by the block driver.
 #
 # @driver:        block driver name
 # @node-name:     #optional the node name of the new node (Since 2.0).
@@ -2368,8 +2368,6 @@
 #                 (default: false)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
-#
-# Remaining options are determined by the block driver.
 #
 # Since: 1.7
 ##
