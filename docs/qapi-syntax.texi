@@ -1,0 +1,175 @@
+See QEMU @file{docs/qapi-code-gen.txt} for details about the ``Client
+JSON Protocol'' wire format. Many @b{Example} illustrate the usage of
+the various types.
+
+This reference document uses a simplified syntax for the different
+JSON expressions, of the following general form:
+
+@deftp {Type} TypeName @
+{@{ 'member': @t{type}, ['optional-member: @t{some-type}], ... @}}
+
+@table @asis
+@item @code{'member'}
+Member description
+@item @code{'optional-member'} *
+Optional member description
+@end table
+@quotation Since
+A tagged section
+@end quotation
+@quotation Example
+@example
+<- @{ "return": @{ "member": "foo", ... @} @}
+@end example
+@end quotation
+@end deftp
+
+The [] in the declaration and the * name prefix in the member
+description means the member is optional.
+
+A type name inside [] refers to a single-dimension array of that type.
+
+@section Enum documentation
+
+Enumerations are strings over the Client JSON Protocol.
+
+Example of an API documentation:
+
+@deftp Enum Enumeration
+
+@table @asis
+@item @code{'auto'}
+Description auto
+@item @code{'on'}
+Description on
+@item @code{'off'}
+Description off
+@end table
+An enumeration of three options: on, off, and auto
+@end deftp
+
+@section Struct documentation
+
+A struct is an Object in the Client JSON protocol, whose members are
+listed in the declaration. It may have a base structure: the members
+of the base structure are merged in the same top-level Object over the
+client protocol.
+
+The API documentation uses the following syntax for a struct:
+
+@deftp {Struct} Type @
+{@{ BaseStruct, 'foo': @t{type}, ... @}}
+
+@table @asis
+@item @code{'foo'}
+Member foo description
+@end table
+The type description.
+@end deftp
+
+@section Union documentation
+
+Union types are used to let the user choose between several different
+variants for an object.  There are two flavors: simple (no
+discriminator or base), and flat (both discriminator and base).
+
+In the Client JSON Protocol, a simple union is represented by a
+dictionary that contains the @t{'type'} member as a discriminator, and
+a @t{'data'} member that is of the specified data type corresponding
+to the discriminator value.
+
+The API documentation uses the following syntax for simple union:
+
+@deftp {Simple Union} SimpleUnionType @
+{@{ 'type': @t{str}, 'data': [ 'type' = 't1': @t{Type1}, 't2: @t{Type2}, ... ] @}}
+
+Simple union description
+@end deftp
+
+A flat union definition avoids nesting on the wire, and specifies a
+set of common members that occur in all variants of the union. The
+top-level members of the union dictionary on the wire will be
+combination of members from both the base type and the appropriate
+discriminated branch type.  The @t{'discriminator'} member is the name
+of a non-optional enum-typed member of the base struct.
+
+The documentation uses the following syntax for a flat union:
+
+@deftp {Flat Union} FlatUnionType @
+{@{ UnionBase, [ 'discriminator' = 'd1': @t{Type1}, 'd2': @t{Type2} ] @}}
+
+Flat union description
+@end deftp
+
+@section Alternate documentation
+
+An alternate type is one that allows a choice between two or more JSON
+data types (string, integer, number, or object, but currently not
+array) on the wire.
+
+@deftp {Alternate} AlternateType @
+{[ 't1': @t{Type1}, 't2': @t{Type2}, ... ]}
+
+@table @asis
+@item @code{'t1'}
+Either this type
+@item @code{'t2'}
+Or this type
+@end table
+AlternateType description
+@end deftp
+
+@section Command documentation
+
+In the Client JSON Protocol, a command is a dictionary with an
+@t{'execute'} member (the name of the command as value), and an
+@t{'arguments'} member for the arguments. The API documentation uses
+the following syntax for a command:
+
+@deftypefn Command {ReturnType} query-foo @
+{('arg': @t{type}, ...)}
+
+@table @asis
+@item @code{'arg'}
+If true, the command will query...
+@end table
+Query for all bar...
+@quotation Returns
+The @code{ReturnType} for...
+@end quotation
+@quotation Example
+@example
+-> @{ "execute": "query-foo", "arguments": @{ "arg": ... @} @}
+<- @{
+      "return": @{ "foo": ... @}
+   @}
+@end example
+@end quotation
+@end deftypefn
+
+@section Event documentation
+
+An event is a JSON object defined by its name, used as the @t{'event'}
+member value, and a @t{'data'} member for the event members.
+
+The API documentation uses the following syntax for an event:
+
+@deftypefn Event {} EVENT_NAME @
+{('foo': @t{type}, ...)}
+
+@table @asis
+@item @code{'foo'}
+An event member
+@end table
+Event emitted when ...
+@quotation Note
+This event is rate-limited.
+@end quotation
+@quotation Example
+@example
+<-   @{ "event": "EVENT_NAME",
+       "data": @{ "param": .. @},
+       "timestamp": @{ "seconds": 1267020223, "microseconds": 435656 @} @}
+@end example
+@end quotation
+@end deftypefn
