@@ -685,29 +685,6 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 }
 
 #if defined(CONFIG_USER_ONLY)
-static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
-{
-    mmap_lock();
-    tb_lock();
-    tb_invalidate_phys_page_range(pc, pc + 1, 0);
-    tb_unlock();
-    mmap_unlock();
-}
-#else
-static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
-{
-    MemTxAttrs attrs;
-    hwaddr phys = cpu_get_phys_page_attrs_debug(cpu, pc, &attrs);
-    int asidx = cpu_asidx_from_attrs(cpu, attrs);
-    if (phys != -1) {
-        /* Locks grabbed by tb_invalidate_phys_addr */
-        tb_invalidate_phys_addr(cpu->cpu_ases[asidx].as,
-                                phys | (pc & ~TARGET_PAGE_MASK));
-    }
-}
-#endif
-
-#if defined(CONFIG_USER_ONLY)
 void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
 
 {
@@ -839,7 +816,7 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
         QTAILQ_INSERT_TAIL(&cpu->breakpoints, bp, entry);
     }
 
-    breakpoint_invalidate(cpu, pc);
+    tb_flush(cpu);
 
     if (breakpoint) {
         *breakpoint = bp;
@@ -855,6 +832,7 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
         if (bp->pc == pc && bp->flags == flags) {
             cpu_breakpoint_remove_by_ref(cpu, bp);
+            tb_flush(cpu);
             return 0;
         }
     }
@@ -865,9 +843,6 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint)
 {
     QTAILQ_REMOVE(&cpu->breakpoints, breakpoint, entry);
-
-    breakpoint_invalidate(cpu, breakpoint->pc);
-
     g_free(breakpoint);
 }
 
@@ -881,6 +856,8 @@ void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
             cpu_breakpoint_remove_by_ref(cpu, bp);
         }
     }
+
+    tb_flush(cpu);
 }
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
