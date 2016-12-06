@@ -1,0 +1,19 @@
+# Comment body must be only at the top of the section
+
+##
+# @TestStruct:
+#
+# body with @var
+#
+# @integer: foo
+#           blah
+#
+#           bao
+#
+# Let's catch this bad comment.
+#
+# Since: 2.3
+#
+##
+{ 'struct': 'TestStruct',
+  'data': { 'integer': 'int' } }

@@ -44,40 +44,110 @@ Input must be ASCII (although QMP supports full Unicode strings, the
 QAPI parser does not).  At present, there is no place where a QAPI
 schema requires the use of JSON numbers or null.
 
-Comments are allowed; anything between an unquoted # and the following
-newline is ignored.  Although there is not yet a documentation
-generator, a form of stylized comments has developed for consistently
-documenting details about an expression and when it was added to the
-schema.  The documentation is delimited between two lines of ##, then
-the first line names the expression, an optional overview is provided,
-then individual documentation about each member of 'data' is provided,
-and finally, a 'Since: x.y.z' tag lists the release that introduced
-the expression.  Optional members are tagged with the phrase
-'#optional', often with their default value; and extensions added
-after the expression was first released are also given a '(since
-x.y.z)' comment.  For example:
 
-    ##
-    # @BlockStats:
-    #
-    # Statistics of a virtual block device or a block backing device.
-    #
-    # @device: #optional If the stats are for a virtual block device, the name
-    #          corresponding to the virtual block device.
-    #
-    # @stats:  A @BlockDeviceStats for the device.
-    #
-    # @parent: #optional This describes the file block device if it has one.
-    #
-    # @backing: #optional This describes the backing block device if it has one.
-    #           (Since 2.0)
-    #
-    # Since: 0.14.0
-    ##
-    { 'struct': 'BlockStats',
-      'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
-               '*parent': 'BlockStats',
-               '*backing': 'BlockStats'} }
+=== Comments ===
+
+Comments are allowed; anything between an unquoted # and the following
+newline is ignored.
+
+A documentation block is delimited between two lines of ##, and can be
+formatted.
+
+Example:
+
+##
+# = Section
+# == Subsection
+#
+# Some text foo with *strong* and _emphasis_
+# 1. with a list
+# 2. like that
+#
+# And some code:
+# | $ echo foo
+# | -> do this
+# | <- get that
+#
+##
+
+
+==== Documentation annotations ====
+
+Documentation lines starting with the following characters and a
+space:
+- = are top section title
+- == are subsection title
+- | are examples
+- X. or X) are enumerations (X is any number)
+- o/*/- are itemized list
+
+*foo* and _foo_ are for strong and emphasis styles respectively (they
+do not work over multiple lines). @foo is used to reference a symbol.
+
+Note: the 'Example' section is processed verbatim (see 'Expression
+documentation' below).
+
+
+==== Free-form documentation ====
+
+A free-form documentation isn't immediately followed by an expression,
+and is used to provide some additional text and structuring content.
+
+
+==== Expression documentation ====
+
+An expression must have a preceding comment block defining it.
+
+The first line of the documentation names the expression, then the
+documentation body is provided, then individual documentation about
+each member of 'data' is provided. Finally, several tagged sections
+can be added.
+
+Optional members are tagged with the phrase '#optional', often with
+their default value; and extensions added after the expression was
+first released are also given a '(since x.y.z)' comment.
+
+A tagged section starts with one of the following words:
+"Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:".
+
+A 'Since: x.y.z' tag lists the release that introduced the expression.
+
+For example:
+
+##
+# @BlockStats:
+#
+# Statistics of a virtual block device or a block backing device.
+#
+# @device: #optional If the stats are for a virtual block device, the name
+#          corresponding to the virtual block device.
+#
+# @stats:  A @BlockDeviceStats for the device.
+#
+# @parent: #optional This describes the file block device if it has one.
+#
+# @backing: #optional This describes the backing block device if it has one.
+#           (Since 2.0)
+#
+# Since: 0.14.0
+#
+# Notes: You can also make a list:
+#        - with items
+#        - like this
+#
+# Example:
+#
+# -> { "execute": ... }
+# <- { "return": ... }
+#
+##
+{ 'struct': 'BlockStats',
+  'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
+           '*parent': 'BlockStats',
+           '*backing': 'BlockStats'} }
+
+
+=== Schema overview ===
 
 The schema sets up a series of types, as well as commands and events
 that will use those types.  Forward references are allowed: the parser
@@ -193,7 +263,7 @@ struct in C or an Object in JSON. Each value of the 'data' dictionary
 must be the name of a type, or a one-element array containing a type
 name.  An example of a struct is:
 
- { 'struct': 'MyType',
+{ 'struct': 'MyType',
    'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
 
 The use of '*' as a prefix to the name means the member is optional in
