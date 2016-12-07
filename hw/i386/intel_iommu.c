@@ -601,7 +601,17 @@ static inline uint32_t vtd_get_level_from_context_entry(VTDContextEntry *ce)
 
 static inline uint32_t vtd_get_agaw_from_context_entry(VTDContextEntry *ce)
 {
-    return 30 + (ce->hi & VTD_CONTEXT_ENTRY_AW) * 9;
+    uint8_t aw = (ce->hi & VTD_CONTEXT_ENTRY_AW);
+    /*
+     * According to vt-d spec 10.4.2 bits 12:8, SAGAW only allows
+     * 39/48 bits.
+     */
+    if (aw > VTD_CE_AW_48BIT) {
+        error_report("Context entry address width not supported (aw=%d), "
+                     "Shrinking to maximum.", aw);
+        aw = VTD_CE_AW_48BIT;
+    }
+    return 30 + aw * 9;
 }
 
 static const uint64_t vtd_paging_entry_rsvd_field[] = {
