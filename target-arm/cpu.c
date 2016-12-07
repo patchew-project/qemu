@@ -409,6 +409,30 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
   return print_insn_arm(pc | 1, info);
 }
 
+static int arm_read_memory_func(bfd_vma memaddr, bfd_byte *myaddr,
+                                int length, struct disassemble_info *info)
+{
+    assert(info->read_memory_inner_func);
+
+    if ((info->flags & INSN_ARM_THUMB1_BE32) != 0 && length == 2) {
+        int status;
+        unsigned char b[4];
+        assert(info->endian == BFD_ENDIAN_LITTLE);
+        status = info->read_memory_inner_func(memaddr & ~3, (bfd_byte *)b, 4,
+                                              info);
+        if ((memaddr & 2) == 0) {
+            myaddr[0] = b[2];
+            myaddr[1] = b[3];
+        } else {
+            myaddr[0] = b[0];
+            myaddr[1] = b[1];
+        }
+        return status;
+    } else {
+        return info->read_memory_inner_func(memaddr, myaddr, length, info);
+    }
+}
+
 static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     ARMCPU *ac = ARM_CPU(cpu);
@@ -424,6 +448,10 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
     } else if (env->thumb) {
         info->print_insn = print_insn_thumb1;
+        info->flags &= ~INSN_ARM_THUMB1_BE32;
+        if (arm_sctlr_b(env)) {
+            info->flags |= INSN_ARM_THUMB1_BE32;
+        }
     } else {
         info->print_insn = print_insn_arm;
     }
@@ -433,6 +461,10 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 #else
         info->endian = BFD_ENDIAN_BIG;
 #endif
+    }
+    if (info->read_memory_inner_func == NULL) {
+        info->read_memory_inner_func = info->read_memory_func;
+        info->read_memory_func = arm_read_memory_func;
     }
 }
 
