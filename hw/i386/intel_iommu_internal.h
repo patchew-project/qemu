@@ -195,7 +195,7 @@
 #define VTD_DOMAIN_ID_SHIFT         16  /* 16-bit domain id for 64K domains */
 #define VTD_DOMAIN_ID_MASK          ((1UL << VTD_DOMAIN_ID_SHIFT) - 1)
 #define VTD_CAP_ND                  (((VTD_DOMAIN_ID_SHIFT - 4) / 2) & 7ULL)
-#define VTD_MGAW                    39  /* Maximum Guest Address Width */
+#define VTD_MGAW                    48  /* Maximum Guest Address Width */
 #define VTD_CAP_MGAW                (((VTD_MGAW - 1) & 0x3fULL) << 16)
 #define VTD_MAMV                    18ULL
 #define VTD_CAP_MAMV                (VTD_MAMV << 48)
@@ -209,7 +209,8 @@
 #define VTD_CAP_SAGAW_39bit         (0x2ULL << VTD_CAP_SAGAW_SHIFT)
  /* 48-bit AGAW, 4-level page-table */
 #define VTD_CAP_SAGAW_48bit         (0x4ULL << VTD_CAP_SAGAW_SHIFT)
-#define VTD_CAP_SAGAW               VTD_CAP_SAGAW_39bit
+#define VTD_CAP_SAGAW               (VTD_CAP_SAGAW_39bit | \
+                                     VTD_CAP_SAGAW_48bit)
 
 /* IQT_REG */
 #define VTD_IQT_QT(val)             (((val) >> 4) & 0x7fffULL)
