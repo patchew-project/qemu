@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "exec/cpu-common.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -497,6 +498,9 @@ static Property arm_cpu_rvbar_property =
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
 
+static Property arm_cpu_cfgend_property =
+            DEFINE_PROP_BOOL("cfgend", ARMCPU, cfgend, false);
+
 /* use property name "pmu" to match other archs and virt tools */
 static Property arm_cpu_has_pmu_property =
             DEFINE_PROP_BOOL("pmu", ARMCPU, has_pmu, true);
@@ -559,6 +563,18 @@ static void arm_cpu_post_init(Object *obj)
         }
     }
 
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property,
+                             &error_abort);
+
+    qdev_prop_set_globals(DEVICE(obj));
+
+    if (object_property_get_bool(obj, "cfgend", NULL)) {
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            cpu->reset_sctlr |= SCTLR_EE;
+        } else {
+            cpu->reset_sctlr |= SCTLR_B;
+        }
+    }
 }
 
 static void arm_cpu_finalizefn(Object *obj)
@@ -758,6 +774,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
+    CPUClass *cc;
     char *typename;
     char **cpuname;
 
@@ -765,15 +782,20 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
         return NULL;
     }
 
-    cpuname = g_strsplit(cpu_model, ",", 1);
+    cpuname = g_strsplit(cpu_model, ",", 2);
     typename = g_strdup_printf("%s-" TYPE_ARM_CPU, cpuname[0]);
     oc = object_class_by_name(typename);
-    g_strfreev(cpuname);
-    g_free(typename);
     if (!oc || !object_class_dynamic_cast(oc, TYPE_ARM_CPU) ||
         object_class_is_abstract(oc)) {
+        g_strfreev(cpuname);
+        g_free(typename);
         return NULL;
     }
+
+    cc = CPU_CLASS(oc);
+    cc->parse_features(typename, cpuname[1], &error_fatal);
+    g_strfreev(cpuname);
+
     return oc;
 }
 
