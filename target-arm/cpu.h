@@ -2115,6 +2115,12 @@ static inline bool arm_sctlr_b(CPUARMState *env)
         (env->cp15.sctlr_el[1] & SCTLR_B) != 0;
 }
 
+static inline bool arm_sctlr_ee(CPUARMState *env)
+{
+    return arm_feature(env, ARM_FEATURE_V7) &&
+           (env->cp15.sctlr_el[1] & SCTLR_EE) != 0;
+}
+
 /* Return true if the processor is in big-endian mode. */
 static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 {

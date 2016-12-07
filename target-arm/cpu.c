@@ -1560,6 +1560,27 @@ static gchar *arm_gdb_arch_name(CPUState *cs)
     return g_strdup("arm");
 }
 
+#ifndef CONFIG_USER_ONLY
+static int arm_cpu_memory_rw_debug(CPUState *cpu, vaddr address,
+                                   uint8_t *buf, int len, bool is_write)
+{
+    target_ulong addr = address;
+    ARMCPU *armcpu = ARM_CPU(cpu);
+    CPUARMState *env = &armcpu->env;
+
+    if (arm_sctlr_b(env)) {
+        target_ulong i;
+        for (i = 0; i < len; i++) {
+            cpu_memory_rw_debug(cpu, (addr + i) ^ 3, &buf[i], 1, is_write);
+        }
+    } else {
+        cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
+    }
+
+    return 0;
+}
+#endif
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -1577,6 +1598,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->has_work = arm_cpu_has_work;
     cc->cpu_exec_interrupt = arm_cpu_exec_interrupt;
     cc->dump_state = arm_cpu_dump_state;
+#if !defined(CONFIG_USER_ONLY)
+    cc->memory_rw_debug = arm_cpu_memory_rw_debug;
+#endif
     cc->set_pc = arm_cpu_set_pc;
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;

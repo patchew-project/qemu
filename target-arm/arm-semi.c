@@ -114,7 +114,7 @@ static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
     return code;
 }
 
-#include "exec/softmmu-semi.h"
+#include "exec/softmmu-arm-semi.h"
 #endif
 
 static target_ulong arm_semi_syscall_len;
@@ -187,7 +187,7 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;
-    cpu_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, (uint8_t *)&size, 4, 0);
+    armsemi_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, (uint8_t *)&size, 4, 0);
     size = be32_to_cpu(size);
     if (is_a64(env)) {
         env->xregs[0] = size;
