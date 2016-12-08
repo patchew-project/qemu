@@ -1235,36 +1235,25 @@ retry:
     return 0;
 }
 
-static void parse_chap(struct iscsi_context *iscsi, const char *target,
+static void parse_chap(QemuOpts *iscsiopts, struct iscsi_context *iscsi,
                        Error **errp)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *user = NULL;
     const char *password = NULL;
     const char *secretid;
     char *secret = NULL;
 
-    list = qemu_find_opts("iscsi");
-    if (!list) {
+    if (!iscsiopts) {
         return;
     }
 
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
-    }
-
-    user = qemu_opt_get(opts, "user");
+    user = qemu_opt_get(iscsiopts, "user");
     if (!user) {
         return;
     }
 
-    secretid = qemu_opt_get(opts, "password-secret");
-    password = qemu_opt_get(opts, "password");
+    secretid = qemu_opt_get(iscsiopts, "password-secret");
+    password = qemu_opt_get(iscsiopts, "password");
     if (secretid && password) {
         error_setg(errp, "'password' and 'password-secret' properties are "
                    "mutually exclusive");
@@ -1288,27 +1277,16 @@ static void parse_chap(struct iscsi_context *iscsi, const char *target,
     g_free(secret);
 }
 
-static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
-                                Error **errp)
+static void parse_header_digest(QemuOpts *iscsiopts,
+                                struct iscsi_context *iscsi, Error **errp)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *digest = NULL;
 
-    list = qemu_find_opts("iscsi");
-    if (!list) {
+    if (!iscsiopts) {
         return;
     }
 
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
-        if (!opts) {
-            return;
-        }
-    }
-
-    digest = qemu_opt_get(opts, "header-digest");
+    digest = qemu_opt_get(iscsiopts, "header-digest");
     if (!digest) {
         return;
     }
@@ -1326,25 +1304,16 @@ static void parse_header_digest(struct iscsi_context *iscsi, const char *target,
     }
 }
 
-static char *parse_initiator_name(const char *target)
+static char *parse_initiator_name(QemuOpts *iscsiopts)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *name;
     char *iscsi_name;
     UuidInfo *uuid_info;
 
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            name = qemu_opt_get(opts, "initiator-name");
-            if (name) {
-                return g_strdup(name);
-            }
+    if (iscsiopts) {
+        name = qemu_opt_get(iscsiopts, "initiator-name");
+        if (name) {
+            return g_strdup(name);
         }
     }
 
@@ -1360,23 +1329,14 @@ static char *parse_initiator_name(const char *target)
     return iscsi_name;
 }
 
-static int parse_timeout(const char *target)
+static int parse_timeout(QemuOpts *iscsiopts)
 {
-    QemuOptsList *list;
-    QemuOpts *opts;
     const char *timeout;
 
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            timeout = qemu_opt_get(opts, "timeout");
-            if (timeout) {
-                return atoi(timeout);
-            }
+    if (iscsiopts) {
+        timeout = qemu_opt_get(iscsiopts, "timeout");
+        if (timeout) {
+            return atoi(timeout);
         }
     }
 
@@ -1600,6 +1560,28 @@ out:
     }
 }
 
+static QemuOpts *find_iscsi_opts(const char *target)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return NULL;
+    }
+
+    opts = qemu_opts_find(list, target);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return NULL;
+        }
+    }
+
+    return opts;
+}
+
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -1614,7 +1596,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     struct scsi_inquiry_standard *inq = NULL;
     struct scsi_inquiry_supported_pages *inq_vpd;
     char *initiator_name = NULL;
-    QemuOpts *opts;
+    QemuOpts *opts, *iscsiopts;
     Error *local_err = NULL;
     const char *filename;
     int i, ret = 0, timeout = 0;
@@ -1636,9 +1618,11 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
+    iscsiopts = find_iscsi_opts(iscsi_url->target);
+
     memset(iscsilun, 0, sizeof(IscsiLun));
 
-    initiator_name = parse_initiator_name(iscsi_url->target);
+    initiator_name = parse_initiator_name(iscsiopts);
 
     iscsi = iscsi_create_context(initiator_name);
     if (iscsi == NULL) {
@@ -1670,7 +1654,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* check if we got CHAP username/password via the options */
-    parse_chap(iscsi, iscsi_url->target, &local_err);
+    parse_chap(iscsiopts, iscsi, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1686,7 +1670,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
 
     /* check if we got HEADER_DIGEST via the options */
-    parse_header_digest(iscsi, iscsi_url->target, &local_err);
+    parse_header_digest(iscsiopts, iscsi, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1694,7 +1678,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* timeout handling is broken in libiscsi before 1.15.0 */
-    timeout = parse_timeout(iscsi_url->target);
+    timeout = parse_timeout(iscsiopts);
 #if LIBISCSI_API_VERSION >= 20150621
     iscsi_set_timeout(iscsi, timeout);
 #else
