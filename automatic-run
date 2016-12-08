@@ -1,0 +1,84 @@
+#!/usr/bin/expect -f
+#
+# This script generates the risugen output for a given
+# list of instructions
+# Then it runs concurrently the master and the apprentice:
+# - the master is started on remote host provided by the
+#   environment variable RISU_MASTER
+# - the apprentice is started in a chroot provided by the
+#   environment variable RISU_CHROOT
+# Master and apprentice must share a directory, the path
+# of this directory is given by RISU_PATH. The risu files
+# will be searched in this directory.
+# The RISU_ARCH gives the name of the risu patterns file
+# to use.
+#
+# Example:
+#
+#    RISU_ARCH=m68k RISU_MASTER=192.168.100.3 \
+#    RISU_CHROOT=/chroot/m68k \
+#    RISU_PATH=/nfs/risu ./automatic-run ASx ADD AND
+#
+set arch $env(RISU_ARCH)
+set master $env(RISU_MASTER)
+set chroot $env(RISU_CHROOT)
+set risupath $env(RISU_PATH)
+set numinsns 10000
+
+set prompt "(%|#|\\$) $"
+
+set timeout 1
+spawn sudo -S chroot $chroot
+expect {
+    -re ":" {
+        set timeout 300
+        stty -echo
+        expect_user -re "(.*)\n"
+        send "$expect_out(1,string)\r"
+        stty echo
+        expect -r $prompt
+    }
+}
+send "ls $risupath > /dev/null; echo RESULT:$?\n"
+expect {
+   "RESULT:2" { exit 1 }
+   -re $prompt
+}
+
+set timeout 1
+set retry 0
+expect {
+    timeout { if { $retry == 5 } { exit 2}
+              incr retry 1
+              send "\r"
+              exp_continue;
+            }
+    -re $prompt
+}
+
+set chroot_id $spawn_id
+spawn ssh $master
+
+set timeout 600
+expect {
+    timeout { send "\r"; exp_continue; }
+    -re $prompt
+}
+
+for { set arg 0 } { $arg < $argc } { incr arg 1 } {
+    set insn  [lindex $argv $arg]
+
+    system $risupath/risugen --numinsns $numinsns --pattern $insn $risupath/$arch.risu $risupath/$insn.out
+
+    send "$risupath/risu --master $risupath/$insn.out\n"
+
+    expect "master: waiting for connection on port 9191..."
+
+    send -i $chroot_id "$risupath/risu --host $master $risupath/$insn.out\n"
+
+    expect {
+        "mismatch!" { exit 3 }
+        "match!";
+    }
+    expect -re $prompt
+}
