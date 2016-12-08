@@ -26,6 +26,9 @@
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/uuid.h"
+#ifdef CONFIG_LIBISCSI
+#include "block/iscsi.h"
+#endif
 
 #ifdef CONFIG_SECCOMP
 #include "sysemu/seccomp.h"
@@ -514,33 +517,12 @@ static QemuOptsList qemu_iscsi_opts = {
     .name = "iscsi",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_iscsi_opts.head),
     .desc = {
-        {
-            .name = "user",
-            .type = QEMU_OPT_STRING,
-            .help = "username for CHAP authentication to target",
-        },{
-            .name = "password",
-            .type = QEMU_OPT_STRING,
-            .help = "password for CHAP authentication to target",
-        },{
-            .name = "password-secret",
-            .type = QEMU_OPT_STRING,
-            .help = "ID of the secret providing password for CHAP "
-                    "authentication to target",
-        },{
-            .name = "header-digest",
-            .type = QEMU_OPT_STRING,
-            .help = "HeaderDigest setting. "
-                    "{CRC32C|CRC32C-NONE|NONE-CRC32C|NONE}",
-        },{
-            .name = "initiator-name",
-            .type = QEMU_OPT_STRING,
-            .help = "Initiator iqn name to use when connecting",
-        },{
-            .name = "timeout",
-            .type = QEMU_OPT_NUMBER,
-            .help = "Request timeout in seconds (default 0 = no timeout)",
-        },
+        ISCSI_OPT_USER,
+        ISCSI_OPT_PASSWORD,
+        ISCSI_OPT_PASSWORD_SECRET,
+        ISCSI_OPT_HEADER_DIGEST,
+        ISCSI_OPT_INITIATOR_NAME,
+        ISCSI_OPT_TIMEOUT,
         { /* end of list */ }
     },
 };

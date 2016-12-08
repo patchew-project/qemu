@@ -40,6 +40,7 @@
 #include "qmp-commands.h"
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
+#include "block/iscsi.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
@@ -1235,25 +1236,34 @@ retry:
     return 0;
 }
 
-static void parse_chap(QemuOpts *iscsiopts, struct iscsi_context *iscsi,
-                       Error **errp)
+static void parse_chap(QemuOpts *iscsiopts, QemuOpts *bdevopts,
+                       struct iscsi_context *iscsi, Error **errp)
 {
     const char *user = NULL;
     const char *password = NULL;
     const char *secretid;
     char *secret = NULL;
 
-    if (!iscsiopts) {
-        return;
+    user = qemu_opt_get(bdevopts, "user");
+    if (!user && iscsiopts) {
+        user = qemu_opt_get(iscsiopts, "user");
     }
-
-    user = qemu_opt_get(iscsiopts, "user");
     if (!user) {
         return;
     }
 
-    secretid = qemu_opt_get(iscsiopts, "password-secret");
-    password = qemu_opt_get(iscsiopts, "password");
+    secretid = qemu_opt_get(bdevopts, "password-secret");
+    if (!secretid && iscsiopts) {
+        secretid = qemu_opt_get(iscsiopts, "password-secret");
+    }
+    /* Intentionally don't look for 'password' in bdev opts,
+     * since this is an insecure broken feature of -iscsi.
+     * we only want to support password-secret with -drive
+     */
+    if (iscsiopts) {
+        password = qemu_opt_get(iscsiopts, "password");
+    }
+
     if (secretid && password) {
         error_setg(errp, "'password' and 'password-secret' properties are "
                    "mutually exclusive");
@@ -1277,16 +1287,15 @@ static void parse_chap(QemuOpts *iscsiopts, struct iscsi_context *iscsi,
     g_free(secret);
 }
 
-static void parse_header_digest(QemuOpts *iscsiopts,
+static void parse_header_digest(QemuOpts *iscsiopts, QemuOpts *bdevopts,
                                 struct iscsi_context *iscsi, Error **errp)
 {
     const char *digest = NULL;
 
-    if (!iscsiopts) {
-        return;
+    digest = qemu_opt_get(bdevopts, "header-digest");
+    if (!digest && iscsiopts) {
+        digest = qemu_opt_get(iscsiopts, "header-digest");
     }
-
-    digest = qemu_opt_get(iscsiopts, "header-digest");
     if (!digest) {
         return;
     }
@@ -1304,17 +1313,18 @@ static void parse_header_digest(QemuOpts *iscsiopts,
     }
 }
 
-static char *parse_initiator_name(QemuOpts *iscsiopts)
+static char *parse_initiator_name(QemuOpts *iscsiopts, QemuOpts *bdevopts)
 {
     const char *name;
     char *iscsi_name;
     UuidInfo *uuid_info;
 
-    if (iscsiopts) {
+    name = qemu_opt_get(bdevopts, "initiator-name");
+    if (!name && iscsiopts) {
         name = qemu_opt_get(iscsiopts, "initiator-name");
-        if (name) {
-            return g_strdup(name);
-        }
+    }
+    if (name) {
+        return g_strdup(name);
     }
 
     uuid_info = qmp_query_uuid(NULL);
@@ -1329,15 +1339,16 @@ static char *parse_initiator_name(QemuOpts *iscsiopts)
     return iscsi_name;
 }
 
-static int parse_timeout(QemuOpts *iscsiopts)
+static int parse_timeout(QemuOpts *iscsiopts, QemuOpts *bdevopts)
 {
     const char *timeout;
 
-    if (iscsiopts) {
+    timeout = qemu_opt_get(bdevopts, "timeout");
+    if (!timeout && iscsiopts) {
         timeout = qemu_opt_get(iscsiopts, "timeout");
-        if (timeout) {
-            return atoi(timeout);
-        }
+    }
+    if (timeout) {
+        return atoi(timeout);
     }
 
     return 0;
@@ -1439,6 +1450,16 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "URL to the iscsi image",
         },
+        ISCSI_OPT_USER,
+        /* Intentionally don't register 'password' in bdev opts,
+         * since this is an insecure broken feature of -iscsi.
+         * we only want to support password-secret with -drive
+         *
+         *ISCSI_OPT_PASSWORD,*/
+        ISCSI_OPT_PASSWORD_SECRET,
+        ISCSI_OPT_HEADER_DIGEST,
+        ISCSI_OPT_INITIATOR_NAME,
+        ISCSI_OPT_TIMEOUT,
         { /* end of list */ }
     },
 };
@@ -1622,7 +1643,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
 
     memset(iscsilun, 0, sizeof(IscsiLun));
 
-    initiator_name = parse_initiator_name(iscsiopts);
+    initiator_name = parse_initiator_name(iscsiopts, opts);
 
     iscsi = iscsi_create_context(initiator_name);
     if (iscsi == NULL) {
@@ -1654,7 +1675,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* check if we got CHAP username/password via the options */
-    parse_chap(iscsiopts, iscsi, &local_err);
+    parse_chap(iscsiopts, opts, iscsi, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1670,7 +1691,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
 
     /* check if we got HEADER_DIGEST via the options */
-    parse_header_digest(iscsiopts, iscsi, &local_err);
+    parse_header_digest(iscsiopts, opts, iscsi, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1678,7 +1699,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* timeout handling is broken in libiscsi before 1.15.0 */
-    timeout = parse_timeout(iscsiopts);
+    timeout = parse_timeout(iscsiopts, opts);
 #if LIBISCSI_API_VERSION >= 20150621
     iscsi_set_timeout(iscsi, timeout);
 #else
