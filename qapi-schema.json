@@ -4705,6 +4705,28 @@
   'data': { 'enable': 'bool', 'primary': 'bool', '*failover' : 'bool' } }
 
 ##
+# @xen-get-replication-error
+#
+# Get replication error that occurs when the vm is running
+#
+# Returns: nothing
+#
+# Since: 2.9
+##
+{ 'command': 'xen-get-replication-error' }
+
+##
+# @xen-do-checkpoint
+#
+# Do checkpoint
+#
+# Returns: nothing
+#
+# Since: 2.9
+##
+{ 'command': 'xen-do-checkpoint' }
+
+##
 # @GICCapability:
 #
 # The struct describes capability for a specific GIC (Generic
