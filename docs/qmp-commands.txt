@@ -432,6 +432,23 @@ Example:
      "arguments": { "enable": true } }
 <- { "return": {} }
 
+xen-set-replication
+-------
+
+Enable or disable replication.
+
+Arguments:
+
+- "enable": Enable it or disable it.
+- "primary": True for primary or false for secondary
+- "failover": Enable to do failover when stoping replcation
+
+Example:
+
+-> { "execute": "xen-set-replicate",
+     "arguments": {"enable": true, "primary": false} }
+<- { "return": {} }
+
 migrate
 -------
 

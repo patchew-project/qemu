@@ -4686,6 +4686,25 @@
 { 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
 
 ##
+# @xen-set-replication
+#
+# Enable or disable replication
+#
+# @enable: true to enable, false to disable.
+#
+# @primary: true for primary or false for secondary
+#
+# @failover: #optional true to do failover, false to stop.
+#            default value is false.
+#
+# Returns: nothing
+#
+# Since: 2.9
+##
+{ 'command': 'xen-set-replication',
+  'data': { 'enable': 'bool', 'primary': 'bool', '*failover' : 'bool' } }
+
+##
 # @GICCapability:
 #
 # The struct describes capability for a specific GIC (Generic
