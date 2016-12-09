@@ -99,8 +99,8 @@ enum p9_proto_version {
     V9FS_PROTO_2000L = 0x02,
 };
 
-#define P9_NOTAG    (u16)(~0)
-#define P9_NOFID    (u32)(~0)
+#define P9_NOTAG    (uint16_t)(~0)
+#define P9_NOFID    (uint32_t)(~0)
 #define P9_MAXWELEM 16
 
 #define FID_REFERENCED          0x1
