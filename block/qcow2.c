@@ -461,6 +461,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Clean unused cache entries after this time (in seconds)",
         },
+        {
+            .name = "l2-cache-path",
+            .type = QEMU_OPT_STRING,
+            .help = "Directory where to store the L2 cache",
+        },
         { /* end of list */ }
     },
 };
@@ -656,8 +661,10 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
         }
     }
 
-    r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
-    r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
+    const char *path = qemu_opt_get(opts, "l2-cache-path");
+
+    r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size, path);
+    r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size, NULL);
     if (r->l2_table_cache == NULL || r->refcount_block_cache == NULL) {
         error_setg(errp, "Could not allocate metadata caches");
         ret = -ENOMEM;

@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/mmap-alloc.h"
 #include "block/block_int.h"
 #include "qemu-common.h"
 #include "qcow2.h"
@@ -36,6 +37,7 @@ typedef struct Qcow2CachedTable {
 } Qcow2CachedTable;
 
 struct Qcow2Cache {
+    int                     fd;
     Qcow2CachedTable       *entries;
     struct Qcow2Cache      *depends;
     int                     size;
@@ -63,7 +65,7 @@ static inline int qcow2_cache_get_table_idx(BlockDriverState *bs,
 }
 
 static void qcow2_cache_table_release(BlockDriverState *bs, Qcow2Cache *c,
-                                      int i, int num_tables)
+                                      int i, int num_tables, bool flush)
 {
 /* Using MADV_DONTNEED to discard memory is a Linux-specific feature */
 #ifdef CONFIG_LINUX
@@ -74,6 +76,10 @@ static void qcow2_cache_table_release(BlockDriverState *bs, Qcow2Cache *c,
     size_t offset = QEMU_ALIGN_UP((uintptr_t) t, align) - (uintptr_t) t;
     size_t length = QEMU_ALIGN_DOWN(mem_size - offset, align);
     if (length > 0) {
+        if (flush) {
+            assert(c->fd > 0);
+            msync((uint8_t *) t + offset, length, MS_SYNC);
+        }
         madvise((uint8_t *) t + offset, length, MADV_DONTNEED);
     }
 #endif
@@ -106,26 +112,50 @@ void qcow2_cache_clean_unused(BlockDriverState *bs, Qcow2Cache *c)
         }
 
         if (to_clean > 0) {
-            qcow2_cache_table_release(bs, c, i - to_clean, to_clean);
+            qcow2_cache_table_release(bs, c, i - to_clean, to_clean, false);
         }
     }
 
     c->cache_clean_lru_counter = c->lru_counter;
 }
 
-Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
+Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
+                               const char *cache_file_path)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2Cache *c;
+    size_t total_size = (size_t) num_tables * s->cluster_size;
 
     c = g_new0(Qcow2Cache, 1);
     c->size = num_tables;
     c->entries = g_try_new0(Qcow2CachedTable, num_tables);
-    c->table_array = qemu_try_blockalign(bs->file->bs,
-                                         (size_t) num_tables * s->cluster_size);
+    if (cache_file_path) {
+        size_t align = MAX(bdrv_opt_mem_align(bs->file->bs), getpagesize());
+        char *filename = g_strdup_printf("%s/qemu-qcow2-cache.XXXXXX",
+                                         cache_file_path);
+        c->fd = mkstemp(filename);
+        if (c->fd > 0) {
+            unlink(filename);
+        }
+        g_free(filename);
+        if (c->fd == -1 || ftruncate(c->fd, total_size)) {
+            goto out;
+        }
+        c->table_array = qemu_ram_mmap(c->fd, total_size, align, true);
+    } else {
+        c->table_array = qemu_try_blockalign(bs->file->bs, total_size);
+    }
 
+out:
     if (!c->entries || !c->table_array) {
-        qemu_vfree(c->table_array);
+        if (cache_file_path) {
+            qemu_ram_munmap(c->table_array, total_size);
+            if (c->fd > 0) {
+                close(c->fd);
+            }
+        } else {
+            qemu_vfree(c->table_array);
+        }
         g_free(c->entries);
         g_free(c);
         c = NULL;
@@ -142,7 +172,14 @@ int qcow2_cache_destroy(BlockDriverState *bs, Qcow2Cache *c)
         assert(c->entries[i].ref == 0);
     }
 
-    qemu_vfree(c->table_array);
+    if (c->fd) {
+        BDRVQcow2State *s = bs->opaque;
+        size_t total_size = (size_t) c->size * s->cluster_size;
+        qemu_ram_munmap(c->table_array, total_size);
+        close(c->fd);
+    } else {
+        qemu_vfree(c->table_array);
+    }
     g_free(c->entries);
     g_free(c);
 
@@ -297,7 +334,7 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
         c->entries[i].lru_counter = 0;
     }
 
-    qcow2_cache_table_release(bs, c, 0, c->size);
+    qcow2_cache_table_release(bs, c, 0, c->size, false);
 
     c->lru_counter = 0;
 
@@ -399,6 +436,9 @@ void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table)
 
     if (c->entries[i].ref == 0) {
         c->entries[i].lru_counter = ++c->lru_counter;
+        if (c->fd) {
+            qcow2_cache_table_release(bs, c, i, 1, true);
+        }
     }
 
     assert(c->entries[i].ref >= 0);

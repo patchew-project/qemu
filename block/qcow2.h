@@ -569,7 +569,8 @@ void qcow2_free_snapshots(BlockDriverState *bs);
 int qcow2_read_snapshots(BlockDriverState *bs);
 
 /* qcow2-cache.c functions */
-Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables);
+Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
+                               const char *cache_file_path);
 int qcow2_cache_destroy(BlockDriverState* bs, Qcow2Cache *c);
 
 void qcow2_cache_entry_mark_dirty(BlockDriverState *bs, Qcow2Cache *c,
