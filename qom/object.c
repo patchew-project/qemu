@@ -272,6 +272,10 @@ static void type_initialize(TypeImpl *ti)
 
     ti->class_size = type_class_get_size(ti);
     ti->instance_size = type_object_get_size(ti);
+    /* Any type with zero instance_size is implicitly abstract.
+     * This means interface types are all abstract.
+     */
+    ti->abstract |= ti->instance_size == 0;
 
     ti->class = g_malloc0(ti->class_size);
 
