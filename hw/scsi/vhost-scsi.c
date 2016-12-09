@@ -238,8 +238,14 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                                vhost_dummy_handle_output);
     if (err != NULL) {
         error_propagate(errp, err);
-        close(vhostfd);
-        return;
+        goto close_fd;
+    }
+
+    error_setg(&s->migration_blocker,
+               "vhost-scsi does not support migration");
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (ret < 0) {
+        goto free_blocker;
     }
 
     s->dev.nvqs = VHOST_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
@@ -252,7 +258,7 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     if (ret < 0) {
         error_setg(errp, "vhost-scsi: vhost initialization failed: %s",
                    strerror(-ret));
-        return;
+        goto free_vqs;
     }
 
     /* At present, channel and lun both are 0 for bootable vhost-scsi disk */
@@ -261,9 +267,16 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     /* Note: we can also get the minimum tpgt from kernel */
     s->target = vs->conf.boot_tpgt;
 
-    error_setg(&s->migration_blocker,
-            "vhost-scsi does not support migration");
-    migrate_add_blocker(s->migration_blocker);
+    return;
+
+ free_vqs:
+    migrate_del_blocker(s->migration_blocker);
+    g_free(s->dev.vqs);
+ free_blocker:
+    error_free(s->migration_blocker);
+ close_fd:
+    close(vhostfd);
+    return;
 }
 
 static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
