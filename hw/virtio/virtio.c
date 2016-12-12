@@ -484,18 +484,16 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
     unsigned int max, idx;
     unsigned int total_bufs, in_total, out_total;
     MemoryRegionCache *desc_cache = NULL;
-    MemoryRegionCache vring_desc_cache;
     MemoryRegionCache indirect_desc_cache;
+    VRingMemoryRegionCaches *caches;
     int64_t len = 0;
     int rc;
 
     rcu_read_lock();
     idx = vq->last_avail_idx;
     max = vq->vring.num;
-    len = address_space_cache_init(&vring_desc_cache, &address_space_memory,
-                                   vq->vring.desc, max * sizeof(VRingDesc),
-                                   false);
-    if (len < max * sizeof(VRingDesc)) {
+    caches = atomic_rcu_read(&vq->vring.caches);
+    if (caches->desc.len < max * sizeof(VRingDesc)) {
         virtio_error(vdev, "Cannot map descriptor ring");
         goto err;
     }
@@ -512,7 +510,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
             goto err;
         }
 
-        desc_cache = &vring_desc_cache;
+        desc_cache = &caches->desc;
         vring_desc_read(vdev, &desc, desc_cache, i);
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
@@ -578,7 +576,6 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
     }
 
 done:
-    address_space_cache_destroy(&vring_desc_cache);
     if (in_bytes) {
         *in_bytes = in_total;
     }
@@ -729,7 +726,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     unsigned int i, head, max;
     MemoryRegionCache *desc_cache = NULL;
     MemoryRegionCache indirect_desc_cache;
-    MemoryRegionCache vring_desc_cache;
+    VRingMemoryRegionCaches *caches;
     int64_t len;
     VirtIODevice *vdev = vq->vdev;
     VirtQueueElement *elem = NULL;
@@ -770,15 +767,13 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     i = head;
 
     rcu_read_lock();
-    len = address_space_cache_init(&vring_desc_cache, &address_space_memory,
-                                   vq->vring.desc, max * sizeof(VRingDesc),
-                                   false);
-    desc_cache = &vring_desc_cache;
-    if (len < max * sizeof(VRingDesc)) {
+    caches = atomic_rcu_read(&vq->vring.caches);
+    if (caches->desc.len < max * sizeof(VRingDesc)) {
         virtio_error(vdev, "Cannot map descriptor ring");
         return NULL;
     }
 
+    desc_cache = &caches->desc;
     vring_desc_read(vdev, &desc, desc_cache, i);
     if (desc.flags & VRING_DESC_F_INDIRECT) {
         if (desc.len % sizeof(VRingDesc)) {
@@ -855,7 +850,6 @@ done:
     if (desc_cache == &indirect_desc_cache) {
         address_space_cache_destroy(&indirect_desc_cache);
     }
-    address_space_cache_destroy(&vring_desc_cache);
     rcu_read_unlock();
 
     return elem;
