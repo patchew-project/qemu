@@ -1040,9 +1040,12 @@ typedef struct VCChardev {
     QemuConsole *console;
 } VCChardev;
 
-static int console_puts(Chardev *chr, const uint8_t *buf, int len)
+#define TYPE_CHARDEV_VC "chardev-vc"
+#define VC_CHARDEV(obj) OBJECT_CHECK(VCChardev, (obj), TYPE_CHARDEV_VC)
+
+static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    VCChardev *drv = (VCChardev *)chr;
+    VCChardev *drv = VC_CHARDEV(chr);
     QemuConsole *s = drv->console;
     int i;
 
@@ -1128,13 +1131,13 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
             *q++ = '[';
             *q++ = keysym & 0xff;
         } else if (s->echo && (keysym == '\r' || keysym == '\n')) {
-            console_puts(s->chr, (const uint8_t *) "\r", 1);
+            vc_chr_write(s->chr, (const uint8_t *) "\r", 1);
             *q++ = '\n';
         } else {
             *q++ = keysym;
         }
         if (s->echo) {
-            console_puts(s->chr, buf, q - buf);
+            vc_chr_write(s->chr, buf, q - buf);
         }
         be = s->chr->be;
         if (be && be->chr_read) {
@@ -1951,9 +1954,9 @@ int qemu_console_get_height(QemuConsole *con, int fallback)
     return con ? surface_height(con->surface) : fallback;
 }
 
-static void text_console_set_echo(Chardev *chr, bool echo)
+static void vc_chr_set_echo(Chardev *chr, bool echo)
 {
-    VCChardev *drv = (VCChardev *)chr;
+    VCChardev *drv = VC_CHARDEV(chr);
     QemuConsole *s = drv->console;
 
     s->echo = echo;
@@ -1994,7 +1997,7 @@ static const GraphicHwOps text_console_ops = {
 
 static void text_console_do_init(Chardev *chr, DisplayState *ds)
 {
-    VCChardev *drv = (VCChardev *)chr;
+    VCChardev *drv = VC_CHARDEV(chr);
     QemuConsole *s = drv->console;
     int g_width = 80 * FONT_WIDTH;
     int g_height = 24 * FONT_HEIGHT;
@@ -2038,7 +2041,7 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
 
         s->t_attrib.bgcol = QEMU_COLOR_BLUE;
         len = snprintf(msg, sizeof(msg), "%s console\r\n", chr->label);
-        console_puts(chr, (uint8_t*)msg, len);
+        vc_chr_write(chr, (uint8_t *)msg, len);
         s->t_attrib = s->t_attrib_default;
     }
 
@@ -2047,23 +2050,16 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
 
 static const CharDriver vc_driver;
 
-static Chardev *vc_init(const CharDriver *driver,
-                        const char *id, ChardevBackend *backend,
-                        ChardevReturn *ret, bool *be_opened,
-                        Error **errp)
+static void vc_open(Chardev *chr,
+                    ChardevBackend *backend,
+                    bool *be_opened,
+                    Error **errp)
 {
     ChardevVC *vc = backend->u.vc.data;
-    ChardevCommon *common = qapi_ChardevVC_base(vc);
-    Chardev *chr;
-    VCChardev *drv;
+    VCChardev *drv = VC_CHARDEV(chr);
     QemuConsole *s;
     unsigned width = 0;
     unsigned height = 0;
-
-    chr = qemu_chr_alloc(&vc_driver, common, errp);
-    if (!chr) {
-        return NULL;
-    }
 
     if (vc->has_width) {
         width = vc->width;
@@ -2086,13 +2082,11 @@ static Chardev *vc_init(const CharDriver *driver,
     }
 
     if (!s) {
-        g_free(chr);
         error_setg(errp, "cannot create text console");
-        return NULL;
+        return;
     }
 
     s->chr = chr;
-    drv = (VCChardev *)chr;
     drv->console = s;
 
     if (display_state) {
@@ -2103,8 +2097,6 @@ static Chardev *vc_init(const CharDriver *driver,
      * stage, so defer OPENED events until they are fully initialized
      */
     *be_opened = false;
-
-    return chr;
 }
 
 void qemu_console_resize(QemuConsole *s, int width, int height)
@@ -2182,18 +2174,39 @@ static const TypeInfo qemu_console_info = {
     .class_size = sizeof(QemuConsoleClass),
 };
 
-static const CharDriver vc_driver = {
+static void char_vc_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->open = vc_open;
+    cc->chr_write = vc_chr_write;
+    cc->chr_set_echo = vc_chr_set_echo;
+}
+
+static const TypeInfo char_vc_type_info = {
+    .name = TYPE_CHARDEV_VC,
+    .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VCChardev),
+    .class_init = char_vc_class_init,
+};
+
+void qemu_console_early_init(void)
+{
+    /* set the default vc driver */
+    if (!object_class_by_name(TYPE_CHARDEV_VC)) {
+        type_register(&char_vc_type_info);
+        register_char_driver(&vc_driver);
+    }
+}
+
+static const CharDriver vc_driver = {
     .kind = CHARDEV_BACKEND_KIND_VC,
-    .parse = qemu_chr_parse_vc, .create = vc_init,
-    .chr_write = console_puts,
-    .chr_set_echo = text_console_set_echo,
+    .parse = qemu_chr_parse_vc
 };
 
 static void register_types(void)
 {
     type_register_static(&qemu_console_info);
-    register_char_driver(&vc_driver);
 }
 
 type_init(register_types);

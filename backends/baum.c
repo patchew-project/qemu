@@ -102,6 +102,9 @@ typedef struct {
     QEMUTimer *cellCount_timer;
 } BaumChardev;
 
+#define TYPE_CHARDEV_BRAILLE "chardev-braille"
+#define BAUM_CHARDEV(obj) OBJECT_CHECK(BaumChardev, (obj), TYPE_CHARDEV_BRAILLE)
+
 /* Let's assume NABCC by default */
 enum way {
     DOTS2ASCII,
@@ -268,9 +271,9 @@ static int baum_deferred_init(BaumChardev *baum)
 }
 
 /* The serial port can receive more of our data */
-static void baum_accept_input(struct Chardev *chr)
+static void baum_chr_accept_input(struct Chardev *chr)
 {
-    BaumChardev *baum = (BaumChardev *)chr;
+    BaumChardev *baum = BAUM_CHARDEV(chr);
     int room, first;
 
     if (!baum->out_buf_used)
@@ -296,7 +299,7 @@ static void baum_accept_input(struct Chardev *chr)
 /* We want to send a packet */
 static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
 {
-    Chardev *chr = (Chardev *)baum;
+    Chardev *chr = CHARDEV(baum);
     uint8_t io_buf[1 + 2 * len], *cur = io_buf;
     int room;
     *cur++ = ESC;
@@ -337,7 +340,7 @@ static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
 /* Called when the other end seems to have a wrong idea of our display size */
 static void baum_cellCount_timer_cb(void *opaque)
 {
-    BaumChardev *baum = opaque;
+    BaumChardev *baum = BAUM_CHARDEV(opaque);
     uint8_t cell_count[] = { BAUM_RSP_CellCount, baum->x * baum->y };
     DPRINTF("Timeout waiting for DisplayData, sending cell count\n");
     baum_write_packet(baum, cell_count, sizeof(cell_count));
@@ -485,9 +488,9 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int baum_write(Chardev *chr, const uint8_t *buf, int len)
+static int baum_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    BaumChardev *baum = (BaumChardev *)chr;
+    BaumChardev *baum = BAUM_CHARDEV(chr);
     int tocopy, cur, eaten, orig_len = len;
 
     if (!len)
@@ -544,7 +547,7 @@ static void baum_send_key2(BaumChardev *baum, uint8_t type, uint8_t value,
 /* We got some data on the BrlAPI socket */
 static void baum_chr_read(void *opaque)
 {
-    BaumChardev *baum = opaque;
+    BaumChardev *baum = BAUM_CHARDEV(opaque);
     brlapi_keyCode_t code;
     int ret;
     if (!baum->brlapi)
@@ -628,9 +631,9 @@ static void baum_chr_read(void *opaque)
     }
 }
 
-static void baum_free(struct Chardev *chr)
+static void baum_chr_free(Chardev *chr)
 {
-    BaumChardev *baum = (BaumChardev *)chr;
+    BaumChardev *baum = BAUM_CHARDEV(chr);
 
     timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
@@ -639,23 +642,13 @@ static void baum_free(struct Chardev *chr)
     }
 }
 
-static Chardev *chr_baum_init(const CharDriver *driver,
-                              const char *id,
-                              ChardevBackend *backend,
-                              ChardevReturn *ret,
-                              bool *be_opened,
-                              Error **errp)
+static void baum_chr_open(Chardev *chr,
+                          ChardevBackend *backend,
+                          bool *be_opened,
+                          Error **errp)
 {
-    ChardevCommon *common = backend->u.braille.data;
-    BaumChardev *baum;
-    Chardev *chr;
+    BaumChardev *baum = BAUM_CHARDEV(chr);
     brlapi_handle_t *handle;
-
-    chr = qemu_chr_alloc(driver, common, errp);
-    if (!chr) {
-        return NULL;
-    }
-    baum = (BaumChardev *)chr;
 
     handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;
@@ -664,34 +657,41 @@ static Chardev *chr_baum_init(const CharDriver *driver,
     if (baum->brlapi_fd == -1) {
         error_setg(errp, "brlapi__openConnection: %s",
                    brlapi_strerror(brlapi_error_location()));
-        goto fail_handle;
+        g_free(handle);
+        return;
     }
     baum->deferred_init = 0;
 
     baum->cellCount_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, baum_cellCount_timer_cb, baum);
 
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
-
-    return chr;
-
-fail_handle:
-    g_free(handle);
-    g_free(chr);
-    return NULL;
 }
+
+static void char_braille_class_init(ObjectClass *oc, void *data)
+{
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    cc->open = baum_chr_open;
+    cc->chr_write = baum_chr_write;
+    cc->chr_accept_input = baum_chr_accept_input;
+    cc->chr_free = baum_chr_free;
+}
+
+static const TypeInfo char_braille_type_info = {
+    .name = TYPE_CHARDEV_BRAILLE,
+    .parent = TYPE_CHARDEV,
+    .instance_size = sizeof(BaumChardev),
+    .class_init = char_braille_class_init,
+};
 
 static void register_types(void)
 {
     static const CharDriver driver = {
-        .instance_size = sizeof(BaumChardev),
         .kind = CHARDEV_BACKEND_KIND_BRAILLE,
-        .parse = NULL, .create = chr_baum_init,
-        .chr_write = baum_write,
-        .chr_accept_input = baum_accept_input,
-        .chr_free = baum_free,
     };
 
     register_char_driver(&driver);
+    type_register_static(&char_braille_type_info);
 }
 
 type_init(register_types);
