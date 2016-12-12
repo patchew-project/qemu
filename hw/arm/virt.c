@@ -626,7 +626,7 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, int type,
 }
 
 static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic, int uart,
-                        MemoryRegion *mem, CharDriverState *chr)
+                        MemoryRegion *mem, Chardev *chr)
 {
     char *nodename;
     hwaddr base = vbi->memmap[uart].base;

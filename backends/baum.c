@@ -87,7 +87,7 @@
 #define BUF_SIZE 256
 
 typedef struct {
-    CharDriverState parent;
+    Chardev parent;
 
     brlapi_handle_t *brlapi;
     int brlapi_fd;
@@ -100,7 +100,7 @@ typedef struct {
     uint8_t out_buf_used, out_buf_ptr;
 
     QEMUTimer *cellCount_timer;
-} BaumDriverState;
+} BaumChardev;
 
 /* Let's assume NABCC by default */
 enum way {
@@ -225,7 +225,7 @@ static const uint8_t nabcc_translation[2][256] = {
 };
 
 /* The guest OS has started discussing with us, finish initializing BrlAPI */
-static int baum_deferred_init(BaumDriverState *baum)
+static int baum_deferred_init(BaumChardev *baum)
 {
 #if defined(CONFIG_SDL)
 #if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 0)
@@ -268,9 +268,9 @@ static int baum_deferred_init(BaumDriverState *baum)
 }
 
 /* The serial port can receive more of our data */
-static void baum_accept_input(struct CharDriverState *chr)
+static void baum_accept_input(struct Chardev *chr)
 {
-    BaumDriverState *baum = (BaumDriverState *)chr;
+    BaumChardev *baum = (BaumChardev *)chr;
     int room, first;
 
     if (!baum->out_buf_used)
@@ -294,9 +294,9 @@ static void baum_accept_input(struct CharDriverState *chr)
 }
 
 /* We want to send a packet */
-static void baum_write_packet(BaumDriverState *baum, const uint8_t *buf, int len)
+static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
 {
-    CharDriverState *chr = (CharDriverState *)baum;
+    Chardev *chr = (Chardev *)baum;
     uint8_t io_buf[1 + 2 * len], *cur = io_buf;
     int room;
     *cur++ = ESC;
@@ -337,14 +337,14 @@ static void baum_write_packet(BaumDriverState *baum, const uint8_t *buf, int len
 /* Called when the other end seems to have a wrong idea of our display size */
 static void baum_cellCount_timer_cb(void *opaque)
 {
-    BaumDriverState *baum = opaque;
+    BaumChardev *baum = opaque;
     uint8_t cell_count[] = { BAUM_RSP_CellCount, baum->x * baum->y };
     DPRINTF("Timeout waiting for DisplayData, sending cell count\n");
     baum_write_packet(baum, cell_count, sizeof(cell_count));
 }
 
 /* Try to interpret a whole incoming packet */
-static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
+static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
 {
     const uint8_t *cur = buf;
     uint8_t req = 0;
@@ -485,9 +485,9 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int baum_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int baum_write(Chardev *chr, const uint8_t *buf, int len)
 {
-    BaumDriverState *baum = (BaumDriverState *)chr;
+    BaumChardev *baum = (BaumChardev *)chr;
     int tocopy, cur, eaten, orig_len = len;
 
     if (!len)
@@ -526,14 +526,16 @@ static int baum_write(CharDriverState *chr, const uint8_t *buf, int len)
 }
 
 /* Send the key code to the other end */
-static void baum_send_key(BaumDriverState *baum, uint8_t type, uint8_t value) {
+static void baum_send_key(BaumChardev *baum, uint8_t type, uint8_t value)
+{
     uint8_t packet[] = { type, value };
     DPRINTF("writing key %x %x\n", type, value);
     baum_write_packet(baum, packet, sizeof(packet));
 }
 
-static void baum_send_key2(BaumDriverState *baum, uint8_t type, uint8_t value,
-                           uint8_t value2) {
+static void baum_send_key2(BaumChardev *baum, uint8_t type, uint8_t value,
+                           uint8_t value2)
+{
     uint8_t packet[] = { type, value, value2 };
     DPRINTF("writing key %x %x\n", type, value);
     baum_write_packet(baum, packet, sizeof(packet));
@@ -542,7 +544,7 @@ static void baum_send_key2(BaumDriverState *baum, uint8_t type, uint8_t value,
 /* We got some data on the BrlAPI socket */
 static void baum_chr_read(void *opaque)
 {
-    BaumDriverState *baum = opaque;
+    BaumChardev *baum = opaque;
     brlapi_keyCode_t code;
     int ret;
     if (!baum->brlapi)
@@ -626,9 +628,9 @@ static void baum_chr_read(void *opaque)
     }
 }
 
-static void baum_free(struct CharDriverState *chr)
+static void baum_free(struct Chardev *chr)
 {
-    BaumDriverState *baum = (BaumDriverState *)chr;
+    BaumChardev *baum = (BaumChardev *)chr;
 
     timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
@@ -637,23 +639,23 @@ static void baum_free(struct CharDriverState *chr)
     }
 }
 
-static CharDriverState *chr_baum_init(const CharDriver *driver,
-                                      const char *id,
-                                      ChardevBackend *backend,
-                                      ChardevReturn *ret,
-                                      bool *be_opened,
-                                      Error **errp)
+static Chardev *chr_baum_init(const CharDriver *driver,
+                              const char *id,
+                              ChardevBackend *backend,
+                              ChardevReturn *ret,
+                              bool *be_opened,
+                              Error **errp)
 {
     ChardevCommon *common = backend->u.braille.data;
-    BaumDriverState *baum;
-    CharDriverState *chr;
+    BaumChardev *baum;
+    Chardev *chr;
     brlapi_handle_t *handle;
 
     chr = qemu_chr_alloc(driver, common, errp);
     if (!chr) {
         return NULL;
     }
-    baum = (BaumDriverState *)chr;
+    baum = (BaumChardev *)chr;
 
     handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;
@@ -681,7 +683,7 @@ fail_handle:
 static void register_types(void)
 {
     static const CharDriver driver = {
-        .instance_size = sizeof(BaumDriverState),
+        .instance_size = sizeof(BaumChardev),
         .kind = CHARDEV_BACKEND_KIND_BRAILLE,
         .parse = NULL, .create = chr_baum_init,
         .chr_write = baum_write,

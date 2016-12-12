@@ -287,7 +287,7 @@ MemoryRegion *isa_address_space_io(ISADevice *dev)
 
 type_init(isabus_register_types)
 
-static void parallel_init(ISABus *bus, int index, CharDriverState *chr)
+static void parallel_init(ISABus *bus, int index, Chardev *chr)
 {
     DeviceState *dev;
     ISADevice *isadev;
