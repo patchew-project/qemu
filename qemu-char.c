@@ -780,7 +780,7 @@ static void muxes_realize_done(Notifier *notifier, void *unused)
     CharDriverState *chr;
 
     QTAILQ_FOREACH(chr, &chardevs, next) {
-        if (chr->is_mux) {
+        if (qemu_chr_get_kind(chr) == CHARDEV_BACKEND_KIND_MUX) {
             MuxDriver *d = chr->opaque;
             int i;
 
@@ -884,7 +884,6 @@ static CharDriverState *qemu_chr_open_mux(const CharDriver *driver,
      * set of muxes
      */
     *be_opened = muxes_realized;
-    chr->is_mux = 1;
     if (!qemu_chr_fe_init(&d->chr, drv, errp)) {
         qemu_chr_free(chr);
         return NULL;
@@ -902,7 +901,7 @@ bool qemu_chr_fe_init(CharBackend *b, CharDriverState *s, Error **errp)
 {
     int tag = 0;
 
-    if (s->is_mux) {
+    if (qemu_chr_get_kind(s) == CHARDEV_BACKEND_KIND_MUX) {
         MuxDriver *d = s->opaque;
 
         if (d->mux_cnt >= MAX_MUX) {
@@ -929,7 +928,7 @@ unavailable:
 
 static bool qemu_chr_is_busy(CharDriverState *s)
 {
-    if (s->is_mux) {
+    if (qemu_chr_get_kind(s) == CHARDEV_BACKEND_KIND_MUX) {
         MuxDriver *d = s->opaque;
         return d->mux_cnt >= 0;
     } else {
@@ -944,7 +943,7 @@ void qemu_chr_fe_deinit(CharBackend *b)
     if (b->chr) {
         qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, true);
         b->chr->be = NULL;
-        if (b->chr->is_mux) {
+        if (qemu_chr_get_kind(b->chr) == CHARDEV_BACKEND_KIND_MUX) {
             MuxDriver *d = b->chr->opaque;
             d->backends[b->tag] = NULL;
         }
@@ -995,7 +994,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
         }
     }
 
-    if (s->is_mux) {
+    if (qemu_chr_get_kind(s) == CHARDEV_BACKEND_KIND_MUX) {
         mux_chr_set_handlers(s, context);
     }
 }
@@ -1006,7 +1005,7 @@ void qemu_chr_fe_take_focus(CharBackend *b)
         return;
     }
 
-    if (b->chr->is_mux) {
+    if (qemu_chr_get_kind(b->chr) == CHARDEV_BACKEND_KIND_MUX) {
         mux_set_focus(b->chr->opaque, b->tag);
     }
 }
@@ -3549,9 +3548,9 @@ fail:
     return NULL;
 }
 
-bool chr_is_ringbuf(const CharDriverState *chr)
+ChardevBackendKind qemu_chr_get_kind(const CharDriverState *chr)
 {
-    return chr->driver->chr_write == ringbuf_chr_write;
+    return chr->driver->kind;
 }
 
 void qmp_ringbuf_write(const char *device, const char *data,
@@ -3569,7 +3568,7 @@ void qmp_ringbuf_write(const char *device, const char *data,
         return;
     }
 
-    if (!chr_is_ringbuf(chr)) {
+    if (!qemu_chr_is_ringbuf(chr)) {
         error_setg(errp,"%s is not a ringbuf device", device);
         return;
     }
@@ -3613,7 +3612,7 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
         return NULL;
     }
 
-    if (!chr_is_ringbuf(chr)) {
+    if (!qemu_chr_is_ringbuf(chr)) {
         error_setg(errp,"%s is not a ringbuf device", device);
         return NULL;
     }
