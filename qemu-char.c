@@ -1884,22 +1884,6 @@ static void qemu_chr_free_tty(CharDriverState *chr)
 {
     fd_chr_free(chr);
 }
-
-static CharDriverState *qemu_chr_open_tty_fd(const CharDriver *driver,
-                                             int fd,
-                                             ChardevCommon *backend,
-                                             bool *be_opened,
-                                             Error **errp)
-{
-    CharDriverState *chr;
-
-    tty_serial_init(fd, 115200, 'N', 8, 1);
-    chr = qemu_chr_open_fd(driver, fd, fd, backend, errp);
-    if (!chr) {
-        return NULL;
-    }
-    return chr;
-}
 #endif /* __linux__ || __sun__ */
 
 #if defined(__linux__)
@@ -2318,29 +2302,6 @@ static int win_chr_poll(void *opaque)
         return 1;
     }
     return 0;
-}
-
-static CharDriverState *qemu_chr_open_win_path(const CharDriver *driver,
-                                               const char *filename,
-                                               ChardevCommon *backend,
-                                               Error **errp)
-{
-    CharDriverState *chr;
-    WinCharState *s;
-
-    chr = qemu_chr_alloc(driver, backend, errp);
-    if (!chr) {
-        return NULL;
-    }
-    s = g_new0(WinCharState, 1);
-    chr->opaque = s;
-
-    if (win_chr_init(chr, filename, errp) < 0) {
-        g_free(s);
-        qemu_chr_free_common(chr);
-        return NULL;
-    }
-    return chr;
 }
 
 static int win_chr_pipe_poll(void *opaque)
@@ -2796,30 +2757,6 @@ static void udp_chr_free(CharDriverState *chr)
     }
     g_free(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-}
-
-static CharDriverState *qemu_chr_open_udp(const CharDriver *driver,
-                                          QIOChannelSocket *sioc,
-                                          ChardevCommon *backend,
-                                          bool *be_opened,
-                                          Error **errp)
-{
-    CharDriverState *chr = NULL;
-    NetCharDriver *s = NULL;
-
-    chr = qemu_chr_alloc(driver, backend, errp);
-    if (!chr) {
-        return NULL;
-    }
-    s = g_new0(NetCharDriver, 1);
-
-    s->ioc = QIO_CHANNEL(sioc);
-    s->bufcnt = 0;
-    s->bufptr = 0;
-    chr->opaque = s;
-    /* be isn't opened until we get a connection */
-    *be_opened = false;
-    return chr;
 }
 
 /***********************************************************/
@@ -4604,8 +4541,23 @@ static CharDriverState *qmp_chardev_open_serial(const CharDriver *driver,
 {
     ChardevHostdev *serial = backend->u.serial.data;
     ChardevCommon *common = qapi_ChardevHostdev_base(serial);
+    CharDriverState *chr;
+    WinCharState *s;
 
-    return qemu_chr_open_win_path(driver, serial->device, common, errp);
+    chr = qemu_chr_alloc(driver, common, errp);
+    if (!chr) {
+        return NULL;
+    }
+
+    s = g_new0(WinCharState, 1);
+    chr->opaque = s;
+    if (win_chr_init(chr, serial->device, errp) < 0) {
+        g_free(s);
+        qemu_chr_free_common(chr);
+        return NULL;
+    }
+
+    return chr;
 }
 
 #else /* WIN32 */
@@ -4674,8 +4626,9 @@ static CharDriverState *qmp_chardev_open_serial(const CharDriver *driver,
         return NULL;
     }
     qemu_set_nonblock(fd);
+    tty_serial_init(fd, 115200, 'N', 8, 1);
 
-    return qemu_chr_open_tty_fd(driver, fd, common, be_opened, errp);
+    return qemu_chr_open_fd(driver, fd, fd, common, errp);
 }
 #endif
 
@@ -4925,6 +4878,7 @@ static CharDriverState *qmp_chardev_open_udp(const CharDriver *driver,
     QIOChannelSocket *sioc = qio_channel_socket_new();
     char *name;
     CharDriverState *chr;
+    NetCharDriver *s;
 
     if (qio_channel_socket_dgram_sync(sioc,
                                       udp->local, udp->remote,
@@ -4933,11 +4887,22 @@ static CharDriverState *qmp_chardev_open_udp(const CharDriver *driver,
         return NULL;
     }
 
-    chr = qemu_chr_open_udp(driver, sioc, common, be_opened, errp);
+    chr = qemu_chr_alloc(driver, common, errp);
+    if (!chr) {
+        return NULL;
+    }
 
     name = g_strdup_printf("chardev-udp-%s", chr->label);
     qio_channel_set_name(QIO_CHANNEL(sioc), name);
     g_free(name);
+
+    s = g_new0(NetCharDriver, 1);
+    s->ioc = QIO_CHANNEL(sioc);
+    s->bufcnt = 0;
+    s->bufptr = 0;
+    chr->opaque = s;
+    /* be isn't opened until we get a connection */
+    *be_opened = false;
 
     return chr;
 }
