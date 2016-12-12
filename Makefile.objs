@@ -51,7 +51,7 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration/
-common-obj-y += chardev/ #aio.o
+common-obj-y += #aio.o
 common-obj-y += page_cache.o
 
 common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
@@ -78,6 +78,8 @@ common-obj-y += backends/
 common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
 
 common-obj-$(CONFIG_FDT) += device_tree.o
+
+chardev-obj-y = chardev/
 
 ######################################################################
 # qapi
