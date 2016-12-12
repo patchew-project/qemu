@@ -1730,6 +1730,10 @@ int gdbserver_start(const char *device)
     CharDriverState *chr = NULL;
     CharDriverState *mon_chr;
     ChardevCommon common = { 0 };
+    static const CharDriver driver = {
+        .kind = -1,
+        .chr_write = gdb_monitor_write
+    };
 
     if (!device)
         return -1;
@@ -1762,8 +1766,7 @@ int gdbserver_start(const char *device)
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
         /* Initialize a monitor terminal for gdb */
-        mon_chr = qemu_chr_alloc(&common, &error_abort);
-        mon_chr->chr_write = gdb_monitor_write;
+        mon_chr = qemu_chr_alloc(&driver, &common, &error_abort);
         monitor_init(mon_chr, 0);
     } else {
         if (qemu_chr_fe_get_driver(&s->chr)) {

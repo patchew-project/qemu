@@ -1696,6 +1696,12 @@ static CharDriverState *vcs[MAX_VCS];
 
 static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
 {
+    static const CharDriver gd_vc_driver = {
+        .kind = CHARDEV_BACKEND_KIND_VC,
+        .chr_write = gd_vc_chr_write,
+        .chr_set_echo = gd_vc_chr_set_echo,
+    };
+
     ChardevCommon *common = qapi_ChardevVC_base(vc);
     CharDriverState *chr;
 
@@ -1704,13 +1710,10 @@ static CharDriverState *gd_vc_handler(ChardevVC *vc, Error **errp)
         return NULL;
     }
 
-    chr = qemu_chr_alloc(common, errp);
+    chr = qemu_chr_alloc(&gd_vc_driver, common, errp);
     if (!chr) {
         return NULL;
     }
-
-    chr->chr_write = gd_vc_chr_write;
-    chr->chr_set_echo = gd_vc_chr_set_echo;
 
     /* Temporary, until gd_vc_vte_init runs.  */
     chr->opaque = g_new0(VirtualConsole, 1);
