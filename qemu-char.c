@@ -2145,8 +2145,9 @@ typedef struct {
 static int win_chr_poll(void *opaque);
 static int win_chr_pipe_poll(void *opaque);
 
-static void win_chr_free(Chardev *chr)
+static void char_win_finalize(Object *obj)
 {
+    Chardev *chr = CHARDEV(obj);
     WinChardev *s = WIN_CHARDEV(chr);
 
     if (s->skip_free) {
@@ -2236,7 +2237,6 @@ static int win_chr_init(Chardev *chr, const char *filename, Error **errp)
     return 0;
 
  fail:
-    win_chr_free(chr);
     return -1;
 }
 
@@ -2411,7 +2411,6 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     return 0;
 
  fail:
-    win_chr_free(chr);
     return -1;
 }
 
@@ -2442,13 +2441,13 @@ static void char_win_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->chr_write = win_chr_write;
-    cc->chr_free = win_chr_free;
 }
 
 static const TypeInfo char_win_type_info = {
     .name = TYPE_CHARDEV_WIN,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(WinChardev),
+    .instance_finalize = char_win_finalize,
     .class_init = char_win_class_init,
     .abstract = true,
 };
