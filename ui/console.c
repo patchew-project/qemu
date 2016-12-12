@@ -2176,7 +2176,6 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->kind = CHARDEV_BACKEND_KIND_VC;
     cc->parse = qemu_chr_parse_vc;
     cc->open = vc_open;
     cc->chr_write = vc_chr_write;
