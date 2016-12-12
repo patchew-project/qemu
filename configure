@@ -2417,6 +2417,21 @@ EOF
         if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
             gcrypt_kdf=yes
         fi
+
+        cat > $TMPC << EOF
+#include <gcrypt.h>
+int main(void) {
+  gcry_mac_hd_t handle;
+  gcry_mac_open(&handle, GCRY_MAC_HMAC_MD5,
+                GCRY_MAC_FLAG_SECURE, NULL);
+  return 0;
+}
+EOF
+        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
+            gcrypy_support_hmac="yes"
+        else
+            gcrypy_support_hmac="no"
+        fi
     else
         if test "$gcrypt" = "yes"; then
             feature_not_found "gcrypt" "Install gcrypt devel"
@@ -5387,6 +5402,9 @@ if test "$gnutls_rnd" = "yes" ; then
 fi
 if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
+  if test "gcrypy_support_hmac" = "yes" ; then
+    echo "CONFIG_GCRYPT_SUPPORT_HMAC=y" >> $config_host_mak
+  fi
   if test "$gcrypt_kdf" = "yes" ; then
     echo "CONFIG_GCRYPT_KDF=y" >> $config_host_mak
   fi
