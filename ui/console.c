@@ -2048,8 +2048,6 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
     qemu_chr_be_generic_open(chr);
 }
 
-static const CharDriver vc_driver;
-
 static void vc_open(Chardev *chr,
                     ChardevBackend *backend,
                     bool *be_opened,
@@ -2178,6 +2176,8 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->kind = CHARDEV_BACKEND_KIND_VC;
+    cc->parse = qemu_chr_parse_vc;
     cc->open = vc_open;
     cc->chr_write = vc_chr_write;
     cc->chr_set_echo = vc_chr_set_echo;
@@ -2195,14 +2195,8 @@ void qemu_console_early_init(void)
     /* set the default vc driver */
     if (!object_class_by_name(TYPE_CHARDEV_VC)) {
         type_register(&char_vc_type_info);
-        register_char_driver(&vc_driver);
     }
 }
-
-static const CharDriver vc_driver = {
-    .kind = CHARDEV_BACKEND_KIND_VC,
-    .parse = qemu_chr_parse_vc
-};
 
 static void register_types(void)
 {
