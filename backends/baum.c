@@ -686,8 +686,12 @@ fail_handle:
 
 static void register_types(void)
 {
-    register_char_driver("braille", CHARDEV_BACKEND_KIND_BRAILLE, NULL,
-                         chr_baum_init);
+    static const CharDriver driver = {
+        .kind = CHARDEV_BACKEND_KIND_BRAILLE,
+        .parse = NULL, .create = chr_baum_init
+    };
+
+    register_char_driver(&driver);
 }
 
 type_init(register_types);

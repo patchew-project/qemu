@@ -4094,27 +4094,11 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
-typedef struct CharDriver {
-    const char *name;
-    ChardevBackendKind kind;
-    CharDriverParse *parse;
-    CharDriverCreate *create;
-} CharDriver;
-
 static GSList *backends;
 
-void register_char_driver(const char *name, ChardevBackendKind kind,
-                          CharDriverParse *parse, CharDriverCreate *create)
+void register_char_driver(const CharDriver *driver)
 {
-    CharDriver *s;
-
-    s = g_malloc0(sizeof(*s));
-    s->name = g_strdup(name);
-    s->kind = kind;
-    s->parse = parse;
-    s->create = create;
-
-    backends = g_slist_append(backends, s);
+    backends = g_slist_append(backends, (void *)driver);
 }
 
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
@@ -4139,7 +4123,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         fprintf(stderr, "Available chardev backend types:\n");
         for (i = backends; i; i = i->next) {
             cd = i->data;
-            fprintf(stderr, "%s\n", cd->name);
+            fprintf(stderr, "%s\n", ChardevBackendKind_lookup[cd->kind]);
         }
         exit(!is_help_option(qemu_opt_get(opts, "backend")));
     }
@@ -4152,7 +4136,8 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     for (i = backends; i; i = i->next) {
         cd = i->data;
 
-        if (strcmp(cd->name, qemu_opt_get(opts, "backend")) == 0) {
+        if (strcmp(ChardevBackendKind_lookup[cd->kind],
+                   qemu_opt_get(opts, "backend")) == 0) {
             break;
         }
     }
@@ -4371,7 +4356,7 @@ ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)
         ChardevBackendInfoList *info = g_malloc0(sizeof(*info));
         c = i->data;
         info->value = g_malloc0(sizeof(*info->value));
-        info->value->name = g_strdup(c->name);
+        info->value->name = g_strdup(ChardevBackendKind_lookup[c->kind]);
 
         info->next = backend_list;
         backend_list = info;
@@ -4907,45 +4892,56 @@ void qemu_chr_cleanup(void)
 
 static void register_types(void)
 {
-    register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL,
-                         qemu_chr_open_null);
-    register_char_driver("socket", CHARDEV_BACKEND_KIND_SOCKET,
-                         qemu_chr_parse_socket, qmp_chardev_open_socket);
-    register_char_driver("udp", CHARDEV_BACKEND_KIND_UDP, qemu_chr_parse_udp,
-                         qmp_chardev_open_udp);
-    register_char_driver("ringbuf", CHARDEV_BACKEND_KIND_RINGBUF,
-                         qemu_chr_parse_ringbuf, qemu_chr_open_ringbuf);
-    register_char_driver("file", CHARDEV_BACKEND_KIND_FILE,
-                         qemu_chr_parse_file_out, qmp_chardev_open_file);
-    register_char_driver("stdio", CHARDEV_BACKEND_KIND_STDIO,
-                         qemu_chr_parse_stdio, qemu_chr_open_stdio);
+    int i;
+    static const CharDriver drivers[] = {
+        { .kind = CHARDEV_BACKEND_KIND_NULL, .parse = NULL,
+          .create = qemu_chr_open_null },
+        { .kind = CHARDEV_BACKEND_KIND_SOCKET,
+          .parse = qemu_chr_parse_socket, .create = qmp_chardev_open_socket },
+        { .kind = CHARDEV_BACKEND_KIND_UDP, .parse = qemu_chr_parse_udp,
+          .create = qmp_chardev_open_udp },
+        { .kind = CHARDEV_BACKEND_KIND_RINGBUF,
+          .parse = qemu_chr_parse_ringbuf, .create = qemu_chr_open_ringbuf },
+        { .kind = CHARDEV_BACKEND_KIND_FILE,
+          .parse = qemu_chr_parse_file_out, .create = qmp_chardev_open_file },
+        { .kind = CHARDEV_BACKEND_KIND_STDIO,
+          .parse = qemu_chr_parse_stdio, .create = qemu_chr_open_stdio },
 #if defined HAVE_CHARDEV_SERIAL
-    register_char_driver("serial", CHARDEV_BACKEND_KIND_SERIAL,
-                         qemu_chr_parse_serial, qmp_chardev_open_serial);
-    register_char_driver("tty", CHARDEV_BACKEND_KIND_SERIAL,
-                         qemu_chr_parse_serial, qmp_chardev_open_serial);
+        { .kind = CHARDEV_BACKEND_KIND_SERIAL,
+          .parse = qemu_chr_parse_serial, .create = qmp_chardev_open_serial },
+        { .kind = CHARDEV_BACKEND_KIND_SERIAL,
+          .parse = qemu_chr_parse_serial, .create = qmp_chardev_open_serial },
 #endif
 #ifdef HAVE_CHARDEV_PARPORT
-    register_char_driver("parallel", CHARDEV_BACKEND_KIND_PARALLEL,
-                         qemu_chr_parse_parallel, qmp_chardev_open_parallel);
-    register_char_driver("parport", CHARDEV_BACKEND_KIND_PARALLEL,
-                         qemu_chr_parse_parallel, qmp_chardev_open_parallel);
+        { .kind = CHARDEV_BACKEND_KIND_PARALLEL,
+          .parse = qemu_chr_parse_parallel,
+          .create = qmp_chardev_open_parallel },
+        { .kind = CHARDEV_BACKEND_KIND_PARALLEL,
+          .parse = qemu_chr_parse_parallel,
+          .create = qmp_chardev_open_parallel },
 #endif
 #ifdef HAVE_CHARDEV_PTY
-    register_char_driver("pty", CHARDEV_BACKEND_KIND_PTY, NULL,
-                         qemu_chr_open_pty);
+        { .kind = CHARDEV_BACKEND_KIND_PTY,
+          .parse = NULL, .create = qemu_chr_open_pty },
 #endif
 #ifdef _WIN32
-    register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL,
-                         qemu_chr_open_win_con);
+        { .kind = CHARDEV_BACKEND_KIND_CONSOLE, .parse = NULL,
+          .create = qemu_chr_open_win_con },
 #endif
-    register_char_driver("pipe", CHARDEV_BACKEND_KIND_PIPE,
-                         qemu_chr_parse_pipe, qemu_chr_open_pipe);
-    register_char_driver("mux", CHARDEV_BACKEND_KIND_MUX, qemu_chr_parse_mux,
-                         qemu_chr_open_mux);
-    /* Bug-compatibility: */
-    register_char_driver("memory", CHARDEV_BACKEND_KIND_MEMORY,
-                         qemu_chr_parse_ringbuf, qemu_chr_open_ringbuf);
+        { .kind = CHARDEV_BACKEND_KIND_PIPE,
+          .parse = qemu_chr_parse_pipe, .create = qemu_chr_open_pipe },
+        { .kind = CHARDEV_BACKEND_KIND_MUX, .parse = qemu_chr_parse_mux,
+          .create = qemu_chr_open_mux },
+        /* Bug-compatibility: */
+        { .kind = CHARDEV_BACKEND_KIND_MEMORY,
+          .parse = qemu_chr_parse_ringbuf, .create = qemu_chr_open_ringbuf },
+    };
+
+
+    for (i = 0; i < ARRAY_SIZE(drivers); i++) {
+        register_char_driver(&drivers[i]);
+    }
+
     /* this must be done after machine init, since we register FEs with muxes
      * as part of realize functions like serial_isa_realizefn when -nographic
      * is specified
