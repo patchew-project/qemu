@@ -474,6 +474,7 @@ void qemu_chr_set_feature(CharDriverState *chr,
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
 typedef struct CharDriver {
+    const char *alias;
     ChardevBackendKind kind;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
     CharDriverState *(*create)(const char *id,
