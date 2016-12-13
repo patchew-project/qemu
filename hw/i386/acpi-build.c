@@ -2576,6 +2576,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     AcpiTableDmar *dmar;
     AcpiDmarHardwareUnit *drhd;
     uint8_t dmar_flags = 0;
+    uint8_t aw_bits = VTD_HOST_ADDRESS_WIDTH;
     X86IOMMUState *iommu = x86_iommu_get_default();
     AcpiDmarDeviceScope *scope = NULL;
     /* Root complex IOAPIC use one path[0] only */
@@ -2586,8 +2587,13 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
         dmar_flags |= 0x1;      /* Flags: 0x1: INT_REMAP */
     }
 
+    if (iommu->type == TYPE_INTEL) {
+        IntelIOMMUState *intel_iommu = INTEL_IOMMU_DEVICE(iommu);
+        aw_bits = intel_iommu->aw_bits;
+    }
+
     dmar = acpi_data_push(table_data, sizeof(*dmar));
-    dmar->host_address_width = VTD_HOST_ADDRESS_WIDTH - 1;
+    dmar->host_address_width = aw_bits - 1;
     dmar->flags = dmar_flags;
 
     /* DMAR Remapping Hardware Unit Definition structure */
