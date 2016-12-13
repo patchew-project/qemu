@@ -599,9 +599,19 @@ static inline uint32_t vtd_get_level_from_context_entry(VTDContextEntry *ce)
     return 2 + (ce->hi & VTD_CONTEXT_ENTRY_AW);
 }
 
+/* Return 0 if failed to fetch valid aw */
 static inline uint32_t vtd_get_agaw_from_context_entry(VTDContextEntry *ce)
 {
-    return 30 + (ce->hi & VTD_CONTEXT_ENTRY_AW) * 9;
+    uint8_t aw = (ce->hi & VTD_CONTEXT_ENTRY_AW);
+    /*
+     * According to vt-d spec 10.4.2 bits 12:8, SAGAW only allows
+     * 39/48 bits.
+     */
+    if (aw > VTD_CE_AW_48BIT) {
+        error_report("Context entry address width not supported (aw=%d)" , aw);
+        return 0;
+    }
+    return 30 + aw * 9;
 }
 
 static const uint64_t vtd_paging_entry_rsvd_field[] = {
@@ -641,6 +651,11 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
     uint64_t slpte;
     uint32_t ce_agaw = vtd_get_agaw_from_context_entry(ce);
     uint64_t access_right_check;
+
+    if (!ce_agaw) {
+        error_report("Illegal context entry AGAW");
+        return -VTD_FR_CONTEXT_ENTRY_INV;
+    }
 
     /* Check if @gpa is above 2^X-1, where X is the minimum of MGAW in CAP_REG
      * and AW in context-entry.
