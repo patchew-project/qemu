@@ -12,6 +12,7 @@
 # the top-level directory.
 
 import os
+import stat
 import sys
 import subprocess
 import json
@@ -25,6 +26,7 @@ import signal
 from tarfile import TarFile, TarInfo
 from StringIO import StringIO
 from shutil import copy, rmtree
+from pwd import getpwuid
 
 
 DEVNULL = open(os.devnull, 'wb')
@@ -225,6 +227,8 @@ class BuildCommand(SubCommand):
                             help="""Specify a binary that will be copied to the
                             container together with all its dependent
                             libraries""")
+        parser.add_argument("--user", "-u", action="store_true",
+                            help="Add the current user to images passwd")
         parser.add_argument("tag",
                             help="Image Tag")
         parser.add_argument("dockerfile",
@@ -259,6 +263,21 @@ class BuildCommand(SubCommand):
             if args.include_executable:
                 _copy_binary_with_libs(args.include_executable,
                                        docker_dir)
+
+            if args.user:
+                uid = os.getuid()
+                uname = getpwuid(uid).pw_name
+                scriptlet = docker_dir+"/setup_user.sh"
+
+                # write scriptlet
+                setup = open(scriptlet, "w")
+                setup.write("#!/bin/sh\n")
+                setup.write("useradd -u %d -U %s" % (uid, uname))
+                setup.close()
+
+                st = os.stat(scriptlet)
+                os.chmod(scriptlet,
+                         st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
             dkr.build_image(tag, docker_dir, dockerfile,
                             quiet=args.quiet, argv=argv)
