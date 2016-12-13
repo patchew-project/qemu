@@ -1,0 +1,26 @@
+; Read 4 files with aio at different depths
+[global]
+ioengine=./qemu.so
+direct=1
+qemu_aio=native
+rw=randread
+bs=128k
+filesize=128m
+runtime=10s
+time_based
+
+[file1]
+filename=file1
+iodepth=4
+
+[file2]
+filename=file2
+iodepth=32
+
+[file3]
+filename=file3
+iodepth=8
+
+[file4]
+filename=file4
+iodepth=16
