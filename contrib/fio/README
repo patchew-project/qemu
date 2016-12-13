@@ -1,0 +1,13 @@
+This is a plugin to test the QEMU block layer with fio,
+the flexible I/O tester.
+
+To build this plugin you have to:
+
+1) hack the configure file to use -fPIC instead of -fPIE
+
+2) configure qemu with --enable-pie
+
+3) build the plugin with
+
+	make qemu-img
+	make -C contrib/fio FIO_PATH=/path/to/fio/source
