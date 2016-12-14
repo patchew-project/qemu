@@ -153,6 +153,7 @@ struct VirtIOPCIProxy {
     int config_cap;
     uint32_t flags;
     bool disable_modern;
+    bool modern_broken;
     OnOffAuto disable_legacy;
     uint32_t class_code;
     uint32_t nvectors;
