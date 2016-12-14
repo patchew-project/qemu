@@ -1013,20 +1013,34 @@ static void coroutine_fn v9fs_attach(void *opaque)
         goto out;
     }
     err += offset;
-    memcpy(&s->root_qid, &qid, sizeof(qid));
-    trace_v9fs_attach_return(pdu->tag, pdu->id,
-                             qid.type, qid.version, qid.path);
+
     /*
      * disable migration if we haven't done already.
      * attach could get called multiple times for the same export.
      */
     if (!s->migration_blocker) {
+        int ret;
+        Error *local_err;
         s->root_fid = fid;
         error_setg(&s->migration_blocker,
                    "Migration is disabled when VirtFS export path '%s' is mounted in the guest using mount_tag '%s'",
                    s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
-        migrate_add_blocker(s->migration_blocker);
+        ret = migrate_add_blocker(s->migration_blocker, &local_err);
+        if (ret) {
+            if (ret > 0) {
+                error_setg(&local_err, "Failed to mount VirtFS as it does not"
+                           " support live migration and --only-migratable was "
+                           "specified");
+            }
+            err = ret;
+            clunk_fid(s, fid);
+            goto out;
+        }
     }
+
+    memcpy(&s->root_qid, &qid, sizeof(qid));
+    trace_v9fs_attach_return(pdu->tag, pdu->id,
+                             qid.type, qid.version, qid.path);
 out:
     put_fid(pdu, fidp);
 out_nofid:

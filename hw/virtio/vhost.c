@@ -1157,7 +1157,16 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     if (hdev->migration_blocker != NULL) {
-        migrate_add_blocker(hdev->migration_blocker);
+        Error *local_err;
+        r = migrate_add_blocker(hdev->migration_blocker, &local_err);
+        if (r) {
+            if (r > 0) {
+                error_setg(&local_err, "Cannot use vhost drivers as it does"
+                           " not support live migration and --only-migratable "
+                           "was specified");
+            }
+            goto fail_busyloop;
+        }
     }
 
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));

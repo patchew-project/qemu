@@ -1102,19 +1102,12 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     VirtIOGPU *g = VIRTIO_GPU(qdev);
     bool have_virgl;
     int i;
+    int ret;
 
     if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUTS) {
         error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUTS);
         return;
     }
-
-    g->config_size = sizeof(struct virtio_gpu_config);
-    g->virtio_config.num_scanouts = g->conf.max_outputs;
-    virtio_init(VIRTIO_DEVICE(g), "virtio-gpu", VIRTIO_ID_GPU,
-                g->config_size);
-
-    g->req_state[0].width = 1024;
-    g->req_state[0].height = 768;
 
     g->use_virgl_renderer = false;
 #if !defined(CONFIG_VIRGL) || defined(HOST_WORDS_BIGENDIAN)
@@ -1125,6 +1118,27 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     if (!have_virgl) {
         g->conf.flags &= ~(1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED);
     }
+
+    if (virtio_gpu_virgl_enabled(g->conf)) {
+        error_setg(&g->migration_blocker, "virgl is not yet migratable");
+        ret = migrate_add_blocker(g->migration_blocker, errp);
+        if (ret) {
+            if (ret > 0) {
+                error_setg(errp, "Cannot use virgl as it does not support live"
+                           " migration yet and --only-migratable was "
+                           "specified");
+            }
+            return;
+        }
+    }
+
+    g->config_size = sizeof(struct virtio_gpu_config);
+    g->virtio_config.num_scanouts = g->conf.max_outputs;
+    virtio_init(VIRTIO_DEVICE(g), "virtio-gpu", VIRTIO_ID_GPU,
+                g->config_size);
+
+    g->req_state[0].width = 1024;
+    g->req_state[0].height = 768;
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
         /* use larger control queue in 3d mode */
@@ -1151,11 +1165,6 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
         if (i > 0) {
             dpy_gfx_replace_surface(g->scanout[i].con, NULL);
         }
-    }
-
-    if (virtio_gpu_virgl_enabled(g->conf)) {
-        error_setg(&g->migration_blocker, "virgl is not yet migratable");
-        migrate_add_blocker(g->migration_blocker);
     }
 }
 

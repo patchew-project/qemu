@@ -86,6 +86,7 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
     int i;
+    int ret;
 
     DPRINTF("kvm_arm_gicv3_realize\n");
 
@@ -110,6 +111,20 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Block migration of a KVM GICv3 device: the API for saving and restoring
+     * the state in the kernel is not yet finalised in the kernel or
+     * implemented in QEMU.
+     */
+    error_setg(&s->migration_blocker, "vGICv3 migration is not implemented");
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (ret) {
+        if (ret > 0) {
+            error_setg(errp, "Failed to realize vGICv3 as its migration is not "
+                       "implemented yet and --only-migratable was specified");
+        }
+        return;
+    }
+
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
                       0, &s->num_irq, true);
 
@@ -121,13 +136,6 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
                             KVM_VGIC_V3_ADDR_TYPE_DIST, s->dev_fd);
     kvm_arm_register_device(&s->iomem_redist, -1, KVM_DEV_ARM_VGIC_GRP_ADDR,
                             KVM_VGIC_V3_ADDR_TYPE_REDIST, s->dev_fd);
-
-    /* Block migration of a KVM GICv3 device: the API for saving and restoring
-     * the state in the kernel is not yet finalised in the kernel or
-     * implemented in QEMU.
-     */
-    error_setg(&s->migration_blocker, "vGICv3 migration is not implemented");
-    migrate_add_blocker(s->migration_blocker);
 
     if (kvm_has_gsi_routing()) {
         /* set up irq routing */

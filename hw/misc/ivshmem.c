@@ -837,6 +837,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     Error *err = NULL;
+    int ret;
     uint8_t *pci_conf;
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
@@ -903,9 +904,6 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         }
     }
 
-    vmstate_register_ram(s->ivshmem_bar2, DEVICE(s));
-    pci_register_bar(PCI_DEVICE(s), 2, attr, s->ivshmem_bar2);
-
     if (s->master == ON_OFF_AUTO_AUTO) {
         s->master = s->vm_id == 0 ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
@@ -913,8 +911,19 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     if (!ivshmem_is_master(s)) {
         error_setg(&s->migration_blocker,
                    "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
-        migrate_add_blocker(s->migration_blocker);
+        ret = migrate_add_blocker(s->migration_blocker, errp);
+        if (ret) {
+            if (ret > 0) {
+                error_setg(errp, "Cannot use the 'peer mode' feature in device"
+                           " 'ivshmem' since it is not migratable and "
+                           "--only-migratable was specified");
+            }
+            return;
+        }
     }
+
+    vmstate_register_ram(s->ivshmem_bar2, DEVICE(s));
+    pci_register_bar(PCI_DEVICE(s), 2, attr, s->ivshmem_bar2);
 }
 
 static void ivshmem_exit(PCIDevice *dev)

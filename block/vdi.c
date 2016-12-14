@@ -471,7 +471,16 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The vdi format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    migrate_add_blocker(s->migration_blocker);
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (ret) {
+        if (ret > 0) {
+            error_setg(errp, "Cannot use a node with vdi format as it does"
+                       " not support live migration and --only-migratable was "
+                       "specified");
+        }
+
+        goto fail;
+    }
 
     qemu_co_mutex_init(&s->write_lock);
 
