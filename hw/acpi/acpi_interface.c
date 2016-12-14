@@ -16,6 +16,7 @@ static void register_types(void)
     static const TypeInfo acpi_dev_if_info = {
         .name          = TYPE_ACPI_DEVICE_IF,
         .parent        = TYPE_INTERFACE,
+        .abstract = true,
         .class_size = sizeof(AcpiDeviceIfClass),
     };
 

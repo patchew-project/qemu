@@ -217,6 +217,7 @@ static void register_types(void)
     static const TypeInfo uc_interface_info = {
         .name          = TYPE_USER_CREATABLE,
         .parent        = TYPE_INTERFACE,
+        .abstract      = true,
         .class_size = sizeof(UserCreatableClass),
     };
 

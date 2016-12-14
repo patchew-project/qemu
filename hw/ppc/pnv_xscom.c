@@ -192,6 +192,7 @@ void pnv_xscom_realize(PnvChip *chip, Error **errp)
 static const TypeInfo pnv_xscom_interface_info = {
     .name = TYPE_PNV_XSCOM_INTERFACE,
     .parent = TYPE_INTERFACE,
+    .abstract = true,
     .class_size = sizeof(PnvXScomInterfaceClass),
 };
 

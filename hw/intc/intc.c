@@ -29,6 +29,7 @@
 static const TypeInfo intctrl_info = {
     .name = TYPE_INTERRUPT_STATS_PROVIDER,
     .parent = TYPE_INTERFACE,
+    .abstract = true,
     .class_size = sizeof(InterruptStatsProviderClass),
 };
 

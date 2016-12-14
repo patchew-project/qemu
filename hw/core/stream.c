@@ -21,6 +21,7 @@ stream_can_push(StreamSlave *sink, StreamCanPushNotifyFn notify,
 static const TypeInfo stream_slave_info = {
     .name          = TYPE_STREAM_SLAVE,
     .parent        = TYPE_INTERFACE,
+    .abstract      = true,
     .class_size = sizeof(StreamSlaveClass),
 };
 

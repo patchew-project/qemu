@@ -884,6 +884,7 @@ static void m48txx_sysbus_concrete_class_init(ObjectClass *klass, void *data)
 static const TypeInfo nvram_info = {
     .name = TYPE_NVRAM,
     .parent = TYPE_INTERFACE,
+    .abstract = true,
     .class_size = sizeof(NvramClass),
 };
 

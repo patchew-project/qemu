@@ -60,6 +60,7 @@ void hotplug_handler_unplug(HotplugHandler *plug_handler,
 static const TypeInfo hotplug_handler_info = {
     .name          = TYPE_HOTPLUG_HANDLER,
     .parent        = TYPE_INTERFACE,
+    .abstract      = true,
     .class_size = sizeof(HotplugHandlerClass),
 };
 

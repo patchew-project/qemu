@@ -41,6 +41,7 @@ static void isa_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo isa_dma_info = {
     .name = TYPE_ISADMA,
     .parent = TYPE_INTERFACE,
+    .abstract = true,
     .class_size = sizeof(IsaDmaClass),
 };
 

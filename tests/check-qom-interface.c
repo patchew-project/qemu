@@ -36,6 +36,7 @@ typedef struct TestIfClass {
 static const TypeInfo test_if_info = {
     .name          = TYPE_TEST_IF,
     .parent        = TYPE_INTERFACE,
+    .abstract      = true,
     .class_size = sizeof(TestIfClass),
 };
 

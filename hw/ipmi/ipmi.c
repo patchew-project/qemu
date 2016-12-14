@@ -86,6 +86,7 @@ static void ipmi_interface_class_init(ObjectClass *class, void *data)
 static TypeInfo ipmi_interface_type_info = {
     .name = TYPE_IPMI_INTERFACE,
     .parent = TYPE_INTERFACE,
+    .abstract = true,
     .class_size = sizeof(IPMIInterfaceClass),
     .class_init = ipmi_interface_class_init,
 };

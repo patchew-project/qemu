@@ -76,6 +76,7 @@ void nmi_monitor_handle(int cpu_index, Error **errp)
 static const TypeInfo nmi_info = {
     .name          = TYPE_NMI,
     .parent        = TYPE_INTERFACE,
+    .abstract      = true,
     .class_size    = sizeof(NMIClass),
 };
 

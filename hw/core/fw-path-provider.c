@@ -42,6 +42,7 @@ char *fw_path_provider_try_get_dev_path(Object *o, BusState *bus,
 static const TypeInfo fw_path_provider_info = {
     .name          = TYPE_FW_PATH_PROVIDER,
     .parent        = TYPE_INTERFACE,
+    .abstract      = true,
     .class_size    = sizeof(FWPathProviderClass),
 };
 
