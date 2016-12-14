@@ -643,7 +643,7 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
  */
 static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
                             uint64_t *slptep, uint32_t *slpte_level,
-                            bool *reads, bool *writes)
+                            bool *reads, bool *writes, uint8_t aw_bits)
 {
     dma_addr_t addr = vtd_get_slpt_base_from_context(ce);
     uint32_t level = vtd_get_level_from_context_entry(ce);
@@ -660,7 +660,7 @@ static int vtd_gpa_to_slpte(VTDContextEntry *ce, uint64_t gpa, bool is_write,
     /* Check if @gpa is above 2^X-1, where X is the minimum of MGAW in CAP_REG
      * and AW in context-entry.
      */
-    if (gpa & ~((1ULL << MIN(ce_agaw, VTD_MGAW)) - 1)) {
+    if (gpa & ~((1ULL << MIN(ce_agaw, aw_bits)) - 1)) {
         VTD_DPRINTF(GENERAL, "error: gpa 0x%"PRIx64 " exceeds limits", gpa);
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
@@ -892,7 +892,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     }
 
     ret_fr = vtd_gpa_to_slpte(&ce, addr, is_write, &slpte, &level,
-                              &reads, &writes);
+                              &reads, &writes, s->aw_bits);
     if (ret_fr) {
         ret_fr = -ret_fr;
         if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
@@ -2033,6 +2033,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("x-buggy-eim", IntelIOMMUState, buggy_eim, false),
+    DEFINE_PROP_UINT32("x-aw-bits", IntelIOMMUState, aw_bits, 39),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2395,8 +2396,12 @@ static void vtd_init(IntelIOMMUState *s)
     s->qi_enabled = false;
     s->iq_last_desc_type = VTD_INV_DESC_NONE;
     s->next_frcd_reg = 0;
-    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_CAP_MGAW |
-             VTD_CAP_SAGAW | VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS;
+    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
+             VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
+             VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(s->aw_bits);
+    if (s->aw_bits == 48) {
+        s->cap |= VTD_CAP_SAGAW_48bit;
+    }
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
     if (x86_iommu->intr_supported) {
@@ -2516,6 +2521,12 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
                              "(X2APIC_API, first shipped in v4.7)");
             return false;
         }
+    }
+
+    if (s->aw_bits != 39 && s->aw_bits != 48) {
+        error_setg(errp, "Illegal x-aw-bits %d (allowed values: 39, 48)",
+                   s->aw_bits);
+        return false;
     }
 
     return true;

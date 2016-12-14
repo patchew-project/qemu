@@ -131,7 +131,7 @@
 #define VTD_TLB_DID(val)            (((val) >> 32) & VTD_DOMAIN_ID_MASK)
 
 /* IVA_REG */
-#define VTD_IVA_ADDR(val)       ((val) & ~0xfffULL & ((1ULL << VTD_MGAW) - 1))
+#define VTD_IVA_ADDR(val)       ((val) & ~0xfffULL)
 #define VTD_IVA_AM(val)         ((val) & 0x3fULL)
 
 /* GCMD_REG */
@@ -195,8 +195,7 @@
 #define VTD_DOMAIN_ID_SHIFT         16  /* 16-bit domain id for 64K domains */
 #define VTD_DOMAIN_ID_MASK          ((1UL << VTD_DOMAIN_ID_SHIFT) - 1)
 #define VTD_CAP_ND                  (((VTD_DOMAIN_ID_SHIFT - 4) / 2) & 7ULL)
-#define VTD_MGAW                    39  /* Maximum Guest Address Width */
-#define VTD_CAP_MGAW                (((VTD_MGAW - 1) & 0x3fULL) << 16)
+#define VTD_CAP_MGAW(bits)          ((((bits) - 1) & 0x3fULL) << 16)
 #define VTD_MAMV                    18ULL
 #define VTD_CAP_MAMV                (VTD_MAMV << 48)
 #define VTD_CAP_PSI                 (1ULL << 39)
@@ -209,7 +208,6 @@
 #define VTD_CAP_SAGAW_39bit         (0x2ULL << VTD_CAP_SAGAW_SHIFT)
  /* 48-bit AGAW, 4-level page-table */
 #define VTD_CAP_SAGAW_48bit         (0x4ULL << VTD_CAP_SAGAW_SHIFT)
-#define VTD_CAP_SAGAW               VTD_CAP_SAGAW_39bit
 
 /* IQT_REG */
 #define VTD_IQT_QT(val)             (((val) >> 4) & 0x7fffULL)
@@ -248,7 +246,7 @@
 #define VTD_FRCD_SID_MASK       0xffffULL
 #define VTD_FRCD_SID(val)       ((val) & VTD_FRCD_SID_MASK)
 /* For the low 64-bit of 128-bit */
-#define VTD_FRCD_FI(val)        ((val) & (((1ULL << VTD_MGAW) - 1) ^ 0xfffULL))
+#define VTD_FRCD_FI(val)        ((val) & ~0xfffULL)
 
 /* DMA Remapping Fault Conditions */
 typedef enum VTDFaultReason {
@@ -355,8 +353,7 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_IOTLB_DOMAIN       (2ULL << 4)
 #define VTD_INV_DESC_IOTLB_PAGE         (3ULL << 4)
 #define VTD_INV_DESC_IOTLB_DID(val)     (((val) >> 16) & VTD_DOMAIN_ID_MASK)
-#define VTD_INV_DESC_IOTLB_ADDR(val)    ((val) & ~0xfffULL & \
-                                         ((1ULL << VTD_MGAW) - 1))
+#define VTD_INV_DESC_IOTLB_ADDR(val)    ((val) & ~0xfffULL)
 #define VTD_INV_DESC_IOTLB_AM(val)      ((val) & 0x3fULL)
 #define VTD_INV_DESC_IOTLB_RSVD_LO      0xffffffff0000ff00ULL
 #define VTD_INV_DESC_IOTLB_RSVD_HI      0xf80ULL
