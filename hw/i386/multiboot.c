@@ -109,7 +109,7 @@ static uint32_t mb_add_cmdline(MultibootState *s, const char *cmdline)
     hwaddr p = s->offset_cmdlines;
     char *b = (char *)s->mb_buf + p;
 
-    get_opt_value(b, strlen(cmdline) + 1, cmdline);
+    memcpy(b, cmdline, strlen(cmdline) + 1);
     s->offset_cmdlines += strlen(b) + 1;
     return s->mb_buf_phys + p;
 }
