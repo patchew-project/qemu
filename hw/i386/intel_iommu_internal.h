@@ -406,6 +406,8 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_CONTEXT_ENTRY_RSVD_LO   (0xff0ULL | ~VTD_HAW_MASK)
 /* hi */
 #define VTD_CONTEXT_ENTRY_AW        7ULL /* Adjusted guest-address-width */
+#define VTD_CE_AW_39BIT             1
+#define VTD_CE_AW_48BIT             2
 #define VTD_CONTEXT_ENTRY_DID(val)  (((val) >> 8) & VTD_DOMAIN_ID_MASK)
 #define VTD_CONTEXT_ENTRY_RSVD_HI   0xffffffffff000080ULL
 
