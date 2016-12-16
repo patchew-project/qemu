@@ -450,6 +450,30 @@ Example:
      "arguments": {"enable": true, "primary": false} }
 <- { "return": {} }
 
+xen-get-replication-error
+-------------------------
+
+Get replication error that occurs when vm is running.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "xen-get-replication-error" }
+<- { "return": {} }
+
+xen-do-checkpoint
+-----------------
+
+Do checkpoint.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "xen-do-checkpoint" }
+<- { "return": {} }
+
 migrate
 -------
 

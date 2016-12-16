@@ -127,6 +127,16 @@ void qmp_xen_set_replication(bool enable, bool primary,
     }
 }
 
+void qmp_xen_get_replication_error(Error **errp)
+    {
+        replication_get_error_all(errp);
+    }
+
+void qmp_xen_do_checkpoint(Error **errp)
+    {
+        replication_do_checkpoint_all(errp);
+    }
+
 static void colo_send_message(QEMUFile *f, COLOMessage msg,
                               Error **errp)
 {
