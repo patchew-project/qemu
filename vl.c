@@ -159,6 +159,7 @@ int smp_cpus = 1;
 int max_cpus = 1;
 int smp_cores = 1;
 int smp_threads = 1;
+int smbios_override = 0;
 int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
@@ -3711,6 +3712,7 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
+                smbios_override = 1;
                 do_smbios_option(opts);
                 break;
             case QEMU_OPTION_fwcfg:
