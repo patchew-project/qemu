@@ -1157,7 +1157,13 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     if (hdev->migration_blocker != NULL) {
-        migrate_add_blocker(hdev->migration_blocker);
+        Error *local_err;
+        r = migrate_add_blocker(hdev->migration_blocker, &local_err);
+        if (r < 0) {
+            error_report_err(local_err);
+            error_free(hdev->migration_blocker);
+            goto fail_busyloop;
+        }
     }
 
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
