@@ -1115,7 +1115,14 @@ int migrate_add_blocker(Error *reason, Error **errp)
 {
     if (migration_is_idle(NULL)) {
         migration_blockers = g_slist_prepend(migration_blockers, reason);
+        error_free(reason);
         return 0;
+    }
+
+    if (only_migratable) {
+        error_setg(errp, "Failed to add migration blocker: --only-migratable "
+                   "was specified");
+        return -EACCES;
     }
 
     error_setg(errp, "Cannot block a migration already in-progress");

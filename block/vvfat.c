@@ -1192,8 +1192,11 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                    "does not support live migration",
                    bdrv_get_device_or_node_name(bs));
         ret = migrate_add_blocker(s->migration_blocker, errp);
-        if (ret < 0) {
-            error_free(s->migration_blocker);
+        if (ret) {
+            if (ret == -EACCES) {
+                error_append_hint(errp, "Cannot use a node with vvfat format "
+                                  "as it does not support live migration");
+            }
             goto fail;
         }
     }
@@ -1202,7 +1205,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         init_mbr(s, cyls, heads, secs);
     }
 
-    //    assert(is_consistent(s));
     qemu_co_mutex_init(&s->lock);
 
     ret = 0;

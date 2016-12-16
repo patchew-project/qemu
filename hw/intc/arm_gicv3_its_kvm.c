@@ -70,7 +70,10 @@ static void kvm_arm_its_realize(DeviceState *dev, Error **errp)
     error_setg(&s->migration_blocker, "vITS migration is not implemented");
     ret = migrate_add_blocker(s->migration_blocker, errp);
     if (ret < 0) {
-        error_free(s->migration_blocker);
+        if (ret == -EACCES) {
+            error_append_hint(errp, "Failed to realize vITS as its migration "
+                              "is not implemented yet");
+        }
         return;
     }
 

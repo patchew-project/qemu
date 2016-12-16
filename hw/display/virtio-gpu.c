@@ -1102,6 +1102,7 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     VirtIOGPU *g = VIRTIO_GPU(qdev);
     bool have_virgl;
     int i;
+    int ret;
 
     if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUTS) {
         error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUTS);
@@ -1120,8 +1121,12 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
         error_setg(&g->migration_blocker, "virgl is not yet migratable");
-        if (migrate_add_blocker(g->migration_blocker, errp) < 0) {
-            error_free(g->migration_blocker);
+        ret = migrate_add_blocker(g->migration_blocker, errp);
+        if (ret) {
+            if (ret == -EACCES) {
+                error_append_hint(errp, "Cannot use virgl as it does not "
+                                  "support live migration yet");
+            }
             return;
         }
     }

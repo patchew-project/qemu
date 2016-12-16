@@ -962,7 +962,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
                    "State blocked by non-migratable CPU device"
                    " (invtsc flag)");
         r = migrate_add_blocker(invtsc_mig_blocker, NULL);
-        if (r < 0) {
+        if (r) {
+            if (r == -EACCES) {
+                error_report("kvm: non-migratable CPU device but"
+                        " --only-migratable was specified");
+            }
             error_report("kvm: migrate_add_blocker failed");
             goto efail;
         }
@@ -1009,7 +1013,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
  fail:
     migrate_del_blocker(invtsc_mig_blocker);
  efail:
-    error_free(invtsc_mig_blocker);
     return r;
 }
 

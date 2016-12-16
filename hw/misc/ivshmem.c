@@ -837,6 +837,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     Error *err = NULL;
+    int ret;
     uint8_t *pci_conf;
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
@@ -910,8 +911,13 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     if (!ivshmem_is_master(s)) {
         error_setg(&s->migration_blocker,
                    "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
-        if (migrate_add_blocker(s->migration_blocker, errp) < 0) {
-            error_free(s->migration_blocker);
+        ret = migrate_add_blocker(s->migration_blocker, errp);
+        if (ret) {
+            if (ret == -EACCES) {
+                error_append_hint(errp, "Cannot use the 'peer mode' feature "
+                                  "in device 'ivshmem' as it does not "
+                                  "support live migration");
+            }
             return;
         }
     }
