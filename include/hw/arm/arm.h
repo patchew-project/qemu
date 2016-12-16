@@ -112,6 +112,11 @@ struct arm_boot_info {
     bool secure_board_setup;
 
     arm_endianness endianness;
+
+    /* Do not override memory node in device tree - useful when
+     * not whole guest memory is under Linux control.
+     */
+    bool skip_fdt_mem_node;
 };
 
 /**
