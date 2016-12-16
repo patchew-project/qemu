@@ -628,6 +628,14 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
     /* Return the AddressSpace corresponding to the specified index */
     return cpu->cpu_ases[asidx].as;
 }
+
+void cpu_set_address_space(CPUState *cpu, AddressSpace *as, int asidx)
+{
+    /* Return the AddressSpace corresponding to the specified index */
+    if (asidx < cpu->num_ases) {
+        cpu->cpu_ases[asidx].as = as;
+    }
+}
 #endif
 
 void cpu_exec_unrealizefn(CPUState *cpu)

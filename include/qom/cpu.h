@@ -964,6 +964,7 @@ void cpu_watchpoint_remove_all(CPUState *cpu, int mask);
  * specifies which address space to read.
  */
 AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx);
+void cpu_set_address_space(CPUState *cpu, AddressSpace *as, int asidx);
 
 void QEMU_NORETURN cpu_abort(CPUState *cpu, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
