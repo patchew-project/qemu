@@ -122,6 +122,8 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         if (ret < 0)
             goto err_handling;
         break;
+    case VHOST_USER_SET_PROTOCOL_FEATURES:
+        break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
                      msg.request);
