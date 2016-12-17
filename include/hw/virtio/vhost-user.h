@@ -12,6 +12,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_RARP = 2,
     VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
     VHOST_USER_PROTOCOL_F_VHOST_PCI =4,
+    VHOST_USER_PROTOCOL_F_SET_DEVICE_ID = 5,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -21,7 +22,8 @@ enum VhostUserProtocolFeature {
 #define VHOST_USER_PROTOCOL_FEATURES ((1ULL << VHOST_USER_PROTOCOL_F_MQ) | \
                                       (1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD) | \
                                       (1ULL << VHOST_USER_PROTOCOL_F_RARP)) | \
-                                      (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI)
+                                      (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI) | \
+                                      (1ULL << VHOST_USER_PROTOCOL_F_SET_DEVICE_ID)
 
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
@@ -44,6 +46,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_QUEUE_NUM = 17,
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_SEND_RARP = 19,
+    VHOST_USER_SET_DEVICE_ID = 20,
     VHOST_USER_MAX
 } VhostUserRequest;
 
