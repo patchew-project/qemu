@@ -51,4 +51,18 @@ struct vhost_pci_net_config {
 	uint16_t status;
 } QEMU_PACKED;
 
+struct peer_vq_msg {
+	uint16_t last_avail_idx;
+        int32_t  vring_enable;
+	uint32_t vring_num;
+	uint64_t desc_gpa;
+	uint64_t avail_gpa;
+	uint64_t used_gpa;
+};
+
+struct peer_vqs_msg {
+	uint32_t nvqs;
+	struct peer_vq_msg pvq_msg[];
+};
+
 #endif

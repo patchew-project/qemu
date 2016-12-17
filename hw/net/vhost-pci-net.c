@@ -20,6 +20,33 @@
 #define VPNET_CQ_SIZE 32
 #define VPNET_RQ_SIZE 256
 
+void vpnet_set_peer_vq_num(VhostPCINet *vpnet, uint16_t num)
+{
+    vpnet->peer_vq_num = num;
+}
+
+void vpnet_init_device_features(VhostPCINet *vpnet, uint64_t features)
+{
+    vpnet->device_features = features;
+}
+
+void vpnet_set_peer_vq_msg(VhostPCINet *vpnet, PeerVqNode *vq_node)
+{
+    struct peer_vq_msg *pvq_msg;
+    uint32_t vring_num = vq_node->vring_num;
+
+    if (vpnet->pvq_msg == NULL)
+        vpnet->pvq_msg = g_malloc0(sizeof(struct peer_vq_msg) * (vring_num + 1));
+
+    pvq_msg = vpnet->pvq_msg + vring_num;
+    pvq_msg->last_avail_idx = vq_node->last_avail_idx;
+    pvq_msg->vring_num = vring_num;
+    pvq_msg->vring_enable = vq_node->enabled;
+    pvq_msg->desc_gpa = vq_node->addr.desc_user_addr;
+    pvq_msg->avail_gpa = vq_node->addr.avail_user_addr;
+    pvq_msg->used_gpa = vq_node->addr.used_user_addr;
+}
+
 static void vpnet_handle_rq(VirtIODevice *vdev, VirtQueue *vq)
 {
 }
