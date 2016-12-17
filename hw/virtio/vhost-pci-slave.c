@@ -30,6 +30,7 @@ static void vp_slave_cleanup(void)
 {
     int ret;
     uint32_t i, nregions;
+    PeerVqNode *pvq_node;
 
     nregions = vp_slave->pmem_msg.nregions;
     for (i = 0; i < nregions; i++) {
@@ -38,6 +39,13 @@ static void vp_slave_cleanup(void)
             error_report("cleanup: failed to unmap mr");
         memory_region_del_subregion(vp_slave->bar_mr, vp_slave->sub_mr+i);
     }
+
+    if (!QLIST_EMPTY(&vp_slave->pvq_list)) {
+        QLIST_FOREACH(pvq_node, &vp_slave->pvq_list, node)
+            g_free(pvq_node);
+    }
+    QLIST_INIT(&vp_slave->pvq_list);
+    vp_slave->pvq_num = 0;
 }
 
 static int vp_slave_write(CharBackend *chr_be, VhostUserMsg *msg)
@@ -187,6 +195,20 @@ static int vp_slave_set_mem_table(VhostUserMsg *msg, int *fds, int fd_num)
     return 0;
 }
 
+static void vp_slave_alloc_pvq_node(void)
+{
+    PeerVqNode *pvq_node = g_malloc0(sizeof(PeerVqNode));
+    QLIST_INSERT_HEAD(&vp_slave->pvq_list, pvq_node, node);
+    vp_slave->pvq_num++;
+}
+
+static void vp_slave_set_vring_num(VhostUserMsg *msg)
+{
+    PeerVqNode *pvq_node = QLIST_FIRST(&vp_slave->pvq_list);
+
+    pvq_node->vring_num = msg->payload.u64;
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -249,6 +271,10 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         fd_num = qemu_chr_fe_get_msgfds(chr_be, fds, sizeof(fds) / sizeof(int));
         vp_slave_set_mem_table(&msg, fds, fd_num);
         break;
+    case VHOST_USER_SET_VRING_NUM:
+        vp_slave_alloc_pvq_node();
+        vp_slave_set_vring_num(&msg);
+        break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
                      msg.request);
@@ -284,6 +310,8 @@ int vhost_pci_slave_init(QemuOpts *opts)
     vp_slave->feature_bits =  1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
     vp_slave->bar_mr = NULL;
     vp_slave->sub_mr = NULL;
+    QLIST_INIT(&vp_slave->pvq_list);
+    vp_slave->pvq_num = 0;
     qemu_chr_fe_init(&vp_slave->chr_be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&vp_slave->chr_be, vp_slave_can_read,
                              vp_slave_read, vp_slave_event,
