@@ -353,6 +353,8 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         qemu_chr_fe_get_msgfds(chr_be, fds, 1);
         close(fds[0]);
         break;
+    case VHOST_USER_SEND_RARP:
+        break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
                      msg.request);
