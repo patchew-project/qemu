@@ -76,6 +76,20 @@ static int vp_slave_get_protocol_features(CharBackend *chr_be, VhostUserMsg *msg
     return vp_slave_write(chr_be, msg);
 }
 
+static void vp_slave_set_device_type(VhostUserMsg *msg)
+{
+    vp_slave->dev_type = (uint16_t)msg->payload.u64;
+
+    switch (vp_slave->dev_type) {
+    case VIRTIO_ID_NET:
+        vp_slave->feature_bits |= (VHOST_PCI_FEATURE_BITS
+                                   | VHOST_PCI_NET_FEATURE_BITS);
+        break;
+    default:
+        error_report("device type %d is not supported", vp_slave->dev_type);
+    }
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -123,6 +137,9 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
             goto err_handling;
         break;
     case VHOST_USER_SET_PROTOCOL_FEATURES:
+        break;
+    case VHOST_USER_SET_DEVICE_ID:
+        vp_slave_set_device_type(&msg);
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
