@@ -217,6 +217,16 @@ static void vp_slave_set_vring_base(VhostUserMsg *msg)
     pvq_node->last_avail_idx = msg->payload.u64;
 }
 
+static int vp_slave_get_vring_base(CharBackend *chr_be, VhostUserMsg *msg)
+{
+    /* send back vring base to qemu */
+    msg->flags |= VHOST_USER_REPLY_MASK;
+    msg->size = sizeof(m.payload.state);
+    msg->payload.state.num = 0;
+
+    return vp_slave_write(chr_be, msg);
+}
+
 static void vp_slave_set_vring_addr(VhostUserMsg *msg)
 {
     PeerVqNode *pvq_node = QLIST_FIRST(&vp_slave->pvq_list);
@@ -318,6 +328,11 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         break;
     case VHOST_USER_SET_VRING_BASE:
         vp_slave_set_vring_base(&msg);
+        break;
+    case VHOST_USER_GET_VRING_BASE:
+        ret = vp_slave_get_vring_base(chr_be, &msg);
+        if (ret < 0)
+            goto err_handling;
         break;
     case VHOST_USER_SET_VRING_ADDR:
         vp_slave_set_vring_addr(&msg);
