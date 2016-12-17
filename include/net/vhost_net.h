@@ -35,4 +35,6 @@ int vhost_set_vring_enable(NetClientState * nc, int enable);
 
 uint64_t vhost_net_get_acked_features(VHostNetState *net);
 
+int vhost_set_vhost_pci(NetClientState *nc, uint8_t cmd);
+
 #endif
