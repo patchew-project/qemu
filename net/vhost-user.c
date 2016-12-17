@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include "clients.h"
-#include "net/vhost_net.h"
 #include "net/vhost-user.h"
 #include "hw/virtio/vhost-user.h"
 #include "qemu/config-file.h"
@@ -18,14 +17,11 @@
 #include "qmp-commands.h"
 #include "trace.h"
 
-typedef struct VhostUserState {
-    NetClientState nc;
-    CharBackend chr; /* only queue index 0 */
-    VHostNetState *vhost_net;
-    guint watch;
-    uint64_t acked_features;
-    bool started;
-} VhostUserState;
+void vhost_user_set_master_dev(NetClientState *nc, VirtIODevice *vdev)
+{
+    VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
+    s->vdev = vdev;
+}
 
 VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
 {
