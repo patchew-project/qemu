@@ -509,6 +509,20 @@ static QemuOptsList qemu_fw_cfg_opts = {
     },
 };
 
+static QemuOptsList qemu_vhost_pci_slave_opts = {
+    .name = "vhost-pci-slave",
+    .implied_opt_name = "chardev",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_vhost_pci_slave_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any
+         * sanity checking will happen later
+         * when setting device properties
+         */
+        { /* end of list */ }
+    },
+};
+
 #ifdef CONFIG_LIBISCSI
 static QemuOptsList qemu_iscsi_opts = {
     .name = "iscsi",
@@ -3073,6 +3087,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    qemu_add_opts(&qemu_vhost_pci_slave_opts);
 #ifdef CONFIG_LIBISCSI
     qemu_add_opts(&qemu_iscsi_opts);
 #endif
@@ -4041,6 +4056,12 @@ int main(int argc, char **argv, char **envp)
                 vmstate_dump_file = fopen(optarg, "w");
                 if (vmstate_dump_file == NULL) {
                     error_report("open %s: %s", optarg, strerror(errno));
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_vhost_pci_slave:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("vhost-pci-slave"), optarg, false);
+                if (!opts) {
                     exit(1);
                 }
                 break;
