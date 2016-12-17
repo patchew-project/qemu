@@ -40,4 +40,6 @@ extern int vhost_pci_slave_init(QemuOpts *opts);
 
 extern int vhost_pci_slave_cleanup(void);
 
+extern int vp_slave_send_feature_bits(uint64_t features);
+
 #endif
