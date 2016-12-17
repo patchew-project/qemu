@@ -141,6 +141,10 @@ static void vpnet_set_features(VirtIODevice *vdev, uint64_t features)
     int ret;
 
     if (need_send) {
+        if (vp_slave->feature_bits != features) {
+            vp_slave->feature_bits = features;
+            vp_slave->peer_reset = 1;
+        }
         need_send = 0;
         ret = vp_slave_send_feature_bits(features);
         if (ret < 0)
