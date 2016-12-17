@@ -347,6 +347,8 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
     case VHOST_USER_SET_VRING_ENABLE:
         vp_slave_set_vring_enable(&msg);
         break;
+    case VHOST_USER_SET_LOG_BASE:
+        break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
                      msg.request);
