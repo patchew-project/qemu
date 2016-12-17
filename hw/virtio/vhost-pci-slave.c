@@ -50,6 +50,13 @@ static int vp_slave_get_features(CharBackend *chr_be, VhostUserMsg *msg)
     return vp_slave_write(chr_be, msg);
 }
 
+static void vp_slave_set_features(VhostUserMsg *msg)
+{
+   /* Clear the protocol feature bit, which is useless for the device */
+    vp_slave->feature_bits = msg->payload.u64
+                             & ~(1 << VHOST_USER_F_PROTOCOL_FEATURES);
+}
+
 static void vp_slave_event(void *opaque, int event)
 {
     switch (event) {
@@ -97,6 +104,9 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         ret = vp_slave_get_features(chr_be, &msg);
         if (ret < 0)
             goto err_handling;
+        break;
+    case VHOST_USER_SET_FEATURES:
+        vp_slave_set_features(&msg);
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
