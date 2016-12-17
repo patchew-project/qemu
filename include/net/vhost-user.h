@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef VHOST_USER_H
-#define VHOST_USER_H
+#ifndef NET_VHOST_USER_H
+#define NET_VHOST_USER_H
 
 struct vhost_net;
 struct vhost_net *vhost_user_get_vhost_net(NetClientState *nc);
