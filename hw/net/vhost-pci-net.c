@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/iov.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/vhost-pci-net.h"
 
@@ -55,8 +56,75 @@ static void vpnet_handle_crq(VirtIODevice *vdev, VirtQueue *vq)
 {
 }
 
+static size_t vpnet_send_crq_msg(VhostPCINet *vpnet,
+                                 struct vpnet_controlq_msg *msg)
+{
+    VirtQueueElement *elem;
+    VirtQueue *vq;
+    size_t msg_len = VPNET_CQ_MSG_HDR_SIZE + msg->size;
+
+    vq = vpnet->crq;
+    if (!virtio_queue_ready(vq)) {
+        return 0;
+    }
+
+    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    if (!elem) {
+        return 0;
+    }
+
+    /* TODO: detect a buffer that's too short, set NEEDS_RESET */
+    iov_from_buf(elem->in_sg, elem->in_num, 0, msg, msg_len);
+
+    virtqueue_push(vq, elem, msg_len);
+    virtio_notify(VIRTIO_DEVICE(vpnet), vq);
+    g_free(elem);
+
+    return msg_len;
+}
+
+static void vpnet_send_peer_mem_msg(VhostPCINet *vpnet)
+{
+    struct vpnet_controlq_msg msg = {
+        .class = VHOST_PCI_CTRL_PEER_MEM_MSG,
+        .size = sizeof(struct peer_mem_msg),
+    };
+    memcpy(&msg.payload.pmem_msg, &vp_slave->pmem_msg, msg.size);
+    vpnet_send_crq_msg(vpnet, &msg);
+}
+
+static void vpnet_send_peer_vq_msg(VhostPCINet *vpnet)
+{
+    struct vpnet_controlq_msg *msg;
+    struct peer_vqs_msg *pvqs_msg;
+    struct peer_vq_msg *pvq_msg;
+    uint16_t pvq_num, msg_size, payload_size;
+
+    pvq_num = vpnet->peer_vq_num;
+    payload_size = sizeof(struct peer_vqs_msg)
+                   + sizeof(struct peer_vq_msg) * pvq_num;
+    msg_size = VPNET_CQ_MSG_HDR_SIZE + payload_size;
+    msg = g_malloc(msg_size);
+    msg->class = VHOST_PCI_CTRL_PEER_VQ_MSG,
+    msg->size = msg_size;
+
+    pvqs_msg = &msg->payload.pvqs_msg;
+    pvqs_msg->nvqs = pvq_num;
+    pvq_msg = pvqs_msg->pvq_msg;
+    memcpy(pvq_msg, vpnet->pvq_msg, payload_size);
+
+    vpnet_send_crq_msg(vpnet, msg);
+    g_free(msg);
+}
+
 static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
+    VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
+
+    if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+        vpnet_send_peer_mem_msg(vpnet);
+        vpnet_send_peer_vq_msg(vpnet);
+    }
 }
 
 static uint64_t vpnet_get_features(VirtIODevice *vdev, uint64_t features, Error **errp)
