@@ -1,6 +1,8 @@
 #ifndef QEMU_VHOST_PCI_SLAVE_H
 #define QEMU_VHOST_PCI_SLAVE_H
 
+#include <linux/vhost.h>
+
 #include "sysemu/char.h"
 #include "exec/memory.h"
 #include "standard-headers/linux/vhost_pci_net.h"
@@ -8,6 +10,7 @@
 typedef struct PeerVqNode {
     uint16_t last_avail_idx;
     uint32_t vring_num;
+    struct vhost_vring_addr addr;
     QLIST_ENTRY(PeerVqNode) node;
 } PeerVqNode;
 
