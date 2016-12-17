@@ -92,4 +92,6 @@ bool vhost_has_free_slot(void);
 int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
+bool vhost_pci_enabled(struct vhost_dev *dev);
+
 #endif
