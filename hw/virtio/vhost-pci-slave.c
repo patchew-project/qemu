@@ -67,6 +67,15 @@ static void vp_slave_event(void *opaque, int event)
     }
 }
 
+static int vp_slave_get_protocol_features(CharBackend *chr_be, VhostUserMsg *msg)
+{
+    msg->payload.u64 = VHOST_USER_PROTOCOL_FEATURES;
+    msg->size = sizeof(msg->payload.u64);
+    msg->flags |= VHOST_USER_REPLY_MASK;
+
+    return vp_slave_write(chr_be, msg);
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -107,6 +116,11 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         break;
     case VHOST_USER_SET_FEATURES:
         vp_slave_set_features(&msg);
+        break;
+    case VHOST_USER_GET_PROTOCOL_FEATURES:
+        ret = vp_slave_get_protocol_features(chr_be, &msg);
+        if (ret < 0)
+            goto err_handling;
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
