@@ -34,6 +34,9 @@ static void vp_slave_cleanup(void)
     uint32_t i, nregions;
     PeerVqNode *pvq_node;
 
+    if (!vp_slave->vdev)
+        return;
+
     nregions = vp_slave->pmem_msg.nregions;
     for (i = 0; i < nregions; i++) {
         ret = munmap(vp_slave->mr_map_base[i], vp_slave->mr_map_size[i]);
@@ -48,6 +51,7 @@ static void vp_slave_cleanup(void)
     }
     QLIST_INIT(&vp_slave->pvq_list);
     vp_slave->pvq_num = 0;
+    vp_slave->vdev = NULL;
 }
 
 static int vp_slave_write(CharBackend *chr_be, VhostUserMsg *msg)
@@ -81,12 +85,44 @@ static void vp_slave_set_features(VhostUserMsg *msg)
                              & ~(1 << VHOST_USER_F_PROTOCOL_FEATURES);
 }
 
+static DeviceState *virtio_to_pci_dev(VirtIODevice *vdev, uint16_t virtio_id)
+{
+    DeviceState *qdev;
+    VhostPCINet *vpnet;
+    VhostPCINetPCI *netpci;
+
+    switch (virtio_id) {
+    case VIRTIO_ID_NET:
+        vpnet = VHOST_PCI_NET(vdev);
+        netpci = container_of(vpnet, VhostPCINetPCI, vdev);
+        qdev = &netpci->parent_obj.pci_dev.qdev;
+        break;
+    default:
+        error_report("virtio_to_pci_dev: device type %d not supported",
+                     virtio_id);
+    }
+
+    return qdev;
+}
+
+static void vp_slave_device_del(VirtIODevice *vdev)
+{
+    Error *errp = NULL;
+    DeviceState *qdev = virtio_to_pci_dev(vdev, vp_slave->dev_type);
+
+    if (vdev != NULL) {
+        qdev_unplug(qdev, &errp);
+        vp_slave_cleanup();
+    }
+}
+
 static void vp_slave_event(void *opaque, int event)
 {
     switch (event) {
     case CHR_EVENT_OPENED:
         break;
     case CHR_EVENT_CLOSED:
+        vp_slave_device_del(vp_slave->vdev);
         break;
     }
 }
@@ -297,6 +333,10 @@ static int vp_slave_set_vhost_pci(CharBackend *chr_be, VhostUserMsg *msg)
         ret = vp_slave_device_create(vp_slave->dev_type);
         if (ret < 0)
             return ret;
+        break;
+    case VHOST_USER_SET_VHOST_PCI_stop:
+        vp_slave_device_del(vp_slave->vdev);
+        ret = 0;
         break;
     default:
         error_report("slave pconnection: cmd %d not supported yet", cmd);
