@@ -5,6 +5,7 @@
 
 typedef struct VhostPCISlave {
     CharBackend chr_be;
+    uint64_t feature_bits;
 } VhostPCISlave;
 
 extern VhostPCISlave *vp_slave;
