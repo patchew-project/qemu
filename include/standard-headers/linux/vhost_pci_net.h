@@ -29,6 +29,17 @@
 
 #include "standard-headers/linux/virtio_ids.h"
 
+struct pmem_region_msg {
+	uint64_t gpa;
+	uint64_t size;
+};
+
+#define MAX_GUEST_REGION 8
+struct peer_mem_msg {
+	uint32_t nregions;
+	struct pmem_region_msg regions[MAX_GUEST_REGION];
+};
+
 #define VPNET_S_LINK_UP	1	/* Link is up */
 
 struct vhost_pci_net_config {

@@ -26,6 +26,20 @@
 
 VhostPCISlave *vp_slave;
 
+static void vp_slave_cleanup(void)
+{
+    int ret;
+    uint32_t i, nregions;
+
+    nregions = vp_slave->pmem_msg.nregions;
+    for (i = 0; i < nregions; i++) {
+        ret = munmap(vp_slave->mr_map_base[i], vp_slave->mr_map_size[i]);
+        if (ret < 0)
+            error_report("cleanup: failed to unmap mr");
+        memory_region_del_subregion(vp_slave->bar_mr, vp_slave->sub_mr+i);
+    }
+}
+
 static int vp_slave_write(CharBackend *chr_be, VhostUserMsg *msg)
 {
     int size;
@@ -107,6 +121,72 @@ static int vp_slave_get_queue_num(CharBackend *chr_be, VhostUserMsg *msg)
     return vp_slave_write(chr_be, msg);
 }
 
+static uint64_t vp_slave_peer_mem_size_get(VhostUserMemory *pmem)
+{
+    int i;
+    uint64_t total_size = 0;
+    uint32_t nregions = pmem->nregions;
+    VhostUserMemoryRegion *pmem_regions = pmem->regions;
+
+    for (i = 0; i < nregions; i++) {
+        total_size += pmem_regions[i].memory_size;
+    }
+
+    return total_size;
+}
+
+static int vp_slave_set_mem_table(VhostUserMsg *msg, int *fds, int fd_num)
+{
+    VhostUserMemory *pmem = &msg->payload.memory;
+    VhostUserMemoryRegion *pmem_region = pmem->regions;
+    uint32_t i, nregions = pmem->nregions;
+    struct peer_mem_msg *pmem_msg = &vp_slave->pmem_msg;
+    pmem_msg->nregions = nregions;
+    MemoryRegion *bar_mr, *sub_mr;
+    uint64_t bar_size, bar_map_offset = 0;
+    void *mr_qva;
+
+    /* Sanity Check */
+    if (fd_num != nregions)
+        error_report("SET_MEM_TABLE: fd num doesn't match region num");
+
+    if (vp_slave->bar_mr == NULL)
+        vp_slave->bar_mr = g_malloc(sizeof(MemoryRegion));
+    if (vp_slave->sub_mr == NULL)
+        vp_slave->sub_mr = g_malloc(nregions * sizeof(MemoryRegion));
+    bar_mr = vp_slave->bar_mr;
+    sub_mr = vp_slave->sub_mr;
+
+    /*
+     * The top half of the bar area holds the peer memory, and the bottom
+     * half is reserved for memory hotplug
+     */
+    bar_size = 2 * vp_slave_peer_mem_size_get(pmem);
+    bar_size = pow2ceil(bar_size);
+    memory_region_init(bar_mr, NULL, "Peer Memory", bar_size);
+    for (i = 0; i < nregions; i++) {
+        vp_slave->mr_map_size[i] = pmem_region[i].memory_size
+                                       + pmem_region[i].mmap_offset;
+        vp_slave->mr_map_base[i] = mmap(NULL, vp_slave->mr_map_size[i],
+                      PROT_READ | PROT_WRITE, MAP_SHARED, fds[i], 0);
+        if (vp_slave->mr_map_base[i] == MAP_FAILED) {
+            error_report("SET_MEM_TABLE: map peer memory region %d failed", i);
+            return -1;
+        }
+
+        mr_qva = vp_slave->mr_map_base[i] + pmem_region[i].mmap_offset;
+        memory_region_init_ram_ptr(&sub_mr[i], NULL, "Peer Memory",
+                                   pmem_region[i].memory_size, mr_qva);
+        memory_region_add_subregion(bar_mr, bar_map_offset, &sub_mr[i]);
+        bar_map_offset += pmem_region[i].memory_size;
+        pmem_msg->regions[i].gpa = pmem_region[i].guest_phys_addr;
+        pmem_msg->regions[i].size = pmem_region[i].memory_size;
+    }
+    vp_slave->bar_map_offset = bar_map_offset;
+
+    return 0;
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -114,7 +194,7 @@ static int vp_slave_can_read(void *opaque)
 
 static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
 {
-    int ret;
+    int ret, fd_num, fds[MAX_GUEST_REGION];
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
     CharBackend *chr_be = (CharBackend *)opaque;
@@ -165,6 +245,10 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         break;
     case VHOST_USER_SET_OWNER:
         break;
+    case VHOST_USER_SET_MEM_TABLE:
+        fd_num = qemu_chr_fe_get_msgfds(chr_be, fds, sizeof(fds) / sizeof(int));
+        vp_slave_set_mem_table(&msg, fds, fd_num);
+        break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
                      msg.request);
@@ -198,6 +282,8 @@ int vhost_pci_slave_init(QemuOpts *opts)
         return -1;
     }
     vp_slave->feature_bits =  1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+    vp_slave->bar_mr = NULL;
+    vp_slave->sub_mr = NULL;
     qemu_chr_fe_init(&vp_slave->chr_be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&vp_slave->chr_be, vp_slave_can_read,
                              vp_slave_read, vp_slave_event,
@@ -208,7 +294,10 @@ int vhost_pci_slave_init(QemuOpts *opts)
 
 int vhost_pci_slave_cleanup(void)
 {
+    vp_slave_cleanup();
     qemu_chr_fe_deinit(&vp_slave->chr_be);
+    g_free(vp_slave->sub_mr);
+    g_free(vp_slave->bar_mr);
     g_free(vp_slave);
 
     return 0;
