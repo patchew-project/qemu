@@ -90,6 +90,23 @@ static void vp_slave_set_device_type(VhostUserMsg *msg)
     }
 }
 
+static int vp_slave_get_queue_num(CharBackend *chr_be, VhostUserMsg *msg)
+{
+    switch (vp_slave->dev_type) {
+    case VIRTIO_ID_NET:
+        msg->payload.u64 = VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX;
+        break;
+    default:
+        error_report("GET_QUEUE_NUM: device type %d is not supported",
+                     vp_slave->dev_type);
+        return -1;
+    }
+    msg->size = sizeof(msg->payload.u64);
+    msg->flags |= VHOST_USER_REPLY_MASK;
+
+    return vp_slave_write(chr_be, msg);
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -140,6 +157,11 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         break;
     case VHOST_USER_SET_DEVICE_ID:
         vp_slave_set_device_type(&msg);
+        break;
+    case VHOST_USER_GET_QUEUE_NUM:
+        ret = vp_slave_get_queue_num(chr_be, &msg);
+        if (ret < 0)
+            goto err_handling;
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
