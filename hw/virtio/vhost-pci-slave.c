@@ -349,6 +349,10 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         break;
     case VHOST_USER_SET_LOG_BASE:
         break;
+    case VHOST_USER_SET_LOG_FD:
+        qemu_chr_fe_get_msgfds(chr_be, fds, 1);
+        close(fds[0]);
+        break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
                      msg.request);
