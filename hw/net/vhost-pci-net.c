@@ -22,6 +22,16 @@
 #define VPNET_CQ_SIZE 32
 #define VPNET_RQ_SIZE 256
 
+static void vpnet_set_link_up(VhostPCINet *vpnet)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(vpnet);
+    uint16_t old_status = vpnet->status;
+
+    vpnet->status |= VPNET_S_LINK_UP;
+    if (vpnet->status != old_status)
+        virtio_notify_config(vdev);
+}
+
 void vpnet_set_peer_vq_num(VhostPCINet *vpnet, uint16_t num)
 {
     vpnet->peer_vq_num = num;
@@ -127,6 +137,11 @@ static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
     if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
         vpnet_send_peer_mem_msg(vpnet);
         vpnet_send_peer_vq_msg(vpnet);
+        /* If the peer device is not reset, start the device now */
+        if (!vp_slave->peer_reset) {
+            vdev->status = status;
+            vpnet_set_link_up(vpnet);
+        }
     }
 }
 
