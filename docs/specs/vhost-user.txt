@@ -490,6 +490,18 @@ Message types
       This request should be sent only when VHOST_USER_PROTOCOL_F_SET_DEVICE_ID
       has been negotiated.
 
+ * VHOST_USER_SET_VHOST_PCI
+
+      Id: 21
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      The master requests the slave to start or stop the vhost-pci device for
+      the inter-VM communication.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_VHOST_PCI has
+      been negotiated.
+
+
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
 The original vhost-user specification only demands replies for certain
