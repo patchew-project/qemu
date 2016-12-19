@@ -31,6 +31,7 @@
 #include "hw/xen/xen.h"
 #endif
 #include "sysemu/kvm.h"
+#include "sysemu/hax.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
@@ -1611,6 +1612,21 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                 qemu_mutex_unlock_ramlist();
                 return;
             }
+            /*
+             * In Hax, the qemu allocate the virtual address, and HAX kernel
+             * populate the memory with physical memory. Currently we have no
+             * paging, so user should make sure enough free memory in advance
+             */
+            if (hax_enabled()) {
+                int ret;
+                ret = hax_populate_ram((uint64_t)(uintptr_t)new_block->host,
+                                       new_block->max_length);
+                if (ret < 0) {
+                    error_setg(errp, "Hax failed to populate ram");
+                    return;
+                }
+            }
+
             memory_try_enable_merging(new_block->host, new_block->max_length);
         }
     }
