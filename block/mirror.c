@@ -1038,6 +1038,12 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
         error_setg(errp, "Sync mode 'incremental' not supported");
         return;
     }
+    if (mode == MIRROR_SYNC_MODE_TOP && !backing_bs(target))
+    {
+        error_setg(errp, "Target Backing required using Sync mode 'top'");
+        return;
+    }
+
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
     mirror_start_job(job_id, bs, BLOCK_JOB_DEFAULT, target, replaces,
