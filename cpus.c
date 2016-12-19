@@ -1264,6 +1264,11 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
         return;
     }
     cpu->thread_kicked = true;
+#ifdef CONFIG_DARWIN
+    if (hax_enabled()) {
+        cpu->exit_request = 1;
+    }
+#endif
     err = pthread_kill(cpu->thread->thread, SIG_IPI);
     if (err) {
         fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
