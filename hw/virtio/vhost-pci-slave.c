@@ -238,6 +238,13 @@ static void vp_slave_set_vring_kick(int fd)
         pvq_node->kickfd = fd;
 }
 
+static void vp_slave_set_vring_call(int fd)
+{
+    PeerVqNode *pvq_node = QLIST_FIRST(&vp_slave->pvq_list);
+    if (pvq_node)
+        pvq_node->callfd = fd;
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -318,6 +325,17 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         /* consume the fd */
         qemu_chr_fe_get_msgfds(chr_be, fds, 1);
         vp_slave_set_vring_kick(fds[0]);
+        /*
+         * This is a non-blocking eventfd.
+         * The receive function forces it to be blocking,
+         * so revert it back to non-blocking.
+         */
+        qemu_set_nonblock(fds[0]);
+        break;
+    case VHOST_USER_SET_VRING_CALL:
+        /* consume the fd */
+        qemu_chr_fe_get_msgfds(chr_be, fds, 1);
+        vp_slave_set_vring_call(fds[0]);
         /*
          * This is a non-blocking eventfd.
          * The receive function forces it to be blocking,
