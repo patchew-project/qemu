@@ -13,6 +13,7 @@
 #include <qemu/osdep.h>
 #include <qemu/sockets.h>
 
+#include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-pci.h"
@@ -267,6 +268,52 @@ static void vp_slave_set_vring_enable(VhostUserMsg *msg)
     }
 }
 
+static int vp_slave_device_create(uint16_t virtio_id)
+{
+    Error *local_err = NULL;
+    QemuOpts *opts;
+    DeviceState *dev;
+    char params[50];
+
+    switch (virtio_id) {
+    case VIRTIO_ID_NET:
+        strcpy(params, "driver=vhost-pci-net-pci,id=vhost-pci-0");
+        break;
+    default:
+        error_report("vhost-pci device create: device type %d not supported",
+                     virtio_id);
+    }
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("device"), params, true);
+    dev = qdev_device_add(opts, &local_err);
+    if (!dev) {
+        qemu_opts_del(opts);
+        return -1;
+    }
+    object_unref(OBJECT(dev));
+    return 0;
+}
+
+static int vp_slave_set_vhost_pci(CharBackend *chr_be, VhostUserMsg *msg)
+{
+    int ret;
+    uint8_t cmd = (uint8_t)msg->payload.u64;
+
+    switch (cmd) {
+    case VHOST_USER_SET_VHOST_PCI_start:
+        ret = vp_slave_device_create(vp_slave->dev_type);
+        if (ret < 0) {
+            return ret;
+        }
+        break;
+    default:
+        error_report("slave pconnection: cmd %d not supported yet", cmd);
+        return -1;
+    }
+
+    return ret;
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -381,6 +428,12 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         close(fds[0]);
         break;
     case VHOST_USER_SEND_RARP:
+        break;
+    case VHOST_USER_SET_VHOST_PCI:
+        ret = vp_slave_set_vhost_pci(chr_be, &msg);
+        if (ret < 0) {
+            goto err_handling;
+        }
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",

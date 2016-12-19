@@ -25,6 +25,10 @@ enum VhostUserProtocolFeature {
                                (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI) | \
                           (1ULL << VHOST_USER_PROTOCOL_F_SET_DEVICE_ID))
 
+/* control/status of the vhost-pci device */
+#define VHOST_USER_SET_VHOST_PCI_start    0
+#define VHOST_USER_SET_VHOST_PCI_stop     1
+
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
     VHOST_USER_GET_FEATURES = 1,
@@ -47,6 +51,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_SEND_RARP = 19,
     VHOST_USER_SET_DEVICE_ID = 20,
+    VHOST_USER_SET_VHOST_PCI = 21,
     VHOST_USER_MAX
 } VhostUserRequest;
 
