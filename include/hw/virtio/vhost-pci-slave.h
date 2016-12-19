@@ -12,6 +12,7 @@ typedef struct PeerVqNode {
     uint32_t vring_num;
     int kickfd;
     int callfd;
+    int enabled;
     struct vhost_vring_addr addr;
     QLIST_ENTRY(PeerVqNode) node;
 } PeerVqNode;

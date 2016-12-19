@@ -245,6 +245,18 @@ static void vp_slave_set_vring_call(int fd)
         pvq_node->callfd = fd;
 }
 
+static void vp_slave_set_vring_enable(VhostUserMsg *msg)
+{
+    struct vhost_vring_state *state = &msg->payload.state;
+    PeerVqNode *pvq_node;
+    QLIST_FOREACH(pvq_node, &vp_slave->pvq_list, node) {
+        if (pvq_node->vring_num == state->index) {
+            pvq_node->enabled = (int)state->num;
+            break;
+        }
+    }
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -342,6 +354,9 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
          * so revert it back to non-blocking.
          */
         qemu_set_nonblock(fds[0]);
+        break;
+    case VHOST_USER_SET_VRING_ENABLE:
+        vp_slave_set_vring_enable(&msg);
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
