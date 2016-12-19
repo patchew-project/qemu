@@ -1,0 +1,39 @@
+VIRTUAL MACHINE GENERATION ID
+=============================
+
+Copyright (C) 2016 Red Hat, Inc.
+Copyright (C) 2016 Skyport Systems, Inc.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+
+===
+
+The VM generation ID (vmgenid) device is an emulated device which
+exposes a 128-bit, cryptographically random, integer value identifier.
+This allows management applications (e.g. libvirt) to notify the guest
+operating system when the virtual machine is executed with a different
+configuration (e.g. snapshot execution or creation from a template).
+
+This is specified on the web at: http://go.microsoft.com/fwlink/?LinkId=260709
+
+---
+
+The vmgenid device is a sysbus device with the ACPI ID "QEMU_Gen_Counter_V1".
+
+The device has two properties, which can be set using the command line
+argument or the QMP interface:
+ guid - sets the value of the GUID
+ changed - signals that the value has changed since the last invocation
+For example:
+QEMU  -device vmgenid,changed=true,guid="324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87"
+
+Or to change guid in runtime use:
+ set-vm-generation-id changed=true guid="124e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87"
+
+According to the specification, any change to the GUID executes an
+ACPI notification. The vmgenid device triggers the \_GPE._E00 handler
+which executes the ACPI Notify operation.
+
+Although not specified in Microsoft's document, it is assumed that the
+device is expected to use the little-endian system.
