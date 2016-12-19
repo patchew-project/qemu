@@ -1775,5 +1775,18 @@ ETEXI
     },
 
 STEXI
+@item set-vm-generation-id @var{changed} @var{uuid}
+Set Virtual Machine Generation ID counter to @var{guid}
+ETEXI
+
+    {
+        .name       = "set-vm-generation-id",
+        .args_type  = "changed:b,guid:s",
+        .params     = "changed guid",
+        .help       = "Set Virtual Machine Generation ID counter",
+        .cmd = hmp_set_vm_generation_id,
+    },
+
+STEXI
 @end table
 ETEXI

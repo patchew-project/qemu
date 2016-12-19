@@ -2579,3 +2579,16 @@ void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
     }
     qapi_free_GuidInfo(info);
 }
+
+void hmp_set_vm_generation_id(Monitor *mon, const QDict *qdict)
+{
+    Error *errp = NULL;
+    const char *guid = qdict_get_str(qdict, "guid");
+    bool changed = qdict_get_bool(qdict, "changed");
+
+    qmp_set_vm_generation_id(changed, guid, &errp);
+    if (errp) {
+        hmp_handle_error(mon, &errp);
+        return;
+    }
+}

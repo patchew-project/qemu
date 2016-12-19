@@ -4796,3 +4796,15 @@
 # Since 2.9
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
+
+##
+# @set-vm-generation-id
+#
+# Set Virtual Machine Generation ID
+#
+# @changed: Is the Virtual Machine Generation ID a new value?
+# @guid: new GUID to set as Virtual Machine Generation ID
+#
+# Since 2.9
+##
+{ 'command': 'set-vm-generation-id', 'data': { 'changed': 'bool', 'guid': 'str' } }
