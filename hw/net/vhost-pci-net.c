@@ -173,6 +173,7 @@ static void vpnet_device_realize(DeviceState *dev, Error **errp)
                                          vpnet_handle_rq);
     }
     vpnet->status = 0;
+    vp_slave->vdev = vdev;
 }
 
 static void vpnet_device_unrealize(DeviceState *dev, Error **errp)

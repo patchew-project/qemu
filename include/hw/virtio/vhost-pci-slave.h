@@ -19,6 +19,8 @@ typedef struct PeerVqNode {
 
 typedef struct VhostPCISlave {
     CharBackend chr_be;
+    /* Ponnter to the slave device */
+    VirtIODevice *vdev;
     uint16_t dev_type;
     uint64_t feature_bits;
     /* hotplugged memory should be mapped following the offset */
