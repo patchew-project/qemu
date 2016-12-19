@@ -65,4 +65,21 @@ struct peer_vqs_msg {
 	struct peer_vq_msg pvq_msg[];
 };
 
+#define VHOST_PCI_CTRL_PEER_MEM_MSG    0
+#define VHOST_PCI_CTRL_PEER_VQ_MSG     1
+struct vpnet_controlq_msg {
+	uint8_t class;
+	uint8_t cmd;
+	uint16_t size;
+        union {
+		struct peer_mem_msg pmem_msg;
+		struct peer_vqs_msg pvqs_msg;
+	} payload;
+} __attribute__((packed));
+
+static struct vpnet_controlq_msg vpnet_msg __attribute__ ((unused));
+#define VPNET_CQ_MSG_HDR_SIZE (sizeof(vpnet_msg.class) \
+			      + sizeof(vpnet_msg.cmd)  \
+			      + sizeof(vpnet_msg.size))
+
 #endif
