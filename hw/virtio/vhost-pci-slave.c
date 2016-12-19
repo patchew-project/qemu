@@ -11,6 +11,7 @@
  */
 
 #include <qemu/osdep.h>
+#include <qemu/sockets.h>
 
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -230,6 +231,13 @@ static void vp_slave_set_vring_addr(VhostUserMsg *msg)
            sizeof(struct vhost_vring_addr));
 }
 
+static void vp_slave_set_vring_kick(int fd)
+{
+    PeerVqNode *pvq_node = QLIST_FIRST(&vp_slave->pvq_list);
+    if (!pvq_node)
+        pvq_node->kickfd = fd;
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -305,6 +313,17 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
         break;
     case VHOST_USER_SET_VRING_ADDR:
         vp_slave_set_vring_addr(&msg);
+        break;
+    case VHOST_USER_SET_VRING_KICK:
+        /* consume the fd */
+        qemu_chr_fe_get_msgfds(chr_be, fds, 1);
+        vp_slave_set_vring_kick(fds[0]);
+        /*
+         * This is a non-blocking eventfd.
+         * The receive function forces it to be blocking,
+         * so revert it back to non-blocking.
+         */
+        qemu_set_nonblock(fds[0]);
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",
