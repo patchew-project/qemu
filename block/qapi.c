@@ -456,27 +456,6 @@ static BlockStats *bdrv_query_bds_stats(const BlockDriverState *bs,
     return s;
 }
 
-static BlockStats *bdrv_query_stats(BlockBackend *blk,
-                                    BlockDriverState *bs,
-                                    bool query_backing)
-{
-    BlockStats *s;
-
-    bdrv_ref(bs);
-    s = bdrv_query_bds_stats(bs, query_backing);
-    bdrv_unref(bs);
-
-    if (blk) {
-        blk_ref(blk);
-        s->has_device = true;
-        s->device = g_strdup(blk_name(blk));
-        bdrv_query_blk_stats(s->stats, blk);
-        blk_unref(blk);
-    }
-
-    return s;
-}
-
 BlockInfoList *qmp_query_block(Error **errp)
 {
     BlockInfoList *head = NULL, **p_next = &head;
@@ -500,37 +479,41 @@ BlockInfoList *qmp_query_block(Error **errp)
     return head;
 }
 
-static bool next_query_bds(BlockBackend **blk, BlockDriverState **bs,
-                           bool query_nodes)
-{
-    if (query_nodes) {
-        *bs = bdrv_next_node(*bs);
-        return !!*bs;
-    }
-
-    *blk = blk_next(*blk);
-    *bs = *blk ? blk_bs(*blk) : NULL;
-
-    return !!*blk;
-}
-
 BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
                                      bool query_nodes,
                                      Error **errp)
 {
     BlockStatsList *head = NULL, **p_next = &head;
-    BlockBackend *blk = NULL;
-    BlockDriverState *bs = NULL;
+    BlockBackend *blk;
+    BlockDriverState *bs;
 
     /* Just to be safe if query_nodes is not always initialized */
-    query_nodes = has_query_nodes && query_nodes;
+    if (has_query_nodes && query_nodes) {
+        for (bs = bdrv_next_node(NULL); bs; bs = bdrv_next_node(bs)) {
+            BlockStatsList *info = g_malloc0(sizeof(*info));
 
-    while (next_query_bds(&blk, &bs, query_nodes)) {
-        BlockStatsList *info = g_malloc0(sizeof(*info));
+            bdrv_ref(bs);
+            info->value = bdrv_query_bds_stats(bs, false);
+            bdrv_unref(bs);
 
-        info->value = bdrv_query_stats(blk, bs, !query_nodes);
-        *p_next = info;
-        p_next = &info->next;
+            *p_next = info;
+            p_next = &info->next;
+        }
+    } else {
+        for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+            BlockStatsList *info = g_malloc0(sizeof(*info));
+
+            blk_ref(blk);
+            BlockStats *s = bdrv_query_bds_stats(blk_bs(blk), true);
+            s->has_device = true;
+            s->device = g_strdup(blk_name(blk));
+            bdrv_query_blk_stats(s->stats, blk);
+            blk_unref(blk);
+
+            info->value = s;
+            *p_next = info;
+            p_next = &info->next;
+        }
     }
 
     return head;
