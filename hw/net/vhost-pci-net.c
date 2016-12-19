@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/error-report.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/vhost-pci-net.h"
 
@@ -139,6 +140,18 @@ static uint64_t vpnet_get_features(VirtIODevice *vdev, uint64_t features,
 
 static void vpnet_set_features(VirtIODevice *vdev, uint64_t features)
 {
+    static bool need_send;
+    int ret;
+
+    if (need_send) {
+        need_send = 0;
+        ret = vp_slave_send_feature_bits(features);
+        if (ret < 0) {
+            error_report("failed to send feature bits to the master");
+        }
+    } else {
+        need_send = 1;
+    }
 }
 
 static void vpnet_get_config(VirtIODevice *vdev, uint8_t *config)
