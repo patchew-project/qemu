@@ -11,11 +11,17 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
     VHOST_USER_PROTOCOL_F_RARP = 2,
     VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
+    VHOST_USER_PROTOCOL_F_VHOST_PCI = 4,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
 
 #define VHOST_USER_PROTOCOL_FEATURE_MASK ((1 << VHOST_USER_PROTOCOL_F_MAX) - 1)
+
+#define VHOST_USER_PROTOCOL_FEATURES ((1ULL << VHOST_USER_PROTOCOL_F_MQ) | \
+                               (1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD) | \
+                                    (1ULL << VHOST_USER_PROTOCOL_F_RARP) | \
+                              (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI))
 
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
