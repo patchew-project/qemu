@@ -216,6 +216,13 @@ static void vp_slave_set_vring_num(VhostUserMsg *msg)
     pvq_node->vring_num = msg->payload.u64;
 }
 
+static void vp_slave_set_vring_base(VhostUserMsg *msg)
+{
+    PeerVqNode *pvq_node = QLIST_FIRST(&vp_slave->pvq_list);
+
+    pvq_node->last_avail_idx = msg->payload.u64;
+}
+
 static int vp_slave_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -285,6 +292,9 @@ static void vp_slave_read(void *opaque, const uint8_t *buf, int size)
     case VHOST_USER_SET_VRING_NUM:
         vp_slave_alloc_pvq_node();
         vp_slave_set_vring_num(&msg);
+        break;
+    case VHOST_USER_SET_VRING_BASE:
+        vp_slave_set_vring_base(&msg);
         break;
     default:
         error_report("vhost-pci-slave does not support msg request = %d",

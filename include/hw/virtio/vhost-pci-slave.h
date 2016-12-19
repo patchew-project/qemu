@@ -6,6 +6,7 @@
 #include "standard-headers/linux/vhost_pci_net.h"
 
 typedef struct PeerVqNode {
+    uint16_t last_avail_idx;
     uint32_t vring_num;
     QLIST_ENTRY(PeerVqNode) node;
 } PeerVqNode;
