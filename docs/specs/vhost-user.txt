@@ -17,11 +17,14 @@ The protocol defines 2 sides of the communication, master and slave. Master is
 the application that shares its virtqueues, in our case QEMU. Slave is the
 consumer of the virtqueues.
 
-In the current implementation QEMU is the Master, and the Slave is intended to
+In the traditional implementation QEMU is the master, and the slave is intended to
 be a software Ethernet switch running in user space, such as Snabbswitch.
 
 Master and slave can be either a client (i.e. connecting) or server (listening)
 in the socket communication.
+
+The current vhost-user protocol is extended to support the vhost-pci based inter-VM
+communication. In this case, both the slave and master are QEMU instances.
 
 Message Specification
 ---------------------
@@ -36,7 +39,7 @@ consists of 3 header fields and a payload:
  * Request: 32-bit type of the request
  * Flags: 32-bit bit field:
    - Lower 2 bits are the version (currently 0x01)
-   - Bit 2 is the reply flag - needs to be sent on each reply from the slave
+   - Bit 2 is the reply flag - needs to be sent on each reply
    - Bit 3 is the need_reply flag - see VHOST_USER_PROTOCOL_F_REPLY_ACK for
      details.
  * Size - 32-bit size of the payload
@@ -119,9 +122,9 @@ The protocol for vhost-user is based on the existing implementation of vhost
 for the Linux Kernel. Most messages that can be sent via the Unix domain socket
 implementing vhost-user have an equivalent ioctl to the kernel implementation.
 
-The communication consists of master sending message requests and slave sending
-message replies. Most of the requests don't require replies. Here is a list of
-the ones that do:
+Traditionally, the communication consists of master sending message requests and
+slave sending message replies. Most of the requests don't require replies. Here
+is a list of the ones that do:
 
  * VHOST_USER_GET_FEATURES
  * VHOST_USER_GET_PROTOCOL_FEATURES
@@ -129,6 +132,10 @@ the ones that do:
  * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
 
 [ Also see the section on REPLY_ACK protocol extension. ]
+
+Currently, the communication also supports the slave actively sending messages
+to the master. Here is a list of them:
+ * VHOST_USER_SET_FEATURES
 
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
@@ -259,6 +266,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
+#define VHOST_USER_PROTOCOL_F_VHOST_PCI      4
 
 Message types
 -------------
@@ -279,8 +287,9 @@ Message types
       Id: 2
       Ioctl: VHOST_SET_FEATURES
       Master payload: u64
+      Slave payload: u64
 
-      Enable features in the underlying vhost implementation using a bitmask.
+      Feature bits negotiation between the master and slave using a bitmask.
       Feature bit VHOST_USER_F_PROTOCOL_FEATURES signals slave support for
       VHOST_USER_GET_PROTOCOL_FEATURES and VHOST_USER_SET_PROTOCOL_FEATURES.
 
