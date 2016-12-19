@@ -1179,9 +1179,42 @@ static void vtd_handle_gcmd_sirtp(IntelIOMMUState *s)
     vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_IRTPS);
 }
 
+static void vtd_switch_address_space(IntelIOMMUState *s, bool enabled)
+{
+    GHashTableIter iter;
+    VTDBus *vtd_bus;
+    VTDAddressSpace *as;
+    int i;
+
+    g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
+    while (g_hash_table_iter_next (&iter, NULL, (void**)&vtd_bus)) {
+        for (i = 0; i < X86_IOMMU_PCI_DEVFN_MAX; i++) {
+            as = vtd_bus->dev_as[i];
+            if (as == NULL) {
+                continue;
+            }
+            trace_vtd_switch_address_space(pci_bus_num(vtd_bus->bus),
+                                           VTD_PCI_SLOT(i), VTD_PCI_FUNC(i),
+                                           enabled);
+            if (enabled) {
+                memory_region_add_subregion_overlap(&as->root, 0,
+                                                    &as->iommu, 2);
+            } else {
+                memory_region_del_subregion(&as->root, &as->iommu);
+            }
+        }
+    }
+}
+
 /* Handle Translation Enable/Disable */
 static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
 {
+    bool old = s->dmar_enabled;
+
+    if (old == en) {
+        return;
+    }
+
     VTD_DPRINTF(CSR, "Translation Enable %s", (en ? "on" : "off"));
 
     if (en) {
@@ -1196,6 +1229,8 @@ static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
         /* Ok - report back to driver */
         vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_TES, 0);
     }
+
+    vtd_switch_address_space(s, en);
 }
 
 /* Handle Interrupt Remap Enable/Disable */
@@ -2343,15 +2378,47 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         vtd_dev_as->devfn = (uint8_t)devfn;
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
+
+        /*
+         * When DMAR is disabled, memory region relationships looks
+         * like:
+         *
+         * 0000000000000000-ffffffffffffffff (prio 0, RW): vtd_root
+         *  0000000000000000-ffffffffffffffff (prio 1, RW): vtd_sys_alias
+         *  00000000fee00000-00000000feefffff (prio 64, RW): intel_iommu_ir
+         *
+         * When DMAR is disabled, it becomes:
+         *
+         * 0000000000000000-ffffffffffffffff (prio 0, RW): vtd_root
+         *  0000000000000000-ffffffffffffffff (prio 2, RW): intel_iommu
+         *  0000000000000000-ffffffffffffffff (prio 1, RW): vtd_sys_alias
+         *  00000000fee00000-00000000feefffff (prio 64, RW): intel_iommu_ir
+         *
+         * The intel_iommu region is dynamically added/removed.
+         */
         memory_region_init_iommu(&vtd_dev_as->iommu, OBJECT(s),
                                  &s->iommu_ops, "intel_iommu", UINT64_MAX);
+        memory_region_init_alias(&vtd_dev_as->sys_alias, OBJECT(s),
+                                 "vtd_sys_alias", get_system_memory(),
+                                 0, memory_region_size(get_system_memory()));
         memory_region_init_io(&vtd_dev_as->iommu_ir, OBJECT(s),
                               &vtd_mem_ir_ops, s, "intel_iommu_ir",
                               VTD_INTERRUPT_ADDR_SIZE);
-        memory_region_add_subregion(&vtd_dev_as->iommu, VTD_INTERRUPT_ADDR_FIRST,
-                                    &vtd_dev_as->iommu_ir);
-        address_space_init(&vtd_dev_as->as,
-                           &vtd_dev_as->iommu, "intel_iommu");
+        memory_region_init(&vtd_dev_as->root, OBJECT(s),
+                           "vtd_root", UINT64_MAX);
+        memory_region_add_subregion_overlap(&vtd_dev_as->root,
+                                            VTD_INTERRUPT_ADDR_FIRST,
+                                            &vtd_dev_as->iommu_ir, 64);
+        address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, name);
+        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
+                                            &vtd_dev_as->sys_alias, 1);
+        if (s->dmar_enabled) {
+            memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
+                                                &vtd_dev_as->iommu, 2);
+        }
+        trace_vtd_switch_address_space(pci_bus_num(vtd_bus->bus),
+                                       VTD_PCI_SLOT(devfn), VTD_PCI_FUNC(devfn),
+                                       s->dmar_enabled);
     }
     return vtd_dev_as;
 }
