@@ -349,6 +349,8 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
+    vhost_user_set_master_dev(ncs[0].peer, dev);
+
     return 0;
 
 err_start:
