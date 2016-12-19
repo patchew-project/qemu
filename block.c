@@ -2931,12 +2931,20 @@ bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base)
     return top != NULL;
 }
 
+/*
+ * Return the BlockDriverStates of all the named nodes.
+ * If @bs is null, return the first one.
+ * Else, return @bs's next sibling, which may be null.
+ *
+ * To iterate over all BlockDriverStates, do
+ * for (bs = bdrv_next_node(NULL); bs; bs = bdrv_next_node(blk)) {
+ *     ...
+ * }
+ */
 BlockDriverState *bdrv_next_node(BlockDriverState *bs)
 {
-    if (!bs) {
-        return QTAILQ_FIRST(&graph_bdrv_states);
-    }
-    return QTAILQ_NEXT(bs, node_list);
+    return bs ? QTAILQ_NEXT(bs, node_list)
+            : QTAILQ_FIRST(&graph_bdrv_states);
 }
 
 const char *bdrv_get_node_name(const BlockDriverState *bs)
