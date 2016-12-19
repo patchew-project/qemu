@@ -267,6 +267,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
 #define VHOST_USER_PROTOCOL_F_VHOST_PCI      4
+#define VHOST_USER_PROTOCOL_F_SET_DEVICE_ID  5
 
 Message types
 -------------
@@ -478,6 +479,16 @@ Message types
       is present in VHOST_USER_GET_PROTOCOL_FEATURES.
       The first 6 bytes of the payload contain the mac address of the guest to
       allow the vhost user backend to construct and broadcast the fake RARP.
+
+ * VHOST_USER_SET_DEVICE_ID
+      Id: 20
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      The master sends the virtio device id to the slave. The virtio device id
+      indicates the device type of the master device.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_SET_DEVICE_ID
+      has been negotiated.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
