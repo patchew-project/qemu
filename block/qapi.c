@@ -457,17 +457,21 @@ static BlockStats *bdrv_query_bds_stats(const BlockDriverState *bs,
 }
 
 static BlockStats *bdrv_query_stats(BlockBackend *blk,
-                                    const BlockDriverState *bs,
+                                    BlockDriverState *bs,
                                     bool query_backing)
 {
     BlockStats *s;
 
+    bdrv_ref(bs);
     s = bdrv_query_bds_stats(bs, query_backing);
+    bdrv_unref(bs);
 
     if (blk) {
+        blk_ref(blk);
         s->has_device = true;
         s->device = g_strdup(blk_name(blk));
         bdrv_query_blk_stats(s->stats, blk);
+        blk_unref(blk);
     }
 
     return s;
@@ -523,13 +527,8 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
 
     while (next_query_bds(&blk, &bs, query_nodes)) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
-        AioContext *ctx = blk ? blk_get_aio_context(blk)
-                              : bdrv_get_aio_context(bs);
 
-        aio_context_acquire(ctx);
         info->value = bdrv_query_stats(blk, bs, !query_nodes);
-        aio_context_release(ctx);
-
         *p_next = info;
         p_next = &info->next;
     }
