@@ -503,6 +503,7 @@ do_kernel_trap(CPUARMState *env)
     uint32_t addr;
     uint32_t cpsr;
     uint32_t val;
+    target_siginfo_t info;
 
     switch (env->regs[15]) {
     case 0xffff0fa0: /* __kernel_memory_barrier */
@@ -516,13 +517,16 @@ do_kernel_trap(CPUARMState *env)
         start_exclusive();
         cpsr = cpsr_read(env);
         addr = env->regs[2];
-        /* FIXME: This should SEGV if the access fails.  */
-        if (get_user_u32(val, addr))
-            val = ~env->regs[0];
+        if (get_user_u32(val, addr)) {
+            env->exception.vaddress = addr;
+            goto segv;
+        }
         if (val == env->regs[0]) {
             val = env->regs[1];
-            /* FIXME: Check for segfaults.  */
-            put_user_u32(val, addr);
+            if (put_user_u32(val, addr)) {
+                env->exception.vaddress = addr;
+                goto segv;
+            }
             env->regs[0] = 0;
             cpsr |= CPSR_C;
         } else {
@@ -550,6 +554,16 @@ do_kernel_trap(CPUARMState *env)
     }
     env->regs[15] = addr;
 
+    return 0;
+
+segv:
+    end_exclusive();
+    info.si_signo = TARGET_SIGSEGV;
+    info.si_errno = 0;
+    /* XXX: check env->error_code */
+    info.si_code = TARGET_SEGV_MAPERR;
+    info._sifields._sigfault._addr = env->exception.vaddress;
+    queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
     return 0;
 }
 
