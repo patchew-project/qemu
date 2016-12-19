@@ -38,6 +38,15 @@ static void vp_slave_cleanup(void)
         return;
     }
 
+    /*
+     * if this cleanup is not invoked due to peer reset, re-initialize
+     * the feature bits, so that the slave can work with a new master
+     */
+    if (!vp_slave->peer_reset) {
+        vp_slave->feature_bits =
+                1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+    }
+
     nregions = vp_slave->pmem_msg.nregions;
     for (i = 0; i < nregions; i++) {
         ret = munmap(vp_slave->mr_map_base[i], vp_slave->mr_map_size[i]);
@@ -167,8 +176,11 @@ static void vp_slave_set_device_type(VhostUserMsg *msg)
 
     switch (vp_slave->dev_type) {
     case VIRTIO_ID_NET:
-        vp_slave->feature_bits |= (VHOST_PCI_FEATURE_BITS
-                                   | VHOST_PCI_NET_FEATURE_BITS);
+        /* Don't initialize the feature bits if they have been negotiated */
+        if (!vp_slave->peer_reset) {
+            vp_slave->feature_bits |= (VHOST_PCI_FEATURE_BITS
+                                       | VHOST_PCI_NET_FEATURE_BITS);
+        }
         break;
     default:
         error_report("device type %d is not supported", vp_slave->dev_type);
@@ -359,6 +371,9 @@ static int vp_slave_set_vhost_pci(CharBackend *chr_be, VhostUserMsg *msg)
 
     switch (cmd) {
     case VHOST_USER_SET_VHOST_PCI_start:
+        if (vp_slave->peer_reset) {
+            vp_slave->peer_reset = 0;
+        }
         ret = vp_slave_device_create(vp_slave->dev_type);
         if (ret < 0) {
             return ret;
@@ -534,6 +549,7 @@ int vhost_pci_slave_init(QemuOpts *opts)
     vp_slave->sub_mr = NULL;
     QLIST_INIT(&vp_slave->pvq_list);
     vp_slave->pvq_num = 0;
+    vp_slave->peer_reset = 0;
     qemu_chr_fe_init(&vp_slave->chr_be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&vp_slave->chr_be, vp_slave_can_read,
                              vp_slave_read, vp_slave_event,
