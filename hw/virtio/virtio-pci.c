@@ -2320,7 +2320,21 @@ static void vpnet_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VhostPCINetPCI *dev = VHOST_PCI_NET_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    int bar_id = 2;
+    PeerVqNode *vq_node;
 
+    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
+
+    pci_register_bar(&vpci_dev->pci_dev, bar_id,
+                      PCI_BASE_ADDRESS_SPACE_MEMORY |
+                      PCI_BASE_ADDRESS_MEM_PREFETCH |
+                      PCI_BASE_ADDRESS_MEM_TYPE_64,
+                      vp_slave->bar_mr);
+    vpnet_set_peer_vq_num(&dev->vdev, vp_slave->pvq_num);
+    vpnet_init_device_features(&dev->vdev, vp_slave->feature_bits);
+    QLIST_FOREACH(vq_node, &vp_slave->pvq_list, node) {
+        vpnet_set_peer_vq_msg(&dev->vdev, vq_node);
+    }
     object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 

@@ -16,6 +16,7 @@
 
 #include "standard-headers/linux/vhost_pci_net.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/vhost-pci-slave.h"
 
 #define TYPE_VHOST_PCI_NET "vhost-pci-net-device"
 #define VHOST_PCI_NET(obj) \
@@ -31,6 +32,14 @@ typedef struct VhostPCINet {
     uint16_t peer_vq_num;
     size_t config_size;
     uint64_t device_features;
+    struct peer_mem_msg pmem_msg;
+    struct peer_vq_msg *pvq_msg;
 } VhostPCINet;
+
+void vpnet_set_peer_vq_num(VhostPCINet *vpnet, uint16_t num);
+
+void vpnet_init_device_features(VhostPCINet *vpnet, uint64_t features);
+
+void vpnet_set_peer_vq_msg(VhostPCINet *vpnet, PeerVqNode *vq_node);
 
 #endif
