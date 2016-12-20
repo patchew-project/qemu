@@ -1511,15 +1511,14 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
-    int nb_sectors, enum qcow2_discard_type type, bool full_discard)
+int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
+                          uint64_t count, enum qcow2_discard_type type,
+                          bool full_discard)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t end_offset;
+    uint64_t end_offset = offset + count;
     uint64_t nb_clusters;
     int ret;
-
-    end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
 
     /* Caller must pass aligned values */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
@@ -1591,8 +1590,8 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
-                        int flags)
+int qcow2_cluster_zeroize(BlockDriverState *bs, uint64_t offset,
+                          uint64_t count, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t nb_clusters;
@@ -1600,7 +1599,7 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
 
     /* Caller must pass aligned values */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
-    assert(QEMU_IS_ALIGNED(nb_sectors, s->cluster_size >> BDRV_SECTOR_BITS));
+    assert(QEMU_IS_ALIGNED(count, s->cluster_size));
 
     /* The zero flag is only supported by version 3 and newer */
     if (s->qcow_version < 3) {
@@ -1608,7 +1607,7 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
     }
 
     /* Each L2 table is handled by its own loop iteration */
-    nb_clusters = size_to_clusters(s, nb_sectors << BDRV_SECTOR_BITS);
+    nb_clusters = size_to_clusters(s, count);
 
     s->cache_discards = true;
 
