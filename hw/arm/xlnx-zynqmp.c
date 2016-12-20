@@ -38,6 +38,8 @@
 #define SATA_ADDR           0xFD0C0000
 #define SATA_NUM_PORTS      2
 
+#define ARM_GEN_TIMER_ADDR  0xFF260000
+
 #define DP_ADDR             0xfd4a0000
 #define DP_IRQ              113
 
@@ -171,6 +173,10 @@ static void xlnx_zynqmp_init(Object *obj)
                           TYPE_XILINX_SPIPS);
         qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
+
+    object_initialize(&s->arm_gen_timer, sizeof(s->arm_gen_timer),
+                      TYPE_ARM_GEN_TIMER);
+    qdev_set_parent_bus(DEVICE(&s->arm_gen_timer), sysbus_get_default());
 
     object_initialize(&s->dp, sizeof(s->dp), TYPE_XLNX_DP);
     qdev_set_parent_bus(DEVICE(&s->dp), sysbus_get_default());
@@ -404,6 +410,14 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                   &error_abort);
         g_free(bus_name);
     }
+
+    object_property_set_bool(OBJECT(&s->arm_gen_timer), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->arm_gen_timer), 0, ARM_GEN_TIMER_ADDR);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->arm_gen_timer), 1, ARM_GEN_TIMER_ADDR - 0x10000);
 
     object_property_set_bool(OBJECT(&s->dp), true, "realized", &err);
     if (err) {
