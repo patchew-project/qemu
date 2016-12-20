@@ -3,3 +3,5 @@ obj-$(CONFIG_XEN_I386) += xen-hvm.o xen-mapcache.o
 
 obj-$(CONFIG_KVM) += kvm-common.o
 obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
+
+common-obj-y = accel.o
