@@ -261,8 +261,7 @@ Overall
 M: Paolo Bonzini <pbonzini@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
-F: kvm-*
-F: */kvm.*
+F: */kvm*
 F: include/sysemu/kvm*.h
 
 ARM
