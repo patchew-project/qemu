@@ -125,9 +125,18 @@ void *qemu_anon_ram_alloc(size_t size, uint64_t *alignment)
     return ptr;
 }
 
+static NotifierList qemu_vfree_notifiers =
+    NOTIFIER_LIST_INITIALIZER(qemu_vfree_notifiers);
+
+void qemu_vfree_add_notifier(Notifier *n)
+{
+    notifier_list_add(&qemu_vfree_notifiers, n);
+}
+
 void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
+    notifier_list_notify(&qemu_vfree_notifiers, ptr);
     free(ptr);
 }
 

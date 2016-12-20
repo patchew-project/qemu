@@ -69,4 +69,5 @@ void notifier_with_return_remove(NotifierWithReturn *notifier);
 int notifier_with_return_list_notify(NotifierWithReturnList *list,
                                      void *data);
 
+void qemu_vfree_add_notifier(Notifier *n);
 #endif
