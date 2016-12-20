@@ -100,6 +100,17 @@ static RegisterAccessInfo arm_gen_timer_regs_info[] = {
     /* We don't model the CounterID registers either */
 };
 
+static RegisterAccessInfo arm_gen_timer_read_regs_info[] = {
+    {   .name = "CNTCV_READ_LOWER",
+        .addr = A_CNTCV_READ_LOWER, .ro = 0xFFFF,
+        .post_read = counter_low_value_postr,
+    },{ .name = "CNTCV_READ_UPPER",
+        .addr = A_CNTCV_READ_UPPER, .ro = 0xFFFF,
+        .post_read = counter_high_value_postr,
+    }
+    /* We don't model the CounterID registers */
+};
+
 static void arm_gen_timer_reset(DeviceState *dev)
 {
     ARMGenTimer *s = ARM_GEN_TIMER(dev);
@@ -166,6 +177,7 @@ static void arm_gen_timer_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     RegisterInfoArray *reg_array;
 
+    /* Create the ControlBase memory region */
     memory_region_init_io(&s->iomem, obj, &arm_gen_timer_ops, s,
                           TYPE_ARM_GEN_TIMER, R_ARM_GEN_TIMER_MAX * 4);
     reg_array =
@@ -179,6 +191,21 @@ static void arm_gen_timer_init(Object *obj)
                                 A_CNTCR,
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    /* Create the ReadBase memory region */
+    memory_region_init_io(&s->iomem_read, obj, &arm_gen_timer_ops, s,
+                          TYPE_ARM_GEN_TIMER "-read", R_ARM_GEN_TIMER_READ_MAX * 4);
+    reg_array =
+        register_init_block32(DEVICE(obj), arm_gen_timer_read_regs_info,
+                              ARRAY_SIZE(arm_gen_timer_read_regs_info),
+                              s->regs_read_info, s->regs_read,
+                              &arm_gen_timer_ops,
+                              ARM_GEN_TIMER_ERR_DEBUG,
+                              R_ARM_GEN_TIMER_READ_MAX * 4);
+    memory_region_add_subregion(&s->iomem_read,
+                                R_CNTCV_READ_LOWER,
+                                &reg_array->mem);
+    sysbus_init_mmio(sbd, &s->iomem_read);
 }
 
 static void arm_gen_timer_class_init(ObjectClass *klass, void *data)

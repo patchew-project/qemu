@@ -33,6 +33,7 @@
 #define ARM_GEN_TIMER(obj) \
             OBJECT_CHECK(ARMGenTimer, (obj), TYPE_ARM_GEN_TIMER)
 
+/* ControlBase Memory Map */
 REG32(CNTCR, 0x00)
     FIELD(CNTCR, EN, 0, 1)
     FIELD(CNTCR, HDBG, 1, 1)
@@ -46,10 +47,18 @@ REG32(CNTFID0, 0x20)
 
 #define R_ARM_GEN_TIMER_MAX (R_CNTFID0 + 1)
 
+/* Read Base Memory Map */
+REG32(CNTCV_READ_LOWER, 0x00)
+REG32(CNTCV_READ_UPPER, 0x04)
+/* We don't model the CounterID registers */
+
+#define R_ARM_GEN_TIMER_READ_MAX (R_CNTCV_READ_UPPER + 1)
+
 typedef struct ARMGenTimer {
     /* <private> */
     SysBusDevice parent_obj;
     MemoryRegion iomem;
+    MemoryRegion iomem_read;
 
     /* <public> */
     bool enabled;
@@ -57,6 +66,9 @@ typedef struct ARMGenTimer {
 
     uint32_t regs[R_ARM_GEN_TIMER_MAX];
     RegisterInfo regs_info[R_ARM_GEN_TIMER_MAX];
+
+    uint32_t regs_read[R_ARM_GEN_TIMER_READ_MAX];
+    RegisterInfo regs_read_info[R_ARM_GEN_TIMER_READ_MAX];
 } ARMGenTimer;
 
 #endif
