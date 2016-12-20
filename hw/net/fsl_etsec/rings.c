@@ -332,7 +332,7 @@ static void process_tx_bd(eTSEC         *etsec,
 void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
 {
     hwaddr        ring_base = 0;
-    hwaddr        bd_addr   = 0;
+    hwaddr        bd_addr, bd_addr_start, bd_addr_next;
     eTSEC_rxtx_bd bd;
     uint16_t      bd_flags;
 
@@ -343,7 +343,7 @@ void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
 
     ring_base = (hwaddr)(etsec->regs[TBASEH].value & 0xF) << 32;
     ring_base += etsec->regs[TBASE0 + ring_nbr].value & ~0x7;
-    bd_addr    = etsec->regs[TBPTR0 + ring_nbr].value & ~0x7;
+    bd_addr_start = bd_addr = etsec->regs[TBPTR0 + ring_nbr].value & ~0x7;
 
     do {
         read_buffer_descriptor(etsec, bd_addr, &bd);
@@ -358,26 +358,36 @@ void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr)
         /* Save flags before BD update */
         bd_flags = bd.flags;
 
+        /* Wrap or next BD */
+        if (bd_flags & BD_WRAP) {
+            bd_addr_next = ring_base;
+        } else {
+            bd_addr_next = bd_addr + sizeof(eTSEC_rxtx_bd);
+        }
+
         if (bd_flags & BD_TX_READY) {
+            if (bd_flags & BD_LAST) {
+                /* If we encounter a descriptor marking end of a
+                 * packet - save a pointer to descriptor after that as
+                 * a place to resume descriptor processing for next
+                 * time.
+                 *
+                 * As we iterate through a ring we progressively move
+                 * this point forward and at the end of one cycle end
+                 * up with the position right after the last packet we
+                 * encountered.
+                 */
+                etsec->regs[TBPTR0 + ring_nbr].value = bd_addr_next;
+            }
+
             process_tx_bd(etsec, &bd);
 
             /* Write back BD after update */
             write_buffer_descriptor(etsec, bd_addr, &bd);
         }
 
-        /* Wrap or next BD */
-        if (bd_flags & BD_WRAP) {
-            bd_addr = ring_base;
-        } else {
-            bd_addr += sizeof(eTSEC_rxtx_bd);
-        }
-
-    } while (bd_addr != ring_base);
-
-    bd_addr = ring_base;
-
-    /* Save the Buffer Descriptor Pointers to current bd */
-    etsec->regs[TBPTR0 + ring_nbr].value = bd_addr;
+        bd_addr = bd_addr_next;
+    } while (bd_addr != bd_addr_start);
 
     /* Set transmit halt THLTx */
     etsec->regs[TSTAT].value |= 1 << (31 - ring_nbr);
