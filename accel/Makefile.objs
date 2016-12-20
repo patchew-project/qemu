@@ -1,0 +1,2 @@
+obj-$(CONFIG_XEN) += xen-common.o
+obj-$(CONFIG_XEN_I386) += xen-hvm.o xen-mapcache.o
