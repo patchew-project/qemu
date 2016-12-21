@@ -1018,6 +1018,10 @@ Arguments:
 - "persistent": bitmap will be saved to the corresponding block device image
                 file on its close. For now only Qcow2 disks support persistent
                 bitmaps. (json-bool, optional, default false) (Since 2.9)
+- "autoload": the bitmap will be automatically loaded when the image it is
+              stored in is opened. This flag may only be specified for
+              persistent bitmaps (json-bool, optional, default false)
+              (Since 2.9)
 
 Example:
 

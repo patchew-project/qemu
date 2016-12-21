@@ -1235,11 +1235,15 @@
 #              corresponding block device image file on its close. Default is
 #              false. (Since 2.9)
 #
+# @autoload: #optional the bitmap will be automatically loaded when the image
+#            it is stored in is opened. This flag may only be specified for
+#            persistent bitmaps. Default is false. (Since 2.9)
+#
 # Since: 2.4
 ##
 { 'struct': 'BlockDirtyBitmapAdd',
   'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32',
-            '*persistent': 'bool' } }
+            '*persistent': 'bool', '*autoload': 'bool' } }
 
 ##
 # @block-dirty-bitmap-add:
