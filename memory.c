@@ -2545,6 +2545,36 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     }
 }
 
+static void mtree_print_flatview(fprintf_function p, void *f,
+                                 AddressSpace *as)
+{
+    FlatView *view = address_space_get_flatview(as);
+    FlatRange *range = &view->ranges[0];
+    MemoryRegion *mr;
+    int n = view->nr;
+
+    if (n <= 0) {
+        p(f, MTREE_INDENT "No rendered FlatView for "
+          "address space '%s'\n", as->name);
+        return;
+    }
+
+    p(f, MTREE_INDENT "FlatView (address space '%s'):\n", as->name);
+
+    while (n--) {
+        mr = range->mr;
+        p(f, MTREE_INDENT MTREE_INDENT TARGET_FMT_plx "-"
+          TARGET_FMT_plx " (prio %d, %c%c): %s\n",
+          int128_get64(range->addr.start),
+          int128_get64(range->addr.start) + MR_SIZE(range->addr.size),
+          mr->priority, MR_CHAR_RD(mr), MR_CHAR_WR(mr),
+          memory_region_name(mr));
+        range++;
+    }
+
+    flatview_unref(view);
+}
+
 void mtree_info(fprintf_function mon_printf, void *f)
 {
     MemoryRegionListHead ml_head;
@@ -2556,6 +2586,7 @@ void mtree_info(fprintf_function mon_printf, void *f)
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         mon_printf(f, "address-space: %s\n", as->name);
         mtree_print_mr(mon_printf, f, as->root, 1, 0, &ml_head);
+        mtree_print_flatview(mon_printf, f, as);
         mon_printf(f, "\n");
     }
 
