@@ -2450,6 +2450,13 @@ struct MemoryRegionList {
 
 typedef QTAILQ_HEAD(queue, MemoryRegionList) MemoryRegionListHead;
 
+#define MR_CHAR_RD(mr) ((mr)->romd_mode ? 'R' : '-')
+#define MR_CHAR_WR(mr) (!(mr)->readonly && !((mr)->rom_device && \
+                                             (mr)->romd_mode) ? 'W' : '-')
+#define MR_SIZE(size) (int128_nz(size) ? (hwaddr)int128_get64( \
+                           int128_sub((size), int128_one())) : 0)
+#define MTREE_INDENT "  "
+
 static void mtree_print_mr(fprintf_function mon_printf, void *f,
                            const MemoryRegion *mr, unsigned int level,
                            hwaddr base,
@@ -2465,7 +2472,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     }
 
     for (i = 0; i < level; i++) {
-        mon_printf(f, "  ");
+        mon_printf(f, MTREE_INDENT);
     }
 
     if (mr->alias) {
@@ -2488,34 +2495,23 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    " (prio %d, %c%c): alias %s @%s " TARGET_FMT_plx
                    "-" TARGET_FMT_plx "%s\n",
                    base + mr->addr,
-                   base + mr->addr
-                   + (int128_nz(mr->size) ?
-                      (hwaddr)int128_get64(int128_sub(mr->size,
-                                                      int128_one())) : 0),
+                   base + mr->addr + MR_SIZE(mr->size),
                    mr->priority,
-                   mr->romd_mode ? 'R' : '-',
-                   !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
-                                                                       : '-',
+                   MR_CHAR_RD(mr),
+                   MR_CHAR_WR(mr),
                    memory_region_name(mr),
                    memory_region_name(mr->alias),
                    mr->alias_offset,
-                   mr->alias_offset
-                   + (int128_nz(mr->size) ?
-                      (hwaddr)int128_get64(int128_sub(mr->size,
-                                                      int128_one())) : 0),
+                   mr->alias_offset + MR_SIZE(mr->size),
                    mr->enabled ? "" : " [disabled]");
     } else {
         mon_printf(f,
                    TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s%s\n",
                    base + mr->addr,
-                   base + mr->addr
-                   + (int128_nz(mr->size) ?
-                      (hwaddr)int128_get64(int128_sub(mr->size,
-                                                      int128_one())) : 0),
+                   base + mr->addr + MR_SIZE(mr->size),
                    mr->priority,
-                   mr->romd_mode ? 'R' : '-',
-                   !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
-                                                                       : '-',
+                   MR_CHAR_RD(mr),
+                   MR_CHAR_WR(mr),
                    memory_region_name(mr),
                    mr->enabled ? "" : " [disabled]");
     }
