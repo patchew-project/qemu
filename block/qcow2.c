@@ -1850,6 +1850,8 @@ static void qcow2_close(BlockDriverState *bs)
     qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
     qcow2_free_snapshots(bs);
+
+    qcow2_free_bitmaps(bs);
 }
 
 static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)

@@ -242,6 +242,8 @@ typedef struct Qcow2BitmapHeaderExt {
     uint64_t bitmap_directory_offset;
 } QEMU_PACKED Qcow2BitmapHeaderExt;
 
+typedef struct Qcow2Bitmap Qcow2Bitmap;
+typedef QSIMPLEQ_HEAD(Qcow2BitmapList, Qcow2Bitmap) Qcow2BitmapList;
 typedef struct BDRVQcow2State {
     int cluster_bits;
     int cluster_size;
@@ -286,6 +288,7 @@ typedef struct BDRVQcow2State {
     uint32_t nb_bitmaps;
     uint64_t bitmap_directory_size;
     uint64_t bitmap_directory_offset;
+    Qcow2BitmapList *bitmaps; /* cached version of bitmaps list in file */
 
     int flags;
     int qcow_version;
@@ -630,5 +633,6 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                           const char *name,
                                           Error **errp);
+void qcow2_free_bitmaps(BlockDriverState *bs);
 
 #endif
