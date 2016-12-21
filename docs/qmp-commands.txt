@@ -1015,6 +1015,9 @@ Arguments:
 - "node": device/node on which to create dirty bitmap (json-string)
 - "name": name of the new dirty bitmap (json-string)
 - "granularity": granularity to track writes with (int, optional)
+- "persistent": bitmap will be saved to the corresponding block device image
+                file on its close. For now only Qcow2 disks support persistent
+                bitmaps. (json-bool, optional, default false) (Since 2.9)
 
 Example:
 
