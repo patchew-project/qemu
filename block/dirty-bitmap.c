@@ -297,7 +297,8 @@ void bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
 
 static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
                                                   BdrvDirtyBitmap *bitmap,
-                                                  bool only_named)
+                                                  bool only_named,
+                                                  bool deep)
 {
     BdrvDirtyBitmap *bm, *next;
     QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
@@ -305,6 +306,19 @@ static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
             assert(!bm->active_iterators);
             assert(!bdrv_dirty_bitmap_frozen(bm));
             assert(!bm->meta);
+
+            if (deep && bm->persistent && bs->drv &&
+                bs->drv->bdrv_remove_persistent_dirty_bitmap)
+            {
+                Error *local_err = NULL;
+                bs->drv->bdrv_remove_persistent_dirty_bitmap(bs, bm->name,
+                                                             &local_err);
+                if (local_err != NULL) {
+                    error_report_err(local_err);
+                }
+            }
+
+
             QLIST_REMOVE(bm, list);
             hbitmap_free(bm->bitmap);
             g_free(bm->name);
@@ -322,16 +336,17 @@ static void bdrv_do_release_matching_dirty_bitmap(BlockDriverState *bs,
 
 void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
 {
-    bdrv_do_release_matching_dirty_bitmap(bs, bitmap, false);
+    bdrv_do_release_matching_dirty_bitmap(bs, bitmap, false, true);
 }
 
 /**
  * Release all named dirty bitmaps attached to a BDS (for use in bdrv_close()).
  * There must not be any frozen bitmaps attached.
+ * This function do not remove persistent bitmaps from the storage.
  */
 void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs)
 {
-    bdrv_do_release_matching_dirty_bitmap(bs, NULL, true);
+    bdrv_do_release_matching_dirty_bitmap(bs, NULL, true, false);
 }
 
 void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
