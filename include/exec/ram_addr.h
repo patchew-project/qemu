@@ -91,6 +91,7 @@ typedef struct RAMList {
 } RAMList;
 extern RAMList ram_list;
 
+long qemu_getrampagesize(void);
 ram_addr_t last_ram_offset(void);
 void qemu_mutex_lock_ramlist(void);
 void qemu_mutex_unlock_ramlist(void);
