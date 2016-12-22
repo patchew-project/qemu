@@ -30,6 +30,6 @@ def generate_h(event, group):
     if len(event.args) > 0:
         argnames = ", " + argnames
 
-    out('        tracepoint(qemu, %(name)s%(tp_args)s);',
+    out('    tracepoint(qemu, %(name)s%(tp_args)s);',
         name=event.name,
         tp_args=argnames)
