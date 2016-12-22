@@ -33,6 +33,7 @@
 #include "hw/i386/apic.h"
 #endif
 #include "sysemu/replay.h"
+#include "translate-all.h"
 
 /* -icount align implementation. */
 
@@ -298,6 +299,7 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu,
     tb_page_addr_t phys_pc;
     struct tb_desc desc;
     uint32_t h;
+    struct qht *qht;
 
     desc.env = (CPUArchState *)cpu->env_ptr;
     desc.cs_base = cs_base;
@@ -306,7 +308,8 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu,
     phys_pc = get_page_addr_code(desc.env, pc);
     desc.phys_page1 = phys_pc & TARGET_PAGE_MASK;
     h = tb_hash_func(phys_pc, pc, flags);
-    return qht_lookup(&tcg_ctx.tb_ctx.htable, tb_cmp, &desc, h);
+    qht = tb_caches_get(&tcg_ctx.tb_ctx, cpu->tb_cache_idx);
+    return qht_lookup(qht, tb_cmp, &desc, h);
 }
 
 static inline TranslationBlock *tb_find(CPUState *cpu,

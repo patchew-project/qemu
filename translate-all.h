@@ -20,7 +20,21 @@
 #define TRANSLATE_ALL_H
 
 #include "exec/exec-all.h"
+#include "qemu/typedefs.h"
 
+/**
+ * tb_caches_count:
+ *
+ * Number of TB caches.
+ */
+static size_t tb_caches_count(void);
+
+/**
+ * tb_caches_get:
+ *
+ * Get the TB cache for the given bitmap index.
+ */
+static struct qht *tb_caches_get(TBContext *tb_ctx, unsigned long *bitmap);
 
 /* translate-all.c */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
@@ -32,5 +46,8 @@ void tb_check_watchpoint(CPUState *cpu);
 #ifdef CONFIG_USER_ONLY
 int page_unprotect(target_ulong address, uintptr_t pc);
 #endif
+
+
+#include "translate-all.inc.h"
 
 #endif /* TRANSLATE_ALL_H */

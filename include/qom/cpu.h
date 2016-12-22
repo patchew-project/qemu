@@ -295,6 +295,7 @@ struct qemu_work_item;
  * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to queued_work_*.
  * @queued_work_first: First asynchronous work pending.
+ * @tb_cache_idx: Index of current TB cache.
  * @trace_dstate: Dynamic tracing state of events for this vCPU (bitmask).
  *
  * State of one CPU core or thread.
@@ -370,6 +371,7 @@ struct CPUState {
      * Dynamically allocated based on bitmap requried to hold up to
      * trace_get_vcpu_event_count() entries.
      */
+    unsigned long *tb_cache_idx;
     unsigned long *trace_dstate;
 
     /* TODO Move common fields from CPUArchState here. */

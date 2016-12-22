@@ -53,6 +53,7 @@
 #include "exec/cputlb.h"
 #include "exec/tb-hash.h"
 #include "translate-all.h"
+#include "qemu/error-report.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
 #include "exec/log.h"
@@ -811,9 +812,19 @@ static inline void code_gen_alloc(size_t tb_size)
 
 static void tb_htable_init(void)
 {
+    int cache;
     unsigned int mode = QHT_MODE_AUTO_RESIZE;
 
-    qht_init(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
+    if (tb_caches_count() > ULONG_MAX) {
+        /* Ensure bitmaps can be used as indexes */
+        error_report("too many 'vcpu' events to index TB caches");
+    }
+
+    tcg_ctx.tb_ctx.htables = g_malloc(
+        sizeof(tcg_ctx.tb_ctx.htables[0]) * tb_caches_count());
+    for (cache = 0; cache < tb_caches_count(); cache++) {
+        qht_init(&tcg_ctx.tb_ctx.htables[cache], CODE_GEN_HTABLE_SIZE, mode);
+    }
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -856,6 +867,7 @@ static TranslationBlock *tb_alloc(target_ulong pc)
     tb->pc = pc;
     tb->cflags = 0;
     tb->invalid = false;
+    tb->tb_cache_idx = bitmap_new(trace_get_vcpu_event_count());
     return tb;
 }
 
@@ -872,6 +884,8 @@ void tb_free(TranslationBlock *tb)
         tcg_ctx.code_gen_ptr = tb->tc_ptr;
         tcg_ctx.tb_ctx.nb_tbs--;
     }
+
+    g_free(tb->tb_cache_idx);
 }
 
 static inline void invalidate_page_bitmap(PageDesc *p)
@@ -919,6 +933,8 @@ static void page_flush_tb(void)
 /* flush all the translation blocks */
 static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 {
+    int i;
+
     tb_lock();
 
     /* If it is already been done on request of another CPU,
@@ -945,7 +961,9 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     }
 
     tcg_ctx.tb_ctx.nb_tbs = 0;
-    qht_reset_size(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
+    for (i = 0; i < tb_caches_count(); i++) {
+        qht_reset_size(&tcg_ctx.tb_ctx.htables[i], CODE_GEN_HTABLE_SIZE);
+    }
     page_flush_tb();
 
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
@@ -987,8 +1005,12 @@ do_tb_invalidate_check(struct qht *ht, void *p, uint32_t hash, void *userp)
  */
 static void tb_invalidate_check(target_ulong address)
 {
+    int i;
+
     address &= TARGET_PAGE_MASK;
-    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_invalidate_check, &address);
+    for (i = 0; i < tb_caches_count(); i++) {
+        qht_iter(&tcg_ctx.tb_ctx.htables[i], do_tb_invalidate_check, &address);
+    }
 }
 
 static void
@@ -1008,7 +1030,10 @@ do_tb_page_check(struct qht *ht, void *p, uint32_t hash, void *userp)
 /* verify that all the pages have correct rights for code */
 static void tb_page_check(void)
 {
-    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_page_check, NULL);
+    int i;
+    for (i = 0; i < tb_caches_count(); i++) {
+        qht_iter(&tcg_ctx.tb_ctx.htables[i], do_tb_page_check, NULL);
+    }
 }
 
 #endif
@@ -1098,6 +1123,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     CPUState *cpu;
     PageDesc *p;
     uint32_t h;
+    struct qht *qht;
     tb_page_addr_t phys_pc;
 
     assert_tb_lock();
@@ -1107,7 +1133,8 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    qht_remove(&tcg_ctx.tb_ctx.htable, tb, h);
+    qht = tb_caches_get(&tcg_ctx.tb_ctx, tb->tb_cache_idx);
+    qht_remove(qht, tb, h);
 
     /* remove the TB from the page list */
     if (tb->page_addr[0] != page_addr) {
@@ -1239,6 +1266,7 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2)
 {
     uint32_t h;
+    struct qht *qht;
 
     assert_memory_lock();
 
@@ -1252,7 +1280,8 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 
     /* add in the hash table */
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
+    qht = tb_caches_get(&tcg_ctx.tb_ctx, tb->tb_cache_idx);
+    qht_insert(qht, tb, h);
 
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
@@ -1294,6 +1323,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
+    bitmap_copy(tb->tb_cache_idx, ENV_GET_CPU(env)->tb_cache_idx,
+                trace_get_vcpu_event_count());
 
 #ifdef CONFIG_PROFILER
     tcg_ctx.tb_count1++; /* includes aborted translations because of
@@ -1798,6 +1829,8 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     pc = tb->pc;
     cs_base = tb->cs_base;
     flags = tb->flags;
+    /* XXX: It is OK to invalidate only this TB, as this is the one triggering
+     * the memory access */
     tb_phys_invalidate(tb, -1);
     if (tb->cflags & CF_NOCACHE) {
         if (tb->orig_tb) {
@@ -1882,6 +1915,7 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     int direct_jmp_count, direct_jmp2_count, cross_page;
     TranslationBlock *tb;
     struct qht_stats hst;
+    int cache;
 
     tb_lock();
 
@@ -1935,9 +1969,11 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
                 tcg_ctx.tb_ctx.nb_tbs ? (direct_jmp2_count * 100) /
                         tcg_ctx.tb_ctx.nb_tbs : 0);
 
-    qht_statistics_init(&tcg_ctx.tb_ctx.htable, &hst);
-    print_qht_statistics(f, cpu_fprintf, hst);
-    qht_statistics_destroy(&hst);
+    for (cache = 0; cache < tb_caches_count(); cache++) {
+        qht_statistics_init(&tcg_ctx.tb_ctx.htables[cache], &hst);
+        print_qht_statistics(f, cpu_fprintf, hst);
+        qht_statistics_destroy(&hst);
+    }
 
     cpu_fprintf(f, "\nStatistics:\n");
     cpu_fprintf(f, "TB flush count      %u\n",
