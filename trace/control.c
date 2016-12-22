@@ -36,7 +36,7 @@ typedef struct TraceEventGroup {
 static TraceEventGroup *event_groups;
 static size_t nevent_groups;
 static uint32_t next_id;
-static uint32_t next_vcpu_id;
+uint32_t trace_next_vcpu_id;
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -65,7 +65,7 @@ void trace_event_register_group(TraceEvent **events)
     for (i = 0; events[i] != NULL; i++) {
         events[i]->id = next_id++;
         if (events[i]->vcpu_id != TRACE_VCPU_EVENT_NONE) {
-            events[i]->vcpu_id = next_vcpu_id++;
+            events[i]->vcpu_id = trace_next_vcpu_id++;
         }
     }
     event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
@@ -298,9 +298,4 @@ char *trace_opt_parse(const char *optarg)
     qemu_opts_del(opts);
 
     return trace_file;
-}
-
-uint32_t trace_get_vcpu_event_count(void)
-{
-    return next_vcpu_id;
 }
