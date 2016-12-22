@@ -1505,6 +1505,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     }
 
     /* DMA setup */
+    /* This allows huge pages for IOMMU when guest is backed with huge pages */
+    sphb->page_size_mask |= qemu_getrampagesize();
+
     for (i = 0; i < windows_supported; ++i) {
         tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn[i]);
         if (!tcet) {
