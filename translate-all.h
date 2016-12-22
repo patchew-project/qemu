@@ -36,6 +36,32 @@ static size_t tb_caches_count(void);
  */
 static struct qht *tb_caches_get(TBContext *tb_ctx, unsigned long *bitmap);
 
+/**
+ * cpu_tb_cache_set_request:
+ *
+ * Request a physical TB cache switch on this @cpu.
+ */
+void cpu_tb_cache_set_request(CPUState *cpu);
+
+/**
+ * cpu_tb_cache_set_requested:
+ *
+ * Returns: %true if @cpu requested a physical TB cache switch, %false
+ *          otherwise.
+ */
+bool cpu_tb_cache_set_requested(CPUState *cpu);
+
+/**
+ * cput_tb_cache_set_apply:
+ *
+ * Apply a physical TB cache switch.
+ *
+ * Precondition: @cpu is not currently executing any TB.
+ *
+ * Note: Invalidates the jump cache of the given vCPU.
+ */
+void cpu_tb_cache_set_apply(CPUState *cpu);
+
 /* translate-all.c */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,

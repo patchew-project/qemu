@@ -367,6 +367,7 @@ static void cpu_common_initfn(Object *obj)
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
 
+    cpu->tb_cache_idx_req = false;
     cpu->tb_cache_idx = bitmap_new(trace_get_vcpu_event_count());
     cpu->trace_dstate = bitmap_new(trace_get_vcpu_event_count());
 

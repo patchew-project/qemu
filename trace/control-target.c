@@ -76,6 +76,7 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
             clear_bit(vcpu_id, vcpu->trace_dstate);
             (*ev->dstate)--;
         }
+        cpu_tb_cache_set_request(vcpu);
     }
 }
 

@@ -371,6 +371,7 @@ struct CPUState {
      * Dynamically allocated based on bitmap requried to hold up to
      * trace_get_vcpu_event_count() entries.
      */
+    bool tb_cache_idx_req;
     unsigned long *tb_cache_idx;
     unsigned long *trace_dstate;
 

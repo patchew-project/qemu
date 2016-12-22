@@ -29,6 +29,7 @@
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"
 #include "exec/log.h"
+#include "translate-all.h"
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
 #include "hw/i386/apic.h"
 #endif
@@ -525,6 +526,11 @@ static inline void cpu_handle_interrupt(CPUState *cpu,
                the program flow was changed */
             *last_tb = NULL;
         }
+    }
+    if (unlikely(cpu_tb_cache_set_requested(cpu))) {
+        cpu_tb_cache_set_apply(cpu);
+        /* avoid chaning TBs across physical TB caches */
+        *last_tb = NULL;
     }
     if (unlikely(atomic_read(&cpu->exit_request) || replay_has_interrupt())) {
         atomic_set(&cpu->exit_request, 0);
