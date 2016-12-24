@@ -1117,7 +1117,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         s->data[s->len] = (uint8_t)tx;
         s->len++;
 
-        if (s->len == s->needed_bytes) {
+        if ((s->len >= s->needed_bytes) || (s->len >= sizeof(s->data))) {
             complete_collecting_data(s);
         }
         break;
