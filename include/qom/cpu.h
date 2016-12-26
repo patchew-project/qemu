@@ -296,6 +296,7 @@ struct qemu_work_item;
  * @work_mutex: Lock to prevent multiple access to queued_work_*.
  * @queued_work_first: First asynchronous work pending.
  * @trace_dstate: Dynamic tracing state of events for this vCPU (bitmask).
+ * @hypertrace_control: Per-vCPU address of the hypertrace control channel.
  *
  * State of one CPU core or thread.
  */
@@ -371,6 +372,9 @@ struct CPUState {
      * trace_get_vcpu_event_count() entries.
      */
     unsigned long *trace_dstate;
+
+    /* Only used when defined(CONFIG_USER_ONLY) */
+    void *hypertrace_control;
 
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index; /* used by alpha TCG */

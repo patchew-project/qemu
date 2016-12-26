@@ -21,6 +21,7 @@
 #include "qemu.h"
 #include "qemu-common.h"
 #include "translate-all.h"
+#include "hypertrace/user.h"
 
 //#define DEBUG_MMAP
 
@@ -360,9 +361,17 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
     }
 }
 
-/* NOTE: all the constants are the HOST ones */
 abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, abi_ulong offset)
+{
+    return target_mmap_cpu(start, len, prot, flags, fd, offset, NULL);
+}
+
+
+/* NOTE: all the constants are the HOST ones */
+abi_long target_mmap_cpu(abi_ulong start, abi_ulong len, int prot,
+                         int flags, int fd, abi_ulong offset,
+                         CPUState *cpu)
 {
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
 
@@ -443,6 +452,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
               will be created beyond EOF.  */
            len = REAL_HOST_PAGE_ALIGN(sb.st_size - offset);
        }
+    }
+
+    if (!hypertrace_guest_mmap_check(fd, len, offset)) {
+        goto fail;
     }
 
     if (!(flags & MAP_FIXED)) {
@@ -556,6 +569,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
  the_end1:
+    printf("mmap "TARGET_ABI_FMT_lx" "TARGET_ABI_FMT_lu"\n", start, len);
+    hypertrace_guest_mmap_apply(fd, g2h(start), cpu);
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
 #ifdef DEBUG_MMAP
