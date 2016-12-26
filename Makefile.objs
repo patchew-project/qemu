@@ -162,3 +162,5 @@ trace-events-y += target/ppc/trace-events
 trace-events-y += qom/trace-events
 trace-events-y += linux-user/trace-events
 trace-events-y += qapi/trace-events
+
+trace-events-gen-y = hypertrace/trace-events
