@@ -457,8 +457,10 @@ endif
 endif
 
 install-hypertrace:
-	$(INSTALL_DIR) "$(DESTDIR)$(includedir)"
+	$(INSTALL_DIR) "$(DESTDIR)$(includedir)/linux"
 	$(INSTALL_DATA) "$(SRC_PATH)/hypertrace/guest/user/qemu-hypertrace.h" "$(DESTDIR)$(includedir)/"
+	$(INSTALL_DATA) "$(SRC_PATH)/hypertrace/guest/linux-module/include/linux/qemu-hypertrace.h" "$(DESTDIR)$(includedir)/linux"
+	$(INSTALL_DATA) "$(SRC_PATH)/hypertrace/guest/linux-module/include/linux/qemu-hypertrace-internal.h" "$(DESTDIR)$(includedir)/linux"
 
 
 install: all $(if $(BUILD_DOCS),install-doc) \

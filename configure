@@ -6038,6 +6038,10 @@ fi
 symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 mkdir -p $target_dir/hypertrace/guest/user
 symlink $source_path/hypertrace/guest/user/Makefile $target_dir/hypertrace/guest/user/Makefile
+if test "$target_softmmu" = "yes"; then
+    mkdir -p $target_dir/hypertrace/guest/linux-module
+    symlink $source_path/hypertrace/guest/linux-module/Makefile $target_dir/hypertrace/guest/linux-module/Makefile
+fi
 
 upper() {
     echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'

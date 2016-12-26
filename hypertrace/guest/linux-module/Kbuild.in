@@ -1,0 +1,7 @@
+# -*- mode: makefile -*-
+
+COMMON_H = $(shell readlink -f $(MOD_SRC_PATH)/../../common.h)
+
+src = $(MOD_SRC_PATH)
+ccflags-y := -I$(src)/include/ -DCOMMON_H=$(COMMON_H)
+obj-m := qemu-hypertrace.o
