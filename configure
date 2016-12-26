@@ -6036,6 +6036,8 @@ if [ "$TARGET_BASE_ARCH" = "" ]; then
 fi
 
 symlink "$source_path/Makefile.target" "$target_dir/Makefile"
+mkdir -p $target_dir/hypertrace/guest/user
+symlink $source_path/hypertrace/guest/user/Makefile $target_dir/hypertrace/guest/user/Makefile
 
 upper() {
     echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'

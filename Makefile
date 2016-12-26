@@ -456,9 +456,13 @@ ifneq (,$(findstring qemu-ga,$(TOOLS)))
 endif
 endif
 
+install-hypertrace:
+	$(INSTALL_DIR) "$(DESTDIR)$(includedir)"
+	$(INSTALL_DATA) "$(SRC_PATH)/hypertrace/guest/user/qemu-hypertrace.h" "$(DESTDIR)$(includedir)/"
+
 
 install: all $(if $(BUILD_DOCS),install-doc) \
-install-datadir install-localstatedir
+install-datadir install-localstatedir install-hypertrace
 ifneq ($(TOOLS),)
 	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
 endif
