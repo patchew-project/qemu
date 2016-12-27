@@ -255,7 +255,7 @@ static uint64_t pl080_read(void *opaque, hwaddr offset,
         i = (offset & 0xe0) >> 5;
         if (i >= s->nchannels)
             goto bad_offset;
-        switch (offset >> 2) {
+        switch ((offset - 0x100) >> 2) {
         case 0: /* SrcAddr */
             return s->chan[i].src;
         case 1: /* DestAddr */
@@ -316,7 +316,7 @@ static void pl080_write(void *opaque, hwaddr offset,
         i = (offset & 0xe0) >> 5;
         if (i >= s->nchannels)
             goto bad_offset;
-        switch (offset >> 2) {
+        switch ((offset - 0x100) >> 2) {
         case 0: /* SrcAddr */
             s->chan[i].src = value;
             break;
