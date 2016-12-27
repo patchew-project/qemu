@@ -948,6 +948,27 @@ static inline bool cpu_breakpoint_test(CPUState *cpu, vaddr pc, int mask)
     return false;
 }
 
+/* Get first breakpoint matching a PC */
+static inline CPUBreakpoint *cpu_breakpoint_get(CPUState *cpu, vaddr pc, CPUBreakpoint *bp)
+{
+    if (likely(bp == NULL)) {
+        if (unlikely(!QTAILQ_EMPTY(&cpu->breakpoints))) {
+            QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
+                if (bp->pc == pc) {
+                    return bp;
+                }
+            }
+        }
+    } else {
+        QTAILQ_FOREACH_CONTINUE(bp, entry) {
+            if (bp->pc == pc) {
+                return bp;
+            }
+        }
+    }
+    return NULL;
+}
+
 int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                           int flags, CPUWatchpoint **watchpoint);
 int cpu_watchpoint_remove(CPUState *cpu, vaddr addr,
