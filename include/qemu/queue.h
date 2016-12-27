@@ -415,6 +415,11 @@ struct {                                                                \
                 (var);                                                  \
                 (var) = ((var)->field.tqe_next))
 
+#define QTAILQ_FOREACH_CONTINUE(var, field)                             \
+        for ((var) = ((var)->field.tqe_next);                           \
+                (var);                                                  \
+                (var) = ((var)->field.tqe_next))
+
 #define QTAILQ_FOREACH_SAFE(var, head, field, next_var)                 \
         for ((var) = ((head)->tqh_first);                               \
                 (var) && ((next_var) = ((var)->field.tqe_next), 1);     \
