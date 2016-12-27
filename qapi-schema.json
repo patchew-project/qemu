@@ -4705,6 +4705,56 @@
   'data': { 'enable': 'bool', 'primary': 'bool', '*failover' : 'bool' } }
 
 ##
+# @ReplicationErrorStatus
+#
+# Describe the status of replication error.
+#
+# @error: Replication have a error.
+#
+# @normal:  Replication running normal.
+#
+# Since 2.9
+##
+{ 'enum': 'ReplicationErrorStatus',
+  'data': [ 'error', 'normal' ] }
+
+##
+# @ReplicationErrorResult
+#
+# The result format for 'xen-get-replication-error'.
+#
+# @status: enum of @ReplicationErrorStatus, which shows current
+#          replication error status
+#
+# Since 2.9
+##
+{ 'struct': 'ReplicationErrorResult',
+  'data': { 'status': 'ReplicationErrorStatus'} }
+
+##
+# @query-xen-replication-status
+#
+# Query replication error that occurs when the vm is running.
+#
+# Returns: A @ReplicationErrorResult objects showing the status.
+#
+# Since: 2.9
+##
+{ 'command': 'query-xen-replication-status',
+  'returns': 'ReplicationErrorResult' }
+
+##
+# @xen-do-checkpoint
+#
+# Xen use this command to notify replication to do checkpoint.
+#
+# Returns: nothing.
+#
+# Since: 2.9
+##
+{ 'command': 'xen-do-checkpoint' }
+
+##
 # @GICCapability:
 #
 # The struct describes capability for a specific GIC (Generic

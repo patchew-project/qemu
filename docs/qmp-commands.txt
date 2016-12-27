@@ -450,6 +450,30 @@ Example:
      "arguments": {"enable": true, "primary": false} }
 <- { "return": {} }
 
+query-xen-replication-status
+----------------------------
+
+Query replication status when vm is running.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "query-xen-replication-status" }
+<- { "return": { "status": "normal" } }
+
+xen-do-checkpoint
+-----------------
+
+Xen use this command to notify replication to do checkpoint.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "xen-do-checkpoint" }
+<- { "return": {} }
+
 migrate
 -------
 
