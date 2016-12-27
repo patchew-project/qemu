@@ -1869,10 +1869,9 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
-    UniCore32CPU *cpu = uc32_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUUniCore32State *env = cpu->env_ptr;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_start;
     uint32_t next_page_start;
@@ -1888,7 +1887,7 @@ void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->singlestep_enabled = cpu->singlestep_enabled;
     dc->condjmp = 0;
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
@@ -1917,7 +1916,7 @@ void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
         tcg_gen_insn_start(dc->pc);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc->pc, BP_ANY))) {
             gen_set_pc_im(dc->pc);
             gen_exception(EXCP_DEBUG);
             dc->is_jmp = DISAS_JUMP;
@@ -1949,7 +1948,7 @@ void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
-             !cs->singlestep_enabled &&
+             !cpu->singlestep_enabled &&
              !singlestep &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
@@ -1958,7 +1957,7 @@ void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
         if (dc->condjmp) {
             /* FIXME:  This can theoretically happen with self-modifying
                code.  */
-            cpu_abort(cs, "IO on conditional branch instruction");
+            cpu_abort(cpu, "IO on conditional branch instruction");
         }
         gen_io_end();
     }
@@ -1966,7 +1965,7 @@ void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (dc->condjmp) {
             if (dc->is_jmp == DISAS_SYSCALL) {
@@ -2027,7 +2026,7 @@ done_generating:
         qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, dc->pc - pc_start, 0);
         qemu_log("\n");
         qemu_log_unlock();
     }
