@@ -105,21 +105,22 @@ static inline int default_exception_el(DisasContext *s)
 }
 
 /* target-specific extra values for is_jmp */
+/* TODO: rename as DJ_* when transitioning this target to generic translation */
 /* These instructions trap after executing, so the A32/T32 decoder must
  * defer them until after the conditional execution state has been updated.
  * WFI also needs special handling when single-stepping.
  */
-#define DISAS_WFI 4
-#define DISAS_SWI 5
+#define DISAS_WFI DISAS_TARGET + 0
+#define DISAS_SWI DISAS_TARGET + 1
 /* For instructions which unconditionally cause an exception we can skip
  * emitting unreachable code at the end of the TB in the A64 decoder
  */
-#define DISAS_EXC 6
+#define DISAS_EXC DISAS_TARGET + 2
 /* WFE */
-#define DISAS_WFE 7
-#define DISAS_HVC 8
-#define DISAS_SMC 9
-#define DISAS_YIELD 10
+#define DISAS_WFE DISAS_TARGET + 3
+#define DISAS_HVC DISAS_TARGET + 4
+#define DISAS_SMC DISAS_TARGET + 5
+#define DISAS_YIELD DISAS_TARGET + 6
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
