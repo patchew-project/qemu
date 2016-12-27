@@ -795,13 +795,25 @@ static inline int64_t get_max_clock_jump(void)
  * Low level clock functions
  */
 
+/*
+ * Freeze time by subtracting frozen duration from real interval measurements.
+ */
+void freeze_time(void);
+void thaw_time(void);
+int64_t get_iced_ticks(void);
+int64_t get_iced_ns(void);
+int64_t ns_is_frozen(void);
+int64_t ticks_is_frozen(void);
+
 /* get host real time in nanosecond */
 static inline int64_t get_clock_realtime(void)
 {
     struct timeval tv;
-
+    if (ns_is_frozen() > 0) {
+        return ns_is_frozen();
+    }
     gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+    return ((tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000))-get_iced_ns());
 }
 
 /* Warning: don't insert tracepoints into these functions, they are
@@ -826,8 +838,11 @@ static inline int64_t get_clock(void)
 #ifdef CLOCK_MONOTONIC
     if (use_rt_clock) {
         struct timespec ts;
+        if (ns_is_frozen() > 0) {
+            return ns_is_frozen();
+        }
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        return (ts.tv_sec * 1000000000LL + ts.tv_nsec)-get_iced_ns();
     } else
 #endif
     {
@@ -878,8 +893,11 @@ static inline int64_t cpu_get_host_ticks(void)
 static inline int64_t cpu_get_host_ticks(void)
 {
     int64_t val;
+    if (ticks_is_frozen() > 0) {
+         return ticks_is_frozen();
+    }
     asm volatile ("rdtsc" : "=A" (val));
-    return val;
+    return val-get_iced_ticks();
 }
 
 #elif defined(__x86_64__)
@@ -888,11 +906,14 @@ static inline int64_t cpu_get_host_ticks(void)
 {
     uint32_t low,high;
     int64_t val;
+    if (ticks_is_frozen() > 0) {
+         return ticks_is_frozen();
+    }
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
     val = high;
     val <<= 32;
     val |= low;
-    return val;
+    return val-get_iced_ticks();
 }
 
 #elif defined(__hppa__)
@@ -909,8 +930,11 @@ static inline int64_t cpu_get_host_ticks(void)
 static inline int64_t cpu_get_host_ticks(void)
 {
     int64_t val;
+    if (ticks_is_frozen() > 0) {
+         return ticks_is_frozen();
+    }
     asm volatile ("mov %0 = ar.itc" : "=r"(val) :: "memory");
-    return val;
+    return val-get_iced_ticks();
 }
 
 #elif defined(__s390__)

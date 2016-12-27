@@ -3,6 +3,7 @@
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
 util-obj-y += qmp-introspect.o qapi-types.o qapi-visit.o qapi-event.o
+util-obj-y += freezer.o
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img

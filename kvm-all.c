@@ -16,8 +16,11 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
+#include <sys/syscall.h>
+#include <time.h>
 #include <linux/kvm.h>
 
+#include "qqq.h"
 #include "qemu-common.h"
 #include "qemu/atomic.h"
 #include "qemu/option.h"
@@ -1924,6 +1927,17 @@ int kvm_cpu_exec(CPUState *cpu)
              * leave ASAP again.
              */
             qemu_cpu_kick_self();
+        }
+
+        if (qqq_enabled()) {
+            /* Pause here while qqq is synchronizing with a simulation clock.
+             * We do not want to execute instructions past the synchronization
+             * deadline, but its ok to update the states of other equipment
+             * like timers, i/o devices, etc. Allowing this seems to avoid
+             * some timing problems. (Because it gives the HPET unit time to
+             * catch up with the VCPU while the VCPU is paused?)
+             */
+            qqq_sync();
         }
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
