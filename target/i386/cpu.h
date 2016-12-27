@@ -1208,6 +1208,7 @@ struct X86CPU {
     bool expose_kvm;
     bool migratable;
     bool host_features;
+    bool invtsc_migration;
     uint32_t apic_id;
 
     /* if true the CPUID code directly forward host cache leaves to the guest */

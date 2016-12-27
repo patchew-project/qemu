@@ -962,7 +962,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
-    if (!env->user_tsc_khz) {
+    if (!cpu->invtsc_migration && !env->user_tsc_khz) {
         if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
             invtsc_mig_blocker == NULL) {
             /* for migration */
@@ -972,6 +972,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             migrate_add_blocker(invtsc_mig_blocker);
             /* for savevm */
             vmstate_x86_cpu.unmigratable = 1;
+        }
     }
 
     cpuid_data.cpuid.padding = 0;
@@ -2655,12 +2656,14 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     }
 
     if (level == KVM_PUT_FULL_STATE) {
-        /* We don't check for kvm_arch_set_tsc_khz() errors here,
-         * because TSC frequency mismatch shouldn't abort migration,
-         * unless the user explicitly asked for a more strict TSC
-         * setting (e.g. using an explicit "tsc-freq" option).
+        /* Migration TSC frequency mismatch is fatal only if we are
+         * actually reporting Invariant TSC to the guest.
          */
-        kvm_arch_set_tsc_khz(cpu);
+        ret = kvm_arch_set_tsc_khz(cpu);
+        if ((x86_cpu->env.features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
+            ret < 0) {
+            return ret;
+        }
     }
 
     ret = kvm_getput_regs(x86_cpu, 1);
