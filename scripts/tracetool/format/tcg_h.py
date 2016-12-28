@@ -41,7 +41,7 @@ def generate(events, backend, group):
 
     for e in events:
         # just keep one of them
-        if "tcg-trans" not in e.properties:
+        if "tcg-exec" not in e.properties:
             continue
 
         out('static inline void %(name_tcg)s(%(args)s)',
@@ -53,12 +53,25 @@ def generate(events, backend, group):
             args_trans = e.original.event_trans.args
             args_exec = tracetool.vcpu.transform_args(
                 "tcg_helper_c", e.original.event_exec, "wrapper")
+            if "vcpu" in e.properties:
+                trace_cpu = e.args.names()[0]
+                cond = "trace_event_get_vcpu_state(%(cpu)s,"\
+                       " TRACE_%(id)s)"\
+                       % dict(
+                           cpu=trace_cpu,
+                           id=e.original.event_exec.name.upper())
+            else:
+                cond = "true"
+
             out('    %(name_trans)s(%(argnames_trans)s);',
-                '    gen_helper_%(name_exec)s(%(argnames_exec)s);',
+                '    if (%(cond)s) {',
+                '        gen_helper_%(name_exec)s(%(argnames_exec)s);',
+                '    }',
                 name_trans=e.original.event_trans.api(e.QEMU_TRACE),
                 name_exec=e.original.event_exec.api(e.QEMU_TRACE),
                 argnames_trans=", ".join(args_trans.names()),
-                argnames_exec=", ".join(args_exec.names()))
+                argnames_exec=", ".join(args_exec.names()),
+                cond=cond)
 
         out('}')
 
