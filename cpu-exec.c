@@ -33,6 +33,7 @@
 #include "hw/i386/apic.h"
 #endif
 #include "sysemu/replay.h"
+#include "trace/control.h"
 
 /* -icount align implementation. */
 
@@ -451,9 +452,21 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 #ifndef CONFIG_USER_ONLY
     } else if (replay_has_exception()
                && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
+        /* delay changes to this vCPU's dstate during translation */
+        atomic_set(&cpu->trace_dstate_delayed_req, false);
+        atomic_set(&cpu->trace_dstate_must_delay, true);
+
         /* try to cause an exception pending in the log */
         cpu_exec_nocache(cpu, 1, tb_find(cpu, NULL, 0), true);
         *ret = -1;
+
+        /* apply and disable delayed dstate changes */
+        atomic_set(&cpu->trace_dstate_must_delay, false);
+        if (unlikely(atomic_read(&cpu->trace_dstate_delayed_req))) {
+            bitmap_copy(cpu->trace_dstate, cpu->trace_dstate_delayed,
+                        trace_get_vcpu_event_count());
+        }
+
         return true;
 #endif
     }
@@ -634,8 +647,21 @@ int cpu_exec(CPUState *cpu)
 
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
+
+                /* delay changes to this vCPU's dstate during translation */
+                atomic_set(&cpu->trace_dstate_delayed_req, false);
+                atomic_set(&cpu->trace_dstate_must_delay, true);
+
                 tb = tb_find(cpu, last_tb, tb_exit);
                 cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
+
+                /* apply and disable delayed dstate changes */
+                atomic_set(&cpu->trace_dstate_must_delay, false);
+                if (unlikely(atomic_read(&cpu->trace_dstate_delayed_req))) {
+                    bitmap_copy(cpu->trace_dstate, cpu->trace_dstate_delayed,
+                                trace_get_vcpu_event_count());
+                }
+
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
                 align_clocks(&sc, cpu);
