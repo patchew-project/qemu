@@ -415,6 +415,18 @@ struct {                                                                \
                 (var);                                                  \
                 (var) = ((var)->field.tqe_next))
 
+/**
+ * QTAILQ_FOREACH_CONTINUE:
+ * @var: Variable to resume iteration from.
+ * @field: Field in @var holding a QTAILQ_ENTRY for this queue.
+ *
+ * Resumes iteration on a queue from the element in @var.
+ */
+#define QTAILQ_FOREACH_CONTINUE(var, field)                             \
+        for ((var) = ((var)->field.tqe_next);                           \
+                (var);                                                  \
+                (var) = ((var)->field.tqe_next))
+
 #define QTAILQ_FOREACH_SAFE(var, head, field, next_var)                 \
         for ((var) = ((head)->tqh_first);                               \
                 (var) && ((next_var) = ((var)->field.tqe_next), 1);     \
