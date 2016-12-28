@@ -66,10 +66,11 @@ def generate(events, backend, group):
 
         out('void %(name_tcg)s(%(args_api)s)',
             '{',
+            # NOTE: the check was already performed at TCG-generation time
             '    %(name)s(%(args_call)s);',
             '}',
             name_tcg="helper_%s_proxy" % e.api(),
-            name=e.api(),
+            name=e.api(e.QEMU_TRACE_NOCHECK),
             args_api=e_args_api,
             args_call=", ".join(e_args_call.casted()),
             )
