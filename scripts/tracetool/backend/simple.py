@@ -37,7 +37,7 @@ def generate_h_begin(events, group):
 
 
 def generate_h(event, group):
-    out('        _simple_%(api)s(%(args)s);',
+    out('    _simple_%(api)s(%(args)s);',
         api=event.api(),
         args=", ".join(event.args.names()))
 
