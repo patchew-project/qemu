@@ -82,7 +82,10 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
             }
             (*ev->dstate)--;
         }
+        /* Make sure next translated/executed TB uses the new dstate */
         atomic_set(&vcpu->trace_dstate_delayed_req, true);
+        /* NOTE: checked by all TBs in gen_tb_start() */
+        atomic_set(&vcpu->tcg_exit_req, 1);
     }
 }
 
