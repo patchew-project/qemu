@@ -36,10 +36,13 @@ typedef ram_addr_t tb_page_addr_t;
 #endif
 
 /* is_jmp field values */
-#define DISAS_NEXT    0 /* next instruction can be analyzed */
-#define DISAS_JUMP    1 /* only pc was modified dynamically */
-#define DISAS_UPDATE  2 /* cpu state was modified dynamically */
-#define DISAS_TB_JUMP 3 /* only pc was modified statically */
+/* TODO: delete after all targets are transitioned to generic translation */
+#include "exec/translate-all_template.h"
+#define DISAS_NEXT    DJ_NEXT           /* next instruction can be analyzed */
+#define DISAS_JUMP    (DJ_TARGET + 0)   /* only pc was modified dynamically */
+#define DISAS_UPDATE  (DJ_TARGET + 1)   /* cpu state was modified dynamically */
+#define DISAS_TB_JUMP (DJ_TARGET + 2)   /* only pc was modified statically */
+#define DISAS_TARGET  (DJ_TARGET + 3)   /* base for target-specific values */
 
 #include "qemu/log.h"
 

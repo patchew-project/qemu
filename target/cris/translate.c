@@ -50,7 +50,8 @@
 #define BUG() (gen_BUG(dc, __FILE__, __LINE__))
 #define BUG_ON(x) ({if (x) BUG();})
 
-#define DISAS_SWI 5
+/* TODO: rename as DJ_* when transitioning this target to generic translation */
+#define DISAS_SWI (DISAS_TARGET + 0)
 
 /* Used by the decoder.  */
 #define EXTRACT_FIELD(src, start, end) \

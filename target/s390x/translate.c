@@ -74,7 +74,8 @@ typedef struct {
     } u;
 } DisasCompare;
 
-#define DISAS_EXCP 4
+/* TODO: rename as DJ_* when transitioning this target to generic translation */
+#define DISAS_EXCP (DISAS_TARGET + 0)
 
 #ifdef DEBUG_INLINE_BRANCHES
 static uint64_t inline_branch_hit[CC_OP_MAX];
