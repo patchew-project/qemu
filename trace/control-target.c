@@ -69,13 +69,20 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
     if (state_pre != state) {
         if (state) {
             trace_events_enabled_count++;
-            set_bit(vcpu_id, vcpu->trace_dstate);
+            set_bit(vcpu_id, vcpu->trace_dstate_delayed);
+            if (!atomic_read(&vcpu->trace_dstate_must_delay)) {
+                set_bit(vcpu_id, vcpu->trace_dstate);
+            }
             (*ev->dstate)++;
         } else {
             trace_events_enabled_count--;
-            clear_bit(vcpu_id, vcpu->trace_dstate);
+            clear_bit(vcpu_id, vcpu->trace_dstate_delayed);
+            if (!atomic_read(&vcpu->trace_dstate_must_delay)) {
+                clear_bit(vcpu_id, vcpu->trace_dstate);
+            }
             (*ev->dstate)--;
         }
+        atomic_set(&vcpu->trace_dstate_delayed_req, true);
     }
 }
 
