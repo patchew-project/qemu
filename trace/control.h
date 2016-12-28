@@ -237,7 +237,7 @@ char *trace_opt_parse(const char *optarg);
  *
  * Return the number of known vcpu-specific events
  */
-uint32_t trace_get_vcpu_event_count(void);
+static uint32_t trace_get_vcpu_event_count(void);
 
 
 #include "trace/control-internal.h"
