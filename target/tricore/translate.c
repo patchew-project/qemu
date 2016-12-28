@@ -8733,10 +8733,9 @@ static void decode_opc(CPUTriCoreState *env, DisasContext *ctx, int *is_branch)
     }
 }
 
-void gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    TriCoreCPU *cpu = tricore_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUTriCoreState *env = cpu->env_ptr;
     DisasContext ctx;
     target_ulong pc_start;
     int num_insns, max_insns;
@@ -8757,7 +8756,7 @@ void gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.tb = tb;
-    ctx.singlestep_enabled = cs->singlestep_enabled;
+    ctx.singlestep_enabled = cpu->singlestep_enabled;
     ctx.bstate = BS_NONE;
     ctx.mem_idx = cpu_mmu_index(env, false);
 
@@ -8791,7 +8790,7 @@ void gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, ctx.pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, ctx.pc - pc_start, 0);
         qemu_log("\n");
         qemu_log_unlock();
     }
