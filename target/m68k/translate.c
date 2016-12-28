@@ -143,7 +143,8 @@ typedef struct DisasContext {
     int done_mac;
 } DisasContext;
 
-#define DISAS_JUMP_NEXT 4
+/* TODO: rename as DJ_* when transitioning this target to generic translation */
+#define DISAS_JUMP_NEXT (DISAS_TARGET + 0)
 
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(s) 1
