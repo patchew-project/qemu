@@ -80,7 +80,7 @@ void tlb_flush(CPUState *cpu, int flush_global)
 
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
-    memset(cpu->tb_jmp_cache, 0, sizeof(cpu->tb_jmp_cache));
+    tb_flush_jmp_cache_all(cpu);
 
     env->vtlb_index = 0;
     env->tlb_flush_addr = -1;
