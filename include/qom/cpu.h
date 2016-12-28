@@ -295,6 +295,10 @@ struct qemu_work_item;
  * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to queued_work_*.
  * @queued_work_first: First asynchronous work pending.
+ * @trace_dstate_must_delay: Whether a change to trace_dstate must be delayed.
+ * @trace_dstate_delayed_req: Whether a change to trace_dstate was delayed.
+ * @trace_dstate_delayed: Delayed changes to trace_dstate (includes all changes
+ *                        to @trace_dstate).
  * @trace_dstate: Dynamic tracing state of events for this vCPU (bitmask).
  *
  * State of one CPU core or thread.
@@ -370,6 +374,9 @@ struct CPUState {
      * Dynamically allocated based on bitmap requried to hold up to
      * trace_get_vcpu_event_count() entries.
      */
+    bool trace_dstate_must_delay;
+    bool trace_dstate_delayed_req;
+    unsigned long *trace_dstate_delayed;
     unsigned long *trace_dstate;
 
     /* TODO Move common fields from CPUArchState here. */
