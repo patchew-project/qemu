@@ -54,6 +54,7 @@
 #include "exec/tb-hash.h"
 #include "translate-all.h"
 #include "qemu/bitmap.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "exec/log.h"
 
@@ -813,6 +814,12 @@ static void tb_htable_init(void)
 {
     unsigned int mode = QHT_MODE_AUTO_RESIZE;
 
+    /* Ensure TB hash function covers the bitmap size */
+    if (DIV_ROUND_UP(trace_get_vcpu_event_count(), BITS_PER_BYTE) >
+        sizeof(TRACE_QHT_VCPU_DSTATE_TYPE)) {
+        error_report("too many 'vcpu' events for the TB hash function");
+    }
+
     qht_init(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
 }
 
@@ -1106,7 +1113,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags, tb->trace_vcpu_dstate);
     qht_remove(&tcg_ctx.tb_ctx.htable, tb, h);
 
     /* remove the TB from the page list */
@@ -1251,7 +1258,7 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     }
 
     /* add in the hash table */
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags, tb->trace_vcpu_dstate);
     qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
 
 #ifdef DEBUG_TB_CHECK
@@ -1270,6 +1277,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     target_ulong virt_page2;
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size;
+    unsigned long trace_vcpu_dstate_bitmap;
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
@@ -1294,6 +1302,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
+    bitmap_copy(&trace_vcpu_dstate_bitmap, cpu->trace_dstate,
+                trace_get_vcpu_event_count());
+    memcpy(&tb->trace_vcpu_dstate, &trace_vcpu_dstate_bitmap,
+           sizeof(tb->trace_vcpu_dstate));
 
 #ifdef CONFIG_PROFILER
     tcg_ctx.tb_count1++; /* includes aborted translations because of

@@ -200,6 +200,10 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
 #define USE_DIRECT_JUMP
 #endif
 
+/**
+ * TranslationBlock:
+ * @trace_vcpu_dstate: Per-vCPU dynamic tracing state used to generate this TB.
+ */
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
@@ -215,6 +219,7 @@ struct TranslationBlock {
 #define CF_IGNORE_ICOUNT 0x40000 /* Do not generate icount code */
 
     uint16_t invalid;
+    TRACE_QHT_VCPU_DSTATE_TYPE trace_vcpu_dstate;
 
     void *tc_ptr;    /* pointer to the translated code */
     uint8_t *tc_search;  /* pointer to search data */

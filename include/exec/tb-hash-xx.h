@@ -35,6 +35,7 @@
 #define EXEC_TB_HASH_XX_H
 
 #include "qemu/bitops.h"
+#include "qemu-common.h"
 
 #define PRIME32_1   2654435761U
 #define PRIME32_2   2246822519U
@@ -49,7 +50,8 @@
  * contiguous in memory.
  */
 static inline
-uint32_t tb_hash_func5(uint64_t a0, uint64_t b0, uint32_t e)
+uint32_t tb_hash_func6(uint64_t a0, uint64_t b0, uint32_t e,
+                       TRACE_QHT_VCPU_DSTATE_TYPE f)
 {
     uint32_t v1 = TB_HASH_XX_SEED + PRIME32_1 + PRIME32_2;
     uint32_t v2 = TB_HASH_XX_SEED + PRIME32_2;
@@ -82,6 +84,13 @@ uint32_t tb_hash_func5(uint64_t a0, uint64_t b0, uint32_t e)
 
     h32 += e * PRIME32_3;
     h32  = rol32(h32, 17) * PRIME32_4;
+
+    if (sizeof(TRACE_QHT_VCPU_DSTATE_TYPE) == sizeof(uint32_t)) {
+        h32 += f * PRIME32_3;
+        h32  = rol32(h32, 17) * PRIME32_4;
+    } else {
+        abort();
+    }
 
     h32 ^= h32 >> 15;
     h32 *= PRIME32_2;
