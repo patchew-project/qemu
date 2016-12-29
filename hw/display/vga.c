@@ -2265,7 +2265,7 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
     memory_region_add_subregion_overlap(address_space,
                                         0x000a0000,
                                         vga_io_memory,
-                                        1);
+                                        2);
     memory_region_set_coalescing(vga_io_memory);
     if (init_vga_ports) {
         portio_list_init(&s->vga_port_list, obj, vga_ports, s, "vga");
