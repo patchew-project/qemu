@@ -35,6 +35,7 @@
 #include "sysemu/blockdev.h"
 #include "qemu-version.h"
 #include <Carbon/Carbon.h>
+#include "qom/cpu.h"
 
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
@@ -828,6 +829,7 @@ QemuCocoaView *cocoaView;
 - (void)openDocumentation:(NSString *)filename;
 - (IBAction) do_about_menu_item: (id) sender;
 - (void)make_about_window;
+- (void)adjustSpeed:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -1234,6 +1236,35 @@ QemuCocoaView *cocoaView;
     [superView addSubview: copyright_label];
 }
 
+/* Used by the Speed menu items */
+- (void)adjustSpeed:(id)sender
+{
+    int speed, menu_number, count, item;
+    NSMenu *menu;
+    NSArray *itemArray;
+
+    // uncheck all the menu items in the Speed menu
+    menu = [sender menu];
+    if (menu != nil)
+    {
+        count = [[menu itemArray] count];
+        itemArray = [menu itemArray];
+        for (item = 0; item < count; item++)  // unselect each item
+            [[itemArray objectAtIndex: item] setState: NSOffState];
+    }
+
+    // check the menu item
+    [sender setState: NSOnState];
+
+    // get the menu number
+    menu_number = [sender tag];
+
+    /* Calculate the speed */
+    speed = -1 * menu_number + 100;
+    cpu_throttle_set(speed);
+    COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
+}
+
 @end
 
 
@@ -1313,6 +1344,29 @@ int main (int argc, const char * argv[]) {
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease]];
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+
+    // Speed menu
+    menu = [[NSMenu alloc] initWithTitle:@"Speed"];
+
+    // The 100% menu item has to be checked at the start
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"100%" action:@selector(adjustSpeed:) keyEquivalent:@""] autorelease];
+    [menuItem setTag: 100];
+    [menuItem setState: NSOnState];
+    [menu addItem: menuItem];
+
+    // Add the rest of the menu items
+    int p, percentage;
+    for (p = 9; p >= 0; p--)
+    {
+        percentage = p * 10 > 1 ? p * 10 : 1; // prevent a 0% menu item
+        menuItem = [[[NSMenuItem alloc]
+                   initWithTitle: [NSString stringWithFormat: @"%d%c", percentage, '%'] action:@selector(adjustSpeed:) keyEquivalent:@""] autorelease];
+        [menuItem setTag: percentage];
+        [menu addItem: menuItem];
+    }
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Speed" action:nil keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
     [[NSApp mainMenu] addItem:menuItem];
 
