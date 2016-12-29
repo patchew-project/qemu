@@ -1816,22 +1816,32 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
     return pci_dev;
 }
 
-PCIDevice *pci_vga_init(PCIBus *bus)
+const char *pci_vga_type(void)
 {
     switch (vga_interface_type) {
     case VGA_CIRRUS:
-        return pci_create_simple(bus, -1, "cirrus-vga");
+        return "cirrus-vga";
     case VGA_QXL:
-        return pci_create_simple(bus, -1, "qxl-vga");
+        return "qxl-vga";
     case VGA_STD:
-        return pci_create_simple(bus, -1, "VGA");
+        return "VGA";
     case VGA_VMWARE:
-        return pci_create_simple(bus, -1, "vmware-svga");
+        return "vmware-svga";
     case VGA_VIRTIO:
-        return pci_create_simple(bus, -1, "virtio-vga");
+        return "virtio-vga";
     case VGA_NONE:
     default: /* Other non-PCI types. Checking for unsupported types is already
                 done in vl.c. */
+        return NULL;
+    }
+}
+
+PCIDevice *pci_vga_init(PCIBus *bus)
+{
+    const char *vga_type = pci_vga_type();
+    if (vga_type) {
+        return pci_create_simple(bus, -1, vga_type);
+    } else {
         return NULL;
     }
 }
