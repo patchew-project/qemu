@@ -2170,6 +2170,10 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
+ if (command == VERIFY_10 || command == VERIFY_12 ||
+            command == VERIFY_16) {
+            r->req.cmd.mode = SCSI_XFER_TO_DEV;
+        }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
         r->sector_count = len * (s->qdev.blocksize / 512);
         break;
