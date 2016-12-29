@@ -235,4 +235,21 @@ static inline unsigned long *bitmap_zero_extend(unsigned long *old,
     return new;
 }
 
+static inline unsigned long bitmap_weight(const unsigned long *src, long nbits)
+{
+    unsigned long i, count = 0, nlong = nbits / BITS_PER_LONG;
+
+    if (small_nbits(nbits)) {
+        return hweight_long(*src & BITMAP_LAST_WORD_MASK(nbits));
+    }
+    for (i = 0; i < nlong; i++) {
+        count += hweight_long(src[i]);
+    }
+    if (nbits % BITS_PER_LONG) {
+        count += hweight_long(src[i] & BITMAP_LAST_WORD_MASK(nbits));
+    }
+
+    return count;
+}
+
 #endif /* BITMAP_H */
