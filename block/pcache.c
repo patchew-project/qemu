@@ -92,6 +92,30 @@ static void pcache_node_unref(PCacheNode *node)
     }
 }
 
+static uint64_t ranges_overlap_size(uint64_t offset1, uint64_t size1,
+                                    uint64_t offset2, uint32_t size2)
+{
+    return MIN(offset1 + size1, offset2 + size2) - MAX(offset1, offset2);
+}
+
+static void read_cache_data_direct(PCacheNode *node, uint64_t offset,
+                                   uint64_t bytes, QEMUIOVector *qiov)
+{
+    uint64_t qiov_offs = 0, node_offs = 0;
+    uint64_t size;
+    uint64_t copy;
+
+    if (offset < node->common.offset) {
+        qiov_offs = node->common.offset - offset;
+    } else {
+        node_offs = offset - node->common.offset;
+    }
+    size = ranges_overlap_size(offset, bytes, node->common.offset,
+                               node->common.bytes);
+    copy = qemu_iovec_from_buf(qiov, qiov_offs, node->data + node_offs, size);
+    assert(copy == size);
+}
+
 static void update_req_stats(RBCache *rbcache, uint64_t offset, uint64_t bytes)
 {
     do {
@@ -288,6 +312,32 @@ static void pcache_readahead_entry(void *opaque)
                         readahead_co->bytes);
 }
 
+enum {
+    CACHE_MISS,
+    CACHE_HIT,
+};
+
+static int pcache_lookup_data(BlockDriverState *bs, uint64_t offset,
+                              uint64_t bytes, QEMUIOVector *qiov)
+{
+    BDRVPCacheState *s = bs->opaque;
+
+    PCacheNode *node = rbcache_search(s->cache, offset, bytes);
+    if (node == NULL || node->status & NODE_STATUS_INFLIGHT) {
+        return CACHE_MISS;
+    }
+
+    /* Node covers the whole request */
+    if (node->common.offset <= offset &&
+        node->common.offset + node->common.bytes >= offset + bytes)
+    {
+        read_cache_data_direct(node, offset, bytes, qiov);
+        return CACHE_HIT;
+    }
+
+    return CACHE_MISS;
+}
+
 static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -295,6 +345,7 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
     BDRVPCacheState *s = bs->opaque;
     PCacheReadaheadCo readahead_co;
     Coroutine *co;
+    int status;
 
     if (bytes > s->max_aio_size) {
         goto skip_large_request;
@@ -309,6 +360,11 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
     };
     co = qemu_coroutine_create(pcache_readahead_entry, &readahead_co);
     qemu_coroutine_enter(co);
+
+    status = pcache_lookup_data(bs, offset, bytes, qiov);
+    if (status == CACHE_HIT) {
+        return 0;
+    }
 
 skip_large_request:
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
