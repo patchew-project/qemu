@@ -46,6 +46,40 @@ typedef struct BDRVPCacheState {
     uint64_t max_aio_size;
 } BDRVPCacheState;
 
+static void update_req_stats(RBCache *rbcache, uint64_t offset, uint64_t bytes)
+{
+    do {
+        RBCacheNode *node = rbcache_search_and_insert(rbcache, offset, bytes);
+        /* The node was successfully added or already exists */
+        if (node->offset <= offset &&
+            node->offset + node->bytes >= offset + bytes)
+        {
+            break;
+        }
+
+        /* Request covers the whole node */
+        if (offset <= node->offset &&
+            offset + bytes >= node->offset + node->bytes)
+        {
+            rbcache_remove(rbcache, node);
+            continue;
+        }
+
+        if (offset < node->offset) {
+            RBCacheNode *new_node =
+                rbcache_node_alloc(rbcache, offset, node->offset - offset);
+            if (new_node != rbcache_insert(rbcache, new_node)) {
+                /* The presence of the node in this range is impossible */
+                abort();
+            }
+            break;
+        }
+
+        bytes = (offset + bytes) - (node->offset + node->bytes);
+        offset = node->offset + node->bytes;
+    } while (true);
+}
+
 static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -53,7 +87,7 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
     BDRVPCacheState *s = bs->opaque;
 
     if (s->max_aio_size >= bytes) {
-        rbcache_search_and_insert(s->req_stats, offset, bytes);
+        update_req_stats(s->req_stats, offset, bytes);
     }
 
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
