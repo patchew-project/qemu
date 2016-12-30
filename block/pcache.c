@@ -81,6 +81,7 @@ typedef struct PCacheNode {
         NODE_STATUS_REMOVE    = 0x08,
         NODE_STATUS_DELETED   = 0x10, /* only for debugging */
     } status;
+    uint64_t rdcnt;
     QLIST_ENTRY(PCacheNode) entry;
     int ref;
 } PCacheNode;
@@ -109,12 +110,16 @@ static uint64_t ranges_overlap_size(uint64_t offset1, uint64_t size1,
     return MIN(offset1 + size1, offset2 + size2) - MAX(offset1, offset2);
 }
 
-static void read_cache_data_direct(PCacheNode *node, uint64_t offset,
-                                   uint64_t bytes, QEMUIOVector *qiov)
+static void read_cache_data_direct(BlockDriverState *bs, PCacheNode *node,
+                                   uint64_t offset, uint64_t bytes,
+                                   QEMUIOVector *qiov)
 {
+    BDRVPCacheState *s = bs->opaque;
     uint64_t qiov_offs = 0, node_offs = 0;
     uint64_t size;
     uint64_t copy;
+
+    assert(node->status & NODE_STATUS_COMPLETED);
 
     if (offset < node->common.offset) {
         qiov_offs = node->common.offset - offset;
@@ -124,11 +129,17 @@ static void read_cache_data_direct(PCacheNode *node, uint64_t offset,
     size = ranges_overlap_size(offset, bytes, node->common.offset,
                                node->common.bytes);
     copy = qemu_iovec_from_buf(qiov, qiov_offs, node->data + node_offs, size);
+    node->rdcnt += size;
+    if (node->rdcnt >= node->common.bytes &&
+        !(node->status & NODE_STATUS_REMOVE))
+    {
+        rbcache_remove(s->cache, &node->common);
+    }
     assert(copy == size);
 }
 
-static int read_cache_data(PCacheNode *node, uint64_t offset, uint64_t bytes,
-                           QEMUIOVector *qiov)
+static int read_cache_data(BlockDriverState *bs, PCacheNode *node,
+                           uint64_t offset, uint64_t bytes, QEMUIOVector *qiov)
 {
     if (node->status & NODE_STATUS_INFLIGHT) {
         ReqLinkEntry rlink = {
@@ -143,7 +154,7 @@ static int read_cache_data(PCacheNode *node, uint64_t offset, uint64_t bytes,
             return rlink.ret;
         }
     }
-    read_cache_data_direct(node, offset, bytes, qiov);
+    read_cache_data_direct(bs, node, offset, bytes, qiov);
 
     return 0;
 }
@@ -228,6 +239,7 @@ static RBCacheNode *pcache_node_alloc(uint64_t offset, uint64_t bytes,
 
     node->data = g_malloc(bytes);
     node->status = NODE_STATUS_NEW;
+    node->rdcnt = 0;
     node->ref = 1;
     QTAILQ_INIT(&node->wait_list);
 
@@ -492,7 +504,7 @@ static int pickup_parts_of_cache(BlockDriverState *bs, PCacheNode *node,
         PartReqEntry *part = &req.parts[req.cnt];
         if (ret == 0) {
             if (part->rlink.ret == 0) {
-                read_cache_data_direct(part->node, offset, bytes, qiov);
+                read_cache_data_direct(bs, part->node, offset, bytes, qiov);
             } else {
                 ret = part->rlink.ret;
             }
@@ -523,7 +535,7 @@ static int pcache_lookup_data(BlockDriverState *bs, uint64_t offset,
     if (node->common.offset <= offset &&
         node->common.offset + node->common.bytes >= offset + bytes)
     {
-        ret = read_cache_data(node, offset, bytes, qiov);
+        ret = read_cache_data(bs, node, offset, bytes, qiov);
 
     } else {
         ret = pickup_parts_of_cache(bs, node, offset, bytes, qiov);
