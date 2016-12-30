@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/migration.h"
+#include "sysemu/dma.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -421,8 +422,35 @@ static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
     dev->log_size = size;
 }
 
+static void *vhost_memory_map(VirtIODevice *vdev, hwaddr addr,
+                              hwaddr *plen, int is_write)
+{
+    AddressSpace *dma_as = vdev->dma_as;
 
-static int vhost_verify_ring_part_mapping(void *part,
+    if (!memory_region_is_iommu(dma_as->root)) {
+        return dma_memory_map(dma_as, addr, plen, is_write ?
+                              DMA_DIRECTION_FROM_DEVICE :
+                              DMA_DIRECTION_TO_DEVICE);
+    } else {
+        return (void *)(uintptr_t)addr;
+    }
+}
+
+static void vhost_memory_unmap(VirtIODevice *vdev, void *buffer,
+                               hwaddr len, int is_write,
+                               hwaddr access_len)
+{
+    AddressSpace *dma_as = vdev->dma_as;
+
+    if (!memory_region_is_iommu(dma_as->root)) {
+        dma_memory_unmap(dma_as, buffer, len, is_write ?
+                         DMA_DIRECTION_FROM_DEVICE : DMA_DIRECTION_TO_DEVICE,
+                         access_len);
+    }
+}
+
+static int vhost_verify_ring_part_mapping(struct vhost_dev *dev,
+                                          void *part,
                                           uint64_t part_addr,
                                           uint64_t part_size,
                                           uint64_t start_addr,
@@ -436,14 +464,14 @@ static int vhost_verify_ring_part_mapping(void *part,
         return 0;
     }
     l = part_size;
-    p = cpu_physical_memory_map(part_addr, &l, 1);
+    p = vhost_memory_map(dev->vdev, part_addr, &l, 1);
     if (!p || l != part_size) {
         r = -ENOMEM;
     }
     if (p != part) {
         r = -EBUSY;
     }
-    cpu_physical_memory_unmap(p, l, 0, 0);
+    vhost_memory_unmap(dev->vdev, p, l, 0, 0);
     return r;
 }
 
@@ -463,21 +491,21 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
         struct vhost_virtqueue *vq = dev->vqs + i;
 
         j = 0;
-        r = vhost_verify_ring_part_mapping(vq->desc, vq->desc_phys,
+        r = vhost_verify_ring_part_mapping(dev, vq->desc, vq->desc_phys,
                                            vq->desc_size, start_addr, size);
         if (!r) {
             break;
         }
 
         j++;
-        r = vhost_verify_ring_part_mapping(vq->avail, vq->avail_phys,
+        r = vhost_verify_ring_part_mapping(dev, vq->avail, vq->avail_phys,
                                            vq->avail_size, start_addr, size);
         if (!r) {
             break;
         }
 
         j++;
-        r = vhost_verify_ring_part_mapping(vq->used, vq->used_phys,
+        r = vhost_verify_ring_part_mapping(dev, vq->used, vq->used_phys,
                                            vq->used_size, start_addr, size);
         if (!r) {
             break;
@@ -715,12 +743,26 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
     return 0;
 }
 
-static int vhost_dev_set_features(struct vhost_dev *dev, bool enable_log)
+static int vhost_dev_has_iommu(struct vhost_dev *dev)
+{
+    VirtIODevice *vdev = dev->vdev;
+    AddressSpace *dma_as = vdev->dma_as;
+
+    return memory_region_is_iommu(dma_as->root) &&
+           virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
+}
+
+static int vhost_dev_set_features(struct vhost_dev *dev,
+                                  bool enable_log)
 {
     uint64_t features = dev->acked_features;
+    bool has_iommu = vhost_dev_has_iommu(dev);
     int r;
     if (enable_log) {
         features |= 0x1ULL << VHOST_F_LOG_ALL;
+    }
+    if (has_iommu) {
+        features |= 0x1ULL << VIRTIO_F_IOMMU_PLATFORM;
     }
     r = dev->vhost_ops->vhost_set_features(dev, features);
     if (r < 0) {
@@ -858,6 +900,56 @@ static int vhost_virtqueue_set_vring_endian_legacy(struct vhost_dev *dev,
     return -errno;
 }
 
+static int vhost_memory_region_lookup(struct vhost_dev *hdev,
+                                      uint64_t gpa, uint64_t *uaddr,
+                                      uint64_t *len)
+{
+    int i;
+
+    for (i = 0; i < hdev->mem->nregions; i++) {
+        struct vhost_memory_region *reg = hdev->mem->regions + i;
+
+        if (gpa >= reg->guest_phys_addr &&
+            reg->guest_phys_addr + reg->memory_size > gpa) {
+            *uaddr = reg->userspace_addr + gpa - reg->guest_phys_addr;
+            *len = reg->guest_phys_addr + reg->memory_size - gpa;
+            return 0;
+        }
+    }
+
+    return -EFAULT;
+}
+
+void vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
+{
+    IOMMUTLBEntry iotlb;
+    uint64_t uaddr, len;
+
+    rcu_read_lock();
+
+    iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
+                                          iova, write);
+    if (iotlb.target_as != NULL) {
+        if (vhost_memory_region_lookup(dev, iotlb.translated_addr,
+                                       &uaddr, &len)) {
+            error_report("Fail to lookup the translated address "
+                         "%"PRIx64, iotlb.translated_addr);
+            goto out;
+        }
+
+        len = MIN(iotlb.addr_mask + 1, len);
+        iova = iova & ~iotlb.addr_mask;
+
+        if (dev->vhost_ops->vhost_update_device_iotlb(dev, iova, uaddr,
+                                                      len, iotlb.perm)) {
+            error_report("Fail to update device iotlb");
+            goto out;
+        }
+    }
+out:
+    rcu_read_unlock();
+}
+
 static int vhost_virtqueue_start(struct vhost_dev *dev,
                                 struct VirtIODevice *vdev,
                                 struct vhost_virtqueue *vq,
@@ -903,21 +995,21 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 
     vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
     vq->desc_phys = a = virtio_queue_get_desc_addr(vdev, idx);
-    vq->desc = cpu_physical_memory_map(a, &l, 0);
+    vq->desc = vhost_memory_map(vdev, a, &l, 0);
     if (!vq->desc || l != s) {
         r = -ENOMEM;
         goto fail_alloc_desc;
     }
     vq->avail_size = s = l = virtio_queue_get_avail_size(vdev, idx);
     vq->avail_phys = a = virtio_queue_get_avail_addr(vdev, idx);
-    vq->avail = cpu_physical_memory_map(a, &l, 0);
+    vq->avail = vhost_memory_map(vdev, a, &l, 0);
     if (!vq->avail || l != s) {
         r = -ENOMEM;
         goto fail_alloc_avail;
     }
     vq->used_size = s = l = virtio_queue_get_used_size(vdev, idx);
     vq->used_phys = a = virtio_queue_get_used_addr(vdev, idx);
-    vq->used = cpu_physical_memory_map(a, &l, 1);
+    vq->used = vhost_memory_map(vdev, a, &l, 1);
     if (!vq->used || l != s) {
         r = -ENOMEM;
         goto fail_alloc_used;
@@ -963,14 +1055,14 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 fail_vector:
 fail_kick:
 fail_alloc:
-    cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
-                              0, 0);
+    vhost_memory_unmap(vdev, vq->used, virtio_queue_get_used_size(vdev, idx),
+                       0, 0);
 fail_alloc_used:
-    cpu_physical_memory_unmap(vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                              0, 0);
+    vhost_memory_unmap(vdev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
+                       0, 0);
 fail_alloc_avail:
-    cpu_physical_memory_unmap(vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                              0, 0);
+    vhost_memory_unmap(vdev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
+                       0, 0);
 fail_alloc_desc:
     return r;
 }
@@ -1003,12 +1095,12 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 vhost_vq_index);
     }
 
-    cpu_physical_memory_unmap(vq->used, virtio_queue_get_used_size(vdev, idx),
-                              1, virtio_queue_get_used_size(vdev, idx));
-    cpu_physical_memory_unmap(vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                              0, virtio_queue_get_avail_size(vdev, idx));
-    cpu_physical_memory_unmap(vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                              0, virtio_queue_get_desc_size(vdev, idx));
+    vhost_memory_unmap(vdev, vq->used, virtio_queue_get_used_size(vdev, idx),
+                       1, virtio_queue_get_used_size(vdev, idx));
+    vhost_memory_unmap(vdev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
+                       0, virtio_queue_get_avail_size(vdev, idx));
+    vhost_memory_unmap(vdev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
+                       0, virtio_queue_get_desc_size(vdev, idx));
 }
 
 static void vhost_eventfd_add(MemoryListener *listener,
@@ -1065,6 +1157,9 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
         r = -errno;
         goto fail_call;
     }
+
+    vq->dev = dev;
+
     return 0;
 fail_call:
     event_notifier_cleanup(&vq->masked_notifier);
@@ -1076,12 +1171,24 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
+static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    struct vhost_dev *hdev = container_of(n, struct vhost_dev, n);
+
+    if (hdev->vhost_ops->vhost_invalidate_device_iotlb(hdev,
+                                                       iotlb->iova,
+                                                       iotlb->addr_mask + 1)) {
+        error_report("Fail to invalidate device iotlb");
+    }
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
 
+    hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
 
     r = vhost_set_backend_type(hdev, backend_type);
@@ -1145,6 +1252,9 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .eventfd_del = vhost_eventfd_del,
         .priority = 10
     };
+
+    hdev->n.notify = vhost_iommu_unmap_notify;
+    hdev->n.notifier_flags = IOMMU_NOTIFIER_UNMAP;
 
     if (hdev->migration_blocker == NULL) {
         if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
@@ -1341,11 +1451,18 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     assert(hdev->vhost_ops);
 
     hdev->started = true;
+    hdev->vdev = vdev;
 
     r = vhost_dev_set_features(hdev, hdev->log_enabled);
     if (r < 0) {
         goto fail_features;
     }
+
+    if (vhost_dev_has_iommu(hdev)) {
+        memory_region_register_iommu_notifier(vdev->dma_as->root,
+                                              &hdev->n);
+    }
+
     r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_mem_table failed");
@@ -1379,6 +1496,16 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         }
     }
 
+    hdev->vhost_ops->vhost_set_iotlb_callback(hdev, true);
+
+    if (vhost_dev_has_iommu(hdev)) {
+        /* Update used ring information for IOTLB to work correctly,
+         * vhost-kernel code requires for this.*/
+        for (i = 0; i < hdev->nvqs; ++i) {
+            struct vhost_virtqueue *vq = hdev->vqs + i;
+            vhost_device_iotlb_miss(hdev, vq->used_phys, true);
+        }
+    }
     return 0;
 fail_log:
     vhost_log_put(hdev, false);
@@ -1390,6 +1517,7 @@ fail_vq:
                              hdev->vq_index + i);
     }
     i = hdev->nvqs;
+
 fail_mem:
 fail_features:
 
@@ -1404,6 +1532,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
+    hdev->vhost_ops->vhost_set_iotlb_callback(hdev, false);
 
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_stop(hdev,
@@ -1412,8 +1541,13 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
                              hdev->vq_index + i);
     }
 
+    if (vhost_dev_has_iommu(hdev)) {
+        memory_region_unregister_iommu_notifier(vdev->dma_as->root,
+                                                &hdev->n);
+    }
     vhost_log_put(hdev, true);
     hdev->started = false;
+    hdev->vdev = NULL;
 }
 
 int vhost_net_set_backend(struct vhost_dev *hdev,
