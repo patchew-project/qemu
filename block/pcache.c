@@ -314,11 +314,41 @@ skip_large_request:
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
 
+static void pcache_invalidation(BlockDriverState *bs, uint64_t offset,
+                                uint64_t bytes)
+{
+    BDRVPCacheState *s = bs->opaque;
+    uint64_t chunk_offset = offset, chunk_bytes = bytes;
+    uint64_t end_offs = offset + bytes;
+
+    do {
+        PCacheNode *node = rbcache_search(s->cache, chunk_offset, chunk_bytes);
+        if (node == NULL) {
+            break;
+        }
+        assert(node->status == NODE_STATUS_COMPLETED ||
+               node->status == NODE_STATUS_INFLIGHT);
+
+        chunk_offset = node->common.offset + node->common.bytes;
+        chunk_bytes = end_offs - chunk_offset;
+
+        if (node->status & NODE_STATUS_COMPLETED) {
+            rbcache_remove(s->cache, &node->common);
+        }
+    } while (end_offs > chunk_offset);
+}
+
 static coroutine_fn int pcache_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                           uint64_t bytes, QEMUIOVector *qiov,
                                           int flags)
 {
-    return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
+    int ret = bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
+    if (ret < 0) {
+        return ret;
+    }
+    pcache_invalidation(bs, offset, bytes);
+
+    return ret;
 }
 
 static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
