@@ -62,9 +62,16 @@ typedef struct BDRVPCacheState {
     uint64_t readahead_size;
 } BDRVPCacheState;
 
+typedef struct ReqLinkEntry {
+    QTAILQ_ENTRY(ReqLinkEntry) entry;
+    Coroutine *co;
+    int ret;
+} ReqLinkEntry;
+
 typedef struct PCacheNode {
     RBCacheNode common;
     uint8_t *data;
+    QTAILQ_HEAD(, ReqLinkEntry) wait_list;
     enum {
         NODE_STATUS_NEW       = 0x01,
         NODE_STATUS_INFLIGHT  = 0x02,
@@ -114,6 +121,27 @@ static void read_cache_data_direct(PCacheNode *node, uint64_t offset,
                                node->common.bytes);
     copy = qemu_iovec_from_buf(qiov, qiov_offs, node->data + node_offs, size);
     assert(copy == size);
+}
+
+static int read_cache_data(PCacheNode *node, uint64_t offset, uint64_t bytes,
+                           QEMUIOVector *qiov)
+{
+    if (node->status & NODE_STATUS_INFLIGHT) {
+        ReqLinkEntry rlink = {
+            .co = qemu_coroutine_self(),
+        };
+
+        QTAILQ_INSERT_HEAD(&node->wait_list, &rlink, entry);
+
+        qemu_coroutine_yield();
+
+        if (rlink.ret < 0) {
+            return rlink.ret;
+        }
+    }
+    read_cache_data_direct(node, offset, bytes, qiov);
+
+    return 0;
 }
 
 static void update_req_stats(RBCache *rbcache, uint64_t offset, uint64_t bytes)
@@ -194,6 +222,7 @@ static RBCacheNode *pcache_node_alloc(uint64_t offset, uint64_t bytes,
     node->data = g_malloc(bytes);
     node->status = NODE_STATUS_NEW;
     node->ref = 1;
+    QTAILQ_INIT(&node->wait_list);
 
     return &node->common;
 }
@@ -272,6 +301,7 @@ static void coroutine_fn pcache_co_readahead(BlockDriverState *bs,
     BDRVPCacheState *s = bs->opaque;
     QEMUIOVector qiov;
     PCacheNode *node;
+    ReqLinkEntry *rlink, *next;
     uint64_t readahead_offset;
     uint64_t readahead_bytes;
     int ret;
@@ -301,6 +331,13 @@ static void coroutine_fn pcache_co_readahead(BlockDriverState *bs,
     if (ret < 0) {
         rbcache_remove(s->cache, &node->common);
     }
+
+    QTAILQ_FOREACH_SAFE(rlink, &node->wait_list, entry, next) {
+        QTAILQ_REMOVE(&node->wait_list, rlink, entry);
+        rlink->ret = ret;
+        qemu_coroutine_enter(rlink->co);
+    }
+
     pcache_node_unref(node);
 }
 
@@ -323,7 +360,7 @@ static int pcache_lookup_data(BlockDriverState *bs, uint64_t offset,
     BDRVPCacheState *s = bs->opaque;
 
     PCacheNode *node = rbcache_search(s->cache, offset, bytes);
-    if (node == NULL || node->status & NODE_STATUS_INFLIGHT) {
+    if (node == NULL) {
         return CACHE_MISS;
     }
 
@@ -331,7 +368,10 @@ static int pcache_lookup_data(BlockDriverState *bs, uint64_t offset,
     if (node->common.offset <= offset &&
         node->common.offset + node->common.bytes >= offset + bytes)
     {
-        read_cache_data_direct(node, offset, bytes, qiov);
+        int ret = read_cache_data(node, offset, bytes, qiov);
+        if (ret < 0) {
+            return ret;
+        }
         return CACHE_HIT;
     }
 
@@ -362,8 +402,8 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
     qemu_coroutine_enter(co);
 
     status = pcache_lookup_data(bs, offset, bytes, qiov);
-    if (status == CACHE_HIT) {
-        return 0;
+    if (status != CACHE_MISS) {
+        return status < 0 ? status : 0;
     }
 
 skip_large_request:
