@@ -16,6 +16,7 @@
 #include "qemu/rbcache.h"
 
 #define PCACHE_OPT_STATS_SIZE "pcache-stats-size"
+#define PCACHE_OPT_MAX_AIO_SIZE "pcache-max-aio-size"
 
 static QemuOptsList runtime_opts = {
     .name = "pcache",
@@ -26,15 +27,23 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Total volume of requests for statistics",
         },
+        {
+            .name = PCACHE_OPT_MAX_AIO_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum size of aio which is handled by pcache",
+        },
         { /* end of list */ }
     },
 };
 
+#define KB_BITS 10
 #define MB_BITS 20
 #define PCACHE_DEFAULT_STATS_SIZE (3 << MB_BITS)
+#define PCACHE_DEFAULT_MAX_AIO_SIZE (64 << KB_BITS)
 
 typedef struct BDRVPCacheState {
     RBCache *req_stats;
+    uint64_t max_aio_size;
 } BDRVPCacheState;
 
 static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
@@ -43,7 +52,9 @@ static coroutine_fn int pcache_co_preadv(BlockDriverState *bs, uint64_t offset,
 {
     BDRVPCacheState *s = bs->opaque;
 
-    rbcache_search_and_insert(s->req_stats, offset, bytes);
+    if (s->max_aio_size >= bytes) {
+        rbcache_search_and_insert(s->req_stats, offset, bytes);
+    }
 
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
@@ -60,6 +71,9 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
     uint64_t stats_size = qemu_opt_get_size(opts, PCACHE_OPT_STATS_SIZE,
                                             PCACHE_DEFAULT_STATS_SIZE);
     s->req_stats = rbcache_create(NULL, NULL, stats_size, RBCACHE_FIFO, s);
+
+    s->max_aio_size = qemu_opt_get_size(opts, PCACHE_OPT_MAX_AIO_SIZE,
+                                        PCACHE_DEFAULT_MAX_AIO_SIZE);
 }
 
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
