@@ -1465,6 +1465,13 @@ F: include/qemu/throttle.h
 F: util/throttle.c
 L: qemu-block@nongnu.org
 
+Red Black Trees
+M: Denis V. Lunev <den@openvz.org>
+S: Supported
+F: include/qemu/rbtree.h
+F: include/qemu/rbtree_augmented.h
+F: util/rbtree.c
+
 UUID
 M: Fam Zheng <famz@redhat.com>
 S: Supported
