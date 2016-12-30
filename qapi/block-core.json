@@ -1719,6 +1719,7 @@
 # @nfs: Since 2.8
 # @replication: Since 2.8
 # @ssh: Since 2.8
+# @pcache: since 2.9
 #
 # Since: 2.0
 ##
@@ -1726,8 +1727,8 @@
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'luks', 'nbd', 'nfs', 'null-aio',
-            'null-co', 'parallels', 'qcow', 'qcow2', 'qed', 'quorum', 'raw',
-            'replication', 'ssh', 'vdi', 'vhdx', 'vmdk', 'vpc',
+            'null-co', 'parallels', 'pcache', 'qcow', 'qcow2', 'qed', 'quorum',
+            'raw', 'replication', 'ssh', 'vdi', 'vhdx', 'vmdk', 'vpc',
             'vvfat' ] }
 
 ##
@@ -1808,6 +1809,30 @@
   'base': 'BlockdevOptionsGenericFormat',
   'data': { '*key-secret': 'str' } }
 
+##
+# @BlockdevOptionsPCache
+#
+# Driver specific block device options for pcache.
+#
+# @image:                Reference to a block device image for caching.
+#
+# @pcache-stats-size:    #optional Total volume of requests for statistics.
+#
+# @pcache-max-aio-size:  #optional Maximum size of read request which is handled
+#                        by pcache.
+#
+# @pcache-full-size:     #optional Total cache size.
+#
+# @pcache-readahead-size #optional Prefetch cache readahead size.
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsPCache',
+  'data': { 'image': 'BlockdevRef',
+            '*pcache-stats-size': 'int',
+            '*pcache-max-aio-size': 'int',
+            '*pcache-full-size': 'int',
+            '*pcache-readahead-size': 'int' } }
 
 ##
 # @BlockdevOptionsGenericCOWFormat:
@@ -2402,6 +2427,7 @@
       'null-aio':   'BlockdevOptionsNull',
       'null-co':    'BlockdevOptionsNull',
       'parallels':  'BlockdevOptionsGenericFormat',
+      'pcache':     'BlockdevOptionsPCache',
       'qcow2':      'BlockdevOptionsQcow2',
       'qcow':       'BlockdevOptionsGenericCOWFormat',
       'qed':        'BlockdevOptionsGenericCOWFormat',
