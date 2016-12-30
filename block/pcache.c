@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/rbcache.h"
+#include "trace.h"
 
 #define PCACHE_OPT_STATS_SIZE "pcache-stats-size"
 #define PCACHE_OPT_MAX_AIO_SIZE "pcache-max-aio-size"
@@ -348,12 +349,18 @@ static void coroutine_fn pcache_co_readahead(BlockDriverState *bs,
     node->status |= NODE_STATUS_COMPLETED;
 
     if (ret < 0) {
+        trace_pcache_readahead_fail(ret, node->common.offset,
+                                    node->common.bytes);
         rbcache_remove(s->cache, &node->common);
     }
 
     QTAILQ_FOREACH_SAFE(rlink, &node->wait_list, entry, next) {
         QTAILQ_REMOVE(&node->wait_list, rlink, entry);
         rlink->ret = ret;
+
+        trace_pcache_readahead_pending_node_complete(ret, node->common.offset,
+            node->common.bytes, offset, bytes);
+
         qemu_coroutine_enter(rlink->co);
     }
 
@@ -509,6 +516,10 @@ static int pickup_parts_of_cache(BlockDriverState *bs, PCacheNode *node,
                 ret = part->rlink.ret;
             }
         }
+        if (part->rlink.ret < 0) {
+            trace_pcache_read_part_fail(ret, part->node->common.offset,
+                                        part->node->common.bytes);
+        }
         pcache_node_unref(part->node);
     }
 
@@ -618,6 +629,8 @@ static void pcache_write_through(BlockDriverState *bs, uint64_t offset,
 
         if (node->status & NODE_STATUS_COMPLETED) {
             write_cache_data(node, offset, bytes, qiov);
+            trace_pcache_write_through(offset, bytes, node->common.offset,
+                                       node->common.bytes);
         }
     } while (end_offs > chunk_offset);
 
@@ -631,6 +644,8 @@ static void pcache_write_through(BlockDriverState *bs, uint64_t offset,
             continue;
         }
         write_cache_data(node, offset, bytes, qiov);
+        trace_pcache_write_through_removed_node(offset, bytes,
+                node->common.offset, node->common.bytes);
     }
 }
 
@@ -662,6 +677,9 @@ static int pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
     s->readahead_size = qemu_opt_get_size(opts, PCACHE_OPT_READAHEAD_SIZE,
                                           PCACHE_DEFAULT_READAHEAD_SIZE);
     QLIST_INIT(&s->remove_node_list);
+
+    trace_pcache_state_init(stats_size, s->max_aio_size, cache_size,
+                            s->readahead_size);
 
     if (s->readahead_size < s->max_aio_size) {
         error_report("Readahead size can't be less than maximum request size"
@@ -703,6 +721,8 @@ fail:
 static void pcache_close(BlockDriverState *bs)
 {
     BDRVPCacheState *s = bs->opaque;
+
+    trace_pcache_close(s->req_stats, s->cache);
 
     rbcache_destroy(s->req_stats);
     rbcache_destroy(s->cache);

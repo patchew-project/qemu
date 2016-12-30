@@ -112,3 +112,13 @@ qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s 
 qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+
+# block/pcache.c
+pcache_readahead_fail(int ret, uint64_t offset, uint64_t bytes) "ret: %d offset: %"PRIu64" bytes: %"PRIu64
+pcache_readahead_pending_node_complete(int ret, uint64_t node_offset, uint64_t node_bytes, uint64_t read_offset, uint64_t read_bytes) "ret: %d node: %"PRIu64" %"PRIu64" pending read: %"PRIu64" %"PRIu64
+pcache_aio_read_cb_fail(int ret, uint64_t offset, uint64_t bytes) "ret: %d offset: %"PRIu64" bytes: %"PRIu64
+pcache_read_part_fail(int ret, uint64_t offset, uint64_t bytes) "ret: %d offset: %"PRIu64" bytes: %"PRIu64
+pcache_write_through(uint64_t req_offset, uint64_t req_bytes, uint64_t node_offset, uint64_t node_bytes) "request: %"PRIu64" %"PRIu64" node: %"PRIu64" %"PRIu64
+pcache_write_through_removed_node(uint64_t req_offset, uint64_t req_bytes, uint64_t node_offset, uint64_t node_bytes) "request: %"PRIu64" %"PRIu64" node: %"PRIu64" %"PRIu64
+pcache_state_init(uint64_t stats_size, uint64_t max_aio_size, uint64_t cache_size, uint64_t readahead_size) "pool statistics size: %"PRIu64" max aio size: %"PRIu64" cache size: %"PRIu64" readahead size: %"PRIu64
+pcache_close(void *req_stats, void *cache) "pool statistics: %p cache: %p"
