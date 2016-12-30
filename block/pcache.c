@@ -174,6 +174,28 @@ static RBCacheNode *pcache_node_alloc(uint64_t offset, uint64_t bytes,
     return &node->common;
 }
 
+static bool check_allocated_clusters(BlockDriverState *bs, uint64_t offset,
+                                     uint64_t bytes)
+{
+    int64_t sector_num = offset >> BDRV_SECTOR_BITS;
+    int32_t nb_sectors = bytes >> BDRV_SECTOR_BITS;
+
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+
+    do {
+        int num, ret = bdrv_is_allocated(bs, sector_num, nb_sectors, &num);
+        if (ret <= 0) {
+            return false;
+        }
+        sector_num += num;
+        nb_sectors -= num;
+
+    } while (nb_sectors);
+
+    return true;
+}
+
 #define PCACHE_STEPS_FORWARD 2
 
 static PCacheNode *get_readahead_node(BlockDriverState *bs, RBCache *rbcache,
@@ -190,6 +212,10 @@ static PCacheNode *get_readahead_node(BlockDriverState *bs, RBCache *rbcache,
         PCacheNode *node;
 
         if (total_bytes <= offset + bytes) {
+            break;
+        }
+
+        if (!check_allocated_clusters(bs, offset, bytes)) {
             break;
         }
 
