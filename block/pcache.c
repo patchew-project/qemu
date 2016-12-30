@@ -60,6 +60,7 @@ typedef struct BDRVPCacheState {
     RBCache *cache;
     uint64_t max_aio_size;
     uint64_t readahead_size;
+    QLIST_HEAD(, PCacheNode) remove_node_list;
 } BDRVPCacheState;
 
 typedef struct ReqLinkEntry {
@@ -79,6 +80,7 @@ typedef struct PCacheNode {
         NODE_STATUS_REMOVE    = 0x08,
         NODE_STATUS_DELETED   = 0x10, /* only for debugging */
     } status;
+    QLIST_ENTRY(PCacheNode) entry;
     int ref;
 } PCacheNode;
 
@@ -94,6 +96,7 @@ static void pcache_node_unref(PCacheNode *node)
         assert(node->status & NODE_STATUS_REMOVE);
         node->status |= NODE_STATUS_DELETED;
 
+        QLIST_REMOVE(node, entry);
         g_free(node->data);
         g_free(node);
     }
@@ -205,10 +208,13 @@ static bool check_request_sequence(BDRVPCacheState *s, uint64_t offset)
 
 static void pcache_node_free(RBCacheNode *rbnode, void *opaque)
 {
+    BDRVPCacheState *s = opaque;
     PCacheNode *node = container_of(rbnode, PCacheNode, common);
 
     assert(node->status == NODE_STATUS_INFLIGHT ||
            node->status == NODE_STATUS_COMPLETED);
+
+    QLIST_INSERT_HEAD(&s->remove_node_list, node, entry);
 
     node->status |= NODE_STATUS_REMOVE;
     pcache_node_unref(node);
@@ -432,11 +438,12 @@ static void pcache_write_through(BlockDriverState *bs, uint64_t offset,
                                  uint64_t bytes, QEMUIOVector *qiov)
 {
     BDRVPCacheState *s = bs->opaque;
+    PCacheNode *node, *next;
     uint64_t chunk_offset = offset, chunk_bytes = bytes;
     uint64_t end_offs = offset + bytes;
 
     do {
-        PCacheNode *node = rbcache_search(s->cache, chunk_offset, chunk_bytes);
+        node = rbcache_search(s->cache, chunk_offset, chunk_bytes);
         if (node == NULL) {
             break;
         }
@@ -450,6 +457,18 @@ static void pcache_write_through(BlockDriverState *bs, uint64_t offset,
             write_cache_data(node, offset, bytes, qiov);
         }
     } while (end_offs > chunk_offset);
+
+    QLIST_FOREACH_SAFE(node, &s->remove_node_list, entry, next) {
+        if (node->status & NODE_STATUS_INFLIGHT) {
+            continue;
+        }
+        if (offset >= node->common.offset + node->common.bytes ||
+            offset + bytes <= node->common.offset)
+        {
+            continue;
+        }
+        write_cache_data(node, offset, bytes, qiov);
+    }
 }
 
 static coroutine_fn int pcache_co_pwritev(BlockDriverState *bs, uint64_t offset,
@@ -479,6 +498,7 @@ static void pcache_state_init(QemuOpts *opts, BDRVPCacheState *s)
                               RBCACHE_LRU, s);
     s->readahead_size = qemu_opt_get_size(opts, PCACHE_OPT_READAHEAD_SIZE,
                                           PCACHE_DEFAULT_READAHEAD_SIZE);
+    QLIST_INIT(&s->remove_node_list);
 }
 
 static int pcache_file_open(BlockDriverState *bs, QDict *options, int flags,
@@ -516,6 +536,8 @@ static void pcache_close(BlockDriverState *bs)
 
     rbcache_destroy(s->req_stats);
     rbcache_destroy(s->cache);
+
+    assert(QLIST_EMPTY(&s->remove_node_list));
 }
 
 static int64_t pcache_getlength(BlockDriverState *bs)
