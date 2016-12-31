@@ -96,11 +96,12 @@ static void aer_log_clear_all_err(PCIEAERLog *aer_log)
     aer_log->log_num = 0;
 }
 
-int pcie_aer_init(PCIDevice *dev, uint16_t offset, uint16_t size)
+int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
+                  uint16_t size)
 {
     PCIExpressDevice *exp;
 
-    pcie_add_capability(dev, PCI_EXT_CAP_ID_ERR, PCI_ERR_VER,
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ERR, cap_ver,
                         offset, size);
     exp = &dev->exp;
     exp->aer_cap = offset;
