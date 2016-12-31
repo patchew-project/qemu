@@ -452,21 +452,21 @@ static NetClientInfo net_milkymist_minimac2_info = {
     .receive = minimac2_rx,
 };
 
-static int milkymist_minimac2_init(SysBusDevice *sbd)
+static void milkymist_minimac2_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(dev);
+    MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     size_t buffers_size = TARGET_PAGE_ALIGN(3 * MINIMAC2_BUFFER_SIZE);
 
     sysbus_init_irq(sbd, &s->rx_irq);
     sysbus_init_irq(sbd, &s->tx_irq);
 
-    memory_region_init_io(&s->regs_region, OBJECT(dev), &minimac2_ops, s,
+    memory_region_init_io(&s->regs_region, obj, &minimac2_ops, s,
                           "milkymist-minimac2", R_MAX * 4);
     sysbus_init_mmio(sbd, &s->regs_region);
 
     /* register buffers memory */
-    memory_region_init_ram(&s->buffers, OBJECT(dev), "milkymist-minimac2.buffers",
+    memory_region_init_ram(&s->buffers, obj, "milkymist-minimac2.buffers",
                            buffers_size, &error_fatal);
     vmstate_register_ram_global(&s->buffers);
     s->rx0_buf = memory_region_get_ram_ptr(&s->buffers);
@@ -474,13 +474,16 @@ static int milkymist_minimac2_init(SysBusDevice *sbd)
     s->tx_buf = s->rx1_buf + MINIMAC2_BUFFER_SIZE;
 
     sysbus_init_mmio(sbd, &s->buffers);
+}
+
+static void milkymist_minimac2_realize(DeviceState *dev, Error **errp)
+{
+    MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(dev);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_milkymist_minimac2_mdio = {
@@ -521,18 +524,18 @@ static Property milkymist_minimac2_properties[] = {
 static void milkymist_minimac2_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_minimac2_init;
     dc->reset = milkymist_minimac2_reset;
     dc->vmsd = &vmstate_milkymist_minimac2;
     dc->props = milkymist_minimac2_properties;
+    dc->realize = milkymist_minimac2_realize;
 }
 
 static const TypeInfo milkymist_minimac2_info = {
     .name          = TYPE_MILKYMIST_MINIMAC2,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistMinimac2State),
+    .instance_init = milkymist_minimac2_init,
     .class_init    = milkymist_minimac2_class_init,
 };
 
