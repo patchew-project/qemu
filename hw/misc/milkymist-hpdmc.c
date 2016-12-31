@@ -129,15 +129,14 @@ static void milkymist_hpdmc_reset(DeviceState *d)
                          | IODELAY_PLL2_LOCKED;
 }
 
-static int milkymist_hpdmc_init(SysBusDevice *dev)
+static void milkymist_hpdmc_init(Object *obj)
 {
-    MilkymistHpdmcState *s = MILKYMIST_HPDMC(dev);
+    MilkymistHpdmcState *s = MILKYMIST_HPDMC(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->regs_region, OBJECT(dev), &hpdmc_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, obj, &hpdmc_mmio_ops, s,
             "milkymist-hpdmc", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_milkymist_hpdmc = {
@@ -153,9 +152,7 @@ static const VMStateDescription vmstate_milkymist_hpdmc = {
 static void milkymist_hpdmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_hpdmc_init;
     dc->reset = milkymist_hpdmc_reset;
     dc->vmsd = &vmstate_milkymist_hpdmc;
 }
@@ -164,6 +161,7 @@ static const TypeInfo milkymist_hpdmc_info = {
     .name          = TYPE_MILKYMIST_HPDMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistHpdmcState),
+    .instance_init = milkymist_hpdmc_init,
     .class_init    = milkymist_hpdmc_class_init,
 };
 
