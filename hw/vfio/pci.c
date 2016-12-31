@@ -1851,18 +1851,81 @@ out:
     return 0;
 }
 
-static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
+static int vfio_setup_aer(VFIOPCIDevice *vdev, uint8_t cap_ver,
+                          int pos, uint16_t size, Error **errp)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *dev_iter;
+    uint8_t type;
+    uint32_t errcap;
+
+    /* In case the physical device has AER cap while user doesn't enable AER,
+     * still allocate the config space in the emulated device for AER */
+    if (!(vdev->features & VFIO_FEATURE_ENABLE_AER)) {
+        pcie_add_capability(pdev, PCI_EXT_CAP_ID_ERR,
+                            cap_ver, pos, size);
+        return 0;
+    }
+
+    dev_iter = pci_bridge_get_device(pdev->bus);
+    if (!dev_iter) {
+        goto error;
+    }
+
+    while (dev_iter) {
+        if (!pci_is_express(dev_iter)) {
+            goto error;
+        }
+
+        type = pcie_cap_get_type(dev_iter);
+        if ((type != PCI_EXP_TYPE_ROOT_PORT &&
+             type != PCI_EXP_TYPE_UPSTREAM &&
+             type != PCI_EXP_TYPE_DOWNSTREAM)) {
+            goto error;
+        }
+
+        if (!dev_iter->exp.aer_cap) {
+            goto error;
+        }
+
+        dev_iter = pci_bridge_get_device(dev_iter->bus);
+    }
+
+    errcap = vfio_pci_read_config(pdev, pos + PCI_ERR_CAP, 4);
+    /*
+     * The ability to record multiple headers is depending on
+     * the state of the Multiple Header Recording Capable bit and
+     * enabled by the Multiple Header Recording Enable bit.
+     */
+    if ((errcap & PCI_ERR_CAP_MHRC) &&
+        (errcap & PCI_ERR_CAP_MHRE)) {
+        pdev->exp.aer_log.log_max = PCIE_AER_LOG_MAX_DEFAULT;
+    } else {
+        pdev->exp.aer_log.log_max = 0;
+    }
+
+    pcie_cap_deverr_init(pdev);
+    return pcie_aer_init(pdev, cap_ver, pos, size);
+
+error:
+    error_setg(errp, "vfio: Unable to enable AER for device %s, parent bus "
+               "does not support AER signaling", vdev->vbasedev.name);
+    return -1;
+}
+
+static int vfio_add_ext_cap(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
     uint32_t header;
     uint16_t cap_id, next, size;
     uint8_t cap_ver;
     uint8_t *config;
+    int ret = 0;
 
     /* Only add extended caps if we have them and the guest can see them */
     if (!pci_is_express(pdev) || !pci_bus_is_express(pdev->bus) ||
         !pci_get_long(pdev->config + PCI_CONFIG_SPACE_SIZE)) {
-        return;
+        return 0;
     }
 
     /*
@@ -1911,6 +1974,9 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
                                    PCI_EXT_CAP_NEXT_MASK);
 
         switch (cap_id) {
+        case PCI_EXT_CAP_ID_ERR:
+            ret = vfio_setup_aer(vdev, cap_ver, next, size, errp);
+            break;
         case PCI_EXT_CAP_ID_SRIOV: /* Read-only VF BARs confuse OVMF */
         case PCI_EXT_CAP_ID_ARI: /* XXX Needs next function virtualization */
             trace_vfio_add_ext_cap_dropped(vdev->vbasedev.name, cap_id, next);
@@ -1919,6 +1985,9 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
             pcie_add_capability(pdev, cap_id, cap_ver, next, size);
         }
 
+        if (ret) {
+            goto out;
+        }
     }
 
     /* Cleanup chain head ID if necessary */
@@ -1926,8 +1995,9 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
         pci_set_word(pdev->config + PCI_CONFIG_SPACE_SIZE, 0);
     }
 
+out:
     g_free(config);
-    return;
+    return ret;
 }
 
 static int vfio_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
@@ -1945,8 +2015,8 @@ static int vfio_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
         return ret;
     }
 
-    vfio_add_ext_cap(vdev);
-    return 0;
+    ret = vfio_add_ext_cap(vdev, errp);
+    return ret;
 }
 
 static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
@@ -2767,6 +2837,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     ret = vfio_add_capabilities(vdev, errp);
     if (ret) {
         goto out_teardown;
+    }
+
+    if ((vdev->features & VFIO_FEATURE_ENABLE_AER) &&
+        !pdev->exp.aer_cap) {
+        error_setg(errp, "vfio: Unable to enable AER for device %s, device "
+                   "does not support AER signaling", vdev->vbasedev.name);
+        return;
     }
 
     if (vdev->vga) {
