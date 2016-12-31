@@ -239,7 +239,20 @@ static const MemoryRegionOps grlib_apbuart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int grlib_apbuart_init(SysBusDevice *dev)
+static void grlib_apbuart_init(Object *obj)
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    UART *uart = GRLIB_APB_UART(dev);
+
+    sysbus_init_irq(dev, &uart->irq);
+
+    memory_region_init_io(&uart->iomem, obj, &grlib_apbuart_ops, uart,
+                          "uart", UART_REG_SIZE);
+
+    sysbus_init_mmio(dev, &uart->iomem);
+}
+
+static void grlib_apbuart_realize(DeviceState *dev, Error **errp)
 {
     UART *uart = GRLIB_APB_UART(dev);
 
@@ -248,15 +261,6 @@ static int grlib_apbuart_init(SysBusDevice *dev)
                              grlib_apbuart_receive,
                              grlib_apbuart_event,
                              uart, NULL, true);
-
-    sysbus_init_irq(dev, &uart->irq);
-
-    memory_region_init_io(&uart->iomem, OBJECT(uart), &grlib_apbuart_ops, uart,
-                          "uart", UART_REG_SIZE);
-
-    sysbus_init_mmio(dev, &uart->iomem);
-
-    return 0;
 }
 
 static void grlib_apbuart_reset(DeviceState *d)
@@ -280,9 +284,8 @@ static Property grlib_apbuart_properties[] = {
 static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = grlib_apbuart_init;
+    dc->realize = grlib_apbuart_realize;
     dc->reset = grlib_apbuart_reset;
     dc->props = grlib_apbuart_properties;
 }
@@ -291,6 +294,7 @@ static const TypeInfo grlib_apbuart_info = {
     .name          = TYPE_GRLIB_APB_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UART),
+    .instance_init = grlib_apbuart_init,
     .class_init    = grlib_apbuart_class_init,
 };
 
