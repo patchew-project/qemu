@@ -90,7 +90,7 @@ bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp);
  * Returns: the newly created object or NULL on error
  */
 Object *user_creatable_add_type(const char *type, const char *id,
-                                const QDict *qdict,
+                                QDict *qdict,
                                 Visitor *v, Error **errp);
 
 /**

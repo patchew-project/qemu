@@ -4,6 +4,7 @@
 #include "qemu/module.h"
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/qmp/qstring.h"
 
 void user_creatable_complete(Object *obj, Error **errp)
 {
@@ -35,7 +36,7 @@ bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp)
 }
 
 Object *user_creatable_add_type(const char *type, const char *id,
-                                const QDict *qdict,
+                                QDict *qdict,
                                 Visitor *v, Error **errp)
 {
     Object *obj;
@@ -62,6 +63,9 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
+    if (object_property_find(obj, "id", NULL)) {
+        qdict_put(qdict, "id", qstring_from_str(id));
+    }
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
         goto out;
