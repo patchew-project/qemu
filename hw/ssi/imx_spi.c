@@ -152,13 +152,20 @@ static bool imx_spi_is_multiple_master_burst(IMXSPIState *s)
 
 static void imx_spi_flush_txfifo(IMXSPIState *s)
 {
-    uint32_t tx;
-    uint32_t rx;
+    uint32_t i;
 
     DPRINTF("Begin: TX Fifo Size = %d, RX Fifo Size = %d\n",
             fifo32_num_used(&s->tx_fifo), fifo32_num_used(&s->rx_fifo));
 
+    /* Activate the requested CS line */
+    for (i = 0; i < 4; i++) {
+        qemu_set_irq(s->cs_lines[i],
+                     i == imx_spi_selected_channel(s) ? 0 : 1);
+    }
+
     while (!fifo32_is_empty(&s->tx_fifo)) {
+        uint32_t tx;
+        uint32_t rx = 0;
         int tx_burst = 0;
         int index = 0;
 
@@ -177,8 +184,6 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
         DPRINTF("data tx:0x%08x\n", tx);
 
         tx_burst = MIN(s->burst_length, 32);
-
-        rx = 0;
 
         while (tx_burst) {
             uint8_t byte = tx & 0xff;
@@ -221,6 +226,13 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
         s->regs[ECSPI_STATREG] |= ECSPI_STATREG_TC;
     }
 
+    /* Deselect all SS lines if transfert if completed */
+    if (s->regs[ECSPI_STATREG] & ECSPI_STATREG_TC) {
+        for (i = 0; i < 4; i++) {
+            qemu_set_irq(s->cs_lines[i], 1);
+        }
+    }
+
     /* TODO: We should also use TDR and RDR bits */
 
     DPRINTF("End: TX Fifo Size = %d, RX Fifo Size = %d\n",
@@ -230,6 +242,7 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
 static void imx_spi_reset(DeviceState *dev)
 {
     IMXSPIState *s = IMX_SPI(dev);
+    uint32_t i;
 
     DPRINTF("\n");
 
@@ -243,6 +256,11 @@ static void imx_spi_reset(DeviceState *dev)
     imx_spi_update_irq(s);
 
     s->burst_length = 0;
+
+    /* Disable all CS lines */
+    for (i = 0; i < 4; i++) {
+        qemu_set_irq(s->cs_lines[i], 1);
+    }
 }
 
 static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
@@ -359,14 +377,7 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         }
 
         if (imx_spi_channel_is_master(s)) {
-            int i;
-
             /* We are in master mode */
-
-            for (i = 0; i < 4; i++) {
-                qemu_set_irq(s->cs_lines[i],
-                             i == imx_spi_selected_channel(s) ? 0 : 1);
-            }
 
             if ((value & change_mask & ECSPI_CONREG_SMC) &&
                 !fifo32_is_empty(&s->tx_fifo)) {
