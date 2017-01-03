@@ -309,8 +309,10 @@ tls_priority="NORMAL"
 gnutls=""
 gnutls_rnd=""
 nettle=""
+nettle_aead="no"
 nettle_kdf="no"
 gcrypt=""
+gcrypt_aead="no"
 gcrypt_hmac="no"
 gcrypt_kdf="no"
 vte=""
@@ -2429,6 +2431,19 @@ EOF
         if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
             gcrypt_hmac=yes
         fi
+
+        cat > $TMPC << EOF
+#include <gcrypt.h>
+int main(void) {
+  gcry_cipher_hd_t handle;
+  gcry_cipher_open(&handle, 0, 0, 0);
+  gcry_cipher_authenticate(handle, NULL, 0);
+  return 0;
+}
+EOF
+        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
+            gcrypt_aead=yes
+        fi
     else
         if test "$gcrypt" = "yes"; then
             feature_not_found "gcrypt" "Install gcrypt devel"
@@ -2459,6 +2474,21 @@ int main(void) {
 EOF
         if compile_prog "$nettle_cflags" "$nettle_libs" ; then
             nettle_kdf=yes
+        fi
+
+        cat > $TMPC << EOF
+#include <stddef.h>
+#include <nettle/aes.h>
+#include <nettle/ccm.h>
+#include <nettle/gcm.h>
+int main(void) {
+     ccm_aes128_encrypt(NULL, 0, NULL, NULL);
+     gcm_aes128_encrypt(NULL, 0, NULL, NULL);
+     return 0;
+}
+EOF
+        if compile_prog "$nettle_cflags" "$nettle_libs" ; then
+            nettle_aead=yes
         fi
     else
         if test "$nettle" = "yes"; then
@@ -5399,6 +5429,9 @@ if test "$gnutls_rnd" = "yes" ; then
 fi
 if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
+  if test "$gcrypt_aead" = "yes" ; then
+    echo "CONFIG_GCRYPT_AEAD=y" >> $config_host_mak
+  fi
   if test "$gcrypt_hmac" = "yes" ; then
     echo "CONFIG_GCRYPT_HMAC=y" >> $config_host_mak
   fi
@@ -5409,6 +5442,9 @@ fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak
   echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
+  if test "$nettle_aead" = "yes" ; then
+    echo "CONFIG_NETTLE_AEAD=y" >> $config_host_mak
+  fi
   if test "$nettle_kdf" = "yes" ; then
     echo "CONFIG_NETTLE_KDF=y" >> $config_host_mak
   fi
