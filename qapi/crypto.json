@@ -87,6 +87,8 @@
 #
 # The supported modes for content encryption ciphers
 #
+# @ccm: Counter with CBC-MAC Mode (Since 2.9)
+# @gcm: Galois Counter Mode (Since 2.9)
 # @ecb: Electronic Code Book
 # @cbc: Cipher Block Chaining
 # @xts: XEX with tweaked code book and ciphertext stealing
@@ -95,7 +97,7 @@
 ##
 { 'enum': 'QCryptoCipherMode',
   'prefix': 'QCRYPTO_CIPHER_MODE',
-  'data': ['ecb', 'cbc', 'xts', 'ctr']}
+  'data': ['ccm', 'gcm', 'ecb', 'cbc', 'xts', 'ctr']}
 
 
 ##
