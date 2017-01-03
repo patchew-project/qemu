@@ -16,6 +16,48 @@
 #include "qapi/error.h"
 #include "crypto/aead.h"
 
+#if defined(CONFIG_NETTLE_AEAD) || defined(CONFIG_GCRYPT_AEAD)
+
+static size_t alg_key_len[QCRYPTO_AEAD_ALG__MAX] = {
+    [QCRYPTO_CIPHER_ALG_AES_128] = 16,
+    [QCRYPTO_CIPHER_ALG_AES_192] = 24,
+    [QCRYPTO_CIPHER_ALG_AES_256] = 32,
+};
+
+bool qcrypto_aead_supports(QCryptoCipherAlgorithm alg,
+                           QCryptoCipherMode mode)
+{
+    switch (alg) {
+    case QCRYPTO_CIPHER_ALG_AES_128:
+    case QCRYPTO_CIPHER_ALG_AES_192:
+    case QCRYPTO_CIPHER_ALG_AES_256:
+        break;
+    default:
+        return false;
+    }
+
+    switch (mode) {
+    case QCRYPTO_CIPHER_MODE_CCM:
+    case QCRYPTO_CIPHER_MODE_GCM:
+        return true;
+    default:
+        break;
+    }
+
+    return false;
+}
+
+size_t qcrypto_aead_get_key_len(QCryptoCipherAlgorithm alg)
+{
+    if (alg > G_N_ELEMENTS(alg_key_len)) {
+        return 0;
+    }
+
+    return alg_key_len[alg];
+}
+
+#else
+
 bool qcrypto_aead_supports(QCryptoCipherAlgorithm alg,
                            QCryptoCipherMode mode)
 {
@@ -26,8 +68,6 @@ size_t qcrypto_aead_get_key_len(QCryptoCipherAlgorithm alg)
 {
     return -1;
 }
-
-#if !defined(CONFIG_NETTLE_AEAD) && !defined(CONFIG_GCRYPT_AEAD)
 
 QCryptoAead *qcrypto_aead_new(QCryptoCipherAlgorithm alg,
                               QCryptoCipherMode mode,
