@@ -1938,6 +1938,9 @@
 # @aes-key-secret:        #optional the ID of a QCryptoSecret object providing
 #                         the AES decryption key (since 2.9) Mandatory except
 #                         when doing a metadata-only probe of the image.
+# @luks-key-secret:       #optional the ID of a QCryptoSecret object providing
+#                         the LUKS keyslot passphrase (since 2.9) Mandatory
+#                         except when doing a metadata-only probe of the image.
 #
 # Since: 1.7
 ##
@@ -1952,7 +1955,8 @@
             '*l2-cache-size': 'int',
             '*refcount-cache-size': 'int',
             '*cache-clean-interval': 'int',
-            '*aes-key-secret': 'str' } }
+            '*aes-key-secret': 'str',
+            '*luks-key-secret': 'str' } }
 
 ##
 # @BlockdevOptionsArchipelago:

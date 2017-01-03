@@ -49,11 +49,11 @@ SECRET="secret,id=sec0,data=astrochicken"
 TEST_IMG_SAVE=$TEST_IMG
 TEST_IMG=$TEST_IMG_BASE
 echo "== create base =="
-_make_test_img --object $SECRET -o "encryption=on,aes-key-secret=sec0" $size
+_make_test_img --object $SECRET -o "encryption-format=luks,luks-key-secret=sec0" $size
 TEST_IMG=$TEST_IMG_SAVE
 
-IMGSPECBASE="driver=$IMGFMT,file.filename=$TEST_IMG_BASE,aes-key-secret=sec0"
-IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,backing.driver=$IMGFMT,backing.file.filename=$TEST_IMG_BASE,backing.aes-key-secret=sec0,aes-key-secret=sec0"
+IMGSPECBASE="driver=$IMGFMT,file.filename=$TEST_IMG_BASE,luks-key-secret=sec0"
+IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,backing.driver=$IMGFMT,backing.file.filename=$TEST_IMG_BASE,backing.luks-key-secret=sec0,luks-key-secret=sec0"
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
 
 echo
@@ -65,7 +65,7 @@ echo "== verify pattern =="
 $QEMU_IO --object $SECRET -c "read -P 0xa 0 $size" --image-opts $IMGSPECBASE | _filter_qemu_io | _filter_testdir
 
 echo "== create overlay =="
-_make_test_img --object $SECRET -o "encryption=on,aes-key-secret=sec0" -b "$TEST_IMG_BASE" $size
+_make_test_img --object $SECRET -o "encryption-format=luks,luks-key-secret=sec0" -b "$TEST_IMG_BASE" $size
 
 echo
 echo "== writing part of a cluster =="

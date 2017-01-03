@@ -47,9 +47,9 @@ size=128M
 SECRET="secret,id=sec0,data=astrochicken"
 SECRETALT="secret,id=sec0,data=platypus"
 
-_make_test_img --object $SECRET -o "encryption=on,aes-key-secret=sec0" $size
+_make_test_img --object $SECRET -o "encryption-format=luks,luks-key-secret=sec0" $size
 
-IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,aes-key-secret=sec0"
+IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,luks-key-secret=sec0"
 
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
 
