@@ -28,6 +28,7 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 
 #ifndef M25P80_ERR_DEBUG
@@ -377,6 +378,8 @@ typedef enum {
     MAN_GENERIC,
 } Manufacturer;
 
+#define _INTERNAL_DATA_SIZE 16
+
 typedef struct Flash {
     SSISlave parent_obj;
 
@@ -387,7 +390,7 @@ typedef struct Flash {
     int page_size;
 
     uint8_t state;
-    uint8_t data[16];
+    uint8_t data[_INTERNAL_DATA_SIZE];
     uint32_t len;
     uint32_t pos;
     uint8_t needed_bytes;
@@ -1115,6 +1118,12 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
 
     case STATE_COLLECTING_DATA:
     case STATE_COLLECTING_VAR_LEN_DATA:
+
+        if (s->len >= _INTERNAL_DATA_SIZE) {
+            error_report("Bug - Write overrun internal data buffer");
+            abort();
+        }
+
         s->data[s->len] = (uint8_t)tx;
         s->len++;
 
@@ -1124,6 +1133,12 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         break;
 
     case STATE_READING_DATA:
+
+        if (s->pos >= _INTERNAL_DATA_SIZE) {
+            error_report("Bug - Read overrun internal data buffer");
+            abort();
+        }
+
         r = s->data[s->pos];
         s->pos++;
         if (s->pos == s->len) {
@@ -1196,7 +1211,7 @@ static const VMStateDescription vmstate_m25p80 = {
     .pre_save = m25p80_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(state, Flash),
-        VMSTATE_UINT8_ARRAY(data, Flash, 16),
+        VMSTATE_UINT8_ARRAY(data, Flash, _INTERNAL_DATA_SIZE),
         VMSTATE_UINT32(len, Flash),
         VMSTATE_UINT32(pos, Flash),
         VMSTATE_UINT8(needed_bytes, Flash),
