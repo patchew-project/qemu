@@ -1671,7 +1671,9 @@ void memory_region_notify_iommu(MemoryRegion *mr,
     }
 
     QLIST_FOREACH(iommu_notifier, &mr->iommu_notify, node) {
-        if (iommu_notifier->notifier_flags & request_flags) {
+        if (iommu_notifier->notifier_flags & request_flags &&
+            iommu_notifier->start <= entry.iova &&
+            iommu_notifier->end >= entry.iova) {
             iommu_notifier->notify(iommu_notifier, &entry);
         }
     }
