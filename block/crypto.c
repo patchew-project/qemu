@@ -128,7 +128,7 @@ static QemuOptsList block_crypto_runtime_opts_luks = {
     .name = "crypto",
     .head = QTAILQ_HEAD_INITIALIZER(block_crypto_runtime_opts_luks.head),
     .desc = {
-        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
         { /* end of list */ }
     },
 };
@@ -143,31 +143,101 @@ static QemuOptsList block_crypto_create_opts_luks = {
             .type = QEMU_OPT_SIZE,
             .help = "Virtual disk size"
         },
-        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(""),
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList empty_opts = {
+    .name = "crypto-empty",
+    .merge_lists = false,
+    .head = QTAILQ_HEAD_INITIALIZER(empty_opts.head),
+    .desc = {
+        /* no elements => accept any params */
         { /* end of list */ }
     },
 };
 
 
+struct BlockCryptoCopyData {
+    QemuOpts *opts;
+    const char *prefix;
+};
+
+static int block_crypto_copy_value(void *opaque, const char *name,
+                                   const char *value, Error **errp)
+{
+    struct BlockCryptoCopyData *data = opaque;
+
+    if (g_str_has_prefix(name, data->prefix)) {
+        Error *local_err = NULL;
+        const char *newname = name + strlen(data->prefix);
+
+        qemu_opt_set(data->opts, newname, value, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Create a copy of @opts containing only the fields with
+ * a prefix of @prefix, stripping the prefix in the returned
+ * opts
+ */
+static QemuOpts *
+block_crypto_copy_opts(QemuOpts *opts,
+                       const char *prefix,
+                       Error **errp)
+{
+    struct BlockCryptoCopyData data = {
+        .opts = qemu_opts_create(&empty_opts, NULL, false, errp),
+        .prefix = prefix
+    };
+    if (!data.opts) {
+        return NULL;
+    }
+
+    if (qemu_opt_foreach(opts, block_crypto_copy_value, &data, errp) != 0) {
+        qemu_opts_del(data.opts);
+        return NULL;
+    }
+
+    return data.opts;
+}
+
 QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QCryptoBlockFormat format,
                             QemuOpts *opts,
+                            const char *prefix,
                             Error **errp)
 {
-    Visitor *v;
+    Visitor *v = NULL;
     QCryptoBlockOpenOptions *ret = NULL;
     Error *local_err = NULL;
+    QemuOpts *newopts = NULL;
 
     ret = g_new0(QCryptoBlockOpenOptions, 1);
     ret->format = format;
 
-    v = opts_visitor_new(opts);
+    if (prefix != NULL) {
+        newopts = block_crypto_copy_opts(opts, prefix, &local_err);
+        if (local_err) {
+            goto out;
+        }
+        v = opts_visitor_new(newopts);
+    } else {
+        v = opts_visitor_new(opts);
+    }
 
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
@@ -196,6 +266,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
         qapi_free_QCryptoBlockOpenOptions(ret);
         ret = NULL;
     }
+    qemu_opts_del(newopts);
     visit_free(v);
     return ret;
 }
@@ -204,16 +275,26 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
 QCryptoBlockCreateOptions *
 block_crypto_create_opts_init(QCryptoBlockFormat format,
                               QemuOpts *opts,
+                              const char *prefix,
                               Error **errp)
 {
-    Visitor *v;
+    Visitor *v = NULL;
     QCryptoBlockCreateOptions *ret = NULL;
     Error *local_err = NULL;
+    QemuOpts *newopts = NULL;
 
     ret = g_new0(QCryptoBlockCreateOptions, 1);
     ret->format = format;
 
-    v = opts_visitor_new(opts);
+    if (prefix != NULL) {
+        newopts = block_crypto_copy_opts(opts, prefix, &local_err);
+        if (local_err) {
+            goto out;
+        }
+        v = opts_visitor_new(newopts);
+    } else {
+        v = opts_visitor_new(opts);
+    }
 
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
@@ -242,6 +323,7 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
         qapi_free_QCryptoBlockCreateOptions(ret);
         ret = NULL;
     }
+    qemu_opts_del(newopts);
     visit_free(v);
     return ret;
 }
@@ -268,7 +350,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
         goto cleanup;
     }
 
-    open_opts = block_crypto_open_opts_init(format, opts, errp);
+    open_opts = block_crypto_open_opts_init(format, opts, NULL, errp);
     if (!open_opts) {
         goto cleanup;
     }
@@ -312,7 +394,7 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
         .filename = filename,
     };
 
-    create_opts = block_crypto_create_opts_init(format, opts, errp);
+    create_opts = block_crypto_create_opts_init(format, opts, NULL, errp);
     if (!create_opts) {
         return -1;
     }
