@@ -1796,12 +1796,15 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
         pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF);
         assert(pos > 0);
+        pci_dev->exp.pm_cap = pos;
 
         /*
          * Indicates that this function complies with revision 1.2 of the
          * PCI Power Management Interface Specification.
          */
         pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
+        pci_set_word(pci_dev->wmask + pos + PCI_PM_CTRL,
+                     PCI_PM_CTRL_STATE_MASK);
         /* Init error enabling flags */
         pcie_cap_deverr_init(pci_dev);
         /* Init Link Control Register */
@@ -1846,6 +1849,8 @@ static void virtio_pci_reset(DeviceState *qdev)
     if (pci_is_express(dev)) {
         pcie_cap_deverr_reset(dev);
         pcie_cap_lnkctl_reset(dev);
+
+        pci_set_word(dev->config + dev->exp.pm_cap + PCI_PM_CTRL, 0);
     }
 }
 
