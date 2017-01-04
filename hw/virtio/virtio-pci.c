@@ -1802,6 +1802,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
          * PCI Power Management Interface Specification.
          */
         pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
+        /* Init error enabling flags */
+        pcie_cap_deverr_init(pci_dev);
     } else {
         /*
          * make future invocations of pci_is_express() return false
@@ -1828,6 +1830,7 @@ static void virtio_pci_reset(DeviceState *qdev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
     VirtioBusState *bus = VIRTIO_BUS(&proxy->bus);
+    PCIDevice *dev = PCI_DEVICE(qdev);
     int i;
 
     virtio_pci_stop_ioeventfd(proxy);
@@ -1836,6 +1839,10 @@ static void virtio_pci_reset(DeviceState *qdev)
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         proxy->vqs[i].enabled = 0;
+    }
+
+    if (pci_is_express(dev)) {
+        pcie_cap_deverr_reset(dev);
     }
 }
 
