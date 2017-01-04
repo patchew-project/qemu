@@ -1804,6 +1804,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
         /* Init error enabling flags */
         pcie_cap_deverr_init(pci_dev);
+        /* Init Link Control Register */
+        pcie_cap_lnkctl_init(pci_dev);
     } else {
         /*
          * make future invocations of pci_is_express() return false
@@ -1843,6 +1845,7 @@ static void virtio_pci_reset(DeviceState *qdev)
 
     if (pci_is_express(dev)) {
         pcie_cap_deverr_reset(dev);
+        pcie_cap_lnkctl_reset(dev);
     }
 }
 
