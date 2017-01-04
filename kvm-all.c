@@ -18,6 +18,7 @@
 
 #include <linux/kvm.h>
 
+#include "qqq.h"
 #include "qemu-common.h"
 #include "qemu/atomic.h"
 #include "qemu/option.h"
@@ -1924,6 +1925,15 @@ int kvm_cpu_exec(CPUState *cpu)
              * leave ASAP again.
              */
             qemu_cpu_kick_self();
+        }
+
+        if (qqq_enabled()) {
+            /* Pause here while qqq is synchronizing with a simulation clock.
+             * We do not want to execute instructions past the synchronization
+             * deadline, but its ok to update the states of other equipment
+             * like timers, i/o devices, etc.
+             */
+            qqq_sync();
         }
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
