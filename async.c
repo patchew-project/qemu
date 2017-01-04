@@ -329,15 +329,21 @@ void aio_notify(AioContext *ctx)
     smp_mb();
     if (ctx->notify_me) {
         event_notifier_set(&ctx->notifier);
+#ifndef _WIN32
         atomic_mb_set(&ctx->notified, true);
+#endif
     }
 }
 
 void aio_notify_accept(AioContext *ctx)
 {
+#ifndef _WIN32
     if (atomic_xchg(&ctx->notified, false)) {
+#endif
         event_notifier_test_and_clear(&ctx->notifier);
+#ifndef _WIN32
     }
+#endif
 }
 
 static void aio_timerlist_notify(void *opaque)

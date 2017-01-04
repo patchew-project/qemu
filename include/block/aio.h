@@ -100,6 +100,7 @@ struct AioContext {
      */
     int walking_bh;
 
+#ifndef _WIN32
     /* Used by aio_notify.
      *
      * "notified" is used to avoid expensive event_notifier_test_and_clear
@@ -113,6 +114,7 @@ struct AioContext {
      * in the docs/aio_notify_accept.promela formal model.
      */
     bool notified;
+#endif
     EventNotifier notifier;
 
     /* Thread pool for performing work and receiving completion callbacks */
