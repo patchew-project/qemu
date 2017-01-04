@@ -2386,9 +2386,17 @@ has_libgcrypt_config() {
 }
 
 if test "$gcrypt" != "no"; then
-    if has_libgcrypt_config; then
-        gcrypt_cflags=$(libgcrypt-config --cflags)
-        gcrypt_libs=$(libgcrypt-config --libs)
+    gcrypt_config=""
+    # If libgcrypt in pkg-config use it over using libgcrypt-config
+    if $pkg_config --exists "libgcrypt"; then
+      gcrypt_config="$pkg_config libgcrypt"
+    elif has_libgcrypt_config; then
+      gcrypt_config="libgcrypt-config"
+    fi
+
+    if test -n "$gcrypt_config"; then
+        gcrypt_cflags=$($gcrypt_config --cflags)
+        gcrypt_libs=$($gcrypt_config --libs)
         # Debian has remove -lgpg-error from libgcrypt-config
         # as it "spreads unnecessary dependencies" which in
         # turn breaks static builds...
