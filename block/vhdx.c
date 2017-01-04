@@ -997,10 +997,12 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
                bdrv_get_device_or_node_name(bs));
     ret = migrate_add_blocker(s->migration_blocker, errp);
     if (ret < 0) {
-        error_free(s->migration_blocker);
+        if (ret == -EACCES) {
+            error_append_hint(errp, "Cannot use a node with vhdx format as "
+                              "it does not support live migration");
+        }
         goto fail;
     }
-
     if (flags & BDRV_O_RDWR) {
         ret = vhdx_update_headers(bs, s, false, NULL);
         if (ret < 0) {

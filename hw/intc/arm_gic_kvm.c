@@ -515,7 +515,10 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
                                           "not support vGICv2 migration");
         ret = migrate_add_blocker(s->migration_blocker, errp);
         if (ret < 0) {
-            error_free(s->migration_blocker);
+            if (ret == -EACCES) {
+                error_append_hint(errp, "Failed to realize vGICv2 as its"
+                                  " migrataion is not implemented yet");
+            }
             return;
         }
     }

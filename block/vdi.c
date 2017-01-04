@@ -473,7 +473,10 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
                bdrv_get_device_or_node_name(bs));
     ret = migrate_add_blocker(s->migration_blocker, errp);
     if (ret < 0) {
-        error_free(s->migration_blocker);
+        if (ret == -EACCES) {
+            error_append_hint(errp, "Cannot use a node with vdi format as "
+                              "it does not support live migration");
+        }
         goto fail_free_bmap;
     }
 

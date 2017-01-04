@@ -1160,8 +1160,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         Error *local_err;
         r = migrate_add_blocker(hdev->migration_blocker, &local_err);
         if (r < 0) {
-            error_report_err(local_err);
-            error_free(hdev->migration_blocker);
+            if (r == -EACCES) {
+                error_append_hint(&local_err, "Cannot use vhost drivers as "
+                                  "it does not support live migration");
+            }
             goto fail_busyloop;
         }
     }

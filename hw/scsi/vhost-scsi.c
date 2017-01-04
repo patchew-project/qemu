@@ -245,7 +245,11 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                "vhost-scsi does not support migration");
     ret = migrate_add_blocker(s->migration_blocker, errp);
     if (ret < 0) {
-        goto free_blocker;
+        if (ret == -EACCES) {
+            error_append_hint(errp, "Cannot use vhost-scsi as it does not "
+                              "support live migration");
+        }
+        goto close_fd;
     }
 
     s->dev.nvqs = VHOST_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
@@ -272,8 +276,6 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
  free_vqs:
     migrate_del_blocker(s->migration_blocker);
     g_free(s->dev.vqs);
- free_blocker:
-    error_free(s->migration_blocker);
  close_fd:
     close(vhostfd);
     return;
