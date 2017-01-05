@@ -249,8 +249,7 @@ static void pcm3680i_pci_exit(PCIDevice *pci_dev)
     qemu_unregister_reset(pcm3680i_pci_reset, d);
 
     /*
-     * regions d->s5920_io, d->sja_io and d->xilinx_io
-     * are destroyed by QOM now
+     * region d->sja_io is destroyed by QOM now
      */
     /* memory_region_destroy(&d->sja_io[0]); */
     /* memory_region_destroy(&d->sja_io[1]); */
@@ -300,8 +299,8 @@ static void pcm3680i_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCM3680i_PCI_DEVICE_ID1;
     k->revision = 0x00;
     k->class_id = 0x000c09;
-    k->subsystem_vendor_id = 0x13fe;
-    k->subsystem_id = 0xc002;
+    k->subsystem_vendor_id = PCM3680i_PCI_VENDOR_ID1;
+    k->subsystem_id = PCM3680i_PCI_DEVICE_ID1;
 //  k->is_bridge = 0;
 //  k->is_express = 0;
     dc->desc = "Pcm3680i PCICANx";
