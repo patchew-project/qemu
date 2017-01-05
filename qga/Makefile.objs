@@ -6,3 +6,6 @@ qga-obj-y += qapi-generated/qga-qapi-types.o qapi-generated/qga-qapi-visit.o
 qga-obj-y += qapi-generated/qga-qmp-marshal.o
 
 qga-vss-dll-obj-$(CONFIG_QGA_VSS) += vss-win32/
+
+main.o-cflags := $(SYSTEMD_CFLAGS)
+main.o-libs   := $(SYSTEMD_LIBS)

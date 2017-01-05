@@ -17,6 +17,9 @@
 #include <syslog.h>
 #include <sys/wait.h>
 #endif
+#ifdef CONFIG_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qint.h"
@@ -648,7 +651,8 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
     return true;
 }
 
-static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
+static gboolean channel_init(GAState *s, const gchar *method, const gchar *path,
+                             int listen_fd)
 {
     GAChannelMethod channel_method;
 
@@ -666,7 +670,8 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
         return false;
     }
 
-    s->channel = ga_channel_new(channel_method, path, channel_event_cb, s);
+    s->channel = ga_channel_new(channel_method, path, listen_fd,
+                                channel_event_cb, s);
     if (!s->channel) {
         g_critical("failed to create guest agent channel");
         return false;
@@ -1025,7 +1030,9 @@ static void config_dump(GAConfig *config)
 
     g_key_file_set_boolean(keyfile, "general", "daemon", config->daemonize);
     g_key_file_set_string(keyfile, "general", "method", config->method);
-    g_key_file_set_string(keyfile, "general", "path", config->channel_path);
+    if (config->channel_path) {
+        g_key_file_set_string(keyfile, "general", "path", config->channel_path);
+    }
     if (config->log_filepath) {
         g_key_file_set_string(keyfile, "general", "logfile",
                               config->log_filepath);
@@ -1216,6 +1223,8 @@ static bool check_is_frozen(GAState *s)
 
 static int run_agent(GAState *s, GAConfig *config)
 {
+    int listen_fd = -1;
+
     ga_state = s;
 
     g_log_set_default_handler(ga_log, s);
@@ -1294,7 +1303,15 @@ static int run_agent(GAState *s, GAConfig *config)
 #endif
 
     s->main_loop = g_main_loop_new(NULL, false);
-    if (!channel_init(ga_state, config->method, config->channel_path)) {
+
+#ifdef CONFIG_SYSTEMD
+    if (sd_listen_fds(1) > 0) {
+        listen_fd = SD_LISTEN_FDS_START;
+    }
+#endif
+
+    if (!channel_init(ga_state, config->method, config->channel_path,
+                      listen_fd)) {
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
@@ -1339,6 +1356,26 @@ int main(int argc, char **argv)
         config->method = g_strdup("virtio-serial");
     }
 
+#ifdef CONFIG_SYSTEMD
+    if (sd_listen_fds(0) > 0) {
+        int fd = SD_LISTEN_FDS_START;
+
+        g_free(config->method);
+        g_free(config->channel_path);
+        config->method = NULL;
+        config->channel_path = NULL;
+
+        if (sd_is_socket(fd, AF_UNIX, SOCK_STREAM, 1)) {
+            config->method = g_strdup("unix-listen");
+        } else if (sd_is_socket(fd, AF_VSOCK, SOCK_STREAM, 1)) {
+            config->method = g_strdup("vsock-listen");
+        } else {
+            g_critical("unsupported listen fd type");
+            ret = EXIT_FAILURE;
+            goto end;
+        }
+    } else /* fall-through */
+#endif
     if (config->channel_path == NULL) {
         if (strcmp(config->method, "virtio-serial") == 0) {
             /* try the default path for the virtio-serial port */
