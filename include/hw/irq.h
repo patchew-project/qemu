@@ -58,8 +58,15 @@ qemu_irq qemu_irq_split(qemu_irq irq1, qemu_irq irq2);
  */
 qemu_irq *qemu_irq_proxy(qemu_irq **target, int n);
 
-/* For internal use in qtest.  Similar to qemu_irq_split, but operating
-   on an existing vector of qemu_irq.  */
-void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n);
+/**
+ * Duplicate an IRQ
+ * @param in the IRQ to deplicate
+ * @return a copy of the IRQ
+ */
+qemu_irq qemu_irq_dup(qemu_irq in);
+
+/* For internal use in qtest. */
+void qemu_irq_intercept_in(qemu_irq gpio_in, qemu_irq_handler handler,
+        void *opaque);
 
 #endif

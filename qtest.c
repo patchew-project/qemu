@@ -40,7 +40,6 @@ static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
 static CharBackend qtest_chr;
 static GString *inbuf;
-static int irq_levels[MAX_IRQ];
 static qemu_timeval start_time;
 static bool qtest_opened;
 
@@ -160,6 +159,8 @@ static bool qtest_opened;
  *
  *  IRQ raise NUM
  *  IRQ lower NUM
+ *  IRQ_NAMED raise NAME NUM
+ *  IRQ_NAMED lower NAME NUM
  *
  * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
  * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
@@ -243,17 +244,31 @@ static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
     va_end(ap);
 }
 
+typedef struct qtest_irq {
+    qemu_irq old_irq;
+    char *name;
+    bool last_level;
+} qtest_irq;
+
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
-    qemu_irq old_irq = *(qemu_irq *)opaque;
-    qemu_set_irq(old_irq, level);
+    qtest_irq *data = (qtest_irq *)opaque;
+    level = !!level;
 
-    if (irq_levels[n] != level) {
+    qemu_set_irq(data->old_irq, level);
+
+    if (level != data->last_level) {
         CharBackend *chr = &qtest_chr;
-        irq_levels[n] = level;
         qtest_send_prefix(chr);
-        qtest_sendf(chr, "IRQ %s %d\n",
-                    level ? "raise" : "lower", n);
+
+        if (data->name) {
+            qtest_sendf(chr, "IRQ_NAMED %s %s %d\n",
+                        level ? "raise" : "lower", data->name, n);
+        } else {
+            qtest_sendf(chr, "IRQ %s %d\n", level ? "raise" : "lower", n);
+        }
+
+        data->last_level = level;
     }
 }
 
@@ -303,23 +318,26 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support intercept of named GPIOs yet */
-            if (ngl->name) {
-                continue;
-            }
             if (words[0][14] == 'o') {
                 int i;
                 for (i = 0; i < ngl->num_out; ++i) {
-                    qemu_irq *disconnected = g_new0(qemu_irq, 1);
-                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler,
-                                                      disconnected, i);
+                    qtest_irq *data = g_new0(qtest_irq, 1);
+                    data->name = ngl->name;
+                    qemu_irq icpt = qemu_allocate_irq(qtest_irq_handler, data,
+                                                      i);
 
-                    *disconnected = qdev_intercept_gpio_out(dev, icpt,
+                    data->old_irq = qdev_intercept_gpio_out(dev, icpt,
                                                             ngl->name, i);
                 }
             } else {
-                qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
-                                      ngl->num_in);
+                int i;
+                for (i = 0; i < ngl->num_in; ++i) {
+                    qtest_irq *data = g_new0(qtest_irq, 1);
+                    data->name = ngl->name;
+                    data->old_irq = qemu_irq_dup(ngl->in[i]);
+
+                    qemu_irq_intercept_in(ngl->in[i], qtest_irq_handler, data);
+                }
             }
         }
         irq_intercept_dev = dev;
@@ -624,8 +642,6 @@ static int qtest_can_read(void *opaque)
 
 static void qtest_event(void *opaque, int event)
 {
-    int i;
-
     switch (event) {
     case CHR_EVENT_OPENED:
         /*
@@ -634,9 +650,6 @@ static void qtest_event(void *opaque, int event)
          * used.  Injects an extra reset even when it's not used, and
          * that can mess up tests, e.g. -boot once.
          */
-        for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
-            irq_levels[i] = 0;
-        }
         qemu_gettimeofday(&start_time);
         qtest_opened = true;
         if (qtest_log_fp) {
