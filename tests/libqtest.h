@@ -190,6 +190,20 @@ void qtest_irq_attach(QTestState *s, const char *name, int irq,
         void *opaque);
 
 /**
+ * qtest_irq_set:
+ * Set an interrupt level
+ * @s: #QTestState instance to operate on.
+ * @id: the device to inject interrupts for
+ * @gpiolist: the GPIO list containing the IRQ
+ * @n: the GPIO within the list
+ * @level: the IRQ level
+ *
+ * Set an interrupt to a nominated level
+ */
+void qtest_irq_set(QTestState *s, const char *id, const char *gpiolist, int n,
+        bool level);
+
+/**
  * qtest_outb:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to write to.
@@ -654,6 +668,21 @@ static inline void irq_attach(const char *name, int irq,
 {
     qtest_irq_attach(global_qtest, name, irq, irq_cb, opaque);
 }
+
+/**
+ * qtest_irq_set
+ * Set an interrupt level
+ * @id: the device to inject interrupts for
+ * @gpiolist: the GPIO list containing the line to seh
+ * @n: the line to set within the list
+ * @level: the IRQ level
+ */
+static inline void irq_set(const char *id, const char *gpiolist, int n,
+        bool level)
+{
+    qtest_irq_set(global_qtest, id, gpiolist, n, level);
+}
+
 
 /**
  * outb:
