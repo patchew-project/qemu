@@ -3389,6 +3389,22 @@ many timer interrupts were not processed by the Windows guest and will
 re-inject them.
 ETEXI
 
+DEF("qqq", HAS_ARG, QEMU_OPTION_qqq, \
+    "-qqq sock=fd\n" \
+    "                enable synchronization of the virtual clock \n" \
+    "                with an external simulation clock\n", QEMU_ARCH_ALL)
+STEXI
+@item -qqq sock=@var{fd0}
+@findex -qqq
+Qemu will use the supplied socket to synchronize its virtual clock with
+an external simulation clock. Qemu will wait until a time slice size in
+microseconds is supplied on the socket. Then it will execute for at
+least that number of virtual microseconds before writing the actual
+virtual time that has elapsed in microseconds to the socket. This
+cycle will repeat until a zero time advance is requested, which
+will cause qemu to exit.
+ETEXI
+
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
     "-icount [shift=N|auto][,align=on|off][,sleep=on|off,rr=record|replay,rrfile=<filename>]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
