@@ -55,6 +55,13 @@
 #include "qemu/error-report.h"
 #endif
 
+#define PAGE_TOUCH_THREAD_COUNT 8
+typedef struct {
+    char *addr;
+    uint64_t numpages;
+    uint64_t hpagesize;
+} PageRange;
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -323,6 +330,52 @@ static void sigbus_handler(int signal)
     siglongjmp(sigjump, 1);
 }
 
+static void *do_touch_pages(void *arg)
+{
+    PageRange *range = (PageRange *)arg;
+    char *start_addr = range->addr;
+    uint64_t numpages = range->numpages;
+    uint64_t hpagesize = range->hpagesize;
+    uint64_t i = 0;
+
+    for (i = 0; i < numpages; i++) {
+        memset(start_addr + (hpagesize * i), 0, 1);
+    }
+    qemu_thread_exit(NULL);
+
+    return NULL;
+}
+
+static int touch_all_pages(char *area, size_t hpagesize, size_t numpages)
+{
+    QemuThread page_threads[PAGE_TOUCH_THREAD_COUNT];
+    PageRange page_range[PAGE_TOUCH_THREAD_COUNT];
+    uint64_t    numpage_per_thread, size_per_thread;
+    int         i = 0, tcount = 0;
+
+    numpage_per_thread = (numpages / PAGE_TOUCH_THREAD_COUNT);
+    size_per_thread = (hpagesize * numpage_per_thread);
+    for (i = 0; i < (PAGE_TOUCH_THREAD_COUNT - 1); i++) {
+        page_range[i].addr = area;
+        page_range[i].numpages = numpage_per_thread;
+        page_range[i].hpagesize = hpagesize;
+
+        qemu_thread_create(page_threads + i, "touch_pages",
+                           do_touch_pages, (page_range + i),
+                           QEMU_THREAD_JOINABLE);
+        tcount++;
+        area += size_per_thread;
+        numpages -= numpage_per_thread;
+    }
+    for (i = 0; i < numpages; i++) {
+        memset(area + (hpagesize * i), 0, 1);
+    }
+    for (i = 0; i < tcount; i++) {
+        qemu_thread_join(page_threads + i);
+    }
+    return 0;
+}
+
 void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
 {
     int ret;
@@ -353,9 +406,14 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
         size_t hpagesize = qemu_fd_getpagesize(fd);
         size_t numpages = DIV_ROUND_UP(memory, hpagesize);
 
-        /* MAP_POPULATE silently ignores failures */
-        for (i = 0; i < numpages; i++) {
-            memset(area + (hpagesize * i), 0, 1);
+        /* touch pages simultaneously for memory >= 64G */
+        if (memory < (1ULL << 36)) {
+            /* MAP_POPULATE silently ignores failures */
+            for (i = 0; i < numpages; i++) {
+                memset(area + (hpagesize * i), 0, 1);
+            }
+        } else {
+            touch_all_pages(area, hpagesize, numpages);
         }
     }
 
