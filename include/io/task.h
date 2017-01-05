@@ -240,6 +240,35 @@ void qio_task_abort(QIOTask *task,
 
 
 /**
+ * qio_task_set_error:
+ * @task: the task struct
+ * @err: pointer to the error
+ *
+ * Associate an error with the task, which can later
+ * be retrieved with the qio_task_propagate_error()
+ * method. This method takes ownership of @err, so
+ * it is not valid to access it after this call
+ * completes.
+ */
+void qio_task_set_error(QIOTask *task,
+                        Error *err);
+
+
+/**
+ * qio_task_propagate_error:
+ * @task: the task struct
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Propagate the error associated with @task
+ * into @errp.
+ *
+ * Returns: true if an error was propagated, false otherwise
+ */
+gboolean qio_task_propagate_error(QIOTask *task,
+                                  Error **errp);
+
+
+/**
  * qio_task_set_result_pointer:
  * @task: the task struct
  * @result: pointer to the result data
