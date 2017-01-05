@@ -332,6 +332,28 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
     return opt ? opt->str : NULL;
 }
 
+size_t qemu_opt_get_all(QemuOpts *opts, const char *name, char ***vals)
+{
+    QemuOpt *opt;
+    size_t nvals = 0;
+
+    *vals = NULL;
+
+    QTAILQ_FOREACH(opt, &opts->head, next) {
+        if (!g_str_equal(opt->name, name)) {
+            continue;
+        }
+
+        *vals = g_renew(char *, *vals, nvals + 1);
+        (*vals)[nvals++] = g_strdup(opt->str);
+    }
+    if (nvals) {
+        *vals = g_renew(char *, *vals, nvals + 1);
+        (*vals)[nvals] = NULL;
+    }
+    return nvals;
+}
+
 /* Get a known option (or its default) and remove it from the list
  * all in one action. Return a malloced string of the option value.
  * Result must be freed by caller with g_free().

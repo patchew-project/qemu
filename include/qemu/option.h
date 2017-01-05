@@ -65,6 +65,7 @@ struct QemuOptsList {
 };
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name);
+size_t qemu_opt_get_all(QemuOpts *opts, const char *name, char ***vals);
 char *qemu_opt_get_del(QemuOpts *opts, const char *name);
 /**
  * qemu_opt_has_help_opt:
