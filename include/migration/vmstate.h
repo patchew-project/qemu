@@ -207,6 +207,7 @@ struct VMStateDescription {
     int version_id;
     int minimum_version_id;
     int minimum_version_id_old;
+    int priority;
     LoadStateHandler *load_state_old;
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);

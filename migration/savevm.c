@@ -257,6 +257,7 @@ typedef struct SaveStateEntry {
     void *opaque;
     CompatEntry *compat;
     int is_ram;
+    int priority;
 } SaveStateEntry;
 
 typedef struct SaveState {
@@ -532,6 +533,23 @@ static int calculate_compat_instance_id(const char *idstr)
     return instance_id;
 }
 
+static void savevm_state_handler_insert(SaveStateEntry *nse)
+{
+    SaveStateEntry *se;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->priority < nse->priority) {
+            break;
+        }
+    }
+
+    if (se) {
+        QTAILQ_INSERT_BEFORE(se, nse, entry);
+    } else {
+        QTAILQ_INSERT_TAIL(&savevm_state.handlers, nse, entry);
+    }
+}
+
 /* TODO: Individual devices generally have very little idea about the rest
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
@@ -551,6 +569,8 @@ int register_savevm_live(DeviceState *dev,
     se->ops = ops;
     se->opaque = opaque;
     se->vmsd = NULL;
+    se->priority = 0;
+
     /* if this is a live_savem then set is_ram */
     if (ops->save_live_setup != NULL) {
         se->is_ram = 1;
@@ -578,8 +598,7 @@ int register_savevm_live(DeviceState *dev,
         se->instance_id = instance_id;
     }
     assert(!se->compat || se->instance_id == 0);
-    /* add at the end of list */
-    QTAILQ_INSERT_TAIL(&savevm_state.handlers, se, entry);
+    savevm_state_handler_insert(se);
     return 0;
 }
 
@@ -639,6 +658,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     se->opaque = opaque;
     se->vmsd = vmsd;
     se->alias_id = alias_id;
+    se->priority = vmsd->priority;
 
     if (dev) {
         char *id = qdev_get_dev_path(dev);
@@ -662,8 +682,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
         se->instance_id = instance_id;
     }
     assert(!se->compat || se->instance_id == 0);
-    /* add at the end of list */
-    QTAILQ_INSERT_TAIL(&savevm_state.handlers, se, entry);
+    savevm_state_handler_insert(se);
     return 0;
 }
 
