@@ -61,6 +61,7 @@ typedef struct Pcm3680iPCIState {
     MemoryRegion    sja_io[2];
 
     CanSJA1000State sja_state[2];
+    qemu_irq        irq;
 
     char            *model; /* The model that support, only SJA1000 now. */
     char            *canbus[2];
@@ -69,10 +70,16 @@ typedef struct Pcm3680iPCIState {
 
 static void pcm3680i_pci_irq_raise(void *opaque)
 {
+    Pcm3680iPCIState *d = (Pcm3680iPCIState *)opaque;
+
+    qemu_irq_raise(d->irq);
 }
 
 static void pcm3680i_pci_irq_lower(void *opaque)
 {
+    Pcm3680iPCIState *d = (Pcm3680iPCIState *)opaque;
+
+    qemu_irq_lower(d->irq);
 }
 
 static void
@@ -202,6 +209,8 @@ static int pcm3680i_pci_init(PCIDevice *pci_dev)
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
+    d->irq = pci_allocate_irq(&d->dev);
+
     can_sja_init(s1, pcm3680i_pci_irq_raise, pcm3680i_pci_irq_lower, d);
     can_sja_init(s2, pcm3680i_pci_irq_raise, pcm3680i_pci_irq_lower, d);
 
@@ -248,6 +257,8 @@ static void pcm3680i_pci_exit(PCIDevice *pci_dev)
 
     can_sja_exit(s1);
     can_sja_exit(s2);
+
+    qemu_free_irq(d->irq);
 }
 
 static const VMStateDescription vmstate_pcm3680i_pci = {
