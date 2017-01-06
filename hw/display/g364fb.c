@@ -482,19 +482,6 @@ static const GraphicHwOps g364fb_ops = {
     .gfx_update  = g364fb_update_display,
 };
 
-static void g364fb_init(DeviceState *dev, G364State *s)
-{
-    s->vram = g_malloc0(s->vram_size);
-
-    s->con = graphic_console_init(dev, 0, &g364fb_ops, s);
-
-    memory_region_init_io(&s->mem_ctrl, NULL, &g364fb_ctrl_ops, s, "ctrl", 0x180000);
-    memory_region_init_ram_ptr(&s->mem_vram, NULL, "vram",
-                               s->vram_size, s->vram);
-    vmstate_register_ram(&s->mem_vram, dev);
-    memory_region_set_log(&s->mem_vram, true, DIRTY_MEMORY_VGA);
-}
-
 #define TYPE_G364 "sysbus-g364"
 #define G364(obj) OBJECT_CHECK(G364SysBusState, (obj), TYPE_G364)
 
@@ -504,18 +491,33 @@ typedef struct {
     G364State g364;
 } G364SysBusState;
 
-static int g364fb_sysbus_init(SysBusDevice *sbd)
+static void g364fb_init(Object *obj)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     DeviceState *dev = DEVICE(sbd);
     G364SysBusState *sbs = G364(dev);
     G364State *s = &sbs->g364;
 
-    g364fb_init(dev, s);
     sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_mmio(sbd, &s->mem_ctrl);
-    sysbus_init_mmio(sbd, &s->mem_vram);
 
-    return 0;
+    memory_region_init_io(&s->mem_ctrl, NULL, &g364fb_ctrl_ops,
+                          s, "ctrl", 0x180000);
+    sysbus_init_mmio(sbd, &s->mem_ctrl);
+}
+
+static void g364fb_realize(DeviceState *dev, Error **errp)
+{
+    G364SysBusState *sbs = G364(dev);
+    G364State *s = &sbs->g364;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    s->vram = g_malloc0(s->vram_size);
+    s->con = graphic_console_init(dev, 0, &g364fb_ops, s);
+    memory_region_init_ram_ptr(&s->mem_vram, NULL, "vram",
+                               s->vram_size, s->vram);
+    vmstate_register_ram(&s->mem_vram, dev);
+    memory_region_set_log(&s->mem_vram, true, DIRTY_MEMORY_VGA);
+    sysbus_init_mmio(sbd, &s->mem_vram);
 }
 
 static void g364fb_sysbus_reset(DeviceState *d)
@@ -534,9 +536,8 @@ static Property g364fb_sysbus_properties[] = {
 static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = g364fb_sysbus_init;
+    dc->realize = g364fb_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "G364 framebuffer";
     dc->reset = g364fb_sysbus_reset;
@@ -548,6 +549,7 @@ static const TypeInfo g364fb_sysbus_info = {
     .name          = TYPE_G364,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(G364SysBusState),
+    .instance_init = g364fb_init,
     .class_init    = g364fb_sysbus_class_init,
 };
 
