@@ -81,29 +81,6 @@ uint8_t wctablet_commands[WC_COMMANDS_COUNT][7] = {
     {0x7e, 0x23, 0x0d, 0}                       // ~#\r
 };
 
-// Char strings with avaliable commands
-char wctablet_commands_names[WC_COMMANDS_COUNT][12] = {
-    "\\nSP\\n",
-    "~#",
-    "\\nTE\\n",
-    "RE\\n",
-    "AS1\\n",
-    "IC1\\n",
-    "OC1\\n",
-    "IT3\\r",
-    "SU3\\n",
-    "PH1\\n",
-    "\\rST\\n",
-    "\\rSP\\r",
-    "TE\\r",
-    "SP\\n",
-    "#AL1\\r",
-    "ST\\n",
-    "\\rTS&\\r",
-    "\\r\\nSP\\r\\n",
-    "~#\\r"
-};
-
 // Model string and config string
 uint8_t *WC_MODEL_STRING = (uint8_t *) "~#CT-0045R,V1.3-5,";
 size_t WC_MODEL_STRING_LENGTH = 18;
@@ -291,8 +268,6 @@ static int wctablet_chr_write(struct CharDriverState *s,
 
             wctablet_queue_output(tablet, codes, 7);
         }
-
-        // DPRINTF("-------- Command: %s\n", wctablet_commands_names[comm]);
 
         tablet->query_index = 0;
     }
