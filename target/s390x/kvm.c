@@ -38,7 +38,7 @@
 #include "qapi/qmp/qjson.h"
 #include "exec/gdbstub.h"
 #include "exec/address-spaces.h"
-#include "trace.h"
+#include "target/s390x/trace.h"
 #include "qapi-event.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"

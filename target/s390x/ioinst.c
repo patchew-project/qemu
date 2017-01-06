@@ -13,7 +13,7 @@
 
 #include "cpu.h"
 #include "hw/s390x/ioinst.h"
-#include "trace.h"
+#include "target/s390x/trace.h"
 #include "hw/s390x/s390-pci-bus.h"
 
 int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,

@@ -20,7 +20,7 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"
-#include "trace.h"
+#include "target/s390x/trace.h"
 #include "hw/s390x/storage-keys.h"
 
 /* #define DEBUG_S390 */

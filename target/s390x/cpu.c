@@ -30,7 +30,7 @@
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "target/s390x/trace.h"
 #include "qapi/visitor.h"
 #include "migration/vmstate.h"
 #include "exec/exec-all.h"
