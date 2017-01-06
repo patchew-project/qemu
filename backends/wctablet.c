@@ -141,6 +141,13 @@ static int wctablet_check_command(uint8_t *arr, int count)
     return -1;
 }
 
+static void wctablet_shift_input(TabletState *tablet, int count)
+{
+    tablet->query_index -= count;
+    memmove(tablet->query, tablet->query + count, tablet->query_index);
+    tablet->query[tablet->query_index] = 0;
+}
+
 static void wctablet_queue_output(TabletState *tablet, uint8_t *buf, int count)
 {
     if (tablet->outlen + count > sizeof(tablet->outbuf)) {
@@ -232,8 +239,7 @@ static int wctablet_chr_write(struct CharDriverState *s,
     while (tablet->query_index > 0 && (tablet->query[0] == '@'  ||
                                        tablet->query[0] == '\r' ||
                                        tablet->query[0] == '\n')) {
-        memmove(tablet->query, tablet->query + 1, tablet->query_index);
-        tablet->query_index--;
+        wctablet_shift_input(tablet, 1);
     }
     if (!tablet->query_index) {
         return len;
