@@ -234,20 +234,24 @@ static void wctablet_handler(void *opaque)
               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + tablet->transmit_time);
 }
 
-static int wctablet_chr_write (struct CharDriverState *s,
-                               const uint8_t *buf, int len)
+static int wctablet_chr_write(struct CharDriverState *s,
+                              const uint8_t *buf, int len)
 {
     TabletState *tablet = (TabletState *) s->opaque;
-    uint8_t c = buf[0];
-    uint8_t input;
+    uint8_t i, input;
 
-    if (c == 0x40) {
+    for (i = 0; i < len && tablet->query_index < sizeof(tablet->query) - 1; i++) {
+        tablet->query[tablet->query_index++] = buf[i];
+    }
+    tablet->query[tablet->query_index] = 0;
+
+    while (tablet->query_index > 0 && tablet->query[0] == '@') {
+        memmove(tablet->query, tablet->query + 1, tablet->query_index);
+        tablet->query_index--;
+    }
+    if (!tablet->query_index) {
         return len;
     }
-
-    tablet->query[tablet->query_index++] = c;
-
-    // DPRINTF("Receive: %.2x\n", c);
 
     int comm = wctablet_check_command(tablet->query, tablet->query_index);
 
