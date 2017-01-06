@@ -61,7 +61,7 @@
 #include "hw/usb.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "hw/ppc/trace.h"
 #include "hw/nmi.h"
 
 #include "hw/compat.h"

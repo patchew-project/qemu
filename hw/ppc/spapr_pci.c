@@ -37,7 +37,7 @@
 #include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
 #include <libfdt.h>
-#include "trace.h"
+#include "hw/ppc/trace.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 

@@ -8,7 +8,7 @@
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
 #include "cpu-models.h"
-#include "trace.h"
+#include "hw/ppc/trace.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "hw/ppc/spapr_ovec.h"

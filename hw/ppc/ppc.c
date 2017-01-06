@@ -37,7 +37,7 @@
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "trace.h"
+#include "hw/ppc/trace.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
