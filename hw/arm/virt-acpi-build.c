@@ -31,7 +31,7 @@
 #include "qemu-common.h"
 #include "hw/arm/virt-acpi-build.h"
 #include "qemu/bitmap.h"
-#include "trace.h"
+#include "hw/arm/trace.h"
 #include "qom/cpu.h"
 #include "target/arm/cpu.h"
 #include "hw/acpi/acpi-defs.h"
