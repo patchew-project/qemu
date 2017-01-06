@@ -16,7 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bswap.h"
-#include "trace.h"
+#include "block/trace.h"
 #include "qed.h"
 #include "qapi/qmp/qerror.h"
 #include "migration/migration.h"

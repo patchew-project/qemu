@@ -19,7 +19,7 @@
 #include "sysemu/sysemu.h"
 #include "qapi-event.h"
 #include "qemu/id.h"
-#include "trace.h"
+#include "block/trace.h"
 
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64

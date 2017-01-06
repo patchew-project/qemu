@@ -26,6 +26,8 @@ block-obj-y += backup.o
 block-obj-$(CONFIG_REPLICATION) += replication.o
 
 block-obj-y += crypto.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
 
 common-obj-y += stream.o
 

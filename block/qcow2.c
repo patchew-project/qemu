@@ -33,7 +33,7 @@
 #include "qapi/util.h"
 #include "qapi/qmp/types.h"
 #include "qapi-event.h"
-#include "trace.h"
+#include "block/trace.h"
 #include "qemu/option_int.h"
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
