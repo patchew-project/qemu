@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/iov.h"
-#include "trace.h"
+#include "hw/display/trace.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "qapi/error.h"

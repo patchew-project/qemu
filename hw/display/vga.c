@@ -32,7 +32,7 @@
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 #include "hw/xen/xen.h"
-#include "trace.h"
+#include "hw/display/trace.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
