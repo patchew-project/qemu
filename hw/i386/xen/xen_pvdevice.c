@@ -34,6 +34,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "trace.h"
+#include "hw/i386/trace.h"
 
 #define TYPE_XEN_PV_DEVICE  "xen-pvdevice"
 
