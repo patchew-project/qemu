@@ -56,35 +56,28 @@ GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
 GENERATED_HEADERS += qmp-introspect.h
 GENERATED_SOURCES += qmp-introspect.c
 
-GENERATED_HEADERS += trace/generated-tracers.h
-ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
-GENERATED_HEADERS += trace/generated-tracers-dtrace.h
-endif
-GENERATED_SOURCES += trace/generated-tracers.c
-
 GENERATED_HEADERS += trace/generated-tcg-tracers.h
 
 GENERATED_HEADERS += trace/generated-helpers-wrappers.h
 GENERATED_HEADERS += trace/generated-helpers.h
 GENERATED_SOURCES += trace/generated-helpers.c
 
-ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
-GENERATED_HEADERS += trace/generated-ust-provider.h
-GENERATED_HEADERS += trace/generated-ust-provider-all.h
-GENERATED_SOURCES += trace/generated-ust.c
+ifdef CONFIG_TRACE_UST
+GENERATED_HEADERS += trace-ust-all.h
+GENERATED_SOURCES += trace-ust-all.c
 endif
 
 GENERATED_HEADERS += module_block.h
 
-GENERATED_HEADERS += $(trace-events-subdirs:%=%/trace.h)
-GENERATED_SOURCES += $(trace-events-subdirs:%=%/trace.c)
+GENERATED_HEADERS += trace.h $(trace-events-subdirs:%=%/trace.h)
+GENERATED_SOURCES += trace.c $(trace-events-subdirs:%=%/trace.c)
 GENERATED_DTRACE =
 ifdef CONFIG_TRACE_DTRACE
-GENERATED_HEADERS += $(trace-events-subdirs:%=%/trace-dtrace.h)
-GENERATED_DTRACE += $(trace-events-subdirs:%=%/trace-dtrace.dtrace)
+GENERATED_HEADERS += trace-dtrace.h $(trace-events-subdirs:%=%/trace-dtrace.h)
+GENERATED_DTRACE += trace-dtrace.dtrace $(trace-events-subdirs:%=%/trace-dtrace.dtrace)
 endif
 ifdef CONFIG_TRACE_UST
-GENERATED_HEADERS += $(trace-events-subdirs:%=%/trace-ust.h)
+GENERATED_HEADERS += trace-ust.h $(trace-events-subdirs:%=%/trace-ust.h)
 endif
 
 %/trace.h: $(SRC_PATH)/%/trace-events $(tracetool-y)
@@ -116,6 +109,47 @@ endif
 
 %/trace-dtrace.o: %/trace-dtrace.dtrace $(tracetool-y)
 
+
+trace.h: $(SRC_PATH)/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+trace.c: $(SRC_PATH)/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=c \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+trace-ust.h: $(SRC_PATH)/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+trace-ust-all.h: $(BUILD_DIR)/trace-events-all $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+trace-ust-all.c: $(BUILD_DIR)/trace-events-all $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-c \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+trace-dtrace.dtrace: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=d \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+trace-dtrace.h: trace-dtrace.dtrace
+	$(call quiet-command,dtrace -o $@ -h -s $<, "GEN","$@")
+
+trace-dtrace.o: trace-dtrace.dtrace
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
