@@ -29,7 +29,7 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 
-#include "trace.h"
+#include "hw/input/trace.h"
 
 /* debug PC keyboard */
 //#define DEBUG_KBD
