@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "trace.h"
+#include "util/trace.h"
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"

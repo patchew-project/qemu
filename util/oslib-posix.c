@@ -32,7 +32,7 @@
 #include <glib/gprintf.h>
 
 #include "sysemu/sysemu.h"
-#include "trace.h"
+#include "util/trace.h"
 #include "qapi/error.h"
 #include "qemu/sockets.h"
 #include <libgen.h>
