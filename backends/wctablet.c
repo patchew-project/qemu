@@ -31,17 +31,8 @@
 #include "sysemu/char.h"
 #include "ui/console.h"
 #include "ui/input.h"
+#include "trace.h"
 
-
-#define DEBUG_WCTABLET_MOUSE
-
-#ifdef DEBUG_WCTABLET_MOUSE
-#define DPRINTF(fmt, ...) \
-do { fprintf(stderr, fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-do {} while (0)
-#endif
 
 #define WC_BUSY_STATE 1
 #define WC_BUSY_WITH_CODES 3
@@ -127,7 +118,6 @@ static void wctablet_event(void *opaque, int x,
         return;
     }
 
-    DPRINTF("x= %d; y= %d; buttons=%x\n", x, y, buttons_state);
     int newX = x * 0.1537;
     int nexY = y * 0.1152;
 
@@ -192,6 +182,7 @@ static int wctablet_chr_write(struct CharDriverState *s,
 
     if (strncmp((char *)tablet->query, "~#", 2) == 0) {
         /* init / detect sequence */
+        trace_wct_init();
         wctablet_shift_input(tablet, 2);
         wctablet_queue_output(tablet, WC_MODEL_STRING,
                               WC_MODEL_STRING_LENGTH);
@@ -211,6 +202,7 @@ static int wctablet_chr_write(struct CharDriverState *s,
     /* process commands */
     if (strncmp((char *)tablet->query, "RE", 2) == 0 &&
         clen == 2) {
+        trace_wct_cmd_re();
         wctablet_shift_input(tablet, 3);
         wctablet_queue_output(tablet, WC_CONFIG_STRING,
                               WC_CONFIG_STRING_LENGTH);
@@ -227,10 +219,13 @@ static int wctablet_chr_write(struct CharDriverState *s,
             0x7f,
             0x00,
         };
+        trace_wct_cmd_ts(input);
         wctablet_shift_input(tablet, 4);
         wctablet_queue_output(tablet, codes, 7);
 
     } else {
+        tablet->query[clen] = 0; /* terminate line for printing */
+        trace_wct_cmd_other((char *)tablet->query);
         wctablet_shift_input(tablet, clen + 1);
 
     }
@@ -247,6 +242,7 @@ static int wctablet_chr_ioctl(CharDriverState *s, int cmd, void *arg)
     case CHR_IOCTL_SERIAL_SET_PARAMS:
         ssp = arg;
         if (tablet->line_speed != ssp->speed) {
+            trace_wct_speed(ssp->speed);
             wctablet_reset(tablet);
             tablet->line_speed = ssp->speed;
         }
