@@ -1,4 +1,6 @@
 qom-obj-y = object.o container.o qom-qobject.o
 qom-obj-y += object_interfaces.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
 
 common-obj-y = cpu.o
