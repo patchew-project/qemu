@@ -24,7 +24,7 @@
 #include "qapi/error.h"
 #include "qom/cpu.h"
 #include "qemu/log.h"
-#include "trace.h"
+#include "hw/intc/trace.h"
 
 //#define DEBUG_GIC
 

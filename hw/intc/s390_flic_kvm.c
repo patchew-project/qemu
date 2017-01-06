@@ -20,7 +20,7 @@
 #include "migration/qemu-file.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/adapter.h"
-#include "trace.h"
+#include "hw/intc/trace.h"
 
 #define FLIC_SAVE_INITIAL_SIZE getpagesize()
 #define FLIC_FAILED (-1UL)
