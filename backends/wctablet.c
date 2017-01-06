@@ -165,6 +165,16 @@ static int wctablet_check_command(uint8_t *arr, int count)
     return -1;
 }
 
+static void wctablet_queue_output(TabletState *tablet, uint8_t *buf, int count)
+{
+    if (tablet->outlen + count > sizeof(tablet->outbuf)) {
+        return;
+    }
+
+    memcpy(tablet->outbuf + tablet->outlen, buf, count);
+    tablet->outlen += count;
+}
+
 static void wctablet_event(void *opaque, int x,
                            int y, int dz, int buttons_state)
 {
@@ -191,10 +201,7 @@ static void wctablet_event(void *opaque, int x,
         codes[0] = 0xa0;
     }
 
-    if (tablet->outlen + 7 < WC_OUTPUT_BUF_MAX_LEN) {
-        memcpy(tablet->outbuf + tablet->outlen, codes, 7);
-        tablet->outlen += 7;
-    }
+    wctablet_queue_output(tablet, codes, 7);
 }
 
 static void wctablet_handler(void *opaque)
@@ -250,18 +257,18 @@ static int wctablet_chr_write (struct CharDriverState *s,
 
     if (comm != -1) {
         if (comm == 1 && count == 2) {
-            memcpy(tablet->outbuf + tablet->outlen, WC_MODEL_STRING, WC_MODEL_STRING_LENGTH);
-            tablet->outlen += WC_MODEL_STRING_LENGTH;
+            wctablet_queue_output(tablet, WC_MODEL_STRING,
+                                  WC_MODEL_STRING_LENGTH);
         }
 
         if (comm == 3) {
-            memcpy(tablet->outbuf + tablet->outlen, WC_CONFIG_STRING, WC_CONFIG_STRING_LENGTH);
-            tablet->outlen += WC_CONFIG_STRING_LENGTH;
+            wctablet_queue_output(tablet, WC_CONFIG_STRING,
+                                  WC_CONFIG_STRING_LENGTH);
         }
 
         if (comm == 18) {
-            memcpy(tablet->outbuf + tablet->outlen, WC_FULL_CONFIG_STRING, WC_FULL_CONFIG_STRING_LENGTH);
-            tablet->outlen += WC_FULL_CONFIG_STRING_LENGTH;
+            wctablet_queue_output(tablet, WC_FULL_CONFIG_STRING,
+                                  WC_FULL_CONFIG_STRING_LENGTH);
         }
 
         if (comm == 16) {
@@ -278,8 +285,7 @@ static int wctablet_chr_write (struct CharDriverState *s,
             codes[1] = ((input & 0x80) == 0) ? 0x7e : 0x7f;
             codes[2] = ( ( ( WC_H4(input) & 0x7 ) ^ 0x5) << 4 ) | (WC_L4(input) ^ 0x7);
 
-            memcpy(tablet->outbuf + tablet->outlen, codes, 7);
-            tablet->outlen += 7;
+            wctablet_queue_output(tablet, codes, 7);
         }
 
         // DPRINTF("-------- Command: %s\n", wctablet_commands_names[comm]);
