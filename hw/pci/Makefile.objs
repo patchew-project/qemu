@@ -7,3 +7,5 @@ common-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
 
 common-obj-$(call lnot,$(CONFIG_PCI)) += pci-stub.o
 common-obj-$(CONFIG_ALL) += pci-stub.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
