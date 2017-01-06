@@ -42,3 +42,6 @@ common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
 ifeq ($(CONFIG_USB_LIBUSB),y)
 common-obj-$(CONFIG_XEN_BACKEND) += xen-usb.o
 endif
+
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
