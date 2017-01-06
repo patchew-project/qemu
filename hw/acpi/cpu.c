@@ -3,7 +3,7 @@
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
 #include "qapi-event.h"
-#include "trace.h"
+#include "hw/acpi/trace.h"
 #include "sysemu/numa.h"
 
 #define ACPI_CPU_HOTPLUG_REG_LEN 12

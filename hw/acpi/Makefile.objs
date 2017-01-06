@@ -8,3 +8,5 @@ common-obj-$(CONFIG_ACPI) += acpi_interface.o
 common-obj-$(CONFIG_ACPI) += bios-linker-loader.o
 common-obj-$(CONFIG_ACPI) += aml-build.o
 common-obj-$(call land,$(CONFIG_ACPI),$(CONFIG_IPMI)) += ipmi.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
