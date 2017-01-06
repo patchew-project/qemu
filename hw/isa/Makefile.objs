@@ -6,3 +6,5 @@ common-obj-$(CONFIG_PIIX4) += piix4.o
 common-obj-$(CONFIG_VT82C686) += vt82c686.o
 
 obj-$(CONFIG_LPC_ICH9) += lpc_ich9.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o

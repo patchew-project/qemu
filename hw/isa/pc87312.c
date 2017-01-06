@@ -31,7 +31,7 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
-#include "trace.h"
+#include "hw/isa/trace.h"
 
 
 #define REG_FER 0
