@@ -22,7 +22,7 @@
 #include "qapi/error.h"
 #include "io/channel-socket.h"
 #include "io/channel-watch.h"
-#include "trace.h"
+#include "io/trace.h"
 #include "qapi/clone-visitor.h"
 
 #define SOCKET_MAX_FDS 16
