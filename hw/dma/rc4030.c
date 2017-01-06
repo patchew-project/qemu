@@ -29,7 +29,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
-#include "trace.h"
+#include "hw/dma/trace.h"
 
 /********************************************************/
 /* rc4030 emulation                                     */
