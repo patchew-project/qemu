@@ -19,7 +19,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/visitor-impl.h"
-#include "trace.h"
+#include "qapi/trace.h"
 
 void visit_complete(Visitor *v, void *opaque)
 {
