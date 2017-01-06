@@ -45,6 +45,10 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE)
+#include <linux/falloc.h>
+#endif
+
 #ifdef DEBUG_MIGRATION_RAM
 #define DPRINTF(fmt, ...) \
     do { fprintf(stdout, "migration_ram: " fmt, ## __VA_ARGS__); } while (0)
@@ -1866,7 +1870,7 @@ int ram_discard_range(MigrationIncomingState *mis,
 
     uint8_t *host_startaddr = rb->host + start;
 
-    if ((uintptr_t)host_startaddr & (qemu_host_page_size - 1)) {
+    if ((uintptr_t)host_startaddr & (rb->page_size - 1)) {
         error_report("ram_discard_range: Unaligned start address: %p",
                      host_startaddr);
         goto err;
@@ -1874,15 +1878,27 @@ int ram_discard_range(MigrationIncomingState *mis,
 
     if ((start + length) <= rb->used_length) {
         uint8_t *host_endaddr = host_startaddr + length;
-        if ((uintptr_t)host_endaddr & (qemu_host_page_size - 1)) {
+        if ((uintptr_t)host_endaddr & (rb->page_size - 1)) {
             error_report("ram_discard_range: Unaligned end address: %p",
                          host_endaddr);
             goto err;
         }
-        errno = ENOTSUP;
+        errno = ENOTSUP; /* If we are missing MADVISE etc */
+
+        if (rb->page_size == qemu_host_page_size) {
 #if defined(CONFIG_MADVISE)
-        ret = qemu_madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
+            ret = qemu_madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
 #endif
+        } else {
+            /* Huge page case  - unfortunately it can't do DONTNEED, but
+             * it can do the equivalent by FALLOC_FL_PUNCH_HOLE in the
+             * huge page file.
+             */
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+            ret = fallocate(rb->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                            start, length);
+#endif
+        }
         if (ret) {
             error_report("ram_discard_range: Failed to discard  range "
                          "%s:%" PRIx64 " +%zx (%d)",
