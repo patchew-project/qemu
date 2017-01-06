@@ -1853,6 +1853,8 @@ int ram_discard_range(MigrationIncomingState *mis,
 {
     int ret = -1;
 
+    trace_ram_discard_range(block_name, start, length);
+
     rcu_read_lock();
     RAMBlock *rb = qemu_ram_block_by_name(block_name);
 
@@ -1877,7 +1879,15 @@ int ram_discard_range(MigrationIncomingState *mis,
                          host_endaddr);
             goto err;
         }
-        ret = postcopy_ram_discard_range(mis, host_startaddr, length);
+        errno = ENOTSUP;
+#if defined(CONFIG_MADVISE)
+        ret = qemu_madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
+#endif
+        if (ret) {
+            error_report("ram_discard_range: Failed to discard  range "
+                         "%s:%" PRIx64 " +%zx (%d)",
+                         block_name, start, length, errno);
+        }
     } else {
         error_report("ram_discard_range: Overrun block '%s' (%" PRIu64
                      "/%zx/" RAM_ADDR_FMT")",
