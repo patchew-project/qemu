@@ -22,7 +22,7 @@
 #include "fsdev/qemu-fsdev.h"
 #include "9p-xattr.h"
 #include "coth.h"
-#include "trace.h"
+#include "hw/9pfs/trace.h"
 #include "migration/migration.h"
 
 int open_fd_hw;
