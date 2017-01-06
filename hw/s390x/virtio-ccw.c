@@ -32,7 +32,7 @@
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/css.h"
 #include "virtio-ccw.h"
-#include "trace.h"
+#include "hw/s390x/trace.h"
 #include "hw/s390x/css-bridge.h"
 
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
