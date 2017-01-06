@@ -31,7 +31,7 @@
 #include "block/scsi.h"
 #include "hw/pci/msi.h"
 #include "vmw_pvscsi.h"
-#include "trace.h"
+#include "hw/scsi/trace.h"
 
 
 #define PVSCSI_USE_64BIT         (true)
