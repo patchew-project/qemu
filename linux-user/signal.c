@@ -24,7 +24,7 @@
 #include "qemu.h"
 #include "qemu-common.h"
 #include "target_signal.h"
-#include "trace.h"
+#include "linux-user/trace.h"
 
 static struct target_sigaltstack target_sigaltstack_used = {
     .ss_sp = 0,

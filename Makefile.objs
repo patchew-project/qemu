@@ -161,7 +161,7 @@ trace-events-subdirs += target/sparc
 trace-events-subdirs += target/s390x
 trace-events-subdirs += target/ppc
 trace-events-subdirs += qom
-trace-events-y += linux-user/trace-events
+trace-events-subdirs += linux-user
 trace-events-y += qapi/trace-events
 
 trace-events-files = $(trace-events-y) $(trace-events-subdirs:%=%/trace-events)
