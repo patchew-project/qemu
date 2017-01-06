@@ -25,7 +25,7 @@
 #include "exec/address-spaces.h"
 #include "qapi/visitor.h"
 #include "qapi-event.h"
-#include "trace.h"
+#include "hw/virtio/trace.h"
 
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
