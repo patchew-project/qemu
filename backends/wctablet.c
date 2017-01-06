@@ -245,14 +245,17 @@ static int wctablet_chr_write(struct CharDriverState *s,
         return len;
     }
 
+    if (strncmp((char *)tablet->query, "~#", 2) == 0) {
+        /* init / detect sequence */
+        wctablet_shift_input(tablet, 2);
+        wctablet_queue_output(tablet, WC_MODEL_STRING,
+                              WC_MODEL_STRING_LENGTH);
+        return len;
+    }
+
     int comm = wctablet_check_command(tablet->query, tablet->query_index);
 
     if (comm != -1) {
-        if (comm == 1) {
-            wctablet_queue_output(tablet, WC_MODEL_STRING,
-                                  WC_MODEL_STRING_LENGTH);
-        }
-
         if (comm == 3) {
             wctablet_queue_output(tablet, WC_CONFIG_STRING,
                                   WC_CONFIG_STRING_LENGTH);
