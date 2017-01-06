@@ -113,6 +113,7 @@ typedef struct {
     uint8_t outbuf[WC_OUTPUT_BUF_MAX_LEN];
     int outlen;
     /* Command to be sent to serial port */
+    int line_speed;
 } TabletState;
 
 static int wctablet_memcmp(uint8_t *a1, uint8_t *a2, int count)
@@ -150,6 +151,13 @@ static void wctablet_queue_output(TabletState *tablet, uint8_t *buf, int count)
 
     memcpy(tablet->outbuf + tablet->outlen, buf, count);
     tablet->outlen += count;
+}
+
+static void wctablet_reset(TabletState *tablet)
+{
+    /* clear buffers */
+    tablet->query_index = 0;
+    tablet->outlen = 0;
 }
 
 static void wctablet_event(void *opaque, int x,
@@ -277,6 +285,25 @@ static int wctablet_chr_write(struct CharDriverState *s,
     return len;
 }
 
+static int wctablet_chr_ioctl(CharDriverState *s, int cmd, void *arg)
+{
+    TabletState *tablet = (TabletState *) s->opaque;
+    QEMUSerialSetParams *ssp;
+
+    switch (cmd) {
+    case CHR_IOCTL_SERIAL_SET_PARAMS:
+        ssp = arg;
+        if (tablet->line_speed != ssp->speed) {
+            wctablet_reset(tablet);
+            tablet->line_speed = ssp->speed;
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
 static void wctablet_chr_free(struct CharDriverState *chr)
 {
     g_free (chr->opaque);
@@ -299,6 +326,7 @@ static CharDriverState *qemu_chr_open_wctablet(const char *id,
         return NULL;
     }
     chr->chr_write = wctablet_chr_write;
+    chr->chr_ioctl = wctablet_chr_ioctl;
     chr->chr_free = wctablet_chr_free;
     *be_opened = true;
 
