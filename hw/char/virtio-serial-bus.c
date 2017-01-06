@@ -25,7 +25,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "hw/sysbus.h"
-#include "trace.h"
+#include "hw/char/trace.h"
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-access.h"
 

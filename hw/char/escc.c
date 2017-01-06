@@ -29,7 +29,7 @@
 #include "sysemu/char.h"
 #include "ui/console.h"
 #include "ui/input.h"
-#include "trace.h"
+#include "hw/char/trace.h"
 
 /*
  * Chipset docs:
