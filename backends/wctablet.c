@@ -1,7 +1,11 @@
 /*
- * QEMU Wacome serial tablet emulation
+ * QEMU Wacom Penpartner serial tablet emulation
  *
- * Copyright (c) 2008 Lubomir Rintel
+ * some protocol details:
+ *   http://linuxwacom.sourceforge.net/wiki/index.php/Serial_Protocol_IV
+ *
+ * Copyright (c) 2016 Anatoli Huseu1
+ * Copyright (c) 2016 Gerd Hoffmann
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
