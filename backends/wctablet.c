@@ -204,12 +204,6 @@ static void wctablet_handler(void *opaque)
     }
 
     if (len) {
-        // DPRINTF("-------- Write %2d: ", canWrite);
-        // for (i = 0; i < len; i++) {
-        //     DPRINTF(" %02x", tablet->outbuf[i]);
-        // }
-        // DPRINTF("\n");
-
         qemu_chr_be_write(chr, tablet->outbuf, len);
         tablet->outlen -= len;
         if (tablet->outlen) {
