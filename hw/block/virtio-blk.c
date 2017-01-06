@@ -16,7 +16,7 @@
 #include "qemu-common.h"
 #include "qemu/iov.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "hw/block/trace.h"
 #include "hw/block/block.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
