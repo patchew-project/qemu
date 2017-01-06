@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "trace.h"
+#include "target/sparc/trace.h"
 
 static inline void memcpy32(target_ulong *dst, const target_ulong *src)
 {

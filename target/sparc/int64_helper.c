@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/log.h"
-#include "trace.h"
+#include "target/sparc/trace.h"
 
 #define DEBUG_PCALL
 

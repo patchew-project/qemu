@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "trace.h"
+#include "target/sparc/trace.h"
 #include "sysemu/sysemu.h"
 #include "exec/log.h"
 
