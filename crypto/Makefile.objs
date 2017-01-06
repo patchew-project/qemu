@@ -30,6 +30,8 @@ crypto-obj-y += xts.o
 crypto-obj-y += block.o
 crypto-obj-y += block-qcow.o
 crypto-obj-y += block-luks.o
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
