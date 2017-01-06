@@ -60,9 +60,9 @@ do {} while (0)
 
 // Avaliable commands
 uint8_t wctablet_commands[WC_COMMANDS_COUNT][7] = {
-    {0x0a, 0x53, 0x50, 0x0a, 0},                // \nSP\n
+    {0x53, 0x50, 0x0a, 0},                      // SP\n
     {0x7e, 0x23, 0},                            // ~#
-    {0x0a, 0x54, 0x45, 0x0a, 0},                // \nTE\n
+    {0x54, 0x45, 0x0a, 0},                      // TE\n
     {0x52, 0x45, 0x0a, 0},                      // RE\n
     {0x41, 0x53, 0x31, 0x0a, 0},                // AS1\n
     {0x49, 0x43, 0x31, 0x0a, 0},                // IC1\n
@@ -70,14 +70,14 @@ uint8_t wctablet_commands[WC_COMMANDS_COUNT][7] = {
     {0x49, 0x54, 0x88, 0x88, 0},                // IT3\r
     {0x53, 0x55, 0x88, 0x88, 0},                // SU3\n
     {0x50, 0x48, 0x31, 0x0a, 0},                // PH1\n
-    {0x0d, 0x53, 0x54, 0x0d, 0},                // \rST\n
-    {0x0d, 0x53, 0x50, 0x0d, 0},                // \rSP\r
+    {0x53, 0x54, 0x0d, 0},                      // ST\n
+    {0x53, 0x50, 0x0d, 0},                      // SP\r
     {0x54, 0x45, 0x0d, 0},                      // TE\r
     {0x53, 0x50, 0x88, 0},                      // SP\n
     {0x23, 0x41, 0x4c, 0x31, 0x0d, 0},          // #AL1\r
     {0x53, 0x54, 0x88, 0},                      // ST\n
-    {0x0d, 0x54, 0x53, 0x88, 0xd, 0},           // \rTS&\r
-    {0x0d, 0x0a, 0x53, 0x50, 0x0d, 0x0a, 0},    // \r\nSP\r\n
+    {0x54, 0x53, 0x88, 0xd, 0},                 // TS&\r
+    {0x53, 0x50, 0x0d, 0x0a, 0},                // SP\r\n
     {0x7e, 0x23, 0x0d, 0}                       // ~#\r
 };
 
@@ -222,7 +222,9 @@ static int wctablet_chr_write(struct CharDriverState *s,
     }
     tablet->query[tablet->query_index] = 0;
 
-    while (tablet->query_index > 0 && tablet->query[0] == '@') {
+    while (tablet->query_index > 0 && (tablet->query[0] == '@'  ||
+                                       tablet->query[0] == '\r' ||
+                                       tablet->query[0] == '\n')) {
         memmove(tablet->query, tablet->query + 1, tablet->query_index);
         tablet->query_index--;
     }
@@ -253,7 +255,7 @@ static int wctablet_chr_write(struct CharDriverState *s,
         }
 
         if (comm == 16) {
-            input = tablet->query[3];
+            input = tablet->query[2];
             uint8_t codes[7] = {
                 0xa3,
                 0x88,
