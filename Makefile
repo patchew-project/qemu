@@ -70,10 +70,52 @@ GENERATED_SOURCES += trace/generated-helpers.c
 
 ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 GENERATED_HEADERS += trace/generated-ust-provider.h
+GENERATED_HEADERS += trace/generated-ust-provider-all.h
 GENERATED_SOURCES += trace/generated-ust.c
 endif
 
 GENERATED_HEADERS += module_block.h
+
+GENERATED_HEADERS += $(trace-events-subdirs:%=%/trace.h)
+GENERATED_SOURCES += $(trace-events-subdirs:%=%/trace.c)
+GENERATED_DTRACE =
+ifdef CONFIG_TRACE_DTRACE
+GENERATED_HEADERS += $(trace-events-subdirs:%=%/trace-dtrace.h)
+GENERATED_DTRACE += $(trace-events-subdirs:%=%/trace-dtrace.dtrace)
+endif
+ifdef CONFIG_TRACE_UST
+GENERATED_HEADERS += $(trace-events-subdirs:%=%/trace-ust.h)
+endif
+
+%/trace.h: $(SRC_PATH)/%/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+%/trace.c: $(SRC_PATH)/%/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=c \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+%/trace-ust.h: $(SRC_PATH)/%/trace-events $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+%/trace-dtrace.dtrace: $(SRC_PATH)/%/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=d \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$@")
+
+%/trace-dtrace.h: %/trace-dtrace.dtrace $(tracetool-y)
+	$(call quiet-command,dtrace -o $@ -h -s $<, "GEN","$@")
+
+%/trace-dtrace.o: %/trace-dtrace.dtrace $(tracetool-y)
+
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
@@ -157,7 +199,8 @@ dummy := $(call unnest-vars,, \
                 qom-obj-y \
                 io-obj-y \
                 common-obj-y \
-                common-obj-m)
+                common-obj-m \
+                trace-obj-y)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile.include
@@ -244,15 +287,17 @@ libqemuutil.a: $(util-obj-y)
 
 ######################################################################
 
+COMMON_LDADDS = $(trace-obj-y) libqemuutil.a libqemustub.a
+
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
-qemu-io$(EXESUF): qemu-io.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
+qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
+qemu-io$(EXESUF): qemu-io.o $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
 
-qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o libqemuutil.a libqemustub.a
+qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o $(COMMON_LDADDS)
 
-fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/9p-marshal.o fsdev/9p-iov-marshal.o libqemuutil.a libqemustub.a
+fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/9p-marshal.o fsdev/9p-iov-marshal.o $(COMMON_LDADDS)
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
@@ -316,7 +361,7 @@ $(qapi-modules) $(SRC_PATH)/scripts/qapi-introspect.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
 
 ifdef QEMU_GA_MSI_ENABLED
@@ -341,9 +386,9 @@ ifneq ($(EXESUF),)
 qemu-ga: qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
 endif
 
-ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) libqemuutil.a libqemustub.a
+ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
-ivshmem-server$(EXESUF): $(ivshmem-server-obj-y) libqemuutil.a libqemustub.a
+ivshmem-server$(EXESUF): $(ivshmem-server-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
 
 module_block.h: $(SRC_PATH)/scripts/modules/module_block.py config-host.mak
@@ -656,6 +701,8 @@ endif # CONFIG_WIN
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 Makefile: $(GENERATED_HEADERS)
 endif
+
+.SECONDARY: $(GENERATED_HEADERS) $(GENERATED_SOURCES) $(GENERATED_DTRACE)
 
 # Include automatically generated dependency files
 # Dependencies in Makefile.objs files come from our recursive subdir rules

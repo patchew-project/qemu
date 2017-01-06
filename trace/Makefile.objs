@@ -8,8 +8,11 @@
 tracetool-y = $(SRC_PATH)/scripts/tracetool.py
 tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
-$(BUILD_DIR)/trace-events-all: $(trace-events-y:%=$(SRC_PATH)/%)
+$(BUILD_DIR)/trace-events-all: $(trace-events-files:%=$(SRC_PATH)/%)
 	$(call quiet-command,cat $^ > $@)
+
+$(BUILD_DIR)/trace-events-common: $(trace-events-y:%=$(SRC_PATH)/%) Makefile.objs
+	$(call quiet-command,cat $(trace-events-y:%=$(SRC_PATH)/%) > $@)
 
 ######################################################################
 # Auto-generated event descriptions for LTTng ust code
@@ -18,7 +21,15 @@ ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 
 $(obj)/generated-ust-provider.h: $(obj)/generated-ust-provider.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-$(obj)/generated-ust-provider.h-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
+$(obj)/generated-ust-provider.h-timestamp: $(BUILD_DIR)/trace-events-common $(tracetool-y)
+	$(call quiet-command,$(TRACETOOL) \
+		--format=ust-events-h \
+		--backends=$(TRACE_BACKENDS) \
+		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
+
+$(obj)/generated-ust-provider-all.h: $(obj)/generated-ust-provider-all.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-ust-provider-all.h-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-h \
 		--backends=$(TRACE_BACKENDS) \
@@ -32,7 +43,7 @@ $(obj)/generated-ust.c-timestamp: $(BUILD_DIR)/trace-events-all $(tracetool-y)
 		--backends=$(TRACE_BACKENDS) \
 		$< > $@,"GEN","$(patsubst %-timestamp,%,$@)")
 
-$(obj)/generated-tracers.h: $(obj)/generated-ust-provider.h
+$(obj)/generated-tracers.h: $(obj)/generated-ust-provider.h $(obj)/generated-ust-provider-all.h
 $(obj)/generated-tracers.c: $(obj)/generated-ust.c
 
 endif
@@ -46,7 +57,7 @@ endif
 
 $(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp
 	@cmp -s $< $@ || cp $< $@
-$(obj)/generated-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-tracers.h-timestamp: $(BUILD_DIR)/trace-events-common $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=h \
 		--backends=$(TRACE_BACKENDS) \
@@ -57,7 +68,7 @@ $(obj)/generated-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)
 
 $(obj)/generated-tracers.c: $(obj)/generated-tracers.c-timestamp
 	@cmp -s $< $@ || cp $< $@
-$(obj)/generated-tracers.c-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-tracers.c-timestamp: $(BUILD_DIR)/trace-events-common $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=c \
 		--backends=$(TRACE_BACKENDS) \
@@ -75,7 +86,7 @@ ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
 
 $(obj)/generated-tracers-dtrace.dtrace: $(obj)/generated-tracers-dtrace.dtrace-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-$(obj)/generated-tracers-dtrace.dtrace-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-tracers-dtrace.dtrace-timestamp: $(BUILD_DIR)/trace-events-common $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=d \
 		--backends=$(TRACE_BACKENDS) \

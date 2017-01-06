@@ -118,6 +118,7 @@ ivshmem-server-obj-y = contrib/ivshmem-server/
 
 
 ######################################################################
+trace-events-subdirs =
 trace-events-y = trace-events
 trace-events-y += util/trace-events
 trace-events-y += crypto/trace-events
@@ -162,3 +163,7 @@ trace-events-y += target/ppc/trace-events
 trace-events-y += qom/trace-events
 trace-events-y += linux-user/trace-events
 trace-events-y += qapi/trace-events
+
+trace-events-files = $(trace-events-y) $(trace-events-subdirs:%=%/trace-events)
+
+trace-obj-y = $(trace-events-subdirs:%=%/)

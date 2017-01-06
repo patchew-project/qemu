@@ -111,3 +111,9 @@ tags
 TAGS
 docker-src.*
 *~
+trace.h
+trace.c
+trace-events-common
+trace-ust.h
+trace-dtrace.h
+trace-dtrace.dtrace
