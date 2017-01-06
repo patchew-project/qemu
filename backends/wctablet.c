@@ -97,9 +97,7 @@ uint8_t WC_FULL_CONFIG_STRING[61] = {
     0x0a, 0x45, 0x37, 0x29
 };
 size_t WC_FULL_CONFIG_STRING_LENGTH = 61;
-int count = 0;
 int COMMON_SPEAD = 900 * 1000;
-
 
 // This structure is used to save private info for Wacom Tablet.
 typedef struct {
@@ -170,6 +168,10 @@ static void wctablet_event(void *opaque, int x,
     // uint8_t codes[8] = { 0xe0, 0x05, 0x6a, 0x00, 0x06, 0x64, 0x40 };
     // uint8_t codes[8] = { 0xa0, 0x1c, 0x29, 0x00, 0x19, 0x1c, 0x00 };
 
+    if (tablet->line_speed != 9600) {
+        return;
+    }
+
     DPRINTF("x= %d; y= %d; buttons=%x\n", x, y, buttons_state);
     int newX = x * 0.1537;
     int nexY = y * 0.1152;
@@ -225,6 +227,9 @@ static int wctablet_chr_write(struct CharDriverState *s,
     TabletState *tablet = (TabletState *) s->opaque;
     uint8_t i, input;
 
+    if (tablet->line_speed != 9600) {
+        return len;
+    }
     for (i = 0; i < len && tablet->query_index < sizeof(tablet->query) - 1; i++) {
         tablet->query[tablet->query_index++] = buf[i];
     }
@@ -242,12 +247,8 @@ static int wctablet_chr_write(struct CharDriverState *s,
 
     int comm = wctablet_check_command(tablet->query, tablet->query_index);
 
-    if (comm == 1) {
-        count++;
-    }
-
     if (comm != -1) {
-        if (comm == 1 && count == 2) {
+        if (comm == 1) {
             wctablet_queue_output(tablet, WC_MODEL_STRING,
                                   WC_MODEL_STRING_LENGTH);
         }
