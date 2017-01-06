@@ -10,7 +10,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 
-#include "trace.h"
+#include "ui/trace.h"
 
 #include "ui/console.h"
 #include "ui/gtk.h"

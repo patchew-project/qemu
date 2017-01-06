@@ -22,7 +22,7 @@
 #include "qemu/queue.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
-#include "trace.h"
+#include "ui/trace.h"
 
 #include "ui/spice-display.h"
 

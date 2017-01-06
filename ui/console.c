@@ -28,7 +28,7 @@
 #include "qemu/timer.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"
-#include "trace.h"
+#include "ui/trace.h"
 #include "exec/memory.h"
 
 #define DEFAULT_BACKSCROLL 512
