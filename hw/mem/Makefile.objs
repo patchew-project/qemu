@@ -1,2 +1,5 @@
 common-obj-$(CONFIG_MEM_HOTPLUG) += pc-dimm.o
 common-obj-$(CONFIG_NVDIMM) += nvdimm.o
+
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
