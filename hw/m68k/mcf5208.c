@@ -18,6 +18,7 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
+#include "hw/sysbus.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
 
@@ -190,6 +191,25 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
                                     &s->iomem);
         s->irq = pic[4 + i];
     }
+}
+
+static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
+                         qemu_irq *irqs)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    int i;
+
+    dev = qdev_create(NULL, "mcf-fec");
+    qdev_set_nic_properties(dev, nd);
+    qdev_init_nofail(dev);
+
+    s = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < 13; i++) {
+        sysbus_connect_irq(s, i, irqs[i]);
+    }
+
+    memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
 }
 
 static void mcf5208evb_init(MachineState *machine)
