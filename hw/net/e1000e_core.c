@@ -46,7 +46,7 @@
 #include "e1000x_common.h"
 #include "e1000e_core.h"
 
-#include "trace.h"
+#include "hw/net/trace.h"
 
 #define E1000E_MIN_XITR     (500) /* No more then 7813 interrupts per
                                      second according to spec 10.2.4.2 */

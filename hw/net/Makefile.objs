@@ -43,3 +43,6 @@ common-obj-$(CONFIG_ROCKER) += rocker/rocker.o rocker/rocker_fp.o \
                                rocker/rocker_desc.o rocker/rocker_world.o \
                                rocker/rocker_of_dpa.o
 obj-$(call lnot,$(CONFIG_ROCKER)) += rocker/qmp-norocker.o
+
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
