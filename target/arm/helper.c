@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "trace.h"
+#include "target/arm/trace.h"
 #include "cpu.h"
 #include "internals.h"
 #include "exec/gdbstub.h"
