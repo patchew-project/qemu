@@ -44,7 +44,7 @@
 #include "hw/pci/msi.h"
 #include "migration/migration.h"
 #include "exec/memattrs.h"
-#include "trace.h"
+#include "target/i386/trace.h"
 
 //#define DEBUG_KVM
 
