@@ -16,7 +16,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
-#include "trace.h"
+#include "net/trace.h"
 
 typedef struct VhostUserState {
     NetClientState nc;
