@@ -76,10 +76,7 @@ int COMMON_SPEAD = 900 * 1000;
 
 // This structure is used to save private info for Wacom Tablet.
 typedef struct {
-    struct QEMUTimer *transmit_timer;
-    /* QEMU timer */
-    uint64_t transmit_time;
-    /* time to transmit a char in ticks */
+    CharDriverState *chr;
     uint8_t query[100];
     int query_index;
     /* Query string from serial */
@@ -88,6 +85,8 @@ typedef struct {
     /* Command to be sent to serial port */
     int line_speed;
 } TabletState;
+
+static void wctablet_chr_accept_input(CharDriverState *chr);
 
 static void wctablet_shift_input(TabletState *tablet, int count)
 {
@@ -104,6 +103,7 @@ static void wctablet_queue_output(TabletState *tablet, uint8_t *buf, int count)
 
     memcpy(tablet->outbuf + tablet->outlen, buf, count);
     tablet->outlen += count;
+    wctablet_chr_accept_input(tablet->chr);
 }
 
 static void wctablet_reset(TabletState *tablet)
@@ -146,9 +146,8 @@ static void wctablet_event(void *opaque, int x,
     wctablet_queue_output(tablet, codes, 7);
 }
 
-static void wctablet_handler(void *opaque)
+static void wctablet_chr_accept_input(CharDriverState *chr)
 {
-    CharDriverState *chr = (CharDriverState *) opaque;
     TabletState *tablet = (TabletState *) chr->opaque;
     int len, canWrite; // , i;
 
@@ -165,9 +164,6 @@ static void wctablet_handler(void *opaque)
             memmove(tablet->outbuf, tablet->outbuf + len, tablet->outlen);
         }
     }
-
-    timer_mod(tablet->transmit_timer,
-              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + tablet->transmit_time);
 }
 
 static int wctablet_chr_write(struct CharDriverState *s,
@@ -285,17 +281,8 @@ static CharDriverState *qemu_chr_open_wctablet(const char *id,
     chr->chr_write = wctablet_chr_write;
     chr->chr_ioctl = wctablet_chr_ioctl;
     chr->chr_free = wctablet_chr_free;
+    chr->chr_accept_input = wctablet_chr_accept_input;
     *be_opened = true;
-
-    /* create a new QEMU's timer with wctablet_handler() as timeout handler. */
-    tablet->transmit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                       (QEMUTimerCB *) wctablet_handler, chr);
-
-    tablet->transmit_time = COMMON_SPEAD;
-
-    timer_mod(tablet->transmit_timer,
-              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + tablet->transmit_time);
-
 
     /* init state machine */
     memcpy(tablet->outbuf, WC_FULL_CONFIG_STRING, WC_FULL_CONFIG_STRING_LENGTH);
@@ -303,6 +290,7 @@ static CharDriverState *qemu_chr_open_wctablet(const char *id,
     tablet->query_index = 0;
 
     chr->opaque = tablet;
+    tablet->chr = chr;
 
     qemu_add_mouse_event_handler(wctablet_event, chr, 1,
                                  "QEMU Wacome Pen Tablet");
