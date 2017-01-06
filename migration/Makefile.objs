@@ -12,3 +12,5 @@ common-obj-$(CONFIG_RDMA) += rdma.o
 
 common-obj-y += block.o
 
+trace-obj-y += trace.o
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o

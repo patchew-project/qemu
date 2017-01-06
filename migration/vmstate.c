@@ -5,7 +5,7 @@
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "migration/trace.h"
 
 static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
                                     void *opaque, QJSON *vmdesc);

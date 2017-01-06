@@ -22,7 +22,7 @@
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "io/channel-socket.h"
-#include "trace.h"
+#include "migration/trace.h"
 
 
 static SocketAddress *tcp_build_address(const char *host_port, Error **errp)
