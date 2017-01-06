@@ -81,6 +81,7 @@ typedef struct {
     int outlen;
 
     int line_speed;
+    bool send_events;
     int axis[INPUT_AXIS__MAX];
     bool btns[INPUT_BUTTON__MAX];
 
@@ -111,6 +112,8 @@ static void wctablet_reset(TabletState *tablet)
     /* clear buffers */
     tablet->query_index = 0;
     tablet->outlen = 0;
+    /* reset state */
+    tablet->send_events = false;
 }
 
 static void wctablet_queue_event(TabletState *tablet)
@@ -167,7 +170,9 @@ static void wctablet_input_sync(DeviceState *dev)
 {
     TabletState *tablet = (TabletState *)dev;
 
-    wctablet_queue_event(tablet);
+    if (tablet->send_events) {
+        wctablet_queue_event(tablet);
+    }
 }
 
 static QemuInputHandler wctablet_handler = {
@@ -247,6 +252,19 @@ static int wctablet_chr_write(struct CharDriverState *s,
         wctablet_shift_input(tablet, 3);
         wctablet_queue_output(tablet, WC_CONFIG_STRING,
                               WC_CONFIG_STRING_LENGTH);
+
+    } else if (strncmp((char *)tablet->query, "ST", 2) == 0 &&
+               clen == 2) {
+        trace_wct_cmd_st();
+        wctablet_shift_input(tablet, 3);
+        tablet->send_events = true;
+        wctablet_queue_event(tablet);
+
+    } else if (strncmp((char *)tablet->query, "SP", 2) == 0 &&
+               clen == 2) {
+        trace_wct_cmd_sp();
+        wctablet_shift_input(tablet, 3);
+        tablet->send_events = false;
 
     } else if (strncmp((char *)tablet->query, "TS", 2) == 0 &&
                clen == 3) {
