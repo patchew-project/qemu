@@ -169,7 +169,7 @@
 
 
 
-static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
+static void x86_cpu_vendor_words2str(char dst[static (CPUID_VENDOR_SZ + 1)], uint32_t vendor1,
                                      uint32_t vendor2, uint32_t vendor3)
 {
     int i;
