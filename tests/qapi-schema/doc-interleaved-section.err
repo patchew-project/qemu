@@ -1,0 +1,1 @@
+tests/qapi-schema/doc-interleaved-section.json:15:1: 'foobar' parameter documentation is interleaved with other sections
