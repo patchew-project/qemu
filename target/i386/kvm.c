@@ -968,7 +968,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
         error_setg(&invtsc_mig_blocker,
                    "State blocked by non-migratable CPU device"
                    " (invtsc flag)");
-        migrate_add_blocker(invtsc_mig_blocker);
+        r = migrate_add_blocker(invtsc_mig_blocker, NULL);
+        if (r < 0) {
+            error_report("kvm: migrate_add_blocker failed");
+            goto efail;
+        }
         /* for savevm */
         vmstate_x86_cpu.unmigratable = 1;
     }
@@ -976,12 +980,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpuid_data.cpuid.padding = 0;
     r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
     if (r) {
-        return r;
+        goto fail;
     }
 
     r = kvm_arch_set_tsc_khz(cs);
     if (r < 0) {
-        return r;
+        goto fail;
     }
 
     /* vcpu's TSC frequency is either specified by user, or following
@@ -1008,6 +1012,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     return 0;
+
+ fail:
+    migrate_del_blocker(invtsc_mig_blocker);
+ efail:
+    error_free(invtsc_mig_blocker);
+    return r;
 }
 
 void kvm_arch_reset_vcpu(X86CPU *cpu)
