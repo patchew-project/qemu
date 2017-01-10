@@ -243,6 +243,7 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RVERSION ? "RVERSION" :
         id == P9_RATTACH ? "RATTACH" :
         id == P9_RWALK ? "RWALK" :
+        id == P9_RLOPEN ? "RLOPEN" :
         "<unknown>";
 }
 
@@ -395,6 +396,33 @@ static void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
     v9fs_req_free(req);
 }
 
+/* size[4] Tlopen tag[2] fid[4] flags[4] */
+static P9Req *v9fs_tlopen(QVirtIO9P *v9p, uint32_t fid, uint32_t flags)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p,  4 + 4, P9_TLOPEN, ++(v9p->p9_req_tag));
+    v9fs_uint32_write(req, fid);
+    v9fs_uint32_write(req, flags);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rlopen tag[2] qid[13] iounit[4] */
+static void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
+{
+    v9fs_req_recv(req, P9_RLOPEN);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    if (iounit) {
+        v9fs_uint32_read(req, iounit);
+    }
+    v9fs_req_free(req);
+}
+
 static void fs_version(QVirtIO9P *v9p)
 {
     const char *version = "9P2000.L";
@@ -483,6 +511,32 @@ static void fs_walk_dotdot(QVirtIO9P *v9p)
     g_free(wnames[0]);
 }
 
+static void fs_lopen(QVirtIO9P *v9p)
+{
+    char *const wnames[] = { g_strdup(__func__) };
+    char *path = g_strdup_printf("%s/%s", v9p->test_share, wnames[0]);
+    uint32_t iounit;
+    int fd;
+    P9Req *req;
+
+    fd = creat(path, 0600);
+    g_assert(fd >= 0);
+    close(fd);
+
+    fs_attach(v9p);
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames);
+    v9fs_rwalk(req, NULL, NULL);
+
+    req = v9fs_tlopen(v9p, 1, O_RDONLY);
+    v9fs_rlopen(req, NULL, &iounit);
+
+    g_assert_cmpint(iounit, <=, P9_MAX_SIZE - P9_IOHDRSZ);
+
+    unlink(path);
+    g_free(path);
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -512,6 +566,7 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/no_slash", fs_walk_no_slash);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/dotdot_from_root",
                        fs_walk_dotdot);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/basic", fs_lopen);
 
     return g_test_run();
 }
