@@ -1545,7 +1545,7 @@ static void coroutine_fn v9fs_lcreate(void *opaque)
 
     flags = get_dotl_openflags(pdu->s, flags);
     err = v9fs_co_open2(pdu, fidp, &name, gid,
-                        flags | O_CREAT, mode, &stbuf);
+                        flags | O_CREAT | O_EXCL, mode, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -2252,7 +2252,8 @@ static void coroutine_fn v9fs_create(void *opaque)
         v9fs_path_copy(&fidp->path, &path);
     } else {
         err = v9fs_co_open2(pdu, fidp, &name, -1,
-                            omode_to_uflags(mode)|O_CREAT, perm, &stbuf);
+                            omode_to_uflags(mode) | O_CREAT | O_EXCL, perm,
+                            &stbuf);
         if (err < 0) {
             goto out;
         }
