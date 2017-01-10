@@ -1462,7 +1462,7 @@ static void coroutine_fn v9fs_open(void *opaque)
             goto out;
         }
         err += offset;
-    } else {
+    } else if (S_ISREG(stbuf.st_mode)) {
         if (s->proto_version == V9FS_PROTO_2000L) {
             flags = get_dotl_openflags(s, mode);
         } else {
@@ -1494,6 +1494,9 @@ static void coroutine_fn v9fs_open(void *opaque)
             goto out;
         }
         err += offset;
+    } else {
+        err = -EINVAL;
+        goto out;
     }
     trace_v9fs_open_return(pdu->tag, pdu->id,
                            qid.type, qid.version, qid.path, iounit);
