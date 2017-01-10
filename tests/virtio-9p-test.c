@@ -244,6 +244,7 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RATTACH ? "RATTACH" :
         id == P9_RWALK ? "RWALK" :
         id == P9_RLOPEN ? "RLOPEN" :
+        id == P9_RLCREATE ? "RLCREATE" :
         "<unknown>";
 }
 
@@ -423,6 +424,38 @@ static void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
     v9fs_req_free(req);
 }
 
+/* size[4] Tlcreate tag[2] fid[4] name[s] flags[4] mode[4] gid[4] */
+static P9Req *v9fs_tlcreate(QVirtIO9P *v9p, uint32_t fid, const char *name,
+                            uint32_t flags, uint32_t mode, uint32_t gid)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p,  4 + 4 + v9fs_string_size(name) + 4 + 4 + 4,
+                        P9_TLCREATE, ++(v9p->p9_req_tag));
+    v9fs_uint32_write(req, fid);
+    v9fs_string_write(req, name);
+    v9fs_uint32_write(req, flags);
+    v9fs_uint32_write(req, mode);
+    v9fs_uint32_write(req, gid);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rlcreate tag[2] qid[13] iounit[4] */
+static void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
+{
+    v9fs_req_recv(req, P9_RLCREATE);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    if (iounit) {
+        v9fs_uint32_read(req, iounit);
+    }
+    v9fs_req_free(req);
+}
+
 static void fs_version(QVirtIO9P *v9p)
 {
     const char *version = "9P2000.L";
@@ -560,6 +593,34 @@ static void fs_lopen_fifo_not_allowed(QVirtIO9P *v9p)
     g_free(wnames[0]);
 }
 
+static void fs_lcreate(QVirtIO9P *v9p)
+{
+    char *const wnames[] = { g_strdup(__func__) };
+    char *path = g_strdup_printf("%s/%s", v9p->test_share, wnames[0]);
+    uint32_t iounit;
+    P9Req *req;
+
+    fs_attach(v9p);
+    /* Clone the root directory fid and open it */
+    req = v9fs_twalk(v9p, 0, 1, 0, NULL);
+    v9fs_rwalk(req, NULL, NULL);
+    req = v9fs_tlopen(v9p, 1, O_RDWR);
+    v9fs_rlopen(req, NULL, NULL);
+
+    req = v9fs_tlcreate(v9p, 1, wnames[0], O_RDONLY, 0600, getgid());
+    v9fs_rlcreate(req, NULL, &iounit);
+
+    g_assert_cmpint(iounit, <=, P9_MAX_SIZE - P9_IOHDRSZ);
+
+    /* Was the file created ? */
+    req = v9fs_twalk(v9p, 0, 2, 1, wnames);
+    v9fs_rwalk(req, NULL, NULL);
+
+    unlink(path);
+    g_free(path);
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -592,6 +653,7 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/basic", fs_lopen);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/fifo_not_allowed",
                        fs_lopen_fifo_not_allowed);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/lcreate/basic", fs_lcreate);
 
     return g_test_run();
 }
