@@ -621,6 +621,35 @@ static void fs_lcreate(QVirtIO9P *v9p)
     g_free(wnames[0]);
 }
 
+static void fs_lcreate_exclusive(QVirtIO9P *v9p)
+{
+    char *const wnames[] = { g_strdup(__func__) };
+    char *path = g_strdup_printf("%s/%s", v9p->test_share, wnames[0]);
+    int fd;
+    uint32_t err;
+    P9Req *req;
+
+    fd = creat(path, 0600);
+    g_assert(fd >= 0);
+    close(fd);
+
+    fs_attach(v9p);
+    /* Clone the root directory fid and open it */
+    req = v9fs_twalk(v9p, 0, 1, 0, NULL);
+    v9fs_rwalk(req, NULL, NULL);
+    req = v9fs_tlopen(v9p, 1, O_RDWR);
+    v9fs_rlopen(req, NULL, NULL);
+
+    req = v9fs_tlcreate(v9p, 1, wnames[0], O_RDONLY, 0600, getgid());
+    v9fs_rlerror(req, &err);
+
+    g_assert_cmpint(err, ==, EEXIST);
+
+    unlink(path);
+    g_free(path);
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -654,6 +683,8 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/fifo_not_allowed",
                        fs_lopen_fifo_not_allowed);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/lcreate/basic", fs_lcreate);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/lcreate/exclusive",
+                       fs_lcreate_exclusive);
 
     return g_test_run();
 }
