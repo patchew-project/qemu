@@ -537,6 +537,29 @@ static void fs_lopen(QVirtIO9P *v9p)
     g_free(wnames[0]);
 }
 
+static void fs_lopen_fifo_not_allowed(QVirtIO9P *v9p)
+{
+    char *const wnames[] = { g_strdup(__func__) };
+    char *test_fifo;
+    P9Req *req;
+    uint32_t err;
+
+    test_fifo = g_strdup_printf("%s/%s", v9p->test_share, wnames[0]);
+    g_assert(mkfifo(test_fifo, 0600) == 0);
+
+    fs_attach(v9p);
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames);
+    v9fs_rwalk(req, NULL, NULL);
+    req = v9fs_tlopen(v9p, 1, O_RDONLY);
+    v9fs_rlerror(req, &err);
+
+    g_assert_cmpint(err, ==, EINVAL);
+
+    unlink(test_fifo);
+    g_free(test_fifo);
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -567,6 +590,8 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/dotdot_from_root",
                        fs_walk_dotdot);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/basic", fs_lopen);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/fifo_not_allowed",
+                       fs_lopen_fifo_not_allowed);
 
     return g_test_run();
 }
