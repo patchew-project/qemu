@@ -2,7 +2,11 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_8 \
-    /* empty */
+    {\
+        .driver   = "pci-bridge",\
+        .property = "shpc",\
+        .value    = "on",\
+    },
 
 #define HW_COMPAT_2_7 \
     {\
