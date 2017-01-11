@@ -39,8 +39,8 @@
 #define HAVE_MONOTONIC_TIME
 #endif
 
-#define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM,"\
-                        "mem-path=%s,share=on -numa node,memdev=mem"
+#define QEMU_CMD_MEM    " -m %d -object memory-backend-memfd,id=mem,size=%dM,"\
+                        " -numa node,memdev=mem"
 #define QEMU_CMD_CHR    " -chardev socket,id=%s,path=%s%s"
 #define QEMU_CMD_NETDEV " -netdev vhost-user,id=net0,chardev=%s,vhostforce"
 #define QEMU_CMD_NET    " -device virtio-net-pci,netdev=net0"
@@ -475,12 +475,12 @@ static inline void test_server_connect(TestServer *server)
     test_server_create_chr(server, ",reconnect=1");
 }
 
-#define GET_QEMU_CMD(s)                                         \
-    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
+#define GET_QEMU_CMD(s)                                 \
+    g_strdup_printf(QEMU_CMD, 512, 512, (s)->chr_name,  \
                     (s)->socket_path, "", (s)->chr_name)
 
-#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                     \
-    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name, \
+#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                      \
+    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (s)->chr_name,        \
                     (s)->socket_path, (chr_opts), (s)->chr_name, ##__VA_ARGS__)
 
 static gboolean _test_server_free(TestServer *server)
@@ -883,7 +883,7 @@ static void test_multiqueue(void)
 
     cmd = g_strdup_printf(QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
                           "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
-                          512, 512, root, s->chr_name,
+                          512, 512, s->chr_name,
                           s->socket_path, "", s->chr_name,
                           queues, queues * 2 + 2);
     qtest_start(cmd);
