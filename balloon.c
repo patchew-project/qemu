@@ -36,6 +36,8 @@
 
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
+static QEMUBalloonGetUnusedPage *balloon_get_unused_page_fn;
+static QEMUBalloonUnusedPageReady *balloon_unused_page_ready_fn;
 static void *balloon_opaque;
 static bool balloon_inhibited;
 
@@ -65,9 +67,13 @@ static bool have_balloon(Error **errp)
 }
 
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-                             QEMUBalloonStatus *stat_func, void *opaque)
+                             QEMUBalloonStatus *stat_func,
+                             QEMUBalloonGetUnusedPage *get_unused_page_func,
+                             QEMUBalloonUnusedPageReady *unused_page_ready_func,
+                             void *opaque)
 {
-    if (balloon_event_fn || balloon_stat_fn || balloon_opaque) {
+    if (balloon_event_fn || balloon_stat_fn || balloon_get_unused_page_fn
+        || balloon_unused_page_ready_fn || balloon_opaque) {
         /* We're already registered one balloon handler.  How many can
          * a guest really have?
          */
@@ -75,6 +81,8 @@ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
     }
     balloon_event_fn = event_func;
     balloon_stat_fn = stat_func;
+    balloon_get_unused_page_fn = get_unused_page_func;
+    balloon_unused_page_ready_fn = unused_page_ready_func;
     balloon_opaque = opaque;
     return 0;
 }
@@ -86,6 +94,8 @@ void qemu_remove_balloon_handler(void *opaque)
     }
     balloon_event_fn = NULL;
     balloon_stat_fn = NULL;
+    balloon_get_unused_page_fn = NULL;
+    balloon_unused_page_ready_fn = NULL;
     balloon_opaque = NULL;
 }
 
@@ -115,4 +125,37 @@ void qmp_balloon(int64_t target, Error **errp)
 
     trace_balloon_event(balloon_opaque, target);
     balloon_event_fn(balloon_opaque, target);
+}
+
+bool balloon_unused_pages_support(void)
+{
+    return balloon_get_unused_page_fn ? true : false;
+}
+
+BalloonReqStatus balloon_get_unused_pages(unsigned long *bitmap,
+                                          unsigned long len,
+                                          unsigned long req_id)
+{
+    if (!balloon_get_unused_page_fn) {
+        return REQ_UNSUPPORT;
+    }
+
+    if (!bitmap) {
+        return REQ_INVALID_PARAM;
+    }
+
+    return balloon_get_unused_page_fn(balloon_opaque, bitmap, len, req_id);
+}
+
+BalloonReqStatus balloon_unused_page_ready(unsigned long *req_id)
+{
+    if (!balloon_unused_page_ready_fn) {
+        return REQ_UNSUPPORT;
+    }
+
+    if (!req_id) {
+        return REQ_INVALID_PARAM;
+    }
+
+    return balloon_unused_page_ready_fn(balloon_opaque, req_id);
 }

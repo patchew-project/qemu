@@ -23,6 +23,16 @@
 #define VIRTIO_BALLOON(obj) \
         OBJECT_CHECK(VirtIOBalloon, (obj), TYPE_VIRTIO_BALLOON)
 
+typedef enum {
+    REQ_INIT,
+    REQ_START,
+    REQ_ON_GOING,
+    REQ_DONE,
+    REQ_ERROR,
+    REQ_INVALID_PARAM,
+    REQ_UNSUPPORT,
+} BalloonReqStatus;
+
 typedef struct virtio_balloon_stat VirtIOBalloonStat;
 
 typedef struct virtio_balloon_stat_modern {
@@ -33,16 +43,22 @@ typedef struct virtio_balloon_stat_modern {
 
 typedef struct VirtIOBalloon {
     VirtIODevice parent_obj;
-    VirtQueue *ivq, *dvq, *svq;
+    VirtQueue *ivq, *dvq, *svq, *hvq;
     uint32_t num_pages;
     uint32_t actual;
     uint64_t stats[VIRTIO_BALLOON_S_NR];
     VirtQueueElement *stats_vq_elem;
+    VirtQueueElement *host_req_vq_elem;
     size_t stats_vq_offset;
     QEMUTimer *stats_timer;
     int64_t stats_last_update;
     int64_t stats_poll_interval;
     uint32_t host_features;
+    struct virtio_balloon_req_hdr host_req;
+    BalloonReqStatus req_status;
+    uint64_t *unused_page_bmap;
+    uint64_t bmap_len;
+    uint64_t req_id;
 } VirtIOBalloon;
 
 #endif

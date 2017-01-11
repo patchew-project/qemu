@@ -143,6 +143,13 @@ static bool balloon_page_ranges_supported(const VirtIOBalloon *s)
     return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_RANGE);
 }
 
+static bool balloon_host_request_vq_supported(const VirtIOBalloon *s)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_HOST_REQ_VQ);
+}
+
 static bool balloon_stats_enabled(const VirtIOBalloon *s)
 {
     return s->stats_poll_interval > 0;
@@ -394,6 +401,72 @@ out:
     }
 }
 
+static void virtio_balloon_handle_resp(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    VirtQueueElement *elem;
+    size_t offset = 0;
+    struct virtio_balloon_resp_hdr hdr;
+    uint64_t range;
+
+    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    if (!elem) {
+        s->req_status = REQ_ERROR;
+        return;
+    }
+
+    s->host_req_vq_elem = elem;
+    if (!elem->out_num) {
+        return;
+    }
+
+    iov_to_buf(elem->out_sg, elem->out_num, offset,
+               &hdr, sizeof(hdr));
+    offset += sizeof(hdr);
+
+    switch (hdr.cmd) {
+    case BALLOON_GET_UNUSED_PAGES:
+        if (hdr.id == s->host_req.param) {
+            if (s->bmap_len < hdr.data_len) {
+                 hdr.data_len = s->bmap_len;
+            }
+
+            while (offset < hdr.data_len + sizeof(hdr)) {
+                unsigned long pfn, nr_page;
+
+                iov_to_buf(elem->out_sg, elem->out_num, offset, &range,
+                              sizeof(range));
+
+                offset += sizeof(range);
+                pfn = range >> VIRTIO_BALLOON_NR_PFN_BITS;
+                nr_page = range & BALLOON_NR_PFN_MASK;
+                if (nr_page == 0) {
+                    if (iov_to_buf(elem->out_sg, elem->out_num, offset, &range,
+                               sizeof(range)) == sizeof(range)) {
+                        nr_page = range;
+                        offset += sizeof(range);
+                    }
+                }
+                bitmap_set(s->unused_page_bmap, pfn, nr_page);
+            }
+
+            if (hdr.flag == BALLOON_FLAG_DONE) {
+                s->req_id = hdr.id;
+                s->req_status = REQ_DONE;
+            } else {
+                s->req_status = REQ_ON_GOING;
+            }
+            virtqueue_push(vq, elem, 0);
+            virtio_notify(vdev, vq);
+            g_free(elem);
+        }
+        break;
+    default:
+        break;
+    }
+
+}
+
 static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
@@ -473,6 +546,61 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
                                              VIRTIO_BALLOON_PFN_SHIFT);
 }
 
+static BalloonReqStatus virtio_balloon_free_pages(void *opaque,
+                                                  unsigned long *bitmap,
+                                                  unsigned long bmap_len,
+                                                  unsigned long req_id)
+{
+    VirtIOBalloon *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtQueueElement *elem = s->host_req_vq_elem;
+    int len;
+
+    if (!balloon_host_request_vq_supported(s)) {
+        return REQ_UNSUPPORT;
+    }
+
+    if (s->req_status == REQ_INIT || s->req_status == REQ_DONE) {
+        s->unused_page_bmap = bitmap;
+        if (elem == NULL || !elem->in_num) {
+            elem = virtqueue_pop(s->hvq, sizeof(VirtQueueElement));
+            if (!elem) {
+                return REQ_ERROR;
+            }
+            s->host_req_vq_elem = elem;
+        }
+        s->host_req.cmd = BALLOON_GET_UNUSED_PAGES;
+        s->host_req.param = req_id;
+        s->bmap_len = bmap_len;
+        len = iov_from_buf(elem->in_sg, elem->in_num, 0, &s->host_req,
+                           sizeof(s->host_req));
+        virtqueue_push(s->hvq, elem, len);
+        virtio_notify(vdev, s->hvq);
+        g_free(s->host_req_vq_elem);
+        s->host_req_vq_elem = NULL;
+        s->req_status = REQ_ON_GOING;
+        return REQ_START;
+    }
+
+    return REQ_ON_GOING;
+}
+
+static BalloonReqStatus virtio_balloon_free_page_ready(void *opaque,
+                                                       unsigned long *req_id)
+{
+    VirtIOBalloon *s = opaque;
+
+    if (!balloon_host_request_vq_supported(s)) {
+        return REQ_UNSUPPORT;
+    }
+
+    if (s->req_status == REQ_DONE) {
+        *req_id = s->req_id;
+    }
+
+    return s->req_status;
+}
+
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
@@ -521,7 +649,9 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
                 sizeof(struct virtio_balloon_config));
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
-                                   virtio_balloon_stat, s);
+                                   virtio_balloon_stat,
+                                   virtio_balloon_free_pages,
+                                   virtio_balloon_free_page_ready, s);
 
     if (ret < 0) {
         error_setg(errp, "Only one balloon device is supported");
@@ -532,8 +662,10 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+    s->hvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_resp);
 
     reset_stats(s);
+    s->req_status = REQ_INIT;
 }
 
 static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
@@ -555,6 +687,12 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
         g_free(s->stats_vq_elem);
         s->stats_vq_elem = NULL;
     }
+
+    if (s->host_req_vq_elem != NULL) {
+        g_free(s->host_req_vq_elem);
+        s->host_req_vq_elem = NULL;
+    }
+    s->req_status = REQ_INIT;
 }
 
 static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
@@ -566,6 +704,13 @@ static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
         /* poll stats queue for the element we have discarded when the VM
          * was stopped */
         virtio_balloon_receive_stats(vdev, s->svq);
+    }
+
+    if (!s->host_req_vq_elem && vdev->vm_running &&
+        (status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->hvq, 1)) {
+        /* poll misc queue for the element we have discarded when the VM
+         * was stopped */
+        virtio_balloon_handle_resp(vdev, s->hvq);
     }
 }
 
@@ -597,6 +742,8 @@ static Property virtio_balloon_properties[] = {
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
     DEFINE_PROP_BIT("page-ranges", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_PAGE_RANGE, true),
+    DEFINE_PROP_BIT("host-request-vq", VirtIOBalloon, host_features,
+                    VIRTIO_BALLOON_F_HOST_REQ_VQ, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
