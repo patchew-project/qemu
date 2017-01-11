@@ -21,6 +21,9 @@
 #define PCIE_ROOT_PORT_MSI_SUPPORTED_FLAGS      PCI_MSI_FLAGS_MASKBIT
 #define PCIE_ROOT_PORT_AER_OFFSET               0x100
 
+#define TYPE_PCIE_ROOT_PORT_DEV                 "pcie-root-port"
+
+
 /*
  * If two MSI vector are allocated, Advanced Error Interrupt Message Number
  * is 1. otherwise 0.
@@ -186,9 +189,40 @@ static const TypeInfo rp_info = {
     .class_size = sizeof(PCIERootPortClass),
 };
 
+static const VMStateDescription vmstate_rp_dev = {
+    .name = "pcie-root-port",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = pcie_cap_slot_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCIE_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
+        VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
+                       PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void rp_dev_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id = PCI_VENDOR_ID_REDHAT;
+    k->device_id = PCI_DEVICE_ID_REDHAT_PCIE_RP;
+    dc->desc = "PCI Express Root Port";
+    dc->vmsd = &vmstate_rp_dev;
+}
+
+static const TypeInfo rp_dev_info = {
+    .name          = TYPE_PCIE_ROOT_PORT_DEV,
+    .parent        = TYPE_PCIE_ROOT_PORT,
+    .class_init    = rp_dev_class_init,
+};
+
 static void rp_register_types(void)
 {
     type_register_static(&rp_info);
+    type_register_static(&rp_dev_info);
 }
 
 type_init(rp_register_types)
