@@ -34,9 +34,14 @@
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
 #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+#define VIRTIO_BALLOON_F_PAGE_RANGE	3 /* Send page info with ranges */
+#define VIRTIO_BALLOON_F_HOST_REQ_VQ	4 /* Host request virtqueue */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
+
+/* Bits width for the length of the pfn range */
+#define VIRTIO_BALLOON_NR_PFN_BITS 12
 
 struct virtio_balloon_config {
 	/* Number of pages host wants Guest to give up. */
@@ -81,5 +86,34 @@ struct virtio_balloon_stat {
 	__virtio16 tag;
 	__virtio64 val;
 } QEMU_PACKED;
+
+/* Response header structure */
+struct virtio_balloon_resp_hdr {
+	uint64_t cmd : 8; /* Distinguish different requests type */
+	uint64_t flag: 8; /* Mark status for a specific request type */
+	uint64_t id : 16; /* Distinguish requests of a specific type */
+	uint64_t data_len: 32; /* Length of the following data, in bytes */
+};
+
+enum virtio_balloon_req_id {
+	/* Get unused page information */
+	BALLOON_GET_UNUSED_PAGES,
+};
+
+enum virtio_balloon_flag {
+	/* Have more data for a request */
+	BALLOON_FLAG_CONT,
+	/* No more data for a request */
+	BALLOON_FLAG_DONE,
+};
+
+struct virtio_balloon_req_hdr {
+	/* Used to distinguish different requests */
+	uint16_t cmd;
+	/* Reserved */
+	uint16_t reserved[3];
+	/* Request parameter */
+	uint64_t param;
+};
 
 #endif /* _LINUX_VIRTIO_BALLOON_H */
