@@ -375,7 +375,9 @@ static void nvdimm_init_fit_buffer(NvdimmFitBuffer *fit_buf)
 
 static void nvdimm_build_fit_buffer(NvdimmFitBuffer *fit_buf)
 {
-    g_array_free(fit_buf->fit, true);
+    if (fit_buf->fit) {
+        g_array_free(fit_buf->fit, true);
+    }
     fit_buf->fit = nvdimm_build_device_structure();
     fit_buf->dirty = true;
 }
