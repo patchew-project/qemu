@@ -2026,7 +2026,17 @@ static void load_elf_interp(const char *filename, struct image_info *info,
 {
     int fd, retval;
 
-    fd = open(path(filename), O_RDONLY);
+    switch (filename[0]) {
+    case '/':
+        fd = openat(interp_dirfd, filename + 1, O_RDONLY);
+        if (fd >= 0 || errno != ENOENT) {
+            break;
+        }
+        /* fallthru */
+    default:
+        fd = open(filename, O_RDONLY);
+        break;
+    }
     if (fd < 0) {
         goto exit_perror;
     }
