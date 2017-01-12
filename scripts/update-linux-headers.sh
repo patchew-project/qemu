@@ -91,6 +91,7 @@ for arch in $ARCHLIST; do
     if [ $arch = s390 ]; then
         cp_portable "$tmpdir/include/asm/kvm_virtio.h" "$output/include/standard-headers/asm-s390/"
         cp_portable "$tmpdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
+        cp_portable "$tmpdir/include/asm/vfio_ccw.h" "$output/include/standard-headers/asm-s390/"
     fi
     if [ $arch = x86 ]; then
         cp_portable "$tmpdir/include/asm/hyperv.h" "$output/include/standard-headers/asm-x86/"
