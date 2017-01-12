@@ -1486,6 +1486,19 @@ bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno)
                       channel_subsys.css[cssid]->sch_set[ssid]->devnos_used);
 }
 
+bool css_schid_used(uint8_t cssid, uint8_t ssid, uint16_t schid)
+{
+    if (!channel_subsys.css[cssid]) {
+        return false;
+    }
+    if (!channel_subsys.css[cssid]->sch_set[ssid]) {
+        return false;
+    }
+
+    return !!test_bit(schid,
+                      channel_subsys.css[cssid]->sch_set[ssid]->schids_used);
+}
+
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
                       uint16_t devno, SubchDev *sch)
 {
@@ -1908,6 +1921,32 @@ SubchDev *css_create_virtual_sch(CssDevId bus_id, Error **errp)
     sch->devno = bus_id.devid;
     sch->schid = schid;
     css_subch_assign(sch->cssid, sch->ssid, schid, sch->devno, sch);
+    return sch;
+}
+
+SubchDev *css_create_sch(CssDevId bus_id, Error **errp)
+{
+    uint32_t devno;
+    SubchDev *sch;
+
+    if (css_schid_used(bus_id.cssid, bus_id.ssid, bus_id.devid)) {
+        error_setg(errp, "Subchannel %x.%x.%04x already exists",
+                   bus_id.cssid, bus_id.ssid, bus_id.devid);
+        return NULL;
+    }
+
+    devno = css_find_free_devno(bus_id.cssid, bus_id.ssid, bus_id.devid);
+    if (devno > MAX_DEVNO) {
+        error_setg(errp, "No free devno found");
+        return NULL;
+    }
+
+    sch = g_malloc0(sizeof(*sch));
+    sch->cssid = bus_id.cssid;
+    sch->ssid = bus_id.ssid;
+    sch->devno = devno;
+    sch->schid = bus_id.devid;
+    css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, sch);
     return sch;
 }
 

@@ -128,6 +128,7 @@ void subch_device_save(SubchDev *s, QEMUFile *f);
 int subch_device_load(SubchDev *s, QEMUFile *f);
 int css_create_css_image(uint8_t cssid, bool default_image);
 bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno);
+bool css_schid_used(uint8_t cssid, uint8_t ssid, uint16_t schid);
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
                       uint16_t devno, SubchDev *sch);
 void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type);
@@ -189,4 +190,18 @@ bool css_present(uint8_t cssid);
  * is responsible for unregistering and freeing it.
  */
 SubchDev *css_create_virtual_sch(CssDevId bus_id, Error **errp);
+
+/**
+ * Create a subchannel for the given bus id.
+ *
+ * If @p bus_id is valid, verify that it is not already in use, and find
+ * a free devno for it.
+ * Allocate a subchannel structure, initialise it with the bus id,
+ * subchannel id and device number, register it with the CSS and return
+ * it. Otherwise return NULL.
+ *
+ * The caller becomes owner of the returned subchannel structure and
+ * is responsible for unregistering and freeing it.
+ */
+SubchDev *css_create_sch(CssDevId bus_id, Error **errp);
 #endif
