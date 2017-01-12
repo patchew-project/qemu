@@ -482,6 +482,13 @@ static void ide_clear_retry(IDEState *s)
     s->bus->retry_nsector = 0;
 }
 
+static void ide_start_transfer_bh_cb(void *opaque)
+{
+    IDEDMA *dma = opaque;
+
+    dma->ops->start_transfer(dma);
+}
+
 /* prepare data transfer and tell what to do after */
 void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func)
@@ -494,7 +501,12 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
         s->status |= DRQ_STAT;
     }
     if (s->bus->dma->ops->start_transfer) {
-        s->bus->dma->ops->start_transfer(s->bus->dma);
+        /* There can be unbounded recursion between ops->start_transfer
+         * and end_transfer_func, so defer to a bottom half.
+         */
+        aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                ide_start_transfer_bh_cb,
+                                s->bus->dma);
     }
 }
 
