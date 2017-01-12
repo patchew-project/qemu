@@ -1249,6 +1249,16 @@ static inline void s390_crypto_reset(void)
     }
 }
 
+static inline bool s390_get_map_css(void)
+{
+    if (object_property_get_bool(OBJECT(qdev_get_machine()), "s390-map-css",
+                                 NULL)) {
+        return true;
+    }
+
+    return false;
+}
+
 /* machine check interruption code */
 
 /* subclasses */

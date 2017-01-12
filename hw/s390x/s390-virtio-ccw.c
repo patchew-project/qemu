@@ -272,6 +272,21 @@ bool cpu_model_allowed(void)
     return true;
 }
 
+static inline bool machine_get_map_css(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->s390_map_css;
+}
+
+static inline void machine_set_map_css(Object *obj, bool value,
+                                       Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->s390_map_css = value;
+}
+
 static inline void s390_machine_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aes-key-wrap",
@@ -289,6 +304,14 @@ static inline void s390_machine_initfn(Object *obj)
             "enable/disable DEA key wrapping using the CPACF wrapping key",
             NULL);
     object_property_set_bool(obj, true, "dea-key-wrap", NULL);
+
+    object_property_add_bool(obj, "s390-map-css",
+                             machine_get_map_css,
+                             machine_set_map_css, NULL);
+    object_property_set_description(obj, "s390-map-css",
+            "enable/disable mapping passed-through subchannels into the "
+            "virtual css", NULL);
+    object_property_set_bool(obj, false, "s390-map-css", NULL);
 }
 
 static const TypeInfo ccw_machine_info = {
