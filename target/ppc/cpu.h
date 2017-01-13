@@ -77,6 +77,7 @@
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
 #include "fpu/softfloat.h"
+#include "mmu.h"
 
 #if defined (TARGET_PPC64)
 #define PPC_ELF_MACHINE     EM_PPC64
@@ -1009,6 +1010,8 @@ struct CPUPPCState {
     target_ulong sr[32];
     /* externally stored hash table */
     uint8_t *external_htab;
+    /* externally stored partition table entry */
+    struct patb_entry *external_patbe;
     /* BATs */
     uint32_t nb_BATs;
     target_ulong DBAT[2][8];

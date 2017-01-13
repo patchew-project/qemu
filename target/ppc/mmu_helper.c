@@ -28,6 +28,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "helper_regs.h"
+#include "mmu.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -2906,4 +2907,15 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
         raise_exception_err_ra(env, cs->exception_index, env->error_code,
                                retaddr);
     }
+}
+
+/******************************************************************************/
+
+/* ISA v3.00 (POWER9) Generic MMU Helpers */
+
+void ppc64_set_external_patb(PowerPCCPU *cpu, void *patb, Error **errp)
+{
+    CPUPPCState *env = &cpu->env;
+
+    env->external_patbe = (struct patb_entry *) patb;
 }

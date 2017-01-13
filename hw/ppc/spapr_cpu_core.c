@@ -17,6 +17,7 @@
 #include "hw/ppc/ppc.h"
 #include "target/ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
+#include "mmu.h"
 
 static void spapr_cpu_reset(void *opaque)
 {
@@ -34,8 +35,15 @@ static void spapr_cpu_reset(void *opaque)
 
     env->spr[SPR_HIOR] = 0;
 
-    ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
-                                &error_fatal);
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        ppc64_set_external_patb(cpu, spapr->patb, &error_fatal);
+    default:
+        /* We assume legacy until told otherwise, thus set HPT irrespective */
+        ppc_hash64_set_external_hpt(cpu, spapr->htab, spapr->htab_shift,
+                                    &error_fatal);
+        break;
+    }
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)
