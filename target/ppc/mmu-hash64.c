@@ -515,7 +515,6 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
     CPUPPCState *env = &cpu->env;
     int i;
     uint64_t token;
-    target_ulong pte0, pte1;
     target_ulong pte_index;
 
     pte_index = (hash & env->htab_mask) * HPTES_PER_GROUP;
@@ -524,12 +523,11 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
         return -1;
     }
     for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ppc_hash64_load_hpte0(cpu, token, i);
-        pte1 = ppc_hash64_load_hpte1(cpu, token, i);
+        ppc_hash_pte64_t entry = ppc_hash64_load_hpte(cpu, token, i);
 
         /* This compares V, B, H (secondary) and the AVPN */
-        if (HPTE64_V_COMPARE(pte0, ptem)) {
-            *pshift = hpte_page_shift(sps, pte0, pte1);
+        if (HPTE64_V_COMPARE(entry.pte0, ptem)) {
+            *pshift = hpte_page_shift(sps, entry.pte0, entry.pte1);
             /*
              * If there is no match, ignore the PTE, it could simply
              * be for a different segment size encoding and the
@@ -543,8 +541,7 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
             /* We don't do anything with pshift yet as qemu TLB only deals
              * with 4K pages anyway
              */
-            pte->pte0 = pte0;
-            pte->pte1 = pte1;
+            *pte = entry;
             ppc_hash64_stop_access(cpu, token);
             return (pte_index + i) * HASH_PTE_SIZE_64;
         }
@@ -923,6 +920,8 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu,
                            target_ulong pte0, target_ulong pte1)
 {
     CPUPPCState *env = &cpu->env;
+
+    ppc_hash64_hpte_old_to_new(env, &pte0, &pte1);
 
     if (env->external_htab == MMU_HASH64_KVM_MANAGED_HPT) {
         kvmppc_hash64_write_pte(env, pte_index, pte0, pte1);

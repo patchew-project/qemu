@@ -60,6 +60,7 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HASH_PTE_SIZE_64        16
 #define HASH_PTEG_SIZE_64       (HASH_PTE_SIZE_64 * HPTES_PER_GROUP)
 
+#define HPTE64_V_3_00_COMMON    0x000fffffffffffffULL
 #define HPTE64_V_SSIZE_SHIFT    62
 #define HPTE64_V_AVPN_SHIFT     7
 #define HPTE64_V_AVPN           0x3fffffffffffff80ULL
@@ -69,9 +70,12 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HPTE64_V_SECONDARY      0x0000000000000002ULL
 #define HPTE64_V_VALID          0x0000000000000001ULL
 
+#define HPTE64_R_3_00_COMMON    0xf1ffffffffffffffULL
 #define HPTE64_R_PP0            0x8000000000000000ULL
 #define HPTE64_R_TS             0x4000000000000000ULL
 #define HPTE64_R_KEY_HI         0x3000000000000000ULL
+#define HPTE64_R_SSIZE_SHIFT    58
+#define HPTE64_R_SSIZE_MASK     (3ULL << HPTE64_R_SSIZE_SHIFT)
 #define HPTE64_R_RPN_SHIFT      12
 #define HPTE64_R_RPN            0x0ffffffffffff000ULL
 #define HPTE64_R_FLAGS          0x00000000000003ffULL
@@ -91,6 +95,10 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
 
+typedef struct {
+    uint64_t pte0, pte1;
+} ppc_hash_pte64_t;
+
 void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
                          Error **errp);
 void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
@@ -99,37 +107,64 @@ void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
 uint64_t ppc_hash64_start_access(PowerPCCPU *cpu, target_ulong pte_index);
 void ppc_hash64_stop_access(PowerPCCPU *cpu, uint64_t token);
 
-static inline target_ulong ppc_hash64_load_hpte0(PowerPCCPU *cpu,
-                                                 uint64_t token, int index)
+static inline void ppc_hash64_hpte_old_to_new(CPUPPCState *env,
+                                              target_ulong *pte0,
+                                              target_ulong *pte1)
+{
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        /*
+         * v3.00 of the ISA moved the B field to the second doubleword and
+         * shortened the abbreviated virtual address and abbreviated real page
+         * number fields
+         */
+        *pte1 = (*pte1 & HPTE64_R_3_00_COMMON) |
+                ((*pte0 >> HPTE64_V_SSIZE_SHIFT) << HPTE64_R_SSIZE_SHIFT);
+        *pte0 = *pte0 & HPTE64_V_3_00_COMMON;
+    default:
+        ;
+    }
+}
+
+static inline void ppc_hash64_hpte_new_to_old(CPUPPCState *env,
+                                              target_ulong *pte0,
+                                              target_ulong *pte1)
+{
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        /*
+         * v3.00 of the ISA moved the B field to the second doubleword and
+         * shortened the abbreviated virtual address and abbreviated real page
+         * number fields
+         */
+        *pte0 = (*pte0 & HPTE64_V_3_00_COMMON) | ((*pte1 & HPTE64_R_SSIZE_MASK)
+                << (HPTE64_V_SSIZE_SHIFT - HPTE64_R_SSIZE_SHIFT));
+        *pte1 = *pte1 & HPTE64_R_3_00_COMMON;
+    default:
+        ;
+    }
+}
+
+static inline ppc_hash_pte64_t ppc_hash64_load_hpte(PowerPCCPU *cpu,
+                                                    uint64_t token,
+                                                    int index)
 {
     CPUPPCState *env = &cpu->env;
+    ppc_hash_pte64_t pte;
     uint64_t addr;
 
     addr = token + (index * HASH_PTE_SIZE_64);
     if (env->external_htab) {
-        return  ldq_p((const void *)(uintptr_t)addr);
+        pte.pte0 = ldq_p((const void *)(uintptr_t)addr);
+        pte.pte1 = ldq_p((const void *)(uintptr_t)addr + HASH_PTE_SIZE_64/2);
     } else {
-        return ldq_phys(CPU(cpu)->as, addr);
+        pte.pte0 = ldq_phys(CPU(cpu)->as, addr);
+        pte.pte1 = ldq_phys(CPU(cpu)->as, addr + HASH_PTE_SIZE_64/2);
     }
+
+    ppc_hash64_hpte_new_to_old(env, &pte.pte0, &pte.pte1);
+    return pte;
 }
-
-static inline target_ulong ppc_hash64_load_hpte1(PowerPCCPU *cpu,
-                                                 uint64_t token, int index)
-{
-    CPUPPCState *env = &cpu->env;
-    uint64_t addr;
-
-    addr = token + (index * HASH_PTE_SIZE_64) + HASH_PTE_SIZE_64/2;
-    if (env->external_htab) {
-        return  ldq_p((const void *)(uintptr_t)addr);
-    } else {
-        return ldq_phys(CPU(cpu)->as, addr);
-    }
-}
-
-typedef struct {
-    uint64_t pte0, pte1;
-} ppc_hash_pte64_t;
 
 #endif /* CONFIG_USER_ONLY */
 

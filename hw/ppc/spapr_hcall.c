@@ -125,7 +125,8 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         pte_index &= ~7ULL;
         token = ppc_hash64_start_access(cpu, pte_index);
         for (; index < 8; index++) {
-            if (!(ppc_hash64_load_hpte0(cpu, token, index) & HPTE64_V_VALID)) {
+            ppc_hash_pte64_t pte = ppc_hash64_load_hpte(cpu, token, index);
+            if (!(pte.pte0 & HPTE64_V_VALID)) {
                 break;
             }
         }
@@ -134,8 +135,10 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             return H_PTEG_FULL;
         }
     } else {
+        ppc_hash_pte64_t pte;
         token = ppc_hash64_start_access(cpu, pte_index);
-        if (ppc_hash64_load_hpte0(cpu, token, 0) & HPTE64_V_VALID) {
+        pte = ppc_hash64_load_hpte(cpu, token, 0);
+        if (pte.pte0 & HPTE64_V_VALID) {
             ppc_hash64_stop_access(cpu, token);
             return H_PTEG_FULL;
         }
@@ -163,26 +166,25 @@ static RemoveResult remove_hpte(PowerPCCPU *cpu, target_ulong ptex,
 {
     CPUPPCState *env = &cpu->env;
     uint64_t token;
-    target_ulong v, r;
+    ppc_hash_pte64_t pte;
 
     if (!valid_pte_index(env, ptex)) {
         return REMOVE_PARM;
     }
 
     token = ppc_hash64_start_access(cpu, ptex);
-    v = ppc_hash64_load_hpte0(cpu, token, 0);
-    r = ppc_hash64_load_hpte1(cpu, token, 0);
+    pte = ppc_hash64_load_hpte(cpu, token, 0);
     ppc_hash64_stop_access(cpu, token);
 
-    if ((v & HPTE64_V_VALID) == 0 ||
-        ((flags & H_AVPN) && (v & ~0x7fULL) != avpn) ||
-        ((flags & H_ANDCOND) && (v & avpn) != 0)) {
+    if ((pte.pte0 & HPTE64_V_VALID) == 0 ||
+        ((flags & H_AVPN) && (pte.pte0 & ~0x7fULL) != avpn) ||
+        ((flags & H_ANDCOND) && (pte.pte0 & avpn) != 0)) {
         return REMOVE_NOT_FOUND;
     }
-    *vp = v;
-    *rp = r;
+    *vp = pte.pte0;
+    *rp = pte.pte1;
     ppc_hash64_store_hpte(cpu, ptex, HPTE64_V_HPTE_DIRTY, 0);
-    ppc_hash64_tlb_flush_hpte(cpu, ptex, v, r);
+    ppc_hash64_tlb_flush_hpte(cpu, ptex, pte.pte0, pte.pte1);
     return REMOVE_SUCCESS;
 }
 
@@ -293,35 +295,36 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
+    ppc_hash_pte64_t pte;
     uint64_t token;
-    target_ulong v, r;
 
     if (!valid_pte_index(env, pte_index)) {
         return H_PARAMETER;
     }
 
     token = ppc_hash64_start_access(cpu, pte_index);
-    v = ppc_hash64_load_hpte0(cpu, token, 0);
-    r = ppc_hash64_load_hpte1(cpu, token, 0);
+    pte = ppc_hash64_load_hpte(cpu, token, 0);
     ppc_hash64_stop_access(cpu, token);
 
-    if ((v & HPTE64_V_VALID) == 0 ||
-        ((flags & H_AVPN) && (v & ~0x7fULL) != avpn)) {
+    if ((pte.pte0 & HPTE64_V_VALID) == 0 ||
+        ((flags & H_AVPN) && (pte.pte0 & ~0x7fULL) != avpn)) {
         return H_NOT_FOUND;
     }
 
-    r &= ~(HPTE64_R_PP0 | HPTE64_R_PP | HPTE64_R_N |
-           HPTE64_R_KEY_HI | HPTE64_R_KEY_LO);
-    r |= (flags << 55) & HPTE64_R_PP0;
-    r |= (flags << 48) & HPTE64_R_KEY_HI;
-    r |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
+    pte.pte1 &= ~(HPTE64_R_PP0 | HPTE64_R_PP | HPTE64_R_N |
+                  HPTE64_R_KEY_HI | HPTE64_R_KEY_LO);
+    pte.pte1 |= (flags << 55) & HPTE64_R_PP0;
+    pte.pte1 |= (flags << 48) & HPTE64_R_KEY_HI;
+    pte.pte1 |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
     ppc_hash64_store_hpte(cpu, pte_index,
-                          (v & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY, 0);
-    ppc_hash64_tlb_flush_hpte(cpu, pte_index, v, r);
+                          (pte.pte0 & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY,
+                          0);
+    ppc_hash64_tlb_flush_hpte(cpu, pte_index, pte.pte0, pte.pte1);
     /* Flush the tlb */
     check_tlb_flush(env, true);
     /* Don't need a memory barrier, due to qemu's global lock */
-    ppc_hash64_store_hpte(cpu, pte_index, v | HPTE64_V_HPTE_DIRTY, r);
+    ppc_hash64_store_hpte(cpu, pte_index, pte.pte0 | HPTE64_V_HPTE_DIRTY,
+                          pte.pte1);
     return H_SUCCESS;
 }
 
