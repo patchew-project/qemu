@@ -41,6 +41,7 @@
 #include "migration/migration.h"
 #include "mmu-hash64.h"
 #include "qom/cpu.h"
+#include "mmu.h"
 
 #include "hw/boards.h"
 #include "hw/ppc/ppc.h"
@@ -1115,6 +1116,26 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
     }
 }
 
+static void spapr_reallocate_patb(sPAPRMachineState *spapr, Error **errp)
+{
+    g_free(spapr->patb);
+    spapr->patb = NULL;
+
+    if (!kvm_enabled()) {
+        /* We need to allocate a partition table entry */
+        size_t size = sizeof(struct patb_entry);
+
+        spapr->patb = qemu_memalign(size, size);
+        if (!spapr->patb) {
+            error_setg_errno(errp, errno, "Could not allocate memory for "
+                                          "partition table entry");
+            return;
+        }
+
+        memset(spapr->patb, 0, size);
+    }
+}
+
 static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     bool matched = false;
@@ -1134,7 +1155,7 @@ static void ppc_spapr_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    PowerPCCPU *first_ppc_cpu;
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
     uint32_t rtas_limit;
     hwaddr rtas_addr, fdt_addr;
     void *fdt;
@@ -1143,10 +1164,16 @@ static void ppc_spapr_reset(void)
     /* Check for unknown sysbus devices */
     foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
-    /* Allocate and/or reset the hash page table */
-    spapr_reallocate_hpt(spapr,
-                         spapr_hpt_shift_for_ramsize(machine->maxram_size),
-                         &error_fatal);
+    switch (first_ppc_cpu->env.mmu_model) {
+    case POWERPC_MMU_3_00:
+        /* Allocate the partition table */
+        spapr_reallocate_patb(spapr, &error_fatal);
+    default:
+        /* Allocate and/or reset the hash page table */
+        spapr_reallocate_hpt(spapr,
+                             spapr_hpt_shift_for_ramsize(machine->maxram_size),
+                             &error_fatal);
+    }
 
     /* Update the RMA size if necessary */
     if (spapr->vrma_adjust) {
@@ -1193,7 +1220,6 @@ static void ppc_spapr_reset(void)
     g_free(fdt);
 
     /* Set up the entry state */
-    first_ppc_cpu = POWERPC_CPU(first_cpu);
     first_ppc_cpu->env.gpr[3] = fdt_addr;
     first_ppc_cpu->env.gpr[5] = 0;
     first_cpu->halted = 0;
