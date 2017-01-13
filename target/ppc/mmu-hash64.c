@@ -291,7 +291,20 @@ void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
     CPUPPCState *env = &cpu->env;
     target_ulong htabsize = value & SDR_64_HTABSIZE;
 
-    env->spr[SPR_SDR1] = value;
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        /*
+         * Technically P9 doesn't have a SDR1, the hash table address should be
+         * stored in the partition table entry instead.
+         */
+        if (env->external_patbe)
+            env->external_patbe->patbe0 = value;
+        break;
+    default:
+        env->spr[SPR_SDR1] = value;
+        break;
+    }
+
     if (htabsize > 28) {
         error_setg(errp,
                    "Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",

@@ -32,6 +32,7 @@
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/ppc.h"
+#include "mmu.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -722,8 +723,8 @@ static void gen_spr_generic (CPUPPCState *env)
                  0x00000000);
 }
 
-/* SPR common to all non-embedded PowerPC, including 601 */
-static void gen_spr_ne_601 (CPUPPCState *env)
+/* SPR common to all non-embedded PowerPC, including POWER9 */
+static void gen_spr_ne_power9 (CPUPPCState *env)
 {
     /* Exception processing */
     spr_register_kvm(env, SPR_DSISR, "DSISR",
@@ -739,6 +740,12 @@ static void gen_spr_ne_601 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_decr, &spr_write_decr,
                  0x00000000);
+}
+
+/* SPR common to all non-embedded PowerPC, including 601 */
+static void gen_spr_ne_601 (CPUPPCState *env)
+{
+    gen_spr_ne_power9(env);
     /* Memory management */
     spr_register(env, SPR_SDR1, "SDR1",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -8222,7 +8229,6 @@ static void gen_spr_power8_rpr(CPUPPCState *env)
 
 static void init_proc_book3s_64(CPUPPCState *env, int version)
 {
-    gen_spr_ne_601(env);
     gen_tbl(env);
     gen_spr_book3s_altivec(env);
     gen_spr_book3s_pmu_sup(env);
@@ -8280,6 +8286,10 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_power8_book4(env);
         gen_spr_power8_rpr(env);
     }
+    if (version >= BOOK3S_CPU_POWER9)
+        gen_spr_ne_power9(env);
+    else
+        gen_spr_ne_601(env);
     if (version < BOOK3S_CPU_POWER8) {
         gen_spr_book3s_dbg(env);
     } else {

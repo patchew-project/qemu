@@ -930,7 +930,15 @@ int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 
     sregs.pvr = env->spr[SPR_PVR];
 
-    sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        if (env->external_patbe)
+            sregs.u.s.sdr1 = env->external_patbe->patbe0;
+        break;
+    default:
+        sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+        break;
+    }
 
     /* Sync SLB */
 #ifdef TARGET_PPC64
