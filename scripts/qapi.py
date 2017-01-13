@@ -1535,8 +1535,8 @@ def c_name(name, protect=True):
     # namespace pollution:
     polluted_words = set(['unix', 'errno', 'mips', 'sparc'])
     name = name.translate(c_name_trans)
-    if protect and (name in c89_words | c99_words | c11_words | gcc_words
-                    | cpp_words | polluted_words):
+    if protect and (name in c89_words | c99_words | c11_words | gcc_words |
+                    cpp_words | polluted_words):
         return "q_" + name
     return name
 
