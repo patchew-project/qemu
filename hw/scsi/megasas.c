@@ -2350,11 +2350,10 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
                     "msi=off with this machine type.\n");
             error_propagate(errp, err);
             return;
-        } else if (ret) {
-            /* With msi=auto, we fall back to MSI off silently */
-            s->msi = ON_OFF_AUTO_OFF;
-            error_free(err);
         }
+        assert(!err || s->msix == ON_OFF_AUTO_AUTO);
+        /* With msi=auto, we fall back to MSI off silently */
+        error_free(err);
     }
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,
