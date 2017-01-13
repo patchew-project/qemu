@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2016 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2017 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -16,6 +16,7 @@
 
 
 extern int trace_events_enabled_count;
+extern uint32_t trace_next_vcpu_id;
 
 
 static inline bool trace_event_is_pattern(const char *str)
@@ -82,6 +83,10 @@ static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
     return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id);
 }
 
+static inline uint32_t trace_get_vcpu_event_count(void)
+{
+    return trace_next_vcpu_id;
+}
 
 void trace_event_register_group(TraceEvent **events);
 
