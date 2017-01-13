@@ -151,4 +151,7 @@ void page_size_init(void);
  * returned. */
 bool dump_in_progress(void);
 
+/* Use a macro to allow safe changes to its size in the future */
+#define TRACE_QHT_VCPU_DSTATE_TYPE uint32_t
+
 #endif

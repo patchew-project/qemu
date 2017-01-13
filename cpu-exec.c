@@ -261,6 +261,7 @@ struct tb_desc {
     CPUArchState *env;
     tb_page_addr_t phys_page1;
     uint32_t flags;
+    TRACE_QHT_VCPU_DSTATE_TYPE trace_vcpu_dstate;
 };
 
 static bool tb_cmp(const void *p, const void *d)
@@ -272,6 +273,7 @@ static bool tb_cmp(const void *p, const void *d)
         tb->page_addr[0] == desc->phys_page1 &&
         tb->cs_base == desc->cs_base &&
         tb->flags == desc->flags &&
+        tb->trace_vcpu_dstate == desc->trace_vcpu_dstate &&
         !atomic_read(&tb->invalid)) {
         /* check next page if needed */
         if (tb->page_addr[1] == -1) {
@@ -293,7 +295,8 @@ static bool tb_cmp(const void *p, const void *d)
 static TranslationBlock *tb_htable_lookup(CPUState *cpu,
                                           target_ulong pc,
                                           target_ulong cs_base,
-                                          uint32_t flags)
+                                          uint32_t flags,
+                                          uint32_t trace_vcpu_dstate)
 {
     tb_page_addr_t phys_pc;
     struct tb_desc desc;
@@ -302,10 +305,11 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu,
     desc.env = (CPUArchState *)cpu->env_ptr;
     desc.cs_base = cs_base;
     desc.flags = flags;
+    desc.trace_vcpu_dstate = trace_vcpu_dstate;
     desc.pc = pc;
     phys_pc = get_page_addr_code(desc.env, pc);
     desc.phys_page1 = phys_pc & TARGET_PAGE_MASK;
-    h = tb_hash_func(phys_pc, pc, flags);
+    h = tb_hash_func(phys_pc, pc, flags, trace_vcpu_dstate);
     return qht_lookup(&tcg_ctx.tb_ctx.htable, tb_cmp, &desc, h);
 }
 
@@ -317,7 +321,14 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags;
+    unsigned long trace_vcpu_dstate_bitmap;
+    TRACE_QHT_VCPU_DSTATE_TYPE trace_vcpu_dstate;
     bool have_tb_lock = false;
+
+    bitmap_copy(&trace_vcpu_dstate_bitmap, cpu->trace_dstate,
+                trace_get_vcpu_event_count());
+    memcpy(&trace_vcpu_dstate, &trace_vcpu_dstate_bitmap,
+           sizeof(trace_vcpu_dstate));
 
     /* we record a subset of the CPU state. It will
        always be the same before a given translated block
@@ -325,8 +336,9 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
     tb = atomic_rcu_read(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)]);
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
-                 tb->flags != flags)) {
-        tb = tb_htable_lookup(cpu, pc, cs_base, flags);
+                 tb->flags != flags ||
+                 tb->trace_vcpu_dstate != trace_vcpu_dstate)) {
+        tb = tb_htable_lookup(cpu, pc, cs_base, flags, trace_vcpu_dstate);
         if (!tb) {
 
             /* mmap_lock is needed by tb_gen_code, and mmap_lock must be
@@ -340,7 +352,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
             /* There's a chance that our desired tb has been translated while
              * taking the locks so we check again inside the lock.
              */
-            tb = tb_htable_lookup(cpu, pc, cs_base, flags);
+            tb = tb_htable_lookup(cpu, pc, cs_base, flags, trace_vcpu_dstate);
             if (!tb) {
                 /* if no translated code available, then translate it now */
                 tb = tb_gen_code(cpu, pc, cs_base, flags, 0);

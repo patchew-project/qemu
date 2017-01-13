@@ -63,6 +63,7 @@ static void trace_event_synchronize_vcpu_state_dynamic(
 {
     bitmap_copy(vcpu->trace_dstate, vcpu->trace_dstate_delayed,
                 trace_get_vcpu_event_count());
+    tb_flush_jmp_cache_all(vcpu);
 }
 
 void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
