@@ -367,6 +367,7 @@ static void cpu_common_initfn(Object *obj)
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
 
+    cpu->trace_dstate_delayed = bitmap_new(trace_get_vcpu_event_count());
     cpu->trace_dstate = bitmap_new(trace_get_vcpu_event_count());
 
     cpu_exec_initfn(cpu);
@@ -375,6 +376,7 @@ static void cpu_common_initfn(Object *obj)
 static void cpu_common_finalize(Object *obj)
 {
     CPUState *cpu = CPU(obj);
+    g_free(cpu->trace_dstate_delayed);
     g_free(cpu->trace_dstate);
 }
 
