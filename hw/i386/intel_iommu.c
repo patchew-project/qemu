@@ -1162,6 +1162,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 trace_vtd_inv_desc_cc_device(bus_n, (devfn_it >> 3) & 0x1f,
                                              devfn_it & 3);
                 vtd_as->context_cache_entry.context_cache_gen = 0;
+                memory_region_iommu_replay_all(&vtd_as->iommu);
             }
         }
     }
