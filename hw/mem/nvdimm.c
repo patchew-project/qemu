@@ -114,7 +114,7 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 static void nvdimm_validate_rw_label_data(NVDIMMDevice *nvdimm, uint64_t size,
                                         uint64_t offset)
 {
-    assert((nvdimm->label_size >= size + offset) && (offset + size > offset));
+    assert((nvdimm->label_size >= size + offset) && (offset + size >= offset));
 }
 
 static void nvdimm_read_label_data(NVDIMMDevice *nvdimm, void *buf,
