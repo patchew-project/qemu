@@ -455,6 +455,10 @@ static void vfio_listener_region_add(MemoryListener *listener,
         giommu->container = container;
         giommu->n.notify = vfio_iommu_map_notify;
         giommu->n.notifier_flags = IOMMU_NOTIFIER_ALL;
+        giommu->n.start = section->offset_within_region;
+        llend = int128_add(int128_make64(giommu->n.start), section->size);
+        llend = int128_sub(llend, int128_one());
+        giommu->n.end = int128_get64(llend);
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
 
         memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);
@@ -525,7 +529,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
         VFIOGuestIOMMU *giommu;
 
         QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
-            if (giommu->iommu == section->mr) {
+            if (giommu->iommu == section->mr &&
+                giommu->n.start == section->offset_within_region) {
                 memory_region_unregister_iommu_notifier(giommu->iommu,
                                                         &giommu->n);
                 QLIST_REMOVE(giommu, giommu_next);

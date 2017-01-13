@@ -84,6 +84,9 @@ typedef enum {
 struct IOMMUNotifier {
     void (*notify)(struct IOMMUNotifier *notifier, IOMMUTLBEntry *data);
     IOMMUNotifierFlag notifier_flags;
+    /* Notify for address space range start <= addr <= end */
+    hwaddr start;
+    hwaddr end;
     QLIST_ENTRY(IOMMUNotifier) node;
 };
 typedef struct IOMMUNotifier IOMMUNotifier;
