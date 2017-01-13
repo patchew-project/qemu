@@ -607,19 +607,6 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
         DPRINT("Got kick_fd: %d for vq: %d\n", vmsg->fds[0], index);
     }
 
-    dev->vq[index].started = true;
-    if (dev->iface->queue_set_started) {
-        dev->iface->queue_set_started(dev, index, true);
-    }
-
-    if (dev->vq[index].kick_fd != -1 && dev->vq[index].handler) {
-        dev->set_watch(dev, dev->vq[index].kick_fd, VU_WATCH_IN,
-                       vu_kick_cb, (void *)(long)index);
-
-        DPRINT("Waiting for kicks on fd: %d for vq: %d\n",
-               dev->vq[index].kick_fd, index);
-    }
-
     return false;
 }
 
@@ -660,6 +647,19 @@ vu_set_vring_call_exec(VuDev *dev, VhostUserMsg *vmsg)
     }
 
     DPRINT("Got call_fd: %d for vq: %d\n", vmsg->fds[0], index);
+
+    dev->vq[index].started = true;
+    if (dev->iface->queue_set_started) {
+        dev->iface->queue_set_started(dev, index, true);
+    }
+
+    if (dev->vq[index].kick_fd != -1 && dev->vq[index].handler) {
+        dev->set_watch(dev, dev->vq[index].kick_fd, VU_WATCH_IN,
+                       vu_kick_cb, (void *)(long)index);
+
+        DPRINT("Waiting for kicks on fd: %d for vq: %d\n",
+               dev->vq[index].kick_fd, index);
+    }
 
     return false;
 }
