@@ -2107,6 +2107,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("x-buggy-eim", IntelIOMMUState, buggy_eim, false),
+    DEFINE_PROP_BOOL("cache-mode", IntelIOMMUState, cache_mode_enabled, FALSE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2486,6 +2487,10 @@ static void vtd_init(IntelIOMMUState *s)
 
     if (x86_iommu->dt_supported) {
         s->ecap |= VTD_ECAP_DT;
+    }
+
+    if (s->cache_mode_enabled) {
+        s->cap |= VTD_CAP_CM;
     }
 
     vtd_reset_context_cache(s);
