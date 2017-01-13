@@ -2366,9 +2366,12 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 
     if (megasas_use_msix(s) &&
         msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
-                  &s->mmio_io, b->mmio_bar, 0x3800, 0x68)) {
+                  &s->mmio_io, b->mmio_bar, 0x3800, 0x68, &err)) {
+        /*TODO: check msix_init's error, and should fail on msix=on */
+        error_report_err(err);
         s->msix = ON_OFF_AUTO_OFF;
     }
+
     if (pci_is_express(dev)) {
         pcie_endpoint_cap_init(dev, 0xa0);
     }
