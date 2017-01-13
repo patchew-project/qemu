@@ -941,11 +941,7 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     }
 
     CPU_FOREACH(cpu) {
-        int i;
-
-        for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
-            atomic_set(&cpu->tb_jmp_cache[i], NULL);
-        }
+        tb_flush_jmp_cache_all(cpu);
     }
 
     tcg_ctx.tb_ctx.nb_tbs = 0;
@@ -1738,6 +1734,14 @@ void tb_check_watchpoint(CPUState *cpu)
         cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
         addr = get_page_addr_code(env, pc);
         tb_invalidate_phys_range(addr, addr + 1);
+    }
+}
+
+void tb_flush_jmp_cache_all(CPUState *cpu)
+{
+    int i;
+    for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
+        atomic_set(&cpu->tb_jmp_cache[i], NULL);
     }
 }
 
