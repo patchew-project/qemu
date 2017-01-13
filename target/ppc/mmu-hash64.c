@@ -73,6 +73,14 @@ static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
         }
     }
 
+    /* Check if in-memory segment tables are in use */
+    if (ppc64_use_proc_tbl(cpu)) {
+        /* TODO - Unsupported */
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented - segment table support\n",
+                      __func__);
+        /* Not much we can do here, caller will generate a segment interrupt */
+    }
+
     return NULL;
 }
 
