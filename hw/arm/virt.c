@@ -175,7 +175,7 @@ static bool cpuname_valid(const char *cpu)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(valid_cpus); i++) {
-        if (strcmp(cpu, valid_cpus[i]) == 0) {
+        if (valid_cpus[i] != NULL && strcmp(cpu, valid_cpus[i]) == 0) {
             return true;
         }
     }
