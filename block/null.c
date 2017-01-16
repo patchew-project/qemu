@@ -236,6 +236,13 @@ static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
     bs->full_open_options = opts;
 }
 
+static const char *const null_sgfnt_runtime_opts[] = {
+    BLOCK_OPT_SIZE,
+    NULL_OPT_ZEROES,
+
+    NULL
+};
+
 static BlockDriver bdrv_null_co = {
     .format_name            = "null-co",
     .protocol_name          = "null-co",
@@ -253,6 +260,7 @@ static BlockDriver bdrv_null_co = {
     .bdrv_co_get_block_status   = null_co_get_block_status,
 
     .bdrv_refresh_filename  = null_refresh_filename,
+    .sgfnt_runtime_opts     = null_sgfnt_runtime_opts,
 };
 
 static BlockDriver bdrv_null_aio = {
@@ -272,6 +280,7 @@ static BlockDriver bdrv_null_aio = {
     .bdrv_co_get_block_status   = null_co_get_block_status,
 
     .bdrv_refresh_filename  = null_refresh_filename,
+    .sgfnt_runtime_opts     = null_sgfnt_runtime_opts,
 };
 
 static void bdrv_null_init(void)

@@ -1138,6 +1138,14 @@ static BlockDriver bdrv_quorum = {
 
     .is_filter                          = true,
     .bdrv_recurse_is_first_non_filter   = quorum_recurse_is_first_non_filter,
+
+    .sgfnt_runtime_opts                 = (const char *const[]) {
+                                              QUORUM_OPT_VOTE_THRESHOLD,
+                                              QUORUM_OPT_BLKVERIFY,
+                                              QUORUM_OPT_REWRITE,
+                                              QUORUM_OPT_READ_PATTERN,
+                                              NULL
+                                          },
 };
 
 static void bdrv_quorum_init(void)

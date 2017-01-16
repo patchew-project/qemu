@@ -1005,6 +1005,8 @@ static BlockDriver bdrv_rbd = {
 #ifdef LIBRBD_SUPPORTS_INVALIDATE
     .bdrv_invalidate_cache  = qemu_rbd_invalidate_cache,
 #endif
+
+    .sgfnt_runtime_opts     = (const char *const[]) { "password-secret", NULL },
 };
 
 static void bdrv_rbd_init(void)

@@ -3077,6 +3077,10 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
     .bdrv_co_get_block_status = vvfat_co_get_block_status,
+
+    .sgfnt_runtime_opts     = (const char *const[]) { "dir", "fat-type",
+                                                      "floppy", "label", "rw",
+                                                      NULL },
 };
 
 static void bdrv_vvfat_init(void)
