@@ -870,6 +870,8 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_USER_INSTR0 130
 #define KVM_CAP_MSI_DEVID 131
 #define KVM_CAP_PPC_HTM 132
+#define KVM_CAP_ARM_CROSS_VCPU 133
+#define KVM_CAP_ARM_HETEROGENEOUS 134
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
