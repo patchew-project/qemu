@@ -222,18 +222,23 @@ static int64_t coroutine_fn null_co_get_block_status(BlockDriverState *bs,
     }
 }
 
-static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
+static void null_refresh_filename(BlockDriverState *bs)
 {
-    QINCREF(opts);
-    qdict_del(opts, "filename");
+    const QDictEntry *e;
 
-    if (!qdict_size(opts)) {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s://",
-                 bs->drv->format_name);
+    for (e = qdict_first(bs->full_open_options); e;
+         e = qdict_next(bs->full_open_options, e))
+    {
+        /* These options can be ignored */
+        if (strcmp(qdict_entry_key(e), "filename") &&
+            strcmp(qdict_entry_key(e), "driver"))
+        {
+            return;
+        }
     }
 
-    qdict_put(opts, "driver", qstring_from_str(bs->drv->format_name));
-    bs->full_open_options = opts;
+    snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s://",
+             bs->drv->format_name);
 }
 
 static const char *const null_sgfnt_runtime_opts[] = {
