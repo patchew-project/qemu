@@ -203,20 +203,20 @@ static void path_combine_deprecated(char *dest, int dest_size,
     g_free(combined);
 }
 
-void bdrv_get_full_backing_filename_from_filename(const char *backed,
-                                                  const char *backing,
-                                                  char *dest, size_t sz,
-                                                  Error **errp)
+char *bdrv_get_full_backing_filename_from_filename(const char *backed,
+                                                   const char *backing,
+                                                   Error **errp)
 {
     if (backing[0] == '\0' || path_has_protocol(backing) ||
         path_is_absolute(backing))
     {
-        pstrcpy(dest, sz, backing);
+        return g_strdup(backing);
     } else if (backed[0] == '\0' || strstart(backed, "json:", NULL)) {
         error_setg(errp, "Cannot use relative backing file names for '%s'",
                    backed);
+        return NULL;
     } else {
-        path_combine_deprecated(dest, sz, backed, backing);
+        return path_combine(backed, backing);
     }
 }
 
@@ -224,9 +224,15 @@ void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
                                     Error **errp)
 {
     char *backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
+    char *full_name;
 
-    bdrv_get_full_backing_filename_from_filename(backed, bs->backing_file,
-                                                 dest, sz, errp);
+    full_name = bdrv_get_full_backing_filename_from_filename(backed,
+                                                             bs->backing_file,
+                                                             errp);
+    if (full_name) {
+        pstrcpy(dest, sz, full_name);
+        g_free(full_name);
+    }
 }
 
 void bdrv_register(BlockDriver *bdrv)
@@ -3607,16 +3613,16 @@ void bdrv_img_create(const char *filename, const char *fmt,
     if (size == -1) {
         if (backing_file) {
             BlockDriverState *bs;
-            char *full_backing = g_new0(char, PATH_MAX);
+            char *full_backing;
             int64_t size;
             int back_flags;
             QDict *backing_options = NULL;
 
-            bdrv_get_full_backing_filename_from_filename(filename, backing_file,
-                                                         full_backing, PATH_MAX,
-                                                         &local_err);
+            full_backing =
+                bdrv_get_full_backing_filename_from_filename(filename,
+                                                             backing_file,
+                                                             &local_err);
             if (local_err) {
-                g_free(full_backing);
                 goto out;
             }
 
