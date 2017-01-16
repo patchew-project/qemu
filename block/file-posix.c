@@ -679,6 +679,13 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
             if (ret > 0 && ret <= BDRV_REQUEST_MAX_SECTORS) {
                 bs->bl.max_transfer = pow2floor(ret << BDRV_SECTOR_BITS);
             }
+        } else if (S_ISCHR(st.st_mode)) {
+            /* sg returns transfer length in bytes already */
+            int ret = hdev_get_max_transfer_length(bs, s->fd);
+            if (ret > 0 &&
+                (ret >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS) {
+                bs->bl.max_transfer = pow2floor(ret);
+            }
         }
     }
 
