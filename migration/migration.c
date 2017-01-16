@@ -1251,6 +1251,15 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     qmp_migrate_set_parameters(&p, errp);
 }
 
+bool migrate_discard_ram(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_DISCARD_RAM];
+}
+
 bool migrate_postcopy_ram(void)
 {
     MigrationState *s;

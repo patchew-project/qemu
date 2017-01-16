@@ -27,6 +27,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "sysemu/sysemu.h"
 #include "cpu.h"
 #include <zlib.h>
 #include "qapi-event.h"
@@ -713,6 +714,18 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
     return pages;
 }
 
+static void ram_discard_page(uint8_t *addr, int pages)
+{
+    if (!migrate_discard_ram() || !runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+        return;
+    }
+
+    if (qemu_madvise(addr, pages << TARGET_PAGE_BITS, QEMU_MADV_DONTNEED) < 0) {
+        error_report("migrate: madvise DONTNEED failed %p %d: %s",
+                     addr, pages << TARGET_PAGE_BITS, strerror(errno));
+    }
+}
+
 /**
  * ram_save_page: Send the given page to the stream
  *
@@ -772,6 +785,7 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
              * page would be stale
              */
             xbzrle_cache_zero_page(current_addr);
+            ram_discard_page(p, pages);
         } else if (!ram_bulk_stage &&
                    !migration_in_postcopy(migrate_get_current()) &&
                    migrate_use_xbzrle()) {
@@ -791,9 +805,11 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
         *bytes_transferred += save_page_header(f, block,
                                                offset | RAM_SAVE_FLAG_PAGE);
         if (send_async) {
-            qemu_put_buffer_async(f, p, TARGET_PAGE_SIZE);
+            qemu_put_buffer_async(
+                f, p, TARGET_PAGE_SIZE, migrate_discard_ram());
         } else {
             qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
+            ram_discard_page(p, 1);
         }
         *bytes_transferred += TARGET_PAGE_SIZE;
         pages = 1;
@@ -821,6 +837,7 @@ static int do_compress_ram_page(QEMUFile *f, RAMBlock *block,
         error_report("compressed data failed!");
     } else {
         bytes_sent += blen;
+        ram_discard_page(p, 1);
     }
 
     return bytes_sent;
@@ -959,12 +976,17 @@ static int ram_save_compressed_page(QEMUFile *f, PageSearchStatus *pss,
                     error_report("compressed data failed!");
                 }
             }
+            if (pages > 0) {
+                ram_discard_page(p, pages);
+            }
         } else {
             offset |= RAM_SAVE_FLAG_CONTINUE;
             pages = save_zero_page(f, block, offset, p, bytes_transferred);
             if (pages == -1) {
                 pages = compress_page_with_multi_thread(f, block, offset,
                                                         bytes_transferred);
+            } else {
+                ram_discard_page(p, pages);
             }
         }
     }
