@@ -53,6 +53,13 @@ struct VirtIOSCSIConf {
     char *wwpn;
     uint32_t boot_tpgt;
     IOThread *iothread;
+
+    char *fc_host;
+    bool primary_active;
+    uint64_t primary_wwnn;
+    uint64_t primary_wwpn;
+    uint64_t secondary_wwnn;
+    uint64_t secondary_wwpn;
 };
 
 struct VirtIOSCSI;
@@ -83,6 +90,9 @@ typedef struct VirtIOSCSI {
     bool dataplane_stopping;
     bool dataplane_fenced;
     uint32_t host_features;
+
+    bool config_change_pending;
+    VMChangeStateEntry *vm_state_change;
 } VirtIOSCSI;
 
 typedef struct VirtIOSCSIReq {
