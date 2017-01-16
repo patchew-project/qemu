@@ -2287,6 +2287,18 @@ static int vmdk_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
+static void vmdk_gather_child_options(BlockDriverState *bs, QDict *target)
+{
+    /* No children but file and backing can be explicitly specified */
+    QINCREF(bs->file->bs->full_open_options);
+    qdict_put(target, "file", bs->file->bs->full_open_options);
+
+    if (bs->backing_overridden) {
+        QINCREF(bs->backing->bs->full_open_options);
+        qdict_put(target, "backing", bs->backing->bs->full_open_options);
+    }
+}
+
 static QemuOptsList vmdk_create_opts = {
     .name = "vmdk-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(vmdk_create_opts.head),
@@ -2356,6 +2368,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_get_specific_info       = vmdk_get_specific_info,
     .bdrv_refresh_limits          = vmdk_refresh_limits,
     .bdrv_get_info                = vmdk_get_info,
+    .bdrv_gather_child_options    = vmdk_gather_child_options,
 
     .supports_backing             = true,
     .create_opts                  = &vmdk_create_opts,
