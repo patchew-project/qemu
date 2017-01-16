@@ -74,6 +74,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            const BdrvChildRole *child_role,
                                            Error **errp);
 
+static bool has_significant_runtime_options(BlockDriverState *bs,
+                                            const QDict *d);
+
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -1481,6 +1484,42 @@ out:
     bdrv_refresh_limits(bs, NULL);
 }
 
+/**
+ * Checks whether @options contains any significant option for any of the nodes
+ * in the BDS tree emerging from @bs.
+ */
+static bool is_significant_option_tree(BlockDriverState *bs, QDict *options)
+{
+    BdrvChild *child;
+
+    if (!qdict_size(options)) {
+        /* No need to recurse */
+        return false;
+    }
+
+    if (has_significant_runtime_options(bs, options)) {
+        return true;
+    }
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        QDict *child_options;
+        char *option_prefix;
+
+        option_prefix = g_strdup_printf("%s.", child->name);
+        qdict_extract_subqdict(options, &child_options, option_prefix);
+        g_free(option_prefix);
+
+        if (is_significant_option_tree(child->bs, child_options)) {
+            QDECREF(child_options);
+            return true;
+        }
+
+        QDECREF(child_options);
+    }
+
+    return false;
+}
+
 /*
  * Opens the backing file for a BlockDriverState if not yet open
  *
@@ -1499,7 +1538,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     const char *reference = NULL;
     int ret = 0;
     BlockDriverState *backing_hd;
-    QDict *options;
+    QDict *options, *cloned_options = NULL;
     QDict *tmp_parent_options = NULL;
     Error *local_err = NULL;
 
@@ -1522,11 +1561,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     reference = qdict_get_try_str(parent_options, bdref_key);
     if (reference || qdict_haskey(options, "file.filename")) {
         /* keep backing_filename NULL */
-
-        /* FIXME: Should also be set to true if @options contains other runtime
-         *        options which control the data that is read from the backing
-         *        BDS */
-        bs->backing_overridden = true;
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
         goto free_exit;
@@ -1547,6 +1581,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         goto free_exit;
     }
 
+    cloned_options = qdict_clone_shallow(options);
+
     if (bs->backing_format[0] != '\0' && !qdict_haskey(options, "driver")) {
         qdict_put(options, "driver", qstring_from_str(bs->backing_format));
     }
@@ -1560,6 +1596,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         goto free_exit;
     }
 
+    if (reference || is_significant_option_tree(backing_hd, cloned_options)) {
+        bs->backing_overridden = true;
+    }
+
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
     bdrv_set_backing_hd(bs, backing_hd);
@@ -1570,6 +1610,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 free_exit:
     g_free(backing_filename);
     QDECREF(tmp_parent_options);
+    QDECREF(cloned_options);
     return ret;
 }
 
@@ -3961,6 +4002,34 @@ static const char *const *significant_options(BlockDriverState *bs,
     }
 
     return (curopt && *curopt) ? curopt : NULL;
+}
+
+/**
+ * Returns true if @d contains any options the block driver of @bs considers to
+ * be significant runtime options.
+ */
+static bool has_significant_runtime_options(BlockDriverState *bs,
+                                            const QDict *d)
+{
+    const char *const *option_name = NULL;
+
+    while ((option_name = significant_options(bs, option_name))) {
+        assert(strlen(*option_name) > 0);
+        if ((*option_name)[strlen(*option_name) - 1] != '.') {
+            if (qdict_haskey(d, *option_name)) {
+                return true;
+            }
+        } else {
+            const QDictEntry *entry;
+            for (entry = qdict_first(d); entry; entry = qdict_next(d, entry)) {
+                if (strstart(qdict_entry_key(entry), *option_name, NULL)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 /**
