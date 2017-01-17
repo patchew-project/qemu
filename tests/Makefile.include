@@ -253,6 +253,9 @@ check-qtest-x86_64-y += $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
 
+check-simpleqtest-x86_64-y += $(SRC_PATH)/tests/query-cpu-model-test.py
+check-simpleqtest-i386-y += $(SRC_PATH)/tests/query-cpu-model-test.py
+
 check-qtest-alpha-y = tests/boot-serial-test$(EXESUF)
 
 check-qtest-mips-y = tests/endianness-test$(EXESUF)
