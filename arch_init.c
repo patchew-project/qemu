@@ -235,17 +235,6 @@ void audio_init(void)
     }
 }
 
-void do_acpitable_option(const QemuOpts *opts)
-{
-    Error *err = NULL;
-
-    acpi_table_add(opts, &err);
-    if (err) {
-        error_reportf_err(err, "Wrong acpi table provided: ");
-        exit(1);
-    }
-}
-
 int kvm_available(void)
 {
 #ifdef CONFIG_KVM
