@@ -1264,6 +1264,11 @@ static int rocker_msix_init(Rocker *r)
                     &r->msix_bar,
                     ROCKER_PCI_MSIX_BAR_IDX, ROCKER_PCI_MSIX_PBA_OFFSET,
                     0, &local_err);
+
+    /* Any error other than -ENOTSUP(board's MSI support is broken)
+     * is a programming error. */
+    assert(!err || err == -ENOTSUP);
+
     if (err) {
         error_report_err(local_err);
         return err;

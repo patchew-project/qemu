@@ -1683,13 +1683,14 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
     if (proxy->nvectors) {
         int err = msix_init_exclusive_bar(&proxy->pci_dev, proxy->nvectors,
-                                          proxy->msix_bar_idx, NULL);
+                                          proxy->msix_bar_idx, errp);
+
+        /* Any error other than -ENOTSUP(board's MSI support is broken)
+         * is a programming error. */
+        assert(!err || err == -ENOTSUP);
+
         if (err) {
-            /* Notice when a system that supports MSIx can't initialize it */
-            if (err != -ENOTSUP) {
-                error_report("unable to init msix vectors to %" PRIu32,
-                             proxy->nvectors);
-            }
+            error_report_err(*errp);
             proxy->nvectors = 0;
         }
     }

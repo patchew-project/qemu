@@ -294,6 +294,10 @@ e1000e_init_msix(E1000EState *s)
                         E1000E_MSIX_IDX, E1000E_MSIX_PBA,
                         0xA0, NULL);
 
+    /* Any error other than -ENOTSUP(board's MSI support is broken)
+     * is a programming error. Fall back to INTx silently on -ENOTSUP */
+    assert(!res || res == -ENOTSUP);
+
     if (res < 0) {
         trace_e1000e_msix_init_fail(res);
     } else {
