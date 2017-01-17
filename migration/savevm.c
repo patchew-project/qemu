@@ -143,6 +143,11 @@ void qemu_announce_self(void)
     qemu_announce_self_once(&timer);
 }
 
+void qmp_announce_self(Error **errp)
+{
+    qemu_announce_self();
+}
+
 /***********************************************************/
 /* savevm/loadvm support */
 
