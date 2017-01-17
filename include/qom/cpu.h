@@ -636,6 +636,17 @@ bool qemu_cpu_is_self(CPUState *cpu);
 void qemu_cpu_kick(CPUState *cpu);
 
 /**
+ * cpu_init_def:
+ * @cpu_model: Specifies the CPU model which should be created.
+ *
+ * A wrapper around the cpu_init() macro which can be used in target
+ * independent code, too.
+ *
+ * Returns: The CPUState of the created CPU.
+ */
+CPUState *cpu_init_def(const char *cpu_model);
+
+/**
  * cpu_is_stopped:
  * @cpu: The CPU to check.
  *
