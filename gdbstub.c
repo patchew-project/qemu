@@ -1731,6 +1731,12 @@ int gdbserver_start(const char *device)
     CharDriverState *mon_chr;
     ChardevCommon common = { 0 };
 
+    if (!first_cpu) {
+        fprintf(stderr, "gdbstub: meaningless to attach gdb to a "
+                "machine without any CPU.\n");
+        return -1;
+    }
+
     if (!device)
         return -1;
     if (strcmp(device, "none") != 0) {
