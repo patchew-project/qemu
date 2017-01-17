@@ -79,8 +79,10 @@ class QEMUQtestProtocol(object):
 class QEMUQtestMachine(qemu.QEMUMachine):
     '''A QEMU VM'''
 
-    def __init__(self, binary, args=[], name=None, test_dir="/var/tmp",
+    def __init__(self, binary=None, args=[], name=None, test_dir="/var/tmp",
                  socket_scm_helper=None, logging=True):
+        if binary is None:
+            binary = os.getenv('QTEST_QEMU_BINARY')
         if name is None:
             name = "qemu-%d" % os.getpid()
         super(QEMUQtestMachine, self).__init__(binary, args, name=name, test_dir=test_dir,
