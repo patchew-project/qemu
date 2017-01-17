@@ -171,11 +171,19 @@ QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
     for (i = 0; i < elem - 1; ++i) {
         /* indirect->desc[i].addr */
         writeq(indirect->desc + (16 * i), 0);
+        /* indirect->desc[i].len */
+        writel(indirect->desc + (16 * i) + 8, 0);
         /* indirect->desc[i].flags */
         writew(indirect->desc + (16 * i) + 12, VRING_DESC_F_NEXT);
         /* indirect->desc[i].next */
         writew(indirect->desc + (16 * i) + 14, i + 1);
     }
+
+    /* zeroed last element */
+    writeq(indirect->desc + (16 * i), 0); /* addr */
+    writel(indirect->desc + (16 * i) + 8, 0); /* len */
+    writew(indirect->desc + (16 * i) + 12, 0); /* flags */
+    writew(indirect->desc + (16 * i) + 14, 0); /* next */
 
     return indirect;
 }
