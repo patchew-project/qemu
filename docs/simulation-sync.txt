@@ -1,0 +1,59 @@
+= Synchronizing the virtual clock with an external source =
+
+QEMU has a protocol for synchronizing its virtual clock
+with the clock of a simulator in which QEMU is embedded
+as a component. This options is enabled with the -qqq
+argument, and it should generally be accompanied by the
+following additional command line arguments:
+
+-icount 1,sleep=off -rtc clock=vm
+  or
+-enable-kvm -rtc clock=vm
+
+The -qqq argument is used to supply a file descriptor
+for a Unix socket, which is used for synchronization.
+The procedure for launching QEMU in is synchronization
+mode has three steps:
+
+(1) Create a socket pair with the Linux socketpair function.
+    The code segment that does this might look like
+
+       int socks[2];
+       socketpair(AF_UNIX,SOCK_STREAM,0,socks);
+
+(2) Fork QEMU with the appropriate command line arguments.
+    The -qqq part of the argument will look something like
+
+       -qqq sock=socks[1]
+
+(3) After forking QEMU, close sock[1] and retain the
+    sock[0] for communicating with QEMU.
+
+The synchronization protocol is very simple. To start, the
+external simulator writes an integer to its socket with
+the amount of time in microseconds that QEMU is allowed to
+advance. The code segment that does this might look like:
+
+    uint32_t ta = htonl(1000); // Advance by 1 millisecond
+    write(sock[0],&ta,sizeof(uint32_t));
+
+The external simulator can then advance its clock by this
+same amount. During this time, QEMU and the external simulator
+will be executing in parallel. When the external simulator
+completes its time advance, it waits for QEMU by reading from
+its socket. The value read will be the actual number of
+virtual microseconds by which QEMU has advanced its virtual clock.
+This will be greater than or equal to the requested advance.
+The code that does this might look like:
+
+   uint32_t ta;
+   read(fd,&ta,sizeof(uint32_t));
+   ta = ntohl(ta);
+
+These steps are repeated until either (1) the external simulator
+closes its socket thereby causing QEMU to terminate or (2) QEMU
+stops executing (e.g., if the emulated computer is shutdown) and
+causes a read or write error on the simulator's socket.
+
+You can find an example of a simulator using this protocol in
+the adevs simulation package at http://sourceforge.net/projects/adevs/
