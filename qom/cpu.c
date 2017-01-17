@@ -295,8 +295,7 @@ static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
 static void cpu_common_parse_features(const char *typename, char *features,
                                       Error **errp)
 {
-    char *featurestr; /* Single "key=value" string being parsed */
-    char *val;
+    const char *featurestr;
     static bool cpu_globals_initialized;
 
     /* TODO: all callers of ->parse_features() need to be changed to
@@ -310,16 +309,26 @@ static void cpu_common_parse_features(const char *typename, char *features,
     }
     cpu_globals_initialized = true;
 
-    featurestr = features ? strtok(features, ",") : NULL;
+    if (!features) {
+        return;
+    }
 
-    while (featurestr) {
-        val = strchr(featurestr, '=');
-        if (val) {
+    /*TODO: Use QemuOpts to parse -cpu on main(), so we don't need
+     *      to manually call get_opt_*() here.
+     */
+    for (featurestr = features; *featurestr != '\0'; featurestr++) {
+        const char *pe = strchr(featurestr, '=');
+        const char *pc = strchr(featurestr, ',');
+        if (pe && (!pc || pc > pe)) {
+            char option[128], val[1024];
             GlobalProperty *prop = g_new0(typeof(*prop), 1);
-            *val = 0;
-            val++;
+
+            featurestr = get_opt_name(option, sizeof(option), featurestr, '=');
+            featurestr++;
+            featurestr = get_opt_value(val, sizeof(val), featurestr);
+
             prop->driver = typename;
-            prop->property = g_strdup(featurestr);
+            prop->property = g_strdup(option);
             prop->value = g_strdup(val);
             prop->errp = &error_fatal;
             qdev_prop_register_global(prop);
@@ -328,7 +337,10 @@ static void cpu_common_parse_features(const char *typename, char *features,
                        featurestr);
             return;
         }
-        featurestr = strtok(NULL, ",");
+
+        if (*featurestr != ',') {
+            break;
+        }
     }
 }
 

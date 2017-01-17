@@ -1997,7 +1997,7 @@ static gint compare_string(gconstpointer a, gconstpointer b)
 static void x86_cpu_parse_featurestr(const char *typename, char *features,
                                      Error **errp)
 {
-    char *featurestr; /* Single 'key=value" string being parsed */
+    const char *featurestr;
     static bool cpu_globals_initialized;
     bool ambiguous = false;
 
@@ -2010,36 +2010,40 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         return;
     }
 
-    for (featurestr = strtok(features, ",");
-         featurestr;
-         featurestr = strtok(NULL, ",")) {
-        const char *name;
-        const char *val = NULL;
-        char *eq = NULL;
-        char num[32];
+    /*TODO: Use QemuOpts to parse -cpu on main(), so we don't need
+     *      to manually call get_opt_*() here.
+     */
+    for (featurestr = features;
+         *featurestr != '\0';
+         *featurestr == ',' ? featurestr++ : 0) {
+        char name[128], val[1024];
         GlobalProperty *prop;
+        const char *pe = strchr(featurestr, '=');
+        const char *pc = strchr(featurestr, ',');
 
-        /* Compatibility syntax: */
-        if (featurestr[0] == '+') {
-            plus_features = g_list_append(plus_features,
-                                          g_strdup(featurestr + 1));
-            continue;
-        } else if (featurestr[0] == '-') {
-            minus_features = g_list_append(minus_features,
-                                           g_strdup(featurestr + 1));
-            continue;
-        }
-
-        eq = strchr(featurestr, '=');
-        if (eq) {
-            *eq++ = 0;
-            val = eq;
+        if (pe && (!pc || pc > pe)) {
+            /* opt=value[,...] */
+            featurestr = get_opt_name(name, sizeof(name), featurestr, '=');
+            featurestr++;
+            featurestr = get_opt_value(val, sizeof(val), featurestr);
         } else {
-            val = "on";
+            /* opt[,...] */
+            featurestr = get_opt_name(name, sizeof(name), featurestr, ',');
+            pstrcpy(val, sizeof(val), "on");
+
+            /* Compatibility syntax: */
+            if (name[0] == '+') {
+                plus_features = g_list_append(plus_features,
+                                              g_strdup(name + 1));
+                continue;
+            } else if (name[0] == '-') {
+                minus_features = g_list_append(minus_features,
+                                               g_strdup(name + 1));
+                continue;
+            }
         }
 
-        feat2prop(featurestr);
-        name = featurestr;
+        feat2prop(name);
 
         if (g_list_find_custom(plus_features, name, compare_string)) {
             error_report("warning: Ambiguous CPU model string. "
@@ -2065,9 +2069,8 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
                 error_setg(errp, "bad numerical value %s", val);
                 return;
             }
-            snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
-            val = num;
-            name = "tsc-frequency";
+            snprintf(val, sizeof(val), "%" PRId64, tsc_freq);
+            pstrcpy(name, sizeof(name), "tsc-frequency");
         }
 
         prop = g_new0(typeof(*prop), 1);
