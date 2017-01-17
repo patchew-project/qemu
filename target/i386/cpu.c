@@ -1560,12 +1560,6 @@ static int cpu_x86_fill_model_id(char *str)
 
 static X86CPUDefinition host_cpudef;
 
-static Property host_x86_cpu_properties[] = {
-    DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
-    DEFINE_PROP_BOOL("host-cache-info", X86CPU, cache_info_passthrough, false),
-    DEFINE_PROP_END_OF_LIST()
-};
-
 /* class_init for the "host" CPU model
  *
  * This function may be called before KVM is initialized.
@@ -1597,7 +1591,6 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
      * instance_init, because they require KVM to be initialized.
      */
 
-    dc->props = host_x86_cpu_properties;
     /* Reason: host_x86_cpu_initfn() dies when !kvm_enabled() */
     dc->cannot_destroy_with_object_finalize_yet = true;
 }
@@ -3679,6 +3672,8 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("cpuid-0xb", X86CPU, enable_cpuid_0xb, true),
     DEFINE_PROP_BOOL("lmce", X86CPU, enable_lmce, false),
     DEFINE_PROP_BOOL("l3-cache", X86CPU, enable_l3_cache, true),
+    DEFINE_PROP_BOOL("host-cache-info", X86CPU, cache_info_passthrough, false),
+    DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
