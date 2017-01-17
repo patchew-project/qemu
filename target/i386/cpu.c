@@ -1791,19 +1791,22 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     int i;
+    char buf[CPUID_VENDOR_SZ] = { 0 };
 
-    if (strlen(value) != CPUID_VENDOR_SZ) {
+    if (strlen(value) > CPUID_VENDOR_SZ) {
         error_setg(errp, QERR_PROPERTY_VALUE_BAD, "", "vendor", value);
         return;
     }
+
+    strncpy(buf, value, sizeof(buf));
 
     env->cpuid_vendor1 = 0;
     env->cpuid_vendor2 = 0;
     env->cpuid_vendor3 = 0;
     for (i = 0; i < 4; i++) {
-        env->cpuid_vendor1 |= ((uint8_t)value[i    ]) << (8 * i);
-        env->cpuid_vendor2 |= ((uint8_t)value[i + 4]) << (8 * i);
-        env->cpuid_vendor3 |= ((uint8_t)value[i + 8]) << (8 * i);
+        env->cpuid_vendor1 |= ((uint8_t)buf[i])     << (8 * i);
+        env->cpuid_vendor2 |= ((uint8_t)buf[i + 4]) << (8 * i);
+        env->cpuid_vendor3 |= ((uint8_t)buf[i + 8]) << (8 * i);
     }
 }
 
