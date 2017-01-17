@@ -237,7 +237,6 @@ void audio_init(void)
 
 void do_acpitable_option(const QemuOpts *opts)
 {
-#ifdef TARGET_I386
     Error *err = NULL;
 
     acpi_table_add(opts, &err);
@@ -245,7 +244,6 @@ void do_acpitable_option(const QemuOpts *opts)
         error_reportf_err(err, "Wrong acpi table provided: ");
         exit(1);
     }
-#endif
 }
 
 int kvm_available(void)

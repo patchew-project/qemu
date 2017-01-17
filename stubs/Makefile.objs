@@ -51,3 +51,4 @@ stub-obj-y += ipmi.o
 stub-obj-y += pc_madt_cpu_entry.o
 stub-obj-y += migration-colo.o
 stub-obj-y += smbios.o
+stub-obj-y += acpi.o
