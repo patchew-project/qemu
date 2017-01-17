@@ -4546,7 +4546,7 @@ int main(int argc, char **argv, char **envp)
 
     realtime_init();
 
-    audio_init();
+    soundhw_init();
 
     cpu_synchronize_all_post_init();
 

@@ -127,7 +127,7 @@ void select_soundhw(const char *optarg)
     }
 }
 
-void audio_init(void)
+void soundhw_init(void)
 {
     struct soundhw *c;
     ISABus *isa_bus =
