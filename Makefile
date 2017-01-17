@@ -184,7 +184,7 @@ qemu-version.h: FORCE
 				printf '""\n'; \
 			fi; \
 		fi) > $@.tmp)
-	$(call quiet-command, cmp -s $@ $@.tmp || mv $@.tmp $@)
+	$(call quiet-command, cmp -s $@ $@.tmp || cp $@.tmp $@)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
