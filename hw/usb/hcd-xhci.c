@@ -53,7 +53,7 @@
  * to the specs when it gets them */
 #define ER_FULL_HACK
 
-#define TRB_LINK_LIMIT  4
+#define TRB_LINK_LIMIT  32
 
 #define LEN_CAP         0x40
 #define LEN_OPER        (0x400 + 0x10 * MAXPORTS)
