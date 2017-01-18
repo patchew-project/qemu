@@ -3725,12 +3725,13 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
 
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
-    QObject *req, *rsp = NULL, *id = NULL;
-    QDict *qdict = NULL;
+    QObject *req, *rsp, *id = NULL;
+    QDict *qdict, *rqdict = qdict_new();
     const char *cmd_name;
     Monitor *mon = cur_mon;
     Error *err = NULL;
 
+    rsp = QOBJECT(rqdict);
     req = json_parser_parse_err(tokens, NULL, &err);
     if (err || !req || qobject_type(req) != QTYPE_QDICT) {
         if (!err) {
@@ -3745,8 +3746,11 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     }
 
     id = qdict_get(qdict, "id");
-    qobject_incref(id);
-    qdict_del(qdict, "id");
+    if (id) {
+        qobject_incref(id);
+        qdict_del(qdict, "id");
+        qdict_put_obj(rqdict, "id", id);
+    }
 
     cmd_name = qdict_get_str(qdict, "execute");
     trace_handle_qmp_command(mon, cmd_name);
@@ -3755,27 +3759,19 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    rsp = qmp_dispatch(req);
+    rsp = qmp_dispatch(req, rqdict);
 
 err_out:
     if (err) {
-        qdict = qdict_new();
-        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
+        qdict_put_obj(rqdict, "error", qmp_build_error_object(err));
         error_free(err);
-        rsp = QOBJECT(qdict);
     }
 
     if (rsp) {
-        if (id) {
-            qdict_put_obj(qobject_to_qdict(rsp), "id", id);
-            id = NULL;
-        }
-
         monitor_json_emitter(mon, rsp);
     }
 
-    qobject_decref(id);
-    qobject_decref(rsp);
+    QDECREF(rqdict);
     qobject_decref(req);
 }
 
