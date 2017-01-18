@@ -89,6 +89,8 @@
     typedef char glue(qemu_build_bug_on__,__LINE__)[(x) ? -1 : 1] \
         __attribute__((unused))
 
+#define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(int[(x) ? -1 : 1]) - sizeof(int))
+
 #if defined __GNUC__
 # if !QEMU_GNUC_PREREQ(4, 4)
    /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
