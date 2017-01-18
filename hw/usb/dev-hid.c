@@ -51,6 +51,7 @@ typedef struct USBHIDState {
     uint32_t usb_version;
     char *display;
     uint32_t head;
+    bool mac_compat;
 } USBHIDState;
 
 #define TYPE_USB_HID "usb-hid"
@@ -175,6 +176,66 @@ static const USBDescIface desc_iface_tablet2 = {
     .bNumEndpoints                 = 1,
     .bInterfaceClass               = USB_CLASS_HID,
     .bInterfaceProtocol            = 0x02,
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x01, 0x00,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                74, 0,         /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 8,
+            .bInterval             = 4, /* 2 ^ (4-1) * 125 usecs = 1 ms */
+        },
+    },
+};
+
+static const USBDescIface desc_iface_tablet_mac_compat = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceProtocol            = 0x00, /* OSX/macOS can't handle 2 here */
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x01, 0x00,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                74, 0,         /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 8,
+            .bInterval             = 0x0a,
+        },
+    },
+};
+
+static const USBDescIface desc_iface_tablet_mac_compat2 = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceProtocol            = 0x00, /* OSX/macOS can't handle 2 here */
     .ndesc                         = 1,
     .descs = (USBDescOther[]) {
         {
@@ -330,6 +391,40 @@ static const USBDescDevice desc_device_tablet2 = {
     },
 };
 
+static const USBDescDevice desc_device_tablet_mac_compat = {
+    .bcdUSB                        = 0x0100,
+    .bMaxPacketSize0               = 8,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_TABLET,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+            .bMaxPower             = 50,
+            .nif = 1,
+            .ifs = &desc_iface_tablet_mac_compat,
+        },
+    },
+};
+
+static const USBDescDevice desc_device_tablet_mac_compat2 = {
+    .bcdUSB                        = 0x0200,
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_TABLET,
+            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+            .bMaxPower             = 50,
+            .nif = 1,
+            .ifs = &desc_iface_tablet_mac_compat2,
+        },
+    },
+};
+
 static const USBDescDevice desc_device_keyboard = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 8,
@@ -422,6 +517,35 @@ static const USBDesc desc_tablet2 = {
     },
     .full = &desc_device_tablet,
     .high = &desc_device_tablet2,
+    .str  = desc_strings,
+    .msos = &desc_msos_suspend,
+};
+
+static const USBDesc desc_tablet_mac_compat = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0002,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_TABLET,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_tablet_mac_compat,
+    .str  = desc_strings,
+    .msos = &desc_msos_suspend,
+};
+
+static const USBDesc desc_tablet_mac_compat2 = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0002,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_TABLET,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_tablet_mac_compat,
+    .high = &desc_device_tablet_mac_compat2,
     .str  = desc_strings,
     .msos = &desc_msos_suspend,
 };
@@ -599,6 +723,9 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
                 memcpy(data, qemu_tablet_hid_report_descriptor,
 		       sizeof(qemu_tablet_hid_report_descriptor));
                 p->actual_length = sizeof(qemu_tablet_hid_report_descriptor);
+                if (us->mac_compat) {
+                    data[3] = 0x02; /* Set usage to mouse, not pointing (1) */
+                }
             } else if (hs->kind == HID_KEYBOARD) {
                 memcpy(data, qemu_keyboard_hid_report_descriptor,
                        sizeof(qemu_keyboard_hid_report_descriptor));
@@ -731,8 +858,14 @@ static void usb_hid_initfn(USBDevice *dev, int kind,
 
 static void usb_tablet_realize(USBDevice *dev, Error **errp)
 {
-
-    usb_hid_initfn(dev, HID_TABLET, &desc_tablet, &desc_tablet2, errp);
+    USBHIDState *us = USB_HID(dev);
+    if (us->mac_compat) {
+        usb_hid_initfn(
+            dev, HID_TABLET,
+            &desc_tablet_mac_compat, &desc_tablet_mac_compat2, errp);
+    } else {
+        usb_hid_initfn(dev, HID_TABLET, &desc_tablet, &desc_tablet2, errp);
+    }
 }
 
 static void usb_mouse_realize(USBDevice *dev, Error **errp)
@@ -801,6 +934,7 @@ static Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
         DEFINE_PROP_STRING("display", USBHIDState, display),
         DEFINE_PROP_UINT32("head", USBHIDState, head, 0),
+        DEFINE_PROP_BOOL("mac_compat", USBHIDState, mac_compat, false),
         DEFINE_PROP_END_OF_LIST(),
 };
 
