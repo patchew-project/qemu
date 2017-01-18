@@ -246,6 +246,8 @@ bool monitor_cur_is_qmp(void)
 
 void monitor_read_command(Monitor *mon, int show_prompt)
 {
+    assert(!monitor_is_qmp(mon));
+
     if (!mon->rs)
         return;
 
@@ -257,6 +259,8 @@ void monitor_read_command(Monitor *mon, int show_prompt)
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque)
 {
+    assert(!monitor_is_qmp(mon));
+
     if (mon->rs) {
         readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
         /* prompt is printed on return from the command handler */
@@ -2548,6 +2552,8 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     const mon_cmd_t *cmd;
     char cmdname[256];
 
+    assert(!monitor_is_qmp(mon));
+
     /* extract the command name */
     p = get_command_name(*cmdp, cmdname, sizeof(cmdname));
     if (!p)
@@ -2591,6 +2597,8 @@ static QDict *monitor_parse_arguments(Monitor *mon,
     const char *p = *endp;
     char buf[1024];
     QDict *qdict = qdict_new();
+
+    assert(!monitor_is_qmp(mon));
 
     /* parse the parameters */
     typestr = cmd->args_type;
@@ -2971,6 +2979,8 @@ static void cmd_completion(Monitor *mon, const char *name, const char *list)
     char cmd[128];
     int len;
 
+    assert(!monitor_is_qmp(mon));
+
     p = list;
     for(;;) {
         pstart = p;
@@ -2999,6 +3009,8 @@ static void file_completion(Monitor *mon, const char *input)
     char file[1024], file_prefix[1024];
     int input_path_len;
     const char *p;
+
+    assert(!monitor_is_qmp(mon));
 
     p = strrchr(input, '/');
     if (!p) {
@@ -3552,6 +3564,8 @@ static void monitor_find_completion_by_table(Monitor *mon,
     const mon_cmd_t *cmd;
     BlockBackend *blk = NULL;
 
+    assert(!monitor_is_qmp(mon));
+
     if (nb_args <= 1) {
         /* command completion */
         if (nb_args == 0)
@@ -3632,6 +3646,8 @@ static void monitor_find_completion(void *opaque,
     Monitor *mon = opaque;
     char *args[MAX_ARGS];
     int nb_args, len;
+
+    assert(!monitor_is_qmp(mon));
 
     /* 1. parse the cmdline */
     if (parse_cmdline(cmdline, &nb_args, args) < 0) {
@@ -3801,6 +3817,8 @@ static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 
     cur_mon = opaque;
 
+    assert(monitor_is_qmp(cur_mon));
+
     json_message_parser_feed(&cur_mon->qmp.parser, (const char *) buf, size);
 
     cur_mon = old_mon;
@@ -3812,6 +3830,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
     int i;
 
     cur_mon = opaque;
+    assert(!monitor_is_qmp(cur_mon));
 
     if (cur_mon->rs) {
         for (i = 0; i < size; i++)
@@ -3831,6 +3850,8 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
 {
     Monitor *mon = opaque;
 
+    assert(!monitor_is_qmp(mon));
+
     monitor_suspend(mon);
     handle_hmp_command(mon, cmdline);
     monitor_resume(mon);
@@ -3838,6 +3859,8 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
 
 int monitor_suspend(Monitor *mon)
 {
+    assert(!monitor_is_qmp(mon));
+
     if (!mon->rs)
         return -ENOTTY;
     mon->suspend_cnt++;
@@ -3846,6 +3869,8 @@ int monitor_suspend(Monitor *mon)
 
 void monitor_resume(Monitor *mon)
 {
+    assert(!monitor_is_qmp(mon));
+
     if (!mon->rs)
         return;
     if (--mon->suspend_cnt == 0)
@@ -3866,6 +3891,8 @@ static void monitor_qmp_event(void *opaque, int event)
 {
     QObject *data;
     Monitor *mon = opaque;
+
+    assert(monitor_is_qmp(mon));
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -3889,6 +3916,8 @@ static void monitor_qmp_event(void *opaque, int event)
 static void monitor_event(void *opaque, int event)
 {
     Monitor *mon = opaque;
+
+    assert(!monitor_is_qmp(mon));
 
     switch (event) {
     case CHR_EVENT_MUX_IN:
@@ -3962,15 +3991,23 @@ static void sortcmdlist(void)
 static void GCC_FMT_ATTR(2, 3) monitor_readline_printf(void *opaque,
                                                        const char *fmt, ...)
 {
+    Monitor *mon = opaque;
     va_list ap;
+
+    assert(!monitor_is_qmp(mon));
+
     va_start(ap, fmt);
-    monitor_vprintf(opaque, fmt, ap);
+    monitor_vprintf(mon, fmt, ap);
     va_end(ap);
 }
 
 static void monitor_readline_flush(void *opaque)
 {
-    monitor_flush(opaque);
+    Monitor *mon = opaque;
+
+    assert(!monitor_is_qmp(mon));
+
+    monitor_flush(mon);
 }
 
 /*
@@ -4059,6 +4096,8 @@ static void bdrv_password_cb(void *opaque, const char *password,
     int ret = 0;
     Error *local_err = NULL;
 
+    assert(!monitor_is_qmp(mon));
+
     bdrv_add_key(bs, password, &local_err);
     if (local_err) {
         error_report_err(local_err);
@@ -4075,6 +4114,8 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
                                 void *opaque)
 {
     int err;
+
+    assert(!monitor_is_qmp(mon));
 
     monitor_printf(mon, "%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
                    bdrv_get_encrypted_filename(bs));
@@ -4096,6 +4137,8 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
 {
     Error *err = NULL;
     BlockBackend *blk;
+
+    assert(!monitor_is_qmp(mon));
 
     blk = blk_by_name(device);
     if (!blk) {
