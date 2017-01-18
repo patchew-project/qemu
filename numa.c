@@ -37,6 +37,8 @@
 #include "hw/mem/pc-dimm.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -213,11 +215,13 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 
 static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
+    Visitor *v;
     NumaOptions *object = NULL;
+    MachineState *ms = MACHINE(opaque);
     Error *err = NULL;
 
     {
-        Visitor *v = opts_visitor_new(opts);
+        v = opts_visitor_new(opts);
         visit_type_NumaOptions(v, NULL, &object, &err);
         visit_free(v);
     }
@@ -234,6 +238,25 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
         }
         nb_numa_nodes++;
         break;
+    case NUMA_OPTIONS_KIND_CPU: {
+        QObject *qobj;
+
+        v = qobject_output_visitor_new(&qobj);
+        visit_type_CpuInstanceProperties(v, "cpu", &object->u.cpu.data, &err);
+        visit_complete(v, &qobj);
+        visit_free(v);
+        if (err) {
+            goto end;
+        }
+        v = qobject_input_visitor_new(qobj, true);
+        object_property_set(OBJECT(ms), v, "cpu", &err);
+        visit_free(v);
+        qobject_decref(qobj);
+        if (err) {
+            goto end;
+        }
+        break;
+    }
     default:
         abort();
     }
@@ -293,15 +316,16 @@ static void validate_numa_cpus(void)
     g_free(seen_cpus);
 }
 
-void parse_numa_opts(MachineClass *mc)
+void parse_numa_opts(MachineState *ms)
 {
     int i;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     for (i = 0; i < MAX_NODES; i++) {
         numa_info[i].node_cpu = bitmap_new(max_cpus);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, NULL, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
         exit(1);
     }
 
