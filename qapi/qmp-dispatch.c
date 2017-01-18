@@ -109,7 +109,8 @@ static QObject *do_qmp_dispatch(QObject *request, QmpReturn *qret, Error **errp)
         }
         break;
     case QCT_ASYNC:
-        if (!qdict_haskey(qret->rsp, "id")) {
+        if (qret->client->has_async &&
+            !qdict_haskey(qret->rsp, "id")) {
             error_setg(errp, "An async command requires an 'id'");
             break;
         }
