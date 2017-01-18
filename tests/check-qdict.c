@@ -297,11 +297,11 @@ static void qdict_flatten_test(void)
     qdict_put_int(dict1, "a", 0);
     qdict_put_int(dict1, "b", 1);
 
-    qlist_append_obj(list1, QOBJECT(qint_from_int(23)));
-    qlist_append_obj(list1, QOBJECT(qint_from_int(66)));
-    qlist_append_obj(list1, QOBJECT(dict1));
-    qlist_append_obj(list2, QOBJECT(qint_from_int(42)));
-    qlist_append_obj(list2, QOBJECT(list1));
+    qlist_append_int(list1, 23);
+    qlist_append_int(list1, 66);
+    qlist_append(list1, dict1);
+    qlist_append_int(list2, 42);
+    qlist_append(list2, list1);
 
     qdict_put_int(dict2, "c", 2);
     qdict_put_int(dict2, "d", 3);

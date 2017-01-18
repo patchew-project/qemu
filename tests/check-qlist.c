@@ -74,7 +74,7 @@ static void qlist_destroy_test(void)
     qlist = qlist_new();
 
     for (i = 0; i < 42; i++)
-        qlist_append(qlist, qint_from_int(i));
+        qlist_append_int(qlist, i);
 
     QDECREF(qlist);
 }
