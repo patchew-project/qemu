@@ -165,6 +165,7 @@ typedef struct {
      * mode.
      */
     bool in_command_mode;       /* are we in command mode? */
+    QmpClient client;
 } MonitorQMP;
 
 /*
@@ -584,6 +585,7 @@ static void monitor_data_destroy(Monitor *mon)
     if (monitor_is_qmp(mon)) {
         json_message_parser_destroy(&mon->qmp.parser);
     }
+    qmp_client_destroy(&mon->qmp.client);
     g_free(mon->rs);
     QDECREF(mon->outbuf);
     qemu_mutex_destroy(&mon->out_lock);
@@ -3723,9 +3725,9 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
     return input_dict;
 }
 
-static void qmp_dispatch_return(QObject *rsp, void *opaque)
+static void qmp_dispatch_return(QmpClient *client, QObject *rsp)
 {
-    Monitor *mon = opaque;
+    Monitor *mon = container_of(client, Monitor, qmp.client);
 
     monitor_json_emitter(mon, rsp);
 }
@@ -3765,7 +3767,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    qmp_dispatch(req, rqdict, qmp_dispatch_return, mon);
+    qmp_dispatch(&mon->qmp.client, req, rqdict);
     qobject_decref(req);
     return;
 
@@ -3854,6 +3856,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
+        qmp_client_init(&mon->qmp.client, qmp_dispatch_return);
         mon->qmp.in_command_mode = false;
         data = get_qmp_greeting();
         monitor_json_emitter(mon, data);
@@ -3863,6 +3866,7 @@ static void monitor_qmp_event(void *opaque, int event)
     case CHR_EVENT_CLOSED:
         json_message_parser_destroy(&mon->qmp.parser);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
+        qmp_client_destroy(&mon->qmp.client);
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;

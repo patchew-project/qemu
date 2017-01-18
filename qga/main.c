@@ -89,6 +89,7 @@ struct GAState {
 #endif
     gchar *pstate_filepath;
     GAPersistentState pstate;
+    QmpClient client;
 };
 
 struct GAState *ga_state;
@@ -548,9 +549,9 @@ static int send_response(GAState *s, QObject *payload)
     return 0;
 }
 
-static void dispatch_return_cb(QObject *rsp, void *opaque)
+static void dispatch_return_cb(QmpClient *client, QObject *rsp)
 {
-    GAState *s = opaque;
+    GAState *s = container_of(client, GAState, client);
     int ret = send_response(s, rsp);
 
     if (ret) {
@@ -562,7 +563,7 @@ static void process_command(GAState *s, QDict *req)
 {
     g_assert(req);
     g_debug("processing command");
-    qmp_dispatch(QOBJECT(req), NULL, dispatch_return_cb, s);
+    qmp_dispatch(&ga_state->client, QOBJECT(req), NULL);
 }
 
 /* handle requests/control events coming in over the channel */
@@ -1286,6 +1287,7 @@ static int run_agent(GAState *s, GAConfig *config)
     ga_command_state_init_all(s->command_state);
     json_message_parser_init(&s->parser, process_event);
     ga_state = s;
+    qmp_client_init(&s->client, dispatch_return_cb);
 #ifndef _WIN32
     if (!register_signal_handlers()) {
         g_critical("failed to register signal handlers");
@@ -1381,7 +1383,7 @@ end:
     }
     g_free(s->pstate_filepath);
     g_free(s->state_filepath_isfrozen);
-
+    qmp_client_destroy(&s->client);
     if (config->daemonize) {
         unlink(config->pid_filepath);
     }

@@ -120,6 +120,10 @@ static void qmp_return_free(QmpReturn *qret)
 {
     QDict *rsp = qret->rsp;
 
+    if (qret->client) {
+        QLIST_REMOVE(qret, link);
+    }
+
     qobject_decref(QOBJECT(rsp));
     g_free(qret);
 }
@@ -127,8 +131,11 @@ static void qmp_return_free(QmpReturn *qret)
 static void do_qmp_return(QmpReturn *qret)
 {
     QDict *rsp = qret->rsp;
+    QmpClient *client = qret->client;
 
-    qret->return_cb(QOBJECT(rsp), qret->opaque);
+    if (client) {
+        client->return_cb(client, QOBJECT(rsp));
+    }
 
     qmp_return_free(qret);
 }
@@ -148,25 +155,50 @@ void qmp_return_error(QmpReturn *qret, Error *err)
     do_qmp_return(qret);
 }
 
-void qmp_dispatch(QObject *request, QDict *rsp,
-                  QmpDispatchReturn *return_cb, void *opaque)
+void qmp_client_init(QmpClient *client, QmpDispatchReturn *return_cb)
+{
+    assert(!client->return_cb);
+
+    client->return_cb = return_cb;
+    QLIST_INIT(&client->pending);
+}
+
+void qmp_client_destroy(QmpClient *client)
+{
+    QmpReturn *ret, *next;
+
+    client->return_cb = NULL;
+    /* Remove the weak references to the pending returns. The
+     * dispatched function is the owner of QmpReturn, and will have to
+     * qmp_return(). (it might be interesting to have a way to notify
+     * that the client disconnected to cancel an on-going
+     * operation) */
+    QLIST_FOREACH_SAFE(ret, &client->pending, link, next) {
+        ret->client = NULL;
+        QLIST_REMOVE(ret, link);
+    }
+}
+
+void qmp_dispatch(QmpClient *client, QObject *request, QDict *rsp)
 {
     Error *err = NULL;
     QmpReturn *qret = g_new0(QmpReturn, 1);
     QObject *ret;
 
-    assert(return_cb);
+    assert(client);
 
     qret->rsp = rsp ?: qdict_new();
-    qret->return_cb = return_cb;
-    qret->opaque = opaque;
+    qret->client = client;
+    QLIST_INSERT_HEAD(&client->pending, qret, link);
 
     ret = do_qmp_dispatch(request, qret, &err);
 
     if (err) {
         assert(!ret);
         qmp_return_error(qret, err);
+        return;
     } else if (ret) {
         qmp_return(qret, ret);
+        return;
     }
 }
