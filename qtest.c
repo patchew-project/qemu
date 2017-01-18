@@ -31,6 +31,8 @@
 #ifdef TARGET_PPC64
 #include "hw/ppc/spapr_rtas.h"
 #endif
+#include "qapi/qmp/dispatch.h"
+#include "qapi/qobject-input-visitor.h"
 
 #define MAX_IRQ 256
 
@@ -658,6 +660,49 @@ static void qtest_event(void *opaque, int event)
     }
 }
 
+static gboolean qtest_timeout_cb(void *data)
+{
+    QmpReturn *qret = data;
+
+    qmp_return(qret, NULL);
+
+    return FALSE;
+}
+
+static void qmp_qtest_timeout(QDict *args, QmpReturn *qret)
+{
+    Error *err = NULL;
+    Visitor *v;
+    int64_t duration = 0;
+
+    v = qobject_input_visitor_new(QOBJECT(args), true);
+    visit_start_struct(v, NULL, NULL, 0, &err);
+    if (err) {
+        goto out;
+    }
+
+    visit_type_int(v, "duration", &duration, &err);
+    if (!err) {
+        visit_check_struct(v, &err);
+    }
+    visit_end_struct(v, NULL);
+    if (err) {
+        goto out;
+    }
+
+    if (duration <= 0) {
+        qmp_return(qret, NULL);
+    } else {
+        g_timeout_add_seconds(duration, qtest_timeout_cb, qret);
+    }
+
+out:
+    if (err) {
+        qmp_return_error(qret, err);
+    }
+    visit_free(v);
+}
+
 static int qtest_init_accel(MachineState *ms)
 {
     QemuOpts *opts = qemu_opts_create(qemu_find_opts("icount"), NULL, 0,
@@ -665,6 +710,9 @@ static int qtest_init_accel(MachineState *ms)
     qemu_opt_set(opts, "shift", "0", &error_abort);
     configure_icount(opts, &error_abort);
     qemu_opts_del(opts);
+
+    qmp_register_async_command("qtest-timeout", qmp_qtest_timeout,
+                               QCO_NO_OPTIONS);
     return 0;
 }
 
