@@ -2249,7 +2249,18 @@ static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
                                                  sizeof(CPUArchId) * max_cpus);
         possible_cpus->len = max_cpus;
         for (i = 0; i < max_cpus; i++) {
+            X86CPUTopoInfo topo;
+            CpuInstanceProperties *cpu_props = &possible_cpus->cpus[i].props;
+
             possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(i);
+            x86_topo_ids_from_apicid(possible_cpus->cpus[i].arch_id,
+                                     smp_cores, smp_threads, &topo);
+            cpu_props->has_socket_id = true;
+            cpu_props->socket_id = topo.pkg_id;
+            cpu_props->has_core_id = true;
+            cpu_props->core_id = topo.core_id;
+            cpu_props->has_thread_id = true;
+            cpu_props->thread_id = topo.smt_id;
         }
         pcms->possible_cpus = possible_cpus;
     }
@@ -2274,23 +2285,13 @@ static HotpluggableCPUList *pc_query_hotpluggable_cpus(MachineState *machine)
     cpu_type = object_class_get_name(OBJECT_CLASS(CPU_GET_CLASS(cpu)));
 
     for (i = 0; i < pcms->possible_cpus->len; i++) {
-        X86CPUTopoInfo topo;
         HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
         HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
-        CpuInstanceProperties *cpu_props = g_new0(typeof(*cpu_props), 1);
-        const uint32_t apic_id = pcms->possible_cpus->cpus[i].arch_id;
-
-        x86_topo_ids_from_apicid(apic_id, smp_cores, smp_threads, &topo);
 
         cpu_item->type = g_strdup(cpu_type);
         cpu_item->vcpus_count = 1;
-        cpu_props->has_socket_id = true;
-        cpu_props->socket_id = topo.pkg_id;
-        cpu_props->has_core_id = true;
-        cpu_props->core_id = topo.core_id;
-        cpu_props->has_thread_id = true;
-        cpu_props->thread_id = topo.smt_id;
-        cpu_item->props = cpu_props;
+        cpu_item->props = g_memdup(&pcms->possible_cpus->cpus[i].props,
+                                   sizeof(*cpu_item->props));
 
         cpu = pcms->possible_cpus->cpus[i].cpu;
         if (cpu) {

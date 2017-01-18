@@ -49,6 +49,7 @@ void machine_register_compat_props(MachineState *machine);
  */
 typedef struct {
     uint64_t arch_id;
+    CpuInstanceProperties props;
     struct CPUState *cpu;
 } CPUArchId;
 
