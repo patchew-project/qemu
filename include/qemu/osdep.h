@@ -199,7 +199,13 @@ extern int daemon(int, int);
 #endif
 
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+/*
+ * &(x)[0] is always a pointer - if it's same type as x then the argument is a
+ * pointer, not an array as expected.
+ */
+#define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])) + QEMU_BUILD_BUG_ON_ZERO( \
+                        __builtin_types_compatible_p(typeof(x), \
+                                                     typeof(&(x)[0]))))
 #endif
 
 int qemu_daemon(int nochdir, int noclose);
