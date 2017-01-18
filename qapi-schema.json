@@ -4680,7 +4680,7 @@
 ##
 # @screendump:
 #
-# Write a PPM of the VGA screen to a file.
+# Write a PPM of the first console to a file.
 #
 # @filename: the path of a new PPM file to store the image
 #
