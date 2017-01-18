@@ -254,14 +254,24 @@ static void gui_setup_refresh(DisplayState *ds)
     ds->have_text = have_text;
 }
 
-void graphic_hw_update(QemuConsole *con)
+bool graphic_hw_update(QemuConsole *con)
 {
     if (!con) {
         con = active_console;
     }
-    if (con && con->hw_ops->gfx_update) {
-        con->hw_ops->gfx_update(con->hw);
+
+    if (!con) {
+        return false;
     }
+
+    if (con->hw_ops->gfx_update_async) {
+        return con->hw_ops->gfx_update_async(con->hw);
+    } else if (con->hw_ops->gfx_update) {
+        con->hw_ops->gfx_update(con->hw);
+        return false;
+    }
+
+    return false;
 }
 
 void graphic_hw_gl_block(QemuConsole *con, bool block)

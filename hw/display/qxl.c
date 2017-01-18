@@ -134,7 +134,7 @@ static void qxl_reset_memslots(PCIQXLDevice *d);
 static void qxl_reset_surfaces(PCIQXLDevice *d);
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
-static void qxl_hw_update(void *opaque);
+static bool qxl_hw_update_async(void *opaque);
 
 void qxl_set_guest_bug(PCIQXLDevice *qxl, const char *msg, ...)
 {
@@ -1126,7 +1126,7 @@ static const QXLInterface qxl_interface = {
 };
 
 static const GraphicHwOps qxl_ops = {
-    .gfx_update  = qxl_hw_update,
+    .gfx_update_async = qxl_hw_update_async,
 };
 
 static void qxl_enter_vga_mode(PCIQXLDevice *d)
@@ -1841,11 +1841,11 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
 
 /* graphics console */
 
-static void qxl_hw_update(void *opaque)
+static bool qxl_hw_update_async(void *opaque)
 {
     PCIQXLDevice *qxl = opaque;
 
-    qxl_render_update(qxl);
+    return qxl_render_update(qxl);
 }
 
 static void qxl_dirty_one_surface(PCIQXLDevice *qxl, QXLPHYSICAL pqxl,

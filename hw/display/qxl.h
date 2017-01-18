@@ -167,7 +167,7 @@ int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext);
 
 /* qxl-render.c */
 void qxl_render_resize(PCIQXLDevice *qxl);
-void qxl_render_update(PCIQXLDevice *qxl);
+bool qxl_render_update(PCIQXLDevice *qxl);
 int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
 void qxl_render_update_area_done(PCIQXLDevice *qxl, QXLCookie *cookie);
 void qxl_render_update_area_bh(void *opaque);
