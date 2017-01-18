@@ -2199,6 +2199,56 @@ static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
     pcms->pit = value;
 }
 
+static void pc_machine_set_cpu(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    uint32_t apic_id;
+    X86CPUTopoInfo topo;
+    CPUArchId *cpu_slot;
+    Error *local_err = NULL;
+    CpuInstanceProperties *cpu_props = NULL;
+    PCMachineState *pcms = PC_MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+
+    visit_type_CpuInstanceProperties(v, name, &cpu_props, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    if (!cpu_props->has_node_id) {
+        error_setg(&local_err, "node-id property is not specified");
+        goto out;
+    }
+
+    /*
+     * make sure that possible_cpus is initialized
+     * as property setter might be called before machine init is called
+     */
+    mc->possible_cpu_arch_ids(MACHINE(obj));
+
+    topo.pkg_id = cpu_props->socket_id;
+    topo.core_id = cpu_props->core_id;
+    topo.smt_id = cpu_props->thread_id;
+    apic_id = apicid_from_topo_ids(smp_cores, smp_threads, &topo);
+    cpu_slot = pc_find_cpu_slot(pcms, apic_id, NULL);
+    if (!cpu_slot) {
+        error_setg(&local_err, "unable to find CPU");
+        goto out;
+    }
+
+    if (cpu_slot->props.has_node_id) {
+        error_setg(&local_err, "CPU has already been assigned to node: %"PRId64,
+                   cpu_slot->props.node_id);
+        goto out;
+    }
+    cpu_slot->props.has_node_id = true;
+    cpu_slot->props.node_id = cpu_props->node_id;
+
+ out:
+    error_propagate(errp, local_err);
+    qapi_free_CpuInstanceProperties(cpu_props);
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2393,6 +2443,12 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_PIT,
         pc_machine_get_pit, pc_machine_set_pit, &error_abort);
+
+    object_class_property_add(oc, "cpu", "CpuInstanceProperties",
+        NULL, pc_machine_set_cpu,
+        NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, "cpu",
+        "Possible cpu placement", &error_abort);
 }
 
 static const TypeInfo pc_machine_info = {
