@@ -1965,7 +1965,16 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
 
     cs = CPU(cpu);
     cs->cpu_index = idx;
-    cpu->numa_nid = cpu_slot->props.node_id;
+
+    if (cpu->numa_nid == -1) {
+        cpu->numa_nid = cpu_slot->props.node_id;
+    } else if (cpu->numa_nid != cpu_slot->props.node_id) {
+        error_setg(errp, "property node-id: %u doesn't match with -numa"
+            " explictly specified value(s) or implicitly set defaults."
+            " Expected value: %" PRIi64,
+            cpu->numa_nid, cpu_slot->props.node_id);
+        return;
+    }
 }
 
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
