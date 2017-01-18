@@ -140,6 +140,8 @@ struct AcpiFadtDescriptorRev1
     uint8_t  reserved4a;             /* Reserved */
     uint8_t  reserved4b;             /* Reserved */
     uint32_t flags;
+    Acpi20GenericAddress reset_reg;
+    uint8_t reset_val;
 } QEMU_PACKED;
 typedef struct AcpiFadtDescriptorRev1 AcpiFadtDescriptorRev1;
 
