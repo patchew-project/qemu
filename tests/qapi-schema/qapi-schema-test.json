@@ -292,6 +292,12 @@
 { 'command': 'boxed-union', 'data': 'UserDefNativeListUnion', 'boxed': true }
 
 ##
+# @user-async:
+##
+{ 'command': 'user-async', 'data': { 'a': 'int', '*b': 'int' },
+  'returns': 'UserDefB', 'async': true  }
+
+##
 # @UserDefOptions:
 #
 # For testing integer range flattening in opts-visitor. The following schema

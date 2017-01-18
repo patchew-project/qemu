@@ -85,6 +85,36 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
     return ret;
 }
 
+static GMainLoop *loop;
+
+typedef struct AsyncRet {
+    QmpReturn *qret;
+    UserDefB *ret;
+} AsyncRet;
+
+static gboolean qmp_user_async_idle(gpointer data)
+{
+    struct AsyncRet *async = (struct AsyncRet *)data;
+
+    qmp_user_async_return(async->qret, async->ret);
+    g_free(async);
+
+    g_main_loop_quit(loop);
+
+    return FALSE;
+}
+
+void qmp_user_async(int64_t a, bool has_b, int64_t b, QmpReturn *qret)
+{
+    AsyncRet *async = g_new0(AsyncRet, 1);
+
+    async->ret = g_new0(UserDefB, 1);
+    async->ret->intb = a + (has_b ? b : 0);
+    async->qret = qret;
+
+    g_idle_add(qmp_user_async_idle, async);
+}
+
 static void dispatch_cmd_return(QmpClient *client, QObject *resp)
 {
     assert(resp != NULL);
@@ -142,14 +172,19 @@ static void test_dispatch_cmd_failure(void)
 }
 
 static QObject *dispatch_ret;
+static char *ret_id;
 
 static void qmp_dispatch_return(QmpClient *client, QObject *resp_obj)
 {
     QDict *resp = qobject_to_qdict(resp_obj);
+
     assert(resp && !qdict_haskey(resp, "error"));
     dispatch_ret = qdict_get(resp, "return");
     assert(dispatch_ret);
     qobject_incref(dispatch_ret);
+
+    g_free(ret_id);
+    ret_id = g_strdup(qdict_get_try_str(resp, "id"));
 }
 
 static QObject *test_qmp_dispatch(QDict *req)
@@ -214,6 +249,97 @@ static void test_dispatch_cmd_io(void)
     QDECREF(ret3);
 
     QDECREF(req);
+}
+
+static void test_dispatch_cmd_async(void)
+{
+    QmpClient client = { .has_async = true };
+    QDict *dret, *req = qdict_new();
+    QDict *args = qdict_new();
+
+    loop = g_main_loop_new(NULL, FALSE);
+    qmp_client_init(&client, qmp_dispatch_return);
+
+    qdict_put(args, "a", qint_from_int(99));
+    qdict_put(req, "arguments", args);
+    qdict_put(req, "id", qstring_from_str("foo99"));
+    qdict_put(req, "execute", qstring_from_str("user-async"));
+
+    qmp_dispatch(&client, QOBJECT(req), NULL);
+    assert(!dispatch_ret);
+
+    g_main_loop_run(loop);
+    g_main_loop_unref(loop);
+
+    g_assert_cmpstr(ret_id, ==, "foo99");
+    dret = qobject_to_qdict(dispatch_ret);
+    assert(qdict_get_int(dret, "intb") == 99);
+    QDECREF(dret);
+    dispatch_ret = NULL;
+
+    qmp_client_destroy(&client);
+    QDECREF(req);
+}
+
+static void test_dispatch_cmd_async_no_id(void)
+{
+    QmpClient client = { .has_async = true };
+    QDict *req = qdict_new();
+    QDict *args = qdict_new();
+
+    qmp_client_init(&client, dispatch_cmd_error_return);
+
+    qdict_put(args, "a", qint_from_int(99));
+    qdict_put(req, "arguments", args);
+    qdict_put(req, "execute", qstring_from_str("user-async"));
+
+    qmp_dispatch(&client, QOBJECT(req), NULL);
+
+    assert(!dispatch_ret);
+    assert(QLIST_EMPTY(&client.pending));
+
+    qmp_client_destroy(&client);
+    QDECREF(req);
+}
+
+static void test_destroy_pending_async(void)
+{
+    QmpClient client = { .has_async = true };
+    QDict *req = qdict_new();
+    QDict *args = qdict_new();
+    QmpReturn *r;
+    int npending = 0;
+
+    loop = g_main_loop_new(NULL, FALSE);
+    qmp_client_init(&client, qmp_dispatch_return);
+
+    qdict_put(args, "a", qint_from_int(99));
+    qdict_put(req, "arguments", args);
+    qdict_put(req, "id", qstring_from_str("foo99"));
+    qdict_put(req, "execute", qstring_from_str("user-async"));
+
+    qmp_dispatch(&client, QOBJECT(req), NULL);
+    qmp_dispatch(&client, QOBJECT(req), NULL);
+    assert(!dispatch_ret);
+    QDECREF(req);
+
+    npending = 0;
+    QLIST_FOREACH(r, &client.pending, link) {
+        npending++;
+    }
+
+    g_assert_cmpint(npending, ==, 2);
+
+    /* destroy with pending async */
+    qmp_client_destroy(&client);
+
+    while (g_main_context_pending(NULL)) {
+        g_main_loop_run(loop);
+        /* no return since the client is gone */
+        assert(!dispatch_ret);
+    }
+
+    g_main_loop_unref(loop);
 }
 
 /* test generated dealloc functions for generated types */
@@ -287,11 +413,17 @@ int main(int argc, char **argv)
     g_test_add_func("/qmp/dispatch_cmd", test_dispatch_cmd);
     g_test_add_func("/qmp/dispatch_cmd_failure", test_dispatch_cmd_failure);
     g_test_add_func("/qmp/dispatch_cmd_io", test_dispatch_cmd_io);
+    g_test_add_func("/qmp/dispatch_cmd_async", test_dispatch_cmd_async);
+    g_test_add_func("/qmp/dispatch_cmd_async_no_id",
+                    test_dispatch_cmd_async_no_id);
+    g_test_add_func("/qmp/destroy_pending_async", test_destroy_pending_async);
     g_test_add_func("/qmp/dealloc_types", test_dealloc_types);
     g_test_add_func("/qmp/dealloc_partial", test_dealloc_partial);
 
     module_call_init(MODULE_INIT_QAPI);
     g_test_run();
+
+    g_free(ret_id);
 
     return 0;
 }

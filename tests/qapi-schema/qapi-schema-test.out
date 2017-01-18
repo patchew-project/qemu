@@ -219,11 +219,16 @@ object q_obj_uint64List-wrapper
     member data: uint64List optional=False
 object q_obj_uint8List-wrapper
     member data: uint8List optional=False
+object q_obj_user-async-arg
+    member a: int optional=False
+    member b: int optional=True
 object q_obj_user_def_cmd1-arg
     member ud1a: UserDefOne optional=False
 object q_obj_user_def_cmd2-arg
     member ud1a: UserDefOne optional=False
     member ud1b: UserDefOne optional=True
+command user-async q_obj_user-async-arg -> UserDefB
+   gen=True success_response=True boxed=False async=True
 command user_def_cmd None -> None
    gen=True success_response=True boxed=False
 command user_def_cmd0 Empty2 -> Empty2
@@ -337,6 +342,7 @@ returns something
 doc symbol=guest-sync expr=('command', 'guest-sync')
 doc symbol=boxed-struct expr=('command', 'boxed-struct')
 doc symbol=boxed-union expr=('command', 'boxed-union')
+doc symbol=user-async expr=('command', 'user-async')
 doc symbol=UserDefOptions expr=('struct', 'UserDefOptions')
     body=
 For testing integer range flattening in opts-visitor. The following schema
