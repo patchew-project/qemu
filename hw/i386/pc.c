@@ -746,7 +746,7 @@ static FWCfgState *bochs_bios_init(AddressSpace *as, PCMachineState *pcms)
 {
     FWCfgState *fw_cfg;
     uint64_t *numa_fw_cfg;
-    int i, j;
+    int i;
 
     fw_cfg = fw_cfg_init_io_dma(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4, as);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
@@ -781,13 +781,10 @@ static FWCfgState *bochs_bios_init(AddressSpace *as, PCMachineState *pcms)
      */
     numa_fw_cfg = g_new0(uint64_t, 1 + pcms->apic_id_limit + nb_numa_nodes);
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
-    for (i = 0; i < max_cpus; i++) {
-        unsigned int apic_id = x86_cpu_apic_id_from_index(i);
-        assert(apic_id < pcms->apic_id_limit);
-        j = numa_get_node_for_cpu(i);
-        if (j < nb_numa_nodes) {
-            numa_fw_cfg[apic_id + 1] = cpu_to_le64(j);
-        }
+    for (i = 0; i < pcms->possible_cpus->len; i++) {
+        const CPUArchId *cpu = &pcms->possible_cpus->cpus[i];
+        assert(cpu->arch_id < pcms->apic_id_limit);
+        numa_fw_cfg[cpu->arch_id + 1] = cpu_to_le64(cpu->props.node_id);
     }
     for (i = 0; i < nb_numa_nodes; i++) {
         numa_fw_cfg[pcms->apic_id_limit + 1 + i] =
@@ -1968,11 +1965,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
 
     cs = CPU(cpu);
     cs->cpu_index = idx;
-
-    idx = numa_get_node_for_cpu(cs->cpu_index);
-    if (idx < nb_numa_nodes) {
-        cpu->numa_nid = idx;
-    }
+    cpu->numa_nid = cpu_slot->props.node_id;
 }
 
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,

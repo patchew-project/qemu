@@ -2305,19 +2305,16 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     srat->reserved1 = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
-        int j = numa_get_node_for_cpu(i);
-        uint32_t apic_id = apic_ids->cpus[i].arch_id;
+        const CPUArchId *cpu = &apic_ids->cpus[i];
 
-        if (apic_id < 255) {
+        if (cpu->arch_id < 255) {
             AcpiSratProcessorAffinity *core;
 
             core = acpi_data_push(table_data, sizeof *core);
             core->type = ACPI_SRAT_PROCESSOR_APIC;
             core->length = sizeof(*core);
-            core->local_apic_id = apic_id;
-            if (j < nb_numa_nodes) {
-                core->proximity_lo = j;
-            }
+            core->local_apic_id = cpu->arch_id;
+            core->proximity_lo = cpu->props.node_id;
             memset(core->proximity_hi, 0, 3);
             core->local_sapic_eid = 0;
             core->flags = cpu_to_le32(1);
@@ -2327,10 +2324,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
             core = acpi_data_push(table_data, sizeof *core);
             core->type = ACPI_SRAT_PROCESSOR_x2APIC;
             core->length = sizeof(*core);
-            core->x2apic_id = cpu_to_le32(apic_id);
-            if (j < nb_numa_nodes) {
-                core->proximity_domain = cpu_to_le32(j);
-            }
+            core->x2apic_id = cpu_to_le32(cpu->arch_id);
+            core->proximity_domain = cpu_to_le32(cpu->props.node_id);
             core->flags = cpu_to_le32(1);
         }
     }
