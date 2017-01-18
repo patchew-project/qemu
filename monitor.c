@@ -563,9 +563,22 @@ static void monitor_qapi_event_init(void)
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
-void qmp_qmp_capabilities(Error **errp)
+void qmp_qmp_capabilities(bool has_capabilities,
+                          QMPCapabilityList *capabilities, Error **errp)
 {
+    bool has_async = false;
+
+    if (has_capabilities) {
+        while (capabilities) {
+            if (capabilities->value == QMP_CAPABILITY_ASYNC) {
+                has_async = true;
+            }
+            capabilities = capabilities->next;
+        }
+    }
+
     cur_mon->qmp.in_command_mode = true;
+    cur_mon->qmp.client.has_async = has_async;
 }
 
 static void handle_hmp_command(Monitor *mon, const char *cmdline);
@@ -3845,8 +3858,8 @@ static QObject *get_qmp_greeting(void)
 
     qmp_marshal_query_version(NULL, &ver, NULL);
 
-    return qobject_from_jsonf("{'QMP': {'version': %p, 'capabilities': []}}",
-                              ver);
+    return qobject_from_jsonf("{'QMP': {'version': %p, 'capabilities': ["
+                              "'async']}}", ver);
 }
 
 static void monitor_qmp_event(void *opaque, int event)

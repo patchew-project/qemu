@@ -72,11 +72,23 @@
 ##
 
 ##
+# @QMPCapability:
+#
+# QMP protocol capabilities
+#
+# @async: enables async messages
+#
+# Since: 2.9
+##
+{ 'enum': 'QMPCapability',
+  'data': ['async'] }
+
+##
 # @qmp_capabilities:
 #
 # Enable QMP capabilities.
 #
-# Arguments: None.
+# @capabilities: #optional an array of @QMPCapability (since 2.9)
 #
 # Example:
 #
@@ -90,7 +102,7 @@
 # Since: 0.13
 #
 ##
-{ 'command': 'qmp_capabilities' }
+{ 'command': 'qmp_capabilities', 'data': { '*capabilities': ['QMPCapability'] } }
 
 ##
 # @LostTickPolicy:

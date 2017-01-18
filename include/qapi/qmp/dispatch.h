@@ -32,6 +32,7 @@ struct QmpClient {
     QmpDispatchReturn *return_cb;
 
     QLIST_HEAD(, QmpReturn) pending;
+    bool has_async;             /* the client has async capability */
 };
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
