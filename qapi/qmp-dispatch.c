@@ -202,13 +202,21 @@ void qmp_dispatch(QmpClient *client, QObject *request, QDict *rsp)
 {
     Error *err = NULL;
     QmpReturn *qret = g_new0(QmpReturn, 1);
-    QObject *ret;
+    QObject *ret, *id;
+    QDict *req;
 
     assert(client);
 
     qret->rsp = rsp ?: qdict_new();
     qret->client = client;
     QLIST_INSERT_HEAD(&client->pending, qret, link);
+
+    req = qobject_to_qdict(request);
+    id = qdict_get(req, "id");
+    if (id) {
+        qobject_incref(id);
+        qdict_put_obj(qret->rsp, "id", id);
+    }
 
     ret = do_qmp_dispatch(request, qret, &err);
 
