@@ -778,10 +778,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (cpu->expose_kvm) {
+        uint32_t kvm_max_page = KVM_CPUID_FEATURES | kvm_base;
+        if (cpu->vmware_clock_rates && kvm_base == KVM_CPUID_SIGNATURE) {
+            kvm_max_page = MAX(kvm_max_page, KVM_CPUID_SIGNATURE | 0x10);
+        }
         memcpy(signature, "KVMKVMKVM\0\0\0", 12);
         c = &cpuid_data.entries[cpuid_i++];
         c->function = KVM_CPUID_SIGNATURE | kvm_base;
-        c->eax = KVM_CPUID_FEATURES | kvm_base;
+        c->eax = kvm_max_page;
         c->ebx = signature[0];
         c->ecx = signature[1];
         c->edx = signature[2];
@@ -910,7 +914,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    cpuid_data.cpuid.nent = cpuid_i;
 
     if (((env->cpuid_version >> 8)&0xF) >= 6
         && (env->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
@@ -973,12 +976,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         vmstate_x86_cpu.unmigratable = 1;
     }
 
-    cpuid_data.cpuid.padding = 0;
-    r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
-    if (r) {
-        return r;
-    }
-
     r = kvm_arch_set_tsc_khz(cs);
     if (r < 0) {
         return r;
@@ -996,6 +993,33 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (r > 0) {
             env->tsc_khz = r;
         }
+    }
+
+    if (cpu->vmware_clock_rates) {
+        if (cpu->expose_kvm
+            && kvm_base == KVM_CPUID_SIGNATURE
+            && env->tsc_khz != 0) {
+            /* Publish TSC and LAPIC resolution on CPUID page 0x40000010
+             * like VMWare for benefit of Darwin guests. */
+            c = &cpuid_data.entries[cpuid_i++];
+            c->function = KVM_CPUID_SIGNATURE | 0x10;
+            c->eax = env->tsc_khz;
+            /* LAPIC resolution of 1ns (freq: 1GHz) is hardcoded in KVM's
+             * APIC_BUS_CYCLE_NS*/
+            c->ebx = 1000000;
+            c->ecx = c->edx = 0;
+        } else {
+            error_report(
+                "Warning: VMWare-style TSC/LAPIC clock reporting impossible.");
+        }
+    }
+
+    cpuid_data.cpuid.nent = cpuid_i;
+
+    cpuid_data.cpuid.padding = 0;
+    r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
+    if (r) {
+        return r;
     }
 
     if (has_xsave) {
