@@ -343,10 +343,11 @@ static void cpu_common_map_numa_node(CPUState *cpu)
 {
     int i;
 
+    assert(cpu->cpu_index < max_cpus);
     for (i = 0; i < nb_numa_nodes; i++) {
-        assert(cpu->cpu_index < max_cpus);
         if (test_bit(cpu->cpu_index, numa_info[i].node_cpu)) {
             cpu->numa_node = i;
+            return;
         }
     }
 }
