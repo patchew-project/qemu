@@ -113,6 +113,57 @@ static void test_async(void)
     qtest_quit(qtest);
 }
 
+static void test_screendump(void)
+{
+    QDict *ret;
+    QTestState *qtest;
+    gchar *fname = NULL;
+    int64_t id;
+    int fd;
+    char *buf = NULL;
+    gsize len = 0;
+
+    fd = g_file_open_tmp("qemu-test-screendump.XXXXXX", &fname, NULL);
+    g_assert(fd >= 0);
+    g_assert_nonnull(fname);
+
+    /* without async */
+    qtest = qtest_init("-machine none");
+    qtest_async_qmp(qtest, "{'execute': 'screendump',"
+                    " 'arguments': { 'filename': %s } }", fname);
+
+    ret = qtest_qmp_receive(qtest);
+    g_assert_nonnull(ret);
+    QDECREF(ret);
+    qtest_quit(qtest);
+
+    g_file_get_contents(fname, &buf, &len, NULL);
+    g_assert_cmpint(len, >, 0);
+    g_assert_nonnull(buf);
+    g_free(buf);
+
+    /* with async */
+    qtest = qtest_init_qmp_caps("-machine none", "'async'");
+    qtest_async_qmp(qtest, "{'execute': 'screendump', 'id': 42,"
+                    " 'arguments': { 'filename': %s } }", fname);
+
+    ret = qtest_qmp_receive(qtest);
+    id = qdict_get_try_int(ret, "id", -1);
+    g_assert_cmpint(id, ==, 42);
+    g_assert_nonnull(ret);
+    QDECREF(ret);
+    qtest_quit(qtest);
+
+    g_file_get_contents(fname, &buf, &len, NULL);
+    g_assert_cmpint(len, >, 0);
+    g_assert_nonnull(buf);
+    g_free(buf);
+
+    close(fd);
+    unlink(fname);
+    g_free(fname);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -129,6 +180,8 @@ int main(int argc, char **argv)
                    test_no_async);
     qtest_add_func("/qemu-qmp/async",
                    test_async);
+    qtest_add_func("/qemu-qmp/screendump",
+                   test_screendump);
 
     ret = g_test_run();
 
