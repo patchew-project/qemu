@@ -57,12 +57,23 @@
 #define EXCP_TRAP15         47   /* User trap #15.  */
 #define EXCP_UNSUPPORTED    61
 #define EXCP_ICE            13
+#define EXCP_FP_BSUN        48 /* Branch Set on Unordered */
+#define EXCP_FP_INEX        49 /* Inexact result */
+#define EXCP_FP_DZ          50 /* Divide by Zero */
+#define EXCP_FP_UNFL        51 /* Underflow */
+#define EXCP_FP_OPERR       52 /* Operand Error */
+#define EXCP_FP_OVFL        53 /* Overflow */
+#define EXCP_FP_SNAN        54 /* Signaling Not-A-Number */
+#define EXCP_FP_UNIMP       55 /* Unimplemented Data type */
+
 
 #define EXCP_RTE            0x100
 #define EXCP_HALT_INSN      0x101
 
 #define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
+
+typedef CPU_LDoubleU FPReg;
 
 typedef struct CPUM68KState {
     uint32_t dregs[8];
@@ -82,11 +93,15 @@ typedef struct CPUM68KState {
     uint32_t cc_c; /* either 0/1, unused, or computed from cc_n and cc_v */
     uint32_t cc_z; /* == 0 or unused */
 
-    float64 fregs[8];
-    float64 fp_result;
+    FPReg fregs[8];
     uint32_t fpcr;
     uint32_t fpsr;
     float_status fp_status;
+
+    uint32_t fp0h;
+    uint64_t fp0l;
+    uint32_t fp1h;
+    uint64_t fp1l;
 
     uint64_t mactmp;
     /* EMAC Hardware deals with 48-bit values composed of one 32-bit and
@@ -162,6 +177,7 @@ int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 uint32_t cpu_m68k_get_ccr(CPUM68KState *env);
 void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t);
+void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val);
 
 
 /* Instead of computing the condition codes after each m68k instruction,
@@ -206,6 +222,55 @@ typedef enum {
 #define M68K_SSP    0
 #define M68K_USP    1
 
+/* Floating-Point Status Register */
+
+/* Condition Code */
+#define FPSR_CC_MASK  0x0f000000
+#define FPSR_CC_A     0x01000000 /* Not-A-Number */
+#define FPSR_CC_I     0x02000000 /* Infinity */
+#define FPSR_CC_Z     0x04000000 /* Zero */
+#define FPSR_CC_N     0x08000000 /* Negative */
+
+/* Exception Status */
+#define FPSR_ES_MASK  0x0000ff00
+#define FPSR_ES_BSUN  0x00008000 /* Branch Set on Unordered */
+#define FPSR_ES_SNAN  0x00004000 /* Signaling Not-A-Number */
+#define FPSR_ES_OPERR 0x00002000 /* Operand Error */
+#define FPSR_ES_OVFL  0x00001000 /* Overflow */
+#define FPSR_ES_UNFL  0x00000800 /* Underflow */
+#define FPSR_ES_DZ    0x00000400 /* Divide by Zero */
+#define FPSR_ES_INEX2 0x00000200 /* Inexact operation */
+#define FPSR_ES_INEX  0x00000100 /* Inexact decimal input */
+
+/* Accrued Exception */
+#define FPSR_AE_MASK  0x000000ff
+#define FPSR_AE_IOP   0x00000080 /* Invalid Operation */
+#define FPSR_AE_OVFL  0x00000040 /* Overflow */
+#define FPSR_AE_UNFL  0x00000020 /* Underflow */
+#define FPSR_AE_DZ    0x00000010 /* Divide by Zero */
+#define FPSR_AE_INEX  0x00000008 /* Inexact */
+
+/* Quotient */
+
+#define FPSR_QT_MASK  0x00ff0000
+
+/* Floating-Point Control Register */
+/* Rounding mode */
+#define FPCR_RND_MASK   0x0030
+#define FPCR_RND_N      0x0000
+#define FPCR_RND_Z      0x0010
+#define FPCR_RND_M      0x0020
+#define FPCR_RND_P      0x0030
+
+/* Rounding precision */
+#define FPCR_PREC_MASK  0x00c0
+#define FPCR_PREC_X     0x0000
+#define FPCR_PREC_S     0x0040
+#define FPCR_PREC_D     0x0080
+#define FPCR_PREC_U     0x00c0
+
+#define FPCR_EXCP_MASK 0xff00
+
 /* CACR fields are implementation defined, but some bits are common.  */
 #define M68K_CACR_EUSP  0x10
 
@@ -221,8 +286,6 @@ typedef enum {
 
 void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
 void m68k_switch_sp(CPUM68KState *env);
-
-#define M68K_FPCR_PREC (1 << 6)
 
 void do_m68k_semihosting(CPUM68KState *env, int nr);
 
@@ -300,8 +363,7 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->fpcr & M68K_FPCR_PREC)       /* Bit  6 */
-            | (env->sr & SR_S)                  /* Bit  13 */
+    *flags = (env->sr & SR_S)                   /* Bit  13 */
             | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
 }
 

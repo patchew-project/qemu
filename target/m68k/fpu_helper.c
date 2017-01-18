@@ -3,6 +3,7 @@
  *
  *  Copyright (c) 2006-2007 CodeSourcery
  *  Written by Paul Brook
+ *  Copyright (c) 2011-2016 Laurent Vivier
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,92 +22,390 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/exec-all.h"
+#include <math.h>
 
-uint32_t HELPER(f64_to_i32)(CPUM68KState *env, float64 val)
+static floatx80 FP0_to_floatx80(CPUM68KState *env)
 {
-    return float64_to_int32(val, &env->fp_status);
+    return (floatx80){ .low = env->fp0l, .high = env->fp0h };
 }
 
-float32 HELPER(f64_to_f32)(CPUM68KState *env, float64 val)
+static void floatx80_to_FP0(CPUM68KState *env, floatx80 res)
 {
-    return float64_to_float32(val, &env->fp_status);
+    env->fp0l = res.low;
+    env->fp0h = res.high;
 }
 
-float64 HELPER(i32_to_f64)(CPUM68KState *env, uint32_t val)
+static int32_t FP0_to_int32(CPUM68KState *env)
 {
-    return int32_to_float64(val, &env->fp_status);
+    return env->fp0h;
 }
 
-float64 HELPER(f32_to_f64)(CPUM68KState *env, float32 val)
+static void int32_to_FP0(CPUM68KState *env, int32_t val)
 {
-    return float32_to_float64(val, &env->fp_status);
+    env->fp0h = val;
 }
 
-float64 HELPER(iround_f64)(CPUM68KState *env, float64 val)
+static float32 FP0_to_float32(CPUM68KState *env)
 {
-    return float64_round_to_int(val, &env->fp_status);
+    return *(float32 *)&env->fp0h;
 }
 
-float64 HELPER(itrunc_f64)(CPUM68KState *env, float64 val)
+static void float32_to_FP0(CPUM68KState *env, float32 val)
 {
-    return float64_trunc_to_int(val, &env->fp_status);
+    env->fp0h = *(uint32_t *)&val;
 }
 
-float64 HELPER(sqrt_f64)(CPUM68KState *env, float64 val)
+static float64 FP0_to_float64(CPUM68KState *env)
 {
-    return float64_sqrt(val, &env->fp_status);
+    return *(float64 *)&env->fp0l;
+}
+static void float64_to_FP0(CPUM68KState *env, float64 val)
+{
+    env->fp0l = *(uint64_t *)&val;
 }
 
-float64 HELPER(abs_f64)(float64 val)
+static floatx80 FP1_to_floatx80(CPUM68KState *env)
 {
-    return float64_abs(val);
+    return (floatx80){ .low = env->fp1l, .high = env->fp1h };
 }
 
-float64 HELPER(chs_f64)(float64 val)
+void HELPER(exts32_FP0)(CPUM68KState *env)
 {
-    return float64_chs(val);
+    floatx80 res;
+
+    res = int32_to_floatx80(FP0_to_int32(env), &env->fp_status);
+
+    floatx80_to_FP0(env, res);
 }
 
-float64 HELPER(add_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(extf32_FP0)(CPUM68KState *env)
 {
-    return float64_add(a, b, &env->fp_status);
+    floatx80 res;
+
+    res = float32_to_floatx80(FP0_to_float32(env), &env->fp_status);
+
+    floatx80_to_FP0(env, res);
 }
 
-float64 HELPER(sub_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(extf64_FP0)(CPUM68KState *env)
 {
-    return float64_sub(a, b, &env->fp_status);
+    floatx80 res;
+
+    res = float64_to_floatx80(FP0_to_float64(env), &env->fp_status);
+
+    floatx80_to_FP0(env, res);
 }
 
-float64 HELPER(mul_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(reds32_FP0)(CPUM68KState *env)
 {
-    return float64_mul(a, b, &env->fp_status);
+    int32_t res;
+
+    res = floatx80_to_int32(FP0_to_floatx80(env), &env->fp_status);
+
+    int32_to_FP0(env, res);
 }
 
-float64 HELPER(div_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(redf32_FP0)(CPUM68KState *env)
 {
-    return float64_div(a, b, &env->fp_status);
+    float32 res;
+
+    res = floatx80_to_float32(FP0_to_floatx80(env), &env->fp_status);
+
+    float32_to_FP0(env, res);
 }
 
-float64 HELPER(sub_cmp_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(redf64_FP0)(CPUM68KState *env)
 {
-    /* ??? This may incorrectly raise exceptions.  */
-    /* ??? Should flush denormals to zero.  */
     float64 res;
-    res = float64_sub(a, b, &env->fp_status);
-    if (float64_is_quiet_nan(res, &env->fp_status)) {
-        /* +/-inf compares equal against itself, but sub returns nan.  */
-        if (!float64_is_quiet_nan(a, &env->fp_status)
-            && !float64_is_quiet_nan(b, &env->fp_status)) {
-            res = float64_zero;
-            if (float64_lt_quiet(a, res, &env->fp_status)) {
-                res = float64_chs(res);
-            }
-        }
-    }
-    return res;
+
+    res = floatx80_to_float64(FP0_to_floatx80(env), &env->fp_status);
+
+    float64_to_FP0(env, res);
 }
 
-uint32_t HELPER(compare_f64)(CPUM68KState *env, float64 val)
+void HELPER(iround_FP0)(CPUM68KState *env)
 {
-    return float64_compare_quiet(val, float64_zero, &env->fp_status);
+    floatx80 res;
+
+    res = floatx80_round_to_int(FP0_to_floatx80(env), &env->fp_status);
+
+    floatx80_to_FP0(env, res);
+}
+
+static void restore_precision_mode(CPUM68KState *env)
+{
+    switch (env->fpcr & FPCR_PREC_MASK) {
+    case FPCR_PREC_X: /* extended */
+        set_floatx80_rounding_precision(80, &env->fp_status);
+        break;
+    case FPCR_PREC_S: /* single */
+        set_floatx80_rounding_precision(32, &env->fp_status);
+        break;
+    case FPCR_PREC_D: /* double */
+        set_floatx80_rounding_precision(64, &env->fp_status);
+        break;
+    case FPCR_PREC_U: /* undefined */
+    default:
+        break;
+    }
+}
+
+static void restore_rounding_mode(CPUM68KState *env)
+{
+    switch (env->fpcr & FPCR_RND_MASK) {
+    case FPCR_RND_N: /* round to nearest */
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        break;
+    case FPCR_RND_Z: /* round to zero */
+        set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+        break;
+    case FPCR_RND_M: /* round toward minus infinity */
+        set_float_rounding_mode(float_round_down, &env->fp_status);
+        break;
+    case FPCR_RND_P: /* round toward positive infinity */
+        set_float_rounding_mode(float_round_up, &env->fp_status);
+        break;
+    }
+}
+
+static void set_fpsr_exception(CPUM68KState *env)
+{
+    uint32_t fpsr = 0;
+    int flags;
+
+    flags = get_float_exception_flags(&env->fp_status);
+    if (flags == 0) {
+        return;
+    }
+    set_float_exception_flags(0, &env->fp_status);
+
+    if (flags & float_flag_invalid) {
+        fpsr |= FPSR_AE_IOP;
+    }
+    if (flags & float_flag_divbyzero) {
+        fpsr |= FPSR_AE_DZ;
+    }
+    if (flags & float_flag_overflow) {
+        fpsr |= FPSR_AE_OVFL;
+    }
+    if (flags & float_flag_underflow) {
+        fpsr |= FPSR_AE_UNFL;
+    }
+    if (flags & float_flag_inexact) {
+        fpsr |= FPSR_AE_INEX;
+    }
+
+    env->fpsr = (env->fpsr & ~FPSR_AE_MASK) | fpsr;
+}
+
+static void fpu_exception(CPUM68KState *env, uint32_t exception)
+{
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+    env->fpsr = (env->fpsr & ~FPSR_ES_MASK) | exception;
+    if (env->fpcr & exception) {
+        switch (exception) {
+        case FPSR_ES_BSUN:
+            cs->exception_index = EXCP_FP_BSUN;
+            break;
+        case FPSR_ES_SNAN:
+            cs->exception_index = EXCP_FP_SNAN;
+            break;
+        case FPSR_ES_OPERR:
+            cs->exception_index = EXCP_FP_OPERR;
+            break;
+        case FPSR_ES_OVFL:
+            cs->exception_index = EXCP_FP_OVFL;
+            break;
+        case FPSR_ES_UNFL:
+            cs->exception_index = EXCP_FP_UNFL;
+            break;
+        case FPSR_ES_DZ:
+            cs->exception_index = EXCP_FP_DZ;
+            break;
+        case FPSR_ES_INEX:
+        case FPSR_ES_INEX2:
+            cs->exception_index = EXCP_FP_INEX;
+            break;
+        }
+        cpu_loop_exit_restore(cs, GETPC());
+    }
+}
+
+void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val)
+{
+    env->fpcr = val & 0xffff;
+
+    restore_precision_mode(env);
+    restore_rounding_mode(env);
+}
+
+void HELPER(set_fpcr)(CPUM68KState *env, uint32_t val)
+{
+    cpu_m68k_set_fpcr(env, val);
+}
+
+void HELPER(itrunc_FP0)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    res = floatx80_round_to_int(FP0_to_floatx80(env), &env->fp_status);
+    restore_rounding_mode(env);
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(sqrt_FP0)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_sqrt(FP0_to_floatx80(env), &env->fp_status);
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(abs_FP0)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_abs(FP0_to_floatx80(env));
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(chs_FP0)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_chs(FP0_to_floatx80(env));
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(add_FP0_FP1)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_add(FP0_to_floatx80(env), FP1_to_floatx80(env),
+                      &env->fp_status);
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(sub_FP0_FP1)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_sub(FP1_to_floatx80(env), FP0_to_floatx80(env),
+                       &env->fp_status);
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(mul_FP0_FP1)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_mul(FP0_to_floatx80(env), FP1_to_floatx80(env),
+                       &env->fp_status);
+
+    floatx80_to_FP0(env, res);
+}
+
+void HELPER(div_FP0_FP1)(CPUM68KState *env)
+{
+    floatx80 res;
+
+    res = floatx80_div(FP1_to_floatx80(env), FP0_to_floatx80(env),
+                       &env->fp_status);
+
+    floatx80_to_FP0(env, res);
+}
+
+static int float_comp_to_cc(int float_compare)
+{
+    switch (float_compare) {
+    case float_relation_equal:
+        return FPSR_CC_Z;
+    case float_relation_less:
+        return FPSR_CC_N;
+    case float_relation_unordered:
+        return FPSR_CC_A;
+    case float_relation_greater:
+        return 0;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void HELPER(cmp_FP0_FP1)(CPUM68KState *env)
+{
+    floatx80 fp0 = FP0_to_floatx80(env);
+    floatx80 fp1 = FP1_to_floatx80(env);
+    int flags, float_compare;
+
+    float_compare = floatx80_compare(fp1, fp0, &env->fp_status);
+    env->fpsr = (env->fpsr & ~FPSR_CC_MASK) | float_comp_to_cc(float_compare);
+
+    flags = get_float_exception_flags(&env->fp_status);
+    if (flags & float_flag_invalid) {
+        fpu_exception(env, FPSR_ES_OPERR);
+   }
+   set_fpsr_exception(env);
+}
+
+void HELPER(tst_FP0)(CPUM68KState *env)
+{
+    uint32_t fpsr = 0;
+    floatx80 val = FP0_to_floatx80(env);
+
+    if (floatx80_is_neg(val)) {
+        fpsr |= FPSR_CC_N;
+    }
+
+    if (floatx80_is_any_nan(val)) {
+        fpsr |= FPSR_CC_A;
+    } else if (floatx80_is_infinity(val)) {
+        fpsr |= FPSR_CC_I;
+    } else if (floatx80_is_zero(val)) {
+        fpsr |= FPSR_CC_Z;
+    }
+    env->fpsr = (env->fpsr & ~FPSR_CC_MASK) | fpsr;
+
+    set_fpsr_exception(env);
+}
+
+void HELPER(update_fpstatus)(CPUM68KState *env)
+{
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (env->fpsr & FPSR_AE_IOP) {
+        flags |= float_flag_invalid;
+    } else {
+        flags &= ~float_flag_invalid;
+    }
+    if (env->fpsr & FPSR_AE_DZ) {
+        flags |= float_flag_divbyzero;
+    } else {
+        flags &= ~float_flag_divbyzero;
+    }
+    if (env->fpsr & FPSR_AE_OVFL) {
+        flags |= float_flag_overflow;
+    } else {
+        flags &= ~float_flag_overflow;
+    }
+    if (env->fpsr & FPSR_AE_UNFL) {
+        flags |= float_flag_underflow;
+    } else {
+        flags &= ~float_flag_underflow;
+    }
+    if (env->fpsr & FPSR_AE_INEX) {
+        flags |= float_flag_inexact;
+    } else {
+        flags &= ~float_flag_inexact;
+    }
+
+    set_float_exception_flags(flags, &env->fp_status);
 }
