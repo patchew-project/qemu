@@ -1,0 +1,10 @@
+enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
+    prefix QTYPE
+object q_empty
+object q_obj_screendump-async-arg
+    member filename: str optional=False
+command screendump-async q_obj_screendump-async-arg -> None
+   gen=True success_response=True boxed=False async=True
+doc symbol=screendump-async expr=('command', 'screendump-async')
+    arg=filename
+foo

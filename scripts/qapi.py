@@ -881,7 +881,8 @@ def check_exprs(exprs):
             add_struct(expr, info)
         elif 'command' in expr:
             check_keys(expr_elem, 'command', [],
-                       ['data', 'returns', 'gen', 'success-response', 'boxed'])
+                       ['data', 'returns', 'gen', 'success-response', 'boxed',
+                        'async'])
             add_name(expr['command'], info, 'command')
         elif 'event' in expr:
             check_keys(expr_elem, 'event', [], ['data', 'boxed'])
@@ -1064,7 +1065,7 @@ class QAPISchemaVisitor(object):
         pass
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, async):
         pass
 
     def visit_event(self, name, info, arg_type, boxed):
@@ -1406,7 +1407,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
 class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, arg_type, ret_type, gen, success_response,
-                 boxed):
+                 boxed, async):
         QAPISchemaEntity.__init__(self, name, info)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -1417,6 +1418,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.gen = gen
         self.success_response = success_response
         self.boxed = boxed
+        self.async = async
 
     def check(self, schema):
         if self._arg_type_name:
@@ -1440,7 +1442,8 @@ class QAPISchemaCommand(QAPISchemaEntity):
     def visit(self, visitor):
         visitor.visit_command(self.name, self.info,
                               self.arg_type, self.ret_type,
-                              self.gen, self.success_response, self.boxed)
+                              self.gen, self.success_response, self.boxed,
+                              self.async)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
@@ -1645,6 +1648,7 @@ class QAPISchema(object):
         data = expr.get('data')
         rets = expr.get('returns')
         gen = expr.get('gen', True)
+        async = expr.get('async', False)
         success_response = expr.get('success-response', True)
         boxed = expr.get('boxed', False)
         if isinstance(data, OrderedDict):
@@ -1654,7 +1658,7 @@ class QAPISchema(object):
             assert len(rets) == 1
             rets = self._make_array_type(rets[0], info)
         self._def_entity(QAPISchemaCommand(name, info, data, rets, gen,
-                                           success_response, boxed))
+                                           success_response, boxed, async))
 
     def _def_event(self, expr, info):
         name = expr['event']

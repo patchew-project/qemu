@@ -262,7 +262,7 @@
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoCommand',
-  'data': { 'arg-type': 'str', 'ret-type': 'str' } }
+  'data': { 'arg-type': 'str', 'ret-type': 'str', 'async': 'bool' } }
 
 ##
 # @SchemaInfoEvent:
