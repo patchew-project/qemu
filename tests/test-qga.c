@@ -151,9 +151,11 @@ static void test_qga_sync_delimited(gconstpointer fix)
     qmp_fd_send(fixture->fd, cmd);
     g_free(cmd);
 
-    v = read(fixture->fd, &c, 1);
-    g_assert_cmpint(v, ==, 1);
-    g_assert_cmpint(c, ==, 0xff);
+    /* Read and ignore garbage until resynchronized */
+    do {
+        v = read(fixture->fd, &c, 1);
+        g_assert_cmpint(v, ==, 1);
+    } while (c != 0xff);
 
     ret = qmp_fd_receive(fixture->fd);
     g_assert_nonnull(ret);
@@ -172,8 +174,8 @@ static void test_qga_sync(gconstpointer fix)
     QDict *ret;
     gchar *cmd;
 
-    cmd = g_strdup_printf("%c{'execute': 'guest-sync',"
-                          " 'arguments': {'id': %u } }", 0xff, r);
+    cmd = g_strdup_printf("{'execute': 'guest-sync',"
+                          " 'arguments': {'id': %u } }", r);
     ret = qmp_fd(fixture->fd, cmd);
     g_free(cmd);
 
