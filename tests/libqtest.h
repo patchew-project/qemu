@@ -32,6 +32,15 @@ extern QTestState *global_qtest;
 QTestState *qtest_init(const char *extra_args);
 
 /**
+ * qtest_init_qmp_caps:
+ * @extra_args: other arguments to pass to QEMU.
+ * @qmp_caps: qmp capabilities (ex: "'cap1', 'cap2'")
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_init_qmp_caps(const char *extra_args, const char *qmp_caps);
+
+/**
  * qtest_quit:
  * @s: #QTestState instance to operate on.
  *

@@ -149,7 +149,7 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     g_hook_prepend(&abrt_hooks, hook);
 }
 
-QTestState *qtest_init(const char *extra_args)
+QTestState *qtest_init_qmp_caps(const char *extra_args, const char *qmp_caps)
 {
     QTestState *s;
     int sock, qmpsock, i;
@@ -206,7 +206,11 @@ QTestState *qtest_init(const char *extra_args)
 
     /* Read the QMP greeting and then do the handshake */
     qtest_qmp_discard_response(s, "");
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+    command = g_strdup_printf(
+        "{ 'execute': 'qmp_capabilities',"
+        " 'arguments': {'capabilities': [%s]}}", qmp_caps);
+    qtest_qmp_discard_response(s, command);
+    g_free(command);
 
     if (getenv("QTEST_STOP")) {
         kill(s->qemu_pid, SIGSTOP);
@@ -217,6 +221,11 @@ QTestState *qtest_init(const char *extra_args)
     s->big_endian = qtest_query_target_endianness(s);
 
     return s;
+}
+
+QTestState *qtest_init(const char *extra_args)
+{
+    return qtest_init_qmp_caps(extra_args, "");
 }
 
 void qtest_quit(QTestState *s)
