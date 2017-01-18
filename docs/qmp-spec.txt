@@ -83,9 +83,41 @@ The greeting message format is:
 2.2.1 Capabilities
 ------------------
 
-As of the date this document was last revised, no server or client
-capability strings have been defined.
+The "capabilities" member of the greeting message and qmp_capabilities
+is a json-array of json-string of the following values:
 
+- "async"
+
+This capability indicates asynchronous commands support.
+
+An async command is a regular client message request with the "id"
+member mandatory (see 2.3), but the reply may be delivered
+asynchronously and out of order by the server if the client supports
+it too.
+
+If both the server and the client have the "async" capability, the
+client can make requests while previous async requests are being
+processed.
+
+If the client doesn't have the "async" capability, it may still call
+an async command, and make multiple outstanding calls. In this case,
+the commands are processed in order, so the replies will also be in
+order (this is sometime called 'pipelining'). The "id" member isn't
+mandatory in this case.
+
+The client should match the replies with the "id" member associated
+with the requests.
+
+When a client is disconnected, the pending commands are not
+necessarily canceled. But the future clients will not get replies from
+commands they didn't make (they might, however, receive side-effects
+events).
+
+Note that without "async" support, a client may still receive
+asynchronous messages (or events) from the server between the time a
+request is handled by the server and the reply is received. It must
+thus be prepared to handle dispatching both events and reply after
+sending a request.
 
 2.3 Issuing Commands
 --------------------
@@ -102,10 +134,11 @@ The format for command execution is:
   required. Each command documents what contents will be considered
   valid when handling the json-argument
 - The "id" member is a transaction identification associated with the
-  command execution, it is optional and will be part of the response if
-  provided. The "id" member can be any json-value, although most
+  command execution and will be part of the response if provided.
+  If "async" is negotiated (see 2.2.1), it is mandatory, optional
+  otherwise. The "id" member can be any json-value, although most
   clients merely use a json-number incremented for each successive
-  command
+  command.
 
 2.4 Commands Responses
 ----------------------
@@ -202,11 +235,12 @@ This section provides some examples of real QMP usage, in all of them
 -------------------
 
 S: { "QMP": { "version": { "qemu": { "micro": 50, "minor": 6, "major": 1 },
-     "package": ""}, "capabilities": []}}
+     "package": ""}, "capabilities": [ "async" ]}}
 
 3.2 Client QMP negotiation
 --------------------------
-C: { "execute": "qmp_capabilities" }
+C: { "execute": "qmp_capabilities",
+     "arguments": { "capabilities": [ "async" ] } }
 S: { "return": {}}
 
 3.3 Simple 'stop' execution
