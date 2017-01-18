@@ -71,7 +71,7 @@ void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu, Error **errp)
     /* Set NUMA node for the added CPUs  */
     i = numa_get_node_for_cpu(cs->cpu_index);
     if (i < nb_numa_nodes) {
-            cs->numa_node = i;
+        cpu->numa_nid = i;
     }
 
     xics_cpu_setup(spapr->xics, cpu);

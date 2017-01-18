@@ -1544,9 +1544,12 @@ static void hmp_info_numa(Monitor *mon, const QDict *qdict)
     for (i = 0; i < nb_numa_nodes; i++) {
         monitor_printf(mon, "node %d cpus:", i);
         CPU_FOREACH(cpu) {
-            if (cpu->numa_node == i) {
-                monitor_printf(mon, " %d", cpu->cpu_index);
+            Error *err = NULL;
+            int64_t nid = object_property_get_int(OBJECT(cpu), "node-id", &err);
+            if (nid == i && !err) {
+                    monitor_printf(mon, " %d", cpu->cpu_index);
             }
+            error_free(err);
         }
         monitor_printf(mon, "\n");
         monitor_printf(mon, "node %d size: %" PRId64 " MB\n", i,
