@@ -2571,11 +2571,18 @@ static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
-static unsigned spapr_cpu_index_to_socket_id(unsigned cpu_index)
+static CpuInstanceProperties
+spapr_cpu_index_to_instance_props(MachineState *ms, unsigned cpu_index)
 {
     /* Allocate to NUMA nodes on a "socket" basis (not that concept of
      * socket means much for the paravirtualized PAPR platform) */
-    return cpu_index / smp_threads / smp_cores;
+    CpuInstanceProperties topo = {
+        .socket_id = cpu_index / smp_threads / smp_cores,
+        .has_socket_id = true,
+        .has_core_id = false,
+        .has_thread_id = false,
+    };
+    return topo;
 }
 
 static HotpluggableCPUList *spapr_query_hotpluggable_cpus(MachineState *machine)
@@ -2688,7 +2695,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->pre_plug = spapr_machine_device_pre_plug;
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
-    mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
+    mc->cpu_index_to_instance_props = spapr_cpu_index_to_instance_props;
     hc->unplug_request = spapr_machine_device_unplug_request;
 
     smc->dr_lmb_enabled = true;

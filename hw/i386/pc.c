@@ -2284,12 +2284,14 @@ static void pc_machine_reset(void)
     }
 }
 
-static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
+static CpuInstanceProperties
+pc_cpu_index_to_instance_props(MachineState *ms, unsigned cpu_index)
 {
-    X86CPUTopoInfo topo;
-    x86_topo_ids_from_idx(smp_cores, smp_threads, cpu_index,
-                          &topo);
-    return topo.pkg_id;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
+
+    assert(cpu_index < possible_cpus->len);
+    return possible_cpus->cpus[cpu_index].props;
 }
 
 static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *machine)
@@ -2396,7 +2398,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->acpi_data_size = 0x20000 + 0x8000;
     pcmc->save_tsc_khz = true;
     mc->get_hotplug_handler = pc_get_hotpug_handler;
-    mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
+    mc->cpu_index_to_instance_props = pc_cpu_index_to_instance_props;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
     mc->query_hotpluggable_cpus = pc_query_hotpluggable_cpus;
     mc->default_boot_order = "cad";

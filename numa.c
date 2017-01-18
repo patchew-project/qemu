@@ -404,8 +404,11 @@ void parse_numa_opts(MachineState *ms)
         if (i == nb_numa_nodes) {
             for (i = 0; i < max_cpus; i++) {
                 unsigned node_id = i % nb_numa_nodes;
-                if (mc->cpu_index_to_socket_id) {
-                    node_id = mc->cpu_index_to_socket_id(i) % nb_numa_nodes;
+                if (mc->cpu_index_to_instance_props) {
+                    CpuInstanceProperties topo;
+                    topo = mc->cpu_index_to_instance_props(ms, i);
+                    assert(topo.has_socket_id);
+                    node_id = topo.socket_id % nb_numa_nodes;
                 }
 
                 set_bit(i, numa_info[node_id].node_cpu);
