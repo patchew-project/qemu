@@ -58,6 +58,61 @@ static void test_qom_set_without_value(void)
     QDECREF(ret);
 }
 
+static void test_no_async(void)
+{
+    QDict *ret;
+    int64_t id;
+
+    /* check that only one async command is being processed */
+    qmp_async("{'execute': 'qtest-timeout', 'id': 42, "
+              " 'arguments': { 'duration': 1 } }");
+    qmp_async("{'execute': 'qtest-timeout', 'id': 43, "
+              " 'arguments': { 'duration': 0 } }");
+
+    /* check that the second command didn't execute immediately */
+    ret = qtest_qmp_receive(global_qtest);
+    g_assert_nonnull(ret);
+    id = qdict_get_try_int(ret, "id", -1);
+    g_assert_cmpint(id, ==, 42);
+    QDECREF(ret);
+
+    /* check that the second command executes after */
+    ret = qtest_qmp_receive(global_qtest);
+    g_assert_nonnull(ret);
+    id = qdict_get_try_int(ret, "id", -1);
+    g_assert_cmpint(id, ==, 43);
+    QDECREF(ret);
+}
+
+static void test_async(void)
+{
+    QDict *ret;
+    int64_t id;
+    QTestState *qtest;
+
+    qtest = qtest_init_qmp_caps("-machine none", "'async'");
+
+    /* check that async are concurrent */
+    qtest_async_qmp(qtest, "{'execute': 'qtest-timeout', 'id': 42, "
+              " 'arguments': { 'duration': 1 } }");
+    qtest_async_qmp(qtest, "{'execute': 'qtest-timeout', 'id': 43, "
+              " 'arguments': { 'duration': 0 } }");
+
+    ret = qtest_qmp_receive(qtest);
+    g_assert_nonnull(ret);
+    id = qdict_get_try_int(ret, "id", -1);
+    g_assert_cmpint(id, ==, 43);
+    QDECREF(ret);
+
+    ret = qtest_qmp_receive(qtest);
+    g_assert_nonnull(ret);
+    id = qdict_get_try_int(ret, "id", -1);
+    g_assert_cmpint(id, ==, 42);
+    QDECREF(ret);
+
+    qtest_quit(qtest);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -70,6 +125,10 @@ int main(int argc, char **argv)
                    test_object_add_without_props);
     qtest_add_func("/qemu-qmp/qom-set-without-value",
                    test_qom_set_without_value);
+    qtest_add_func("/qemu-qmp/no-async",
+                   test_no_async);
+    qtest_add_func("/qemu-qmp/async",
+                   test_async);
 
     ret = g_test_run();
 
