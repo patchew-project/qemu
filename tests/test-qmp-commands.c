@@ -127,7 +127,7 @@ static void test_dispatch_cmd(void)
     QmpClient client = { 0, };
     QDict *req = qdict_new();
 
-    qmp_client_init(&client, dispatch_cmd_return);
+    qmp_client_init(&client, NULL, NULL, dispatch_cmd_return);
 
     qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd")));
 
@@ -150,7 +150,7 @@ static void test_dispatch_cmd_failure(void)
     QDict *req = qdict_new();
     QDict *args = qdict_new();
 
-    qmp_client_init(&client, dispatch_cmd_error_return);
+    qmp_client_init(&client, NULL, NULL, dispatch_cmd_error_return);
 
     qdict_put_obj(req, "execute", QOBJECT(qstring_from_str("user_def_cmd2")));
 
@@ -192,7 +192,7 @@ static QObject *test_qmp_dispatch(QDict *req)
     QObject *ret;
     QmpClient client = { 0, };
 
-    qmp_client_init(&client, qmp_dispatch_return);
+    qmp_client_init(&client, NULL, NULL, qmp_dispatch_return);
     qmp_dispatch(&client, QOBJECT(req), NULL);
     qmp_client_destroy(&client);
 
@@ -258,7 +258,7 @@ static void test_dispatch_cmd_async(void)
     QDict *args = qdict_new();
 
     loop = g_main_loop_new(NULL, FALSE);
-    qmp_client_init(&client, qmp_dispatch_return);
+    qmp_client_init(&client, NULL, NULL, qmp_dispatch_return);
 
     qdict_put(args, "a", qint_from_int(99));
     qdict_put(req, "arguments", args);
@@ -287,7 +287,7 @@ static void test_dispatch_cmd_async_no_id(void)
     QDict *req = qdict_new();
     QDict *args = qdict_new();
 
-    qmp_client_init(&client, dispatch_cmd_error_return);
+    qmp_client_init(&client, NULL, NULL, dispatch_cmd_error_return);
 
     qdict_put(args, "a", qint_from_int(99));
     qdict_put(req, "arguments", args);
@@ -311,7 +311,7 @@ static void test_destroy_pending_async(void)
     int npending = 0;
 
     loop = g_main_loop_new(NULL, FALSE);
-    qmp_client_init(&client, qmp_dispatch_return);
+    qmp_client_init(&client, NULL, NULL, qmp_dispatch_return);
 
     qdict_put(args, "a", qint_from_int(99));
     qdict_put(req, "arguments", args);

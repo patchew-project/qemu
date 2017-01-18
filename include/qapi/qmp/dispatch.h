@@ -16,9 +16,12 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/json-streamer.h"
 
 typedef struct QmpClient QmpClient;
 
+typedef bool (QmpPreDispatch) (QmpClient *client, QObject *rsp, Error **err);
+typedef bool (QmpPostDispatch) (QmpClient *client, QObject *rsp, Error **err);
 typedef void (QmpDispatchReturn) (QmpClient *client, QObject *rsp);
 
 typedef struct QmpReturn {
@@ -29,6 +32,9 @@ typedef struct QmpReturn {
 } QmpReturn;
 
 struct QmpClient {
+    JSONMessageParser parser;
+    QmpPreDispatch *pre_dispatch_cb;
+    QmpPostDispatch *post_dispatch_cb;
     QmpDispatchReturn *return_cb;
 
     QLIST_HEAD(, QmpReturn) pending;
@@ -68,8 +74,13 @@ void qmp_register_async_command(const char *name, QmpCommandFuncAsync *fn,
                                 QmpCommandOptions options);
 void qmp_unregister_command(const char *name);
 QmpCommand *qmp_find_command(const char *name);
-void qmp_client_init(QmpClient *client, QmpDispatchReturn *return_cb);
+void qmp_client_init(QmpClient *client,
+                     QmpPreDispatch *pre_dispatch_cb,
+                     QmpPostDispatch *post_dispatch_cb,
+                     QmpDispatchReturn *return_cb);
 void qmp_client_destroy(QmpClient *client);
+void qmp_client_feed(QmpClient *client, const char *buffer, size_t size);
+
 void qmp_dispatch(QmpClient *client, QObject *request, QDict *rsp);
 void qmp_disable_command(const char *name);
 void qmp_enable_command(const char *name);

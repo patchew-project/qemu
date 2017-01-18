@@ -65,7 +65,6 @@ typedef struct GAPersistentState {
 } GAPersistentState;
 
 struct GAState {
-    JSONMessageParser parser;
     GMainLoop *main_loop;
     GAChannel *channel;
     bool virtio; /* fastpath to check for virtio to deal with poll() quirks */
@@ -559,59 +558,7 @@ static void dispatch_return_cb(QmpClient *client, QObject *rsp)
     }
 }
 
-static void process_command(GAState *s, QDict *req)
-{
-    g_assert(req);
-    g_debug("processing command");
-    qmp_dispatch(&ga_state->client, QOBJECT(req), NULL);
-}
-
 /* handle requests/control events coming in over the channel */
-static void process_event(JSONMessageParser *parser, GQueue *tokens)
-{
-    GAState *s = container_of(parser, GAState, parser);
-    QDict *qdict;
-    Error *err = NULL;
-    int ret;
-
-    g_assert(s && parser);
-
-    g_debug("process_event: called");
-    qdict = qobject_to_qdict(json_parser_parse_err(tokens, NULL, &err));
-    if (err || !qdict) {
-        QDECREF(qdict);
-        qdict = qdict_new();
-        if (!err) {
-            g_warning("failed to parse event: unknown error");
-            error_setg(&err, QERR_JSON_PARSING);
-        } else {
-            g_warning("failed to parse event: %s", error_get_pretty(err));
-        }
-        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-        error_free(err);
-    }
-
-    /* handle host->guest commands */
-    if (qdict_haskey(qdict, "execute")) {
-        process_command(s, qdict);
-    } else {
-        if (!qdict_haskey(qdict, "error")) {
-            QDECREF(qdict);
-            qdict = qdict_new();
-            g_warning("unrecognized payload format");
-            error_setg(&err, QERR_UNSUPPORTED);
-            qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-            error_free(err);
-        }
-        ret = send_response(s, QOBJECT(qdict));
-        if (ret < 0) {
-            g_warning("error sending error response: %s", strerror(-ret));
-        }
-    }
-
-    QDECREF(qdict);
-}
-
 /* false return signals GAChannel to close the current client connection */
 static gboolean channel_event_cb(GIOCondition condition, gpointer data)
 {
@@ -625,8 +572,8 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
         return false;
     case G_IO_STATUS_NORMAL:
         buf[count] = 0;
-        g_debug("read data, count: %d, data: %s", (int)count, buf);
-        json_message_parser_feed(&s->parser, (char *)buf, (int)count);
+        g_debug("read data, count: %" G_GSIZE_FORMAT ", data: %s", count, buf);
+        qmp_client_feed(&s->client, buf, count);
         break;
     case G_IO_STATUS_EOF:
         g_debug("received EOF");
@@ -1285,9 +1232,8 @@ static int run_agent(GAState *s, GAConfig *config)
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
-    json_message_parser_init(&s->parser, process_event);
     ga_state = s;
-    qmp_client_init(&s->client, dispatch_return_cb);
+    qmp_client_init(&s->client, NULL, NULL, dispatch_return_cb);
 #ifndef _WIN32
     if (!register_signal_handlers()) {
         g_critical("failed to register signal handlers");
@@ -1376,7 +1322,6 @@ end:
     if (s->command_state) {
         ga_command_state_cleanup_all(s->command_state);
         ga_command_state_free(s->command_state);
-        json_message_parser_destroy(&s->parser);
     }
     if (s->channel) {
         ga_channel_free(s->channel);

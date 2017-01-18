@@ -56,7 +56,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
@@ -158,7 +157,6 @@ struct MonFdset {
 };
 
 typedef struct {
-    JSONMessageParser parser;
     /*
      * When a client connects, we're in capabilities negotiation mode.
      * When command qmp_capabilities succeeds, we go into command
@@ -600,9 +598,6 @@ static void monitor_data_init(Monitor *mon)
 static void monitor_data_destroy(Monitor *mon)
 {
     qemu_chr_fe_deinit(&mon->chr);
-    if (monitor_is_qmp(mon)) {
-        json_message_parser_destroy(&mon->qmp.parser);
-    }
     qmp_client_destroy(&mon->qmp.client);
     g_free(mon->rs);
     QDECREF(mon->outbuf);
@@ -3700,62 +3695,6 @@ static bool invalid_qmp_mode(const Monitor *mon, const char *cmd,
     return false;
 }
 
-/*
- * Input object checking rules
- *
- * 1. Input object must be a dict
- * 2. The "execute" key must exist
- * 3. The "execute" key must be a string
- * 4. If the "arguments" key exists, it must be a dict
- * 5. If the "id" key exists, it can be anything (ie. json-value)
- * 6. Any argument not listed above is considered invalid
- */
-static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
-{
-    const QDictEntry *ent;
-    int has_exec_key = 0;
-    QDict *input_dict;
-
-    if (qobject_type(input_obj) != QTYPE_QDICT) {
-        error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "object");
-        return NULL;
-    }
-
-    input_dict = qobject_to_qdict(input_obj);
-
-    for (ent = qdict_first(input_dict); ent; ent = qdict_next(input_dict, ent)){
-        const char *arg_name = qdict_entry_key(ent);
-        const QObject *arg_obj = qdict_entry_value(ent);
-
-        if (!strcmp(arg_name, "execute")) {
-            if (qobject_type(arg_obj) != QTYPE_QSTRING) {
-                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
-                           "execute", "string");
-                return NULL;
-            }
-            has_exec_key = 1;
-        } else if (!strcmp(arg_name, "arguments")) {
-            if (qobject_type(arg_obj) != QTYPE_QDICT) {
-                error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
-                           "arguments", "object");
-                return NULL;
-            }
-        } else if (!strcmp(arg_name, "id")) {
-            /* Any string is acceptable as "id", so nothing to check */
-        } else {
-            error_setg(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
-            return NULL;
-        }
-    }
-
-    if (!has_exec_key) {
-        error_setg(errp, QERR_QMP_BAD_INPUT_OBJECT, "execute");
-        return NULL;
-    }
-
-    return input_dict;
-}
-
 static void monitor_qmp_suspend(Monitor *mon, QObject *req)
 {
     assert(monitor_is_qmp(mon));
@@ -3774,6 +3713,33 @@ static void monitor_qmp_resume(Monitor *mon)
     mon->qmp.suspended = NULL;
 }
 
+static bool qmp_pre_dispatch(QmpClient *client, QObject *req, Error **errp)
+{
+    Monitor *mon = container_of(client, Monitor, qmp.client);
+    QDict *qdict = qobject_to_qdict(req);
+    const char *cmd_name = qdict_get_str(qdict, "execute");
+
+    trace_handle_qmp_command(mon, cmd_name);
+
+    if (invalid_qmp_mode(mon, cmd_name, errp)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool qmp_post_dispatch(QmpClient *client, QObject *req, Error **errp)
+{
+    Monitor *mon = container_of(client, Monitor, qmp.client);
+
+    /* suspend if the command is on-going and client doesn't support async */
+    if (!QLIST_EMPTY(&mon->qmp.client.pending) && !mon->qmp.client.has_async) {
+        monitor_qmp_suspend(mon, req);
+    }
+
+    return true;
+}
+
 static void qmp_dispatch_return(QmpClient *client, QObject *rsp)
 {
     Monitor *mon = container_of(client, Monitor, qmp.client);
@@ -3785,62 +3751,6 @@ static void qmp_dispatch_return(QmpClient *client, QObject *rsp)
     }
 }
 
-static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
-{
-    QObject *req, *id = NULL;
-    QDict *qdict, *rqdict = qdict_new();
-    const char *cmd_name;
-    Monitor *mon = cur_mon;
-    Error *err = NULL;
-
-    req = json_parser_parse_err(tokens, NULL, &err);
-    if (err || !req || qobject_type(req) != QTYPE_QDICT) {
-        if (!err) {
-            error_setg(&err, QERR_JSON_PARSING);
-        }
-        goto err_out;
-    }
-
-    qdict = qmp_check_input_obj(req, &err);
-    if (!qdict) {
-        goto err_out;
-    }
-
-    id = qdict_get(qdict, "id");
-    if (id) {
-        qobject_incref(id);
-        qdict_del(qdict, "id");
-        qdict_put_obj(rqdict, "id", id);
-    }
-
-    cmd_name = qdict_get_str(qdict, "execute");
-    trace_handle_qmp_command(mon, cmd_name);
-
-    if (invalid_qmp_mode(mon, cmd_name, &err)) {
-        goto err_out;
-    }
-
-    qmp_dispatch(&mon->qmp.client, req, rqdict);
-
-    /* suspend if the command is on-going and client doesn't support async */
-    if (!QLIST_EMPTY(&mon->qmp.client.pending) && !mon->qmp.client.has_async) {
-        monitor_qmp_suspend(mon, req);
-    }
-
-    qobject_decref(req);
-    return;
-
-err_out:
-    if (err) {
-        qdict_put_obj(rqdict, "error", qmp_build_error_object(err));
-        error_free(err);
-        monitor_json_emitter(mon, QOBJECT(rqdict));
-    }
-
-    QDECREF(rqdict);
-    qobject_decref(req);
-}
-
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     Monitor *old_mon = cur_mon;
@@ -3849,7 +3759,7 @@ static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 
     assert(monitor_is_qmp(cur_mon));
 
-    json_message_parser_feed(&cur_mon->qmp.parser, (const char *) buf, size);
+    qmp_client_feed(&cur_mon->qmp.client, (const char *)buf, size);
 
     cur_mon = old_mon;
 }
@@ -3926,7 +3836,10 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        qmp_client_init(&mon->qmp.client, qmp_dispatch_return);
+        qmp_client_init(&mon->qmp.client,
+                        qmp_pre_dispatch,
+                        qmp_post_dispatch,
+                        qmp_dispatch_return);
         mon->qmp.in_command_mode = false;
         data = get_qmp_greeting();
         monitor_json_emitter(mon, data);
@@ -3934,8 +3847,6 @@ static void monitor_qmp_event(void *opaque, int event)
         mon_refcount++;
         break;
     case CHR_EVENT_CLOSED:
-        json_message_parser_destroy(&mon->qmp.parser);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
         qmp_client_destroy(&mon->qmp.client);
         mon_refcount--;
         monitor_fdsets_cleanup();
@@ -4094,7 +4005,6 @@ void monitor_init(CharDriverState *chr, int flags)
         qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_qmp_read,
                                  monitor_qmp_event, mon, NULL, true);
         qemu_chr_fe_set_echo(&mon->chr, true);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
     } else {
         qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
                                  monitor_event, mon, NULL, true);
