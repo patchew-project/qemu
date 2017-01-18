@@ -254,6 +254,10 @@ static void gui_setup_refresh(DisplayState *ds)
     ds->have_text = have_text;
 }
 
+void graphic_hw_update_done(QemuConsole *con)
+{
+}
+
 bool graphic_hw_update(QemuConsole *con)
 {
     if (!con) {
