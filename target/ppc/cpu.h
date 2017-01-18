@@ -1154,6 +1154,7 @@ do {                                            \
  * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
  * @max_compat: Maximal supported logical PVR from the command line
  * @cpu_version: Current logical PVR, zero if in "raw" mode
+ * @numa_nid: Numa node id the CPU belongs to
  *
  * A PowerPC CPU.
  */
@@ -1166,6 +1167,7 @@ struct PowerPCCPU {
     int cpu_dt_id;
     uint32_t max_compat;
     uint32_t cpu_version;
+    int32_t numa_nid;
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;

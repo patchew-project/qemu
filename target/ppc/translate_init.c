@@ -10520,6 +10520,7 @@ static gchar *ppc_gdb_arch_name(CPUState *cs)
 
 static Property ppc_cpu_properties[] = {
     DEFINE_PROP_BOOL("pre-2.8-migration", PowerPCCPU, pre_2_8_migration, false),
+    DEFINE_PROP_INT32("node-id", PowerPCCPU, numa_nid, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

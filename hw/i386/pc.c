@@ -1976,6 +1976,11 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
 
     cs = CPU(cpu);
     cs->cpu_index = idx;
+
+    idx = numa_get_node_for_cpu(cs->cpu_index);
+    if (idx < nb_numa_nodes) {
+        cpu->numa_nid = idx;
+    }
 }
 
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,

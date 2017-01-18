@@ -329,7 +329,6 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
 {
     int cpu;
     int addr_cells = 1;
-    unsigned int i;
 
     /*
      * From Documentation/devicetree/bindings/arm/cpus.txt
@@ -379,9 +378,9 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                                   armcpu->mp_affinity);
         }
 
-        i = numa_get_node_for_cpu(cpu);
-        if (i < nb_numa_nodes) {
-            qemu_fdt_setprop_cell(vms->fdt, nodename, "numa-node-id", i);
+        if (armcpu->numa_nid < nb_numa_nodes) {
+            qemu_fdt_setprop_cell(vms->fdt, nodename, "numa-node-id",
+                                  armcpu->numa_nid);
         }
 
         g_free(nodename);
@@ -1331,6 +1330,11 @@ static void machvirt_init(MachineState *machine)
         if (vms->secure) {
             object_property_set_link(cpuobj, OBJECT(secure_sysmem),
                                      "secure-memory", &error_abort);
+        }
+
+        if (nb_numa_nodes) {
+            object_property_set_int(cpuobj, numa_get_node_for_cpu(n),
+                                    "node-id", NULL);
         }
 
         object_property_set_bool(cpuobj, true, "realized", NULL);
