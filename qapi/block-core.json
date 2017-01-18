@@ -3119,6 +3119,15 @@
 # combines blockdev-open-tray, x-blockdev-remove-medium,
 # x-blockdev-insert-medium and blockdev-close-tray).
 #
+# Since: 2.5
+##
+{ 'command': 'blockdev-change-medium',
+  'data': 'BlockdevChangeMedium' }
+
+
+##
+# @BlockdevChangeMedium:
+#
 # @device:          #optional Block device name (deprecated, use @id instead)
 #
 # @id:              #optional The name or QOM path of the guest device
@@ -3165,7 +3174,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'blockdev-change-medium',
+{ 'struct': 'BlockdevChangeMedium',
   'data': { '*device': 'str',
             '*id': 'str',
             'filename': 'str',
