@@ -3723,15 +3723,21 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
     return input_dict;
 }
 
+static void qmp_dispatch_return(QObject *rsp, void *opaque)
+{
+    Monitor *mon = opaque;
+
+    monitor_json_emitter(mon, rsp);
+}
+
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
-    QObject *req, *rsp, *id = NULL;
+    QObject *req, *id = NULL;
     QDict *qdict, *rqdict = qdict_new();
     const char *cmd_name;
     Monitor *mon = cur_mon;
     Error *err = NULL;
 
-    rsp = QOBJECT(rqdict);
     req = json_parser_parse_err(tokens, NULL, &err);
     if (err || !req || qobject_type(req) != QTYPE_QDICT) {
         if (!err) {
@@ -3759,16 +3765,15 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    rsp = qmp_dispatch(req, rqdict);
+    qmp_dispatch(req, rqdict, qmp_dispatch_return, mon);
+    qobject_decref(req);
+    return;
 
 err_out:
     if (err) {
         qdict_put_obj(rqdict, "error", qmp_build_error_object(err));
         error_free(err);
-    }
-
-    if (rsp) {
-        monitor_json_emitter(mon, rsp);
+        monitor_json_emitter(mon, QOBJECT(rqdict));
     }
 
     QDECREF(rqdict);

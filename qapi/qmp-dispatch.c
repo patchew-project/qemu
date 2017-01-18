@@ -62,7 +62,7 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     return dict;
 }
 
-static QObject *do_qmp_dispatch(QObject *request, Error **errp)
+static QObject *do_qmp_dispatch(QObject *request, QmpReturn *qret, Error **errp)
 {
     Error *local_err = NULL;
     const char *command;
@@ -116,23 +116,57 @@ QObject *qmp_build_error_object(Error *err)
                               error_get_pretty(err));
 }
 
-QObject *qmp_dispatch(QObject *request, QDict *rsp)
+static void qmp_return_free(QmpReturn *qret)
+{
+    QDict *rsp = qret->rsp;
+
+    qobject_decref(QOBJECT(rsp));
+    g_free(qret);
+}
+
+static void do_qmp_return(QmpReturn *qret)
+{
+    QDict *rsp = qret->rsp;
+
+    qret->return_cb(QOBJECT(rsp), qret->opaque);
+
+    qmp_return_free(qret);
+}
+
+void qmp_return(QmpReturn *qret, QObject *cmd_rsp)
+{
+    qdict_put_obj(qret->rsp, "return", cmd_rsp ?: QOBJECT(qdict_new()));
+
+    do_qmp_return(qret);
+}
+
+void qmp_return_error(QmpReturn *qret, Error *err)
+{
+    qdict_put_obj(qret->rsp, "error", qmp_build_error_object(err));
+    error_free(err);
+
+    do_qmp_return(qret);
+}
+
+void qmp_dispatch(QObject *request, QDict *rsp,
+                  QmpDispatchReturn *return_cb, void *opaque)
 {
     Error *err = NULL;
+    QmpReturn *qret = g_new0(QmpReturn, 1);
     QObject *ret;
 
-    ret = do_qmp_dispatch(request, &err);
+    assert(return_cb);
 
-    rsp = rsp ?: qdict_new();
+    qret->rsp = rsp ?: qdict_new();
+    qret->return_cb = return_cb;
+    qret->opaque = opaque;
+
+    ret = do_qmp_dispatch(request, qret, &err);
+
     if (err) {
-        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-        error_free(err);
+        assert(!ret);
+        qmp_return_error(qret, err);
     } else if (ret) {
-        qdict_put_obj(rsp, "return", ret);
-    } else {
-        QDECREF(rsp);
-        return NULL;
+        qmp_return(qret, ret);
     }
-
-    return QOBJECT(rsp);
 }

@@ -548,21 +548,21 @@ static int send_response(GAState *s, QObject *payload)
     return 0;
 }
 
+static void dispatch_return_cb(QObject *rsp, void *opaque)
+{
+    GAState *s = opaque;
+    int ret = send_response(s, rsp);
+
+    if (ret) {
+        g_warning("error sending response: %s", strerror(ret));
+    }
+}
+
 static void process_command(GAState *s, QDict *req)
 {
-    QObject *rsp = NULL;
-    int ret;
-
     g_assert(req);
     g_debug("processing command");
-    rsp = qmp_dispatch(QOBJECT(req), NULL);
-    if (rsp) {
-        ret = send_response(s, rsp);
-        if (ret) {
-            g_warning("error sending response: %s", strerror(ret));
-        }
-        qobject_decref(rsp);
-    }
+    qmp_dispatch(QOBJECT(req), NULL, dispatch_return_cb, s);
 }
 
 /* handle requests/control events coming in over the channel */
