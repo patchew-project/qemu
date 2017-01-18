@@ -48,6 +48,8 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
                 return NULL;
             }
             has_exec_key = true;
+        } else if (!strcmp(arg_name, "id")) {
+            /* top-level 'id' is accepted */
         } else if (strcmp(arg_name, "arguments")) {
             error_setg(errp, QERR_QMP_EXTRA_MEMBER, arg_name);
             return NULL;
