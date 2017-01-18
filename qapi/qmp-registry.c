@@ -18,16 +18,35 @@
 static QTAILQ_HEAD(QmpCommandList, QmpCommand) qmp_commands =
     QTAILQ_HEAD_INITIALIZER(qmp_commands);
 
-void qmp_register_command(const char *name, QmpCommandFunc *fn,
-                          QmpCommandOptions options)
+static QmpCommand *qmp_command_new(const char *name,
+                                   QmpCommandOptions options)
 {
     QmpCommand *cmd = g_malloc0(sizeof(*cmd));
 
     cmd->name = name;
-    cmd->fn = fn;
     cmd->enabled = true;
     cmd->options = options;
     QTAILQ_INSERT_TAIL(&qmp_commands, cmd, node);
+
+    return cmd;
+}
+
+void qmp_register_command(const char *name, QmpCommandFunc *fn,
+                          QmpCommandOptions options)
+{
+    QmpCommand *cmd = qmp_command_new(name, options);
+
+    cmd->type = QCT_NORMAL;
+    cmd->fn = fn;
+}
+
+void qmp_register_async_command(const char *name, QmpCommandFuncAsync *fn,
+                                QmpCommandOptions options)
+{
+    QmpCommand *cmd = qmp_command_new(name, options);
+
+    cmd->type = QCT_ASYNC;
+    cmd->fn_async = fn;
 }
 
 void qmp_unregister_command(const char *name)

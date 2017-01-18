@@ -35,6 +35,12 @@ struct QmpClient {
 };
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
+typedef void (QmpCommandFuncAsync)(QDict *, QmpReturn *);
+
+typedef enum QmpCommandType {
+    QCT_NORMAL,
+    QCT_ASYNC,
+} QmpCommandType;
 
 typedef enum QmpCommandOptions
 {
@@ -44,8 +50,12 @@ typedef enum QmpCommandOptions
 
 typedef struct QmpCommand
 {
+    QmpCommandType type;
     const char *name;
-    QmpCommandFunc *fn;
+    union {
+        QmpCommandFunc *fn;
+        QmpCommandFuncAsync *fn_async;
+    };
     QmpCommandOptions options;
     QTAILQ_ENTRY(QmpCommand) node;
     bool enabled;
@@ -53,6 +63,8 @@ typedef struct QmpCommand
 
 void qmp_register_command(const char *name, QmpCommandFunc *fn,
                           QmpCommandOptions options);
+void qmp_register_async_command(const char *name, QmpCommandFuncAsync *fn,
+                                QmpCommandOptions options);
 void qmp_unregister_command(const char *name);
 QmpCommand *qmp_find_command(const char *name);
 void qmp_client_init(QmpClient *client, QmpDispatchReturn *return_cb);
