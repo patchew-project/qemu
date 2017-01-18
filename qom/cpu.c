@@ -23,6 +23,7 @@
 #include "qemu-common.h"
 #include "qom/cpu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/numa.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
 #include "exec/log.h"
@@ -338,6 +339,18 @@ static void cpu_common_parse_features(const char *typename, char *features,
     }
 }
 
+static void cpu_common_map_numa_node(CPUState *cpu)
+{
+    int i;
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        assert(cpu->cpu_index < max_cpus);
+        if (test_bit(cpu->cpu_index, numa_info[i].node_cpu)) {
+            cpu->numa_node = i;
+        }
+    }
+}
+
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cpu = CPU(dev);
@@ -346,6 +359,8 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
         cpu_synchronize_post_init(cpu);
         cpu_resume(cpu);
     }
+
+    cpu_common_map_numa_node(cpu);
 
     /* NOTE: latest generic point where the cpu is fully realized */
     trace_init_vcpu(cpu);
