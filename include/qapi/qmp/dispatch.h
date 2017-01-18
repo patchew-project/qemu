@@ -78,4 +78,12 @@ void qmp_for_each_command(qmp_cmd_callback_fn fn, void *opaque);
 void qmp_return(QmpReturn *qret, QObject *cmd_rsp);
 void qmp_return_error(QmpReturn *qret, Error *err);
 
+/*
+ * qmp_return_is_cancelled:
+ *
+ * Return true if the QmpReturn is cancelled, and free the QmpReturn
+ * in this case.
+ */
+bool qmp_return_is_cancelled(QmpReturn *qret);
+
 #endif

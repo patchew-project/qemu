@@ -155,6 +155,16 @@ void qmp_return_error(QmpReturn *qret, Error *err)
     do_qmp_return(qret);
 }
 
+bool qmp_return_is_cancelled(QmpReturn *qret)
+{
+    if (!qret->client) {
+        qmp_return_free(qret);
+        return true;
+    }
+
+    return false;
+}
+
 void qmp_client_init(QmpClient *client, QmpDispatchReturn *return_cb)
 {
     assert(!client->return_cb);
