@@ -2252,7 +2252,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
      * table)
      */
     options = qdict_new();
-    qdict_put(options, "driver", qstring_from_str("qcow2"));
+    qdict_put_str(options, "driver", "qcow2");
     blk = blk_new_open(filename, NULL, options,
                        BDRV_O_RDWR | BDRV_O_NO_FLUSH, &local_err);
     if (blk == NULL) {
@@ -2313,7 +2313,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     /* Reopen the image without BDRV_O_NO_FLUSH to flush it before returning */
     options = qdict_new();
-    qdict_put(options, "driver", qstring_from_str("qcow2"));
+    qdict_put_str(options, "driver", "qcow2");
     blk = blk_new_open(filename, NULL, options,
                        BDRV_O_RDWR | BDRV_O_NO_BACKING, &local_err);
     if (blk == NULL) {

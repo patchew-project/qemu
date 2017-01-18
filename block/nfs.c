@@ -103,9 +103,9 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
         goto out;
     }
 
-    qdict_put(options, "server.host", qstring_from_str(uri->server));
-    qdict_put(options, "server.type", qstring_from_str("inet"));
-    qdict_put(options, "path", qstring_from_str(uri->path));
+    qdict_put_str(options, "server.host", uri->server);
+    qdict_put_str(options, "server.type", "inet");
+    qdict_put_str(options, "path", uri->path);
 
     for (i = 0; i < qp->n; i++) {
         if (!qp->p[i].value) {
@@ -119,23 +119,17 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
             goto out;
         }
         if (!strcmp(qp->p[i].name, "uid")) {
-            qdict_put(options, "user",
-                      qstring_from_str(qp->p[i].value));
+            qdict_put_str(options, "user", qp->p[i].value);
         } else if (!strcmp(qp->p[i].name, "gid")) {
-            qdict_put(options, "group",
-                      qstring_from_str(qp->p[i].value));
+            qdict_put_str(options, "group", qp->p[i].value);
         } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
-            qdict_put(options, "tcp-syn-count",
-                      qstring_from_str(qp->p[i].value));
+            qdict_put_str(options, "tcp-syn-count", qp->p[i].value);
         } else if (!strcmp(qp->p[i].name, "readahead")) {
-            qdict_put(options, "readahead-size",
-                      qstring_from_str(qp->p[i].value));
+            qdict_put_str(options, "readahead-size", qp->p[i].value);
         } else if (!strcmp(qp->p[i].name, "pagecache")) {
-            qdict_put(options, "page-cache-size",
-                      qstring_from_str(qp->p[i].value));
+            qdict_put_str(options, "page-cache-size", qp->p[i].value);
         } else if (!strcmp(qp->p[i].name, "debug")) {
-            qdict_put(options, "debug",
-                      qstring_from_str(qp->p[i].value));
+            qdict_put_str(options, "debug", qp->p[i].value);
         } else {
             error_setg(errp, "Unknown NFS parameter name: %s",
                        qp->p[i].name);
@@ -775,7 +769,7 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
     QObject *server_qdict;
     Visitor *ov;
 
-    qdict_put(opts, "driver", qstring_from_str("nfs"));
+    qdict_put_str(opts, "driver", "nfs");
 
     if (client->uid && !client->gid) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
@@ -800,28 +794,25 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
     assert(qobject_type(server_qdict) == QTYPE_QDICT);
 
     qdict_put_obj(opts, "server", server_qdict);
-    qdict_put(opts, "path", qstring_from_str(client->path));
+    qdict_put_str(opts, "path", client->path);
 
     if (client->uid) {
-        qdict_put(opts, "uid", qint_from_int(client->uid));
+        qdict_put_int(opts, "uid", client->uid);
     }
     if (client->gid) {
-        qdict_put(opts, "gid", qint_from_int(client->gid));
+        qdict_put_int(opts, "gid", client->gid);
     }
     if (client->tcp_syncnt) {
-        qdict_put(opts, "tcp-syncnt",
-                      qint_from_int(client->tcp_syncnt));
+        qdict_put_int(opts, "tcp-syncnt", client->tcp_syncnt);
     }
     if (client->readahead) {
-        qdict_put(opts, "readahead",
-                      qint_from_int(client->readahead));
+        qdict_put_int(opts, "readahead", client->readahead);
     }
     if (client->pagecache) {
-        qdict_put(opts, "pagecache",
-                      qint_from_int(client->pagecache));
+        qdict_put_int(opts, "pagecache", client->pagecache);
     }
     if (client->debug) {
-        qdict_put(opts, "debug", qint_from_int(client->debug));
+        qdict_put_int(opts, "debug", client->debug);
     }
 
     visit_free(ov);

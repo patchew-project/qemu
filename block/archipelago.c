@@ -432,10 +432,10 @@ static void archipelago_parse_filename(const char *filename, QDict *options,
         g_free(segment_name);
     }
     if (mport != NoPort) {
-        qdict_put(options, ARCHIPELAGO_OPT_MPORT, qint_from_int(mport));
+        qdict_put_int(options, ARCHIPELAGO_OPT_MPORT, mport);
     }
     if (vport != NoPort) {
-        qdict_put(options, ARCHIPELAGO_OPT_VPORT, qint_from_int(vport));
+        qdict_put_int(options, ARCHIPELAGO_OPT_VPORT, vport);
     }
 }
 
