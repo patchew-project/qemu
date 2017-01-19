@@ -354,11 +354,10 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
         return;
     }
 
-    if (!vfio_get_vaddr(iotlb, &vaddr, &read_only)) {
-        return;
-    }
-
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
+        if (!vfio_get_vaddr(iotlb, &vaddr, &read_only)) {
+            return;
+        }
         ret = vfio_dma_map(container, iova,
                            iotlb->addr_mask + 1, vaddr,
                            read_only);
