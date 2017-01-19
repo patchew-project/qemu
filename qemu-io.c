@@ -585,6 +585,8 @@ int main(int argc, char **argv)
     /* open the device */
     if (!readonly) {
         flags |= BDRV_O_RDWR;
+    } else {
+        flags |= BDRV_O_SHARE_RW;
     }
 
     if ((argc - optind) == 1) {
