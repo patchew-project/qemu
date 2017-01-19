@@ -73,6 +73,40 @@ QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(run_on_cpu_data));
 QEMU_BUILD_BUG_ON(NB_MMU_MODES > 16);
 #define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
 
+/* flush_all_helper: run fn across all cpus
+ *
+ * If the wait flag is set then the src cpu's helper will be queued as
+ * "safe" work and the loop exited creating a synchronisation point
+ * where all queued work will be finished before execution starts
+ * again.
+ */
+static void flush_all_helper(CPUState *src, bool wait,
+                             run_on_cpu_func fn, run_on_cpu_data d)
+{
+    CPUState *cpu;
+
+    if (!wait) {
+        CPU_FOREACH(cpu) {
+            if (cpu != src) {
+                async_run_on_cpu(cpu, fn, d);
+            } else {
+                g_assert(qemu_cpu_is_self(src));
+                fn(src, d);
+            }
+        }
+    } else {
+        CPU_FOREACH(cpu) {
+            if (cpu != src) {
+                async_run_on_cpu(cpu, fn, d);
+            } else {
+                async_safe_run_on_cpu(cpu, fn, d);
+            }
+
+        }
+        cpu_loop_exit(src);
+    }
+}
+
 /* statistics */
 int tlb_flush_count;
 
@@ -138,6 +172,12 @@ void tlb_flush(CPUState *cpu)
     } else {
         tlb_flush_nocheck(cpu);
     }
+}
+
+void tlb_flush_all_cpus(CPUState *src_cpu, bool wait)
+{
+    flush_all_helper(src_cpu, wait, tlb_flush_global_async_work,
+                     RUN_ON_CPU_NULL);
 }
 
 static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
@@ -213,6 +253,29 @@ void tlb_flush_by_mmuidx(CPUState *cpu, ...)
                                        RUN_ON_CPU_HOST_ULONG(mmu_idx_bitmap));
     }
 }
+
+/* This function affects all vCPUs are will ensure all work is
+ * complete by the time the loop restarts
+ */
+void tlb_flush_by_mmuidx_all_cpus(CPUState *src_cpu, bool wait, ...)
+{
+    va_list argp;
+    unsigned long mmu_idx_bitmap;
+
+    va_start(argp, wait);
+    mmu_idx_bitmap = make_mmu_index_bitmap(argp);
+    va_end(argp);
+
+    tlb_debug("mmu_idx: 0x%04lx\n", mmu_idx_bitmap);
+
+    flush_all_helper(src_cpu, wait,
+                     tlb_flush_by_mmuidx_async_work,
+                     RUN_ON_CPU_HOST_ULONG(mmu_idx_bitmap));
+
+    /* Will not return if wait == true */
+    g_assert(!wait);
+}
+
 
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
@@ -359,14 +422,39 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...)
     }
 }
 
-void tlb_flush_page_all(target_ulong addr)
+/* This function affects all vCPUs are will ensure all work is
+ * complete by the time the loop restarts
+ */
+void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, bool wait,
+                                       target_ulong addr, ...)
 {
-    CPUState *cpu;
+    unsigned long mmu_idx_bitmap;
+    target_ulong addr_and_mmu_idx;
+    va_list argp;
 
-    CPU_FOREACH(cpu) {
-        async_run_on_cpu(cpu, tlb_flush_page_async_work,
-                         RUN_ON_CPU_TARGET_PTR(addr));
-    }
+    va_start(argp, addr);
+    mmu_idx_bitmap = make_mmu_index_bitmap(argp);
+    va_end(argp);
+
+    tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%lx\n", addr, mmu_idx_bitmap);
+
+    /* This should already be page aligned */
+    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
+    addr_and_mmu_idx |= mmu_idx_bitmap;
+
+    flush_all_helper(src_cpu, wait,
+                     tlb_check_page_and_flush_by_mmuidx_async_work,
+                     RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    /* Will not return if wait == true */
+    g_assert(!wait);
+}
+
+void tlb_flush_page_all_cpus(CPUState *src, bool wait, target_ulong addr)
+{
+    flush_all_helper(src, wait,
+                     tlb_flush_page_async_work, RUN_ON_CPU_TARGET_PTR(addr));
+    /* Will not return if wait == true */
+    g_assert(!wait);
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'

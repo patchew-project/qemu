@@ -93,6 +93,18 @@ void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx);
  */
 void tlb_flush_page(CPUState *cpu, target_ulong addr);
 /**
+ * tlb_flush_page_all_cpus:
+ * @cpu: src CPU of the flush
+ * @wait: If true ensure synchronisation by exiting the cpu_loop
+ * @addr: virtual address of page to be flushed
+ *
+ * Flush one page from the TLB of the specified CPU, for all
+ * MMU indexes. If the caller forces synchronisation they need to
+ * ensure all register state is synchronised as we will exit the
+ * cpu_loop.
+ */
+void tlb_flush_page_all_cpus(CPUState *src, bool wait, target_ulong addr);
+/**
  * tlb_flush:
  * @cpu: CPU whose TLB should be flushed
  *
@@ -102,6 +114,16 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr);
  * use one of the other functions for efficiency.
  */
 void tlb_flush(CPUState *cpu);
+/**
+ * tlb_flush_all_cpus:
+ * @cpu: src CPU of the flush
+ * @wait: If true ensure synchronisation by exiting the cpu_loop
+ *
+ * If the caller forces synchronisation they need to
+ * ensure all register state is synchronised as we will exit the
+ * cpu_loop.
+ */
+void tlb_flush_all_cpus(CPUState *src_cpu, bool wait);
 /**
  * tlb_flush_page_by_mmuidx:
  * @cpu: CPU whose TLB should be flushed
@@ -113,14 +135,40 @@ void tlb_flush(CPUState *cpu);
  */
 void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...);
 /**
+ * tlb_flush_page_by_mmuidx_all_cpus:
+ * @cpu: Originating CPU of the flush
+ * @wait: If true ensure synchronisation by exiting the cpu_loop
+ * @addr: virtual address of page to be flushed
+ * @...: list of MMU indexes to flush, terminated by a negative value
+ *
+ * Flush one page from the TLB of all CPUs, for the specified
+ * MMU indexes. This function does not return, the run loop will exit
+ * and restart once the flush is completed.
+ */
+void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu, bool wait,
+                                       target_ulong addr, ...);
+/**
  * tlb_flush_by_mmuidx:
  * @cpu: CPU whose TLB should be flushed
+ * @wait: If true ensure synchronisation by exiting the cpu_loop
  * @...: list of MMU indexes to flush, terminated by a negative value
  *
  * Flush all entries from the TLB of the specified CPU, for the specified
  * MMU indexes.
  */
 void tlb_flush_by_mmuidx(CPUState *cpu, ...);
+/**
+ * tlb_flush_by_mmuidx_all_cpus:
+ * @cpu: Originating CPU of the flush
+ * @wait: If true ensure synchronisation by exiting the cpu_loop
+ * @...: list of MMU indexes to flush, terminated by a negative value
+ *
+ * Flush all entries from all TLBs of all CPUs, for the specified
+ * MMU indexes. If the caller forces synchronisation they need to
+ * ensure all register state is synchronised as we will exit the
+ * cpu_loop.
+ */
+void tlb_flush_by_mmuidx_all_cpus(CPUState *cpu, bool wait, ...);
 /**
  * tlb_set_page_with_attrs:
  * @cpu: CPU to add this TLB entry for
@@ -158,22 +206,33 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);
 void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
                  uintptr_t retaddr);
-void tlb_flush_page_all(target_ulong addr);
 #else
 static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
 }
-
+static inline void tlb_flush_page_all_cpus(CPUState *src, bool wait,
+                                           target_ulong addr)
+{
+}
 static inline void tlb_flush(CPUState *cpu)
 {
 }
-
+static inline void tlb_flush_all_cpus(CPUState *src_cpu, bool wait)
+{
+}
 static inline void tlb_flush_page_by_mmuidx(CPUState *cpu,
                                             target_ulong addr, ...)
 {
 }
 
+static inline void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu, bool wait,
+                                                     target_ulong addr, ...)
+{
+}
 static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
+{
+}
+static inline void tlb_flush_by_mmuidx_all_cpus(CPUState *cpu, bool wait, ...)
 {
 }
 #endif
