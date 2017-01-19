@@ -393,6 +393,12 @@ struct CPUState {
        (absolute value) offset as small as possible.  This reduces code
        size, especially for hosts without large memory offsets.  */
     uint32_t tcg_exit_req;
+
+    /* The pending_tlb_flush flag is set and cleared atomically to
+     * avoid potential races. The aim of the flag is to avoid
+     * unnecessary flushes.
+     */
+    bool pending_tlb_flush;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);
