@@ -1389,20 +1389,20 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * need to be surrounded by gen_io_start()/gen_io_end(). In particular,
  * registers which implement clocks or timers require this.
  */
-#define ARM_CP_SPECIAL 1
-#define ARM_CP_CONST 2
-#define ARM_CP_64BIT 4
-#define ARM_CP_SUPPRESS_TB_END 8
-#define ARM_CP_OVERRIDE 16
-#define ARM_CP_ALIAS 32
-#define ARM_CP_IO 64
-#define ARM_CP_NO_RAW 128
-#define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
-#define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
-#define ARM_CP_NZCV (ARM_CP_SPECIAL | (3 << 8))
-#define ARM_CP_CURRENTEL (ARM_CP_SPECIAL | (4 << 8))
-#define ARM_CP_DC_ZVA (ARM_CP_SPECIAL | (5 << 8))
-#define ARM_LAST_SPECIAL ARM_CP_DC_ZVA
+#define ARM_CP_SPECIAL         (1 << 0)
+#define ARM_CP_CONST           (1 << 1)
+#define ARM_CP_64BIT           (1 << 2)
+#define ARM_CP_SUPPRESS_TB_END (1 << 3)
+#define ARM_CP_OVERRIDE        (1 << 4)
+#define ARM_CP_ALIAS           (1 << 5)
+#define ARM_CP_IO              (1 << 6)
+#define ARM_CP_NO_RAW          (1 << 7)
+#define ARM_CP_NOP             (ARM_CP_SPECIAL | (1 << 8))
+#define ARM_CP_WFI             (ARM_CP_SPECIAL | (2 << 8))
+#define ARM_CP_NZCV            (ARM_CP_SPECIAL | (3 << 8))
+#define ARM_CP_CURRENTEL       (ARM_CP_SPECIAL | (4 << 8))
+#define ARM_CP_DC_ZVA          (ARM_CP_SPECIAL | (5 << 8))
+#define ARM_LAST_SPECIAL       ARM_CP_DC_ZVA
 /* Used only as a terminator for ARMCPRegInfo lists */
 #define ARM_CP_SENTINEL 0xffff
 /* Mask of only the flag bits in a type field */
