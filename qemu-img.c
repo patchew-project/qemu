@@ -1010,45 +1010,31 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 }
 
 /*
- * Like is_allocated_sectors, but if the buffer starts with a used sector,
- * up to 'min' consecutive sectors containing zeros are ignored. This avoids
- * breaking up write requests for only small sparse areas.
+ * Like is_allocated_sectors, but only at least 'min' consecutive sectors
+ * containing zeros are considered unallocated. This avoids breaking up write
+ * requests for only small sparse areas.
  */
 static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
-    int min)
+                                    int min)
 {
-    int ret;
-    int num_checked, num_used;
-
-    if (n < min) {
-        min = n;
-    }
-
-    ret = is_allocated_sectors(buf, n, pnum);
-    if (!ret) {
-        return ret;
-    }
-
-    num_used = *pnum;
-    buf += BDRV_SECTOR_SIZE * *pnum;
-    n -= *pnum;
-    num_checked = num_used;
+    int ret, num_checked = 0, num_used = 0;
 
     while (n > 0) {
         ret = is_allocated_sectors(buf, n, pnum);
-
         buf += BDRV_SECTOR_SIZE * *pnum;
         n -= *pnum;
         num_checked += *pnum;
-        if (ret) {
-            num_used = num_checked;
-        } else if (*pnum >= min) {
+        if (!ret && *pnum >= min) {
             break;
         }
+        num_used = num_checked;
     }
 
-    *pnum = num_used;
-    return 1;
+    if (num_used) {
+        *pnum = num_used;
+    }
+
+    return !!num_used;
 }
 
 /*
