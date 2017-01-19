@@ -657,9 +657,11 @@ static int hdev_get_max_transfer_length(BlockDriverState *bs, int fd)
     int max_sectors = 0;
     short max_sectors_short = 0;
     if (bs->sg && ioctl(fd, BLKSECTGET, &max_sectors) == 0) {
+        /* sg returns a value in bytes */
         return max_sectors;
     } else if (!bs->sg && ioctl(fd, BLKSECTGET, &max_sectors_short) == 0) {
-        return max_sectors_short;
+        /* block returns a value in sectors */
+        return max_sectors_short << BDRV_SECTOR_BITS;
     } else {
         return -errno;
     }
@@ -674,10 +676,10 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     struct stat st;
 
     if (!fstat(s->fd, &st)) {
-        if (S_ISBLK(st.st_mode)) {
+        if (S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode)) {
             int ret = hdev_get_max_transfer_length(bs, s->fd);
-            if (ret > 0 && ret <= BDRV_REQUEST_MAX_SECTORS) {
-                bs->bl.max_transfer = pow2floor(ret << BDRV_SECTOR_BITS);
+            if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
+                bs->bl.max_transfer = pow2floor(ret);
             }
         }
     }
