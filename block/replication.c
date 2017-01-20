@@ -233,7 +233,7 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
                                              QEMUIOVector *qiov)
 {
     BDRVReplicationState *s = bs->opaque;
-    BdrvChild *child = s->secondary_disk;
+    BdrvChild *child = s->is_shared_disk ? s->primary_disk : s->secondary_disk;
     BlockJob *job = NULL;
     CowRequest req;
     int ret;
@@ -415,7 +415,12 @@ static void backup_job_completed(void *opaque, int ret)
         s->error = -EIO;
     }
 
-    backup_job_cleanup(bs);
+    if (s->mode == REPLICATION_MODE_PRIMARY) {
+        s->replication_state = BLOCK_REPLICATION_DONE;
+        s->error = 0;
+    } else {
+        backup_job_cleanup(bs);
+    }
 }
 
 static bool check_top_bs(BlockDriverState *top_bs, BlockDriverState *bs)
@@ -467,6 +472,19 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
 
     switch (s->mode) {
     case REPLICATION_MODE_PRIMARY:
+        if (s->is_shared_disk) {
+            job = backup_job_create(NULL, s->primary_disk->bs, bs, 0,
+                MIRROR_SYNC_MODE_NONE, NULL, false, BLOCKDEV_ON_ERROR_REPORT,
+                BLOCKDEV_ON_ERROR_REPORT, BLOCK_JOB_INTERNAL,
+                backup_job_completed, bs, NULL, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                backup_job_cleanup(bs);
+                aio_context_release(aio_context);
+                return;
+            }
+            block_job_start(job);
+        }
         break;
     case REPLICATION_MODE_SECONDARY:
         s->active_disk = bs->file;
@@ -485,7 +503,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         }
 
         s->secondary_disk = s->hidden_disk->bs->backing;
-        if (!s->secondary_disk->bs || !bdrv_has_blk(s->secondary_disk->bs)) {
+        if (!s->secondary_disk->bs ||
+            (!s->is_shared_disk && !bdrv_has_blk(s->secondary_disk->bs))) {
             error_setg(errp, "The secondary disk doesn't have block backend");
             aio_context_release(aio_context);
             return;
@@ -580,11 +599,24 @@ static void replication_do_checkpoint(ReplicationState *rs, Error **errp)
 
     switch (s->mode) {
     case REPLICATION_MODE_PRIMARY:
+        if (s->is_shared_disk) {
+            if (!s->primary_disk->bs->job) {
+                error_setg(errp, "Primary backup job was cancelled"
+                           " unexpectedly");
+                break;
+            }
+
+            backup_do_checkpoint(s->primary_disk->bs->job, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+            }
+        }
         break;
     case REPLICATION_MODE_SECONDARY:
         if (!s->is_shared_disk) {
             if (!s->secondary_disk->bs->job) {
-                error_setg(errp, "Backup job was cancelled unexpectedly");
+                error_setg(errp, "Secondary backup job was cancelled"
+                           " unexpectedly");
                 break;
             }
             backup_do_checkpoint(s->secondary_disk->bs->job, &local_err);
@@ -663,8 +695,12 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
 
     switch (s->mode) {
     case REPLICATION_MODE_PRIMARY:
-        s->replication_state = BLOCK_REPLICATION_DONE;
-        s->error = 0;
+        if (s->is_shared_disk && s->primary_disk->bs->job) {
+            block_job_cancel(s->primary_disk->bs->job);
+        } else {
+            s->replication_state = BLOCK_REPLICATION_DONE;
+            s->error = 0;
+        }
         break;
     case REPLICATION_MODE_SECONDARY:
         /*
