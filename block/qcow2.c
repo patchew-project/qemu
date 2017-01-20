@@ -1177,6 +1177,17 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    if ((flags & BDRV_O_SHARE_RW) && (flags & BDRV_O_RDWR)) {
+        /* Shared write is never a good idea for qcow2, override it.
+         * XXX: Use permission propagation and masking mechanism in op blockers
+         * API once it's there. */
+        ret = bdrv_reopen(bs->file->bs, flags & ~BDRV_O_SHARE_RW, &local_err);
+        if (ret) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+    }
+
 #ifdef DEBUG_ALLOC
     {
         BdrvCheckResult result = {0};
