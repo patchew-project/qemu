@@ -312,7 +312,7 @@ static BlockBackend *start_secondary(void)
 
     /* add s_local_disk and forge S_LOCAL_DISK_ID */
     cmdline = g_strdup_printf("file.filename=%s,driver=qcow2,"
-                              "file.file.disable-lock=on",
+                              "file.disable-lock=on",
                               s_local_disk);
     opts = qemu_opts_parse_noisily(&qemu_drive_opts, cmdline, false);
     g_free(cmdline);
@@ -334,10 +334,10 @@ static BlockBackend *start_secondary(void)
     /* add S_(ACTIVE/HIDDEN)_DISK and forge S_ID */
     cmdline = g_strdup_printf("driver=replication,mode=secondary,top-id=%s,"
                               "file.driver=qcow2,file.file.filename=%s,"
-                              "file.file.disable-lock=on",
+                              "file.file.disable-lock=on,"
                               "file.backing.driver=qcow2,"
                               "file.backing.file.filename=%s,"
-                              "file.backing.file.disable-lock=on",
+                              "file.backing.file.disable-lock=on,"
                               "file.backing.backing=%s"
                               , S_ID, s_active_disk, s_hidden_disk
                               , S_LOCAL_DISK_ID);
