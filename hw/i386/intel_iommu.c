@@ -2696,6 +2696,63 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     return vtd_dev_as;
 }
 
+/*
+ * Unmap the whole range in the notifier's scope. If we have recorded
+ * any high watermark (VTDAddressSpace.iova_max), we use it to limit
+ * the n->end as well.
+ */
+static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
+{
+    IOMMUTLBEntry entry;
+    hwaddr size;
+    hwaddr start = n->start;
+    hwaddr end = n->end;
+
+    /*
+     * Note: all the codes in this function has a assumption that IOVA
+     * bits are no more than VTD_MGAW bits (which is restricted by
+     * VT-d spec), otherwise we need to consider overflow of 64 bits.
+     */
+
+    if (end > VTD_ADDRESS_SIZE) {
+        /*
+         * Don't need to unmap regions that is bigger than the whole
+         * VT-d supported address space size
+         */
+        end = VTD_ADDRESS_SIZE;
+    }
+
+    assert(start <= end);
+    size = end - start;
+
+    if (ctpop64(size) != 1) {
+        /*
+         * This size cannot format a correct mask. Let's enlarge it to
+         * suite the minimum available mask.
+         */
+        int n = 64 - clz64(size);
+        if (n > VTD_MGAW) {
+            /* should not happen, but in case it happens, limit it */
+            trace_vtd_err("Address space unmap found size too big");
+            n = VTD_MGAW;
+        }
+        size = 1ULL << n;
+    }
+
+    entry.target_as = &address_space_memory;
+    entry.iova = n->start;
+    entry.translated_addr = 0;  /* useless for unmap */
+    entry.perm = IOMMU_NONE;
+    entry.addr_mask = size - 1;
+
+    trace_vtd_as_unmap_whole(pci_bus_num(as->bus),
+                             VTD_PCI_SLOT(as->devfn),
+                             VTD_PCI_FUNC(as->devfn),
+                             entry.iova, size);
+
+    memory_region_notify_one(n, &entry);
+}
+
 static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
 {
     memory_region_notify_one((IOMMUNotifier *)private, entry);
@@ -2711,13 +2768,16 @@ static void vtd_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n)
 
     if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
         /*
-         * Scanned a valid context entry, walk over the pages and
-         * notify when needed.
+         * Scanned a valid context entry, we first make sure to remove
+         * all existing mappings in old domain, by sending UNMAP to
+         * all the notifiers. Then, we walk over the pages and notify
+         * with existing mapped new entries in the new domain.
          */
         trace_vtd_replay_ce_valid(bus_n, PCI_SLOT(vtd_as->devfn),
                                   PCI_FUNC(vtd_as->devfn),
                                   VTD_CONTEXT_ENTRY_DID(ce.hi),
                                   ce.hi, ce.lo);
+        vtd_address_space_unmap(vtd_as, n);
         vtd_page_walk(&ce, 0, ~0, vtd_replay_hook, (void *)n, false);
     } else {
         trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),
