@@ -1196,14 +1196,33 @@ static uint64_t vtd_context_cache_invalidate(IntelIOMMUState *s, uint64_t val)
 
 static void vtd_iotlb_global_invalidate(IntelIOMMUState *s)
 {
+    IntelIOMMUNotifierNode *node;
+
     trace_vtd_iotlb_reset("global invalidation recved");
     vtd_reset_iotlb(s);
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        memory_region_iommu_replay_all(&node->vtd_as->iommu);
+    }
 }
 
 static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 {
+    IntelIOMMUNotifierNode *node;
+    VTDContextEntry ce;
+    VTDAddressSpace *vtd_as;
+
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_domain,
                                 &domain_id);
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        vtd_as = node->vtd_as;
+        if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                      vtd_as->devfn, &ce) &&
+            domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
+            memory_region_iommu_replay_all(&vtd_as->iommu);
+        }
+    }
 }
 
 static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
