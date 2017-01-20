@@ -51,6 +51,7 @@ typedef struct USBHIDState {
     uint32_t usb_version;
     char *display;
     uint32_t head;
+    bool mac_compat;
 } USBHIDState;
 
 #define TYPE_USB_HID "usb-hid"
@@ -599,6 +600,9 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
                 memcpy(data, qemu_tablet_hid_report_descriptor,
 		       sizeof(qemu_tablet_hid_report_descriptor));
                 p->actual_length = sizeof(qemu_tablet_hid_report_descriptor);
+                if (us->mac_compat) {
+                    data[3] = 0x02; /* Set usage to mouse, not pointing (1) */
+                }
             } else if (hs->kind == HID_KEYBOARD) {
                 memcpy(data, qemu_keyboard_hid_report_descriptor,
                        sizeof(qemu_keyboard_hid_report_descriptor));
@@ -801,6 +805,7 @@ static Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
         DEFINE_PROP_STRING("display", USBHIDState, display),
         DEFINE_PROP_UINT32("head", USBHIDState, head, 0),
+        DEFINE_PROP_BOOL("mac_compat", USBHIDState, mac_compat, false),
         DEFINE_PROP_END_OF_LIST(),
 };
 
