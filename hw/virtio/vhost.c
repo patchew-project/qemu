@@ -1242,8 +1242,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .priority = 10
     };
 
-    hdev->n.notify = vhost_iommu_unmap_notify;
-    hdev->n.notifier_flags = IOMMU_NOTIFIER_UNMAP;
+    iommu_notifier_init(&hdev->n, vhost_iommu_unmap_notify,
+                        IOMMU_NOTIFIER_UNMAP, 0, ~0ULL);
 
     if (hdev->migration_blocker == NULL) {
         if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
