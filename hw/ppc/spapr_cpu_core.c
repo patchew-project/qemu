@@ -365,6 +365,7 @@ void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_CLASS(oc);
 
+    set_bit(DEVICE_CATEGORY_CPU, dc->categories);
     dc->realize = spapr_cpu_core_realize;
     scc->cpu_class = cpu_class_by_name(TYPE_POWERPC_CPU, data);
     g_assert(scc->cpu_class);

@@ -2381,8 +2381,10 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
     X86CPUDefinition *cpudef = data;
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     xcc->cpu_def = cpudef;
+    set_bit(DEVICE_CATEGORY_CPU, dc->categories);
 }
 
 static void x86_register_cpudef_type(X86CPUDefinition *def)

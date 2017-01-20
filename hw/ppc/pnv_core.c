@@ -190,6 +190,7 @@ static void pnv_core_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
+    set_bit(DEVICE_CATEGORY_CPU, dc->categories);
     dc->realize = pnv_core_realize;
     dc->props = pnv_core_properties;
     pcc->cpu_oc = cpu_class_by_name(TYPE_POWERPC_CPU, data);
