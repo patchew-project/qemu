@@ -36,6 +36,14 @@
 #include "trace-tcg.h"
 #include "exec/log.h"
 
+/* convert MIPS rounding mode in FCR31 to IEEE library */
+unsigned int ieee_rm[] = {
+    float_round_nearest_even,
+    float_round_to_zero,
+    float_round_up,
+    float_round_down
+};
+
 #define MIPS_DEBUG_DISAS 0
 
 /* MIPS major opcodes */

@@ -1024,7 +1024,6 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define SCR_AARCH64_MASK      (0x3fff & ~SCR_NET)
 
 /* Return the current FPSCR value.  */
-uint32_t vfp_get_fpscr(CPUARMState *env);
 void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 
 /* For A64 the FPSCR is split into two logically distinct registers,
@@ -1033,27 +1032,6 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
  */
 #define FPSR_MASK 0xf800009f
 #define FPCR_MASK 0x07f79f00
-static inline uint32_t vfp_get_fpsr(CPUARMState *env)
-{
-    return vfp_get_fpscr(env) & FPSR_MASK;
-}
-
-static inline void vfp_set_fpsr(CPUARMState *env, uint32_t val)
-{
-    uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPSR_MASK) | (val & FPSR_MASK);
-    vfp_set_fpscr(env, new_fpscr);
-}
-
-static inline uint32_t vfp_get_fpcr(CPUARMState *env)
-{
-    return vfp_get_fpscr(env) & FPCR_MASK;
-}
-
-static inline void vfp_set_fpcr(CPUARMState *env, uint32_t val)
-{
-    uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPCR_MASK) | (val & FPCR_MASK);
-    vfp_set_fpscr(env, new_fpscr);
-}
 
 enum arm_cpu_mode {
   ARM_CPU_MODE_USR = 0x10,
@@ -1139,6 +1117,66 @@ enum arm_features {
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
 };
+
+/* VFP support.  We follow the convention used for VFP instructions:
+   Single precision routines have a "s" suffix, double precision a
+   "d" suffix.  */
+
+/* Convert host exception flags to vfp form.  */
+static inline int vfp_exceptbits_from_host(int host_bits)
+{
+    int target_bits = 0;
+
+    if (host_bits & float_flag_invalid)
+        target_bits |= 1;
+    if (host_bits & float_flag_divbyzero)
+        target_bits |= 2;
+    if (host_bits & float_flag_overflow)
+        target_bits |= 4;
+    if (host_bits & (float_flag_underflow | float_flag_output_denormal))
+        target_bits |= 8;
+    if (host_bits & float_flag_inexact)
+        target_bits |= 0x10;
+    if (host_bits & float_flag_input_denormal)
+        target_bits |= 0x80;
+    return target_bits;
+}
+
+static inline uint32_t vfp_get_fpscr(CPUARMState *env)
+{
+    int i;
+    uint32_t fpscr;
+
+    fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
+            | (env->vfp.vec_len << 16)
+            | (env->vfp.vec_stride << 20);
+    i = get_float_exception_flags(&env->vfp.fp_status);
+    i |= get_float_exception_flags(&env->vfp.standard_fp_status);
+    fpscr |= vfp_exceptbits_from_host(i);
+    return fpscr;
+}
+
+static inline uint32_t vfp_get_fpsr(CPUARMState *env)
+{
+    return vfp_get_fpscr(env) & FPSR_MASK;
+}
+
+static inline void vfp_set_fpsr(CPUARMState *env, uint32_t val)
+{
+    uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPSR_MASK) | (val & FPSR_MASK);
+    vfp_set_fpscr(env, new_fpscr);
+}
+
+static inline uint32_t vfp_get_fpcr(CPUARMState *env)
+{
+    return vfp_get_fpscr(env) & FPCR_MASK;
+}
+
+static inline void vfp_set_fpcr(CPUARMState *env, uint32_t val)
+{
+    uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPCR_MASK) | (val & FPCR_MASK);
+    vfp_set_fpscr(env, new_fpscr);
+}
 
 static inline int arm_feature(CPUARMState *env, int feature)
 {

@@ -118,60 +118,6 @@ static inline ARMMMUIdx get_a64_user_mem_index(DisasContext *s)
     }
 }
 
-void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
-                            fprintf_function cpu_fprintf, int flags)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    uint32_t psr = pstate_read(env);
-    int i;
-    int el = arm_current_el(env);
-    const char *ns_status;
-
-    cpu_fprintf(f, "PC=%016"PRIx64"  SP=%016"PRIx64"\n",
-            env->pc, env->xregs[31]);
-    for (i = 0; i < 31; i++) {
-        cpu_fprintf(f, "X%02d=%016"PRIx64, i, env->xregs[i]);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
-        } else {
-            cpu_fprintf(f, " ");
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_EL3) && el != 3) {
-        ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
-    } else {
-        ns_status = "";
-    }
-
-    cpu_fprintf(f, "\nPSTATE=%08x %c%c%c%c %sEL%d%c\n",
-                psr,
-                psr & PSTATE_N ? 'N' : '-',
-                psr & PSTATE_Z ? 'Z' : '-',
-                psr & PSTATE_C ? 'C' : '-',
-                psr & PSTATE_V ? 'V' : '-',
-                ns_status,
-                el,
-                psr & PSTATE_SP ? 'h' : 't');
-
-    if (flags & CPU_DUMP_FPU) {
-        int numvfpregs = 32;
-        for (i = 0; i < numvfpregs; i += 2) {
-            uint64_t vlo = float64_val(env->vfp.regs[i * 2]);
-            uint64_t vhi = float64_val(env->vfp.regs[(i * 2) + 1]);
-            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 " ",
-                        i, vhi, vlo);
-            vlo = float64_val(env->vfp.regs[(i + 1) * 2]);
-            vhi = float64_val(env->vfp.regs[((i + 1) * 2) + 1]);
-            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 "\n",
-                        i + 1, vhi, vlo);
-        }
-        cpu_fprintf(f, "FPCR: %08x  FPSR: %08x\n",
-                    vfp_get_fpcr(env), vfp_get_fpsr(env));
-    }
-}
-
 void gen_a64_set_pc_im(uint64_t val)
 {
     tcg_gen_movi_i64(cpu_pc, val);

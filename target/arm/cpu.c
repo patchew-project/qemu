@@ -237,6 +237,124 @@ static void arm_cpu_reset(CPUState *s)
     hw_watchpoint_update_all(cpu);
 }
 
+static void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
+                                   fprintf_function cpu_fprintf, int flags)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    uint32_t psr = pstate_read(env);
+    int i;
+    int el = arm_current_el(env);
+    const char *ns_status;
+
+    cpu_fprintf(f, "PC=%016"PRIx64"  SP=%016"PRIx64"\n",
+            env->pc, env->xregs[31]);
+    for (i = 0; i < 31; i++) {
+        cpu_fprintf(f, "X%02d=%016"PRIx64, i, env->xregs[i]);
+        if ((i % 4) == 3) {
+            cpu_fprintf(f, "\n");
+        } else {
+            cpu_fprintf(f, " ");
+        }
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL3) && el != 3) {
+        ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
+    } else {
+        ns_status = "";
+    }
+
+    cpu_fprintf(f, "\nPSTATE=%08x %c%c%c%c %sEL%d%c\n",
+                psr,
+                psr & PSTATE_N ? 'N' : '-',
+                psr & PSTATE_Z ? 'Z' : '-',
+                psr & PSTATE_C ? 'C' : '-',
+                psr & PSTATE_V ? 'V' : '-',
+                ns_status,
+                el,
+                psr & PSTATE_SP ? 'h' : 't');
+
+    if (flags & CPU_DUMP_FPU) {
+        int numvfpregs = 32;
+        for (i = 0; i < numvfpregs; i += 2) {
+            uint64_t vlo = float64_val(env->vfp.regs[i * 2]);
+            uint64_t vhi = float64_val(env->vfp.regs[(i * 2) + 1]);
+            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 " ",
+                        i, vhi, vlo);
+            vlo = float64_val(env->vfp.regs[(i + 1) * 2]);
+            vhi = float64_val(env->vfp.regs[((i + 1) * 2) + 1]);
+            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 "\n",
+                        i + 1, vhi, vlo);
+        }
+        cpu_fprintf(f, "FPCR: %08x  FPSR: %08x\n",
+                    vfp_get_fpcr(env), vfp_get_fpsr(env));
+    }
+}
+
+static const char *cpu_mode_names[16] = {
+  "usr", "fiq", "irq", "svc", "???", "???", "mon", "abt",
+  "???", "???", "hyp", "und", "???", "???", "???", "sys"
+};
+
+void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                        int flags)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int i;
+    uint32_t psr;
+    const char *ns_status;
+
+    if (is_a64(env)) {
+        aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
+        return;
+    }
+
+    for(i=0;i<16;i++) {
+        cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
+        if ((i % 4) == 3)
+            cpu_fprintf(f, "\n");
+        else
+            cpu_fprintf(f, " ");
+    }
+    psr = cpsr_read(env);
+
+    if (arm_feature(env, ARM_FEATURE_EL3) &&
+        (psr & CPSR_M) != ARM_CPU_MODE_MON) {
+        ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
+    } else {
+        ns_status = "";
+    }
+
+    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
+                psr,
+                psr & (1 << 31) ? 'N' : '-',
+                psr & (1 << 30) ? 'Z' : '-',
+                psr & (1 << 29) ? 'C' : '-',
+                psr & (1 << 28) ? 'V' : '-',
+                psr & CPSR_T ? 'T' : 'A',
+                ns_status,
+                cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
+
+    if (flags & CPU_DUMP_FPU) {
+        int numvfpregs = 0;
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            numvfpregs += 16;
+        }
+        if (arm_feature(env, ARM_FEATURE_VFP3)) {
+            numvfpregs += 16;
+        }
+        for (i = 0; i < numvfpregs; i++) {
+            uint64_t v = float64_val(env->vfp.regs[i]);
+            cpu_fprintf(f, "s%02d=%08x s%02d=%08x d%02d=%016" PRIx64 "\n",
+                        i * 2, (uint32_t)v,
+                        i * 2 + 1, (uint32_t)(v >> 32),
+                        i, v);
+        }
+        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
+    }
+}
+
 bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);

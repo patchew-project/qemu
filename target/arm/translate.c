@@ -2948,6 +2948,34 @@ static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
     return 0;
 }
 
+/* Convert ARM rounding mode to softfloat */
+int arm_rmode_to_sf(int rmode)
+{
+    switch (rmode) {
+    case FPROUNDING_TIEAWAY:
+        rmode = float_round_ties_away;
+        break;
+    case FPROUNDING_ODD:
+        /* FIXME: add support for TIEAWAY and ODD */
+        qemu_log_mask(LOG_UNIMP, "arm: unimplemented rounding mode: %d\n",
+                      rmode);
+    case FPROUNDING_TIEEVEN:
+    default:
+        rmode = float_round_nearest_even;
+        break;
+    case FPROUNDING_POSINF:
+        rmode = float_round_up;
+        break;
+    case FPROUNDING_NEGINF:
+        rmode = float_round_down;
+        break;
+    case FPROUNDING_ZERO:
+        rmode = float_round_to_zero;
+        break;
+    }
+    return rmode;
+}
+
 static int handle_vrint(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
                         int rounding)
 {
@@ -7374,6 +7402,11 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         }
     }
     return 0;
+}
+
+const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp)
+{
+    return g_hash_table_lookup(cpregs, &encoded_cp);
 }
 
 static int disas_coproc_insn(DisasContext *s, uint32_t insn)
@@ -11953,70 +11986,6 @@ done_generating:
 #endif
     tb->size = dc->pc - pc_start;
     tb->icount = num_insns;
-}
-
-static const char *cpu_mode_names[16] = {
-  "usr", "fiq", "irq", "svc", "???", "???", "mon", "abt",
-  "???", "???", "hyp", "und", "???", "???", "???", "sys"
-};
-
-void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                        int flags)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-    int i;
-    uint32_t psr;
-    const char *ns_status;
-
-    if (is_a64(env)) {
-        aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
-        return;
-    }
-
-    for(i=0;i<16;i++) {
-        cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
-        if ((i % 4) == 3)
-            cpu_fprintf(f, "\n");
-        else
-            cpu_fprintf(f, " ");
-    }
-    psr = cpsr_read(env);
-
-    if (arm_feature(env, ARM_FEATURE_EL3) &&
-        (psr & CPSR_M) != ARM_CPU_MODE_MON) {
-        ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
-    } else {
-        ns_status = "";
-    }
-
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
-                psr,
-                psr & (1 << 31) ? 'N' : '-',
-                psr & (1 << 30) ? 'Z' : '-',
-                psr & (1 << 29) ? 'C' : '-',
-                psr & (1 << 28) ? 'V' : '-',
-                psr & CPSR_T ? 'T' : 'A',
-                ns_status,
-                cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
-
-    if (flags & CPU_DUMP_FPU) {
-        int numvfpregs = 0;
-        if (arm_feature(env, ARM_FEATURE_VFP)) {
-            numvfpregs += 16;
-        }
-        if (arm_feature(env, ARM_FEATURE_VFP3)) {
-            numvfpregs += 16;
-        }
-        for (i = 0; i < numvfpregs; i++) {
-            uint64_t v = float64_val(env->vfp.regs[i]);
-            cpu_fprintf(f, "s%02d=%08x s%02d=%08x d%02d=%016" PRIx64 "\n",
-                        i * 2, (uint32_t)v,
-                        i * 2 + 1, (uint32_t)(v >> 32),
-                        i, v);
-        }
-        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
-    }
 }
 
 void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb,

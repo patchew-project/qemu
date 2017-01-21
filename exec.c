@@ -672,9 +672,11 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     if (cc->vmsd != NULL) {
         vmstate_unregister(NULL, cc->vmsd, cpu);
     }
+#ifndef CONFIG_USER_ONLY
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
         vmstate_unregister(NULL, &vmstate_cpu_common, cpu);
     }
+#endif
 }
 
 void cpu_exec_initfn(CPUState *cpu)

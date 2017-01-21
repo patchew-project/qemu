@@ -148,6 +148,29 @@ static inline void do_interrupt_m68k_hardirq(CPUM68KState *env)
 }
 #endif
 
+void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
+{
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+    int i;
+    uint16_t sr;
+    CPU_DoubleU u;
+    for (i = 0; i < 8; i++)
+      {
+        u.d = env->fregs[i];
+        cpu_fprintf(f, "D%d = %08x   A%d = %08x   F%d = %08x%08x (%12g)\n",
+                    i, env->dregs[i], i, env->aregs[i],
+                    i, u.l.upper, u.l.lower, *(double *)&u.d);
+      }
+    cpu_fprintf (f, "PC = %08x   ", env->pc);
+    sr = env->sr | cpu_m68k_get_ccr(env);
+    cpu_fprintf(f, "SR = %04x %c%c%c%c%c ", sr, (sr & CCF_X) ? 'X' : '-',
+                (sr & CCF_N) ? 'N' : '-', (sr & CCF_Z) ? 'Z' : '-',
+                (sr & CCF_V) ? 'V' : '-', (sr & CCF_C) ? 'C' : '-');
+    cpu_fprintf (f, "FPRESULT = %12g\n", *(double *)&env->fp_result);
+}
+
 bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     M68kCPU *cpu = M68K_CPU(cs);

@@ -5522,11 +5522,6 @@ void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
     }
 }
 
-const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp)
-{
-    return g_hash_table_lookup(cpregs, &encoded_cp);
-}
-
 void arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
@@ -8681,47 +8676,9 @@ uint32_t HELPER(sel_flags)(uint32_t flags, uint32_t a, uint32_t b)
     return (a & mask) | (b & ~mask);
 }
 
-/* VFP support.  We follow the convention used for VFP instructions:
-   Single precision routines have a "s" suffix, double precision a
-   "d" suffix.  */
-
-/* Convert host exception flags to vfp form.  */
-static inline int vfp_exceptbits_from_host(int host_bits)
-{
-    int target_bits = 0;
-
-    if (host_bits & float_flag_invalid)
-        target_bits |= 1;
-    if (host_bits & float_flag_divbyzero)
-        target_bits |= 2;
-    if (host_bits & float_flag_overflow)
-        target_bits |= 4;
-    if (host_bits & (float_flag_underflow | float_flag_output_denormal))
-        target_bits |= 8;
-    if (host_bits & float_flag_inexact)
-        target_bits |= 0x10;
-    if (host_bits & float_flag_input_denormal)
-        target_bits |= 0x80;
-    return target_bits;
-}
-
 uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
 {
-    int i;
-    uint32_t fpscr;
-
-    fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
-            | (env->vfp.vec_len << 16)
-            | (env->vfp.vec_stride << 20);
-    i = get_float_exception_flags(&env->vfp.fp_status);
-    i |= get_float_exception_flags(&env->vfp.standard_fp_status);
-    fpscr |= vfp_exceptbits_from_host(i);
-    return fpscr;
-}
-
-uint32_t vfp_get_fpscr(CPUARMState *env)
-{
-    return HELPER(vfp_get_fpscr)(env);
+    return vfp_get_fpscr(env);
 }
 
 /* Convert vfp exception flags to target form.  */
@@ -9592,34 +9549,6 @@ float64 HELPER(rintd)(float64 x, void *fp_status)
     }
 
     return ret;
-}
-
-/* Convert ARM rounding mode to softfloat */
-int arm_rmode_to_sf(int rmode)
-{
-    switch (rmode) {
-    case FPROUNDING_TIEAWAY:
-        rmode = float_round_ties_away;
-        break;
-    case FPROUNDING_ODD:
-        /* FIXME: add support for TIEAWAY and ODD */
-        qemu_log_mask(LOG_UNIMP, "arm: unimplemented rounding mode: %d\n",
-                      rmode);
-    case FPROUNDING_TIEEVEN:
-    default:
-        rmode = float_round_nearest_even;
-        break;
-    case FPROUNDING_POSINF:
-        rmode = float_round_up;
-        break;
-    case FPROUNDING_NEGINF:
-        rmode = float_round_down;
-        break;
-    case FPROUNDING_ZERO:
-        rmode = float_round_to_zero;
-        break;
-    }
-    return rmode;
 }
 
 /* CRC helpers.

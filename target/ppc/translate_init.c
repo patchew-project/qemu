@@ -9462,6 +9462,26 @@ static bool avr_need_swap(CPUPPCState *env)
 #endif
 }
 
+/* We need to present the registers to gdb in the "current" memory ordering.
+   For user-only mode we get this for free; TARGET_WORDS_BIGENDIAN is set to
+   the proper ordering for the binary, and cannot be changed.
+   For system mode, TARGET_WORDS_BIGENDIAN is always set, and we must check
+   the current mode of the chip to see if we're running in little-endian.  */
+void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
+{
+#ifndef CONFIG_USER_ONLY
+    if (!msr_le) {
+        /* do nothing */
+    } else if (len == 4) {
+        bswap32s((uint32_t *)mem_buf);
+    } else if (len == 8) {
+        bswap64s((uint64_t *)mem_buf);
+    } else {
+        g_assert_not_reached();
+    }
+#endif
+}
+
 static int gdb_get_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
