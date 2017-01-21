@@ -1239,7 +1239,9 @@ static inline void tb_alloc_page(TranslationBlock *tb,
  *
  * Called with mmap_lock held for user-mode emulation.
  */
-static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+                  tb_page_addr_t phys_page2);
+void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2)
 {
     uint32_t h;

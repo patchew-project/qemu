@@ -1,2 +1,8 @@
-obj-y += translate.o helper.o machine.o cpu.o machine.o
+obj-y += translate.o
+
 obj-$(CONFIG_SOFTMMU) += mmu.o
+
+ifndef CONFIG_LIBTCG
+obj-y += cpu.o machine.o
+obj-y += helper.o
+endif

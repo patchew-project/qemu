@@ -20,6 +20,14 @@
 
 #define HELPER(name) glue(helper_, name)
 
+/* In libtcg we don't want helpers, therefore we leave these fields empty so
+   that we don't needlessly introduce a dependency towards the helper. */
+#ifdef CONFIG_LIBTCG
+# define HELPER_REF(helper) (0)
+#else
+# define HELPER_REF(helper) (HELPER(helper))
+#endif
+
 #define GET_TCGV_i32 GET_TCGV_I32
 #define GET_TCGV_i64 GET_TCGV_I64
 #define GET_TCGV_ptr GET_TCGV_PTR
