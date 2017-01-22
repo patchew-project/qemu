@@ -130,7 +130,7 @@ envlist_parse(envlist_t *envlist, const char *env,
 int
 envlist_setenv(envlist_t *envlist, const char *env)
 {
-	struct envlist_entry *entry = NULL;
+	struct envlist_entry *entry = NULL, *entry_old = NULL;
 	const char *eq_sign;
 	size_t envname_len;
 
@@ -147,18 +147,10 @@ envlist_setenv(envlist_t *envlist, const char *env)
 	 * we remove and release it before allocating a whole
 	 * new entry.
 	 */
-	for (entry = envlist->el_entries.lh_first; entry != NULL;
-	    entry = entry->ev_link.le_next) {
-		if (strncmp(entry->ev_var, env, envname_len) == 0)
+	for (entry_old = envlist->el_entries.lh_first; entry_old != NULL;
+	    entry_old = entry_old->ev_link.le_next) {
+		if (strncmp(entry_old->ev_var, env, envname_len) == 0)
 			break;
-	}
-
-	if (entry != NULL) {
-		QLIST_REMOVE(entry, ev_link);
-		free((char *)entry->ev_var);
-		free(entry);
-	} else {
-		envlist->el_count++;
 	}
 
 	if ((entry = malloc(sizeof (*entry))) == NULL)
@@ -167,6 +159,15 @@ envlist_setenv(envlist_t *envlist, const char *env)
 		free(entry);
 		return (errno);
 	}
+
+	if (entry_old != NULL) {
+		QLIST_REMOVE(entry_old, ev_link);
+		free((char *)entry_old->ev_var);
+		free(entry_old);
+	} else {
+		envlist->el_count++;
+	}
+
 	QLIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
 
 	return (0);
@@ -185,6 +186,10 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
 	if ((envlist == NULL) || (env == NULL))
 		return (EINVAL);
 
+	envname_len = strlen(env);
+	if(0 == envname_len)
+		return (EINVAL);
+
 	/* env is not allowed to contain '=' */
 	if (strchr(env, '=') != NULL)
 		return (EINVAL);
@@ -193,7 +198,6 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
 	 * Find out the requested entry and remove
 	 * it from the list.
 	 */
-	envname_len = strlen(env);
 	for (entry = envlist->el_entries.lh_first; entry != NULL;
 	    entry = entry->ev_link.le_next) {
 		if (strncmp(entry->ev_var, env, envname_len) == 0)
