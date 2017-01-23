@@ -391,6 +391,13 @@ void migrate_compress_threads_create(void)
 
 /* Multiple fd's */
 
+
+typedef struct {
+    int num;
+    int size;
+    uint8_t **address;
+} multifd_pages_t;
+
 struct MultiFDSendParams {
     /* not changed */
     QemuThread thread;
@@ -400,7 +407,7 @@ struct MultiFDSendParams {
     /* protected by param mutex */
     bool quit;
     bool started;
-    uint8_t *address;
+    multifd_pages_t pages;
     /* protected by multifd mutex */
     bool done;
 };
@@ -424,8 +431,8 @@ static void *multifd_send_thread(void *opaque)
 
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
-        if (params->address) {
-            params->address = 0;
+        if (params->pages.num) {
+            params->pages.num = 0;
             qemu_mutex_unlock(&params->mutex);
             qemu_mutex_lock(&multifd_send_mutex);
             params->done = true;
@@ -473,6 +480,13 @@ void migrate_multifd_send_threads_join(void)
     multifd_send = NULL;
 }
 
+static void multifd_init_group(multifd_pages_t *pages)
+{
+    pages->num = 0;
+    pages->size = migrate_multifd_group();
+    pages->address = g_malloc0(pages->size * sizeof(uint8_t *));
+}
+
 void migrate_multifd_send_threads_create(void)
 {
     int i, thread_count;
@@ -491,7 +505,7 @@ void migrate_multifd_send_threads_create(void)
         multifd_send[i].quit = false;
         multifd_send[i].started = false;
         multifd_send[i].done = true;
-        multifd_send[i].address = 0;
+        multifd_init_group(&multifd_send[i].pages);
         multifd_send[i].c = socket_send_channel_create();
         if(!multifd_send[i].c) {
             error_report("Error creating a send channel");
@@ -511,8 +525,22 @@ void migrate_multifd_send_threads_create(void)
 
 static int multifd_send_page(uint8_t *address)
 {
-    int i, thread_count;
+    int i, j, thread_count;
     bool found = false;
+    static multifd_pages_t pages;
+    static bool once = false;
+
+    if (!once) {
+        multifd_init_group(&pages);
+        once = true;
+    }
+
+    pages.address[pages.num] = address;
+    pages.num++;
+
+    if (pages.num < (pages.size - 1)) {
+        return UINT16_MAX;
+    }
 
     thread_count = migrate_multifd_threads();
     qemu_mutex_lock(&multifd_send_mutex);
@@ -530,7 +558,11 @@ static int multifd_send_page(uint8_t *address)
     }
     qemu_mutex_unlock(&multifd_send_mutex);
     qemu_mutex_lock(&multifd_send[i].mutex);
-    multifd_send[i].address = address;
+    multifd_send[i].pages.num = pages.num;
+    for(j = 0; j < pages.size; j++) {
+        multifd_send[i].pages.address[j] = pages.address[j];
+    }
+    pages.num = 0;
     qemu_cond_signal(&multifd_send[i].cond);
     qemu_mutex_unlock(&multifd_send[i].mutex);
 
