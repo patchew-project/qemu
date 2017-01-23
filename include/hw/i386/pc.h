@@ -152,6 +152,9 @@ struct PCMachineClass {
     bool save_tsc_khz;
     /* generate legacy CPU hotplug AML */
     bool legacy_cpu_hotplug;
+
+    /* Whether to auto-create lsi53c895a SCSI HBAs */
+    bool legacy_lsi_hba_auto_create;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

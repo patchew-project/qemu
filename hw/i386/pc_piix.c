@@ -292,7 +292,7 @@ static void pc_init1(MachineState *machine,
                                  PC_MACHINE_ACPI_DEVICE_PROP, &error_abort);
     }
 
-    if (pcmc->pci_enabled) {
+    if (pcmc->pci_enabled && pcmc->legacy_lsi_hba_auto_create) {
         pc_pci_device_init(pci_bus);
     }
 
@@ -449,9 +449,12 @@ DEFINE_I440FX_MACHINE(v2_9, "pc-i440fx-2.9", NULL,
 
 static void pc_i440fx_2_8_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_9_machine_options(m);
     m->is_default = 0;
     m->alias = NULL;
+    pcmc->legacy_lsi_hba_auto_create = true;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_8);
 }
 
@@ -472,6 +475,7 @@ DEFINE_I440FX_MACHINE(v2_7, "pc-i440fx-2.7", NULL,
 static void pc_i440fx_2_6_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_7_machine_options(m);
     pcmc->legacy_cpu_hotplug = true;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
@@ -484,6 +488,7 @@ DEFINE_I440FX_MACHINE(v2_6, "pc-i440fx-2.6", NULL,
 static void pc_i440fx_2_5_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_6_machine_options(m);
     pcmc->save_tsc_khz = false;
     m->legacy_fw_cfg_order = 1;
@@ -497,6 +502,7 @@ DEFINE_I440FX_MACHINE(v2_5, "pc-i440fx-2.5", NULL,
 static void pc_i440fx_2_4_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_5_machine_options(m);
     m->hw_version = "2.4.0";
     pcmc->broken_reserved_end = true;
@@ -521,6 +527,7 @@ DEFINE_I440FX_MACHINE(v2_3, "pc-i440fx-2.3", pc_compat_2_3,
 static void pc_i440fx_2_2_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_3_machine_options(m);
     m->hw_version = "2.2.0";
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_2);
@@ -534,6 +541,7 @@ DEFINE_I440FX_MACHINE(v2_2, "pc-i440fx-2.2", pc_compat_2_2,
 static void pc_i440fx_2_1_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_2_machine_options(m);
     m->hw_version = "2.1.0";
     m->default_display = NULL;
@@ -550,6 +558,7 @@ DEFINE_I440FX_MACHINE(v2_1, "pc-i440fx-2.1", pc_compat_2_1,
 static void pc_i440fx_2_0_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_1_machine_options(m);
     m->hw_version = "2.0.0";
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_0);
@@ -582,6 +591,7 @@ DEFINE_I440FX_MACHINE(v2_0, "pc-i440fx-2.0", pc_compat_2_0,
 static void pc_i440fx_1_7_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_2_0_machine_options(m);
     m->hw_version = "1.7.0";
     m->default_machine_opts = NULL;
@@ -599,6 +609,7 @@ DEFINE_I440FX_MACHINE(v1_7, "pc-i440fx-1.7", pc_compat_1_7,
 static void pc_i440fx_1_6_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_1_7_machine_options(m);
     m->hw_version = "1.6.0";
     m->rom_file_has_mr = false;
@@ -858,6 +869,7 @@ DEFINE_I440FX_MACHINE(v0_14, "pc-0.14", pc_compat_1_2,
 static void pc_i440fx_0_13_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_0_14_machine_options(m);
     m->hw_version = "0.13";
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_13);
@@ -1084,6 +1096,7 @@ void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id)
 static void isapc_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     m->desc = "ISA-only PC";
     m->max_cpus = 1;
     m->option_rom_has_mr = true;

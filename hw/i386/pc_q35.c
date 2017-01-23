@@ -266,7 +266,7 @@ static void pc_q35_init(MachineState *machine)
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);
     pc_nic_init(isa_bus, host_bus);
-    if (pcmc->pci_enabled) {
+    if (pcmc->pci_enabled && pcmc->legacy_lsi_hba_auto_create) {
         pc_pci_device_init(host_bus);
     }
 
@@ -312,8 +312,11 @@ DEFINE_Q35_MACHINE(v2_9, "pc-q35-2.9", NULL,
 
 static void pc_q35_2_8_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_q35_2_9_machine_options(m);
     m->alias = NULL;
+    pcmc->legacy_lsi_hba_auto_create = true;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_8);
 }
 
@@ -333,6 +336,7 @@ DEFINE_Q35_MACHINE(v2_7, "pc-q35-2.7", NULL,
 static void pc_q35_2_6_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_q35_2_7_machine_options(m);
     pcmc->legacy_cpu_hotplug = true;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
@@ -356,6 +360,7 @@ DEFINE_Q35_MACHINE(v2_5, "pc-q35-2.5", NULL,
 static void pc_q35_2_4_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_q35_2_5_machine_options(m);
     m->hw_version = "2.4.0";
     pcmc->broken_reserved_end = true;
