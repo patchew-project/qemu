@@ -3520,6 +3520,10 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
         error_setg(errp, "share path %s is not a directory", fse->path);
         goto out;
     }
+
+    s->ctx.fst = &fse->fst;
+    fsdev_throttle_init(s->ctx.fst);
+
     v9fs_path_free(&path);
 
     rc = 0;
@@ -3528,6 +3532,7 @@ out:
         if (s->ops && s->ops->cleanup && s->ctx.private) {
             s->ops->cleanup(&s->ctx);
         }
+        fsdev_throttle_cleanup(s->ctx.fst);
         g_free(s->tag);
         g_free(s->ctx.fs_root);
         v9fs_path_free(&path);
