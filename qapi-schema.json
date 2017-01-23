@@ -6041,3 +6041,14 @@
 # Since 2.9
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
+
+##
+# @set-vm-generation-id:
+#
+# Set Virtual Machine Generation ID
+#
+# @guid: new GUID to set as Virtual Machine Generation ID
+#
+# Since 2.9
+##
+{ 'command': 'set-vm-generation-id', 'data': {'guid': 'str'} }
