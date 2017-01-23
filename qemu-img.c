@@ -705,6 +705,10 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
+    if (!(flags & BDRV_O_RDWR)) {
+        flags |= BDRV_O_SHARE_RW;
+    }
+
     blk = img_open(image_opts, filename, fmt, flags, writethrough, quiet);
     if (!blk) {
         return 1;
@@ -1238,6 +1242,7 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
+    flags |= BDRV_O_SHARE_RW;
     blk1 = img_open(image_opts, filename1, fmt1, flags, writethrough, quiet);
     if (!blk1) {
         ret = 2;
@@ -2286,7 +2291,8 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
         blk = img_open(image_opts, filename, fmt,
-                       BDRV_O_NO_BACKING | BDRV_O_NO_IO, false, false);
+                       BDRV_O_NO_BACKING | BDRV_O_NO_IO | BDRV_O_SHARE_RW,
+                       false, false);
         if (!blk) {
             goto err;
         }
@@ -2612,7 +2618,7 @@ static int img_map(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open(image_opts, filename, fmt, 0, false, false);
+    blk = img_open(image_opts, filename, fmt, BDRV_O_SHARE_RW, false, false);
     if (!blk) {
         return 1;
     }
