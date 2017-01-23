@@ -432,8 +432,22 @@ static void *multifd_send_thread(void *opaque)
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
         if (params->pages.num) {
+            int i;
+            int num;
+
+            num = params->pages.num;
             params->pages.num = 0;
             qemu_mutex_unlock(&params->mutex);
+
+            for(i=0; i < num; i++) {
+                if (qio_channel_write(params->c,
+                                      (const char *)&params->pages.address[i],
+                                      sizeof(uint8_t *), &error_abort)
+                    != sizeof(uint8_t*)) {
+                    /* Shuoudn't ever happen */
+                    exit(-1);
+                }
+            }
             qemu_mutex_lock(&multifd_send_mutex);
             params->done = true;
             qemu_cond_signal(&multifd_send_cond);
@@ -594,6 +608,7 @@ QemuCond  multifd_recv_cond;
 static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *params = opaque;
+    uint8_t *recv_address;
     char start;
 
     qio_channel_read(params->c, &start, 1, &error_abort);
@@ -605,8 +620,29 @@ static void *multifd_recv_thread(void *opaque)
     qemu_mutex_lock(&params->mutex);
     while (!params->quit){
         if (params->pages.num) {
+            int i;
+            int num;
+
+            num = params->pages.num;
             params->pages.num = 0;
             qemu_mutex_unlock(&params->mutex);
+
+            for(i = 0; i < num; i++) {
+                if (qio_channel_read(params->c,
+                                     (char *)&recv_address,
+                                     sizeof(uint8_t*), &error_abort)
+                    != sizeof(uint8_t *)) {
+                    /* shouldn't ever happen */
+                    exit(-1);
+                }
+                if (recv_address != params->pages.address[i]) {
+                    printf("We received %p what we were expecting %p (%d)\n",
+                           recv_address,
+                           params->pages.address[i], i);
+                    exit(-1);
+                }
+            }
+
             qemu_mutex_lock(&multifd_recv_mutex);
             params->done = true;
             qemu_cond_signal(&multifd_recv_cond);
