@@ -382,6 +382,156 @@ void migrate_compress_threads_create(void)
     }
 }
 
+/* Multiple fd's */
+
+struct MultiFDSendParams {
+    QemuThread thread;
+    QemuCond cond;
+    QemuMutex mutex;
+    bool quit;
+};
+typedef struct MultiFDSendParams MultiFDSendParams;
+
+static MultiFDSendParams *multifd_send;
+
+static void *multifd_send_thread(void *opaque)
+{
+    MultiFDSendParams *params = opaque;
+
+    qemu_mutex_lock(&params->mutex);
+    while (!params->quit){
+        qemu_cond_wait(&params->cond, &params->mutex);
+    }
+    qemu_mutex_unlock(&params->mutex);
+
+    return NULL;
+}
+
+static void terminate_multifd_send_threads(void)
+{
+    int i, thread_count;
+
+    thread_count = migrate_multifd_threads();
+    for (i = 0; i < thread_count; i++) {
+        qemu_mutex_lock(&multifd_send[i].mutex);
+        multifd_send[i].quit = true;
+        qemu_cond_signal(&multifd_send[i].cond);
+        qemu_mutex_unlock(&multifd_send[i].mutex);
+    }
+}
+
+void migrate_multifd_send_threads_join(void)
+{
+    int i, thread_count;
+
+    if (!migrate_use_multifd()) {
+        return;
+    }
+    terminate_multifd_send_threads();
+    thread_count = migrate_multifd_threads();
+    for (i = 0; i < thread_count; i++) {
+        qemu_thread_join(&multifd_send[i].thread);
+        qemu_mutex_destroy(&multifd_send[i].mutex);
+        qemu_cond_destroy(&multifd_send[i].cond);
+    }
+    g_free(multifd_send);
+    multifd_send = NULL;
+}
+
+void migrate_multifd_send_threads_create(void)
+{
+    int i, thread_count;
+
+    if (!migrate_use_multifd()) {
+        return;
+    }
+    thread_count = migrate_multifd_threads();
+    multifd_send = g_new0(MultiFDSendParams, thread_count);
+    for (i = 0; i < thread_count; i++) {
+        char thread_name[15];
+        qemu_mutex_init(&multifd_send[i].mutex);
+        qemu_cond_init(&multifd_send[i].cond);
+        multifd_send[i].quit = false;
+        snprintf(thread_name, 15, "multifd_send_%d", i);
+        qemu_thread_create(&multifd_send[i].thread, thread_name,
+                           multifd_send_thread, &multifd_send[i],
+                           QEMU_THREAD_JOINABLE);
+    }
+}
+
+struct MultiFDRecvParams {
+    QemuThread thread;
+    QemuCond cond;
+    QemuMutex mutex;
+    bool quit;
+};
+typedef struct MultiFDRecvParams MultiFDRecvParams;
+
+static MultiFDRecvParams *multifd_recv;
+
+static void *multifd_recv_thread(void *opaque)
+{
+    MultiFDRecvParams *params = opaque;
+ 
+    qemu_mutex_lock(&params->mutex);
+    while (!params->quit){
+        qemu_cond_wait(&params->cond, &params->mutex);
+    }
+    qemu_mutex_unlock(&params->mutex);
+
+    return NULL;
+}
+
+static void terminate_multifd_recv_threads(void)
+{
+    int i, thread_count;
+
+    thread_count = migrate_multifd_threads();
+    for (i = 0; i < thread_count; i++) {
+        qemu_mutex_lock(&multifd_recv[i].mutex);
+        multifd_recv[i].quit = true;
+        qemu_cond_signal(&multifd_recv[i].cond);
+        qemu_mutex_unlock(&multifd_recv[i].mutex);
+    }
+}
+
+void migrate_multifd_recv_threads_join(void)
+{
+    int i, thread_count;
+
+    if (!migrate_use_multifd()) {
+        return;
+    }
+    terminate_multifd_recv_threads();
+    thread_count = migrate_multifd_threads();
+    for (i = 0; i < thread_count; i++) {
+        qemu_thread_join(&multifd_recv[i].thread);
+        qemu_mutex_destroy(&multifd_recv[i].mutex);
+        qemu_cond_destroy(&multifd_recv[i].cond);
+    }
+    g_free(multifd_recv);
+    multifd_recv = NULL;
+}
+
+void migrate_multifd_recv_threads_create(void)
+{
+    int i, thread_count;
+
+    if (!migrate_use_multifd()) {
+        return;
+    }
+    thread_count = migrate_multifd_threads();
+    multifd_recv = g_new0(MultiFDRecvParams, thread_count);
+    for (i = 0; i < thread_count; i++) {
+        qemu_mutex_init(&multifd_recv[i].mutex);
+        qemu_cond_init(&multifd_recv[i].cond);
+        multifd_recv[i].quit = false;
+        qemu_thread_create(&multifd_recv[i].thread, "multifd_recv",
+                           multifd_recv_thread, &multifd_recv[i],
+                           QEMU_THREAD_JOINABLE);
+    }
+}
+
 /**
  * save_page_header: Write page header to wire
  *
