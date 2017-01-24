@@ -451,6 +451,10 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 #ifndef CONFIG_USER_ONLY
     } else if (replay_has_exception()
                && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
+        /* Break the execution loop in case of running out of TB cache.
+           This is needed to make flushing of the TB cache, because
+           real flush is queued to be executed outside the cpu loop. */
+        cpu->exception_index = EXCP_INTERRUPT;
         /* try to cause an exception pending in the log */
         cpu_exec_nocache(cpu, 1, tb_find(cpu, NULL, 0), true);
         *ret = -1;
