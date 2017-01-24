@@ -531,7 +531,7 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
 
     klass = object_class_dynamic_cast(klass, TYPE_DEVICE);
     if (klass == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "name", TYPE_DEVICE);
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename", TYPE_DEVICE);
         return NULL;
     }
 
