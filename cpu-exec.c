@@ -582,9 +582,6 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
                 cpu_exec_nocache(cpu, insns_left, *last_tb, false);
                 align_clocks(sc, cpu);
             }
-            cpu->exception_index = EXCP_INTERRUPT;
-            *last_tb = NULL;
-            cpu_loop_exit(cpu);
         }
         break;
 #endif
@@ -638,6 +635,18 @@ int cpu_exec(CPUState *cpu)
 
             for(;;) {
                 cpu_handle_interrupt(cpu, &last_tb);
+                /* icount has expired, we need to break the execution loop.
+                   This check is needed before tb_find to make execution
+                   deterministic - tb_find may cause an exception
+                   while translating the code from non-mapped page. */
+                if (use_icount && ((cpu->icount_extra == 0
+                                    && cpu->icount_decr.u16.low == 0)
+                                || (int32_t)cpu->icount_decr.u32 < 0)) {
+                    if (cpu->exception_index == -1) {
+                        cpu->exception_index = EXCP_INTERRUPT;
+                    }
+                    cpu_loop_exit(cpu);
+                }
                 tb = tb_find(cpu, last_tb, tb_exit);
                 cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit, &sc);
                 /* Try to align the host and virtual clocks
