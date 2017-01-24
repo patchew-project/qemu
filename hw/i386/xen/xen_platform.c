@@ -119,6 +119,7 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
         break;
 
     case PCI_CLASS_STORAGE_SCSI:
+    case PCI_CLASS_STORAGE_EXPRESS:
         object_unparent(OBJECT(d));
         break;
 
