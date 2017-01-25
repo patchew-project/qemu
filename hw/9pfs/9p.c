@@ -1582,7 +1582,7 @@ out_nofid:
     v9fs_string_free(&name);
 }
 
-static void v9fs_fsync(void *opaque)
+static void coroutine_fn v9fs_fsync(void *opaque)
 {
     int err;
     int32_t fid;
@@ -2348,7 +2348,7 @@ out_nofid:
     v9fs_string_free(&symname);
 }
 
-static void v9fs_flush(void *opaque)
+static void coroutine_fn v9fs_flush(void *opaque)
 {
     ssize_t err;
     int16_t tag;
