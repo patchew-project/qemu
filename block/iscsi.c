@@ -1322,29 +1322,6 @@ static char *get_initiator_name(QemuOpts *opts)
     return iscsi_name;
 }
 
-static int parse_timeout(const char *target)
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-    const char *timeout;
-
-    list = qemu_find_opts("iscsi");
-    if (list) {
-        opts = qemu_opts_find(list, target);
-        if (!opts) {
-            opts = QTAILQ_FIRST(&list->head);
-        }
-        if (opts) {
-            timeout = qemu_opt_get(opts, "timeout");
-            if (timeout) {
-                return atoi(timeout);
-            }
-        }
-    }
-
-    return 0;
-}
-
 static void iscsi_nop_timed_event(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
@@ -1553,7 +1530,7 @@ static void iscsi_parse_iscsi_option(const char *target, QDict *options)
     QemuOptsList *list;
     QemuOpts *opts;
     const char *user, *password, *password_secret, *initiator_name,
-               *header_digest;
+               *header_digest, *timeout;
 
     list = qemu_find_opts("iscsi");
     if (!list) {
@@ -1591,6 +1568,11 @@ static void iscsi_parse_iscsi_option(const char *target, QDict *options)
     header_digest = qemu_opt_get(opts, "header-digest");
     if (header_digest) {
         qdict_set_default_str(options, "header-digest", header_digest);
+    }
+
+    timeout = qemu_opt_get(opts, "timeout");
+    if (timeout) {
+        qdict_set_default_str(options, "timeout", timeout);
     }
 }
 
@@ -1643,7 +1625,6 @@ static void iscsi_parse_filename(const char *filename, QDict *options,
     iscsi_destroy_url(iscsi_url);
 }
 
-/* TODO Add -iscsi options */
 static QemuOptsList runtime_opts = {
     .name = "iscsi",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -1683,6 +1664,10 @@ static QemuOptsList runtime_opts = {
         {
             .name = "header-digest",
             .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "timeout",
+            .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
     },
@@ -1784,7 +1769,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* timeout handling is broken in libiscsi before 1.15.0 */
-    timeout = parse_timeout(target);
+    timeout = qemu_opt_get_number(opts, "timeout", 0);
 #if LIBISCSI_API_VERSION >= 20150621
     iscsi_set_timeout(iscsi, timeout);
 #else
