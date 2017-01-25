@@ -10,6 +10,10 @@
         .driver   = "fw_cfg_io",\
         .property = "x-file-slots",\
         .value    = stringify(0x10),\
+    },{\
+        .driver   = "pci-bridge",\
+        .property = "shpc",\
+        .value    = "on",\
     },
 
 #define HW_COMPAT_2_7 \
