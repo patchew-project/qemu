@@ -661,6 +661,10 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     int off_cur;
     int off_cur_end;
 
+    if (off_pitch < 0) {
+        off_begin -= bytesperline;
+    }
+
     for (y = 0; y < lines; y++) {
 	off_cur = off_begin;
 	off_cur_end = (off_cur + bytesperline) & s->cirrus_addr_mask;
