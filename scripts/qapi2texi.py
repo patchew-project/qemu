@@ -10,7 +10,8 @@ import sys
 import qapi
 
 MSG_FMT = """
-@deftypefn {type} {{}} {name}
+@deftypefn {type} {{{ret}}} {name} @
+{{{args}}}
 
 {body}
 
@@ -19,7 +20,8 @@ MSG_FMT = """
 """.format
 
 TYPE_FMT = """
-@deftp {{{type}}} {name}
+@deftp {{{type}}} {name} @
+{{{members}}}
 
 {body}
 
@@ -123,6 +125,36 @@ def texi_format(doc):
     return "\n".join(lines)
 
 
+def texi_type(typ):
+    """Format a type"""
+    if isinstance(typ, list):
+        # must contain single type name
+        typ = "%s[]" % typ[0]
+
+    return '@t{%s}' % typ
+
+
+def texi_args(expr, key="data", fmt="@{%s@}"):
+    """Format the functions/structure/events arguments/members"""
+    if key not in expr:
+        return ""
+    args = expr[key]
+    if isinstance(args, str) or isinstance(args, list):
+        ret = texi_type(args)
+    else:
+        arg_list = []
+        for name, typ in args.iteritems():
+            # optional
+            if name.startswith("*"):
+                name = name[1:]
+                arg_list.append("('%s': %s)" % (name, texi_type(typ)))
+            else:
+                arg_list.append("'%s': %s" % (name, texi_type(typ)))
+        ret = fmt % ", ".join(arg_list)
+
+    return ret
+
+
 def texi_body(doc):
     """
     Format the body of a symbol documentation:
@@ -162,9 +194,11 @@ def texi_body(doc):
 
 def texi_alternate(expr, doc):
     """Format an alternate to texi"""
+    members = texi_args(expr, fmt="[%s]")
     body = texi_body(doc)
     return TYPE_FMT(type="Alternate",
                     name=doc.symbol,
+                    members=members,
                     body=body)
 
 
@@ -172,13 +206,26 @@ def texi_union(expr, doc):
     """Format a union to texi"""
     discriminator = expr.get("discriminator")
     if discriminator:
+        is_flat = True
         union = "Flat Union"
     else:
+        is_flat = False
         union = "Simple Union"
+        discriminator = "type"
 
+    members = ""
+    if is_flat:
+        members += texi_args(expr, "base") + " + "
+    else:
+        members += "@{ 'type': @t{str}, 'data': "
+    members += "'%s' = " % discriminator
+    members += texi_args(expr, "data", fmt="[%s]")
+    if not is_flat:
+        members += " @}"
     body = texi_body(doc)
     return TYPE_FMT(type=union,
                     name=doc.symbol,
+                    members=members,
                     body=body)
 
 
@@ -190,30 +237,47 @@ def texi_enum(expr, doc):
     body = texi_body(doc)
     return TYPE_FMT(type="Enum",
                     name=doc.symbol,
+                    members="",
                     body=body)
 
 
 def texi_struct(expr, doc):
     """Format a struct to texi"""
     body = texi_body(doc)
+    args = texi_args(expr)
+    base = expr.get("base")
+    members = ""
+    if base:
+        members += "%s" % base
+        if args:
+            members += " + "
+    members += args
     return TYPE_FMT(type="Struct",
                     name=doc.symbol,
+                    members=members,
                     body=body)
 
 
 def texi_command(expr, doc):
     """Format a command to texi"""
     body = texi_body(doc)
+    args = texi_args(expr)
+    ret = texi_args(expr, "returns")
     return MSG_FMT(type="Command",
                    name=doc.symbol,
+                   ret=ret,
+                   args=args,
                    body=body)
 
 
 def texi_event(expr, doc):
     """Format an event to texi"""
     body = texi_body(doc)
+    args = texi_args(expr)
     return MSG_FMT(type="Event",
                    name=doc.symbol,
+                   ret="",
+                   args=args,
                    body=body)
 
 
