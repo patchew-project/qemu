@@ -5,6 +5,7 @@
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
+ *  Thomas Huth       <thuth@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -16,6 +17,7 @@
 #include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "hw/core/generic-loader.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
@@ -39,6 +41,18 @@ static void machine_none_init(MachineState *mch)
 
         memory_region_allocate_system_memory(ram, NULL, "ram", mch->ram_size);
         memory_region_add_subregion(get_system_memory(), 0, ram);
+    }
+
+    /* Load kernel */
+    if (mch->kernel_filename) {
+        DeviceState *loader;
+
+        loader = qdev_create(sysbus_get_default(), TYPE_GENERIC_LOADER);
+        qdev_prop_set_string(loader, "file", mch->kernel_filename);
+        if (cpu) {
+            qdev_prop_set_uint32(loader, "cpu-num", cpu->cpu_index);
+        }
+        qdev_init_nofail(loader);
     }
 }
 
