@@ -3045,14 +3045,15 @@ static void coroutine_fn v9fs_lock(void *opaque)
         goto out;
     }
     status = P9_LOCK_SUCCESS;
+    err = pdu_marshal(pdu, offset, "b", status);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
+    trace_v9fs_lock_return(pdu->tag, pdu->id, status);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    err = pdu_marshal(pdu, offset, "b", status);
-    if (err > 0) {
-        err += offset;
-    }
-    trace_v9fs_lock_return(pdu->tag, pdu->id, status);
     pdu_complete(pdu, err);
     v9fs_string_free(&flock.client_id);
 }
