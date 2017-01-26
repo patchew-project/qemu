@@ -326,10 +326,12 @@ skipped. This is useful for formats such as @code{rbd} if the target
 volume has already been created with site specific options that cannot
 be supplied through qemu-img.
 
-@item dd [-n] [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
+@item dd [-n] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
 
 Dd copies from @var{input} file to @var{output} file converting it from
-@var{fmt} format to @var{output_fmt} format.
+@var{fmt} format to @var{output_fmt} format. Depending on the output file
+format, you can add one or more @var{options} that enable additional
+features of this format.
 
 The data is by default read and written using blocks of 512 bytes but can be
 modified by specifying @var{block_size}. If count=@var{blocks} is specified

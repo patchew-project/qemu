@@ -3920,6 +3920,7 @@ static int img_dd(int argc, char **argv)
     int c, i, skip_create = 0;
     const char *out_fmt = "raw";
     const char *fmt = NULL;
+    char *optionstr = NULL;
     int64_t size = 0, out_size;
     int64_t block_count = 0, out_pos, in_pos;
     struct DdInfo dd = {
@@ -3954,7 +3955,7 @@ static int img_dd(int argc, char **argv)
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, "hnf:O:", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, "hno:f:O:", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
@@ -3967,6 +3968,20 @@ static int img_dd(int argc, char **argv)
             break;
         case 'n':
             skip_create = 1;
+            break;
+        case 'o':
+            if (!is_valid_option_list(optarg)) {
+                error_report("Invalid option list: %s", optarg);
+                ret = -1;
+                goto out;
+            }
+            if (!optionstr) {
+                optionstr = g_strdup(optarg);
+            } else {
+                char *old_options = optionstr;
+                optionstr = g_strdup_printf("%s,%s", optionstr, optarg);
+                g_free(old_options);
+            }
             break;
         case '?':
             error_report("Try 'qemu-img --help' for more information.");
@@ -4028,6 +4043,11 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
+    if (optionstr && has_help_option(optionstr)) {
+        ret = print_block_option_help(out.filename, out_fmt);
+        goto out;
+    }
+
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           NULL, NULL)) {
@@ -4072,6 +4092,15 @@ static int img_dd(int argc, char **argv)
         create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
         opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+
+        if (optionstr) {
+            qemu_opts_do_parse(opts, optionstr, NULL, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+                ret = -1;
+                goto out;
+            }
+        }
     }
 
     size = blk_getlength(blk1);
@@ -4176,6 +4205,7 @@ static int img_dd(int argc, char **argv)
 
 out:
     g_free(arg);
+    g_free(optionstr);
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
     blk_unref(blk1);
