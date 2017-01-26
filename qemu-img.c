@@ -3917,10 +3917,10 @@ static int img_dd(int argc, char **argv)
     QemuOptsList *create_opts = NULL;
     Error *local_err = NULL;
     bool image_opts = false;
-    int c, i;
+    int c, i, skip_create = 0;
     const char *out_fmt = "raw";
     const char *fmt = NULL;
-    int64_t size = 0;
+    int64_t size = 0, out_size;
     int64_t block_count = 0, out_pos, in_pos;
     struct DdInfo dd = {
         .flags = 0,
@@ -3954,7 +3954,7 @@ static int img_dd(int argc, char **argv)
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, "hf:O:", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, "hnf:O:", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
@@ -3964,6 +3964,9 @@ static int img_dd(int argc, char **argv)
             break;
         case 'f':
             fmt = optarg;
+            break;
+        case 'n':
+            skip_create = 1;
             break;
         case '?':
             error_report("Try 'qemu-img --help' for more information.");
@@ -4051,22 +4054,25 @@ static int img_dd(int argc, char **argv)
         ret = -1;
         goto out;
     }
-    if (!drv->create_opts) {
-        error_report("Format driver '%s' does not support image creation",
-                     drv->format_name);
-        ret = -1;
-        goto out;
-    }
-    if (!proto_drv->create_opts) {
-        error_report("Protocol driver '%s' does not support image creation",
-                     proto_drv->format_name);
-        ret = -1;
-        goto out;
-    }
-    create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    if (!skip_create) {
+        if (!drv->create_opts) {
+            error_report("Format driver '%s' does not support image creation",
+                         drv->format_name);
+            ret = -1;
+            goto out;
+        }
+        if (!proto_drv->create_opts) {
+            error_report("Protocol driver '%s' does not support image creation",
+                         proto_drv->format_name);
+            ret = -1;
+            goto out;
+        }
+        create_opts = qemu_opts_append(create_opts, drv->create_opts);
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+
+        opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    }
 
     size = blk_getlength(blk1);
     if (size < 0) {
@@ -4083,19 +4089,22 @@ static int img_dd(int argc, char **argv)
     /* Overflow means the specified offset is beyond input image's size */
     if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
                               size < in.bsz * in.offset)) {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, 0, &error_abort);
+        out_size = 0;
     } else {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
-                            size - in.bsz * in.offset, &error_abort);
+        out_size = size - in.bsz * in.offset;
     }
 
-    ret = bdrv_create(drv, out.filename, opts, &local_err);
-    if (ret < 0) {
-        error_reportf_err(local_err,
-                          "%s: error while creating output image: ",
-                          out.filename);
-        ret = -1;
-        goto out;
+    if (!skip_create) {
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, out_size, &error_abort);
+
+        ret = bdrv_create(drv, out.filename, opts, &local_err);
+        if (ret < 0) {
+            error_reportf_err(local_err,
+                              "%s: error while creating output image: ",
+                              out.filename);
+            ret = -1;
+            goto out;
+        }
     }
 
     /* TODO, we can't honour --image-opts for the target,
@@ -4109,6 +4118,20 @@ static int img_dd(int argc, char **argv)
     if (!blk2) {
         ret = -1;
         goto out;
+    }
+
+    if (skip_create) {
+        int64_t existing_size = blk_getlength(blk2);
+        if (existing_size < 0) {
+            error_report("unable to get output image length: %s",
+                         strerror(-existing_size));
+            ret = -1;
+            goto out;
+        } else if (existing_size < out_size) {
+            error_report("output file is smaller than input data length");
+            ret = -1;
+            goto out;
+        }
     }
 
     if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||

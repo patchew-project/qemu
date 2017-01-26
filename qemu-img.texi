@@ -326,7 +326,7 @@ skipped. This is useful for formats such as @code{rbd} if the target
 volume has already been created with site specific options that cannot
 be supplied through qemu-img.
 
-@item dd [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
+@item dd [-n] [-f @var{fmt}] [-O @var{output_fmt}] [bs=@var{block_size}] [count=@var{blocks}] [skip=@var{blocks}] if=@var{input} of=@var{output}
 
 Dd copies from @var{input} file to @var{output} file converting it from
 @var{fmt} format to @var{output_fmt} format.
@@ -336,6 +336,11 @@ modified by specifying @var{block_size}. If count=@var{blocks} is specified
 dd will stop reading input after reading @var{blocks} input blocks.
 
 The size syntax is similar to dd(1)'s size syntax.
+
+If the @code{-n} option is specified, the target volume creation will be
+skipped. This is useful for formats such as @code{rbd} if the target
+volume has already been created with site specific options that cannot
+be supplied through qemu-img.
 
 @item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 
