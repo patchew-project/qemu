@@ -1947,6 +1947,11 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     RAMBlock *block;
 
+    if (last_ram_offset() == 0) {
+        error_report("Failed to migrate: No RAM available!");
+        return -1;
+    }
+
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
         if (ram_save_init_globals() < 0) {
