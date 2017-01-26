@@ -656,6 +656,11 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     virtio_stw_p(vdev, &scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
     virtio_stw_p(vdev, &scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
     virtio_stl_p(vdev, &scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
+    stq_be_p(&scsiconf->primary_wwpn, s->conf.primary_wwpn);
+    stq_be_p(&scsiconf->primary_wwnn, s->conf.primary_wwnn);
+    stq_be_p(&scsiconf->secondary_wwpn, s->conf.secondary_wwpn);
+    stq_be_p(&scsiconf->secondary_wwnn, s->conf.secondary_wwnn);
+    scsiconf->primary_active =  s->conf.primary_active;
 }
 
 static void virtio_scsi_set_config(VirtIODevice *vdev,
@@ -870,18 +875,68 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
     }
 }
 
+static void virtio_scsi_vm_state_change(void *opaque, int running,
+                                        RunState state)
+{
+    VirtIOSCSI *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    if (!running || !s->config_change_pending) {
+        return;
+    }
+    s->config_change_pending = false;
+    virtio_notify_config(vdev);
+}
+
 static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
     Error *err = NULL;
+
+    if (vs->conf.fc_host) {
+        if (!strcmp(vs->conf.fc_host, "off")) {
+            vs->conf.primary_wwpn = 0;
+            vs->conf.primary_wwnn = 0;
+            vs->conf.secondary_wwpn = 0;
+            vs->conf.secondary_wwnn = 0;
+        } else if (!strcmp(vs->conf.fc_host, "primary") ||
+                   !strcmp(vs->conf.fc_host, "secondary")) {
+            virtio_add_feature(&vdev->host_features, VIRTIO_SCSI_F_FC_HOST);
+            vs->conf.primary_active = !strcmp(vs->conf.fc_host, "primary");
+            if (!vs->conf.primary_wwpn) {
+                error_setg(errp, "fc_host enabled but primary_wwpn not set");
+                return;
+            }
+            if (!vs->conf.primary_wwnn) {
+                error_setg(errp, "fc_host enabled but primary_wwnn not set");
+                return;
+            }
+            if (!vs->conf.secondary_wwpn) {
+                error_setg(errp, "fc_host enabled but secondary_wwpn not set");
+                return;
+            }
+            if (!vs->conf.secondary_wwnn) {
+                error_setg(errp, "fc_host enabled but secondary_wwnn not set");
+                return;
+            }
+            s->vm_state_change =
+                qemu_add_vm_change_state_handler(virtio_scsi_vm_state_change, s);
+            s->config_change_pending = runstate_check(RUN_STATE_INMIGRATE);
+        } else {
+            error_setg(errp, "Invalid fc_host option. "
+                             "Must be 'off', 'primary' or 'secondary'");
+            return;
+        }
+    }
 
     virtio_scsi_common_realize(dev, &err, virtio_scsi_handle_ctrl,
                                virtio_scsi_handle_event,
                                virtio_scsi_handle_cmd);
     if (err != NULL) {
         error_propagate(errp, err);
-        return;
+        goto fail;
     }
 
     scsi_bus_new(&s->bus, sizeof(s->bus), dev,
@@ -893,11 +948,14 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
             error_propagate(errp, err);
-            return;
+            goto fail;
         }
     }
 
     virtio_scsi_dataplane_setup(s, errp);
+    return;
+fail:
+    qemu_del_vm_change_state_handler(s->vm_state_change);
 }
 
 static void virtio_scsi_instance_init(Object *obj)
@@ -921,6 +979,11 @@ void virtio_scsi_common_unrealize(DeviceState *dev, Error **errp)
 
 static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 {
+    VirtIOSCSI *s = VIRTIO_SCSI(dev);
+
+    if (s->vm_state_change) {
+        qemu_del_vm_change_state_handler(s->vm_state_change);
+    }
     virtio_scsi_common_unrealize(dev, errp);
 }
 
@@ -934,6 +997,11 @@ static Property virtio_scsi_properties[] = {
                                            VIRTIO_SCSI_F_HOTPLUG, true),
     DEFINE_PROP_BIT("param_change", VirtIOSCSI, host_features,
                                                 VIRTIO_SCSI_F_CHANGE, true),
+    DEFINE_PROP_UINT64("primary_wwpn", VirtIOSCSI, parent_obj.conf.primary_wwpn, 0),
+    DEFINE_PROP_UINT64("primary_wwnn", VirtIOSCSI, parent_obj.conf.primary_wwnn, 0),
+    DEFINE_PROP_UINT64("secondary_wwpn", VirtIOSCSI, parent_obj.conf.secondary_wwpn, 0),
+    DEFINE_PROP_UINT64("secondary_wwnn", VirtIOSCSI, parent_obj.conf.secondary_wwnn, 0),
+    DEFINE_PROP_STRING("fc_host", VirtIOSCSI, parent_obj.conf.fc_host),
     DEFINE_PROP_END_OF_LIST(),
 };
 
