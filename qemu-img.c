@@ -59,6 +59,7 @@ enum {
     OPTION_PATTERN = 260,
     OPTION_FLUSH_INTERVAL = 261,
     OPTION_NO_DRAIN = 262,
+    OPTION_TARGET_IMAGE_OPTS = 263,
 };
 
 typedef enum OutputFormat {
@@ -1763,7 +1764,7 @@ static int img_convert(int argc, char **argv)
     int progress = 0, flags, src_flags;
     bool writethrough, src_writethrough;
     const char *fmt, *out_fmt, *cache, *src_cache, *out_baseimg, *out_filename;
-    BlockDriver *drv, *proto_drv;
+    BlockDriver *drv = NULL, *proto_drv = NULL;
     BlockBackend **blk = NULL, *out_blk = NULL;
     BlockDriverState **bs = NULL, *out_bs = NULL;
     int64_t total_sectors;
@@ -1781,9 +1782,10 @@ static int img_convert(int argc, char **argv)
     QemuOpts *sn_opts = NULL;
     ImgConvertState state;
     bool image_opts = false;
+    bool tgt_image_opts = false;
 
+    out_fmt = NULL;
     fmt = NULL;
-    out_fmt = "raw";
     cache = "unsafe";
     src_cache = BDRV_DEFAULT_CACHE;
     out_baseimg = NULL;
@@ -1794,6 +1796,7 @@ static int img_convert(int argc, char **argv)
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:O:B:ce6o:s:l:S:pt:T:qn",
@@ -1898,12 +1901,24 @@ static int img_convert(int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        case OPTION_TARGET_IMAGE_OPTS:
+            tgt_image_opts = true;
+            break;
         }
+    }
+
+    if (!out_fmt && !tgt_image_opts) {
+        out_fmt = "raw";
     }
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           NULL, NULL)) {
+        goto fail_getopt;
+    }
+
+    if (tgt_image_opts && !skip_create) {
+        error_report("--target-image-opts requires use of -n flag");
         goto fail_getopt;
     }
 
@@ -1916,7 +1931,7 @@ static int img_convert(int argc, char **argv)
     bs_n = argc - optind - 1;
     out_filename = bs_n >= 1 ? argv[argc - 1] : NULL;
 
-    if (options && has_help_option(options)) {
+    if (out_fmt && options && has_help_option(options)) {
         ret = print_block_option_help(out_filename, out_fmt);
         goto out;
     }
@@ -1985,22 +2000,22 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    /* Find driver and parse its options */
-    drv = bdrv_find_format(out_fmt);
-    if (!drv) {
-        error_report("Unknown file format '%s'", out_fmt);
-        ret = -1;
-        goto out;
-    }
-
-    proto_drv = bdrv_find_protocol(out_filename, true, &local_err);
-    if (!proto_drv) {
-        error_report_err(local_err);
-        ret = -1;
-        goto out;
-    }
-
     if (!skip_create) {
+        /* Find driver and parse its options */
+        drv = bdrv_find_format(out_fmt);
+        if (!drv) {
+            error_report("Unknown file format '%s'", out_fmt);
+            ret = -1;
+            goto out;
+        }
+
+        proto_drv = bdrv_find_protocol(out_filename, true, &local_err);
+        if (!proto_drv) {
+            error_report_err(local_err);
+            ret = -1;
+            goto out;
+        }
+
         if (!drv->create_opts) {
             error_report("Format driver '%s' does not support image creation",
                          drv->format_name);
@@ -2089,12 +2104,18 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    /* XXX we should allow --image-opts to trigger use of
-     * img_open() here, but then we have trouble with
-     * the bdrv_create() call which takes different params.
-     * Not critical right now, so fix can wait...
-     */
-    out_blk = img_open_file(out_filename, out_fmt, flags, writethrough, quiet);
+    if (skip_create) {
+        out_blk = img_open(tgt_image_opts, out_filename, out_fmt,
+                           flags, writethrough, quiet);
+    } else {
+        /* TODO ultimately we should allow --target-image-opts
+         * to be used even when -n is not given.
+         * That has to wait for bdrv_create to be improved
+         * to allow filenames in option syntax
+         */
+        out_blk = img_open_file(out_filename, out_fmt,
+                                flags, writethrough, quiet);
+    }
     if (!out_blk) {
         ret = -1;
         goto out;
@@ -3917,8 +3938,9 @@ static int img_dd(int argc, char **argv)
     QemuOptsList *create_opts = NULL;
     Error *local_err = NULL;
     bool image_opts = false;
+    bool tgt_image_opts = false;
     int c, i, skip_create = 0;
-    const char *out_fmt = "raw";
+    const char *out_fmt = NULL;
     const char *fmt = NULL;
     char *optionstr = NULL;
     int64_t size = 0, out_size;
@@ -3952,6 +3974,7 @@ static int img_dd(int argc, char **argv)
         { "help", no_argument, 0, 'h'},
         { "object", required_argument, 0, OPTION_OBJECT},
         { "image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
         { 0, 0, 0, 0 }
     };
 
@@ -4001,7 +4024,19 @@ static int img_dd(int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        case OPTION_TARGET_IMAGE_OPTS:
+            tgt_image_opts = true;
+            break;
         }
+    }
+
+    if (tgt_image_opts && !skip_create) {
+        error_report("--target-image-opts requires use of -n flag");
+        goto out;
+    }
+
+    if (!out_fmt && !tgt_image_opts) {
+        out_fmt = "raw";
     }
 
     for (i = optind; i < argc; i++) {
@@ -4043,7 +4078,7 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
-    if (optionstr && has_help_option(optionstr)) {
+    if (out_fmt && optionstr && has_help_option(optionstr)) {
         ret = print_block_option_help(out.filename, out_fmt);
         goto out;
     }
@@ -4061,21 +4096,21 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
-    drv = bdrv_find_format(out_fmt);
-    if (!drv) {
-        error_report("Unknown file format");
-        ret = -1;
-        goto out;
-    }
-    proto_drv = bdrv_find_protocol(out.filename, true, &local_err);
-
-    if (!proto_drv) {
-        error_report_err(local_err);
-        ret = -1;
-        goto out;
-    }
-
     if (!skip_create) {
+        drv = bdrv_find_format(out_fmt);
+        if (!drv) {
+            error_report("Unknown file format");
+            ret = -1;
+            goto out;
+        }
+        proto_drv = bdrv_find_protocol(out.filename, true, &local_err);
+
+        if (!proto_drv) {
+            error_report_err(local_err);
+            ret = -1;
+            goto out;
+        }
+
         if (!drv->create_opts) {
             error_report("Format driver '%s' does not support image creation",
                          drv->format_name);
@@ -4125,7 +4160,6 @@ static int img_dd(int argc, char **argv)
 
     if (!skip_create) {
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, out_size, &error_abort);
-
         ret = bdrv_create(drv, out.filename, opts, &local_err);
         if (ret < 0) {
             error_reportf_err(local_err,
@@ -4136,13 +4170,18 @@ static int img_dd(int argc, char **argv)
         }
     }
 
-    /* TODO, we can't honour --image-opts for the target,
-     * since it needs to be given in a format compatible
-     * with the bdrv_create() call above which does not
-     * support image-opts style.
-     */
-    blk2 = img_open_file(out.filename, out_fmt, BDRV_O_RDWR,
-                         false, false);
+    if (skip_create) {
+        blk2 = img_open(tgt_image_opts, out.filename, out_fmt,
+                        BDRV_O_RDWR, false, false);
+    } else {
+        /* TODO ultimately we should allow --target-image-opts
+         * to be used even when -n is not given.
+         * That has to wait for bdrv_create to be improved
+         * to allow filenames in option syntax
+         */
+        blk2 = img_open_file(out.filename, out_fmt,
+                             BDRV_O_RDWR, false, false);
+    }
 
     if (!blk2) {
         ret = -1;
