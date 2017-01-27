@@ -108,8 +108,8 @@ static void set_parents(struct pathelem *child, struct pathelem *parent)
 }
 
 /* FIXME: Doesn't handle DIR/.. where DIR is not in emulated dir. */
-static const char *
-follow_path(const struct pathelem *cursor, const char *name)
+static struct pathelem *
+follow_path(struct pathelem *cursor, const char *name)
 {
     unsigned int i, namelen;
 
@@ -117,7 +117,7 @@ follow_path(const struct pathelem *cursor, const char *name)
     namelen = strcspn(name, "/");
 
     if (namelen == 0)
-        return cursor->pathname;
+        return cursor;
 
     if (strneq(name, namelen, ".."))
         return follow_path(cursor->parent, name + namelen);
@@ -133,9 +133,28 @@ follow_path(const struct pathelem *cursor, const char *name)
     return NULL;
 }
 
+
+static void append_entry(struct pathelem *cursor,
+                         const char *name, unsigned type)
+{
+    size_t i;
+    struct pathelem *parent;
+
+    parent = cursor->parent;
+
+    for (i = 0; i < parent->num_entries; i++) {
+        if (parent->entries[i] == cursor) {
+            break;
+        }
+    }
+
+    parent->entries[i] = add_entry(cursor, name, type);
+}
+
 void init_paths(const char *prefix)
 {
     char pref_buf[PATH_MAX];
+    struct pathelem *cursor;
 
     if (prefix[0] == '\0' ||
         !strcmp(prefix, "/"))
@@ -164,15 +183,41 @@ void init_paths(const char *prefix)
     } else {
         set_parents(base, base);
     }
+
+    /*
+     * libc does not necessarily handle reading host's ld.so.cache
+     * well (e.g. running PowerPC code on x86, or, very likely any
+     * mixed endian combination)
+     *
+     * So check if guest's prefix "tree" provides ld.so.cache and if
+     * not add a fake translation entry, so as to prevent guest's libc
+     * request to /etc/ld.so.cache to resolve into host's
+     * /etc/ld.so.cache
+     */
+    cursor = follow_path(base, "/etc/ld.so.cache");
+    if (!cursor) {
+        cursor = follow_path(base, "/etc/");
+        if (!cursor) {
+            cursor = follow_path(base, "/");
+            append_entry(cursor, "etc", DT_DIR);
+            cursor = follow_path(base, "/etc/");
+        }
+
+        append_entry(cursor, "ld.so.cache", DT_REG);
+    }
 }
 
 /* Look for path in emulation dir, otherwise return name. */
 const char *path(const char *name)
 {
+    struct pathelem *cursor;
+
     /* Only do absolute paths: quick and dirty, but should mostly be OK.
        Could do relative by tracking cwd. */
     if (!base || !name || name[0] != '/')
         return name;
 
-    return follow_path(base, name) ?: name;
+    cursor = follow_path(base, name);
+
+    return cursor ? cursor->pathname : name;
 }
