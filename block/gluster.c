@@ -56,19 +56,14 @@ typedef struct BDRVGlusterReopenState {
     struct glfs_fd *fd;
 } BDRVGlusterReopenState;
 
-
 typedef struct GlfsPreopened {
     char *volume;
     glfs_t *fs;
     int ref;
+    QLIST_ENTRY(GlfsPreopened) list;
 } GlfsPreopened;
 
-typedef struct ListElement {
-    QLIST_ENTRY(ListElement) list;
-    GlfsPreopened saved;
-} ListElement;
-
-static QLIST_HEAD(glfs_list, ListElement) glfs_list;
+static QLIST_HEAD(glfs_list, GlfsPreopened) glfs_list;
 
 static QemuOptsList qemu_gluster_create_opts = {
     .name = "qemu-gluster-create-opts",
@@ -210,26 +205,26 @@ static QemuOptsList runtime_tcp_opts = {
 
 static void glfs_set_preopened(const char *volume, glfs_t *fs)
 {
-    ListElement *entry = NULL;
+    GlfsPreopened *entry = NULL;
 
-    entry = g_new(ListElement, 1);
+    entry = g_new(GlfsPreopened, 1);
 
-    entry->saved.volume = g_strdup(volume);
+    entry->volume = g_strdup(volume);
 
-    entry->saved.fs = fs;
-    entry->saved.ref = 1;
+    entry->fs = fs;
+    entry->ref = 1;
 
     QLIST_INSERT_HEAD(&glfs_list, entry, list);
 }
 
 static glfs_t *glfs_find_preopened(const char *volume)
 {
-    ListElement *entry = NULL;
+    GlfsPreopened *entry = NULL;
 
     QLIST_FOREACH(entry, &glfs_list, list) {
-        if (strcmp(entry->saved.volume, volume) == 0) {
-            entry->saved.ref++;
-            return entry->saved.fs;
+        if (strcmp(entry->volume, volume) == 0) {
+            entry->ref++;
+            return entry->fs;
         }
     }
 
@@ -238,23 +233,23 @@ static glfs_t *glfs_find_preopened(const char *volume)
 
 static void glfs_clear_preopened(glfs_t *fs)
 {
-    ListElement *entry = NULL;
-    ListElement *next;
+    GlfsPreopened *entry = NULL;
+    GlfsPreopened *next;
 
     if (fs == NULL) {
         return;
     }
 
     QLIST_FOREACH_SAFE(entry, &glfs_list, list, next) {
-        if (entry->saved.fs == fs) {
-            if (--entry->saved.ref) {
+        if (entry->fs == fs) {
+            if (--entry->ref) {
                 return;
             }
 
             QLIST_REMOVE(entry, list);
 
-            glfs_fini(entry->saved.fs);
-            g_free(entry->saved.volume);
+            glfs_fini(entry->fs);
+            g_free(entry->volume);
             g_free(entry);
         }
     }
