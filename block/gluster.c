@@ -63,7 +63,8 @@ typedef struct GlfsPreopened {
     QLIST_ENTRY(GlfsPreopened) list;
 } GlfsPreopened;
 
-static QLIST_HEAD(glfs_list, GlfsPreopened) glfs_list;
+static QLIST_HEAD(glfs_list, GlfsPreopened) glfs_list =
+    QLIST_HEAD_INITIALIZER(glfs_list);
 
 static QemuOptsList qemu_gluster_create_opts = {
     .name = "qemu-gluster-create-opts",
