@@ -651,6 +651,23 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
             if (isTiny && roundBits) {
                 float_raise(float_flag_underflow, status);
             }
+            switch (roundingMode) {
+            case float_round_nearest_even:
+            case float_round_ties_away:
+                roundIncrement = 0x200;
+                break;
+            case float_round_to_zero:
+                roundIncrement = 0;
+                break;
+            case float_round_up:
+                roundIncrement = zSign ? 0 : 0x3ff;
+                break;
+            case float_round_down:
+                roundIncrement = zSign ? 0x3ff : 0;
+                break;
+            default:
+                abort();
+            }
         }
     }
     if (roundBits) {
