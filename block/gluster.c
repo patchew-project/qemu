@@ -226,12 +226,12 @@ static glfs_t *glfs_find_preopened(const char *volume)
 {
     ListElement *entry = NULL;
 
-     QLIST_FOREACH(entry, &glfs_list, list) {
+    QLIST_FOREACH(entry, &glfs_list, list) {
         if (strcmp(entry->saved.volume, volume) == 0) {
             entry->saved.ref++;
             return entry->saved.fs;
         }
-     }
+    }
 
     return NULL;
 }
