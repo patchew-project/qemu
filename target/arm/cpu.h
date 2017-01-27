@@ -2002,27 +2002,40 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * of the AT/ATS operations.
  * The values used are carefully arranged to make mmu_idx => EL lookup easy.
  */
-typedef enum ARMMMUIdx {
-    ARMMMUIdx_S12NSE0 = 0,
-    ARMMMUIdx_S12NSE1 = 1,
-    ARMMMUIdx_S1E2 = 2,
-    ARMMMUIdx_S1E3 = 3,
-    ARMMMUIdx_S1SE0 = 4,
-    ARMMMUIdx_S1SE1 = 5,
-    ARMMMUIdx_S2NS = 6,
+typedef enum ARMMMUBitMap {
+    ARMMMUBit_S12NSE0 = 1 << 0,
+    ARMMMUBit_S12NSE1 = 1 << 1,
+    ARMMMUBit_S1E2 = 1 << 2,
+    ARMMMUBit_S1E3 = 1 << 3,
+    ARMMMUBit_S1SE0 = 1 << 4,
+    ARMMMUBit_S1SE1 = 1 << 5,
+    ARMMMUBit_S2NS = 1 << 6,
     /* Indexes below here don't have TLBs and are used only for AT system
      * instructions or for the first stage of an S12 page table walk.
      */
-    ARMMMUIdx_S1NSE0 = 7,
-    ARMMMUIdx_S1NSE1 = 8,
-} ARMMMUIdx;
+    ARMMMUBit_S1NSE0 = 1 << 7,
+    ARMMMUBit_S1NSE1 = 1 << 8,
+} ARMMMUBitMap;
 
-#define MMU_USER_IDX 0
+typedef int ARMMMUIdx;
+
+static inline ARMMMUIdx arm_mmu_bit_to_idx(ARMMMUBitMap bit)
+{
+    g_assert(ctpop16(bit) == 1);
+    return ctz32(bit);
+}
+
+static inline ARMMMUBitMap arm_mmu_idx_to_bit(ARMMMUIdx idx)
+{
+    return 1 << idx;
+}
+
+#define MMU_USER_IDX (1 << 0)
 
 /* Return the exception level we're running at if this is our mmu_idx */
 static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
 {
-    assert(mmu_idx < ARMMMUIdx_S2NS);
+    assert(mmu_idx < arm_mmu_bit_to_idx(ARMMMUBit_S2NS));
     return mmu_idx & 3;
 }
 
@@ -2032,7 +2045,7 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
     int el = arm_current_el(env);
 
     if (el < 2 && arm_is_secure_below_el3(env)) {
-        return ARMMMUIdx_S1SE0 + el;
+        return arm_mmu_bit_to_idx(ARMMMUBit_S1SE0) + el;
     }
     return el;
 }

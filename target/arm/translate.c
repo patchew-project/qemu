@@ -109,19 +109,17 @@ static inline ARMMMUIdx get_a32_user_mem_index(DisasContext *s)
      *  if PL2, UNPREDICTABLE (we choose to implement as if PL0)
      *  otherwise, access as if at PL0.
      */
-    switch (s->mmu_idx) {
-    case ARMMMUIdx_S1E2:        /* this one is UNPREDICTABLE */
-    case ARMMMUIdx_S12NSE0:
-    case ARMMMUIdx_S12NSE1:
-        return ARMMMUIdx_S12NSE0;
-    case ARMMMUIdx_S1E3:
-    case ARMMMUIdx_S1SE0:
-    case ARMMMUIdx_S1SE1:
-        return ARMMMUIdx_S1SE0;
-    case ARMMMUIdx_S2NS:
-    default:
-        g_assert_not_reached();
+    ARMMMUBitMap bit = arm_mmu_idx_to_bit(s->mmu_idx);
+    if (bit & (ARMMMUBit_S1E2 |        /* this one is UNPREDICTABLE */
+               ARMMMUBit_S12NSE0 |
+               ARMMMUBit_S12NSE1)) {
+        return arm_mmu_bit_to_idx(ARMMMUBit_S12NSE0);
+    } else if (bit & (ARMMMUBit_S1E3 |
+                      ARMMMUBit_S1SE0 |
+                      ARMMMUBit_S1SE1)) {
+        return arm_mmu_bit_to_idx(ARMMMUBit_S1SE0);
     }
+    g_assert_not_reached();
 }
 
 static inline TCGv_i32 load_cpu_offset(int offset)

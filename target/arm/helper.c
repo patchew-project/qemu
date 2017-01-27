@@ -578,8 +578,8 @@ static void tlbiall_nsnh_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     CPUState *cs = ENV_GET_CPU(env);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
-                        ARMMMUIdx_S2NS, -1);
+    tlb_flush_by_mmuidx(cs, ARMMMUBit_S12NSE1 | ARMMMUBit_S12NSE0
+                        | ARMMMUBit_S2NS);
 }
 
 static void tlbiall_nsnh_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -588,8 +588,8 @@ static void tlbiall_nsnh_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *other_cs;
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                            ARMMMUIdx_S12NSE0, ARMMMUIdx_S2NS, -1);
+        tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S12NSE1 |
+                            ARMMMUBit_S12NSE0 | ARMMMUBit_S2NS);
     }
 }
 
@@ -611,7 +611,7 @@ static void tlbiipas2_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     pageaddr = sextract64(value << 12, 0, 40);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S2NS, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S2NS);
 }
 
 static void tlbiipas2_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -627,7 +627,7 @@ static void tlbiipas2_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     pageaddr = sextract64(value << 12, 0, 40);
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S2NS, -1);
+        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S2NS);
     }
 }
 
@@ -636,7 +636,7 @@ static void tlbiall_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     CPUState *cs = ENV_GET_CPU(env);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E2, -1);
+    tlb_flush_by_mmuidx(cs, ARMMMUBit_S1E2);
 }
 
 static void tlbiall_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -645,7 +645,7 @@ static void tlbiall_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *other_cs;
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1E2, -1);
+        tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S1E2);
     }
 }
 
@@ -655,7 +655,7 @@ static void tlbimva_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = ENV_GET_CPU(env);
     uint64_t pageaddr = value & ~MAKE_64BIT_MASK(0, 12);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E2, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S1E2);
 }
 
 static void tlbimva_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -665,7 +665,7 @@ static void tlbimva_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t pageaddr = value & ~MAKE_64BIT_MASK(0, 12);
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E2, -1);
+        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S1E2);
     }
 }
 
@@ -2100,7 +2100,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     int access_type = ri->opc2 & 1;
     uint64_t par64;
-    ARMMMUIdx mmu_idx;
+    ARMMMUBitMap mmu_bit;
     int el = arm_current_el(env);
     bool secure = arm_is_secure_below_el3(env);
 
@@ -2109,13 +2109,13 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         /* stage 1 current state PL1: ATS1CPR, ATS1CPW */
         switch (el) {
         case 3:
-            mmu_idx = ARMMMUIdx_S1E3;
+            mmu_bit = ARMMMUBit_S1E3;
             break;
         case 2:
-            mmu_idx = ARMMMUIdx_S1NSE1;
+            mmu_bit = ARMMMUBit_S1NSE1;
             break;
         case 1:
-            mmu_idx = secure ? ARMMMUIdx_S1SE1 : ARMMMUIdx_S1NSE1;
+            mmu_bit = secure ? ARMMMUBit_S1SE1 : ARMMMUBit_S1NSE1;
             break;
         default:
             g_assert_not_reached();
@@ -2125,13 +2125,13 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         /* stage 1 current state PL0: ATS1CUR, ATS1CUW */
         switch (el) {
         case 3:
-            mmu_idx = ARMMMUIdx_S1SE0;
+            mmu_bit = ARMMMUBit_S1SE0;
             break;
         case 2:
-            mmu_idx = ARMMMUIdx_S1NSE0;
+            mmu_bit = ARMMMUBit_S1NSE0;
             break;
         case 1:
-            mmu_idx = secure ? ARMMMUIdx_S1SE0 : ARMMMUIdx_S1NSE0;
+            mmu_bit = secure ? ARMMMUBit_S1SE0 : ARMMMUBit_S1NSE0;
             break;
         default:
             g_assert_not_reached();
@@ -2139,17 +2139,17 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         break;
     case 4:
         /* stage 1+2 NonSecure PL1: ATS12NSOPR, ATS12NSOPW */
-        mmu_idx = ARMMMUIdx_S12NSE1;
+        mmu_bit = ARMMMUBit_S12NSE1;
         break;
     case 6:
         /* stage 1+2 NonSecure PL0: ATS12NSOUR, ATS12NSOUW */
-        mmu_idx = ARMMMUIdx_S12NSE0;
+        mmu_bit = ARMMMUBit_S12NSE0;
         break;
     default:
         g_assert_not_reached();
     }
 
-    par64 = do_ats_write(env, value, access_type, mmu_idx);
+    par64 = do_ats_write(env, value, access_type, arm_mmu_bit_to_idx(mmu_bit));
 
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
 }
@@ -2160,7 +2160,8 @@ static void ats1h_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int access_type = ri->opc2 & 1;
     uint64_t par64;
 
-    par64 = do_ats_write(env, value, access_type, ARMMMUIdx_S2NS);
+    par64 = do_ats_write(env, value, access_type,
+                         arm_mmu_bit_to_idx(ARMMMUBit_S2NS));
 
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
 }
@@ -2185,26 +2186,26 @@ static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
     case 0:
         switch (ri->opc1) {
         case 0: /* AT S1E1R, AT S1E1W */
-            mmu_idx = secure ? ARMMMUIdx_S1SE1 : ARMMMUIdx_S1NSE1;
+            mmu_idx = secure ? ARMMMUBit_S1SE1 : ARMMMUBit_S1NSE1;
             break;
         case 4: /* AT S1E2R, AT S1E2W */
-            mmu_idx = ARMMMUIdx_S1E2;
+            mmu_idx = ARMMMUBit_S1E2;
             break;
         case 6: /* AT S1E3R, AT S1E3W */
-            mmu_idx = ARMMMUIdx_S1E3;
+            mmu_idx = ARMMMUBit_S1E3;
             break;
         default:
             g_assert_not_reached();
         }
         break;
     case 2: /* AT S1E0R, AT S1E0W */
-        mmu_idx = secure ? ARMMMUIdx_S1SE0 : ARMMMUIdx_S1NSE0;
+        mmu_idx = secure ? ARMMMUBit_S1SE0 : ARMMMUBit_S1NSE0;
         break;
     case 4: /* AT S12E1R, AT S12E1W */
-        mmu_idx = secure ? ARMMMUIdx_S1SE1 : ARMMMUIdx_S12NSE1;
+        mmu_idx = secure ? ARMMMUBit_S1SE1 : ARMMMUBit_S12NSE1;
         break;
     case 6: /* AT S12E0R, AT S12E0W */
-        mmu_idx = secure ? ARMMMUIdx_S1SE0 : ARMMMUIdx_S12NSE0;
+        mmu_idx = secure ? ARMMMUBit_S1SE0 : ARMMMUBit_S12NSE0;
         break;
     default:
         g_assert_not_reached();
@@ -2499,8 +2500,8 @@ static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     /* Accesses to VTTBR may change the VMID so we must flush the TLB.  */
     if (raw_read(env, ri) != value) {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
-                            ARMMMUIdx_S2NS, -1);
+        tlb_flush_by_mmuidx(cs, ARMMMUBit_S12NSE1 | ARMMMUBit_S12NSE0 |
+                            ARMMMUBit_S2NS);
         raw_write(env, ri, value);
     }
 }
@@ -2859,9 +2860,9 @@ static void tlbi_aa64_vmalle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
 
     if (arm_is_secure_below_el3(env)) {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+        tlb_flush_by_mmuidx(cs, ARMMMUBit_S1SE1 | ARMMMUBit_S1SE0);
     } else {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0, -1);
+        tlb_flush_by_mmuidx(cs, ARMMMUBit_S12NSE1 | ARMMMUBit_S12NSE0);
     }
 }
 
@@ -2873,10 +2874,10 @@ static void tlbi_aa64_vmalle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     CPU_FOREACH(other_cs) {
         if (sec) {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+            tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S1SE1 | ARMMMUBit_S1SE0);
         } else {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                                ARMMMUIdx_S12NSE0, -1);
+            tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S12NSE1 |
+                                ARMMMUBit_S12NSE0);
         }
     }
 }
@@ -2892,13 +2893,13 @@ static void tlbi_aa64_alle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
 
     if (arm_is_secure_below_el3(env)) {
-        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+        tlb_flush_by_mmuidx(cs, ARMMMUBit_S1SE1 | ARMMMUBit_S1SE0);
     } else {
         if (arm_feature(env, ARM_FEATURE_EL2)) {
-            tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
-                                ARMMMUIdx_S2NS, -1);
+            tlb_flush_by_mmuidx(cs, ARMMMUBit_S12NSE1 | ARMMMUBit_S12NSE0 |
+                                ARMMMUBit_S2NS);
         } else {
-            tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0, -1);
+            tlb_flush_by_mmuidx(cs, ARMMMUBit_S12NSE1 | ARMMMUBit_S12NSE0);
         }
     }
 }
@@ -2909,7 +2910,7 @@ static void tlbi_aa64_alle2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E2, -1);
+    tlb_flush_by_mmuidx(cs, ARMMMUBit_S1E2);
 }
 
 static void tlbi_aa64_alle3_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2918,7 +2919,7 @@ static void tlbi_aa64_alle3_write(CPUARMState *env, const ARMCPRegInfo *ri,
     ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
-    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E3, -1);
+    tlb_flush_by_mmuidx(cs, ARMMMUBit_S1E3);
 }
 
 static void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2934,13 +2935,13 @@ static void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     CPU_FOREACH(other_cs) {
         if (sec) {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+            tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S1SE1 | ARMMMUBit_S1SE0);
         } else if (has_el2) {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                                ARMMMUIdx_S12NSE0, ARMMMUIdx_S2NS, -1);
+            tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S12NSE1 |
+                                ARMMMUBit_S12NSE0 | ARMMMUBit_S2NS);
         } else {
-            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
-                                ARMMMUIdx_S12NSE0, -1);
+            tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S12NSE1 |
+                                ARMMMUBit_S12NSE0);
         }
     }
 }
@@ -2951,7 +2952,7 @@ static void tlbi_aa64_alle2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *other_cs;
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1E2, -1);
+        tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S1E2);
     }
 }
 
@@ -2961,7 +2962,7 @@ static void tlbi_aa64_alle3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *other_cs;
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1E3, -1);
+        tlb_flush_by_mmuidx(other_cs, ARMMMUBit_S1E3);
     }
 }
 
@@ -2978,11 +2979,11 @@ static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
     if (arm_is_secure_below_el3(env)) {
-        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1SE1,
-                                 ARMMMUIdx_S1SE0, -1);
+        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S1SE1 |
+                                 ARMMMUBit_S1SE0);
     } else {
-        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S12NSE1,
-                                 ARMMMUIdx_S12NSE0, -1);
+        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S12NSE1 |
+                                 ARMMMUBit_S12NSE0);
     }
 }
 
@@ -2997,7 +2998,7 @@ static void tlbi_aa64_vae2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E2, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S1E2);
 }
 
 static void tlbi_aa64_vae3_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3011,7 +3012,7 @@ static void tlbi_aa64_vae3_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E3, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S1E3);
 }
 
 static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3023,11 +3024,11 @@ static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     CPU_FOREACH(other_cs) {
         if (sec) {
-            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1SE1,
-                                     ARMMMUIdx_S1SE0, -1);
+            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S1SE1 |
+                                     ARMMMUBit_S1SE0);
         } else {
-            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S12NSE1,
-                                     ARMMMUIdx_S12NSE0, -1);
+            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S12NSE1 |
+                                     ARMMMUBit_S12NSE0);
         }
     }
 }
@@ -3039,7 +3040,7 @@ static void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E2, -1);
+        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S1E2);
     }
 }
 
@@ -3050,7 +3051,7 @@ static void tlbi_aa64_vae3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E3, -1);
+        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S1E3);
     }
 }
 
@@ -3073,7 +3074,7 @@ static void tlbi_aa64_ipas2e1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     pageaddr = sextract64(value << 12, 0, 48);
 
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S2NS, -1);
+    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUBit_S2NS);
 }
 
 static void tlbi_aa64_ipas2e1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3089,7 +3090,7 @@ static void tlbi_aa64_ipas2e1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     pageaddr = sextract64(value << 12, 0, 48);
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S2NS, -1);
+        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUBit_S2NS);
     }
 }
 
@@ -6747,41 +6748,33 @@ void arm_cpu_do_interrupt(CPUState *cs)
 /* Return the exception level which controls this address translation regime */
 static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
-    switch (mmu_idx) {
-    case ARMMMUIdx_S2NS:
-    case ARMMMUIdx_S1E2:
+    ARMMMUBitMap bit = arm_mmu_idx_to_bit(mmu_idx);
+    if (bit & (ARMMMUBit_S2NS | ARMMMUBit_S1E2)) {
         return 2;
-    case ARMMMUIdx_S1E3:
+    } else if (bit & ARMMMUBit_S1E3) {
         return 3;
-    case ARMMMUIdx_S1SE0:
+    } else if (bit & ARMMMUBit_S1SE0) {
         return arm_el_is_aa64(env, 3) ? 1 : 3;
-    case ARMMMUIdx_S1SE1:
-    case ARMMMUIdx_S1NSE0:
-    case ARMMMUIdx_S1NSE1:
+    } else if (bit & (ARMMMUBit_S1SE1 | ARMMMUBit_S1NSE0 | ARMMMUBit_S1NSE1)) {
         return 1;
-    default:
-        g_assert_not_reached();
     }
+
+    g_assert_not_reached();
 }
 
 /* Return true if this address translation regime is secure */
 static inline bool regime_is_secure(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
-    switch (mmu_idx) {
-    case ARMMMUIdx_S12NSE0:
-    case ARMMMUIdx_S12NSE1:
-    case ARMMMUIdx_S1NSE0:
-    case ARMMMUIdx_S1NSE1:
-    case ARMMMUIdx_S1E2:
-    case ARMMMUIdx_S2NS:
+    ARMMMUBitMap bit = arm_mmu_idx_to_bit(mmu_idx);
+
+    if (bit & (ARMMMUBit_S12NSE0 | ARMMMUBit_S12NSE1 | ARMMMUBit_S1NSE0 |
+               ARMMMUBit_S1NSE1 | ARMMMUBit_S1E2 | ARMMMUBit_S2NS)) {
         return false;
-    case ARMMMUIdx_S1E3:
-    case ARMMMUIdx_S1SE0:
-    case ARMMMUIdx_S1SE1:
+    } else if  (bit & (ARMMMUBit_S1E3 | ARMMMUBit_S1SE0 | ARMMMUBit_S1SE1)) {
         return true;
-    default:
-        g_assert_not_reached();
     }
+
+    g_assert_not_reached();
 }
 
 /* Return the SCTLR value which controls this address translation regime */
@@ -6794,7 +6787,7 @@ static inline uint32_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
 static inline bool regime_translation_disabled(CPUARMState *env,
                                                ARMMMUIdx mmu_idx)
 {
-    if (mmu_idx == ARMMMUIdx_S2NS) {
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S2NS)) {
         return (env->cp15.hcr_el2 & HCR_VM) == 0;
     }
     return (regime_sctlr(env, mmu_idx) & SCTLR_M) == 0;
@@ -6809,7 +6802,7 @@ static inline bool regime_translation_big_endian(CPUARMState *env,
 /* Return the TCR controlling this translation regime */
 static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
-    if (mmu_idx == ARMMMUIdx_S2NS) {
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S2NS)) {
         return &env->cp15.vtcr_el2;
     }
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
@@ -6824,8 +6817,9 @@ uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx)
     /* For EL0 and EL1, TBI is controlled by stage 1's TCR, so convert
        * a stage 1+2 mmu index into the appropriate stage 1 mmu index.
        */
-    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
-        mmu_idx += ARMMMUIdx_S1NSE0;
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE0) ||
+        mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE1)) {
+        mmu_idx += arm_mmu_bit_to_idx(ARMMMUBit_S1NSE0);
     }
 
     tcr = regime_tcr(env, mmu_idx);
@@ -6847,8 +6841,9 @@ uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
     /* For EL0 and EL1, TBI is controlled by stage 1's TCR, so convert
        * a stage 1+2 mmu index into the appropriate stage 1 mmu index.
        */
-    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
-        mmu_idx += ARMMMUIdx_S1NSE0;
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE0) ||
+        mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE1)) {
+        mmu_idx += arm_mmu_bit_to_idx(ARMMMUBit_S1NSE0);
     }
 
     tcr = regime_tcr(env, mmu_idx);
@@ -6865,7 +6860,7 @@ uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
 static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
                                    int ttbrn)
 {
-    if (mmu_idx == ARMMMUIdx_S2NS) {
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S2NS)) {
         return env->cp15.vttbr_el2;
     }
     if (ttbrn == 0) {
@@ -6895,8 +6890,9 @@ static inline bool regime_using_lpae_format(CPUARMState *env,
  * on whether the long or short descriptor format is in use. */
 bool arm_s1_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
-    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
-        mmu_idx += ARMMMUIdx_S1NSE0;
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE0) ||
+        mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE1)) {
+        mmu_idx += arm_mmu_bit_to_idx(ARMMMUBit_S1NSE0);
     }
 
     return regime_using_lpae_format(env, mmu_idx);
@@ -6904,15 +6900,14 @@ bool arm_s1_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
 
 static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
-    switch (mmu_idx) {
-    case ARMMMUIdx_S1SE0:
-    case ARMMMUIdx_S1NSE0:
+    ARMMMUBitMap bit = arm_mmu_idx_to_bit(mmu_idx);
+
+    if (bit & (ARMMMUBit_S1SE0 | ARMMMUBit_S1NSE0)) {
         return true;
-    default:
-        return false;
-    case ARMMMUIdx_S12NSE0:
-    case ARMMMUIdx_S12NSE1:
+    } else if (bit & (ARMMMUBit_S12NSE0 | ARMMMUBit_S12NSE1)) {
         g_assert_not_reached();
+    } else {
+        return false;
     }
 }
 
@@ -7042,7 +7037,7 @@ static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
     bool have_wxn;
     int wxn = 0;
 
-    assert(mmu_idx != ARMMMUIdx_S2NS);
+    assert(mmu_idx != ARMMMUBit_S2NS);
 
     user_rw = simple_ap_to_rw_prot_is_user(ap, true);
     if (is_user) {
@@ -7134,14 +7129,15 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
                                uint32_t *fsr,
                                ARMMMUFaultInfo *fi)
 {
-    if ((mmu_idx == ARMMMUIdx_S1NSE0 || mmu_idx == ARMMMUIdx_S1NSE1) &&
-        !regime_translation_disabled(env, ARMMMUIdx_S2NS)) {
+    if ((mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S1NSE0) ||
+         mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S1NSE1)) &&
+        !regime_translation_disabled(env, arm_mmu_bit_to_idx(ARMMMUBit_S2NS))) {
         target_ulong s2size;
         hwaddr s2pa;
         int s2prot;
         int ret;
 
-        ret = get_phys_addr_lpae(env, addr, 0, ARMMMUIdx_S2NS, &s2pa,
+        ret = get_phys_addr_lpae(env, addr, 0, ARMMMUBit_S2NS, &s2pa,
                                  &txattrs, &s2prot, &s2size, fsr, fi);
         if (ret) {
             fi->s2addr = addr;
@@ -7584,7 +7580,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         level = 0;
         addrsize = 64;
         if (el > 1) {
-            if (mmu_idx != ARMMMUIdx_S2NS) {
+            if (mmu_idx != ARMMMUBit_S2NS) {
                 tbi = extract64(tcr->raw_tcr, 20, 1);
             }
         } else {
@@ -7621,7 +7617,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         t0sz = extract32(tcr->raw_tcr, 0, 6);
         t0sz = MIN(t0sz, 39);
         t0sz = MAX(t0sz, 16);
-    } else if (mmu_idx != ARMMMUIdx_S2NS) {
+    } else if (mmu_idx != ARMMMUBit_S2NS) {
         /* AArch32 stage 1 translation.  */
         t0sz = extract32(tcr->raw_tcr, 0, 3);
     } else {
@@ -7715,7 +7711,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         goto do_fault;
     }
 
-    if (mmu_idx != ARMMMUIdx_S2NS) {
+    if (mmu_idx != ARMMMUBit_S2NS) {
         /* The starting level depends on the virtual address size (which can
          * be up to 48 bits) and the translation granule size. It indicates
          * the number of strides (stride bits at a time) needed to
@@ -7815,7 +7811,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         attrs = extract64(descriptor, 2, 10)
             | (extract64(descriptor, 52, 12) << 10);
 
-        if (mmu_idx == ARMMMUIdx_S2NS) {
+        if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S2NS)) {
             /* Stage 2 table descriptors do not include any attribute fields */
             break;
         }
@@ -7843,7 +7839,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     ap = extract32(attrs, 4, 2);
     xn = extract32(attrs, 12, 1);
 
-    if (mmu_idx == ARMMMUIdx_S2NS) {
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S2NS)) {
         ns = true;
         *prot = get_S2prot(env, ap, xn);
     } else {
@@ -7872,7 +7868,7 @@ do_fault:
     /* Long-descriptor format IFSR/DFSR value */
     *fsr = (1 << 9) | (fault_type << 2) | level;
     /* Tag the error as S2 for failed S1 PTW at S2 or ordinary S2.  */
-    fi->stage2 = fi->s1ptw || (mmu_idx == ARMMMUIdx_S2NS);
+    fi->stage2 = fi->s1ptw || (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S2NS));
     return true;
 }
 
@@ -8141,7 +8137,8 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
                           target_ulong *page_size, uint32_t *fsr,
                           ARMMMUFaultInfo *fi)
 {
-    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+    if (mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE0) ||
+        mmu_idx == arm_mmu_bit_to_idx(ARMMMUBit_S12NSE1)) {
         /* Call ourselves recursively to do the stage 1 and then stage 2
          * translations.
          */
@@ -8151,17 +8148,17 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
             int ret;
 
             ret = get_phys_addr(env, address, access_type,
-                                mmu_idx + ARMMMUIdx_S1NSE0, &ipa, attrs,
+                                mmu_idx + ARMMMUBit_S1NSE0, &ipa, attrs,
                                 prot, page_size, fsr, fi);
 
             /* If S1 fails or S2 is disabled, return early.  */
-            if (ret || regime_translation_disabled(env, ARMMMUIdx_S2NS)) {
+            if (ret || regime_translation_disabled(env, ARMMMUBit_S2NS)) {
                 *phys_ptr = ipa;
                 return ret;
             }
 
             /* S1 is done. Now do S2 translation.  */
-            ret = get_phys_addr_lpae(env, ipa, access_type, ARMMMUIdx_S2NS,
+            ret = get_phys_addr_lpae(env, ipa, access_type, ARMMMUBit_S2NS,
                                      phys_ptr, attrs, &s2_prot,
                                      page_size, fsr, fi);
             fi->s2addr = ipa;
@@ -8172,7 +8169,7 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
             /*
              * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
              */
-            mmu_idx += ARMMMUIdx_S1NSE0;
+            mmu_idx += arm_mmu_bit_to_idx(ARMMMUBit_S1NSE0);
         }
     }
 
@@ -8186,7 +8183,7 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
     /* Fast Context Switch Extension. This doesn't exist at all in v8.
      * In v7 and earlier it affects all stage 1 translations.
      */
-    if (address < 0x02000000 && mmu_idx != ARMMMUIdx_S2NS
+    if (address < 0x02000000 && mmu_idx != arm_mmu_bit_to_idx(ARMMMUBit_S2NS)
         && !arm_feature(env, ARM_FEATURE_V8)) {
         if (regime_el(env, mmu_idx) == 3) {
             address += env->cp15.fcseidr_s;
