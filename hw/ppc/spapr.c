@@ -1012,6 +1012,9 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
 
+    /* The TCG path should also be holding the BQL at this point */
+    g_assert(qemu_mutex_iothread_locked());
+
     if (msr_pr) {
         hcall_dprintf("Hypercall made with MSR[PR]=1\n");
         env->gpr[3] = H_PRIVILEGE;
