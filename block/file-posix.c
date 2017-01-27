@@ -1588,12 +1588,6 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
 #endif
     }
 
-    if (ftruncate(fd, total_size) != 0) {
-        result = -errno;
-        error_setg_errno(errp, -result, "Could not resize file");
-        goto out_close;
-    }
-
     switch (prealloc) {
 #ifdef CONFIG_POSIX_FALLOCATE
     case PREALLOC_MODE_FALLOC:
@@ -1633,6 +1627,10 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
         break;
     }
     case PREALLOC_MODE_OFF:
+        if (ftruncate(fd, total_size) != 0) {
+            result = -errno;
+            error_setg_errno(errp, -result, "Could not resize file");
+        }
         break;
     default:
         result = -EINVAL;
@@ -1641,7 +1639,6 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
         break;
     }
 
-out_close:
     if (qemu_close(fd) != 0 && result == 0) {
         result = -errno;
         error_setg_errno(errp, -result, "Could not close the new file");
