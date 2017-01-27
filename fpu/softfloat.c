@@ -623,6 +623,9 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
     case float_round_down:
         roundIncrement = zSign ? 0x3ff : 0;
         break;
+    case float_round_to_odd:
+        roundIncrement = (zSig & 0x400) ? 0 : 0x3ff;
+        break;
     default:
         abort();
     }
@@ -632,8 +635,10 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
              || (    ( zExp == 0x7FD )
                   && ( (int64_t) ( zSig + roundIncrement ) < 0 ) )
            ) {
+            bool overflow_to_inf = roundingMode != float_round_to_odd &&
+                                   roundIncrement != 0;
             float_raise(float_flag_overflow | float_flag_inexact, status);
-            return packFloat64( zSign, 0x7FF, - ( roundIncrement == 0 ));
+            return packFloat64( zSign, 0x7FF, - ( !overflow_to_inf ));
         }
         if ( zExp < 0 ) {
             if (status->flush_to_zero) {
@@ -664,6 +669,9 @@ static float64 roundAndPackFloat64(flag zSign, int zExp, uint64_t zSig,
                 break;
             case float_round_down:
                 roundIncrement = zSign ? 0x3ff : 0;
+                break;
+            case float_round_to_odd:
+                roundIncrement = (zSig & 0x400) ? 0 : 0x3ff;
                 break;
             default:
                 abort();
@@ -1166,6 +1174,9 @@ static float128 roundAndPackFloat128(flag zSign, int32_t zExp,
     case float_round_down:
         increment = zSign && zSig2;
         break;
+    case float_round_to_odd:
+        increment = !(zSig1 & 0x1) && zSig2;
+        break;
     default:
         abort();
     }
@@ -1185,6 +1196,7 @@ static float128 roundAndPackFloat128(flag zSign, int32_t zExp,
             if (    ( roundingMode == float_round_to_zero )
                  || ( zSign && ( roundingMode == float_round_up ) )
                  || ( ! zSign && ( roundingMode == float_round_down ) )
+                 || ( roundingMode == float_round_to_odd )
                ) {
                 return
                     packFloat128(
@@ -1231,6 +1243,9 @@ static float128 roundAndPackFloat128(flag zSign, int32_t zExp,
                 break;
             case float_round_down:
                 increment = zSign && zSig2;
+                break;
+            case float_round_to_odd:
+                increment = !(zSig1 & 0x1) && zSig2;
                 break;
             default:
                 abort();
