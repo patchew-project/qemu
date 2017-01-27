@@ -203,7 +203,7 @@ static QemuOptsList runtime_tcp_opts = {
     },
 };
 
-static void glfs_set_preopened(const char *volume, glfs_t *fs)
+static void glfs_add_preopened(const char *volume, glfs_t *fs)
 {
     GlfsPreopened *entry = NULL;
 
@@ -217,7 +217,7 @@ static void glfs_set_preopened(const char *volume, glfs_t *fs)
     QLIST_INSERT_HEAD(&glfs_list, entry, list);
 }
 
-static glfs_t *glfs_find_preopened(const char *volume)
+static glfs_t *glfs_get_preopened(const char *volume)
 {
     GlfsPreopened *entry = NULL;
 
@@ -231,7 +231,7 @@ static glfs_t *glfs_find_preopened(const char *volume)
     return NULL;
 }
 
-static void glfs_clear_preopened(glfs_t *fs)
+static void glfs_put_preopened(glfs_t *fs)
 {
     GlfsPreopened *entry = NULL;
     GlfsPreopened *next;
@@ -393,7 +393,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     GlusterServerList *server;
     unsigned long long port;
 
-    glfs = glfs_find_preopened(gconf->volume);
+    glfs = glfs_get_preopened(gconf->volume);
     if (glfs) {
         return glfs;
     }
@@ -403,7 +403,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
         goto out;
     }
 
-    glfs_set_preopened(gconf->volume, glfs);
+    glfs_add_preopened(gconf->volume, glfs);
 
     for (server = gconf->server; server; server = server->next) {
         if (server->value->type  == GLUSTER_TRANSPORT_UNIX) {
@@ -463,7 +463,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
 out:
     if (glfs) {
         old_errno = errno;
-        glfs_clear_preopened(glfs);
+        glfs_put_preopened(glfs);
         errno = old_errno;
     }
     return NULL;
@@ -844,7 +844,7 @@ out:
         glfs_close(s->fd);
     }
 
-    glfs_clear_preopened(s->glfs);
+    glfs_put_preopened(s->glfs);
 
     return ret;
 }
@@ -913,7 +913,7 @@ static void qemu_gluster_reopen_commit(BDRVReopenState *state)
         glfs_close(s->fd);
     }
 
-    glfs_clear_preopened(s->glfs);
+    glfs_put_preopened(s->glfs);
 
     /* use the newly opened image / connection */
     s->fd         = reop_s->fd;
@@ -938,7 +938,7 @@ static void qemu_gluster_reopen_abort(BDRVReopenState *state)
         glfs_close(reop_s->fd);
     }
 
-    glfs_clear_preopened(reop_s->glfs);
+    glfs_put_preopened(reop_s->glfs);
 
     g_free(state->opaque);
     state->opaque = NULL;
@@ -1062,7 +1062,7 @@ static int qemu_gluster_create(const char *filename,
 out:
     g_free(tmp);
     qapi_free_BlockdevOptionsGluster(gconf);
-    glfs_clear_preopened(glfs);
+    glfs_put_preopened(glfs);
     return ret;
 }
 
@@ -1135,7 +1135,7 @@ static void qemu_gluster_close(BlockDriverState *bs)
         glfs_close(s->fd);
         s->fd = NULL;
     }
-    glfs_clear_preopened(s->glfs);
+    glfs_put_preopened(s->glfs);
 }
 
 static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
