@@ -579,7 +579,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         return NULL;
     }
 
-    if (only_migratable) {
+    if (only_migratable && dc->vmsd) {
         if (dc->vmsd->unmigratable) {
             error_setg(errp, "Device %s is not migratable, but "
                        "--only-migratable was specified", driver);
