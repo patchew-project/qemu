@@ -1181,20 +1181,22 @@ out:
 static int local_link(FsContext *ctx, V9fsPath *oldpath,
                       V9fsPath *dirpath, const char *name)
 {
-    int ret;
-    V9fsString newpath;
-    char *buffer, *buffer1;
-    int serrno;
+    char *odirpath = local_dirname(oldpath->data);
+    char *oname = local_basename(oldpath->data);
+    int ret = -1;
+    int odirfd, ndirfd;
 
-    v9fs_string_init(&newpath);
-    v9fs_string_sprintf(&newpath, "%s/%s", dirpath->data, name);
-
-    buffer = rpath(ctx, oldpath->data);
-    buffer1 = rpath(ctx, newpath.data);
-    ret = link(buffer, buffer1);
-    g_free(buffer);
-    if (ret < 0) {
+    odirfd = local_opendir_nofollow(ctx, odirpath);
+    if (odirfd == -1) {
         goto out;
+    }
+    ndirfd = local_opendir_nofollow(ctx, dirpath->data);
+    if (ndirfd == -1) {
+        goto out_close_odirfd;
+    }
+    ret = linkat(odirfd, oname, ndirfd, name, AT_SYMLINK_FOLLOW);
+    if (ret < 0) {
+        goto out_close_ndirfd;
     }
 
     /* now link the virtfs_metadata files */
@@ -1204,15 +1206,17 @@ static int local_link(FsContext *ctx, V9fsPath *oldpath,
             goto err_out;
         }
     }
-    goto out;
+    goto out_close_ndirfd;
 
 err_out:
-    serrno = errno;
-    remove(buffer1);
-    errno = serrno;
+    unlinkat_preserve_errno(ndirfd, name, 0);
+out_close_ndirfd:
+    close_preserve_errno(ndirfd);
+out_close_odirfd:
+    close_preserve_errno(odirfd);
 out:
-    g_free(buffer1);
-    v9fs_string_free(&newpath);
+    g_free(oname);
+    g_free(odirpath);
     return ret;
 }
 
