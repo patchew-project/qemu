@@ -1187,6 +1187,29 @@ static int local_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
     return ret;
 }
 
+static int local_post_rename_mapped_file(FsContext *ctx, const char *oldpath,
+                                         const char *newpath)
+{
+    int err;
+    char *buffer, *buffer1;
+
+    err = local_create_mapped_attr_dir(ctx, newpath);
+    if (err < 0) {
+        return err;
+    }
+    /* rename the .virtfs_metadata files */
+    buffer = local_mapped_attr_path(ctx, oldpath);
+    buffer1 = local_mapped_attr_path(ctx, newpath);
+    err = rename(buffer, buffer1);
+    g_free(buffer);
+    g_free(buffer1);
+    if (err < 0 && errno != ENOENT) {
+        return err;
+    }
+
+    return 0;
+}
+
 static int local_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
@@ -1202,19 +1225,8 @@ static int local_rename(FsContext *ctx, const char *oldpath,
     }
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        char *vbuffer, *vbuffer1;
-
-        err = local_create_mapped_attr_dir(ctx, newpath);
+        err = local_post_rename_mapped_file(ctx, oldpath, newpath);
         if (err < 0) {
-            goto out_err;
-        }
-        /* rename the .virtfs_metadata files */
-        vbuffer = local_mapped_attr_path(ctx, oldpath);
-        vbuffer1 = local_mapped_attr_path(ctx, newpath);
-        err = rename(vbuffer, vbuffer1);
-        g_free(vbuffer);
-        g_free(vbuffer1);
-        if (err < 0 && errno != ENOENT) {
             goto err_out;
         }
     }
