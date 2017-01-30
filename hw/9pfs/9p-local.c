@@ -1452,15 +1452,14 @@ static int local_fsync(FsContext *ctx, int fid_type,
     }
 }
 
-static int local_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
+static int local_statfs(FsContext *fs_ctx, V9fsPath *fs_path,
+                        struct statfs *stbuf)
 {
-    char *buffer;
-    int ret;
-    char *path = fs_path->data;
+    int fd, ret;
 
-    buffer = rpath(s, path);
-    ret = statfs(buffer, stbuf);
-    g_free(buffer);
+    fd = local_open_nofollow(fs_ctx, fs_path->data, O_RDONLY, 0);
+    ret = fstatfs(fd, stbuf);
+    close_preserve_errno(fd);
     return ret;
 }
 
