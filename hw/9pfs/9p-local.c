@@ -1303,41 +1303,25 @@ static int local_utimensat(FsContext *s, V9fsPath *fs_path,
     return ret;
 }
 
-static int local_remove(FsContext *ctx, const char *path)
+static int local_pre_remove_mapped_file(FsContext *ctx, const char *path)
 {
     int err;
     struct stat stbuf;
     char *buffer;
 
-    if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        buffer = rpath(ctx, path);
-        err =  lstat(buffer, &stbuf);
-        g_free(buffer);
-        if (err) {
-            goto err_out;
-        }
-        /*
-         * If directory remove .virtfs_metadata contained in the
-         * directory
-         */
-        if (S_ISDIR(stbuf.st_mode)) {
-            buffer = g_strdup_printf("%s/%s/%s", ctx->fs_root,
-                                     path, VIRTFS_META_DIR);
-            err = remove(buffer);
-            g_free(buffer);
-            if (err < 0 && errno != ENOENT) {
-                /*
-                 * We didn't had the .virtfs_metadata file. May be file created
-                 * in non-mapped mode ?. Ignore ENOENT.
-                 */
-                goto err_out;
-            }
-        }
-        /*
-         * Now remove the name from parent directory
-         * .virtfs_metadata directory
-         */
-        buffer = local_mapped_attr_path(ctx, path);
+    buffer = rpath(ctx, path);
+    err =  lstat(buffer, &stbuf);
+    g_free(buffer);
+    if (err) {
+        goto err_out;
+    }
+    /*
+     * If directory remove .virtfs_metadata contained in the
+     * directory
+     */
+    if (S_ISDIR(stbuf.st_mode)) {
+        buffer = g_strdup_printf("%s/%s/%s", ctx->fs_root,
+                                 path, VIRTFS_META_DIR);
         err = remove(buffer);
         g_free(buffer);
         if (err < 0 && errno != ENOENT) {
@@ -1345,6 +1329,36 @@ static int local_remove(FsContext *ctx, const char *path)
              * We didn't had the .virtfs_metadata file. May be file created
              * in non-mapped mode ?. Ignore ENOENT.
              */
+            goto err_out;
+        }
+    }
+    /*
+     * Now remove the name from parent directory
+     * .virtfs_metadata directory
+     */
+    buffer = local_mapped_attr_path(ctx, path);
+    err = remove(buffer);
+    g_free(buffer);
+    if (err < 0 && errno == ENOENT) {
+        /*
+         * We didn't had the .virtfs_metadata file. May be file created
+         * in non-mapped mode ?. Ignore ENOENT.
+         */
+        err = 0;
+    }
+
+err_out:
+    return err;
+}
+
+static int local_remove(FsContext *ctx, const char *path)
+{
+    int err;
+    char *buffer;
+
+    if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
+        err =  local_pre_remove_mapped_file(ctx, path);
+        if (err) {
             goto err_out;
         }
     }
