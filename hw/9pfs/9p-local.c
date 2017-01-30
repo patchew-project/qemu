@@ -84,6 +84,14 @@ static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
     errno = serrno;
 }
 
+static void renameat_preserve_errno(int odirfd, const char *opath, int ndirfd,
+                                    const char *npath)
+{
+    int serrno = errno;
+    renameat(odirfd, opath, ndirfd, npath);
+    errno = serrno;
+}
+
 #define VIRTFS_META_DIR ".virtfs_metadata"
 
 static char *local_mapped_attr_path(FsContext *ctx, const char *path)
@@ -1259,16 +1267,22 @@ static int local_post_rename_mapped_file(FsContext *ctx, const char *oldpath,
 static int local_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
-    int err;
-    char *buffer, *buffer1;
-    int serrno;
+    char *odirpath = local_dirname(oldpath);
+    char *oname = local_basename(oldpath);
+    char *ndirpath = local_dirname(newpath);
+    char *nname = local_basename(newpath);
+    int err = -1;
+    int odirfd, ndirfd;
 
-    buffer = rpath(ctx, oldpath);
-    buffer1 = rpath(ctx, newpath);
-    err = rename(buffer, buffer1);
-    if (err < 0) {
+    odirfd = local_opendir_nofollow(ctx, odirpath);
+    if (odirfd == -1) {
         goto out;
     }
+    ndirfd = local_opendir_nofollow(ctx, ndirpath);
+    if (ndirfd < 0) {
+        goto out_close_odirfd;
+    }
+    err = renameat(odirfd, oname, ndirfd, nname);
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         err = local_post_rename_mapped_file(ctx, oldpath, newpath);
@@ -1276,15 +1290,19 @@ static int local_rename(FsContext *ctx, const char *oldpath,
             goto err_out;
         }
     }
-    goto out;
+    goto out_close_ndirfd;
 
 err_out:
-    serrno = errno;
-    rename(buffer1, buffer);
-    errno = serrno;
+    renameat_preserve_errno(ndirfd, nname, odirfd, oname);
+out_close_ndirfd:
+    close_preserve_errno(ndirfd);
+out_close_odirfd:
+    close_preserve_errno(odirfd);
 out:
-    g_free(buffer);
-    g_free(buffer1);
+    g_free(nname);
+    g_free(ndirpath);
+    g_free(oname);
+    g_free(odirpath);
     return err;
 }
 
