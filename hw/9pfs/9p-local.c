@@ -77,6 +77,13 @@ char *local_basename(const char *path)
     return result;
 }
 
+static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
+{
+    int serrno = errno;
+    unlinkat(dirfd, path, flags);
+    errno = serrno;
+}
+
 #define VIRTFS_META_DIR ".virtfs_metadata"
 
 static char *local_mapped_attr_path(FsContext *ctx, const char *path)
@@ -319,31 +326,41 @@ static int local_set_xattr(const char *path, FsCred *credp)
     return 0;
 }
 
-static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
-                                         FsCred *credp)
+static int local_post_create_passthrough(FsContext *fs_ctx, int dirfd,
+                                         const char *name, FsCred *credp)
 {
-    char *buffer;
+    int fd, err = -1;
 
-    buffer = rpath(fs_ctx, path);
-    if (lchown(buffer, credp->fc_uid, credp->fc_gid) < 0) {
+    if (fchownat(dirfd, name, credp->fc_uid, credp->fc_gid,
+                 AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH) < 0) {
         /*
          * If we fail to change ownership and if we are
          * using security model none. Ignore the error
          */
         if ((fs_ctx->export_flags & V9FS_SEC_MASK) != V9FS_SM_NONE) {
-            goto err;
+            return -1;
         }
     }
 
-    if (chmod(buffer, credp->fc_mode & 07777) < 0) {
-        goto err;
+    if (name[0]) {
+        fd = openat_nofollow(dirfd, name, O_RDONLY, 0);
+        if (fd == -1) {
+            return -1;
+        }
+    } else {
+        fd = dirfd;
     }
 
-    g_free(buffer);
-    return 0;
-err:
-    g_free(buffer);
-    return -1;
+    if (fchmod(fd, credp->fc_mode & 07777) < 0) {
+        goto out;
+    }
+    err = 0;
+
+out:
+    if (name[0]) {
+        close_preserve_errno(fd);
+    }
+    return err;
 }
 
 static int readlink_nofollow(FsContext *fs_ctx, const char *path, char *buf,
@@ -637,34 +654,27 @@ out:
 static int local_mknod_passthrough(FsContext *fs_ctx, V9fsPath *dir_path,
                                    const char *name, FsCred *credp)
 {
-    char *path;
-    int err = -1;
-    int serrno = 0;
-    V9fsString fullname;
-    char *buffer = NULL;
+    int dirfd, err;
 
-    v9fs_string_init(&fullname);
-    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
-    path = fullname.data;
+    dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
+    if (dirfd == -1) {
+        return -1;
+    }
 
-    buffer = rpath(fs_ctx, path);
-    err = mknod(buffer, credp->fc_mode, credp->fc_rdev);
+    err = mknodat(dirfd, name, credp->fc_mode, credp->fc_rdev);
     if (err == -1) {
         goto out;
     }
-    err = local_post_create_passthrough(fs_ctx, path, credp);
+    err = local_post_create_passthrough(fs_ctx, dirfd, name, credp);
     if (err == -1) {
-        serrno = errno;
         goto err_end;
     }
     goto out;
 
 err_end:
-    remove(buffer);
-    errno = serrno;
+    unlinkat_preserve_errno(dirfd, name, 0);
 out:
-    g_free(buffer);
-    v9fs_string_free(&fullname);
+    close_preserve_errno(dirfd);
     return err;
 }
 
@@ -755,34 +765,27 @@ out:
 static int local_mkdir_passthrough(FsContext *fs_ctx, V9fsPath *dir_path,
                                    const char *name, FsCred *credp)
 {
-    char *path;
-    int err = -1;
-    int serrno = 0;
-    V9fsString fullname;
-    char *buffer = NULL;
+    int dirfd, err;
 
-    v9fs_string_init(&fullname);
-    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
-    path = fullname.data;
+    dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
+    if (dirfd == -1) {
+        return -1;
+    }
 
-    buffer = rpath(fs_ctx, path);
-    err = mkdir(buffer, credp->fc_mode);
+    err = mkdirat(dirfd, name, credp->fc_mode);
     if (err == -1) {
         goto out;
     }
-    err = local_post_create_passthrough(fs_ctx, path, credp);
+    err = local_post_create_passthrough(fs_ctx, dirfd, name, credp);
     if (err == -1) {
-        serrno = errno;
         goto err_end;
     }
     goto out;
 
 err_end:
-    remove(buffer);
-    errno = serrno;
+    unlinkat_preserve_errno(dirfd, name, AT_REMOVEDIR);
 out:
-    g_free(buffer);
-    v9fs_string_free(&fullname);
+    close_preserve_errno(dirfd);
     return err;
 }
 
@@ -939,44 +942,31 @@ static int local_open2_passthrough(FsContext *fs_ctx, V9fsPath *dir_path,
                                    const char *name, int flags, FsCred *credp,
                                    V9fsFidOpenState *fs)
 {
-    char *path;
-    int fd = -1;
     int err = -1;
-    int serrno = 0;
-    V9fsString fullname;
-    char *buffer = NULL;
+    int dirfd, fd;
 
-    /*
-     * Mark all the open to not follow symlinks
-     */
-    flags |= O_NOFOLLOW;
+    dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
+    if (dirfd == -1) {
+        return -1;
+    }
 
-    v9fs_string_init(&fullname);
-    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
-    path = fullname.data;
-
-    buffer = rpath(fs_ctx, path);
-    fd = open(buffer, flags, credp->fc_mode);
+    fd = openat(dirfd, name, flags | O_NOFOLLOW, credp->fc_mode);
     if (fd == -1) {
-        err = fd;
         goto out;
     }
-    err = local_post_create_passthrough(fs_ctx, path, credp);
+    err = local_post_create_passthrough(fs_ctx, fd, "", credp);
     if (err == -1) {
-        serrno = errno;
         goto err_end;
     }
-    err = fd;
     fs->fd = fd;
     goto out;
 
 err_end:
-    close(fd);
-    remove(buffer);
-    errno = serrno;
+    unlinkat_preserve_errno(dirfd, name,
+                            flags & O_DIRECTORY ? AT_REMOVEDIR : 0);
+    close_preserve_errno(fd);
 out:
-    g_free(buffer);
-    v9fs_string_free(&fullname);
+    close_preserve_errno(dirfd);
     return err;
 }
 
