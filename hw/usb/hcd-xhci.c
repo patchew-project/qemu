@@ -390,6 +390,7 @@ struct XHCIEPContext {
     dma_addr_t pctx;
     unsigned int max_psize;
     uint32_t state;
+    uint32_t kick_active;
 
     /* streams */
     unsigned int max_pstreams;
@@ -2131,6 +2132,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         return;
     }
 
+    if (!epctx->kick_active) {
+        return;
+    }
     xhci_kick_epctx(epctx, streamid);
 }
 
@@ -2154,6 +2158,9 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         !xhci->slots[epctx->slotid - 1].uport->dev->attached) {
         return;
     }
+
+    assert(!epctx->kick_active);
+    epctx->kick_active++;
 
     if (epctx->retry) {
         XHCITransfer *xfer = epctx->retry;
@@ -2253,6 +2260,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             break;
         }
     }
+    epctx->kick_active--;
 
     ep = xhci_epid_to_usbep(epctx);
     if (ep) {
