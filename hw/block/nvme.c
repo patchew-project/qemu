@@ -227,6 +227,90 @@ static uint16_t nvme_flush(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     return NVME_NO_COMPLETE;
 }
 
+static void nvme_discard_cb(void *opaque, int ret)
+{
+    NvmeRequest *req = opaque;
+    NvmeSQueue *sq = req->sq;
+    NvmeCtrl *n = sq->ctrl;
+    NvmeCQueue *cq = n->cq[sq->cqid];
+
+    if (ret) {
+        req->status = NVME_INTERNAL_DEV_ERROR;
+    }
+
+    if (--req->aio_inflight > 0) {
+        return;
+    }
+
+    nvme_enqueue_req_completion(cq, req);
+}
+
+
+static uint16_t nvme_dsm_discard(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+    NvmeRequest *req)
+{
+    uint16_t nr = (le32_to_cpu(cmd->cdw10) & 0xff) + 1;
+    uint8_t lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
+    uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds - BDRV_SECTOR_BITS;
+    NvmeDsmRange *range;
+    QEMUSGList qsg;
+    int i;
+
+    range = g_new(NvmeDsmRange, nr);
+
+    if (nvme_map_prp(&qsg, le64_to_cpu(cmd->prp1), le64_to_cpu(cmd->prp2),
+            sizeof(range), n)) {
+        goto out_free_range;
+    }
+
+    if (dma_buf_write((uint8_t *)range, sizeof(range), &qsg)) {
+        goto out_destroy_qsg;
+    }
+
+    qemu_sglist_destroy(&qsg);
+
+    req->status = NVME_SUCCESS;
+    req->has_sg = false;
+    req->aio_inflight = 1;
+
+    for (i = 0; i < nr; i++) {
+        uint64_t slba = le64_to_cpu(range[i].slba);
+        uint32_t nlb = le32_to_cpu(range[i].nlb);
+
+        if (slba + nlb > le64_to_cpu(ns->id_ns.nsze)) {
+            return NVME_LBA_RANGE | NVME_DNR;
+        }
+
+        req->aio_inflight++;
+        req->aiocb = blk_aio_pdiscard(n->conf.blk, slba << data_shift,
+                                      nlb << data_shift, nvme_discard_cb, req);
+    }
+
+    g_free(range);
+
+    if (--req->aio_inflight > 0) {
+        return NVME_NO_COMPLETE;
+    }
+
+    return NVME_SUCCESS;
+
+out_destroy_qsg:
+    qemu_sglist_destroy(&qsg);
+out_free_range:
+    g_free(range);
+    return NVME_INVALID_FIELD | NVME_DNR;
+}
+
+static uint16_t nvme_dsm(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+    NvmeRequest *req)
+{
+    if (cmd->cdw11 & cpu_to_le32(NVME_DSMGMT_AD)) {
+        return nvme_dsm_discard(n, ns, cmd, req);
+    } else {
+        return NVME_SUCCESS;
+    }
+}
+
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     NvmeRequest *req)
 {
@@ -279,6 +363,8 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     switch (cmd->opcode) {
     case NVME_CMD_FLUSH:
         return nvme_flush(n, ns, cmd, req);
+    case NVME_CMD_DSM:
+        return nvme_dsm(n, ns, cmd, req);
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
         return nvme_rw(n, ns, cmd, req);
@@ -889,6 +975,7 @@ static int nvme_init(PCIDevice *pci_dev)
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);
+    id->oncs = cpu_to_le16(NVME_ONCS_DSM);
     id->psd[0].mp = cpu_to_le16(0x9c4);
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
