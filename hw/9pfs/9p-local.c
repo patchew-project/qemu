@@ -1609,25 +1609,23 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir, const char *name,
                           int flags)
 {
     int ret;
-    V9fsString fullname;
-    char *buffer;
+    int dirfd;
 
-    v9fs_string_init(&fullname);
-    v9fs_string_sprintf(&fullname, "%s/%s", dir->data, name);
+    dirfd = local_opendir_nofollow(ctx, dir->data);
+    if (dirfd == -1) {
+        return -1;
+    }
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         ret = local_pre_unlinkat_mapped_file(ctx, dir, name, flags);
-        if (ret < 0) {
+        if (ret) {
             goto err_out;
         }
     }
-    /* Remove the name finally */
-    buffer = rpath(ctx, fullname.data);
-    ret = remove(buffer);
-    g_free(buffer);
 
+    ret = unlinkat(dirfd, name, flags);
 err_out:
-    v9fs_string_free(&fullname);
+    close_preserve_errno(dirfd);
     return ret;
 }
 
