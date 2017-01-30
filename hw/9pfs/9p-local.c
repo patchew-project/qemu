@@ -1287,13 +1287,21 @@ out:
 static int local_chown_passthrough(FsContext *fs_ctx, V9fsPath *fs_path,
                                    FsCred *credp)
 {
-    char *buffer;
-    int ret = -1;
-    char *path = fs_path->data;
+    char *dirpath = local_dirname(fs_path->data);
+    char *name = local_basename(fs_path->data);
+    int dirfd, ret = -1;
 
-    buffer = rpath(fs_ctx, path);
-    ret = lchown(buffer, credp->fc_uid, credp->fc_gid);
-    g_free(buffer);
+    dirfd = local_opendir_nofollow(fs_ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+    ret = fchownat(dirfd, name, credp->fc_uid, credp->fc_gid,
+                   AT_SYMLINK_NOFOLLOW);
+    close_preserve_errno(dirfd);
+
+out:
+    g_free(name);
+    g_free(dirpath);
     return ret;
 }
 
