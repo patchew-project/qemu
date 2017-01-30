@@ -1100,29 +1100,25 @@ static int local_symlink_passthrough(FsContext *fs_ctx, const char *oldpath,
                                      V9fsPath *dir_path, const char *name,
                                      FsCred *credp)
 {
-    int err = -1;
-    int serrno = 0;
-    char *newpath;
-    V9fsString fullname;
-    char *buffer = NULL;
+    int dirfd, err;
 
-    v9fs_string_init(&fullname);
-    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
-    newpath = fullname.data;
+    dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
+    if (dirfd == -1) {
+        return -1;
+    }
 
-    buffer = rpath(fs_ctx, newpath);
-    err = symlink(oldpath, buffer);
+    err = symlinkat(oldpath, dirfd, name);
     if (err) {
         goto out;
     }
-    err = lchown(buffer, credp->fc_uid, credp->fc_gid);
+    err = fchownat(dirfd, name, credp->fc_uid, credp->fc_gid,
+                   AT_SYMLINK_NOFOLLOW);
     if (err == -1) {
         /*
          * If we fail to change ownership and if we are
          * using security model none. Ignore the error
          */
         if ((fs_ctx->export_flags & V9FS_SEC_MASK) != V9FS_SM_NONE) {
-            serrno = errno;
             goto err_end;
         } else {
             err = 0;
@@ -1131,11 +1127,9 @@ static int local_symlink_passthrough(FsContext *fs_ctx, const char *oldpath,
     goto out;
 
 err_end:
-    remove(buffer);
-    errno = serrno;
+    unlinkat_preserve_errno(dirfd, name, 0);
 out:
-    g_free(buffer);
-    v9fs_string_free(&fullname);
+    close_preserve_errno(dirfd);
     return err;
 }
 
