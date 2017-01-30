@@ -461,25 +461,53 @@ static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
     return ret;
 }
 
-static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
+static int local_chmod_mapped(FsContext *fs_ctx, V9fsPath *fs_path,
+                              FsCred *credp)
 {
     char *buffer;
     int ret = -1;
     char *path = fs_path->data;
 
+    buffer = rpath(fs_ctx, path);
+    ret = local_set_xattr(buffer, credp);
+    g_free(buffer);
+
+    return ret;
+}
+
+static int local_chmod_passthrough(FsContext *fs_ctx, V9fsPath *fs_path,
+                                   FsCred *credp)
+{
+    char *buffer;
+    int ret = -1;
+    char *path = fs_path->data;
+
+    buffer = rpath(fs_ctx, path);
+    ret = chmod(buffer, credp->fc_mode);
+    g_free(buffer);
+
+    return ret;
+}
+
+static int local_chmod_mapped_file(FsContext *fs_ctx, V9fsPath *fs_path,
+                                   FsCred *credp)
+{
+    char *path = fs_path->data;
+
+    return local_set_mapped_file_attr(fs_ctx, path, credp);
+}
+
+static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
+{
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
-        buffer = rpath(fs_ctx, path);
-        ret = local_set_xattr(buffer, credp);
-        g_free(buffer);
+        return local_chmod_mapped(fs_ctx, fs_path, credp);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        return local_set_mapped_file_attr(fs_ctx, path, credp);
+        return local_chmod_mapped_file(fs_ctx, fs_path, credp);
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
-        buffer = rpath(fs_ctx, path);
-        ret = chmod(buffer, credp->fc_mode);
-        g_free(buffer);
+        return local_chmod_passthrough(fs_ctx, fs_path, credp);
     }
-    return ret;
+    g_assert_not_reached();
 }
 
 static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
