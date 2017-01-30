@@ -551,13 +551,14 @@ static int local_chmod_mapped(FsContext *fs_ctx, V9fsPath *fs_path,
 static int local_chmod_passthrough(FsContext *fs_ctx, V9fsPath *fs_path,
                                    FsCred *credp)
 {
-    char *buffer;
-    int ret = -1;
-    char *path = fs_path->data;
+    int fd, ret;
 
-    buffer = rpath(fs_ctx, path);
-    ret = chmod(buffer, credp->fc_mode);
-    g_free(buffer);
+    fd = local_open_nofollow(fs_ctx, fs_path->data, O_RDONLY, 0);
+    if (fd == -1) {
+        return -1;
+    }
+    ret = fchmod(fd, credp->fc_mode);
+    close_preserve_errno(fd);
 
     return ret;
 }
