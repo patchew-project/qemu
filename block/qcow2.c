@@ -1152,6 +1152,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Clear unknown autoclear feature bits */
+    s->autoclear_features = 1;
     if (!bs->read_only && !(flags & BDRV_O_INACTIVE) && s->autoclear_features) {
         s->autoclear_features = 0;
         ret = qcow2_update_header(bs);

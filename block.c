@@ -3263,6 +3263,29 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
     }
 }
 
+static void bdrv_invalidate_cache_recurse(BlockDriverState *bs, Error **errp)
+{
+    Error *local_err = NULL;
+    AioContext *aio_context = bdrv_get_aio_context(bs);
+    BdrvChild *child;
+
+    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
+        return;
+    }
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_invalidate_cache_recurse(child->bs, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    aio_context_acquire(aio_context);
+    bdrv_invalidate_cache(bs, errp);
+    aio_context_release(aio_context);
+}
+
 void bdrv_invalidate_cache_all(Error **errp)
 {
     BlockDriverState *bs;
@@ -3270,11 +3293,7 @@ void bdrv_invalidate_cache_all(Error **errp)
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(aio_context);
-        bdrv_invalidate_cache(bs, &local_err);
-        aio_context_release(aio_context);
+        bdrv_invalidate_cache_recurse(bs, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
