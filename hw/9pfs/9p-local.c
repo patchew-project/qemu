@@ -1432,8 +1432,17 @@ err_out:
 
 static int local_remove(FsContext *ctx, const char *path)
 {
-    int err;
-    char *buffer;
+    char *dirpath = local_dirname(path);
+    char *name = local_basename(path);
+    struct stat stbuf;
+    int flags = 0;
+    int err = -1;
+    int dirfd;
+
+    dirfd = local_opendir_nofollow(ctx, dirpath);
+    if (dirfd) {
+        goto out;
+    }
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         err =  local_pre_remove_mapped_file(ctx, path);
@@ -1442,10 +1451,19 @@ static int local_remove(FsContext *ctx, const char *path)
         }
     }
 
-    buffer = rpath(ctx, path);
-    err = remove(buffer);
-    g_free(buffer);
+    if (fstatat(dirfd, path, &stbuf, AT_SYMLINK_NOFOLLOW) < 0) {
+        goto err_out;
+    }
+    if (S_ISDIR(stbuf.st_mode)) {
+        flags |= AT_REMOVEDIR;
+    }
+
+    err = unlinkat(dirfd, name, flags);
 err_out:
+    close_preserve_errno(dirfd);
+out:
+    g_free(name);
+    g_free(dirpath);
     return err;
 }
 
