@@ -61,6 +61,22 @@ int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
     return local_open_nofollow(fs_ctx, path, O_DIRECTORY | O_RDONLY, 0);
 }
 
+char *local_dirname(const char *path)
+{
+    char *tmp_path = g_strdup(path);
+    char *result = g_strdup(dirname(tmp_path));
+    g_free(tmp_path);
+    return result;
+}
+
+char *local_basename(const char *path)
+{
+    char *tmp_path = g_strdup(path);
+    char *result = g_strdup(basename(tmp_path));
+    g_free(tmp_path);
+    return result;
+}
+
 #define VIRTFS_META_DIR ".virtfs_metadata"
 
 static char *local_mapped_attr_path(FsContext *ctx, const char *path)
@@ -1313,16 +1329,23 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     g_assert_not_reached();
 }
 
-static int local_utimensat(FsContext *s, V9fsPath *fs_path,
+static int local_utimensat(FsContext *fs_ctx, V9fsPath *fs_path,
                            const struct timespec *buf)
 {
-    char *buffer;
-    int ret;
-    char *path = fs_path->data;
+    char *dirpath = local_dirname(fs_path->data);
+    char *name = local_basename(fs_path->data);
+    int dirfd, ret = -1;
 
-    buffer = rpath(s, path);
-    ret = qemu_utimens(buffer, buf);
-    g_free(buffer);
+    dirfd = local_opendir_nofollow(fs_ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+
+    ret = utimensat(dirfd, name, buf, AT_SYMLINK_NOFOLLOW);
+    close_preserve_errno(dirfd);
+out:
+    g_free(dirpath);
+    g_free(name);
     return ret;
 }
 

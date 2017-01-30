@@ -16,5 +16,7 @@
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode);
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path);
+char *local_dirname(const char *path);
+char *local_basename(const char *path);
 
 #endif
