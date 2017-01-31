@@ -4055,11 +4055,6 @@ int main(int argc, char **argv, char **envp)
         qemu_set_hw_version(machine_class->hw_version);
     }
 
-    if (cpu_model && is_help_option(cpu_model)) {
-        list_cpus(stdout, &fprintf, cpu_model);
-        exit(0);
-    }
-
     if (!trace_init_backends()) {
         exit(1);
     }
@@ -4297,6 +4292,11 @@ int main(int argc, char **argv, char **envp)
     }
 
     configure_accelerator(current_machine);
+
+    if (cpu_model && is_help_option(cpu_model)) {
+        list_cpus(stdout, &fprintf, cpu_model);
+        exit(0);
+    }
 
     if (qtest_chrdev) {
         qtest_init(qtest_chrdev, qtest_log, &error_fatal);
