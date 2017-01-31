@@ -1,0 +1,9 @@
+QA output created by 173
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=262144
+
+== reading wrong format should fail ==
+can't open device TEST_DIR/t.raw: Image is not in qcow2 format
+
+== reading missing file should fail ==
+can't open device TEST_DIR/missing: Could not open 'TEST_DIR/missing': No such file or directory
+*** done
