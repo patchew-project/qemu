@@ -283,13 +283,18 @@ void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov)
     qiov->niov = niov;
     qiov->nalloc = -1;
     qiov->size = 0;
-    for (i = 0; i < niov; i++)
+    for (i = 0; i < niov; i++) {
+        assert(iov[i].iov_len <= INT_MAX);
+        assert(qiov->size <= INT_MAX - iov[i].iov_len);
         qiov->size += iov[i].iov_len;
+    }
 }
 
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
 {
     assert(qiov->nalloc != -1);
+    assert(len <= INT_MAX);
+    assert(qiov->size <= INT_MAX - len);
 
     if (qiov->niov == qiov->nalloc) {
         qiov->nalloc = 2 * qiov->nalloc + 1;
