@@ -298,6 +298,51 @@
   'data':    { 'handle': 'int', 'buf-b64': 'str', '*count': 'int' },
   'returns': 'GuestFileWrite' }
 
+##
+# @GuestFileIOCTL:
+#
+# Result of guest agent file-ioctl operation
+#
+# @retcode: return value of the IOCTL call
+#
+# @count: number of output bytes (note: count is *before*
+#         base64-encoding is applied)
+#
+# @buf-b64: base64-encoded output bytes
+#
+# Since: 2.9
+##
+{ 'struct': 'GuestFileIOCTL',
+  'data': { 'retcode': 'int', 'count': 'int', 'buf-b64': 'str' } }
+
+##
+# @guest-file-ioctl:
+#
+# Issue an IOCTL to an open file in the guest.
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @code: device-dependent request code
+#
+# @out-count: output bytes expected to be returned by the IOCTL
+#
+# @in-buf-b64: base64-encoded string representing input data
+#
+# @in-count: #optional input bytes (actual bytes, after base64-decode),
+#            default is all content in in-buf-b64 buffer after base64 decoding
+#
+# @int-arg: #optional integer input argument to be used instead of buf-b64,
+#           it is an error to pass both a non-empty in-buf-b64 and int-arg
+#           and to pass both a non-zero out-count and int-arg
+#
+# Returns: @GuestFileIOCTL on success.
+#
+# Since: 2.9
+##
+{ 'command': 'guest-file-ioctl',
+  'data':    { 'handle': 'int', 'code': 'int', 'out-count': 'int',
+               'in-buf-b64': 'str', '*in-count': 'int', '*int-arg': 'int' },
+  'returns': 'GuestFileIOCTL' }
 
 ##
 # @GuestFileSeek:

@@ -547,6 +547,84 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     return write_data;
 }
 
+GuestFileIOCTL *qmp_guest_file_ioctl(int64_t handle, int64_t code,
+                                     int64_t out_count, const char *in_buf_b64,
+                                     bool has_in_count, int64_t in_count,
+                                     bool has_int_arg, int64_t int_arg,
+                                     Error **errp)
+{
+    GuestFileIOCTL *ioctl_data = NULL;
+    guchar *buf;
+    gsize buf_len;
+    int ioctl_retval;
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
+    int fd;
+
+    if (!gfh) {
+        return NULL;
+    }
+    fd = fileno(gfh->fh);
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "failed to get fd");
+        return NULL;
+    }
+
+    buf = qbase64_decode(in_buf_b64, -1, &buf_len, errp);
+    if (!buf) {
+        return NULL;
+    }
+    if (has_int_arg && buf_len) {
+        error_setg(errp,
+            "int-arg and non-empty in-buf-b64 must not be specified at the same time");
+        g_free(buf);
+        return NULL;
+    }
+    if (has_int_arg && out_count) {
+        error_setg(errp,
+            "int-arg and non-zero out-count must not be specified at the same time");
+        g_free(buf);
+        return NULL;
+    }
+
+    if (!has_in_count) {
+        in_count = buf_len;
+    } else if (in_count < 0 || in_count > buf_len) {
+        error_setg(errp, "value '%" PRId64 "' is invalid for argument in-count",
+                   in_count);
+        g_free(buf);
+        return NULL;
+    }
+
+    /* there's only one input/output buffer so make sure it's large enough */
+    if (out_count > buf_len) {
+        guchar *old_buf = buf;
+        buf = g_malloc(out_count);
+
+        memcpy(buf, old_buf, buf_len);
+        memset(buf + buf_len, 0, out_count - buf_len);
+        g_free(old_buf);
+    }
+
+    if (has_int_arg) {
+        ioctl_retval = ioctl(fd, code, int_arg);
+    } else {
+        ioctl_retval = ioctl(fd, code, buf);
+    }
+
+    if (ioctl_retval < 0) {
+        error_setg_errno(errp, errno, "failed to issue IOCTL to file");
+        slog("guest-file-ioctl failed, handle: %" PRId64, handle);
+    } else {
+        ioctl_data = g_new0(GuestFileIOCTL, 1);
+        ioctl_data->retcode = ioctl_retval;
+        ioctl_data->count = out_count;
+        ioctl_data->buf_b64 = g_base64_encode(buf, out_count);
+    }
+    g_free(buf);
+
+    return ioctl_data;
+}
+
 struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
                                           GuestFileWhence *whence_code,
                                           Error **errp)

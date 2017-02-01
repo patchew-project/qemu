@@ -381,6 +381,72 @@ done:
     return write_data;
 }
 
+GuestFileIOCTL *qmp_guest_file_ioctl(int64_t handle, int64_t code,
+                                     int64_t out_count, const char *in_buf_b64,
+                                     bool has_in_count, int64_t in_count,
+                                     bool has_int_arg, int64_t int_arg,
+                                     Error **errp)
+{
+    GuestFileIOCTL *ioctl_data = NULL;
+    guchar *in_buf = NULL, *out_buf = NULL;
+    gsize in_buf_len;
+    BOOL is_ok;
+    GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
+    DWORD bytes_returned;
+    HANDLE fh;
+
+    if (!gfh) {
+        return NULL;
+    }
+    fh = gfh->fh;
+    in_buf = qbase64_decode(in_buf_b64, -1, &in_buf_len, errp);
+    if (!in_buf) {
+        return NULL;
+    }
+    if (has_int_arg) {
+        error_setg(errp, "integer arguments are not supported");
+        goto done;
+    }
+
+    if (!has_in_count) {
+        in_count = in_buf_len;
+    } else if (in_count < 0 || in_count > in_buf_len) {
+        error_setg(errp, "value '%" PRId64
+                   "' is invalid for argument in-count", in_count);
+        goto done;
+    }
+
+    if (out_count < 0) {
+        error_setg(errp, "value '%" PRId64
+                   "' is invalid for argument out-count", out_count);
+        goto done;
+    }
+    if (out_count > 0) {
+        out_buf = g_malloc(out_count);
+    }
+
+    is_ok = DeviceIoControl(fh, code, in_buf, in_count, out_buf, out_count,
+                            &bytes_returned, NULL);
+    if (!is_ok) {
+        error_setg_win32(errp, GetLastError(), "failed to issue IOCTL to file");
+        slog("guest-file-ioctl-failed, handle: %" PRId64, handle);
+    } else {
+        ioctl_data = g_new0(GuestFileIOCTL, 1);
+        ioctl_data->retcode = is_ok;
+        ioctl_data->count = bytes_returned;
+        if (out_buf) {
+            ioctl_data->buf_b64 = g_base64_encode(out_buf, bytes_returned);
+        } else {
+            ioctl_data->buf_b64 = g_strdup("");
+        }
+    }
+
+done:
+    g_free(in_buf);
+    g_free(out_buf);
+    return ioctl_data;
+}
+
 GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
                                    GuestFileWhence *whence_code,
                                    Error **errp)
