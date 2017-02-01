@@ -1342,6 +1342,7 @@ static void * const qemu_ld_helpers[] = {
     [MO_BEUW] = helper_be_lduw_mmu,
     [MO_BEUL] = helper_be_ldul_mmu,
     [MO_BEQ]  = helper_be_ldq_mmu,
+    [MO_128]  = helper_te_ldv128_mmu,
 };
 
 /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
@@ -1355,6 +1356,7 @@ static void * const qemu_st_helpers[] = {
     [MO_BEUW] = helper_be_stw_mmu,
     [MO_BEUL] = helper_be_stl_mmu,
     [MO_BEQ]  = helper_be_stq_mmu,
+    [MO_128]  = helper_te_stv128_mmu,
 };
 
 /* Perform the TLB load and compare.
@@ -1521,12 +1523,30 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
         ofs += 4;
 
         tcg_out_sti(s, TCG_TYPE_PTR, (uintptr_t)l->raddr, TCG_REG_ESP, ofs);
+
+        if ((opc & MO_SSIZE) == MO_128) {
+            ofs += 4;
+            tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_EAX, TCG_REG_ESP);
+            tcg_out_addi(s, TCG_REG_EAX, TCG_STATIC_CALL_ARGS_SIZE - 16);
+            tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_EAX, TCG_REG_ESP, ofs);
+        }
     } else {
         tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
         tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2], oi);
         tcg_out_movi(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[3],
                      (uintptr_t)l->raddr);
+        if ((opc & MO_SSIZE) == MO_128) {
+            tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_EAX, TCG_REG_ESP);
+            tcg_out_addi(s, TCG_REG_EAX, TCG_STATIC_CALL_ARGS_SIZE - 16);
+            if (ARRAY_SIZE(tcg_target_call_iarg_regs) > 4) {
+                tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[4],
+                            TCG_REG_EAX);
+            } else {
+                tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_EAX,
+                            TCG_REG_ESP, TCG_TARGET_CALL_STACK_OFFSET);
+            }
+        }
     }
 
     tcg_out_call(s, qemu_ld_helpers[opc & (MO_BSWAP | MO_SIZE)]);
@@ -1561,6 +1581,11 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
             tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_EAX);
             tcg_out_mov(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_EDX);
         }
+        break;
+    case MO_128:
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_EAX, TCG_REG_ESP);
+        tcg_out_addi(s, TCG_REG_EAX, TCG_STATIC_CALL_ARGS_SIZE - 16);
+        tcg_out_ld(s, TCG_TYPE_V128, l->datalo_reg, TCG_REG_EAX, 0);
         break;
     default:
         tcg_abort();
@@ -1601,12 +1626,20 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
             ofs += 4;
         }
 
-        tcg_out_st(s, TCG_TYPE_I32, l->datalo_reg, TCG_REG_ESP, ofs);
-        ofs += 4;
-
-        if (s_bits == MO_64) {
-            tcg_out_st(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_ESP, ofs);
+        if (s_bits == MO_128) {
+            tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_EAX, TCG_REG_ESP);
+            tcg_out_addi(s, TCG_REG_EAX, TCG_STATIC_CALL_ARGS_SIZE - 16);
+            tcg_out_st(s, TCG_TYPE_V128, l->datalo_reg, TCG_REG_EAX, 0);
+            tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_EAX, TCG_REG_ESP, ofs);
             ofs += 4;
+        } else {
+            tcg_out_st(s, TCG_TYPE_I32, l->datalo_reg, TCG_REG_ESP, ofs);
+            ofs += 4;
+
+            if (s_bits == MO_64) {
+                tcg_out_st(s, TCG_TYPE_I32, l->datahi_reg, TCG_REG_ESP, ofs);
+                ofs += 4;
+            }
         }
 
         tcg_out_sti(s, TCG_TYPE_I32, oi, TCG_REG_ESP, ofs);
@@ -1618,8 +1651,16 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     } else {
         tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0], TCG_AREG0);
         /* The second argument is already loaded with addrlo.  */
-        tcg_out_mov(s, (s_bits == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32),
-                    tcg_target_call_iarg_regs[2], l->datalo_reg);
+        if (s_bits == MO_128) {
+            tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_RAX, TCG_REG_ESP);
+            tcg_out_addi(s, TCG_REG_RAX, TCG_STATIC_CALL_ARGS_SIZE - 16);
+            tcg_out_st(s, TCG_TYPE_V128, l->datalo_reg, TCG_REG_RAX, 0);
+            tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[2],
+                        TCG_REG_RAX);
+        } else {
+            tcg_out_mov(s, (s_bits == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32),
+                        tcg_target_call_iarg_regs[2], l->datalo_reg);
+        }
         tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3], oi);
 
         if (ARRAY_SIZE(tcg_target_call_iarg_regs) > 4) {
@@ -1750,6 +1791,10 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                 tcg_out_bswap32(s, datahi);
             }
         }
+        break;
+    case MO_128:
+        tcg_out_modrm_sib_offset(s, OPC_MOVDQU_M2R + seg, datalo,
+                                 base, index, 0, ofs);
         break;
     default:
         tcg_abort();
@@ -1893,6 +1938,9 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
             tcg_out_modrm_offset(s, movop + seg, datalo, base, ofs);
             tcg_out_modrm_offset(s, movop + seg, datahi, base, ofs+4);
         }
+        break;
+    case MO_128:
+        tcg_out_modrm_offset(s, OPC_MOVDQU_R2M + seg, datalo, base, ofs);
         break;
     default:
         tcg_abort();
@@ -2264,11 +2312,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_ld_i64:
         tcg_out_qemu_ld(s, args, 1);
         break;
+    case INDEX_op_qemu_ld_v128:
+        tcg_out_qemu_ld(s, args, 0);
+        break;
     case INDEX_op_qemu_st_i32:
         tcg_out_qemu_st(s, args, 0);
         break;
     case INDEX_op_qemu_st_i64:
         tcg_out_qemu_st(s, args, 1);
+        break;
+    case INDEX_op_qemu_st_v128:
+        tcg_out_qemu_st(s, args, 0);
         break;
 
     OP_32_64(mulu2):
