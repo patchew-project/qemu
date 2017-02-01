@@ -712,6 +712,18 @@ TCGv_v128 tcg_temp_new_internal_v128(int temp_local)
     return MAKE_TCGV_V128(idx);
 }
 
+int tcg_temp_half_internal(int arg, TCGType type, int is_high)
+{
+    const TCGTemp *ts = &tcg_ctx.temps[arg];
+    tcg_debug_assert(ts->type != ts->base_type);
+    tcg_debug_assert(tcg_type_size(type) > tcg_type_size(ts->type));
+    tcg_debug_assert(tcg_type_size(type) <= tcg_type_size(ts->base_type));
+    if (is_high) {
+        arg += tcg_type_size(type) / tcg_type_size(ts->type) / 2;
+    }
+    return arg;
+}
+
 static void tcg_temp_free_internal(int idx)
 {
     TCGContext *s = &tcg_ctx;

@@ -3038,3 +3038,67 @@ static void tcg_gen_mov2_i64(TCGv_i64 r, TCGv_i64 a, TCGv_i64 b)
 GEN_ATOMIC_HELPER(xchg, mov2, 0)
 
 #undef GEN_ATOMIC_HELPER
+
+/* Find a memory location for 128-bit TCG variable. */
+void tcg_v128_to_ptr(TCGv_v128 tmp, TCGv_ptr base, int slot,
+                     TCGv_ptr *real_base, intptr_t *real_offset, int is_read)
+{
+    int idx = GET_TCGV_V128(tmp);
+    assert(idx >= 0 && idx < tcg_ctx.nb_temps);
+    if (idx < tcg_ctx.nb_globals) {
+        /* Globals use their locations within CPUArchState. */
+        int env = GET_TCGV_PTR(tcg_ctx.tcg_env);
+        TCGTemp *ts_env = &tcg_ctx.temps[env];
+        TCGTemp *ts_arg = &tcg_ctx.temps[idx];
+
+        /* Sanity checks: global's memory locations must be addressed
+           relative to ENV. */
+        assert(ts_env->val_type == TEMP_VAL_REG &&
+               ts_env == ts_arg->mem_base &&
+               ts_arg->mem_allocated);
+
+        *real_base = tcg_ctx.tcg_env;
+        *real_offset = ts_arg->mem_offset;
+    } else {
+        /* Temporaries use swap space in TCGContext. Since we already have
+           a 128-bit temporary we'll assume that the target supports 128-bit
+           loads and stores. */
+        *real_base = base;
+        *real_offset = slot * 16;
+        if (is_read) {
+            tcg_gen_st_v128(tmp, base, slot * 16);
+        }
+    }
+}
+
+/* Find a memory location for 64-bit vector TCG variable. */
+void tcg_v64_to_ptr(TCGv_v64 tmp, TCGv_ptr base, int slot,
+                    TCGv_ptr *real_base, intptr_t *real_offset, int is_read)
+{
+    int idx = GET_TCGV_V64(tmp);
+    assert(idx >= 0 && idx < tcg_ctx.nb_temps);
+    if (idx < tcg_ctx.nb_globals) {
+        /* Globals use their locations within CPUArchState. */
+        int env = GET_TCGV_PTR(tcg_ctx.tcg_env);
+        TCGTemp *ts_env = &tcg_ctx.temps[env];
+        TCGTemp *ts_arg = &tcg_ctx.temps[idx];
+
+        /* Sanity checks: global's memory locations must be addressed
+           relative to ENV. */
+        assert(ts_env->val_type == TEMP_VAL_REG &&
+               ts_env == ts_arg->mem_base &&
+               ts_arg->mem_allocated);
+
+        *real_base = tcg_ctx.tcg_env;
+        *real_offset = ts_arg->mem_offset;
+    } else {
+        /* Temporaries use swap space in TCGContext. Since we already have
+           a 128-bit temporary we'll assume that the target supports 128-bit
+           loads and stores. */
+        *real_base = base;
+        *real_offset = slot * 16;
+        if (is_read) {
+            tcg_gen_st_v64(tmp, base, slot * 16);
+        }
+    }
+}

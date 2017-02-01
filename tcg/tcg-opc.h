@@ -206,6 +206,18 @@ DEF(ld_v128, 1, 1, 1, IMPL128)
 DEF(st_v64, 0, 2, 1, IMPLV64)
 DEF(ld_v64, 1, 1, 1, IMPLV64)
 
+/* 128-bit vector arith */
+DEF(add_i8x16, 1, 2, 0, IMPL128 | IMPL(TCG_TARGET_HAS_add_i8x16))
+DEF(add_i16x8, 1, 2, 0, IMPL128 | IMPL(TCG_TARGET_HAS_add_i16x8))
+DEF(add_i32x4, 1, 2, 0, IMPL128 | IMPL(TCG_TARGET_HAS_add_i32x4))
+DEF(add_i64x2, 1, 2, 0, IMPL128 | IMPL(TCG_TARGET_HAS_add_i64x2))
+
+/* 64-bit vector arith */
+DEF(add_i8x8, 1, 2, 0, IMPLV64 | IMPL(TCG_TARGET_HAS_add_i8x8))
+DEF(add_i16x4, 1, 2, 0, IMPLV64 | IMPL(TCG_TARGET_HAS_add_i16x4))
+DEF(add_i32x2, 1, 2, 0, IMPLV64 | IMPL(TCG_TARGET_HAS_add_i32x2))
+DEF(add_i64x1, 1, 2, 0, IMPLV64 | IMPL(TCG_TARGET_HAS_add_i64x1))
+
 /* QEMU specific */
 DEF(insn_start, 0, 0, TLADDR_ARGS * TARGET_INSN_START_WORDS,
     TCG_OPF_NOT_PRESENT)
