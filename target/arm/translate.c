@@ -5628,6 +5628,37 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             return 1;
         }
 
+        /* Use vector ops to handle what we can */
+        switch (op) {
+        case NEON_3R_VADD_VSUB:
+            if (!u) {
+                void (* const gen_add_v128[])(TCGv_v128, TCGv_v128,
+                                             TCGv_v128) = {
+                    tcg_gen_add_i8x16,
+                    tcg_gen_add_i16x8,
+                    tcg_gen_add_i32x4,
+                    tcg_gen_add_i64x2
+                };
+                void (* const gen_add_v64[])(TCGv_v64, TCGv_v64,
+                                             TCGv_v64) = {
+                    tcg_gen_add_i8x8,
+                    tcg_gen_add_i16x4,
+                    tcg_gen_add_i32x2,
+                    tcg_gen_add_i64x1
+                };
+                if (q) {
+                    gen_add_v128[size](cpu_Q[rd >> 1], cpu_Q[rn >> 1],
+                                       cpu_Q[rm >> 1]);
+                } else {
+                    gen_add_v64[size](cpu_D[rd], cpu_D[rn], cpu_D[rm]);
+                }
+                return 0;
+            }
+            break;
+        default:
+            break;
+        }
+
         for (pass = 0; pass < (q ? 4 : 2); pass++) {
 
         if (pairwise) {
