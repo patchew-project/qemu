@@ -390,6 +390,9 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_MOVDQU_M2R  (0x6f | P_SSE_F30F)  /* store 128-bit value */
 #define OPC_MOVDQU_R2M  (0x7f | P_SSE_F30F)  /* load 128-bit value */
 #define OPC_MOVDQA_R2R  (0x6f | P_SSE_660F)  /* reg-to-reg 128-bit mov */
+#define OPC_MOVQ_M2R    (0x7e | P_SSE_F30F)
+#define OPC_MOVQ_R2M    (0xd6 | P_SSE_660F)
+#define OPC_MOVQ_R2R    (0x7e | P_SSE_F30F)
 #define OPC_PADDD       (0xfe | P_SSE_660F)
 
 /* Group 1 opcode extensions for 0x80-0x83.
@@ -700,6 +703,15 @@ static inline void tcg_out_mov(TCGContext *s, TCGType type,
                 tcg_out_modrm(s, OPC_MOVDQA_R2R, ret, arg);
             }
             break;
+        case TCG_TYPE_V64:
+            ret -= TCG_REG_XMM0;
+            arg -= TCG_REG_XMM0;
+            if (have_avx) {
+                tcg_out_vex_modrm(s, OPC_MOVQ_R2R, ret, 15, arg);
+            } else {
+                tcg_out_modrm(s, OPC_MOVQ_R2R, ret, arg);
+            }
+            break;
         case TCG_TYPE_I32:
         case TCG_TYPE_I64:
             opc = OPC_MOVL_GvEv + (type == TCG_TYPE_I64 ? P_REXW : 0);
@@ -788,6 +800,10 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
         ret -= TCG_REG_XMM0;
         tcg_out_modrm_offset(s, OPC_MOVDQU_M2R, ret, arg1, arg2);
         break;
+    case TCG_TYPE_V64:
+        ret -= TCG_REG_XMM0;
+        tcg_out_modrm_offset(s, OPC_MOVQ_M2R, ret, arg1, arg2);
+        break;
     case TCG_TYPE_I32:
     case TCG_TYPE_I64:
         opc = OPC_MOVL_GvEv + (type == TCG_TYPE_I64 ? P_REXW : 0);
@@ -806,6 +822,10 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     case TCG_TYPE_V128:
         arg -= TCG_REG_XMM0;
         tcg_out_modrm_offset(s, OPC_MOVDQU_R2M, arg, arg1, arg2);
+        break;
+    case TCG_TYPE_V64:
+        arg -= TCG_REG_XMM0;
+        tcg_out_modrm_offset(s, OPC_MOVQ_R2M, arg, arg1, arg2);
         break;
     case TCG_TYPE_I32:
     case TCG_TYPE_I64:
@@ -2407,6 +2427,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_ld_v128:
     case INDEX_op_st_v128:
+    case INDEX_op_ld_v64:
+    case INDEX_op_st_v64:
         return &V_r;
 
     case INDEX_op_st8_i32:

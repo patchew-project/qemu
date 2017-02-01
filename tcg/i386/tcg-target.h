@@ -31,6 +31,7 @@
 #ifdef __x86_64__
 # if defined(TARGET_WORDS_BIGENDIAN) == defined(HOST_WORDS_BIGENDIAN)
 #  define TCG_TARGET_HAS_REG128 1
+#  define TCG_TARGET_HAS_REGV64 1
 # endif
 # ifdef TCG_TARGET_HAS_REG128
 #  define TCG_TARGET_REG_BITS  64
