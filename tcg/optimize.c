@@ -55,7 +55,7 @@ static inline bool temp_is_copy(TCGArg arg)
 }
 
 /* Reset TEMP's state, possibly removing the temp for the list of copies.  */
-static void reset_temp(TCGArg temp)
+static void reset_this_temp(TCGArg temp)
 {
     temps[temps[temp].next_copy].prev_copy = temps[temp].prev_copy;
     temps[temps[temp].prev_copy].next_copy = temps[temp].next_copy;
@@ -64,6 +64,23 @@ static void reset_temp(TCGArg temp)
     temps[temp].is_const = false;
     temps[temp].is_base = false;
     temps[temp].mask = -1;
+}
+
+static void reset_temp(TCGArg temp)
+{
+    int i;
+    TCGTemp *ts = &tcg_ctx.temps[temp];
+    reset_this_temp(temp);
+    if (ts->sub_temps) {
+        for (i = 0; ts->sub_temps[i] != (TCGArg)-1; i++) {
+            reset_this_temp(ts->sub_temps[i]);
+        }
+    }
+    if (ts->overlap_temps) {
+        for (i = 0; ts->overlap_temps[i] != (TCGArg)-1; i++) {
+            reset_this_temp(ts->overlap_temps[i]);
+        }
+    }
 }
 
 /* Reset all temporaries, given that there are NB_TEMPS of them.  */

@@ -623,9 +623,13 @@ int tcg_global_mem_new_internal(TCGType base_type, TCGv_ptr base,
             ts2->mem_base = base_ts;
             ts2->mem_offset = offset + cur_offset;
             ts2->name = g_strdup_printf("%s_%d", name, i);
+            ts2->sub_temps = NULL;
+            ts2->overlap_temps = NULL;
             ts1 = ts2;
         }
     }
+    ts->sub_temps = NULL;
+    ts->overlap_temps = NULL;
     return temp_idx(s, ts);
 }
 
@@ -1514,6 +1518,35 @@ static int tcg_temp_overlap(TCGContext *s, const TCGTemp *tmp,
     }
 }
 
+static void tcg_temp_arr_apply(const TCGArg *arr, uint8_t *temp_state,
+                               uint8_t temp_val)
+{
+    TCGArg i;
+    if (!arr) {
+        return ;
+    }
+    for (i = 0; arr[i] != (TCGArg)-1; i++) {
+        temp_state[arr[i]] = temp_val;
+    }
+}
+
+static void tcg_sub_temps_dead(TCGContext *s, TCGArg tmp, uint8_t *temp_state)
+{
+    tcg_temp_arr_apply(s->temps[tmp].sub_temps, temp_state, TS_DEAD);
+}
+
+static void tcg_sub_temps_sync(TCGContext *s, TCGArg tmp, uint8_t *temp_state)
+{
+    tcg_temp_arr_apply(s->temps[tmp].sub_temps, temp_state, TS_MEM | TS_DEAD);
+}
+
+static void tcg_overlap_temps_sync(TCGContext *s, TCGArg tmp,
+                                   uint8_t *temp_state)
+{
+    tcg_temp_arr_apply(s->temps[tmp].overlap_temps, temp_state,
+                       TS_MEM | TS_DEAD);
+}
+
 /* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
@@ -1568,6 +1601,11 @@ static void liveness_pass_1(TCGContext *s, uint8_t *temp_state)
                         if (temp_state[arg] & TS_MEM) {
                             arg_life |= SYNC_ARG << i;
                         }
+                        /* sub_temps are also dead */
+                        tcg_sub_temps_dead(&tcg_ctx, arg, temp_state);
+                        /* overlap_temps need to go to memory */
+                        tcg_overlap_temps_sync(&tcg_ctx, arg, temp_state);
+
                         temp_state[arg] = TS_DEAD;
                     }
 
@@ -1595,6 +1633,11 @@ static void liveness_pass_1(TCGContext *s, uint8_t *temp_state)
                     for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
                         arg = args[i];
                         if (arg != TCG_CALL_DUMMY_ARG) {
+                            /* both sub_temps and overlap_temps need to go
+                               to memory */
+                            tcg_sub_temps_sync(&tcg_ctx, arg, temp_state);
+                            tcg_overlap_temps_sync(&tcg_ctx, arg, temp_state);
+
                             temp_state[arg] &= ~TS_DEAD;
                         }
                     }
@@ -1713,6 +1756,11 @@ static void liveness_pass_1(TCGContext *s, uint8_t *temp_state)
                     if (temp_state[arg] & TS_MEM) {
                         arg_life |= SYNC_ARG << i;
                     }
+                    /* sub_temps are also dead */
+                    tcg_sub_temps_dead(&tcg_ctx, arg, temp_state);
+                    /* overlap_temps need to go to memory */
+                    tcg_overlap_temps_sync(&tcg_ctx, arg, temp_state);
+
                     temp_state[arg] = TS_DEAD;
                 }
 
@@ -1753,6 +1801,9 @@ static void liveness_pass_1(TCGContext *s, uint8_t *temp_state)
                 /* input arguments are live for preceding opcodes */
                 for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                     temp_state[args[i]] &= ~TS_DEAD;
+                    /* both sub_temps and overlap_temps need to go to memory */
+                    tcg_sub_temps_sync(&tcg_ctx, args[i], temp_state);
+                    tcg_overlap_temps_sync(&tcg_ctx, args[i], temp_state);
                 }
             }
             break;
@@ -3139,3 +3190,80 @@ void tcg_register_jit(void *buf, size_t buf_size)
 {
 }
 #endif /* ELF_HOST_MACHINE */
+
+static int tcg_temp_is_sub_temp(const TCGTemp *t1, const TCGTemp *t2)
+{
+    if (t2->mem_offset < t1->mem_offset) {
+        return 0;
+    }
+    if (t2->mem_offset + tcg_temp_size(t2) >
+        t1->mem_offset + tcg_temp_size(t1)) {
+        return 0;
+    }
+    return 1;
+}
+
+static int tcg_temp_is_overlap_temp(const TCGTemp *t1, const TCGTemp *t2)
+{
+    if (t2->mem_offset >= t1->mem_offset + tcg_temp_size(t1)) {
+        return 0;
+    }
+    if (t2->mem_offset + tcg_temp_size(t2) <= t1->mem_offset) {
+        return 0;
+    }
+    return 1;
+}
+
+void tcg_detect_overlapping_temps(TCGContext *s)
+{
+    int i, j;
+    int overlap_count, subtemps_count;
+    TCGArg *sub_temps, *overlap_temps;
+    TCGTemp *ts;
+    for (i = 0; i < s->nb_globals; i++) {
+        ts = &s->temps[i];
+        if (ts->fixed_reg ||
+            ts->mem_base != &s->temps[GET_TCGV_PTR(s->tcg_env)]) {
+            continue;
+        }
+        overlap_count = 0;
+        subtemps_count = 0;
+        overlap_temps = NULL;
+        sub_temps = NULL;
+        for (j = 0; j < s->nb_globals; j++) {
+            if (i != j && !s->temps[j].fixed_reg &&
+                s->temps[j].mem_base == &s->temps[GET_TCGV_PTR(s->tcg_env)]) {
+                if (tcg_temp_is_sub_temp(ts, &s->temps[j])) {
+                    subtemps_count++;
+                } else if (tcg_temp_is_overlap_temp(ts, &s->temps[j])) {
+                    overlap_count++;
+                }
+            }
+        }
+        if (subtemps_count == 0 && overlap_count == 0) {
+            continue;
+        }
+        if (subtemps_count > 0) {
+            sub_temps = g_malloc0((subtemps_count + 1) * sizeof(TCGArg));
+            sub_temps[subtemps_count] = (TCGArg)-1;
+            tcg_temp_set_sub_temps(i, sub_temps);
+        }
+        if (overlap_count > 0) {
+            overlap_temps = g_malloc0((overlap_count + 1) * sizeof(TCGArg));
+            overlap_temps[overlap_count] = (TCGArg)-1;
+            tcg_temp_set_overlap_temps(i, overlap_temps);
+        }
+        overlap_count = 0;
+        subtemps_count = 0;
+        for (j = 0; j < s->nb_globals; j++) {
+            if (i != j && !s->temps[j].fixed_reg &&
+                s->temps[j].mem_base == &s->temps[GET_TCGV_PTR(s->tcg_env)]) {
+                if (tcg_temp_is_sub_temp(ts, &s->temps[j])) {
+                    sub_temps[subtemps_count++] = (TCGArg)j;
+                } else if (tcg_temp_is_overlap_temp(ts, &s->temps[j])) {
+                    overlap_temps[overlap_count++] = (TCGArg)j;
+                }
+            }
+        }
+    }
+}

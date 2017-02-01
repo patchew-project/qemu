@@ -634,6 +634,14 @@ typedef struct TCGTemp {
     struct TCGTemp *mem_base;
     intptr_t mem_offset;
     const char *name;
+
+    /* -1 terminated array of temps that are parts of this temp.
+       All bits of them are part of this temp. */
+    const TCGArg *sub_temps;
+    /* -1 terminated array of temps that overlap with this temp.
+       Some bits of them are part of this temp, but some are not. sub_temps
+       are not included here. */
+    const TCGArg *overlap_temps;
 } TCGTemp;
 
 typedef struct TCGContext TCGContext;
@@ -836,6 +844,16 @@ void tcg_func_start(TCGContext *s);
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb);
 
 void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size);
+
+static inline void tcg_temp_set_sub_temps(TCGArg temp, const TCGArg *arr)
+{
+    tcg_ctx.temps[temp].sub_temps = arr;
+}
+
+static inline void tcg_temp_set_overlap_temps(TCGArg temp, const TCGArg *arr)
+{
+    tcg_ctx.temps[temp].overlap_temps = arr;
+}
 
 int tcg_global_mem_new_internal(TCGType, TCGv_ptr, intptr_t, const char *);
 
@@ -1381,5 +1399,7 @@ void helper_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
 
 #endif /* CONFIG_ATOMIC128 */
+
+void tcg_detect_overlapping_temps(TCGContext *s);
 
 #endif /* TCG_H */
