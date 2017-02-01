@@ -2448,6 +2448,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         = { .args_ct_str = { "L", "L", "L", "L" } };
     static const TCGTargetOpDef V_r = { .args_ct_str  = { "V", "r" } };
     static const TCGTargetOpDef V_0_V = { .args_ct_str  = { "V", "0", "V" } };
+    static const TCGTargetOpDef V_L = { .args_ct_str  = { "V", "L" } };
 
     switch (op) {
     case INDEX_op_ld8u_i32:
@@ -2661,6 +2662,10 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_add_i32x2:
     case INDEX_op_add_i64x1:
         return &V_0_V;
+
+    case INDEX_op_qemu_ld_v128:
+    case INDEX_op_qemu_st_v128:
+        return &V_L;
 
     default:
         break;
