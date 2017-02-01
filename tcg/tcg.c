@@ -564,6 +564,11 @@ static intptr_t tcg_type_size(TCGType type)
     }
 }
 
+static intptr_t tcg_temp_size(const TCGTemp *tmp)
+{
+    return tcg_type_size(tmp->type);
+}
+
 int tcg_global_mem_new_internal(TCGType base_type, TCGv_ptr base,
                                 intptr_t offset, const char *name)
 {
@@ -1472,6 +1477,43 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *temp_state)
     }
 }
 
+/* Check if memory write completely overwrites temp's memory location.
+   If this is the case then the temp can be considered dead. */
+static int tcg_temp_overwrite(TCGContext *s, const TCGTemp *tmp,
+                               const TCGAliasInfo *ai)
+{
+    if (!(ai->alias_type & TCG_ALIAS_WRITE) || !ai->fixed_offset) {
+        return 0;
+    }
+    if (tmp->mem_base != &s->temps[GET_TCGV_PTR(s->tcg_env)]) {
+        return 0;
+    }
+    if (ai->offset > tmp->mem_offset
+        || ai->offset + ai->size < tmp->mem_offset + tcg_temp_size(tmp)) {
+            return 0;
+    }
+    return 1;
+}
+
+/* Check if memory read or write overlaps with temp's memory location.
+   If this is the case then the temp must be synced to memory. */
+static int tcg_temp_overlap(TCGContext *s, const TCGTemp *tmp,
+                            const TCGAliasInfo *ai)
+{
+    if (!ai->fixed_offset || tmp->fixed_reg) {
+        return 0;
+    }
+    if (tmp->mem_base != &s->temps[GET_TCGV_PTR(s->tcg_env)]) {
+        return 1;
+    }
+    if (ai->offset >= tmp->mem_offset + tcg_temp_size(tmp)
+        || ai->offset + ai->size <= tmp->mem_offset) {
+            return 0;
+    } else {
+        return 1;
+    }
+}
+
 /* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
@@ -1672,6 +1714,23 @@ static void liveness_pass_1(TCGContext *s, uint8_t *temp_state)
                         arg_life |= SYNC_ARG << i;
                     }
                     temp_state[arg] = TS_DEAD;
+                }
+
+                /* record if the operation uses some globals' memory location */
+                if (s->alias_info[oi].alias_type != TCG_NOT_ALIAS) {
+                    for (i = 0; i < s->nb_globals; i++) {
+                        if (tcg_temp_overwrite(s, &s->temps[i],
+                                               &s->alias_info[oi])) {
+                            temp_state[i] = TS_DEAD;
+                        } else if (tcg_temp_overlap(s, &s->temps[i],
+                                                    &s->alias_info[oi])) {
+                            if (s->alias_info[oi].alias_type & TCG_ALIAS_READ) {
+                                temp_state[i] = TS_MEM | TS_DEAD;
+                            } else if (!(temp_state[i] & TS_DEAD)) {
+                                temp_state[i] |= TS_MEM;
+                            }
+                        }
+                    }
                 }
 
                 /* if end of basic block, update */
@@ -2621,6 +2680,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     s->opt_time += profile_getclock();
     s->la_time -= profile_getclock();
 #endif
+
+    tcg_alias_analysis(s);
 
     {
         uint8_t *temp_state = tcg_malloc(s->nb_temps + s->nb_indirects);
