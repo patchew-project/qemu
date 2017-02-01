@@ -42,6 +42,18 @@ DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 # define IMPL64  TCG_OPF_64BIT
 #endif
 
+#ifdef TCG_TARGET_HAS_REG128
+# define IMPL128 0
+#else
+# define IMPL128 TCG_OPF_NOT_PRESENT
+#endif
+
+#ifdef TCG_TARGET_HAS_REGV64
+# define IMPLV64 0
+#else
+# define IMPLV64 TCG_OPF_NOT_PRESENT
+#endif
+
 DEF(mb, 0, 0, 1, 0)
 
 DEF(mov_i32, 1, 1, 0, TCG_OPF_NOT_PRESENT)
@@ -187,6 +199,12 @@ DEF(mulsh_i64, 1, 2, 0, IMPL(TCG_TARGET_HAS_mulsh_i64))
 
 #define TLADDR_ARGS  (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS ? 1 : 2)
 #define DATA64_ARGS  (TCG_TARGET_REG_BITS == 64 ? 1 : 2)
+
+/* load/store */
+DEF(st_v128, 0, 2, 1, IMPL128)
+DEF(ld_v128, 1, 1, 1, IMPL128)
+DEF(st_v64, 0, 2, 1, IMPLV64)
+DEF(ld_v64, 1, 1, 1, IMPLV64)
 
 /* QEMU specific */
 DEF(insn_start, 0, 0, TLADDR_ARGS * TARGET_INSN_START_WORDS,
