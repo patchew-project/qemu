@@ -660,6 +660,10 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define DATA_SIZE 8
 #include "softmmu_template.h"
 
+#define SHIFT 4
+#include "softmmu_template_vector.h"
+#undef MMUSUFFIX
+
 /* First set of helpers allows passing in of OI and RETADDR.  This makes
    them callable from other helpers.  */
 
