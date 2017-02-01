@@ -248,6 +248,23 @@ static inline void tcg_gen_op6ii_i64(TCGOpcode opc, TCGv_i64 a1, TCGv_i64 a2,
                 GET_TCGV_I64(a3), GET_TCGV_I64(a4), a5, a6);
 }
 
+static inline void tcg_gen_op1_v128(TCGOpcode opc, TCGv_v128 a1)
+{
+    tcg_gen_op1(&tcg_ctx, opc, GET_TCGV_V128(a1));
+}
+
+static inline void tcg_gen_op2_v128(TCGOpcode opc, TCGv_v128 a1,
+                                    TCGv_v128 a2)
+{
+    tcg_gen_op2(&tcg_ctx, opc, GET_TCGV_V128(a1), GET_TCGV_V128(a2));
+}
+
+static inline void tcg_gen_op3_v128(TCGOpcode opc, TCGv_v128 a1,
+                                    TCGv_v128 a2, TCGv_v128 a3)
+{
+    tcg_gen_op3(&tcg_ctx, opc, GET_TCGV_V128(a1), GET_TCGV_V128(a2),
+                GET_TCGV_V128(a3));
+}
 
 /* Generic ops.  */
 
@@ -452,6 +469,13 @@ static inline void tcg_gen_not_i32(TCGv_i32 ret, TCGv_i32 arg)
     } else {
         tcg_gen_xori_i32(ret, arg, -1);
     }
+}
+
+/* Vector ops */
+
+static inline void tcg_gen_discard_v128(TCGv_v128 arg)
+{
+    tcg_gen_op1_v128(INDEX_op_discard, arg);
 }
 
 /* 64 bit ops */

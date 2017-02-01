@@ -641,6 +641,14 @@ TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
     return MAKE_TCGV_I64(idx);
 }
 
+TCGv_v128 tcg_temp_new_internal_v128(int temp_local)
+{
+    int idx;
+
+    idx = tcg_temp_new_internal(TCG_TYPE_V128, temp_local);
+    return MAKE_TCGV_V128(idx);
+}
+
 static void tcg_temp_free_internal(int idx)
 {
     TCGContext *s = &tcg_ctx;
@@ -671,6 +679,11 @@ void tcg_temp_free_i32(TCGv_i32 arg)
 void tcg_temp_free_i64(TCGv_i64 arg)
 {
     tcg_temp_free_internal(GET_TCGV_I64(arg));
+}
+
+void tcg_temp_free_v128(TCGv_v128 arg)
+{
+    tcg_temp_free_internal(GET_TCGV_V128(arg));
 }
 
 TCGv_i32 tcg_const_i32(int32_t val)
