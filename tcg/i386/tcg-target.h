@@ -172,7 +172,17 @@ extern bool have_popcnt;
 #endif
 
 #ifdef TCG_TARGET_HAS_REG128
+#define TCG_TARGET_HAS_add_i8x16        1
+#define TCG_TARGET_HAS_add_i16x8        1
 #define TCG_TARGET_HAS_add_i32x4        1
+#define TCG_TARGET_HAS_add_i64x2        1
+#endif
+
+#ifdef TCG_TARGET_HAS_REGV64
+#define TCG_TARGET_HAS_add_i8x8         1
+#define TCG_TARGET_HAS_add_i16x4        1
+#define TCG_TARGET_HAS_add_i32x2        1
+#define TCG_TARGET_HAS_add_i64x1        1
 #endif
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \

@@ -168,6 +168,11 @@ static bool have_lzcnt;
 #else
 # define have_lzcnt 0
 #endif
+#if defined(CONFIG_CPUID_H) && defined(bit_AVX) && defined(bit_OSXSAVE)
+static bool have_avx;
+#else
+# define have_avx 0
+#endif
 
 static tcg_insn_unit *tb_ret_addr;
 
@@ -393,7 +398,10 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_MOVQ_M2R    (0x7e | P_SSE_F30F)
 #define OPC_MOVQ_R2M    (0xd6 | P_SSE_660F)
 #define OPC_MOVQ_R2R    (0x7e | P_SSE_F30F)
+#define OPC_PADDB       (0xfc | P_SSE_660F)
+#define OPC_PADDW       (0xfd | P_SSE_660F)
 #define OPC_PADDD       (0xfe | P_SSE_660F)
+#define OPC_PADDQ       (0xd4 | P_SSE_660F)
 
 /* Group 1 opcode extensions for 0x80-0x83.
    These are also used as modifiers for OPC_ARITH.  */
@@ -1963,6 +1971,19 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGArg a0, a1, a2;
     int c, const_a2, vexop, rexw = 0;
 
+    static const int vect_binop[] = {
+        [INDEX_op_add_i8x16] = OPC_PADDB,
+        [INDEX_op_add_i16x8] = OPC_PADDW,
+        [INDEX_op_add_i32x4] = OPC_PADDD,
+        [INDEX_op_add_i64x2] = OPC_PADDQ,
+
+        [INDEX_op_add_i8x8]  = OPC_PADDB,
+        [INDEX_op_add_i16x4] = OPC_PADDW,
+        [INDEX_op_add_i32x2] = OPC_PADDD,
+        [INDEX_op_add_i64x1] = OPC_PADDQ,
+    };
+
+
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_, x), _i64): \
@@ -1972,6 +1993,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_, x), _i32)
 #endif
+#define OP_V128_ALL(x) \
+        case glue(glue(INDEX_op_, x), _i8x16): \
+        case glue(glue(INDEX_op_, x), _i16x8): \
+        case glue(glue(INDEX_op_, x), _i32x4): \
+        case glue(glue(INDEX_op_, x), _i64x2)
+
+#define OP_V64_ALL(x) \
+        case glue(glue(INDEX_op_, x), _i8x8):  \
+        case glue(glue(INDEX_op_, x), _i16x4): \
+        case glue(glue(INDEX_op_, x), _i32x2): \
+        case glue(glue(INDEX_op_, x), _i64x1)
 
     /* Hoist the loads of the most common arguments.  */
     a0 = args[0];
@@ -2369,8 +2401,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_mb(s, a0);
         break;
 
-    case INDEX_op_add_i32x4:
-        tcg_out_modrm(s, OPC_PADDD, args[0], args[2]);
+    OP_V128_ALL(add):
+    OP_V64_ALL(add):
+        if (have_avx) {
+            tcg_out_vex_modrm(s, vect_binop[opc], args[0], args[1], args[2]);
+        } else {
+            tcg_out_modrm(s, vect_binop[opc], args[0], args[2]);
+        }
         break;
 
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
@@ -2383,6 +2420,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 
 #undef OP_32_64
+#undef OP_V128_ALL
+#undef OP_V64_ALL
 }
 
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
@@ -2613,7 +2652,14 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
             return &s2;
         }
 
+    case INDEX_op_add_i8x16:
+    case INDEX_op_add_i16x8:
     case INDEX_op_add_i32x4:
+    case INDEX_op_add_i64x2:
+    case INDEX_op_add_i8x8:
+    case INDEX_op_add_i16x4:
+    case INDEX_op_add_i32x2:
+    case INDEX_op_add_i64x1:
         return &V_0_V;
 
     default:
@@ -2728,6 +2774,10 @@ static void tcg_target_init(TCGContext *s)
 #ifdef bit_POPCNT
         have_popcnt = (c & bit_POPCNT) != 0;
 #endif
+#if defined(bit_AVX) && defined(bit_OSXSAVE)
+        have_avx = (c & (bit_AVX | bit_OSXSAVE)) == (bit_AVX | bit_OSXSAVE);
+#endif
+
     }
 
     if (max >= 7) {
