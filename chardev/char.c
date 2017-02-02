@@ -801,26 +801,6 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     return cc;
 }
 
-static Chardev *qemu_chardev_add(const char *id, const char *typename,
-                                 ChardevBackend *backend, Error **errp)
-{
-    Chardev *chr;
-
-    chr = qemu_chr_find(id);
-    if (chr) {
-        error_setg(errp, "Chardev '%s' already exists", id);
-        return NULL;
-    }
-
-    chr = qemu_chardev_new(id, typename, backend, true, errp);
-    if (!chr) {
-        return NULL;
-    }
-
-    QTAILQ_INSERT_TAIL(&chardevs, chr, next);
-    return chr;
-}
-
 static const struct ChardevAlias {
     const char *typename;
     const char *alias;
@@ -937,9 +917,10 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         backend->u.null.data = ccom; /* Any ChardevCommon member would work */
     }
 
-    chr = qemu_chardev_add(bid ? bid : id,
+    chr = qemu_chardev_new(bid ? bid : id,
                            object_class_get_name(OBJECT_CLASS(cc)),
-                           backend, errp);
+                           backend, true, errp);
+
     if (chr == NULL) {
         goto out;
     }
@@ -951,7 +932,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         backend->type = CHARDEV_BACKEND_KIND_MUX;
         backend->u.mux.data = g_new0(ChardevMux, 1);
         backend->u.mux.data->chardev = g_strdup(bid);
-        mux = qemu_chardev_add(id, TYPE_CHARDEV_MUX, backend, errp);
+        mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX, backend, true, errp);
         if (mux == NULL) {
             qemu_chr_delete(chr);
             chr = NULL;
@@ -1300,8 +1281,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    chr = qemu_chardev_add(id, object_class_get_name(OBJECT_CLASS(cc)),
-                           backend, errp);
+    chr = qemu_chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
+                           backend, true, errp);
     if (!chr) {
         return NULL;
     }
