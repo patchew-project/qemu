@@ -104,6 +104,16 @@ static void char_ringbuf_test(void)
 
     qemu_chr_fe_deinit(&be);
     qemu_chr_delete(chr);
+
+    /* check alias */
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "memory-label",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "memory", &error_abort);
+    qemu_opt_set(opts, "size", "2", &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL);
+    g_assert_nonnull(chr);
+    qemu_chr_delete(chr);
+    qemu_opts_del(opts);
 }
 
 static void char_mux_test(void)
