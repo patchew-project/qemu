@@ -53,9 +53,18 @@ an "undefined result".
 
 TCG instructions operate on variables which are temporaries, local
 temporaries or globals. TCG instructions and variables are strongly
-typed. Two types are supported: 32 bit integers and 64 bit
-integers. Pointers are defined as an alias to 32 bit or 64 bit
-integers depending on the TCG target word size.
+typed. Several types are supported:
+
+* 32 bit integers,
+
+* 64 bit integers,
+
+* 64 bit vectors,
+
+* 128 bit vectors.
+
+Pointers are defined as an alias to 32 bit or 64 bit integers
+depending on the TCG target word size.
 
 Each instruction has a fixed number of output variable operands, input
 variable operands and always constant operands.
@@ -207,6 +216,22 @@ t0=t1%t2 (signed). Undefined behavior if division by zero or overflow.
 * remu_i32/i64 t0, t1, t2
 
 t0=t1%t2 (unsigned). Undefined behavior if division by zero.
+
+* add_i8x16 t0, t1, t2
+add_i16x8 t0, t1, t2
+add_i32x4 t0, t1, t2
+add_i64x2 t0, t1, t2
+
+t0=t1+t2 where t0, t1 and t2 are 128 bit vectors of 8, 16, 32 or 64 bit
+integers.
+
+* add_i8x8 t0, t1, t2
+add_i16x4 t0, t1, t2
+add_i32x2 t0, t1, t2
+add_i64x1 t0, t1, t2
+
+t0=t1+t2 where t0, t1 and t2 are 64 bit vectors of 8, 16, 32 or 64 bit
+integers.
 
 ********* Logical
 
@@ -477,8 +502,8 @@ current TB was linked to this TB. Otherwise execute the next
 instructions. Only indices 0 and 1 are valid and tcg_gen_goto_tb may be issued
 at most once with each slot index per TB.
 
-* qemu_ld_i32/i64 t0, t1, flags, memidx
-* qemu_st_i32/i64 t0, t1, flags, memidx
+* qemu_ld_i32/i64/v128 t0, t1, flags, memidx
+* qemu_st_i32/i64/v128 t0, t1, flags, memidx
 
 Load data at the guest address t1 into t0, or store data in t0 at guest
 address t1.  The _i32/_i64 size applies to the size of the input/output
@@ -487,6 +512,9 @@ and the width of the memory operation is controlled by flags.
 
 Both t0 and t1 may be split into little-endian ordered pairs of registers
 if dealing with 64-bit quantities on a 32-bit host.
+
+The _v128 size can only be used to read exactly 128 bit. Host and target
+are required to be of the same endianness for it to work.
 
 The memidx selects the qemu tlb index to use (e.g. user or kernel access).
 The flags are the TCGMemOp bits, selecting the sign, width, and endianness
@@ -537,6 +565,15 @@ it if all the following conditions are met:
 Floating point operations are not supported in this version. A
 previous incarnation of the code generator had full support of them,
 but it is better to concentrate on integer operations first.
+
+To support vector operations, the backend must define:
+- TCG_TARGET_HAS_REGV64 for the 64 bit vector type and/or
+- TCG_TARGET_HAS_REG128 for the 128 bit vector type.
+For supported types, load and store operations must be supported. An
+arbitrary set of other vector operations may be supported. Vector operations
+that were not explicitly declared as supported (by defining
+TCG_TARGET_HAS_<operation> to 1) will never appear in the intermediate
+representation. In this case, the emulation code will be emitted instead.
 
 4.2) Constraints
 
