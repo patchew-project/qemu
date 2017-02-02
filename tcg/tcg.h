@@ -1330,6 +1330,11 @@ uint32_t helper_be_ldl_cmmu(CPUArchState *env, target_ulong addr,
 uint64_t helper_be_ldq_cmmu(CPUArchState *env, target_ulong addr,
                             TCGMemOpIdx oi, uintptr_t retaddr);
 
+void helper_te_ldv128_mmu(CPUArchState *env, target_ulong addr,
+                          TCGMemOpIdx oi, uintptr_t retaddr, uint8_t *res);
+void helper_te_stv128_mmu(CPUArchState *env, target_ulong addr, uint8_t *val,
+                          TCGMemOpIdx oi, uintptr_t retaddr);
+
 /* Temporary aliases until backends are converted.  */
 #ifdef TARGET_WORDS_BIGENDIAN
 # define helper_ret_ldsw_mmu  helper_be_ldsw_mmu
