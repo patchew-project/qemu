@@ -29,8 +29,16 @@
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 31
 
 #ifdef __x86_64__
-# define TCG_TARGET_REG_BITS  64
-# define TCG_TARGET_NB_REGS   16
+# if defined(TARGET_WORDS_BIGENDIAN) == defined(HOST_WORDS_BIGENDIAN)
+#  define TCG_TARGET_HAS_REG128 1
+# endif
+# ifdef TCG_TARGET_HAS_REG128
+#  define TCG_TARGET_REG_BITS  64
+#  define TCG_TARGET_NB_REGS   32
+# else
+#  define TCG_TARGET_REG_BITS  64
+#  define TCG_TARGET_NB_REGS   16
+# endif
 #else
 # define TCG_TARGET_REG_BITS  32
 # define TCG_TARGET_NB_REGS    8
@@ -56,6 +64,24 @@ typedef enum {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
+
+    TCG_REG_XMM0,
+    TCG_REG_XMM1,
+    TCG_REG_XMM2,
+    TCG_REG_XMM3,
+    TCG_REG_XMM4,
+    TCG_REG_XMM5,
+    TCG_REG_XMM6,
+    TCG_REG_XMM7,
+    TCG_REG_XMM8,
+    TCG_REG_XMM9,
+    TCG_REG_XMM10,
+    TCG_REG_XMM11,
+    TCG_REG_XMM12,
+    TCG_REG_XMM13,
+    TCG_REG_XMM14,
+    TCG_REG_XMM15,
+
     TCG_REG_RAX = TCG_REG_EAX,
     TCG_REG_RCX = TCG_REG_ECX,
     TCG_REG_RDX = TCG_REG_EDX,
@@ -142,6 +168,10 @@ extern bool have_popcnt;
 #define TCG_TARGET_HAS_muls2_i64        1
 #define TCG_TARGET_HAS_muluh_i64        0
 #define TCG_TARGET_HAS_mulsh_i64        0
+#endif
+
+#ifdef TCG_TARGET_HAS_REG128
+#define TCG_TARGET_HAS_add_i32x4        1
 #endif
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
