@@ -1195,6 +1195,10 @@ void tcg_gen_atomic_xor_fetch_i64(TCGv_i64, TCGv, TCGv_i64, TCGArg, TCGMemOp);
     tcg_gen_add_i32(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), TCGV_PTR_TO_NAT(B))
 # define tcg_gen_addi_ptr(R, A, B) \
     tcg_gen_addi_i32(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
+# define tcg_gen_mov_ptr(R, B) \
+    tcg_gen_mov_i32(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(B))
+# define tcg_gen_movi_ptr(R, B) \
+    tcg_gen_movi_i32(TCGV_PTR_TO_NAT(R), (B))
 # define tcg_gen_ext_i32_ptr(R, A) \
     tcg_gen_mov_i32(TCGV_PTR_TO_NAT(R), (A))
 #else
@@ -1206,6 +1210,169 @@ void tcg_gen_atomic_xor_fetch_i64(TCGv_i64, TCGv, TCGv_i64, TCGArg, TCGMemOp);
     tcg_gen_add_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), TCGV_PTR_TO_NAT(B))
 # define tcg_gen_addi_ptr(R, A, B) \
     tcg_gen_addi_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
+# define tcg_gen_mov_ptr(R, B) \
+    tcg_gen_mov_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(B))
+# define tcg_gen_movi_ptr(R, B) \
+    tcg_gen_movi_i64(TCGV_PTR_TO_NAT(R), (B))
 # define tcg_gen_ext_i32_ptr(R, A) \
     tcg_gen_ext_i32_i64(TCGV_PTR_TO_NAT(R), (A))
 #endif /* UINTPTR_MAX == UINT32_MAX */
+
+/***************************************/
+/* 64-bit and 128-bit vector arithmetic.          */
+
+/* Find a memory location for 128-bit TCG variable. */
+void tcg_v128_to_ptr(TCGv_v128 tmp, TCGv_ptr base, int slot,
+                     TCGv_ptr *real_base, intptr_t *real_offset, int is_read);
+/* Find a memory location for 64-bit vector TCG variable. */
+void tcg_v64_to_ptr(TCGv_v64 tmp, TCGv_ptr base, int slot,
+                    TCGv_ptr *real_base, intptr_t *real_offset, int is_read);
+
+#define VTYPE(width) glue(TCG_TYPE_V, width)
+#define TEMP_TYPE(arg, temp_type) \
+            tcg_ctx.temps[glue(GET_TCGV_, temp_type)(arg)].type
+
+#define GEN_VECT_WRAPPER_HALVES(op, width, half_op, half_width, func)        \
+    static inline void glue(tcg_gen_, op)(glue(TCGv_v, width) res,           \
+                                            glue(TCGv_v, width) arg1,        \
+                                            glue(TCGv_v, width) arg2)        \
+    {                                                                        \
+        if (glue(TCG_TARGET_HAS_, op)) {                                     \
+            glue(tcg_gen_op3_v, width)(glue(INDEX_op_, op), res, arg1,       \
+                                       arg2);                                \
+        } else if (TEMP_TYPE(res, glue(V, width)) == VTYPE(half_width) &&    \
+                   glue(TCG_TARGET_HAS_, half_op)) {                         \
+            glue(TCGv_v, half_width) res_lo, res_hi, arg1_lo, arg1_hi,       \
+                                     arg2_lo, arg2_hi;                       \
+            res_lo = glue(tcg_temp_low_half_v, width)(res);                  \
+            res_hi = glue(tcg_temp_high_half_v, width)(res);                 \
+            arg1_lo = glue(tcg_temp_low_half_v, width)(arg1);                \
+            arg1_hi = glue(tcg_temp_high_half_v, width)(arg1);               \
+            arg2_lo = glue(tcg_temp_low_half_v, width)(arg2);                \
+            arg2_hi = glue(tcg_temp_high_half_v, width)(arg2);               \
+            glue(tcg_gen_op3_v, half_width)(glue(INDEX_op_, half_op),        \
+                                            res_lo, arg1_lo, arg2_lo);       \
+            glue(tcg_gen_op3_v, half_width)(glue(INDEX_op_, half_op),        \
+                                            res_hi, arg1_hi, arg2_hi);       \
+        } else {                                                             \
+            TCGv_ptr base =                                                  \
+                        MAKE_TCGV_PTR(tcg_ctx.frame_temp - tcg_ctx.temps);   \
+            TCGv_ptr t1 = tcg_temp_new_ptr();                                \
+            TCGv_ptr t2 = tcg_temp_new_ptr();                                \
+            TCGv_ptr t3 = tcg_temp_new_ptr();                                \
+            TCGv_ptr arg1p, arg2p, resp;                                     \
+            intptr_t arg1of, arg2of, resof;                                  \
+                                                                             \
+            glue(glue(tcg_v, width), _to_ptr)(arg1, base, 1,                 \
+                                            &arg1p, &arg1of, 1);             \
+            glue(glue(tcg_v, width), _to_ptr)(arg2, base, 2,                 \
+                                            &arg2p, &arg2of, 1);             \
+            glue(glue(tcg_v, width), _to_ptr)(res, base, 0, &resp, &resof,   \
+                                              0);                            \
+                                                                             \
+            tcg_gen_addi_ptr(t1, resp, resof);                               \
+            tcg_gen_addi_ptr(t2, arg1p, arg1of);                             \
+            tcg_gen_addi_ptr(t3, arg2p, arg2of);                             \
+            func(t1, t2, t3);                                                \
+                                                                             \
+            if ((intptr_t)res >= tcg_ctx.nb_globals) {                       \
+                glue(tcg_gen_ld_v, width)(res, base, 0);                     \
+            }                                                                \
+                                                                             \
+            tcg_temp_free_ptr(t1);                                           \
+            tcg_temp_free_ptr(t2);                                           \
+            tcg_temp_free_ptr(t3);                                           \
+        }                                                                    \
+    }
+
+#define GEN_VECT_WRAPPER(op, width, func)                                    \
+    static inline void glue(tcg_gen_, op)(glue(TCGv_v, width) res,           \
+                                            glue(TCGv_v, width) arg1,        \
+                                            glue(TCGv_v, width) arg2)        \
+    {                                                                        \
+        if (glue(TCG_TARGET_HAS_, op)) {                                     \
+            glue(tcg_gen_op3_v, width)(glue(INDEX_op_, op), res, arg1,       \
+                                       arg2);                                \
+        } else {                                                             \
+            TCGv_ptr base =                                                  \
+                        MAKE_TCGV_PTR(tcg_ctx.frame_temp - tcg_ctx.temps);   \
+            TCGv_ptr t1 = tcg_temp_new_ptr();                                \
+            TCGv_ptr t2 = tcg_temp_new_ptr();                                \
+            TCGv_ptr t3 = tcg_temp_new_ptr();                                \
+            TCGv_ptr arg1p, arg2p, resp;                                     \
+            intptr_t arg1of, arg2of, resof;                                  \
+                                                                             \
+            glue(glue(tcg_v, width), _to_ptr)(arg1, base, 1,                 \
+                                            &arg1p, &arg1of, 1);             \
+            glue(glue(tcg_v, width), _to_ptr)(arg2, base, 2,                 \
+                                            &arg2p, &arg2of, 1);             \
+            glue(glue(tcg_v, width), _to_ptr)(res, base, 0, &resp, &resof,   \
+                                              0);                            \
+                                                                             \
+            tcg_gen_addi_ptr(t1, resp, resof);                               \
+            tcg_gen_addi_ptr(t2, arg1p, arg1of);                             \
+            tcg_gen_addi_ptr(t3, arg2p, arg2of);                             \
+            func(t1, t2, t3);                                                \
+                                                                             \
+            if ((intptr_t)res >= tcg_ctx.nb_globals) {                       \
+                glue(tcg_gen_ld_v, width)(res, base, 0);                     \
+            }                                                                \
+                                                                             \
+            tcg_temp_free_ptr(t1);                                           \
+            tcg_temp_free_ptr(t2);                                           \
+            tcg_temp_free_ptr(t3);                                           \
+        }                                                                    \
+    }
+#define TCG_INTERNAL_OP(name, N, size, ld, st, op, type)                     \
+    static inline void glue(tcg_internal_, name)(TCGv_ptr resp,              \
+                                                 TCGv_ptr arg1p,             \
+                                                 TCGv_ptr arg2p)             \
+    {                                                                        \
+        int i;                                                               \
+        glue(TCGv_, type) tmp1, tmp2;                                        \
+                                                                             \
+        tmp1 = glue(tcg_temp_new_, type)();                                  \
+        tmp2 = glue(tcg_temp_new_, type)();                                  \
+                                                                             \
+        for (i = 0; i < N; i++) {                                            \
+            glue(tcg_gen_, ld)(tmp1, arg1p, i * size);                       \
+            glue(tcg_gen_, ld)(tmp2, arg2p, i * size);                       \
+            glue(tcg_gen_, op)(tmp1, tmp1, tmp2);                            \
+            glue(tcg_gen_, st)(tmp1, resp, i * size);                        \
+        }                                                                    \
+                                                                             \
+        glue(tcg_temp_free_, type)(tmp1);                                    \
+        glue(tcg_temp_free_, type)(tmp2);                                    \
+    }
+
+#define TCG_INTERNAL_OP_8(name, N, op) \
+    TCG_INTERNAL_OP(name, N, 1, ld8u_i32, st8_i32, op, i32)
+#define TCG_INTERNAL_OP_16(name, N, op) \
+    TCG_INTERNAL_OP(name, N, 2, ld16u_i32, st16_i32, op, i32)
+#define TCG_INTERNAL_OP_32(name, N, op) \
+    TCG_INTERNAL_OP(name, N, 4, ld_i32, st_i32, op, i32)
+#define TCG_INTERNAL_OP_64(name, N, op) \
+    TCG_INTERNAL_OP(name, N, 8, ld_i64, st_i64, op, i64)
+
+TCG_INTERNAL_OP_8(add_i8x16, 16, add_i32)
+TCG_INTERNAL_OP_16(add_i16x8, 8, add_i32)
+TCG_INTERNAL_OP_32(add_i32x4, 4, add_i32)
+TCG_INTERNAL_OP_64(add_i64x2, 2, add_i64)
+
+TCG_INTERNAL_OP_8(add_i8x8, 8, add_i32)
+TCG_INTERNAL_OP_16(add_i16x4, 4, add_i32)
+TCG_INTERNAL_OP_32(add_i32x2, 2, add_i32)
+TCG_INTERNAL_OP_64(add_i64x1, 1, add_i64)
+
+GEN_VECT_WRAPPER_HALVES(add_i8x16, 128, add_i8x8, 64, tcg_internal_add_i8x16)
+GEN_VECT_WRAPPER_HALVES(add_i16x8, 128, add_i16x4, 64, tcg_internal_add_i16x8)
+GEN_VECT_WRAPPER_HALVES(add_i32x4, 128, add_i32x2, 64, tcg_internal_add_i32x4)
+GEN_VECT_WRAPPER_HALVES(add_i64x2, 128, add_i64x1, 64, tcg_internal_add_i64x2)
+
+GEN_VECT_WRAPPER(add_i8x8, 64, tcg_internal_add_i8x8)
+GEN_VECT_WRAPPER(add_i16x4, 64, tcg_internal_add_i16x4)
+GEN_VECT_WRAPPER(add_i32x2, 64, tcg_internal_add_i32x2)
+GEN_VECT_WRAPPER(add_i64x1, 64, tcg_internal_add_i64x1)
+
+#undef VTYPE
+#undef BASE_TYPE
