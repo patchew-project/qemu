@@ -65,6 +65,8 @@ static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
 TCGv_i64 cpu_exclusive_val;
+static TCGv_v128 cpu_Q[16];
+static TCGv_v64 cpu_D[32];
 
 /* FIXME:  These should be removed.  */
 static TCGv_i32 cpu_F0s, cpu_F1s;
@@ -72,9 +74,19 @@ static TCGv_i64 cpu_F0d, cpu_F1d;
 
 #include "exec/gen-icount.h"
 
-static const char *regnames[] =
+static const char *regnames_r[] =
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
       "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc" };
+
+static const char *regnames_q[] =
+    { "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7",
+      "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15" };
+
+static const char *regnames_d[] =
+    { "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
+      "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",
+      "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
+      "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31" };
 
 /* initialize TCG globals.  */
 void arm_translate_init(void)
@@ -87,8 +99,22 @@ void arm_translate_init(void)
     for (i = 0; i < 16; i++) {
         cpu_R[i] = tcg_global_mem_new_i32(cpu_env,
                                           offsetof(CPUARMState, regs[i]),
-                                          regnames[i]);
+                                          regnames_r[i]);
     }
+    for (i = 0; i < 16; i++) {
+        cpu_Q[i] = tcg_global_mem_new_v128(cpu_env,
+                                           offsetof(CPUARMState,
+                                                    vfp.regs[2 * i]),
+                                           regnames_q[i]);
+    }
+    for (i = 0; i < 32; i++) {
+        cpu_D[i] = tcg_global_mem_new_v64(cpu_env,
+                                          offsetof(CPUARMState, vfp.regs[i]),
+                                          regnames_d[i]);
+    }
+
+    tcg_detect_overlapping_temps(&tcg_ctx);
+
     cpu_CF = tcg_global_mem_new_i32(cpu_env, offsetof(CPUARMState, CF), "CF");
     cpu_NF = tcg_global_mem_new_i32(cpu_env, offsetof(CPUARMState, NF), "NF");
     cpu_VF = tcg_global_mem_new_i32(cpu_env, offsetof(CPUARMState, VF), "VF");
