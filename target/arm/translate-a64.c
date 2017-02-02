@@ -990,7 +990,6 @@ static void read_vec_element(DisasContext *s, TCGv_i64 tcg_dest, int srcidx,
         tcg_gen_ld32s_i64(tcg_dest, cpu_env, vect_off);
         break;
     case MO_64:
-    case MO_64|MO_SIGN:
         tcg_gen_ld_i64(tcg_dest, cpu_env, vect_off);
         break;
     default:
