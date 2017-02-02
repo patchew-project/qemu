@@ -45,6 +45,11 @@
 static QTAILQ_HEAD(ChardevHead, Chardev) chardevs =
     QTAILQ_HEAD_INITIALIZER(chardevs);
 
+static Object *get_chardevs_root(void)
+{
+    return container_get(object_get_root(), "/chardevs");
+}
+
 void qemu_chr_be_event(Chardev *s, int event)
 {
     CharBackend *be = s->be;
@@ -804,7 +809,7 @@ static Chardev *qemu_chardev_add(const char *id, const char *typename,
         return NULL;
     }
 
-    chr = qemu_chardev_new(id, typename, backend, errp);
+    chr = qemu_chardev_new(id, typename, backend, true, errp);
     if (!chr) {
         return NULL;
     }
@@ -1061,8 +1066,14 @@ void qemu_chr_fe_disconnect(CharBackend *be)
 
 void qemu_chr_delete(Chardev *chr)
 {
-    QTAILQ_REMOVE(&chardevs, chr, next);
-    object_unref(OBJECT(chr));
+    if (QTAILQ_IN_USE(chr, next)) {
+        QTAILQ_REMOVE(&chardevs, chr, next);
+    }
+    if (OBJECT(chr)->parent) {
+        object_unparent(OBJECT(chr));
+    } else {
+        object_unref(OBJECT(chr));
+    }
 }
 
 ChardevInfoList *qmp_query_chardev(Error **errp)
@@ -1224,22 +1235,33 @@ void qemu_chr_set_feature(Chardev *chr,
 }
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,
-                          ChardevBackend *backend, Error **errp)
+                          ChardevBackend *backend, bool enlist,
+                          Error **errp)
 {
+    Object *obj;
     Chardev *chr = NULL;
     Error *local_err = NULL;
     bool be_opened = true;
 
     assert(g_str_has_prefix(typename, "chardev-"));
 
-    chr = CHARDEV(object_new(typename));
+    if (enlist) {
+        obj = object_new_with_props(typename, get_chardevs_root(),
+                                    id, &local_err, NULL);
+    } else {
+        obj = object_new(typename);
+    }
+    if (local_err) {
+        assert(!obj);
+        goto end;
+    }
+
+    chr = CHARDEV(obj);
     chr->label = g_strdup(id);
 
     qemu_char_open(chr, backend, &be_opened, &local_err);
     if (local_err) {
-        error_propagate(errp, local_err);
-        object_unref(OBJECT(chr));
-        return NULL;
+        goto end;
     }
 
     if (!chr->filename) {
@@ -1249,6 +1271,14 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
         qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     }
 
+end:
+    if (local_err) {
+        error_propagate(errp, local_err);
+        if (chr) {
+            qemu_chr_delete(chr);
+        }
+        return NULL;
+    }
     return chr;
 }
 

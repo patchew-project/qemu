@@ -490,7 +490,8 @@ typedef struct ChardevClass {
 } ChardevClass;
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,
-                          ChardevBackend *backend, Error **errp);
+                          ChardevBackend *backend, bool enlist,
+                          Error **errp);
 
 extern int term_escape_char;
 
