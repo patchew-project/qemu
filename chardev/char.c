@@ -42,9 +42,6 @@
 /***********************************************************/
 /* character device */
 
-static QTAILQ_HEAD(ChardevHead, Chardev) chardevs =
-    QTAILQ_HEAD_INITIALIZER(chardevs);
-
 static Object *get_chardevs_root(void)
 {
     return container_get(object_get_root(), "/chardevs");
@@ -1050,9 +1047,6 @@ void qemu_chr_fe_disconnect(CharBackend *be)
 
 void qemu_chr_delete(Chardev *chr)
 {
-    if (QTAILQ_IN_USE(chr, next)) {
-        QTAILQ_REMOVE(&chardevs, chr, next);
-    }
     if (OBJECT(chr)->parent) {
         object_unparent(OBJECT(chr));
     } else {
@@ -1315,15 +1309,6 @@ void qmp_chardev_remove(const char *id, Error **errp)
         return;
     }
     qemu_chr_delete(chr);
-}
-
-void qemu_chr_cleanup(void)
-{
-    Chardev *chr, *tmp;
-
-    QTAILQ_FOREACH_SAFE(chr, &chardevs, next, tmp) {
-        qemu_chr_delete(chr);
-    }
 }
 
 static void register_types(void)

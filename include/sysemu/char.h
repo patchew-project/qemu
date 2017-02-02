@@ -95,7 +95,6 @@ struct Chardev {
     int be_open;
     guint fd_in_tag;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
-    QTAILQ_ENTRY(Chardev) next;
 };
 
 /**
@@ -140,13 +139,6 @@ Chardev *qemu_chr_new(const char *label, const char *filename);
  * Without associated Chardev, do nothing.
  */
 void qemu_chr_fe_disconnect(CharBackend *be);
-
-/**
- * @qemu_chr_cleanup:
- *
- * Delete all chardevs (when leaving qemu)
- */
-void qemu_chr_cleanup(void);
 
 /**
  * @qemu_chr_fe_wait_connected:
