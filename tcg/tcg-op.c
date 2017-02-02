@@ -3102,3 +3102,27 @@ void tcg_v64_to_ptr(TCGv_v64 tmp, TCGv_ptr base, int slot,
         }
     }
 }
+
+void tcg_gen_qemu_ld_v128(TCGv_v128 val, TCGv addr, TCGArg idx,
+                          TCGMemOp memop)
+{
+#ifdef TCG_TARGET_HAS_REG128
+    tcg_debug_assert((memop & MO_BSWAP) == MO_TE);
+    TCGMemOpIdx oi = make_memop_idx(memop, idx);
+    tcg_gen_op3si_v128(INDEX_op_qemu_ld_v128, val, addr, oi);
+#else
+    g_assert_not_reached();
+#endif
+}
+
+void tcg_gen_qemu_st_v128(TCGv_v128 val, TCGv addr, TCGArg idx,
+                          TCGMemOp memop)
+{
+#ifdef TCG_TARGET_HAS_REG128
+    tcg_debug_assert((memop & MO_BSWAP) == MO_TE);
+    TCGMemOpIdx oi = make_memop_idx(memop, idx);
+    tcg_gen_op3si_v128(INDEX_op_qemu_st_v128, val, addr, oi);
+#else
+    g_assert_not_reached();
+#endif
+}

@@ -266,6 +266,19 @@ static inline void tcg_gen_op3_v128(TCGOpcode opc, TCGv_v128 a1,
                 GET_TCGV_V128(a3));
 }
 
+static inline void tcg_gen_op3si_v128(TCGOpcode opc, TCGv_v128 a1,
+                                      TCGv a2, TCGArg a3)
+{
+#if TARGET_LONG_BITS == 64 && TCG_TARGET_REG_BITS == 32
+    tcg_gen_op4(&tcg_ctx, opc, GET_TCGV_V128(a1), GET_TCGV_I32(TCGV_LOW(a2)),
+                GET_TCGV_I32(TCGV_HIGH(a2)), a3);
+#elif TARGET_LONG_BITS == 32
+    tcg_gen_op3(&tcg_ctx, opc, GET_TCGV_V128(a1), GET_TCGV_I32(a2), a3);
+#else
+    tcg_gen_op3(&tcg_ctx, opc, GET_TCGV_V128(a1), GET_TCGV_I64(a2), a3);
+#endif
+}
+
 static inline void tcg_gen_op1_v64(TCGOpcode opc, TCGv_v64 a1)
 {
     tcg_gen_op1(&tcg_ctx, opc, GET_TCGV_V64(a1));
@@ -909,6 +922,8 @@ void tcg_gen_qemu_ld_i32(TCGv_i32, TCGv, TCGArg, TCGMemOp);
 void tcg_gen_qemu_st_i32(TCGv_i32, TCGv, TCGArg, TCGMemOp);
 void tcg_gen_qemu_ld_i64(TCGv_i64, TCGv, TCGArg, TCGMemOp);
 void tcg_gen_qemu_st_i64(TCGv_i64, TCGv, TCGArg, TCGMemOp);
+void tcg_gen_qemu_ld_v128(TCGv_v128, TCGv, TCGArg, TCGMemOp);
+void tcg_gen_qemu_st_v128(TCGv_v128, TCGv, TCGArg, TCGMemOp);
 
 static inline void tcg_gen_qemu_ld8u(TCGv ret, TCGv addr, int mem_index)
 {
