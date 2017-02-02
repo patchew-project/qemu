@@ -523,12 +523,54 @@ TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name)
     return MAKE_TCGV_I64(idx);
 }
 
-int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
+static TCGType tcg_choose_type(TCGType type)
+{
+    switch (type) {
+    case TCG_TYPE_I64:
+        if (TCG_TARGET_REG_BITS == 64) {
+            return TCG_TYPE_I64;
+        }
+        /* Fallthrough */
+    case TCG_TYPE_I32:
+        return TCG_TYPE_I32;
+    case TCG_TYPE_V128:
+#ifdef TCG_TARGET_HAS_REG128
+        return TCG_TYPE_V128;
+#endif
+        /* Fallthrough */
+    case TCG_TYPE_V64:
+#ifdef TCG_TARGET_HAS_REGV64
+        return TCG_TYPE_V64;
+#else
+        return tcg_choose_type(TCG_TYPE_I64);
+#endif
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static intptr_t tcg_type_size(TCGType type)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        return 4;
+    case TCG_TYPE_I64:
+    case TCG_TYPE_V64:
+        return 8;
+    case TCG_TYPE_V128:
+        return 16;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+int tcg_global_mem_new_internal(TCGType base_type, TCGv_ptr base,
                                 intptr_t offset, const char *name)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *base_ts = &s->temps[GET_TCGV_PTR(base)];
     TCGTemp *ts = tcg_global_alloc(s);
+    TCGType type = tcg_choose_type(base_type);
     int indirect_reg = 0, bigendian = 0;
 #ifdef HOST_WORDS_BIGENDIAN
     bigendian = 1;
@@ -543,31 +585,7 @@ int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
         indirect_reg = 1;
     }
 
-    if (TCG_TARGET_REG_BITS == 32 && type == TCG_TYPE_I64) {
-        TCGTemp *ts2 = tcg_global_alloc(s);
-        char buf[64];
-
-        ts->base_type = TCG_TYPE_I64;
-        ts->type = TCG_TYPE_I32;
-        ts->indirect_reg = indirect_reg;
-        ts->mem_allocated = 1;
-        ts->mem_base = base_ts;
-        ts->mem_offset = offset + bigendian * 4;
-        pstrcpy(buf, sizeof(buf), name);
-        pstrcat(buf, sizeof(buf), "_0");
-        ts->name = strdup(buf);
-
-        tcg_debug_assert(ts2 == ts + 1);
-        ts2->base_type = TCG_TYPE_I64;
-        ts2->type = TCG_TYPE_I32;
-        ts2->indirect_reg = indirect_reg;
-        ts2->mem_allocated = 1;
-        ts2->mem_base = base_ts;
-        ts2->mem_offset = offset + (1 - bigendian) * 4;
-        pstrcpy(buf, sizeof(buf), name);
-        pstrcat(buf, sizeof(buf), "_1");
-        ts2->name = strdup(buf);
-    } else {
+    if (type == base_type) {
         ts->base_type = type;
         ts->type = type;
         ts->indirect_reg = indirect_reg;
@@ -575,15 +593,43 @@ int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
         ts->mem_base = base_ts;
         ts->mem_offset = offset;
         ts->name = name;
+    } else {
+        int i, count = tcg_type_size(base_type) / tcg_type_size(type);
+        TCGTemp *ts2, *ts1 = ts;
+        int cur_offset =
+                bigendian ? tcg_type_size(base_type) - tcg_type_size(type) : 0;
+
+        ts->base_type = base_type;
+        ts->type = type;
+        ts->indirect_reg = indirect_reg;
+        ts->mem_allocated = 1;
+        ts->mem_base = base_ts;
+        ts->mem_offset = offset + cur_offset;
+        ts->name = g_strdup_printf("%s_0", name);
+
+        for (i = 1; i < count; i++) {
+            ts2 = tcg_global_alloc(s);
+            tcg_debug_assert(ts2 == ts1 + 1);
+            cur_offset += (bigendian ? -1 : 1) * tcg_type_size(type);
+            ts2->base_type = base_type;
+            ts2->type = type;
+            ts2->indirect_reg = indirect_reg;
+            ts2->mem_allocated = 1;
+            ts2->mem_base = base_ts;
+            ts2->mem_offset = offset + cur_offset;
+            ts2->name = g_strdup_printf("%s_%d", name, i);
+            ts1 = ts2;
+        }
     }
     return temp_idx(s, ts);
 }
 
-static int tcg_temp_new_internal(TCGType type, int temp_local)
+static int tcg_temp_new_internal(TCGType base_type, int temp_local)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
     int idx, k;
+    TCGType type = tcg_choose_type(base_type);
 
     k = type + (temp_local ? TCG_TYPE_COUNT : 0);
     idx = find_first_bit(s->free_temps[k].l, TCG_MAX_TEMPS);
@@ -593,28 +639,28 @@ static int tcg_temp_new_internal(TCGType type, int temp_local)
 
         ts = &s->temps[idx];
         ts->temp_allocated = 1;
-        tcg_debug_assert(ts->base_type == type);
+        tcg_debug_assert(ts->base_type == base_type);
         tcg_debug_assert(ts->temp_local == temp_local);
     } else {
         ts = tcg_temp_alloc(s);
-        if (TCG_TARGET_REG_BITS == 32 && type == TCG_TYPE_I64) {
-            TCGTemp *ts2 = tcg_temp_alloc(s);
+        ts->base_type = base_type;
+        ts->type = type;
+        ts->temp_allocated = 1;
+        ts->temp_local = temp_local;
 
-            ts->base_type = type;
-            ts->type = TCG_TYPE_I32;
-            ts->temp_allocated = 1;
-            ts->temp_local = temp_local;
+        if (type != base_type) {
+            int i, count = tcg_type_size(base_type) / tcg_type_size(type);
+            TCGTemp *ts2, *ts1 = ts;
 
-            tcg_debug_assert(ts2 == ts + 1);
-            ts2->base_type = TCG_TYPE_I64;
-            ts2->type = TCG_TYPE_I32;
-            ts2->temp_allocated = 1;
-            ts2->temp_local = temp_local;
-        } else {
-            ts->base_type = type;
-            ts->type = type;
-            ts->temp_allocated = 1;
-            ts->temp_local = temp_local;
+            for (i = 1; i < count; i++) {
+                ts2 = tcg_temp_alloc(s);
+                tcg_debug_assert(ts2 == ts1 + 1);
+                ts2->base_type = base_type;
+                ts2->type = type;
+                ts2->temp_allocated = 1;
+                ts2->temp_local = temp_local;
+                ts1 = ts2;
+            }
         }
         idx = temp_idx(s, ts);
     }
