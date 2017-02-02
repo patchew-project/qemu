@@ -4710,6 +4710,21 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
                 tcg_gen_addi_i32(addr, addr, 1 << size);
             }
             if (size == 3) {
+#ifdef TCG_TARGET_HAS_REG128
+                if (rd % 2 == 0 && nregs == 2) {
+                    TCGv aa32addr = gen_aa32_addr(s, addr, MO_TE | MO_128);
+                    /* 128-bit load */
+                    if (load) {
+                        tcg_gen_qemu_ld_v128(cpu_Q[rd / 2], aa32addr,
+                                             get_mem_index(s), MO_TE | MO_128);
+                    } else {
+                        tcg_gen_qemu_st_v128(cpu_Q[rd / 2], aa32addr,
+                                             get_mem_index(s), MO_TE | MO_128);
+                    }
+                    tcg_temp_free(aa32addr);
+                    break;
+                }
+#endif
                 tmp64 = tcg_temp_new_i64();
                 if (load) {
                     gen_aa32_ld64(s, tmp64, addr, get_mem_index(s));
