@@ -4640,6 +4640,7 @@ int main(int argc, char **argv, char **envp)
     audio_cleanup();
     monitor_cleanup();
     qemu_chr_cleanup();
+    object_unref(object_get_root());
 
     return 0;
 }
