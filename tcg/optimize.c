@@ -34,6 +34,7 @@
 
 struct tcg_temp_info {
     bool is_const;
+    bool is_base;
     uint16_t prev_copy;
     uint16_t next_copy;
     tcg_target_ulong val;
@@ -61,6 +62,7 @@ static void reset_temp(TCGArg temp)
     temps[temp].next_copy = temp;
     temps[temp].prev_copy = temp;
     temps[temp].is_const = false;
+    temps[temp].is_base = false;
     temps[temp].mask = -1;
 }
 
@@ -1426,6 +1428,150 @@ void tcg_optimize(TCGContext *s)
             }
         } else if (opc == INDEX_op_mb) {
             prev_mb_args = args;
+        }
+    }
+}
+
+/* Simple alias analysis. It finds out which load/store operations overlap
+   with CPUArchState. The result is stored in TCGContext and can be used
+   during liveness analysis and register allocation. */
+void tcg_alias_analysis(TCGContext *s)
+{
+    int oi, oi_next;
+
+    reset_all_temps(s->nb_temps);
+    temps[GET_TCGV_PTR(s->tcg_env)].is_base = true;
+    temps[GET_TCGV_PTR(s->tcg_env)].val = 0;
+
+    for (oi = s->gen_op_buf[0].next; oi != 0; oi = oi_next) {
+        int nb_oargs, i;
+        int size;
+        TCGAliasType tp;
+
+        TCGOp * const op = &s->gen_op_buf[oi];
+        TCGArg * const args = &s->gen_opparam_buf[op->args];
+        TCGOpcode opc = op->opc;
+        const TCGOpDef *def = &tcg_op_defs[opc];
+
+        oi_next = op->next;
+
+        if (opc == INDEX_op_call) {
+            nb_oargs = op->callo;
+        } else {
+            nb_oargs = def->nb_oargs;
+        }
+
+        s->alias_info[oi] = (TCGAliasInfo){
+                TCG_NOT_ALIAS,
+                false,
+                0,
+                0
+            };
+
+        switch (opc) {
+        CASE_OP_32_64(movi):
+            temps[args[0]].is_const = 1;
+            temps[args[0]].val = args[1];
+            break;
+        CASE_OP_32_64(mov):
+            temps[args[0]].is_const = temps[args[1]].is_const;
+            temps[args[0]].is_base = temps[args[1]].is_base;
+            temps[args[0]].val = temps[args[1]].val;
+            break;
+        CASE_OP_32_64(add):
+        CASE_OP_32_64(sub):
+            if (temps[args[1]].is_base && temps[args[2]].is_const) {
+                temps[args[0]].is_base = true;
+                temps[args[0]].is_const = false;
+                temps[args[0]].val =
+                    do_constant_folding(opc, temps[args[1]].val,
+                                        temps[args[2]].val);
+            } else {
+                reset_temp(args[0]);
+            }
+        CASE_OP_32_64(ld8s):
+        CASE_OP_32_64(ld8u):
+            size = 1;
+            tp = TCG_ALIAS_READ;
+            goto do_ldst;
+        CASE_OP_32_64(ld16s):
+        CASE_OP_32_64(ld16u):
+            size = 2;
+            tp = TCG_ALIAS_READ;
+            goto do_ldst;
+        case INDEX_op_ld_i32:
+        case INDEX_op_ld32s_i64:
+        case INDEX_op_ld32u_i64:
+            size = 4;
+            tp = TCG_ALIAS_READ;
+            goto do_ldst;
+        case INDEX_op_ld_i64:
+            size = 8;
+            tp = TCG_ALIAS_READ;
+            goto do_ldst;
+        case INDEX_op_ld_v128:
+            size = 16;
+            tp = TCG_ALIAS_READ;
+            goto do_ldst;
+        CASE_OP_32_64(st8):
+            size = 1;
+            tp = TCG_ALIAS_WRITE;
+            goto do_ldst;
+        CASE_OP_32_64(st16):
+            size = 2;
+            tp = TCG_ALIAS_WRITE;
+            goto do_ldst;
+        case INDEX_op_st_i32:
+        case INDEX_op_st32_i64:
+            size = 4;
+            tp = TCG_ALIAS_WRITE;
+            goto do_ldst;
+        case INDEX_op_st_i64:
+            size = 8;
+            tp = TCG_ALIAS_WRITE;
+            goto do_ldst;
+        case INDEX_op_st_v128:
+            size = 16;
+            tp = TCG_ALIAS_WRITE;
+            goto do_ldst;
+        do_ldst:
+            if (temps[args[1]].is_base) {
+                TCGArg val;
+#if TCG_TARGET_REG_BITS == 32
+                val = do_constant_folding(INDEX_op_add_i32,
+                                          temps[args[1]].val,
+                                          args[2]);
+#else
+                val = do_constant_folding(INDEX_op_add_i64,
+                                          temps[args[1]].val,
+                                          args[2]);
+#endif
+                if ((tcg_target_long)val < sizeof(CPUArchState) &&
+                    (tcg_target_long)val + size > 0) {
+                    s->alias_info[oi].alias_type = tp;
+                    s->alias_info[oi].fixed_offset = true;
+                    s->alias_info[oi].offset = val;
+                    s->alias_info[oi].size = size;
+                } else {
+                    s->alias_info[oi].alias_type = TCG_NOT_ALIAS;
+                }
+            } else {
+                s->alias_info[oi].alias_type = tp;
+                s->alias_info[oi].fixed_offset = false;
+            }
+            goto do_reset_output;
+        default:
+            if (def->flags & TCG_OPF_BB_END) {
+                reset_all_temps(s->nb_temps);
+                temps[GET_TCGV_PTR(s->tcg_env)].is_base = true;
+                temps[GET_TCGV_PTR(s->tcg_env)].val = 0;
+            } else {
+        do_reset_output:
+                for (i = 0; i < nb_oargs; i++) {
+                    reset_temp(args[i]);
+                }
+            }
+            break;
         }
     }
 }

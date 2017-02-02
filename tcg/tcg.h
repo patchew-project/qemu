@@ -678,6 +678,20 @@ QEMU_BUILD_BUG_ON(OPPARAM_BUF_SIZE > (1 << 14));
 /* Make sure that we don't overflow 64 bits without noticing.  */
 QEMU_BUILD_BUG_ON(sizeof(TCGOp) > 8);
 
+typedef enum TCGAliasType {
+    TCG_NOT_ALIAS = 0,
+    TCG_ALIAS_READ = 1,
+    TCG_ALIAS_WRITE = 2,
+    TCG_ALIAS_RW = TCG_ALIAS_READ | TCG_ALIAS_WRITE
+} TCGAliasType;
+
+typedef struct TCGAliasInfo {
+    TCGAliasType alias_type;
+    bool fixed_offset;
+    tcg_target_long offset;
+    tcg_target_long size;
+} TCGAliasInfo;
+
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
     TCGPool *pool_first, *pool_current, *pool_first_large;
@@ -761,6 +775,8 @@ struct TCGContext {
 
     TCGOp gen_op_buf[OPC_BUF_SIZE];
     TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
+
+    TCGAliasInfo alias_info[OPC_BUF_SIZE];
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
@@ -1009,6 +1025,7 @@ TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
 
 void tcg_optimize(TCGContext *s);
+void tcg_alias_analysis(TCGContext *s);
 
 /* only used for debugging purposes */
 void tcg_dump_ops(TCGContext *s);
