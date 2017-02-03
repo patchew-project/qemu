@@ -174,7 +174,9 @@ static void QEMU_NORETURN help(void)
            "  'count=N' copy only N input blocks\n"
            "  'if=FILE' read from FILE\n"
            "  'of=FILE' write to FILE\n"
-           "  'skip=N' skip N bs-sized blocks at the start of input\n";
+           "  'skip=N' skip N bs-sized blocks at the start of input\n"
+           "  'conv=nocreat' don't create the output file\n"
+           "  'conv=notrunc' don't truncate the output file\n";
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
@@ -3814,11 +3816,13 @@ out:
     return 0;
 }
 
-#define C_BS      01
-#define C_COUNT   02
-#define C_IF      04
-#define C_OF      010
-#define C_SKIP    020
+#define C_BS      (1 << 0)
+#define C_COUNT   (1 << 1)
+#define C_IF      (1 << 2)
+#define C_OF      (1 << 3)
+#define C_SKIP    (1 << 4)
+#define C_NOCREAT (1 << 5)
+#define C_NOTRUNC (1 << 6)
 
 struct DdInfo {
     unsigned int flags;
@@ -3906,6 +3910,31 @@ static int img_dd_skip(const char *arg,
     return 0;
 }
 
+static int img_dd_conv(const char *arg,
+                       struct DdIo *in, struct DdIo *out,
+                       struct DdInfo *dd)
+{
+    char **flags, **tmp;
+
+    tmp = flags = g_strsplit(arg, ",", 0);
+
+    while (tmp && *tmp) {
+        if (g_str_equal(*tmp, "noconv")) {
+            dd->flags |= C_NOCREAT;
+        } else if (g_str_equal(*tmp, "notrunc")) {
+            dd->flags |= C_NOTRUNC;
+        } else {
+            error_report("invalid conv argument: '%s'", *tmp);
+            g_strfreev(flags);
+            return 1;
+        }
+        tmp++;
+    }
+
+    g_strfreev(flags);
+    return 0;
+}
+
 static int img_dd(int argc, char **argv)
 {
     int ret = 0;
@@ -3920,7 +3949,7 @@ static int img_dd(int argc, char **argv)
     int c, i;
     const char *out_fmt = "raw";
     const char *fmt = NULL;
-    int64_t size = 0;
+    int64_t size = 0, out_size;
     int64_t block_count = 0, out_pos, in_pos;
     struct DdInfo dd = {
         .flags = 0,
@@ -3945,6 +3974,7 @@ static int img_dd(int argc, char **argv)
         { "if", img_dd_if, C_IF },
         { "of", img_dd_of, C_OF },
         { "skip", img_dd_skip, C_SKIP },
+        { "conv", img_dd_conv, 0 },
         { NULL, NULL, 0 }
     };
     const struct option long_options[] = {
@@ -3954,7 +3984,7 @@ static int img_dd(int argc, char **argv)
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, "hf:O:", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, "hnf:O:", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
@@ -4051,22 +4081,25 @@ static int img_dd(int argc, char **argv)
         ret = -1;
         goto out;
     }
-    if (!drv->create_opts) {
-        error_report("Format driver '%s' does not support image creation",
-                     drv->format_name);
-        ret = -1;
-        goto out;
-    }
-    if (!proto_drv->create_opts) {
-        error_report("Protocol driver '%s' does not support image creation",
-                     proto_drv->format_name);
-        ret = -1;
-        goto out;
-    }
-    create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    if (!(dd.flags & C_NOCREAT)) {
+        if (!drv->create_opts) {
+            error_report("Format driver '%s' does not support image creation",
+                         drv->format_name);
+            ret = -1;
+            goto out;
+        }
+        if (!proto_drv->create_opts) {
+            error_report("Protocol driver '%s' does not support image creation",
+                         proto_drv->format_name);
+            ret = -1;
+            goto out;
+        }
+        create_opts = qemu_opts_append(create_opts, drv->create_opts);
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+
+        opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    }
 
     size = blk_getlength(blk1);
     if (size < 0) {
@@ -4083,19 +4116,22 @@ static int img_dd(int argc, char **argv)
     /* Overflow means the specified offset is beyond input image's size */
     if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
                               size < in.bsz * in.offset)) {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, 0, &error_abort);
+        out_size = 0;
     } else {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
-                            size - in.bsz * in.offset, &error_abort);
+        out_size = size - in.bsz * in.offset;
     }
 
-    ret = bdrv_create(drv, out.filename, opts, &local_err);
-    if (ret < 0) {
-        error_reportf_err(local_err,
-                          "%s: error while creating output image: ",
-                          out.filename);
-        ret = -1;
-        goto out;
+    if (!(dd.flags & C_NOCREAT)) {
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, out_size, &error_abort);
+
+        ret = bdrv_create(drv, out.filename, opts, &local_err);
+        if (ret < 0) {
+            error_reportf_err(local_err,
+                              "%s: error while creating output image: ",
+                              out.filename);
+            ret = -1;
+            goto out;
+        }
     }
 
     /* TODO, we can't honour --image-opts for the target,
@@ -4109,6 +4145,41 @@ static int img_dd(int argc, char **argv)
     if (!blk2) {
         ret = -1;
         goto out;
+    }
+
+    if (dd.flags & C_NOCREAT) {
+        if (dd.flags & C_NOTRUNC) {
+            int64_t existing_size = blk_getlength(blk2);
+            if (existing_size < 0) {
+                error_report("unable to get output image length: %s",
+                             strerror(-existing_size));
+                ret = -1;
+                goto out;
+            } else if (existing_size < out_size) {
+                /* Not large enough, so we must enlarge it */
+                ret = blk_truncate(blk2, out_size);
+                if (ret < 0) {
+                    error_reportf_err(local_err,
+                                      "%s: error while enlarging output image: ",
+                                      out.filename);
+                    ret = -1;
+                    goto out;
+                }
+            }
+        } else {
+            /* dd would truncate to 0 length, then append out_size
+             * worth of data. Our images don't grow on demand, so
+             * we just truncate to final output size straight away
+             */
+            ret = blk_truncate(blk2, out_size);
+            if (ret < 0) {
+                error_reportf_err(local_err,
+                                  "%s: error while truncating output image: ",
+                                  out.filename);
+                ret = -1;
+                goto out;
+            }
+        }
     }
 
     if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
