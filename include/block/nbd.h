@@ -196,7 +196,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QIOChannel **outioc,
                           off_t *size, bool *structured_reply,
                           const char *bitmap_name, bool *bitmap_ok,
-                          Error **errp);
+                          bool *block_status_ok, Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size);
 ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request);
 int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply);

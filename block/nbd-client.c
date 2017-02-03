@@ -528,6 +528,44 @@ int64_t nbd_client_co_load_bitmap_part(BlockDriverState *bs, uint64_t offset,
                     (uint64_t)bdrv_dirty_bitmap_granularity(bitmap));
 }
 
+int64_t coroutine_fn nbd_client_co_get_block_status(BlockDriverState *bs,
+                                                    int64_t sector_num,
+                                                    int nb_sectors, int *pnum,
+                                                    BlockDriverState **file)
+{
+    int64_t ret;
+    uint32_t nb_extents;
+    NBDExtent *extents;
+    NBDClientSession *client = nbd_get_client_session(bs);
+
+    if (!client->block_status_ok) {
+        *pnum = nb_sectors;
+        ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
+        if (bs->drv->protocol_name) {
+            ret |= BDRV_BLOCK_OFFSET_VALID | (sector_num * BDRV_SECTOR_SIZE);
+        }
+        return ret;
+    }
+
+    ret = nbd_client_co_cmd_block_status(bs, sector_num << BDRV_SECTOR_BITS,
+                                         nb_sectors << BDRV_SECTOR_BITS,
+                                         &extents, &nb_extents);
+    if (ret < 0) {
+        return ret;
+    }
+
+    *pnum = extents[0].length >> BDRV_SECTOR_BITS;
+    ret = (extents[0].flags & NBD_STATE_HOLE ? 0 : BDRV_BLOCK_ALLOCATED) |
+          (extents[0].flags & NBD_STATE_ZERO ? BDRV_BLOCK_ZERO : 0);
+
+    if ((ret & BDRV_BLOCK_ALLOCATED) && !(ret & BDRV_BLOCK_ZERO)) {
+        ret |= BDRV_BLOCK_DATA;
+    }
+
+    g_free(extents);
+
+    return ret;
+}
 
 void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
@@ -579,7 +617,8 @@ int nbd_client_init(BlockDriverState *bs,
                                 &client->size,
                                 &client->structured_reply,
                                 bitmap_name,
-                                &client->bitmap_ok, errp);
+                                &client->bitmap_ok,
+                                &client->block_status_ok, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;

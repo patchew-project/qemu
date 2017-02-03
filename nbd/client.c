@@ -563,10 +563,10 @@ static int nbd_receive_query_bitmap(QIOChannel *ioc, const char *export,
 
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
-                          QIOChannel **outioc,
-                          off_t *size, bool *structured_reply,
+                          QIOChannel **outioc, off_t *size,
+                          bool *structured_reply,
                           const char *bitmap_name, bool *bitmap_ok,
-                          Error **errp)
+                          bool *block_status_ok, Error **errp)
 {
     char buf[256];
     uint64_t magic, s;
@@ -681,11 +681,19 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                                               false, NULL) == 0;
             }
 
-            if (!!structured_reply && *structured_reply && !!bitmap_name) {
+            if (!!structured_reply && *structured_reply) {
                 int ret;
-                assert(!!bitmap_ok);
-                ret = nbd_receive_query_bitmap(ioc, name, bitmap_name,
-                                               bitmap_ok, errp) == 0;
+
+                if (!!bitmap_name) {
+                    assert(!!bitmap_ok);
+                    ret = nbd_receive_query_bitmap(ioc, name, bitmap_name,
+                                                   bitmap_ok, errp) == 0;
+                } else {
+                    ret = nbd_receive_query_meta_context(ioc, name,
+                                                         "base:allocation",
+                                                         block_status_ok,
+                                                         errp);
+                }
                 if (ret < 0) {
                     goto fail;
                 }
@@ -969,6 +977,7 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc, NBDReply *reply)
 
     switch (reply->type) {
     case NBD_REPLY_TYPE_NONE:
+    case NBD_REPLY_TYPE_BLOCK_STATUS:
         break;
     case NBD_REPLY_TYPE_OFFSET_DATA:
     case NBD_REPLY_TYPE_OFFSET_HOLE:

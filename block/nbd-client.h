@@ -34,6 +34,7 @@ typedef struct NBDClientSession {
     bool is_unix;
 
     bool structured_reply;
+    bool block_status_ok;
     bool bitmap_ok;
     uint32_t meta_data_context_id;
 } NBDClientSession;
@@ -59,6 +60,10 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                          uint64_t bytes, QEMUIOVector *qiov, int flags);
 int64_t nbd_client_co_load_bitmap_part(BlockDriverState *bs, uint64_t offset,
                                        uint64_t bytes, BdrvDirtyBitmap *bitmap);
+int64_t coroutine_fn nbd_client_co_get_block_status(BlockDriverState *bs,
+                                                    int64_t sector_num,
+                                                    int nb_sectors, int *pnum,
+                                                    BlockDriverState **file);
 
 void nbd_client_detach_aio_context(BlockDriverState *bs);
 void nbd_client_attach_aio_context(BlockDriverState *bs,
