@@ -86,31 +86,34 @@ static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
 */
 
-/* Discard length bytes from channel.  Return -errno on failure, or
- * the amount of bytes consumed. */
-static ssize_t drop_sync(QIOChannel *ioc, size_t size)
+/* Discard length bytes from channel.
+ * Return 0 on success and -errno on fail.
+ */
+static int drop_sync(QIOChannel *ioc, size_t size)
 {
-    ssize_t ret = 0;
+    ssize_t ret;
     char small[1024];
     char *buffer;
 
     buffer = sizeof(small) > size ? small : g_malloc(MIN(65536, size));
     while (size > 0) {
-        ssize_t count = read_sync(ioc, buffer, MIN(65536, size));
-
-        if (count <= 0) {
-            goto cleanup;
+        ret = read_sync(ioc, buffer, MIN(65536, size));
+        if (ret == 0) {
+            ret = -EIO;
         }
-        assert(count <= size);
-        size -= count;
-        ret += count;
+        if (ret < 0) {
+            break;
+        }
+
+        assert(ret <= size);
+        size -= ret;
     }
 
- cleanup:
     if (buffer != small) {
         g_free(buffer);
     }
-    return ret;
+
+    return ret < 0 ? ret : 0;
 }
 
 /* Send an option request.
@@ -334,7 +337,7 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
         return -1;
     }
     if (namelen != strlen(want)) {
-        if (drop_sync(ioc, len) != len) {
+        if (drop_sync(ioc, len) < 0) {
             error_setg(errp, "failed to skip export name with wrong length");
             nbd_send_opt_abort(ioc);
             return -1;
@@ -350,7 +353,7 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
     }
     name[namelen] = '\0';
     len -= namelen;
-    if (drop_sync(ioc, len) != len) {
+    if (drop_sync(ioc, len) < 0) {
         error_setg(errp, "failed to read export description");
         nbd_send_opt_abort(ioc);
         return -1;
@@ -635,7 +638,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
     }
 
     TRACE("Size is %" PRIu64 ", export flags %" PRIx16, *size, *flags);
-    if (zeroes && drop_sync(ioc, 124) != 124) {
+    if (zeroes && drop_sync(ioc, 124) < 0) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
     }
