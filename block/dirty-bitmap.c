@@ -545,3 +545,56 @@ BdrvDirtyBitmap *bdrv_dirty_bitmap_next(BlockDriverState *bs,
     return bitmap == NULL ? QLIST_FIRST(&bs->dirty_bitmaps) :
                             QLIST_NEXT(bitmap, list);
 }
+
+typedef struct BDRVLoadBitmapCo {
+    BlockDriverState *bs;
+    const char *name;
+    Error **errp;
+    BdrvDirtyBitmap *ret;
+    bool in_progress;
+} BDRVLoadBitmapCo;
+
+static void bdrv_load_dity_bitmap_co_entry(void *opaque)
+{
+    BDRVLoadBitmapCo *lbco = opaque;
+    BlockDriver *drv = lbco->bs->drv;
+
+    if (!!drv && !!drv->bdrv_dirty_bitmap_load) {
+        lbco->ret = drv->bdrv_dirty_bitmap_load(lbco->bs, lbco->name,
+                                                lbco->errp);
+    } else if (lbco->bs->file)  {
+        BlockDriverState *bs = lbco->bs;
+        lbco->bs = lbco->bs->file->bs;
+        bdrv_load_dity_bitmap_co_entry(lbco);
+        if (lbco->ret != NULL) {
+            QLIST_REMOVE(lbco->ret, list);
+            QLIST_INSERT_HEAD(&bs->dirty_bitmaps, lbco->ret, list);
+        }
+    } else {
+        lbco->ret = NULL;
+    }
+
+    lbco->in_progress = false;
+}
+
+BdrvDirtyBitmap *bdrv_load_dirty_bitmap(BlockDriverState *bs, const char *name,
+                                        Error **errp)
+{
+    Coroutine *co;
+    BDRVLoadBitmapCo lbco = {
+        .bs = bs,
+        .name = name,
+        .errp = errp,
+        .in_progress = true
+    };
+
+    if (qemu_in_coroutine()) {
+        bdrv_load_dity_bitmap_co_entry(&lbco);
+    } else {
+        co = qemu_coroutine_create(bdrv_load_dity_bitmap_co_entry, &lbco);
+        qemu_coroutine_enter(co);
+        BDRV_POLL_WHILE(bs, lbco.in_progress);
+    }
+
+    return lbco.ret;
+}
