@@ -1193,3 +1193,43 @@ fail:
 
     bitmap_list_free(bm_list);
 }
+
+bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
+                                      const char *name,
+                                      uint32_t granularity,
+                                      Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    const char *reason = NULL;
+    bool found;
+    Qcow2BitmapList *bm_list;
+
+    if (check_constraints_on_bitmap(bs, name, granularity) != 0) {
+        reason = "it doesn't satisfy the constraints";
+        goto common_errp;
+    }
+
+    if (s->nb_bitmaps == 0) {
+        return true;
+    }
+
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, errp);
+    if (bm_list == NULL) {
+        return false;
+    }
+
+    found = find_bitmap_by_name(bm_list, name);
+    bitmap_list_free(bm_list);
+    if (found) {
+        reason = "bitmap with the same name is already stored";
+        goto common_errp;
+    }
+
+    return true;
+
+common_errp:
+    error_setg(errp, "Can't make bitmap '%s' persistent in '%s', as %s.",
+               name, bdrv_get_device_or_node_name(bs), reason);
+    return false;
+}
