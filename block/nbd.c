@@ -557,6 +557,35 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     bs->full_open_options = opts;
 }
 
+static BdrvDirtyBitmap *nbd_dirty_bitmap_load(BlockDriverState *bs,
+                                              const char *name, Error **errp)
+{
+    int64_t offset = 0, end;
+    uint32_t ma = -1;
+    BdrvDirtyBitmap *bitmap =
+        bdrv_create_dirty_bitmap(bs, bdrv_get_default_bitmap_granularity(bs),
+                                 name, errp);
+    if (bitmap == NULL) {
+        return NULL;
+    }
+
+    end = bdrv_dirty_bitmap_size(bitmap) << BDRV_SECTOR_BITS;
+
+    while (offset < end) {
+        offset = nbd_client_co_load_bitmap_part(bs, offset,
+                                                MIN(end - offset, ma), bitmap);
+        if (offset < 0) {
+            goto fail;
+        }
+    }
+
+    return bitmap;
+
+fail:
+    bdrv_release_dirty_bitmap(bs, bitmap);
+    return NULL;
+}
+
 static BlockDriver bdrv_nbd = {
     .format_name                = "nbd",
     .protocol_name              = "nbd",
@@ -574,6 +603,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_dirty_bitmap_load     = nbd_dirty_bitmap_load,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -593,6 +623,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_dirty_bitmap_load     = nbd_dirty_bitmap_load,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -612,6 +643,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_detach_aio_context    = nbd_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
+    .bdrv_dirty_bitmap_load     = nbd_dirty_bitmap_load,
 };
 
 static void bdrv_nbd_init(void)
