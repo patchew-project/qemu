@@ -2722,12 +2722,15 @@
 #
 # @tls-creds:   #optional TLS credentials ID
 #
+# @bitmap:   #optional Dirty bitmap name to export (vz-7.4)
+#
 # Since: 2.8
 ##
 { 'struct': 'BlockdevOptionsNbd',
   'data': { 'server': 'SocketAddress',
             '*export': 'str',
-            '*tls-creds': 'str' } }
+            '*tls-creds': 'str',
+            '*bitmap': 'str'} }
 
 ##
 # @BlockdevOptionsRaw:

@@ -388,6 +388,147 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 
 }
 
+static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
+{
+    struct iovec iov = { .iov_base = buffer, .iov_len = size };
+    /* Sockets are kept in blocking mode in the negotiation phase.  After
+     * that, a non-readable socket simply means that another thread stole
+     * our request/reply.  Synchronization is done with recv_coroutine, so
+     * that this is coroutine-safe.
+     */
+    return nbd_wr_syncv(ioc, &iov, 1, size, true);
+}
+
+static int nbd_client_co_cmd_block_status(BlockDriverState *bs, uint64_t offset,
+                                          uint64_t bytes, NBDExtent **pextents,
+                                          unsigned *nb_extents)
+{
+    int64_t ret;
+    NBDReply reply;
+    uint32_t context_id;
+    int64_t nb, i;
+    NBDExtent *extents = NULL;
+    NBDClientSession *client = nbd_get_client_session(bs);
+    NBDRequest request = {
+        .type = NBD_CMD_BLOCK_STATUS,
+        .from = offset,
+        .len = bytes,
+        .flags = 0,
+    };
+
+    nbd_coroutine_start(client, &request);
+
+    ret = nbd_co_send_request(bs, &request, NULL);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    nbd_co_receive_reply(client, &request, &reply, NULL);
+    if (reply.error != 0) {
+        ret = -reply.error;
+    }
+    if (reply.simple) {
+        ret = -EINVAL;
+        goto fail;
+    }
+    if (reply.error != 0) {
+        ret = -reply.error;
+        goto fail;
+    }
+    if (reply.type != NBD_REPLY_TYPE_BLOCK_STATUS) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    read_sync(client->ioc, &context_id, sizeof(context_id));
+    cpu_to_be32s(&context_id);
+    if (client->meta_data_context_id != context_id) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    nb = (reply.length - sizeof(context_id)) / sizeof(NBDExtent);
+    extents = g_new(NBDExtent, nb);
+    if (read_sync(client->ioc, extents, nb * sizeof(NBDExtent)) !=
+        nb * sizeof(NBDExtent))
+    {
+        ret = -EIO;
+        goto fail;
+    }
+
+    if (!(reply.flags && NBD_REPLY_FLAG_DONE)) {
+        nbd_co_receive_reply(client, &request, &reply, NULL);
+        if (reply.simple) {
+            ret = -EINVAL;
+            goto fail;
+        }
+        if (reply.error != 0) {
+            ret = -reply.error;
+            goto fail;
+        }
+        if (reply.type != NBD_REPLY_TYPE_NONE ||
+            !(reply.flags && NBD_REPLY_FLAG_DONE)) {
+            ret = -EINVAL;
+            goto fail;
+        }
+    }
+
+    for (i = 0; i < nb; ++i) {
+        cpu_to_be32s(&extents[i].length);
+        cpu_to_be32s(&extents[i].flags);
+    }
+
+    *pextents = extents;
+    *nb_extents = nb;
+    nbd_coroutine_end(client, &request);
+    return 0;
+
+fail:
+    g_free(extents);
+    nbd_coroutine_end(client, &request);
+    return ret;
+}
+
+/* nbd_client_co_load_bitmap_part() returns end of set area, i.e. first next
+ * byte of unknown status (may be >= disk size, which means that the bitmap was
+ * set up to the end).
+ */
+int64_t nbd_client_co_load_bitmap_part(BlockDriverState *bs, uint64_t offset,
+                                       uint64_t bytes, BdrvDirtyBitmap *bitmap)
+{
+    int64_t ret;
+    uint64_t start_byte;
+    uint32_t nb_extents;
+    int64_t i, start_sector, last_sector, nr_sectors;
+    NBDExtent *extents = NULL;
+
+    ret = nbd_client_co_cmd_block_status(bs, offset, bytes, &extents,
+                                         &nb_extents);
+    if (ret < 0) {
+        return ret;
+    }
+
+    start_byte = offset;
+    for (i = 0; i < nb_extents; ++i) {
+        if (extents[i].flags == 1) {
+            start_sector = start_byte >> BDRV_SECTOR_BITS;
+            last_sector =
+                (start_byte + extents[i].length - 1) >> BDRV_SECTOR_BITS;
+            nr_sectors = last_sector - start_sector + 1;
+
+            bdrv_set_dirty_bitmap(bitmap, start_sector, nr_sectors);
+        }
+
+        start_byte += extents[i].length;
+    }
+
+    g_free(extents);
+
+    return ROUND_UP((uint64_t)start_byte,
+                    (uint64_t)bdrv_dirty_bitmap_granularity(bitmap));
+}
+
+
 void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     aio_set_fd_handler(bdrv_get_aio_context(bs),
@@ -421,6 +562,7 @@ int nbd_client_init(BlockDriverState *bs,
                     const char *export,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
+                    const char *bitmap_name,
                     Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -435,7 +577,9 @@ int nbd_client_init(BlockDriverState *bs,
                                 tlscreds, hostname,
                                 &client->ioc,
                                 &client->size,
-                                &client->structured_reply, errp);
+                                &client->structured_reply,
+                                bitmap_name,
+                                &client->bitmap_ok, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;

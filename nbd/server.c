@@ -21,8 +21,6 @@
 #include "qapi/error.h"
 #include "nbd-internal.h"
 
-#define NBD_MAX_BITMAP_EXTENTS (0x100000 / 8) /* 1 mb of extents data */
-
 static int system_errno_to_nbd_errno(int err)
 {
     switch (err) {

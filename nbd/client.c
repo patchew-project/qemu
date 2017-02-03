@@ -472,10 +472,101 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     return QIO_CHANNEL(tioc);
 }
 
+static int nbd_receive_query_meta_context(QIOChannel *ioc, const char *export,
+                                          const char *context, bool *ok,
+                                          Error **errp)
+{
+    int ret;
+    nbd_opt_reply reply;
+    size_t export_len = strlen(export);
+    size_t context_len = strlen(context);
+    size_t data_len = 4 + export_len + 4 + 4 + context_len;
+
+    char *data = g_malloc(data_len);
+    char *p = data;
+    int nb_reps = 0;
+
+    *ok = false;
+    stl_be_p(p, export_len);
+    memcpy(p += 4, export, export_len);
+    stl_be_p(p += export_len, 1);
+    stl_be_p(p += 4, context_len);
+    memcpy(p += 4, context, context_len);
+
+    TRACE("Requesting set_meta_context option from server");
+    ret = nbd_send_option_request(ioc, NBD_OPT_SET_META_CONTEXT, data_len, data,
+                                errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    while (true) {
+        uint32_t context_id;
+        char *context_name;
+        size_t len;
+
+        ret = nbd_receive_option_reply(ioc, NBD_OPT_SET_META_CONTEXT, &reply,
+                                       errp);
+        if (ret < 0) {
+            goto out;
+        }
+
+        ret = nbd_handle_reply_err(ioc, &reply, errp);
+        if (ret <= 0) {
+            goto out;
+        }
+
+        if (reply.type != NBD_REP_META_CONTEXT) {
+            break;
+        }
+
+        if (read_sync(ioc, &context_id, sizeof(context_id)) !=
+            sizeof(context_id))
+        {
+            ret = -EIO;
+            goto out;
+        }
+
+        be32_to_cpus(&context_id);
+
+        len = reply.length - sizeof(context_id);
+        context_name = g_malloc(len + 1);
+        if (read_sync(ioc, context_name, len) != len) {
+
+            ret = -EIO;
+            goto out;
+        }
+        context_name[len] = '\0';
+
+        TRACE("set meta: %u %s", context_id, context_name);
+
+        nb_reps++;
+    }
+
+    *ok = nb_reps == 1 && reply.type == NBD_REP_ACK;
+
+out:
+    g_free(data);
+    return ret;
+}
+
+static int nbd_receive_query_bitmap(QIOChannel *ioc, const char *export,
+                                    const char *bitmap, bool *ok, Error **errp)
+{
+    char *context = g_strdup_printf("%s:%s", NBD_META_NS_BITMAPS, bitmap);
+    int ret = nbd_receive_query_meta_context(ioc, export, context, ok, errp);
+
+    g_free(context);
+
+    return ret;
+}
+
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc,
-                          off_t *size, bool *structured_reply, Error **errp)
+                          off_t *size, bool *structured_reply,
+                          const char *bitmap_name, bool *bitmap_ok,
+                          Error **errp)
 {
     char buf[256];
     uint64_t magic, s;
@@ -588,6 +679,16 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                 *structured_reply =
                     nbd_receive_simple_option(ioc, NBD_OPT_STRUCTURED_REPLY,
                                               false, NULL) == 0;
+            }
+
+            if (!!structured_reply && *structured_reply && !!bitmap_name) {
+                int ret;
+                assert(!!bitmap_ok);
+                ret = nbd_receive_query_bitmap(ioc, name, bitmap_name,
+                                               bitmap_ok, errp) == 0;
+                if (ret < 0) {
+                    goto fail;
+                }
             }
         }
         /* write the export name request */

@@ -382,6 +382,11 @@ static QemuOptsList nbd_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
         },
+        {
+            .name = "bitmap",
+            .type = QEMU_OPT_STRING,
+            .help = "Name of dirty bitmap to export",
+        },
     },
 };
 
@@ -440,8 +445,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* NBD handshake */
-    ret = nbd_client_init(bs, sioc, s->export,
-                          tlscreds, hostname, errp);
+    ret = nbd_client_init(bs, sioc, s->export, tlscreds, hostname,
+                          qemu_opt_get(opts, "bitmap"), errp);
  error:
     if (sioc) {
         object_unref(OBJECT(sioc));

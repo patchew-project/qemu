@@ -272,7 +272,7 @@ static void *nbd_client_thread(void *arg)
 
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, &nbdflags,
                                 NULL, NULL, NULL,
-                                &size, NULL, &local_error);
+                                &size, NULL, NULL, NULL, &local_error);
     if (ret < 0) {
         if (local_error) {
             error_report_err(local_error);

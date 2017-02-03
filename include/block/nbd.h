@@ -181,6 +181,8 @@ enum {
 #define NBD_REPLY_TYPE_ERROR ((1 << 15) + 1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET ((1 << 15) + 2)
 
+#define NBD_MAX_BITMAP_EXTENTS (0x100000 / 8) /* 1 mb of extents data */
+
 ssize_t nbd_wr_syncv(QIOChannel *ioc,
                      struct iovec *iov,
                      size_t niov,
@@ -189,7 +191,9 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc,
-                          off_t *size, bool *structured_reply, Error **errp);
+                          off_t *size, bool *structured_reply,
+                          const char *bitmap_name, bool *bitmap_ok,
+                          Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size);
 ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request);
 int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply);
