@@ -2375,6 +2375,51 @@ void memory_listener_unregister(MemoryListener *listener)
     QTAILQ_REMOVE(&listener->address_space->listeners, listener, link_as);
 }
 
+bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr)
+{
+    void *host;
+    unsigned size = 0;
+    unsigned offset = 0;
+    MemoryRegion *sub;
+
+    if (!mr || !mr->ops->request_ptr) {
+        return false;
+    }
+
+    /*
+     * Avoid an update if the request_ptr call
+     * memory_region_invalidate_mmio_ptr which seems to be likely when we use
+     * a cache.
+     */
+    memory_region_transaction_begin();
+
+    host = mr->ops->request_ptr(mr->opaque, addr - mr->addr, &size, &offset);
+
+    if (!host || !size) {
+        memory_region_transaction_commit();
+        return false;
+    }
+
+    sub = g_new(MemoryRegion, 1);
+    memory_region_init_ram_ptr(sub, OBJECT(mr), "mmio-map", size, host);
+    memory_region_add_subregion(mr, offset, sub);
+    memory_region_transaction_commit();
+    return true;
+}
+
+void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
+                                       unsigned size)
+{
+    MemoryRegionSection section = memory_region_find(mr, offset, size);
+
+    if (section.mr != mr) {
+        memory_region_del_subregion(mr, section.mr);
+        /* memory_region_find add a ref on section.mr */
+        memory_region_unref(section.mr);
+        object_unparent(OBJECT(section.mr));
+    }
+}
+
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
     memory_region_ref(root);
