@@ -395,39 +395,55 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
     }
 }
 
+static int nbd_receive_simple_option(QIOChannel *ioc, int opt,
+                                     bool abort_on_notsup, Error **errp)
+{
+    nbd_opt_reply reply;
+
+    TRACE("Requesting '%s' option from server", nbd_opt_name(opt));
+    if (nbd_send_option_request(ioc, opt, 0, NULL, errp) < 0) {
+        return -1;
+    }
+
+    TRACE("Getting '%s' option reply from server", nbd_opt_name(opt));
+    if (nbd_receive_option_reply(ioc, opt, &reply, errp) < 0) {
+        return -1;
+    }
+
+    if (reply.type != NBD_REP_ACK) {
+        error_setg(errp, "Server rejected request for '%s' option: %" PRIx32,
+                   nbd_opt_name(opt), reply.type);
+        if (abort_on_notsup) {
+            nbd_send_opt_abort(ioc);
+        }
+        return -1;
+    }
+
+    if (reply.length != 0) {
+        error_setg(errp, "'%s' option response was not zero %" PRIu32,
+                   nbd_opt_name(opt), reply.length);
+        if (abort_on_notsup) {
+            nbd_send_opt_abort(ioc);
+        }
+        return -1;
+    }
+
+    TRACE("%s 'option' approved", nbd_opt_name(opt));
+    return 0;
+}
+
 static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
                                         QCryptoTLSCreds *tlscreds,
                                         const char *hostname, Error **errp)
 {
-    nbd_opt_reply reply;
     QIOChannelTLS *tioc;
     struct NBDTLSHandshakeData data = { 0 };
 
-    TRACE("Requesting TLS from server");
-    if (nbd_send_option_request(ioc, NBD_OPT_STARTTLS, 0, NULL, errp) < 0) {
+    if (nbd_receive_simple_option(ioc, NBD_OPT_STARTTLS, true, errp) < 0) {
         return NULL;
     }
 
-    TRACE("Getting TLS reply from server");
-    if (nbd_receive_option_reply(ioc, NBD_OPT_STARTTLS, &reply, errp) < 0) {
-        return NULL;
-    }
-
-    if (reply.type != NBD_REP_ACK) {
-        error_setg(errp, "Server rejected request to start TLS %" PRIx32,
-                   reply.type);
-        nbd_send_opt_abort(ioc);
-        return NULL;
-    }
-
-    if (reply.length != 0) {
-        error_setg(errp, "Start TLS response was not zero %" PRIu32,
-                   reply.length);
-        nbd_send_opt_abort(ioc);
-        return NULL;
-    }
-
-    TRACE("TLS request approved, setting up TLS");
+    TRACE("Setting up TLS");
     tioc = qio_channel_tls_new_client(ioc, tlscreds, hostname, errp);
     if (!tioc) {
         return NULL;

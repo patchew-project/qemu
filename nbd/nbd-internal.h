@@ -96,6 +96,20 @@
 #define NBD_ENOSPC     28
 #define NBD_ESHUTDOWN  108
 
+static inline const char *nbd_opt_name(int opt)
+{
+    switch (opt) {
+    case NBD_OPT_EXPORT_NAME: return "export_name";
+    case NBD_OPT_ABORT: return "abort";
+    case NBD_OPT_LIST: return "list";
+    case NBD_OPT_PEEK_EXPORT: return "peek_export";
+    case NBD_OPT_STARTTLS: return "tls";
+    case NBD_OPT_STRUCTURED_REPLY: return "structured_reply";
+    }
+
+    return "<unknown option>";
+}
+
 static inline ssize_t read_sync(QIOChannel *ioc, void *buffer, size_t size)
 {
     struct iovec iov = { .iov_base = buffer, .iov_len = size };
