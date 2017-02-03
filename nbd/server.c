@@ -21,6 +21,8 @@
 #include "qapi/error.h"
 #include "nbd-internal.h"
 
+#define NBD_MAX_BITMAP_EXTENTS (0x100000 / 8) /* 1 mb of extents data */
+
 static int system_errno_to_nbd_errno(int err)
 {
     switch (err) {
@@ -102,6 +104,7 @@ struct NBDClient {
     bool closing;
 
     bool structured_reply;
+    BdrvDirtyBitmap *export_bitmap;
 };
 
 /* That's all folks */
@@ -421,7 +424,304 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     return QIO_CHANNEL(tioc);
 }
 
+static int nbd_negotiate_read_size_string(QIOChannel *ioc, char **str,
+                                          uint32_t max_len)
+{
+    uint32_t len;
 
+    if (nbd_negotiate_read(ioc, &len, sizeof(len)) != sizeof(len)) {
+        LOG("read failed");
+        return -EIO;
+    }
+
+    cpu_to_be32s(&len);
+
+    if (max_len > 0 && len > max_len) {
+        LOG("Bad length received");
+        return -EINVAL;
+    }
+
+    *str = g_malloc(len + 1);
+
+    if (nbd_negotiate_read(ioc, *str, len) != len) {
+        LOG("read failed");
+        g_free(str);
+        return -EIO;
+    }
+    (*str)[len] = '\0';
+
+    return sizeof(len) + len;
+}
+
+static int nbd_negotiate_send_meta_context(QIOChannel *ioc,
+                                           const char *context,
+                                           uint32_t opt)
+{
+    int ret;
+    size_t len = strlen(context);
+    uint32_t context_id = cpu_to_be32(100);
+
+    ret = nbd_negotiate_send_rep_len(ioc, NBD_REP_META_CONTEXT, opt,
+                                     len + sizeof(context_id));
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (nbd_negotiate_write(ioc, &context_id, sizeof(context_id)) !=
+        sizeof(context_id))
+    {
+        LOG("write failed");
+        return -EIO;
+    }
+
+    if (nbd_negotiate_write(ioc, context, len) != len) {
+        LOG("write failed");
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static int nbd_negotiate_send_bitmap(QIOChannel *ioc, const char *bitmap_name,
+                                     uint32_t opt)
+{
+    char *context = g_strdup_printf("%s:%s", NBD_META_NS_BITMAPS, bitmap_name);
+    int ret = nbd_negotiate_send_meta_context(ioc, context, opt);
+
+    g_free(context);
+
+    return ret;
+}
+
+static int nbd_negotiate_one_bitmap_query(QIOChannel *ioc, BlockDriverState *bs,
+                                          uint32_t opt, const char *query,
+                                          BdrvDirtyBitmap **bitmap)
+{
+    BdrvDirtyBitmap *bm = bdrv_find_dirty_bitmap(bs, query);
+    if (bm != NULL) {
+        if (bitmap != NULL) {
+            *bitmap = bm;
+        }
+        return nbd_negotiate_send_bitmap(ioc, query, opt);
+    }
+
+    return 0;
+}
+
+static int nbd_negotiate_one_meta_query(QIOChannel *ioc, BlockDriverState *bs,
+                                        uint32_t opt, BdrvDirtyBitmap **bitmap)
+{
+    int ret = 0, nb_read;
+    char *query, *colon, *namespace, *subquery;
+
+    *bitmap = NULL;
+
+    nb_read = nbd_negotiate_read_size_string(ioc, &query, 0);
+    if (nb_read < 0) {
+        return nb_read;
+    }
+
+    colon = strchr(query, ':');
+    if (colon == NULL) {
+        ret = -EINVAL;
+        goto out;
+    }
+    *colon = '\0';
+    namespace = query;
+    subquery = colon + 1;
+
+    if (strcmp(namespace, NBD_META_NS_BITMAPS) == 0) {
+        ret = nbd_negotiate_one_bitmap_query(ioc, bs, opt, subquery, bitmap);
+    }
+
+out:
+    g_free(query);
+    return ret < 0 ? ret : nb_read;
+}
+
+/* start handle LIST_META_CONTEXT and SET_META_CONTEXT requests
+ * @opt          should be NBD_OPT_LIST_META_CONTEXT or NBD_OPT_SET_META_CONTEXT
+ * @length       related option data to read
+ * @nb_queries   out parameter, number of queries specified by client
+ * @bs           out parameter, bs for export, selected by client
+ *               will be zero if some not critical error occured and error reply
+ *               was sent.
+ *
+ * Returns:
+ *   Err. code < 0 on critical error
+ *   Number of bytes read otherwise (will be equal to length on non critical
+ *     error or if there no queries in request)
+ */
+static int nbd_negotiate_opt_meta_context_start(NBDClient *client, uint32_t opt,
+                                                uint32_t length,
+                                                uint32_t *nb_queries,
+                                                BlockDriverState **bs)
+{
+    int ret;
+    NBDExport *exp;
+    char *export_name;
+    int nb_read = 0;
+
+    if (!client->structured_reply) {
+        uint32_t tail = length - nb_read;
+        LOG("Structured reply is not negotiated");
+
+        if (nbd_negotiate_drop_sync(client->ioc, tail) != tail) {
+            return -EIO;
+        }
+        ret = nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_INVALID, opt,
+                                         "Structured reply is not negotiated");
+        g_free(export_name);
+
+        if (ret < 0) {
+            return ret;
+        } else {
+            *bs = NULL;
+            *nb_queries = 0;
+            return length;
+        }
+    }
+
+    nb_read = nbd_negotiate_read_size_string(client->ioc, &export_name,
+                                             NBD_MAX_NAME_SIZE);
+    if (nb_read < 0) {
+        return nb_read;
+    }
+
+    exp = nbd_export_find(export_name);
+    if (exp == NULL) {
+        uint32_t tail = length - nb_read;
+        LOG("export '%s' is not found", export_name);
+
+        if (nbd_negotiate_drop_sync(client->ioc, tail) != tail) {
+            return -EIO;
+        }
+        ret = nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_INVALID, opt,
+                                         "export '%s' is not found",
+                                         export_name);
+        g_free(export_name);
+
+        if (ret < 0) {
+            return ret;
+        } else {
+            *bs = NULL;
+            *nb_queries = 0;
+            return length;
+        }
+    }
+    g_free(export_name);
+
+    *bs = blk_bs(exp->blk);
+    if (*bs == NULL) {
+        LOG("export without bs");
+        return -EINVAL;
+    }
+
+    if (nbd_negotiate_read(client->ioc, nb_queries,
+                           sizeof(*nb_queries)) != sizeof(*nb_queries))
+    {
+        LOG("read failed");
+        return -EIO;
+    }
+    cpu_to_be32s(nb_queries);
+
+    nb_read += sizeof(*nb_queries);
+
+    return nb_read;
+}
+
+static int nbd_negotiate_list_meta_context(NBDClient *client, uint32_t length)
+{
+    int ret;
+    BlockDriverState *bs;
+    uint32_t nb_queries;
+    int i;
+    int nb_read;
+
+    nb_read = nbd_negotiate_opt_meta_context_start(client,
+                                                   NBD_OPT_LIST_META_CONTEXT,
+                                                   length, &nb_queries, &bs);
+    if (nb_read < 0) {
+        return nb_read;
+    }
+    if (bs == NULL) {
+        /* error reply was already sent by nbd_negotiate_opt_meta_context_start
+         * */
+        return 0;
+    }
+
+    if (nb_queries == 0) {
+        BdrvDirtyBitmap *bm = NULL;
+
+        if (nb_read != length) {
+            return -EINVAL;
+        }
+
+        while ((bm = bdrv_dirty_bitmap_next(bs, bm)) != 0) {
+            nbd_negotiate_send_bitmap(client->ioc, bdrv_dirty_bitmap_name(bm),
+                                      NBD_OPT_LIST_META_CONTEXT);
+        }
+    }
+
+    for (i = 0; i < nb_queries; ++i) {
+        ret = nbd_negotiate_one_meta_query(client->ioc, bs,
+                                           NBD_OPT_LIST_META_CONTEXT, NULL);
+        if (ret < 0) {
+            return ret;
+        }
+
+        nb_read += ret;
+    }
+
+    if (nb_read != length) {
+        return -EINVAL;
+    }
+
+    return nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
+                                  NBD_OPT_LIST_META_CONTEXT);
+}
+
+static int nbd_negotiate_set_meta_context(NBDClient *client, uint32_t length)
+{
+    int ret;
+    BlockDriverState *bs;
+    uint32_t nb_queries;
+    int nb_read;
+
+    nb_read = nbd_negotiate_opt_meta_context_start(client,
+                                                   NBD_OPT_SET_META_CONTEXT,
+                                                   length, &nb_queries, &bs);
+    if (nb_read < 0) {
+        return nb_read;
+    }
+    if (bs == NULL) {
+        /* error reply was already sent by nbd_negotiate_opt_meta_context_start
+         * */
+        return 0;
+    }
+
+    if (nb_queries == 0) {
+        return nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
+                                      NBD_OPT_SET_META_CONTEXT);
+    }
+
+    if (nb_queries > 1) {
+        return nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_TOO_BIG,
+                                          NBD_OPT_SET_META_CONTEXT,
+                                          "Only one exporting context is"
+                                          "supported");
+    }
+
+    ret = nbd_negotiate_one_meta_query(client->ioc, bs,
+                                       NBD_OPT_SET_META_CONTEXT,
+                                       &client->export_bitmap);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
+                                  NBD_OPT_SET_META_CONTEXT);
+}
 /* Process all NBD_OPT_* client option commands.
  * Return -errno on error, 0 on success. */
 static int nbd_negotiate_options(NBDClient *client)
@@ -580,6 +880,20 @@ static int nbd_negotiate_options(NBDClient *client)
                 client->structured_reply = true;
                 ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
                                              clientflags);
+                if (ret < 0) {
+                    return ret;
+                }
+                break;
+
+            case NBD_OPT_LIST_META_CONTEXT:
+                ret = nbd_negotiate_list_meta_context(client, length);
+                if (ret < 0) {
+                    return ret;
+                }
+                break;
+
+            case NBD_OPT_SET_META_CONTEXT:
+                ret = nbd_negotiate_set_meta_context(client, length);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1159,6 +1473,124 @@ static int nbd_co_send_structured_none(NBDClient *client, uint64_t handle)
     return nbd_co_send_buf(client, &chunk, sizeof(chunk));
 }
 
+#define MAX_EXTENT_LENGTH UINT32_MAX
+
+static unsigned add_extents(NBDExtent *extents, unsigned nb_extents,
+                            uint64_t length, uint32_t flags)
+{
+    unsigned i = 0;
+    uint32_t big_chunk = (MAX_EXTENT_LENGTH >> 9) << 9;
+    uint32_t big_chunk_be = cpu_to_be32(big_chunk);
+    uint32_t flags_be = cpu_to_be32(flags);
+
+    for (i = 0; i < nb_extents && length > MAX_EXTENT_LENGTH;
+         i++, length -= big_chunk)
+    {
+        extents[i].length = big_chunk_be;
+        extents[i].flags = flags_be;
+    }
+
+    if (length > 0 && i < nb_extents) {
+        extents[i].length = cpu_to_be32(length);
+        extents[i].flags = flags_be;
+        i++;
+    }
+
+    return i;
+}
+
+static unsigned bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
+                                  uint64_t length, NBDExtent *extents,
+                                  unsigned nb_extents)
+{
+    uint64_t begin, end; /* dirty region */
+    uint64_t start_sector = offset >> BDRV_SECTOR_BITS;
+    uint64_t last_sector = (offset + length - 1) >> BDRV_SECTOR_BITS;
+    unsigned i = 0;
+    uint64_t len;
+    uint32_t ma = -1;
+    ma = (ma / bdrv_dirty_bitmap_granularity(bitmap)) *
+        bdrv_dirty_bitmap_granularity(bitmap);
+
+    BdrvDirtyBitmapIter *it = bdrv_dirty_iter_new(bitmap, start_sector);
+
+    assert(nb_extents > 0);
+
+    begin = bdrv_dirty_iter_next(it);
+    if (begin == -1) {
+        begin = last_sector + 1;
+    }
+    if (begin > start_sector) {
+        len = (begin - start_sector) << BDRV_SECTOR_BITS;
+        i += add_extents(extents + i, nb_extents - i, len, 0);
+    }
+
+    while (begin != -1 && begin <= last_sector && i < nb_extents) {
+        end = bdrv_dirty_bitmap_next_zero(bitmap, begin + 1);
+
+        i += add_extents(extents + i, nb_extents - i,
+                         (end - begin) << BDRV_SECTOR_BITS, 1);
+
+        if (end > last_sector || i >= nb_extents) {
+            break;
+        }
+
+        bdrv_set_dirty_iter(it, end);
+        begin = bdrv_dirty_iter_next(it);
+        if (begin == -1) {
+            begin = last_sector + 1;
+        }
+        if (begin > end) {
+            i += add_extents(extents + i, nb_extents - i,
+                             (begin - end) << BDRV_SECTOR_BITS, 0);
+        }
+    }
+
+    bdrv_dirty_iter_free(it);
+
+    extents[0].length =
+        cpu_to_be32(be32_to_cpu(extents[0].length) -
+                    (offset - (start_sector << BDRV_SECTOR_BITS)));
+
+    return i;
+}
+
+static int nbd_co_send_extents(NBDClient *client, uint64_t handle,
+                               NBDExtent *extents, unsigned nb_extents,
+                               uint32_t context_id)
+{
+    NBDStructuredMeta chunk;
+
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = extents, .iov_len = nb_extents * sizeof(extents[0])}
+    };
+
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_BLOCK_STATUS,
+                 handle, sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    stl_be_p(&chunk.context_id, context_id);
+
+    return nbd_co_send_iov(client, iov, 2);
+}
+
+static int nbd_co_send_bitmap(NBDClient *client, uint64_t handle,
+                              BdrvDirtyBitmap *bitmap, uint64_t offset,
+                              uint64_t length, uint32_t context_id)
+{
+    int ret;
+    unsigned nb_extents;
+    NBDExtent *extents = g_new(NBDExtent, NBD_MAX_BITMAP_EXTENTS);
+
+    nb_extents = bitmap_to_extents(bitmap, offset, length, extents,
+                                   NBD_MAX_BITMAP_EXTENTS);
+
+    ret = nbd_co_send_extents(client, handle, extents, nb_extents, context_id);
+
+    g_free(extents);
+
+    return ret;
+}
+
 /* Collect a client request.  Return 0 if request looks valid, -EAGAIN
  * to keep trying the collection, -EIO to drop connection right away,
  * and any other negative value to report an error to the client
@@ -1434,6 +1866,19 @@ static void nbd_trip(void *opaque)
             reply.error = -ret;
         }
         if (nbd_co_send_simple_reply(req, &reply, 0) < 0) {
+            goto out;
+        }
+        break;
+    case NBD_CMD_BLOCK_STATUS:
+        TRACE("Request type is BLOCK_STATUS");
+        if (client->export_bitmap == NULL) {
+            reply.error = EINVAL;
+            goto error_reply;
+        }
+        ret = nbd_co_send_bitmap(req->client, request.handle,
+                                 client->export_bitmap, request.from,
+                                 request.len, 0);
+        if (ret < 0) {
             goto out;
         }
         break;

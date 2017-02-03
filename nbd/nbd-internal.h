@@ -83,6 +83,10 @@
 #define NBD_OPT_PEEK_EXPORT     (4)
 #define NBD_OPT_STARTTLS        (5)
 #define NBD_OPT_STRUCTURED_REPLY (8)
+#define NBD_OPT_LIST_META_CONTEXT (9)
+#define NBD_OPT_SET_META_CONTEXT  (10)
+
+#define NBD_META_NS_BITMAPS "qemu-dirty-bitmap"
 
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
  * but only a limited set of errno values is specified in the protocol.
@@ -105,6 +109,8 @@ static inline const char *nbd_opt_name(int opt)
     case NBD_OPT_PEEK_EXPORT: return "peek_export";
     case NBD_OPT_STARTTLS: return "tls";
     case NBD_OPT_STRUCTURED_REPLY: return "structured_reply";
+    case NBD_OPT_LIST_META_CONTEXT: return "list_meta_context";
+    case NBD_OPT_SET_META_CONTEXT: return "set_meta_context";
     }
 
     return "<unknown option>";

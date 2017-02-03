@@ -94,6 +94,16 @@ typedef struct NBDStructuredError {
     uint16_t message_length;
 } QEMU_PACKED NBDStructuredError;
 
+typedef struct NBDStructuredMeta {
+    NBDStructuredReplyChunk h;
+    uint32_t context_id;
+} QEMU_PACKED NBDStructuredMeta;
+
+typedef struct NBDExtent {
+    uint32_t length;
+    uint32_t flags;
+} QEMU_PACKED NBDExtent;
+
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
@@ -120,6 +130,7 @@ typedef struct NBDStructuredError {
 
 #define NBD_REP_ACK             (1)             /* Data sending finished. */
 #define NBD_REP_SERVER          (2)             /* Export description. */
+#define NBD_REP_META_CONTEXT    (4)
 
 #define NBD_REP_ERR_UNSUP       NBD_REP_ERR(1)  /* Unknown option */
 #define NBD_REP_ERR_POLICY      NBD_REP_ERR(2)  /* Server denied */
@@ -127,6 +138,8 @@ typedef struct NBDStructuredError {
 #define NBD_REP_ERR_PLATFORM    NBD_REP_ERR(4)  /* Not compiled in */
 #define NBD_REP_ERR_TLS_REQD    NBD_REP_ERR(5)  /* TLS required */
 #define NBD_REP_ERR_SHUTDOWN    NBD_REP_ERR(7)  /* Server shutting down */
+#define NBD_REP_ERR_TOO_BIG     NBD_REP_ERR(9)  /* The request or the reply is
+                                                   too large to process */
 
 /* Request flags, sent from client to server during transmission phase */
 #define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
@@ -142,6 +155,7 @@ enum {
     NBD_CMD_TRIM = 4,
     /* 5 reserved for failed experiment NBD_CMD_CACHE */
     NBD_CMD_WRITE_ZEROES = 6,
+    NBD_CMD_BLOCK_STATUS = 7
 };
 
 #define NBD_DEFAULT_PORT	10809
@@ -163,6 +177,7 @@ enum {
 #define NBD_REPLY_TYPE_NONE 0
 #define NBD_REPLY_TYPE_OFFSET_DATA 1
 #define NBD_REPLY_TYPE_OFFSET_HOLE 2
+#define NBD_REPLY_TYPE_BLOCK_STATUS 5
 #define NBD_REPLY_TYPE_ERROR ((1 << 15) + 1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET ((1 << 15) + 2)
 
