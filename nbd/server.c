@@ -100,6 +100,8 @@ struct NBDClient {
     QTAILQ_ENTRY(NBDClient) next;
     int nb_requests;
     bool closing;
+
+    bool structured_reply;
 };
 
 /* That's all folks */
@@ -573,6 +575,16 @@ static int nbd_negotiate_options(NBDClient *client)
                     return ret;
                 }
                 break;
+
+            case NBD_OPT_STRUCTURED_REPLY:
+                client->structured_reply = true;
+                ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
+                                             clientflags);
+                if (ret < 0) {
+                    return ret;
+                }
+                break;
+
             default:
                 if (nbd_negotiate_drop_sync(client->ioc, length) != length) {
                     return -EIO;
@@ -1067,6 +1079,86 @@ static ssize_t nbd_co_send_simple_reply(NBDRequestData *req,
     return rc;
 }
 
+static void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
+                         uint16_t type, uint64_t handle, uint32_t length)
+{
+    stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
+    stw_be_p(&chunk->flags, flags);
+    stw_be_p(&chunk->type, type);
+    stq_be_p(&chunk->handle, handle);
+    stl_be_p(&chunk->length, length);
+}
+
+static int nbd_co_send_iov(NBDClient *client, struct iovec *iov, unsigned niov)
+{
+    ssize_t ret;
+    size_t size = iov_size(iov, niov);
+
+    g_assert(qemu_in_coroutine());
+    qemu_co_mutex_lock(&client->send_lock);
+    client->send_coroutine = qemu_coroutine_self();
+    nbd_set_handlers(client);
+
+    ret = nbd_wr_syncv(client->ioc, iov, niov, size, false);
+    if (ret >= 0 && ret != size) {
+        ret = -EIO;
+    }
+
+    client->send_coroutine = NULL;
+    nbd_set_handlers(client);
+    qemu_co_mutex_unlock(&client->send_lock);
+
+    return ret;
+}
+
+static inline int nbd_co_send_buf(NBDClient *client, void *buf, size_t size)
+{
+    struct iovec iov[] = {
+        {.iov_base = buf, .iov_len = size}
+    };
+
+    return nbd_co_send_iov(client, iov, 1);
+}
+
+static int nbd_co_send_structured_read(NBDClient *client, uint64_t handle,
+                                       uint64_t offset, void *data, size_t size)
+{
+    NBDStructuredRead chunk;
+
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = data, .iov_len = size}
+    };
+
+    set_be_chunk(&chunk.h, 0, NBD_REPLY_TYPE_OFFSET_DATA, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + size);
+    stq_be_p(&chunk.offset, offset);
+
+    return nbd_co_send_iov(client, iov, 2);
+}
+
+static int nbd_co_send_structured_error(NBDClient *client, uint64_t handle,
+                                        uint32_t error)
+{
+    NBDStructuredError chunk;
+
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
+                 sizeof(chunk) - sizeof(chunk.h));
+    stl_be_p(&chunk.error, error);
+    stw_be_p(&chunk.message_length, 0);
+
+    return nbd_co_send_buf(client, &chunk, sizeof(chunk));
+}
+
+static int nbd_co_send_structured_none(NBDClient *client, uint64_t handle)
+{
+    NBDStructuredReplyChunk chunk;
+
+    set_be_chunk(&chunk, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_NONE, handle, 0);
+
+    return nbd_co_send_buf(client, &chunk, sizeof(chunk));
+}
+
 /* Collect a client request.  Return 0 if request looks valid, -EAGAIN
  * to keep trying the collection, -EIO to drop connection right away,
  * and any other negative value to report an error to the client
@@ -1147,7 +1239,8 @@ static ssize_t nbd_co_receive_request(NBDRequestData *req,
         rc = request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
         goto out;
     }
-    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE)) {
+    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE |
+                           NBD_CMD_FLAG_DF)) {
         LOG("unsupported flags (got 0x%x)", request->flags);
         rc = -EINVAL;
         goto out;
@@ -1226,12 +1319,34 @@ static void nbd_trip(void *opaque)
                         req->data, request.len);
         if (ret < 0) {
             LOG("reading from file failed");
-            reply.error = -ret;
-            goto error_reply;
+            if (client->structured_reply) {
+                ret = nbd_co_send_structured_error(req->client, request.handle,
+                                                   -ret);
+                if (ret < 0) {
+                    goto out;
+                } else {
+                    break;
+                }
+            } else {
+                reply.error = -ret;
+                goto error_reply;
+            }
         }
 
         TRACE("Read %" PRIu32" byte(s)", request.len);
-        if (nbd_co_send_simple_reply(req, &reply, request.len) < 0) {
+        if (client->structured_reply) {
+            ret = nbd_co_send_structured_read(req->client, request.handle,
+                                              request.from, req->data,
+                                              request.len);
+            if (ret < 0) {
+                goto out;
+            }
+
+            ret = nbd_co_send_structured_none(req->client, request.handle);
+        } else {
+            ret = nbd_co_send_simple_reply(req, &reply, request.len);
+        }
+        if (ret < 0) {
             goto out;
         }
         break;
@@ -1442,6 +1557,8 @@ void nbd_client_new(NBDExport *exp,
     object_ref(OBJECT(client->ioc));
     client->can_read = true;
     client->close = close_fn;
+
+    client->structured_reply = false;
 
     data->client = client;
     data->co = qemu_coroutine_create(nbd_co_client_start, data);
