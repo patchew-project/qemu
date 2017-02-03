@@ -80,4 +80,6 @@ BdrvDirtyBitmap *bdrv_dirty_bitmap_next(BlockDriverState *bs,
 BdrvDirtyBitmap *bdrv_load_dirty_bitmap(BlockDriverState *bs, const char *name,
                                         Error **errp);
 
+char *bdrv_dirty_bitmap_sha256(const BdrvDirtyBitmap *bitmap, Error **errp);
+
 #endif
