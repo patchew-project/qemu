@@ -63,6 +63,13 @@ struct NBDReply {
 };
 typedef struct NBDReply NBDReply;
 
+struct NBDSimpleReply {
+    /* uint32_t NBD_SIMPLE_REPLY_MAGIC */
+    uint64_t handle;
+    uint32_t error;
+};
+typedef struct NBDSimpleReply NBDSimpleReply;
+
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */

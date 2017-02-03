@@ -738,7 +738,7 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
     return 0;
 }
 
-static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
+static ssize_t nbd_send_simple_reply(QIOChannel *ioc, NBDSimpleReply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     ssize_t ret;
@@ -1036,8 +1036,8 @@ void nbd_export_close_all(void)
     }
 }
 
-static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
-                                 int len)
+static ssize_t nbd_co_send_simple_reply(NBDRequestData *req,
+                                        NBDSimpleReply *reply, int len)
 {
     NBDClient *client = req->client;
     ssize_t rc, ret;
@@ -1048,10 +1048,10 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
     nbd_set_handlers(client);
 
     if (!len) {
-        rc = nbd_send_reply(client->ioc, reply);
+        rc = nbd_send_simple_reply(client->ioc, reply);
     } else {
         qio_channel_set_cork(client->ioc, true);
-        rc = nbd_send_reply(client->ioc, reply);
+        rc = nbd_send_simple_reply(client->ioc, reply);
         if (rc >= 0) {
             ret = write_sync(client->ioc, req->data, len);
             if (ret != len) {
@@ -1174,7 +1174,7 @@ static void nbd_trip(void *opaque)
     NBDExport *exp = client->exp;
     NBDRequestData *req;
     NBDRequest request;
-    NBDReply reply;
+    NBDSimpleReply reply;
     ssize_t ret;
     int flags;
 
@@ -1231,8 +1231,9 @@ static void nbd_trip(void *opaque)
         }
 
         TRACE("Read %" PRIu32" byte(s)", request.len);
-        if (nbd_co_send_reply(req, &reply, request.len) < 0)
+        if (nbd_co_send_simple_reply(req, &reply, request.len) < 0) {
             goto out;
+        }
         break;
     case NBD_CMD_WRITE:
         TRACE("Request type is WRITE");
@@ -1257,7 +1258,7 @@ static void nbd_trip(void *opaque)
             goto error_reply;
         }
 
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+        if (nbd_co_send_simple_reply(req, &reply, 0) < 0) {
             goto out;
         }
         break;
@@ -1288,7 +1289,7 @@ static void nbd_trip(void *opaque)
             goto error_reply;
         }
 
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+        if (nbd_co_send_simple_reply(req, &reply, 0) < 0) {
             goto out;
         }
         break;
@@ -1305,7 +1306,7 @@ static void nbd_trip(void *opaque)
             LOG("flush failed");
             reply.error = -ret;
         }
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+        if (nbd_co_send_simple_reply(req, &reply, 0) < 0) {
             goto out;
         }
         break;
@@ -1317,7 +1318,7 @@ static void nbd_trip(void *opaque)
             LOG("discard failed");
             reply.error = -ret;
         }
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
+        if (nbd_co_send_simple_reply(req, &reply, 0) < 0) {
             goto out;
         }
         break;
@@ -1328,7 +1329,7 @@ static void nbd_trip(void *opaque)
         /* We must disconnect after NBD_CMD_WRITE if we did not
          * read the payload.
          */
-        if (nbd_co_send_reply(req, &reply, 0) < 0 || !req->complete) {
+        if (nbd_co_send_simple_reply(req, &reply, 0) < 0 || !req->complete) {
             goto out;
         }
         break;
