@@ -750,11 +750,11 @@ static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
           reply->error, reply->handle);
 
     /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+       [ 0 ..  3]    magic   (NBD_SIMPLE_REPLY_MAGIC)
        [ 4 ..  7]    error   (0 == no error)
        [ 7 .. 15]    handle
      */
-    stl_be_p(buf, NBD_REPLY_MAGIC);
+    stl_be_p(buf, NBD_SIMPLE_REPLY_MAGIC);
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
 

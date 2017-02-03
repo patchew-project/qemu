@@ -788,7 +788,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
     }
 
     /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+       [ 0 ..  3]    magic   (NBD_SIMPLE_REPLY_MAGIC)
        [ 4 ..  7]    error   (0 == no error)
        [ 7 .. 15]    handle
      */
@@ -808,7 +808,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
           ", handle = %" PRIu64" }",
           magic, reply->error, reply->handle);
 
-    if (magic != NBD_REPLY_MAGIC) {
+    if (magic != NBD_SIMPLE_REPLY_MAGIC) {
         LOG("invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
