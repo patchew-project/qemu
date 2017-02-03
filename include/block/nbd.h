@@ -181,6 +181,9 @@ enum {
 #define NBD_REPLY_TYPE_ERROR ((1 << 15) + 1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET ((1 << 15) + 2)
 
+#define NBD_STATE_HOLE 1
+#define NBD_STATE_ZERO (1 << 1)
+
 #define NBD_MAX_BITMAP_EXTENTS (0x100000 / 8) /* 1 mb of extents data */
 
 ssize_t nbd_wr_syncv(QIOChannel *ioc,

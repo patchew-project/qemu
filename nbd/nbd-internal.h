@@ -86,6 +86,7 @@
 #define NBD_OPT_LIST_META_CONTEXT (9)
 #define NBD_OPT_SET_META_CONTEXT  (10)
 
+#define NBD_META_NS_BASE "base"
 #define NBD_META_NS_BITMAPS "qemu-dirty-bitmap"
 
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
