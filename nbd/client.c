@@ -472,11 +472,10 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     return QIO_CHANNEL(tioc);
 }
 
-
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc,
-                          off_t *size, Error **errp)
+                          off_t *size, bool *structured_reply, Error **errp)
 {
     char buf[256];
     uint64_t magic, s;
@@ -584,6 +583,12 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             if (nbd_receive_query_exports(ioc, name, errp) < 0) {
                 goto fail;
             }
+
+            if (structured_reply != NULL) {
+                *structured_reply =
+                    nbd_receive_simple_option(ioc, NBD_OPT_STRUCTURED_REPLY,
+                                              false, NULL) == 0;
+            }
         }
         /* write the export name request */
         if (nbd_send_option_request(ioc, NBD_OPT_EXPORT_NAME, -1, name,
@@ -603,6 +608,14 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             goto fail;
         }
         be16_to_cpus(flags);
+
+        if (!!structured_reply && *structured_reply &&
+            !(*flags & NBD_CMD_FLAG_DF))
+        {
+            error_setg(errp, "Structured reply is negotiated, "
+                             "but DF flag is not.");
+            goto fail;
+        }
     } else if (magic == NBD_CLIENT_MAGIC) {
         uint32_t oldflags;
 
@@ -790,20 +803,33 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     return 0;
 }
 
-ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
+static inline int read_sync_check(QIOChannel *ioc, void *buffer, size_t size)
 {
-    uint8_t buf[NBD_REPLY_SIZE];
-    uint32_t magic;
     ssize_t ret;
 
-    ret = read_sync(ioc, buf, sizeof(buf));
+    ret = read_sync(ioc, buffer, size);
     if (ret < 0) {
         return ret;
     }
-
-    if (ret != sizeof(buf)) {
+    if (ret != size) {
         LOG("read failed");
-        return -EINVAL;
+        return -EIO;
+    }
+
+    return 0;
+}
+
+/* nbd_receive_simple_reply
+ * Read simple reply except magic field (which should be already read)
+ */
+static int nbd_receive_simple_reply(QIOChannel *ioc, NBDReply *reply)
+{
+    uint8_t buf[NBD_REPLY_SIZE - 4];
+    ssize_t ret;
+
+    ret = read_sync_check(ioc, buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
     }
 
     /* Reply
@@ -812,9 +838,124 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
        [ 7 .. 15]    handle
      */
 
-    magic = ldl_be_p(buf);
-    reply->error  = ldl_be_p(buf + 4);
-    reply->handle = ldq_be_p(buf + 8);
+    reply->error  = ldl_be_p(buf);
+    reply->handle = ldq_be_p(buf + 4);
+
+    return 0;
+}
+
+/* nbd_receive_structured_reply_chunk
+ * Read structured reply chunk except magic field (which should be already read)
+ * Data for NBD_REPLY_TYPE_OFFSET_DATA is not read too.
+ * Length field of reply out parameter corresponds to unread part of reply.
+ */
+static int nbd_receive_structured_reply_chunk(QIOChannel *ioc, NBDReply *reply)
+{
+    NBDStructuredReplyChunk chunk;
+    ssize_t ret;
+    uint16_t message_size;
+
+    ret = read_sync_check(ioc, (uint8_t *)&chunk + sizeof(chunk.magic),
+                          sizeof(chunk) - sizeof(chunk.magic));
+    if (ret < 0) {
+        return ret;
+    }
+
+    reply->flags = be16_to_cpu(chunk.flags);
+    reply->type = be16_to_cpu(chunk.type);
+    reply->handle = be64_to_cpu(chunk.handle);
+    reply->length = be32_to_cpu(chunk.length);
+
+    switch (reply->type) {
+    case NBD_REPLY_TYPE_NONE:
+        break;
+    case NBD_REPLY_TYPE_OFFSET_DATA:
+    case NBD_REPLY_TYPE_OFFSET_HOLE:
+        ret = read_sync_check(ioc, &reply->offset, sizeof(reply->offset));
+        if (ret < 0) {
+            return ret;
+        }
+        be64_to_cpus(&reply->offset);
+        reply->length -= sizeof(reply->offset);
+        break;
+    case NBD_REPLY_TYPE_ERROR:
+    case NBD_REPLY_TYPE_ERROR_OFFSET:
+        ret = read_sync_check(ioc, &reply->error, sizeof(reply->error));
+        if (ret < 0) {
+            return ret;
+        }
+        be32_to_cpus(&reply->error);
+
+        ret = read_sync_check(ioc, &message_size, sizeof(message_size));
+        if (ret < 0) {
+            return ret;
+        }
+        be16_to_cpus(&message_size);
+
+        if (message_size > 0) {
+            /* TODO: provide error message to user */
+            ret = drop_sync(ioc, message_size);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+
+        if (reply->type == NBD_REPLY_TYPE_ERROR_OFFSET) {
+            /* drop 64bit offset */
+            ret = drop_sync(ioc, 8);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+        break;
+    default:
+        if (reply->type & (1 << 15)) {
+            /* unknown error */
+            ret = drop_sync(ioc, reply->length);
+            if (ret < 0) {
+                return ret;
+            }
+
+            reply->error = NBD_EINVAL;
+            reply->length = 0;
+        } else {
+            /* unknown non-error reply type */
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
+int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
+{
+    uint32_t magic;
+    int ret;
+
+    ret = read_sync_check(ioc, &magic, sizeof(magic));
+    if (ret < 0) {
+        return ret;
+    }
+
+    be32_to_cpus(&magic);
+
+    switch (magic) {
+    case NBD_SIMPLE_REPLY_MAGIC:
+        reply->simple = true;
+        ret = nbd_receive_simple_reply(ioc, reply);
+        break;
+    case NBD_STRUCTURED_REPLY_MAGIC:
+        reply->simple = false;
+        ret = nbd_receive_structured_reply_chunk(ioc, reply);
+        break;
+    default:
+        LOG("invalid magic (got 0x%" PRIx32 ")", magic);
+        return -EINVAL;
+    }
+
+    if (ret < 0) {
+        return ret;
+    }
 
     reply->error = nbd_errno_to_system_errno(reply->error);
 
@@ -827,10 +968,5 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
           ", handle = %" PRIu64" }",
           magic, reply->error, reply->handle);
 
-    if (magic != NBD_SIMPLE_REPLY_MAGIC) {
-        LOG("invalid magic (got 0x%" PRIx32 ")", magic);
-        return -EINVAL;
-    }
     return 0;
 }
-

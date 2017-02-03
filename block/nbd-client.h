@@ -32,6 +32,8 @@ typedef struct NBDClientSession {
     NBDReply reply;
 
     bool is_unix;
+
+    bool structured_reply;
 } NBDClientSession;
 
 NBDClientSession *nbd_get_client_session(BlockDriverState *bs);

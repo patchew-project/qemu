@@ -57,11 +57,16 @@ struct NBDRequest {
 };
 typedef struct NBDRequest NBDRequest;
 
-struct NBDReply {
+typedef struct NBDReply {
+    bool simple;
     uint64_t handle;
     uint32_t error;
-};
-typedef struct NBDReply NBDReply;
+
+    uint16_t flags;
+    uint16_t type;
+    uint32_t length;
+    uint64_t offset;
+} NBDReply;
 
 struct NBDSimpleReply {
     /* uint32_t NBD_SIMPLE_REPLY_MAGIC */
@@ -169,10 +174,10 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc,
-                          off_t *size, Error **errp);
+                          off_t *size, bool *structured_reply, Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size);
 ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request);
-ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply);
+int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 

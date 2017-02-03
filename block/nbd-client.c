@@ -180,13 +180,20 @@ static void nbd_co_receive_reply(NBDClientSession *s,
     *reply = s->reply;
     if (reply->handle != request->handle ||
         !s->ioc) {
+        reply->simple = true;
         reply->error = EIO;
     } else {
-        if (qiov && reply->error == 0) {
-            ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov, request->len,
-                               true);
-            if (ret != request->len) {
-                reply->error = EIO;
+        if (qiov) {
+            if ((reply->simple ? reply->error == 0 :
+                         reply->type == NBD_REPLY_TYPE_OFFSET_DATA)) {
+                ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov, request->len,
+                                   true);
+                if (ret != request->len) {
+                    reply->error = EIO;
+                }
+            } else if (!reply->simple &&
+                       reply->type == NBD_REPLY_TYPE_OFFSET_HOLE) {
+                qemu_iovec_memset(qiov, 0, 0, request->len);
             }
         }
 
@@ -227,6 +234,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
         .type = NBD_CMD_READ,
         .from = offset,
         .len = bytes,
+        .flags = client->structured_reply ? NBD_CMD_FLAG_DF : 0,
     };
     NBDReply reply;
     ssize_t ret;
@@ -237,12 +245,30 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
-        reply.error = -ret;
-    } else {
-        nbd_co_receive_reply(client, &request, &reply, qiov);
+        goto out;
     }
+
+    nbd_co_receive_reply(client, &request, &reply, qiov);
+    if (reply.error != 0) {
+        ret = -reply.error;
+    }
+
+    if (!reply.simple) {
+        while (!(reply.flags & NBD_REPLY_FLAG_DONE)) {
+            nbd_co_receive_reply(client, &request, &reply, qiov);
+            if (reply.error != 0) {
+                ret = -reply.error;
+            }
+            if (reply.simple) {
+                ret = -EIO;
+                goto out;
+            }
+        }
+    }
+
+out:
     nbd_coroutine_end(client, &request);
-    return -reply.error;
+    return ret;
 }
 
 int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
@@ -408,7 +434,8 @@ int nbd_client_init(BlockDriverState *bs,
                                 &client->nbdflags,
                                 tlscreds, hostname,
                                 &client->ioc,
-                                &client->size, errp);
+                                &client->size,
+                                &client->structured_reply, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;
