@@ -3543,7 +3543,6 @@ out:
         if (s->ops && s->ops->cleanup && s->ctx.private) {
             s->ops->cleanup(&s->ctx);
         }
-        fsdev_throttle_cleanup(s->ctx.fst);
         g_free(s->tag);
         g_free(s->ctx.fs_root);
         v9fs_path_free(&path);
@@ -3556,6 +3555,7 @@ void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
     if (s->ops->cleanup) {
         s->ops->cleanup(&s->ctx);
     }
+    fsdev_throttle_cleanup(s->ctx.fst);
     g_free(s->tag);
     g_free(s->ctx.fs_root);
 }
