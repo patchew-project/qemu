@@ -2790,6 +2790,34 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
     aio_context_release(aio_context);
 }
 
+void qmp_block_dirty_bitmap_load(const char *node, const char *name,
+                                 Error **errp)
+{
+    AioContext *aio_context;
+    BlockDriverState *bs;
+
+    if (!node) {
+        error_setg(errp, "Node cannot be NULL");
+        return;
+    }
+    if (!name) {
+        error_setg(errp, "Bitmap name cannot be NULL");
+        return;
+    }
+    bs = bdrv_lookup_bs(node, node, NULL);
+    if (!bs) {
+        error_setg(errp, "Node '%s' not found", node);
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    bdrv_load_dirty_bitmap(bs, name, errp);
+
+    aio_context_release(aio_context);
+}
+
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
                                                               const char *name,
                                                               Error **errp)

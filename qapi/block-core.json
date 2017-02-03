@@ -1632,6 +1632,20 @@
   'data': 'BlockDirtyBitmap' }
 
 ##
+# @block-dirty-bitmap-load:
+#
+# Load a dirty bitmap from the storage (qcow2 file or nbd export)
+#
+# Returns: nothing on success
+#          If @node is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since: vz-7.4
+##
+  { 'command': 'block-dirty-bitmap-load',
+    'data': 'BlockDirtyBitmap' }
+
+##
 # @BlockDirtyBitmapSha256:
 #
 # SHA256 hash of dirty bitmap data
