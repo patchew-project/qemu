@@ -37,6 +37,7 @@
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "qapi-event.h"
+#include "migration/migration.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -896,6 +897,15 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     }
 
     if (value && !dev->realized) {
+        if (only_migratable && dc->vmsd) {
+            if (dc->vmsd->unmigratable) {
+                error_setg(&local_err, "Device %s is not migratable, but "
+                           "--only-migratable was specified",
+                           object_get_typename(obj));
+                goto fail;
+            }
+        }
+
         if (!obj->parent) {
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
