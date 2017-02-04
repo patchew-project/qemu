@@ -731,7 +731,7 @@ USBDevice *usbdevice_create(const char *cmdline)
 
     dc = DEVICE_CLASS(klass);
 
-    if (only_migratable) {
+    if (only_migratable && dc->vmsd) {
         if (dc->vmsd->unmigratable) {
             error_report("Device %s is not migratable, but --only-migratable "
                          "was specified", f->name);
