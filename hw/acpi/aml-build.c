@@ -264,6 +264,9 @@ static void build_append_int(GArray *table, uint64_t value)
  * Warning: runtime patching is best avoided. Only use this as
  * a replacement for DataTableRegion (for guests that don't
  * support it).
+ *
+ * ACPI 5.0: 19.2.5
+ * 32-bit integers are supported beginning with ACPI 1.0
  */
 int
 build_append_named_dword(GArray *array, const char *name_format, ...)
@@ -281,6 +284,38 @@ build_append_named_dword(GArray *array, const char *name_format, ...)
     offset = array->len;
     build_append_int_noprefix(array, 0x00000000, 4);
     assert(array->len == offset + 4);
+
+    return offset;
+}
+
+/*
+ * Build NAME(XXXX, 0x0000000000000000) where 0x0000000000000000
+ * is encoded as a qword, and return the offset to 0x0000000000000000
+ * for runtime patching.
+ *
+ * Warning: runtime patching is best avoided. Only use this as
+ * a replacement for DataTableRegion (for guests that don't
+ * support it).
+ *
+ * ACPI 5.0: 19.2.5
+ * 64-bit integers are supported beginning with ACPI 2.0
+ */
+int
+build_append_named_qword(GArray *array, const char *name_format, ...)
+{
+    int offset;
+    va_list ap;
+
+    build_append_byte(array, 0x08); /* NameOp */
+    va_start(ap, name_format);
+    build_append_namestringv(array, name_format, ap);
+    va_end(ap);
+
+    build_append_byte(array, 0x0E); /* QWordPrefix */
+
+    offset = array->len;
+    build_append_int_noprefix(array, 0x0000000000000000, 8);
+    assert(array->len == offset + 8);
 
     return offset;
 }
