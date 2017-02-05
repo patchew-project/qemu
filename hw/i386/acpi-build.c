@@ -42,6 +42,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
+#include "hw/acpi/vmgenid.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
 #include "sysemu/numa.h"
@@ -2653,6 +2654,11 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     acpi_add_table(table_offsets, tables_blob);
     build_madt(tables_blob, tables->linker, pcms);
 
+    if (find_vmgenid_dev(NULL)) {
+        acpi_add_table(table_offsets, tables_blob);
+        vmgenid_build_acpi(tables_blob, tables->vmgenid, tables->linker);
+    }
+
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);
         build_hpet(tables_blob, tables->linker);
@@ -2858,6 +2864,10 @@ void acpi_setup(void)
 
     fw_cfg_add_file(pcms->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
+
+    if (find_vmgenid_dev(NULL)) {
+        vmgenid_add_fw_cfg(pcms->fw_cfg, tables.vmgenid);
+    }
 
     if (!pcmc->rsdp_in_ram) {
         /*
