@@ -224,3 +224,15 @@ GuidInfo *qmp_query_vm_generation_id(Error **errp)
     info->guid = qemu_uuid_unparse_strdup(&guid);
     return info;
 }
+
+void qmp_set_vm_generation_id(const char *guid, Error **errp)
+{
+    Object *obj = find_vmgenid_dev(errp);
+
+    if (!obj) {
+        return;
+    }
+
+    object_property_set_str(obj, guid, VMGENID_GUID, errp);
+    return;
+}
