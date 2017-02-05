@@ -204,3 +204,23 @@ static void vmgenid_register_types(void)
 }
 
 type_init(vmgenid_register_types)
+
+GuidInfo *qmp_query_vm_generation_id(Error **errp)
+{
+    GuidInfo *info;
+    VmGenIdState *vdev;
+    QemuUUID guid;
+    Object *obj = find_vmgenid_dev(errp);
+
+    if (!obj) {
+        return NULL;
+    }
+    vdev = VMGENID(obj);
+    /* Convert GUID back to big-endian before displaying */
+    memcpy(&guid, &vdev->guid, sizeof(guid));
+    qemu_uuid_bswap(&guid);
+
+    info = g_malloc0(sizeof(*info));
+    info->guid = qemu_uuid_unparse_strdup(&guid);
+    return info;
+}
