@@ -1626,7 +1626,7 @@ build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
         /* rsdt->table_offset_entry to be filled by Guest linker */
         bios_linker_loader_add_pointer(linker,
             ACPI_BUILD_TABLE_FILE, rsdt_entry_offset, rsdt_entry_size,
-            ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
+            ACPI_BUILD_TABLE_FILE, ref_tbl_offset, false);
     }
     build_header(linker, table_data,
                  (void *)rsdt, "RSDT", rsdt_len, 1, oem_id, oem_table_id);

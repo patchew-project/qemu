@@ -52,10 +52,13 @@ struct BiosLinkerLoaderEntry {
         } alloc;
 
         /*
-         * COMMAND_ADD_POINTER - patch the table (originating from
-         * @dest_file) at @pointer.offset, by adding a pointer to the table
+         * COMMAND_ADD_POINTER &
+         * COMMAND_WRITE_POINTER - patch guest memory (originating from
+         * @dest_file) at @pointer.offset, by adding a pointer to the memory
          * originating from @src_file. 1,2,4 or 8 byte unsigned
          * addition is used depending on @pointer.size.
+         * Instead of patching memory, COMMAND_WRITE_POINTER writes the changes
+         * to @dest_file in QEMU via fw_cfg DMA.
          */
         struct {
             char dest_file[BIOS_LINKER_LOADER_FILESZ];
@@ -85,9 +88,10 @@ struct BiosLinkerLoaderEntry {
 typedef struct BiosLinkerLoaderEntry BiosLinkerLoaderEntry;
 
 enum {
-    BIOS_LINKER_LOADER_COMMAND_ALLOCATE     = 0x1,
-    BIOS_LINKER_LOADER_COMMAND_ADD_POINTER  = 0x2,
-    BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM = 0x3,
+    BIOS_LINKER_LOADER_COMMAND_ALLOCATE          = 0x1,
+    BIOS_LINKER_LOADER_COMMAND_ADD_POINTER       = 0x2,
+    BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM      = 0x3,
+    BIOS_LINKER_LOADER_COMMAND_WRITE_POINTER     = 0x4,
 };
 
 enum {
@@ -242,13 +246,15 @@ void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file_name,
  * @src_offset: location within source file blob to which
  *              @dest_file+@dst_patched_offset will point to after
  *              firmware's executed ADD_POINTER command
+ * @write_back: guest should write change contents back to QEMU after patching
  */
 void bios_linker_loader_add_pointer(BIOSLinker *linker,
                                     const char *dest_file,
                                     uint32_t dst_patched_offset,
                                     uint8_t dst_patched_size,
                                     const char *src_file,
-                                    uint32_t src_offset)
+                                    uint32_t src_offset,
+                                    bool write_back)
 {
     uint64_t le_src_offset;
     BiosLinkerLoaderEntry entry;
@@ -257,8 +263,11 @@ void bios_linker_loader_add_pointer(BIOSLinker *linker,
     const BiosLinkerFileEntry *source_file =
         bios_linker_find_file(linker, src_file);
 
-    assert(dst_patched_offset < dst_file->blob->len);
-    assert(dst_patched_offset + dst_patched_size <= dst_file->blob->len);
+    /* dst_file need not exist if writing back */
+    if (!write_back) {
+        assert(dst_patched_offset < dst_file->blob->len);
+        assert(dst_patched_offset + dst_patched_size <= dst_file->blob->len);
+    }
     assert(src_offset < source_file->blob->len);
 
     memset(&entry, 0, sizeof entry);
@@ -266,15 +275,19 @@ void bios_linker_loader_add_pointer(BIOSLinker *linker,
             sizeof entry.pointer.dest_file - 1);
     strncpy(entry.pointer.src_file, src_file,
             sizeof entry.pointer.src_file - 1);
-    entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ADD_POINTER);
+    entry.command = cpu_to_le32(write_back ?
+                                BIOS_LINKER_LOADER_COMMAND_WRITE_POINTER :
+                                BIOS_LINKER_LOADER_COMMAND_ADD_POINTER);
     entry.pointer.offset = cpu_to_le32(dst_patched_offset);
     entry.pointer.size = dst_patched_size;
     assert(dst_patched_size == 1 || dst_patched_size == 2 ||
            dst_patched_size == 4 || dst_patched_size == 8);
 
     le_src_offset = cpu_to_le64(src_offset);
-    memcpy(dst_file->blob->data + dst_patched_offset,
-           &le_src_offset, dst_patched_size);
+    if (!write_back) {
+        memcpy(dst_file->blob->data + dst_patched_offset,
+               &le_src_offset, dst_patched_size);
+    }
 
     g_array_append_vals(linker->cmd_blob, &entry, sizeof entry);
 }

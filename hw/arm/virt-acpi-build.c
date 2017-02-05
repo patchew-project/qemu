@@ -380,7 +380,7 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt_tbl_offset)
     /* Address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_RSDP_FILE, rsdt_pa_offset, rsdt_pa_size,
-        ACPI_BUILD_TABLE_FILE, rsdt_tbl_offset);
+        ACPI_BUILD_TABLE_FILE, rsdt_tbl_offset, false);
 
     /* Checksum to be filled by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_RSDP_FILE,
@@ -684,7 +684,7 @@ static void build_fadt(GArray *table_data, BIOSLinker *linker,
     /* DSDT address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, dsdt_entry_offset, sizeof(fadt->dsdt),
-        ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
+        ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset, false);
 
     build_header(linker, table_data,
                  (void *)fadt, "FACP", sizeof(*fadt), 5, NULL, NULL);

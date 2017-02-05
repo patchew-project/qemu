@@ -1266,7 +1266,7 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
                              sizeof(NvdimmDsmIn), false /* high memory */);
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, mem_addr_offset, sizeof(uint32_t),
-        NVDIMM_DSM_MEM_FILE, 0);
+        NVDIMM_DSM_MEM_FILE, 0, false);
     build_header(linker, table_data,
         (void *)(table_data->data + nvdimm_ssdt),
         "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");

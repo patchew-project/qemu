@@ -319,13 +319,13 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
     /* FACS address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, fw_ctrl_offset, sizeof(fadt->firmware_ctrl),
-        ACPI_BUILD_TABLE_FILE, facs_tbl_offset);
+        ACPI_BUILD_TABLE_FILE, facs_tbl_offset, false);
 
     /* DSDT address to be filled by Guest linker */
     fadt_setup(fadt, pm);
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, dsdt_entry_offset, sizeof(fadt->dsdt),
-        ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
+        ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset, false);
 
     build_header(linker, table_data,
                  (void *)fadt, "FACP", sizeof(*fadt), 1, oem_id, oem_table_id);
@@ -2262,7 +2262,7 @@ build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
     /* log area start address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, log_addr_offset, log_addr_size,
-        ACPI_BUILD_TPMLOG_FILE, 0);
+        ACPI_BUILD_TPMLOG_FILE, 0, false);
 
     build_header(linker, table_data,
                  (void *)tcpa, "TCPA", sizeof(*tcpa), 2, NULL, NULL);
@@ -2552,7 +2552,7 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt_tbl_offset)
     /* Address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_RSDP_FILE, rsdt_pa_offset, rsdt_pa_size,
-        ACPI_BUILD_TABLE_FILE, rsdt_tbl_offset);
+        ACPI_BUILD_TABLE_FILE, rsdt_tbl_offset, false);
 
     /* Checksum to be filled by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_RSDP_FILE,
