@@ -150,7 +150,7 @@ static void parse_option_number(const char *name, const char *value,
 
     if (value != NULL) {
         number = strtoull(value, &postfix, 0);
-        if (*postfix != '\0') {
+        if (*postfix != '\0' || postfix == value) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
             return;
         }
