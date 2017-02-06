@@ -582,8 +582,16 @@ struct ARMCPU {
 
     /* Should CPU start in PSCI powered-off state? */
     bool start_powered_off;
-    /* CPU currently in PSCI powered-off state */
+    /* CPU PSCI state.
+     *
+     * For TCG these can be cross-vCPU accesses and should be done
+     * atomically to avoid races.
+     *
+     *  - powered_off indicates the vCPU state
+     *  - powering_on true if the vCPU has had a CPU_ON but not yet up
+     */
     bool powered_off;
+    bool powering_on;  /* PSCI ON_PENDING */
     /* CPU has virtualization extension */
     bool has_el2;
     /* CPU has security extension */
