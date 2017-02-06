@@ -3324,9 +3324,20 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
 
         errno = ENOTSUP; /* If we are missing MADVISE etc */
 
+        if (rb->page_size == qemu_host_page_size) {
 #if defined(CONFIG_MADVISE)
-        ret = qemu_madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
+            ret = qemu_madvise(host_startaddr, length, QEMU_MADV_DONTNEED);
 #endif
+        } else {
+            /* Huge page case  - unfortunately it can't do DONTNEED, but
+             * it can do the equivalent by FALLOC_FL_PUNCH_HOLE in the
+             * huge page file.
+             */
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+            ret = fallocate(rb->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                            start, length);
+#endif
+        }
         if (ret) {
             ret = -errno;
             error_report("ram_block_discard_range: Failed to discard range "
