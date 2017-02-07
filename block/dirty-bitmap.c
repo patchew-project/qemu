@@ -274,6 +274,16 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
     return parent;
 }
 
+void bdrv_dirty_bitmap_release_successor(BlockDriverState *bs,
+                                         BdrvDirtyBitmap *parent)
+{
+    BdrvDirtyBitmap *successor = parent->successor;
+
+    if (successor) {
+        bdrv_release_dirty_bitmap(bs, successor);
+        parent->successor = NULL;
+    }
+}
 /**
  * Truncates _all_ bitmaps attached to a BDS.
  */
