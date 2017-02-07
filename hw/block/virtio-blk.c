@@ -29,8 +29,8 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
-                                    VirtIOBlockReq *req)
+static inline void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
+                                           VirtIOBlockReq *req)
 {
     req->dev = s;
     req->vq = vq;
@@ -40,12 +40,13 @@ static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
     req->mr_next = NULL;
 }
 
-static void virtio_blk_free_request(VirtIOBlockReq *req)
+static inline void virtio_blk_free_request(VirtIOBlockReq *req)
 {
     g_free(req);
 }
 
-static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
+static inline void virtio_blk_req_complete(VirtIOBlockReq *req,
+                                           unsigned char status)
 {
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
