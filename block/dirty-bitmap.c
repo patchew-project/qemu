@@ -533,3 +533,13 @@ int64_t bdrv_get_meta_dirty_count(BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->meta);
 }
+
+BdrvDirtyBitmap *bdrv_next_dirty_bitmap(BlockDriverState *bs,
+                                        BdrvDirtyBitmap *bitmap)
+{
+    if (bitmap == NULL) {
+        return QLIST_FIRST(&bs->dirty_bitmaps);
+    }
+
+    return QLIST_NEXT(bitmap, list);
+}

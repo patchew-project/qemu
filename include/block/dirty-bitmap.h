@@ -72,4 +72,7 @@ void bdrv_dirty_bitmap_deserialize_zeroes(BdrvDirtyBitmap *bitmap,
                                           bool finish);
 void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap);
 
+BdrvDirtyBitmap *bdrv_next_dirty_bitmap(BlockDriverState *bs,
+                                        BdrvDirtyBitmap *bitmap);
+
 #endif
