@@ -2091,8 +2091,12 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
         remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
     }
 
-    /* We can do postcopy, and all the data is postcopiable */
-    *postcopiable_pending += remaining_size;
+    if (migrate_postcopy_ram()) {
+        /* We can do postcopy, and all the data is postcopiable */
+        *postcopiable_pending += remaining_size;
+    } else {
+        *non_postcopiable_pending += remaining_size;
+    }
 }
 
 static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
