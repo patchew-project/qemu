@@ -111,8 +111,9 @@ void qemu_savevm_state_cleanup(void);
 void qemu_savevm_state_complete_postcopy(QEMUFile *f);
 void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only);
 void qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size,
-                               uint64_t *res_non_postcopiable,
-                               uint64_t *res_postcopiable);
+                               uint64_t *res_precopy_only,
+                               uint64_t *res_compatible,
+                               uint64_t *res_postcopy_only);
 void qemu_savevm_command_send(QEMUFile *f, enum qemu_vm_cmd command,
                               uint16_t len, uint8_t *data);
 void qemu_savevm_send_ping(QEMUFile *f, uint32_t value);
