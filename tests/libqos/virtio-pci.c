@@ -68,6 +68,7 @@ static void qvirtio_pci_foreach_callback(
 static void qvirtio_pci_assign_device(QVirtioDevice *d, void *data)
 {
     QVirtioPCIDevice **vpcidev = data;
+    assert(!*vpcidev);
     *vpcidev = (QVirtioPCIDevice *)d;
 }
 
