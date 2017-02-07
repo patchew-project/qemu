@@ -78,4 +78,6 @@ void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap);
 BdrvDirtyBitmap *bdrv_next_dirty_bitmap(BlockDriverState *bs,
                                         BdrvDirtyBitmap *bitmap);
 
+char *bdrv_dirty_bitmap_sha256(const BdrvDirtyBitmap *bitmap, Error **errp);
+
 #endif
