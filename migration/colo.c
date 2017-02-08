@@ -170,6 +170,23 @@ void qmp_xen_set_replication(bool enable, bool primary,
     }
 }
 
+ReplicationResult *qmp_query_xen_replication_status(Error **errp)
+{
+    Error *err = NULL;
+    ReplicationResult *result = g_new0(ReplicationResult, 1);
+    replication_get_error_all(&err);
+    result->status = err ?
+                     REPLICATION_STATUS_ERROR :
+                     REPLICATION_STATUS_NORMAL;
+    error_free(err);
+    return result;
+}
+
+void qmp_xen_do_checkpoint(Error **errp)
+{
+    replication_do_checkpoint_all(errp);
+}
+
 static void colo_send_message(QEMUFile *f, COLOMessage msg,
                               Error **errp)
 {
