@@ -2016,8 +2016,8 @@ static int qcow2_change_backing_file(BlockDriverState *bs,
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
 
-    s->image_backing_file = backing_file ? g_strdup(bs->backing_file) : NULL;
-    s->image_backing_format = backing_fmt ? g_strdup(bs->backing_format) : NULL;
+    s->image_backing_file = g_strdup(bs->backing_file);
+    s->image_backing_format = g_strdup(bs->backing_format);
 
     return qcow2_update_header(bs);
 }
