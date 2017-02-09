@@ -56,6 +56,7 @@ struct ParallelIOArg {
 #define CHR_TIOCM_RTS	0x004
 
 typedef void IOEventHandler(void *opaque, int event);
+typedef int BackendChangeHandler(void *opaque);
 
 typedef enum {
     /* Whether the chardev peer is able to close and
@@ -79,9 +80,12 @@ typedef struct CharBackend {
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
     IOReadHandler *chr_read;
+    BackendChangeHandler *chr_be_change;
     void *opaque;
     int tag;
     int fe_open;
+    QemuMutex chr_lock;
+    QEMUBH *hotswap_bh;
 } CharBackend;
 
 struct Chardev {
@@ -132,6 +136,14 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  */
 Chardev *qemu_chr_new(const char *label, const char *filename);
 
+/**
+ * @qemu_chr_change:
+ *
+ * Change an existing character backend
+ *
+ * @opts the new backend options
+ */
+void qemu_chr_change(QemuOpts *opts, Error **errp);
 
 /**
  * @qemu_chr_fe_disconnect:
@@ -417,6 +429,19 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               void *opaque,
                               GMainContext *context,
                               bool set_open);
+
+/**
+ * @qemu_chr_fe_set_be_change_handler:
+ * @be_change: backend change callback
+ *
+ * Set the front end handler for the backend hotswap.
+ * If the handler is not set or set to NULL, no backend hotswap will
+ * be performed.
+ *
+ * Without associated Chardev, nothing is changed.
+ */
+void qemu_chr_fe_set_be_change_handler(CharBackend *b,
+                                       BackendChangeHandler *be_change);
 
 /**
  * @qemu_chr_fe_take_focus:

@@ -1522,6 +1522,20 @@ void hmp_change(Monitor *mon, const QDict *qdict)
             }
         }
         qmp_change("vnc", target, !!arg, arg, &err);
+    } else if (strcmp(device, "chardev") == 0) {
+        QemuOpts *opts;
+
+        if (arg == NULL) {
+            arg = "";
+        }
+        opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"), arg, true);
+        if (opts == NULL) {
+            error_setg(&err, "Parsing chardev args failed");
+        } else {
+            qemu_opts_set_id(opts, g_strdup(target));
+            qemu_chr_change(opts, &err);
+            qemu_opts_del(opts);
+        }
     } else {
         if (read_only) {
             read_only_mode =
