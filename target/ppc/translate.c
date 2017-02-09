@@ -3654,6 +3654,29 @@ static void gen_mcrxr(DisasContext *ctx)
     tcg_gen_movi_tl(cpu_ca, 0);
 }
 
+#ifdef TARGET_PPC64
+/* mcrxrx */
+static void gen_mcrxrx(DisasContext *ctx)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 dst = cpu_crf[crfD(ctx->opcode)];
+
+    /* copy OV and OV32 */
+    tcg_gen_trunc_tl_i32(t0, cpu_so);
+    tcg_gen_shli_i32(dst, t0, 1);
+    tcg_gen_or_i32(dst, dst, t0);
+    tcg_gen_shli_i32(dst, dst, 2);
+    /* copy CA and CA32 */
+    tcg_gen_trunc_tl_i32(t0, cpu_ca);
+    tcg_gen_shli_i32(t1, t0, 1);
+    tcg_gen_or_i32(t1, t1, t0);
+    tcg_gen_or_i32(dst, dst, t1);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+}
+#endif
+
 /* mfcr mfocrf */
 static void gen_mfcr(DisasContext *ctx)
 {
@@ -6319,6 +6342,7 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B),
 GEN_HANDLER_E(setb, 0x1F, 0x00, 0x04, 0x0003F801, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(mcrxrx, 0x1F, 0x00, 0x12, 0x007FF801, PPC_NONE, PPC2_ISA300),
 #endif
 GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001EF801, PPC_MISC),
 GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000000, PPC_MISC),
