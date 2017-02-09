@@ -2586,6 +2586,13 @@ void ide_register_restart_cb(IDEBus *bus)
     }
 }
 
+void ide_unregister_restart_cb(IDEBus *bus)
+{
+    if (bus->dma->ops->restart_dma) {
+        qemu_del_vm_change_state_handler(bus->vmstate);
+    }
+}
+
 static IDEDMA ide_dma_nop = {
     .ops = &ide_dma_nop_ops,
     .aiocb = NULL,
@@ -2601,6 +2608,20 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
     }
     bus->irq = irq;
     bus->dma = &ide_dma_nop;
+}
+
+void ide_exit(IDEBus *bus)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        IDEState *s = &bus->ifs[i];
+
+        timer_del(s->sector_write_timer);
+        timer_free(s->sector_write_timer);
+        qemu_vfree(s->smart_selftest_data);
+        qemu_vfree(s->io_buffer);
+    }
 }
 
 static const MemoryRegionPortio ide_portio_list[] = {
