@@ -3608,6 +3608,12 @@ static void gen_read_xer(TCGv dst)
     tcg_gen_or_tl(t0, t0, t1);
     tcg_gen_or_tl(dst, dst, t2);
     tcg_gen_or_tl(dst, dst, t0);
+#ifdef TARGET_PPC64
+    tcg_gen_shli_tl(t0, cpu_ov, XER_OV32);
+    tcg_gen_or_tl(dst, dst, t0);
+    tcg_gen_shli_tl(t0, cpu_ca, XER_CA32);
+    tcg_gen_or_tl(dst, dst, t0);
+#endif
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     tcg_temp_free(t2);
