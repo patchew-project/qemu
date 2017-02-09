@@ -163,6 +163,29 @@ static void chr_event(void *opaque, int event)
     }
 }
 
+static int chr_be_change(void *opaque)
+{
+    VirtConsole *vcon = opaque;
+    VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(vcon);
+    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+
+    if (k->is_console) {
+        qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
+                                 NULL, vcon, NULL, true);
+    } else {
+        qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
+                                 chr_event, vcon, NULL, false);
+    }
+    if (vcon->watch) {
+        g_source_remove(vcon->watch);
+        vcon->watch = qemu_chr_fe_add_watch(&vcon->chr,
+                                            G_IO_OUT | G_IO_HUP,
+                                            chr_write_unblocked, vcon);
+    }
+
+    return 0;
+}
+
 static void virtconsole_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
@@ -194,6 +217,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
             qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
                                      chr_event, vcon, NULL, false);
         }
+        qemu_chr_fe_set_be_change_handler(&vcon->chr, chr_be_change);
     }
 }
 
