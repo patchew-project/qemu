@@ -806,7 +806,8 @@ typedef struct E1000E_RingInfo_st {
 static inline bool
 e1000e_ring_empty(E1000ECore *core, const E1000E_RingInfo *r)
 {
-    return core->mac[r->dh] == core->mac[r->dt];
+    return core->mac[r->dh] == core->mac[r->dt] ||
+                core->mac[r->dt] >= core->mac[r->dlen];
 }
 
 static inline uint64_t
@@ -914,7 +915,7 @@ e1000e_start_xmit(E1000ECore *core, const E1000E_TxRing *txr)
     struct e1000_tx_desc desc;
     bool ide = false;
     const E1000E_RingInfo *txi = txr->i;
-    uint32_t cause = E1000_ICS_TXQE;
+    uint32_t tdh_start = core->mac[txi->dh], cause = E1000_ICS_TXQE;
 
     if (!(core->mac[TCTL] & E1000_TCTL_EN)) {
         trace_e1000e_tx_disabled();
@@ -933,6 +934,14 @@ e1000e_start_xmit(E1000ECore *core, const E1000E_TxRing *txr)
         cause |= e1000e_txdesc_writeback(core, base, &desc, &ide, txi->idx);
 
         e1000e_ring_advance(core, txi, 1);
+
+        /*
+         * The following avoid infinite loop, just as the e1000
+         */
+        if (core->mac[txi->dh] == tdh_start ||
+            tdh_start >= core->mac[txi->dlen] / E1000_RING_DESC_LEN) {
+            break;
+            }
     }
 
     if (!ide || !e1000e_intrmgr_delay_tx_causes(core, &cause)) {
@@ -1500,6 +1509,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
     size_t desc_size;
     size_t desc_offset = 0;
     size_t iov_ofs = 0;
+    uint32_t rdh_start;
 
     struct iovec *iov = net_rx_pkt_get_iovec(pkt);
     size_t size = net_rx_pkt_get_total_len(pkt);
@@ -1509,6 +1519,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
     bool do_ps = e1000e_do_ps(core, pkt, &ps_hdr_len);
 
     rxi = rxr->i;
+    rdh_start = core->mac[rxi->dh];
 
     do {
         hwaddr ba[MAX_PS_BUFFERS];
@@ -1520,6 +1531,10 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
 
         if (desc_size > core->rx_desc_buf_size) {
             desc_size = core->rx_desc_buf_size;
+        }
+
+        if (e1000e_ring_empty(core, rxi)) {
+            return;
         }
 
         base = e1000e_ring_head_descr(core, rxi);
@@ -1605,6 +1620,10 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
         e1000e_ring_advance(core, rxi,
                             core->rx_desc_len / E1000_MIN_RX_DESC_LEN);
 
+        if (core->mac[rxi->dh] == rdh_start ||
+            rdh_start >= core->mac[rxi->dlen] / E1000_RING_DESC_LEN) {
+            break;
+            }
     } while (desc_offset < total_size);
 
     e1000e_update_rx_stats(core, size, total_size);
