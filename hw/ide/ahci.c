@@ -1485,6 +1485,14 @@ void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
 
 void ahci_uninit(AHCIState *s)
 {
+    int i;
+
+    for (i = 0; i < s->ports; i++) {
+        AHCIDevice *ad = &s->dev[i];
+
+        ide_unregister_restart_cb(&ad->port);
+        ide_exit(&ad->port);
+    }
     g_free(s->dev);
 }
 
