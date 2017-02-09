@@ -527,4 +527,6 @@ int kvm_set_one_reg(CPUState *cs, uint64_t id, void *source);
  */
 int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target);
 int kvm_get_max_memslots(void);
+
+void kvm_arch_save_crash_info(CPUState *cpu);
 #endif
