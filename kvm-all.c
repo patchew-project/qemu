@@ -120,6 +120,7 @@ bool kvm_vm_attributes_allowed;
 bool kvm_direct_msi_allowed;
 bool kvm_ioeventfd_any_length_allowed;
 bool kvm_msi_use_devid;
+static bool kvm_immediate_exit;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -1619,6 +1620,7 @@ static int kvm_init(MachineState *ms)
         goto err;
     }
 
+    kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
     s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
 
     /* If unspecified, use the default value */
@@ -1897,6 +1899,20 @@ static __thread void *pending_sigbus_addr;
 static __thread int pending_sigbus_code;
 static __thread bool have_sigbus_pending;
 
+static void kvm_cpu_kick(CPUState *cpu)
+{
+    atomic_set(&cpu->kvm_run->immediate_exit, 1);
+}
+
+static void kvm_cpu_kick_self(void)
+{
+    if (kvm_immediate_exit) {
+        kvm_cpu_kick(current_cpu);
+    } else {
+        qemu_cpu_kick_self();
+    }
+}
+
 static void kvm_eat_signals(CPUState *cpu)
 {
     struct timespec ts = { 0, 0 };
@@ -1904,6 +1920,10 @@ static void kvm_eat_signals(CPUState *cpu)
     sigset_t waitset;
     sigset_t chkset;
     int r;
+
+    if (kvm_immediate_exit) {
+        return;
+    }
 
     sigemptyset(&waitset);
     sigaddset(&waitset, SIG_IPI);
@@ -1953,7 +1973,7 @@ int kvm_cpu_exec(CPUState *cpu)
              * instruction emulation. This self-signal will ensure that we
              * leave ASAP again.
              */
-            qemu_cpu_kick_self();
+            kvm_cpu_kick_self();
         }
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
@@ -2426,8 +2446,12 @@ static int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
     return r;
 }
 
-static void dummy_signal(int sig)
+static void kvm_ipi_signal(int sig)
 {
+    if (current_cpu) {
+        assert(kvm_immediate_exit);
+        kvm_cpu_kick(current_cpu);
+    }
 }
 
 void kvm_init_cpu_signals(CPUState *cpu)
@@ -2437,7 +2461,7 @@ void kvm_init_cpu_signals(CPUState *cpu)
     struct sigaction sigact;
 
     memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = dummy_signal;
+    sigact.sa_handler = kvm_ipi_signal;
     sigaction(SIG_IPI, &sigact, NULL);
 
     pthread_sigmask(SIG_BLOCK, NULL, &set);
@@ -2446,7 +2470,11 @@ void kvm_init_cpu_signals(CPUState *cpu)
     pthread_sigmask(SIG_SETMASK, &set, NULL);
 #endif
     sigdelset(&set, SIG_IPI);
-    r = kvm_set_signal_mask(cpu, &set);
+    if (kvm_immediate_exit) {
+        r = pthread_sigmask(SIG_SETMASK, &set, NULL);
+    } else {
+        r = kvm_set_signal_mask(cpu, &set);
+    }
     if (r) {
         fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
         exit(1);
