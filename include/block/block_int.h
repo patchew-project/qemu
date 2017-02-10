@@ -41,6 +41,7 @@
 
 #define BLOCK_OPT_SIZE              "size"
 #define BLOCK_OPT_ENCRYPT           "encryption"
+#define BLOCK_OPT_ENCRYPTION_FORMAT "encryption-format"
 #define BLOCK_OPT_COMPAT6           "compat6"
 #define BLOCK_OPT_HWVERSION         "hwversion"
 #define BLOCK_OPT_BACKING_FILE      "backing_file"
