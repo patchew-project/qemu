@@ -1228,7 +1228,7 @@ static int kvmppc_get_books_sregs(PowerPCCPU *cpu)
     }
 
     if (!env->external_htab) {
-        ppc_store_sdr1(env, sregs.u.s.sdr1);
+        ppc_store_htab(env, sregs.u.s.sdr1);
     }
 
     /* Sync SLB */

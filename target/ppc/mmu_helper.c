@@ -1995,17 +1995,23 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 
 /*****************************************************************************/
 /* Special registers manipulation */
-void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
+void ppc_store_htab(CPUPPCState *env, target_ulong value)
 {
     qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
     assert(!env->external_htab);
-    env->spr[SPR_SDR1] = value;
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00: /* POWER 9 doesn't have an SDR1 */
+        break;
+    default: /* Pre-POWER9 does */
+        env->spr[SPR_SDR1] = value;
+        break;
+    }
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         PowerPCCPU *cpu = ppc_env_get_cpu(env);
         Error *local_err = NULL;
 
-        ppc_hash64_set_sdr1(cpu, value, &local_err);
+        ppc_hash64_set_htab(cpu, value, &local_err);
         if (local_err) {
             error_report_err(local_err);
             error_free(local_err);

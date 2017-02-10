@@ -1265,7 +1265,7 @@ int ppc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
+void ppc_store_htab(CPUPPCState *env, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 

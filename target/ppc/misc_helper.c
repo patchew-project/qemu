@@ -84,7 +84,8 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 
     if (!env->external_htab) {
         if (env->spr[SPR_SDR1] != val) {
-            ppc_store_sdr1(env, val);
+            env->spr[SPR_SDR1] = val;
+            ppc_store_htab(env, val);
             tlb_flush(CPU(cpu));
         }
     }

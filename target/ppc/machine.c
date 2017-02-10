@@ -77,7 +77,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < 1024; i++)
         qemu_get_betls(f, &env->spr[i]);
     if (!env->external_htab) {
-        ppc_store_sdr1(env, sdr1);
+        ppc_store_htab(env, sdr1);
     }
     qemu_get_be32s(f, &env->vscr);
     qemu_get_be64s(f, &env->spe_acc);
@@ -230,7 +230,7 @@ static int cpu_post_load(void *opaque, int version_id)
 
     if (!env->external_htab) {
         /* Restore htab_base and htab_mask variables */
-        ppc_store_sdr1(env, env->spr[SPR_SDR1]);
+        ppc_store_htab(env, env->spr[SPR_SDR1]);
     }
 
     /* Invalidate all msr bits except MSR_TGPR/MSR_HVB before restoring */
