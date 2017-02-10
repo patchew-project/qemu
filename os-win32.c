@@ -77,6 +77,13 @@ void os_setup_early_signal_handling(void)
     atexit(os_undo_timer_resolution);
 }
 
+void sigaction_invoke(struct sigaction *action,
+                      struct qemu_signalfd_siginfo *info)
+{
+    /* SA_SIGINFO not used on Windows.  */
+    abort();
+}
+
 /* Look for support files in the same directory as the executable.  */
 char *os_find_datadir(void)
 {
