@@ -85,6 +85,10 @@ extern int daemon(int, int);
 #include <setjmp.h>
 #include <signal.h>
 
+#ifdef __linux__
+#include <sys/sysmacros.h>
+#endif
+
 #ifdef __OpenBSD__
 #include <sys/signal.h>
 #endif
