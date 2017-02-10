@@ -284,7 +284,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
              * provide the same key-secret property against the full
              * backing chain
              */
-            s->crypto = qcrypto_block_open(s->crypto_opts,
+            s->crypto = qcrypto_block_open(s->crypto_opts, "luks-",
                                            qcow2_crypto_hdr_read_func,
                                            bs, cflags, errp);
             if (!s->crypto) {
@@ -1293,8 +1293,8 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
              * provide the same key-secret property against the full
              * backing chain
              */
-            s->crypto = qcrypto_block_open(s->crypto_opts, NULL, NULL,
-                                           cflags, errp);
+            s->crypto = qcrypto_block_open(s->crypto_opts, "aes-",
+                                           NULL, NULL, cflags, errp);
             if (!s->crypto) {
                 ret = -EINVAL;
                 goto fail;
@@ -2211,14 +2211,17 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, QemuOpts *opts,
     QCryptoBlockCreateOptions *cryptoopts = NULL;
     QCryptoBlock *crypto = NULL;
     int ret = -EINVAL;
+    const char *optprefix;
 
     if (g_str_equal(format, "luks")) {
+        optprefix = "luks-";
         cryptoopts = block_crypto_create_opts_init(
-            Q_CRYPTO_BLOCK_FORMAT_LUKS, opts, "luks-", errp);
+            Q_CRYPTO_BLOCK_FORMAT_LUKS, opts, optprefix, errp);
         s->crypt_method_header = QCOW_CRYPT_LUKS;
     } else if (g_str_equal(format, "aes")) {
+        optprefix = "aes-";
         cryptoopts = block_crypto_create_opts_init(
-            Q_CRYPTO_BLOCK_FORMAT_QCOW, opts, "aes-", errp);
+            Q_CRYPTO_BLOCK_FORMAT_QCOW, opts, optprefix, errp);
         s->crypt_method_header = QCOW_CRYPT_AES;
     } else {
         error_setg(errp, "Unknown encryption format %s", format);
@@ -2230,7 +2233,7 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, QemuOpts *opts,
         goto out;
     }
 
-    crypto = qcrypto_block_create(cryptoopts,
+    crypto = qcrypto_block_create(cryptoopts, optprefix,
                                   qcow2_crypto_hdr_init_func,
                                   qcow2_crypto_hdr_write_func,
                                   bs, errp);
