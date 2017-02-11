@@ -569,7 +569,6 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
 }
 
 /* single block SDMA transfer */
-
 static void sdhci_sdma_transfer_single_block(SDHCIState *s)
 {
     int n;
@@ -588,10 +587,7 @@ static void sdhci_sdma_transfer_single_block(SDHCIState *s)
             sdbus_write_data(&s->sdbus, s->fifo_buffer[n]);
         }
     }
-
-    if (s->trnmod & SDHC_TRNS_BLK_CNT_EN) {
-        s->blkcnt--;
-    }
+    s->blkcnt--;
 
     sdhci_end_transfer(s);
 }
