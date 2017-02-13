@@ -267,6 +267,7 @@ void migrate_multifd_send_threads_create(void);
 void migrate_multifd_send_threads_join(void);
 void migrate_multifd_recv_threads_create(void);
 void migrate_multifd_recv_threads_join(void);
+void qemu_savevm_send_multifd_flush(QEMUFile *f);
 
 void migrate_compress_threads_create(void);
 void migrate_compress_threads_join(void);
