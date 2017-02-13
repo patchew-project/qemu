@@ -952,6 +952,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
         if ((cpu->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask)) {
             explicit_match = true;
+            break;
         } else {
             if (ppc_check_compat(cpu, pvr, best_compat, max_compat)) {
                 best_compat = pvr;
