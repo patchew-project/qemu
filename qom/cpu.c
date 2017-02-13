@@ -80,8 +80,14 @@ CPUState *cpu_generic_new(const char *typename, const char *cpu_model)
 
     cc = CPU_CLASS(oc);
     featurestr = strtok(NULL, ",");
-    /* TODO: all callers of cpu_generic_init() need to be converted to
-     * call parse_features() only once, before calling cpu_generic_init().
+    /* TODO: we should really arrange to have parse_features() called
+     * only once, since it needs only to be called once per CPU class
+     * rather than once per instance of that class. Perhaps this would
+     * be done by changes to how machine core code works or by doing
+     * something in main(). In the meantime, board code should prefer
+     * to use this function rather than calling parse_features()
+     * manually, so that refactoring how we handle this is easier in
+     * future.
      */
     cc->parse_features(object_class_get_name(oc), featurestr, &err);
     g_free(str);
