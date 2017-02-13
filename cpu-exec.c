@@ -228,6 +228,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 
 static void cpu_exec_step(CPUState *cpu)
 {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb;
     target_ulong cs_base, pc;
@@ -239,9 +240,16 @@ static void cpu_exec_step(CPUState *cpu)
                      1 | CF_NOCACHE | CF_IGNORE_ICOUNT);
     tb->orig_tb = NULL;
     tb_unlock();
-    /* execute the generated code */
-    trace_exec_tb_nocache(tb, pc);
-    cpu_tb_exec(cpu, tb);
+
+    cc->cpu_exec_enter(cpu);
+
+    if (sigsetjmp(cpu->jmp_env, 0) == 0) {
+        /* execute the generated code */
+        trace_exec_tb_nocache(tb, pc);
+        cpu_tb_exec(cpu, tb);
+    }
+
+    cc->cpu_exec_exit(cpu);
     tb_lock();
     tb_phys_invalidate(tb, -1);
     tb_free(tb);
