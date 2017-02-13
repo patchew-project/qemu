@@ -599,11 +599,28 @@ void cpu_reset(CPUState *cpu);
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
 
 /**
+ * cpu_generic_new:
+ * @typename: The CPU base type.
+ * @cpu_model: The model string including optional parameters.
+ *
+ * Instantiates a CPU, processes optional parameters but does not realize it.
+ * This is the recommended way to create a CPU object which needs to be
+ * configured by then setting QOM properties on it. The configured CPU can
+ * then be realized in the usual way by calling
+ *    object_property_set_bool(cpuobj, true, "realized", &err);
+ *
+ * Returns: A #CPUState or %NULL if an error occurred.
+ */
+CPUState *cpu_generic_new(const char *typename, const char *cpu_model);
+
+/**
  * cpu_generic_init:
  * @typename: The CPU base type.
  * @cpu_model: The model string including optional parameters.
  *
  * Instantiates a CPU, processes optional parameters and realizes the CPU.
+ * This is equivalent to calling cpu_generic_new() and then immediately
+ * realizing the CPU object.
  *
  * Returns: A #CPUState or %NULL if an error occurred.
  */
