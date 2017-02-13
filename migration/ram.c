@@ -2251,6 +2251,9 @@ void migrate_decompress_threads_create(void)
 {
     int i, thread_count;
 
+    if (!migrate_use_compression()) {
+        return;
+    }
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
     decomp_param = g_new0(DecompressParam, thread_count);
@@ -2272,6 +2275,9 @@ void migrate_decompress_threads_join(void)
 {
     int i, thread_count;
 
+    if (!migrate_use_compression()) {
+        return;
+    }
     thread_count = migrate_decompress_threads();
     for (i = 0; i < thread_count; i++) {
         qemu_mutex_lock(&decomp_param[i].mutex);
