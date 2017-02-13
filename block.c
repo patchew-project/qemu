@@ -800,6 +800,13 @@ const BdrvChildRole child_format = {
     .drained_end     = bdrv_child_cb_drained_end,
 };
 
+static char *bdrv_backing_link_name(BdrvChild *c)
+{
+    BlockDriverState *parent = c->opaque;
+    return g_strdup_printf("backing file link from %s",
+                           bdrv_get_device_or_node_name(parent));
+}
+
 /*
  * Returns the options and flags that bs->backing should get, based on the
  * given options and flags for the parent BDS
@@ -825,6 +832,7 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 }
 
 static const BdrvChildRole child_backing = {
+    .get_link_name   = bdrv_backing_link_name,
     .inherit_options = bdrv_backing_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,

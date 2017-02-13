@@ -438,6 +438,10 @@ struct BdrvChildRole {
      * name), or NULL if the parent can't provide a better name. */
     const char* (*get_name)(BdrvChild *child);
 
+    /* Returns a malloced name that describes the link from the parent to the
+     * child. The caller is responsible for freeing the memory. */
+    char* (*get_link_name)(BdrvChild *child);
+
     /*
      * If this pair of functions is implemented, the parent doesn't issue new
      * requests after returning from .drained_begin() until .drained_end() is
