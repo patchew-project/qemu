@@ -71,7 +71,7 @@ typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 
 struct XICSStateClass {
-    DeviceClass parent_class;
+    SysBusDeviceClass parent_class;
 
     void (*cpu_setup)(XICSState *icp, PowerPCCPU *cpu);
     void (*set_nr_irqs)(XICSState *icp, uint32_t nr_irqs, Error **errp);
