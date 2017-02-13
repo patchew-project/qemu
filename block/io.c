@@ -925,9 +925,11 @@ bdrv_driver_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     return drv->bdrv_co_pwritev_compressed(bs, offset, bytes, qiov);
 }
 
-static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
+static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
         int64_t offset, unsigned int bytes, QEMUIOVector *qiov)
 {
+    BlockDriverState *bs = child->bs;
+
     /* Perform I/O through a temporary buffer so that users who scribble over
      * their read buffer while the operation is in progress do not end up
      * modifying the image file.  This is critical for zero-copy guest I/O
@@ -942,6 +944,8 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     unsigned int cluster_bytes;
     size_t skip_bytes;
     int ret;
+
+    assert(child->perm & (BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE));
 
     /* Cover entire cluster so no additional backing file I/O is required when
      * allocating cluster in the image file.
@@ -1051,7 +1055,7 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
         }
 
         if (!ret || pnum != nb_sectors) {
-            ret = bdrv_co_do_copy_on_readv(bs, offset, bytes, qiov);
+            ret = bdrv_co_do_copy_on_readv(child, offset, bytes, qiov);
             goto out;
         }
     }
@@ -1334,6 +1338,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= offset);
     assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
+    assert(child->perm & BLK_PERM_WRITE);
 
     ret = notifier_with_return_list_notify(&bs->before_write_notifiers, req);
 
