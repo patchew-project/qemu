@@ -1558,10 +1558,21 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              Error **errp)
 {
     BdrvChild *child;
+    uint64_t perm, shared_perm;
 
-    /* FIXME Use real permissions */
+    /* XXX This check is a workaround for bdrv_open_inherit(), which attaches
+     * bs->file before bs is opened for format probing. The 'else' branch
+     * really shouldn't exist. */
+    if (parent_bs->drv) {
+        parent_bs->drv->bdrv_child_perm(parent_bs, NULL, child_role,
+                                        0, BLK_PERM_ALL, &perm, &shared_perm);
+    } else {
+        perm = 0;
+        shared_perm = BLK_PERM_ALL;
+    }
+
     child = bdrv_root_attach_child(child_bs, child_name, child_role,
-                                   0, BLK_PERM_ALL, parent_bs, errp);
+                                   perm, shared_perm, parent_bs, errp);
     if (child == NULL) {
         return NULL;
     }
@@ -2041,6 +2052,8 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
      * probing, the block drivers will do their own bdrv_open_child() for the
      * same BDS, which is why we put the node name back into options. */
     if ((flags & BDRV_O_PROTOCOL) == 0) {
+        /* FIXME Really shouldn't try to open a child for a still closed bs,
+         * see bdrv_attach_child() */
         file = bdrv_open_child(filename, options, "file", bs,
                                &child_file, true, &local_err);
         if (local_err) {
