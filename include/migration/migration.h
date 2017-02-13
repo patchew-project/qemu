@@ -255,6 +255,7 @@ bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);
 
 int migrate_multifd_threads(void);
+int migrate_multifd_group(void);
 
 void migrate_compress_threads_create(void);
 void migrate_compress_threads_join(void);

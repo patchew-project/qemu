@@ -984,6 +984,9 @@
 # @x-multifd-threads: Number of threads used to migrate data in parallel
 #                     The default value is 2 (since 2.9)
 #
+# @x-multifd-group: Number of pages sent together to a thread
+#                     The default value is 16 (since 2.9)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -991,7 +994,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay',
-           'x-multifd-threads'] }
+           'x-multifd-threads', 'x-multifd-group'] }
 
 ##
 # @migrate-set-parameters:
@@ -1058,6 +1061,9 @@
 # @x-multifd-threads: Number of threads used to migrate data in parallel
 #                     The default value is 2 (since 2.9)
 #
+# @x-multifd-group: Number of pages sent together in a bunch
+#                     The default value is 16 (since 2.9)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -1071,7 +1077,8 @@
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
-            '*x-multifd-threads': 'int'} }
+            '*x-multifd-threads': 'int',
+            '*x-multifd-group': 'int'} }
 
 ##
 # @query-migrate-parameters:
