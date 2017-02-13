@@ -307,6 +307,7 @@ void migrate_del_blocker(Error *reason);
 bool migrate_postcopy(void);
 bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);
+bool migrate_dirty_bitmaps(void);
 
 bool migrate_auto_converge(void);
 
