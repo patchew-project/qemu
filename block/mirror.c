@@ -1020,13 +1020,16 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    block_job_add_bdrv(&s->common, target);
+    /* FIXME Use real permissions */
+    block_job_add_bdrv(&s->common, target, 0, BLK_PERM_ALL, &error_abort);
+
     /* In commit_active_start() all intermediate nodes disappear, so
      * any jobs in them must be blocked */
     if (bdrv_chain_contains(bs, target)) {
         BlockDriverState *iter;
         for (iter = backing_bs(bs); iter != target; iter = backing_bs(iter)) {
-            block_job_add_bdrv(&s->common, iter);
+            /* FIXME Use real permissions */
+            block_job_add_bdrv(&s->common, iter, 0, BLK_PERM_ALL, &error_abort);
         }
     }
 
