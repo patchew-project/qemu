@@ -2252,6 +2252,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         if (xfer->complete) {
             xhci_ep_free_xfer(xfer);
             xfer = NULL;
+            break;
         }
 
         if (epctx->state == EP_HALTED) {
