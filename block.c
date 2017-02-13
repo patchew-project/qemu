@@ -1307,8 +1307,9 @@ static int bdrv_check_perm(BlockDriverState *bs, uint64_t cumulative_perms,
                                     cumulative_shared_perms, errp);
     }
 
-    /* Drivers may not have .bdrv_child_perm() */
+    /* Drivers that never have children can omit .bdrv_child_perm() */
     if (!drv->bdrv_child_perm) {
+        assert(QLIST_EMPTY(&bs->children));
         return 0;
     }
 
@@ -1342,8 +1343,9 @@ static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
         drv->bdrv_set_perm(bs, cumulative_perms, cumulative_shared_perms);
     }
 
-    /* Drivers may not have .bdrv_child_perm() */
+    /* Drivers that never have children can omit .bdrv_child_perm() */
     if (!drv->bdrv_child_perm) {
+        assert(QLIST_EMPTY(&bs->children));
         return;
     }
 
