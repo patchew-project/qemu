@@ -1448,6 +1448,16 @@ enum ImgConvertBlockStatus {
     BLK_BACKING_FILE,
 };
 
+typedef struct ImgConvertQueueElt {
+    int64_t sector_num;
+    enum ImgConvertBlockStatus status;
+    int nb_sectors;
+    QSIMPLEQ_ENTRY(ImgConvertQueueElt) next;
+} ImgConvertQueueElt;
+
+//XXX: this should be a cmdline parameter
+#define NUM_COROUTINES 8
+
 typedef struct ImgConvertState {
     BlockBackend **src;
     int64_t *src_sectors;
@@ -1455,6 +1465,8 @@ typedef struct ImgConvertState {
     int64_t src_cur_offset;
     int64_t total_sectors;
     int64_t allocated_sectors;
+    int64_t allocated_done;
+    int64_t wr_offs;
     enum ImgConvertBlockStatus status;
     int64_t sector_next_status;
     BlockBackend *target;
@@ -1464,11 +1476,16 @@ typedef struct ImgConvertState {
     int min_sparse;
     size_t cluster_sectors;
     size_t buf_sectors;
+    bool locked;
+    int ret;
+    Coroutine *co[NUM_COROUTINES];
+    QSIMPLEQ_HEAD(, ImgConvertQueueElt) queue;
 } ImgConvertState;
 
 static void convert_select_part(ImgConvertState *s, int64_t sector_num)
 {
-    assert(sector_num >= s->src_cur_offset);
+    s->src_cur_offset = 0;
+    s->src_cur = 0;
     while (sector_num - s->src_cur_offset >= s->src_sectors[s->src_cur]) {
         s->src_cur_offset += s->src_sectors[s->src_cur];
         s->src_cur++;
@@ -1545,7 +1562,7 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 }
 
 static int convert_read(ImgConvertState *s, int64_t sector_num, int nb_sectors,
-                        uint8_t *buf)
+                        uint8_t *buf, QEMUIOVector *qiov)
 {
     int n;
     int ret;
@@ -1562,10 +1579,12 @@ static int convert_read(ImgConvertState *s, int64_t sector_num, int nb_sectors,
         blk = s->src[s->src_cur];
         bs_sectors = s->src_sectors[s->src_cur];
 
+        qemu_iovec_reset(qiov);
         n = MIN(nb_sectors, bs_sectors - (sector_num - s->src_cur_offset));
-        ret = blk_pread(blk,
-                        (sector_num - s->src_cur_offset) << BDRV_SECTOR_BITS,
-                        buf, n << BDRV_SECTOR_BITS);
+        qemu_iovec_add(qiov, buf, n << BDRV_SECTOR_BITS);
+
+        ret = blk_co_preadv(blk, (sector_num - s->src_cur_offset) << BDRV_SECTOR_BITS,
+                            n << BDRV_SECTOR_BITS, qiov, 0);
         if (ret < 0) {
             return ret;
         }
@@ -1578,15 +1597,17 @@ static int convert_read(ImgConvertState *s, int64_t sector_num, int nb_sectors,
     return 0;
 }
 
+
 static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
-                         const uint8_t *buf)
+                         uint8_t *buf, QEMUIOVector *qiov,
+                         enum ImgConvertBlockStatus status)
 {
     int ret;
 
     while (nb_sectors > 0) {
         int n = nb_sectors;
-
-        switch (s->status) {
+        qemu_iovec_reset(qiov);
+        switch (status) {
         case BLK_BACKING_FILE:
             /* If we have a backing file, leave clusters unallocated that are
              * unallocated in the source image, so that the backing file is
@@ -1607,9 +1628,9 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
                     break;
                 }
 
-                ret = blk_pwrite_compressed(s->target,
-                                            sector_num << BDRV_SECTOR_BITS,
-                                            buf, n << BDRV_SECTOR_BITS);
+                qemu_iovec_add(qiov, buf, n << BDRV_SECTOR_BITS);
+                ret = blk_co_pwritev(s->target, sector_num << BDRV_SECTOR_BITS,
+                                     n << BDRV_SECTOR_BITS, qiov, BDRV_REQ_WRITE_COMPRESSED);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1622,8 +1643,9 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
             if (!s->min_sparse ||
                 is_allocated_sectors_min(buf, n, &n, s->min_sparse))
             {
-                ret = blk_pwrite(s->target, sector_num << BDRV_SECTOR_BITS,
-                                 buf, n << BDRV_SECTOR_BITS, 0);
+                qemu_iovec_add(qiov, buf, n << BDRV_SECTOR_BITS);
+                ret = blk_co_pwritev(s->target, sector_num << BDRV_SECTOR_BITS,
+                                     n << BDRV_SECTOR_BITS, qiov, 0);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1635,8 +1657,8 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
             if (s->has_zero_init) {
                 break;
             }
-            ret = blk_pwrite_zeroes(s->target, sector_num << BDRV_SECTOR_BITS,
-                                    n << BDRV_SECTOR_BITS, 0);
+            ret = blk_co_pwrite_zeroes(s->target, sector_num << BDRV_SECTOR_BITS,
+                                       n << BDRV_SECTOR_BITS, 0);
             if (ret < 0) {
                 return ret;
             }
@@ -1651,12 +1673,75 @@ static int convert_write(ImgConvertState *s, int64_t sector_num, int nb_sectors,
     return 0;
 }
 
+static void convert_do_copy_co(void *opaque)
+{
+    ImgConvertState *s = opaque;
+    uint8_t *buf = NULL;
+    int ret, i;
+    int64_t next_sector;
+    ImgConvertQueueElt *elt, *elt2;
+    QEMUIOVector qiov;
+    qemu_iovec_init(&qiov, 1);
+
+    buf = blk_blockalign(s->target, s->buf_sectors * BDRV_SECTOR_SIZE);
+
+    while (!s->ret && (elt = QSIMPLEQ_FIRST(&s->queue))) {
+        QSIMPLEQ_REMOVE_HEAD(&s->queue, next);
+        if ((elt2 = QSIMPLEQ_FIRST(&s->queue))) {
+            next_sector = elt2->sector_num;
+        } else {
+            next_sector = s->total_sectors;
+        }
+
+        s->allocated_done += elt->nb_sectors;
+        qemu_progress_print(100.0 * s->allocated_done / s->allocated_sectors,
+                            0);
+
+        if (elt->status == BLK_DATA) {
+            ret = convert_read(s, elt->sector_num, elt->nb_sectors, buf, &qiov);
+            if (ret < 0) {
+                error_report("error while reading sector %" PRId64
+                             ": %s", elt->sector_num, strerror(-ret));
+                s->ret = ret;
+                goto out;
+            }
+        }
+
+        //~ //XXX: in-order write on/off could be a switch
+        while (s->wr_offs != elt->sector_num) {
+            if (s->ret) {
+                goto out;
+            }
+            qemu_coroutine_yield();
+        }
+
+        ret = convert_write(s, elt->sector_num, elt->nb_sectors, buf, &qiov, elt->status);
+        if (ret < 0) {
+            error_report("error while writing sector %" PRId64
+                         ": %s", elt->sector_num, strerror(-ret));
+            s->ret = ret;
+            goto out;
+        }
+
+        s->wr_offs = next_sector;
+        g_free(elt);
+    }
+
+out:
+    qemu_iovec_destroy(&qiov);
+    qemu_vfree(buf);
+    for (i = 0; i < NUM_COROUTINES; i++) {
+        if (s->co[i] == qemu_coroutine_self()) {
+            s->co[i] = NULL;
+        }
+    }
+}
+
 static int convert_do_copy(ImgConvertState *s)
 {
-    uint8_t *buf = NULL;
-    int64_t sector_num, allocated_done;
     int ret;
-    int n;
+    int i, n, running = -1;
+    int64_t sector_num = 0;
 
     /* Check whether we have zero initialisation or can get it efficiently */
     s->has_zero_init = s->min_sparse && !s->target_has_backing
@@ -1682,69 +1767,44 @@ static int convert_do_copy(ImgConvertState *s)
         }
         s->buf_sectors = s->cluster_sectors;
     }
-    buf = blk_blockalign(s->target, s->buf_sectors * BDRV_SECTOR_SIZE);
 
-    /* Calculate allocated sectors for progress */
-    s->allocated_sectors = 0;
-    sector_num = 0;
+    QSIMPLEQ_INIT(&s->queue);
     while (sector_num < s->total_sectors) {
         n = convert_iteration_sectors(s, sector_num);
         if (n < 0) {
             ret = n;
             goto fail;
         }
+
         if (s->status == BLK_DATA || (!s->min_sparse && s->status == BLK_ZERO))
         {
+            ImgConvertQueueElt *elt = g_malloc(sizeof(ImgConvertQueueElt));
+            elt->sector_num = sector_num;
+            elt->status = s->status;
+            elt->nb_sectors = n;
             s->allocated_sectors += n;
+            QSIMPLEQ_INSERT_TAIL(&s->queue, elt, next);
         }
         sector_num += n;
     }
 
-    /* Do the copy */
-    s->src_cur = 0;
-    s->src_cur_offset = 0;
-    s->sector_next_status = 0;
+    for (i = 0; i < NUM_COROUTINES; i++) {
+        s->co[i] = qemu_coroutine_create(convert_do_copy_co, s);
+        qemu_coroutine_enter(s->co[i]);
+    }
 
-    sector_num = 0;
-    allocated_done = 0;
-
-    while (sector_num < s->total_sectors) {
-        n = convert_iteration_sectors(s, sector_num);
-        if (n < 0) {
-            ret = n;
-            goto fail;
-        }
-        if (s->status == BLK_DATA || (!s->min_sparse && s->status == BLK_ZERO))
-        {
-            allocated_done += n;
-            qemu_progress_print(100.0 * allocated_done / s->allocated_sectors,
-                                0);
-        }
-
-        if (s->status == BLK_DATA) {
-            ret = convert_read(s, sector_num, n, buf);
-            if (ret < 0) {
-                error_report("error while reading sector %" PRId64
-                             ": %s", sector_num, strerror(-ret));
-                goto fail;
+    while (!s->ret && running) {
+        running = 0;
+        for (i = 0; i < NUM_COROUTINES; i++) {
+            if (s->co[i] != NULL) {
+                qemu_coroutine_enter_if_inactive(s->co[i]);
+                running++;
             }
-        } else if (!s->min_sparse && s->status == BLK_ZERO) {
-            n = MIN(n, s->buf_sectors);
-            memset(buf, 0, n * BDRV_SECTOR_SIZE);
-            s->status = BLK_DATA;
         }
-
-        ret = convert_write(s, sector_num, n, buf);
-        if (ret < 0) {
-            error_report("error while writing sector %" PRId64
-                         ": %s", sector_num, strerror(-ret));
-            goto fail;
-        }
-
-        sector_num += n;
+        main_loop_wait(false);
     }
 
-    if (s->compressed) {
+    if (s->compressed && !s->ret) {
         /* signal EOF to align */
         ret = blk_pwrite_compressed(s->target, 0, NULL, 0);
         if (ret < 0) {
@@ -1752,9 +1812,8 @@ static int convert_do_copy(ImgConvertState *s)
         }
     }
 
-    ret = 0;
+    ret = s->ret;
 fail:
-    qemu_vfree(buf);
     return ret;
 }
 
