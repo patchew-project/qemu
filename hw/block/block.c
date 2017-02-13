@@ -51,11 +51,28 @@ void blkconf_blocksizes(BlockConf *conf)
     }
 }
 
-void blkconf_apply_backend_options(BlockConf *conf)
+void blkconf_apply_backend_options(BlockConf *conf, bool readonly,
+                                   Error **errp)
 {
     BlockBackend *blk = conf->blk;
     BlockdevOnError rerror, werror;
+    uint64_t perm;
     bool wce;
+    int ret;
+
+    perm = BLK_PERM_CONSISTENT_READ;
+    if (!readonly) {
+        perm |= BLK_PERM_WRITE;
+    }
+
+    /* TODO Remove BLK_PERM_WRITE unless explicitly configured so */
+    ret = blk_set_perm(blk, perm,
+                       BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                       BLK_PERM_GRAPH_MOD | BLK_PERM_RESIZE | BLK_PERM_WRITE,
+                       errp);
+    if (ret < 0) {
+        return;
+    }
 
     switch (conf->wce) {
     case ON_OFF_AUTO_ON:    wce = true; break;
