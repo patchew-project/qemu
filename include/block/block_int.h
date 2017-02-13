@@ -456,6 +456,9 @@ struct BdrvChildRole {
      */
     void (*drained_begin)(BdrvChild *child);
     void (*drained_end)(BdrvChild *child);
+
+    void (*attach)(BdrvChild *child);
+    void (*detach)(BdrvChild *child);
 };
 
 extern const BdrvChildRole child_file;
