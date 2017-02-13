@@ -172,7 +172,6 @@ static const char *valid_cpus[] = {
 static bool cpuname_valid(const char *cpu)
 {
     int i;
-
     for (i = 0; i < ARRAY_SIZE(valid_cpus); i++) {
         if (strcmp(cpu, valid_cpus[i]) == 0) {
             return true;
@@ -1206,10 +1205,6 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     const char *cpu_model = machine->cpu_model;
     char **cpustr;
-    ObjectClass *oc;
-    const char *typename;
-    CPUClass *cc;
-    Error *err = NULL;
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
     uint8_t clustersz;
 
@@ -1240,6 +1235,7 @@ static void machvirt_init(MachineState *machine)
         error_report("mach-virt: CPU %s not supported", cpustr[0]);
         exit(1);
     }
+    g_strfreev(cpustr);
 
     /* If we have an EL3 boot ROM then the assumption is that it will
      * implement PSCI itself, so disable QEMU's internal implementation
@@ -1309,24 +1305,8 @@ static void machvirt_init(MachineState *machine)
 
     create_fdt(vms);
 
-    oc = cpu_class_by_name(TYPE_ARM_CPU, cpustr[0]);
-    if (!oc) {
-        error_report("Unable to find CPU definition");
-        exit(1);
-    }
-    typename = object_class_get_name(oc);
-
-    /* convert -smp CPU options specified by the user into global props */
-    cc = CPU_CLASS(oc);
-    cc->parse_features(typename, cpustr[1], &err);
-    g_strfreev(cpustr);
-    if (err) {
-        error_report_err(err);
-        exit(1);
-    }
-
     for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(typename);
+        Object *cpuobj = OBJECT(cpu_generic_new(TYPE_ARM_CPU, cpu_model));
         if (!vmc->disallow_affinity_adjustment) {
             /* Adjust MPIDR like 64-bit KVM hosts, which incorporate the
              * GIC's target-list limitations. 32-bit KVM hosts currently
