@@ -256,6 +256,10 @@ MigrationState *migrate_get_current(void);
 
 int migrate_multifd_threads(void);
 int migrate_multifd_group(void);
+void migrate_multifd_send_threads_create(void);
+void migrate_multifd_send_threads_join(void);
+void migrate_multifd_recv_threads_create(void);
+void migrate_multifd_recv_threads_join(void);
 
 void migrate_compress_threads_create(void);
 void migrate_compress_threads_join(void);
