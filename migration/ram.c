@@ -392,16 +392,24 @@ void migrate_compress_threads_create(void)
 /* Multiple fd's */
 
 struct MultiFDSendParams {
+    /* not changed */
     QemuThread thread;
     QIOChannel *c;
     QemuSemaphore sem;
     QemuSemaphore init;
     QemuMutex mutex;
+    /* protected by param mutex */
     bool quit;
+    uint8_t *address;
+    /* protected by multifd mutex */
+    bool done;
 };
 typedef struct MultiFDSendParams MultiFDSendParams;
 
 static MultiFDSendParams *multifd_send;
+
+QemuMutex multifd_send_mutex;
+QemuSemaphore multifd_send_sem;
 
 static void *multifd_send_thread(void *opaque)
 {
@@ -410,12 +418,22 @@ static void *multifd_send_thread(void *opaque)
 
     qio_channel_write(params->c, &start, 1, &error_abort);
     qemu_sem_post(&params->init);
+    qemu_sem_post(&multifd_send_sem);
 
     while (true) {
         qemu_mutex_lock(&params->mutex);
         if (params->quit) {
             qemu_mutex_unlock(&params->mutex);
             break;
+        }
+        if (params->address) {
+            params->address = 0;
+            qemu_mutex_unlock(&params->mutex);
+            qemu_mutex_lock(&multifd_send_mutex);
+            params->done = true;
+            qemu_mutex_unlock(&multifd_send_mutex);
+            qemu_sem_post(&multifd_send_sem);
+            continue;
         }
         qemu_mutex_unlock(&params->mutex);
         qemu_sem_wait(&params->sem);
@@ -471,6 +489,8 @@ void migrate_multifd_send_threads_create(void)
     }
     thread_count = migrate_multifd_threads();
     multifd_send = g_new0(MultiFDSendParams, thread_count);
+    qemu_mutex_init(&multifd_send_mutex);
+    qemu_sem_init(&multifd_send_sem, 0);
     for (i = 0; i < thread_count; i++) {
         char thread_name[15];
         MultiFDSendParams *p = &multifd_send[i];
@@ -479,6 +499,8 @@ void migrate_multifd_send_threads_create(void)
         qemu_sem_init(&p->sem, 0);
         qemu_sem_init(&p->init, 0);
         p->quit = false;
+        p->done = true;
+        p->address = 0;
         p->c = socket_send_channel_create();
         if (!p->c) {
             error_report("Error creating a send channel");
@@ -489,6 +511,28 @@ void migrate_multifd_send_threads_create(void)
                            QEMU_THREAD_JOINABLE);
         qemu_sem_wait(&p->init);
     }
+}
+
+static int multifd_send_page(uint8_t *address)
+{
+    int i, thread_count;
+
+    thread_count = migrate_multifd_threads();
+    qemu_sem_wait(&multifd_send_sem);
+    qemu_mutex_lock(&multifd_send_mutex);
+    for (i = 0; i < thread_count; i++) {
+        if (multifd_send[i].done) {
+            multifd_send[i].done = false;
+            break;
+        }
+    }
+    qemu_mutex_unlock(&multifd_send_mutex);
+    qemu_mutex_lock(&multifd_send[i].mutex);
+    multifd_send[i].address = address;
+    qemu_mutex_unlock(&multifd_send[i].mutex);
+    qemu_sem_post(&multifd_send[i].sem);
+
+    return 0;
 }
 
 struct MultiFDRecvParams {
@@ -1023,6 +1067,7 @@ static int ram_multifd_page(QEMUFile *f, PageSearchStatus *pss,
         *bytes_transferred +=
             save_page_header(f, block, offset | RAM_SAVE_FLAG_MULTIFD_PAGE);
         qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
+        multifd_send_page(p);
         *bytes_transferred += TARGET_PAGE_SIZE;
         pages = 1;
         acct_info.norm_pages++;
