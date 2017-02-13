@@ -17,7 +17,7 @@ $(BUILD_DIR)/trace-events-all: $(trace-events-files)
 
 $(obj)/generated-helpers-wrappers.h: $(obj)/generated-helpers-wrappers.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-$(obj)/generated-helpers-wrappers.h-timestamp: $(trace-events-files) $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-helpers-wrappers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=tcg-helper-wrapper-h \
@@ -26,7 +26,7 @@ $(obj)/generated-helpers-wrappers.h-timestamp: $(trace-events-files) $(BUILD_DIR
 
 $(obj)/generated-helpers.h: $(obj)/generated-helpers.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-$(obj)/generated-helpers.h-timestamp: $(trace-events-files) $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-helpers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=tcg-helper-h \
@@ -35,7 +35,7 @@ $(obj)/generated-helpers.h-timestamp: $(trace-events-files) $(BUILD_DIR)/config-
 
 $(obj)/generated-helpers.c: $(obj)/generated-helpers.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-$(obj)/generated-helpers.c-timestamp: $(trace-events-files) $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-helpers.c-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=tcg-helper-c \
@@ -49,7 +49,7 @@ target-obj-y += generated-helpers.o
 
 $(obj)/generated-tcg-tracers.h: $(obj)/generated-tcg-tracers.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-$(obj)/generated-tcg-tracers.h-timestamp: $(trace-events-files) $(BUILD_DIR)/config-host.mak $(tracetool-y)
+$(obj)/generated-tcg-tracers.h-timestamp: $(BUILD_DIR)/trace-events-all $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=tcg-h \
