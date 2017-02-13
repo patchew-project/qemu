@@ -38,7 +38,10 @@ typedef struct MirrorBlockJob {
     BlockJob common;
     RateLimit limit;
     BlockBackend *target;
+    BlockDriverState *mirror_top_bs;
+    BlockDriverState *source;
     BlockDriverState *base;
+
     /* The name of the graph node to replace */
     char *replaces;
     /* The BDS to replace */
@@ -319,7 +322,7 @@ static void mirror_do_zero_or_discard(MirrorBlockJob *s,
 
 static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 {
-    BlockDriverState *source = blk_bs(s->common.blk);
+    BlockDriverState *source = s->source;
     int64_t sector_num, first_chunk;
     uint64_t delay_ns = 0;
     /* At least the first dirty chunk is mirrored in one iteration. */
@@ -489,12 +492,14 @@ static void mirror_exit(BlockJob *job, void *opaque)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     MirrorExitData *data = opaque;
     AioContext *replace_aio_context = NULL;
-    BlockDriverState *src = blk_bs(s->common.blk);
+    BlockDriverState *src = s->source;
     BlockDriverState *target_bs = blk_bs(s->target);
+    BlockDriverState *mirror_top_bs = s->mirror_top_bs;
 
     /* Make sure that the source BDS doesn't go away before we called
      * block_job_completed(). */
     bdrv_ref(src);
+    bdrv_ref(mirror_top_bs);
 
     if (s->to_replace) {
         replace_aio_context = bdrv_get_aio_context(s->to_replace);
@@ -516,13 +521,6 @@ static void mirror_exit(BlockJob *job, void *opaque)
         bdrv_drained_begin(target_bs);
         bdrv_replace_in_backing_chain(to_replace, target_bs);
         bdrv_drained_end(target_bs);
-
-        /* We just changed the BDS the job BB refers to, so switch the BB back
-         * so the cleanup does the right thing. We don't need any permissions
-         * any more now. */
-        blk_remove_bs(job->blk);
-        blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
-        blk_insert_bs(job->blk, src, &error_abort);
     }
     if (s->to_replace) {
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
@@ -535,9 +533,23 @@ static void mirror_exit(BlockJob *job, void *opaque)
     g_free(s->replaces);
     blk_unref(s->target);
     s->target = NULL;
+
+    /* Remove the mirror filter driver from the graph */
+    bdrv_replace_in_backing_chain(mirror_top_bs, backing_bs(mirror_top_bs));
+
+    /* We just changed the BDS the job BB refers to (with either or both of the
+     * bdrv_replace_in_backing_chain() calls), so switch the BB back so the
+     * cleanup does the right thing. We don't need any permissions any more
+     * now. */
+    blk_remove_bs(job->blk);
+    blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
+    blk_insert_bs(job->blk, mirror_top_bs, &error_abort);
+
     block_job_completed(&s->common, data->ret);
+
     g_free(data);
     bdrv_drained_end(src);
+    bdrv_unref(mirror_top_bs);
     bdrv_unref(src);
 }
 
@@ -557,7 +569,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 {
     int64_t sector_num, end;
     BlockDriverState *base = s->base;
-    BlockDriverState *bs = blk_bs(s->common.blk);
+    BlockDriverState *bs = s->source;
     BlockDriverState *target_bs = blk_bs(s->target);
     int ret, n;
 
@@ -636,7 +648,7 @@ static void coroutine_fn mirror_run(void *opaque)
 {
     MirrorBlockJob *s = opaque;
     MirrorExitData *data;
-    BlockDriverState *bs = blk_bs(s->common.blk);
+    BlockDriverState *bs = s->source;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
     int64_t length;
@@ -849,7 +861,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     BlockDriverState *src, *target;
 
-    src = blk_bs(job->blk);
+    src = s->source;
     target = blk_bs(s->target);
 
     if (!s->synced) {
@@ -881,6 +893,10 @@ static void mirror_complete(BlockJob *job, Error **errp)
         replace_aio_context = bdrv_get_aio_context(s->to_replace);
         aio_context_acquire(replace_aio_context);
 
+        /* TODO Translate this into permission system. Current definition of
+         * GRAPH_MOD would require to request it for the parents; they might
+         * not even be BlockDriverStates, however, so a BdrvChild can't address
+         * them. May need redefinition of GRAPH_MOD. */
         error_setg(&s->replace_blocker,
                    "block device is in use by block-job-complete");
         bdrv_op_block_all(s->to_replace, s->replace_blocker);
@@ -951,6 +967,46 @@ static const BlockJobDriver commit_active_job_driver = {
     .drain                  = mirror_drain,
 };
 
+static int coroutine_fn bdrv_mirror_top_preadv(BlockDriverState *bs,
+    uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
+{
+    return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
+}
+
+static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
+    uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
+{
+    return bdrv_co_pwritev(bs->backing, offset, bytes, qiov, flags);
+}
+
+static void bdrv_mirror_top_close(BlockDriverState *bs)
+{
+}
+
+static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
+                                       const BdrvChildRole *role,
+                                       uint64_t perm, uint64_t shared,
+                                       uint64_t *nperm, uint64_t *nshared)
+{
+    /* Must be able to forward guest writes to the real image */
+    *nperm = 0;
+    if (perm & BLK_PERM_WRITE) {
+        *nperm |= BLK_PERM_WRITE;
+    }
+
+    *nshared = BLK_PERM_ALL;
+}
+
+/* Dummy node that provides consistent read to its users without requiring it
+ * from its backing file and that allows writes on the backing file chain. */
+static BlockDriver bdrv_mirror_top = {
+    .format_name        = "mirror_top",
+    .bdrv_co_preadv     = bdrv_mirror_top_preadv,
+    .bdrv_co_pwritev    = bdrv_mirror_top_pwritev,
+    .bdrv_close         = bdrv_mirror_top_close,
+    .bdrv_child_perm    = bdrv_mirror_top_child_perm,
+};
+
 static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, int64_t speed,
@@ -966,6 +1022,9 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              bool auto_complete)
 {
     MirrorBlockJob *s;
+    BlockDriverState *mirror_top_bs;
+    bool target_graph_mod;
+    bool target_is_backing;
     int ret;
 
     if (granularity == 0) {
@@ -983,20 +1042,54 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
-    /* FIXME Use real permissions */
-    s = block_job_create(job_id, driver, bs, 0, BLK_PERM_ALL, speed,
-                         creation_flags, cb, opaque, errp);
-    if (!s) {
+    /* In the case of active commit, add dummy driver to provide consistent
+     * reads on the top, while disabling it in the intermediate nodes */
+    ret = bdrv_new_open_driver(&bdrv_mirror_top, &mirror_top_bs, NULL,
+                               BDRV_O_RDWR, errp);
+    if (ret < 0) {
         return;
     }
+    mirror_top_bs->total_sectors = bs->total_sectors;
 
-    /* FIXME Use real permissions */
-    s->target = blk_new(0, BLK_PERM_ALL);
+    /* bdrv_append takes ownership of the mirror_top_bs reference, need to keep
+     * it alive until block_job_create() even if bs has no parent. */
+    bdrv_ref(mirror_top_bs);
+    bdrv_drained_begin(bs);
+    bdrv_append(mirror_top_bs, bs);
+    bdrv_drained_end(bs);
+
+    /* Make sure that the source is not resized while the job is running */
+    s = block_job_create(job_id, driver, mirror_top_bs,
+                         BLK_PERM_CONSISTENT_READ,
+                         BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                         BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD, speed,
+                         creation_flags, cb, opaque, errp);
+    bdrv_unref(mirror_top_bs);
+    if (!s) {
+        goto fail;
+    }
+    s->source = bs;
+    s->mirror_top_bs = mirror_top_bs;
+
+    /* No resize for the target either; while the mirror is still running, a
+     * consistent read isn't necessarily possible. We could possibly allow
+     * writes and graph modifications, though it would likely defeat the
+     * purpose of a mirror, so leave them blocked for now.
+     *
+     * In the case of active commit, things look a bit different, though,
+     * because the target is an already populated backing file in active use.
+     * We can allow anything ecept resize there.*/
+    target_is_backing = bdrv_chain_contains(bs, target);
+    target_graph_mod = (backing_mode != MIRROR_LEAVE_BACKING_CHAIN);
+    s->target = blk_new(BLK_PERM_WRITE |
+                        (target_graph_mod ? BLK_PERM_GRAPH_MOD : 0),
+                        BLK_PERM_WRITE_UNCHANGED |
+                        (target_is_backing ? BLK_PERM_CONSISTENT_READ |
+                                             BLK_PERM_WRITE |
+                                             BLK_PERM_GRAPH_MOD : 0));
     ret = blk_insert_bs(s->target, target, errp);
     if (ret < 0) {
-        blk_unref(s->target);
-        block_job_unref(&s->common);
-        return;
+        goto fail;
     }
 
     s->replaces = g_strdup(replaces);
@@ -1020,21 +1113,38 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    /* FIXME Use real permissions */
+    /* Required permissions are already taken with blk_new() */
     block_job_add_bdrv(&s->common, target, 0, BLK_PERM_ALL, &error_abort);
 
     /* In commit_active_start() all intermediate nodes disappear, so
      * any jobs in them must be blocked */
-    if (bdrv_chain_contains(bs, target)) {
+    if (target_is_backing) {
         BlockDriverState *iter;
         for (iter = backing_bs(bs); iter != target; iter = backing_bs(iter)) {
-            /* FIXME Use real permissions */
-            block_job_add_bdrv(&s->common, iter, 0, BLK_PERM_ALL, &error_abort);
+            /* XXX BLK_PERM_WRITE needs to be allowed so we don't block ourselves
+             * at s->base. The other options would be a second filter driver above
+             * s->base. */
+            ret = block_job_add_bdrv(&s->common, iter, 0,
+                                     BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE,
+                                     errp);
+            if (ret < 0) {
+                goto fail;
+            }
         }
     }
 
     trace_mirror_start(bs, s, opaque);
     block_job_start(&s->common);
+    return;
+
+fail:
+    if (s) {
+        g_free(s->replaces);
+        blk_unref(s->target);
+        block_job_unref(&s->common);
+    }
+
+    bdrv_replace_in_backing_chain(mirror_top_bs, backing_bs(mirror_top_bs));
 }
 
 void mirror_start(const char *job_id, BlockDriverState *bs,
