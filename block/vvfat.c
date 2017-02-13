@@ -3052,6 +3052,18 @@ err:
     return ret;
 }
 
+static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
+                             const BdrvChildRole *role,
+                             uint64_t perm, uint64_t shared,
+                             uint64_t *nperm, uint64_t *nshared)
+{
+    assert(role == &child_vvfat_qcow);
+
+    /* This is a private node, nobody should try to attach to it */
+    *nperm = BLK_PERM_WRITE;
+    *nshared = 0;
+}
+
 static void vvfat_close(BlockDriverState *bs)
 {
     BDRVVVFATState *s = bs->opaque;
@@ -3077,6 +3089,7 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_file_open         = vvfat_open,
     .bdrv_refresh_limits    = vvfat_refresh_limits,
     .bdrv_close             = vvfat_close,
+    .bdrv_child_perm        = vvfat_child_perm,
 
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
