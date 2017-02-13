@@ -55,6 +55,16 @@
 #include "qemu/error-report.h"
 #endif
 
+#define MAX_MEM_PREALLOC_THREAD_COUNT 16
+struct PageRange {
+    char *addr;
+    uint64_t numpages;
+    uint64_t hpagesize;
+};
+typedef struct PageRange PageRange;
+
+static PageRange *page_range;
+
 int qemu_get_thread_id(void)
 {
 #if defined(__linux__)
@@ -323,7 +333,56 @@ static void sigbus_handler(int signal)
     siglongjmp(sigjump, 1);
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
+static void *do_touch_pages(void *arg)
+{
+    PageRange *range = (PageRange *)arg;
+    char *addr = range->addr;
+    uint64_t numpages = range->numpages;
+    uint64_t hpagesize = range->hpagesize;
+    int i = 0;
+
+    for (i = 0; i < numpages; i++) {
+        memset(addr, 0, 1);
+        addr += hpagesize;
+    }
+    return NULL;
+}
+
+static void touch_all_pages(char *area, size_t hpagesize, size_t numpages,
+                            int smp_cpus)
+{
+    QemuThread page_threads[MAX_MEM_PREALLOC_THREAD_COUNT];
+    uint64_t numpages_per_thread, size_per_thread;
+    char *addr = area;
+    int i = 0;
+    int num_threads = MIN(smp_cpus, MAX_MEM_PREALLOC_THREAD_COUNT);
+
+    page_range = g_new0(PageRange, num_threads);
+    numpages_per_thread = (numpages / num_threads);
+    size_per_thread = (hpagesize * numpages_per_thread);
+    for (i = 0; i < (num_threads - 1); i++) {
+        page_range[i].addr = addr;
+        page_range[i].numpages = numpages_per_thread;
+        page_range[i].hpagesize = hpagesize;
+        qemu_thread_create(page_threads + i, "touch_pages",
+                           do_touch_pages, (page_range + i),
+                           QEMU_THREAD_JOINABLE);
+        addr += size_per_thread;
+        numpages -= numpages_per_thread;
+    }
+    for (i = 0; i < numpages; i++) {
+        memset(addr, 0, 1);
+        addr += hpagesize;
+    }
+    for (i = 0; i < (num_threads - 1); i++) {
+        qemu_thread_join(page_threads + i);
+    }
+    g_free(page_range);
+    page_range = NULL;
+}
+
+void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
+                     Error **errp)
 {
     int ret;
     struct sigaction act, oldact;
@@ -349,14 +408,11 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
         error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
             "pages available to allocate guest RAM\n");
     } else {
-        int i;
         size_t hpagesize = qemu_fd_getpagesize(fd);
         size_t numpages = DIV_ROUND_UP(memory, hpagesize);
 
-        /* MAP_POPULATE silently ignores failures */
-        for (i = 0; i < numpages; i++) {
-            memset(area + (hpagesize * i), 0, 1);
-        }
+        /* touch pages simultaneously */
+        touch_all_pages(area, hpagesize, numpages, smp_cpus);
     }
 
     ret = sigaction(SIGBUS, &oldact, NULL);
