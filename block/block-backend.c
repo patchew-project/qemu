@@ -123,14 +123,14 @@ static const BdrvChildRole child_root = {
  * Store an error through @errp on failure, unless it's null.
  * Return the new BlockBackend on success, null on failure.
  */
-BlockBackend *blk_new(void)
+BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
 {
     BlockBackend *blk;
 
     blk = g_new0(BlockBackend, 1);
     blk->refcnt = 1;
-    blk->perm = 0;
-    blk->shared_perm = BLK_PERM_ALL;
+    blk->perm = perm;
+    blk->shared_perm = shared_perm;
     blk_set_enable_write_cache(blk, true);
 
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
@@ -161,7 +161,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     BlockBackend *blk;
     BlockDriverState *bs;
 
-    blk = blk_new();
+    blk = blk_new(0, BLK_PERM_ALL);
     bs = bdrv_open(filename, reference, options, flags, errp);
     if (!bs) {
         blk_unref(blk);
@@ -505,9 +505,9 @@ void blk_remove_bs(BlockBackend *blk)
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
 {
     bdrv_ref(bs);
-    /* FIXME Use real permissions */
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
-                                       0, BLK_PERM_ALL, blk, &error_abort);
+                                       blk->perm, blk->shared_perm, blk,
+                                       &error_abort);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
