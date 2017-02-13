@@ -1381,6 +1381,43 @@ static void bdrv_update_perm(BlockDriverState *bs)
     bdrv_set_perm(bs, cumulative_perms, cumulative_shared_perms);
 }
 
+static char *bdrv_child_link_name(BdrvChild *c)
+{
+    if (c->role->get_link_name) {
+        return c->role->get_link_name(c);
+    }
+
+    return g_strdup("another user");
+}
+
+static char *bdrv_perm_names(uint64_t perm)
+{
+    struct perm_name {
+        uint64_t perm;
+        const char *name;
+    } permissions[] = {
+        { BLK_PERM_CONSISTENT_READ, "consistent read" },
+        { BLK_PERM_WRITE,           "write" },
+        { BLK_PERM_WRITE_UNCHANGED, "write unchanged" },
+        { BLK_PERM_RESIZE,          "resize" },
+        { BLK_PERM_GRAPH_MOD,       "change children" },
+        { 0, NULL }
+    };
+
+    char *result = g_strdup("");
+    struct perm_name *p;
+
+    for (p = permissions; p->name; p++) {
+        if (perm & p->perm) {
+            char *old = result;
+            result = g_strdup_printf("%s%s%s", old, *old ? ", " : "", p->name);
+            g_free(old);
+        }
+    }
+
+    return result;
+}
+
 static int bdrv_check_update_perm(BlockDriverState *bs, uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
                                   BdrvChild *ignore_child, Error **errp)
@@ -1397,17 +1434,24 @@ static int bdrv_check_update_perm(BlockDriverState *bs, uint64_t new_used_perm,
             continue;
         }
 
-        if ((new_used_perm & c->shared_perm) != new_used_perm ||
-            (c->perm & new_shared_perm) != c->perm)
-        {
-            const char *user = NULL;
-            if (c->role->get_name) {
-                user = c->role->get_name(c);
-                if (user && !*user) {
-                    user = NULL;
-                }
-            }
-            error_setg(errp, "Conflicts with %s", user ?: "another operation");
+        if ((new_used_perm & c->shared_perm) != new_used_perm) {
+            char *link = bdrv_child_link_name(c);
+            char *perm_names = bdrv_perm_names(new_used_perm & ~c->shared_perm);
+            error_setg(errp, "Conflicts with %s, which does not allow '%s' "
+                             "on %s",
+                       link, perm_names, bdrv_get_node_name(c->bs));
+            g_free(link);
+            g_free(perm_names);
+            return -EPERM;
+        }
+
+        if ((c->perm & new_shared_perm) != c->perm) {
+            char *link = bdrv_child_link_name(c);
+            char *perm_names = bdrv_perm_names(c->perm & ~new_shared_perm);
+            error_setg(errp, "Conflicts with %s, which uses '%s' on %s",
+                       link, perm_names, bdrv_get_node_name(c->bs));
+            g_free(link);
+            g_free(perm_names);
             return -EPERM;
         }
 
