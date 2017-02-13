@@ -56,7 +56,7 @@ void blkconf_apply_backend_options(BlockConf *conf, bool readonly,
 {
     BlockBackend *blk = conf->blk;
     BlockdevOnError rerror, werror;
-    uint64_t perm;
+    uint64_t perm, shared_perm;
     bool wce;
     int ret;
 
@@ -65,11 +65,13 @@ void blkconf_apply_backend_options(BlockConf *conf, bool readonly,
         perm |= BLK_PERM_WRITE;
     }
 
-    /* TODO Remove BLK_PERM_WRITE unless explicitly configured so */
-    ret = blk_set_perm(blk, perm,
-                       BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
-                       BLK_PERM_GRAPH_MOD | BLK_PERM_RESIZE | BLK_PERM_WRITE,
-                       errp);
+    shared_perm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                  BLK_PERM_GRAPH_MOD | BLK_PERM_RESIZE;
+    if (conf->share_rw) {
+        shared_perm |= BLK_PERM_WRITE;
+    }
+
+    ret = blk_set_perm(blk, perm, shared_perm, errp);
     if (ret < 0) {
         return;
     }
