@@ -1258,6 +1258,9 @@ struct X86CPU {
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
+    /* Hyper-V crash MSRs */
+    uint64_t hv_msr_crash_params[HV_X64_MSR_CRASH_PARAMS];
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct DeviceState *apic_state;

@@ -2054,6 +2054,36 @@ static int kvm_get_sregs(X86CPU *cpu)
     return 0;
 }
 
+static int kvm_read_msr_hv_crash(X86CPU *cpu, uint64_t *buf)
+{
+    int i, ret;
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[HV_X64_MSR_CRASH_PARAMS];
+    } msr_data;
+
+    if (!has_msr_hv_crash) {
+        return -ENOSYS;
+    }
+
+    for (i = 0; i < HV_X64_MSR_CRASH_PARAMS; i++) {
+        msr_data.entries[i].index = HV_X64_MSR_CRASH_P0 + i;
+    }
+    msr_data.info.nmsrs = HV_X64_MSR_CRASH_PARAMS;
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    for (i = 0; i < ret; i++) {
+        const struct kvm_msr_entry *msr = msr_data.entries + i;
+        buf[msr->index - HV_X64_MSR_CRASH_P0] = msr->data;
+    }
+
+    return 0;
+}
+
 static int kvm_get_msrs(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
@@ -2799,6 +2829,17 @@ int kvm_arch_get_registers(CPUState *cs)
  out:
     cpu_sync_bndcs_hflags(&cpu->env);
     return ret;
+}
+
+void kvm_arch_save_crash_info(CPUState *cs)
+{
+    if (has_msr_hv_crash) {
+        X86CPU *cpu = X86_CPU(cs);
+        int ret = kvm_read_msr_hv_crash(cpu, cpu->hv_msr_crash_params);
+        if (ret < 0) {
+            fprintf(stderr, "Failed to get HV crash parameters\n");
+        }
+    }
 }
 
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
