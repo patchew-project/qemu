@@ -75,6 +75,10 @@ xen_map_cache(uint64_t phys_addr) "want %#"PRIx64
 xen_remap_bucket(uint64_t index) "index %#"PRIx64
 xen_map_cache_return(void* ptr) "%p"
 
+# async.c
+aio_co_schedule(void *ctx, void *co) "ctx %p co %p"
+aio_co_schedule_bh_cb(void *ctx, void *co) "ctx %p co %p"
+
 # monitor.c
 handle_qmp_command(void *mon, const char *cmd_name) "mon %p cmd_name \"%s\""
 monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
