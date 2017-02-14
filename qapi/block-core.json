@@ -2463,6 +2463,27 @@
 # @align:           #optional required alignment for requests in bytes,
 #                   must be power of 2, or 0 for default
 #
+# @max-transfer:    #optional maximum size for I/O transfers in bytes,
+#                   must be multiple of @align and of the underlying file's
+#                   request alignment (but need not be a power of 2), or
+#                   0 for default (since 2.9)
+#
+# @opt-write-zero:  #optional preferred alignment for write zero requests
+#                   in bytes, must be multiple of @align (but need not be
+#                   a power of 2), or 0 for default (since 2.9)
+#
+# @max-write-zero:  #optional maximum size for write zero requests in bytes,
+#                   must be multiple of @align (but need not be a power of
+#                   2), or 0 for default (since 2.9)
+#
+# @opt-discard:     #optional preferred alignment for discard requests
+#                   in bytes, must be multiple of @align (but need not be
+#                   a power of 2), or 0 for default (since 2.9)
+#
+# @max-discard:     #optional maximum size for discard requests in bytes,
+#                   must be multiple of @align (but need not be a power of
+#                   2), or 0 for default (since 2.9)
+#
 # @inject-error:    #optional array of error injection descriptions
 #
 # @set-state:       #optional array of state-change descriptions
@@ -2472,7 +2493,9 @@
 { 'struct': 'BlockdevOptionsBlkdebug',
   'data': { 'image': 'BlockdevRef',
             '*config': 'str',
-            '*align': 'int',
+            '*align': 'int', '*max-transfer': 'int32',
+            '*opt-write-zero': 'int32', '*max-write-zero': 'int32',
+            '*opt-discard': 'int32', '*max-discard': 'int32',
             '*inject-error': ['BlkdebugInjectErrorOptions'],
             '*set-state': ['BlkdebugSetStateOptions'] } }
 
