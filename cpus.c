@@ -1765,3 +1765,11 @@ void dump_drift_info(FILE *f, fprintf_function cpu_fprintf)
         cpu_fprintf(f, "Max guest advance   NA\n");
     }
 }
+
+void kick_all_vcpus(void)
+{
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        qemu_cpu_kick(cpu);
+    }
+}

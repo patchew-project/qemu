@@ -126,6 +126,8 @@ int main(int argc, char **argv)
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 
+#include "qqq.h"
+
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
 
@@ -235,6 +237,20 @@ static struct {
     { .driver = "vmware-svga",          .flag = &default_vga       },
     { .driver = "qxl-vga",              .flag = &default_vga       },
     { .driver = "virtio-vga",           .flag = &default_vga       },
+};
+
+static QemuOptsList qemu_qqq_opts = {
+    .name = "qqq",
+    .implied_opt_name = "",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_qqq_opts.head),
+    .desc = {
+        {
+            .name = "sock",
+            .type = QEMU_OPT_NUMBER,
+        },
+        { /* end of list */ }
+    },
 };
 
 static QemuOptsList qemu_rtc_opts = {
@@ -2940,6 +2956,7 @@ int main(int argc, char **argv, char **envp)
     DisplayState *ds;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts, *icount_opts = NULL;
+    QemuOpts *qqq_opts = NULL;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2979,6 +2996,7 @@ int main(int argc, char **argv, char **envp)
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_QAPI);
 
+    qemu_add_opts(&qemu_qqq_opts);
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
@@ -3842,6 +3860,13 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+            case QEMU_OPTION_qqq:
+                qqq_opts = qemu_opts_parse_noisily(qemu_find_opts("qqq"),
+                                                      optarg, true);
+                if (!qqq_opts) {
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_incoming:
                 if (!incoming) {
                     runstate_set(RUN_STATE_INMIGRATE);
@@ -4355,6 +4380,16 @@ int main(int argc, char **argv, char **envp)
     /* spice needs the timers to be initialized by this point */
     qemu_spice_init();
 
+    if (qqq_opts) {
+        if (!(rtc_clock == QEMU_CLOCK_VIRTUAL && (
+              (icount_opts && !qemu_opt_get_bool(icount_opts, "sleep", true)) ||
+              kvm_enabled()))) {
+            error_report("-qqq requires options -rtc clock=vm and either "
+                "icount -1,sleep=off or -enable-kvm");
+            exit(1);
+        }
+        setup_qqq(qqq_opts);
+    }
     cpu_ticks_init();
     if (icount_opts) {
         if (!tcg_enabled()) {
