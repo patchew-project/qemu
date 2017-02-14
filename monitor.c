@@ -2773,6 +2773,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
             break;
         case 'o':
             {
+                int ret;
                 int64_t val;
                 char *end;
 
@@ -2785,8 +2786,8 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                         break;
                     }
                 }
-                val = qemu_strtosz_mebi(p, &end);
-                if (val < 0) {
+                ret = qemu_strtosz_mebi(p, &end, &val);
+                if (ret < 0) {
                     monitor_printf(mon, "invalid size\n");
                     goto fail;
                 }
