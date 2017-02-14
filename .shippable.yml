@@ -1,0 +1,23 @@
+language: c
+env:
+  matrix:
+    - IMAGE=debian-armhf-cross
+      CROSS_PREFIX=arm-linux-gnueabihf-
+      TARGET_LIST=arm-softmmu,arm-linux-user
+    - IMAGE=debian-arm64-cross
+      CROSS_PREFIX=aarch64-linux-gnu-
+      TARGET_LIST=aarch64-softmmu,aarch64-linux-user
+    - IMAGE=centos6
+      TARGET_LIST=i386-softmmu,x86_64-softmmu
+build:
+  pre_ci:
+    - make docker-image-${IMAGE}
+  pre_ci_boot:
+    image_name: qemu
+    image_tag: ${IMAGE}
+    pull: false
+    options: "-e HOME=/root"
+  ci:
+    - unset CC
+    - ./configure --cross-prefix=${CROSS_PREFIX} --target-list=${TARGET_LIST}
+    - make -j2
