@@ -322,6 +322,8 @@ struct BlockDriver {
 
     void (*bdrv_load_autoloading_dirty_bitmaps)(BlockDriverState *bs,
                                                 Error **errp);
+    void (*bdrv_store_persistent_dirty_bitmaps)(BlockDriverState *bs,
+                                                Error **errp);
 
     QLIST_ENTRY(BlockDriver) list;
 };
