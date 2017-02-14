@@ -1,0 +1,12 @@
+#
+# Docker armhf cross-compiler target
+#
+# This docker target builds on the base debian image.
+#
+FROM qemu:debian
+
+# Add the foreign architecture we want and install dependacies
+RUN dpkg --add-architecture armhf
+RUN apt update
+RUN apt install -yy crossbuild-essential-armhf
+RUN apt-get build-dep -yy -a armhf qemu
