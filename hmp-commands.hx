@@ -252,6 +252,20 @@ Password: ********
 ETEXI
 
     {
+        .name       = "writeconfig",
+        .args_type  = "filename:F",
+        .params     = "filename",
+        .help       = "write config file",
+        .cmd       = hmp_writeconfig,
+    },
+
+STEXI
+@item writeconfig @var{filename}
+@findex writeconfig
+Write config file @var{filename}.
+ETEXI
+
+    {
         .name       = "screendump",
         .args_type  = "filename:F",
         .params     = "filename",

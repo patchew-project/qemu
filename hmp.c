@@ -1913,6 +1913,15 @@ err_out:
     goto out;
 }
 
+void hmp_writeconfig(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+
+    qmp_writeconfig(filename, &err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_screendump(Monitor *mon, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");

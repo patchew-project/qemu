@@ -30,6 +30,7 @@
 #include "sysemu/char.h"
 #include "trace.h"
 #include "exec/memory.h"
+#include "qemu/config-file.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -340,6 +341,19 @@ write_err:
                strerror(errno));
     unlink(filename);
     goto out;
+}
+
+void qmp_writeconfig(const char *filename, Error **errp)
+{
+    if (filename == NULL) {
+        error_setg(errp, "You must specify a filename.");
+        return;
+    }
+
+    FILE *fp;
+    fp = fopen(filename, "w");
+    qemu_config_write(fp);
+    fclose(fp);
 }
 
 void qmp_screendump(const char *filename, Error **errp)

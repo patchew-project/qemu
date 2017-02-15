@@ -4696,6 +4696,26 @@
   'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
 
 ##
+# @writeconfig:
+#
+# Write config to file.
+#
+# @filename: the path of a new file to store the current config
+#
+# Returns: Nothing on success
+#
+# Since: 2.7.0
+#
+# Example:
+#
+# -> { "execute": "writeconfig",
+#      "arguments": { "filename": "/tmp/qemu.conf" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'writeconfig', 'data': {'filename': 'str'} }
+
+##
 # @screendump:
 #
 # Write a PPM of the VGA screen to a file.
