@@ -638,7 +638,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      * backup cluster size is smaller than the target cluster size. Even for
      * targets with a backing file, try to avoid COW if possible. */
     ret = bdrv_get_info(target, &bdi);
-    if (ret < 0 && !target->backing) {
+    if (ret == -ENOTSUP) {
+        /* Cluster size is not defined */
+        fprintf(stderr,
+                "WARNING: Target block device doesn't provide information "
+                "about block size and it doesn't have backing file. Default "
+                "block size of %u bytes is used. If actual block size of "
+                "target exceeds this default, backup may be unusable",
+                BACKUP_CLUSTER_SIZE_DEFAULT);
+        job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
+    } else if (ret < 0 && !target->backing) {
         error_setg_errno(errp, -ret,
             "Couldn't determine the cluster size of the target image, "
             "which has no backing file");
