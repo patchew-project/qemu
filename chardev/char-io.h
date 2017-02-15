@@ -38,6 +38,8 @@ guint io_add_watch_poll(Chardev *chr,
 
 void remove_fd_in_watch(Chardev *chr);
 
+void qemu_remove_fd_in_watch(Chardev *chr, GMainContext *context);
+
 int io_channel_send(QIOChannel *ioc, const void *buf, size_t len);
 
 int io_channel_send_full(QIOChannel *ioc, const void *buf, size_t len,
