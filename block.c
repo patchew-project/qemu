@@ -2321,6 +2321,7 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
 static void bdrv_close(BlockDriverState *bs)
 {
     BdrvAioNotifier *ban, *ban_next;
+    Error *local_err = NULL;
 
     assert(!bs->job);
     assert(!bs->refcnt);
@@ -2329,6 +2330,12 @@ static void bdrv_close(BlockDriverState *bs)
     bdrv_flush(bs);
     bdrv_drain(bs); /* in case flush left pending I/O */
 
+    bdrv_store_persistent_dirty_bitmaps(bs, &local_err);
+    if (local_err != NULL) {
+        error_report_err(local_err);
+        error_report("Persistent bitmaps are lost for node '%s'",
+                     bdrv_get_device_or_node_name(bs));
+    }
     bdrv_release_named_dirty_bitmaps(bs);
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
 
@@ -4118,4 +4125,29 @@ void bdrv_load_autoloading_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     if (bs->drv && bs->drv->bdrv_load_autoloading_dirty_bitmaps) {
         bs->drv->bdrv_load_autoloading_dirty_bitmaps(bs, errp);
     }
+}
+
+void bdrv_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!bdrv_has_persistent_bitmaps(bs)) {
+        return;
+    }
+
+    if (!drv) {
+        error_setg_errno(errp, ENOMEDIUM,
+                         "Can't store persistent bitmaps to %s",
+                         bdrv_get_device_or_node_name(bs));
+        return;
+    }
+
+    if (!drv->bdrv_store_persistent_dirty_bitmaps) {
+        error_setg_errno(errp, ENOTSUP,
+                         "Can't store persistent bitmaps to %s",
+                         bdrv_get_device_or_node_name(bs));
+        return;
+    }
+
+    drv->bdrv_store_persistent_dirty_bitmaps(bs, errp);
 }
