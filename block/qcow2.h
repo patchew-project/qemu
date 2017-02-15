@@ -616,5 +616,6 @@ void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table);
 
 /* qcow2-bitmap.c functions */
 void qcow2_load_autoloading_dirty_bitmaps(BlockDriverState *bs, Error **errp);
+void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp);
 
 #endif
