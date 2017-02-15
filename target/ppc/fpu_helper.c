@@ -2427,6 +2427,75 @@ VSX_MADD(xvnmaddmsp, 4, float32, VsrW(i), NMADD_FLGS, 0, 0, 0)
 VSX_MADD(xvnmsubasp, 4, float32, VsrW(i), NMSUB_FLGS, 1, 0, 0)
 VSX_MADD(xvnmsubmsp, 4, float32, VsrW(i), NMSUB_FLGS, 0, 0, 0)
 
+/*
+ * Quadruple-precision version of multiply and add/subtract.
+ *
+ * This implementation is not 100% accurate as we truncate the
+ * intermediate result of multiplication and then add/subtract
+ * separately.
+ *
+ * TODO: When float128_muladd() becomes available, switch this
+ * implementation to use that instead of separate float128_mul()
+ * followed by float128_add().
+ */
+#define VSX_MADD_QP(op, maddflgs)                                             \
+void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+{                                                                             \
+    ppc_vsr_t xt_in, xa, xb, xt_out;                                          \
+                                                                              \
+    getVSR(rA(opcode) + 32, &xa, env);                                        \
+    getVSR(rB(opcode) + 32, &xb, env);                                        \
+    getVSR(rD(opcode) + 32, &xt_in, env);                                     \
+                                                                              \
+    xt_out = xt_in;                                                           \
+    helper_reset_fpstatus(env);                                               \
+    float_status tstat = env->fp_status;                                      \
+    if (unlikely(Rc(opcode) != 0)) {                                          \
+        tstat.float_rounding_mode = float_round_to_odd;                       \
+    }                                                                         \
+    set_float_exception_flags(0, &tstat);                                     \
+    xt_out.f128 = float128_mul(xa.f128, xt_in.f128, &tstat);                  \
+                                                                              \
+    if (maddflgs & float_muladd_negate_c) {                                   \
+        xb.VsrD(0) ^= 0x8000000000000000;                                     \
+    }                                                                         \
+    xt_out.f128 = float128_add(xt_out.f128, xb.f128, &tstat);                 \
+    env->fp_status.float_exception_flags |= tstat.float_exception_flags;      \
+                                                                              \
+    if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {         \
+        if (float128_is_signaling_nan(xa.f128, &tstat) ||                     \
+            float128_is_signaling_nan(xt_in.f128, &tstat) ||                  \
+            float128_is_signaling_nan(xb.f128, &tstat)) {                     \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);            \
+            tstat.float_exception_flags &= ~float_flag_invalid;               \
+        }                                                                     \
+        if ((float128_is_infinity(xa.f128) && float128_is_zero(xt_in.f128)) ||\
+            (float128_is_zero(xa.f128) && float128_is_infinity(xt_in.f128))) {\
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);             \
+            tstat.float_exception_flags &= ~float_flag_invalid;               \
+        }                                                                     \
+        if ((tstat.float_exception_flags & float_flag_invalid) &&             \
+            ((float128_is_infinity(xa.f128) ||                                \
+            float128_is_infinity(xt_in.f128)) &&                              \
+            float128_is_infinity(xb.f128))) {                                 \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);             \
+        }                                                                     \
+    }                                                                         \
+                                                                              \
+    helper_compute_fprf_float128(env, xt_out.f128);                           \
+    if ((maddflgs & float_muladd_negate_result) &&                            \
+        !float128_is_any_nan(xt_out.f128)) {                                  \
+        xt_out.VsrD(0) ^= 0x8000000000000000;                                 \
+    }                                                                         \
+    putVSR(rD(opcode) + 32, &xt_out, env);                                    \
+    float_check_status(env);                                                  \
+}
+
+VSX_MADD_QP(xsmaddqp, MADD_FLGS)
+VSX_MADD_QP(xsmsubqp, MSUB_FLGS)
+VSX_MADD_QP(xsnmaddqp, NMADD_FLGS)
+VSX_MADD_QP(xsnmsubqp, NMSUB_FLGS)
+
 /* VSX_SCALAR_CMP_DP - VSX scalar floating point compare double precision
  *   op    - instruction mnemonic
  *   cmp   - comparison operation
