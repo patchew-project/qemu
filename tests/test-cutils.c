@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu/cutils.h"
+#include "hw/pci/pci.h"
 
 static void test_parse_uint_null(void)
 {
@@ -1437,6 +1438,46 @@ static void test_qemu_strtosz_suffix_unit(void)
     g_assert_cmpint(res, ==, 12345000);
 }
 
+static void test_pci_parse_valid(void)
+{
+    PCIHostDeviceAddress addr = { 0xff, 0xff, 0xff, 0xff };
+    int i, res;
+    const struct {
+        const char *str;
+        PCIHostDeviceAddress addr;
+    } tests[] = {
+        { "1:2.3", { 0, 1, 2, 3 } },
+        { "4:1:2.3", { 4, 1, 2, 3 } },
+        { "a:a:a.7", { 10, 10, 10, 7 } },
+    };
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++) {
+        res = pci_host_device_address_parse(tests[i].str, &addr);
+        g_assert_cmpint(res, ==, 0);
+
+        g_assert_cmpint(addr.domain, ==, tests[i].addr.domain);
+        g_assert_cmpint(addr.bus, ==, tests[i].addr.bus);
+        g_assert_cmpint(addr.slot, ==, tests[i].addr.slot);
+        g_assert_cmpint(addr.function, ==, tests[i].addr.function);
+    }
+}
+
+static void test_pci_parse_invalid(void)
+{
+    int i, res;
+    const char *tests[] =  {
+        "", "foo", "1:2.3 foo",
+        "a:a:a.a",
+        "1", "1:", "1:2", "1:2:", "1:2:3", ":1:2:3.",
+        "-1:1:2.3", "-1:2.3", "1:-1.3", "1:2.-3",
+        "0x10000:1:1.1", "0x100:1.1", "1:0x20.1", "1:1.8" };
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++) {
+        res = pci_host_device_address_parse(tests[i], NULL);
+        g_assert_cmpint(res, ==, -1);
+    }
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1597,6 +1638,11 @@ int main(int argc, char **argv)
                     test_qemu_strtosz_erange);
     g_test_add_func("/cutils/strtosz/suffix-unit",
                     test_qemu_strtosz_suffix_unit);
+
+    g_test_add_func("/cutils/pci-parse/valid",
+                    test_pci_parse_valid);
+    g_test_add_func("/cutils/pci-parse/invalid",
+                    test_pci_parse_invalid);
 
     return g_test_run();
 }

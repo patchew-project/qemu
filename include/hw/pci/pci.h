@@ -815,4 +815,16 @@ extern const VMStateDescription vmstate_pci_device;
 
 MSIMessage pci_get_msi_message(PCIDevice *dev, int vector);
 
+/**
+ * pci_host_device_address_parse:
+ * @str: string to parse
+ * @addr: destination structure or NULL
+ *
+ * Parse [<domain>:]<bus>:<slot>.<func>
+ *   if <domain> is not supplied, it's assumed to be 0.
+ *
+ * Returns: -1 on failure, 0 on success.
+ */
+int pci_host_device_address_parse(const char *str, PCIHostDeviceAddress *addr);
+
 #endif

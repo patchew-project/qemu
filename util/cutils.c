@@ -29,6 +29,7 @@
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "net/net.h"
+#include "hw/pci/pci.h"
 #include "qemu/cutils.h"
 
 void strpadcpy(char *buf, int buf_size, const char *str, char pad)
@@ -593,4 +594,62 @@ const char *qemu_ether_ntoa(const MACAddr *mac)
              mac->a[0], mac->a[1], mac->a[2], mac->a[3], mac->a[4], mac->a[5]);
 
     return ret;
+}
+
+int pci_host_device_address_parse(const char *str, PCIHostDeviceAddress *addr)
+{
+    const char *p = str;
+    const char *e;
+    uint64_t val;
+    unsigned long dom = 0, bus = 0;
+    unsigned int slot = 0, func = 0;
+
+    if (qemu_strtoul(p, &e, 16, &val) < 0
+        || e == p || *e != ':') {
+        return -1;
+    }
+    bus = val;
+
+    p = e + 1;
+    if (qemu_strtoul(p, &e, 16, &val) < 0
+        || e == p) {
+        return -1;
+    }
+    if (*e == ':') {
+        dom = bus;
+        bus = val;
+        p = e + 1;
+        if (qemu_strtoul(p, &e, 16, &val) < 0
+            || e == p) {
+            return -1;
+        }
+    }
+    slot = val;
+
+    if (*e != '.') {
+        return -1;
+    }
+    p = e + 1;
+    if (qemu_strtoul(p, &e, 10, &val) < 0
+        || e == p) {
+        return -1;
+    }
+    func = val;
+
+    if (dom > 0xffff || bus > 0xff || slot > 0x1f || func > 7) {
+        return -1;
+    }
+
+    if (*e) {
+        return -1;
+    }
+
+    if (addr) {
+        addr->domain = dom;
+        addr->bus = bus;
+        addr->slot = slot;
+        addr->function = func;
+    }
+
+    return 0;
 }

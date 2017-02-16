@@ -722,10 +722,6 @@ static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     visit_type_str(v, name, &p, errp);
 }
 
-/*
- * Parse [<domain>:]<bus>:<slot>.<func>
- *   if <domain> is not supplied, it's assumed to be 0.
- */
 static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
@@ -733,11 +729,7 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     PCIHostDeviceAddress *addr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
-    char *str, *p;
-    char *e;
-    unsigned long val;
-    unsigned long dom = 0, bus = 0;
-    unsigned int slot = 0, func = 0;
+    char *str;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -750,57 +742,10 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    p = str;
-    val = strtoul(p, &e, 16);
-    if (e == p || *e != ':') {
-        goto inval;
-    }
-    bus = val;
-
-    p = e + 1;
-    val = strtoul(p, &e, 16);
-    if (e == p) {
-        goto inval;
-    }
-    if (*e == ':') {
-        dom = bus;
-        bus = val;
-        p = e + 1;
-        val = strtoul(p, &e, 16);
-        if (e == p) {
-            goto inval;
-        }
-    }
-    slot = val;
-
-    if (*e != '.') {
-        goto inval;
-    }
-    p = e + 1;
-    val = strtoul(p, &e, 10);
-    if (e == p) {
-        goto inval;
-    }
-    func = val;
-
-    if (dom > 0xffff || bus > 0xff || slot > 0x1f || func > 7) {
-        goto inval;
+    if (!pci_host_device_address_parse(str, addr)) {
+        error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
     }
 
-    if (*e) {
-        goto inval;
-    }
-
-    addr->domain = dom;
-    addr->bus = bus;
-    addr->slot = slot;
-    addr->function = func;
-
-    g_free(str);
-    return;
-
-inval:
-    error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
     g_free(str);
 }
 
