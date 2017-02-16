@@ -83,9 +83,6 @@ typedef struct CompareState {
     GHashTable *connection_track_table;
     /* compare thread, a thread for each NIC */
     QemuThread thread;
-    /* Timer used on the primary to find packets that are never matched */
-    QEMUTimer *timer;
-    QemuMutex timer_check_lock;
 } CompareState;
 
 typedef struct CompareClass {
@@ -355,9 +352,7 @@ static void colo_compare_connection(void *opaque, void *user_data)
 
     while (!g_queue_is_empty(&conn->primary_list) &&
            !g_queue_is_empty(&conn->secondary_list)) {
-        qemu_mutex_lock(&s->timer_check_lock);
         pkt = g_queue_pop_tail(&conn->primary_list);
-        qemu_mutex_unlock(&s->timer_check_lock);
         switch (conn->ip_proto) {
         case IPPROTO_TCP:
             result = g_queue_find_custom(&conn->secondary_list,
@@ -392,9 +387,7 @@ static void colo_compare_connection(void *opaque, void *user_data)
              * until next comparison.
              */
             trace_colo_compare_main("packet different");
-            qemu_mutex_lock(&s->timer_check_lock);
             g_queue_push_tail(&conn->primary_list, pkt);
-            qemu_mutex_unlock(&s->timer_check_lock);
             /* TODO: colo_notify_checkpoint();*/
             break;
         }
@@ -467,11 +460,26 @@ static void compare_sec_chr_in(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+/*
+ * Check old packet regularly so it can watch for any packets
+ * that the secondary hasn't produced equivalents of.
+ */
+static gboolean check_old_packet_regular(void *opaque)
+{
+    CompareState *s = opaque;
+
+    /* if have old packet we will notify checkpoint */
+    colo_old_packet_check(s);
+
+    return TRUE;
+}
+
 static void *colo_compare_thread(void *opaque)
 {
     GMainContext *worker_context;
     GMainLoop *compare_loop;
     CompareState *s = opaque;
+    GSource *timeout_source;
 
     worker_context = g_main_context_new();
 
@@ -482,8 +490,15 @@ static void *colo_compare_thread(void *opaque)
 
     compare_loop = g_main_loop_new(worker_context, FALSE);
 
+    /* To kick any packets that the secondary doesn't match */
+    timeout_source = g_timeout_source_new(REGULAR_PACKET_CHECK_MS);
+    g_source_set_callback(timeout_source,
+                          (GSourceFunc)check_old_packet_regular, s, NULL);
+    g_source_attach(timeout_source, worker_context);
+
     g_main_loop_run(compare_loop);
 
+    g_source_unref(timeout_source);
     g_main_loop_unref(compare_loop);
     g_main_context_unref(worker_context);
     return NULL;
@@ -585,26 +600,6 @@ static int find_and_check_chardev(Chardev **chr,
 }
 
 /*
- * Check old packet regularly so it can watch for any packets
- * that the secondary hasn't produced equivalents of.
- */
-static void check_old_packet_regular(void *opaque)
-{
-    CompareState *s = opaque;
-
-    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
-              REGULAR_PACKET_CHECK_MS);
-    /* if have old packet we will notify checkpoint */
-    /*
-     * TODO: Make timer handler run in compare thread
-     * like qemu_chr_add_handlers_full.
-     */
-    qemu_mutex_lock(&s->timer_check_lock);
-    colo_old_packet_check(s);
-    qemu_mutex_unlock(&s->timer_check_lock);
-}
-
-/*
  * Called from the main thread on the primary
  * to setup colo-compare.
  */
@@ -646,7 +641,6 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
 
     g_queue_init(&s->conn_list);
-    qemu_mutex_init(&s->timer_check_lock);
 
     s->connection_track_table = g_hash_table_new_full(connection_key_hash,
                                                       connection_key_equal,
@@ -658,12 +652,6 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
                        colo_compare_thread, s,
                        QEMU_THREAD_JOINABLE);
     compare_id++;
-
-    /* A regular timer to kick any packets that the secondary doesn't match */
-    s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, /* Only when guest runs */
-                            check_old_packet_regular, s);
-    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
-                        REGULAR_PACKET_CHECK_MS);
 
     return;
 }
@@ -703,12 +691,6 @@ static void colo_compare_finalize(Object *obj)
         g_queue_foreach(&s->conn_list, colo_compare_connection, s);
         qemu_thread_join(&s->thread);
     }
-
-    if (s->timer) {
-        timer_del(s->timer);
-    }
-
-    qemu_mutex_destroy(&s->timer_check_lock);
 
     g_free(s->pri_indev);
     g_free(s->sec_indev);
