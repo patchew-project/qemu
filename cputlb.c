@@ -545,6 +545,13 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     if (memory_region_is_unassigned(mr)) {
         CPUClass *cc = CPU_GET_CLASS(cpu);
 
+        if (memory_region_request_mmio_ptr(mr, addr)) {
+            /* A MemoryRegion is potentially added so re-run the
+             * get_page_addr_code.
+             */
+            return get_page_addr_code(env, addr);
+        }
+
         if (cc->do_unassigned_access) {
             cc->do_unassigned_access(cpu, addr, false, true, 0, 4);
         } else {
