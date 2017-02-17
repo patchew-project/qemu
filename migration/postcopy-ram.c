@@ -213,7 +213,7 @@ int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
                                size_t length)
 {
     trace_postcopy_ram_discard_range(start, length);
-    if (madvise(start, length, MADV_DONTNEED)) {
+    if (qemu_madvise(start, length, QEMU_MADV_DONTNEED)) {
         error_report("%s MADV_DONTNEED: %s", __func__, strerror(errno));
         return -1;
     }
