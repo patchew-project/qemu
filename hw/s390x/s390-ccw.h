@@ -27,6 +27,7 @@ typedef struct S390CCWDevice {
     CcwDevice parent_obj;
     CssDevId hostid;
     char *mdevid;
+    int (*handle_request) (ORB *, SCSW *, void *);
 } S390CCWDevice;
 
 typedef struct S390CCWDeviceClass {
