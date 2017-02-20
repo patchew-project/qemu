@@ -267,6 +267,37 @@ f_sample *mixeng_clip[2][2][2][3] = {
     }
 };
 
+
+void audio_sample_to_uint64(void *samples, int pos,
+                            uint64_t *left, uint64_t *right)
+{
+    struct st_sample *sample = samples;
+    sample += pos;
+#ifdef FLOAT_MIXENG
+    error_report(
+        "Coreaudio and floating point samples are not supported by replay yet");
+    abort();
+#else
+    *left = sample->l;
+    *right = sample->r;
+#endif
+}
+
+void audio_sample_from_uint64(void *samples, int pos,
+                            uint64_t left, uint64_t right)
+{
+    struct st_sample *sample = samples;
+    sample += pos;
+#ifdef FLOAT_MIXENG
+    error_report(
+        "Coreaudio and floating point samples are not supported by replay yet");
+    abort();
+#else
+    sample->l = left;
+    sample->r = right;
+#endif
+}
+
 /*
  * August 21, 1998
  * Copyright 1998 Fabrice Bellard.
