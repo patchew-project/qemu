@@ -1018,6 +1018,13 @@ static void emulate_spapr_hypercall(PPCVirtualHypervisor *vhyp,
     }
 }
 
+static uint64_t spapr_get_patbe(PPCVirtualHypervisor *vhyp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    return spapr->patb_entry;
+}
+
 #define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))
 #define HPTE_VALID(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_VALID)
 #define HPTE_DIRTY(_hpte)  (tswap64(*((uint64_t *)(_hpte))) & HPTE64_V_HPTE_DIRTY)
@@ -1140,6 +1147,8 @@ static void ppc_spapr_reset(void)
 
     /* Check for unknown sysbus devices */
     foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
+
+    spapr->patb_entry = 0;
 
     /* Allocate and/or reset the hash page table */
     spapr_reallocate_hpt(spapr,
@@ -1327,6 +1336,24 @@ static const VMStateDescription vmstate_spapr_ov5_cas = {
     },
 };
 
+static bool spapr_patb_entry_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    return !!spapr->patb_entry;
+}
+
+static const VMStateDescription vmstate_spapr_patb_entry = {
+    .name = "spapr_patb_entry",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_patb_entry_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(patb_entry, sPAPRMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1344,6 +1371,7 @@ static const VMStateDescription vmstate_spapr = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_spapr_ov5_cas,
+        &vmstate_spapr_patb_entry,
         NULL
     }
 };
@@ -2733,6 +2761,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = spapr_nmi;
     smc->phb_placement = spapr_phb_placement;
     vhc->hypercall = emulate_spapr_hypercall;
+    vhc->get_patbe = spapr_get_patbe;
 }
 
 static const TypeInfo spapr_machine_info = {
