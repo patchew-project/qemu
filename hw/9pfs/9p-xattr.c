@@ -304,13 +304,7 @@ int v9fs_remove_xattr(FsContext *ctx,
 ssize_t pt_getxattr(FsContext *ctx, const char *path, const char *name,
                     void *value, size_t size)
 {
-    char *buffer;
-    ssize_t ret;
-
-    buffer = rpath(ctx, path);
-    ret = lgetxattr(buffer, name, value, size);
-    g_free(buffer);
-    return ret;
+    return local_getxattr_nofollow(ctx, path, name, value, size);
 }
 
 int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
