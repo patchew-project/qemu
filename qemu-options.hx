@@ -1233,11 +1233,13 @@ ETEXI
 
 DEF("g", 1, QEMU_OPTION_g ,
     "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n",
-    QEMU_ARCH_PPC | QEMU_ARCH_SPARC)
+    QEMU_ARCH_ALL)
 STEXI
 @item -g @var{width}x@var{height}[x@var{depth}]
 @findex -g
-Set the initial graphical resolution and depth (PPC, SPARC only).
+Set the initial graphical resolution and depth.
+On PPC and SPARC the firmware will configure the display accordingly.
+On other archs this is supported by virtio and qxl (FIXME) display adapters.
 ETEXI
 
 DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,

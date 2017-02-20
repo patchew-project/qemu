@@ -368,6 +368,24 @@ static void init_qxl_rom(PCIQXLDevice *d)
     rom->num_pages          = cpu_to_le32(num_pages);
     rom->ram_header_offset  = cpu_to_le32(d->vga.vram_size - ram_header_size);
 
+#if 0
+    /*
+     * FIXME:
+     *
+     * Not working that simple.  Seems the driver doesn't check this
+     * without notification.  So we have to try something more clever,
+     * and pay attention that we don't screw up the spice guest agent
+     * monitor configuration ...
+     */
+    if (graphic_width && graphic_height) {
+        rom->client_monitors_config.count = 1;
+        rom->client_monitors_config.heads[0].left = 0;
+        rom->client_monitors_config.heads[0].top = 0;
+        rom->client_monitors_config.heads[0].right = graphic_width;
+        rom->client_monitors_config.heads[0].bottom = graphic_height;
+    }
+#endif
+
     d->shadow_rom = *rom;
     d->rom        = rom;
     d->modes      = modes;

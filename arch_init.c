@@ -34,14 +34,18 @@
 #include "hw/acpi/acpi.h"
 #include "qemu/help_option.h"
 
-#ifdef TARGET_SPARC
+#if defined(TARGET_SPARC)
 int graphic_width = 1024;
 int graphic_height = 768;
 int graphic_depth = 8;
-#else
+#elif defined(TARGET_PPC)
 int graphic_width = 800;
 int graphic_height = 600;
 int graphic_depth = 32;
+#else
+int graphic_width;
+int graphic_height;
+int graphic_depth;
 #endif
 
 
