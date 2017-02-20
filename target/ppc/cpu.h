@@ -947,6 +947,8 @@ struct CPUPPCState {
     target_ulong so;
     target_ulong ov;
     target_ulong ca;
+    target_ulong ov32;
+    target_ulong ca32;
     /* Reservation address */
     target_ulong reserve_addr;
     /* Reservation value */
@@ -1354,11 +1356,15 @@ int ppc_compat_max_threads(PowerPCCPU *cpu);
 #define XER_SO  31
 #define XER_OV  30
 #define XER_CA  29
+#define XER_OV32  19
+#define XER_CA32  18
 #define XER_CMP  8
 #define XER_BC   0
 #define xer_so  (env->so)
 #define xer_ov  (env->ov)
 #define xer_ca  (env->ca)
+#define xer_ov32  (env->ov)
+#define xer_ca32  (env->ca)
 #define xer_cmp ((env->xer >> XER_CMP) & 0xFF)
 #define xer_bc  ((env->xer >> XER_BC)  & 0x7F)
 
@@ -2325,11 +2331,21 @@ enum {
 
 /*****************************************************************************/
 
+#ifndef TARGET_PPC64
 static inline target_ulong cpu_read_xer(CPUPPCState *env)
 {
     return env->xer | (env->so << XER_SO) | (env->ov << XER_OV) | (env->ca << XER_CA);
 }
+#else
+static inline target_ulong cpu_read_xer(CPUPPCState *env)
+{
+    return env->xer | (env->so << XER_SO) |
+        (env->ov << XER_OV) | (env->ca << XER_CA) |
+        (env->ov32 << XER_OV32) | (env->ca32 << XER_CA32);
+}
+#endif
 
+#ifndef TARGET_PPC64
 static inline void cpu_write_xer(CPUPPCState *env, target_ulong xer)
 {
     env->so = (xer >> XER_SO) & 1;
@@ -2337,6 +2353,20 @@ static inline void cpu_write_xer(CPUPPCState *env, target_ulong xer)
     env->ca = (xer >> XER_CA) & 1;
     env->xer = xer & ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA));
 }
+#else
+static inline void cpu_write_xer(CPUPPCState *env, target_ulong xer)
+{
+    env->so = (xer >> XER_SO) & 1;
+    env->ov = (xer >> XER_OV) & 1;
+    env->ca = (xer >> XER_CA) & 1;
+    env->ov32 = (xer >> XER_OV32) & 1;
+    env->ca32 = (xer >> XER_CA32) & 1;
+    env->xer = xer & ~((1ul << XER_SO) |
+                       (1ul << XER_OV) | (1ul << XER_CA) |
+                       (1ul << XER_OV32) | (1ul << XER_CA32));
+}
+#endif
+
 
 static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)

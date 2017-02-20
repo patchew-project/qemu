@@ -71,7 +71,7 @@ static TCGv cpu_lr;
 #if defined(TARGET_PPC64)
 static TCGv cpu_cfar;
 #endif
-static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca;
+static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca, cpu_ov32, cpu_ca32;
 static TCGv cpu_reserve;
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
@@ -173,6 +173,10 @@ void ppc_translate_init(void)
                                 offsetof(CPUPPCState, ov), "OV");
     cpu_ca = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUPPCState, ca), "CA");
+    cpu_ov32 = tcg_global_mem_new(cpu_env,
+                                  offsetof(CPUPPCState, ov32), "OV32");
+    cpu_ca32 = tcg_global_mem_new(cpu_env,
+                                  offsetof(CPUPPCState, ca32), "CA32");
 
     cpu_reserve = tcg_global_mem_new(cpu_env,
                                      offsetof(CPUPPCState, reserve_addr),
@@ -3608,6 +3612,12 @@ static void gen_read_xer(TCGv dst)
     tcg_gen_or_tl(t0, t0, t1);
     tcg_gen_or_tl(dst, dst, t2);
     tcg_gen_or_tl(dst, dst, t0);
+#ifdef TARGET_PPC64
+    tcg_gen_shli_tl(t0, cpu_ov32, XER_OV32);
+    tcg_gen_or_tl(dst, dst, t0);
+    tcg_gen_shli_tl(t0, cpu_ca32, XER_CA32);
+    tcg_gen_or_tl(dst, dst, t0);
+#endif
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     tcg_temp_free(t2);
@@ -3620,9 +3630,14 @@ static void gen_write_xer(TCGv src)
     tcg_gen_shri_tl(cpu_so, src, XER_SO);
     tcg_gen_shri_tl(cpu_ov, src, XER_OV);
     tcg_gen_shri_tl(cpu_ca, src, XER_CA);
+    tcg_gen_shri_tl(cpu_ov32, src, XER_OV32);
+    tcg_gen_shri_tl(cpu_ca32, src, XER_CA32);
     tcg_gen_andi_tl(cpu_so, cpu_so, 1);
     tcg_gen_andi_tl(cpu_ov, cpu_ov, 1);
     tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
+    tcg_gen_andi_tl(cpu_ov32, cpu_ov32, 1);
+    tcg_gen_andi_tl(cpu_ca32, cpu_ca32, 1);
+
 }
 
 /* mcrxr */
