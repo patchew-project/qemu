@@ -1682,14 +1682,14 @@ void qemu_system_reset(bool report)
 void qemu_system_guest_panicked(GuestPanicInformation *info)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "Guest crashed\n");
-    if (info && info->type == GUEST_PANIC_INFORMATION_KIND_HYPER_V) {
+    if (info && info->type == GUEST_PANIC_INFORMATION_TYPE_HYPER_V) {
         qemu_log_mask(LOG_GUEST_ERROR, "HV crash parameters: (%#"PRIx64
                       " %#"PRIx64" %#"PRIx64" %#"PRIx64" %#"PRIx64")\n",
-                      info->u.hyper_v.data->arg1,
-                      info->u.hyper_v.data->arg2,
-                      info->u.hyper_v.data->arg3,
-                      info->u.hyper_v.data->arg4,
-                      info->u.hyper_v.data->arg5);
+                      info->u.hyper_v.arg1,
+                      info->u.hyper_v.arg2,
+                      info->u.hyper_v.arg3,
+                      info->u.hyper_v.arg4,
+                      info->u.hyper_v.arg5);
     }
 
     if (current_cpu) {
