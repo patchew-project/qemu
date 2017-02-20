@@ -816,6 +816,36 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
     tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
 
+static inline void gen_op_arith_compute_ca32(DisasContext *ctx, TCGv arg0,
+                                             TCGv arg1, bool add_ca, int sub)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv inv0 = tcg_temp_new();
+
+    tcg_gen_extract_tl(t0, arg0, 0, 32);
+    tcg_gen_extract_tl(t1, arg1, 0, 32);
+    if (sub) {
+        tcg_gen_not_tl(inv0, t0);
+        if (add_ca) {
+            tcg_gen_add_tl(t1, t1, cpu_ca32);
+        } else {
+            tcg_gen_addi_tl(t1, t1, 1);
+        }
+        tcg_gen_add_tl(t0, t1, inv0);
+        tcg_gen_extract_tl(cpu_ca32, t0, 32, 1);
+    } else {
+        tcg_gen_add_tl(t0, t0, t1);
+        if (add_ca) {
+            tcg_gen_add_tl(t0, t0, cpu_ca32);
+        }
+        tcg_gen_extract_tl(cpu_ca32, t0, 32, 1);
+    }
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+
 /* Common add function */
 static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
                                     TCGv arg2, bool add_ca, bool compute_ca,
@@ -842,6 +872,7 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
             tcg_temp_free(t1);
             tcg_gen_shri_tl(cpu_ca, cpu_ca, 32);   /* extract bit 32 */
             tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
+            tcg_gen_mov_tl(cpu_ca32, cpu_ca);
         } else {
             TCGv zero = tcg_const_tl(0);
             if (add_ca) {
@@ -850,6 +881,7 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
             } else {
                 tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
             }
+            gen_op_arith_compute_ca32(ctx, arg1, arg2, add_ca, 0);
             tcg_temp_free(zero);
         }
     } else {
