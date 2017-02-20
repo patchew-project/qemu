@@ -15,6 +15,7 @@
 #define QEMU_9P_XATTR_H
 
 #include "qemu/xattr.h"
+#include "9p-local.h"
 
 typedef struct xattr_operations
 {
@@ -29,6 +30,18 @@ typedef struct xattr_operations
                        const char *path, const char *name);
 } XattrOperations;
 
+ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
+                             void *value, size_t size);
+int fsetxattrat_nofollow(int dirfd, const char *path, const char *name,
+                         void *value, size_t size, int flags);
+
+ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size);
+ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size,
+                                int flags);
+ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,
+                                   const char *name);
 
 extern XattrOperations mapped_user_xattr;
 extern XattrOperations passthrough_user_xattr;

@@ -15,7 +15,165 @@
 #include "9p.h"
 #include "fsdev/file-op-9p.h"
 #include "9p-xattr.h"
+#include "9p-util.h"
 
+enum {
+    XATTRAT_OP_GET = 0,
+    XATTRAT_OP_LIST,
+    XATTRAT_OP_SET,
+    XATTRAT_OP_REMOVE
+};
+
+struct xattrat_data {
+    ssize_t ret;
+    int serrno;
+    char value[0];
+};
+
+static void munmap_preserver_errno(void *addr, size_t length)
+{
+    int serrno = errno;
+    munmap(addr, length);
+    errno = serrno;
+}
+
+static ssize_t do_xattrat_op(int op_type, int dirfd, const char *path,
+                             const char *name, void *value, size_t size,
+                             int flags)
+{
+    struct xattrat_data *data;
+    pid_t pid;
+    ssize_t ret = -1;
+    int wstatus;
+
+    data = mmap(NULL, sizeof(*data) + size, PROT_READ | PROT_WRITE,
+                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (data == MAP_FAILED) {
+        return -1;
+    }
+    data->ret = -1;
+
+    pid = fork();
+    if (pid < 0) {
+        goto err_out;
+    } else if (pid == 0) {
+        if (fchdir(dirfd) == 0) {
+            switch (op_type) {
+            case XATTRAT_OP_GET:
+                data->ret = lgetxattr(path, name, data->value, size);
+                break;
+            case XATTRAT_OP_LIST:
+                data->ret = llistxattr(path, data->value, size);
+                break;
+            case XATTRAT_OP_SET:
+                data->ret = lsetxattr(path, name, value, size, flags);
+                break;
+            case XATTRAT_OP_REMOVE:
+                data->ret = lremovexattr(path, name);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+        }
+        data->serrno = errno;
+        _exit(0);
+    }
+    assert(waitpid(pid, &wstatus, 0) == pid && WIFEXITED(wstatus));
+
+    ret = data->ret;
+    if (ret < 0) {
+        errno = data->serrno;
+        goto err_out;
+    }
+    if (value) {
+        memcpy(value, data->value, data->ret);
+    }
+err_out:
+    munmap_preserver_errno(data, sizeof(*data) + size);
+    return ret;
+}
+
+ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
+                             void *value, size_t size)
+{
+    return do_xattrat_op(XATTRAT_OP_GET, dirfd, path, name, value, size, 0);
+}
+
+ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size)
+{
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    int dirfd;
+    ssize_t ret = -1;
+
+    dirfd = local_opendir_nofollow(ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+
+    ret = fgetxattrat_nofollow(dirfd, filename, name, value, size);
+    close_preserve_errno(dirfd);
+out:
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+}
+
+int fsetxattrat_nofollow(int dirfd, const char *path, const char *name,
+                         void *value, size_t size, int flags)
+{
+    return do_xattrat_op(XATTRAT_OP_SET, dirfd, path, name, value, size, flags);
+}
+
+ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
+                                const char *name, void *value, size_t size,
+                                int flags)
+{
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    int dirfd;
+    ssize_t ret = -1;
+
+    dirfd = local_opendir_nofollow(ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+
+    ret = fsetxattrat_nofollow(dirfd, filename, name, value, size, flags);
+    close_preserve_errno(dirfd);
+out:
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+}
+
+static ssize_t fremovexattrat_nofollow(int dirfd, const char *path,
+                                       const char *name)
+{
+    return do_xattrat_op(XATTRAT_OP_GET, dirfd, path, name, NULL, 0, 0);
+}
+
+ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,
+                                   const char *name)
+{
+    char *dirpath = g_path_get_dirname(path);
+    char *filename = g_path_get_basename(path);
+    int dirfd;
+    ssize_t ret = -1;
+
+    dirfd = local_opendir_nofollow(ctx, dirpath);
+    if (dirfd == -1) {
+        goto out;
+    }
+
+    ret = fremovexattrat_nofollow(dirfd, filename, name);
+    close_preserve_errno(dirfd);
+out:
+    g_free(dirpath);
+    g_free(filename);
+    return ret;
+}
 
 static XattrOperations *get_xattr_operations(XattrOperations **h,
                                              const char *name)
