@@ -1473,14 +1473,6 @@ static void gen_subfic(DisasContext *ctx)
 }
 
 /* neg neg. nego nego. */
-static inline void gen_op_arith_neg(DisasContext *ctx, bool compute_ov)
-{
-    TCGv zero = tcg_const_tl(0);
-    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                      zero, 0, 0, compute_ov, Rc(ctx->opcode));
-    tcg_temp_free(zero);
-}
-
 static void gen_neg(DisasContext *ctx)
 {
     tcg_gen_neg_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
@@ -1488,7 +1480,20 @@ static void gen_neg(DisasContext *ctx)
 
 static void gen_nego(DisasContext *ctx)
 {
-    gen_op_arith_neg(ctx, 1);
+    TCGv t0 = tcg_temp_new();
+    TCGv zero = tcg_const_tl(0);
+
+    if (NARROW_MODE(ctx)) {
+        tcg_gen_xori_tl(t0, cpu_gpr[rA(ctx->opcode)], INT32_MIN);
+    } else {
+        tcg_gen_xori_tl(t0, cpu_gpr[rA(ctx->opcode)], (target_ulong)INT64_MIN);
+    }
+
+    tcg_gen_setcond_tl(TCG_COND_EQ, cpu_ov, t0, zero);
+    tcg_gen_mov_tl(cpu_ov32, cpu_ov);
+    tcg_gen_neg_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    tcg_temp_free(t0);
+    tcg_temp_free(zero);
 }
 
 /***                            Integer logical                            ***/
