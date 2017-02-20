@@ -28,6 +28,18 @@
 /*****************************************************************************/
 /* Fixed point operations helpers */
 
+static inline void helper_div_compute_ov(CPUPPCState *env, uint32_t oe,
+                                         int overflow)
+{
+    if (oe) {
+        if (unlikely(overflow)) {
+            env->so = env->ov = env->ov32 = 1;
+        } else {
+            env->ov = env->ov32 = 0;
+        }
+    }
+}
+
 target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
                            uint32_t oe)
 {
@@ -48,14 +60,7 @@ target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
         rt = 0; /* Undefined */
     }
 
-    if (oe) {
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
-    }
-
+    helper_div_compute_ov(env, oe, overflow);
     return (target_ulong)rt;
 }
 
@@ -80,14 +85,7 @@ target_ulong helper_divwe(CPUPPCState *env, target_ulong ra, target_ulong rb,
         rt = 0; /* Undefined */
     }
 
-    if (oe) {
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
-    }
-
+    helper_div_compute_ov(env, oe, overflow);
     return (target_ulong)rt;
 }
 
@@ -104,14 +102,7 @@ uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
         rt = 0; /* Undefined */
     }
 
-    if (oe) {
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
-    }
-
+    helper_div_compute_ov(env, oe, overflow);
     return rt;
 }
 
@@ -126,15 +117,7 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
         rt = 0; /* Undefined */
     }
 
-    if (oe) {
-
-        if (unlikely(overflow)) {
-            env->so = env->ov = 1;
-        } else {
-            env->ov = 0;
-        }
-    }
-
+    helper_div_compute_ov(env, oe, overflow);
     return rt;
 }
 
