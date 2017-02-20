@@ -1909,6 +1909,7 @@ int kvm_cpu_exec(CPUState *cpu)
 
     do {
         MemTxAttrs attrs;
+        GuestPanicInformation *crash_info;
 
         if (cpu->kvm_vcpu_dirty) {
             kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
@@ -2001,9 +2002,11 @@ int kvm_cpu_exec(CPUState *cpu)
                 break;
             case KVM_SYSTEM_EVENT_CRASH:
                 kvm_cpu_synchronize_state(cpu);
+                crash_info = cpu_get_crash_info(cpu);
                 qemu_mutex_lock_iothread();
-                qemu_system_guest_panicked(cpu_get_crash_info(cpu));
+                qemu_system_guest_panicked(crash_info);
                 qemu_mutex_unlock_iothread();
+                qapi_free_GuestPanicInformation(crash_info);
                 ret = 0;
                 break;
             default:
