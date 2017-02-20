@@ -28,6 +28,8 @@
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "helper_regs.h"
+#include "qemu/error-report.h"
+#include "mmu-book3s-v3.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -1280,6 +1282,17 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
     case POWERPC_MMU_2_07a:
         dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
         break;
+    case POWERPC_MMU_3_00:
+        if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
+            /* TODO - Unsupported */
+        } else {
+            if (ppc64_use_proc_tbl(ppc_env_get_cpu(env))) {
+                /* TODO - Unsupported */
+            } else {
+                dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
+                break;
+            }
+        }
 #endif
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented\n", __func__);
@@ -1421,6 +1434,17 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     case POWERPC_MMU_2_07:
     case POWERPC_MMU_2_07a:
         return ppc_hash64_get_phys_page_debug(cpu, addr);
+    case POWERPC_MMU_3_00:
+        if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
+            /* TODO - Unsupported */
+        } else {
+            if (ppc64_use_proc_tbl(ppc_env_get_cpu(env))) {
+                /* TODO - Unsupported */
+            } else {
+                return ppc_hash64_get_phys_page_debug(cpu, addr);
+            }
+        }
+        break;
 #endif
 
     case POWERPC_MMU_32B:
@@ -2905,5 +2929,21 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     if (unlikely(ret != 0)) {
         raise_exception_err_ra(env, cs->exception_index, env->error_code,
                                retaddr);
+    }
+}
+
+/******************************************************************************/
+
+/* ISA v3.00 (POWER9) Generic MMU Helpers */
+
+int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
+                              int mmu_idx)
+{
+    if (ppc64_radix_guest(cpu)) { /* Guest uses radix */
+        /* TODO - Unsupported */
+        error_report("Guest Radix Support Unimplemented");
+        abort();
+    } else { /* Guest uses hash */
+        return ppc_hash64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
     }
 }

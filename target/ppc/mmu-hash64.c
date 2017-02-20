@@ -27,6 +27,7 @@
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 #include "exec/log.h"
+#include "mmu-book3s-v3.h"
 
 //#define DEBUG_SLB
 
@@ -767,6 +768,13 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     /* 2. Translation is on, so look up the SLB */
     slb = slb_lookup(cpu, eaddr);
     if (!slb) {
+        /* No entry found, check if in-memory segment tables are in use */
+        if (ppc64_use_proc_tbl(cpu)) {
+            /* TODO - Unsupported */
+            error_report("Segment Table Support Unimplemented");
+            abort();
+        }
+        /* Segment still not found, generate the appropriate interrupt */
         if (rwx == 2) {
             cs->exception_index = POWERPC_EXCP_ISEG;
             env->error_code = 0;
