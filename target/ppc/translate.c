@@ -1389,17 +1389,19 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
             tcg_temp_free(t1);
             tcg_gen_shri_tl(cpu_ca, cpu_ca, 32);    /* extract bit 32 */
             tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
-        } else if (add_ca) {
-            TCGv zero, inv1 = tcg_temp_new();
-            tcg_gen_not_tl(inv1, arg1);
-            zero = tcg_const_tl(0);
-            tcg_gen_add2_tl(t0, cpu_ca, arg2, zero, cpu_ca, zero);
-            tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, inv1, zero);
-            tcg_temp_free(zero);
-            tcg_temp_free(inv1);
         } else {
-            tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
-            tcg_gen_sub_tl(t0, arg2, arg1);
+            if (add_ca) {
+                TCGv zero, inv1 = tcg_temp_new();
+                tcg_gen_not_tl(inv1, arg1);
+                zero = tcg_const_tl(0);
+                tcg_gen_add2_tl(t0, cpu_ca, arg2, zero, cpu_ca, zero);
+                tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, inv1, zero);
+                tcg_temp_free(zero);
+                tcg_temp_free(inv1);
+            } else {
+                tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
+                tcg_gen_sub_tl(t0, arg2, arg1);
+            }
         }
     } else if (add_ca) {
         /* Since we're ignoring carry-out, we can simplify the
