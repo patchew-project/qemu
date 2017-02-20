@@ -2005,7 +2005,7 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
         PowerPCCPU *cpu = ppc_env_get_cpu(env);
         Error *local_err = NULL;
 
-        ppc_hash64_set_sdr1(cpu, value, &local_err);
+        ppc_hash64_store_hpt(cpu, value, &local_err);
         if (local_err) {
             error_report_err(local_err);
             error_free(local_err);

@@ -285,13 +285,12 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
 /*
  * 64-bit hash table MMU handling
  */
-void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
-                         Error **errp)
+void ppc_hash64_store_hpt(PowerPCCPU *cpu, target_ulong value,
+                          Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     target_ulong htabsize = value & SDR_64_HTABSIZE;
 
-    env->spr[SPR_SDR1] = value;
     if (htabsize > 28) {
         error_setg(errp,
                    "Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",
@@ -300,6 +299,14 @@ void ppc_hash64_set_sdr1(PowerPCCPU *cpu, target_ulong value,
     }
     env->htab_mask = (1ULL << (htabsize + 18 - 7)) - 1;
     env->htab_base = value & SDR_64_HTABORG;
+
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        break; /* Power 9 doesn't have an SDR1 */
+    default:
+        env->spr[SPR_SDR1] = value;
+        break;
+    }
 }
 
 void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
@@ -313,8 +320,8 @@ void ppc_hash64_set_external_hpt(PowerPCCPU *cpu, void *hpt, int shift,
     } else {
         env->external_htab = MMU_HASH64_KVM_MANAGED_HPT;
     }
-    ppc_hash64_set_sdr1(cpu, (target_ulong)(uintptr_t)hpt | (shift - 18),
-                        &local_err);
+    ppc_hash64_store_hpt(cpu, (target_ulong)(uintptr_t)hpt | (shift - 18),
+                         &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
