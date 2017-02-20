@@ -317,6 +317,46 @@ static BlockBackend *img_open_file(const char *filename,
 }
 
 
+static int img_add_key_secrets(void *opaque,
+                               const char *name, const char *value,
+                               Error **errp)
+{
+    QDict *options = opaque;
+
+    if (g_str_has_suffix(name, "key-secret")) {
+        qdict_put(options, name, qstring_from_str(value));
+    }
+
+    return 0;
+}
+
+static BlockBackend *img_open_new_file(const char *filename,
+                                       QemuOpts *create_opts,
+                                       const char *fmt, int flags,
+                                       bool writethrough, bool quiet)
+{
+    BlockBackend *blk;
+    Error *local_err = NULL;
+    QDict *options = NULL;
+
+    options = qdict_new();
+    if (fmt) {
+        qdict_put(options, "driver", qstring_from_str(fmt));
+    }
+
+    qemu_opt_foreach(create_opts, img_add_key_secrets, options, NULL);
+
+    blk = blk_new_open(filename, NULL, options, flags, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Could not open '%s': ", filename);
+        return NULL;
+    }
+    blk_set_enable_write_cache(blk, !writethrough);
+
+    return blk;
+}
+
+
 static BlockBackend *img_open(bool image_opts,
                               const char *filename,
                               const char *fmt, int flags, bool writethrough,
@@ -2120,8 +2160,8 @@ static int img_convert(int argc, char **argv)
          * That has to wait for bdrv_create to be improved
          * to allow filenames in option syntax
          */
-        out_blk = img_open_file(out_filename, out_fmt,
-                                flags, writethrough, quiet);
+        out_blk = img_open_new_file(out_filename, opts, out_fmt,
+                                    flags, writethrough, quiet);
     }
     if (!out_blk) {
         ret = -1;
