@@ -93,10 +93,12 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
             conn->offset -= (ntohl(tcp_pkt->th_ack) - 1);
             conn->syn_flag = 0;
         }
-        /* handle packets to the secondary from the primary */
-        tcp_pkt->th_ack = htonl(ntohl(tcp_pkt->th_ack) + conn->offset);
+        if (conn->offset) {
+            /* handle packets to the secondary from the primary */
+            tcp_pkt->th_ack = htonl(ntohl(tcp_pkt->th_ack) + conn->offset);
 
-        net_checksum_calculate((uint8_t *)pkt->data, pkt->size);
+            net_checksum_calculate((uint8_t *)pkt->data, pkt->size);
+        }
         /*
          * Case 1:
          * The *server* side of this connect is VM, *client* tries to close
@@ -112,7 +114,6 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
          */
         if ((conn->tcp_state == TCPS_LAST_ACK) &&
             (ntohl(tcp_pkt->th_ack) == (conn->fin_ack_seq + 1))) {
-            fprintf(stderr, "Remove conn "
             g_hash_table_remove(rf->connection_track_table, key);
         }
     }
@@ -159,10 +160,13 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
     }
 
     if ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_ACK) {
-        /* handle packets to the primary from the secondary*/
-        tcp_pkt->th_seq = htonl(ntohl(tcp_pkt->th_seq) - conn->offset);
+        /* Only need to adjust seq while offset is Non-zero */
+        if (conn->offset) {
+            /* handle packets to the primary from the secondary*/
+            tcp_pkt->th_seq = htonl(ntohl(tcp_pkt->th_seq) - conn->offset);
 
-        net_checksum_calculate((uint8_t *)pkt->data, pkt->size);
+            net_checksum_calculate((uint8_t *)pkt->data, pkt->size);
+        }
         /*
          * Case 2:
          * The *server* side of this connect is VM, *server* tries to close
