@@ -333,13 +333,7 @@ int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
 
 int pt_removexattr(FsContext *ctx, const char *path, const char *name)
 {
-    char *buffer;
-    int ret;
-
-    buffer = rpath(ctx, path);
-    ret = lremovexattr(path, name);
-    g_free(buffer);
-    return ret;
+    return local_removexattr_nofollow(ctx, path, name);
 }
 
 ssize_t notsup_getxattr(FsContext *ctx, const char *path, const char *name,
