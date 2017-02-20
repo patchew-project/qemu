@@ -1389,6 +1389,7 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
             tcg_temp_free(t1);
             tcg_gen_shri_tl(cpu_ca, cpu_ca, 32);    /* extract bit 32 */
             tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
+            tcg_gen_mov_tl(cpu_ca32, cpu_ca);
         } else {
             if (add_ca) {
                 TCGv zero, inv1 = tcg_temp_new();
@@ -1402,6 +1403,7 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
                 tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
                 tcg_gen_sub_tl(t0, arg2, arg1);
             }
+            gen_op_arith_compute_ca32(ctx, arg1, arg2, add_ca, 1);
         }
     } else if (add_ca) {
         /* Since we're ignoring carry-out, we can simplify the
