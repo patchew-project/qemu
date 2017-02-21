@@ -2266,7 +2266,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     blk = blk_new_open(filename, NULL, options,
-                       BDRV_O_RDWR | BDRV_O_NO_FLUSH, &local_err);
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH,
+                       &local_err);
     if (blk == NULL) {
         error_propagate(errp, local_err);
         ret = -EIO;
