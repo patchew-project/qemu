@@ -142,9 +142,16 @@ typedef enum {
 extern int vga_interface_type;
 #define xenfb_enabled (vga_interface_type == VGA_XENFB)
 
+#define sparc_graphic_width  (graphic_width  ? graphic_width  : 1024)
+#define sparc_graphic_height (graphic_height ? graphic_height :  768)
+#define sparc_graphic_depth  (graphic_depth  ? graphic_depth  :    8)
+#define ppc_graphic_width    (graphic_width  ? graphic_width  :  800)
+#define ppc_graphic_height   (graphic_height ? graphic_height :  600)
+#define ppc_graphic_depth    (graphic_depth  ? graphic_depth  :   32)
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
+
 extern int display_opengl;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
