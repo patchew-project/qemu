@@ -26,14 +26,7 @@
 #include "qapi/opts-visitor.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
-
-#define BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET "key-secret"
-#define BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG "cipher-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE "cipher-mode"
-#define BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG "ivgen-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG "ivgen-hash-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_HASH_ALG "hash-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
+#include "block/crypto.h"
 
 typedef struct BlockCrypto BlockCrypto;
 
@@ -135,11 +128,7 @@ static QemuOptsList block_crypto_runtime_opts_luks = {
     .name = "crypto",
     .head = QTAILQ_HEAD_INITIALIZER(block_crypto_runtime_opts_luks.head),
     .desc = {
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,
-            .type = QEMU_OPT_STRING,
-            .help = "ID of the secret that provides the encryption key",
-        },
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET,
         { /* end of list */ }
     },
 };
@@ -154,47 +143,19 @@ static QemuOptsList block_crypto_create_opts_luks = {
             .type = QEMU_OPT_SIZE,
             .help = "Virtual disk size"
         },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,
-            .type = QEMU_OPT_STRING,
-            .help = "ID of the secret that provides the encryption key",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of encryption cipher algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of encryption cipher mode",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of IV generator algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of IV generator hash algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_HASH_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of encryption hash algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_ITER_TIME,
-            .type = QEMU_OPT_NUMBER,
-            .help = "Time to spend in PBKDF in milliseconds",
-        },
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME,
         { /* end of list */ }
     },
 };
 
 
-static QCryptoBlockOpenOptions *
+QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QCryptoBlockFormat format,
                             QemuOpts *opts,
                             Error **errp)
@@ -240,7 +201,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
 }
 
 
-static QCryptoBlockCreateOptions *
+QCryptoBlockCreateOptions *
 block_crypto_create_opts_init(QCryptoBlockFormat format,
                               QemuOpts *opts,
                               Error **errp)
