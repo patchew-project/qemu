@@ -22,6 +22,8 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qom/cpu.h"
+#include "qom/qom-qobject.h"
+#include "qapi-visit.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
@@ -220,13 +222,8 @@ static bool cpu_common_exec_interrupt(CPUState *cpu, int int_req)
 
 GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    GuestPanicInformation *res = NULL;
-
-    if (cc->get_crash_info) {
-        res = cc->get_crash_info(cpu);
-    }
-    return res;
+    return OBJECT_PROPERTY_GET_PTR(OBJECT(cpu), "crash-information",
+                                   GuestPanicInformation, NULL);
 }
 
 void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
