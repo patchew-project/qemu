@@ -1680,13 +1680,20 @@ void qemu_system_reset(bool report)
     cpu_synchronize_all_post_reset();
 }
 
-void qemu_system_guest_panicked(GuestPanicInformation *info)
+void qemu_system_guest_panicked(CPUState *cpu)
 {
+    GuestPanicInformation *info = NULL;
+
     qemu_log_mask(LOG_GUEST_ERROR, "Guest crashed\n");
 
-    if (current_cpu) {
-        current_cpu->crash_occurred = true;
+    if (!cpu) {
+        cpu = current_cpu;
     }
+    if (cpu) {
+        cpu->crash_occurred = true;
+        info = cpu_get_crash_info(cpu);
+    }
+
     qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
                                    !!info, info, &error_abort);
     vm_stop(RUN_STATE_GUEST_PANICKED);
