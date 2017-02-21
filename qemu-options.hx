@@ -1232,7 +1232,7 @@ ETEXI
 
 DEF("g", 1, QEMU_OPTION_g ,
     "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n",
-    QEMU_ARCH_PPC | QEMU_ARCH_SPARC)
+    QEMU_ARCH_ALL)
 STEXI
 @item -g @var{width}x@var{height}[x@var{depth}]
 @findex -g
