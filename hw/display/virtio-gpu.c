@@ -1170,8 +1170,13 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     virtio_init(VIRTIO_DEVICE(g), "virtio-gpu", VIRTIO_ID_GPU,
                 g->config_size);
 
-    g->req_state[0].width = 1024;
-    g->req_state[0].height = 768;
+    if (graphic_width && graphic_height) {
+        g->req_state[0].width = graphic_width;
+        g->req_state[0].height = graphic_height;
+    } else {
+        g->req_state[0].width = 1024;
+        g->req_state[0].height = 768;
+    }
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
         /* use larger control queue in 3d mode */
