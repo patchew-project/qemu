@@ -908,43 +908,43 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL,
                              slavio_irq[16], iommu, &ledma_irq, 1);
 
-    if (graphic_depth != 8 && graphic_depth != 24) {
-        error_report("Unsupported depth: %d", graphic_depth);
+    if (sparc_graphic_depth != 8 && sparc_graphic_depth != 24) {
+        error_report("Unsupported depth: %d", sparc_graphic_depth);
         exit (1);
     }
     num_vsimms = 0;
     if (num_vsimms == 0) {
         if (vga_interface_type == VGA_CG3) {
-            if (graphic_depth != 8) {
-                error_report("Unsupported depth: %d", graphic_depth);
+            if (sparc_graphic_depth != 8) {
+                error_report("Unsupported depth: %d", sparc_graphic_depth);
                 exit(1);
             }
 
-            if (!(graphic_width == 1024 && graphic_height == 768) &&
-                !(graphic_width == 1152 && graphic_height == 900)) {
-                error_report("Unsupported resolution: %d x %d", graphic_width,
-                             graphic_height);
+            if (!(sparc_graphic_width == 1024 && sparc_graphic_height == 768) &&
+                !(sparc_graphic_width == 1152 && sparc_graphic_height == 900)) {
+                error_report("Unsupported resolution: %d x %d", sparc_graphic_width,
+                             sparc_graphic_height);
                 exit(1);
             }
 
             /* sbus irq 5 */
             cg3_init(hwdef->tcx_base, slavio_irq[11], 0x00100000,
-                     graphic_width, graphic_height, graphic_depth);
+                     sparc_graphic_width, sparc_graphic_height, sparc_graphic_depth);
         } else {
             /* If no display specified, default to TCX */
-            if (graphic_depth != 8 && graphic_depth != 24) {
-                error_report("Unsupported depth: %d", graphic_depth);
+            if (sparc_graphic_depth != 8 && sparc_graphic_depth != 24) {
+                error_report("Unsupported depth: %d", sparc_graphic_depth);
                 exit(1);
             }
 
-            if (!(graphic_width == 1024 && graphic_height == 768)) {
+            if (!(sparc_graphic_width == 1024 && sparc_graphic_height == 768)) {
                 error_report("Unsupported resolution: %d x %d",
-                             graphic_width, graphic_height);
+                             sparc_graphic_width, sparc_graphic_height);
                 exit(1);
             }
 
             tcx_init(hwdef->tcx_base, slavio_irq[11], 0x00100000,
-                     graphic_width, graphic_height, graphic_depth);
+                     sparc_graphic_width, sparc_graphic_height, sparc_graphic_depth);
         }
     }
 
@@ -1020,7 +1020,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, machine->kernel_cmdline,
                machine->boot_order, machine->ram_size, kernel_size,
-               graphic_width, graphic_height, graphic_depth,
+               sparc_graphic_width, sparc_graphic_height, sparc_graphic_depth,
                hwdef->nvram_machine_id, "Sun4m");
 
     if (hwdef->ecc_base)
@@ -1032,9 +1032,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_DEPTH, graphic_depth);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_WIDTH, graphic_width);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_HEIGHT, graphic_height);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_DEPTH, sparc_graphic_depth);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_WIDTH, sparc_graphic_width);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_HEIGHT, sparc_graphic_height);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, KERNEL_LOAD_ADDR);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
     if (machine->kernel_cmdline) {
