@@ -91,6 +91,14 @@
             '*enum1': 'EnumOne' } }   # intentional forward reference
 
 ##
+# @UserDefOneMore:
+# for testing nested structs
+##
+{ 'struct': 'UserDefOneMore',
+  'base': 'UserDefOne',
+  'data': { 'boolean': 'bool' } }
+
+##
 # @EnumOne:
 ##
 { 'enum': 'EnumOne',
