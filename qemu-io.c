@@ -56,7 +56,6 @@ static const cmdinfo_t close_cmd = {
 static int openfile(char *name, int flags, bool writethrough, QDict *opts)
 {
     Error *local_err = NULL;
-    BlockDriverState *bs;
 
     if (qemuio_blk) {
         error_report("file open already, try 'help close'");
@@ -71,28 +70,9 @@ static int openfile(char *name, int flags, bool writethrough, QDict *opts)
         return 1;
     }
 
-    bs = blk_bs(qemuio_blk);
-    if (bdrv_is_encrypted(bs) && bdrv_key_required(bs)) {
-        char password[256];
-        printf("Disk image '%s' is encrypted.\n", name);
-        if (qemu_read_password(password, sizeof(password)) < 0) {
-            error_report("No password given");
-            goto error;
-        }
-        if (bdrv_set_key(bs, password) < 0) {
-            error_report("invalid password");
-            goto error;
-        }
-    }
-
     blk_set_enable_write_cache(qemuio_blk, !writethrough);
 
     return 0;
-
- error:
-    blk_unref(qemuio_blk);
-    qemuio_blk = NULL;
-    return 1;
 }
 
 static void open_help(void)
