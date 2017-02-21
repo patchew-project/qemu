@@ -2279,6 +2279,21 @@
             'mode':  'Qcow2OverlapCheckMode' } }
 
 ##
+# @BlockdevOptionsQcow:
+#
+# Driver specific block device options for qcow.
+#
+# @aes-key-secret: #optional ID of the "secret" object providing the
+#                  AES decryption key.
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsQcow',
+  'base': 'BlockdevOptionsGenericCOWFormat',
+  'data': { '*aes-key-secret': 'str' } }
+
+
+##
 # @BlockdevOptionsQcow2:
 #
 # Driver specific block device options for qcow2.
@@ -2859,7 +2874,7 @@
       'null-co':    'BlockdevOptionsNull',
       'parallels':  'BlockdevOptionsGenericFormat',
       'qcow2':      'BlockdevOptionsQcow2',
-      'qcow':       'BlockdevOptionsGenericCOWFormat',
+      'qcow':       'BlockdevOptionsQcow',
       'qed':        'BlockdevOptionsGenericCOWFormat',
       'quorum':     'BlockdevOptionsQuorum',
       'raw':        'BlockdevOptionsRaw',
