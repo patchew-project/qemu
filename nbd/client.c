@@ -454,13 +454,13 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
 }
 
 
-int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
+int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
-                          QIOChannel **outioc,
-                          off_t *size, Error **errp)
+                          QIOChannel **outioc, NBDExportInfo *info,
+                          Error **errp)
 {
     char buf[256];
-    uint64_t magic, s;
+    uint64_t magic;
     int rc;
     bool zeroes = true;
 
@@ -573,17 +573,19 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
         }
 
         /* Read the response */
-        if (read_sync(ioc, &s, sizeof(s)) != sizeof(s)) {
+        if (read_sync(ioc, &info->size, sizeof(info->size)) !=
+            sizeof(info->size)) {
             error_setg(errp, "Failed to read export length");
             goto fail;
         }
-        *size = be64_to_cpu(s);
+        be64_to_cpus(&info->size);
 
-        if (read_sync(ioc, flags, sizeof(*flags)) != sizeof(*flags)) {
+        if (read_sync(ioc, &info->flags, sizeof(info->flags)) !=
+            sizeof(info->flags)) {
             error_setg(errp, "Failed to read export flags");
             goto fail;
         }
-        be16_to_cpus(flags);
+        be16_to_cpus(&info->flags);
     } else if (magic == NBD_CLIENT_MAGIC) {
         uint32_t oldflags;
 
@@ -596,12 +598,12 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             goto fail;
         }
 
-        if (read_sync(ioc, &s, sizeof(s)) != sizeof(s)) {
+        if (read_sync(ioc, &info->size, sizeof(info->size)) !=
+            sizeof(info->size)) {
             error_setg(errp, "Failed to read export length");
             goto fail;
         }
-        *size = be64_to_cpu(s);
-        TRACE("Size is %" PRIu64, *size);
+        be64_to_cpus(&info->size);
 
         if (read_sync(ioc, &oldflags, sizeof(oldflags)) != sizeof(oldflags)) {
             error_setg(errp, "Failed to read export flags");
@@ -612,13 +614,14 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             error_setg(errp, "Unexpected export flags %0x" PRIx32, oldflags);
             goto fail;
         }
-        *flags = oldflags;
+        info->flags = oldflags;
     } else {
         error_setg(errp, "Bad magic received");
         goto fail;
     }
 
-    TRACE("Size is %" PRIu64 ", export flags %" PRIx16, *size, *flags);
+    TRACE("Size is %" PRIu64 ", export flags %" PRIx16,
+          info->size, info->flags);
     if (zeroes && drop_sync(ioc, 124) != 124) {
         error_setg(errp, "Failed to read reserved block");
         goto fail;
@@ -630,11 +633,11 @@ fail:
 }
 
 #ifdef __linux__
-int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info)
 {
-    unsigned long sectors = size / BDRV_SECTOR_SIZE;
-    if (size / BDRV_SECTOR_SIZE != sectors) {
-        LOG("Export size %lld too large for 32-bit kernel", (long long) size);
+    unsigned long sectors = info->size / BDRV_SECTOR_SIZE;
+    if (info->size / BDRV_SECTOR_SIZE != sectors) {
+        LOG("Export size %" PRId64 " too large for 32-bit kernel", info->size);
         return -E2BIG;
     }
 
@@ -655,9 +658,9 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
     }
 
     TRACE("Setting size to %lu block(s)", sectors);
-    if (size % BDRV_SECTOR_SIZE) {
+    if (info->size % BDRV_SECTOR_SIZE) {
         TRACE("Ignoring trailing %d bytes of export",
-              (int) (size % BDRV_SECTOR_SIZE));
+              (int) (info->size % BDRV_SECTOR_SIZE));
     }
 
     if (ioctl(fd, NBD_SET_SIZE_BLOCKS, sectors) < 0) {
@@ -666,9 +669,9 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
         return -serrno;
     }
 
-    if (ioctl(fd, NBD_SET_FLAGS, (unsigned long) flags) < 0) {
+    if (ioctl(fd, NBD_SET_FLAGS, (unsigned long) info->flags) < 0) {
         if (errno == ENOTTY) {
-            int read_only = (flags & NBD_FLAG_READ_ONLY) != 0;
+            int read_only = (info->flags & NBD_FLAG_READ_ONLY) != 0;
             TRACE("Setting readonly attribute");
 
             if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
@@ -726,7 +729,7 @@ int nbd_disconnect(int fd)
 }
 
 #else
-int nbd_init(int fd, QIOChannelSocket *ioc, uint16_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *ioc, NBDExportInfo *info)
 {
     return -ENOTSUP;
 }

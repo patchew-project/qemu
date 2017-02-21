@@ -254,8 +254,7 @@ static void *show_parts(void *arg)
 static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
-    off_t size;
-    uint16_t nbdflags;
+    NBDExportInfo info;
     QIOChannelSocket *sioc;
     int fd;
     int ret;
@@ -270,9 +269,8 @@ static void *nbd_client_thread(void *arg)
         goto out;
     }
 
-    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL, &nbdflags,
-                                NULL, NULL, NULL,
-                                &size, &local_error);
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL,
+                                NULL, NULL, NULL, &info, &local_error);
     if (ret < 0) {
         if (local_error) {
             error_report_err(local_error);
@@ -287,7 +285,7 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sioc, nbdflags, size);
+    ret = nbd_init(fd, sioc, &info);
     if (ret < 0) {
         goto out_fd;
     }
