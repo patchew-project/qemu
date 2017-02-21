@@ -34,17 +34,6 @@
 #include "hw/acpi/acpi.h"
 #include "qemu/help_option.h"
 
-#ifdef TARGET_SPARC
-int graphic_width = 1024;
-int graphic_height = 768;
-int graphic_depth = 8;
-#else
-int graphic_width = 800;
-int graphic_height = 600;
-int graphic_depth = 32;
-#endif
-
-
 #if defined(TARGET_ALPHA)
 #define QEMU_ARCH QEMU_ARCH_ALPHA
 #elif defined(TARGET_ARM)
