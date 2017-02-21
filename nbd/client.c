@@ -380,6 +380,118 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
 }
 
 
+/* Returns -1 if NBD_OPT_GO proves the export @wantname cannot be
+ * used, 0 if NBD_OPT_GO is unsupported (fall back to NBD_OPT_LIST and
+ * NBD_OPT_EXPORT_NAME in that case), and > 0 if the export is good to
+ * go (with @info populated). */
+static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
+                      NBDExportInfo *info, Error **errp)
+{
+    nbd_opt_reply reply;
+    uint32_t len = strlen(wantname);
+    uint16_t type;
+    int error;
+    char *buf;
+
+    /* The protocol requires that the server send NBD_INFO_EXPORT with
+     * a non-zero flags (at least NBD_FLAG_HAS_FLAGS must be set); so
+     * flags still 0 is a witness of a broken server. */
+    info->flags = 0;
+
+    TRACE("Attempting NBD_OPT_GO for export '%s'", wantname);
+    buf = g_malloc(2 + 4 + len + 1);
+    stw_be_p(buf, 0); /* No requests, live with whatever server sends */
+    stl_be_p(buf + 2, len);
+    memcpy(buf + 6, wantname, len);
+    if (nbd_send_option_request(ioc, NBD_OPT_GO, len + 6, buf, errp) < 0) {
+        return -1;
+    }
+
+    TRACE("Reading export info");
+    while (1) {
+        if (nbd_receive_option_reply(ioc, NBD_OPT_GO, &reply, errp) < 0) {
+            return -1;
+        }
+        error = nbd_handle_reply_err(ioc, &reply, errp);
+        if (error <= 0) {
+            return error;
+        }
+        len = reply.length;
+
+        if (reply.type == NBD_REP_ACK) {
+            /* Server is done sending info and moved into transmission
+               phase, but make sure it sent flags */
+            if (len) {
+                error_setg(errp, "server sent invalid NBD_REP_ACK");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (!info->flags) {
+                error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            TRACE("export is good to go");
+            return 1;
+        }
+        if (reply.type != NBD_REP_INFO) {
+            error_setg(errp, "unexpected reply type %" PRIx32 ", expected %x",
+                       reply.type, NBD_REP_INFO);
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
+        if (len < sizeof(type)) {
+            error_setg(errp, "NBD_REP_INFO length %" PRIu32 " is too short",
+                       len);
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
+        if (read_sync(ioc, &type, sizeof(type)) != sizeof(type)) {
+            error_setg(errp, "failed to read info type");
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
+        len -= sizeof(type);
+        be16_to_cpus(&type);
+        switch (type) {
+        case NBD_INFO_EXPORT:
+            if (len != sizeof(info->size) + sizeof(info->flags)) {
+                error_setg(errp, "remaining export info len %" PRIu32
+                           " is unexpected size", len);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (read_sync(ioc, &info->size, sizeof(info->size)) !=
+                sizeof(info->size)) {
+                error_setg(errp, "failed to read info size");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be64_to_cpus(&info->size);
+            if (read_sync(ioc, &info->flags, sizeof(info->flags)) !=
+                sizeof(info->flags)) {
+                error_setg(errp, "failed to read info flags");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be16_to_cpus(&info->flags);
+            TRACE("Size is %" PRIu64 ", export flags %" PRIx16,
+                  info->size, info->flags);
+            break;
+
+        default:
+            TRACE("ignoring unknown export info %" PRIu16 " (%s)", type,
+                  nbd_info_lookup(type));
+            if (drop_sync(ioc, len) != len) {
+                error_setg(errp, "Failed to read info payload");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            break;
+        }
+    }
+}
+
 /* Return -1 on failure, 0 if wantname is an available export. */
 static int nbd_receive_query_exports(QIOChannel *ioc,
                                      const char *wantname,
@@ -574,11 +686,25 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
             name = "";
         }
         if (fixedNewStyle) {
+            int result;
+
+            /* Try NBD_OPT_GO first - if it works, we are done (it
+             * also gives us a good message if the server requires
+             * TLS).  If it is not available, fall back to
+             * NBD_OPT_LIST for nicer error messages about a missing
+             * export, then use NBD_OPT_EXPORT_NAME.  */
+            result = nbd_opt_go(ioc, name, info, errp);
+            if (result < 0) {
+                goto fail;
+            }
+            if (result > 0) {
+                return 0;
+            }
             /* Check our desired export is present in the
              * server export list. Since NBD_OPT_EXPORT_NAME
              * cannot return an error message, running this
-             * query gives us good error reporting if the
-             * server required TLS
+             * query gives us better error reporting if the
+             * export name is not available.
              */
             if (nbd_receive_query_exports(ioc, name, errp) < 0) {
                 goto fail;
