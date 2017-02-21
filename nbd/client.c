@@ -399,11 +399,17 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
     info->flags = 0;
 
     TRACE("Attempting NBD_OPT_GO for export '%s'", wantname);
-    buf = g_malloc(2 + 4 + len + 1);
-    stw_be_p(buf, 0); /* No requests, live with whatever server sends */
-    stl_be_p(buf + 2, len);
-    memcpy(buf + 6, wantname, len);
-    if (nbd_send_option_request(ioc, NBD_OPT_GO, len + 6, buf, errp) < 0) {
+    /* At most one request, everything else up to server */
+    buf = g_malloc(2 + 2 * info->request_sizes + 4 + len);
+    stw_be_p(buf, info->request_sizes);
+    if (info->request_sizes) {
+        stw_be_p(buf + 2, NBD_INFO_BLOCK_SIZE);
+    }
+    stl_be_p(buf + 2 + 2 * info->request_sizes, len);
+    memcpy(buf + 2 + 2 * info->request_sizes + 4, wantname, len);
+    if (nbd_send_option_request(ioc, NBD_OPT_GO,
+                                2 + 2 * info->request_sizes + 4 + len, buf,
+                                errp) < 0) {
         return -1;
     }
 
@@ -435,8 +441,9 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
             return 1;
         }
         if (reply.type != NBD_REP_INFO) {
-            error_setg(errp, "unexpected reply type %" PRIx32 ", expected %x",
-                       reply.type, NBD_REP_INFO);
+            error_setg(errp, "unexpected reply type %" PRIx32
+                       " (%s), expected %x",
+                       reply.type, nbd_rep_lookup(reply.type), NBD_REP_INFO);
             nbd_send_opt_abort(ioc);
             return -1;
         }
@@ -477,6 +484,51 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
             be16_to_cpus(&info->flags);
             TRACE("Size is %" PRIu64 ", export flags %" PRIx16,
                   info->size, info->flags);
+            break;
+
+        case NBD_INFO_BLOCK_SIZE:
+            if (len != sizeof(info->min_block) * 3) {
+                error_setg(errp, "remaining export info len %" PRIu32
+                           " is unexpected size", len);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (read_sync(ioc, &info->min_block, sizeof(info->min_block)) !=
+                sizeof(info->min_block)) {
+                error_setg(errp, "failed to read info minimum block size");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->min_block);
+            if (!is_power_of_2(info->min_block)) {
+                error_setg(errp, "server minimum block size %" PRId32
+                           "is not a power of two", info->min_block);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (read_sync(ioc, &info->opt_block, sizeof(info->opt_block)) !=
+                sizeof(info->opt_block)) {
+                error_setg(errp, "failed to read info preferred block size");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->opt_block);
+            if (!is_power_of_2(info->opt_block) ||
+                info->opt_block < info->min_block) {
+                error_setg(errp, "server preferred block size %" PRId32
+                           "is not valid", info->opt_block);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (read_sync(ioc, &info->max_block, sizeof(info->max_block)) !=
+                sizeof(info->max_block)) {
+                error_setg(errp, "failed to read info maximum block size");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->max_block);
+            TRACE("Block sizes are 0x%" PRIx32 ", 0x%" PRIx32 ", 0x%" PRIx32,
+                  info->min_block, info->opt_block, info->max_block);
             break;
 
         default:
@@ -779,8 +831,14 @@ fail:
 #ifdef __linux__
 int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info)
 {
-    unsigned long sectors = info->size / BDRV_SECTOR_SIZE;
-    if (info->size / BDRV_SECTOR_SIZE != sectors) {
+    unsigned long sector_size = MAX(BDRV_SECTOR_SIZE, info->min_block);
+    unsigned long sectors = info->size / sector_size;
+
+    /* FIXME: Once the kernel module is patched to honor block sizes,
+     * and to advertise that fact to user space, we should update the
+     * hand-off to the kernel to use any block sizes we learned. */
+    assert(!info->request_sizes);
+    if (info->size / sector_size != sectors) {
         LOG("Export size %" PRId64 " too large for 32-bit kernel", info->size);
         return -E2BIG;
     }
@@ -793,18 +851,18 @@ int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info)
         return -serrno;
     }
 
-    TRACE("Setting block size to %lu", (unsigned long)BDRV_SECTOR_SIZE);
+    TRACE("Setting block size to %lu", sector_size);
 
-    if (ioctl(fd, NBD_SET_BLKSIZE, (unsigned long)BDRV_SECTOR_SIZE) < 0) {
+    if (ioctl(fd, NBD_SET_BLKSIZE, sector_size) < 0) {
         int serrno = errno;
         LOG("Failed setting NBD block size");
         return -serrno;
     }
 
     TRACE("Setting size to %lu block(s)", sectors);
-    if (info->size % BDRV_SECTOR_SIZE) {
-        TRACE("Ignoring trailing %d bytes of export",
-              (int) (info->size % BDRV_SECTOR_SIZE));
+    if (info->size % sector_size) {
+        TRACE("Ignoring trailing %" PRId64 " bytes of export",
+              info->size % sector_size);
     }
 
     if (ioctl(fd, NBD_SET_SIZE_BLOCKS, sectors) < 0) {
