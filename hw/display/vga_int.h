@@ -162,6 +162,7 @@ typedef struct VGACommonState {
     bool full_update_gfx;
     bool big_endian_fb;
     bool default_endian_fb;
+    uint32_t qext_size;
     /* hardware mouse cursor support */
     uint32_t invalidated_y_table[VGA_MAX_HEIGHT / 32];
     uint32_t hw_cursor_x;
@@ -223,7 +224,6 @@ extern const MemoryRegionOps vga_mem_ops;
 /* vga-pci.c */
 void pci_std_vga_mmio_region_init(VGACommonState *s,
                                   MemoryRegion *parent,
-                                  MemoryRegion *subs,
-                                  bool qext);
+                                  MemoryRegion *subs);
 
 #endif

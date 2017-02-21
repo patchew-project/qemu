@@ -31,23 +31,28 @@
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 #include "hw/loader.h"
+#include "sysemu/sysemu.h"
 
 #define PCI_VGA_IOPORT_OFFSET 0x400
 #define PCI_VGA_IOPORT_SIZE   (0x3e0 - 0x3c0)
 #define PCI_VGA_BOCHS_OFFSET  0x500
 #define PCI_VGA_BOCHS_SIZE    (0x0b * 2)
 #define PCI_VGA_QEXT_OFFSET   0x600
-#define PCI_VGA_QEXT_SIZE     (2 * 4)
+#define PCI_VGA_QEXT_SIZE_V1  (2 * 4)
+#define PCI_VGA_QEXT_SIZE_V2  (4 * 4)
 #define PCI_VGA_MMIO_SIZE     0x1000
 
 #define PCI_VGA_QEXT_REG_SIZE         (0 * 4)
 #define PCI_VGA_QEXT_REG_BYTEORDER    (1 * 4)
 #define  PCI_VGA_QEXT_LITTLE_ENDIAN   0x1e1e1e1e
 #define  PCI_VGA_QEXT_BIG_ENDIAN      0xbebebebe
+#define PCI_VGA_QEXT_REG_WIDTH        (2 * 4)
+#define PCI_VGA_QEXT_REG_HEIGHT       (3 * 4)
 
 enum vga_pci_flags {
-    PCI_VGA_FLAG_ENABLE_MMIO = 1,
-    PCI_VGA_FLAG_ENABLE_QEXT = 2,
+    PCI_VGA_FLAG_ENABLE_MMIO    = 1,
+    PCI_VGA_FLAG_ENABLE_QEXT    = 2,
+    PCI_VGA_FLAG_ENABLE_QEXT_V2 = 3,
 };
 
 typedef struct PCIVGAState {
@@ -157,10 +162,14 @@ static uint64_t pci_vga_qext_read(void *ptr, hwaddr addr, unsigned size)
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_SIZE:
-        return PCI_VGA_QEXT_SIZE;
+        return s->qext_size;
     case PCI_VGA_QEXT_REG_BYTEORDER:
         return s->big_endian_fb ?
             PCI_VGA_QEXT_BIG_ENDIAN : PCI_VGA_QEXT_LITTLE_ENDIAN;
+    case PCI_VGA_QEXT_REG_WIDTH:
+        return graphic_width;
+    case PCI_VGA_QEXT_REG_HEIGHT:
+        return graphic_height;
     default:
         return 0;
     }
@@ -207,8 +216,7 @@ static const MemoryRegionOps pci_vga_qext_ops = {
 
 void pci_std_vga_mmio_region_init(VGACommonState *s,
                                   MemoryRegion *parent,
-                                  MemoryRegion *subs,
-                                  bool qext)
+                                  MemoryRegion *subs)
 {
     memory_region_init_io(&subs[0], NULL, &pci_vga_ioport_ops, s,
                           "vga ioports remapped", PCI_VGA_IOPORT_SIZE);
@@ -220,9 +228,9 @@ void pci_std_vga_mmio_region_init(VGACommonState *s,
     memory_region_add_subregion(parent, PCI_VGA_BOCHS_OFFSET,
                                 &subs[1]);
 
-    if (qext) {
+    if (s->qext_size) {
         memory_region_init_io(&subs[2], NULL, &pci_vga_qext_ops, s,
-                              "qemu extended regs", PCI_VGA_QEXT_SIZE);
+                              "qemu extended regs", s->qext_size);
         memory_region_add_subregion(parent, PCI_VGA_QEXT_OFFSET,
                                     &subs[2]);
     }
@@ -232,7 +240,6 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
-    bool qext = false;
 
     /* vga + console init */
     vga_common_init(s, OBJECT(dev), true);
@@ -249,10 +256,15 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
         memory_region_init(&d->mmio, NULL, "vga.mmio", 4096);
 
         if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
-            qext = true;
-            pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
+            if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT_V2)) {
+                s->qext_size = PCI_VGA_QEXT_SIZE_V2;
+                pci_set_byte(&d->dev.config[PCI_REVISION_ID], 3);
+            } else {
+                s->qext_size = PCI_VGA_QEXT_SIZE_V1;
+                pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
+            }
         }
-        pci_std_vga_mmio_region_init(s, &d->mmio, d->mrs, qext);
+        pci_std_vga_mmio_region_init(s, &d->mmio, d->mrs);
 
         pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
     }
@@ -274,7 +286,6 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 {
     PCIVGAState *d = PCI_VGA(dev);
     VGACommonState *s = &d->vga;
-    bool qext = false;
 
     /* vga + console init */
     vga_common_init(s, OBJECT(dev), false);
@@ -284,10 +295,15 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
     memory_region_init(&d->mmio, OBJECT(dev), "vga.mmio", 4096);
 
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
-        qext = true;
-        pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
+        if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT_V2)) {
+            s->qext_size = PCI_VGA_QEXT_SIZE_V2;
+            pci_set_byte(&d->dev.config[PCI_REVISION_ID], 3);
+        } else {
+            s->qext_size = PCI_VGA_QEXT_SIZE_V1;
+            pci_set_byte(&d->dev.config[PCI_REVISION_ID], 2);
+        }
     }
-    pci_std_vga_mmio_region_init(s, &d->mmio, d->mrs, qext);
+    pci_std_vga_mmio_region_init(s, &d->mmio, d->mrs);
 
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
@@ -311,6 +327,8 @@ static Property vga_pci_properties[] = {
     DEFINE_PROP_BIT("mmio", PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_MMIO, true),
     DEFINE_PROP_BIT("qemu-extended-regs",
                     PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT, true),
+    DEFINE_PROP_BIT("qemu-display-size",
+                    PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT_V2, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -318,6 +336,8 @@ static Property secondary_pci_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
     DEFINE_PROP_BIT("qemu-extended-regs",
                     PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT, true),
+    DEFINE_PROP_BIT("qemu-display-size",
+                    PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT_V2, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

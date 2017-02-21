@@ -153,8 +153,9 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
 
     /* add stdvga mmio regions */
+    vga->qext_size = 2 * 4; /* PCI_VGA_QEXT_SIZE_V1 */
     pci_std_vga_mmio_region_init(vga, &vpci_dev->modern_bar,
-                                 vvga->vga_mrs, true);
+                                 vvga->vga_mrs);
 
     vga->con = g->scanout[0].con;
     graphic_console_set_hwops(vga->con, &virtio_vga_ops, vvga);
