@@ -1236,7 +1236,18 @@ DEF("g", 1, QEMU_OPTION_g ,
 STEXI
 @item -g @var{width}x@var{height}[x@var{depth}]
 @findex -g
-Set the initial graphical resolution and depth (PPC, SPARC only).
+Set the initial graphical resolution and depth.
+
+This setting may be masked by guest firmware temporarily.
+
+On PPC and SPARC, the guest firmware will configure the display from
+this setting, and the guest OS will inherit the display resolution
+and depth.
+
+On x86 and ARM, if the guest firmware is an edk2 (UEFI) platform,
+the firmware may initially configure the display according to its own,
+persistent, independent settings. The guest OS drivers, once loaded,
+should adhere to "-g" however, for virtio and qxl adapters.
 ETEXI
 
 DEF("vnc", HAS_ARG, QEMU_OPTION_vnc ,
