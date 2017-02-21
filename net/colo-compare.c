@@ -715,7 +715,7 @@ static void colo_compare_finalize(Object *obj)
     qemu_chr_fe_deinit(&s->chr_sec_in);
     qemu_chr_fe_deinit(&s->chr_out);
 
-    g_queue_free(&s->conn_list);
+    g_queue_clear(&s->conn_list);
 
     if (qemu_thread_is_self(&s->thread)) {
         /* compare connection */
