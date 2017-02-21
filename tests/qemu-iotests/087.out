@@ -32,7 +32,7 @@ QMP_VERSION
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 
 
-=== Encrypted image ===
+=== Encrypted image QCow ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on aes-key-secret=sec0
 Testing:
@@ -40,6 +40,18 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Use of AES-CBC encrypted IMGFMT images is no longer supported in system emulators"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
+
+
+=== Encrypted image LUKS ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption-format=luks luks-key-secret=sec0
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN"}
 

@@ -121,7 +121,7 @@ run_qemu <<EOF
 EOF
 
 echo
-echo === Encrypted image ===
+echo === Encrypted image QCow ===
 echo
 
 _make_test_img --object secret,id=sec0,data=123456 -o encryption=on,aes-key-secret=sec0 $size
@@ -145,6 +145,36 @@ run_qemu <<EOF
           "filename": "$TEST_IMG"
       },
       "aes-key-secret": "sec0"
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+echo
+echo === Encrypted image LUKS ===
+echo
+
+_make_test_img --object secret,id=sec0,data=123456 -o encryption-format=luks,luks-key-secret=sec0 $size
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "object-add",
+  "arguments": {
+      "qom-type": "secret",
+      "id": "sec0",
+      "props": {
+          "data": "123456"
+      }
+  }
+}
+{ "execute": "blockdev-add",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "node-name": "disk",
+      "file": {
+          "driver": "file",
+          "filename": "$TEST_IMG"
+      },
+      "luks-key-secret": "sec0"
     }
   }
 { "execute": "quit" }
