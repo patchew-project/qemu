@@ -383,7 +383,9 @@ static int coroutine_fn do_perform_cow(BlockDriverState *bs,
 
     if (bs->encrypted) {
         Error *err = NULL;
-        int64_t sector = (src_cluster_offset + offset_in_cluster)
+        int64_t sector = (s->crypt_physical_offset ?
+                          (cluster_offset + offset_in_cluster) :
+                          (src_cluster_offset + offset_in_cluster))
                          >> BDRV_SECTOR_BITS;
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
