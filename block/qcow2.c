@@ -1148,7 +1148,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         }
 
         bs->encrypted = true;
-        bs->valid_key = true;
     }
 
     s->l2_bits = s->cluster_bits - 3; /* L2 is always one cluster */
