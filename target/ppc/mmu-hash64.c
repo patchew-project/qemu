@@ -894,12 +894,15 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu,
 
     pte_index *= HASH_PTE_SIZE_64;
     if (env->external_htab) {
-        stq_p(env->external_htab + pte_index, pte0);
-        stq_p(env->external_htab + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
+        stq_p(env->external_htab + pte_index * HASH_PTE_SIZE_64, pte0);
+        stq_p(env->external_htab + pte_index * HASH_PTE_SIZE_64
+              + HASH_PTE_SIZE_64 / 2, pte1);
     } else {
-        stq_phys(CPU(cpu)->as, env->htab_base + pte_index, pte0);
         stq_phys(CPU(cpu)->as,
-                 env->htab_base + pte_index + HASH_PTE_SIZE_64 / 2, pte1);
+                 env->htab_base + pte_index * HASH_PTE_SIZE_64, pte0);
+        stq_phys(CPU(cpu)->as,
+                 env->htab_base + pte_index * HASH_PTE_SIZE_64
+                 + HASH_PTE_SIZE_64 / 2, pte1);
     }
 }
 
