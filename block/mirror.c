@@ -892,6 +892,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     BlockDriverState *src, *target;
+    Error *local_err = NULL;
 
     src = s->source;
     target = blk_bs(s->target);
@@ -940,12 +941,25 @@ static void mirror_complete(BlockJob *job, Error **errp)
     if (s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
         if (backing_bs(target) != backing) {
-            bdrv_set_backing_hd(target, backing);
+            bdrv_set_backing_hd(target, backing, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                goto fail;
+            }
         }
     }
 
     s->should_complete = true;
     block_job_enter(&s->common);
+    return;
+
+fail:
+    if (s->replaces) {
+        bdrv_unref(s->to_replace);
+        bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
+        error_free(s->replace_blocker);
+        s->replace_blocker = NULL;
+    }
 }
 
 static void mirror_pause(BlockJob *job)
