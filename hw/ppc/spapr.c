@@ -824,9 +824,9 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
     if (boot_menu) {
         _FDT((fdt_setprop_cell(fdt, chosen, "qemu,boot-menu", boot_menu)));
     }
-    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-width", graphic_width));
-    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-height", graphic_height));
-    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-depth", graphic_depth));
+    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-width", ppc_graphic_width));
+    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-height", ppc_graphic_height));
+    _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-depth", ppc_graphic_depth));
 
     if (cb && bootlist) {
         int i;

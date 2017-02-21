@@ -677,7 +677,7 @@ static void ppc_prep_init(MachineState *machine)
                          initrd_base, initrd_size,
                          /* XXX: need an option to load a NVRAM image */
                          0,
-                         graphic_width, graphic_height, graphic_depth);
+                         ppc_graphic_width, ppc_graphic_height, ppc_graphic_depth);
 }
 
 static void prep_machine_init(MachineClass *mc)
@@ -862,9 +862,9 @@ static void ibm_40p_init(MachineState *machine)
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)machine->ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_PREP);
 
-    fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, graphic_width);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, graphic_depth);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, ppc_graphic_width);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, ppc_graphic_height);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, ppc_graphic_depth);
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_IS_KVM, kvm_enabled());
     if (kvm_enabled()) {
@@ -892,7 +892,7 @@ static void ibm_40p_init(MachineState *machine)
                              initrd_base, initrd_size,
                              /* XXX: need an option to load a NVRAM image */
                              0,
-                             graphic_width, graphic_height, graphic_depth);
+                             ppc_graphic_width, ppc_graphic_height, ppc_graphic_depth);
     }
 }
 
