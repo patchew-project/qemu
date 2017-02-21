@@ -304,6 +304,16 @@ void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
     qxl->ssd.cursor = cursor_builtin_hidden();
 }
 
+static uint32_t qxl_crc32(const uint8_t *p, unsigned len)
+{
+    /*
+     * zlib xors the seed with 0xffffffff, and xors the result
+     * again with 0xffffffff; Both are not done with linux's crc32,
+     * which we want to be compatible with, so undo that.
+     */
+    return crc32(0xffffffff, p, len) ^ 0xffffffff;
+}
+
 static ram_addr_t qxl_rom_size(void)
 {
 #define QXL_REQUIRED_SZ (sizeof(QXLRom) + sizeof(QXLModes) + sizeof(qxl_modes))
@@ -367,6 +377,18 @@ static void init_qxl_rom(PCIQXLDevice *d)
     rom->pages_offset       = cpu_to_le32(surface0_area_size);
     rom->num_pages          = cpu_to_le32(num_pages);
     rom->ram_header_offset  = cpu_to_le32(d->vga.vram_size - ram_header_size);
+
+    if (graphic_width && graphic_height) {
+        /* needs linux kernel 4.12+ to work */
+        rom->client_monitors_config.count = 1;
+        rom->client_monitors_config.heads[0].left = 0;
+        rom->client_monitors_config.heads[0].top = 0;
+        rom->client_monitors_config.heads[0].right = cpu_to_le32(graphic_width);
+        rom->client_monitors_config.heads[0].bottom = cpu_to_le32(graphic_height);
+        rom->client_monitors_config_crc = qxl_crc32(
+            (const uint8_t *)&rom->client_monitors_config,
+            sizeof(rom->client_monitors_config));
+    }
 
     d->shadow_rom = *rom;
     d->rom        = rom;
@@ -979,16 +1001,6 @@ static void interface_set_client_capabilities(QXLInstance *sin,
     qxl_rom_set_dirty(qxl);
 
     qxl_send_events(qxl, QXL_INTERRUPT_CLIENT);
-}
-
-static uint32_t qxl_crc32(const uint8_t *p, unsigned len)
-{
-    /*
-     * zlib xors the seed with 0xffffffff, and xors the result
-     * again with 0xffffffff; Both are not done with linux's crc32,
-     * which we want to be compatible with, so undo that.
-     */
-    return crc32(0xffffffff, p, len) ^ 0xffffffff;
 }
 
 static bool qxl_rom_monitors_config_changed(QXLRom *rom,
