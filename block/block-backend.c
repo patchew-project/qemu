@@ -1426,6 +1426,18 @@ uint32_t blk_get_max_transfer(BlockBackend *blk)
     return MIN_NON_ZERO(max, INT_MAX);
 }
 
+/* Returns the optimum transfer length, in bytes; may be 0 if no optimum */
+uint32_t blk_get_opt_transfer(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bs->bl.opt_transfer;
+    } else {
+        return 0;
+    }
+}
+
 int blk_get_max_iov(BlockBackend *blk)
 {
     return blk->root->bs->bl.max_iov;
