@@ -2088,7 +2088,6 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
 {
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
-    Error *local_err = NULL;
 
     assert(bs_queue != NULL);
 
@@ -2097,8 +2096,7 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
     aio_context_acquire(ctx);
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
-        if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, &local_err)) {
-            error_propagate(errp, local_err);
+        if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, errp)) {
             goto cleanup;
         }
         bs_entry->prepared = true;

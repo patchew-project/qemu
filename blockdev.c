@@ -2224,7 +2224,6 @@ void qmp_eject(bool has_device, const char *device,
                bool has_id, const char *id,
                bool has_force, bool force, Error **errp)
 {
-    Error *local_err = NULL;
     int rc;
 
     if (!has_force) {
@@ -2233,12 +2232,10 @@ void qmp_eject(bool has_device, const char *device,
 
     rc = do_open_tray(has_device ? device : NULL,
                       has_id ? id : NULL,
-                      force, &local_err);
+                      force, errp);
     if (rc && rc != -ENOSYS) {
-        error_propagate(errp, local_err);
         return;
     }
-    error_free(local_err);
 
     qmp_x_blockdev_remove_medium(has_device, device, has_id, id, errp);
 }
@@ -2327,20 +2324,13 @@ void qmp_blockdev_open_tray(bool has_device, const char *device,
                             bool has_force, bool force,
                             Error **errp)
 {
-    Error *local_err = NULL;
-    int rc;
-
     if (!has_force) {
         force = false;
     }
-    rc = do_open_tray(has_device ? device : NULL,
-                      has_id ? id : NULL,
-                      force, &local_err);
-    if (rc && rc != -ENOSYS && rc != -EINPROGRESS) {
-        error_propagate(errp, local_err);
-        return;
-    }
-    error_free(local_err);
+
+    do_open_tray(has_device ? device : NULL,
+                 has_id ? id : NULL,
+                 force, errp);
 }
 
 void qmp_blockdev_close_tray(bool has_device, const char *device,
@@ -2567,13 +2557,10 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
 
     rc = do_open_tray(has_device ? device : NULL,
                       has_id ? id : NULL,
-                      false, &err);
+                      false, errp);
     if (rc && rc != -ENOSYS) {
-        error_propagate(errp, err);
         goto fail;
     }
-    error_free(err);
-    err = NULL;
 
     qmp_x_blockdev_remove_medium(has_device, device, has_id, id, &err);
     if (err) {
@@ -3014,7 +3001,6 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     BlockDriverState *iter;
     BlockDriverState *base_bs, *top_bs;
     AioContext *aio_context;
-    Error *local_err = NULL;
     /* This will be part of the QMP command, if/when the
      * BlockdevOnError change for blkmirror makes it in
      */
@@ -3029,15 +3015,14 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
      *  live commit feature versions; for this to work, we must make sure to
      *  perform the device lookup before any generic errors that may occur in a
      *  scenario in which all optional arguments are omitted. */
-    bs = qmp_get_root_bs(device, &local_err);
+    bs = qmp_get_root_bs(device, errp);
     if (!bs) {
         bs = bdrv_lookup_bs(device, device, NULL);
-        if (!bs) {
-            error_free(local_err);
+        if (!bs && errp) {
+            error_free(*errp);
+            *errp = NULL;
             error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                       "Device '%s' not found", device);
-        } else {
-            error_propagate(errp, local_err);
         }
         return;
     }
@@ -3098,7 +3083,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
                             BLOCK_JOB_DEFAULT, speed, on_error, NULL, NULL,
-                            &local_err, false);
+                            errp, false);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
         if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
@@ -3106,11 +3091,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         }
         commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
                      on_error, has_backing_file ? backing_file : NULL,
-                     &local_err);
-    }
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        goto out;
+                     errp);
     }
 
 out:
@@ -3450,10 +3431,9 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
             goto out;
         }
 
-        to_replace_bs = check_to_replace_node(bs, arg->replaces, &local_err);
+        to_replace_bs = check_to_replace_node(bs, arg->replaces, errp);
 
         if (!to_replace_bs) {
-            error_propagate(errp, local_err);
             goto out;
         }
 
@@ -3530,9 +3510,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
                            arg->has_on_source_error, arg->on_source_error,
                            arg->has_on_target_error, arg->on_target_error,
                            arg->has_unmap, arg->unmap,
-                           &local_err);
+                           errp);
     bdrv_unref(target_bs);
-    error_propagate(errp, local_err);
 out:
     aio_context_release(aio_context);
 }
@@ -3554,7 +3533,6 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     BlockDriverState *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
-    Error *local_err = NULL;
 
     bs = qmp_get_root_bs(device, errp);
     if (!bs) {
@@ -3579,8 +3557,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                            has_on_source_error, on_source_error,
                            has_on_target_error, on_target_error,
                            true, true,
-                           &local_err);
-    error_propagate(errp, local_err);
+                           errp);
 
     aio_context_release(aio_context);
 }
