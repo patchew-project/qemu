@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016 Red Hat, Inc.
+ *  Copyright (C) 2016-2017 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Server Side
@@ -206,8 +206,8 @@ static int nbd_negotiate_send_rep_len(QIOChannel *ioc, uint32_t type,
 {
     uint64_t magic;
 
-    TRACE("Reply opt=%" PRIx32 " type=%" PRIx32 " len=%" PRIu32,
-          type, opt, len);
+    TRACE("Reply opt=%" PRIx32 " (%s), type=%" PRIx32 " (%s), len=%" PRIu32,
+          opt, nbd_opt_lookup(opt), type, nbd_rep_lookup(type), len);
 
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_negotiate_write(ioc, &magic, sizeof(magic)) != sizeof(magic)) {
@@ -493,7 +493,8 @@ static int nbd_negotiate_options(NBDClient *client)
         }
         length = be32_to_cpu(length);
 
-        TRACE("Checking option 0x%" PRIx32, clientflags);
+        TRACE("Checking option 0x%" PRIx32 " (%s)", clientflags,
+              nbd_opt_lookup(clientflags));
         if (client->tlscreds &&
             client->ioc == (QIOChannel *)client->sioc) {
             QIOChannel *tioc;
@@ -581,8 +582,9 @@ static int nbd_negotiate_options(NBDClient *client)
                                                  NBD_REP_ERR_UNSUP,
                                                  clientflags,
                                                  "Unsupported option 0x%"
-                                                 PRIx32,
-                                                 clientflags);
+                                                 PRIx32 " (%s)",
+                                                 clientflags,
+                                                 nbd_opt_lookup(clientflags));
                 if (ret < 0) {
                     return ret;
                 }
@@ -598,7 +600,8 @@ static int nbd_negotiate_options(NBDClient *client)
                 return nbd_negotiate_handle_export_name(client, length);
 
             default:
-                TRACE("Unsupported option 0x%" PRIx32, clientflags);
+                TRACE("Unsupported option 0x%" PRIx32 " (%s)", clientflags,
+                      nbd_opt_lookup(clientflags));
                 return -EINVAL;
             }
         }
