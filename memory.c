@@ -1139,13 +1139,13 @@ static uint64_t memory_region_ram_device_read(void *opaque,
         data = *(uint8_t *)(mr->ram_block->host + addr);
         break;
     case 2:
-        data = *(uint16_t *)(mr->ram_block->host + addr);
+        data = le16_to_cpu(*(uint16_t *)(mr->ram_block->host + addr));
         break;
     case 4:
-        data = *(uint32_t *)(mr->ram_block->host + addr);
+        data = le32_to_cpu(*(uint32_t *)(mr->ram_block->host + addr));
         break;
     case 8:
-        data = *(uint64_t *)(mr->ram_block->host + addr);
+        data = le64_to_cpu(*(uint64_t *)(mr->ram_block->host + addr));
         break;
     }
 
@@ -1166,13 +1166,13 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
         *(uint8_t *)(mr->ram_block->host + addr) = (uint8_t)data;
         break;
     case 2:
-        *(uint16_t *)(mr->ram_block->host + addr) = (uint16_t)data;
+        *(uint16_t *)(mr->ram_block->host + addr) = cpu_to_le16((uint16_t)data);
         break;
     case 4:
-        *(uint32_t *)(mr->ram_block->host + addr) = (uint32_t)data;
+        *(uint32_t *)(mr->ram_block->host + addr) = cpu_to_le32((uint32_t)data);
         break;
     case 8:
-        *(uint64_t *)(mr->ram_block->host + addr) = data;
+        *(uint64_t *)(mr->ram_block->host + addr) = cpu_to_le64(data);
         break;
     }
 }
@@ -1180,7 +1180,7 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ram_device_mem_ops = {
     .read = memory_region_ram_device_read,
     .write = memory_region_ram_device_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 8,
