@@ -369,6 +369,9 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
         case CPU_INFO_ARCH_TRICORE:
             monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.tricore.PC);
             break;
+        case CPU_INFO_ARCH_ARM:
+            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->u.arm.pc);
+            break;
         default:
             break;
         }

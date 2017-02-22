@@ -1277,7 +1277,7 @@
 # Since: 2.6
 ##
 { 'enum': 'CpuInfoArch',
-  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 'other' ] }
+  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 'arm', 'other' ] }
 
 ##
 # @CpuInfo:
@@ -1312,6 +1312,7 @@
             'ppc': 'CpuInfoPPC',
             'mips': 'CpuInfoMIPS',
             'tricore': 'CpuInfoTricore',
+            'arm': 'CpuInfoARM',
             'other': 'CpuInfoOther' } }
 
 ##
@@ -1370,6 +1371,17 @@
 # Since: 2.6
 ##
 { 'struct': 'CpuInfoTricore', 'data': { 'PC': 'int' } }
+
+##
+# @CpuInfoARM:
+#
+# Additional information about a virtual ARM CPU
+#
+# @pc: the instruction pointer
+#
+# Since: 2.9
+##
+{ 'struct': 'CpuInfoARM', 'data': { 'pc': 'int' } }
 
 ##
 # @CpuInfoOther:
