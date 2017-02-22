@@ -31,6 +31,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
+#include "hw/i386/ich9.h"
 #include "hw/pci-host/q35.h"
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
@@ -2560,12 +2561,51 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
+static bool vtd_has_inited_pci_devices(PCIBus *bus, Error **errp)
+{
+    int i;
+    uint8_t func;
+
+    /* We check against root bus */
+    assert(bus && pci_bus_is_root(bus));
+
+    /*
+     * We need to make sure vIOMMU device is created before other PCI
+     * devices other than the integrated ICH9 ones, so that they can
+     * get correct iommu_fn setup even during its realize(). Some
+     * devices (e.g., vfio-pci) will need a correct iommu_fn to work.
+     */
+    for (i = 1; i < PCI_FUNC_MAX * PCI_SLOT_MAX; i++) {
+        /* Skip the checking against ICH9 integrated devices */
+        if (PCI_SLOT(i) == ICH9_LPC_DEV) {
+            func = PCI_FUNC(i);
+            if (func == ICH9_LPC_FUNC ||
+                func == ICH9_SATA1_FUNC ||
+                func == ICH9_SMB_FUNC) {
+                continue;
+            }
+        }
+
+        if (bus->devices[i]) {
+            error_setg(errp, "Please init intel-iommu before "
+                       "other PCI devices");
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
+
+    if (vtd_has_inited_pci_devices(bus, errp)) {
+        return;
+    }
 
     VTD_DPRINTF(GENERAL, "");
     x86_iommu->type = TYPE_INTEL;
