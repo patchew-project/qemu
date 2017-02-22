@@ -22,8 +22,11 @@
 
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "qom/qom-qobject.h"
 #include "qemu/module.h"
 
+#include "test-qapi-types.h"
+#include "test-qapi-visit.h"
 
 #define TYPE_DUMMY "qemu-dummy"
 
@@ -56,6 +59,8 @@ struct DummyObject {
     bool bv;
     DummyAnimal av;
     char *sv;
+
+    UserDefOne *qv;
 };
 
 struct DummyObjectClass {
@@ -120,12 +125,42 @@ static char *dummy_get_sv(Object *obj,
 
 static void dummy_init(Object *obj)
 {
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
     object_property_add_bool(obj, "bv",
                              dummy_get_bv,
                              dummy_set_bv,
                              NULL);
+    dobj->qv = g_new0(UserDefOne, 1);
+    dobj->qv->string = g_strdup("dummy string");
 }
 
+
+static void dummy_get_qv(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
+    visit_type_UserDefOne(v, name, &dobj->qv, errp);
+}
+
+static void dummy_set_qv(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+    UserDefOne *qv = NULL;
+    Error *local_err = NULL;
+
+    visit_type_UserDefOne(v, name, &qv, &local_err);
+    if (local_err) {
+        g_assert(qv == NULL);
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    qapi_free_UserDefOne(dobj->qv);
+    dobj->qv = qv;
+}
 
 static void dummy_class_init(ObjectClass *cls, void *data)
 {
@@ -143,6 +178,13 @@ static void dummy_class_init(ObjectClass *cls, void *data)
                                    dummy_get_av,
                                    dummy_set_av,
                                    NULL);
+    object_class_property_add(cls, "qv",
+                              "UserDefOne",
+                              dummy_get_qv,
+                              dummy_set_qv,
+                              NULL,
+                              NULL,
+                              NULL);
 }
 
 
@@ -151,8 +193,8 @@ static void dummy_finalize(Object *obj)
     DummyObject *dobj = DUMMY_OBJECT(obj);
 
     g_free(dobj->sv);
+    qapi_free_UserDefOne(dobj->qv);
 }
-
 
 static const TypeInfo dummy_info = {
     .name          = TYPE_DUMMY,
@@ -473,7 +515,8 @@ static void test_dummy_iterator(void)
 
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
-    bool seenbv = false, seensv = false, seenav = false, seentype;
+    bool seenbv = false, seensv = false, seenav = false;
+    bool seenqv = false, seentype = false;
 
     object_property_iter_init(&iter, OBJECT(dobj));
     while ((prop = object_property_iter_next(&iter))) {
@@ -483,6 +526,8 @@ static void test_dummy_iterator(void)
             seensv = true;
         } else if (g_str_equal(prop->name, "av")) {
             seenav = true;
+        } else if (g_str_equal(prop->name, "qv")) {
+            seenqv = true;
         } else if (g_str_equal(prop->name, "type")) {
             /* This prop comes from the base Object class */
             seentype = true;
@@ -494,6 +539,7 @@ static void test_dummy_iterator(void)
     g_assert(seenbv);
     g_assert(seenav);
     g_assert(seensv);
+    g_assert(seenqv);
     g_assert(seentype);
 
     object_unparent(OBJECT(dobj));
@@ -513,6 +559,129 @@ static void test_dummy_delchild(void)
     object_unparent(OBJECT(dev));
 }
 
+static void test_dummy_get_set_ptr_struct(void)
+{
+    DummyObject *dobj = DUMMY_OBJECT(object_new(TYPE_DUMMY));
+    Error *local_err = NULL;
+    const char *s = "my other dummy string";
+    UserDefOne *ret;
+    UserDefOne val;
+
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "qv",
+                                  UserDefOne, &local_err);
+    g_assert(!local_err);
+
+    g_assert_cmpint(ret->integer, ==, 0);
+    g_assert_cmpstr(ret->string, ==, "dummy string");
+    g_assert(!ret->has_enum1);
+    qapi_free_UserDefOne(ret);
+
+    val.integer = 42;
+    val.string = g_strdup(s);
+    val.has_enum1 = true;
+    val.enum1 = ENUM_ONE_VALUE1;
+    OBJECT_PROPERTY_SET_PTR(OBJECT(dobj), &val, "qv",
+                            UserDefOne, &local_err);
+    g_assert(!local_err);
+
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "qv",
+                                  UserDefOne, &local_err);
+    g_assert(!local_err);
+
+    g_assert_cmpint(ret->integer, ==, val.integer);
+    g_assert_cmpstr(ret->string, ==, val.string);
+    g_assert(ret->has_enum1);
+    g_assert_cmpint(ret->enum1, ==, val.enum1);
+    g_free(val.string);
+    qapi_free_UserDefOne(ret);
+}
+
+static void test_dummy_get_set_ptr_contravariant(void)
+{
+    DummyObject *dobj = DUMMY_OBJECT(object_new(TYPE_DUMMY));
+    Error *local_err = NULL;
+    UserDefOneMore *ret;
+    UserDefOneMore val;
+
+    /* You cannot retrieve a contravariant (subclass) type... */
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "qv",
+                                  UserDefOneMore, &local_err);
+    error_free_or_abort(&local_err);
+    g_assert(!ret);
+
+    /* And you cannot set one either.  */
+    val.integer = 42;
+    val.string = g_strdup("unused");
+    val.has_enum1 = false;
+    val.boolean = false;
+
+    OBJECT_PROPERTY_SET_PTR(OBJECT(dobj), &val, "qv",
+                            UserDefOneMore, &local_err);
+    g_assert(local_err);
+}
+
+static void test_dummy_get_set_ptr_covariant(void)
+{
+    DummyObject *dobj = DUMMY_OBJECT(object_new(TYPE_DUMMY));
+    Error *local_err = NULL;
+    UserDefZero *ret;
+    UserDefZero val;
+
+    /* You can retrieve a covariant (superclass) type... */
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "qv",
+                                  UserDefZero, &local_err);
+    g_assert(!local_err);
+
+    g_assert_cmpint(ret->integer, ==, 0);
+    qapi_free_UserDefZero(ret);
+
+    /* But you cannot set one.  */
+    val.integer = 42;
+    OBJECT_PROPERTY_SET_PTR(OBJECT(dobj), &val, "qv",
+                            UserDefZero, &local_err);
+    error_free_or_abort(&local_err);
+
+    /* Test that the property has not been modified at all */
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "qv",
+                                  UserDefZero, &local_err);
+    g_assert(!local_err);
+
+    g_assert_cmpint(ret->integer, ==, 0);
+    qapi_free_UserDefZero(ret);
+}
+
+static void test_dummy_get_set_ptr_error(void)
+{
+    DummyObject *dobj = DUMMY_OBJECT(object_new(TYPE_DUMMY));
+    Error *local_err = NULL;
+    const char *s = "my other dummy string";
+    UserDefOne *ret;
+    UserDefOne val;
+
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "blah",
+                                  UserDefOne, &local_err);
+    error_free_or_abort(&local_err);
+    g_assert(!ret);
+
+    val.integer = 42;
+    val.string = g_strdup(s);
+    val.has_enum1 = true;
+    val.enum1 = 100;
+    OBJECT_PROPERTY_SET_PTR(OBJECT(dobj), &val, "qv",
+                            UserDefOne, &local_err);
+    error_free_or_abort(&local_err);
+
+    ret = OBJECT_PROPERTY_GET_PTR(OBJECT(dobj), "qv",
+                                  UserDefOne, &local_err);
+    g_assert(!local_err);
+
+    /* Test that the property has not been modified at all */
+    g_assert_cmpint(ret->integer, ==, 0);
+    g_assert_cmpstr(ret->string, ==, "dummy string");
+    g_assert(!ret->has_enum1);
+    qapi_free_UserDefOne(ret);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -530,5 +699,9 @@ int main(int argc, char **argv)
     g_test_add_func("/qom/proplist/iterator", test_dummy_iterator);
     g_test_add_func("/qom/proplist/delchild", test_dummy_delchild);
 
+    g_test_add_func("/qom/proplist/get-set-ptr/struct", test_dummy_get_set_ptr_struct);
+    g_test_add_func("/qom/proplist/get-set-ptr/error", test_dummy_get_set_ptr_error);
+    g_test_add_func("/qom/proplist/get-set-ptr/covariant", test_dummy_get_set_ptr_covariant);
+    g_test_add_func("/qom/proplist/get-set-ptr/contravariant", test_dummy_get_set_ptr_contravariant);
     return g_test_run();
 }

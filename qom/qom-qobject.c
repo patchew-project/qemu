@@ -44,3 +44,55 @@ QObject *object_property_get_qobject(Object *obj, const char *name,
     visit_free(v);
     return ret;
 }
+
+void object_property_set_ptr(Object *obj, void *ptr, const char *name,
+                             void (*visit_type)(Visitor *, const char *,
+                                                void **, Error **),
+                             Error **errp)
+{
+    Error *local_err = NULL;
+    QObject *ret = NULL;
+    Visitor *v;
+    v = qobject_output_visitor_new(&ret);
+    visit_type(v, name, &ptr, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        visit_free(v);
+        return;
+    }
+    visit_complete(v, &ret);
+    visit_free(v);
+
+    /* Do not use object_property_set_qobject until we switch it
+     * to use qobject_input_visitor_new in strict mode.  See the
+     * /qom/proplist/get-set-ptr/contravariant unit test.
+     */
+    v = qobject_input_visitor_new(ret, true);
+    object_property_set(obj, v, name, errp);
+    visit_free(v);
+    qobject_decref(ret);
+}
+
+void *object_property_get_ptr(Object *obj, const char *name,
+                              void (*visit_type)(Visitor *, const char *,
+                                                 void **, Error **),
+                              Error **errp)
+{
+    QObject *ret;
+    Visitor *v;
+    void *ptr = NULL;
+
+    ret = object_property_get_qobject(obj, name, errp);
+    if (!ret) {
+        return NULL;
+    }
+
+    /* Do not enable strict mode to allow passing covariant
+     * data types.
+     */
+    v = qobject_input_visitor_new(ret, false);
+    visit_type(v, name, &ptr, errp);
+    qobject_decref(ret);
+    visit_free(v);
+    return ptr;
+}

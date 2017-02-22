@@ -107,6 +107,9 @@ object UserDefOne
     base UserDefZero
     member string: str optional=False
     member enum1: EnumOne optional=True
+object UserDefOneMore
+    base UserDefOne
+    member boolean: bool optional=False
 object UserDefOptions
     member i64: intList optional=True
     member u64: uint64List optional=True
@@ -281,6 +284,9 @@ doc symbol=QEnumTwo expr=('enum', 'QEnumTwo')
     body=
 for testing override of default naming heuristic
 doc symbol=UserDefOne expr=('struct', 'UserDefOne')
+    body=
+for testing nested structs
+doc symbol=UserDefOneMore expr=('struct', 'UserDefOneMore')
     body=
 for testing nested structs
 doc symbol=EnumOne expr=('enum', 'EnumOne')
