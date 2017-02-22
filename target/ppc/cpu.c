@@ -23,8 +23,15 @@
 
 target_ulong cpu_read_xer(CPUPPCState *env)
 {
-    return env->xer | (env->so << XER_SO) | (env->ov << XER_OV) |
+    target_ulong xer;
+
+    xer = env->xer | (env->so << XER_SO) | (env->ov << XER_OV) |
         (env->ca << XER_CA);
+
+    if (is_isa300(env)) {
+        xer |= (env->ov32 << XER_OV32) | (env->ca32 << XER_CA32);
+    }
+    return xer;
 }
 
 void cpu_write_xer(CPUPPCState *env, target_ulong xer)
@@ -32,5 +39,13 @@ void cpu_write_xer(CPUPPCState *env, target_ulong xer)
     env->so = (xer >> XER_SO) & 1;
     env->ov = (xer >> XER_OV) & 1;
     env->ca = (xer >> XER_CA) & 1;
-    env->xer = xer & ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA));
+    if (is_isa300(env)) {
+        env->ov32 = (xer >> XER_OV32) & 1;
+        env->ca32 = (xer >> XER_CA32) & 1;
+        env->xer = xer & ~((1ul << XER_SO) |
+                           (1ul << XER_OV) | (1ul << XER_CA) |
+                           (1ul << XER_OV32) | (1ul << XER_CA32));
+    } else {
+        env->xer = xer & ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA));
+    }
 }
