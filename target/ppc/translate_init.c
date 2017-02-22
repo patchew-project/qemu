@@ -107,12 +107,12 @@ static void spr_access_nop(DisasContext *ctx, int sprn, int gprn)
 /* XER */
 static void spr_read_xer (DisasContext *ctx, int gprn, int sprn)
 {
-    gen_read_xer(cpu_gpr[gprn]);
+    gen_read_xer(ctx, cpu_gpr[gprn]);
 }
 
 static void spr_write_xer (DisasContext *ctx, int sprn, int gprn)
 {
-    gen_write_xer(cpu_gpr[gprn]);
+    gen_write_xer(ctx, cpu_gpr[gprn]);
 }
 
 /* LR */
