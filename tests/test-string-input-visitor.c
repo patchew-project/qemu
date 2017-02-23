@@ -109,8 +109,9 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     g_assert_cmpint(tmp->value, ==, 2);
     tmp = (int16List *)visit_next_list(v, (GenericList *)tmp, sizeof(*res));
     g_assert(tmp);
+    visit_check_list(v, &err);
+    error_free_or_abort(&err);
     visit_end_list(v, (void **)&res);
-    /* BUG: unvisited tail not reported; actually not reportable by design */
 
     qapi_free_int16List(res);
 }
