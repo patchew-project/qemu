@@ -110,3 +110,30 @@ qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s 
 qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64
 qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+
+# block/nvme.c
+nvme_kick(void *s, int queue) "s %p queue %d"
+nvme_dma_flush_queue_wait(void *s) "s %p"
+nvme_vfio_ram_block_removed(void *s, size_t size) "host %p size %zu"
+nvme_error(int cmd_specific, int sq_head, int sqid, int cid, int status) "cmd_specific %d sq_head %d sqid %d cid %d status %x"
+nvme_process_completion(void *s, int index, int inflight) "s %p queue %d inflight %d"
+nvme_process_completion_queue_busy(void *s, int index) "s %p queue %d"
+nvme_complete_command(void *s, int index, int cid) "s %p queue %d cid %d"
+nvme_submit_command(void *s, int index, int cid) "s %p queue %d cid %d"
+nvme_handle_event(void *s) "s %p"
+nvme_poll_cb(void *s) "s %p"
+nvme_prw_aligned(void *s, int is_write, uint64_t offset, uint64_t bytes, int niov) "s %p is_write %d offset %"PRId64" bytes %"PRId64" niov %d"
+nvme_prw_buffered(void *s, uint64_t offset, uint64_t bytes, int niov, int is_write) "s %p offset %"PRId64" bytes %"PRId64" niov %d is_write %d"
+nvme_rw_done(void *s, int is_write, uint64_t offset, uint64_t bytes, int ret) "s %p is_write %d offset %"PRId64" bytes %"PRId64" ret %d"
+nvme_dma_map_flush(void *s) "s %p"
+nvme_free_req_queue_wait(void *s) "s %p"
+
+# block/nvme-vfio.c
+nvme_vfio_dma_reset_temporary(void *s) "s %p"
+nvme_vfio_ram_block_added(void *p, size_t size) "host %p size %zu"
+nvme_vfio_find_mapping(void *s, void *p) "s %p host %p"
+nvme_vfio_new_mapping(void *s, void *host, size_t size, int index, uint64_t iova) "s %p host %p size %zu index %d iova %"PRIx64
+nvme_vfio_do_mapping(void *s, void *host, size_t size, uint64_t iova) "s %p host %p size %zu iova %"PRIx64
+nvme_vfio_dma_map(void *s, void *host, size_t size, bool temporary, uint64_t *iova) "s %p host %p size %zu temporary %d iova %p"
+nvme_vfio_dma_map_invalid(void *s, void *mapping_host, size_t mapping_size, void *host, size_t size) "s %p mapping %p %zu requested %p %zu"
+nvme_vfio_dma_unmap(void *s, void *host) "s %p host %p"
