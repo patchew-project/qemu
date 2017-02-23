@@ -398,7 +398,7 @@ static void tpm_tis_receive_cb(TPMState *s, uint8_t locty,
 
     if (is_selftest_done) {
         for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
-            tis->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
+            tis->loc[l].sts |= TPM_TIS_STS_SELFTEST_DONE;
         }
     }
 
