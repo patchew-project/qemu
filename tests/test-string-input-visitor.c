@@ -94,6 +94,25 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     visit_type_int16List(v, NULL, &res, &err);
     error_free_or_abort(&err);
     g_assert(!res);
+
+    v = visitor_input_test_init(data, "0,2-3");
+
+    /* Would be simpler if  opts visitor supported virtual list walks */
+    visit_start_list(v, NULL, (GenericList **)&res, sizeof(*res),
+                     &error_abort);
+    tmp = res;
+    visit_type_int16(v, NULL, &tmp->value, &error_abort);
+    g_assert_cmpint(tmp->value, ==, 0);
+    tmp = (int16List *)visit_next_list(v, (GenericList *)tmp, sizeof(*res));
+    g_assert(tmp);
+    visit_type_int16(v, NULL, &tmp->value, &error_abort);
+    g_assert_cmpint(tmp->value, ==, 2);
+    tmp = (int16List *)visit_next_list(v, (GenericList *)tmp, sizeof(*res));
+    g_assert(tmp);
+    visit_end_list(v, (void **)&res);
+    /* BUG: unvisited tail not reported; actually not reportable by design */
+
+    qapi_free_int16List(res);
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,
