@@ -259,7 +259,7 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
 
     rcu_read_unlock();
 
-    xen_modified_memory(start, length);
+    xen_hvm_modified_memory(start, length);
 }
 
 #if !defined(_WIN32)
@@ -313,7 +313,7 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 
         rcu_read_unlock();
 
-        xen_modified_memory(start, pages << TARGET_PAGE_BITS);
+        xen_hvm_modified_memory(start, pages << TARGET_PAGE_BITS);
     } else {
         uint8_t clients = tcg_enabled() ? DIRTY_CLIENTS_ALL : DIRTY_CLIENTS_NOCODE;
         /*
