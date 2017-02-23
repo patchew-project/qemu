@@ -230,4 +230,7 @@ void blk_io_limits_disable(BlockBackend *blk);
 void blk_io_limits_enable(BlockBackend *blk, const char *group);
 void blk_io_limits_update_group(BlockBackend *blk, const char *group);
 
+void blk_dma_map(BlockBackend *blk, void *host, size_t size);
+void blk_dma_unmap(BlockBackend *blk, void *host);
+
 #endif

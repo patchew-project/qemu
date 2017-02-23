@@ -2646,3 +2646,27 @@ void bdrv_io_unplug(BlockDriverState *bs)
         bdrv_io_unplug(child->bs);
     }
 }
+
+void bdrv_dma_map(BlockDriverState *bs, void *host, size_t size)
+{
+    BdrvChild *child;
+
+    if (bs->drv && bs->drv->bdrv_dma_map) {
+        bs->drv->bdrv_dma_map(bs, host, size);
+    }
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_dma_map(child->bs, host, size);
+    }
+}
+
+void bdrv_dma_unmap(BlockDriverState *bs, void *host)
+{
+    BdrvChild *child;
+
+    if (bs->drv && bs->drv->bdrv_dma_unmap) {
+        bs->drv->bdrv_dma_unmap(bs, host);
+    }
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_dma_unmap(child->bs, host);
+    }
+}

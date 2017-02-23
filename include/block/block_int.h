@@ -320,6 +320,10 @@ struct BlockDriver {
     void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
                            Error **errp);
 
+    /* Map and unmap a buffer for later I/O, as a performance hint to the
+     * driver. */
+    void (*bdrv_dma_map)(BlockDriverState *bs, void *host, size_t size);
+    void (*bdrv_dma_unmap)(BlockDriverState *bs, void *host);
     QLIST_ENTRY(BlockDriver) list;
 };
 
