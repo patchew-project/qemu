@@ -355,7 +355,8 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
 
         /* MAP_POPULATE silently ignores failures */
         for (i = 0; i < numpages; i++) {
-            memset(area + (hpagesize * i), 0, 1);
+            char val = *(area + (hpagesize * i));
+            memset(area + (hpagesize * i), 0, val);
         }
     }
 
