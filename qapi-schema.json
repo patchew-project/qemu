@@ -5906,6 +5906,16 @@
   'data': [ 'pause', 'poweroff' ] }
 
 ##
+# @GuestPanicInformationType:
+#
+# An enumeration of the guest panic information types
+#
+# Since: 2.9
+##
+{ 'enum': 'GuestPanicInformationType',
+  'data': [ 'hyper-v'] }
+
+##
 # @GuestPanicInformation:
 #
 # Information about a guest panic
@@ -5913,6 +5923,8 @@
 # Since: 2.9
 ##
 {'union': 'GuestPanicInformation',
+ 'base': {'type': 'GuestPanicInformationType'},
+ 'discriminator': 'type',
  'data': { 'hyper-v': 'GuestPanicInformationHyperV' } }
 
 ##
