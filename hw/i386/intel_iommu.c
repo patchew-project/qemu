@@ -2560,12 +2560,34 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
+/*
+ * TODO: we should have a better way to achieve the ordering rather
+ * than this misorder check explicitly against vfio-pci. After all, no
+ * one should be blamed for this, and vfio-pci did nothing wrong.
+ */
+static bool vtd_detected_misorder_init(Error **errp)
+{
+    Object *dev = object_resolve_path_type("", "vfio-pci", NULL);
+
+    if (dev) {
+        error_setg(errp, "Please specify \"intel-iommu\" before all the rest "
+                   "of the devices.");
+        return true;
+    }
+
+    return false;
+}
+
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
+
+    if (vtd_detected_misorder_init(errp)) {
+        return;
+    }
 
     VTD_DPRINTF(GENERAL, "");
     x86_iommu->type = TYPE_INTEL;
