@@ -25,6 +25,7 @@ typedef struct VhostUserState {
     guint watch;
     uint64_t acked_features;
     bool started;
+    QEMUBH *chr_closed_bh;
 } VhostUserState;
 
 VHostNetState *vhost_user_get_vhost_net(NetClientState *nc)
@@ -190,7 +191,38 @@ static gboolean net_vhost_user_watch(GIOChannel *chan, GIOCondition cond,
 
     qemu_chr_fe_disconnect(&s->chr);
 
+    s->watch = 0;
     return FALSE;
+}
+
+static void chr_closed_bh(void *opaque)
+{
+    const char *name = opaque;
+    NetClientState *ncs[MAX_QUEUE_NUM];
+    VhostUserState *s;
+    Error *err = NULL;
+    int queues;
+
+    queues = qemu_find_net_clients_except(name, ncs,
+                                          NET_CLIENT_DRIVER_NIC,
+                                          MAX_QUEUE_NUM);
+    assert(queues < MAX_QUEUE_NUM);
+
+    s = DO_UPCAST(VhostUserState, nc, ncs[0]);
+
+    qmp_set_link(name, false, &err);
+    vhost_user_stop(queues, ncs);
+    if (s->watch) {
+        g_source_remove(s->watch);
+    }
+    s->watch = 0;
+
+    qemu_bh_delete(s->chr_closed_bh);
+    s->chr_closed_bh = NULL;
+
+    if (err) {
+        error_report_err(err);
+    }
 }
 
 static void net_vhost_user_event(void *opaque, int event)
@@ -212,20 +244,25 @@ static void net_vhost_user_event(void *opaque, int event)
     trace_vhost_user_event(chr->label, event);
     switch (event) {
     case CHR_EVENT_OPENED:
-        s->watch = qemu_chr_fe_add_watch(&s->chr, G_IO_HUP,
-                                         net_vhost_user_watch, s);
         if (vhost_user_start(queues, ncs, &s->chr) < 0) {
             qemu_chr_fe_disconnect(&s->chr);
             return;
         }
+        s->watch = qemu_chr_fe_add_watch(&s->chr, G_IO_HUP,
+                                         net_vhost_user_watch, s);
         qmp_set_link(name, true, &err);
+        s->chr_closed_bh = qemu_bh_new(chr_closed_bh, opaque);
         s->started = true;
         break;
     case CHR_EVENT_CLOSED:
-        qmp_set_link(name, false, &err);
-        vhost_user_stop(queues, ncs);
-        g_source_remove(s->watch);
-        s->watch = 0;
+        /* a close event may happen during a read/write, but vhost
+         * code assumes the vhost_dev remains setup, so delay the
+         * stop & clear to idle.
+         * FIXME: better handle failure in vhost code, remove bh
+         */
+        if (s->chr_closed_bh) {
+            qemu_bh_schedule(s->chr_closed_bh);
+        }
         break;
     }
 
