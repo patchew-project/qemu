@@ -56,7 +56,7 @@ typedef uint64_t S390FeatInit[S390_FEAT_MAX / 64 + 1];
 const S390FeatDef *s390_feat_def(S390Feat feat);
 S390Feat s390_feat_by_type_and_bit(S390FeatType type, int bit);
 void s390_init_feat_bitmap(const S390FeatInit init, S390FeatBitmap bitmap);
-void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
+int s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
                           uint8_t *data);
 void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
                           uint8_t *data);
