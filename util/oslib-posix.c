@@ -355,7 +355,20 @@ void os_mem_prealloc(int fd, char *area, size_t memory, Error **errp)
 
         /* MAP_POPULATE silently ignores failures */
         for (i = 0; i < numpages; i++) {
-            memset(area + (hpagesize * i), 0, 1);
+            /*
+             * Read & write back the same value, so we don't
+             * corrupt existinng user/app data that might be
+             * stored.
+             *
+             * 'volatile' to stop compiler optimizing this away
+             * to a no-op
+             *
+             * TODO: get a better solution from kernel so we
+             * don't need to write at all so we don't cause
+             * wear on the storage backing the region...
+             */
+            volatile char val = *(area + (hpagesize * i));
+            *(area + (hpagesize * i)) = val;
         }
     }
 
