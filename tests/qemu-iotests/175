@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+#
+# Test migration corner-cases
+#
+# Copyright (C) Vladimir Sementsov-Ogievskiy 2017
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+import time
+from iotests import qemu_img
+
+disk = os.path.join(iotests.test_dir, 'disk')
+
+class TestMigrationCornerCases(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, disk, '10M')
+        self.vm = iotests.VM().add_drive(disk)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(disk)
+
+    def test_migrate_reset_cont_write(self):
+        result = self.vm.qmp('migrate', uri='exec:cat>/dev/null')
+        self.assert_qmp(result, 'return', {})
+        time.sleep(4)
+
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='system_reset')
+        self.assert_qmp(result, 'return', '')
+
+        result = self.vm.qmp('cont')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io drive0 "write 0 512"')
+        self.assert_qmp(result, 'return', '')
+
+    def test_migrate_savevm(self):
+        result = self.vm.qmp('migrate', uri='exec:cat>/dev/null')
+        self.assert_qmp(result, 'return', {})
+        time.sleep(4)
+
+        result = self.vm.qmp('human-monitor-command', command_line='savevm')
+        self.assert_qmp(result, 'return', '')
+
+    def test_savevm_set_speed_savevm(self):
+        for i in range(10):
+            result = self.vm.qmp('human-monitor-command', command_line='savevm')
+            self.assert_qmp(result, 'return', '')
+
+            result = self.vm.qmp('migrate_set_speed', value=9223372036853727232)
+            self.assert_qmp(result, 'return', {})
+
+if __name__ == '__main__':
+    iotests.main()
