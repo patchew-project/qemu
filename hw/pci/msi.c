@@ -201,9 +201,12 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
                    " 64bit %d mask %d\n",
                    offset, nr_vectors, msi64bit, msi_per_vector_mask);
 
-    assert(!(nr_vectors & (nr_vectors - 1)));   /* power of 2 */
-    assert(nr_vectors > 0);
-    assert(nr_vectors <= PCI_MSI_VECTORS_MAX);
+    /* vector sanity test: should in range 1 - 32, should be power of 2 */
+    if (!is_power_of_2(nr_vectors) || nr_vectors > PCI_MSI_VECTORS_MAX) {
+        error_setg(errp, "Invalid vector number: %d", nr_vectors);
+        return -EINVAL;
+    }
+
     /* the nr of MSI vectors is up to 32 */
     vectors_order = ctz32(nr_vectors);
 
