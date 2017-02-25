@@ -3628,15 +3628,16 @@ static ExitStatus op_spt(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_stfl(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 f, a;
-    /* We really ought to have more complete indication of facilities
-       that we implement.  Address this when STFLE is implemented.  */
     check_privileged(s);
-    f = tcg_const_i64(0xc0000000);
-    a = tcg_const_i64(200);
-    tcg_gen_qemu_st32(f, a, get_mem_index(s));
-    tcg_temp_free_i64(f);
-    tcg_temp_free_i64(a);
+    gen_helper_stfl(cpu_env);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stfle(DisasContext *s, DisasOps *o)
+{
+    potential_page_fault(s);
+    gen_helper_stfle(regs[0], cpu_env, o->in2, regs[0]);
+    set_cc_static(s);
     return NO_EXIT;
 }
 
