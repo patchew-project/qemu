@@ -1237,6 +1237,13 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    qcow2_load_autoloading_dirty_bitmaps(bs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
     /* Clear unknown autoclear feature bits */
     need_update_header |= s->autoclear_features & ~QCOW2_AUTOCLEAR_MASK;
 
