@@ -65,6 +65,7 @@
 
 #define MMIO_BASE_OFFSET 0x3e00000
 #define MMIO_SIZE 0x200000
+#define DC_PALETTE_ENTRIES (0x400 * 3)
 
 /* SM501 register definitions taken from "linux/include/linux/sm501-regs.h" */
 
@@ -491,7 +492,7 @@ typedef struct SM501State {
     uint32_t uart0_mcr;
     uint32_t uart0_scr;
 
-    uint8_t dc_palette[0x400 * 3];
+    uint8_t dc_palette[DC_PALETTE_ENTRIES];
 
     uint32_t dc_panel_control;
     uint32_t dc_panel_panning_control;
@@ -1537,16 +1538,32 @@ static const GraphicHwOps sm501_ops = {
     .gfx_update  = sm501_update_display,
 };
 
+static void sm501_reset(void *p)
+{
+    SM501State *s = p;
+
+    s->system_control = 0x00100000; /* 2D engine FIFO empty */
+    s->misc_control = SM501_MISC_IRQ_INVERT; /* assumes SH, active=low */
+    s->gpio_31_0_control = 0;
+    s->gpio_63_32_control = 0;
+    s->dram_control = 0;
+    s->arbitration_control = 0x05146732;
+    s->irq_mask = 0;
+    s->misc_timing = 0;
+    s->power_mode_control = 0;
+    s->dc_panel_control = 0x00010000; /* FIFO level 3 */
+    s->dc_video_control = 0;
+    s->dc_crt_control = 0x00010000;
+    s->twoD_control = 0;
+}
+
 static void sm501_init(SM501State *s, DeviceState *dev,
                        uint32_t local_mem_bytes)
 {
     s->local_mem_size_index = get_local_mem_size_index(local_mem_bytes);
     SM501_DPRINTF("sm501 local mem size=%x. index=%d\n", get_local_mem_size(s),
                   s->local_mem_size_index);
-    s->system_control = 0x00100000; /* 2D engine FIFO empty */
-    s->misc_control = SM501_MISC_IRQ_INVERT; /* assumes SH, active=low */
-    s->dc_panel_control = 0x00010000; /* FIFO level 3 */
-    s->dc_crt_control = 0x00010000;
+    qemu_register_reset(sm501_reset, s);
 
     /* local memory */
     memory_region_init_ram(&s->local_mem_region, OBJECT(dev), "sm501.local",
@@ -1576,6 +1593,77 @@ static void sm501_init(SM501State *s, DeviceState *dev,
     /* create qemu graphic console */
     s->con = graphic_console_init(DEVICE(dev), 0, &sm501_ops, s);
 }
+
+static const VMStateDescription vmstate_sm501_regs = {
+    .name = "sm501-regs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(system_control, SM501State),
+        VMSTATE_UINT32(misc_control, SM501State),
+        VMSTATE_UINT32(gpio_31_0_control, SM501State),
+        VMSTATE_UINT32(gpio_63_32_control, SM501State),
+        VMSTATE_UINT32(dram_control, SM501State),
+        VMSTATE_UINT32(arbitration_control, SM501State),
+        VMSTATE_UINT32(irq_mask, SM501State),
+        VMSTATE_UINT32(misc_timing, SM501State),
+        VMSTATE_UINT32(power_mode_control, SM501State),
+        VMSTATE_UINT32(uart0_ier, SM501State),
+        VMSTATE_UINT32(uart0_lcr, SM501State),
+        VMSTATE_UINT32(uart0_mcr, SM501State),
+        VMSTATE_UINT32(uart0_scr, SM501State),
+        VMSTATE_UINT8_ARRAY(dc_palette, SM501State, DC_PALETTE_ENTRIES),
+        VMSTATE_UINT32(dc_panel_control, SM501State),
+        VMSTATE_UINT32(dc_panel_panning_control, SM501State),
+        VMSTATE_UINT32(dc_panel_fb_addr, SM501State),
+        VMSTATE_UINT32(dc_panel_fb_offset, SM501State),
+        VMSTATE_UINT32(dc_panel_fb_width, SM501State),
+        VMSTATE_UINT32(dc_panel_fb_height, SM501State),
+        VMSTATE_UINT32(dc_panel_tl_location, SM501State),
+        VMSTATE_UINT32(dc_panel_br_location, SM501State),
+        VMSTATE_UINT32(dc_panel_h_total, SM501State),
+        VMSTATE_UINT32(dc_panel_h_sync, SM501State),
+        VMSTATE_UINT32(dc_panel_v_total, SM501State),
+        VMSTATE_UINT32(dc_panel_v_sync, SM501State),
+        VMSTATE_UINT32(dc_panel_hwc_addr, SM501State),
+        VMSTATE_UINT32(dc_panel_hwc_location, SM501State),
+        VMSTATE_UINT32(dc_panel_hwc_color_1_2, SM501State),
+        VMSTATE_UINT32(dc_panel_hwc_color_3, SM501State),
+        VMSTATE_UINT32(dc_video_control, SM501State),
+        VMSTATE_UINT32(dc_crt_control, SM501State),
+        VMSTATE_UINT32(dc_crt_fb_addr, SM501State),
+        VMSTATE_UINT32(dc_crt_fb_offset, SM501State),
+        VMSTATE_UINT32(dc_crt_h_total, SM501State),
+        VMSTATE_UINT32(dc_crt_h_sync, SM501State),
+        VMSTATE_UINT32(dc_crt_v_total, SM501State),
+        VMSTATE_UINT32(dc_crt_v_sync, SM501State),
+        VMSTATE_UINT32(dc_crt_hwc_addr, SM501State),
+        VMSTATE_UINT32(dc_crt_hwc_location, SM501State),
+        VMSTATE_UINT32(dc_crt_hwc_color_1_2, SM501State),
+        VMSTATE_UINT32(dc_crt_hwc_color_3, SM501State),
+        VMSTATE_UINT32(twoD_source, SM501State),
+        VMSTATE_UINT32(twoD_destination, SM501State),
+        VMSTATE_UINT32(twoD_dimension, SM501State),
+        VMSTATE_UINT32(twoD_control, SM501State),
+        VMSTATE_UINT32(twoD_pitch, SM501State),
+        VMSTATE_UINT32(twoD_foreground, SM501State),
+        VMSTATE_UINT32(twoD_background, SM501State),
+        VMSTATE_UINT32(twoD_stretch, SM501State),
+        VMSTATE_UINT32(twoD_color_compare, SM501State),
+        VMSTATE_UINT32(twoD_color_compare_mask, SM501State),
+        VMSTATE_UINT32(twoD_mask, SM501State),
+        VMSTATE_UINT32(twoD_clip_tl, SM501State),
+        VMSTATE_UINT32(twoD_clip_br, SM501State),
+        VMSTATE_UINT32(twoD_mono_pattern_low, SM501State),
+        VMSTATE_UINT32(twoD_mono_pattern_high, SM501State),
+        VMSTATE_UINT32(twoD_window_width, SM501State),
+        VMSTATE_UINT32(twoD_source_base, SM501State),
+        VMSTATE_UINT32(twoD_destination_base, SM501State),
+        VMSTATE_UINT32(twoD_alpha, SM501State),
+        VMSTATE_UINT32(twoD_wrap, SM501State),
+        VMSTATE_END_OF_LIST()
+     }
+};
 
 #define TYPE_SYSBUS_SM501 "sysbus-sm501"
 #define SYSBUS_SM501(obj) \
@@ -1673,6 +1761,17 @@ static Property sm501_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_sm501 = {
+    .name = "sm501",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, SM501PCIState),
+        VMSTATE_STRUCT(state, SM501PCIState, 1, vmstate_sm501_regs, SM501State),
+        VMSTATE_END_OF_LIST()
+     }
+};
+
 static void sm501_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1686,6 +1785,7 @@ static void sm501_pci_class_init(ObjectClass *klass, void *data)
     dc->desc = "SM501 Display Controller";
     dc->props = sm501_pci_properties;
     dc->hotpluggable = false;
+    dc->vmsd = &vmstate_sm501;
 }
 
 static const TypeInfo sm501_pci_info = {
