@@ -3561,12 +3561,14 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     if (xhci->numintrs < 1) {
         xhci->numintrs = 1;
     }
+
     if (xhci->numslots > MAXSLOTS) {
         xhci->numslots = MAXSLOTS;
     }
     if (xhci->numslots < 1) {
         xhci->numslots = 1;
     }
+
     if (xhci_get_flag(xhci, XHCI_FLAG_ENABLE_STREAMS)) {
         xhci->max_pstreams_mask = 7; /* == 256 primary streams */
     } else {
@@ -3594,6 +3596,25 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
 
     memory_region_init(&xhci->mem, OBJECT(xhci), "xhci", LEN_REGS);
+    if (xhci->msix != ON_OFF_AUTO_OFF) {
+        ret = msix_init(dev, xhci->numintrs,
+                        &xhci->mem, 0, OFF_MSIX_TABLE,
+                        &xhci->mem, 0, OFF_MSIX_PBA,
+                        0x90, &err);
+        if (ret && xhci->msix == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msix=on request, fail */
+            error_append_hint(&err, "You have to use msix=auto (default) or "
+                    "msix=off with this machine type.\n");
+            /* No instance_finalize method, need to free the resource here */
+            object_unref(OBJECT(&xhci->mem));
+            error_propagate(errp, err);
+            return;
+        }
+        assert(!err || xhci->msix == ON_OFF_AUTO_AUTO);
+        /* With msix=auto, we fall back to MSI off silently */
+        error_free(err);
+    }
+
     memory_region_init_io(&xhci->mem_cap, OBJECT(xhci), &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
     memory_region_init_io(&xhci->mem_oper, OBJECT(xhci), &xhci_oper_ops, xhci,
@@ -3625,14 +3646,6 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
         xhci_get_flag(xhci, XHCI_FLAG_FORCE_PCIE_ENDCAP)) {
         ret = pcie_endpoint_cap_init(dev, 0xa0);
         assert(ret >= 0);
-    }
-
-    if (xhci->msix != ON_OFF_AUTO_OFF) {
-        /* TODO check for errors, and should fail when msix=on */
-        msix_init(dev, xhci->numintrs,
-                  &xhci->mem, 0, OFF_MSIX_TABLE,
-                  &xhci->mem, 0, OFF_MSIX_PBA,
-                  0x90, NULL);
     }
 }
 
