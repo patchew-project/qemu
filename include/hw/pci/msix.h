@@ -11,6 +11,11 @@ int msix_init(PCIDevice *dev, unsigned short nentries,
               unsigned table_offset, MemoryRegion *pba_bar,
               uint8_t pba_bar_nr, unsigned pba_offset, uint8_t cap_pos,
               Error **errp);
+int msix_validate_and_init(PCIDevice *dev, unsigned short nentries,
+                           MemoryRegion *table_bar, uint8_t table_bar_nr,
+                           unsigned table_offset, MemoryRegion *pba_bar,
+                           uint8_t pba_bar_nr, unsigned pba_offset,
+                           uint8_t cap_pos, Error **errp);
 int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
                             uint8_t bar_nr, Error **errp);
 

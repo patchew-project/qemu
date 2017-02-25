@@ -239,6 +239,19 @@ static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
     }
 }
 
+/* Just a wrapper to check the return value */
+int msix_init(struct PCIDevice *dev, unsigned short nentries,
+              MemoryRegion *table_bar, uint8_t table_bar_nr,
+              unsigned table_offset, MemoryRegion *pba_bar,
+              uint8_t pba_bar_nr, unsigned pba_offset, uint8_t cap_pos,
+              Error **errp)
+{
+    int ret = msix_validate_and_init(dev, nentries, table_bar, table_bar_nr,
+            table_offset, pba_bar, pba_bar_nr, pba_offset, cap_pos, errp);
+
+    assert(ret != -EINVAL);
+    return ret;
+}
 /*
  * Make PCI device @dev MSI-X capable
  * @nentries is the max number of MSI-X vectors that the device support.
@@ -259,11 +272,11 @@ static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
  * also means a programming error, except device assignment, which can check
  * if a real HW is broken.
  */
-int msix_init(struct PCIDevice *dev, unsigned short nentries,
-              MemoryRegion *table_bar, uint8_t table_bar_nr,
-              unsigned table_offset, MemoryRegion *pba_bar,
-              uint8_t pba_bar_nr, unsigned pba_offset, uint8_t cap_pos,
-              Error **errp)
+int msix_validate_and_init(struct PCIDevice *dev, unsigned short nentries,
+                           MemoryRegion *table_bar, uint8_t table_bar_nr,
+                           unsigned table_offset, MemoryRegion *pba_bar,
+                           uint8_t pba_bar_nr, unsigned pba_offset,
+                           uint8_t cap_pos, Error **errp)
 {
     int cap;
     unsigned table_size, pba_size;
@@ -361,10 +374,9 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
     memory_region_init(&dev->msix_exclusive_bar, OBJECT(dev), name, bar_size);
     g_free(name);
 
-    ret = msix_init(dev, nentries, &dev->msix_exclusive_bar, bar_nr,
-                    0, &dev->msix_exclusive_bar,
-                    bar_nr, bar_pba_offset,
-                    0, errp);
+    ret = msix_validate_and_init(dev, nentries, &dev->msix_exclusive_bar,
+                                 bar_nr, 0, &dev->msix_exclusive_bar,
+                                 bar_nr, bar_pba_offset, 0, errp);
     if (ret) {
         return ret;
     }
