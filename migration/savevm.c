@@ -2068,6 +2068,17 @@ int save_vmstate(Monitor *mon, const char *name)
     Error *local_err = NULL;
     AioContext *aio_context;
 
+    if (runstate_check(RUN_STATE_FINISH_MIGRATE) ||
+        runstate_check(RUN_STATE_POSTMIGRATE) ||
+        runstate_check(RUN_STATE_PRELAUNCH))
+    {
+        bdrv_invalidate_cache_all(&local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -EINVAL;
+        }
+    }
+
     if (!bdrv_all_can_snapshot(&bs)) {
         monitor_printf(mon, "Device '%s' is writable but does not "
                        "support snapshots.\n", bdrv_get_device_name(bs));

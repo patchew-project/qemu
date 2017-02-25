@@ -145,7 +145,8 @@ bool bdrv_snapshot_find_by_id_and_name(BlockDriverState *bs,
 int bdrv_can_snapshot(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    if (!drv || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
+    if (!drv || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
+        (bs->open_flags & BDRV_O_INACTIVE)) {
         return 0;
     }
 
