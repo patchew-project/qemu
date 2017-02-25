@@ -2359,17 +2359,27 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,
                           "megasas-mmio", 0x4000);
+    if (megasas_use_msix(s)) {
+        ret = msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
+                        &s->mmio_io, b->mmio_bar, 0x3800, 0x68, &err);
+        if (ret && s->msix == ON_OFF_AUTO_ON) {
+            /* Can't satisfy user's explicit msix=on request, fail */
+            error_append_hint(&err, "You have to use msix=auto (default) or "
+                    "msix=off with this machine type.\n");
+            /* No instance_finalize method, need to free the resource here */
+            object_unref(OBJECT(&s->mmio_io));
+            error_propagate(errp, err);
+            return;
+        }
+        assert(!err || s->msix == ON_OFF_AUTO_AUTO);
+        /* With msix=auto, we fall back to MSI off silently */
+        error_free(err);
+    }
+
     memory_region_init_io(&s->port_io, OBJECT(s), &megasas_port_ops, s,
                           "megasas-io", 256);
     memory_region_init_io(&s->queue_io, OBJECT(s), &megasas_queue_ops, s,
                           "megasas-queue", 0x40000);
-
-    if (megasas_use_msix(s) &&
-        msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
-                  &s->mmio_io, b->mmio_bar, 0x3800, 0x68, NULL)) {
-        /* TODO: check msix_init's error, and should fail on msix=on */
-        s->msix = ON_OFF_AUTO_OFF;
-    }
 
     if (pci_is_express(dev)) {
         pcie_endpoint_cap_init(dev, 0xa0);
