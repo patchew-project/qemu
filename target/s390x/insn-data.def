@@ -899,6 +899,8 @@
     C(0xb202, STIDP,   S,     Z,   la2, 0, new, m1_64, stidp, 0)
 /* STORE CPU TIMER */
     C(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64, stpt, 0)
+/* STORE FACILITY LIST EXTENDED */
+    C(0xb2b0, STFLE,   S,  SFLE,   0, a2, 0, 0, stfle, 0)
 /* STORE FACILITY LIST */
     C(0xb2b1, STFL,    S,     Z,   0, 0, 0, 0, stfl, 0)
 /* STORE PREFIX */

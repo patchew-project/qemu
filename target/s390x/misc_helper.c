@@ -503,6 +503,42 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
     return cc;
 }
 
+static int do_stfle(CPUS390XState *env, uint64_t addr, int len)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    /* 256 doublewords as per STFLE documentation */
+    uint8_t data[256 * 8] = { 0 };
+    int i, res;
+
+    memset(data, 0, sizeof(data));
+    res = s390_fill_feat_block(cpu->model->features, S390_FEAT_TYPE_STFL, data);
+    for (i = 0; i < MIN(res, len); i++) {
+        cpu_stb_data(env, addr + i, data[i]);
+    }
+
+    return res;
+}
+
+uint64_t HELPER(stfle)(CPUS390XState *env, uint64_t a0, uint64_t r0)
+{
+    int need, len = r0 & 0xff;
+
+    need = do_stfle(env, a0, len * 8);
+    need = DIV_ROUND_UP(need, 8);
+    if (need <= len) {
+        env->cc_op = 0;
+    } else {
+        env->cc_op = 3;
+    }
+
+    return (r0 & ~0xffLL) | (need - 1);
+}
+
+void HELPER(stfl)(CPUS390XState *env)
+{
+    do_stfle(env, 200, 4);
+}
+
 uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
                       uint64_t cpu_addr)
 {
