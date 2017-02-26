@@ -160,17 +160,9 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     /* Would be simpler if the visitor genuinely supported virtual walks */
     visit_start_list(v, NULL, (GenericList **)&res, sizeof(*res),
                      &error_abort);
-    tail = res;
-    visit_type_int64(v, NULL, &tail->value, &error_abort);
-    g_assert_cmpint(tail->value, ==, 0);
-    tail = (int64List *)visit_next_list(v, (GenericList *)tail, sizeof(*res));
-    g_assert(tail);
-    visit_type_int64(v, NULL, &tail->value, &error_abort);
-    g_assert_cmpint(tail->value, ==, 2);
-    tail = (int64List *)visit_next_list(v, (GenericList *)tail, sizeof(*res));
-    g_assert(tail);
+    visit_check_list(v, &err);
+    error_free_or_abort(&err);
     visit_end_list(v, (void **)&res);
-    /* BUG: unvisited tail not reported; actually not reportable by design */
 
     qapi_free_int64List(res);
 }
