@@ -33,9 +33,9 @@
 #define QIO_CHANNEL_WEBSOCK_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define QIO_CHANNEL_WEBSOCK_GUID_LEN strlen(QIO_CHANNEL_WEBSOCK_GUID)
 
-#define QIO_CHANNEL_WEBSOCK_HEADER_PROTOCOL "Sec-WebSocket-Protocol"
-#define QIO_CHANNEL_WEBSOCK_HEADER_VERSION "Sec-WebSocket-Version"
-#define QIO_CHANNEL_WEBSOCK_HEADER_KEY "Sec-WebSocket-Key"
+#define QIO_CHANNEL_WEBSOCK_HEADER_PROTOCOL "sec-websocket-protocol"
+#define QIO_CHANNEL_WEBSOCK_HEADER_VERSION "sec-websocket-version"
+#define QIO_CHANNEL_WEBSOCK_HEADER_KEY "sec-websocket-key"
 
 #define QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY "binary"
 
@@ -223,7 +223,7 @@ static int qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
 static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
                                               Error **errp)
 {
-    char *handshake_end;
+    char *handshake_end, *tmp;
     ssize_t ret;
     /* Typical HTTP headers from novnc are 512 bytes, so limiting
      * total header size to 4096 is easily enough. */
@@ -249,9 +249,13 @@ static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
         }
     }
 
+    for (tmp = (char *)ioc->encinput.buffer; tmp < handshake_end; tmp++) {
+        *tmp = g_ascii_tolower(*tmp);
+    }
+
     if (qio_channel_websock_handshake_process(ioc,
                                               (char *)ioc->encinput.buffer,
-                                              ioc->encinput.offset,
+                                              handshake_end - (char *)ioc->encinput.buffer,
                                               errp) < 0) {
         return -1;
     }
