@@ -1285,6 +1285,13 @@ static int spapr_post_load(void *opaque, int version_id)
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
     int err = 0;
 
+    if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
+        int i;
+        for (i = 0; i < spapr->nr_servers; i++) {
+            icp_resend(&spapr->icps[i]);
+        }
+    }
+
     /* In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
      * So when migrating from those versions, poke the incoming offset
@@ -2925,16 +2932,6 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int server)
     return (server < spapr->nr_servers) ? &spapr->icps[server] : NULL;
 }
 
-static void spapr_icp_resend(XICSFabric *xi)
-{
-    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
-    int i;
-
-    for (i = 0; i < spapr->nr_servers; i++) {
-        icp_resend(&spapr->icps[i]);
-    }
-}
-
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2980,7 +2977,6 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;
-    xic->icp_resend = spapr_icp_resend;
 }
 
 static const TypeInfo spapr_machine_info = {
