@@ -101,7 +101,7 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
     Error *err = NULL;
     DeviceState *dev;
 
-    dev = qdev_create(NULL, type);
+    dev = DEVICE(object_new(type));
     qdev_prop_set_uint32(dev, "nr_servers", nr_servers);
     qdev_prop_set_uint32(dev, "nr_irqs", nr_irqs);
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
