@@ -1438,7 +1438,8 @@ static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
     }
 }
 
-static void bdrv_update_perm(BlockDriverState *bs)
+static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
+                                     uint64_t *shared_perm)
 {
     BdrvChild *c;
     uint64_t cumulative_perms = 0;
@@ -1449,6 +1450,15 @@ static void bdrv_update_perm(BlockDriverState *bs)
         cumulative_shared_perms &= c->shared_perm;
     }
 
+    *perm = cumulative_perms;
+    *shared_perm = cumulative_shared_perms;
+}
+
+static void bdrv_update_perm(BlockDriverState *bs)
+{
+    uint64_t cumulative_perms, cumulative_shared_perms;
+
+    bdrv_get_cumulative_perm(bs, &cumulative_perms, &cumulative_shared_perms);
     bdrv_set_perm(bs, cumulative_perms, cumulative_shared_perms);
 }
 
@@ -1661,10 +1671,16 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              Error **errp)
 {
     BdrvChild *child;
+    uint64_t perm, shared_perm;
 
-    /* FIXME Use real permissions */
+    bdrv_get_cumulative_perm(parent_bs, &perm, &shared_perm);
+
+    assert(parent_bs->drv);
+    parent_bs->drv->bdrv_child_perm(parent_bs, NULL, child_role,
+                                    perm, shared_perm, &perm, &shared_perm);
+
     child = bdrv_root_attach_child(child_bs, child_name, child_role,
-                                   0, BLK_PERM_ALL, parent_bs, errp);
+                                   perm, shared_perm, parent_bs, errp);
     if (child == NULL) {
         return NULL;
     }
