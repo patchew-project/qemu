@@ -2872,9 +2872,9 @@ static void change_parent_backing_link(BlockDriverState *from,
             continue;
         }
         if (c->role == &child_backing) {
-            /* @from is generally not allowed to be a backing file, except for
-             * when @to is the overlay. In that case, @from may not be replaced
-             * by @to as @to's backing node. */
+            /* If @from is a backing file of @to, ignore the child to avoid
+             * creating a loop. We only want to change the pointer of other
+             * parents. */
             QLIST_FOREACH(to_c, &to->children, next) {
                 if (to_c == c) {
                     break;
@@ -2885,7 +2885,6 @@ static void change_parent_backing_link(BlockDriverState *from,
             }
         }
 
-        assert(c->role != &child_backing);
         bdrv_ref(to);
         bdrv_replace_child(c, to);
         bdrv_unref(from);
