@@ -1767,6 +1767,17 @@ static void external_snapshot_prepare(BlkActionState *common,
 
     if (!state->new_bs->drv->supports_backing) {
         error_setg(errp, "The snapshot does not support backing images");
+        return;
+    }
+
+    /* This removes our old bs and adds the new bs. This is an operation that
+     * can fail, so we need to do it in .prepare; undoing it for abort is
+     * always possible. */
+    bdrv_ref(state->new_bs);
+    bdrv_append(state->new_bs, state->old_bs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 }
 
@@ -1777,8 +1788,6 @@ static void external_snapshot_commit(BlkActionState *common)
 
     bdrv_set_aio_context(state->new_bs, state->aio_context);
 
-    /* This removes our old bs and adds the new bs */
-    bdrv_append(state->new_bs, state->old_bs);
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
@@ -1793,7 +1802,9 @@ static void external_snapshot_abort(BlkActionState *common)
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
     if (state->new_bs) {
-        bdrv_unref(state->new_bs);
+        if (state->new_bs->backing) {
+            bdrv_replace_in_backing_chain(state->new_bs, state->old_bs);
+        }
     }
 }
 
@@ -1804,6 +1815,7 @@ static void external_snapshot_clean(BlkActionState *common)
     if (state->aio_context) {
         bdrv_drained_end(state->old_bs);
         aio_context_release(state->aio_context);
+        bdrv_unref(state->new_bs);
     }
 }
 
