@@ -1796,7 +1796,7 @@ static void build_piix4_pci_hotplug(Aml *table)
     aml_append(table, scope);
 }
 
-static Aml *build_q35_osc_method(void)
+static void build_q35_osc_method(Aml *dev)
 {
     Aml *if_ctx;
     Aml *if_ctx2;
@@ -1805,7 +1805,35 @@ static Aml *build_q35_osc_method(void)
     Aml *a_cwd1 = aml_name("CDW1");
     Aml *a_ctrl = aml_name("CTRL");
 
-    method = aml_method("_OSC", 4, AML_NOTSERIALIZED);
+    /*
+     * Bits defined in the Support Field provide information
+     * regarding OS supported features.
+     *
+     * This field is not actually used and can be removed,
+     * however it appears even if unused on most DSDTs.
+     *
+     * See:
+     *     Table 6-148 Interpretation of _OSC Support Field,
+     *     Passed in via the 2nd dword in Arg3, APCI 5.0
+     */
+    aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
+
+    /*
+     * Bits defined in the Control Field are used to submit
+     * request by the OS for control/handling of the associated feature
+     *
+     * See: Table 6-149 Interpretation of _OSC Control Field,
+     *      Passed in via Arg3, ACPI 5.0
+     *      Table 6-150 Interpretation of _OSC Control Field,
+     *      Returned Value, APCI 5.0
+     */
+    aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
+
+
+   /*
+    * 6.2.10 _OSC (Operating System Capabilities), APCI 5.0
+    */
+    method = aml_method("_OSC", 4, AML_SERIALIZED);
     aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(0), "CDW1"));
 
     if_ctx = aml_if(aml_equal(
@@ -1842,7 +1870,7 @@ static Aml *build_q35_osc_method(void)
     aml_append(method, else_ctx);
 
     aml_append(method, aml_return(aml_arg(3)));
-    return method;
+    aml_append(dev, method);
 }
 
 static void
@@ -1898,9 +1926,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
         aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
         aml_append(dev, aml_name_decl("_UID", aml_int(1)));
-        aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
-        aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
-        aml_append(dev, build_q35_osc_method());
+        build_q35_osc_method(dev);
         aml_append(sb_scope, dev);
         aml_append(dsdt, sb_scope);
 
@@ -1964,6 +1990,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
             aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+            if (pci_bus_is_express(bus)) {
+                build_q35_osc_method(dev);
+            }
 
             if (numa_node != NUMA_NODE_UNASSIGNED) {
                 aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
