@@ -109,18 +109,16 @@ enum {
 };
 
 static char *qio_channel_websock_handshake_entry(const char *handshake,
-                                                 size_t handshake_len,
                                                  const char *name)
 {
     char *begin, *end, *ret = NULL;
     char *line = g_strdup_printf("%s%s: ",
                                  QIO_CHANNEL_WEBSOCK_HANDSHAKE_DELIM,
                                  name);
-    begin = g_strstr_len(handshake, handshake_len, line);
+    begin = strcasestr(handshake, line);
     if (begin != NULL) {
         begin += strlen(line);
-        end = g_strstr_len(begin, handshake_len - (begin - handshake),
-                QIO_CHANNEL_WEBSOCK_HANDSHAKE_DELIM);
+        end = strstr(begin, QIO_CHANNEL_WEBSOCK_HANDSHAKE_DELIM);
         if (end != NULL) {
             ret = g_strndup(begin, end - begin);
         }
@@ -171,12 +169,14 @@ static int qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
                                                  Error **errp)
 {
     int ret = -1;
+    /* make it NULL-terminated */
+    char *handshake = g_strndup(line, size);
     char *protocols = qio_channel_websock_handshake_entry(
-        line, size, QIO_CHANNEL_WEBSOCK_HEADER_PROTOCOL);
+        handshake, QIO_CHANNEL_WEBSOCK_HEADER_PROTOCOL);
     char *version = qio_channel_websock_handshake_entry(
-        line, size, QIO_CHANNEL_WEBSOCK_HEADER_VERSION);
+        handshake, QIO_CHANNEL_WEBSOCK_HEADER_VERSION);
     char *key = qio_channel_websock_handshake_entry(
-        line, size, QIO_CHANNEL_WEBSOCK_HEADER_KEY);
+        handshake, QIO_CHANNEL_WEBSOCK_HEADER_KEY);
 
     if (!protocols) {
         error_setg(errp, "Missing websocket protocol header data");
@@ -214,6 +214,7 @@ static int qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
     ret = qio_channel_websock_handshake_send_response(ioc, key, errp);
 
  cleanup:
+    g_free(handshake);
     g_free(protocols);
     g_free(version);
     g_free(key);
@@ -249,10 +250,12 @@ static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
         }
     }
 
-    if (qio_channel_websock_handshake_process(ioc,
-                                              (char *)ioc->encinput.buffer,
-                                              ioc->encinput.offset,
-                                              errp) < 0) {
+    if (qio_channel_websock_handshake_process(
+            ioc,
+            (char *)ioc->encinput.buffer,
+            handshake_end - (char *)ioc->encinput.buffer
+            + strlen(QIO_CHANNEL_WEBSOCK_HANDSHAKE_END),
+            errp) < 0) {
         return -1;
     }
 
