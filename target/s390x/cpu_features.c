@@ -286,11 +286,11 @@ void s390_init_feat_bitmap(const S390FeatInit init, S390FeatBitmap bitmap)
     }
 }
 
-void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
+int s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
                           uint8_t *data)
 {
     S390Feat feat;
-    int bit_nr;
+    int bit_nr, res = 0;
 
     if (type == S390_FEAT_TYPE_STFL && test_bit(S390_FEAT_ZARCH, features)) {
         /* z/Architecture is always active if around */
@@ -303,9 +303,11 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
             bit_nr = s390_features[feat].bit;
             /* big endian on uint8_t array */
             data[bit_nr / 8] |= 0x80 >> (bit_nr % 8);
+            res = MAX(res, bit_nr / 8 + 1);
         }
         feat = find_next_bit(features, S390_FEAT_MAX, feat + 1);
     }
+    return res;
 }
 
 void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
