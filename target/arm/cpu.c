@@ -741,8 +741,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* This cpu-id-to-MPIDR affinity is used only for TCG; KVM will override it.
-     * We don't support setting cluster ID ([16..23]) (known as Aff2
+    /* We don't currently support setting cluster ID ([16..23]) (known as Aff2
      * in later ARM ARM versions), or any of the higher affinity level fields,
      * so these bits always RAZ.
      */
