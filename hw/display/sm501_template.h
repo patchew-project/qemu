@@ -22,13 +22,7 @@
  * THE SOFTWARE.
  */
 
-#if DEPTH == 8
-#define BPP 1
-#define PIXEL_TYPE uint8_t
-#elif DEPTH == 15 || DEPTH == 16
-#define BPP 2
-#define PIXEL_TYPE uint16_t
-#elif DEPTH == 32
+#if DEPTH == 32
 #define BPP 4
 #define PIXEL_TYPE uint32_t
 #else
