@@ -1057,6 +1057,10 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
     BDRVRawState *s = aiocb->bs->opaque;
 #endif
 
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_FALLOCATE)
+    int open_flags = aiocb->bs->open_flags;
+#endif
+
     if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
         return handle_aiocb_write_zeroes_block(aiocb);
     }
@@ -1079,7 +1083,7 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 #endif
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
-    if (s->has_discard && s->has_fallocate) {
+    if (s->has_discard && (s->has_fallocate || open_flags & BDRV_O_SPARSE)) {
         int ret = do_fallocate(s->fd,
                                FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                                aiocb->aio_offset, aiocb->aio_nbytes);
@@ -1098,7 +1102,8 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 #endif
 
 #ifdef CONFIG_FALLOCATE
-    if (s->has_fallocate && aiocb->aio_offset >= bdrv_getlength(aiocb->bs)) {
+    if (s->has_fallocate && !(open_flags & BDRV_O_SPARSE)
+            && aiocb->aio_offset >= bdrv_getlength(aiocb->bs)) {
         int ret = do_fallocate(s->fd, 0, aiocb->aio_offset, aiocb->aio_nbytes);
         if (ret == 0 || ret != -ENOTSUP) {
             return ret;

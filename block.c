@@ -665,12 +665,14 @@ static void bdrv_join_options(BlockDriverState *bs, QDict *options,
  */
 int bdrv_parse_discard_flags(const char *mode, int *flags)
 {
-    *flags &= ~BDRV_O_UNMAP;
+    *flags &= ~(BDRV_O_UNMAP | BDRV_O_SPARSE);
 
     if (!strcmp(mode, "off") || !strcmp(mode, "ignore")) {
         /* do nothing */
     } else if (!strcmp(mode, "on") || !strcmp(mode, "unmap")) {
         *flags |= BDRV_O_UNMAP;
+    } else if (!strcmp(mode, "sparse")) {
+        *flags |= BDRV_O_UNMAP | BDRV_O_SPARSE;
     } else {
         return -1;
     }

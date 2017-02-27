@@ -63,8 +63,8 @@ and @samp{native} (Linux only).
 @item --discard=@var{discard}
 Control whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
 requests are ignored or passed to the filesystem.  @var{discard} is one of
-@samp{ignore} (or @samp{off}), @samp{unmap} (or @samp{on}).  The default is
-@samp{ignore}.
+@samp{ignore} (or @samp{off}), @samp{unmap} (or @samp{on}), or @samp{sparse}.
+The default is @samp{ignore}.
 @item --detect-zeroes=@var{detect-zeroes}
 Control the automatic conversion of plain zero writes by the OS to
 driver-specific optimized zero write commands.  @var{detect-zeroes} is one of
