@@ -45,6 +45,11 @@
 static QTAILQ_HEAD(ChardevHead, Chardev) chardevs =
     QTAILQ_HEAD_INITIALIZER(chardevs);
 
+static Object *get_chardevs_root(void)
+{
+    return container_get(object_get_root(), "/chardevs");
+}
+
 void qemu_chr_be_event(Chardev *s, int event)
 {
     CharBackend *be = s->be;
@@ -413,6 +418,9 @@ static void char_finalize(Object *obj)
 {
     Chardev *chr = CHARDEV(obj);
 
+    if (QTAILQ_IN_USE(chr, next)) {
+        QTAILQ_REMOVE(&chardevs, chr, next);
+    }
     if (chr->be) {
         chr->be->chr = NULL;
     }
@@ -946,7 +954,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         backend->u.mux.data->chardev = g_strdup(bid);
         mux = qemu_chardev_add(id, TYPE_CHARDEV_MUX, backend, errp);
         if (mux == NULL) {
-            qemu_chr_delete(chr);
+            object_unparent(OBJECT(chr));
             chr = NULL;
             goto out;
         }
@@ -1058,12 +1066,6 @@ void qemu_chr_fe_disconnect(CharBackend *be)
     if (chr && CHARDEV_GET_CLASS(chr)->chr_disconnect) {
         CHARDEV_GET_CLASS(chr)->chr_disconnect(chr);
     }
-}
-
-void qemu_chr_delete(Chardev *chr)
-{
-    QTAILQ_REMOVE(&chardevs, chr, next);
-    object_unref(OBJECT(chr));
 }
 
 ChardevInfoList *qmp_query_chardev(Error **errp)
@@ -1225,22 +1227,33 @@ void qemu_chr_set_feature(Chardev *chr,
 }
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,
-                          ChardevBackend *backend, Error **errp)
+                          ChardevBackend *backend,
+                          Error **errp)
 {
+    Object *obj;
     Chardev *chr = NULL;
     Error *local_err = NULL;
     bool be_opened = true;
 
     assert(g_str_has_prefix(typename, "chardev-"));
 
-    chr = CHARDEV(object_new(typename));
+    if (id) {
+        obj = object_new_with_props(typename, get_chardevs_root(),
+                                    id, &local_err, NULL);
+    } else {
+        obj = object_new(typename);
+    }
+    if (local_err) {
+        assert(!obj);
+        goto end;
+    }
+
+    chr = CHARDEV(obj);
     chr->label = g_strdup(id);
 
     qemu_char_open(chr, backend, &be_opened, &local_err);
     if (local_err) {
-        error_propagate(errp, local_err);
-        object_unref(OBJECT(chr));
-        return NULL;
+        goto end;
     }
 
     if (!chr->filename) {
@@ -1250,6 +1263,18 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
         qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     }
 
+end:
+    if (local_err) {
+        error_propagate(errp, local_err);
+        if (chr) {
+            if (id) {
+                object_unparent(OBJECT(chr));
+            } else {
+                object_unref(OBJECT(chr));
+            }
+        }
+        return NULL;
+    }
     return chr;
 }
 
@@ -1298,16 +1323,12 @@ void qmp_chardev_remove(const char *id, Error **errp)
             "Chardev '%s' cannot be unplugged in record/replay mode", id);
         return;
     }
-    qemu_chr_delete(chr);
+    object_unparent(OBJECT(chr));
 }
 
 void qemu_chr_cleanup(void)
 {
-    Chardev *chr, *tmp;
-
-    QTAILQ_FOREACH_SAFE(chr, &chardevs, next, tmp) {
-        qemu_chr_delete(chr);
-    }
+    object_unparent(get_chardevs_root());
 }
 
 static void register_types(void)
