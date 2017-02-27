@@ -2680,6 +2680,12 @@
 #
 # @user:               #optional Ceph id name.
 #
+# @server:             #optional Monitor host address and port.  This maps
+#                      to the "mon_host" Ceph option.
+#
+# @auth_supported:     #optional Authentication supported.
+#                      Either "cephx" or"none".
+#
 # @password-secret:    #optional The ID of a QCryptoSecret object providing
 #                       the password for the login.
 #
@@ -2691,6 +2697,8 @@
             '*conf': 'str',
             '*snapshot': 'str',
             '*user': 'str',
+            '*server': 'InetSocketAddress',
+            '*auth_supported': 'str',
             '*password-secret': 'str' } }
 
 ##

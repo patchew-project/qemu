@@ -394,6 +394,18 @@ static QemuOptsList runtime_opts = {
             .name = "keyvalue-pairs",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "server.host",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "server.port",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "auth_supported",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -559,6 +571,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVRBDState *s = bs->opaque;
     const char *pool, *snap, *conf, *clientname, *name, *keypairs;
+    const char *host, *port, *auth_supported;
     const char *secretid;
     QemuOpts *opts;
     Error *local_err = NULL;
@@ -580,6 +593,9 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     clientname     = qemu_opt_get(opts, "user");
     name           = qemu_opt_get(opts, "image");
     keypairs       = qemu_opt_get(opts, "keyvalue-pairs");
+    host           = qemu_opt_get(opts, "server.host");
+    port           = qemu_opt_get(opts, "server.port");
+    auth_supported = qemu_opt_get(opts, "auth_supported");
 
     r = rados_create(&s->cluster, clientname);
     if (r < 0) {
@@ -602,6 +618,29 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     r = qemu_rbd_set_keypairs(s->cluster, keypairs, errp);
     if (r < 0) {
         goto failed_shutdown;
+    }
+
+    /* if mon_host was specified */
+    if (host) {
+        const char *hostname = host;
+        char *mon_host = NULL;
+
+        if (port) {
+            mon_host = g_strdup_printf("%s:%s", host, port);
+            hostname = mon_host;
+        }
+        r = rados_conf_set(s->cluster, "mon_host", hostname);
+        g_free(mon_host);
+        if (r < 0) {
+            goto failed_shutdown;
+        }
+    }
+
+    if (auth_supported) {
+        r = rados_conf_set(s->cluster, "auth_supported", auth_supported);
+        if (r < 0) {
+            goto failed_shutdown;
+        }
     }
 
     if (qemu_rbd_set_auth(s->cluster, secretid, errp) < 0) {
