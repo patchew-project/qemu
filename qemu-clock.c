@@ -27,6 +27,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/qdev-core.h"
+#include "monitor/monitor.h"
 
 #ifndef DEBUG_QEMU_CLOCK
 #define DEBUG_QEMU_CLOCK 0
@@ -132,6 +133,33 @@ QEMUClock *qemu_clk_device_get_clock(DeviceState *dev, const char *name)
     clk = object_resolve_path(path, &ambiguous);
     g_free(path);
     return QEMU_CLOCK(clk);
+}
+
+struct print_opaque {
+    Monitor *mon;
+    int indent;
+};
+
+static int qemu_clk_print_rec(Object *obj, void *opaque)
+{
+    QEMUClock *clk = (QEMUClock *)(object_dynamic_cast(obj, TYPE_CLOCK));
+    struct print_opaque *po = opaque;
+
+    if (clk) {
+        monitor_printf(po->mon, "%*s" "qemu-clk \"%s\" %" PRIu64 "\n",
+                       po->indent, " ", clk->name, clk->rate);
+    }
+
+    return 0;
+}
+
+void qemu_clk_print(Monitor *mon, DeviceState *dev, int indent)
+{
+    struct print_opaque po;
+
+    po.indent = indent;
+    po.mon = mon;
+    object_child_foreach(OBJECT(dev), qemu_clk_print_rec, &po);
 }
 
 static const TypeInfo qemu_clk_info = {
