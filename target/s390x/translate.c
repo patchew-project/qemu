@@ -1194,6 +1194,7 @@ typedef enum DisasFacility {
     FAC_SCF,                /* store clock fast */
     FAC_SFLE,               /* store facility list extended */
     FAC_ILA,                /* interlocked access facility 1 */
+    FAC_MVCOS,              /* move-with-optional-specification */
 } DisasFacility;
 
 struct DisasInsn {
@@ -2874,6 +2875,17 @@ static ExitStatus op_mvcs(DisasContext *s, DisasOps *o)
     check_privileged(s);
     potential_page_fault(s);
     gen_helper_mvcs(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvcos(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_mvcos(cc_op, cpu_env, regs[0], o->addr1, o->in2, regs[r3]);
     set_cc_static(s);
     return NO_EXIT;
 }

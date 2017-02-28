@@ -1089,6 +1089,86 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
     return cc;
 }
 
+uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t r0, uint64_t dest,
+                       uint64_t src, uint64_t len)
+{
+    int cc;
+    int key1, as1, abit1, kbit1;
+    int key2, as2, abit2, kbit2;
+
+    HELPER_LOG("%s dest %" PRIx64 ", src %" PRIx64 ", len %" PRIx64 "\n",
+               __func__, dest, src, len);
+
+    /* check DAT */
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        program_interrupt(env, PGM_SPECIAL_OP, 2);
+    }
+
+    /* access control for the first operand */
+    abit1 = (r0 & 0x0010000ULL) >> 16;
+    kbit1 = (r0 & 0x0020000ULL) >> 17;
+    as1 = (r0 & 0x00c00000ULL) >> 22;
+    key1 = (r0 & 0xf0000000ULL) >> 28;
+
+    if (!kbit1) {
+        key1 = (env->psw.mask & PSW_MASK_KEY) >> (PSW_SHIFT_KEY - 4);
+    }
+
+    if (!abit1) {
+        as1 = (env->psw.mask & PSW_MASK_ASC) >> 46;
+    }
+
+    /*
+     * abit1 is set, as1 designates the home-space mode, psw is in the problem
+     * state.
+     * */
+    if (abit1 && (as1 == 3) && (env->psw.mask & PSW_MASK_PSTATE)) {
+        program_interrupt(env, PGM_SPECIAL_OP, 2);
+    }
+
+    /* access control for the second operand */
+    abit2 = (r0 & 0x0010000ULL);
+    kbit2 = (r0 & 0x0020000ULL) >> 1;
+    as2 = (r0 & 0x00c00000ULL) >> 6;
+    key2 = (r0 & 0xf0000000ULL) >> 12;
+
+    if (!kbit2) {
+        key2 = (env->psw.mask & PSW_MASK_KEY) >> (PSW_SHIFT_KEY - 4);
+    }
+
+    if (!abit2) {
+        as2 = (env->psw.mask & PSW_MASK_ASC) >> 46;
+    }
+
+    /*
+     * Secondary-space control bit is zero (bit 37 of r0) and either as
+     * designates secondary-space mode.
+     */
+    if (!(r0 & 0x2000000000ULL) && (as1 == 2 || as2 == 2)) {
+        program_interrupt(env, PGM_SPECIAL_OP, 2);
+    }
+
+    /* psw is in the problem state and either key is invalid */
+    if ((env->psw.mask & PSW_MASK_PSTATE) &&
+        (!(env->cregs[3] & (1 << (31 - key1))) ||
+         !(env->cregs[3] & (1 << (31 - key2))))) {
+        program_interrupt(env, PGM_PRIVILEGED, 2);
+    }
+
+    if (len <= 4096) {
+        cc = 0;
+    } else {
+        cc = 3;
+        len = 4096;
+    }
+
+    /* move */
+    /* XXX use keys and as during the move */
+    fast_memmove(env, dest, src, len);
+
+    return cc;
+}
+
 /* invalidate pte */
 void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
 {
