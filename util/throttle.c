@@ -380,6 +380,16 @@ static void throttle_fix_bucket(LeakyBucket *bkt)
     }
 }
 
+/* undo internal bucket parameter changes (see throttle_fix_bucket()) */
+static void throttle_unfix_bucket(LeakyBucket *bkt)
+{
+    double min = bkt->avg / 10;
+
+    if (bkt->max == min) {
+        bkt->max = 0;
+    }
+}
+
 /* take care of canceling a timer */
 static void throttle_cancel_timer(QEMUTimer *timer)
 {
@@ -420,7 +430,13 @@ void throttle_config(ThrottleState *ts,
  */
 void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg)
 {
+    int i;
+
     *cfg = ts->cfg;
+
+    for (i = 0; i < BUCKETS_COUNT; i++) {
+        throttle_unfix_bucket(&cfg->buckets[i]);
+    }
 }
 
 
