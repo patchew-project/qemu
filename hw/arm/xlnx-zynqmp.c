@@ -177,6 +177,11 @@ static void xlnx_zynqmp_init(Object *obj)
 
     object_initialize(&s->dpdma, sizeof(s->dpdma), TYPE_XLNX_DPDMA);
     qdev_set_parent_bus(DEVICE(&s->dpdma), sysbus_get_default());
+
+    s->crf = object_new("xlnx.zynqmp_crf");
+    qdev_set_parent_bus(DEVICE(s->crf), sysbus_get_default());
+    object_property_add_child(obj, "xlnx.zynqmp_crf", OBJECT(s->crf),
+                              &error_abort);
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -424,6 +429,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dpdma), 0, DPDMA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dpdma), 0, gic_spi[DPDMA_IRQ]);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(s->crf), 0, 0xFD1A0000);
 }
 
 static Property xlnx_zynqmp_props[] = {
