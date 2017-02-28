@@ -26,6 +26,7 @@
 #include "hw/hw.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "hw/qdev-core.h"
 
 #ifndef DEBUG_QEMU_CLOCK
 #define DEBUG_QEMU_CLOCK 0
@@ -36,6 +37,22 @@
         qemu_log("%s: " fmt, __func__, ## args);                             \
     }                                                                        \
 } while (0);
+
+void qemu_clk_init_device(Object *obj, ClockInitElement *array)
+{
+    QEMUClock **cur = NULL;
+
+    while (array->name != NULL) {
+        DPRINTF("init clock named %s\n", array->name);
+        cur = (((void *)obj) + array->offset);
+        *cur = QEMU_CLOCK(object_new(TYPE_CLOCK));
+        qemu_clk_device_add_clock(DEVICE(obj), *cur, array->name);
+        if (array->cb) {
+            qemu_clk_set_callback(*cur, array->cb, obj);
+        }
+        array++;
+    }
+}
 
 void qemu_clk_refresh(QEMUClock *clk)
 {
