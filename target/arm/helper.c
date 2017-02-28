@@ -2159,7 +2159,13 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
             if (!attrs.secure) {
                 par64 |= (1 << 9); /* NS */
             }
-            /* We don't set the ATTR or SH fields in the PAR. */
+            /* ATTR bits are all set, which implies:
+             *   normal memory
+             *   outer write-back non-transient, read/write-allocate
+             *   inner write-back non-transient, read/write-allocate
+             */
+            par64 |= ((uint64_t)0xff << 56); /* ATTR */
+            /* We don't set the SH field in the PAR. */
         } else {
             par64 |= 1; /* F */
             par64 |= (fsr & 0x3f) << 1; /* FS */
