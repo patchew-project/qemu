@@ -75,6 +75,7 @@ common-obj-y += backends/
 common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
 
 common-obj-$(CONFIG_FDT) += device_tree.o
+common-obj-y += qemu-clock.o
 
 ######################################################################
 # qapi
