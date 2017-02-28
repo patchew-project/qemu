@@ -284,10 +284,11 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
     virtio_stw_phys_cached(vq->vdev, &caches->used, pa, val);
 }
 
-void virtio_queue_set_notification(VirtQueue *vq, int enable)
+static void vring_set_notification(VirtQueue *vq, int enable)
 {
-    vq->notification = enable;
-
+    if (!vq->vring.desc) {
+        return;
+    }
     rcu_read_lock();
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
@@ -301,6 +302,13 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
         smp_mb();
     }
     rcu_read_unlock();
+}
+
+void virtio_queue_set_notification(VirtQueue *vq, int enable)
+{
+    vq->notification = enable;
+
+    vring_set_notification(vq, enable);
 }
 
 int virtio_queue_ready(VirtQueue *vq)
@@ -1348,6 +1356,7 @@ void virtio_queue_set_addr(VirtIODevice *vdev, int n, hwaddr addr)
 {
     vdev->vq[n].vring.desc = addr;
     virtio_queue_update_rings(vdev, n);
+    vring_set_notification(&vdev->vq[n], vdev->vq[n].notification);
 }
 
 hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n)
@@ -1362,6 +1371,7 @@ void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
     vdev->vq[n].vring.avail = avail;
     vdev->vq[n].vring.used = used;
     virtio_init_region_cache(vdev, n);
+    vring_set_notification(&vdev->vq[n], vdev->vq[n].notification);
 }
 
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
