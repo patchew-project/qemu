@@ -25,6 +25,7 @@
 #include "qemu/qemu-clock.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 
 #ifndef DEBUG_QEMU_CLOCK
 #define DEBUG_QEMU_CLOCK 0
@@ -35,6 +36,28 @@
         qemu_log("%s: " fmt, __func__, ## args);                             \
     }                                                                        \
 } while (0);
+
+void qemu_clk_device_add_clock(DeviceState *dev, QEMUClock *clk,
+                               const char *name)
+{
+    assert(name);
+    assert(!clk->name);
+    object_property_add_child(OBJECT(dev), name, OBJECT(clk), &error_abort);
+    clk->name = g_strdup(name);
+}
+
+QEMUClock *qemu_clk_device_get_clock(DeviceState *dev, const char *name)
+{
+    gchar *path = NULL;
+    Object *clk;
+    bool ambiguous;
+
+    path = g_strdup_printf("%s/%s", object_get_canonical_path(OBJECT(dev)),
+                           name);
+    clk = object_resolve_path(path, &ambiguous);
+    g_free(path);
+    return QEMU_CLOCK(clk);
+}
 
 static const TypeInfo qemu_clk_info = {
     .name          = TYPE_CLOCK,
