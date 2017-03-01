@@ -743,178 +743,63 @@ uint64_t helper_frim(CPUPPCState *env, uint64_t arg)
     return do_fri(env, arg, float_round_down);
 }
 
-/* fmadd - fmadd. */
-uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
-                      uint64_t arg3)
+#define MADD_FLGS 0
+#define MSUB_FLGS float_muladd_negate_c
+#define NMADD_FLGS float_muladd_negate_result
+#define NMSUB_FLGS (float_muladd_negate_c | float_muladd_negate_result)
+
+static void float64_madd_set_vxisi(CPUPPCState *env, float64 a, float64 b,
+                                   float64 c, unsigned int flags)
 {
-    CPU_DoubleU farg1, farg2, farg3;
+    float64 f = float64_mul(a, b, &env->fp_status);
 
-    farg1.ll = arg1;
-    farg2.ll = arg2;
-    farg3.ll = arg3;
-
-    if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
-                 (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
-        /* Multiplication of zero by infinity */
-        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
-    } else {
-        if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg2.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg3.d, &env->fp_status))) {
-            /* sNaN operation */
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        }
-        /* This is the way the PowerPC specification defines it */
-        float128 ft0_128, ft1_128;
-
-        ft0_128 = float64_to_float128(farg1.d, &env->fp_status);
-        ft1_128 = float64_to_float128(farg2.d, &env->fp_status);
-        ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
-        if (unlikely(float128_is_infinity(ft0_128) &&
-                     float64_is_infinity(farg3.d) &&
-                     float128_is_neg(ft0_128) != float64_is_neg(farg3.d))) {
-            /* Magnitude subtraction of infinities */
-            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-        } else {
-            ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
-            ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
-            farg1.d = float128_to_float64(ft0_128, &env->fp_status);
+    /* a*b = ∞ and c = ∞, find ∞ - ∞ case and set VXISI */
+    if (float64_is_infinity(f) && float64_is_infinity(c)) {
+        if ((f ^ c) == 0) {
+            /* Both negative/positive inifinity and substraction*/
+            if (flags & MSUB_FLGS) {
+                /* 1. ∞ - ∞
+                 * 2. (-∞) - (-∞)
+                 */
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+            }
+        } else if (!(flags & MSUB_FLGS)) {
+            /* Opposite sign and addition
+             * 1) ∞ + (-∞)
+             * 2) (-∞) + ∞
+             */
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
         }
     }
-
-    return farg1.ll;
 }
 
-/* fmsub - fmsub. */
-uint64_t helper_fmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
-                      uint64_t arg3)
-{
-    CPU_DoubleU farg1, farg2, farg3;
-
-    farg1.ll = arg1;
-    farg2.ll = arg2;
-    farg3.ll = arg3;
-
-    if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
-                 (float64_is_zero(farg1.d) &&
-                  float64_is_infinity(farg2.d)))) {
-        /* Multiplication of zero by infinity */
-        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
-    } else {
-        if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg2.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg3.d, &env->fp_status))) {
-            /* sNaN operation */
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        }
-        /* This is the way the PowerPC specification defines it */
-        float128 ft0_128, ft1_128;
-
-        ft0_128 = float64_to_float128(farg1.d, &env->fp_status);
-        ft1_128 = float64_to_float128(farg2.d, &env->fp_status);
-        ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
-        if (unlikely(float128_is_infinity(ft0_128) &&
-                     float64_is_infinity(farg3.d) &&
-                     float128_is_neg(ft0_128) == float64_is_neg(farg3.d))) {
-            /* Magnitude subtraction of infinities */
-            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-        } else {
-            ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
-            ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
-            farg1.d = float128_to_float64(ft0_128, &env->fp_status);
-        }
-    }
-    return farg1.ll;
+#define FPU_FMADD(op, madd_flags)                                       \
+uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,                   \
+                     uint64_t arg2, uint64_t arg3)                      \
+{                                                                       \
+    if (unlikely((float64_is_infinity(arg1) && float64_is_zero(arg2)) || \
+                 (float64_is_zero(arg1) && float64_is_infinity(arg2)))) { \
+        /* Multiplication of zero by infinity */                        \
+        arg1 = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);     \
+    } else {                                                            \
+        if (unlikely(float64_is_signaling_nan(arg1, &env->fp_status) || \
+                     float64_is_signaling_nan(arg2, &env->fp_status) || \
+                     float64_is_signaling_nan(arg3, &env->fp_status))) { \
+            /* sNaN operation */                                        \
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);      \
+        }                                                               \
+                                                                        \
+        float64_madd_set_vxisi(env, arg1, arg2, arg3, madd_flags);      \
+        arg1 = float64_muladd(arg1, arg2, arg3, madd_flags,             \
+                              &env->fp_status);                         \
+        float_check_status(env);                                        \
+    }                                                                   \
+    return arg1;                                                        \
 }
-
-/* fnmadd - fnmadd. */
-uint64_t helper_fnmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
-                       uint64_t arg3)
-{
-    CPU_DoubleU farg1, farg2, farg3;
-
-    farg1.ll = arg1;
-    farg2.ll = arg2;
-    farg3.ll = arg3;
-
-    if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
-                 (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
-        /* Multiplication of zero by infinity */
-        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
-    } else {
-        if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg2.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg3.d, &env->fp_status))) {
-            /* sNaN operation */
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        }
-        /* This is the way the PowerPC specification defines it */
-        float128 ft0_128, ft1_128;
-
-        ft0_128 = float64_to_float128(farg1.d, &env->fp_status);
-        ft1_128 = float64_to_float128(farg2.d, &env->fp_status);
-        ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
-        if (unlikely(float128_is_infinity(ft0_128) &&
-                     float64_is_infinity(farg3.d) &&
-                     float128_is_neg(ft0_128) != float64_is_neg(farg3.d))) {
-            /* Magnitude subtraction of infinities */
-            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-        } else {
-            ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
-            ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
-            farg1.d = float128_to_float64(ft0_128, &env->fp_status);
-        }
-        if (likely(!float64_is_any_nan(farg1.d))) {
-            farg1.d = float64_chs(farg1.d);
-        }
-    }
-    return farg1.ll;
-}
-
-/* fnmsub - fnmsub. */
-uint64_t helper_fnmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
-                       uint64_t arg3)
-{
-    CPU_DoubleU farg1, farg2, farg3;
-
-    farg1.ll = arg1;
-    farg2.ll = arg2;
-    farg3.ll = arg3;
-
-    if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
-                 (float64_is_zero(farg1.d) &&
-                  float64_is_infinity(farg2.d)))) {
-        /* Multiplication of zero by infinity */
-        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ, 1);
-    } else {
-        if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg2.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg3.d, &env->fp_status))) {
-            /* sNaN operation */
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-        }
-        /* This is the way the PowerPC specification defines it */
-        float128 ft0_128, ft1_128;
-
-        ft0_128 = float64_to_float128(farg1.d, &env->fp_status);
-        ft1_128 = float64_to_float128(farg2.d, &env->fp_status);
-        ft0_128 = float128_mul(ft0_128, ft1_128, &env->fp_status);
-        if (unlikely(float128_is_infinity(ft0_128) &&
-                     float64_is_infinity(farg3.d) &&
-                     float128_is_neg(ft0_128) == float64_is_neg(farg3.d))) {
-            /* Magnitude subtraction of infinities */
-            farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-        } else {
-            ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
-            ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
-            farg1.d = float128_to_float64(ft0_128, &env->fp_status);
-        }
-        if (likely(!float64_is_any_nan(farg1.d))) {
-            farg1.d = float64_chs(farg1.d);
-        }
-    }
-    return farg1.ll;
-}
+FPU_FMADD(fmadd, MADD_FLGS)
+FPU_FMADD(fnmadd, NMADD_FLGS)
+FPU_FMADD(fmsub, MSUB_FLGS)
+FPU_FMADD(fnmsub, NMSUB_FLGS)
 
 /* frsp - frsp. */
 uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
@@ -2383,11 +2268,6 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
     putVSR(xT(opcode), &xt_out, env);                                         \
     float_check_status(env);                                                  \
 }
-
-#define MADD_FLGS 0
-#define MSUB_FLGS float_muladd_negate_c
-#define NMADD_FLGS float_muladd_negate_result
-#define NMSUB_FLGS (float_muladd_negate_c | float_muladd_negate_result)
 
 VSX_MADD(xsmaddadp, 1, float64, VsrD(0), MADD_FLGS, 1, 1, 0)
 VSX_MADD(xsmaddmdp, 1, float64, VsrD(0), MADD_FLGS, 0, 1, 0)
