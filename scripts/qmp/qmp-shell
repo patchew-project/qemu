@@ -70,6 +70,7 @@ import json
 import ast
 import readline
 import sys
+import os
 
 class QMPCompleter(list):
     def complete(self, text, state):
@@ -109,6 +110,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._pretty = pretty
         self._transmode = False
         self._actions = list()
+        self._histfile = os.path.join(os.path.expanduser('~'),
+                                      '.qmp_history')
 
     def __get_address(self, arg):
         """
@@ -137,6 +140,16 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         # XXX: default delimiters conflict with some command names (eg. query-),
         # clearing everything as it doesn't seem to matter
         readline.set_completer_delims('')
+        try:
+            readline.read_history_file(self._histfile)
+        except:
+            pass
+
+    def __save_history(self):
+        try:
+            readline.write_history_file(self._histfile)
+        except:
+            pass
 
     def __parse_value(self, val):
         try:
@@ -244,6 +257,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             print 'command format: <command-name> ',
             print '[arg-name1=arg1] ... [arg-nameN=argN]'
             return True
+        self.__save_history()
         # For transaction mode, we may have just cached the action:
         if qmpcmd is None:
             return True
