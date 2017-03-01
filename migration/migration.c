@@ -644,6 +644,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
+        info->ram->inst_dirty_pages_rate = s->inst_dirty_pages_rate;
     }
 }
 
@@ -1099,6 +1100,7 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->downtime = 0;
     s->expected_downtime = 0;
     s->dirty_pages_rate = 0;
+    s->inst_dirty_pages_rate = 0;
     s->dirty_bytes_rate = 0;
     s->setup_time = 0;
     s->dirty_sync_count = 0;

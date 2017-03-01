@@ -219,6 +219,10 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "dirty pages rate: %" PRIu64 " pages\n",
                            info->ram->dirty_pages_rate);
         }
+        if (info->ram->inst_dirty_pages_rate) {
+            monitor_printf(mon, "inst dirty pages rate: %" PRIu64 " bytes/s\n",
+                           info->ram->inst_dirty_pages_rate);
+        }
         if (info->ram->postcopy_requests) {
             monitor_printf(mon, "postcopy request count: %" PRIu64 "\n",
                            info->ram->postcopy_requests);
