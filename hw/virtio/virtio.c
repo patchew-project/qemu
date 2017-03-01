@@ -99,6 +99,9 @@ struct VirtQueue
     /* Notification enabled? */
     bool notification;
 
+    /* Delayed setup of flags for notifications */
+    bool delayed_notification_setup;
+
     uint16_t queue_index;
 
     unsigned int inuse;
@@ -284,10 +287,15 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
     virtio_stw_phys_cached(vq->vdev, &caches->used, pa, val);
 }
 
-void virtio_queue_set_notification(VirtQueue *vq, int enable)
+static void vring_set_notification(VirtQueue *vq, int enable)
 {
-    vq->notification = enable;
-
+    if (!vq->vring.desc ||
+        (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_VERSION_1) &&
+         !(vq->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))) {
+        vq->delayed_notification_setup = true;
+        return;
+    }
+    vq->delayed_notification_setup = false;
     rcu_read_lock();
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
@@ -301,6 +309,13 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
         smp_mb();
     }
     rcu_read_unlock();
+}
+
+void virtio_queue_set_notification(VirtQueue *vq, int enable)
+{
+    vq->notification = enable;
+
+    vring_set_notification(vq, enable);
 }
 
 int virtio_queue_ready(VirtQueue *vq)
@@ -1087,6 +1102,17 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
     if (k->set_status) {
         k->set_status(vdev, val);
     }
+    if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        val & VIRTIO_CONFIG_S_FEATURES_OK) {
+        int i;
+
+        for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+            if (!virtio_queue_get_num(vdev, i)) {
+                break;
+            }
+            vring_set_notification(&vdev->vq[i], vdev->vq[i].notification);
+        }
+    }
     vdev->status = val;
     return 0;
 }
@@ -1152,6 +1178,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].notification = true;
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
         vdev->vq[i].inuse = 0;
+        vdev->vq[i].delayed_notification_setup = false;
     }
 }
 
@@ -1671,6 +1698,19 @@ static bool virtio_broken_needed(void *opaque)
     return vdev->broken;
 }
 
+static bool virtio_delayed_notification_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+    int i;
+
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (vdev->vq[i].delayed_notification_setup) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
     .version_id = 1,
@@ -1799,6 +1839,29 @@ static const VMStateDescription vmstate_virtio_broken = {
     }
 };
 
+static const VMStateDescription vmstate_delayed_notification = {
+    .name = "delayed_notification_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(delayed_notification_setup, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_virtio_delayed_notification = {
+    .name = "virtio/delayed_notification",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_delayed_notification_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_delayed_notification,
+                      VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio = {
     .name = "virtio",
     .version_id = 1,
@@ -1814,6 +1877,7 @@ static const VMStateDescription vmstate_virtio = {
         &vmstate_virtio_ringsize,
         &vmstate_virtio_broken,
         &vmstate_virtio_extra_state,
+        &vmstate_virtio_delayed_notification,
         NULL
     }
 };
@@ -2273,6 +2337,10 @@ EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq)
 static void virtio_queue_host_notifier_aio_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
+
+    if (unlikely(vq->delayed_notification_setup)) {
+        vring_set_notification(vq, vq->notification);
+    }
     if (event_notifier_test_and_clear(n)) {
         virtio_queue_notify_aio_vq(vq);
     }
