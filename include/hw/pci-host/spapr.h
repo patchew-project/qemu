@@ -79,6 +79,7 @@ struct sPAPRPHBState {
     uint64_t dma64_win_addr;
 
     uint32_t numa_node;
+    uint64_t mem_bar_min_align;
 
     /* Fields for migration compatibility hacks */
     bool pre_2_8_migration;

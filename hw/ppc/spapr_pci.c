@@ -1398,6 +1398,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (sphb->mem_bar_min_align == (uint64_t)-1) {
+        sphb->mem_bar_min_align = qemu_real_host_page_size;
+    }
+
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
 
     namebuf = alloca(strlen(sphb->dtbusname) + 32);
@@ -1592,6 +1596,8 @@ static Property spapr_phb_properties[] = {
     DEFINE_PROP_UINT32("numa_node", sPAPRPHBState, numa_node, -1),
     DEFINE_PROP_BOOL("pre-2.8-migration", sPAPRPHBState,
                      pre_2_8_migration, false),
+    DEFINE_PROP_UINT64("mem_bar_min_align", sPAPRPHBState, mem_bar_min_align,
+                       -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1962,6 +1968,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     if (ret) {
         return ret;
     }
+    _FDT(fdt_setprop_cell(fdt, bus_off, "qemu,mem-bar-min-align",
+                          phb->mem_bar_min_align));
 
     return 0;
 }

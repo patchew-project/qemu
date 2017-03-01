@@ -2979,7 +2979,12 @@ DEFINE_SPAPR_MACHINE(2_9, "2.9", true);
  * pseries-2.8
  */
 #define SPAPR_COMPAT_2_8                            \
-    HW_COMPAT_2_8
+    HW_COMPAT_2_8                                   \
+    {                                               \
+        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,     \
+        .property = "mem_bar_min_align",            \
+        .value    = "0",                            \
+    },                                              \
 
 static void spapr_machine_2_8_instance_options(MachineState *machine)
 {
