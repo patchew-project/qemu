@@ -1392,7 +1392,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
-        goto out;
+        goto out_no_fd;
     }
 
     filename = qemu_opt_get(opts, "filename");
@@ -1412,12 +1412,12 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     }
     if (ret < 0) {
         error_setg(errp, "Can't parse filename");
-        goto out;
+        goto out_no_fd;
     }
     s->fd = get_sheep_fd(s, errp);
     if (s->fd < 0) {
         ret = s->fd;
-        goto out;
+        goto out_no_fd;
     }
 
     ret = find_vdi_name(s, vdi, snapid, tag, &vid, true, errp);
@@ -1472,6 +1472,7 @@ out:
     if (s->fd >= 0) {
         closesocket(s->fd);
     }
+out_no_fd:
     qemu_opts_del(opts);
     g_free(buf);
     return ret;
