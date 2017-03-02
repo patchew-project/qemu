@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
@@ -86,7 +87,9 @@ void cpu_put_psr(CPUSPARCState *env, target_ulong val)
 {
     cpu_put_psr_raw(env, val);
 #if ((!defined(TARGET_SPARC64)) && !defined(CONFIG_USER_ONLY))
+    qemu_mutex_lock_iothread();
     cpu_check_irqs(env);
+    qemu_mutex_unlock_iothread();
 #endif
 }
 
@@ -368,7 +371,9 @@ void helper_wrpstate(CPUSPARCState *env, target_ulong new_state)
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
+        qemu_mutex_lock_iothread();
         cpu_check_irqs(env);
+        qemu_mutex_unlock_iothread();
     }
 #endif
 }
@@ -381,7 +386,9 @@ void helper_wrpil(CPUSPARCState *env, target_ulong new_pil)
     env->psrpil = new_pil;
 
     if (cpu_interrupts_enabled(env)) {
+        qemu_mutex_lock_iothread();
         cpu_check_irqs(env);
+        qemu_mutex_unlock_iothread();
     }
 #endif
 }
@@ -408,7 +415,9 @@ void helper_done(CPUSPARCState *env)
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
+        qemu_mutex_lock_iothread();
         cpu_check_irqs(env);
+        qemu_mutex_unlock_iothread();
     }
 #endif
 }
@@ -435,7 +444,9 @@ void helper_retry(CPUSPARCState *env)
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
+        qemu_mutex_lock_iothread();
         cpu_check_irqs(env);
+        qemu_mutex_unlock_iothread();
     }
 #endif
 }
