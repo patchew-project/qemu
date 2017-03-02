@@ -2123,6 +2123,7 @@
 # @replication: Since 2.8
 # @ssh: Since 2.8
 # @iscsi: Since 2.9
+# @sheepdog: Since 2.9
 #
 # Since: 2.0
 ##
@@ -2131,8 +2132,8 @@
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
             'null-aio', 'null-co', 'parallels', 'qcow', 'qcow2', 'qed',
-            'quorum', 'raw', 'replication', 'ssh', 'vdi', 'vhdx', 'vmdk',
-            'vpc', 'vvfat' ] }
+            'quorum', 'raw', 'replication', 'sheepdog', 'ssh', 'vdi',
+            'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -2634,6 +2635,26 @@
             '*timeout': 'int' } }
 
 ##
+# @BlockdevOptionsSheepdog:
+#
+# Driver specific block device options for sheepdog
+#
+# @vdi:         Virtual disk image name
+# @addr:        The Sheepdog server to connect to
+# @snap-id:     Snapshot ID
+# @tag:         Snapshot tag name
+#
+# Only one of @snap-id and @tag may be present.
+#
+# Since: 2.9
+##
+{ 'struct': 'BlockdevOptionsSheepdog',
+  'data': { 'addr': 'SocketAddressFlat',
+            'vdi': 'str',
+            '*snap-id': 'uint32',
+            '*tag': 'str' } }
+
+##
 # @ReplicationMode:
 #
 # An enumeration of replication modes.
@@ -2833,7 +2854,7 @@
       'raw':        'BlockdevOptionsRaw',
 # TODO rbd: Wait for structured options
       'replication':'BlockdevOptionsReplication',
-# TODO sheepdog: Wait for structured options
+      'sheepdog':   'BlockdevOptionsSheepdog',
       'ssh':        'BlockdevOptionsSsh',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
