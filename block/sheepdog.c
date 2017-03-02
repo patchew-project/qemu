@@ -2406,18 +2406,15 @@ out:
 
 #define NR_BATCHED_DISCARD 128
 
-static bool remove_objects(BDRVSheepdogState *s)
+static int remove_objects(BDRVSheepdogState *s, Error **errp)
 {
     int fd, i = 0, nr_objs = 0;
-    Error *local_err = NULL;
     int ret = 0;
-    bool result = true;
     SheepdogInode *inode = &s->inode;
 
-    fd = connect_to_sdog(s, &local_err);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
-        error_report_err(local_err);
-        return false;
+        return fd;
     }
 
     nr_objs = count_data_objs(inode);
@@ -2447,15 +2444,14 @@ static bool remove_objects(BDRVSheepdogState *s)
                                     data_vdi_id[start_idx]),
                            false, s->cache_flags);
         if (ret < 0) {
-            error_report("failed to discard snapshot inode.");
-            result = false;
+            error_setg(errp, "failed to discard snapshot inode.");
             goto out;
         }
     }
 
 out:
     closesocket(fd);
-    return result;
+    return ret;
 }
 
 static int sd_snapshot_delete(BlockDriverState *bs,
@@ -2465,7 +2461,6 @@ static int sd_snapshot_delete(BlockDriverState *bs,
 {
     unsigned long snap_id = 0;
     char snap_tag[SD_MAX_VDI_TAG_LEN];
-    Error *local_err = NULL;
     int fd, ret;
     char buf[SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN];
     BDRVSheepdogState *s = bs->opaque;
@@ -2478,8 +2473,9 @@ static int sd_snapshot_delete(BlockDriverState *bs,
     };
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
 
-    if (!remove_objects(s)) {
-        return -1;
+    ret = remove_objects(s, errp);
+    if (ret) {
+        return ret;
     }
 
     memset(buf, 0, sizeof(buf));
@@ -2500,35 +2496,36 @@ static int sd_snapshot_delete(BlockDriverState *bs,
     }
 
     ret = find_vdi_name(s, s->name, snap_id, snap_tag, &vid, true,
-                        &local_err);
+                        errp);
     if (ret) {
         return ret;
     }
 
-    fd = connect_to_sdog(s, &local_err);
+    fd = connect_to_sdog(s, errp);
     if (fd < 0) {
-        error_report_err(local_err);
-        return -1;
+        return fd;
     }
 
     ret = do_req(fd, s->bs, (SheepdogReq *)&hdr,
                  buf, &wlen, &rlen);
     closesocket(fd);
     if (ret) {
+        error_setg_errno(errp, -ret, "Couldn't send request to server");
         return ret;
     }
 
     switch (rsp->result) {
     case SD_RES_NO_VDI:
-        error_report("%s was already deleted", s->name);
+        error_setg(errp, "Can't find the snapshot");
+        return -ENOENT;
     case SD_RES_SUCCESS:
         break;
     default:
-        error_report("%s, %s", sd_strerror(rsp->result), s->name);
-        return -1;
+        error_setg(errp, "%s", sd_strerror(rsp->result));
+        return -EIO;
     }
 
-    return ret;
+    return 0;
 }
 
 static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
