@@ -654,3 +654,44 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
     }
 }
 #endif
+
+void HELPER(stfl)(CPUS390XState *env)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    S390FeatInit buf = { };
+    uint32_t feat32;
+
+    s390_fill_feat_block(cpu->model->features, S390_FEAT_TYPE_STFL,
+                         (uint8_t *) &buf);
+    feat32 = be64_to_cpu(buf[0]) >> 32;
+
+    cpu_stl_data(env, 200, feat32);
+}
+
+uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    S390FeatInit buf = { };
+    int count_m1 = env->regs[0] & 0xff;
+    int max_m1, i;
+
+    s390_fill_feat_block(cpu->model->features, S390_FEAT_TYPE_STFL,
+                         (uint8_t *) &buf);
+
+    /* Find out how many 64-bit quantities are non-zero.  */
+    for (max_m1 = ARRAY_SIZE (buf) - 1; max_m1 > 0; --max_m1) {
+        if (buf[max_m1] != 0) {
+            break;
+        }
+    }
+
+    /* Note that s390_fill_feat_block already filled in big-endian.
+       But since cpu_stq_data will swap from host, we need to convert
+       back to host-endian first.  */
+    for (i = 0; i <= count_m1; ++i) {
+        cpu_stq_data(env, addr + 8 * i, be64_to_cpu(buf[i]));
+    }
+
+    env->regs[0] = deposit64(env->regs[0], 0, 8, max_m1);
+    return (count_m1 >= max_m1 ? 0 : 3);
+}
