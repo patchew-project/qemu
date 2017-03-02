@@ -333,6 +333,13 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
     TranslationBlock *tb;
     bool r = false;
 
+    /* Don't attempt to restore state if we are translating already */
+    if (tcg_ctx.cpu == cpu) {
+        qemu_log_mask(LOG_UNIMP, "Attempt to resolve CPU state @ 0x%" PRIxPTR
+                      " while translating\n", retaddr);
+        return r;
+    }
+
     tb_lock();
     tb = tb_find_pc(retaddr);
     if (tb) {
