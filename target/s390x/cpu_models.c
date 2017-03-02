@@ -590,7 +590,6 @@ CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelInfo *infoa,
     cpu_info_from_model(baseline_info->model, &model, true);
     return baseline_info;
 }
-#endif
 
 static void check_consistency(const S390CPUModel *model)
 {
@@ -660,7 +659,6 @@ static void check_compatibility(const S390CPUModel *max_model,
 
 static S390CPUModel *get_max_cpu_model(Error **errp)
 {
-#ifndef CONFIG_USER_ONLY
     static S390CPUModel max_model;
     static bool cached;
 
@@ -680,9 +678,9 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
         cached = true;
         return &max_model;
     }
-#endif
     return NULL;
 }
+#endif
 
 static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
 {
@@ -718,6 +716,7 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
 
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
+#ifndef CONFIG_USER_ONLY
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
     S390CPU *cpu = S390_CPU(cs);
     const S390CPUModel *max_model;
@@ -751,6 +750,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     }
 
     apply_cpu_model(cpu->model, errp);
+#endif
 }
 
 static void get_feature(Object *obj, Visitor *v, const char *name,
