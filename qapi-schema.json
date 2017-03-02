@@ -1089,7 +1089,9 @@
 #          "compress-level": 1,
 #          "cpu-throttle-initial": 20,
 #          "max-bandwidth": 33554432,
-#          "downtime-limit": 300
+#          "downtime-limit": 300,
+#          "tls-creds": "tls0",
+#          "tls-hostname": ""
 #       }
 #    }
 #
