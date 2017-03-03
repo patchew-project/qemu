@@ -3188,6 +3188,43 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
     return -ENOTSUP;
 }
 
+/*
+ * bdrv_max_size:
+ * @drv: Format driver
+ * @opts: Creation options
+ * @in_bs: Existing image containing data for new image (may be NULL)
+ * @errp: Error object
+ *
+ * Calculate maximum file size required by a new image.  The value is
+ * conservative so actual creation of the image never requires more space than
+ * what is returned by this function.
+ *
+ * Note that this value is the file size including sparse regions, not the
+ * allocated file size.  A new 5 GB raw file therefore has a maximum size of 5
+ * GB, not 0!
+ *
+ * If @in_bs is given then space for allocated clusters and zero clusters
+ * from that image are included in the calculation.  If @opts contains a
+ * backing file that is shared by @in_bs then backing clusters are omitted
+ * from the calculation.
+ *
+ * If @in_bs is NULL then the calculation includes no allocated clusters
+ * unless a preallocation option is given in @opts.
+ *
+ * Returns the maximum size for the new image or 0 on error.
+ */
+uint64_t bdrv_max_size(BlockDriver *drv, QemuOpts *opts,
+                       BlockDriverState *in_bs, Error **errp)
+{
+    if (!drv->bdrv_max_size) {
+        error_setg(errp, "Block driver '%s' does not support max size "
+                   "calculation", drv->format_name);
+        return 0;
+    }
+
+    return drv->bdrv_max_size(opts, in_bs, errp);
+}
+
 /**
  * Return number of sectors on success, -errno on error.
  */
