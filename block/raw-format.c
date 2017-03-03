@@ -312,6 +312,21 @@ static int64_t raw_getlength(BlockDriverState *bs)
     return s->size;
 }
 
+static uint64_t raw_max_size(QemuOpts *opts, BlockDriverState *in_bs,
+                             Error **errp)
+{
+    if (in_bs) {
+        int64_t size = bdrv_nb_sectors(in_bs);
+        if (size < 0) {
+            error_setg_errno(errp, -size, "Unable to get image size");
+            return 0;
+        }
+        return (uint64_t)size * BDRV_SECTOR_SIZE;
+    }
+
+    return qemu_opt_get_size(opts, "size", 0);
+}
+
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return bdrv_get_info(bs->file->bs, bdi);
@@ -477,6 +492,7 @@ BlockDriver bdrv_raw = {
     .bdrv_truncate        = &raw_truncate,
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
+    .bdrv_max_size        = &raw_max_size,
     .bdrv_get_info        = &raw_get_info,
     .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
