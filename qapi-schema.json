@@ -5641,14 +5641,18 @@
 # @memdev: #optional memory backend object.  If specified for one node,
 #          it must be specified for all nodes.
 #
+# @distance: #optional NUMA distance array. The length of this array should
+#            be equal to number of NUMA nodes.
+#
 # Since: 2.1
 ##
 { 'struct': 'NumaNodeOptions',
   'data': {
-   '*nodeid': 'uint16',
-   '*cpus':   ['uint16'],
-   '*mem':    'size',
-   '*memdev': 'str' }}
+   '*nodeid':   'uint16',
+   '*cpus':     ['uint16'],
+   '*mem':      'size',
+   '*memdev':   'str' ,
+   '*distance': ['uint8'] }}
 
 ##
 # @HostMemPolicy:
