@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# qemu-img max-size tests
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=stefanha@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1    # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+_supported_fmt raw
+_supported_proto file
+_supported_os Linux
+
+echo "Input validation"
+echo
+
+_make_test_img 1G
+
+$QEMU_IMG max-size # missing arguments
+$QEMU_IMG max-size --size 2G "$TEST_IMG" # only one allowed
+$QEMU_IMG max-size "$TEST_IMG" a # only one filename allowed
+$QEMU_IMG max-size --object secret,id=sec0,data=MTIzNDU2,format=base64 # missing filename
+$QEMU_IMG max-size --image-opts # missing filename
+$QEMU_IMG max-size -f qcow2 # missing filename
+$QEMU_IMG max-size -l snap1 # missing filename
+$QEMU_IMG max-size -o , # invalid option list
+$QEMU_IMG max-size -l snapshot.foo # invalid snapshot option
+$QEMU_IMG max-size --output foo # invalid output format
+$QEMU_IMG max-size --size -1 # invalid image size
+$QEMU_IMG max-size -O foo "$TEST_IMG" # unknown image file format
+
+echo
+echo "Size calculation"
+echo
+
+for ofmt in human json; do
+    $QEMU_IMG max-size --output=$ofmt -O "$IMGFMT" --size 2G
+    $QEMU_IMG max-size --output=$ofmt -f "$IMGFMT" -O "$IMGFMT" "$TEST_IMG"
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
