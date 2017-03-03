@@ -22,7 +22,7 @@ static inline void close_preserve_errno(int fd)
 
 static inline int openat_dir(int dirfd, const char *name)
 {
-    return openat(dirfd, name, O_DIRECTORY | O_RDONLY | O_PATH);
+    return openat(dirfd, name, O_DIRECTORY | O_RDONLY | O_NOFOLLOW);
 }
 
 static inline int openat_file(int dirfd, const char *name, int flags,
