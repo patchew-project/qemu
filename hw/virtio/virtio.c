@@ -1084,9 +1084,22 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
             }
         }
     }
+
+    virtio_device_reset_dma_as(vdev);
+
+    if (val == (VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER)) {
+        memory_listener_unregister(&vdev->listener);
+        memory_listener_register(&vdev->listener, vdev->dma_as);
+    }
+
     if (k->set_status) {
         k->set_status(vdev, val);
     }
+
+    if (val == 0) {
+        memory_listener_unregister(&vdev->listener);
+    }
+
     vdev->status = val;
     return 0;
 }
@@ -2402,7 +2415,6 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     }
 
     vdev->listener.commit = virtio_memory_listener_commit;
-    memory_listener_register(&vdev->listener, vdev->dma_as);
 }
 
 static void virtio_device_unrealize(DeviceState *dev, Error **errp)
@@ -2574,6 +2586,21 @@ bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
 
     return virtio_bus_ioeventfd_enabled(vbus);
+}
+
+void virtio_device_reset_dma_as(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    BusState *qbus = BUS(qdev_get_parent_bus(qdev));
+    VirtioBusState *bus = VIRTIO_BUS(qbus);
+    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
+    bool has_iommu = virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
+
+    if (klass->get_dma_as != NULL && has_iommu) {
+        vdev->dma_as = klass->get_dma_as(qbus->parent);
+    } else {
+        vdev->dma_as = &address_space_memory;
+    }
 }
 
 static const TypeInfo virtio_device_info = {
