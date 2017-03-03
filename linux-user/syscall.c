@@ -7898,6 +7898,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     case TARGET_NR_execve:
         {
+#define ARG_MAX 65535
             char **argp, **envp;
             int argc, envc;
             abi_ulong gp;
@@ -7926,6 +7927,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 envc++;
             }
 
+            if (argc > ARG_MAX || envc > ARG_MAX) {
+                fprintf(stderr,
+                        "argc(%d), envc(%d) exceed %d\n", argc, envc, ARG_MAX);
+                ret = -TARGET_EFAULT;
+                break;
+            }
             argp = alloca((argc + 1) * sizeof(void *));
             envp = alloca((envc + 1) * sizeof(void *));
 
