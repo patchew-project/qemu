@@ -2059,6 +2059,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     rcu_read_lock();
     for (i = 0; i < num; i++) {
+        virtio_init_region_cache(vdev, i);
         if (vdev->vq[i].vring.desc) {
             uint16_t nheads;
             nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
