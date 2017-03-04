@@ -799,8 +799,14 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
 static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
                                   const uint8_t *data, uint32_t len)
 {
-    CCID_DataBlock *p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
+    CCID_DataBlock *p;
 
+    if (len == 0) {
+        return;
+    }
+    g_assert(data != NULL);
+
+    p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
     if (p == NULL) {
         return;
     }
