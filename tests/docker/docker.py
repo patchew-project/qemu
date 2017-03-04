@@ -22,10 +22,14 @@ import argparse
 import tempfile
 import re
 import signal
+import string
 from tarfile import TarFile, TarInfo
 from StringIO import StringIO
 from shutil import copy, rmtree
 from pwd import getpwuid
+
+
+FILTERED_ENV_NAMES = ['FTP_PROXY', 'HTTP_PROXY', 'HTTPS_PROXY']
 
 
 DEVNULL = open(os.devnull, 'wb')
@@ -272,6 +276,12 @@ class BuildCommand(SubCommand):
                 _copy_binary_with_libs(args.include_executable,
                                        docker_dir)
 
+            filtered_keys = map(string.upper, FILTERED_ENV_NAMES)
+            filtered_keys += map(string.lower, FILTERED_ENV_NAMES)
+            for filtered_key in filtered_keys:
+                if filtered_key in os.environ.keys():
+                    argv += ["--build-arg=" + filtered_key +
+                                "=" + os.environ[filtered_key]]
             dkr.build_image(tag, docker_dir, dockerfile,
                             quiet=args.quiet, user=args.user, argv=argv)
 
