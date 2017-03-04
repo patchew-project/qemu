@@ -17,16 +17,14 @@ static int envlist_parse(envlist_t *envlist,
     const char *env, int (*)(envlist_t *, const char *));
 
 /*
- * Allocates new envlist and returns pointer to that or
- * NULL in case of error.
+ * Allocates new envlist and returns pointer to it.
  */
 envlist_t *
 envlist_create(void)
 {
 	envlist_t *envlist;
 
-	if ((envlist = malloc(sizeof (*envlist))) == NULL)
-		return (NULL);
+	envlist = g_malloc(sizeof (*envlist));
 
 	QLIST_INIT(&envlist->el_entries);
 	envlist->el_count = 0;
@@ -49,9 +47,9 @@ envlist_free(envlist_t *envlist)
 		QLIST_REMOVE(entry, ev_link);
 
 		free((char *)entry->ev_var);
-		free(entry);
+		g_free(entry);
 	}
-	free(envlist);
+	g_free(envlist);
 }
 
 /*
@@ -156,15 +154,14 @@ envlist_setenv(envlist_t *envlist, const char *env)
 	if (entry != NULL) {
 		QLIST_REMOVE(entry, ev_link);
 		free((char *)entry->ev_var);
-		free(entry);
+		g_free(entry);
 	} else {
 		envlist->el_count++;
 	}
 
-	if ((entry = malloc(sizeof (*entry))) == NULL)
-		return (errno);
+	entry = g_malloc(sizeof (*entry));
 	if ((entry->ev_var = strdup(env)) == NULL) {
-		free(entry);
+		g_free(entry);
 		return (errno);
 	}
 	QLIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
@@ -202,7 +199,7 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
 	if (entry != NULL) {
 		QLIST_REMOVE(entry, ev_link);
 		free((char *)entry->ev_var);
-		free(entry);
+		g_free(entry);
 
 		envlist->el_count--;
 	}
@@ -212,12 +209,12 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
 /*
  * Returns given envlist as array of strings (in same form that
  * global variable environ is).  Caller must free returned memory
- * by calling free(3) for each element and for the array.  Returned
- * array and given envlist are not related (no common references).
+ * by calling free(3) for each element, and g_free for the array.
+ * Returned array and given envlist are not related (no common
+ * references).
  *
  * If caller provides count pointer, number of items in array is
- * stored there.  In case of error, NULL is returned and no memory
- * is allocated.
+ * stored there.
  */
 char **
 envlist_to_environ(const envlist_t *envlist, size_t *count)
@@ -225,9 +222,7 @@ envlist_to_environ(const envlist_t *envlist, size_t *count)
 	struct envlist_entry *entry;
 	char **env, **penv;
 
-	penv = env = malloc((envlist->el_count + 1) * sizeof (char *));
-	if (env == NULL)
-		return (NULL);
+	penv = env = g_malloc((envlist->el_count + 1) * sizeof (char *));
 
 	for (entry = envlist->el_entries.lh_first; entry != NULL;
 	    entry = entry->ev_link.le_next) {
