@@ -184,14 +184,17 @@ void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value);
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
 void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value);
-void qdev_prop_set_chr(DeviceState *dev, const char *name, Chardev *value);
-void qdev_prop_set_netdev(DeviceState *dev, const char *name, NetClientState *value);
+void qdev_prop_set_chr(DeviceState *dev, const char *name,
+                       const Chardev *value);
+void qdev_prop_set_netdev(DeviceState *dev, const char *name,
+                          const NetClientState *value);
 void qdev_prop_set_drive(DeviceState *dev, const char *name,
                          BlockBackend *value, Error **errp);
-void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
+void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
+                           const uint8_t *value);
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 /* FIXME: Remove opaque pointer properties.  */
-void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
+void qdev_prop_set_ptr(DeviceState *dev, const char *name, const void *value);
 
 void qdev_prop_register_global(GlobalProperty *prop);
 void qdev_prop_register_global_list(GlobalProperty *props);

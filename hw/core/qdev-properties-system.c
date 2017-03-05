@@ -405,7 +405,7 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name,
     if (value) {
         ref = blk_name(value);
         if (!*ref) {
-            BlockDriverState *bs = blk_bs(value);
+            const BlockDriverState *bs = blk_bs(value);
             if (bs) {
                 ref = bdrv_get_node_name(bs);
             }
@@ -416,7 +416,7 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name,
 }
 
 void qdev_prop_set_chr(DeviceState *dev, const char *name,
-                       Chardev *value)
+                       const Chardev *value)
 {
     assert(!value || value->label);
     object_property_set_str(OBJECT(dev),
@@ -424,7 +424,7 @@ void qdev_prop_set_chr(DeviceState *dev, const char *name,
 }
 
 void qdev_prop_set_netdev(DeviceState *dev, const char *name,
-                          NetClientState *value)
+                          const NetClientState *value)
 {
     assert(!value || value->name);
     object_property_set_str(OBJECT(dev),
