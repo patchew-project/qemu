@@ -1569,7 +1569,7 @@ static int truncate_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
 
-    ret = blk_truncate(blk, offset);
+    ret = blk_truncate(blk, offset, NULL);
     if (ret < 0) {
         printf("truncate: %s\n", strerror(-ret));
         return 0;
