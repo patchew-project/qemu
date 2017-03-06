@@ -1102,6 +1102,7 @@ typedef struct CPUX86State {
     /* exception/interrupt handling */
     int error_code;
     int exception_is_int;
+    uintptr_t exception_retaddr;
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers; note dr4 and dr5 are unused */
     union {

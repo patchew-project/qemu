@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
+#include "sysemu/sysemu.h"
 
 //#define DEBUG_PCALL
 
@@ -1314,11 +1315,69 @@ void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw)
     do_interrupt_all(x86_env_get_cpu(env), intno, 0, 0, 0, is_hw);
 }
 
+/*
+ * Check nested exceptions and change to double or triple fault if
+ * needed. It should only be called, if this is not an interrupt.
+ * Returns the new exception number.
+ */
+static int check_exception(CPUX86State *env, int intno, int *error_code,
+                           uintptr_t retaddr)
+{
+    int first_contributory = env->old_exception == 0 ||
+                              (env->old_exception >= 10 &&
+                               env->old_exception <= 13);
+    int second_contributory = intno == 0 ||
+                               (intno >= 10 && intno <= 13);
+
+    qemu_log_mask(CPU_LOG_INT, "check_exception old: 0x%x new 0x%x\n",
+                env->old_exception, intno);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (env->old_exception == EXCP08_DBLE) {
+        if (env->hflags & HF_SVMI_MASK) {
+            cpu_vmexit(env, SVM_EXIT_SHUTDOWN, 0, retaddr); /* does not return */
+        }
+
+        qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
+
+        qemu_system_reset_request();
+        return EXCP_HLT;
+    }
+#endif
+
+    if ((first_contributory && second_contributory)
+        || (env->old_exception == EXCP0E_PAGE &&
+            (second_contributory || (intno == EXCP0E_PAGE)))) {
+        intno = EXCP08_DBLE;
+        *error_code = 0;
+    }
+
+    if (second_contributory || (intno == EXCP0E_PAGE) ||
+        (intno == EXCP08_DBLE)) {
+        env->old_exception = intno;
+    }
+
+    return intno;
+}
+
 bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     bool ret = false;
+
+    if (!env->exception_is_int) {
+        cpu_svm_check_intercept_param(env,
+                                      SVM_EXIT_EXCP_BASE + cs->exception_index,
+                                      env->error_code,
+                                      env->exception_retaddr);
+        cs->exception_index = check_exception(env, cs->exception_index,
+                                              &env->error_code,
+                                              env->exception_retaddr);
+    } else {
+        cpu_svm_check_intercept_param(env, SVM_EXIT_SWINT, 0,
+                                      env->exception_retaddr);
+    }
 
 #if !defined(CONFIG_USER_ONLY)
     if (interrupt_request & CPU_INTERRUPT_POLL) {
