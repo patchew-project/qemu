@@ -28,11 +28,14 @@
 uint64_t helper_load_pcc(CPUAlphaState *env)
 {
 #ifndef CONFIG_USER_ONLY
+    uint64_t pcc;
     /* In system mode we have access to a decent high-resolution clock.
        In order to make OS-level time accounting work with the RPCC,
        present it with a well-timed clock fixed at 250MHz.  */
-    return (((uint64_t)env->pcc_ofs << 32)
-            | (uint32_t)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2));
+    qemu_mutex_lock_iothread();
+    pcc = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2;
+    qemu_mutex_unlock_iothread();
+    return deposit64(pcc, 32, 32, env->pcc_ofs);
 #else
     /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.  Just pass through the host cpu
        clock ticks.  Also, don't bother taking PCC_OFS into account.  */
@@ -68,24 +71,34 @@ void helper_halt(uint64_t restart)
 
 uint64_t helper_get_vmtime(void)
 {
-    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t ret;
+    qemu_mutex_lock_iothread();
+    ret = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    qemu_mutex_unlock_iothread();
+    return ret;
 }
 
 uint64_t helper_get_walltime(void)
 {
-    return qemu_clock_get_ns(rtc_clock);
+    uint64_t ret;
+    qemu_mutex_lock_iothread();
+    ret = qemu_clock_get_ns(rtc_clock);
+    qemu_mutex_unlock_iothread();
+    return ret;
 }
 
 void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
 {
     AlphaCPU *cpu = alpha_env_get_cpu(env);
 
+    qemu_mutex_lock_iothread();
     if (expire) {
         env->alarm_expire = expire;
         timer_mod(cpu->alarm_timer, expire);
     } else {
         timer_del(cpu->alarm_timer);
     }
+    qemu_mutex_unlock_iothread();
 }
 
 #endif /* CONFIG_USER_ONLY */
