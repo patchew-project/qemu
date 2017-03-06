@@ -1170,11 +1170,101 @@ static const MemoryRegionOps sm501_2d_engine_ops = {
 typedef void draw_line_func(uint8_t *d, const uint8_t *s,
 			    int width, const uint32_t *pal);
 
-typedef void draw_hwc_line_func(SM501State * s, int crt, uint8_t * palette,
-                                int c_y, uint8_t *d, int width);
+static void draw_line8(uint8_t *d, const uint8_t *s,
+                       int width, const uint32_t *pal)
+{
+    uint8_t v, r, g, b;
+    do {
+        v = ldub_p(s);
+        r = (pal[v] >> 16) & 0xff;
+        g = (pal[v] >>  8) & 0xff;
+        b = (pal[v] >>  0) & 0xff;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        s ++;
+        d += 4;
+    } while (-- width != 0);
+}
 
-#define DEPTH 32
-#include "sm501_template.h"
+static void draw_line16(uint8_t *d, const uint8_t *s,
+                        int width, const uint32_t *pal)
+{
+    uint16_t rgb565;
+    uint8_t r, g, b;
+
+    do {
+        rgb565 = lduw_p(s);
+        r = ((rgb565 >> 11) & 0x1f) << 3;
+        g = ((rgb565 >>  5) & 0x3f) << 2;
+        b = ((rgb565 >>  0) & 0x1f) << 3;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        s += 2;
+        d += 4;
+    } while (-- width != 0);
+}
+
+static void draw_line32(uint8_t *d, const uint8_t *s,
+                        int width, const uint32_t *pal)
+{
+    uint8_t r, g, b;
+
+    do {
+        ldub_p(s);
+#if defined(TARGET_WORDS_BIGENDIAN)
+        r = s[1];
+        g = s[2];
+        b = s[3];
+#else
+        b = s[0];
+        g = s[1];
+        r = s[2];
+#endif
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        s += 4;
+        d += 4;
+    } while (-- width != 0);
+}
+
+/**
+ * Draw hardware cursor image on the given line.
+ */
+static void draw_hwc_line(SM501State * s, int crt,
+                          uint8_t * palette, int c_y, uint8_t *d, int width)
+{
+    int x, i;
+    uint8_t bitset = 0;
+
+    /* get hardware cursor pattern */
+    uint32_t cursor_addr = get_hwc_address(s, crt);
+    assert(0 <= c_y && c_y < SM501_HWC_HEIGHT);
+    cursor_addr += 64 * c_y / 4;  /* 4 pixels per byte */
+    cursor_addr += s->base;
+
+    /* get cursor position */
+    x = get_hwc_x(s, crt);
+    d += x * 4;
+
+    for (i = 0; i < SM501_HWC_WIDTH && x + i < width; i++) {
+        uint8_t v;
+
+        /* get pixel value */
+        if (i % 4 == 0) {
+            bitset = ldub_phys(&address_space_memory, cursor_addr);
+            cursor_addr++;
+        }
+        v = bitset & 3;
+        bitset >>= 2;
+
+        /* write pixel */
+        if (v) {
+            v--;
+            uint8_t r = palette[v * 3 + 0];
+            uint8_t g = palette[v * 3 + 1];
+            uint8_t b = palette[v * 3 + 2];
+            ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        }
+        d += 4;
+    }
+}
 
 static void sm501_draw_crt(SM501State * s)
 {
@@ -1190,7 +1280,6 @@ static void sm501_draw_crt(SM501State * s)
 						    - SM501_DC_PANEL_PALETTE];
     uint8_t hwc_palette[3 * 3];
     draw_line_func * draw_line = NULL;
-    draw_hwc_line_func * draw_hwc_line = NULL;
     int full_update = 0;
     int y_start = -1;
     ram_addr_t page_min = ~0l;
@@ -1201,15 +1290,15 @@ static void sm501_draw_crt(SM501State * s)
     switch (s->dc_crt_control & 3) {
     case SM501_DC_CRT_CONTROL_8BPP:
 	src_bpp = 1;
-	draw_line = draw_line8_32;
+	draw_line = draw_line8;
 	break;
     case SM501_DC_CRT_CONTROL_16BPP:
 	src_bpp = 2;
-	draw_line = draw_line16_32;
+	draw_line = draw_line16;
 	break;
     case SM501_DC_CRT_CONTROL_32BPP:
 	src_bpp = 4;
-	draw_line = draw_line32_32;
+	draw_line = draw_line32;
 	break;
     default:
 	printf("sm501 draw crt : invalid DC_CRT_CONTROL=%x.\n",
@@ -1229,9 +1318,6 @@ static void sm501_draw_crt(SM501State * s)
             hwc_palette[i * 3 + 1] = (rgb565 & 0x07e0) >> 3; /* green */
             hwc_palette[i * 3 + 2] = (rgb565 & 0x001f) << 3; /* blue */
         }
-
-        /* choose cursor draw line function */
-        draw_hwc_line = draw_hwc_line_32;
     }
 
     /* adjust console size */
@@ -1246,7 +1332,7 @@ static void sm501_draw_crt(SM501State * s)
     /* draw each line according to conditions */
     memory_region_sync_dirty_bitmap(&s->local_mem_region);
     for (y = 0; y < height; y++) {
-	int update_hwc = draw_hwc_line ? within_hwc_y_range(s, y, 1) : 0;
+	int update_hwc = is_hwc_enabled(s, 1) && within_hwc_y_range(s, y, 1);
 	int update = full_update || update_hwc;
         ram_addr_t page0 = offset;
         ram_addr_t page1 = offset + width * src_bpp - 1;
