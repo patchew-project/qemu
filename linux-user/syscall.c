@@ -7932,8 +7932,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 ret = -TARGET_E2BIG;
                 break;
             }
-            argp = alloca((argc + 1) * sizeof(void *));
-            envp = alloca((envc + 1) * sizeof(void *));
+            argp = g_malloc0((argc + 1) * sizeof(void *));
+            envp = g_malloc0((envc + 1) * sizeof(void *));
 
             for (gp = guest_argp, q = argp; gp;
                   gp += sizeof(abi_ulong), q++) {
@@ -7994,6 +7994,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     break;
                 unlock_user(*q, addr, 0);
             }
+
+            g_free(argp);
+            g_free(envp);
         }
         break;
     case TARGET_NR_chdir:
