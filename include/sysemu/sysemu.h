@@ -23,6 +23,7 @@ extern bool qemu_uuid_set;
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
+int runstate_is_paniced(void);
 bool runstate_needs_reset(void);
 bool runstate_store(char *str, size_t size);
 typedef struct vm_change_state_entry VMChangeStateEntry;

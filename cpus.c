@@ -1734,6 +1734,9 @@ int vm_prepare_start(void)
     if (runstate_is_running()) {
         qapi_event_send_stop(&error_abort);
         res = -1;
+    } else if (runstate_is_paniced()) {
+        qemu_system_guest_panicked(NULL);
+        res = -1;
     } else {
         replay_enable_events();
         cpu_enable_ticks();

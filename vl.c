@@ -729,6 +729,11 @@ int runstate_is_running(void)
     return runstate_check(RUN_STATE_RUNNING);
 }
 
+int runstate_is_paniced(void)
+{
+    return runstate_check(RUN_STATE_GUEST_PANICKED);
+}
+
 bool runstate_needs_reset(void)
 {
     return runstate_check(RUN_STATE_INTERNAL_ERROR) ||
