@@ -1173,88 +1173,8 @@ typedef void draw_line_func(uint8_t *d, const uint8_t *s,
 typedef void draw_hwc_line_func(SM501State * s, int crt, uint8_t * palette,
                                 int c_y, uint8_t *d, int width);
 
-#define DEPTH 8
-#include "sm501_template.h"
-
-#define DEPTH 15
-#include "sm501_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 15
-#include "sm501_template.h"
-
-#define DEPTH 16
-#include "sm501_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 16
-#include "sm501_template.h"
-
 #define DEPTH 32
 #include "sm501_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 32
-#include "sm501_template.h"
-
-static draw_line_func * draw_line8_funcs[] = {
-    draw_line8_8,
-    draw_line8_15,
-    draw_line8_16,
-    draw_line8_32,
-    draw_line8_32bgr,
-    draw_line8_15bgr,
-    draw_line8_16bgr,
-};
-
-static draw_line_func * draw_line16_funcs[] = {
-    draw_line16_8,
-    draw_line16_15,
-    draw_line16_16,
-    draw_line16_32,
-    draw_line16_32bgr,
-    draw_line16_15bgr,
-    draw_line16_16bgr,
-};
-
-static draw_line_func * draw_line32_funcs[] = {
-    draw_line32_8,
-    draw_line32_15,
-    draw_line32_16,
-    draw_line32_32,
-    draw_line32_32bgr,
-    draw_line32_15bgr,
-    draw_line32_16bgr,
-};
-
-static draw_hwc_line_func * draw_hwc_line_funcs[] = {
-    draw_hwc_line_8,
-    draw_hwc_line_15,
-    draw_hwc_line_16,
-    draw_hwc_line_32,
-    draw_hwc_line_32bgr,
-    draw_hwc_line_15bgr,
-    draw_hwc_line_16bgr,
-};
-
-static inline int get_depth_index(DisplaySurface *surface)
-{
-    switch (surface_bits_per_pixel(surface)) {
-    default:
-    case 8:
-	return 0;
-    case 15:
-        return 1;
-    case 16:
-        return 2;
-    case 32:
-        if (is_surface_bgr(surface)) {
-            return 4;
-        } else {
-            return 3;
-        }
-    }
-}
 
 static void sm501_draw_crt(SM501State * s)
 {
@@ -1269,7 +1189,6 @@ static void sm501_draw_crt(SM501State * s)
     uint32_t * palette = (uint32_t *)&s->dc_palette[SM501_DC_CRT_PALETTE
 						    - SM501_DC_PANEL_PALETTE];
     uint8_t hwc_palette[3 * 3];
-    int ds_depth_index = get_depth_index(surface);
     draw_line_func * draw_line = NULL;
     draw_hwc_line_func * draw_hwc_line = NULL;
     int full_update = 0;
@@ -1282,15 +1201,15 @@ static void sm501_draw_crt(SM501State * s)
     switch (s->dc_crt_control & 3) {
     case SM501_DC_CRT_CONTROL_8BPP:
 	src_bpp = 1;
-	draw_line = draw_line8_funcs[ds_depth_index];
+	draw_line = draw_line8_32;
 	break;
     case SM501_DC_CRT_CONTROL_16BPP:
 	src_bpp = 2;
-	draw_line = draw_line16_funcs[ds_depth_index];
+	draw_line = draw_line16_32;
 	break;
     case SM501_DC_CRT_CONTROL_32BPP:
 	src_bpp = 4;
-	draw_line = draw_line32_funcs[ds_depth_index];
+	draw_line = draw_line32_32;
 	break;
     default:
 	printf("sm501 draw crt : invalid DC_CRT_CONTROL=%x.\n",
@@ -1312,7 +1231,7 @@ static void sm501_draw_crt(SM501State * s)
         }
 
         /* choose cursor draw line function */
-        draw_hwc_line = draw_hwc_line_funcs[ds_depth_index];
+        draw_hwc_line = draw_hwc_line_32;
     }
 
     /* adjust console size */
