@@ -976,7 +976,8 @@ static int64_t qemu_archipelago_getlength(BlockDriverState *bs)
     return archipelago_volume_info(s);
 }
 
-static int qemu_archipelago_truncate(BlockDriverState *bs, int64_t offset)
+static int qemu_archipelago_truncate(BlockDriverState *bs, int64_t offset,
+                                     Error *errp)
 {
     int ret, targetlen;
     struct xseg_request *req;
