@@ -99,7 +99,12 @@ static void pcibus_machine_done(Notifier *notifier, void *data)
 
     for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
         if (bus->devices[i]) {
-            pci_init_bus_master(bus->devices[i]);
+            PCIDevice *pci_dev = bus->devices[i];
+            PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+            pci_init_bus_master(pci_dev);
+            if (pc->bus_master_ready) {
+                pc->bus_master_ready(pci_dev);
+            }
         }
     }
 }

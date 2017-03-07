@@ -1845,6 +1845,14 @@ static void virtio_pci_exit(PCIDevice *pci_dev)
     address_space_destroy(&proxy->modern_as);
 }
 
+static void virtio_pci_bus_master_ready(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    virtio_device_reset_dma_as(vdev);
+}
+
 static void virtio_pci_reset(DeviceState *qdev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
@@ -1904,6 +1912,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_pci_properties;
     k->realize = virtio_pci_realize;
     k->exit = virtio_pci_exit;
+    k->bus_master_ready = virtio_pci_bus_master_ready;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
