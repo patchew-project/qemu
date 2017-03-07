@@ -83,6 +83,7 @@ static const VMStateDescription vmstate_pcibus = {
 static void pci_init_bus_master(PCIDevice *pci_dev)
 {
     AddressSpace *dma_as = pci_device_iommu_address_space(pci_dev);
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
 
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
                              OBJECT(pci_dev), "bus master",
@@ -90,6 +91,9 @@ static void pci_init_bus_master(PCIDevice *pci_dev)
     memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
     address_space_init(&pci_dev->bus_master_as,
                        &pci_dev->bus_master_enable_region, pci_dev->name);
+    if (pc->bus_master_ready) {
+        pc->bus_master_ready(pci_dev);
+    }
 }
 
 static void pcibus_machine_done(Notifier *notifier, void *data)
@@ -995,9 +999,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->devfn = devfn;
     pci_dev->requester_id_cache = pci_req_id_cache_get(pci_dev);
 
-    if (qdev_hotplug) {
-        pci_init_bus_master(pci_dev);
-    }
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);
@@ -1993,6 +1994,10 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             do_pci_unregister_device(pci_dev);
             return;
         }
+    }
+
+    if (qdev_hotplug) {
+        pci_init_bus_master(pci_dev);
     }
 
     /* rom loading */

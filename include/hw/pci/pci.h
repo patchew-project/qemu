@@ -207,6 +207,7 @@ typedef struct PCIDeviceClass {
 
     void (*realize)(PCIDevice *dev, Error **errp);
     int (*init)(PCIDevice *dev);/* TODO convert to realize() and remove */
+    void (*bus_master_ready)(PCIDevice *dev);
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
