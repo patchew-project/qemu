@@ -668,6 +668,59 @@ static int hdev_get_max_transfer_length(BlockDriverState *bs, int fd)
 #endif
 }
 
+static int hdev_get_max_segments(BlockDriverState *bs)
+{
+#ifdef CONFIG_LINUX
+    char buf[32];
+    const char *end;
+    char *sysfspath, *fullpath;
+    int ret;
+    int fd = -1;
+    long max_segments;
+
+    fullpath = realpath(bs->exact_filename, NULL);
+    if (!fullpath) {
+        return -errno;
+    }
+    if (strncmp(fullpath, "/dev/", 5) || !fullpath[5]) {
+        ret = -ENOTSUP;
+        goto out;
+    }
+    sysfspath = g_strdup_printf("/sys/block/%s/queue/max_segments",
+                                &fullpath[5]);
+    fd = open(sysfspath, O_RDONLY);
+    if (fd == -1) {
+        ret = -errno;
+        goto out;
+    }
+    do {
+        ret = read(fd, buf, sizeof(buf));
+    } while (ret == -1 && errno == EINTR);
+    if (ret < 0) {
+        ret = -errno;
+        goto out;
+    } else if (ret == 0) {
+        ret = -EIO;
+        goto out;
+    }
+    buf[ret] = 0;
+    /* The file is ended with '\n', pass 'end' to accept that. */
+    ret = qemu_strtol(buf, &end, 10, &max_segments);
+    if (ret == 0 && end && *end == '\n') {
+        ret = max_segments;
+    }
+
+out:
+    if (fd >= 0) {
+        close(fd);
+    }
+    free(fullpath);
+    return ret;
+#else
+    return -ENOTSUP;
+#endif
+}
+
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
@@ -678,6 +731,11 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
             int ret = hdev_get_max_transfer_length(bs, s->fd);
             if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
                 bs->bl.max_transfer = pow2floor(ret);
+            }
+            ret = hdev_get_max_segments(bs);
+            if (ret > 0) {
+                bs->bl.max_transfer = MIN(bs->bl.max_transfer,
+                                          ret * getpagesize());
             }
         }
     }
