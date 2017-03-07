@@ -1436,12 +1436,12 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 
     vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
                                     sizeof(unsigned long));
-    ret = msix_init(&vdev->pdev, vdev->msix->entries,
-                    vdev->bars[vdev->msix->table_bar].region.mem,
-                    vdev->msix->table_bar, vdev->msix->table_offset,
-                    vdev->bars[vdev->msix->pba_bar].region.mem,
-                    vdev->msix->pba_bar, vdev->msix->pba_offset, pos,
-                    &err);
+    ret = msix_validate_and_init(&vdev->pdev, vdev->msix->entries,
+                             vdev->bars[vdev->msix->table_bar].region.mem,
+                             vdev->msix->table_bar, vdev->msix->table_offset,
+                             vdev->bars[vdev->msix->pba_bar].region.mem,
+                             vdev->msix->pba_bar, vdev->msix->pba_offset, pos,
+                             &err);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error_report_err(err);
