@@ -131,6 +131,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     VRingMemoryRegionCaches *new;
     hwaddr addr, size;
     int event_size;
+    int64_t len;
 
     event_size = virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX) ? 2 : 0;
 
@@ -140,21 +141,41 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     }
     new = g_new0(VRingMemoryRegionCaches, 1);
     size = virtio_queue_get_desc_size(vdev, n);
-    address_space_cache_init(&new->desc, vdev->dma_as,
-                             addr, size, false);
+    len = address_space_cache_init(&new->desc, vdev->dma_as,
+                                   addr, size, false);
+    if (len < size) {
+        virtio_error(vdev, "Cannot map desc");
+        goto err_desc;
+    }
 
     size = virtio_queue_get_used_size(vdev, n) + event_size;
-    address_space_cache_init(&new->used, vdev->dma_as,
-                             vq->vring.used, size, true);
+    len = address_space_cache_init(&new->used, vdev->dma_as,
+                                   vq->vring.used, size, true);
+    if (len < size) {
+        virtio_error(vdev, "Cannot map used");
+        goto err_used;
+    }
 
     size = virtio_queue_get_avail_size(vdev, n) + event_size;
-    address_space_cache_init(&new->avail, vdev->dma_as,
-                             vq->vring.avail, size, false);
+    len = address_space_cache_init(&new->avail, vdev->dma_as,
+                                   vq->vring.avail, size, false);
+    if (len < size) {
+        virtio_error(vdev, "Cannot map avail");
+        goto err_avail;
+    }
 
     atomic_rcu_set(&vq->vring.caches, new);
     if (old) {
         call_rcu(old, virtio_free_region_cache, rcu);
     }
+    return;
+
+err_avail:
+    address_space_cache_destroy(&new->used);
+err_used:
+    address_space_cache_destroy(&new->desc);
+err_desc:
+    g_free(new);
 }
 
 /* virt queue functions */
@@ -190,6 +211,10 @@ static inline uint16_t vring_avail_flags(VirtQueue *vq)
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
     hwaddr pa = offsetof(VRingAvail, flags);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map avail flags");
+        return 0;
+    }
     return virtio_lduw_phys_cached(vq->vdev, &caches->avail, pa);
 }
 
@@ -198,6 +223,10 @@ static inline uint16_t vring_avail_idx(VirtQueue *vq)
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
     hwaddr pa = offsetof(VRingAvail, idx);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map avail idx");
+        return vq->shadow_avail_idx;
+    }
     vq->shadow_avail_idx = virtio_lduw_phys_cached(vq->vdev, &caches->avail, pa);
     return vq->shadow_avail_idx;
 }
@@ -207,6 +236,10 @@ static inline uint16_t vring_avail_ring(VirtQueue *vq, int i)
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
     hwaddr pa = offsetof(VRingAvail, ring[i]);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map avail ring");
+        return 0;
+    }
     return virtio_lduw_phys_cached(vq->vdev, &caches->avail, pa);
 }
 
@@ -222,6 +255,10 @@ static inline void vring_used_write(VirtQueue *vq, VRingUsedElem *uelem,
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
     hwaddr pa = offsetof(VRingUsed, ring[i]);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map used ring");
+        return;
+    }
     virtio_tswap32s(vq->vdev, &uelem->id);
     virtio_tswap32s(vq->vdev, &uelem->len);
     address_space_write_cached(&caches->used, pa, uelem, sizeof(VRingUsedElem));
@@ -233,6 +270,10 @@ static uint16_t vring_used_idx(VirtQueue *vq)
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
     hwaddr pa = offsetof(VRingUsed, idx);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map used ring");
+        return 0;
+    }
     return virtio_lduw_phys_cached(vq->vdev, &caches->used, pa);
 }
 
@@ -241,6 +282,10 @@ static inline void vring_used_idx_set(VirtQueue *vq, uint16_t val)
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
     hwaddr pa = offsetof(VRingUsed, idx);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map used idx");
+        return;
+    }
     virtio_stw_phys_cached(vq->vdev, &caches->used, pa, val);
     address_space_cache_invalidate(&caches->used, pa, sizeof(val));
     vq->used_idx = val;
@@ -254,6 +299,10 @@ static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
     hwaddr pa = offsetof(VRingUsed, flags);
     uint16_t flags = virtio_lduw_phys_cached(vq->vdev, &caches->used, pa);
 
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map used flags");
+        return;
+    }
     virtio_stw_phys_cached(vdev, &caches->used, pa, flags | mask);
     address_space_cache_invalidate(&caches->used, pa, sizeof(flags));
 }
@@ -266,6 +315,10 @@ static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
     hwaddr pa = offsetof(VRingUsed, flags);
     uint16_t flags = virtio_lduw_phys_cached(vq->vdev, &caches->used, pa);
 
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map used flags");
+        return;
+    }
     virtio_stw_phys_cached(vdev, &caches->used, pa, flags & ~mask);
     address_space_cache_invalidate(&caches->used, pa, sizeof(flags));
 }
@@ -280,6 +333,10 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
     }
 
     caches = atomic_rcu_read(&vq->vring.caches);
+    if (!caches) {
+        virtio_error(vq->vdev, "Cannot map avail event");
+        return;
+    }
     pa = offsetof(VRingUsed, ring[vq->vring.num]);
     virtio_stw_phys_cached(vq->vdev, &caches->used, pa, val);
     address_space_cache_invalidate(&caches->used, pa, sizeof(val));
@@ -552,7 +609,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
 
     max = vq->vring.num;
     caches = atomic_rcu_read(&vq->vring.caches);
-    if (caches->desc.len < max * sizeof(VRingDesc)) {
+    if (!caches || caches->desc.len < max * sizeof(VRingDesc)) {
         virtio_error(vdev, "Cannot map descriptor ring");
         goto err;
     }
@@ -819,7 +876,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     i = head;
 
     caches = atomic_rcu_read(&vq->vring.caches);
-    if (caches->desc.len < max * sizeof(VRingDesc)) {
+    if (!caches || caches->desc.len < max * sizeof(VRingDesc)) {
         virtio_error(vdev, "Cannot map descriptor ring");
         goto done;
     }
@@ -1117,6 +1174,15 @@ static enum virtio_device_endian virtio_current_cpu_endian(void)
     }
 }
 
+static void virtio_virtqueue_reset_region_cache(struct VirtQueue *vq)
+{
+    VRingMemoryRegionCaches *caches;
+
+    caches = atomic_read(&vq->vring.caches);
+    atomic_set(&vq->vring.caches, NULL);
+    virtio_free_region_cache(caches);
+}
+
 void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
@@ -1157,6 +1223,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].notification = true;
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
         vdev->vq[i].inuse = 0;
+        virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
     }
 }
 
@@ -2451,13 +2518,10 @@ static void virtio_device_free_virtqueues(VirtIODevice *vdev)
     }
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        VRingMemoryRegionCaches *caches;
         if (vdev->vq[i].vring.num == 0) {
             break;
         }
-        caches = atomic_read(&vdev->vq[i].vring.caches);
-        atomic_set(&vdev->vq[i].vring.caches, NULL);
-        virtio_free_region_cache(caches);
+        virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
     }
     g_free(vdev->vq);
 }
