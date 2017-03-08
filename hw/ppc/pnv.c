@@ -356,15 +356,22 @@ static void ppc_powernv_reset(void)
  * have a CPLD that will collect the SerIRQ and shoot them as a
  * single level interrupt to the P8 chip. So let's setup a hook
  * for doing just that.
- *
- * Note: The actual interrupt input isn't emulated yet, this will
- * come with the PSI bridge model.
  */
 static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 {
-    /* We don't yet emulate the PSI bridge which provides the external
-     * interrupt, so just drop interrupts on the floor
-     */
+    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
+    uint32_t old_state = pnv->cpld_irqstate;
+    PnvChip *chip = opaque;
+
+    if (level) {
+        pnv->cpld_irqstate |= 1u << n;
+    } else {
+        pnv->cpld_irqstate &= ~(1u << n);
+    }
+    if (pnv->cpld_irqstate != old_state) {
+        pnv_psi_irq_set(&chip->psi, PSIHB_IRQ_EXTERNAL,
+                        pnv->cpld_irqstate != 0);
+    }
 }
 
 static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
@@ -702,6 +709,11 @@ static void pnv_chip_init(Object *obj)
 
     object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
+
+    object_initialize(&chip->psi, sizeof(chip->psi), TYPE_PNV_PSI);
+    object_property_add_child(obj, "psi", OBJECT(&chip->psi), NULL);
+    object_property_add_const_link(OBJECT(&chip->psi), "xics",
+                                   OBJECT(qdev_get_machine()), &error_abort);
 }
 
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
@@ -722,6 +734,8 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     char *typename = pnv_core_typename(pcc->cpu_model);
     size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;
+    MachineState *machine = MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = POWERNV_MACHINE(machine);
 
     if (!object_class_by_name(typename)) {
         error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
@@ -796,6 +810,15 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         i++;
     }
     g_free(typename);
+
+
+    /* Processor Service Interface (PSI) Host Bridge */
+    object_property_set_bool(OBJECT(&chip->psi), true, "realized",
+                             &error_fatal);
+    pnv_xscom_add_subregion(chip, PNV_XSCOM_PSI_BASE, &chip->psi.xscom_regs);
+
+    /* link in the PSI ICS */
+    QLIST_INSERT_HEAD(&pnv->ics, &chip->psi.ics, list);
 
     /* Create LPC controller */
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",

@@ -23,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/pnv_psi.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -58,6 +59,7 @@ typedef struct PnvChip {
     MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
+    PnvPsi       psi;
 } PnvChip;
 
 typedef struct PnvChipClass {
@@ -119,6 +121,8 @@ typedef struct PnvMachineState {
     ICPState     *icps;
     uint32_t     nr_servers;
     QLIST_HEAD(, ICSState) ics;
+
+    uint32_t     cpld_irqstate;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
@@ -149,5 +153,9 @@ typedef struct PnvMachineState {
  */
 #define PNV_ICP_BASE(chip)   0x0003ffff80000000ull
 #define PNV_ICP_SIZE         0x0000000000100000ull
+
+#define PNV_PSIHB_BAR         0x0003fffe80000000ull
+#define PNV_PSIHB_BAR_SIZE    0x0000000000100000ull
+
 
 #endif /* _PPC_PNV_H */
