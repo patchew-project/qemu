@@ -2550,6 +2550,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
     new_l1_size = size_to_l1(s, offset);
     ret = qcow2_grow_l1_table(bs, new_l1_size, true);
     if (ret < 0) {
+        error_setg(errp, "Failed to grow the L1 table");
         return ret;
     }
 
@@ -2558,6 +2559,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
                            &offset, sizeof(uint64_t));
     if (ret < 0) {
+        error_setg(errp, "Failed to update the image size");
         return ret;
     }
 
