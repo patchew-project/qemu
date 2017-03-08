@@ -35,6 +35,7 @@
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 
+#include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
@@ -216,6 +217,47 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
                        servers_prop, sizeof(servers_prop))));
 }
 
+static void powernv_populate_icp(PnvChip *chip, void *fdt, int offset,
+                          uint32_t pir, uint32_t count)
+{
+    uint64_t addr;
+    char *name;
+    const char compat[] = "IBM,power8-icp\0IBM,ppc-xicp";
+    uint32_t irange[2], i, rsize;
+    uint64_t *reg;
+
+    /*
+     * TODO: add multichip ICP BAR
+     */
+    addr = PNV_ICP_BASE(chip) | (pir << 12);
+
+    irange[0] = cpu_to_be32(pir);
+    irange[1] = cpu_to_be32(count);
+
+    rsize = sizeof(uint64_t) * 2 * count;
+    reg = g_malloc(rsize);
+    for (i = 0; i < count; i++) {
+        reg[i * 2] = cpu_to_be64(addr | ((pir + i) * 0x1000));
+        reg[i * 2 + 1] = cpu_to_be64(0x1000);
+    }
+
+    name = g_strdup_printf("interrupt-controller@%"PRIX64, addr);
+    offset = fdt_add_subnode(fdt, offset, name);
+    _FDT(offset);
+    g_free(name);
+
+    _FDT((fdt_setprop(fdt, offset, "compatible", compat, sizeof(compat))));
+    _FDT((fdt_setprop(fdt, offset, "reg", reg, rsize)));
+    _FDT((fdt_setprop_string(fdt, offset, "device_type",
+                              "PowerPC-External-Interrupt-Presentation")));
+    _FDT((fdt_setprop(fdt, offset, "interrupt-controller", NULL, 0)));
+    _FDT((fdt_setprop(fdt, offset, "ibm,interrupt-server-ranges",
+                       irange, sizeof(irange))));
+    _FDT((fdt_setprop_cell(fdt, offset, "#interrupt-cells", 1)));
+    _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 0)));
+    g_free(reg);
+}
+
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
@@ -229,6 +271,10 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
 
         powernv_create_core_node(chip, pnv_core, fdt);
+
+        /* Interrupt Control Presenters (ICP). One per thread. */
+        powernv_populate_icp(chip, fdt, 0, pnv_core->pir,
+                             CPU_CORE(pnv_core)->nr_threads);
     }
 
     if (chip->ram_size) {
@@ -697,6 +743,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, error);
         return;
     }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 1, PNV_ICP_BASE(chip));
 
     /* Cores */
     pnv_chip_core_sanitize(chip, &error);
@@ -711,6 +758,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
              && (i < chip->nr_cores); core_hwid++) {
         char core_name[32];
         void *pnv_core = chip->cores + i * typesize;
+        int j;
 
         if (!(chip->cores_mask & (1ull << core_hwid))) {
             continue;
@@ -738,6 +786,13 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                                 PNV_XSCOM_EX_CORE_BASE(pcc->xscom_core_base,
                                                        core_hwid),
                                 &PNV_CORE(pnv_core)->xscom_regs);
+
+        /* Map the ICP registers for each thread */
+        for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
+            memory_region_add_subregion(&chip->icp_mmio,
+                                 (pcc->core_pir(chip, core_hwid) + j) << 12,
+                                  &PNV_CORE(pnv_core)->icp_mmios[j]);
+        }
         i++;
     }
     g_free(typename);
