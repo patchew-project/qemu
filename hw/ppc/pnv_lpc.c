@@ -250,6 +250,34 @@ static const MemoryRegionOps pnv_lpc_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+void pnv_lpc_eval_irqs(PnvLpcController *lpc)
+{
+    bool lpc_to_opb_irq = false;
+
+    /* Update LPC controller to OPB line */
+    if (lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_EN) {
+        uint32_t irqs;
+
+        irqs = lpc->lpc_hc_irqstat & lpc->lpc_hc_irqmask;
+        lpc_to_opb_irq = (irqs != 0);
+    }
+
+    /* We don't honor the polarity register, it's pointless and unused
+     * anyway
+     */
+    if (lpc_to_opb_irq) {
+        lpc->opb_irq_input |= OPB_MASTER_IRQ_LPC;
+    } else {
+        lpc->opb_irq_input &= ~OPB_MASTER_IRQ_LPC;
+    }
+
+    /* Update OPB internal latch */
+    lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
+
+    /* Reflect the interrupt */
+    pnv_psi_irq_set(lpc->psi, PSIHB_IRQ_LPC_I2C, lpc->opb_irq_stat != 0);
+}
+
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
 {
     PnvLpcController *lpc = opaque;
@@ -300,12 +328,15 @@ static void lpc_hc_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case LPC_HC_IRQSER_CTRL:
         lpc->lpc_hc_irqser_ctrl = val;
+        pnv_lpc_eval_irqs(lpc);
         break;
     case LPC_HC_IRQMASK:
         lpc->lpc_hc_irqmask = val;
+        pnv_lpc_eval_irqs(lpc);
         break;
     case LPC_HC_IRQSTAT:
         lpc->lpc_hc_irqstat &= ~val;
+        pnv_lpc_eval_irqs(lpc);
         break;
     case LPC_HC_ERROR_ADDRESS:
         break;
@@ -363,14 +394,15 @@ static void opb_master_write(void *opaque, hwaddr addr,
     switch (addr) {
     case OPB_MASTER_LS_IRQ_STAT:
         lpc->opb_irq_stat &= ~val;
+        pnv_lpc_eval_irqs(lpc);
         break;
     case OPB_MASTER_LS_IRQ_MASK:
-        /* XXX Filter out reserved bits */
         lpc->opb_irq_mask = val;
+        pnv_lpc_eval_irqs(lpc);
         break;
     case OPB_MASTER_LS_IRQ_POL:
-        /* XXX Filter out reserved bits */
         lpc->opb_irq_pol = val;
+        pnv_lpc_eval_irqs(lpc);
         break;
     case OPB_MASTER_LS_IRQ_INPUT:
         /* Read only */
@@ -398,6 +430,8 @@ static const MemoryRegionOps opb_master_ops = {
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
     PnvLpcController *lpc = PNV_LPC(dev);
+    Object *obj;
+    Error *error = NULL;
 
     /* Reg inits */
     lpc->lpc_hc_fw_rd_acc_size = LPC_HC_FW_RD_4B;
@@ -441,6 +475,15 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&lpc->xscom_regs, OBJECT(dev),
                           &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
                           PNV_XSCOM_LPC_SIZE);
+
+    /* get PSI object from chip */
+    obj = object_property_get_link(OBJECT(dev), "psi", &error);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'psi' not found: %s",
+                   __func__, error_get_pretty(error));
+        return;
+    }
+    lpc->psi = PNV_PSI(obj);
 }
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)

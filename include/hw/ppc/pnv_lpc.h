@@ -23,6 +23,8 @@
 #define PNV_LPC(obj) \
      OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV_LPC)
 
+typedef struct PnvPsi PnvPsi;
+
 typedef struct PnvLpcController {
     DeviceState parent;
 
@@ -62,6 +64,13 @@ typedef struct PnvLpcController {
 
     /* XSCOM registers */
     MemoryRegion xscom_regs;
+
+    /* PSI to generate interrupts */
+    PnvPsi *psi;
 } PnvLpcController;
+
+#define   LPC_HC_IRQ_SERIRQ0            0x80000000 /* all bits down to ... */
+
+void pnv_lpc_eval_irqs(PnvLpcController *lpc);
 
 #endif /* _PPC_PNV_LPC_H */
