@@ -37,6 +37,7 @@
 #include "trace-root.h"
 #include "hw/irq.h"
 #include "sysemu/security-policy.h"
+#include "sysemu/sev.h"
 
 #include "hw/boards.h"
 
@@ -1807,6 +1808,27 @@ static int kvm_init(MachineState *ms)
     }
 
     kvm_state = s;
+
+    if (ms->security_policy) {
+        char *id;
+
+        /* if security-policy is enabled  then check whether memory encryption
+         * property is defined. If so, enable hardware memory encryption.
+         */
+        id = security_policy_get_memory_encryption_id(ms->security_policy);
+        if (id) {
+
+            /* check if its SEV guest policy */
+            kvm_state->ehandle = sev_guest_init(id);
+            if (!kvm_state->ehandle) {
+                fprintf(stderr,
+                        "failed to initialize SEV guest\n");
+                goto err;
+            }
+            kvm_state->memcrypt_debug_ops = sev_set_debug_ops;
+            g_free(id);
+        }
+    }
 
     if (kvm_eventfds_allowed) {
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;

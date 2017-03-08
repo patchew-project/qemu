@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sev.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/pci/msi.h"
@@ -135,6 +136,10 @@ int kvm_memcrypt_encrypt_launch_data(uint8_t *ptr, uint64_t len)
     return 1;
 }
 
+bool sev_enabled(void)
+{
+    return false;
+}
 
 #ifndef CONFIG_USER_ONLY
 int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)

@@ -4168,6 +4168,33 @@ can be set to the unquie ID of memory encryption object.
 
 On AMD processor, memory encryption is supported via 'sev-guest' object.
 
+@item -object sev-guest,id=@var{id},sev-device=@var{string}
+
+Create a Secure Encrypted Virtualization (SEV) guest object, which be used to
+provide the memory encryption support on AMD processors.
+
+e.g to launch a SEV guest
+@example
+ # $QEMU \
+     -object sev-launch-info,id=launch0,sev-device=/dev/sev0 \
+     -object sev-guest-info,id=sev0 \
+     -object security-policy,id=secure0-guest,memory-encryption=sev0 \
+     -machine ...,security-policy=secure0
+@end example
+
+@item -object sev-launch-info,id=@var{id}
+
+Create a SEV launch info object, which can be used to pass various parameters
+required to boot SEV guest from  unencrypted boot images.
+The id parameter is a unique ID that should be used in sev-guest-info object
+when creating a unencrypted SEV guest.
+
+e.g to launch SEV guest from unencrypted boot images
+@example
+ # $QEMU \
+     -object sev-launch-info,id=launch0\
+     -object sev-guest,id=sev0 \
+@end example
 ETEXI
 
 
