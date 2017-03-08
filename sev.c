@@ -225,9 +225,45 @@ err:
 }
 
 static int
+sev_launch_update_data(SEVState *s, uint8_t *addr, uint64_t len)
+{
+    int ret, error;
+    struct kvm_sev_launch_update_data *update;
+
+    if (!s) {
+        return 1;
+    }
+
+    update = g_malloc0(sizeof(*update));
+    if (!update) {
+        return 1;
+    }
+
+    update->address = (__u64)addr;
+    update->length = len;
+    ret = sev_ioctl(KVM_SEV_LAUNCH_UPDATE_DATA, update, &error);
+    if (ret) {
+        fprintf(stderr, "failed LAUNCH_UPDATE_DATA %d (%#x)\n", ret, error);
+        goto err;
+    }
+
+    DPRINTF("SEV: LAUNCH_UPDATE_DATA %#lx+%#lx\n", (unsigned long)addr, len);
+err:
+    g_free(update);
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
-    return 0;
+    SEVState *s = kvm_memcrypt_get_handle();
+
+    if (sev_get_current_state(s) == SEV_STATE_LAUNCHING) {
+        memcpy(dst, src, len);
+        return sev_launch_update_data(s, dst, len);
+    }
+
+    return 1;
 }
 
 static int
@@ -290,6 +326,12 @@ sev_set_debug_ops(void *handle, MemoryRegion *mr)
     sev_ops.write = sev_mem_write;
 
     memory_region_set_ram_debug_ops(mr, &sev_ops);
+}
+
+int
+sev_encrypt_launch_buffer(void *handle, uint8_t *ptr, uint64_t len)
+{
+    return sev_launch_update_data((SEVState *)handle, ptr, len);
 }
 
 bool

@@ -1827,6 +1827,7 @@ static int kvm_init(MachineState *ms)
             }
             kvm_state->memcrypt_debug_ops = sev_set_debug_ops;
             kvm_state->create_launch_context = sev_create_launch_context;
+            kvm_state->encrypt_launch_data = sev_encrypt_launch_buffer;
             g_free(id);
         }
     }
