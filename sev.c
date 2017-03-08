@@ -253,6 +253,72 @@ err:
     return ret;
 }
 
+static void
+print_hex_dump(const char *prefix_str, uint8_t *data, int len)
+{
+    int i;
+
+    DPRINTF("%s: ", prefix_str);
+    for (i = 0; i < len; i++) {
+        DPRINTF("%02hhx", *data++);
+    }
+    DPRINTF("\n");
+}
+
+static int
+sev_launch_finish(SEVState *s)
+{
+    uint8_t *data;
+    int error, ret;
+    struct kvm_sev_launch_measure *measure;
+
+    if (!s) {
+        return 1;
+    }
+
+    measure = g_malloc0(sizeof(*measure));
+    if (!measure) {
+        return 1;
+    }
+
+    /* query measurement blob length */
+    ret = sev_ioctl(KVM_SEV_LAUNCH_MEASURE, measure, &error);
+    if (!measure->length) {
+        fprintf(stderr, "Error: failed to get launch measurement length\n");
+        ret = 1;
+        goto err_1;
+    }
+
+    data = g_malloc0(measure->length);
+    if (!data) {
+        goto err_1;
+    }
+    measure->address = (unsigned long)data;
+    /* get measurement */
+    ret = sev_ioctl(KVM_SEV_LAUNCH_MEASURE, measure, &error);
+    if (ret) {
+        fprintf(stderr, "failed LAUNCH_MEASURE %d (%#x)\n", ret, error);
+        goto err_2;
+    }
+
+    print_hex_dump("SEV: MEASUREMENT", data, measure->length);
+
+    /* finalize the launch */
+    ret = sev_ioctl(KVM_SEV_LAUNCH_FINISH, 0, &error);
+    if (ret) {
+        fprintf(stderr, "failed LAUNCH_FINISH %d (%#x)\n", ret, error);
+        goto err_2;
+    }
+
+    DPRINTF("SEV: LAUNCH_FINISH\n");
+err_2:
+    g_free(data);
+err_1:
+    g_free(measure);
+
+    return ret;
+}
+
 static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
@@ -332,6 +398,12 @@ int
 sev_encrypt_launch_buffer(void *handle, uint8_t *ptr, uint64_t len)
 {
     return sev_launch_update_data((SEVState *)handle, ptr, len);
+}
+
+int
+sev_release_launch_context(void *handle)
+{
+    return sev_launch_finish((SEVState *)handle);
 }
 
 bool
