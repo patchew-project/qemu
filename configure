@@ -3414,7 +3414,7 @@ EOF
        symlink "$source_path/dtc/Makefile" "dtc/Makefile"
        symlink "$source_path/dtc/scripts" "dtc/scripts"
     fi
-    fdt_cflags="-I\$(SRC_PATH)/dtc/libfdt"
+    fdt_cflags="-isystem\$(SRC_PATH)/dtc/libfdt"
     fdt_libs="-L\$(BUILD_DIR)/dtc/libfdt $fdt_libs"
   elif test "$fdt" = "yes" ; then
     # have neither and want - prompt for system/submodule install
