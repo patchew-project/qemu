@@ -2422,8 +2422,10 @@ AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
     AddressSpace *as;
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        if (root == as->root && as->malloced) {
-            as->ref_count++;
+        if (root == as->root) {
+            if (as->malloced) {
+                as->ref_count++;
+            }
             return as;
         }
     }
