@@ -163,6 +163,18 @@ struct MemoryRegionOps {
     const MemoryRegionMmio old_mmio;
 };
 
+/* Memory Region RAM callback */
+typedef struct MemoryRegionRAMReadWriteOps MemoryRegionRAMReadWriteOps;
+
+struct MemoryRegionRAMReadWriteOps {
+    /* Write data into guest memory */
+    int (*write) (uint8_t *dest, const uint8_t *src,
+                  uint32_t len, MemTxAttrs attrs);
+    /* Read data from guest memory */
+    int (*read) (uint8_t *dest, const uint8_t *src,
+                 uint32_t len, MemTxAttrs attrs);
+};
+
 typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
 
 struct MemoryRegionIOMMUOps {
@@ -220,6 +232,7 @@ struct MemoryRegion {
     MemoryRegionIoeventfd *ioeventfds;
     QLIST_HEAD(, IOMMUNotifier) iommu_notify;
     IOMMUNotifierFlag iommu_notify_flags;
+    const MemoryRegionRAMReadWriteOps *ram_debug_ops;
 };
 
 /**
@@ -524,6 +537,18 @@ void memory_region_init_rom_device(MemoryRegion *mr,
                                    const char *name,
                                    uint64_t size,
                                    Error **errp);
+
+/**
+ * memory_region_set_ram_ops: Set the Read/Write ops for accessing the RAM
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @ops: a function that will be used to read/write @target region
+ */
+static inline void memory_region_set_ram_debug_ops(MemoryRegion *mr,
+                               const MemoryRegionRAMReadWriteOps *ops)
+{
+    mr->ram_debug_ops = ops;
+}
 
 /**
  * memory_region_init_reservation: Initialize a memory region that reserves
