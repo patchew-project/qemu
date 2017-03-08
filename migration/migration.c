@@ -37,6 +37,7 @@
 #include "io/channel-buffer.h"
 #include "io/channel-tls.h"
 #include "migration/colo.h"
+#include "sysemu/sev.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -1221,6 +1222,12 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
+
+    if (sev_enabled()) {
+        error_setg(errp, "Migration is not implemented");
+        return;
+    }
+
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         error_setg(errp, "Guest is waiting for an incoming migration");
         return;
