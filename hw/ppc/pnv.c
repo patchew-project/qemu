@@ -714,6 +714,11 @@ static void pnv_chip_init(Object *obj)
     object_property_add_child(obj, "psi", OBJECT(&chip->psi), NULL);
     object_property_add_const_link(OBJECT(&chip->psi), "xics",
                                    OBJECT(qdev_get_machine()), &error_abort);
+
+    object_initialize(&chip->occ, sizeof(chip->occ), TYPE_PNV_OCC);
+    object_property_add_child(obj, "occ", OBJECT(&chip->occ), NULL);
+    object_property_add_const_link(OBJECT(&chip->occ), "psi",
+                                   OBJECT(&chip->psi), &error_abort);
 }
 
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
@@ -824,6 +829,11 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
                              &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip->lpc.xscom_regs);
+
+    /* Create the simplified OCC model */
+    object_property_set_bool(OBJECT(&chip->occ), true, "realized",
+                             &error_fatal);
+    pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip->occ.xscom_regs);
 }
 
 static Property pnv_chip_properties[] = {
