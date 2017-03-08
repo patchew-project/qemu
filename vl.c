@@ -4560,6 +4560,14 @@ int main(int argc, char **argv, char **envp)
     current_machine->boot_order = boot_order;
     current_machine->cpu_model = cpu_model;
 
+    /* If memory encryption is enabled then create encryption context. */
+    if (kvm_memcrypt_enabled()) {
+        if (kvm_memcrypt_create_launch_context()) {
+            error_report("failed to create memory encryption context");
+            exit(1);
+        }
+    }
+
     machine_class->init(current_machine);
 
     realtime_init();
@@ -4708,6 +4716,13 @@ int main(int argc, char **argv, char **envp)
         }
     } else if (autostart) {
         vm_start();
+    }
+
+    if (kvm_memcrypt_enabled()) {
+        if (kvm_memcrypt_release_launch_context()) {
+            error_report("failed to stop encryption context");
+            exit(1);
+        }
     }
 
     os_setup_post();
