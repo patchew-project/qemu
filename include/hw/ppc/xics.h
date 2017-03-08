@@ -115,6 +115,7 @@ struct ICSState {
     qemu_irq *qirqs;
     ICSIRQState *irqs;
     XICSFabric *xics;
+    QLIST_ENTRY(ICSState) list;
 };
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
