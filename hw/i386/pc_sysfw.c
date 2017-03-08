@@ -47,7 +47,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
                              MemoryRegion *flash_mem,
                              int ram_size)
 {
-    int isa_bios_size;
+    int ret, isa_bios_size;
     MemoryRegion *isa_bios;
     uint64_t flash_size;
     void *flash_ptr, *isa_bios_ptr;
@@ -71,6 +71,15 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
     memcpy(isa_bios_ptr,
            ((uint8_t*)flash_ptr) + (flash_size - isa_bios_size),
            isa_bios_size);
+
+    /* If memory encryption is enabled then encrypt the ISA rom */
+    if (kvm_memcrypt_enabled()) {
+        ret = kvm_memcrypt_encrypt_launch_data(isa_bios_ptr, isa_bios_size);
+        if (ret) {
+            fprintf(stderr, "Error: failed to encrypt isa_bios image\n");
+        }
+        kvm_memcrypt_set_debug_ops(isa_bios);
+    }
 
     memory_region_set_readonly(isa_bios, true);
 }
@@ -103,6 +112,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
  */
 static void pc_system_flash_init(MemoryRegion *rom_memory)
 {
+    int ret;
     int unit;
     DriveInfo *pflash_drv;
     BlockBackend *blk;
@@ -113,6 +123,8 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     pflash_t *system_flash;
     MemoryRegion *flash_mem;
     char name[64];
+    void *flash_ptr;
+    int flash_size;
 
     sector_bits = 12;
     sector_size = 1 << sector_bits;
@@ -168,7 +180,20 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
                                              0      /* be */);
         if (unit == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
+
             pc_isa_bios_init(rom_memory, flash_mem, size);
+
+            /* Encrypt the pflash boot ROM */
+            if (kvm_memcrypt_enabled()) {
+                flash_ptr = memory_region_get_ram_ptr(flash_mem);
+                flash_size = memory_region_size(flash_mem);
+                ret = kvm_memcrypt_encrypt_launch_data(flash_ptr, flash_size);
+                if (ret) {
+                    fprintf(stderr, "Error: failed to encrypt %s\n", name);
+                    exit(1);
+                }
+                kvm_memcrypt_set_debug_ops(flash_mem);
+            }
         }
     }
 }
@@ -208,6 +233,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     }
     g_free(filename);
 
+    if (kvm_memcrypt_enabled()) {
+        kvm_memcrypt_set_debug_ops(bios);
+    }
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = bios_size;
     if (isa_bios_size > (128 * 1024)) {
