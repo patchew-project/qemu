@@ -49,6 +49,17 @@ int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
     return -1;
 }
 
+int xics_get_cpu_index_by_pir(int pir)
+{
+    PowerPCCPU *cpu = ppc_get_vcpu_by_pir(pir);
+
+    if (cpu) {
+        return cpu->parent_obj.cpu_index;
+    }
+
+    return -1;
+}
+
 void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);

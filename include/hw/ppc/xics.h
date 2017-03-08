@@ -173,6 +173,7 @@ void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu);
 
 /* Internal XICS interfaces */
 int xics_get_cpu_index_by_dt_id(int cpu_dt_id);
+int xics_get_cpu_index_by_pir(int pir);
 
 void icp_set_cppr(ICPState *icp, uint8_t cppr);
 void icp_set_mfrr(ICPState *icp, uint8_t mfrr);

@@ -1379,6 +1379,22 @@ PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
     return NULL;
 }
 
+PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
+
+        if (env->spr_cb[SPR_PIR].default_value == pir) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
 void ppc_cpu_parse_features(const char *cpu_model)
 {
     CPUClass *cc;

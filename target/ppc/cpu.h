@@ -2518,5 +2518,15 @@ int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
  */
 PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
 
+/**
+ * ppc_get_vcpu_by_pir_id:
+ * @pir: Processor Identifier Register (SPR_PIR)
+ *
+ * Searches for a CPU by @pir.
+ *
+ * Returns: a PowerPCCPU struct
+ */
+PowerPCCPU *ppc_get_vcpu_by_pir(int pir);
+
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
 #endif /* PPC_CPU_H */
