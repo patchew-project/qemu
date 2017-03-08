@@ -40,6 +40,7 @@
 #else /* !CONFIG_USER_ONLY */
 #include "hw/hw.h"
 #include "exec/memory.h"
+#include "sysemu/security-policy.h"
 #include "exec/ioport.h"
 #include "sysemu/dma.h"
 #include "sysemu/numa.h"
@@ -2925,6 +2926,12 @@ static inline void cpu_physical_memory_rw_debug_internal(AddressSpace *as,
     uint8_t *ptr;
     hwaddr addr1;
     MemoryRegion *mr;
+
+    /* Check if debug accesses is allowed */
+    if (attrs.debug &&
+        !security_policy_debug_allowed(current_machine->security_policy)) {
+        return;
+    }
 
     rcu_read_lock();
     while (len > 0) {

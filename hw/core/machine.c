@@ -332,6 +332,23 @@ static bool machine_get_enforce_config_section(Object *obj, Error **errp)
     return ms->enforce_config_section;
 }
 
+static char *machine_get_security_policy(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->security_policy);
+}
+
+static void machine_set_security_policy(Object *obj,
+                                        const char *value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    g_free(ms->security_policy);
+    ms->security_policy = g_strdup(value);
+}
+
+
 static void error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
 {
     error_report("Option '-device %s' cannot be handled by this machine",
@@ -493,6 +510,11 @@ static void machine_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_set_description(oc, "enforce-config-section",
         "Set on to enforce configuration section migration", &error_abort);
+
+    object_class_property_add_str(oc, "security-policy",
+            machine_get_security_policy, machine_set_security_policy, NULL);
+    object_class_property_set_description(oc, "security-policy",
+            "Set the security policy for the machine", NULL);
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)

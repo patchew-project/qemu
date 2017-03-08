@@ -153,6 +153,7 @@ struct MachineState {
     /*< public >*/
 
     char *accel;
+    char *security_policy;
     bool kernel_irqchip_allowed;
     bool kernel_irqchip_required;
     bool kernel_irqchip_split;

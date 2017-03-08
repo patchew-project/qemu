@@ -4147,6 +4147,27 @@ contents of @code{iv.b64} to the second secret
 
 @end table
 
+@item -object security-policy,id=@var{id}[,debug=@var{bool}][,memory-encryption=@var{string}]
+
+Create a security policy object, which can be used to define guest security.
+The id parameter is a unique ID that will be used to reference this
+object when security-policy is applied via -machine argument.
+
+The 'debug' parameter can be defined to tell whether the debugging or memory
+dump is allowed through qemu monitor console.
+
+e.g to disable the guest memory dump
+@example
+ # $QEMU \
+     -object security-policy,id=secure0,debug=off \
+     -machine ...,security-policy=secure0
+@end example
+
+if hardware support guest memory encrytion, then 'memory-encryption' parameter
+can be set to the unquie ID of memory encryption object.
+
+On AMD processor, memory encryption is supported via 'sev-guest' object.
+
 ETEXI
 
 
