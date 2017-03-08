@@ -148,6 +148,55 @@ static const TypeInfo qsev_launch_info = {
 };
 
 static int
+sev_ioctl(int cmd, void *data, int *error)
+{
+    int r;
+    struct kvm_sev_cmd input;
+
+    input.id = cmd;
+    input.sev_fd = sev_fd;
+    input.data = (__u64)data;
+
+    r = kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_OP, &input);
+    *error = input.error;
+    return r;
+}
+
+static int
+sev_launch_start(SEVState *s)
+{
+    int ret = 1;
+    Object *obj;
+    int fw_error;
+    struct kvm_sev_launch_start *start;
+
+    if (!s) {
+        return 1;
+    }
+
+    start = g_malloc0(sizeof(*start));
+    if (!start) {
+        return 1;
+    }
+
+    obj = object_property_get_link(OBJECT(s->sev_info), "launch", &error_abort);
+    if (!obj) {
+        goto err;
+    }
+
+    ret = sev_ioctl(KVM_SEV_LAUNCH_START, start, &fw_error);
+    if (ret < 0) {
+        fprintf(stderr, "failed LAUNCH_START %d (%#x)\n", ret, fw_error);
+        goto err;
+    }
+
+    DPRINTF("SEV: LAUNCH_START\n");
+err:
+    g_free(start);
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
     return 0;
@@ -198,6 +247,12 @@ sev_guest_init(const char *id)
 err:
     g_free(s);
     return NULL;
+}
+
+int
+sev_create_launch_context(void *handle)
+{
+    return sev_launch_start((SEVState *)handle);
 }
 
 void

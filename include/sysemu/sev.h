@@ -86,6 +86,7 @@ typedef struct SEVState SEVState;
 bool sev_enabled(void);
 void *sev_guest_init(const char *keyid);
 void sev_set_debug_ops(void *handle, MemoryRegion *mr);
+int sev_create_launch_context(void *handle);
 
 #endif
 
