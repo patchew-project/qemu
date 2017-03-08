@@ -40,6 +40,7 @@
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/sev.h"
 
 #if defined(CONFIG_KVM)
 #include <linux/kvm_para.h>
@@ -2964,6 +2965,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
+        }
+        break;
+    case 0x8000001F:
+        if (sev_enabled()) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
         }
         break;
     case 0xC0000000:
