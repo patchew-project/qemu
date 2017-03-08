@@ -384,6 +384,14 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVRawState *s = bs->opaque;
     int ret;
 
+    /*
+     * Notice:
+     * NULL options is only sensible when applying a snapshot.
+     */
+    if (!options) {
+        return 0;
+    }
+
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
     if (!bs->file) {
