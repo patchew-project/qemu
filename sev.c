@@ -197,6 +197,34 @@ err:
 }
 
 static int
+sev_get_current_state(SEVState *s)
+{
+    int error;
+    int ret = SEV_STATE_INVALID;
+    struct kvm_sev_guest_status *status;
+
+    if (!s) {
+        return ret;
+    }
+
+    status = g_malloc(sizeof(*status));
+    if (!status) {
+        return ret;
+    }
+
+    ret = sev_ioctl(KVM_SEV_GUEST_STATUS, status, &error);
+    if (ret) {
+        fprintf(stderr, "failed GUEST_STATUS %d (%#x)\n", ret, error);
+        goto err;
+    }
+
+    ret = status->state;
+err:
+    g_free(status);
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
     return 0;
