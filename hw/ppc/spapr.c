@@ -3024,6 +3024,16 @@ static void spapr_ics_resend(XICSFabric *dev)
     ics_resend(spapr->ics);
 }
 
+static void spapr_ics_eoi(XICSFabric *xi, int irq)
+{
+    ICSState *ics;
+
+    ics = spapr_ics_get(xi, irq);
+    if (ics) {
+        ics_eoi(ics, irq);
+    }
+}
+
 static ICPState *spapr_icp_get(XICSFabric *xi, int server)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
@@ -3094,6 +3104,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->get_patbe = spapr_get_patbe;
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
+    xic->ics_eoi = spapr_ics_eoi;
     xic->icp_get = spapr_icp_get;
     ispc->print_info = spapr_pic_print_info;
 }

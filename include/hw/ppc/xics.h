@@ -155,6 +155,7 @@ typedef struct XICSFabricClass {
     InterfaceClass parent;
     ICSState *(*ics_get)(XICSFabric *xi, int irq);
     void (*ics_resend)(XICSFabric *xi);
+    void (*ics_eoi)(XICSFabric *xi, int irq);
     ICPState *(*icp_get)(XICSFabric *xi, int server);
 } XICSFabricClass;
 
@@ -189,6 +190,7 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon);
 void ics_pic_print_info(ICSState *ics, Monitor *mon);
 
 void ics_resend(ICSState *ics);
+void ics_eoi(ICSState *ics, int irq);
 void icp_resend(ICPState *ss);
 
 typedef struct sPAPRMachineState sPAPRMachineState;

@@ -169,7 +169,7 @@ void ics_resend(ICSState *ics)
     }
 }
 
-static void ics_eoi(ICSState *ics, int nr)
+void ics_eoi(ICSState *ics, int nr)
 {
     ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
 
@@ -268,7 +268,6 @@ void icp_eoi(ICPState *icp, uint32_t xirr)
 {
     XICSFabric *xi = icp->xics;
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
-    ICSState *ics;
     uint32_t irq;
 
     /* Send EOI -> ICS */
@@ -276,10 +275,8 @@ void icp_eoi(ICPState *icp, uint32_t xirr)
     trace_xics_icp_eoi(icp->cs->cpu_index, xirr, icp->xirr);
     irq = xirr & XISR_MASK;
 
-    ics = xic->ics_get(xi, irq);
-    if (ics) {
-        ics_eoi(ics, irq);
-    }
+    xic->ics_eoi(xi, irq);
+
     if (!XISR(icp)) {
         icp_resend(icp);
     }
