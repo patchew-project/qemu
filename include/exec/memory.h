@@ -307,7 +307,7 @@ struct MemoryRegionSection {
  *
  * @mr: the #MemoryRegion to be initialized
  * @owner: the object that tracks the region's reference count
- * @name: used for debugging; not visible to the user or ABI
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
  * @size: size of the region; any subregions beyond this size will be clipped
  */
 void memory_region_init(MemoryRegion *mr,
@@ -355,7 +355,7 @@ void memory_region_unref(MemoryRegion *mr);
  * @ops: a structure containing read and write callbacks to be used when
  *       I/O is performed on the region.
  * @opaque: passed to the read and write callbacks of the @ops structure.
- * @name: used for debugging; not visible to the user or ABI
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
  * @size: size of the region.
  */
 void memory_region_init_io(MemoryRegion *mr,
@@ -474,7 +474,7 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
- * @name: used for debugging; not visible to the user or ABI
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
  * @orig: the region to be referenced; @mr will be equivalent to
  *        @orig between @offset and @offset + @size - 1.
  * @offset: start of the section in @orig to be referenced.
@@ -537,7 +537,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized
  * @owner: the object that tracks the region's reference count
- * @name: used for debugging; not visible to the user or ABI
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
  * @size: size of the region.
  */
 static inline void memory_region_init_reservation(MemoryRegion *mr,
@@ -558,7 +558,7 @@ static inline void memory_region_init_reservation(MemoryRegion *mr,
  * @mr: the #MemoryRegion to be initialized
  * @owner: the object that tracks the region's reference count
  * @ops: a function that translates addresses into the @target region
- * @name: used for debugging; not visible to the user or ABI
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
  * @size: size of the region.
  */
 void memory_region_init_iommu(MemoryRegion *mr,
