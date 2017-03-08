@@ -26,6 +26,128 @@
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_xscom.h"
 
+static uint64_t pnv_core_icp_read(void *opaque, hwaddr addr, unsigned width)
+{
+    ICPState *icp = opaque;
+    bool byte0 = (width == 1 && (addr & 0x3) == 0);
+    uint64_t val = 0xffffffff;
+
+    switch (addr & 0xffc) {
+    case 0: /* poll */
+        val = icp_ipoll(icp, NULL);
+        if (byte0) {
+            val >>= 24;
+        } else if (width != 4) {
+            goto bad_access;
+        }
+        break;
+    case 4: /* xirr */
+        if (byte0) {
+            val = icp_ipoll(icp, NULL) >> 24;
+        } else if (width == 4) {
+            val = icp_accept(icp);
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 12:
+        if (byte0) {
+            val = icp->mfrr;
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 16:
+        if (width == 4) {
+            val = icp->links[0];
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 20:
+        if (width == 4) {
+            val = icp->links[1];
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 24:
+        if (width == 4) {
+            val = icp->links[2];
+        } else {
+            goto bad_access;
+        }
+        break;
+    default:
+bad_access:
+        qemu_log_mask(LOG_GUEST_ERROR, "XICS: Bad ICP access 0x%"
+                      HWADDR_PRIx"/%d\n", addr, width);
+    }
+
+    return val;
+}
+
+static void pnv_core_icp_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
+{
+    ICPState *icp = opaque;
+    bool byte0 = (width == 1 && (addr & 0x3) == 0);
+
+    switch (addr & 0xffc) {
+    case 4: /* xirr */
+        if (byte0) {
+            icp_set_cppr(icp, val);
+        } else if (width == 4) {
+            icp_eoi(icp, val);
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 12:
+        if (byte0) {
+            icp_set_mfrr(icp, val);
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 16:
+        if (width == 4) {
+            icp->links[0] = val;
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 20:
+        if (width == 4) {
+            icp->links[1] = val;
+        } else {
+            goto bad_access;
+        }
+        break;
+    case 24:
+        if (width == 4) {
+            icp->links[2] = val;
+        } else {
+            goto bad_access;
+        }
+        break;
+    default:
+bad_access:
+        qemu_log_mask(LOG_GUEST_ERROR, "XICS: Bad ICP access 0x%"
+                      HWADDR_PRIx"/%d\n", addr, width);
+    }
+}
+
+static const MemoryRegionOps pnv_core_icp_ops = {
+    .read = pnv_core_icp_read,
+    .write = pnv_core_icp_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
 static void powernv_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -129,6 +251,14 @@ static void pnv_core_realize_child(Object *child, Error **errp)
     }
 }
 
+static ICPState *xics_get_icp_per_pir(XICSFabric *xi, int pir)
+{
+    int index = xics_get_cpu_index_by_pir(pir);
+    assert(index != -1);
+
+    return xics_icp_get(xi, index);
+}
+
 static void pnv_core_realize(DeviceState *dev, Error **errp)
 {
     PnvCore *pc = PNV_CORE(OBJECT(dev));
@@ -140,6 +270,14 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
     char name[32];
+    Object *xi;
+
+    xi = object_property_get_link(OBJECT(dev), "xics", &local_err);
+    if (!xi) {
+        error_setg(errp, "%s: required link 'xics' not found: %s",
+                   __func__, error_get_pretty(local_err));
+        return;
+    }
 
     pc->threads = g_malloc0(size * cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
@@ -169,6 +307,14 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
     pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), &pnv_core_xscom_ops,
                           pc, name, PNV_XSCOM_EX_CORE_SIZE);
+
+    pc->icp_mmios = g_new0(MemoryRegion, cc->nr_threads);
+    for (i = 0; i < cc->nr_threads; i++) {
+        ICPState *icp = xics_get_icp_per_pir(XICS_FABRIC(xi), pc->pir + i);
+        snprintf(name, sizeof(name), "icp-core.%d", cc->core_id);
+        memory_region_init_io(&pc->icp_mmios[i], OBJECT(dev),
+                              &pnv_core_icp_ops, icp, name, 0x1000);
+    }
     return;
 
 err:

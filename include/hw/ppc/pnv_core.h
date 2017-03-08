@@ -38,6 +38,7 @@ typedef struct PnvCore {
     uint32_t pir;
 
     MemoryRegion xscom_regs;
+    MemoryRegion *icp_mmios;
 } PnvCore;
 
 typedef struct PnvCoreClass {

@@ -658,6 +658,16 @@ static void pnv_chip_init(Object *obj)
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
 }
 
+static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
+{
+    char *name;
+
+    name = g_strdup_printf("icp-%x", chip->chip_id);
+    memory_region_init(&chip->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(chip), &chip->icp_mmio);
+    g_free(name);
+}
+
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
@@ -679,6 +689,14 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
+
+    /* Interrupt Management Area. This is the memory region holding
+     * all the Interrupt Control Presenter (ICP) registers */
+    pnv_chip_icp_realize(chip, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
 
     /* Cores */
     pnv_chip_core_sanitize(chip, &error);
@@ -709,6 +727,8 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(pnv_core),
                                 pcc->core_pir(chip, core_hwid),
                                 "pir", &error_fatal);
+        object_property_add_const_link(OBJECT(pnv_core), "xics",
+                                       qdev_get_machine(), &error_fatal);
         object_property_set_bool(OBJECT(pnv_core), true, "realized",
                                  &error_fatal);
         object_unref(OBJECT(pnv_core));

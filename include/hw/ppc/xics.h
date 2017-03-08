@@ -78,6 +78,9 @@ struct ICPState {
     bool cap_irq_xics_enabled;
 
     XICSFabric *xics;
+
+    /* for the PowerNV ICP registers (not used by Linux). */
+    uint32_t links[3];
 };
 
 #define TYPE_ICS_BASE "ics-base"
