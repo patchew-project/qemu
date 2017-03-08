@@ -227,6 +227,13 @@ int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUState *cpu);
 int kvm_destroy_vcpu(CPUState *cpu);
 
+bool kvm_memcrypt_enabled(void);
+void *kvm_memcrypt_get_handle(void);
+void kvm_memcrypt_set_debug_ops(MemoryRegion *mr);
+int kvm_memcrypt_create_launch_context(void);
+int kvm_memcrypt_release_launch_context(void);
+int kvm_memcrypt_encrypt_launch_data(uint8_t *ptr, uint64_t len);
+
 #ifdef NEED_CPU_H
 #include "cpu.h"
 

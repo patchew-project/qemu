@@ -36,6 +36,7 @@
 #include "qemu/event_notifier.h"
 #include "trace-root.h"
 #include "hw/irq.h"
+#include "sysemu/security-policy.h"
 
 #include "hw/boards.h"
 
@@ -101,6 +102,13 @@ struct KVMState
 #endif
     KVMMemoryListener memory_listener;
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
+
+    /* memory encryption support */
+    void *ehandle;
+    int (*create_launch_context)(void *ehandle);
+    int (*release_launch_context)(void *ehandle);
+    int (*encrypt_launch_data)(void *ehandle, uint8_t *dst, uint64_t len);
+    void (*memcrypt_debug_ops)(void *ehandle, MemoryRegion *mr);
 };
 
 KVMState *kvm_state;
@@ -127,6 +135,50 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(DESTROY_MEMORY_REGION_WORKS),
     KVM_CAP_LAST_INFO
 };
+
+bool kvm_memcrypt_enabled(void)
+{
+    return kvm_state->ehandle ? true : false;
+}
+
+int kvm_memcrypt_create_launch_context(void)
+{
+    if (kvm_state->create_launch_context) {
+        return kvm_state->create_launch_context(kvm_state->ehandle);
+    }
+
+    return 1;
+}
+
+int kvm_memcrypt_release_launch_context(void)
+{
+    if (kvm_state->release_launch_context) {
+        return kvm_state->release_launch_context(kvm_state->ehandle);
+    }
+
+    return 1;
+}
+
+int kvm_memcrypt_encrypt_launch_data(uint8_t *dst, uint64_t len)
+{
+    if (kvm_state->encrypt_launch_data) {
+        return kvm_state->encrypt_launch_data(kvm_state->ehandle, dst, len);
+    }
+
+    return 1;
+}
+
+void kvm_memcrypt_set_debug_ops(MemoryRegion *mr)
+{
+    if (kvm_state->memcrypt_debug_ops) {
+        return kvm_state->memcrypt_debug_ops(kvm_state->ehandle, mr);
+    }
+}
+
+void *kvm_memcrypt_get_handle(void)
+{
+    return kvm_state->ehandle;
+}
 
 int kvm_get_max_memslots(void)
 {
