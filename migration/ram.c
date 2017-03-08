@@ -44,6 +44,7 @@
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
+#include "hw/boards.h"
 
 static int dirty_rate_high_cnt;
 
@@ -590,6 +591,7 @@ static int64_t bytes_xfer_prev;
 static int64_t num_dirty_pages_period;
 static uint64_t xbzrle_cache_miss_prev;
 static uint64_t iterations_prev;
+static int64_t dirty_pages_time_prev;
 
 static void migration_bitmap_sync_init(void)
 {
@@ -598,6 +600,47 @@ static void migration_bitmap_sync_init(void)
     num_dirty_pages_period = 0;
     xbzrle_cache_miss_prev = 0;
     iterations_prev = 0;
+    dirty_pages_time_prev = 0;
+}
+
+static void migration_inst_rate(void)
+{
+    int64_t dirty_pages_time_now;
+    if (!dirty_pages_time_prev) {
+        dirty_pages_time_prev = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    }
+    dirty_pages_time_now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if (dirty_pages_time_now > dirty_pages_time_prev + 1000) {
+        RAMBlock *block;
+        MigrationState *s = migrate_get_current();
+        int64_t inst_dirty_pages = 0;
+        int64_t i;
+        unsigned long *num;
+        unsigned long len = 0;
+
+        rcu_read_lock();
+        DirtyMemoryBlocks *blocks = atomic_rcu_read(
+                         &ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
+        QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+            if (len == 0) {
+                len = block->offset;
+            }
+            len += block->used_length;
+        }
+        ram_addr_t idx = (len >> TARGET_PAGE_BITS) / DIRTY_MEMORY_BLOCK_SIZE;
+        if (((len >> TARGET_PAGE_BITS) % DIRTY_MEMORY_BLOCK_SIZE) != 0) {
+            idx++;
+        }
+        for (i = 0; i < idx; i++) {
+            num = blocks->blocks[i];
+            inst_dirty_pages += bitmap_weight(num, DIRTY_MEMORY_BLOCK_SIZE);
+        }
+        rcu_read_unlock();
+
+        s->inst_dirty_pages_rate = inst_dirty_pages * TARGET_PAGE_SIZE *
+                    1000 / (dirty_pages_time_now - dirty_pages_time_prev);
+    }
+    dirty_pages_time_prev = dirty_pages_time_now;
 }
 
 /* Returns a summary bitmap of the page sizes of all RAMBlocks;
@@ -637,6 +680,8 @@ static void migration_bitmap_sync(void)
 
     trace_migration_bitmap_sync_start();
     memory_global_dirty_log_sync();
+
+    migration_inst_rate();
 
     qemu_mutex_lock(&migration_bitmap_mutex);
     rcu_read_lock();
