@@ -350,16 +350,49 @@ err:
 }
 
 static int
+sev_debug_encrypt(SEVState *s, uint8_t *dst, const uint8_t *src, uint32_t len)
+{
+    int ret, error;
+    struct kvm_sev_dbg *dbg;
+
+    if (!s) {
+        return 1;
+    }
+
+    dbg = g_malloc0(sizeof(*dbg));
+    if (!dbg) {
+        return 1;
+    }
+
+    dbg->src_addr = (unsigned long)src;
+    dbg->dst_addr = (unsigned long)dst;
+    dbg->length = len;
+
+    ret = sev_ioctl(KVM_SEV_DBG_ENCRYPT, dbg, &error);
+    if (ret) {
+        fprintf(stderr, "failed DBG_ENCRYPT %d (%#x)\n", ret, error);
+        goto err;
+    }
+
+err:
+    g_free(dbg);
+
+    return ret;
+}
+
+static int
 sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
 {
     SEVState *s = kvm_memcrypt_get_handle();
 
-    if (sev_get_current_state(s) == SEV_STATE_LAUNCHING) {
+    if (attrs.debug) {
+        return sev_debug_encrypt(s, dst, src, len);
+    } else if (sev_get_current_state(s) == SEV_STATE_LAUNCHING) {
         memcpy(dst, src, len);
         return sev_launch_update_data(s, dst, len);
+    } else {
+        return 1;
     }
-
-    return 1;
 }
 
 static int
