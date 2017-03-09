@@ -31,6 +31,11 @@
 #define KERNEL_LOAD_ADDR 0x00010000
 #define KERNEL64_LOAD_ADDR 0x00080000
 
+#define ARM64_IMAGE_HEADER_SIZE     64
+#define ARM64_TEXT_OFFSET_OFFSET    8
+#define ARM64_IMAGE_SIZE_OFFSET     16
+#define ARM64_MAGIC_OFFSET          56
+
 typedef enum {
     FIXUP_NONE = 0,     /* do nothing */
     FIXUP_TERMINATOR,   /* end of insns */
@@ -768,6 +773,51 @@ static uint64_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
     return ret;
 }
 
+static void aarch64_get_text_offset(struct arm_boot_info *info,
+                                    hwaddr *text_offset)
+{
+    uint8_t *buffer;
+    uint64_t headerval;
+    int size;
+
+    size = load_image_gzipped_buffer(info->kernel_filename,
+                                     LOAD_IMAGE_MAX_GUNZIP_BYTES,
+                                     &buffer);
+
+    if (size < 0) {
+        int fd, bytes;
+
+        fd = open(info->kernel_filename, O_RDONLY | O_BINARY);
+        if (fd < 0)
+            return;
+
+        buffer = g_malloc(ARM64_IMAGE_HEADER_SIZE);
+        bytes = read(fd, buffer, ARM64_IMAGE_HEADER_SIZE);
+        close(fd);
+
+        if (bytes < ARM64_IMAGE_HEADER_SIZE)
+            goto free_buffer;
+    }
+
+    /* check the arm64 magic header value */
+    if (memcmp(buffer + ARM64_MAGIC_OFFSET, "ARM\x64", 4) != 0)
+        goto free_buffer;
+
+    /* The arm64 Image header has text_offset and image_size fields at 8 and
+     * 16 bytes into the Image header, respectively. The text_offset field is
+     * only valid if the image_size is non-zero.
+     */
+    memcpy(&headerval, buffer + ARM64_IMAGE_SIZE_OFFSET, sizeof(headerval));
+    if (headerval == 0)
+        goto free_buffer;
+
+    memcpy(&headerval, buffer + ARM64_TEXT_OFFSET_OFFSET, sizeof(headerval));
+    *text_offset = le64_to_cpu(headerval);
+
+free_buffer:
+    g_free(buffer);
+}
+
 static void arm_load_kernel_notify(Notifier *notifier, void *data)
 {
     CPUState *cs;
@@ -900,6 +950,12 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,
                                   &is_linux, NULL, NULL);
     }
+
+    /* A bare Linux/arm64 kernel carries the load offset in the Image header */
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64) && kernel_size < 0) {
+        aarch64_get_text_offset(info, &kernel_load_offset);
+    }
+
     /* On aarch64, it's the bootloader's job to uncompress the kernel. */
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64) && kernel_size < 0) {
         entry = info->loader_start + kernel_load_offset;
