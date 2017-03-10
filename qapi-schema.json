@@ -5647,7 +5647,7 @@
 # Since: 2.1
 ##
 { 'enum': 'NumaOptionsType',
-  'data': [ 'node' ] }
+  'data': [ 'node', 'dist' ] }
 
 ##
 # @NumaOptions:
@@ -5660,7 +5660,8 @@
   'base': { 'type': 'NumaOptionsType' },
   'discriminator': 'type',
   'data': {
-    'node': 'NumaNodeOptions' }}
+    'node': 'NumaNodeOptions',
+    'dist': 'NumaDistOptions' }}
 
 ##
 # @NumaNodeOptions:
@@ -5687,6 +5688,25 @@
    '*cpus':   ['uint16'],
    '*mem':    'size',
    '*memdev': 'str' }}
+
+##
+# @NumaDistOptions:
+#
+# Set distance between 2 NUMA nodes. (for OptsVisitor)
+#
+# @a: first NUMA node.
+#
+# @b: second NUMA node.
+#
+# @val: NUMA distance between 2 given NUMA nodes.
+#
+# Since: 2.9
+##
+{ 'struct': 'NumaDistOptions',
+  'data': {
+   'a':   'uint8',
+   'b':   'uint8',
+   'val': 'uint8' }}
 
 ##
 # @HostMemPolicy:

@@ -2396,6 +2396,32 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 }
 
 static void
+build_slit(GArray *table_data, BIOSLinker *linker, MachineState *machine)
+{
+    struct AcpiSystemLocalityDistanceTable *slit;
+    uint8_t *entry;
+    int slit_start, slit_data_len, i, j;
+    slit_start = table_data->len;
+
+    slit = acpi_data_push(table_data, sizeof(*slit));
+    slit->nb_localities = nb_numa_nodes;
+
+    slit_data_len = sizeof(uint8_t) * nb_numa_nodes * nb_numa_nodes;
+    entry = acpi_data_push(table_data, slit_data_len);
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        for (j = 0; j < nb_numa_nodes; j++) {
+            entry[i * nb_numa_nodes + j] = numa_info[i].distance[j];
+        }
+    }
+
+    build_header(linker, table_data,
+                 (void *)(table_data->data + slit_start),
+                 "SLIT",
+                 table_data->len - slit_start, 1, NULL, NULL);
+}
+
+static void
 build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
     AcpiTableMcfg *mcfg;
@@ -2678,6 +2704,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     if (pcms->numa_nodes) {
         acpi_add_table(table_offsets, tables_blob);
         build_srat(tables_blob, tables->linker, machine);
+        acpi_add_table(table_offsets, tables_blob);
+        build_slit(tables_blob, tables->linker, machine);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables_blob);

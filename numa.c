@@ -50,6 +50,9 @@ static int have_memdevs = -1;
 static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
                              * For all nodes, nodeid < max_numa_nodeid
                              */
+static int min_numa_distance = 10;
+static int def_numa_distance = 20;
+static int max_numa_distance = 255;
 int nb_numa_nodes;
 NodeInfo numa_info[MAX_NODES];
 
@@ -208,8 +211,31 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
         numa_info[nodenr].node_mem = object_property_get_int(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
+
     numa_info[nodenr].present = true;
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
+}
+
+static void numa_distance_parse(NumaDistOptions *dist, QemuOpts *opts, Error **errp)
+{
+    uint8_t a = dist->a;
+    uint8_t b = dist->b;
+    uint8_t val = dist->val;
+
+    if (a >= MAX_NODES || b >= MAX_NODES) {
+        error_setg(errp, "Max number of NUMA nodes reached: %"
+                   PRIu16 "", a > b ? a : b);
+        return;
+    }
+
+    if (val > max_numa_distance || val < min_numa_distance) {
+        error_setg(errp,
+                "NUMA distance (%" PRIu8 ") out of range (%d)~(%d)",
+                dist->val, max_numa_distance, min_numa_distance);
+        return;
+    }
+
+    numa_info[a].distance[b] = val;
 }
 
 static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
@@ -234,6 +260,12 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
             goto end;
         }
         nb_numa_nodes++;
+        break;
+    case NUMA_OPTIONS_TYPE_DIST:
+        numa_distance_parse(&object->u.dist, opts, &err);
+        if (err) {
+            goto end;
+        }
         break;
     default:
         abort();
@@ -292,6 +324,21 @@ static void validate_numa_cpus(void)
         g_free(msg);
     }
     g_free(seen_cpus);
+}
+
+static void default_numa_distance(void)
+{
+    int i, j;
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        for (j = 0; j < nb_numa_nodes; j++) {
+            if (i == j && numa_info[i].distance[j] != min_numa_distance) {
+                numa_info[i].distance[j] = min_numa_distance;
+            } else if (numa_info[i].distance[j] <= min_numa_distance) {
+                numa_info[i].distance[j] = def_numa_distance;
+            }
+        }
+    }
 }
 
 void parse_numa_opts(MachineClass *mc)
@@ -390,6 +437,7 @@ void parse_numa_opts(MachineClass *mc)
         }
 
         validate_numa_cpus();
+        default_numa_distance();
     } else {
         numa_set_mem_node_id(0, ram_size, 0);
     }

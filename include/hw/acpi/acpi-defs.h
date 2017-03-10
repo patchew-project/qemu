@@ -527,6 +527,15 @@ struct AcpiSratProcessorGiccAffinity
 
 typedef struct AcpiSratProcessorGiccAffinity AcpiSratProcessorGiccAffinity;
 
+/*
+ * SLIT (NUMA distance description) table
+ */
+struct AcpiSystemLocalityDistanceTable {
+    ACPI_TABLE_HEADER_DEF
+    uint64_t    nb_localities;
+} QEMU_PACKED;
+typedef struct AcpiSystemLocalityDistanceTable AcpiSystemLocalityDistanceTable;
+
 /* PCI fw r3.0 MCFG table. */
 /* Subtable */
 struct AcpiMcfgAllocation {
