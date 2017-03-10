@@ -2008,6 +2008,9 @@ void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr)
         }
 
         block->host = xen_map_cache(block->offset, block->max_length, 1);
+        if (block->host == NULL) {
+            return NULL;
+        }
     }
     return ramblock_ptr(block, addr);
 }

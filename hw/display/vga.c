@@ -2163,7 +2163,7 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
     memory_region_init_ram(&s->vram, obj, "vga.vram", s->vram_size,
                            &error_fatal);
     vmstate_register_ram(&s->vram, global_vmstate ? NULL : DEVICE(obj));
-    xen_register_framebuffer(&s->vram);
+    xen_register_framebuffer(&s->vram, &s->vram_ptr);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;

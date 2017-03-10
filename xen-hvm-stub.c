@@ -46,7 +46,7 @@ qemu_irq *xen_interrupt_controller_init(void)
     return NULL;
 }
 
-void xen_register_framebuffer(MemoryRegion *mr)
+void xen_register_framebuffer(MemoryRegion *mr, uint8_t **ptr)
 {
 }
 

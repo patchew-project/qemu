@@ -45,6 +45,6 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
                    struct MemoryRegion *mr, Error **errp);
 void xen_modified_memory(ram_addr_t start, ram_addr_t length);
 
-void xen_register_framebuffer(struct MemoryRegion *mr);
+void xen_register_framebuffer(struct MemoryRegion *mr, uint8_t **ptr);
 
 #endif /* QEMU_HW_XEN_H */
