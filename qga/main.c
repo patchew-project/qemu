@@ -39,6 +39,7 @@
 #define CONFIG_FSFREEZE
 #endif
 #endif
+#include "qapi/qmp-event.h"
 
 #ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
@@ -1488,6 +1489,12 @@ end:
 #endif
 }
 
+static void
+monitor_qapi_event_queue(qga_QAPIEvent event, QDict *qdict, Error **errp)
+{
+    send_response(ga_state, QOBJECT(qdict));
+}
+
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
@@ -1496,6 +1503,7 @@ int main(int argc, char **argv)
     int listen_fd;
 
     update_vmdump_info(s);
+    qmp_event_set_func_emit(monitor_qapi_event_queue);
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
