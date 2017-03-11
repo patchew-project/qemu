@@ -28,11 +28,11 @@ builtin_types = {
     'int16':    'QTYPE_QINT',
     'int32':    'QTYPE_QINT',
     'int64':    'QTYPE_QINT',
-    'uint8':    'QTYPE_QINT',
-    'uint16':   'QTYPE_QINT',
-    'uint32':   'QTYPE_QINT',
-    'uint64':   'QTYPE_QINT',
-    'size':     'QTYPE_QINT',
+    'uint8':    'QTYPE_QUINT',
+    'uint16':   'QTYPE_QUINT',
+    'uint32':   'QTYPE_QUINT',
+    'uint64':   'QTYPE_QUINT',
+    'size':     'QTYPE_QUINT',
     'any':      None,           # any QType possible, actually
     'QType':    'QTYPE_QSTRING',
 }
@@ -1093,6 +1093,7 @@ class QAPISchemaType(QAPISchemaEntity):
             'string':  'QTYPE_QSTRING',
             'number':  'QTYPE_QFLOAT',
             'int':     'QTYPE_QINT',
+            'uint':    'QTYPE_QUINT',
             'boolean': 'QTYPE_QBOOL',
             'object':  'QTYPE_QDICT'
         }
@@ -1103,8 +1104,8 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     def __init__(self, name, json_type, c_type):
         QAPISchemaType.__init__(self, name, None)
         assert not c_type or isinstance(c_type, str)
-        assert json_type in ('string', 'number', 'int', 'boolean', 'null',
-                             'value')
+        assert json_type in ('string', 'number', 'int', 'uint',
+                             'boolean', 'null', 'value')
         self._json_type_name = json_type
         self._c_type_name = c_type
 
@@ -1519,18 +1520,19 @@ class QAPISchema(object):
                   ('int16',  'int',     'int16_t'),
                   ('int32',  'int',     'int32_t'),
                   ('int64',  'int',     'int64_t'),
-                  ('uint8',  'int',     'uint8_t'),
-                  ('uint16', 'int',     'uint16_t'),
-                  ('uint32', 'int',     'uint32_t'),
-                  ('uint64', 'int',     'uint64_t'),
-                  ('size',   'int',     'uint64_t'),
+                  ('uint8',  'uint',    'uint8_t'),
+                  ('uint16', 'uint',    'uint16_t'),
+                  ('uint32', 'uint',    'uint32_t'),
+                  ('uint64', 'uint',    'uint64_t'),
+                  ('size',   'uint',    'uint64_t'),
                   ('bool',   'boolean', 'bool'),
                   ('any',    'value',   'QObject' + pointer_suffix)]:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType('q_empty', None,
                                                           None, [], None)
         self._def_entity(self.the_empty_object_type)
-        qtype_values = self._make_enum_members(['none', 'qnull', 'qint',
+        qtype_values = self._make_enum_members(['none', 'qnull',
+                                                'qint', 'quint',
                                                 'qstring', 'qdict', 'qlist',
                                                 'qfloat', 'qbool'])
         self._def_entity(QAPISchemaEnumType('QType', None, qtype_values,

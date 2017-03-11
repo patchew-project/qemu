@@ -600,6 +600,11 @@ static void dump_qobject(fprintf_function func_fprintf, void *f,
             func_fprintf(f, "%" PRId64, qint_get_int(value));
             break;
         }
+        case QTYPE_QUINT: {
+            QUInt *value = qobject_to_quint(obj);
+            func_fprintf(f, "%" PRIu64, quint_get_uint(value));
+            break;
+        }
         case QTYPE_QSTRING: {
             QString *value = qobject_to_qstring(obj);
             func_fprintf(f, "%s", qstring_get_str(value));

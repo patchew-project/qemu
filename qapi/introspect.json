@@ -125,7 +125,7 @@
 # Since: 2.5
 ##
 { 'enum': 'JSONType',
-  'data': [ 'string', 'number', 'int', 'boolean', 'null',
+  'data': [ 'string', 'number', 'int', 'uint', 'boolean', 'null',
             'object', 'array', 'value' ] }
 
 ##

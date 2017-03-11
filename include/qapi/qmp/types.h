@@ -15,6 +15,7 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qint.h"
+#include "qapi/qmp/quint.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qstring.h"
