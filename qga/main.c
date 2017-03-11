@@ -65,6 +65,14 @@ typedef struct GAPersistentState {
     int64_t fd_counter;
 } GAPersistentState;
 
+typedef struct VMDumpInfo {
+    bool has_phys_base;
+    uint64_t phys_base;
+    bool has_text;
+    uint64_t text;
+    char *vmcoreinfo;
+} VMDumpInfo;
+
 struct GAState {
     JSONMessageParser parser;
     GMainLoop *main_loop;
@@ -90,6 +98,7 @@ struct GAState {
 #endif
     gchar *pstate_filepath;
     GAPersistentState pstate;
+    VMDumpInfo vmdump;
 };
 
 struct GAState *ga_state;
@@ -1357,12 +1366,136 @@ static int run_agent(GAState *s, GAConfig *config)
     return EXIT_SUCCESS;
 }
 
+#define __START_KERNEL_map    0xffffffff80000000UL
+
+static void update_vmdump_info(GAState *s)
+{
+#ifndef _WIN32
+    char *vmcoreinfo = NULL;
+    char *iomem = NULL;
+    char *kallsyms = NULL;
+    gsize len;
+    GError *err = NULL;
+#ifdef __x86_64__
+    guint64 kernel_code_start, text_start, phys_base;
+    char *tmp, *line, *eol;
+
+    if (!g_file_get_contents("/proc/iomem", &iomem, &len, &err)) {
+        g_critical("Failed to read /proc/iomem: %s", err->message);
+        g_clear_error(&err);
+        goto end;
+    }
+    if (!iomem[len] == '\0') {
+        g_critical("iomem is not null-terminated");
+        goto end;
+    }
+
+    for (line = iomem; line != NULL; line = eol ? eol + 1 : NULL) {
+        eol = strstr(line, "\n");
+        if (eol) {
+            *eol = '\0';
+        }
+        tmp = strstr(line, " : Kernel code");
+        if (!tmp || *(tmp + 14) != '\0') {
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    if (line == NULL) {
+        g_critical("failed to find kernel_code_start");
+        goto end;
+    } else {
+        tmp = strstr(line, "-");
+        if (!tmp) {
+            g_critical("no -");
+            goto end;
+        }
+        *tmp = '\0';
+        kernel_code_start = g_ascii_strtoull(g_strstrip(line), &tmp, 16);
+        if (*tmp != '\0') {
+            g_critical("failed to parse hex value");
+            goto end;
+        }
+    }
+
+    if (!g_file_get_contents("/proc/kallsyms", &kallsyms, &len, &err)) {
+        g_critical("Failed to read /proc/kallsyms: %s", err->message);
+        g_clear_error(&err);
+        goto end;
+    }
+    if (!kallsyms[len] == '\0') {
+        g_critical("iomem is not null-terminated");
+        goto end;
+    }
+
+    for (line = kallsyms; line != NULL; line = eol ? eol + 1 : NULL) {
+        eol = strstr(line, "\n");
+        if (eol) {
+            *eol = '\0';
+        }
+        tmp = strstr(line, " T _text");
+        if (!tmp || *(tmp + 8) != '\0') {
+            continue;
+        } else {
+            *tmp = '\0';
+            break;
+        }
+    }
+
+    if (line == NULL) {
+        g_critical("failed to find _text");
+        goto end;
+    } else {
+        text_start = g_ascii_strtoull(g_strstrip(line), &tmp, 16);
+        if (*tmp != '\0') {
+            g_critical("failed to parse hex value");
+            goto end;
+        }
+    }
+
+    phys_base = kernel_code_start - (text_start - __START_KERNEL_map);
+    g_debug("_text: %lx, kernel_code_start: %lx",
+            text_start, kernel_code_start);
+    g_debug("-> phys_base: %lx", phys_base);
+    g_debug("vmcoreinfo: %s", vmcoreinfo);
+
+    s->vmdump.has_phys_base = true;
+    s->vmdump.phys_base = phys_base;
+    s->vmdump.has_text = true;
+    s->vmdump.text = text_start;
+#endif /* x86_64 */
+
+    if (!g_file_get_contents("/sys/kernel/vmcoreinfo",
+                             &vmcoreinfo, &len, &err)) {
+        g_critical("Failed to read vmcoreinfo: %s", err->message);
+        g_clear_error(&err);
+        goto end;
+    }
+    if (!vmcoreinfo[len] == '\0') {
+        g_critical("vmcoreinfo is not null-terminated");
+        goto end;
+    }
+
+    s->vmdump.vmcoreinfo = vmcoreinfo;
+    vmcoreinfo = NULL;
+
+end:
+    g_free(vmcoreinfo);
+    g_free(kallsyms);
+    g_free(iomem);
+#endif
+}
+
 int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
     GAConfig *config = g_new0(GAConfig, 1);
     int listen_fd;
+
+    update_vmdump_info(s);
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
@@ -1460,6 +1593,7 @@ end:
     if (s->main_loop) {
         g_main_loop_unref(s->main_loop);
     }
+    g_free(s->vmdump.vmcoreinfo);
     g_free(s);
 
     return ret;
