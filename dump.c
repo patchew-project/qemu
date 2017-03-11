@@ -20,6 +20,7 @@
 #include "monitor/monitor.h"
 #include "sysemu/kvm.h"
 #include "sysemu/dump.h"
+#include "sysemu/dump-info.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/memory_mapping.h"
 #include "sysemu/cpus.h"
@@ -37,6 +38,8 @@
 #ifndef ELF_MACHINE_UNAME
 #define ELF_MACHINE_UNAME "Unknown"
 #endif
+
+DumpInfo dump_info = { 0, };
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val)
 {

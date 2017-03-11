@@ -16,6 +16,9 @@
 #include "trace.h"
 #include "hw/virtio/virtio-serial.h"
 #include "qapi-event.h"
+#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/json-parser.h"
+#include "sysemu/dump-info.h"
 
 #define TYPE_VIRTIO_CONSOLE_SERIAL_PORT "virtserialport"
 #define VIRTIO_CONSOLE(obj) \
@@ -26,6 +29,7 @@ typedef struct VirtConsole {
 
     CharBackend chr;
     guint watch;
+    JSONMessageParser parser;
 } VirtConsole;
 
 /*
@@ -48,6 +52,11 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     ssize_t ret;
+
+    if (vcon->parser.emit &&
+        !dump_info.received) {
+        json_message_parser_feed(&vcon->parser, (const char *)buf, len);
+    }
 
     if (!qemu_chr_fe_get_driver(&vcon->chr)) {
         /* If there's no backend, we can just say we consumed all data. */
@@ -108,6 +117,11 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
     DeviceState *dev = DEVICE(port);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
+    if (guest_connected && !port->guest_connected) {
+        g_free(dump_info.vmcoreinfo);
+        memset(&dump_info, 0, sizeof(dump_info));
+    }
+
     if (!k->is_console) {
         qemu_chr_fe_set_open(&vcon->chr, guest_connected);
     }
@@ -163,6 +177,37 @@ static void chr_event(void *opaque, int event)
     }
 }
 
+
+static void qga_message(JSONMessageParser *parser, GQueue *tokens)
+{
+    /* VirtConsole *vcon = container_of(parser, VirtConsole, parser); */
+    QObject *obj;
+    QDict *msg, *data;
+    const char *event;
+
+    obj = json_parser_parse(tokens, NULL);
+    msg = qobject_to_qdict(obj);
+    if (!msg) {
+        error_report("JSON parsing failed");
+        return;
+    }
+
+    event = qdict_get_try_str(msg, "event");
+    data = qdict_get_qdict(msg, "data");
+    if (event && g_str_equal(event, "VMDUMP_INFO") && data) {
+        dump_info.received = true;
+        if (qdict_haskey(data, "phys-base")) {
+            dump_info.has_phys_base = true;
+            dump_info.phys_base = qdict_get_try_uint(data, "phys-base", 0);
+        }
+        if (qdict_haskey(data, "text")) {
+            dump_info.has_text = true;
+            dump_info.text = qdict_get_try_uint(data, "text", 0);
+        }
+        dump_info.vmcoreinfo = g_strdup(qdict_get_try_str(data, "vmcoreinfo"));
+    }
+}
+
 static void virtconsole_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
@@ -195,6 +240,10 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
                                      chr_event, vcon, NULL, false);
         }
     }
+
+    if (port->name && g_str_equal(port->name, "org.qemu.guest_agent.0")) {
+        json_message_parser_init(&vcon->parser, qga_message);
+    }
 }
 
 static void virtconsole_unrealize(DeviceState *dev, Error **errp)
@@ -203,6 +252,10 @@ static void virtconsole_unrealize(DeviceState *dev, Error **errp)
 
     if (vcon->watch) {
         g_source_remove(vcon->watch);
+    }
+
+    if (vcon->parser.emit) {
+        json_message_parser_destroy(&vcon->parser);
     }
 }
 
