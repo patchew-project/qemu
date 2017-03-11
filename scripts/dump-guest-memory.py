@@ -120,6 +120,33 @@ class ELF(object):
         self.segments[0].p_filesz += ctypes.sizeof(note)
         self.segments[0].p_memsz += ctypes.sizeof(note)
 
+
+    def add_vmcoreinfo_note(self, vmcoreinfo, phys_base=None):
+        """Adds a vmcoreinfo note to the ELF."""
+        chead = type(get_arch_note(self.endianness, 0, 0))
+        header = chead.from_buffer_copy(vmcoreinfo[0:ctypes.sizeof(chead)])
+        note = get_arch_note(self.endianness,
+                             header.n_namesz - 1, header.n_descsz)
+        ctypes.memmove(ctypes.pointer(note), vmcoreinfo, ctypes.sizeof(note))
+        header_size = ctypes.sizeof(note) - header.n_descsz
+
+        if phys_base:
+            desc = bytearray(note.n_desc).decode().split()
+            if not next((v for v in desc if v.startswith('NUMBER(phys_base)=')),
+                        False):
+                desc.append('NUMBER(phys_base)=%ld' % phys_base)
+            desc = "\n".join(desc) + '\n'
+            descsz = (len(desc) + 3) // 4 * 4
+            desc += '\0' * (descsz - len(desc))
+            note = get_arch_note(self.endianness, header.n_namesz - 1, descsz)
+            ctypes.memmove(ctypes.pointer(note), vmcoreinfo, header_size)
+            note.n_descsz = descsz
+            ctypes.memmove(note.n_desc, desc.encode(), descsz)
+
+        self.notes.append(note)
+        self.segments[0].p_filesz += ctypes.sizeof(note)
+        self.segments[0].p_memsz += ctypes.sizeof(note)
+
     def add_segment(self, p_type, p_paddr, p_size):
         """Adds a segment to the elf."""
 
@@ -505,6 +532,30 @@ shape and this command should mostly work."""
                 cur += chunk_size
                 left -= chunk_size
 
+    def get_vmcoreinfo(self):
+        qemu_core = gdb.inferiors()[0]
+
+        try:
+            coreinfo = gdb.parse_and_eval("dump_info.vmcoreinfo")
+        except gdb.error:
+            return
+
+        if coreinfo == 0:
+            return
+
+        phys_base = None
+        has_phys_base = gdb.parse_and_eval("dump_info.has_phys_base")
+        if has_phys_base:
+            phys_base = int(gdb.parse_and_eval("dump_info.phys_base"))
+
+        addr, size = [int(val, 16) for val in coreinfo.string().split()]
+        for block in self.guest_phys_blocks:
+            if block["target_start"] <= addr < block["target_end"]:
+                haddr = block["host_addr"] + (addr - block["target_start"])
+                vmcoreinfo = qemu_core.read_memory(haddr, size)
+                self.elf.add_vmcoreinfo_note(vmcoreinfo.tobytes(), phys_base)
+                return
+
     def invoke(self, args, from_tty):
         """Handles command invocation from gdb."""
 
@@ -518,6 +569,7 @@ shape and this command should mostly work."""
 
         self.elf = ELF(argv[1])
         self.guest_phys_blocks = get_guest_phys_blocks()
+        self.get_vmcoreinfo()
 
         with open(argv[0], "wb") as vmcore:
             self.dump_init(vmcore)
