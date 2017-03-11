@@ -46,3 +46,5 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp);
 #ifndef _WIN32
 void reopen_fd_to_null(int fd);
 #endif
+
+void ga_client_added(void);

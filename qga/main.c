@@ -40,6 +40,7 @@
 #endif
 #endif
 #include "qapi/qmp-event.h"
+#include "qga-qapi-event.h"
 
 #ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
@@ -689,6 +690,18 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
         return false;
     }
     return true;
+}
+
+void ga_client_added(void)
+{
+#ifndef _WIN32
+    GAState *s = ga_state;
+
+    qapi_event_send_vmdump_info(s->vmdump.has_phys_base, s->vmdump.phys_base,
+                                s->vmdump.has_text, s->vmdump.text,
+                                s->vmdump.vmcoreinfo != NULL,
+                                s->vmdump.vmcoreinfo, NULL);
+#endif
 }
 
 static gboolean channel_init(GAState *s, const gchar *method, const gchar *path,

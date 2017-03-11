@@ -3,6 +3,7 @@
 #include "qapi/error.h"
 #include "qemu/sockets.h"
 #include "qga/channel.h"
+#include "qga/guest-agent-core.h"
 
 #ifdef CONFIG_SOLARIS
 #include <stropts.h>
@@ -98,6 +99,13 @@ static gboolean ga_channel_client_event(GIOChannel *channel,
     return true;
 }
 
+static gboolean client_added_idle_cb(gpointer user_data)
+{
+    ga_client_added();
+
+    return false;
+}
+
 static int ga_channel_client_add(GAChannel *c, int fd)
 {
     GIOChannel *client_channel;
@@ -115,6 +123,9 @@ static int ga_channel_client_add(GAChannel *c, int fd)
     g_io_add_watch(client_channel, G_IO_IN | G_IO_HUP,
                    ga_channel_client_event, c);
     c->client_channel = client_channel;
+
+    g_idle_add(client_added_idle_cb, NULL);
+
     return 0;
 }
 

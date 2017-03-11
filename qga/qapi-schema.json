@@ -48,6 +48,21 @@
   'returns': 'int' }
 
 ##
+# @VMDUMP_INFO:
+#
+# Provides VM dump information details to qemu.
+#
+# @phys-base: base address
+#
+# @text: "_text" location
+#
+# @vmcoreinfo: the content of /sys/kernel/vmcoreinfo on Linux
+#
+##
+{ 'event': 'VMDUMP_INFO',
+  'data': { '*phys-base': 'uint64', '*text': 'uint64', '*vmcoreinfo': 'str' } }
+
+##
 # @guest-sync:
 #
 # Echo back a unique integer value
