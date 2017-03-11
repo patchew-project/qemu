@@ -959,6 +959,12 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
         assert(n < sizeof(buf));
         value = buf;
         break;
+    case QTYPE_QUINT:
+        n = snprintf(buf, sizeof(buf), "%" PRIu64,
+                     quint_get_uint(qobject_to_quint(obj)));
+        assert(n < sizeof(buf));
+        value = buf;
+        break;
     case QTYPE_QFLOAT:
         n = snprintf(buf, sizeof(buf), "%.17g",
                      qfloat_get_double(qobject_to_qfloat(obj)));

@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qmp/qint.h"
+#include "qapi/qmp/quint.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qbool.h"
@@ -181,7 +182,7 @@ size_t qdict_size(const QDict *qdict)
  * qdict_get_double(): Get an number mapped by 'key'
  *
  * This function assumes that 'key' exists and it stores a
- * QFloat or QInt object.
+ * QFloat, QInt or QUInt object.
  *
  * Return number mapped by 'key'.
  */
@@ -195,6 +196,8 @@ double qdict_get_double(const QDict *qdict, const char *key)
         return qfloat_get_double(qobject_to_qfloat(obj));
     case QTYPE_QINT:
         return qint_get_int(qobject_to_qint(obj));
+    case QTYPE_QUINT:
+        return quint_get_uint(qobject_to_quint(obj));
     default:
         abort();
     }
@@ -269,6 +272,38 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
     QInt *qint = qobject_to_qint(qdict_get(qdict, key));
 
     return qint ? qint_get_int(qint) : def_value;
+}
+
+/**
+ * qdict_get_try_uint(): Try to get unsigned mapped by 'key'
+ *
+ * Return integer mapped by 'key', if it is not present in
+ * the dictionary or with negative value, returns 0 and set error.
+ */
+uint64_t qdict_get_try_uint(const QDict *qdict, const char *key,
+                            Error **errp)
+{
+    QUInt *quint = qobject_to_quint(qdict_get(qdict, key));
+    QInt *qint;
+    int val;
+
+    if (quint) {
+        return quint_get_uint(quint);
+    }
+
+    qint = qobject_to_qint(qdict_get(qdict, key));
+    if (!qint) {
+        error_setg(errp, "Missing key or type mismatch");
+        return 0;
+    }
+
+    val = qint_get_int(qint);
+    if (val < 0) {
+        error_setg(errp, "Invalid value, unsigned int expected");
+        return 0;
+    }
+
+    return val;
 }
 
 /**
