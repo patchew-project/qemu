@@ -1874,15 +1874,22 @@ const char *const %(c_name)s_lookup[] = {
     return ret
 
 
-def gen_enum(name, values, prefix=None):
+def gen_info_comment(info):
+    if info:
+        return "/* %s:%d */" % (info['file'], info['line'])
+    else:
+        return ""
+
+def gen_enum(info, name, values, prefix=None):
     # append automatically generated _MAX value
     enum_values = values + ['_MAX']
 
     ret = mcgen('''
 
+%(info)s
 typedef enum %(c_name)s {
 ''',
-                c_name=c_name(name))
+                c_name=c_name(name), info=gen_info_comment(info))
 
     i = 0
     for value in enum_values:

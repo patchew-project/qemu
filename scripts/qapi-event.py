@@ -152,6 +152,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self.decl = None
         self.defn = None
         self._event_names = None
+        self.info = None
 
     def visit_begin(self, schema):
         self.decl = ''
@@ -159,7 +160,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self._event_names = []
 
     def visit_end(self):
-        self.decl += gen_enum(event_enum_name, self._event_names)
+        self.decl += gen_enum(self.info, event_enum_name, self._event_names)
         self.defn += gen_enum_lookup(event_enum_name, self._event_names)
         self._event_names = None
 
@@ -167,6 +168,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self.decl += gen_event_send_decl(name, arg_type, boxed)
         self.defn += gen_event_send(name, arg_type, boxed)
         self._event_names.append(name)
+        self.info = info
 
 
 (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()

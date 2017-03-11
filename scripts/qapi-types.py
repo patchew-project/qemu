@@ -19,12 +19,13 @@ from qapi import *
 objects_seen = set()
 
 
-def gen_fwd_object_or_array(name):
+def gen_fwd_object_or_array(info, name):
     return mcgen('''
 
+%(info)s
 typedef struct %(c_name)s %(c_name)s;
 ''',
-                 c_name=c_name(name))
+                 c_name=c_name(name), info=gen_info_comment(info))
 
 
 def gen_array(name, element_type):
@@ -199,22 +200,22 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
         if not info:
-            self._btin += gen_enum(name, values, prefix)
+            self._btin += gen_enum(info, name, values, prefix)
             if do_builtins:
                 self.defn += gen_enum_lookup(name, values, prefix)
         else:
-            self._fwdecl += gen_enum(name, values, prefix)
+            self._fwdecl += gen_enum(info, name, values, prefix)
             self.defn += gen_enum_lookup(name, values, prefix)
 
     def visit_array_type(self, name, info, element_type):
         if isinstance(element_type, QAPISchemaBuiltinType):
-            self._btin += gen_fwd_object_or_array(name)
+            self._btin += gen_fwd_object_or_array(info, name)
             self._btin += gen_array(name, element_type)
             self._btin += gen_type_cleanup_decl(name)
             if do_builtins:
                 self.defn += gen_type_cleanup(name)
         else:
-            self._fwdecl += gen_fwd_object_or_array(name)
+            self._fwdecl += gen_fwd_object_or_array(info, name)
             self.decl += gen_array(name, element_type)
             self._gen_type_cleanup(name)
 
@@ -222,7 +223,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self._fwdecl += gen_fwd_object_or_array(name)
+        self._fwdecl += gen_fwd_object_or_array(info, name)
         self.decl += gen_object(name, base, members, variants)
         if base and not base.is_implicit():
             self.decl += gen_upcast(name, base)
@@ -233,7 +234,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._gen_type_cleanup(name)
 
     def visit_alternate_type(self, name, info, variants):
-        self._fwdecl += gen_fwd_object_or_array(name)
+        self._fwdecl += gen_fwd_object_or_array(info, name)
         self.decl += gen_object(name, None, [variants.tag_member], variants)
         self._gen_type_cleanup(name)
 
