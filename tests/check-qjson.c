@@ -904,6 +904,33 @@ static void simple_number(void)
     }
 }
 
+static void large_number(void)
+{
+    const char *maxu64 = "18446744073709551615"; /* 2^64-1 */
+    const char *gtu64 = "18446744073709551616"; /* 2^64 */
+    QUInt *quint;
+    QFloat *qfloat;
+    QString *str;
+
+    quint = qobject_to_quint(qobject_from_json(maxu64, &error_abort));
+    g_assert(quint);
+    g_assert_cmpint(quint_get_uint(quint), ==, 18446744073709551615U);
+
+    str = qobject_to_json(QOBJECT(quint));
+    g_assert_cmpstr(qstring_get_str(str), ==, maxu64);
+    QDECREF(str);
+    QDECREF(quint);
+
+    qfloat = qobject_to_qfloat(qobject_from_json(gtu64, &error_abort));
+    g_assert(qfloat);
+    g_assert_cmpfloat(qfloat_get_double(qfloat), ==, 18446744073709551616.0);
+
+    str = qobject_to_json(QOBJECT(qfloat));
+    g_assert_cmpstr(qstring_get_str(str), ==, gtu64);
+    QDECREF(str);
+    QDECREF(qfloat);
+}
+
 static void float_number(void)
 {
     int i;
@@ -1468,6 +1495,7 @@ int main(int argc, char **argv)
     g_test_add_func("/literals/string/vararg", vararg_string);
 
     g_test_add_func("/literals/number/simple", simple_number);
+    g_test_add_func("/literals/number/large", large_number);
     g_test_add_func("/literals/number/float", float_number);
     g_test_add_func("/literals/number/vararg", vararg_number);
 

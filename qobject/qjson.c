@@ -140,6 +140,14 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         qstring_append(str, buffer);
         break;
     }
+    case QTYPE_QUINT: {
+        QUInt *val = qobject_to_quint(obj);
+        char buffer[1024];
+
+        snprintf(buffer, sizeof(buffer), "%" PRIu64, quint_get_uint(val));
+        qstring_append(str, buffer);
+        break;
+    }
     case QTYPE_QSTRING: {
         QString *val = qobject_to_qstring(obj);
         const char *ptr;
