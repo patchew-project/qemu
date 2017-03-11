@@ -13,6 +13,8 @@ typedef struct {
     GPid pid;
 } TestFixture;
 
+static void guest_sync_delimited(const TestFixture *fixture);
+
 static int connect_qga(char *path)
 {
     int s, ret, len, i = 0;
@@ -45,12 +47,13 @@ static void qga_watch(GPid pid, gint status, gpointer user_data)
     g_main_loop_quit(fixture->loop);
 }
 
+
 static void
 fixture_setup(TestFixture *fixture, gconstpointer data)
 {
     const gchar *extra_arg = data;
     GError *error = NULL;
-    gchar *cwd, *path, *cmd, **argv = NULL;
+    char *cwd, *path, *cmd, **argv = NULL;
 
     fixture->loop = g_main_loop_new(NULL, FALSE);
 
@@ -76,6 +79,8 @@ fixture_setup(TestFixture *fixture, gconstpointer data)
 
     fixture->fd = connect_qga(path);
     g_assert_cmpint(fixture->fd, !=, -1);
+
+    guest_sync_delimited(fixture);
 
     g_strfreev(argv);
     g_free(cmd);
@@ -138,9 +143,8 @@ static void qmp_assertion_message_error(const char     *domain,
     }                                                                   \
 } while (0)
 
-static void test_qga_sync_delimited(gconstpointer fix)
+static void guest_sync_delimited(const TestFixture *fixture)
 {
-    const TestFixture *fixture = fix;
     guint32 v, r = g_random_int();
     unsigned char c;
     QDict *ret;
@@ -148,12 +152,13 @@ static void test_qga_sync_delimited(gconstpointer fix)
 
     cmd = g_strdup_printf("%c{'execute': 'guest-sync-delimited',"
                           " 'arguments': {'id': %u } }", 0xff, r);
-    qmp_fd_send(fixture->fd, cmd);
-    g_free(cmd);
 
-    v = read(fixture->fd, &c, 1);
-    g_assert_cmpint(v, ==, 1);
-    g_assert_cmpint(c, ==, 0xff);
+    qmp_fd_send(fixture->fd, cmd);
+
+    do {
+        v = read(fixture->fd, &c, 1);
+        g_assert_cmpint(v, ==, 1);
+    } while (c != 0xff);
 
     ret = qmp_fd_receive(fixture->fd);
     g_assert_nonnull(ret);
@@ -163,6 +168,14 @@ static void test_qga_sync_delimited(gconstpointer fix)
     g_assert_cmpint(r, ==, v);
 
     QDECREF(ret);
+    g_free(cmd);
+}
+
+static void test_qga_sync_delimited(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+
+    guest_sync_delimited(fixture);
 }
 
 static void test_qga_sync(gconstpointer fix)
