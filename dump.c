@@ -27,6 +27,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 #include "qapi-event.h"
+#include "qemu/error-report.h"
 
 #include <zlib.h>
 #ifdef CONFIG_LZO
@@ -82,6 +83,8 @@ static int dump_cleanup(DumpState *s)
     if (s->resume) {
         vm_start();
     }
+    g_free(s->vmcoreinfo);
+    s->vmcoreinfo = NULL;
 
     return 0;
 }
@@ -232,6 +235,19 @@ static inline int cpu_index(CPUState *cpu)
     return cpu->cpu_index + 1;
 }
 
+static void write_vmcoreinfo_note(WriteCoreDumpFunction f, DumpState *s,
+                                  Error **errp)
+{
+    int ret;
+
+    if (s->vmcoreinfo) {
+        ret = f(s->vmcoreinfo, s->vmcoreinfo_size, s);
+        if (ret < 0) {
+            error_setg(errp, "dump: failed to write vmcoreinfo");
+        }
+    }
+}
+
 static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
                               Error **errp)
 {
@@ -255,6 +271,8 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
             return;
         }
     }
+
+    write_vmcoreinfo_note(f, s, errp);
 }
 
 static void write_elf32_note(DumpState *s, Error **errp)
@@ -300,6 +318,8 @@ static void write_elf32_notes(WriteCoreDumpFunction f, DumpState *s,
             return;
         }
     }
+
+    write_vmcoreinfo_note(f, s, errp);
 }
 
 static void write_elf_section(DumpState *s, int type, Error **errp)
@@ -709,6 +729,50 @@ static int buf_write_note(const void *buf, size_t size, void *opaque)
     s->note_buf_offset += size;
 
     return 0;
+}
+
+static void get_note_sizes(DumpState *s, const void *note,
+                           uint64_t *note_head_size,
+                           uint64_t *name_size,
+                           uint64_t *desc_size)
+{
+    uint64_t note_head_sz;
+    uint64_t name_sz;
+    uint64_t desc_sz;
+
+    if (s->dump_info.d_class == ELFCLASS64) {
+        const Elf64_Nhdr *hdr = note;
+        note_head_sz = sizeof(Elf64_Nhdr);
+        name_sz = hdr->n_namesz;
+        desc_sz = hdr->n_descsz;
+    } else {
+        const Elf32_Nhdr *hdr = note;
+        note_head_sz = sizeof(Elf32_Nhdr);
+        name_sz = hdr->n_namesz;
+        desc_sz = hdr->n_descsz;
+    }
+
+    if (note_head_size) {
+        *note_head_size = note_head_sz;
+    }
+    if (name_size) {
+        *name_size = name_sz;
+    }
+    if (desc_size) {
+        *desc_size = desc_sz;
+    }
+}
+
+static void set_note_desc_size(DumpState *s, void *note,
+                               uint64_t desc_size)
+{
+    if (s->dump_info.d_class == ELFCLASS64) {
+        Elf64_Nhdr *hdr = note;
+        hdr->n_descsz = desc_size;
+    } else {
+        Elf32_Nhdr *hdr = note;
+        hdr->n_descsz = desc_size;
+    }
 }
 
 /* write common header, sub header and elf note to vmcore */
@@ -1485,6 +1549,42 @@ static int64_t dump_calculate_size(DumpState *s)
     return total;
 }
 
+static void vmcoreinfo_add_phys_base(DumpState *s)
+{
+    uint64_t size, note_head_size, name_size;
+    char **lines, *physbase = NULL;
+    uint8_t *newvmci, *vmci;
+    size_t i;
+
+    get_note_sizes(s, s->vmcoreinfo, &note_head_size, &name_size, &size);
+    note_head_size = ((note_head_size + 3) / 4) * 4;
+    name_size = ((name_size + 3) / 4) * 4;
+    vmci = s->vmcoreinfo + note_head_size + name_size;
+    *(vmci + size) = '\0';
+    lines = g_strsplit((char *)vmci, "\n", -1);
+    for (i = 0; lines[i]; i++) {
+        if (g_str_has_prefix(lines[i], "NUMBER(phys_base)=")) {
+            goto end;
+        }
+    }
+
+    physbase = g_strdup_printf("\nNUMBER(phys_base)=%ld",
+                               s->dump_info.phys_base);
+    s->vmcoreinfo_size =
+        ((note_head_size + name_size + size + strlen(physbase) + 3) / 4) * 4;
+
+    newvmci = g_malloc(s->vmcoreinfo_size);
+    memcpy(newvmci, s->vmcoreinfo, note_head_size + name_size + size - 1);
+    memcpy(newvmci + note_head_size + name_size + size - 1, physbase,
+           strlen(physbase) + 1);
+    g_free(s->vmcoreinfo);
+    s->vmcoreinfo = newvmci;
+    set_note_desc_size(s, s->vmcoreinfo, size + strlen(physbase));
+
+end:
+    g_strfreev(lines);
+}
+
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
@@ -1558,6 +1658,39 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     if (s->note_size < 0) {
         error_setg(errp, QERR_UNSUPPORTED);
         goto cleanup;
+    }
+
+    if (dump_info.has_phys_base) {
+        s->dump_info.phys_base = dump_info.phys_base;
+    }
+    if (dump_info.vmcoreinfo) {
+        uint64_t addr, size, note_head_size, name_size, desc_size;
+        int count = sscanf(dump_info.vmcoreinfo, "%" PRIx64 " %" PRIx64,
+                           &addr, &size);
+        if (count != 2) {
+            /* non fatal error */
+            error_report("Failed to parse vmcoreinfo");
+        } else {
+            assert(!s->vmcoreinfo);
+            s->vmcoreinfo = g_malloc(size);
+            cpu_physical_memory_read(addr, s->vmcoreinfo, size);
+
+            get_note_sizes(s, s->vmcoreinfo,
+                           &note_head_size, &name_size, &desc_size);
+            s->vmcoreinfo_size = ((note_head_size + 3) / 4 +
+                                  (name_size + 3) / 4 +
+                                  (desc_size + 3) / 4) * 4;
+            if (s->vmcoreinfo_size > size) {
+                error_report("Invalid vmcoreinfo header, size mismatch");
+                g_free(s->vmcoreinfo);
+                s->vmcoreinfo = NULL;
+            } else {
+                if (dump_info.has_phys_base) {
+                    vmcoreinfo_add_phys_base(s);
+                }
+                s->note_size += s->vmcoreinfo_size;
+            }
+        }
     }
 
     /* get memory mapping */

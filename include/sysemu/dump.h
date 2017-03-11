@@ -191,6 +191,8 @@ typedef struct DumpState {
                                   * this could be used to calculate
                                   * how much work we have
                                   * finished. */
+    uint8_t *vmcoreinfo;
+    size_t vmcoreinfo_size;
 } DumpState;
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);
