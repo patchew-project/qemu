@@ -785,8 +785,9 @@ static void create_header32(DumpState *s, Error **errp)
     uint32_t sub_hdr_size;
     uint32_t bitmap_blocks;
     uint32_t status = 0;
-    uint64_t offset_note;
+    uint64_t offset_note, offset_vmcoreinfo, size_vmcoreinfo = 0;
     Error *local_err = NULL;
+    uint8_t *vmcoreinfo = NULL;
 
     /* write common header, the version of kdump-compressed format is 6th */
     size = sizeof(DiskDumpHeader32);
@@ -835,7 +836,18 @@ static void create_header32(DumpState *s, Error **errp)
     kh->phys_base = cpu_to_dump32(s, s->dump_info.phys_base);
     kh->dump_level = cpu_to_dump32(s, DUMP_LEVEL);
 
-    offset_note = DISKDUMP_HEADER_BLOCKS * block_size + size;
+    offset_vmcoreinfo = DISKDUMP_HEADER_BLOCKS * block_size + size;
+    if (s->vmcoreinfo) {
+        uint64_t hsize, name_size;
+
+        get_note_sizes(s, s->vmcoreinfo, &hsize, &name_size, &size_vmcoreinfo);
+        vmcoreinfo =
+            s->vmcoreinfo + ((hsize + 3) / 4 + (name_size + 3) / 4) * 4;
+        kh->offset_vmcoreinfo = cpu_to_dump64(s, offset_vmcoreinfo);
+        kh->size_vmcoreinfo = cpu_to_dump32(s, size_vmcoreinfo);
+    }
+
+    offset_note = offset_vmcoreinfo + size_vmcoreinfo;
     kh->offset_note = cpu_to_dump64(s, offset_note);
     kh->note_size = cpu_to_dump32(s, s->note_size);
 
@@ -843,6 +855,14 @@ static void create_header32(DumpState *s, Error **errp)
                      block_size, kh, size) < 0) {
         error_setg(errp, "dump: failed to write kdump sub header");
         goto out;
+    }
+
+    if (vmcoreinfo) {
+        if (write_buffer(s->fd, offset_vmcoreinfo, vmcoreinfo,
+                         size_vmcoreinfo) < 0) {
+            error_setg(errp, "dump: failed to vmcoreinfo");
+            goto out;
+        }
     }
 
     /* write note */
@@ -885,8 +905,9 @@ static void create_header64(DumpState *s, Error **errp)
     uint32_t sub_hdr_size;
     uint32_t bitmap_blocks;
     uint32_t status = 0;
-    uint64_t offset_note;
+    uint64_t offset_note, offset_vmcoreinfo, size_vmcoreinfo = 0;
     Error *local_err = NULL;
+    uint8_t *vmcoreinfo = NULL;
 
     /* write common header, the version of kdump-compressed format is 6th */
     size = sizeof(DiskDumpHeader64);
@@ -935,7 +956,18 @@ static void create_header64(DumpState *s, Error **errp)
     kh->phys_base = cpu_to_dump64(s, s->dump_info.phys_base);
     kh->dump_level = cpu_to_dump32(s, DUMP_LEVEL);
 
-    offset_note = DISKDUMP_HEADER_BLOCKS * block_size + size;
+    offset_vmcoreinfo = DISKDUMP_HEADER_BLOCKS * block_size + size;
+    if (s->vmcoreinfo) {
+        uint64_t hsize, name_size;
+
+        get_note_sizes(s, s->vmcoreinfo, &hsize, &name_size, &size_vmcoreinfo);
+        vmcoreinfo =
+            s->vmcoreinfo + ((hsize + 3) / 4 + (name_size + 3) / 4) * 4;
+        kh->offset_vmcoreinfo = cpu_to_dump64(s, offset_vmcoreinfo);
+        kh->size_vmcoreinfo = cpu_to_dump64(s, size_vmcoreinfo);
+    }
+
+    offset_note = offset_vmcoreinfo + size_vmcoreinfo;
     kh->offset_note = cpu_to_dump64(s, offset_note);
     kh->note_size = cpu_to_dump64(s, s->note_size);
 
@@ -943,6 +975,14 @@ static void create_header64(DumpState *s, Error **errp)
                      block_size, kh, size) < 0) {
         error_setg(errp, "dump: failed to write kdump sub header");
         goto out;
+    }
+
+    if (vmcoreinfo) {
+        if (write_buffer(s->fd, offset_vmcoreinfo, vmcoreinfo,
+                         size_vmcoreinfo) < 0) {
+            error_setg(errp, "dump: failed to vmcoreinfo");
+            goto out;
+        }
     }
 
     /* write note */
