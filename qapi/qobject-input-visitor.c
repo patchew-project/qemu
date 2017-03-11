@@ -21,6 +21,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 
@@ -349,7 +350,8 @@ static void qobject_input_start_alternate(Visitor *v, const char *name,
     }
     *obj = g_malloc0(size);
     (*obj)->type = qobject_type(qobj);
-    if (promote_int && (*obj)->type == QTYPE_QINT) {
+    if (promote_int &&
+        ((*obj)->type == QTYPE_QINT || (*obj)->type == QTYPE_QUINT)) {
         (*obj)->type = QTYPE_QFLOAT;
     }
 }
@@ -395,22 +397,38 @@ static void qobject_input_type_int64_keyval(Visitor *v, const char *name,
 static void qobject_input_type_uint64(Visitor *v, const char *name,
                                       uint64_t *obj, Error **errp)
 {
-    /* FIXME: qobject_to_qint mishandles values over INT64_MAX */
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, true, errp);
+    QUInt *quint;
     QInt *qint;
+    int64_t val;
 
     if (!qobj) {
         return;
     }
-    qint = qobject_to_qint(qobj);
-    if (!qint) {
-        error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-                   full_name(qiv, name), "integer");
+
+    quint = qobject_to_quint(qobj);
+    if (quint) {
+        *obj = quint_get_uint(quint);
         return;
     }
 
-    *obj = qint_get_int(qint);
+    qint = qobject_to_qint(qobj);
+    if (!qint) {
+        goto error;
+    }
+
+    val = qint_get_int(qint);
+    if (val < 0) {
+        goto error;
+    }
+
+    *obj = val;
+    return;
+
+error:
+    error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
+               full_name(qiv, name), "unsigned integer");
 }
 
 static void qobject_input_type_uint64_keyval(Visitor *v, const char *name,

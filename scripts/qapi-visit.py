@@ -165,7 +165,8 @@ def gen_visit_alternate(name, variants):
     promote_int = 'true'
     ret = ''
     for var in variants.variants:
-        if var.type.alternate_qtype() == 'QTYPE_QINT':
+        if var.type.alternate_qtype() == 'QTYPE_QINT' \
+            or var.type.alternate_qtype() == 'QTYPE_QUINT':
             promote_int = 'false'
 
     ret += mcgen('''

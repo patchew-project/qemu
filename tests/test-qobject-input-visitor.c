@@ -170,6 +170,19 @@ static void test_visitor_in_int_str_fail(TestInputVisitorData *data,
     error_free_or_abort(&err);
 }
 
+static void test_visitor_in_uint(TestInputVisitorData *data,
+                                const void *unused)
+{
+    uint64_t res = 0;
+    uint64_t value = G_MAXUINT64;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "%" PRIu64, value);
+
+    visit_type_uint64(v, NULL, &res, &error_abort);
+    g_assert_cmpint(res, ==, value);
+}
+
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
@@ -1233,6 +1246,8 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_int_str_keyval);
     input_visitor_test_add("/visitor/input/int_str_fail",
                            NULL, test_visitor_in_int_str_fail);
+    input_visitor_test_add("/visitor/input/uint",
+                           NULL, test_visitor_in_uint);
     input_visitor_test_add("/visitor/input/bool",
                            NULL, test_visitor_in_bool);
     input_visitor_test_add("/visitor/input/bool_keyval",
