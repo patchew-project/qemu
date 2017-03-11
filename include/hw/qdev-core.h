@@ -239,7 +239,10 @@ struct Property {
     ptrdiff_t    offset;
     uint8_t      bitnr;
     QType        qtype;
-    int64_t      defval;
+    union {
+        int64_t      i;
+        uint64_t     u;
+    } defval;
     int          arrayoffset;
     PropertyInfo *arrayinfo;
     int          arrayfieldsize;

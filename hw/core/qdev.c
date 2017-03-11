@@ -833,12 +833,14 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     }
 
     if (prop->qtype == QTYPE_QBOOL) {
-        object_property_set_bool(obj, prop->defval, prop->name, &error_abort);
+        object_property_set_bool(obj, prop->defval.i, prop->name, &error_abort);
     } else if (prop->info->enum_table) {
-        object_property_set_str(obj, prop->info->enum_table[prop->defval],
+        object_property_set_str(obj, prop->info->enum_table[prop->defval.i],
                                 prop->name, &error_abort);
     } else if (prop->qtype == QTYPE_QINT) {
-        object_property_set_int(obj, prop->defval, prop->name, &error_abort);
+        object_property_set_int(obj, prop->defval.i, prop->name, &error_abort);
+    } else if (prop->qtype == QTYPE_QUINT) {
+        object_property_set_uint(obj, prop->defval.u, prop->name, &error_abort);
     }
 }
 
