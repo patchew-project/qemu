@@ -138,9 +138,9 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
         obj = piix;
         pm->cpu_hp_io_base = PIIX4_CPU_HOTPLUG_IO_BASE;
         pm->pcihp_io_base =
-            object_property_get_int(obj, ACPI_PCIHP_IO_BASE_PROP, NULL);
+            object_property_get_uint(obj, ACPI_PCIHP_IO_BASE_PROP, NULL);
         pm->pcihp_io_len =
-            object_property_get_int(obj, ACPI_PCIHP_IO_LEN_PROP, NULL);
+            object_property_get_uint(obj, ACPI_PCIHP_IO_LEN_PROP, NULL);
     }
     if (lpc) {
         obj = lpc;
@@ -172,20 +172,21 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     qobject_decref(o);
 
     /* Fill in mandatory properties */
-    pm->sci_int = object_property_get_int(obj, ACPI_PM_PROP_SCI_INT, NULL);
+    pm->sci_int = object_property_get_uint(obj, ACPI_PM_PROP_SCI_INT, NULL);
 
-    pm->acpi_enable_cmd = object_property_get_int(obj,
-                                                  ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                                  NULL);
-    pm->acpi_disable_cmd = object_property_get_int(obj,
-                                                  ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                                  NULL);
-    pm->io_base = object_property_get_int(obj, ACPI_PM_PROP_PM_IO_BASE,
-                                          NULL);
-    pm->gpe0_blk = object_property_get_int(obj, ACPI_PM_PROP_GPE0_BLK,
+    pm->acpi_enable_cmd = object_property_get_uint(obj,
+                                                   ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                                   NULL);
+    pm->acpi_disable_cmd =
+        object_property_get_uint(obj,
+                                 ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                 NULL);
+    pm->io_base = object_property_get_uint(obj, ACPI_PM_PROP_PM_IO_BASE,
                                            NULL);
-    pm->gpe0_blk_len = object_property_get_int(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
-                                               NULL);
+    pm->gpe0_blk = object_property_get_uint(obj, ACPI_PM_PROP_GPE0_BLK,
+                                            NULL);
+    pm->gpe0_blk_len = object_property_get_uint(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
+                                                NULL);
     pm->pcihp_bridge_en =
         object_property_get_bool(obj, "acpi-pci-hotplug-with-bridge-support",
                                  NULL);
@@ -238,19 +239,19 @@ static void acpi_get_pci_holes(Range *hole, Range *hole64)
     g_assert(pci_host);
 
     range_set_bounds1(hole,
-                      object_property_get_int(pci_host,
-                                              PCI_HOST_PROP_PCI_HOLE_START,
-                                              NULL),
-                      object_property_get_int(pci_host,
-                                              PCI_HOST_PROP_PCI_HOLE_END,
-                                              NULL));
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE_START,
+                                               NULL),
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE_END,
+                                               NULL));
     range_set_bounds1(hole64,
-                      object_property_get_int(pci_host,
-                                              PCI_HOST_PROP_PCI_HOLE64_START,
-                                              NULL),
-                      object_property_get_int(pci_host,
-                                              PCI_HOST_PROP_PCI_HOLE64_END,
-                                              NULL));
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE64_START,
+                                               NULL),
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE64_END,
+                                               NULL));
 }
 
 #define ACPI_PORT_SMI_CMD           0x00b2 /* TODO: this is APM_CNT_IOPORT */

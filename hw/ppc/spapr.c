@@ -2528,7 +2528,8 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out;
     }
 
-    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    addr = object_property_get_uint(OBJECT(dimm),
+                                    PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
         pc_dimm_memory_unplug(dev, &ms->hotplug_memory, mr);
         goto out;
@@ -2616,7 +2617,8 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     uint64_t size = memory_region_size(mr);
     uint64_t addr;
 
-    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    addr = object_property_get_uint(OBJECT(dimm),
+                                    PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
         goto out;
     }
@@ -2818,7 +2820,7 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
             error_setg(errp, "Memory hotplug not supported for this machine");
             return;
         }
-        node = object_property_get_int(OBJECT(dev), PC_DIMM_NODE_PROP, errp);
+        node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP, errp);
         if (*errp) {
             return;
         }
