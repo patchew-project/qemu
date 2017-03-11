@@ -28,6 +28,7 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qint.h"
+#include "qapi/qmp/quint.h"
 #include "qapi/qmp/qstring.h"
 
 #define MAX_INTERFACES 32
@@ -1212,6 +1213,37 @@ int64_t object_property_get_int(Object *obj, const char *name,
         retval = -1;
     } else {
         retval = qint_get_int(qint);
+    }
+
+    qobject_decref(ret);
+    return retval;
+}
+
+void object_property_set_uint(Object *obj, uint64_t value,
+                             const char *name, Error **errp)
+{
+    QUInt *quint = quint_from_uint(value);
+    object_property_set_qobject(obj, QOBJECT(quint), name, errp);
+
+    QDECREF(quint);
+}
+
+uint64_t object_property_get_uint(Object *obj, const char *name,
+                                  Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QUInt *quint;
+    uint64_t retval;
+
+    if (!ret) {
+        return 0;
+    }
+    quint = qobject_to_quint(ret);
+    if (!quint) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "uint");
+        retval = 0;
+    } else {
+        retval = quint_get_uint(quint);
     }
 
     qobject_decref(ret);
