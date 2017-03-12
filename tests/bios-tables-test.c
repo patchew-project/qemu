@@ -29,7 +29,7 @@ typedef struct {
     uint32_t rsdp_addr;
     AcpiRsdpDescriptor rsdp_table;
     AcpiRsdtDescriptorRev1 rsdt_table;
-    AcpiFadtDescriptorRev1 fadt_table;
+    AcpiFadtDescriptorRev3 fadt_table;
     AcpiFacsDescriptorRev1 facs_table;
     uint32_t *rsdt_tables_addr;
     int rsdt_tables_nr;
@@ -126,7 +126,7 @@ static void test_acpi_rsdt_table(test_data *data)
 
 static void test_acpi_fadt_table(test_data *data)
 {
-    AcpiFadtDescriptorRev1 *fadt_table = &data->fadt_table;
+    AcpiFadtDescriptorRev3 *fadt_table = &data->fadt_table;
     uint32_t addr;
 
     /* FADT table comes first */
