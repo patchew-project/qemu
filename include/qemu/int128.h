@@ -302,4 +302,19 @@ static inline void int128_subfrom(Int128 *a, Int128 b)
 }
 
 #endif /* CONFIG_INT128 */
+
+#define INT128_FMT1_plx "0x%" PRIx64
+#define INT128_FMT2_plx "%015" PRIx64
+
+static inline uint64_t int128_printf1(Int128 a)
+{
+    /* We assume 4 highest bits are clear and safe to ignore */
+    return (int128_gethi(a) << 4) | (int128_getlo(a) >> 60);
+}
+
+static inline uint64_t int128_printf2(Int128 a)
+{
+    return (int128_getlo(a) << 4) >> 4;
+}
+
 #endif /* INT128_H */

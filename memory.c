@@ -2487,13 +2487,14 @@ typedef QTAILQ_HEAD(queue, MemoryRegionList) MemoryRegionListHead;
 
 static void mtree_print_mr(fprintf_function mon_printf, void *f,
                            const MemoryRegion *mr, unsigned int level,
-                           hwaddr base,
+                           Int128 base,
                            MemoryRegionListHead *alias_print_queue)
 {
     MemoryRegionList *new_ml, *ml, *next_ml;
     MemoryRegionListHead submr_print_queue;
     const MemoryRegion *submr;
     unsigned int i;
+    Int128 start, end;
 
     if (!mr) {
         return;
@@ -2502,6 +2503,9 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     for (i = 0; i < level; i++) {
         mon_printf(f, MTREE_INDENT);
     }
+
+    start = int128_add(base, int128_make64(mr->addr));
+    end = int128_add(start, mr->size);
 
     if (mr->alias) {
         MemoryRegionList *ml;
@@ -2519,11 +2523,12 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
             ml->mr = mr->alias;
             QTAILQ_INSERT_TAIL(alias_print_queue, ml, queue);
         }
-        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx
+        mon_printf(f, INT128_FMT1_plx INT128_FMT2_plx
+		   "-" INT128_FMT1_plx INT128_FMT2_plx
                    " (prio %d, %s): alias %s @%s " TARGET_FMT_plx
                    "-" TARGET_FMT_plx "%s\n",
-                   base + mr->addr,
-                   base + mr->addr + MR_SIZE(mr->size),
+                   int128_printf1(start), int128_printf2(start),
+                   int128_printf1(end), int128_printf2(end),
                    mr->priority,
                    memory_region_type((MemoryRegion *)mr),
                    memory_region_name(mr),
@@ -2532,10 +2537,11 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->alias_offset + MR_SIZE(mr->size),
                    mr->enabled ? "" : " [disabled]");
     } else {
-        mon_printf(f,
-                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %s): %s%s\n",
-                   base + mr->addr,
-                   base + mr->addr + MR_SIZE(mr->size),
+        mon_printf(f, INT128_FMT1_plx INT128_FMT2_plx
+		   "-" INT128_FMT1_plx INT128_FMT2_plx
+                   " (prio %d, %s): %s%s\n",
+                   int128_printf1(start), int128_printf2(start),
+                   int128_printf1(end), int128_printf2(end),
                    mr->priority,
                    memory_region_type((MemoryRegion *)mr),
                    memory_region_name(mr),
@@ -2562,7 +2568,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     }
 
     QTAILQ_FOREACH(ml, &submr_print_queue, queue) {
-        mtree_print_mr(mon_printf, f, ml->mr, level + 1, base + mr->addr,
+        mtree_print_mr(mon_printf, f, ml->mr, level + 1, start,
                        alias_print_queue);
     }
 
@@ -2631,14 +2637,14 @@ void mtree_info(fprintf_function mon_printf, void *f, bool flatview)
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         mon_printf(f, "address-space: %s\n", as->name);
-        mtree_print_mr(mon_printf, f, as->root, 1, 0, &ml_head);
+        mtree_print_mr(mon_printf, f, as->root, 1, int128_zero(), &ml_head);
         mon_printf(f, "\n");
     }
 
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, queue) {
         mon_printf(f, "memory-region: %s\n", memory_region_name(ml->mr));
-        mtree_print_mr(mon_printf, f, ml->mr, 1, 0, &ml_head);
+        mtree_print_mr(mon_printf, f, ml->mr, 1, int128_zero(), &ml_head);
         mon_printf(f, "\n");
     }
 
