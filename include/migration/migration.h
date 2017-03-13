@@ -23,6 +23,7 @@
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
 #include "qom/object.h"
+#include "io/channel.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -234,6 +235,12 @@ void exec_start_outgoing_migration(MigrationState *s, const char *host_port, Err
 void tcp_start_incoming_migration(const char *host_port, Error **errp);
 
 void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
+
+QIOChannel *socket_recv_channel_create(void);
+int socket_recv_channel_destroy(QIOChannel *recv);
+int socket_recv_channel_close_listening(void);
+QIOChannel *socket_send_channel_create(void);
+int socket_send_channel_destroy(QIOChannel *send);
 
 void unix_start_incoming_migration(const char *path, Error **errp);
 
