@@ -2008,6 +2008,14 @@ void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr)
         }
 
         block->host = xen_map_cache(block->offset, block->max_length, 1);
+        if (block->host == NULL) {
+            /* In case we cannot establish the mapping right away we might
+             * still be able to do it later e.g. on a later stage of restore.
+             * We don't touch the block and return NULL here to indicate
+             * that intention.
+             */
+            return NULL;
+        }
     }
     return ramblock_ptr(block, addr);
 }
@@ -2041,6 +2049,14 @@ static void *qemu_ram_ptr_length(RAMBlock *ram_block, ram_addr_t addr,
         }
 
         block->host = xen_map_cache(block->offset, block->max_length, 1);
+        if (block->host == NULL) {
+            /* In case we cannot establish the mapping right away we might
+             * still be able to do it later e.g. on a later stage of restore.
+             * We don't touch the block and return NULL here to indicate
+             * that intention.
+             */
+            return NULL;
+        }
     }
 
     return ramblock_ptr(block, addr);
