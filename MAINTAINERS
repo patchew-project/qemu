@@ -600,14 +600,25 @@ S: Maintained
 F: hw/mips/mips_malta.c
 
 Mipssim
-L: qemu-devel@nongnu.org
-S: Orphan
+M: Yongbok Kim <yongbok.kim@imgtec.com>
+S: Odd Fixes
 F: hw/mips/mips_mipssim.c
+F: hw/net/mipsnet.c
 
 R4000
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
 F: hw/mips/mips_r4k.c
+
+Fulong 2E
+M: Yongbok Kim <yongbok.kim@imgtec.com>
+S: Odd Fixes
+F: hw/mips/mips_fulong2e.c
+
+Boston
+M: Paul Burton <Paul.Burton@imgtec.com>
+S: Maintained
+F: hw/mips/boston.c
 
 OpenRISC Machines
 -----------------
