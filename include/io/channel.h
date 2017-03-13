@@ -269,6 +269,29 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
                                 Error **errp);
 
 /**
+ * qio_channel_readv_all:
+ * @ioc: the channel object
+ * @iov: the array of memory regions to read data into
+ * @niov: the length of the @iov array
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Read data from the IO channel, storing it in the
+ * memory regions referenced by @iov. Each element
+ * in the @iov will be fully populated with data
+ * before the next one is used. The @niov parameter
+ * specifies the total number of elements in @iov.
+ *
+ * Returns: the number of bytes read, or -1 on error,
+ * or QIO_CHANNEL_ERR_BLOCK if no data is available
+ * and the channel is non-blocking
+ */
+ssize_t qio_channel_readv_all(QIOChannel *ioc,
+                              const struct iovec *iov,
+                              size_t niov,
+                              Error **errp);
+
+
+/**
  * qio_channel_writev_all:
  * @ioc: the channel object
  * @iov: the array of memory regions to write data from
