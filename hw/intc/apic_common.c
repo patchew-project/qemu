@@ -57,7 +57,7 @@ uint64_t cpu_get_apic_base(DeviceState *dev)
         trace_cpu_get_apic_base((uint64_t)s->apicbase);
         return s->apicbase;
     } else {
-        trace_cpu_get_apic_base(MSR_IA32_APICBASE_BSP);
+        trace_cpu_get_apic_base((uint64_t) MSR_IA32_APICBASE_BSP);
         return MSR_IA32_APICBASE_BSP;
     }
 }
