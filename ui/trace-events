@@ -6,7 +6,7 @@ console_putchar_csi(int esc_param0, int esc_param1, int ch, int nb_esc_params) "
 console_putchar_unhandled(int ch) "unhandled escape character '%c'"
 console_txt_new(int w, int h) "%dx%d"
 console_select(int nr) "%d"
-console_refresh(int interval) "interval %d ms"
+console_refresh(uint64_t interval) "interval %" PRId64 " ms"
 displaysurface_create(void *display_surface, int w, int h) "surface=%p, %dx%d"
 displaysurface_create_from(void *display_surface, int w, int h, uint32_t format) "surface=%p, %dx%d, format 0x%x"
 displaysurface_create_pixman(void *display_surface) "surface=%p"
@@ -31,11 +31,11 @@ vnc_key_sync_numlock(bool on) "%d"
 vnc_key_sync_capslock(bool on) "%d"
 
 # ui/input.c
-input_event_key_number(int conidx, int number, const char *qcode, bool down) "con %d, key number 0x%x [%s], down %d"
+input_event_key_number(int conidx, uint64_t number, const char *qcode, bool down) "con %d, key number 0x%" PRIx64 " [%s], down %d"
 input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
 input_event_btn(int conidx, const char *btn, bool down) "con %d, button %s, down %d"
-input_event_rel(int conidx, const char *axis, int value) "con %d, axis %s, value %d"
-input_event_abs(int conidx, const char *axis, int value) "con %d, axis %s, value 0x%x"
+input_event_rel(int conidx, const char *axis, uint64_t value) "con %d, axis %s, value %" PRId64
+input_event_abs(int conidx, const char *axis, uint64_t value) "con %d, axis %s, value 0x%" PRIx64
 input_event_sync(void) ""
 input_mouse_mode(int absolute) "absolute %d"
 
