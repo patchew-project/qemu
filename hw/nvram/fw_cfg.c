@@ -435,7 +435,7 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
     stl_be_dma(s->dma_as, dma_addr + offsetof(FWCfgDmaAccess, control),
                 dma.control);
 
-    trace_fw_cfg_read(s, 0);
+    trace_fw_cfg_read(s, (uint64_t) 0);
 }
 
 static uint64_t fw_cfg_dma_mem_read(void *opaque, hwaddr addr,

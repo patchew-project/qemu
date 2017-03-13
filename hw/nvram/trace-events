@@ -1,8 +1,8 @@
 # See docs/tracing.txt for syntax documentation.
 
 # hw/nvram/ds1225y.c
-nvram_read(uint32_t addr, uint32_t ret) "read addr %d: 0x%02x"
-nvram_write(uint32_t addr, uint32_t old, uint32_t val) "write addr %d: 0x%02x -> 0x%02x"
+nvram_read(hwaddr addr, uint32_t ret) "read addr %" HWADDR_PRId ": 0x%02x"
+nvram_write(hwaddr addr, uint32_t old, uint64_t val) "write addr %" HWADDR_PRId ": 0x%02x -> 0x%02" PRIx64
 
 # hw/nvram/fw_cfg.c
 fw_cfg_select(void *s, uint16_t key, int ret) "%p key %d = %d"
