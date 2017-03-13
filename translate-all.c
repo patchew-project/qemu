@@ -1294,7 +1294,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     gen_intermediate_code(env, tb);
     tcg_ctx.cpu = NULL;
 
-    trace_translate_block(tb, tb->pc, tb->tc_ptr);
+    trace_translate_block(tb, (uintptr_t) tb->pc, tb->tc_ptr);
 
     /* generate machine code */
     tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;

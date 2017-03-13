@@ -210,7 +210,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
     tb_unlock();
 
     /* execute the generated code */
-    trace_exec_tb_nocache(tb, tb->pc);
+    trace_exec_tb_nocache(tb, (uintptr_t) tb->pc);
     cpu_tb_exec(cpu, tb);
 
     tb_lock();
@@ -240,7 +240,7 @@ static void cpu_exec_step(CPUState *cpu)
 
         cc->cpu_exec_enter(cpu);
         /* execute the generated code */
-        trace_exec_tb_nocache(tb, pc);
+        trace_exec_tb_nocache(tb, (uintptr_t) pc);
         cpu_tb_exec(cpu, tb);
         cc->cpu_exec_exit(cpu);
 
@@ -571,7 +571,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     uintptr_t ret;
     int32_t insns_left;
 
-    trace_exec_tb(tb, tb->pc);
+    trace_exec_tb(tb, (uintptr_t) tb->pc);
     ret = cpu_tb_exec(cpu, tb);
     tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
     *tb_exit = ret & TB_EXIT_MASK;
