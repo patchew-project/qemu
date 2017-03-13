@@ -529,11 +529,11 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         if (is_write) {
             qemu_iovec_init_external(&req->qiov, iov, out_num);
             trace_virtio_blk_handle_write(req, req->sector_num,
-                                          req->qiov.size / BDRV_SECTOR_SIZE);
+                                          req->qiov.size >> BDRV_SECTOR_BITS);
         } else {
             qemu_iovec_init_external(&req->qiov, in_iov, in_num);
             trace_virtio_blk_handle_read(req, req->sector_num,
-                                         req->qiov.size / BDRV_SECTOR_SIZE);
+                                         req->qiov.size >> BDRV_SECTOR_BITS);
         }
 
         if (!virtio_blk_sect_range_ok(req->dev, req->sector_num,
