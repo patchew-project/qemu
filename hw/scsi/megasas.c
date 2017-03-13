@@ -271,7 +271,8 @@ static int megasas_map_sgl(MegasasState *s, MegasasCmd *cmd, union mfi_sgl *sgl)
     }
     pci_dma_sglist_init(&cmd->qsg, PCI_DEVICE(s), iov_count);
     for (i = 0; i < iov_count; i++) {
-        dma_addr_t iov_pa, iov_size_p;
+        dma_addr_t iov_pa;
+        uint32_t iov_size_p;
 
         if (!sgl) {
             trace_megasas_iovec_sgl_underflow(cmd->index, i);
@@ -658,7 +659,7 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     if (flags & MFI_QUEUE_FLAG_CONTEXT64) {
         s->flags |= MEGASAS_MASK_USE_QUEUE64;
     }
-    trace_megasas_init_queue((unsigned long)s->reply_queue_pa,
+    trace_megasas_init_queue(s->reply_queue_pa,
                              s->reply_queue_len, s->reply_queue_head,
                              s->reply_queue_tail, flags);
     megasas_reset_frames(s);
@@ -945,7 +946,8 @@ static int megasas_dcmd_pd_get_list(MegasasState *s, MegasasCmd *cmd)
     struct mfi_pd_list info;
     size_t dcmd_size = sizeof(info);
     BusChild *kid;
-    uint32_t offset, dcmd_limit, num_pd_disks = 0, max_pd_disks;
+    size_t dcmd_limit;
+    uint32_t offset, num_pd_disks = 0, max_pd_disks;
 
     memset(&info, 0, dcmd_size);
     offset = 8;

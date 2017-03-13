@@ -206,7 +206,7 @@ static void esp_pci_io_write(void *opaque, hwaddr addr,
         trace_esp_pci_sbac_write(pci->sbac, val);
         pci->sbac = val;
     } else {
-        trace_esp_pci_error_invalid_write((int)addr);
+        trace_esp_pci_error_invalid_write(addr);
     }
 }
 
