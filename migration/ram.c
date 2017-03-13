@@ -391,6 +391,13 @@ void migrate_compress_threads_create(void)
 
 /* Multiple fd's */
 
+
+typedef struct {
+    int num;
+    int size;
+    struct iovec *iov;
+} multifd_pages_t;
+
 struct MultiFDSendParams {
     /* not changed */
     int id;
@@ -401,7 +408,7 @@ struct MultiFDSendParams {
     QemuMutex mutex;
     /* protected by param mutex */
     bool quit;
-    uint8_t *address;
+    multifd_pages_t pages;
     /* protected by multifd mutex */
     bool done;
 };
@@ -467,8 +474,8 @@ static void *multifd_send_thread(void *opaque)
             qemu_mutex_unlock(&p->mutex);
             break;
         }
-        if (p->address) {
-            p->address = 0;
+        if (p->pages.num) {
+            p->pages.num = 0;
             qemu_mutex_unlock(&p->mutex);
             qemu_mutex_lock(&multifd_send_state->mutex);
             p->done = true;
@@ -481,6 +488,13 @@ static void *multifd_send_thread(void *opaque)
     }
 
     return NULL;
+}
+
+static void multifd_init_group(multifd_pages_t *pages)
+{
+    pages->num = 0;
+    pages->size = migrate_multifd_group();
+    pages->iov = g_malloc0(pages->size * sizeof(struct iovec));
 }
 
 int migrate_multifd_send_threads_create(void)
@@ -506,7 +520,7 @@ int migrate_multifd_send_threads_create(void)
         p->quit = false;
         p->id = i;
         p->done = true;
-        p->address = 0;
+        multifd_init_group(&p->pages);
         p->c = socket_send_channel_create();
         if (!p->c) {
             error_report("Error creating a send channel");
@@ -524,8 +538,23 @@ int migrate_multifd_send_threads_create(void)
 
 static int multifd_send_page(uint8_t *address)
 {
-    int i;
+    int i, j;
     MultiFDSendParams *p = NULL; /* make happy gcc */
+    static multifd_pages_t pages;
+    static bool once;
+
+    if (!once) {
+        multifd_init_group(&pages);
+        once = true;
+    }
+
+    pages.iov[pages.num].iov_base = address;
+    pages.iov[pages.num].iov_len = TARGET_PAGE_SIZE;
+    pages.num++;
+
+    if (pages.num < (pages.size - 1)) {
+        return UINT16_MAX;
+    }
 
     qemu_sem_wait(&multifd_send_state->sem);
     qemu_mutex_lock(&multifd_send_state->mutex);
@@ -539,7 +568,12 @@ static int multifd_send_page(uint8_t *address)
     }
     qemu_mutex_unlock(&multifd_send_state->mutex);
     qemu_mutex_lock(&p->mutex);
-    p->address = address;
+    p->pages.num = pages.num;
+    for (j = 0; j < pages.size; j++) {
+        p->pages.iov[j].iov_base = pages.iov[j].iov_base;
+        p->pages.iov[j].iov_len = pages.iov[j].iov_len;
+    }
+    pages.num = 0;
     qemu_mutex_unlock(&p->mutex);
     qemu_sem_post(&p->sem);
 
