@@ -67,7 +67,7 @@ vfio_quirk_nvidia_bar0_msi_ack(const char *name) "%s"
 vfio_quirk_nvidia_bar0_probe(const char *name) "%s"
 vfio_quirk_rtl8168_fake_latch(const char *name, uint64_t val) "%s 0x%"PRIx64
 vfio_quirk_rtl8168_msix_write(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table write[0x%x]: 0x%"PRIx64
-vfio_quirk_rtl8168_msix_read(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table read[0x%x]: 0x%"PRIx64
+vfio_quirk_rtl8168_msix_read(const char *name, hwaddr offset, uint64_t val) "%s MSI-X table read[0x%" HWADDR_PRIx "]: 0x%"PRIx64
 vfio_quirk_rtl8168_probe(const char *name) "%s"
 
 vfio_quirk_ati_bonaire_reset_skipped(const char *name) "%s"
@@ -75,7 +75,7 @@ vfio_quirk_ati_bonaire_reset_no_smc(const char *name) "%s"
 vfio_quirk_ati_bonaire_reset_timeout(const char *name) "%s"
 vfio_quirk_ati_bonaire_reset_done(const char *name) "%s"
 vfio_quirk_ati_bonaire_reset(const char *name) "%s"
-vfio_pci_igd_bar4_write(const char *name, uint32_t index, uint32_t data, uint32_t base) "%s [%03x] %08x -> %08x"
+vfio_pci_igd_bar4_write(const char *name, uint32_t index, uint64_t data, uint64_t base) "%s [%03x] %08" PRIx64 " -> %08" PRIx64
 vfio_pci_igd_bdsm_enabled(const char *name, int size) "%s %dMB"
 vfio_pci_igd_opregion_enabled(const char *name) "%s"
 vfio_pci_igd_host_bridge_enabled(const char *name) "%s"
@@ -94,14 +94,14 @@ vfio_disconnect_container(int fd) "close container->fd=%d"
 vfio_put_group(int fd) "close group->fd=%d"
 vfio_get_device(const char * name, unsigned int flags, unsigned int num_regions, unsigned int num_irqs) "Device %s flags: %u, regions: %u, irqs: %u"
 vfio_put_base_device(int fd) "close vdev->fd=%d"
-vfio_region_setup(const char *dev, int index, const char *name, unsigned long flags, unsigned long offset, unsigned long size) "Device %s, region %d \"%s\", flags: %lx, offset: %lx, size: %lx"
+vfio_region_setup(const char *dev, int index, const char *name, uint32_t flags, unsigned long offset, unsigned long size) "Device %s, region %d \"%s\", flags: %" PRIx32 ", offset: %lx, size: %lx"
 vfio_region_mmap_fault(const char *name, int index, unsigned long offset, unsigned long size, int fault) "Region %s mmaps[%d], [%lx - %lx], fault: %d"
 vfio_region_mmap(const char *name, unsigned long offset, unsigned long end) "Region %s [%lx - %lx]"
 vfio_region_exit(const char *name, int index) "Device %s, region %d"
 vfio_region_finalize(const char *name, int index) "Device %s, region %d"
 vfio_region_mmaps_set_enabled(const char *name, bool enabled) "Region %s mmaps enabled: %d"
 vfio_region_sparse_mmap_header(const char *name, int index, int nr_areas) "Device %s region %d: %d sparse mmap entries"
-vfio_region_sparse_mmap_entry(int i, unsigned long start, unsigned long end) "sparse entry %d [0x%lx - 0x%lx]"
+vfio_region_sparse_mmap_entry(int i, unsigned long long start, unsigned long long end) "sparse entry %d [0x%llx - 0x%llx]"
 vfio_get_dev_region(const char *name, int index, uint32_t type, uint32_t subtype) "%s index %d, %08x/%0x8"
 
 # hw/vfio/platform.c
@@ -119,7 +119,7 @@ vfio_platform_start_edge_irqfd_injection(int index, int fd) "IRQ index=%d, fd = 
 # hw/vfio/spapr.c
 vfio_prereg_listener_region_add_skip(uint64_t start, uint64_t end) "%"PRIx64" - %"PRIx64
 vfio_prereg_listener_region_del_skip(uint64_t start, uint64_t end) "%"PRIx64" - %"PRIx64
-vfio_prereg_register(uint64_t va, uint64_t size, int ret) "va=%"PRIx64" size=%"PRIx64" ret=%d"
-vfio_prereg_unregister(uint64_t va, uint64_t size, int ret) "va=%"PRIx64" size=%"PRIx64" ret=%d"
-vfio_spapr_create_window(int ps, uint64_t ws, uint64_t off) "pageshift=0x%x winsize=0x%"PRIx64" offset=0x%"PRIx64
+vfio_prereg_register(unsigned long long va, unsigned long long size, int ret) "va=%llx size=%llx ret=%d"
+vfio_prereg_unregister(unsigned long long va, unsigned long long size, int ret) "va=%llx size=%llx ret=%d"
+vfio_spapr_create_window(int ps, unsigned long long ws, unsigned long long off) "pageshift=0x%x winsize=0x%llx offset=0x%llx"
 vfio_spapr_remove_window(uint64_t off) "offset=%"PRIx64

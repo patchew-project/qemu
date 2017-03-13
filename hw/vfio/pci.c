@@ -1313,7 +1313,8 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
             g_free(region->mmaps);
             region->mmaps = NULL;
             trace_vfio_msix_fixup(vdev->vbasedev.name,
-                                  vdev->msix->table_bar, 0, 0);
+                                  vdev->msix->table_bar, (uint64_t) 0,
+                                  (uint64_t) 0);
         } else {
             region->mmaps[0].offset = end;
             region->mmaps[0].size = region->size - end;
