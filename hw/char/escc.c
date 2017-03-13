@@ -483,7 +483,7 @@ static void escc_mem_write(void *opaque, hwaddr addr,
     s = &serial->chn[channel];
     switch (saddr) {
     case SERIAL_CTRL:
-        trace_escc_mem_writeb_ctrl(CHN_C(s), s->reg, val & 0xff);
+        trace_escc_mem_writeb_ctrl(CHN_C(s), s->reg, (uint8_t) val);
         newreg = 0;
         switch (s->reg) {
         case W_CMD:
@@ -553,7 +553,7 @@ static void escc_mem_write(void *opaque, hwaddr addr,
             s->reg = 0;
         break;
     case SERIAL_DATA:
-        trace_escc_mem_writeb_data(CHN_C(s), val);
+        trace_escc_mem_writeb_data(CHN_C(s), (uint8_t) val);
         s->tx = val;
         if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { // tx enabled
             if (qemu_chr_fe_get_driver(&s->chr)) {
