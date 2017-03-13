@@ -53,6 +53,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
@@ -1372,8 +1373,8 @@ break;
     case L0_TCNTO: case L1_TCNTO:
     case L0_ICNTO: case L1_ICNTO:
     case L0_FRCNTO: case L1_FRCNTO:
-        fprintf(stderr, "\n[exynos4210.mct: write to RO register "
-                TARGET_FMT_plx "]\n\n", offset);
+        error_report("exynos4210.mct: write to RO register " TARGET_FMT_plx,
+                     offset);
         break;
 
     case L0_INT_CSTAT: case L1_INT_CSTAT:
