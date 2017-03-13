@@ -44,6 +44,7 @@
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
+#include "qemu/iov.h"
 
 static int dirty_rate_high_cnt;
 
@@ -536,7 +537,7 @@ int migrate_multifd_send_threads_create(void)
     return 0;
 }
 
-static int multifd_send_page(uint8_t *address)
+static uint16_t multifd_send_page(uint8_t *address, bool last_page)
 {
     int i, j;
     MultiFDSendParams *p = NULL; /* make happy gcc */
@@ -552,8 +553,10 @@ static int multifd_send_page(uint8_t *address)
     pages.iov[pages.num].iov_len = TARGET_PAGE_SIZE;
     pages.num++;
 
-    if (pages.num < (pages.size - 1)) {
-        return UINT16_MAX;
+    if (!last_page) {
+        if (pages.num < (pages.size - 1)) {
+            return UINT16_MAX;
+        }
     }
 
     qemu_sem_wait(&multifd_send_state->sem);
@@ -581,13 +584,18 @@ static int multifd_send_page(uint8_t *address)
 }
 
 struct MultiFDRecvParams {
+    /* not changed */
     int id;
     QemuThread thread;
     QIOChannel *c;
     QemuSemaphore init;
+    QemuSemaphore ready;
     QemuSemaphore sem;
     QemuMutex mutex;
+    /* proteced by param mutex */
     bool quit;
+    multifd_pages_t pages;
+    bool done;
 };
 typedef struct MultiFDRecvParams MultiFDRecvParams;
 
@@ -641,12 +649,20 @@ static void *multifd_recv_thread(void *opaque)
 
     qio_channel_read(p->c, &start, 1, &error_abort);
     qemu_sem_post(&p->init);
+    qemu_sem_post(&p->ready);
 
     while (true) {
         qemu_mutex_lock(&p->mutex);
         if (p->quit) {
             qemu_mutex_unlock(&p->mutex);
             break;
+        }
+        if (p->pages.num) {
+            p->pages.num = 0;
+            p->done = true;
+            qemu_mutex_unlock(&p->mutex);
+            qemu_sem_post(&p->ready);
+            continue;
         }
         qemu_mutex_unlock(&p->mutex);
         qemu_sem_wait(&p->sem);
@@ -672,8 +688,11 @@ int migrate_multifd_recv_threads_create(void)
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
         qemu_sem_init(&p->init, 0);
+        qemu_sem_init(&p->ready, 0);
         p->quit = false;
         p->id = i;
+        p->done = false;
+        multifd_init_group(&p->pages);
         p->c = socket_recv_channel_create();
 
         if (!p->c) {
@@ -688,6 +707,42 @@ int migrate_multifd_recv_threads_create(void)
     }
     socket_recv_channel_close_listening();
     return 0;
+}
+
+static void multifd_recv_page(uint8_t *address, uint16_t fd_num)
+{
+    int thread_count;
+    MultiFDRecvParams *p;
+    static multifd_pages_t pages;
+    static bool once;
+
+    if (!once) {
+        multifd_init_group(&pages);
+        once = true;
+    }
+
+    pages.iov[pages.num].iov_base = address;
+    pages.iov[pages.num].iov_len = TARGET_PAGE_SIZE;
+    pages.num++;
+
+    if (fd_num == UINT16_MAX) {
+        return;
+    }
+
+    thread_count = migrate_multifd_threads();
+    assert(fd_num < thread_count);
+    p = &multifd_recv_state->params[fd_num];
+
+    qemu_sem_wait(&p->ready);
+
+    qemu_mutex_lock(&p->mutex);
+    p->done = false;
+    iov_copy(p->pages.iov, pages.num, pages.iov, pages.num, 0,
+             iov_size(pages.iov, pages.num));
+    p->pages.num = pages.num;
+    pages.num = 0;
+    qemu_mutex_unlock(&p->mutex);
+    qemu_sem_post(&p->sem);
 }
 
 /**
@@ -1153,7 +1208,7 @@ static int ram_multifd_page(QEMUFile *f, PageSearchStatus *pss,
     if (pages == -1) {
         *bytes_transferred +=
             save_page_header(f, block, offset | RAM_SAVE_FLAG_MULTIFD_PAGE);
-        fd_num = multifd_send_page(p);
+        fd_num = multifd_send_page(p, migration_dirty_pages == 1);
         qemu_put_be16(f, fd_num);
         *bytes_transferred += 2; /* size of fd_num */
         qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
@@ -3012,10 +3067,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
         case RAM_SAVE_FLAG_MULTIFD_PAGE:
             fd_num = qemu_get_be16(f);
-            if (fd_num != 0) {
-                /* this is yet an unused variable, changed later */
-                fd_num = fd_num;
-            }
+            multifd_recv_page(host, fd_num);
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
 
