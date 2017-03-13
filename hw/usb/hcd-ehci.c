@@ -924,10 +924,11 @@ static uint64_t ehci_port_read(void *ptr, hwaddr addr,
                                unsigned size)
 {
     EHCIState *s = ptr;
+    int port = addr >> 2;
     uint32_t val;
 
-    val = s->portsc[addr >> 2];
-    trace_usb_ehci_portsc_read(addr + s->portscbase, addr >> 2, val);
+    val = s->portsc[port];
+    trace_usb_ehci_portsc_read(addr + s->portscbase, port, val);
     return val;
 }
 
@@ -968,7 +969,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
     uint32_t old = *portsc;
     USBDevice *dev = s->ports[port].dev;
 
-    trace_usb_ehci_portsc_write(addr + s->portscbase, addr >> 2, val);
+    trace_usb_ehci_portsc_write(addr + s->portscbase, port, val);
 
     /* Clear rwc bits */
     *portsc &= ~(val & PORTSC_RWC_MASK);
@@ -1009,7 +1010,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
 
     *portsc &= ~PORTSC_RO_MASK;
     *portsc |= val;
-    trace_usb_ehci_portsc_change(addr + s->portscbase, addr >> 2, *portsc, old);
+    trace_usb_ehci_portsc_change(addr + s->portscbase, port, *portsc, old);
 }
 
 static void ehci_opreg_write(void *ptr, hwaddr addr,

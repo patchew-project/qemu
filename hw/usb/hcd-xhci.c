@@ -2016,7 +2016,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         }
         break;
     default:
-        trace_usb_xhci_unimplemented("endpoint type", epctx->type);
+        trace_usb_xhci_unimplemented("endpoint type", (hwaddr) epctx->type);
         return -1;
     }
 
@@ -2742,7 +2742,7 @@ static void xhci_process_commands(XHCIState *xhci)
             }
             break;
         default:
-            trace_usb_xhci_unimplemented("command", type);
+            trace_usb_xhci_unimplemented("command", (hwaddr) type);
             event.ccode = CC_TRB_ERROR;
             break;
         }
