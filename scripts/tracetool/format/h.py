@@ -73,6 +73,19 @@ def generate(events, backend, group):
         out('    }',
             '}')
 
+        if "vcpu" not in e.properties:
+            out('',
+                '#define %(api)s(...) \\',
+                '    do { \\',
+                '        if (0) { \\',
+                '            printf(%(fmt)s "\\n", ## __VA_ARGS__); \\',
+                '        } \\',
+                '        %(api)s(__VA_ARGS__); \\',
+                '    } while (0)',
+                api=e.api(),
+                fmt=e.fmt.rstrip("\n")
+            )
+
     backend.generate_end(events, group)
 
     out('#endif /* TRACE_%s_GENERATED_TRACERS_H */' % group.upper())
