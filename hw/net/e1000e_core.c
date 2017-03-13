@@ -507,8 +507,8 @@ e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
         bool fragment = net_rx_pkt_get_ip4_info(pkt)->fragment;
 
         trace_e1000e_rx_rss_ip4(fragment, istcp, core->mac[MRQC],
-                                E1000_MRQC_EN_TCPIPV4(core->mac[MRQC]),
-                                E1000_MRQC_EN_IPV4(core->mac[MRQC]));
+                                !!E1000_MRQC_EN_TCPIPV4(core->mac[MRQC]),
+                                !!E1000_MRQC_EN_IPV4(core->mac[MRQC]));
 
         if (!fragment && istcp && E1000_MRQC_EN_TCPIPV4(core->mac[MRQC])) {
             return E1000_MRQ_RSS_TYPE_IPV4TCP;
@@ -536,9 +536,9 @@ e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
                                 ip6info->rss_ex_dst_valid,
                                 ip6info->rss_ex_src_valid,
                                 core->mac[MRQC],
-                                E1000_MRQC_EN_TCPIPV6(core->mac[MRQC]),
-                                E1000_MRQC_EN_IPV6EX(core->mac[MRQC]),
-                                E1000_MRQC_EN_IPV6(core->mac[MRQC]));
+                                !!E1000_MRQC_EN_TCPIPV6(core->mac[MRQC]),
+                                !!E1000_MRQC_EN_IPV6EX(core->mac[MRQC]),
+                                !!E1000_MRQC_EN_IPV6(core->mac[MRQC]));
 
         if ((!ex_dis || !ip6info->has_ext_hdrs) &&
             (!new_ex_dis || !(ip6info->rss_ex_dst_valid ||
