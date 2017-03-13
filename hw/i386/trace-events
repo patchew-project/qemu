@@ -41,7 +41,7 @@ amdvi_mmio_read_invalid(int max, hwaddr addr, unsigned size) "error: addr outsid
 amdvi_command_error(uint64_t status) "error: Executing commands with command buffer disabled 0x%"PRIx64
 amdvi_command_read_fail(uint64_t addr, uint32_t head) "error: fail to access memory at 0x%"PRIx64" + 0x%"PRIx32
 amdvi_command_exec(uint32_t head, uint32_t tail, uint64_t buf) "command buffer head at 0x%"PRIx32" command buffer tail at 0x%"PRIx32" command buffer base at 0x%"PRIx64
-amdvi_unhandled_command(uint8_t type) "unhandled command 0x%"PRIx8
+amdvi_unhandled_command(uint64_t type) "unhandled command 0x%"PRIx64
 amdvi_intr_inval(void) "Interrupt table invalidated"
 amdvi_iotlb_inval(void) "IOTLB pages invalidated"
 amdvi_prefetch_pages(void) "Pre-fetch of AMD-Vi pages requested"
