@@ -235,19 +235,19 @@ static void grlib_gptimer_write(void *opaque, hwaddr addr,
     case SCALER_OFFSET:
         value &= 0xFFFF; /* clean up the value */
         unit->scaler = value;
-        trace_grlib_gptimer_writel(-1, addr, unit->scaler);
+        trace_grlib_gptimer_writel(-1, addr, (uint64_t) unit->scaler);
         return;
 
     case SCALER_RELOAD_OFFSET:
         value &= 0xFFFF; /* clean up the value */
         unit->reload = value;
-        trace_grlib_gptimer_writel(-1, addr, unit->reload);
+        trace_grlib_gptimer_writel(-1, addr, (uint64_t) unit->reload);
         grlib_gptimer_set_scaler(unit, value);
         return;
 
     case CONFIG_OFFSET:
         /* Read Only (disable timer freeze not supported) */
-        trace_grlib_gptimer_writel(-1, addr, 0);
+        trace_grlib_gptimer_writel(-1, addr, (uint64_t) 0);
         return;
 
     default:
