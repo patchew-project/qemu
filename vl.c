@@ -273,6 +273,10 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "obsolete",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "elevateprivileges",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1042,6 +1046,13 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
         if (value) {
             if (strcmp(value, "allow") == 0) {
                 seccomp_opts |= OBSOLETE;
+            }
+        }
+
+        value = qemu_opt_get(opts,"elevateprivileges");
+        if (value) {
+            if (strcmp(value, "deny") == 0) {
+                seccomp_opts |= PRIVILEGED;
             }
         }
 

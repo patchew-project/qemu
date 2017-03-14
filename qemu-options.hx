@@ -3732,8 +3732,10 @@ Old param mode (ARM only).
 ETEXI
 
 DEF("sandbox", HAS_ARG, QEMU_OPTION_sandbox, \
-    "-sandbox on[,obsolete=allow]  Enable seccomp mode 2 system call filter (default 'off').\n" \
-    "                              obsolete: Allow obsolete system calls",
+    "-sandbox on[,obsolete=allow][,elevateprivileges=deny]\n" \
+    "                               Enable seccomp mode 2 system call filter (default 'off').\n" \
+    "                               obsolete: Allow obsolete system calls\n" \
+    "                               elevateprivileges: avoids Qemu process to elevate its privileges by blacklisting all set*uid|gid system calls",
     QEMU_ARCH_ALL)
 STEXI
 @item -sandbox @var{arg}[,obsolete=@var{string}]
@@ -3743,6 +3745,8 @@ disable it.  The default is 'off'.
 @table @option
 @item obsolete=@var{string}
 Enable Obsolete system calls
+@item elevateprivileges=@var{string}
+Disable set*uid|gid systema calls
 @end table
 ETEXI
 
