@@ -269,6 +269,10 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "enable",
             .type = QEMU_OPT_BOOL,
         },
+        {
+            .name = "obsolete",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1031,7 +1035,17 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
     /* FIXME: change this to true for 1.3 */
     if (qemu_opt_get_bool(opts, "enable", false)) {
 #ifdef CONFIG_SECCOMP
-        if (seccomp_start() < 0) {
+        uint8_t seccomp_opts = 0x0000;
+        const char * value = NULL;
+
+        value = qemu_opt_get(opts,"obsolete");
+        if (value) {
+            if (strcmp(value, "allow") == 0) {
+                seccomp_opts |= OBSOLETE;
+            }
+        }
+
+        if (seccomp_start(seccomp_opts) < 0) {
             error_report("failed to install seccomp syscall filter "
                          "in the kernel");
             return -1;
