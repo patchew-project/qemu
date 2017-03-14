@@ -2035,6 +2035,11 @@ static int vga_common_post_load(void *opaque, int version_id)
 {
     VGACommonState *s = opaque;
 
+    if (xen_enabled() && !s->vram_ptr) {
+        /* update VRAM region pointer in case we've failed
+         * the last time during init phase */
+        s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
+    }
     /* force refresh */
     s->graphic_mode = -1;
     vbe_update_vgaregs(s);
