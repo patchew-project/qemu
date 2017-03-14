@@ -575,6 +575,9 @@
 # @postcopy-requests: The number of page requests received from the destination
 #        (since 2.7)
 #
+# @dirty-bytes-rate: how many bytes dirtied by second by the
+#        guest (since 2.9)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationStats',
@@ -582,7 +585,7 @@
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
            'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
            'mbps' : 'number', 'dirty-sync-count' : 'int',
-           'postcopy-requests' : 'int' } }
+           'postcopy-requests' : 'int', 'dirty-bytes-rate' : 'int' } }
 
 ##
 # @XBZRLECacheStats:
