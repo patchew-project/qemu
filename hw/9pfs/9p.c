@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <sys/sysmacros.h>
 #include <glib/gprintf.h>
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
