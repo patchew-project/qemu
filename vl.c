@@ -281,6 +281,10 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "spawn",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "resourcecontrol",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1064,6 +1068,13 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
         if (value) {
             if (strcmp(value, "deny") == 0) {
                 seccomp_opts |= SPAWN;
+            }
+        }
+
+        value = qemu_opt_get(opts,"resourcecontrol");
+        if (value) {
+            if (strcmp(value, "deny") == 0) {
+                seccomp_opts |= RESOURCECTL;
             }
         }
 
