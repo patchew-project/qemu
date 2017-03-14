@@ -851,6 +851,8 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
     size_t cb = 0;
     char *bootlist = get_boot_devices_list(&cb, true);
 
+    clear_boot_once_list();
+
     _FDT(chosen = fdt_add_subnode(fdt, 0, "chosen"));
 
     _FDT(fdt_setprop_string(fdt, chosen, "bootargs", machine->kernel_cmdline));

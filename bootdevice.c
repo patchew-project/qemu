@@ -42,6 +42,7 @@ typedef struct {
 
 struct FWBootEntry {
     QTAILQ_ENTRY(FWBootEntry) link;
+    BootIndexProperty *prop;
     int32_t bootindex;
     DeviceState *dev;
     char *suffix;
@@ -171,8 +172,10 @@ void del_boot_device_path(DeviceState *dev, const char *suffix)
     do_del_boot_device_path(&fw_boot_order, dev, suffix);
 }
 
-static void do_add_boot_device_path(FWBootList *bootlist, int32_t bootindex,
-                                    DeviceState *dev, const char *suffix)
+static void do_add_boot_device_path(FWBootList *bootlist,
+                                    BootIndexProperty *prop,
+                                    int32_t bootindex, DeviceState *dev,
+                                    const char *suffix)
 {
     FWBootEntry *node, *i;
 
@@ -186,6 +189,7 @@ static void do_add_boot_device_path(FWBootList *bootlist, int32_t bootindex,
     do_del_boot_device_path(bootlist, dev, suffix);
 
     node = g_malloc0(sizeof(FWBootEntry));
+    node->prop = prop;
     node->bootindex = bootindex;
     node->suffix = g_strdup(suffix);
     node->dev = dev;
@@ -206,7 +210,7 @@ static void do_add_boot_device_path(FWBootList *bootlist, int32_t bootindex,
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix)
 {
-    do_add_boot_device_path(&fw_boot_order, bootindex, dev, suffix);
+    do_add_boot_device_path(&fw_boot_order, NULL, bootindex, dev, suffix);
 }
 
 DeviceState *get_boot_device(uint32_t position)
@@ -225,6 +229,20 @@ DeviceState *get_boot_device(uint32_t position)
         }
     }
     return res;
+}
+
+void clear_boot_once_list(void)
+{
+    FWBootEntry *i, *next;
+
+    QTAILQ_FOREACH_SAFE(i, &fw_boot_once, link, next) {
+        if (i->prop) {
+            *i->prop->bootindex = -1;
+        }
+        QTAILQ_REMOVE(&fw_boot_once, i, link);
+        g_free(i->suffix);
+        g_free(i);
+    }
 }
 
 /*
@@ -322,7 +340,7 @@ static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
     /* change bootindex to a new one */
     *prop->bootindex = boot_index;
 
-    do_add_boot_device_path(prop->bootlist, *prop->bootindex,
+    do_add_boot_device_path(prop->bootlist, prop, *prop->bootindex,
                             prop->dev, prop->suffix);
 
 out:

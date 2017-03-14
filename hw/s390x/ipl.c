@@ -261,6 +261,8 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
             return true;
         }
+
+        clear_boot_once_list();
     }
 
     return false;
