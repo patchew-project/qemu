@@ -52,28 +52,40 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
 static bool virtio_scsi_data_plane_handle_cmd(VirtIODevice *vdev,
                                               VirtQueue *vq)
 {
-    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    bool progress;
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
+    aio_context_acquire(s->ctx);
     assert(s->ctx && s->dataplane_started);
-    return virtio_scsi_handle_cmd_vq(s, vq);
+    progress = virtio_scsi_handle_cmd_vq(s, vq);
+    aio_context_release(s->ctx);
+    return progress;
 }
 
 static bool virtio_scsi_data_plane_handle_ctrl(VirtIODevice *vdev,
                                                VirtQueue *vq)
 {
+    bool progress;
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
+    aio_context_acquire(s->ctx);
     assert(s->ctx && s->dataplane_started);
-    return virtio_scsi_handle_ctrl_vq(s, vq);
+    progress = virtio_scsi_handle_ctrl_vq(s, vq);
+    aio_context_release(s->ctx);
+    return progress;
 }
 
 static bool virtio_scsi_data_plane_handle_event(VirtIODevice *vdev,
                                                 VirtQueue *vq)
 {
+    bool progress;
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
+    aio_context_acquire(s->ctx);
     assert(s->ctx && s->dataplane_started);
-    return virtio_scsi_handle_event_vq(s, vq);
+    progress = virtio_scsi_handle_event_vq(s, vq);
+    aio_context_release(s->ctx);
+    return progress;
 }
 
 static int virtio_scsi_vring_init(VirtIOSCSI *s, VirtQueue *vq, int n,
