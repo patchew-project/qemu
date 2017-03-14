@@ -79,6 +79,25 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
     return result;
 }
 
+MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
+                               MemTxAttrs attrs,
+                               uint8_t *buf, int len)
+{
+    MemTxResult result;
+    __bufwrite(buf, len);
+    return result;
+}
+
+MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+                                MemTxAttrs attrs,
+                                const uint8_t *buf, int len)
+{
+    MemTxResult result;
+    __bufread(buf, len);
+    return result;
+}
+
+
 /* Tainting */
 
 typedef struct {} name2keysym_t;
