@@ -33,6 +33,13 @@
 typedef struct FWBootEntry FWBootEntry;
 typedef QTAILQ_HEAD(, FWBootEntry) FWBootList;
 
+typedef struct {
+    FWBootList *bootlist;
+    int32_t *bootindex;
+    const char *suffix;
+    DeviceState *dev;
+} BootIndexProperty;
+
 struct FWBootEntry {
     QTAILQ_ENTRY(FWBootEntry) link;
     int32_t bootindex;
@@ -288,12 +295,6 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
     return list;
 }
 
-typedef struct {
-    int32_t *bootindex;
-    const char *suffix;
-    DeviceState *dev;
-} BootIndexProperty;
-
 static void device_get_bootindex(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
@@ -313,14 +314,15 @@ static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
         goto out;
     }
     /* check whether bootindex is present in fw_boot_order list  */
-    check_boot_index(boot_index, &local_err);
+    do_check_boot_index(prop->bootlist, boot_index, &local_err);
     if (local_err) {
         goto out;
     }
     /* change bootindex to a new one */
     *prop->bootindex = boot_index;
 
-    add_boot_device_path(*prop->bootindex, prop->dev, prop->suffix);
+    do_add_boot_device_path(prop->bootlist, *prop->bootindex,
+                            prop->dev, prop->suffix);
 
 out:
     error_propagate(errp, local_err);
@@ -332,17 +334,19 @@ static void property_release_bootindex(Object *obj, const char *name,
 {
     BootIndexProperty *prop = opaque;
 
-    del_boot_device_path(prop->dev, prop->suffix);
+    do_del_boot_device_path(prop->bootlist, prop->dev, prop->suffix);
     g_free(prop);
 }
 
-void device_add_bootindex_property(Object *obj, int32_t *bootindex,
-                                   const char *name, const char *suffix,
-                                   DeviceState *dev, Error **errp)
+static void do_add_bootindex_prop(FWBootList *bootlist,
+                                  Object *obj, int32_t *bootindex,
+                                  const char *name, const char *suffix,
+                                  DeviceState *dev, Error **errp)
 {
     Error *local_err = NULL;
     BootIndexProperty *prop = g_malloc0(sizeof(*prop));
 
+    prop->bootlist = bootlist;
     prop->bootindex = bootindex;
     prop->suffix = suffix;
     prop->dev = dev;
@@ -360,4 +364,12 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
     }
     /* initialize devices' bootindex property to -1 */
     object_property_set_int(obj, -1, name, NULL);
+}
+
+void device_add_bootindex_property(Object *obj, int32_t *bootindex,
+                                   const char *name, const char *suffix,
+                                   DeviceState *dev, Error **errp)
+{
+    do_add_bootindex_prop(&fw_boot_order, obj, bootindex,
+                          name, suffix, dev, errp);
 }
