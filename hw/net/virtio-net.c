@@ -2016,6 +2016,9 @@ static void virtio_net_instance_init(Object *obj)
     device_add_bootindex_property(obj, &n->nic_conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(n), NULL);
+    device_add_bootonceindex_property(obj, &n->nic_conf.bootonceindex,
+                                      "bootonceindex", "/ethernet-phy@0",
+                                      DEVICE(n), NULL);
 }
 
 static void virtio_net_pre_save(void *opaque)

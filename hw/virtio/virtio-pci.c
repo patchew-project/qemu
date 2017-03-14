@@ -2322,6 +2322,8 @@ static void virtio_net_pci_instance_init(Object *obj)
                                 TYPE_VIRTIO_NET);
     object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
                               "bootindex", &error_abort);
+    object_property_add_alias(obj, "bootonceindex", OBJECT(&dev->vdev),
+                              "bootonceindex", &error_abort);
 }
 
 static const TypeInfo virtio_net_pci_info = {

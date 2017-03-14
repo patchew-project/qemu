@@ -36,6 +36,7 @@ typedef struct NICConf {
     MACAddr macaddr;
     NICPeers peers;
     int32_t bootindex;
+    int32_t bootonceindex;
 } NICConf;
 
 #define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
