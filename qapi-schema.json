@@ -565,9 +565,6 @@
 #
 # @normal-bytes: number of normal bytes sent (since 1.2)
 #
-# @dirty-pages-rate: number of pages dirtied by second by the
-#        guest (since 1.3)
-#
 # @mbps: throughput in megabits/sec. (since 1.6)
 #
 # @dirty-sync-count: number of times that dirty ram was synchronized (since 2.1)
@@ -575,12 +572,15 @@
 # @postcopy-requests: The number of page requests received from the destination
 #        (since 2.7)
 #
+# @dirty-bytes-rate: how many bytes  dirtied by second by the
+#        guest (since 2.9)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
-           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
+           'normal-bytes': 'int', 'dirty-bytes-rate' : 'int',
            'mbps' : 'number', 'dirty-sync-count' : 'int',
            'postcopy-requests' : 'int' } }
 
