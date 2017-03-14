@@ -48,6 +48,7 @@ struct FWBootEntry {
 };
 
 static FWBootList fw_boot_order = QTAILQ_HEAD_INITIALIZER(fw_boot_order);
+static FWBootList fw_boot_once = QTAILQ_HEAD_INITIALIZER(fw_boot_once);
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
@@ -240,7 +241,7 @@ char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
     size_t total = 0;
     char *list = NULL;
 
-    bootlist = &fw_boot_order;
+    bootlist = QTAILQ_EMPTY(&fw_boot_once) ? &fw_boot_order : &fw_boot_once;
 
     QTAILQ_FOREACH(i, bootlist, link) {
         char *devpath = NULL,  *suffix = NULL;
@@ -371,5 +372,13 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    DeviceState *dev, Error **errp)
 {
     do_add_bootindex_prop(&fw_boot_order, obj, bootindex,
+                          name, suffix, dev, errp);
+}
+
+void device_add_bootonceindex_property(Object *obj, int32_t *bootindex,
+                                       const char *name, const char *suffix,
+                                       DeviceState *dev, Error **errp)
+{
+    do_add_bootindex_prop(&fw_boot_once, obj, bootindex,
                           name, suffix, dev, errp);
 }
