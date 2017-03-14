@@ -197,7 +197,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
      * caller of blk_new_open() doesn't make use of the permissions, but they
      * shouldn't hurt either. We can still share everything here because the
      * guest devices will add their own blockers if they can't share. */
-    perm = BLK_PERM_CONSISTENT_READ;
+    perm = flags & BDRV_O_UNSAFE_READ ? 0 : BLK_PERM_CONSISTENT_READ;
     if (flags & BDRV_O_RDWR) {
         perm |= BLK_PERM_WRITE;
     }
