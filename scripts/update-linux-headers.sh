@@ -82,33 +82,37 @@ for arch in $ARCHLIST; do
     fi
 
     make -C "$linux" INSTALL_HDR_PATH="$tmpdir" $arch_var=$arch headers_install
+    ARCH_EXTRA=
+    ARCH_STD_EXTRA=
+    case "$arch" in
+        arm)
+            ARCH_EXTRA="unistd-eabi.h unistd-oabi.h unistd-common.h"
+            ;;
+        powerpc)
+            ARCH_EXTRA=epapr_hcalls.h
+            ;;
+        s390)
+            ARCH_STD_EXTRA="kvm_virtio.h virtio-ccw.h"
+            ;;
+        x86)
+            ARCH_EXTRA="unistd_32.h unistd_x32.h unistd_64.h"
+            ARCH_STD_EXTRA="hyperv.h"
+            ;;
+    esac
 
     rm -rf "$output/linux-headers/asm-$arch"
     mkdir -p "$output/linux-headers/asm-$arch"
-    for header in kvm.h kvm_para.h unistd.h; do
-        cp "$tmpdir/include/asm/$header" "$output/linux-headers/asm-$arch"
+    for header in kvm.h kvm_para.h unistd.h $ARCH_EXTRA; do
+        cp "$tmpdir/include/asm/$header" \
+           "$output/linux-headers/asm-$arch/"
     done
-    if [ $arch = powerpc ]; then
-        cp "$tmpdir/include/asm/epapr_hcalls.h" "$output/linux-headers/asm-powerpc/"
-    fi
 
     rm -rf "$output/include/standard-headers/asm-$arch"
     mkdir -p "$output/include/standard-headers/asm-$arch"
-    if [ $arch = s390 ]; then
-        cp_portable "$tmpdir/include/asm/kvm_virtio.h" "$output/include/standard-headers/asm-s390/"
-        cp_portable "$tmpdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
-    fi
-    if [ $arch = arm ]; then
-        cp "$tmpdir/include/asm/unistd-eabi.h" "$output/linux-headers/asm-arm/"
-        cp "$tmpdir/include/asm/unistd-oabi.h" "$output/linux-headers/asm-arm/"
-        cp "$tmpdir/include/asm/unistd-common.h" "$output/linux-headers/asm-arm/"
-    fi
-    if [ $arch = x86 ]; then
-        cp_portable "$tmpdir/include/asm/hyperv.h" "$output/include/standard-headers/asm-x86/"
-        cp "$tmpdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
-        cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
-        cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
-    fi
+    for header in $ARCH_STD_EXTRA; do
+        cp_portable "$tmpdir/include/asm/$header" \
+                    "$output/include/standard-headers/asm-$arch/"
+    done
 done
 
 rm -rf "$output/linux-headers/linux"
