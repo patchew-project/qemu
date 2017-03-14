@@ -31,6 +31,7 @@
 #include "hw/qdev-core.h"
 
 typedef struct FWBootEntry FWBootEntry;
+typedef QTAILQ_HEAD(, FWBootEntry) FWBootList;
 
 struct FWBootEntry {
     QTAILQ_ENTRY(FWBootEntry) link;
@@ -39,8 +40,7 @@ struct FWBootEntry {
     char *suffix;
 };
 
-static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
-    QTAILQ_HEAD_INITIALIZER(fw_boot_order);
+static FWBootList fw_boot_order = QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
@@ -116,12 +116,13 @@ void restore_boot_order(void *opaque)
     g_free(normal_boot_order);
 }
 
-void check_boot_index(int32_t bootindex, Error **errp)
+static void do_check_boot_index(FWBootList *bootlist, int32_t bootindex,
+                                Error **errp)
 {
     FWBootEntry *i;
 
     if (bootindex >= 0) {
-        QTAILQ_FOREACH(i, &fw_boot_order, link) {
+        QTAILQ_FOREACH(i, bootlist, link) {
             if (i->bootindex == bootindex) {
                 error_setg(errp, "The bootindex %d has already been used",
                            bootindex);
@@ -131,7 +132,13 @@ void check_boot_index(int32_t bootindex, Error **errp)
     }
 }
 
-void del_boot_device_path(DeviceState *dev, const char *suffix)
+void check_boot_index(int32_t bootindex, Error **errp)
+{
+    do_check_boot_index(&fw_boot_order, bootindex, errp);
+}
+
+static void do_del_boot_device_path(FWBootList *bootlist, DeviceState *dev,
+                                    const char *suffix)
 {
     FWBootEntry *i;
 
@@ -139,10 +146,10 @@ void del_boot_device_path(DeviceState *dev, const char *suffix)
         return;
     }
 
-    QTAILQ_FOREACH(i, &fw_boot_order, link) {
+    QTAILQ_FOREACH(i, bootlist, link) {
         if ((!suffix || !g_strcmp0(i->suffix, suffix)) &&
              i->dev == dev) {
-            QTAILQ_REMOVE(&fw_boot_order, i, link);
+            QTAILQ_REMOVE(bootlist, i, link);
             g_free(i->suffix);
             g_free(i);
 
@@ -151,26 +158,31 @@ void del_boot_device_path(DeviceState *dev, const char *suffix)
     }
 }
 
-void add_boot_device_path(int32_t bootindex, DeviceState *dev,
-                          const char *suffix)
+void del_boot_device_path(DeviceState *dev, const char *suffix)
+{
+    do_del_boot_device_path(&fw_boot_order, dev, suffix);
+}
+
+static void do_add_boot_device_path(FWBootList *bootlist, int32_t bootindex,
+                                    DeviceState *dev, const char *suffix)
 {
     FWBootEntry *node, *i;
 
     if (bootindex < 0) {
-        del_boot_device_path(dev, suffix);
+        do_del_boot_device_path(bootlist, dev, suffix);
         return;
     }
 
     assert(dev != NULL || suffix != NULL);
 
-    del_boot_device_path(dev, suffix);
+    do_del_boot_device_path(bootlist, dev, suffix);
 
     node = g_malloc0(sizeof(FWBootEntry));
     node->bootindex = bootindex;
     node->suffix = g_strdup(suffix);
     node->dev = dev;
 
-    QTAILQ_FOREACH(i, &fw_boot_order, link) {
+    QTAILQ_FOREACH(i, bootlist, link) {
         if (i->bootindex == bootindex) {
             error_report("Two devices with same boot index %d", bootindex);
             exit(1);
@@ -180,7 +192,13 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
         QTAILQ_INSERT_BEFORE(i, node, link);
         return;
     }
-    QTAILQ_INSERT_TAIL(&fw_boot_order, node, link);
+    QTAILQ_INSERT_TAIL(bootlist, node, link);
+}
+
+void add_boot_device_path(int32_t bootindex, DeviceState *dev,
+                          const char *suffix)
+{
+    do_add_boot_device_path(&fw_boot_order, bootindex, dev, suffix);
 }
 
 DeviceState *get_boot_device(uint32_t position)
@@ -210,11 +228,14 @@ DeviceState *get_boot_device(uint32_t position)
  */
 char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
 {
+    FWBootList *bootlist;
     FWBootEntry *i;
     size_t total = 0;
     char *list = NULL;
 
-    QTAILQ_FOREACH(i, &fw_boot_order, link) {
+    bootlist = &fw_boot_order;
+
+    QTAILQ_FOREACH(i, bootlist, link) {
         char *devpath = NULL,  *suffix = NULL;
         char *bootpath;
         char *d;
