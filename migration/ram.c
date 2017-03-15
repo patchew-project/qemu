@@ -168,6 +168,8 @@ struct RAMState {
     uint64_t iterations;
     /* xbzrle transmitted bytes */
     uint64_t xbzrle_bytes;
+    /* xbzrle transmmited pages */
+    uint64_t xbzrle_pages;
 };
 typedef struct RAMState RAMState;
 
@@ -175,7 +177,6 @@ static RAMState ram_state;
 
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
-    uint64_t xbzrle_pages;
     uint64_t xbzrle_cache_miss;
     double xbzrle_cache_miss_rate;
     uint64_t xbzrle_overflows;
@@ -205,7 +206,7 @@ uint64_t xbzrle_mig_bytes_transferred(void)
 
 uint64_t xbzrle_mig_pages_transferred(void)
 {
-    return acct_info.xbzrle_pages;
+    return ram_state.xbzrle_pages;
 }
 
 uint64_t xbzrle_mig_pages_cache_miss(void)
@@ -527,7 +528,7 @@ static int save_xbzrle_page(QEMUFile *f, RAMState *rs, uint8_t **current_data,
     qemu_put_be16(f, encoded_len);
     qemu_put_buffer(f, XBZRLE.encoded_buf, encoded_len);
     bytes_xbzrle += encoded_len + 1 + 2;
-    acct_info.xbzrle_pages++;
+    rs->xbzrle_pages++;
     rs->xbzrle_bytes += bytes_xbzrle;
     *bytes_transferred += bytes_xbzrle;
 
@@ -1930,6 +1931,7 @@ static int ram_save_init_globals(RAMState *rs)
     rs->norm_pages = 0;
     rs->iterations = 0;
     rs->xbzrle_bytes = 0;
+    rs->xbzrle_pages = 0;
     migration_bitmap_sync_init(rs);
     qemu_mutex_init(&migration_bitmap_mutex);
 
