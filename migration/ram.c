@@ -249,6 +249,11 @@ uint64_t ram_bytes_remaining(void)
     return ram_state.migration_dirty_pages * TARGET_PAGE_SIZE;
 }
 
+uint64_t ram_dirty_sync_count(void)
+{
+    return ram_state.bitmap_sync_count;
+}
+
 /* used by the search for pages to send */
 struct PageSearchStatus {
     /* Current block being searched */
@@ -686,7 +691,6 @@ static void migration_bitmap_sync(RAMState *rs)
         rs->start_time = end_time;
         rs->num_dirty_pages_period = 0;
     }
-    s->dirty_sync_count = rs->bitmap_sync_count;
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(rs->bitmap_sync_count, NULL);
     }
