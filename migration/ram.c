@@ -178,6 +178,8 @@ struct RAMState {
     uint64_t xbzrle_overflows;
     /* number of dirty bits in the bitmap */
     uint64_t migration_dirty_pages;
+    /* protects modification of the bitmap */
+    QemuMutex bitmap_mutex;
 };
 typedef struct RAMState RAMState;
 
@@ -222,8 +224,6 @@ static ram_addr_t ram_save_remaining(void)
 {
     return ram_state.migration_dirty_pages;
 }
-
-static QemuMutex migration_bitmap_mutex;
 
 /* used by the search for pages to send */
 struct PageSearchStatus {
@@ -626,13 +626,13 @@ static void migration_bitmap_sync(RAMState *rs)
     trace_migration_bitmap_sync_start();
     memory_global_dirty_log_sync();
 
-    qemu_mutex_lock(&migration_bitmap_mutex);
+    qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         migration_bitmap_sync_range(rs, block->offset, block->used_length);
     }
     rcu_read_unlock();
-    qemu_mutex_unlock(&migration_bitmap_mutex);
+    qemu_mutex_unlock(&rs->bitmap_mutex);
 
     trace_migration_bitmap_sync_end(rs->migration_dirty_pages
                                     - num_dirty_pages_init);
@@ -1498,7 +1498,7 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
          * it is safe to migration if migration_bitmap is cleared bit
          * at the same time.
          */
-        qemu_mutex_lock(&migration_bitmap_mutex);
+        qemu_mutex_lock(&ram_state.bitmap_mutex);
         bitmap_copy(bitmap->bmap, old_bitmap->bmap, old);
         bitmap_set(bitmap->bmap, old, new - old);
 
@@ -1509,7 +1509,7 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
         bitmap->unsentmap = NULL;
 
         atomic_rcu_set(&migration_bitmap_rcu, bitmap);
-        qemu_mutex_unlock(&migration_bitmap_mutex);
+        qemu_mutex_unlock(&ram_state.bitmap_mutex);
         ram_state.migration_dirty_pages += new - old;
         call_rcu(old_bitmap, migration_bitmap_free, rcu);
     }
@@ -1911,7 +1911,7 @@ static int ram_state_init(RAMState *rs)
     int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
     memset(rs, 0, sizeof(*rs));
-    qemu_mutex_init(&migration_bitmap_mutex);
+    qemu_mutex_init(&rs->bitmap_mutex);
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
