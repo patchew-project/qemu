@@ -153,6 +153,8 @@ struct RAMState {
     int64_t start_time;
     /* bytes transferred at start_time */
     int64_t bytes_xfer_prev;
+    /* number of dirty pages since start_time */
+    int64_t num_dirty_pages_period;
 };
 typedef struct RAMState RAMState;
 
@@ -599,7 +601,6 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 }
 
 /* Fix me: there are too many global variables used in migration process. */
-static int64_t num_dirty_pages_period;
 static uint64_t xbzrle_cache_miss_prev;
 static uint64_t iterations_prev;
 
@@ -607,7 +608,7 @@ static void migration_bitmap_sync_init(RAMState *rs)
 {
     rs->start_time = 0;
     rs->bytes_xfer_prev = 0;
-    num_dirty_pages_period = 0;
+    rs->num_dirty_pages_period = 0;
     xbzrle_cache_miss_prev = 0;
     iterations_prev = 0;
 }
@@ -660,7 +661,7 @@ static void migration_bitmap_sync(RAMState *rs)
 
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
-    num_dirty_pages_period += migration_dirty_pages - num_dirty_pages_init;
+    rs->num_dirty_pages_period += migration_dirty_pages - num_dirty_pages_init;
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     /* more than 1 second = 1000 millisecons */
@@ -674,7 +675,7 @@ static void migration_bitmap_sync(RAMState *rs)
             bytes_xfer_now = ram_bytes_transferred();
 
             if (s->dirty_pages_rate &&
-               (num_dirty_pages_period * TARGET_PAGE_SIZE >
+               (rs->num_dirty_pages_period * TARGET_PAGE_SIZE >
                    (bytes_xfer_now - rs->bytes_xfer_prev)/2) &&
                (rs->dirty_rate_high_cnt++ >= 2)) {
                     trace_migration_throttle();
@@ -694,11 +695,11 @@ static void migration_bitmap_sync(RAMState *rs)
             iterations_prev = acct_info.iterations;
             xbzrle_cache_miss_prev = acct_info.xbzrle_cache_miss;
         }
-        s->dirty_pages_rate = num_dirty_pages_period * 1000
+        s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->start_time);
         s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
         rs->start_time = end_time;
-        num_dirty_pages_period = 0;
+        rs->num_dirty_pages_period = 0;
     }
     s->dirty_sync_count = rs->bitmap_sync_count;
     if (migrate_use_events()) {
