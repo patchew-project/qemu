@@ -646,7 +646,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
         (1ul << qemu_target_page_bits());
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count = ram_dirty_sync_count();
-    info->ram->postcopy_requests = s->postcopy_requests;
+    info->ram->postcopy_requests = ram_postcopy_requests();
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
@@ -1109,7 +1109,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->setup_time = 0;
     s->start_postcopy = false;
     s->postcopy_after_devices = false;
-    s->postcopy_requests = 0;
     s->migration_thread_running = false;
     error_free(s->error);
     s->error = NULL;

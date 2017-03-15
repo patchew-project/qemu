@@ -195,6 +195,8 @@ struct RAMState {
     uint64_t bytes_transferred;
     /* number of dirtied pages in the last second */
     uint64_t dirty_pages_rate;
+    /* Count of requests incoming from destination */
+    uint64_t postcopy_requests;
     /* protects modification of the bitmap */
     QemuMutex bitmap_mutex;
     /* Ram Bitmap protected by RCU */
@@ -259,6 +261,11 @@ uint64_t ram_dirty_sync_count(void)
 uint64_t ram_dirty_pages_rate(void)
 {
     return ram_state.dirty_pages_rate;
+}
+
+uint64_t ram_postcopy_requests(void)
+{
+    return ram_state.postcopy_requests;
 }
 
 /* used by the search for pages to send */
@@ -1197,7 +1204,7 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
 {
     RAMBlock *ramblock;
 
-    ms->postcopy_requests++;
+    ram_state.postcopy_requests++;
     rcu_read_lock();
     if (!rbname) {
         /* Reuse last RAMBlock */

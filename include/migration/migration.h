@@ -169,8 +169,6 @@ struct MigrationState
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t xbzrle_cache_size;
     int64_t setup_time;
-    /* Count of requests incoming from destination */
-    int64_t postcopy_requests;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
@@ -269,6 +267,7 @@ uint64_t ram_bytes_transferred(void);
 uint64_t ram_bytes_total(void);
 uint64_t ram_dirty_sync_count(void);
 uint64_t ram_dirty_pages_rate(void);
+uint64_t ram_postcopy_requests(void);
 void free_xbzrle_decoded_buf(void);
 
 void acct_update_position(QEMUFile *f, size_t size, bool zero);
