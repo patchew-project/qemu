@@ -588,15 +588,6 @@ static void migration_bitmap_sync_range(RAMState *rs, ram_addr_t start,
         cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length);
 }
 
-static void migration_bitmap_sync_init(RAMState *rs)
-{
-    rs->start_time = 0;
-    rs->bytes_xfer_prev = 0;
-    rs->num_dirty_pages_period = 0;
-    rs->xbzrle_cache_miss_prev = 0;
-    rs->iterations_prev = 0;
-}
-
 /* Returns a summary bitmap of the page sizes of all RAMBlocks;
  * for VMs with just normal pages this is equivalent to the
  * host page size.  If it's got some huge pages then it's the OR
@@ -1915,21 +1906,11 @@ err:
     return ret;
 }
 
-static int ram_save_init_globals(RAMState *rs)
+static int ram_state_init(RAMState *rs)
 {
     int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
-    rs->dirty_rate_high_cnt = 0;
-    rs->bitmap_sync_count = 0;
-    rs->zero_pages = 0;
-    rs->norm_pages = 0;
-    rs->iterations = 0;
-    rs->xbzrle_bytes = 0;
-    rs->xbzrle_pages = 0;
-    rs->xbzrle_cache_miss = 0;
-    rs->xbzrle_cache_miss_rate = 0;
-    rs->xbzrle_overflows = 0;
-    migration_bitmap_sync_init(rs);
+    memset(rs, 0, sizeof(*rs));
     qemu_mutex_init(&migration_bitmap_mutex);
 
     if (migrate_use_xbzrle()) {
@@ -2010,7 +1991,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        if (ram_save_init_globals(rs) < 0) {
+        if (ram_state_init(rs) < 0) {
             return -1;
          }
     }
