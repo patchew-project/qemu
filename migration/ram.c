@@ -174,22 +174,12 @@ struct RAMState {
     uint64_t xbzrle_cache_miss;
     /* xbzrle miss rate */
     double xbzrle_cache_miss_rate;
+    /* xbzrle number of overflows */
+    uint64_t xbzrle_overflows;
 };
 typedef struct RAMState RAMState;
 
 static RAMState ram_state;
-
-/* accounting for migration statistics */
-typedef struct AccountingInfo {
-    uint64_t xbzrle_overflows;
-} AccountingInfo;
-
-static AccountingInfo acct_info;
-
-static void acct_clear(void)
-{
-    memset(&acct_info, 0, sizeof(acct_info));
-}
 
 uint64_t dup_mig_pages_transferred(void)
 {
@@ -223,7 +213,7 @@ double xbzrle_mig_cache_miss_rate(void)
 
 uint64_t xbzrle_mig_pages_overflow(void)
 {
-    return acct_info.xbzrle_overflows;
+    return ram_state.xbzrle_overflows;
 }
 
 static QemuMutex migration_bitmap_mutex;
@@ -510,7 +500,7 @@ static int save_xbzrle_page(QEMUFile *f, RAMState *rs, uint8_t **current_data,
         return 0;
     } else if (encoded_len == -1) {
         trace_save_xbzrle_page_overflow();
-        acct_info.xbzrle_overflows++;
+        rs->xbzrle_overflows++;
         /* update data in the cache */
         if (!last_stage) {
             memcpy(prev_cached_page, *current_data, TARGET_PAGE_SIZE);
@@ -1936,6 +1926,7 @@ static int ram_save_init_globals(RAMState *rs)
     rs->xbzrle_pages = 0;
     rs->xbzrle_cache_miss = 0;
     rs->xbzrle_cache_miss_rate = 0;
+    rs->xbzrle_overflows = 0;
     migration_bitmap_sync_init(rs);
     qemu_mutex_init(&migration_bitmap_mutex);
 
@@ -1966,8 +1957,6 @@ static int ram_save_init_globals(RAMState *rs)
             XBZRLE.encoded_buf = NULL;
             return -1;
         }
-
-        acct_clear();
     }
 
     /* For memory_global_dirty_log_start below.  */
