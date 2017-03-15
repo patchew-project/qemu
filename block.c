@@ -3260,6 +3260,39 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
     return -ENOTSUP;
 }
 
+/*
+ * bdrv_measure:
+ * @drv: Format driver
+ * @opts: Creation options
+ * @in_bs: Existing image containing data for new image (may be NULL)
+ * @info: Result object
+ * @errp: Error object
+ *
+ * Calculate file size required to create a new image.
+ *
+ * If @in_bs is given then space for allocated clusters and zero clusters
+ * from that image are included in the calculation.  If @opts contains a
+ * backing file that is shared by @in_bs then backing clusters are omitted
+ * from the calculation.
+ *
+ * If @in_bs is NULL then the calculation includes no allocated clusters
+ * unless a preallocation option is given in @opts.
+ *
+ * Note that @in_bs may use a different BlockDriver from @drv.
+ */
+void bdrv_measure(BlockDriver *drv, QemuOpts *opts,
+                  BlockDriverState *in_bs, BlockMeasureInfo *info,
+                  Error **errp)
+{
+    if (!drv->bdrv_measure) {
+        error_setg(errp, "Block driver '%s' does not support size measurement",
+                   drv->format_name);
+        return;
+    }
+
+    drv->bdrv_measure(opts, in_bs, info, errp);
+}
+
 /**
  * Return number of sectors on success, -errno on error.
  */

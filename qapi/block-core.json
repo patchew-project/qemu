@@ -463,6 +463,25 @@
            '*dirty-bitmaps': ['BlockDirtyInfo'] } }
 
 ##
+# @BlockMeasureInfo:
+#
+# Image size calculation information.  This structure describes the size
+# requirements for creating a new image.
+#
+# @required-bytes: Amount of space required for image creation.  This value is
+#                  the host file size including sparse file regions.  A new 5
+#                  GB raw file therefore has a required size of 5 GB, not 0
+#                  bytes.
+#
+# @fully-allocated-bytes: Space required once data has been written to all
+#                         sectors
+#
+# Since: 2.10
+##
+{ 'struct': 'BlockMeasureInfo',
+  'data': {'required-bytes': 'int', 'fully-allocated-bytes': 'int'} }
+
+##
 # @query-block:
 #
 # Get a list of BlockInfo for all virtual block devices.
