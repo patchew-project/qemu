@@ -169,7 +169,6 @@ static RAMState ram_state;
 
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
-    uint64_t skipped_pages;
     uint64_t norm_pages;
     uint64_t iterations;
     uint64_t xbzrle_bytes;
@@ -189,16 +188,6 @@ static void acct_clear(void)
 uint64_t dup_mig_pages_transferred(void)
 {
     return ram_state.zero_pages;
-}
-
-uint64_t skipped_mig_bytes_transferred(void)
-{
-    return acct_info.skipped_pages * TARGET_PAGE_SIZE;
-}
-
-uint64_t skipped_mig_pages_transferred(void)
-{
-    return acct_info.skipped_pages;
 }
 
 uint64_t norm_mig_bytes_transferred(void)
