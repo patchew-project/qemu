@@ -2035,6 +2035,12 @@ static int vga_common_post_load(void *opaque, int version_id)
 {
     VGACommonState *s = opaque;
 
+    if (xen_enabled() && !s->vram_ptr) {
+        /* update VRAM region pointer in case we've failed
+         * the last time during init phase */
+        s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
+        assert(s->vram_ptr);
+    }
     /* force refresh */
     s->graphic_mode = -1;
     vbe_update_vgaregs(s);
@@ -2165,6 +2171,11 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
     vmstate_register_ram(&s->vram, global_vmstate ? NULL : DEVICE(obj));
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
+    /* VRAM pointer might still be NULL here if we are restoring on Xen.
+       We try to get it again later at post-load phase. */
+#ifdef DEBUG_VGA_MEM
+    printf("vga: vram ptr: %p\n", s->vram_ptr);
+#endif
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
     s->get_resolution = vga_get_resolution;
