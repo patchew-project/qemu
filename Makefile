@@ -293,7 +293,7 @@ qemu-version.h: FORCE
 			printf '"$(PKGVERSION)"\n'; \
 		else \
 			if test -d .git; then \
-				printf '" ('; \
+				printf '"('; \
 				git describe --match 'v*' 2>/dev/null | tr -d '\n'; \
 				if ! git diff-index --quiet HEAD &>/dev/null; then \
 					printf -- '-dirty'; \
