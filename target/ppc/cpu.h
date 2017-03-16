@@ -1176,6 +1176,7 @@ do {                                            \
 
 typedef struct PPCVirtualHypervisor PPCVirtualHypervisor;
 typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
+typedef struct ICPState ICPState;
 
 /**
  * PowerPCCPU:
@@ -1196,6 +1197,7 @@ struct PowerPCCPU {
     uint32_t max_compat;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
+    ICPState *icp;
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;
