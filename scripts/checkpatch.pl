@@ -1774,7 +1774,14 @@ sub process {
 			# likely a typedef for a function.
 			} elsif ($ctx =~ /$Type$/) {
 
-			} else {
+            # If this is a typedef we need to allow WINAPI as a calling
+            # convention. Even though there should be only one space around the
+            # star, we allow none or any, to suppress the following warning.
+            # The check for the number of spaces around the star is checked
+            # elsewhere.
+			} elsif($ctx =~ /^\s*typedef\s+$Type\(WINAPI\s*\*\s*$Ident\)/) {
+
+            } else {
 				ERROR("space prohibited between function name and open parenthesis '('\n" . $herecurr);
 			}
 		}
