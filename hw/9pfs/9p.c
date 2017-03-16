@@ -2369,7 +2369,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
             break;
         }
     }
-    if (cancel_pdu) {
+    if (cancel_pdu && cancel_pdu != pdu) {
         cancel_pdu->cancelled = 1;
         /*
          * Wait for pdu to complete.
