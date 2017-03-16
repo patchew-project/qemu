@@ -22,6 +22,7 @@
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/ppc/pnv_lpc.h"
+#include "hw/ppc/xics.h"
 
 #define TYPE_PNV_CHIP "powernv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -114,6 +115,9 @@ typedef struct PnvMachineState {
     PnvChip      **chips;
 
     ISABus       *isa_bus;
+    PnvICPState  *icps;
+    uint32_t     nr_servers;
+    QLIST_HEAD(, ICSState) ics;
 } PnvMachineState;
 
 #define PNV_FDT_ADDR          0x01000000
