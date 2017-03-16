@@ -65,6 +65,8 @@ struct BlockBackend {
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
+
+    int quiesce_counter;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -559,6 +561,11 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
     }
     bdrv_ref(bs);
 
+    /* The new BDS may be quiescent, we should attempt to match */
+    if (bs->quiesce_counter) {
+        blk_root_drained_begin(blk->root);
+    }
+
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
         throttle_timers_attach_aio_context(
@@ -705,6 +712,11 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
 
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
+
+    /* Are we currently quiesced? Should we enforce this right now? */
+    if (blk->quiesce_counter && ops->drained_begin) {
+        ops->drained_begin(opaque);
+    }
 }
 
 /*
@@ -1870,8 +1882,14 @@ static void blk_root_drained_begin(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
 
+    blk->quiesce_counter++;
+
     /* Note that blk->root may not be accessible here yet if we are just
      * attaching to a BlockDriverState that is drained. Use child instead. */
+
+    if (blk->dev_ops && blk->dev_ops->drained_begin) {
+        blk->dev_ops->drained_begin(blk->dev_opaque);
+    }
 
     if (blk->public.io_limits_disabled++ == 0) {
         throttle_group_restart_blk(blk);
@@ -1882,6 +1900,13 @@ static void blk_root_drained_end(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
 
+    assert(blk->quiesce_counter);
+    blk->quiesce_counter--;
+
     assert(blk->public.io_limits_disabled);
     --blk->public.io_limits_disabled;
+
+    if (blk->dev_ops && blk->dev_ops->drained_end) {
+        blk->dev_ops->drained_end(blk->dev_opaque);
+    }
 }
