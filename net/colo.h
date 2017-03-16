@@ -33,6 +33,9 @@
 #define IPPROTO_UDPLITE 136
 #endif
 
+/* virtio-net header length */
+#define VIRTIO_NET_HEADER 12
+
 typedef struct Packet {
     void *data;
     union {
@@ -73,7 +76,7 @@ typedef struct Connection {
 
 uint32_t connection_key_hash(const void *opaque);
 int connection_key_equal(const void *opaque1, const void *opaque2);
-int parse_packet_early(Packet *pkt);
+int parse_packet_early(Packet *pkt, int offset);
 void fill_connection_key(Packet *pkt, ConnectionKey *key);
 void reverse_connection_key(ConnectionKey *key);
 Connection *connection_new(ConnectionKey *key);

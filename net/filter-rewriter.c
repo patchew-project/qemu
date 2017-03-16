@@ -51,12 +51,17 @@ static void filter_rewriter_flush(NetFilterState *nf)
  */
 static int is_tcp_packet(Packet *pkt)
 {
-    if (!parse_packet_early(pkt) &&
-        pkt->ip->ip_p == IPPROTO_TCP) {
-        return 1;
-    } else {
-        return 0;
+    if (!parse_packet_early(pkt, VIRTIO_NET_HEADER) ||
+        !parse_packet_early(pkt, 0)) {
+        if (pkt->ip->ip_p == IPPROTO_TCP) {
+            return 1;
+        } else {
+            goto out;
+        }
     }
+
+out:
+    return 0;
 }
 
 /* handle tcp packet from primary guest */

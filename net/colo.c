@@ -39,15 +39,15 @@ int connection_key_equal(const void *key1, const void *key2)
     return memcmp(key1, key2, sizeof(ConnectionKey)) == 0;
 }
 
-int parse_packet_early(Packet *pkt)
+int parse_packet_early(Packet *pkt, int offset)
 {
     int network_length;
     static const uint8_t vlan[] = {0x81, 0x00};
-    uint8_t *data = pkt->data;
+    uint8_t *data = pkt->data + offset;
     uint16_t l3_proto;
     ssize_t l2hdr_len = eth_get_l2_hdr_length(data);
 
-    if (pkt->size < ETH_HLEN) {
+    if (pkt->size < ETH_HLEN + offset) {
         trace_colo_proxy_main("pkt->size < ETH_HLEN");
         return 1;
     }
@@ -73,7 +73,7 @@ int parse_packet_early(Packet *pkt)
     }
 
     network_length = pkt->ip->ip_hl * 4;
-    if (pkt->size < l2hdr_len + network_length) {
+    if (pkt->size < l2hdr_len + network_length + offset) {
         trace_colo_proxy_main("pkt->size < network_header + network_length");
         return 1;
     }

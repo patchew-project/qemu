@@ -126,10 +126,13 @@ static int packet_enqueue(CompareState *s, int mode)
         pkt = packet_new(s->sec_rs.buf, s->sec_rs.packet_len);
     }
 
-    if (parse_packet_early(pkt)) {
-        packet_destroy(pkt, NULL);
-        pkt = NULL;
-        return -1;
+    /* Try to parse the virtio-net-pci packet */
+    if (parse_packet_early(pkt, VIRTIO_NET_HEADER)) {
+        if (parse_packet_early(pkt, 0)) {
+            packet_destroy(pkt, NULL);
+            pkt = NULL;
+            return -1;
+        }
     }
     fill_connection_key(pkt, &key);
 
