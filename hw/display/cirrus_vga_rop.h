@@ -189,15 +189,6 @@ glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
     }
 }
 
-#define DEPTH 8
-#include "cirrus_vga_rop2.h"
-
-#define DEPTH 16
-#include "cirrus_vga_rop2.h"
-
-#define DEPTH 24
-#include "cirrus_vga_rop2.h"
-
 #define DEPTH 32
 #include "cirrus_vga_rop2.h"
 

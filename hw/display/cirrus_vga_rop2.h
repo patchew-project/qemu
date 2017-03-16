@@ -22,15 +22,8 @@
  * THE SOFTWARE.
  */
 
-#if DEPTH == 8
-#define PUTPIXEL()    ROP_OP(&d[0], col)
-#elif DEPTH == 16
-#define PUTPIXEL()    ROP_OP_16((uint16_t *)&d[0], col)
-#elif DEPTH == 24
-#define PUTPIXEL()    ROP_OP(&d[0], col);        \
-                      ROP_OP(&d[1], (col >> 8)); \
-                      ROP_OP(&d[2], (col >> 16))
-#elif DEPTH == 32
+
+#if DEPTH == 32
 #define PUTPIXEL()    ROP_OP_32(((uint32_t *)&d[0]), col)
 #else
 #error unsupported DEPTH
@@ -47,41 +40,16 @@ glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
     int x, y, pattern_y, pattern_pitch, pattern_x;
     unsigned int col;
     const uint8_t *src1;
-#if DEPTH == 24
-    int skipleft = s->vga.gr[0x2f] & 0x1f;
-#else
     int skipleft = (s->vga.gr[0x2f] & 0x07) * (DEPTH / 8);
-#endif
-
-#if DEPTH == 8
-    pattern_pitch = 8;
-#elif DEPTH == 16
-    pattern_pitch = 16;
-#else
     pattern_pitch = 32;
-#endif
     pattern_y = s->cirrus_blt_srcaddr & 7;
     for(y = 0; y < bltheight; y++) {
         pattern_x = skipleft;
         d = dst + skipleft;
         src1 = src + pattern_y * pattern_pitch;
         for (x = skipleft; x < bltwidth; x += (DEPTH / 8)) {
-#if DEPTH == 8
-            col = src1[pattern_x];
-            pattern_x = (pattern_x + 1) & 7;
-#elif DEPTH == 16
-            col = ((uint16_t *)(src1 + pattern_x))[0];
-            pattern_x = (pattern_x + 2) & 15;
-#elif DEPTH == 24
-            {
-                const uint8_t *src2 = src1 + pattern_x * 3;
-                col = src2[0] | (src2[1] << 8) | (src2[2] << 16);
-                pattern_x = (pattern_x + 1) & 7;
-            }
-#else
             col = ((uint32_t *)(src1 + pattern_x))[0];
             pattern_x = (pattern_x + 4) & 31;
-#endif
             PUTPIXEL();
             d += (DEPTH / 8);
         }
@@ -104,13 +72,8 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
     unsigned int col;
     unsigned bitmask;
     unsigned index;
-#if DEPTH == 24
-    int dstskipleft = s->vga.gr[0x2f] & 0x1f;
-    int srcskipleft = dstskipleft / 3;
-#else
     int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
-#endif
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
         bits_xor = 0xff;
@@ -187,13 +150,8 @@ glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
     int x, y, bitpos, pattern_y;
     unsigned int bits, bits_xor;
     unsigned int col;
-#if DEPTH == 24
-    int dstskipleft = s->vga.gr[0x2f] & 0x1f;
-    int srcskipleft = dstskipleft / 3;
-#else
     int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
-#endif
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
         bits_xor = 0xff;

@@ -478,9 +478,6 @@ static const cirrus_bitblt_rop_t cirrus_bkwd_transp_rop[16][2] = {
 };
 
 #define ROP2(name) {\
-    name ## _8,\
-    name ## _16,\
-    name ## _24,\
     name ## _32,\
         }
 
