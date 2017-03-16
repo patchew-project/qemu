@@ -645,6 +645,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count = s->dirty_sync_count;
     info->ram->postcopy_requests = s->postcopy_requests;
+    info->ram->page_size = s->page_size;
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
@@ -1115,6 +1116,7 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->last_req_rb = NULL;
     error_free(s->error);
     s->error = NULL;
+    s->page_size = 0;
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 

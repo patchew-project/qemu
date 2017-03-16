@@ -172,6 +172,7 @@ struct MigrationState
     int64_t xbzrle_cache_size;
     int64_t setup_time;
     int64_t dirty_sync_count;
+    int64_t page_size;
     /* Count of requests incoming from destination */
     int64_t postcopy_requests;
 
