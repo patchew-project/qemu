@@ -250,16 +250,28 @@ static bool block_job_started(BlockJob *job)
     return job->co;
 }
 
+/**
+ * This code must run after the job's coroutine has been entered,
+ * but not before.
+ */
+static void coroutine_fn block_job_start_shim(void *opaque)
+{
+    BlockJob *job = opaque;
+
+    assert(job && job->driver && job->driver->start);
+    block_job_pause_point(job);
+    job->driver->start(job);
+}
+
 void block_job_start(BlockJob *job)
 {
     assert(job && !block_job_started(job) && job->paused &&
-           !job->busy && job->driver->start);
-    job->co = qemu_coroutine_create(job->driver->start, job);
-    if (--job->pause_count == 0) {
-        job->paused = false;
-        job->busy = true;
-        qemu_coroutine_enter(job->co);
-    }
+           job->driver && job->driver->start);
+    job->co = qemu_coroutine_create(block_job_start_shim, job);
+    job->pause_count--;
+    job->busy = true;
+    job->paused = false;
+    qemu_coroutine_enter(job->co);
 }
 
 void block_job_ref(BlockJob *job)
