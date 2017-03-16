@@ -237,7 +237,12 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
     }
 
     if (ptcp->th_sum == stcp->th_sum) {
-        res = colo_packet_compare_common(ppkt, spkt, ETH_HLEN);
+        if (ppkt->is_virtio_net_pkt) {
+            res = colo_packet_compare_common(ppkt, spkt, ETH_HLEN
+                                             + VIRTIO_NET_HEADER);
+        } else {
+            res = colo_packet_compare_common(ppkt, spkt, ETH_HLEN);
+        }
     } else {
         res = -1;
     }
@@ -285,8 +290,14 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
      * other field like TOS,TTL,IP Checksum. we only need to compare
      * the ip payload here.
      */
-    ret = colo_packet_compare_common(ppkt, spkt,
-                                     network_header_length + ETH_HLEN);
+    if (ppkt->is_virtio_net_pkt) {
+        ret = colo_packet_compare_common(ppkt, spkt,
+                                         network_header_length
+                                         + VIRTIO_NET_HEADER + ETH_HLEN);
+    } else {
+        ret = colo_packet_compare_common(ppkt, spkt,
+                                         network_header_length + ETH_HLEN);
+    }
 
     if (ret) {
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
@@ -309,6 +320,7 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
 static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
 {
     int network_header_length = ppkt->ip->ip_hl * 4;
+    int ret;
 
     trace_colo_compare_main("compare icmp");
 
@@ -322,8 +334,17 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
      * other field like TOS,TTL,IP Checksum. we only need to compare
      * the ip payload here.
      */
-    if (colo_packet_compare_common(ppkt, spkt,
-                                   network_header_length + ETH_HLEN)) {
+
+    if (ppkt->is_virtio_net_pkt) {
+        ret = colo_packet_compare_common(ppkt, spkt,
+                                         network_header_length
+                                         + VIRTIO_NET_HEADER + ETH_HLEN);
+    } else {
+        ret = colo_packet_compare_common(ppkt, spkt,
+                                         network_header_length + ETH_HLEN);
+    }
+
+    if (ret) {
         trace_colo_compare_icmp_miscompare("primary pkt size",
                                            ppkt->size);
         trace_colo_compare_icmp_miscompare("Secondary pkt size",
