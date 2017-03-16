@@ -212,6 +212,28 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
 }
 
+static void numa_distance_parse(NumaDistOptions *dist, QemuOpts *opts, Error **errp)
+{
+    uint64_t src = dist->src;
+    uint64_t dst = dist->dst;
+    uint8_t val = dist->val;
+
+    if (src >= MAX_NODES || dst >= MAX_NODES) {
+        error_setg(errp, "Max number of NUMA nodes reached: %"
+                   PRIu64 "", src > dst ? src : dst);
+        return;
+    }
+
+    if (val < MIN_NUMA_DISTANCE) {
+        error_setg(errp,
+                "NUMA distance (%" PRIu8 ") out of range (%d) ~ (%d)",
+                dist->val, MAX_NUMA_DISTANCE, MIN_NUMA_DISTANCE);
+        return;
+    }
+
+    numa_info[src].distance[dst] = val;
+}
+
 static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
     NumaOptions *object = NULL;
@@ -234,6 +256,12 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
             goto end;
         }
         nb_numa_nodes++;
+        break;
+    case NUMA_OPTIONS_TYPE_DIST:
+        numa_distance_parse(&object->u.dist, opts, &err);
+        if (err) {
+            goto end;
+        }
         break;
     default:
         abort();
@@ -292,6 +320,21 @@ static void validate_numa_cpus(void)
         g_free(msg);
     }
     g_free(seen_cpus);
+}
+
+static void default_numa_distance(void)
+{
+    int i, j;
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        for (j = 0; j < nb_numa_nodes; j++) {
+            if (i == j && numa_info[i].distance[j] != MIN_NUMA_DISTANCE) {
+                numa_info[i].distance[j] = MIN_NUMA_DISTANCE;
+            } else if (numa_info[i].distance[j] <= MIN_NUMA_DISTANCE) {
+                numa_info[i].distance[j] = DEF_NUMA_DISTANCE;
+            }
+        }
+    }
 }
 
 void parse_numa_opts(MachineClass *mc)
@@ -390,6 +433,7 @@ void parse_numa_opts(MachineClass *mc)
         }
 
         validate_numa_cpus();
+        default_numa_distance();
     } else {
         numa_set_mem_node_id(0, ram_size, 0);
     }

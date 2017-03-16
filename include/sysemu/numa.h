@@ -21,6 +21,7 @@ typedef struct node_info {
     struct HostMemoryBackend *node_memdev;
     bool present;
     QLIST_HEAD(, numa_addr_range) addr; /* List to store address ranges */
+    uint8_t distance[MAX_NODES];
 } NodeInfo;
 
 extern NodeInfo numa_info[MAX_NODES];

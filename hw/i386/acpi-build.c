@@ -2395,6 +2395,31 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
                  table_data->len - srat_start, 1, NULL, NULL);
 }
 
+/*
+ * ACPI spec 5.2.17 System Locality Distance Information Table
+ * (Revision 2.0 or later)
+ */
+static void
+build_slit(GArray *table_data, BIOSLinker *linker, MachineState *machine)
+{
+    int slit_start, i, j;
+    slit_start = table_data->len;
+
+    acpi_data_push(table_data, sizeof(AcpiTableHeader));
+
+    build_append_int_noprefix(table_data, nb_numa_nodes, 8);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        for (j = 0; j < nb_numa_nodes; j++) {
+            build_append_int_noprefix(table_data, numa_info[i].distance[j], 1);
+        }
+    }
+
+    build_header(linker, table_data,
+                 (void *)(table_data->data + slit_start),
+                 "SLIT",
+                 table_data->len - slit_start, 1, NULL, NULL);
+}
+
 static void
 build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
@@ -2678,6 +2703,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     if (pcms->numa_nodes) {
         acpi_add_table(table_offsets, tables_blob);
         build_srat(tables_blob, tables->linker, machine);
+        acpi_add_table(table_offsets, tables_blob);
+        build_slit(tables_blob, tables->linker, machine);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables_blob);
