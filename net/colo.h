@@ -46,6 +46,8 @@ typedef struct Packet {
     int size;
     /* Time of packet creation, in wall clock ms */
     int64_t creation_ms;
+    /* Mark this packet as a virtio net packet or not */
+    bool is_virtio_net_pkt;
 } Packet;
 
 typedef struct ConnectionKey {

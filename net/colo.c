@@ -79,6 +79,12 @@ int parse_packet_early(Packet *pkt, int offset)
     }
     pkt->transport_header = pkt->network_header + network_length;
 
+    if (offset == VIRTIO_NET_HEADER) {
+        pkt->is_virtio_net_pkt = true;
+    } else {
+        pkt->is_virtio_net_pkt = false;
+    }
+
     return 0;
 }
 
