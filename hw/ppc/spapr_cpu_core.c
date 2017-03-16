@@ -81,7 +81,7 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
         }
     }
 
-    cpu->icp = xics_icp_get(xi, CPU(cpu)->cpu_index);
+    cpu->icp = xics_icp_get(xi, cpu->cpu_dt_id);
     xics_cpu_setup(xi, cpu);
 
     qemu_register_reset(spapr_cpu_reset, cpu);
