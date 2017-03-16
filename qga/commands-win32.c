@@ -1536,3 +1536,107 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
 }
+
+typedef struct _ga_matrix_lookup_t {
+    int major;
+    int minor;
+    char const *name;
+} ga_matrix_lookup_t;
+
+static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][8] = {
+    {
+        { 5, 0, "Win 2000"},
+        { 5, 1, "Win XP"},
+        { 6, 0, "Win Vista"},
+        { 6, 1, "Win 7"},
+
+        { 6, 2, "Win 8"},
+        { 6, 3, "Win 8.1"},
+        {10, 0, "Win 10"},
+        { 0, 0, 0}
+    },{
+        { 5, 2, "Win 2003"},
+        { 6, 0, "Win 2008"},
+        { 6, 1, "Win 2008 R2"},
+        { 6, 2, "Win 2012"},
+        { 6, 3, "Win 2012 R2"},
+        {10, 0, "Win 2016"},
+        { 0, 0, 0},
+        { 0, 0, 0}
+    }
+};
+
+static void ga_get_version(OSVERSIONINFOEXW *info)
+{
+    typedef NTSTATUS(WINAPI * rtl_get_version_t)(
+        OSVERSIONINFOEXW *os_version_info_ex);
+    HMODULE module = GetModuleHandle("ntdll");
+    PVOID fun = GetProcAddress(module, "RtlGetVersion");
+    rtl_get_version_t rtl_get_version = (rtl_get_version_t)fun;
+    rtl_get_version(info);
+}
+
+static char *ga_get_win_ver(void)
+{
+    OSVERSIONINFOEXW os_version;
+    ga_get_version(&os_version);
+    int major = (int)os_version.dwMajorVersion;
+    int minor = (int)os_version.dwMinorVersion;
+    return g_strdup_printf("%d.%d", major, minor);
+}
+
+static char *ga_get_win_name(void)
+{
+    OSVERSIONINFOEXW os_version;
+    ga_get_version(&os_version);
+    int major = (int)os_version.dwMajorVersion;
+    int minor = (int)os_version.dwMinorVersion;
+    int tbl_idx = (os_version.wProductType != VER_NT_WORKSTATION);
+    ga_matrix_lookup_t const *table = WIN_VERSION_MATRIX[tbl_idx];
+    while (table->name != NULL) {
+        if (major == table->major && minor == table->minor) {
+            return g_strdup(table->name);
+        }
+        ++table;
+    }
+    return NULL;
+}
+
+static char *ga_get_current_arch(void)
+{
+    SYSTEM_INFO info;
+    GetNativeSystemInfo(&info);
+    char *result = NULL;
+    switch (info.wProcessorArchitecture) {
+    case PROCESSOR_ARCHITECTURE_AMD64:
+        result = g_strdup("x86_64");
+        break;
+    case PROCESSOR_ARCHITECTURE_ARM:
+        result = g_strdup("arm");
+        break;
+    case PROCESSOR_ARCHITECTURE_IA64:
+        result = g_strdup("ia64");
+        break;
+    case PROCESSOR_ARCHITECTURE_INTEL:
+        result = g_strdup("x86");
+        break;
+    case PROCESSOR_ARCHITECTURE_UNKNOWN:
+    default:
+        /* Stays NULL in unknown cases */
+        break;
+    }
+    return result;
+}
+
+GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
+{
+    GuestOSInfo *info = g_new0(GuestOSInfo, 1);
+    info->type = GUESTOS_TYPE_WINDOWS;
+    info->version = ga_get_win_ver();
+    info->codename = ga_get_win_name();
+    info->arch = ga_get_current_arch();
+    /* Not available on Windows */
+    info->kernel = NULL;
+    info->distribution = NULL;
+    return info;
+}
