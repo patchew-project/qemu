@@ -1042,3 +1042,43 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+##
+# @GuestOSType:
+#
+# @linux:    Indicator for linux distributions
+# @windows:  Indicator for windows versions
+# @other:    Indicator for any other operating system that is not yet
+#            explicitly supported
+#
+# Since: 2.8
+##
+{ 'enum': 'GuestOSType', 'data': ['linux', 'windows', 'other'] }
+
+##
+# @GuestOSInfo:
+#
+# @version:      OS version, e.g. 25 for FC25 etc.
+# @distribution: Fedora, Ubuntu, Debian, CentOS...
+# @codename:     Code name of the OS. e.g. Ubuntu has Xenial Xerus etc.
+# @arch:         Architecture of the OS e.g. x86, x86_64, ppc64, aarch64...
+# @type:         Specifies the type of the OS.
+# @kernel:       Linux kernel version (Might be used by other OS types too).
+#                May be empty.
+# Since: 2.8
+##
+{ 'struct': 'GuestOSInfo',
+  'data': { 'version': 'str', 'distribution': 'str', 'codename': 'str',
+            'arch': 'str', 'type': 'GuestOSType', 'kernel': 'str'} }
+
+##
+# @guest-get-osinfo:
+#
+# Retrieve guest operating system information
+#
+# Returns: operating system information on success
+#
+# Since 2.8
+##
+{ 'command': 'guest-get-osinfo',
+  'returns': 'GuestOSInfo' }

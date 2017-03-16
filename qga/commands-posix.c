@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <dirent.h>
 #include "qga/guest-agent-core.h"
@@ -2356,6 +2357,205 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     return info;
 }
 
+static void ga_strip_end(char *value)
+{
+    size_t value_length = strlen(value);
+    while (value_length > 0) {
+        switch (value[value_length - 1]) {
+        default:
+            value_length = 0;
+            break;
+        case ' ': case '\n': case '\t': case '\'': case '"':
+            value[value_length - 1] = 0;
+            --value_length;
+            break;
+        }
+    }
+}
+
+static void ga_parse_version_id(char const *value, GuestOSInfo *info)
+{
+    if (strlen(value) < 128) {
+        char codename[128];
+        char version[128];
+
+        if (*value == '"') {
+            ++value;
+        }
+
+        if (sscanf(value, "%[^(] (%[^)])", version, codename) == 2) {
+            /* eg. VERSION="16.04.1 LTS (Xenial Xerus)" */
+            info->codename = strdup(codename);
+            info->version = strdup(version);
+        } else if (sscanf(value, "%[^,] %[^\"]\"", version, codename) == 2) {
+            /* eg. VERSION="12.04.5 LTS, Precise Pangolin" */
+            info->codename = strdup(codename);
+            info->version = strdup(version);
+        } else {
+            /* Just use the rest */
+            info->version = strdup(version);
+            info->codename = strdup("");
+        }
+    }
+}
+
+static void ga_parse_debian_version(FILE *fp, GuestOSInfo *info)
+{
+    char *line = NULL;
+    size_t n = 0;
+
+    if (getline(&line, &n, fp) != -1) {
+        ga_strip_end(line);
+        info->version = strdup(line);
+        info->codename = strdup("");
+        info->distribution = strdup("Debian GNU/Linux");
+    }
+    free(line);
+}
+
+static void ga_parse_redhat_release(FILE *fp, GuestOSInfo *info)
+{
+    char *line = NULL;
+    size_t n = 0;
+
+    if (getline(&line, &n, fp) != -1) {
+        char *value = strstr(line, " release ");
+        if (value != NULL) {
+            *value = 0;
+            info->distribution = strdup(line);
+            value += 9;
+            ga_strip_end(value);
+            ga_parse_version_id(value, info);
+        }
+    }
+    free(line);
+}
+
+static void ga_parse_os_release(FILE *fp, GuestOSInfo *info)
+{
+    char *line = NULL;
+    size_t n = 0;
+    while (getline(&line, &n, fp) != -1) {
+        char *value = strstr(line, "=");
+        if (value != NULL) {
+            *value = 0;
+            ++value;
+            ga_strip_end(value);
+
+            size_t len = strlen(line);
+            if (len == 9 && strcmp(line, "VERSION_ID") == 0) {
+                info->version = strdup(value);
+            } else if (len == 7 && strcmp(line, "VERSION") == 0) {
+                ga_parse_version_id(value, info);
+            } else if (len == 4 && strcmp(line, "NAME") == 0) {
+                info->distribution = strdup(value);
+            }
+        }
+    }
+    free(line);
+}
+
+static char *ga_stripped_strdup(char const *value)
+{
+    char *result = NULL;
+    while (value && *value == '"') {
+        ++value;
+    }
+    result = strdup(value);
+    ga_strip_end(result);
+    return result;
+}
+
+static void ga_parse_lsb_release(FILE *fp, GuestOSInfo *info)
+{
+    char *line = NULL;
+    size_t n = 0;
+
+    while (getline(&line, &n, fp) != -1) {
+        char *value = strstr(line, "=");
+        if (value != NULL) {
+            *value = 0;
+            ++value;
+            ga_strip_end(value);
+
+            size_t len = strlen(line);
+            if (len == 15 && strcmp(line, "DISTRIB_RELEASE") == 0) {
+                info->version = ga_stripped_strdup(value);
+            } else if (len == 16 && strcmp(line, "DISTRIB_CODENAME") == 0) {
+                info->codename = ga_stripped_strdup(value);
+            } else if (len == 10 && strcmp(line, "DISTRIB_ID") == 0) {
+                info->distribution = ga_stripped_strdup(value);
+            }
+        }
+    }
+}
+
+static void ga_get_linux_distribution_info(GuestOSInfo *info)
+{
+    FILE *fp = NULL;
+    fp = fopen("/etc/os-release", "r");
+    if (fp != NULL) {
+        ga_parse_os_release(fp, info);
+        goto cleanup;
+    }
+    fp = fopen("/usr/lib/os-release", "r");
+    if (fp != NULL) {
+        ga_parse_os_release(fp, info);
+        goto cleanup;
+    }
+    fp = fopen("/etc/lsb-release", "r");
+    if (fp != NULL) {
+        ga_parse_lsb_release(fp, info);
+        goto cleanup;
+    }
+    fp = fopen("/etc/redhat-release", "r");
+    if (fp != NULL) {
+        ga_parse_redhat_release(fp, info);
+        goto cleanup;
+    }
+    fp = fopen("/etc/gentoo-release", "r");
+    if (fp != NULL) {
+        ga_parse_redhat_release(fp, info);
+        goto cleanup;
+    }
+    fp = fopen("/etc/debian_version", "r");
+    if (fp != NULL) {
+        ga_parse_debian_version(fp, info);
+        goto cleanup;
+    }
+
+    if (fp == NULL) {
+        info->distribution = strdup("Unknown");
+        info->version = strdup("");
+        info->codename = strdup("");
+    }
+
+cleanup:
+    if (fp != NULL) {
+        fclose(fp);
+    }
+
+}
+
+GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
+{
+    GuestOSInfo *info = g_new0(GuestOSInfo, 1);
+    struct utsname kinfo;
+
+    ga_get_linux_distribution_info(info);
+
+    if (!info->codename || !info->distribution || !info->version) {
+        qapi_free_GuestOSInfo(info);
+        return NULL;
+    }
+    info->type = GUESTOS_TYPE_LINUX;
+    uname(&kinfo);
+    info->kernel = g_strdup(kinfo.release);
+    info->arch = g_strdup(kinfo.machine);
+
+    return info;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **errp)
@@ -2413,6 +2613,12 @@ qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 }
 
 GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
