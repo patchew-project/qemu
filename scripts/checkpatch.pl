@@ -192,6 +192,11 @@ our $typeTypedefs = qr{(?x:
         | QEMUBH                            # all uppercase
 )};
 
+our $logFunctions = qr{(?x:
+       error_report|
+       error_printf
+)};
+
 our @typeList = (
 	qr{void},
 	qr{(?:unsigned\s+)?char},
@@ -1341,7 +1346,8 @@ sub process {
 
 #90 column limit
 		if ($line =~ /^\+/ &&
-		    !($line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
+		    !($line =~ /^\+\s*$logFunctions\s*\(\s*(?:([^"]*))?"[X\t]*"\s*(?:,|\)\s*;)\s*$/ ||
+		      $line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
 		    $length > 80)
 		{
 			if ($length > 90) {
