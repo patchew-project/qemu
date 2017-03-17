@@ -114,7 +114,7 @@ static int msi_msix_setup(XenPCIPassthroughState *s,
 
     assert((!is_msix && msix_entry == 0) || is_msix);
 
-    if (xen_is_pirq_msi(data)) {
+    if (xen_is_pirq_msi(data, (uint32_t)(addr & 0xffffffff))) {
         *ppirq = msi_ext_dest_id(addr >> 32) | msi_dest_id(addr);
         if (!*ppirq) {
             /* this probably identifies an misconfiguration of the guest,

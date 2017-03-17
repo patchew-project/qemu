@@ -146,8 +146,13 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
     }
 }
 
-int xen_is_pirq_msi(uint32_t msi_data)
+int xen_is_pirq_msi(uint32_t msi_data, uint32_t msi_addr_lo)
 {
+    /* If msi address is configurate to remapping format, the msi will not
+     * remapped into a pirq.
+     */
+    if ( msi_addr_lo & 0x10 )
+        return 0;
     /* If vector is 0, the msi is remapped into a pirq, passed as
      * dest_id.
      */
