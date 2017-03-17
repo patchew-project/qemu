@@ -79,7 +79,10 @@ typedef struct {
     uint64_t st_mtim_nsec;
     uint64_t st_ctim_sec;
     uint64_t st_ctim_nsec;
-} ProxyStat;
+} QEMU_PACKED ProxyStat;
+
+#define PROXY_STAT_SZ \
+    (8 + 8 + 8 + 4 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8)
 
 typedef struct {
     uint64_t f_type;
@@ -92,5 +95,8 @@ typedef struct {
     uint64_t f_fsid[2];
     uint64_t f_namelen;
     uint64_t f_frsize;
-} ProxyStatFS;
+} QEMU_PACKED ProxyStatFS;
+
+#define PROXY_STATFS_SZ (8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 * 2 + 8 + 8)
+
 #endif
