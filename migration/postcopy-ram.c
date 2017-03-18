@@ -23,6 +23,7 @@
 #include "migration/postcopy-ram.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
+#include <sys/param.h>
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -404,6 +405,60 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
     return 0;
 }
 
+#define PROC_LEN 1024
+static void trace_for_thread(const char *msg, pid_t thread_id)
+{
+    const char *status_file_frmt = "/proc/%d/status";
+    char status_file_path[MAXPATHLEN];
+    char proc_name[PROC_LEN];
+    char proc_status[PROC_LEN];
+    char *line = NULL;
+    FILE *f;
+    ssize_t read;
+    size_t len;
+
+    sprintf(status_file_path, status_file_frmt, thread_id);
+    f = fopen(status_file_path, "r");
+    if (!f) {
+        error_report("can't open %s", status_file_path);
+        return;
+    }
+
+    memset(proc_name, 0, sizeof(proc_name));
+    memset(proc_status, 0, sizeof(proc_status));
+
+    while ((read = getline(&line, &len, f)) != -1) {
+        if (strstr(line, "Name"))
+            strncpy(proc_name, line, sizeof(proc_name));
+        if (strstr(line, "State"))
+            strncpy(proc_status, line, sizeof(proc_status));
+    }
+
+    free(line);
+    trace_vcpu_thread_status(msg, thread_id, proc_name, proc_status);
+}
+
+static int defined_mem_fault_cpu_index(pid_t pid)
+{
+    CPUState *cpu_iter;
+
+    CPU_FOREACH(cpu_iter) {
+        if (cpu_iter->thread_id == pid)
+           return cpu_iter->cpu_index;
+    }
+    trace_for_thread("can't find cpu_index for thread id", pid);
+    return -1;
+}
+
+static void trace_cpu_state(void)
+{
+    CPUState *cpu_iter;
+    CPU_FOREACH(cpu_iter) {
+        trace_for_thread("vCPU", cpu_iter->thread_id);
+        trace_postcopy_vcpu_running(cpu_iter->cpu_index, cpu_iter->running);
+    }
+}
+
 /*
  * Handle faults detected by the USERFAULT markings
  */
@@ -445,6 +500,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
         }
 
         ret = read(mis->userfault_fd, &msg, sizeof(msg));
+        trace_cpu_state();
         if (ret != sizeof(msg)) {
             if (errno == EAGAIN) {
                 /*
@@ -481,8 +537,10 @@ static void *postcopy_ram_fault_thread(void *opaque)
         rb_offset &= ~(qemu_ram_pagesize(rb) - 1);
         trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
                                                 qemu_ram_get_idstr(rb),
-                                                rb_offset);
+                                                rb_offset, msg.arg.pagefault.pid);
 
+	mark_postcopy_downtime_begin(msg.arg.pagefault.address,
+		defined_mem_fault_cpu_index(msg.arg.pagefault.pid));
         /*
          * Send the request to the source - we want to request one
          * of our host page sizes (which is >= TPS)
@@ -577,6 +635,7 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
 
         return -e;
     }
+    mark_postcopy_downtime_end((uint64_t)host);
 
     trace_postcopy_place_page(host);
     return 0;

@@ -77,6 +77,12 @@ static NotifierList migration_state_notifiers =
 
 static bool deferred_incoming;
 
+typedef struct {
+    int64_t begin;
+    int64_t end;
+    uint64_t cpus;
+} DowntimeDuration;
+
 /*
  * Current state of incoming postcopy; note this is not part of
  * MigrationIncomingState since it's state is used during cleanup
@@ -117,6 +123,21 @@ MigrationState *migrate_get_current(void)
     return &current_migration;
 }
 
+static gint addr_compare(gconstpointer a, gconstpointer b,
+                                 gpointer user_data G_GNUC_UNUSED)
+{
+    if (a == b)
+        return 0;
+    else if (a > b)
+        return 1;
+    return -1;
+}
+
+static void destroy_downtime_duration(gpointer data)
+{
+    free(data);
+}
+
 MigrationIncomingState *migration_incoming_get_current(void)
 {
     static bool once;
@@ -128,6 +149,9 @@ MigrationIncomingState *migration_incoming_get_current(void)
         QLIST_INIT(&mis_current.loadvm_handlers);
         qemu_mutex_init(&mis_current.rp_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
+        mis_current.postcopy_downtime = g_tree_new_full(addr_compare,
+                                             NULL, NULL,
+                                             destroy_downtime_duration);
         once = true;
     }
     return &mis_current;
@@ -138,9 +162,12 @@ void migration_incoming_state_destroy(void)
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
     qemu_event_destroy(&mis->main_thread_load_event);
+    if (mis->postcopy_downtime) {
+        g_tree_destroy(mis->postcopy_downtime);
+        mis->postcopy_downtime = NULL;
+    }
     loadvm_free_handlers(mis);
 }
-
 
 typedef struct {
     bool optional;
@@ -1119,7 +1146,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->last_req_rb = NULL;
     error_free(s->error);
     s->error = NULL;
-
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
     QSIMPLEQ_INIT(&s->src_page_requests);
@@ -2109,3 +2135,211 @@ PostcopyState postcopy_state_set(PostcopyState new_state)
     return atomic_xchg(&incoming_postcopy_state, new_state);
 }
 
+void mark_postcopy_downtime_begin(uint64_t addr, int cpu)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    DowntimeDuration *dd;
+    if (!mis || !mis->postcopy_downtime) {
+        error_report("Migration incoming state should exists mis %p", mis);
+        return;
+    }
+
+    dd = g_tree_lookup(mis->postcopy_downtime, (gpointer)addr); /* !!! cast */
+    if (!dd) {
+        dd = (DowntimeDuration *)g_malloc0(sizeof(DowntimeDuration));
+        g_tree_insert(mis->postcopy_downtime, (gpointer)addr, (gpointer)dd);
+    }
+
+    if (cpu < 0)
+        /* assume in this situation all vCPUs are sleeping */
+        dd->cpus = ~0u;
+    else
+        set_bit(cpu, &dd->cpus);
+
+    /*
+     *  overwrite previously set dd->begin, if that page already was
+     *     faulted on another cpu
+     */
+    dd->begin = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    trace_mark_postcopy_downtime_begin(addr, dd, dd->begin, cpu);
+}
+
+void mark_postcopy_downtime_end(uint64_t addr)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    DowntimeDuration *dd;
+    if (!mis || !mis->postcopy_downtime) {
+        error_report("Migration incoming state should exists mis %p", mis);
+        return;
+    }
+
+    dd = g_tree_lookup(mis->postcopy_downtime, (gpointer)addr);
+    if (!dd) {
+        /* error_report("Could not populate downtime duration completion time \n\
+                        There is no downtime duration for 0x%"PRIx64, addr); */
+        return;
+    }
+
+    dd->end = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    trace_mark_postcopy_downtime_end(addr, dd, dd->end);
+}
+
+typedef struct {
+    int64_t tp; /* point in time */
+    bool is_end;
+    int64_t cpus; /* cpus bit mask */
+} OverlapDowntime;
+
+static gboolean populate_downtime_points(gpointer key, gpointer value,
+                                        gpointer data)
+{
+    DowntimeDuration *dd = (DowntimeDuration *)value;
+    GPtrArray *interval = (GPtrArray *)data;
+    OverlapDowntime *od_begin = g_malloc0(sizeof(OverlapDowntime));
+    OverlapDowntime *od_end = g_malloc0(sizeof(OverlapDowntime));
+
+    od_begin->tp = dd->begin;
+    od_begin->is_end = false;
+    od_begin->cpus = dd->cpus;
+    g_ptr_array_add(interval, od_begin);
+
+    od_end->tp = dd->end;
+    od_end->is_end = true;
+    od_end->cpus = dd->cpus;
+    g_ptr_array_add(interval, od_end);
+
+    if (dd->end && dd->begin)
+        trace_sumup_downtime_duration(dd->end - dd->begin, (uint64_t)key, dd->cpus);
+    return FALSE;
+}
+
+static gboolean calculate_per_cpu(gpointer key, gpointer value,
+                                  gpointer data)
+{
+    int *downtime_cpu = (int *)data;
+    DowntimeDuration *dd = (DowntimeDuration *)value;
+    int cpu_iter;
+    for (cpu_iter = 0; cpu_iter < smp_cpus; cpu_iter++) {
+        if (test_bit(cpu_iter, &dd->cpus) && dd->end && dd->begin)
+            downtime_cpu[cpu_iter] += dd->end - dd->begin;
+    }
+    return FALSE;
+}
+
+static gint compare_downtime(gconstpointer a, gconstpointer b)
+{
+    DowntimeDuration *dda = (DowntimeDuration *)a;
+    DowntimeDuration *ddb = (DowntimeDuration *)b;
+    return dda->begin - ddb->begin;
+}
+
+static uint64_t get_sufficient_smp_cpus(void)
+{
+    int i;
+    static uint64_t sufficient_cpus;
+    for (i = 0; i < smp_cpus; i++)
+    {
+	set_bit(i, &sufficient_cpus);
+    }
+    return sufficient_cpus;
+}
+
+/*
+ * This function calculates downtime per cpu and trace it
+ *
+ *  Also it calculates total downtime as an interval's overlap,
+ *  for many vCPU.
+ *
+ *  The approach is following:
+ *  Initially intervals are represented in tree where key is
+ *  pagefault address, and values:
+ *   begin - page fault time
+ *   end   - page load time
+ *   cpus  - bit mask shows affected cpus
+ *
+ *  To calculate overlap on all cpus, intervals converted into
+ *  array of points in time (downtime_points), the size of
+ *  array is 2 * number of nodes in tree of intervals (2 array
+ *  elements per one in element of interval).
+ *  Each element is marked as end (E) or as start (S) of interval.
+ *  The overlap downtime will be calculated for SE, only in case
+ *  there is sequence S(0..N)E(M) for every vCPU.
+ *
+ * As example we have 3 CPU
+ *
+ *      S1        E1           S1               E1
+ * -----***********------------xxx***************------------------------> CPU1
+ *
+ *             S2                E2
+ * ------------****************xxx---------------------------------------> CPU2
+ *
+ *                         S3            E3
+ * ------------------------****xxx********-------------------------------> CPU3
+ *
+ * We have sequence S1,S2,E1,S3,S1,E2,E3,E1
+ * S2,E1 - doesn't match condition due to sequence S1,S2,E1 doesn't include CPU3,
+ * S3,S1,E2 - sequenece includes all CPUs, in this case overlap will be S1,E2
+ *
+ */
+int64_t get_postcopy_total_downtime(void)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    int64_t total_downtime = 0; /* for total overlapped downtime */
+    const int intervals = g_tree_nnodes(mis->postcopy_downtime);
+    const int points = 2 * intervals;
+    uint64_t sufficient_smp_cpus = get_sufficient_smp_cpus();
+    int point_iter, start_point_iter;
+    GPtrArray *downtime_points = g_ptr_array_sized_new(points);
+    /* for summary downtime per cpu */
+    int *downtime_cpu = g_malloc0(smp_cpus * sizeof(int));
+    if (!mis || !mis->postcopy_downtime) {
+        error_report("Migration incoming state should exists, mis %p", mis);
+        return -1;
+    }
+
+    /* make downtime points S/E from interval */
+    g_tree_foreach(mis->postcopy_downtime, populate_downtime_points,
+                   downtime_points);
+    g_tree_foreach(mis->postcopy_downtime, calculate_per_cpu, downtime_cpu);
+
+    /* just for RFC patch */
+    for (point_iter = 0; point_iter < smp_cpus; point_iter++)
+    {
+        trace_downtime_per_cpu(point_iter, downtime_cpu[point_iter]);
+    }
+
+    g_ptr_array_sort(downtime_points, compare_downtime);
+
+    for (point_iter = 1; point_iter < points; point_iter++) {
+        OverlapDowntime *od = g_ptr_array_index(downtime_points, point_iter);
+        uint64_t cur_cpus = od->cpus;
+        int smp_cpus_i = smp_cpus;
+        OverlapDowntime *prev_od = g_ptr_array_index(downtime_points,
+                                                     point_iter - 1);
+        /* we need sequence SE */
+        if (!od->is_end || prev_od->is_end)
+            continue;
+
+        for (start_point_iter = point_iter - 1;
+             start_point_iter >= 0 && smp_cpus_i;
+             start_point_iter--, smp_cpus_i--) {
+            OverlapDowntime *t_od = g_ptr_array_index(downtime_points,
+                                                      start_point_iter);
+            /* should be S */
+            if (t_od->is_end)
+                break;
+
+            cur_cpus |= t_od->cpus;
+            if (sufficient_smp_cpus & cur_cpus) {
+                total_downtime += od->tp - prev_od->tp;
+                /* situation when one S point represents all vCPU is possible */
+                break;
+            }
+        }
+    }
+    trace_get_postcopy_total_downtime(g_tree_nnodes(mis->postcopy_downtime),
+        total_downtime);
+
+    g_ptr_array_free(downtime_points, TRUE);
+    return total_downtime;
+}

@@ -1630,6 +1630,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
 
     if (autostart) {
         /* Hold onto your hats, starting the CPU */
+	trace_loadvm_postcopy_vm_start(get_postcopy_total_downtime());
         vm_start();
     } else {
         /* leave it paused and let management decide when to start the CPU */
@@ -1930,6 +1931,7 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
         return -EINVAL;
     }
 
+    trace_loadvm_postcopy_vm_start(get_postcopy_total_downtime());
     return 0;
 }
 

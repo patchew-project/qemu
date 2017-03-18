@@ -44,6 +44,7 @@ vmstate_subsection_save_loop(const char *name, const char *sub) "%s/%s"
 vmstate_subsection_save_top(const char *idstr) "%s"
 vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
 qemu_announce_self_iter(const char *mac) "%s"
+loadvm_postcopy_vm_start(int64_t downtime) "%"PRId64
 
 # migration/vmstate.c
 vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
@@ -110,6 +111,11 @@ process_incoming_migration_co_end(int ret, int ps) "ret=%d postcopy-state=%d"
 process_incoming_migration_co_postcopy_end_main(void) ""
 migration_set_incoming_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
 migration_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostname)  "ioc=%p ioctype=%s hostname=%s"
+mark_postcopy_downtime_begin(uint64_t addr, void *dd, int64_t time, int cpu) "addr 0x%" PRIx64 " dd %p time %" PRId64 " cpu %d"
+mark_postcopy_downtime_end(uint64_t addr, void *dd, int64_t time) "addr 0x%" PRIx64 " dd %p time %" PRId64
+get_postcopy_total_downtime(int num, int64_t total) "faults %d, total downtime %" PRId64
+sumup_downtime_duration(int64_t downtime, uint64_t addr, int cpubit) "downtime %" PRId64 " addr 0x%" PRIx64 "cpus %d"
+downtime_per_cpu(int cpu_index, int downtime) "downtime cpu[%d]=%d"
 
 # migration/rdma.c
 qemu_rdma_accept_incoming_migration(void) ""
@@ -186,7 +192,7 @@ postcopy_ram_enable_notify(void) ""
 postcopy_ram_fault_thread_entry(void) ""
 postcopy_ram_fault_thread_exit(void) ""
 postcopy_ram_fault_thread_quit(void) ""
-postcopy_ram_fault_thread_request(uint64_t hostaddr, const char *ramblock, size_t offset) "Request for HVA=%" PRIx64 " rb=%s offset=%zx"
+postcopy_ram_fault_thread_request(uint64_t hostaddr, const char *ramblock, size_t offset, int pid) "Request for HVA=%" PRIx64 " rb=%s offset=%zx %d"
 postcopy_ram_incoming_cleanup_closeuf(void) ""
 postcopy_ram_incoming_cleanup_entry(void) ""
 postcopy_ram_incoming_cleanup_exit(void) ""
@@ -195,6 +201,8 @@ save_xbzrle_page_skipping(void) ""
 save_xbzrle_page_overflow(void) ""
 ram_save_iterate_big_wait(uint64_t milliconds, int iterations) "big wait: %" PRIu64 " milliseconds, %d iterations"
 ram_load_complete(int ret, uint64_t seq_iter) "exit_code %d seq iteration %" PRIu64
+vcpu_thread_status(const char *msg, int tpid, char *name, char *status) "%s host_tid %d %s %s"
+postcopy_vcpu_running(int cpu_index, int is_running) "cpu %d running %d"
 
 # migration/exec.c
 migration_exec_outgoing(const char *cmd) "cmd=%s"

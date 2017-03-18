@@ -123,10 +123,21 @@ struct MigrationIncomingState {
 
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
+
+    /*
+     *  Tree for keeping postcopy downtime,
+     *  necessary to calculate correct downtime, during multiple
+     *  vm suspends, it keeps host page address as a key and
+     *  DowntimeDuration as a data
+     */
+    GTree *postcopy_downtime;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
+void mark_postcopy_downtime_begin(uint64_t addr, int cpu);
+void mark_postcopy_downtime_end(uint64_t addr);
+int64_t get_postcopy_total_downtime(void);
 
 /*
  * An outstanding page request, on the source, having been received
