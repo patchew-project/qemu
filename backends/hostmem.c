@@ -18,6 +18,7 @@
 #include "qapi-visit.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
+#include "hw/xen/xen.h"
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>
@@ -271,6 +272,13 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     if (bc->alloc) {
         bc->alloc(backend, &local_err);
         if (local_err) {
+            goto out;
+        }
+
+        /* The backend storage of MEMORY_BACKEND_XEN is managed by Xen,
+         * so no further work in this function is needed.
+         */
+        if (xen_enabled() && !backend->mr.ram_block) {
             goto out;
         }
 
