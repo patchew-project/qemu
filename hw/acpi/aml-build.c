@@ -1530,9 +1530,12 @@ build_header(BIOSLinker *linker, GArray *table_data,
     h->oem_revision = cpu_to_le32(1);
     memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
     h->asl_compiler_revision = cpu_to_le32(1);
-    /* Checksum to be filled in by Guest linker */
-    bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-        tbl_offset, len, checksum_offset);
+    /* No linker when used as Xen device model */
+    if (linker) {
+        /* Checksum to be filled in by Guest linker */
+        bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
+                                        tbl_offset, len, checksum_offset);
+    }
 }
 
 void *acpi_data_push(GArray *table_data, unsigned size)
