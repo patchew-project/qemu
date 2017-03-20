@@ -9,10 +9,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 
-#ifdef CONFIG_OPENGL
-# include <epoxy/gl.h>
-#endif
-
 /* keyboard/mouse support */
 
 #define MOUSE_EVENT_LBUTTON 0x01
@@ -136,11 +132,9 @@ struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
-#ifdef CONFIG_OPENGL
-    GLenum glformat;
-    GLenum gltype;
-    GLuint texture;
-#endif
+    unsigned int glformat;
+    unsigned int gltype;
+    unsigned int texture;
 };
 
 typedef struct QemuUIInfo {
@@ -410,7 +404,6 @@ DisplaySurface *qemu_console_surface(QemuConsole *con);
 
 /* console-gl.c */
 typedef struct ConsoleGLState ConsoleGLState;
-#ifdef CONFIG_OPENGL
 ConsoleGLState *console_gl_init_context(void);
 void console_gl_fini_context(ConsoleGLState *gls);
 bool console_gl_check_format(DisplayChangeListener *dcl,
@@ -427,7 +420,6 @@ void surface_gl_destroy_texture(ConsoleGLState *gls,
 void surface_gl_setup_viewport(ConsoleGLState *gls,
                                DisplaySurface *surface,
                                int ww, int wh);
-#endif
 
 /* sdl.c */
 #ifdef CONFIG_SDL
