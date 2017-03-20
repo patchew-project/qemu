@@ -337,15 +337,19 @@ void parse_numa_opts(MachineClass *mc)
         }
         if (i == nb_numa_nodes) {
             uint64_t usedmem = 0;
-
-            /* On Linux, each node's border has to be 8MB aligned,
-             * the final node gets the rest.
-             */
+#if defined(TARGET_PPC64)
+            /* pseries requests each node's border has to be 256 MB aligned */
+            const uint64_t numa_mem_align_mask = ~((1 << 28UL) - 1);
+#else
+            /* On Linux, each node's border has to be 8MB aligned */
+            const uint64_t numa_mem_align_mask = ~((1 << 23UL)  - 1);
+#endif
             for (i = 0; i < nb_numa_nodes - 1; i++) {
                 numa_info[i].node_mem = (ram_size / nb_numa_nodes) &
-                                        ~((1 << 23UL) - 1);
+                                        numa_mem_align_mask;
                 usedmem += numa_info[i].node_mem;
             }
+            /* the final node gets the rest. */
             numa_info[i].node_mem = ram_size - usedmem;
         }
 
