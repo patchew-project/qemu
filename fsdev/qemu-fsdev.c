@@ -17,8 +17,9 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 
-static QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry) fsdriver_entries =
+static struct FsDriverEntry_head fsdriver_entries =
     QTAILQ_HEAD_INITIALIZER(fsdriver_entries);
+
 
 static FsDriverTable FsDrivers[] = {
     { .name = "local", .ops = &local_ops},
@@ -97,4 +98,9 @@ FsDriverEntry *get_fsdev_fsentry(char *id)
         }
     }
     return NULL;
+}
+
+struct FsDriverEntry_head *get_fsdev_fsentryList(void)
+{
+  return &fsdriver_entries;
 }

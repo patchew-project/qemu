@@ -20,6 +20,13 @@
 #include "qemu/coroutine.h"
 #include "qapi/error.h"
 #include "qemu/throttle.h"
+#include "qapi/qmp/types.h"
+#include "qapi-visit.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qapi/util.h"
+#include "qmp-commands.h"
+
 
 typedef struct FsThrottle {
     ThrottleState ts;
@@ -27,6 +34,7 @@ typedef struct FsThrottle {
     ThrottleConfig cfg;
     CoQueue      throttled_reqs[2];
 } FsThrottle;
+
 
 void fsdev_throttle_parse_opts(QemuOpts *, FsThrottle *, Error **);
 
@@ -36,4 +44,10 @@ void coroutine_fn fsdev_co_throttle_request(FsThrottle *, bool ,
                                             struct iovec *, int);
 
 void fsdev_throttle_cleanup(FsThrottle *);
+
+void fsdev_set_io_throttle(FS9PIOThrottle *, FsThrottle *, Error **);
+
+void fsdev_get_io_throttle(FsThrottle *, FS9PIOThrottle **, char *, Error **);
+
+
 #endif /* _FSDEV_THROTTLE_H */

@@ -85,6 +85,20 @@ Show block device statistics.
 ETEXI
 
     {
+        .name       = "9pthrottle",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show fsdev/9p device throttle information",
+        .cmd        = hmp_9pfs_get_io_throttle,
+    },
+
+STEXI
+@item info 9p throttle
+@findex 9pthrottleinfo
+Show 9p device throttleinfo.
+ETEXI
+
+    {
         .name       = "block-jobs",
         .args_type  = "",
         .params     = "",

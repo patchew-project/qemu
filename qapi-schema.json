@@ -81,6 +81,9 @@
 # QAPI block definitions
 { 'include': 'qapi/block.json' }
 
+# QAPI 9pfs definitions
+{ 'include': 'qapi/9pfs.json' }
+
 # QAPI event definitions
 { 'include': 'qapi/event.json' }
 

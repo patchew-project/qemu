@@ -3451,6 +3451,45 @@ void pdu_submit(V9fsPDU *pdu)
     qemu_coroutine_enter(co);
 }
 
+void qmp_fs9p_set_io_throttle(FS9PIOThrottle *arg, Error **errp)
+{
+
+    FsDriverEntry *fse;
+
+    fse = get_fsdev_fsentry(arg->has_device ? arg->device : NULL);
+    if (!fse) {
+        return;
+    }
+
+    fsdev_set_io_throttle(arg, &fse->fst, errp);
+}
+
+FS9PIOThrottleList *qmp_query_9pfs_io_throttle(Error **errp)
+{
+    FS9PIOThrottleList *head = NULL, **p_next = &head;
+    struct FsDriverListEntry *fsle;
+    struct FsDriverEntry_head *fsdev_entries;
+    Error *local_err = NULL;
+
+    fsdev_entries = get_fsdev_fsentryList();
+
+    QTAILQ_FOREACH(fsle, fsdev_entries, next) {
+        FS9PIOThrottleList *fscfg = g_malloc0(sizeof(*fscfg));
+        fsdev_get_io_throttle(&fsle->fse.fst, &fscfg->value,
+                            fsle->fse.fsdev_id, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            g_free(fscfg);
+            qapi_free_FS9PIOThrottleList(head);
+            return NULL;
+        }
+
+        *p_next = fscfg;
+        p_next = &fscfg->next;
+    }
+    return head;
+}
+
 /* Returns 0 on success, 1 on failure. */
 int v9fs_device_realize_common(V9fsState *s, Error **errp)
 {

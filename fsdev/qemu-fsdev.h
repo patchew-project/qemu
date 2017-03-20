@@ -39,6 +39,9 @@ typedef struct FsDriverListEntry {
     QTAILQ_ENTRY(FsDriverListEntry) next;
 } FsDriverListEntry;
 
+QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry);
+
+struct FsDriverEntry_head *get_fsdev_fsentryList(void);
 int qemu_fsdev_add(QemuOpts *opts);
 FsDriverEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;

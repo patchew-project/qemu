@@ -1637,6 +1637,34 @@ ETEXI
     },
 
 STEXI
+@item 9p_passwd @var{device} @var{password}
+@findex 9p_passwd
+Set the encrypted device @var{device} password to @var{password}
+ETEXI
+
+    {
+        .name       = "fs9p_set_io_throttle",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
+        .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
+        .help       = "change I/O throttle limits for a block drive",
+        .cmd        = hmp_9pfs_set_io_throttle,
+    },
+
+STEXI
+@item fs9p_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+@findex 9pfs_set_io_throttle
+Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+ETEXI
+
+    {
+        .name       = "set_password",
+        .args_type  = "protocol:s,password:s,connected:s?",
+        .params     = "protocol password action-if-connected",
+        .help       = "set spice/vnc password",
+        .cmd        = hmp_set_password,
+    },
+
+STEXI
 @item set_password [ vnc | spice ] password [ action-if-connected ]
 @findex set_password
 Change spice/vnc password.  Use zero to make the password stay valid
