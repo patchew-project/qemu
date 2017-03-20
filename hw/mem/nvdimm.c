@@ -87,7 +87,11 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     align = memory_region_get_alignment(mr);
 
     pmem_size = size - nvdimm->label_size;
-    nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
+    /*
+     * TODO: explain the reason
+     */
+    if (nvdimm->label_size)
+        nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
     pmem_size = QEMU_ALIGN_DOWN(pmem_size, align);
 
     if (size <= nvdimm->label_size || !pmem_size) {
