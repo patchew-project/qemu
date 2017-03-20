@@ -1268,7 +1268,7 @@ static ram_addr_t dm_acpi_buf_alloc(size_t length)
 
 static int xen_dm_acpi_required(PCMachineState *pcms)
 {
-    return 0;
+    return pcms->acpi_nvdimm_state.is_enabled;
 }
 
 static int xen_dm_acpi_init(PCMachineState *pcms, XenIOState *state)
@@ -1278,6 +1278,27 @@ static int xen_dm_acpi_init(PCMachineState *pcms, XenIOState *state)
     }
 
     return dm_acpi_buf_init(state);
+}
+
+static void xen_dm_acpi_nvdimm_setup(PCMachineState *pcms)
+{
+    GArray *table_offsets = g_array_new(false, true /* clear */,
+                                        sizeof(uint32_t));
+    GArray *table_data = g_array_new(false, true /* clear */, 1);
+
+    nvdimm_build_acpi(table_offsets, table_data,
+                      NULL, &pcms->acpi_nvdimm_state,
+                      MACHINE(pcms)->ram_slots);
+
+    g_array_free(table_offsets, true);
+    g_array_free(table_data, true);
+}
+
+void xen_dm_acpi_setup(PCMachineState *pcms)
+{
+    if (pcms->acpi_nvdimm_state.is_enabled) {
+        xen_dm_acpi_nvdimm_setup(pcms);
+    }
 }
 
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)

@@ -67,3 +67,7 @@ int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
 {
     return -1;
 }
+
+void xen_dm_acpi_setup(PCMachineState *pcms)
+{
+}

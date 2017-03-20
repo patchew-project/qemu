@@ -65,4 +65,6 @@ void xen_register_framebuffer(struct MemoryRegion *mr);
 int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
                            int type);
 
+void xen_dm_acpi_setup(PCMachineState *pcms);
+
 #endif /* QEMU_HW_XEN_H */
