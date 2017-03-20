@@ -178,3 +178,41 @@ static void nvdimm_register_types(void)
 }
 
 type_init(nvdimm_register_types)
+
+static int qmp_nvdimm_device_info(Object *obj, NVDIMMDeviceInfo *di)
+{
+    if (!object_dynamic_cast(obj, TYPE_NVDIMM)) {
+        return 1;
+    }
+
+    if (qmp_pc_dimm_device_info(obj, (PCDIMMDeviceInfo *)di)) {
+        return 1;
+    }
+
+    di->label_size = object_property_get_int(obj, "label-size", NULL);
+
+    return 0;
+}
+
+int qmp_nvdimm_device_list(Object *obj, void *opaque)
+{
+    MemoryDeviceInfoList ***prev = opaque;
+    NVDIMMDeviceInfo *di = g_new0(NVDIMMDeviceInfo, 1);
+
+    if (qmp_nvdimm_device_info(obj, di)) {
+        g_free(di);
+    } else {
+        MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);
+        MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
+
+        info->type = MEMORY_DEVICE_TYPE_NVDIMM;
+        info->u.nvdimm.data = di;
+        elem->value = info;
+        elem->next = NULL;
+        **prev = elem;
+        *prev = &elem->next;
+    }
+
+    object_child_foreach(obj, qmp_nvdimm_device_list, opaque);
+    return 0;
+}

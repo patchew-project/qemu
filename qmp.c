@@ -36,6 +36,7 @@
 #include "hw/boards.h"
 #include "qom/object_interfaces.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/mem/nvdimm.h"
 #include "hw/acpi/acpi_dev_interface.h"
 
 NameInfo *qmp_query_name(Error **errp)
@@ -689,12 +690,20 @@ void qmp_object_del(const char *id, Error **errp)
     user_creatable_del(id, errp);
 }
 
-MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
+MemoryDeviceInfoList *qmp_query_memory_devices(bool has_devtype,
+                                               MemoryDeviceType devtype,
+                                               Error **errp)
 {
     MemoryDeviceInfoList *head = NULL;
     MemoryDeviceInfoList **prev = &head;
 
-    qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+    if (!has_devtype || devtype == MEMORY_DEVICE_TYPE_DIMM) {
+        qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+    } else if (devtype == MEMORY_DEVICE_TYPE_NVDIMM) {
+        qmp_nvdimm_device_list(qdev_get_machine(), &prev);
+    } else {
+        error_setg(errp, "unrecognized memory device type %d", devtype);
+    }
 
     return head;
 }

@@ -5836,24 +5836,62 @@
 }
 
 ##
+# @NVDIMMDeviceInfo:
+#
+# NVDIMMDevice state information
+#
+# @label-size: size the label storage area
+#
+# Since 2.9
+##
+{ 'struct': 'NVDIMMDeviceInfo',
+  'base': 'PCDIMMDeviceInfo',
+  'data': { 'label-size': 'int' }
+}
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
 #
+# - @dimm: since 2.1
+# - @nvdimm: since 2.9
+#
 # Since: 2.1
 ##
-{ 'union': 'MemoryDeviceInfo', 'data': {'dimm': 'PCDIMMDeviceInfo'} }
+{ 'union': 'MemoryDeviceInfo',
+  'data': {'dimm': 'PCDIMMDeviceInfo', 'nvdimm': 'NVDIMMDeviceInfo'}
+}
+
+##
+# @MemoryDeviceType:
+#
+# Type of memory devices.
+#
+# @dimm: pc-dimm memory device
+#
+# @nvdimm: nvdimm memory device
+#
+# Since 2.9
+##
+{ 'enum': 'MemoryDeviceType', 'data': [ 'dimm', 'nvdimm' ] }
 
 ##
 # @query-memory-devices:
 #
-# Lists available memory devices and their state
+# Lists available memory devices and their state. If the optional argument
+# @devtype is present, only memory devices of the specified type are included.
+#
+# @devtype: specify the type of memory devices to be listed. If 'dimm' is
+#           specified, all pc-dimm devices (including nvdimm devices which is
+#           a subtype of pc-dimm) will be listed. If 'nvdimm' is specified,
+#           only nvdimm devices will be listed. (Since 2.9)
 #
 # Since: 2.1
 #
 # Example:
 #
-# -> { "execute": "query-memory-devices" }
+# -> { "execute": "query-memory-devices", "arguments": { "devtype": "dimm" } }
 # <- { "return": [ { "data":
 #                       { "addr": 5368709120,
 #                         "hotpluggable": true,
@@ -5867,7 +5905,9 @@
 #                  } ] }
 #
 ##
-{ 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
+{ 'command': 'query-memory-devices',
+  'data': { '*devtype': 'MemoryDeviceType' },
+  'returns': ['MemoryDeviceInfo'] }
 
 ##
 # @ACPISlotType:

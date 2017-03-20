@@ -2144,7 +2144,8 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
 void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    MemoryDeviceInfoList *info_list = qmp_query_memory_devices(&err);
+    MemoryDeviceInfoList *info_list =
+        qmp_query_memory_devices(true, MEMORY_DEVICE_TYPE_DIMM, &err);
     MemoryDeviceInfoList *info;
     MemoryDeviceInfo *value;
     PCDIMMDeviceInfo *di;
