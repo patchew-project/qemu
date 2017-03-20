@@ -214,12 +214,22 @@ static Property vmgenid_properties[] = {
 static void vmgenid_realize(DeviceState *dev, Error **errp)
 {
     VmGenIdState *vms = VMGENID(dev);
+    Object *one_vmgenid;
+    bool ambiguous;
 
     if (!vms->write_pointer_available) {
         error_setg(errp, "%s requires DMA write support in fw_cfg, "
                    "which this machine type does not provide", VMGENID_DEVICE);
         return;
     }
+
+    one_vmgenid = object_resolve_path_type("", VMGENID_DEVICE, &ambiguous);
+    if (one_vmgenid == NULL) {
+        assert(ambiguous);
+        error_setg(errp, "at most one %s device is permitted", VMGENID_DEVICE);
+        return;
+    }
+    assert(one_vmgenid == OBJECT(vms));
 
     qemu_register_reset(vmgenid_handle_reset, vms);
 }
