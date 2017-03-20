@@ -318,9 +318,9 @@ static int console_init(SCLPEvent *event)
     return 0;
 }
 
-static int console_exit(SCLPEvent *event)
+static void console_exit(SCLPEvent *event)
 {
-    return 0;
+    return;
 }
 
 static void console_reset(DeviceState *dev)

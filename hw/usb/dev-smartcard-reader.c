@@ -1289,7 +1289,7 @@ void ccid_card_card_inserted(CCIDCardState *card)
     ccid_on_slot_change(s, true);
 }
 
-static int ccid_card_exit(DeviceState *qdev)
+static void ccid_card_exit(DeviceState *qdev)
 {
     CCIDCardState *card = CCID_CARD(qdev);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
@@ -1300,7 +1300,6 @@ static int ccid_card_exit(DeviceState *qdev)
     }
     ccid_card_exitfn(card);
     s->card = NULL;
-    return 0;
 }
 
 static int ccid_card_init(DeviceState *qdev)
