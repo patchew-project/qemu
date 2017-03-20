@@ -42,6 +42,10 @@
         .driver   = "isa-cirrus-vga",\
         .property = "vgamem_mb",\
         .value    = "8",\
+    },{\
+        .driver   = "vmgenid",\
+        .property = "x-write-pointer-available",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_7 \
