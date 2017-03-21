@@ -1805,7 +1805,13 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     if (detach_p) {
         /* detached dump */
         qemu_thread_create(&s->dump_thread, "dump_thread", dump_thread,
-                           s, QEMU_THREAD_DETACHED);
+                               s, QEMU_THREAD_DETACHED, &local_err);
+
+        if (local_err) {
+            error_propagate(errp, local_err);
+            atomic_set(&s->status, DUMP_STATUS_FAILED);
+            return;
+        }
     } else {
         /* sync dump */
         dump_process(s, errp);

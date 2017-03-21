@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
+#include "qapi/error.h"
 #include <process.h>
 
 static bool name_threads;
@@ -454,7 +455,7 @@ void *qemu_thread_join(QemuThread *thread)
 
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void *),
-                       void *arg, int mode)
+                       void *arg, int mode, Error **errp)
 {
     HANDLE hThread;
     struct QemuThreadData *data;
@@ -473,8 +474,10 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     hThread = (HANDLE) _beginthreadex(NULL, 0, win32_start_routine,
                                       data, 0, &thread->tid);
     if (!hThread) {
-        error_exit(GetLastError(), __func__);
+        error_setg_errno(errp, errno, "_beginthreadex failed");
+        return;
     }
+
     CloseHandle(hThread);
     thread->data = data;
 }

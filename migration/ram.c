@@ -357,6 +357,7 @@ void migrate_compress_threads_join(void)
 void migrate_compress_threads_create(void)
 {
     int i, thread_count;
+    Error *err = NULL, *local_err = NULL;
 
     if (!migrate_use_compression()) {
         return;
@@ -378,7 +379,16 @@ void migrate_compress_threads_create(void)
         qemu_cond_init(&comp_param[i].cond);
         qemu_thread_create(compress_threads + i, "compress",
                            do_data_compress, comp_param + i,
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+
+        if (local_err) {
+            error_propagate(&err, local_err);
+            local_err = NULL;
+        }
+    }
+
+    if (err) {
+        error_report_err(err);
     }
 }
 
@@ -2303,6 +2313,7 @@ static void wait_for_decompress_done(void)
 void migrate_decompress_threads_create(void)
 {
     int i, thread_count;
+    Error *err = NULL, *local_err = NULL;
 
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
@@ -2317,7 +2328,16 @@ void migrate_decompress_threads_create(void)
         decomp_param[i].quit = false;
         qemu_thread_create(decompress_threads + i, "decompress",
                            do_data_decompress, decomp_param + i,
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+
+        if (local_err) {
+            error_propagate(&err, local_err);
+            local_err = NULL;
+        }
+    }
+
+    if (err) {
+        error_report_err(err);
     }
 }
 

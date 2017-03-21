@@ -387,6 +387,7 @@ static void process_incoming_migration_co(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
+    Error *local_err = NULL;
 
     mis->from_src_file = f;
     mis->largest_page_size = qemu_ram_pagesize_largest();
@@ -420,7 +421,12 @@ static void process_incoming_migration_co(void *opaque)
     if (!ret && migration_incoming_enable_colo()) {
         mis->migration_incoming_co = qemu_coroutine_self();
         qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
-             colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
+                colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE,
+                &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return;
+        }
         mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
@@ -1598,6 +1604,7 @@ out:
 
 static int open_return_path_on_source(MigrationState *ms)
 {
+    Error *local_err = NULL;
 
     ms->rp_state.from_dst_file = qemu_file_get_return_path(ms->to_dst_file);
     if (!ms->rp_state.from_dst_file) {
@@ -1606,7 +1613,13 @@ static int open_return_path_on_source(MigrationState *ms)
 
     trace_open_return_path_on_source();
     qemu_thread_create(&ms->rp_state.rp_thread, "return path",
-                       source_return_path_thread, ms, QEMU_THREAD_JOINABLE);
+                       source_return_path_thread, ms, QEMU_THREAD_JOINABLE,
+                       &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        return -1;
+    }
 
     trace_open_return_path_on_source_continue();
 
@@ -2068,6 +2081,8 @@ static void *migration_thread(void *opaque)
 
 void migrate_fd_connect(MigrationState *s)
 {
+    Error *local_err = NULL;
+
     s->expected_downtime = s->parameters.downtime_limit;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
 
@@ -2094,7 +2109,16 @@ void migrate_fd_connect(MigrationState *s)
 
     migrate_compress_threads_create();
     qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_JOINABLE, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                MIGRATION_STATUS_FAILED);
+        migrate_fd_cleanup(s);
+        return;
+    }
+
     s->migration_thread_running = true;
 }
 

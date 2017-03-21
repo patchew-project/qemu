@@ -32,6 +32,7 @@
 #include "qemu/atomic.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
+#include "qapi/error.h"
 
 /*
  * Global grace period counter.  Bit 0 is always one in rcu_gp_ctr.
@@ -302,6 +303,7 @@ void rcu_unregister_thread(void)
 static void rcu_init_complete(void)
 {
     QemuThread thread;
+    Error *local_err = NULL;
 
     qemu_mutex_init(&rcu_registry_lock);
     qemu_mutex_init(&rcu_sync_lock);
@@ -313,7 +315,12 @@ static void rcu_init_complete(void)
      * must have been quiescent even after forking, just recreate it.
      */
     qemu_thread_create(&thread, "call_rcu", call_rcu_thread,
-                       NULL, QEMU_THREAD_DETACHED);
+                       NULL, QEMU_THREAD_DETACHED, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
 
     rcu_register_thread();
 }

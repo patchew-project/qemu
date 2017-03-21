@@ -64,6 +64,7 @@
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
 #include "qemu/thread.h"
+#include "qapi/error.h"
 
 long long n_reads = 0LL;
 long n_updates = 0L;
@@ -85,12 +86,20 @@ static int n_threads;
 
 static void create_thread(void *(*func)(void *))
 {
+    Error *local_err = NULL;
+
     if (n_threads >= NR_THREADS) {
         fprintf(stderr, "Thread limit of %d exceeded!\n", NR_THREADS);
         exit(-1);
     }
     qemu_thread_create(&threads[n_threads], "test", func, &data[n_threads],
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_JOINABLE, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        exit(1);
+    }
+
     n_threads++;
 }
 

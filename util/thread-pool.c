@@ -22,6 +22,7 @@
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
+#include "qapi/error.h"
 
 static void do_spawn_thread(ThreadPool *pool);
 
@@ -123,16 +124,24 @@ static void *worker_thread(void *opaque)
 static void do_spawn_thread(ThreadPool *pool)
 {
     QemuThread t;
+    Error *local_err = NULL;
 
     /* Runs with lock taken.  */
     if (!pool->new_threads) {
         return;
     }
 
+    qemu_thread_create(&t, "worker", worker_thread, pool, QEMU_THREAD_DETACHED,
+            &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
+
     pool->new_threads--;
     pool->pending_threads++;
 
-    qemu_thread_create(&t, "worker", worker_thread, pool, QEMU_THREAD_DETACHED);
 }
 
 static void spawn_thread_bh_fn(void *opaque)
