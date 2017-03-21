@@ -1996,7 +1996,9 @@ static int ram_save_init_globals(void)
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     RAMBlock *block;
+    MigrationState *s = migrate_get_current();
 
+    s->page_size = TARGET_PAGE_SIZE;
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
         if (ram_save_init_globals() < 0) {
