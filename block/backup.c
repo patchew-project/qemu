@@ -564,6 +564,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     BlockDriverInfo bdi;
     BackupBlockJob *job = NULL;
     int ret;
+    AioContext *aio_context, *target_context;
 
     assert(bs);
     assert(target);
@@ -642,6 +643,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     ret = blk_insert_bs(job->target, target, errp);
     if (ret < 0) {
         goto error;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    target_context = bdrv_get_aio_context(target);
+    if (target_context != aio_context) {
+        aio_context_acquire(target_context);
+        blk_set_aio_context(job->target, aio_context);
+        aio_context_release(target_context);
     }
 
     job->on_source_error = on_source_error;
