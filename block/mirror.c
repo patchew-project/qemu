@@ -983,6 +983,7 @@ static void mirror_attached_aio_context(BlockJob *job, AioContext *new_context)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
+    blk_request_perm(s->target, BLK_PERM_AIO_CONTEXT_CHANGE, &error_abort);
     blk_set_aio_context(s->target, new_context);
 }
 
