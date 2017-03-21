@@ -1064,22 +1064,22 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 
  found:
     /* Now know where the strtab and symtab are.  Snarf them. */
-    s = malloc(sizeof(*s));
+    s = g_malloc(sizeof(*s));
     syms = malloc(symtab.sh_size);
     if (!syms) {
-        free(s);
+        g_free(s);
         return;
     }
     s->disas_strtab = strings = malloc(strtab.sh_size);
     if (!s->disas_strtab) {
-        free(s);
+        g_free(s);
         free(syms);
         return;
     }
 
     lseek(fd, symtab.sh_offset, SEEK_SET);
     if (read(fd, syms, symtab.sh_size) != symtab.sh_size) {
-        free(s);
+        g_free(s);
         free(syms);
         free(strings);
         return;
@@ -1115,7 +1115,7 @@ static void load_symbols(struct elfhdr *hdr, int fd)
         many symbols we managed to discard. */
     new_syms = realloc(syms, nsyms * sizeof(*syms));
     if (new_syms == NULL) {
-        free(s);
+        g_free(s);
         free(syms);
         free(strings);
         return;
@@ -1126,7 +1126,7 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 
     lseek(fd, strtab.sh_offset, SEEK_SET);
     if (read(fd, strings, strtab.sh_size) != strtab.sh_size) {
-        free(s);
+        g_free(s);
         free(syms);
         free(strings);
         return;
