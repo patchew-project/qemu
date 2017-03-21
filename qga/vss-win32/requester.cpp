@@ -463,7 +463,7 @@ void requester_thaw(int *num_vols, ErrorSet *errset)
             hr = WaitForAsync(pAsync);
         }
         if (FAILED(hr)) {
-            err_set(errset, hr, "failed to complete backup");
+            fprintf(stderr, "failed to complete backup");
         }
         break;
 
@@ -480,18 +480,18 @@ void requester_thaw(int *num_vols, ErrorSet *errset)
 
     case VSS_E_UNEXPECTED_PROVIDER_ERROR:
         if (WaitForSingleObject(vss_ctx.hEventTimeout, 0) != WAIT_OBJECT_0) {
-            err_set(errset, hr, "unexpected error in VSS provider");
+            fprintf(stderr, "unexpected error in VSS provider");
             break;
         }
         /* fall through if hEventTimeout is signaled */
 
     case (HRESULT)VSS_E_HOLD_WRITES_TIMEOUT:
-        err_set(errset, hr, "couldn't hold writes: "
+        fprintf(stderr, "couldn't hold writes: "
                 "fsfreeze is limited up to 10 seconds");
         break;
 
     default:
-        err_set(errset, hr, "failed to do snapshot set");
+        fprintf(stderr, "failed to do snapshot set");
     }
 
     if (err_is_set(errset)) {
