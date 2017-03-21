@@ -1185,6 +1185,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     target_is_backing = bdrv_chain_contains(bs, target);
     target_graph_mod = (backing_mode != MIRROR_LEAVE_BACKING_CHAIN);
     s->target = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE |
+                        BLK_PERM_AIO_CONTEXT_CHANGE |
                         (target_graph_mod ? BLK_PERM_GRAPH_MOD : 0),
                         BLK_PERM_WRITE_UNCHANGED |
                         (target_is_backing ? BLK_PERM_CONSISTENT_READ |
