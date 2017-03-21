@@ -34,6 +34,7 @@
 
 #include "qemu/thread.h"
 #include "sysemu/char.h"
+#include "qapi/error.h"
 #include "ccid.h"
 
 #define DPRINTF(card, lvl, fmt, ...) \
@@ -485,6 +486,7 @@ static int emulated_initfn(CCIDCardState *base)
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VCardEmulError ret;
     const EnumTable *ptable;
+    Error *err = NULL, *local_err = NULL;
 
     QSIMPLEQ_INIT(&card->event_list);
     QSIMPLEQ_INIT(&card->guest_apdu_list);
@@ -541,9 +543,17 @@ static int emulated_initfn(CCIDCardState *base)
         return -1;
     }
     qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
-                       card, QEMU_THREAD_JOINABLE);
+                       card, QEMU_THREAD_JOINABLE, &err);
+
     qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
-                       card, QEMU_THREAD_JOINABLE);
+                       card, QEMU_THREAD_JOINABLE, &local_err);
+    error_propagate(&err, local_err);
+
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
+
     return 0;
 }
 

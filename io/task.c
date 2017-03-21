@@ -122,6 +122,7 @@ void qio_task_run_in_thread(QIOTask *task,
 {
     struct QIOTaskThreadData *data = g_new0(struct QIOTaskThreadData, 1);
     QemuThread thread;
+    Error *local_err = NULL;
 
     data->task = task;
     data->worker = worker;
@@ -133,7 +134,11 @@ void qio_task_run_in_thread(QIOTask *task,
                        "io-task-worker",
                        qio_task_thread_worker,
                        data,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_DETACHED, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+    }
 }
 
 

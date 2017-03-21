@@ -14,6 +14,7 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
+#include "qapi/error.h"
 
 static bool name_threads;
 
@@ -448,7 +449,7 @@ static void qemu_thread_set_name(QemuThread *thread, const char *name)
 
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
-                       void *arg, int mode)
+                       void *arg, int mode, Error **errp)
 {
     sigset_t set, oldset;
     int err;
@@ -456,15 +457,18 @@ void qemu_thread_create(QemuThread *thread, const char *name,
 
     err = pthread_attr_init(&attr);
     if (err) {
-        error_exit(err, __func__);
+        error_setg_errno(errp, errno, "Could not initialize thread attributes");
+        return;
     }
 
     /* Leave signal handling to the iothread.  */
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
     err = pthread_create(&thread->thread, &attr, start_routine, arg);
-    if (err)
-        error_exit(err, __func__);
+    if (err) {
+        error_setg_errno(errp, errno, "Could not create thread");
+        return;
+    }
 
     if (name_threads) {
         qemu_thread_set_name(thread, name);
@@ -473,7 +477,8 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     if (mode == QEMU_THREAD_DETACHED) {
         err = pthread_detach(thread->thread);
         if (err) {
-            error_exit(err, __func__);
+            error_setg_errno(errp, errno, "Could not detach thread");
+            return;
         }
     }
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);

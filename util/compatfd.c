@@ -18,6 +18,7 @@
 #include "qemu/thread.h"
 
 #include <sys/syscall.h>
+#include "qapi/error.h"
 
 struct sigfd_compat_info
 {
@@ -70,6 +71,7 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     struct sigfd_compat_info *info;
     QemuThread thread;
     int fds[2];
+    Error *local_err = NULL;
 
     info = malloc(sizeof(*info));
     if (info == NULL) {
@@ -89,7 +91,13 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     info->fd = fds[1];
 
     qemu_thread_create(&thread, "signalfd_compat", sigwait_compat, info,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_DETACHED, &local_err);
+
+    if (local_err) {
+        free(info);
+        error_report_err(local_err);
+        return -1;
+    }
 
     return fds[0];
 }

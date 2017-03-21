@@ -10,6 +10,7 @@
 #include "qemu/qht.h"
 #include "qemu/rcu.h"
 #include "exec/tb-hash-xx.h"
+#include "qapi/error.h"
 
 struct thread_stats {
     size_t rd;
@@ -228,6 +229,7 @@ th_create_n(QemuThread **threads, struct thread_info **infos, const char *name,
     struct thread_info *info;
     QemuThread *th;
     int i;
+    Error *local_err = NULL;
 
     th = g_malloc(sizeof(*th) * n);
     *threads = th;
@@ -239,7 +241,12 @@ th_create_n(QemuThread **threads, struct thread_info **infos, const char *name,
         prepare_thread_info(&info[i], offset + i);
         info[i].func = func;
         qemu_thread_create(&th[i], name, thread_func, &info[i],
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+
+        if (local_err) {
+            error_report_err(local_err);
+            exit(1);
+        }
     }
 }
 
