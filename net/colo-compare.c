@@ -670,6 +670,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     Chardev *chr;
     char thread_name[64];
     static int compare_id;
+    Error *local_err = NULL;
 
     if (!s->pri_indev || !s->sec_indev || !s->outdev) {
         error_setg(errp, "colo compare needs 'primary_in' ,"
@@ -711,7 +712,13 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     sprintf(thread_name, "colo-compare %d", compare_id);
     qemu_thread_create(&s->thread, thread_name,
                        colo_compare_thread, s,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_JOINABLE, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     compare_id++;
 
     return;

@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "qemu/main-loop.h" /* iothread mutex */
 #include "qapi/visitor.h"
+#include "qapi/error.h"
 
 #define EDU(obj)        OBJECT_CHECK(EduState, obj, "edu")
 
@@ -342,13 +343,19 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
 {
     EduState *edu = DO_UPCAST(EduState, pdev, pdev);
     uint8_t *pci_conf = pdev->config;
+    Error *local_err = NULL;
 
     timer_init_ms(&edu->dma_timer, QEMU_CLOCK_VIRTUAL, edu_dma_timer, edu);
 
     qemu_mutex_init(&edu->thr_mutex);
     qemu_cond_init(&edu->thr_cond);
     qemu_thread_create(&edu->thread, "edu", edu_fact_thread,
-                       edu, QEMU_THREAD_JOINABLE);
+                       edu, QEMU_THREAD_JOINABLE, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     pci_config_set_interrupt_pin(pci_conf, 1);
 

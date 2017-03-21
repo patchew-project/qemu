@@ -69,11 +69,18 @@ void iothread_join(IOThread *iothread)
 IOThread *iothread_new(void)
 {
     IOThread *iothread = g_new0(IOThread, 1);
+    Error *local_err = NULL;
 
     qemu_mutex_init(&iothread->init_done_lock);
     qemu_cond_init(&iothread->init_done_cond);
     qemu_thread_create(&iothread->thread, NULL, iothread_run,
-                       iothread, QEMU_THREAD_JOINABLE);
+                       iothread, QEMU_THREAD_JOINABLE, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        /*what makes sense here as a return value?*/
+        return NULL;
+    }
 
     /* Wait for initialization to complete */
     qemu_mutex_lock(&iothread->init_done_lock);

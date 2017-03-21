@@ -140,6 +140,7 @@ static void test_acquire(void)
 {
     QemuThread thread;
     AcquireTestData data;
+    Error *local_err = NULL;
 
     /* Dummy event notifier ensures aio_poll() will block */
     event_notifier_init(&data.notifier, false);
@@ -152,7 +153,12 @@ static void test_acquire(void)
 
     qemu_thread_create(&thread, "test_acquire_thread",
                        test_acquire_thread,
-                       &data, QEMU_THREAD_JOINABLE);
+                       &data, QEMU_THREAD_JOINABLE, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
 
     /* Block in aio_poll(), let other thread kick us and acquire context */
     aio_context_acquire(ctx);

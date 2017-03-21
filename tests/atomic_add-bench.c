@@ -2,6 +2,7 @@
 #include "qemu/thread.h"
 #include "qemu/host-utils.h"
 #include "qemu/processor.h"
+#include "qapi/error.h"
 
 struct thread_info {
     uint64_t r;
@@ -86,6 +87,7 @@ static void run_test(void)
 static void create_threads(void)
 {
     unsigned int i;
+    Error *local_err = NULL;
 
     threads = g_new(QemuThread, n_threads);
     th_info = g_new(struct thread_info, n_threads);
@@ -97,7 +99,12 @@ static void create_threads(void)
 
         info->r = (i + 1) ^ time(NULL);
         qemu_thread_create(&threads[i], NULL, thread_func, info,
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+
+        if (local_err) {
+            error_report_err(local_err);
+            exit(1);
+        }
     }
 }
 
