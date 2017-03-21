@@ -197,6 +197,9 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         }
     }
 
+    /* The notifier we'll register on @blk takes care of following context
+     * change, so permit it. */
+    shared_perm |= BLK_PERM_AIO_CONTEXT_CHANGE;
     blk = blk_new(perm, shared_perm);
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
