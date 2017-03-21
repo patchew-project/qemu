@@ -168,6 +168,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
     int r;
+    Error *local_err = NULL;
 
     if (vblk->dataplane_started || s->starting) {
         return 0;
@@ -175,12 +176,18 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
     s->starting = true;
 
+    r = blk_request_perm(s->conf->conf.blk, BLK_PERM_AIO_CONTEXT_CHANGE,
+                         &local_err);
+    if (r) {
+        error_report_err(local_err);
+        goto fail;
+    }
     /* Set up guest notifier (irq) */
     r = k->set_guest_notifiers(qbus->parent, nvqs, true);
     if (r != 0) {
         fprintf(stderr, "virtio-blk failed to set guest notifier (%d), "
                 "ensure -enable-kvm is set\n", r);
-        goto fail_guest_notifiers;
+        goto fail;
     }
 
     /* Set up virtqueue notify */
@@ -191,7 +198,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
             while (i--) {
                 virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
             }
-            goto fail_guest_notifiers;
+            goto fail;
         }
     }
 
@@ -219,11 +226,11 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     aio_context_release(s->ctx);
     return 0;
 
-  fail_guest_notifiers:
+fail:
     vblk->dataplane_disabled = true;
     s->starting = false;
     vblk->dataplane_started = true;
-    return -ENOSYS;
+    return r;
 }
 
 /* Context: QEMU global mutex held */
