@@ -15,7 +15,7 @@
 #include <inc/win2003/vscoordint.h>
 #include <inc/win2003/vsprov.h>
 
-#define VSS_TIMEOUT_MSEC (60*1000)
+#define VSS_TIMEOUT_MSEC (9 * 1000)
 
 static long g_nComObjsInUse;
 HINSTANCE g_hinstDll;
@@ -377,7 +377,6 @@ STDMETHODIMP CQGAVssProvider::CommitSnapshots(VSS_ID SnapshotSetId)
     if (WaitForSingleObject(hEventThaw, VSS_TIMEOUT_MSEC) != WAIT_OBJECT_0) {
         /* Send event to qemu-ga to notify the provider is timed out */
         SetEvent(hEventTimeout);
-        hr = E_ABORT;
     }
 
     CloseHandle(hEventThaw);
