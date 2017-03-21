@@ -388,7 +388,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
                       | BLK_PERM_RESIZE,
                       BLK_PERM_CONSISTENT_READ
                       | BLK_PERM_GRAPH_MOD
-                      | BLK_PERM_WRITE_UNCHANGED);
+                      | BLK_PERM_WRITE_UNCHANGED
+                      | BLK_PERM_AIO_CONTEXT_CHANGE);
     ret = blk_insert_bs(s->base, base, errp);
     if (ret < 0) {
         goto fail;
