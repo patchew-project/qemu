@@ -307,6 +307,7 @@ STDAPI COMRegister(void)
     chk(put_Value(pObj, L"User", L"SYSTEM"));
     chk(pUsersInRole->SaveChanges(&n));
 
+    chk(pCatalog->StartApplication(_bstr_t(QGA_PROVIDER_LNAME)));
 out:
     if (unregisterOnFailure && FAILED(hr)) {
         COMUnregister();
