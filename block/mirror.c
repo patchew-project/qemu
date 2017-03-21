@@ -1116,6 +1116,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              bool is_none_mode, BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name)
 {
+    AioContext *aio_context, *target_context;
     MirrorBlockJob *s;
     BlockDriverState *mirror_top_bs;
     bool target_graph_mod;
@@ -1194,6 +1195,14 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     ret = blk_insert_bs(s->target, target, errp);
     if (ret < 0) {
         goto fail;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    target_context = bdrv_get_aio_context(target);
+    if (target_context != aio_context) {
+        aio_context_acquire(target_context);
+        blk_set_aio_context(s->target, aio_context);
+        aio_context_release(target_context);
     }
 
     s->replaces = g_strdup(replaces);
