@@ -1623,7 +1623,11 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
 
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
+    uint64_t perm, shared_perm;
     BlockDriverState *bs = blk_bs(blk);
+
+    blk_get_perm(blk, &perm, &shared_perm);
+    assert(perm & BLK_PERM_AIO_CONTEXT_CHANGE);
 
     blk->aio_context = new_context;
     if (bs) {
