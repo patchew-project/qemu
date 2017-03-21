@@ -1547,6 +1547,8 @@ static char *bdrv_perm_names(uint64_t perm)
         { BLK_PERM_WRITE_UNCHANGED, "write unchanged" },
         { BLK_PERM_RESIZE,          "resize" },
         { BLK_PERM_GRAPH_MOD,       "change children" },
+        { BLK_PERM_AIO_CONTEXT_CHANGE,
+                                    "aio context change" },
         { 0, NULL }
     };
 
