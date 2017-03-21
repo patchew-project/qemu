@@ -811,6 +811,10 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
             return;
         }
         virtio_scsi_acquire(s);
+        if (!blk_request_perm(sd->conf.blk, BLK_PERM_AIO_CONTEXT_CHANGE, errp)) {
+            virtio_scsi_release(s);
+            return;
+        }
         blk_set_aio_context(sd->conf.blk, s->ctx);
         virtio_scsi_release(s);
 
