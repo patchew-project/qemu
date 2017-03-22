@@ -169,6 +169,10 @@ extern int mem_prealloc;
 
 #define MAX_NODES 128
 #define NUMA_NODE_UNASSIGNED MAX_NODES
+#define MIN_NUMA_DISTANCE 10
+#define DEF_NUMA_DISTANCE 20
+#define MAX_NUMA_DISTANCE 254
+#define NUMA_DISTANCE_UNREACHABLE 255
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {
