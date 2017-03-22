@@ -499,3 +499,22 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
     error_setg(errp, "invalid whence code %"PRId64, whence->u.value);
     return -1;
 }
+
+GuestTimezone *qmp_guest_get_timezone(Error **errp)
+{
+    GuestTimezone *info = g_new0(GuestTimezone, 1);
+    GTimeZone *tz = g_time_zone_new_local();
+    gint32 interval = g_time_zone_find_interval(tz, G_TIME_TYPE_STANDARD, 0);
+    gchar const *name = g_time_zone_get_abbreviation(tz, interval);
+    if (name != NULL) {
+        info->offset = g_time_zone_get_offset(tz, interval) / 60;
+        info->zone = g_strdup(name);
+    } else {
+        error_setg(errp, "Timezone lookup failed");
+        g_free(info);
+        info = NULL;
+    }
+    g_time_zone_unref(tz);
+    return info;
+}
+
