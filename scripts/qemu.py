@@ -39,6 +39,7 @@ class QEMUMachine(object):
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+        self._exitcode = None
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -116,6 +117,9 @@ class QEMUMachine(object):
         if not isinstance(self._monitor_address, tuple):
             self._remove_if_exists(self._monitor_address)
         self._remove_if_exists(self._qemu_log_path)
+        self._exitcode = self._popen.wait()
+        if self._exitcode < 0:
+            sys.stderr.write('qemu received signal %i: %s\n' % (-self._exitcode, ' '.join(self._args)))
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
@@ -135,6 +139,9 @@ class QEMUMachine(object):
             self._popen = None
             raise
 
+    def exitcode(self):
+        return self._exitcode
+
     def shutdown(self):
         '''Terminate the VM and clean up'''
         if not self._popen is None:
@@ -144,9 +151,6 @@ class QEMUMachine(object):
             except:
                 self._popen.kill()
 
-            exitcode = self._popen.wait()
-            if exitcode < 0:
-                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
             self._load_io_log()
             self._post_shutdown()
             self._popen = None
