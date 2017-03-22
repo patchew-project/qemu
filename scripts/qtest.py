@@ -88,8 +88,14 @@ class QEMUQtestMachine(qemu.QEMUMachine):
         self._qtest_path = os.path.join(test_dir, name + "-qtest.sock")
 
     def _base_args(self):
+        if os.getenv('QTEST_LOG'):
+            qtest_log = '/dev/fd/2'
+        else:
+            qtest_log = '/dev/null'
+
         args = super(QEMUQtestMachine, self)._base_args()
         args.extend(['-qtest', 'unix:path=' + self._qtest_path,
+                     '-qtest-log', qtest_log,
                      '-machine', 'accel=qtest'])
         return args
 
