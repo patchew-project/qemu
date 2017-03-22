@@ -1,0 +1,242 @@
+QA output created by 178
+== Input validation ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+qemu-img: Either --size N or one filename must be specified.
+qemu-img: --size N cannot be used together with a filename.
+qemu-img: At most one filename argument is allowed.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: Invalid option list: ,
+qemu-img: Invalid parameter 'snapshot.foo'
+qemu-img: Failed in parsing snapshot param 'snapshot.foo'
+qemu-img: --output must be used with human or json as argument.
+qemu-img: Image size must be less than 8 EiB!
+qemu-img: Unknown file format 'foo'
+
+== Size calculation for a new file (human) ==
+
+required size: 131072
+fully allocated size: 131072
+required size: 589824
+fully allocated size: 2148073472
+required size: 10747904
+fully allocated size: 68730224640
+required size: 42205184
+fully allocated size: 274920112128
+required size: 168034304
+fully allocated size: 1099679662080
+
+== Empty qcow2 input image (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+required size: 131072
+fully allocated size: 131072
+
+== qcow2 input image with data (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+required size: 327680
+fully allocated size: 1074069504
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 524288
+fully allocated size: 1074069504
+
+== qcow2 input image with internal snapshot (human) ==
+
+required size: 458752
+fully allocated size: 1074069504
+
+== qcow2 input image and a backing file (human) ==
+
+required size: 1074069504
+fully allocated size: 1074069504
+
+== qcow2 input image and preallocation (human) ==
+
+required size: 1074069504
+fully allocated size: 1074069504
+
+== Fully-allocated qcow2 input image (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 8650752
+fully allocated size: 8650752
+
+== Empty raw input image (human) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=0
+required size: 131072
+fully allocated size: 131072
+
+== raw input image with data (human) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=1073741824
+required size: 327680
+fully allocated size: 1074069504
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 524288
+fully allocated size: 1074069504
+
+== raw input image and a backing file (human) ==
+
+required size: 1074069504
+fully allocated size: 1074069504
+
+== raw input image and preallocation (human) ==
+
+required size: 1074069504
+fully allocated size: 1074069504
+
+== Fully-allocated raw input image (human) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 8650752
+fully allocated size: 8650752
+
+== Size calculation for a new file (json) ==
+
+{
+    "required": 131072,
+    "fully-allocated": 131072
+}
+{
+    "required": 589824,
+    "fully-allocated": 2148073472
+}
+{
+    "required": 10747904,
+    "fully-allocated": 68730224640
+}
+{
+    "required": 42205184,
+    "fully-allocated": 274920112128
+}
+{
+    "required": 168034304,
+    "fully-allocated": 1099679662080
+}
+
+== Empty qcow2 input image (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+{
+    "required": 131072,
+    "fully-allocated": 131072
+}
+
+== qcow2 input image with data (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+{
+    "required": 327680,
+    "fully-allocated": 1074069504
+}
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 524288,
+    "fully-allocated": 1074069504
+}
+
+== qcow2 input image with internal snapshot (json) ==
+
+{
+    "required": 458752,
+    "fully-allocated": 1074069504
+}
+
+== qcow2 input image and a backing file (json) ==
+
+{
+    "required": 1074069504,
+    "fully-allocated": 1074069504
+}
+
+== qcow2 input image and preallocation (json) ==
+
+{
+    "required": 1074069504,
+    "fully-allocated": 1074069504
+}
+
+== Fully-allocated qcow2 input image (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 8650752,
+    "fully-allocated": 8650752
+}
+
+== Empty raw input image (json) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=0
+{
+    "required": 131072,
+    "fully-allocated": 131072
+}
+
+== raw input image with data (json) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=1073741824
+{
+    "required": 327680,
+    "fully-allocated": 1074069504
+}
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 524288,
+    "fully-allocated": 1074069504
+}
+
+== raw input image and a backing file (json) ==
+
+{
+    "required": 1074069504,
+    "fully-allocated": 1074069504
+}
+
+== raw input image and preallocation (json) ==
+
+{
+    "required": 1074069504,
+    "fully-allocated": 1074069504
+}
+
+== Fully-allocated raw input image (json) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 8650752,
+    "fully-allocated": 8650752
+}
+*** done
