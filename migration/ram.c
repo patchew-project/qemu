@@ -611,12 +611,10 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
  * @rs: current RAM state
  * @rb: RAMBlock where to search for dirty pages
  * @start: page where we start the search
- * @page: pointer into where to store the dirty page
  */
 static inline
 unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
-                                          unsigned long start,
-                                          unsigned long *page)
+                                          unsigned long start)
 {
     unsigned long base = rb->offset >> TARGET_PAGE_BITS;
     unsigned long nr = base + start;
@@ -633,17 +631,18 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
         next = find_next_bit(bitmap, size, nr);
     }
 
-    *page = next;
     return next - base;
 }
 
 static inline bool migration_bitmap_clear_dirty(RAMState *rs,
+                                                RAMBlock *rb,
                                                 unsigned long page)
 {
     bool ret;
     unsigned long *bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
+    unsigned long nr = (rb->offset >> TARGET_PAGE_BITS) + page;
 
-    ret = test_and_clear_bit(page, bitmap);
+    ret = test_and_clear_bit(nr, bitmap);
 
     if (ret) {
         rs->migration_dirty_pages--;
@@ -1057,10 +1056,9 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
  * @again: set to false if the search has scanned the whole of RAM
  * @page: pointer into where to store the dirty page
  */
-static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss,
-                             bool *again, unsigned long *page)
+static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
 {
-    pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page, page);
+    pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page);
     if (pss->complete_round && pss->block == rs->last_seen_block &&
         pss->page >= rs->last_page) {
         /*
@@ -1110,8 +1108,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss,
  * @offset: used to return the offset within the RAMBlock
  * @page: pointer into where to store the dirty page
  */
-static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset,
-                              unsigned long *page)
+static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
 {
     RAMBlock *block = NULL;
 
@@ -1121,7 +1118,6 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset,
                                 QSIMPLEQ_FIRST(&rs->src_page_requests);
         block = entry->rb;
         *offset = entry->offset;
-        *page = (entry->offset + entry->rb->offset) >> TARGET_PAGE_BITS;
 
         if (entry->len > TARGET_PAGE_SIZE) {
             entry->len -= TARGET_PAGE_SIZE;
@@ -1148,15 +1144,14 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset,
  * @pss: data about the state of the current dirty page scan
  * @page: pointer into where to store the dirty page
  */
-static bool get_queued_page(RAMState *rs, PageSearchStatus *pss,
-                            unsigned long *page)
+static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
 {
     RAMBlock  *block;
     ram_addr_t offset;
     bool dirty;
 
     do {
-        block = unqueue_page(rs, &offset, page);
+        block = unqueue_page(rs, &offset);
         /*
          * We're sending this page, and since it's postcopy nothing else
          * will dirty it, and we must make sure it doesn't get sent again
@@ -1165,16 +1160,18 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss,
          */
         if (block) {
             unsigned long *bitmap;
+            unsigned long page;
+
             bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
-            dirty = test_bit(*page, bitmap);
+            page = (block->offset + offset) >> TARGET_PAGE_BITS;
+            dirty = test_bit(page, bitmap);
             if (!dirty) {
                 trace_get_queued_page_not_dirty(block->idstr, (uint64_t)offset,
-                    *page,
-                    test_bit(*page,
+                    page,
+                    test_bit(page,
                              atomic_rcu_read(&rs->ram_bitmap)->unsentmap));
             } else {
-                trace_get_queued_page(block->idstr, (uint64_t)offset,
-                                     *page);
+                trace_get_queued_page(block->idstr, (uint64_t)offset, page);
             }
         }
 
@@ -1300,16 +1297,17 @@ err:
  * @ms: current migration state
  * @pss: data about the page we want to send
  * @last_stage: if we are at the completion stage
- * @page: page number of the dirty page
  */
 static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
-                                bool last_stage, unsigned long page)
+                                bool last_stage)
 {
     int res = 0;
 
     /* Check the pages is dirty and if it is send it */
-    if (migration_bitmap_clear_dirty(rs, page)) {
+    if (migration_bitmap_clear_dirty(rs, pss->block, pss->page)) {
         unsigned long *unsentmap;
+        unsigned long page =
+            (pss->block->offset >> TARGET_PAGE_BITS) + pss->page;
         if (!rs->preffer_xbzrle && migrate_use_compression()) {
             res = ram_save_compressed_page(rs, pss, last_stage);
         } else {
@@ -1343,25 +1341,22 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
  * @ms: current migration state
  * @pss: data about the page we want to send
  * @last_stage: if we are at the completion stage
- * @page: Page number of the dirty page
  */
 static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
-                              bool last_stage,
-                              unsigned long page)
+                              bool last_stage)
 {
     int tmppages, pages = 0;
     size_t pagesize_bits =
         qemu_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
 
     do {
-        tmppages = ram_save_target_page(rs, pss, last_stage, page);
+        tmppages = ram_save_target_page(rs, pss, last_stage);
         if (tmppages < 0) {
             return tmppages;
         }
 
         pages += tmppages;
         pss->page++;
-        page++;
     } while (pss->page & (pagesize_bits - 1));
 
     /* The offset we leave with is the last one we looked at */
@@ -1388,7 +1383,6 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
     PageSearchStatus pss;
     int pages = 0;
     bool again, found;
-    unsigned long page; /* Page number of the dirty page */
 
     /* No dirty page as there is zero RAM */
     if (!ram_bytes_total()) {
@@ -1405,15 +1399,15 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
 
     do {
         again = true;
-        found = get_queued_page(rs, &pss, &page);
+        found = get_queued_page(rs, &pss);
 
         if (!found) {
             /* priority queue empty, so just search for something dirty */
-            found = find_dirty_block(rs, &pss, &again, &page);
+            found = find_dirty_block(rs, &pss, &again);
         }
 
         if (found) {
-            pages = ram_save_host_page(rs, &pss, last_stage, page);
+            pages = ram_save_host_page(rs, &pss, last_stage);
         }
     } while (!pages && again);
 
