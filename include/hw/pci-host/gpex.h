@@ -48,6 +48,8 @@ typedef struct GPEXHost {
 
     GPEXRootState gpex_root;
 
+    uint32_t stream_id_base;
+
     MemoryRegion io_ioport;
     MemoryRegion io_mmio;
     qemu_irq irq[GPEX_NUM_IRQS];

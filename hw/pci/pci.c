@@ -947,6 +947,25 @@ uint16_t pci_requester_id(PCIDevice *dev)
     return pci_req_id_cache_extract(&dev->requester_id_cache);
 }
 
+uint32_t pci_stream_id(PCIDevice *dev)
+{
+    PCIBus *rootbus = pci_device_root_bus(dev);
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(rootbus->qbus.parent);
+    Error *err = NULL;
+    int64_t stream_id;
+
+    stream_id = object_property_get_int(OBJECT(host_bridge), "stream-id-base",
+                                        &err);
+    if (stream_id < 0) {
+        stream_id =  0;
+    }
+    /* DeviceID = RequesterID[15:0] + stream_id_base. If the stream-id-base
+     * property is not found (e.g. for platforms that are not needing a
+     * global ID) the requester ID will be used instead. */
+    stream_id += (uint16_t)pci_requester_id(dev);
+
+    return stream_id;
+}
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,

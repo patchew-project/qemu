@@ -737,6 +737,8 @@ static inline uint16_t pci_get_bdf(PCIDevice *dev)
 
 uint16_t pci_requester_id(PCIDevice *dev);
 
+uint32_t pci_stream_id(PCIDevice *dev);
+
 /* DMA access functions */
 static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
 {
