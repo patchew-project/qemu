@@ -235,12 +235,11 @@ void block_job_complete(BlockJob *job, Error **errp);
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
 
 /**
- * block_job_pause:
- * @job: The job to be paused.
+ * block_job_pause_all:
  *
- * Asynchronously pause the specified job.
+ * Asynchronously pause all jobs.
  */
-void block_job_pause(BlockJob *job);
+void block_job_pause_all(void);
 
 /**
  * block_job_user_pause:
@@ -260,12 +259,11 @@ void block_job_user_pause(BlockJob *job);
 bool block_job_user_paused(BlockJob *job);
 
 /**
- * block_job_resume:
- * @job: The job to be resumed.
+ * block_job_resume_all:
  *
- * Resume the specified job.  Must be paired with a preceding block_job_pause.
+ * Resume all block jobs.  Must be paired with a preceding block_job_pause_all.
  */
-void block_job_resume(BlockJob *job);
+void block_job_resume_all(void);
 
 /**
  * block_job_user_resume:
