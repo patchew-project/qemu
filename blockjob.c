@@ -334,11 +334,6 @@ void block_job_start(BlockJob *job)
     qemu_coroutine_enter(job->co);
 }
 
-void block_job_fail(BlockJob *job)
-{
-    block_job_unref(job);
-}
-
 static void block_job_completed_single(BlockJob *job)
 {
     if (!job->ret) {
@@ -440,21 +435,6 @@ static void block_job_completed_txn_success(BlockJob *job)
     }
 }
 
-void block_job_completed(BlockJob *job, int ret)
-{
-    assert(blk_bs(job->blk)->job == job);
-    assert(!job->completed);
-    job->completed = true;
-    job->ret = ret;
-    if (!job->txn) {
-        block_job_completed_single(job);
-    } else if (ret < 0 || block_job_is_cancelled(job)) {
-        block_job_completed_txn_abort(job);
-    } else {
-        block_job_completed_txn_success(job);
-    }
-}
-
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     Error *local_err = NULL;
@@ -492,42 +472,9 @@ void block_job_user_pause(BlockJob *job)
     block_job_pause(job);
 }
 
-static bool block_job_should_pause(BlockJob *job)
-{
-    return job->pause_count > 0;
-}
-
 bool block_job_user_paused(BlockJob *job)
 {
     return job->user_paused;
-}
-
-void coroutine_fn block_job_pause_point(BlockJob *job)
-{
-    assert(job && block_job_started(job));
-
-    if (!block_job_should_pause(job)) {
-        return;
-    }
-    if (block_job_is_cancelled(job)) {
-        return;
-    }
-
-    if (job->driver->pause) {
-        job->driver->pause(job);
-    }
-
-    if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
-        job->paused = true;
-        job->busy = false;
-        qemu_coroutine_yield(); /* wait for block_job_resume() */
-        job->busy = true;
-        job->paused = false;
-    }
-
-    if (job->driver->resume) {
-        job->driver->resume(job);
-    }
 }
 
 void block_job_user_resume(BlockJob *job)
@@ -535,13 +482,6 @@ void block_job_user_resume(BlockJob *job)
     if (job && job->user_paused && job->pause_count > 0) {
         job->user_paused = false;
         block_job_resume(job);
-    }
-}
-
-void block_job_enter(BlockJob *job)
-{
-    if (job->co && !job->busy) {
-        qemu_coroutine_enter(job->co);
     }
 }
 
@@ -554,11 +494,6 @@ void block_job_cancel(BlockJob *job)
     } else {
         block_job_completed(job, -ECANCELED);
     }
-}
-
-bool block_job_is_cancelled(BlockJob *job)
-{
-    return job->cancelled;
 }
 
 void block_job_iostatus_reset(BlockJob *job)
@@ -628,42 +563,6 @@ int block_job_complete_sync(BlockJob *job, Error **errp)
     return block_job_finish_sync(job, &block_job_complete, errp);
 }
 
-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
-{
-    assert(job->busy);
-
-    /* Check cancellation *before* setting busy = false, too!  */
-    if (block_job_is_cancelled(job)) {
-        return;
-    }
-
-    job->busy = false;
-    if (!block_job_should_pause(job)) {
-        co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
-    }
-    job->busy = true;
-
-    block_job_pause_point(job);
-}
-
-void block_job_yield(BlockJob *job)
-{
-    assert(job->busy);
-
-    /* Check cancellation *before* setting busy = false, too!  */
-    if (block_job_is_cancelled(job)) {
-        return;
-    }
-
-    job->busy = false;
-    if (!block_job_should_pause(job)) {
-        qemu_coroutine_yield();
-    }
-    job->busy = true;
-
-    block_job_pause_point(job);
-}
-
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;
@@ -723,6 +622,10 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
                                         &error_abort);
 }
 
+/*
+ * API for block job drivers and the block layer.
+ */
+
 void block_job_pause_all(void)
 {
     BlockJob *job = NULL;
@@ -732,6 +635,59 @@ void block_job_pause_all(void)
         aio_context_acquire(aio_context);
         block_job_pause(job);
         aio_context_release(aio_context);
+    }
+}
+
+void block_job_fail(BlockJob *job)
+{
+    block_job_unref(job);
+}
+
+void block_job_completed(BlockJob *job, int ret)
+{
+    assert(blk_bs(job->blk)->job == job);
+    assert(!job->completed);
+    job->completed = true;
+    job->ret = ret;
+    if (!job->txn) {
+        block_job_completed_single(job);
+    } else if (ret < 0 || block_job_is_cancelled(job)) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_completed_txn_success(job);
+    }
+}
+
+static bool block_job_should_pause(BlockJob *job)
+{
+    return job->pause_count > 0;
+}
+
+void coroutine_fn block_job_pause_point(BlockJob *job)
+{
+    assert(job && block_job_started(job));
+
+    if (!block_job_should_pause(job)) {
+        return;
+    }
+    if (block_job_is_cancelled(job)) {
+        return;
+    }
+
+    if (job->driver->pause) {
+        job->driver->pause(job);
+    }
+
+    if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
+        job->paused = true;
+        job->busy = false;
+        qemu_coroutine_yield(); /* wait for block_job_resume() */
+        job->busy = true;
+        job->paused = false;
+    }
+
+    if (job->driver->resume) {
+        job->driver->resume(job);
     }
 }
 
@@ -745,6 +701,54 @@ void block_job_resume_all(void)
         block_job_resume(job);
         aio_context_release(aio_context);
     }
+}
+
+void block_job_enter(BlockJob *job)
+{
+    if (job->co && !job->busy) {
+        qemu_coroutine_enter(job->co);
+    }
+}
+
+bool block_job_is_cancelled(BlockJob *job)
+{
+    return job->cancelled;
+}
+
+void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (block_job_is_cancelled(job)) {
+        return;
+    }
+
+    job->busy = false;
+    if (!block_job_should_pause(job)) {
+        co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
+    }
+    job->busy = true;
+
+    block_job_pause_point(job);
+}
+
+void block_job_yield(BlockJob *job)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (block_job_is_cancelled(job)) {
+        return;
+    }
+
+    job->busy = false;
+    if (!block_job_should_pause(job)) {
+        qemu_coroutine_yield();
+    }
+    job->busy = true;
+
+    block_job_pause_point(job);
 }
 
 void block_job_event_ready(BlockJob *job)
