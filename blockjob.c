@@ -373,6 +373,12 @@ static void block_job_completed_single(BlockJob *job)
     block_job_unref(job);
 }
 
+static void block_job_cancel_async(BlockJob *job)
+{
+    job->cancelled = true;
+    block_job_iostatus_reset(job);
+}
+
 static void block_job_completed_txn_abort(BlockJob *job)
 {
     AioContext *ctx;
@@ -397,7 +403,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
              * them; this job, however, may or may not be cancelled, depending
              * on the caller, so leave it. */
             if (other_job != job) {
-                other_job->cancelled = true;
+                block_job_cancel_async(other_job);
             }
             continue;
         }
@@ -489,8 +495,7 @@ void block_job_user_resume(BlockJob *job)
 void block_job_cancel(BlockJob *job)
 {
     if (block_job_started(job)) {
-        job->cancelled = true;
-        block_job_iostatus_reset(job);
+        block_job_cancel_async(job);
         block_job_enter(job);
     } else {
         block_job_completed(job, -ECANCELED);
