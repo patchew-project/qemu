@@ -2641,7 +2641,7 @@
             '*conf': 'str',
             '*snapshot': 'str',
             '*user': 'str',
-            '*server': ['InetSocketAddress'],
+            '*server': ['InetSocketAddressBase'],
             '*auth-supported': ['RbdAuthMethod'],
             '*password-secret': 'str' } }
 
