@@ -1251,7 +1251,7 @@ fail:
 
         g_free(s->replaces);
         blk_unref(s->target);
-        block_job_unref(&s->common);
+        block_job_fail(&s->common);
     }
 
     bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
