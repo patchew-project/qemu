@@ -727,7 +727,6 @@ static void migration_bitmap_sync(RAMState *rs)
         }
         s->dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->start_time);
-        s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
         rs->start_time = end_time;
         rs->num_dirty_pages_period = 0;
     }
