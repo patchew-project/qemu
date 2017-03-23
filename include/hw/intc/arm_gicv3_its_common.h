@@ -68,7 +68,7 @@ struct GICv3ITSCommonClass {
     SysBusDeviceClass parent_class;
     /*< public >*/
 
-    int (*send_msi)(GICv3ITSState *s, uint32_t data, uint16_t devid);
+    int (*send_msi)(GICv3ITSState *s, uint32_t data, uint32_t devid);
     void (*pre_save)(GICv3ITSState *s);
     void (*post_load)(GICv3ITSState *s);
 };
