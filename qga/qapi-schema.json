@@ -1042,3 +1042,28 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+
+
+##
+# @GuestFQDN:
+# @fqdn: Fully qualified domain name of the guest OS
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestFQDN',
+  'data':   { 'fqdn': 'str' } }
+
+
+##
+# @guest-get-fqdn:
+#
+# Request the FQDN (Fully Qualified Domain Name) of the guest operating system
+#
+# Returns: FQDN on success
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-fqdn',
+  'returns': 'GuestFQDN' }
+
