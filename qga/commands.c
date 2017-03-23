@@ -499,3 +499,45 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
     error_setg(errp, "invalid whence code %"PRId64, whence->u.value);
     return -1;
 }
+
+GuestTimezone *qmp_guest_get_timezone(Error **errp)
+{
+    GuestTimezone *info = g_new0(GuestTimezone, 1);
+    if (info == NULL) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
+                   "Couldn't allocate GuestTimezone dict");
+        return NULL;
+    }
+
+    GTimeZone *tz = g_time_zone_new_local();
+    if (tz == NULL) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
+                   "Couldn't retrieve local timezone");
+        goto error;
+    }
+
+    gint32 interval = g_time_zone_find_interval(tz, G_TIME_TYPE_STANDARD, 0);
+    if (interval != -1) {
+        gchar const *name = g_time_zone_get_abbreviation(tz, interval);
+        if (name != NULL) {
+            info->offset = g_time_zone_get_offset(tz, interval);
+            info->zone = g_strdup(name);
+        } else {
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
+                       "Timezone lookup failed");
+            goto error;
+        }
+    } else {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
+                   "Failed to lookup timezone interval");
+        goto error;
+    }
+    g_time_zone_unref(tz);
+    return info;
+
+error:
+    g_time_zone_unref(tz);
+    g_free(info);
+    return NULL;
+}
+
