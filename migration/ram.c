@@ -217,6 +217,9 @@ struct RAMState {
     uint64_t dirty_pages_rate;
     /* Count of requests incoming from destination */
     uint64_t postcopy_requests;
+    /* Should we move to xbzrle after the 1st round
+       of compression */
+    bool preffer_xbzrle;
     /* protects modification of the bitmap */
     QemuMutex bitmap_mutex;
     /* Ram Bitmap protected by RCU */
@@ -335,7 +338,6 @@ static QemuCond comp_done_cond;
 /* The empty QEMUFileOps will be used by file in CompressParam */
 static const QEMUFileOps empty_ops = { };
 
-static bool compression_switch;
 static DecompressParam *decomp_param;
 static QemuThread *decompress_threads;
 static QemuMutex decomp_done_lock;
@@ -419,7 +421,6 @@ void migrate_compress_threads_create(void)
     if (!migrate_use_compression()) {
         return;
     }
-    compression_switch = true;
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
     comp_param = g_new0(CompressParam, thread_count);
@@ -1091,7 +1092,7 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss,
                  * point. In theory, xbzrle can do better than compression.
                  */
                 flush_compressed_data(rs);
-                compression_switch = false;
+                rs->preffer_xbzrle = true;
             }
         }
         /* Didn't find anything this time, but try again on the new block */
@@ -1323,7 +1324,7 @@ static int ram_save_target_page(RAMState *rs, MigrationState *ms,
     /* Check the pages is dirty and if it is send it */
     if (migration_bitmap_clear_dirty(rs, dirty_ram_abs)) {
         unsigned long *unsentmap;
-        if (compression_switch && migrate_use_compression()) {
+        if (!rs->preffer_xbzrle && migrate_use_compression()) {
             res = ram_save_compressed_page(rs, ms, pss, last_stage);
         } else {
             res = ram_save_page(rs, ms, pss, last_stage);
