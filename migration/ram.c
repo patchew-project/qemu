@@ -243,14 +243,14 @@ uint64_t xbzrle_mig_pages_overflow(void)
     return ram_state.xbzrle_overflows;
 }
 
-static ram_addr_t ram_save_remaining(void)
-{
-    return ram_state.migration_dirty_pages;
-}
-
 uint64_t ram_bytes_transferred(void)
 {
     return ram_state.bytes_transferred;
+}
+
+uint64_t ram_bytes_remaining(void)
+{
+    return ram_state.migration_dirty_pages * TARGET_PAGE_SIZE;
 }
 
 /* used by the search for pages to send */
@@ -1438,11 +1438,6 @@ void acct_update_position(QEMUFile *f, size_t size, bool zero)
     }
 }
 
-uint64_t ram_bytes_remaining(void)
-{
-    return ram_save_remaining() * TARGET_PAGE_SIZE;
-}
-
 uint64_t ram_bytes_total(void)
 {
     RAMBlock *block;
@@ -2210,7 +2205,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
     RAMState *rs = opaque;
     uint64_t remaining_size;
 
-    remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
+    remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
 
     if (!migration_in_postcopy(migrate_get_current()) &&
         remaining_size < max_size) {
@@ -2219,7 +2214,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
         migration_bitmap_sync(rs);
         rcu_read_unlock();
         qemu_mutex_unlock_iothread();
-        remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
+        remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
     }
 
     /* We can do postcopy, and all the data is postcopiable */
