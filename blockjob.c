@@ -750,7 +750,14 @@ void block_job_resume_all(void)
 
 void block_job_enter(BlockJob *job)
 {
-    if (job->co && !job->busy) {
+    if (!block_job_started(job)) {
+        return;
+    }
+    if (job->deferred_to_main_loop) {
+        return;
+    }
+
+    if (!job->busy) {
         qemu_coroutine_enter(job->co);
     }
 }
@@ -874,7 +881,6 @@ static void block_job_defer_to_main_loop_bh(void *opaque)
         aio_context_acquire(aio_context);
     }
 
-    data->job->deferred_to_main_loop = false;
     data->fn(data->job, data->opaque);
 
     if (aio_context != data->aio_context) {
