@@ -2601,25 +2601,14 @@
 
 
 ##
-# @RbdAuthSupport:
-#
-# An enumeration of RBD auth support
-#
-# Since: 2.9
-##
-{ 'enum': 'RbdAuthSupport',
-  'data': [ 'cephx', 'none' ] }
-
-
-##
 # @RbdAuthMethod:
 #
 # An enumeration of rados auth_supported types
 #
 # Since: 2.9
 ##
-{ 'struct': 'RbdAuthMethod',
-  'data': { 'auth': 'RbdAuthSupport' } }
+{ 'enum': 'RbdAuthMethod',
+  'data': [ 'cephx', 'none' ] }
 
 ##
 # @BlockdevOptionsRbd:

@@ -566,7 +566,7 @@ static char *rbd_auth(QDict *options)
     int i;
 
     for (i = 0;; i++) {
-        sprintf(keybuf, "auth-supported.%d.auth", i);
+        sprintf(keybuf, "auth-supported.%d", i);
         val = qdict_get(options, keybuf);
         if (!val) {
             break;
