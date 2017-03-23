@@ -481,6 +481,7 @@ void block_job_user_resume(BlockJob *job)
 {
     if (job && job->user_paused && job->pause_count > 0) {
         job->user_paused = false;
+        block_job_iostatus_reset(job);
         block_job_resume(job);
     }
 }
@@ -494,11 +495,6 @@ void block_job_cancel(BlockJob *job)
     } else {
         block_job_completed(job, -ECANCELED);
     }
-}
-
-void block_job_iostatus_reset(BlockJob *job)
-{
-    job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
 }
 
 static int block_job_finish_sync(BlockJob *job,
@@ -749,6 +745,11 @@ void block_job_yield(BlockJob *job)
     job->busy = true;
 
     block_job_pause_point(job);
+}
+
+void block_job_iostatus_reset(BlockJob *job)
+{
+    job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
 }
 
 void block_job_event_ready(BlockJob *job)
