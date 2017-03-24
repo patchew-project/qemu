@@ -15,6 +15,7 @@
 
 #include <rbd/librbd.h>
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "qemu/error-report.h"
 #include "block/block_int.h"
 #include "crypto/secret.h"
@@ -506,11 +507,17 @@ static char *qemu_rbd_auth(QDict *options, Error **errp)
         }
 
         vals[i] = qstring_get_str(qobject_to_qstring(val));
+        if (qapi_enum_parse(RbdAuthSupport_lookup, vals[i],
+                            RBD_AUTH_SUPPORT__MAX, -1, errp) < 0) {
+            rados_str = NULL;
+            goto out;
+        }
         qdict_del(options, keybuf);
     }
     vals[i] = NULL;
 
     rados_str = i ? g_strjoinv(";", (char **)vals) : NULL;
+out:
     g_free(vals);
     return rados_str;
 }
