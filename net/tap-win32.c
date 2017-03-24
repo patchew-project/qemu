@@ -811,10 +811,10 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
 int tap_enable(NetClientState *nc)
 {
-    abort();
+    return 0;
 }
 
 int tap_disable(NetClientState *nc)
 {
-    abort();
+    return 0;
 }
