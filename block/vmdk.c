@@ -242,6 +242,26 @@ static void vmdk_free_last_extent(BlockDriverState *bs)
     s->extents = g_renew(VmdkExtent, s->extents, s->num_extents);
 }
 
+static inline uint64_t vmdk_find_offset_in_cluster(VmdkExtent *extent,
+                                                   int64_t offset)
+{
+    uint64_t extent_begin_offset, extent_relative_offset;
+    uint64_t cluster_size = extent->cluster_sectors * BDRV_SECTOR_SIZE;
+
+    extent_begin_offset =
+        (extent->end_sector - extent->sectors) * BDRV_SECTOR_SIZE;
+    extent_relative_offset = offset - extent_begin_offset;
+    return extent_relative_offset % cluster_size;
+}
+
+static inline uint64_t size_to_clusters(VmdkExtent *extent, uint64_t size)
+{
+    uint64_t cluster_size, round_off_size;
+    cluster_size = extent->cluster_sectors * BDRV_SECTOR_SIZE;
+    round_off_size = cluster_size - (size % cluster_size);
+    return ((size + round_off_size) >> 16) - 1;
+}
+
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 {
     char *desc;
@@ -1264,18 +1284,6 @@ static VmdkExtent *find_extent(BDRVVmdkState *s,
         extent++;
     }
     return NULL;
-}
-
-static inline uint64_t vmdk_find_offset_in_cluster(VmdkExtent *extent,
-                                                   int64_t offset)
-{
-    uint64_t extent_begin_offset, extent_relative_offset;
-    uint64_t cluster_size = extent->cluster_sectors * BDRV_SECTOR_SIZE;
-
-    extent_begin_offset =
-        (extent->end_sector - extent->sectors) * BDRV_SECTOR_SIZE;
-    extent_relative_offset = offset - extent_begin_offset;
-    return extent_relative_offset % cluster_size;
 }
 
 static inline uint64_t vmdk_find_index_in_cluster(VmdkExtent *extent,
