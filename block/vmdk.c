@@ -1767,7 +1767,9 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
     int64_t offset_in_cluster, n_bytes;
     uint64_t cluster_offset;
     uint64_t bytes_done = 0;
+    uint64_t extent_size;
     VmdkMetaData m_data;
+    uint32_t total_alloc_clusters = 0;
 
     if (DIV_ROUND_UP(offset, BDRV_SECTOR_SIZE) > bs->total_sectors) {
         error_report("Wrong offset: offset=0x%" PRIx64
@@ -1781,14 +1783,22 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
         if (!extent) {
             return -EIO;
         }
-        offset_in_cluster = vmdk_find_offset_in_cluster(extent, offset);
-        n_bytes = MIN(bytes, extent->cluster_sectors * BDRV_SECTOR_SIZE
-                             - offset_in_cluster);
+        extent_size = extent->end_sector * BDRV_SECTOR_SIZE;
 
-        ret = get_cluster_offset(bs, extent, &m_data, offset,
-                                 !(extent->compressed || zeroed),
-                                 &cluster_offset, offset_in_cluster,
-                                 offset_in_cluster + n_bytes);
+        offset_in_cluster = vmdk_find_offset_in_cluster(extent, offset);
+
+        /* truncate n_bytes to first cluster because we need to perform COW */
+        if (offset_in_cluster > 0) {
+            n_bytes = MIN(bytes, extent->cluster_sectors * BDRV_SECTOR_SIZE
+                                 - offset_in_cluster);
+        } else {
+            n_bytes = MIN(bytes, extent_size - offset);
+        }
+
+        ret = vmdk_alloc_cluster_offset(bs, extent, &m_data, offset,
+                                        !(extent->compressed || zeroed),
+                                        &cluster_offset, n_bytes,
+                                        &total_alloc_clusters);
         if (extent->compressed) {
             if (ret == VMDK_OK) {
                 /* Refuse write to allocated cluster for streamOptimized */
@@ -1797,19 +1807,22 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                 return -EIO;
             } else {
                 /* allocate */
-                ret = get_cluster_offset(bs, extent, &m_data, offset,
-                                         true, &cluster_offset, 0, 0);
+                ret = vmdk_alloc_cluster_offset(bs, extent, &m_data, offset,
+                                                true, &cluster_offset, n_bytes,
+                                                &total_alloc_clusters);
             }
         }
         if (ret == VMDK_ERROR) {
             return -EINVAL;
         }
+
         if (zeroed) {
             /* Do zeroed write, buf is ignored */
-            if (extent->has_zero_grain &&
-                    offset_in_cluster == 0 &&
-                    n_bytes >= extent->cluster_sectors * BDRV_SECTOR_SIZE) {
-                n_bytes = extent->cluster_sectors * BDRV_SECTOR_SIZE;
+            if (extent->has_zero_grain && offset_in_cluster == 0 &&
+                    n_bytes >= extent->cluster_sectors * BDRV_SECTOR_SIZE *
+                        total_alloc_clusters) {
+                n_bytes = extent->cluster_sectors * BDRV_SECTOR_SIZE *
+                                        total_alloc_clusters;
                 if (!zero_dry_run) {
                     /* update L2 tables */
                     if (vmdk_L2update(extent, &m_data, VMDK_GTE_ZEROED)
