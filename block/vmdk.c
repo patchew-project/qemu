@@ -1036,8 +1036,8 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
-/**
- * get_whole_cluster
+/*
+ * vmdk_perform_cow
  *
  * Copy backing file's cluster that covers @sector_num, otherwise write zero,
  * to the cluster at @cluster_sector_num.
@@ -1045,13 +1045,18 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
  * If @skip_start_sector < @skip_end_sector, the relative range
  * [@skip_start_sector, @skip_end_sector) is not copied or written, and leave
  * it for call to write user data in the request.
+ *
+ * Returns:
+ *   VMDK_OK:       on success
+ *
+ *   VMDK_ERROR:    in error cases
  */
-static int get_whole_cluster(BlockDriverState *bs,
-                             VmdkExtent *extent,
-                             uint64_t cluster_offset,
-                             uint64_t offset,
-                             uint64_t skip_start_bytes,
-                             uint64_t skip_end_bytes)
+static int vmdk_perform_cow(BlockDriverState *bs,
+                            VmdkExtent *extent,
+                            uint64_t cluster_offset,
+                            uint64_t offset,
+                            uint64_t skip_start_bytes,
+                            uint64_t skip_end_bytes)
 {
     int ret = VMDK_OK;
     int64_t cluster_bytes;
