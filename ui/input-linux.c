@@ -169,6 +169,8 @@ struct InputLinux {
     bool        has_abs_x;
     int         num_keys;
     int         num_btns;
+    struct input_event event;
+    int         to_be_read;
 
     QTAILQ_ENTRY(InputLinux) next;
 };
@@ -327,25 +329,30 @@ static void input_linux_handle_mouse(InputLinux *il, struct input_event *event)
 static void input_linux_event(void *opaque)
 {
     InputLinux *il = opaque;
-    struct input_event event;
     int rc;
+    int offset;
+    uint8_t *p = (uint8_t *)&il->event;
 
     for (;;) {
-        rc = read(il->fd, &event, sizeof(event));
-        if (rc != sizeof(event)) {
+        offset = sizeof(il->event) - il->to_be_read;
+        rc = read(il->fd, &p[offset], il->to_be_read);
+        if (rc != il->to_be_read) {
             if (rc < 0 && errno != EAGAIN) {
                 fprintf(stderr, "%s: read: %s\n", __func__, strerror(errno));
                 qemu_set_fd_handler(il->fd, NULL, NULL, NULL);
                 close(il->fd);
+            } else if (rc > 0){
+                il->to_be_read -= rc;
             }
             break;
         }
+        il->to_be_read = sizeof(il->event);
 
         if (il->num_keys) {
-            input_linux_handle_keyboard(il, &event);
+            input_linux_handle_keyboard(il, &il->event);
         }
         if (il->has_rel_x && il->num_btns) {
-            input_linux_handle_mouse(il, &event);
+            input_linux_handle_mouse(il, &il->event);
         }
     }
 }
@@ -417,6 +424,7 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
         }
     }
 
+    il->to_be_read = sizeof(il->event);
     qemu_set_fd_handler(il->fd, input_linux_event, NULL, il);
     if (il->keycount) {
         /* delay grab until all keys are released */
