@@ -189,18 +189,22 @@ void ndp_send_ra(Slirp *slirp)
     t->m_data += NDPOPT_PREFIXINFO_LEN;
     pl_size += NDPOPT_PREFIXINFO_LEN;
 
-#ifndef _WIN32
     /* Prefix information (NDP option) */
-    /* disabled for windows for now, until get_dns6_addr is implemented */
-    struct ndpopt *opt3 = mtod(t, struct ndpopt *);
-    opt3->ndpopt_type = NDPOPT_RDNSS;
-    opt3->ndpopt_len = NDPOPT_RDNSS_LEN / 8;
-    opt3->ndpopt_rdnss.reserved = 0;
-    opt3->ndpopt_rdnss.lifetime = htonl(2 * NDP_MaxRtrAdvInterval);
-    opt3->ndpopt_rdnss.addr = slirp->vnameserver_addr6;
-    t->m_data += NDPOPT_RDNSS_LEN;
-    pl_size += NDPOPT_RDNSS_LEN;
-#endif
+    {
+        struct in6_addr addr;
+        uint32_t scope_id;
+        if (get_dns6_addr(&addr, &scope_id) >= 0) {
+            /* Host system does have an IPv6 DNS server, announce our proxy.  */
+            struct ndpopt *opt3 = mtod(t, struct ndpopt *);
+            opt3->ndpopt_type = NDPOPT_RDNSS;
+            opt3->ndpopt_len = NDPOPT_RDNSS_LEN / 8;
+            opt3->ndpopt_rdnss.reserved = 0;
+            opt3->ndpopt_rdnss.lifetime = htonl(2 * NDP_MaxRtrAdvInterval);
+            opt3->ndpopt_rdnss.addr = slirp->vnameserver_addr6;
+            t->m_data += NDPOPT_RDNSS_LEN;
+            pl_size += NDPOPT_RDNSS_LEN;
+        }
+    }
 
     rip->ip_pl = htons(pl_size);
     t->m_data -= sizeof(struct ip6) + pl_size;
