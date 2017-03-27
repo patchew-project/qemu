@@ -261,7 +261,10 @@ static void dump_aml_files(test_data *data, bool rebuild)
             fd = g_open(aml_file, O_WRONLY|O_TRUNC|O_CREAT,
                         S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
         } else {
-            fd = g_file_open_tmp("aml-XXXXXX", &sdt->aml_file, &error);
+            gchar *name;
+
+            fd = g_file_open_tmp("aml-XXXXXX", &name, &error);
+            sdt->aml_file = name;
             g_assert_no_error(error);
         }
         g_assert(fd >= 0);
@@ -291,8 +294,10 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
     gchar *out, *out_err;
     gboolean ret;
     int i;
+    gchar *name;
 
-    fd = g_file_open_tmp("asl-XXXXXX.dsl", &sdt->asl_file, &error);
+    fd = g_file_open_tmp("asl-XXXXXX.dsl", &name, &error);
+    sdt->asl_file = name;
     g_assert_no_error(error);
     close(fd);
 
@@ -314,8 +319,12 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
     ret = g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
     g_assert_no_error(error);
     if (ret) {
-        ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
-                                  &sdt->asl_len, &error);
+        gchar *contents;
+        gsize len;
+
+        ret = g_file_get_contents(sdt->asl_file, &contents, &len, &error);
+        sdt->asl = contents;
+        sdt->asl_len = len;
         g_assert(ret);
         g_assert_no_error(error);
         ret = (sdt->asl_len > 0);
@@ -371,6 +380,8 @@ static GArray *load_expected_aml(test_data *data)
         uint32_t signature;
         gchar *aml_file = NULL;
         const char *ext = data->variant ? data->variant : "";
+        gchar *aml_contents;
+        gsize aml_length;
 
         sdt = &g_array_index(data->tables, AcpiSdtTable, i);
 
@@ -397,8 +408,9 @@ try_again:
         if (getenv("V")) {
             fprintf(stderr, "\nUsing expected file '%s'\n", aml_file);
         }
-        ret = g_file_get_contents(aml_file, &exp_sdt.aml,
-                                  &exp_sdt.aml_len, &error);
+        ret = g_file_get_contents(aml_file, &aml_contents, &aml_length, &error);
+        exp_sdt.aml = aml_contents;
+        exp_sdt.aml_len = aml_length;
         g_assert(ret);
         g_assert_no_error(error);
         g_assert(exp_sdt.aml);
