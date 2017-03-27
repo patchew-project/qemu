@@ -633,7 +633,6 @@ static const VMStateDescription vmstate_timers = {
 static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
 {
     double pct;
-    double throttle_ratio;
     long sleeptime_ns;
 
     if (!cpu_throttle_get_percentage()) {
@@ -641,8 +640,7 @@ static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
     }
 
     pct = (double)cpu_throttle_get_percentage()/100;
-    throttle_ratio = pct / (1 - pct);
-    sleeptime_ns = (long)(throttle_ratio * CPU_THROTTLE_TIMESLICE_NS);
+    sleeptime_ns = (long)((1 - pct) * CPU_THROTTLE_TIMESLICE_NS);
 
     qemu_mutex_unlock_iothread();
     atomic_set(&cpu->throttle_thread_scheduled, 0);
@@ -668,7 +666,7 @@ static void cpu_throttle_timer_tick(void *opaque)
 
     pct = (double)cpu_throttle_get_percentage()/100;
     timer_mod(throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
-                                   CPU_THROTTLE_TIMESLICE_NS / (1-pct));
+                                   CPU_THROTTLE_TIMESLICE_NS * pct);
 }
 
 void cpu_throttle_set(int new_throttle_pct)
