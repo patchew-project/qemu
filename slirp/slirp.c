@@ -29,6 +29,7 @@
 #include "slirp.h"
 #include "hw/hw.h"
 #include "qemu/cutils.h"
+#include "socks5.h"
 
 #ifndef _WIN32
 #include <net/if.h>
@@ -442,6 +443,9 @@ void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout)
                     .fd = so->s,
                     .events = G_IO_OUT | G_IO_ERR,
                 };
+                if (so->so_proxy_state) {
+                    pfd.events |= G_IO_IN;
+                }
                 so->pollfds_idx = pollfds->len;
                 g_array_append_val(pollfds, pfd);
                 continue;
@@ -617,6 +621,10 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                  * Check sockets for reading
                  */
                 else if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) {
+                    if (so->so_state & SS_ISFCONNECTING) {
+                        socks5_recv(so->s, &so->so_proxy_state);
+                        continue;
+                    }
                     /*
                      * Check for incoming connections
                      */
@@ -645,11 +653,19 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                     /*
                      * Check for non-blocking, still-connecting sockets
                      */
-                    if (so->so_state & SS_ISFCONNECTING) {
-                        /* Connected */
-                        so->so_state &= ~SS_ISFCONNECTING;
 
-                        ret = send(so->s, (const void *) &ret, 0, 0);
+                    if (so->so_state & SS_ISFCONNECTING) {
+                        ret = socks5_send(so->s, slirp->proxy_user,
+                                          slirp->proxy_passwd, so->fhost.ss,
+                                          &so->so_proxy_state);
+                        if (ret == 0) {
+                            continue;
+                        }
+                        if (ret > 0) {
+                            /* Connected */
+                            so->so_state &= ~SS_ISFCONNECTING;
+                            ret = send(so->s, (const void *) &ret, 0, 0);
+                        }
                         if (ret < 0) {
                             /* XXXXX Must fix, zero bytes is a NOP */
                             if (errno == EAGAIN || errno == EWOULDBLOCK ||
@@ -1067,6 +1083,48 @@ int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
     }
     return add_exec(&slirp->exec_list, do_pty, (char *)args, *guest_addr,
                     htons(guest_port));
+}
+
+int slirp_add_proxy(Slirp *slirp, const char *server, int port,
+                    const char *user, const char *passwd)
+{
+    int fd;
+    socks5_state_t state;
+    struct sockaddr_storage addr;
+
+    /* check the connection */
+
+    fd = socks5_socket(&state);
+    if (fd < 0) {
+        return -1;
+    }
+    if (socks5_connect(fd, server, port, &state) < 0) {
+        close(fd);
+        return -1;
+    }
+    while (state < SOCKS5_STATE_ESTABLISH) {
+        if (socks5_send(fd, user, passwd, addr, &state) < 0) {
+            close(fd);
+            return -1;
+        }
+        socks5_recv(fd, &state);
+        if (state == SOCKS5_STATE_NONE) {
+            close(fd);
+            return -1;
+        }
+    }
+    close(fd);
+
+    slirp->proxy_server = g_strdup(server);
+    slirp->proxy_port = port;
+    if (user) {
+        slirp->proxy_user = g_strdup(user);
+    }
+    if (passwd) {
+        slirp->proxy_passwd = g_strdup(passwd);
+    }
+
+    return 0;
 }
 
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)

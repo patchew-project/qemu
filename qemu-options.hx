@@ -1645,6 +1645,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifndef _WIN32
                                              "[,smb=dir[,smbserver=addr]]\n"
 #endif
+    "         [,proxy-server=addr:port[,proxy-user=user,proxy-passwd=passwd]]\n"
     "                configure a user mode network backend with ID 'str',\n"
     "                its DHCP server and optional services\n"
 #endif
@@ -1882,6 +1883,16 @@ Then @file{@var{dir}} can be accessed in @file{\\smbserver\qemu}.
 Note that a SAMBA server must be installed on the host OS.
 QEMU was tested successfully with smbd versions from Red Hat 9,
 Fedora Core 3 and OpenSUSE 11.x.
+
+@item proxy-server=@var{addr}:@var{port}[,proxy-user=@var{user},proxy-passwd=@var{passwd}]]
+If you provide a SOCKS5 proxy server address @var{addr} and a port number @var{port},
+QEMU will use it to connect to Internet. If the proxy server needs an user id and a password
+the values are provided with proxy-user and proxy-passwd.
+
+For example, to connect to a TOR proxy server on the host, use the following:
+@example
+qemu-system-i386 -net user,proxy-server=localhost:9050
+@end example
 
 @item hostfwd=[tcp|udp]:[@var{hostaddr}]:@var{hostport}-[@var{guestaddr}]:@var{guestport}
 Redirect incoming TCP or UDP connections to the host port @var{hostport} to

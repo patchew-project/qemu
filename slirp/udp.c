@@ -160,6 +160,15 @@ udp_input(register struct mbuf *m, int iphlen)
             goto bad;
         }
 
+        /* as our SOCKS5 client is not able to route UDP packets,
+         * only allow local UDP traffic (we need it for DNS)
+         */
+        if (slirp->proxy_server &&
+            (ip->ip_dst.s_addr & slirp->vnetwork_mask.s_addr) !=
+            slirp->vnetwork_addr.s_addr) {
+            goto bad;
+        }
+
 	/*
 	 * Locate pcb for datagram.
 	 */

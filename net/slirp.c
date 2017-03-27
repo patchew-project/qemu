@@ -139,6 +139,26 @@ static void net_slirp_cleanup(NetClientState *nc)
     QTAILQ_REMOVE(&slirp_stacks, s, entry);
 }
 
+static int net_slirp_add_proxy(SlirpState *s, const char *proxy_server,
+                               const char *proxy_user, const char *proxy_passwd)
+{
+    InetSocketAddress *addr;
+    int ret;
+
+    if (proxy_server == NULL) {
+        return 0;
+    }
+
+    addr = inet_parse(proxy_server, &error_fatal);
+
+    ret = slirp_add_proxy(s->slirp, addr->host, atoi(addr->port),
+                          proxy_user, proxy_passwd);
+
+    qapi_free_InetSocketAddress(addr);
+
+    return ret;
+}
+
 static NetClientInfo net_slirp_info = {
     .type = NET_CLIENT_DRIVER_USER,
     .size = sizeof(SlirpState),
@@ -155,7 +175,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *bootfile, const char *vdhcp_start,
                           const char *vnameserver, const char *vnameserver6,
                           const char *smb_export, const char *vsmbserver,
-                          const char **dnssearch)
+                          const char **dnssearch, const char *proxy_server,
+                          const char *proxy_user, const char *proxy_passwd)
 {
     /* default settings according to historic slirp */
     struct in_addr net  = { .s_addr = htonl(0x0a000200) }; /* 10.0.2.0 */
@@ -360,6 +381,10 @@ static int net_slirp_init(NetClientState *peer, const char *model,
             goto error;
     }
 #endif
+
+    if (net_slirp_add_proxy(s, proxy_server, proxy_user, proxy_passwd) < 0) {
+        goto error;
+    }
 
     s->exit_notifier.notify = slirp_smb_exit;
     qemu_add_exit_notifier(&s->exit_notifier);
@@ -878,7 +903,8 @@ int net_init_slirp(const Netdev *netdev, const char *name,
                          user->ipv6_host, user->hostname, user->tftp,
                          user->bootfile, user->dhcpstart,
                          user->dns, user->ipv6_dns, user->smb,
-                         user->smbserver, dnssearch);
+                         user->smbserver, dnssearch, user->proxy_server,
+                         user->proxy_user, user->proxy_passwd);
 
     while (slirp_configs) {
         config = slirp_configs;
