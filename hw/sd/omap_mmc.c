@@ -593,8 +593,7 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     /* Instantiate the storage */
-    s->card = sd_init(blk, false);
-    if (s->card == NULL) {
+    if (sd_init(s->card, blk, false) < 0) {
         exit(1);
     }
 
@@ -620,8 +619,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
     omap_l4_attach(ta, 0, &s->iomem);
 
     /* Instantiate the storage */
-    s->card = sd_init(blk, false);
-    if (s->card == NULL) {
+    if (sd_init(s->card, blk, false) < 0) {
         exit(1);
     }
 

@@ -562,7 +562,7 @@ static const VMStateDescription sd_vmstate = {
 };
 
 /* Legacy initialization function for use by non-qdevified callers */
-SDState *sd_init(BlockBackend *blk, bool is_spi)
+int sd_init(SDState *sd_state, BlockBackend *blk, bool is_spi)
 {
     Object *obj;
     DeviceState *dev;
@@ -573,16 +573,19 @@ SDState *sd_init(BlockBackend *blk, bool is_spi)
     qdev_prop_set_drive(dev, "drive", blk, &err);
     if (err) {
         error_report("sd_init failed: %s", error_get_pretty(err));
-        return NULL;
+        return -1;
     }
     qdev_prop_set_bit(dev, "spi", is_spi);
     object_property_set_bool(obj, true, "realized", &err);
     if (err) {
         error_report("sd_init failed: %s", error_get_pretty(err));
-        return NULL;
+        return -1;
     }
-
-    return SD_CARD(dev);
+    sd_state = SD_CARD(dev);
+    if (!sd_state) {
+		return -1;
+	}
+    return 0;
 }
 
 void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)

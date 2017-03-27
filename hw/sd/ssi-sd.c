@@ -244,8 +244,7 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
     s->mode = SSI_SD_CMD;
     /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
-    s->sd = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true);
-    if (s->sd == NULL) {
+    if (sd_init(s->sd, dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true) < 0) {
         error_setg(errp, "Device initialization failed.");
         return;
     }

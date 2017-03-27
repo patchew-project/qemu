@@ -502,8 +502,8 @@ static void pl181_realize(DeviceState *dev, Error **errp)
 
     /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
-    s->card = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, false);
-    if (s->card == NULL) {
+    if (sd_init(s->card, dinfo ?
+		blk_by_legacy_dinfo(dinfo) : NULL, false) < 0) {
         error_setg(errp, "sd_init failed");
     }
 }

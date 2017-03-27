@@ -115,7 +115,7 @@ typedef struct {
 } SDBusClass;
 
 /* Legacy functions to be used only by non-qdevified callers */
-SDState *sd_init(BlockBackend *bs, bool is_spi);
+int sd_init(SDState *sd, BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response);
 void sd_write_data(SDState *sd, uint8_t value);
