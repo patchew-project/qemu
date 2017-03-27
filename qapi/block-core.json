@@ -2618,9 +2618,6 @@
 # @server:             Monitor host address and port.  This maps
 #                      to the "mon_host" Ceph option.
 #
-# @password-secret:    The ID of a QCryptoSecret object providing
-#                      the password for the login.
-#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsRbd',
