@@ -135,6 +135,12 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         if (!drc->dev) {
             return RTAS_OUT_NO_SUCH_INDICATOR;
         }
+        if (drc->awaiting_release && drc->awaiting_allocation) {
+            /* kernel is acknowledging a previous hotplug event
+             * while we are already removing it.
+             */
+            return RTAS_OUT_NO_SUCH_INDICATOR;
+        }
     }
 
     if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI) {
