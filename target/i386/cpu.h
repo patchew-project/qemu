@@ -1228,6 +1228,9 @@ struct X86CPU {
     /* Features that were filtered out because of missing host capabilities */
     uint32_t filtered_features[FEATURE_WORDS];
 
+    /* Features that are force enabled despite incompatible accel */
+    uint32_t forced_features[FEATURE_WORDS];
+
     /* Enable PMU CPUID bits. This can't be enabled by default yet because
      * it doesn't have ABI stability guarantees, as it passes all PMU CPUID
      * bits returned by GET_SUPPORTED_CPUID (that depend on host CPU and kernel
