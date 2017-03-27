@@ -240,6 +240,7 @@ typedef struct V9fsState
     Error *migration_blocker;
     V9fsConf fsconf;
     V9fsQID root_qid;
+    bool transport_broken;
 } V9fsState;
 
 /* 9p2000.L open flags */
