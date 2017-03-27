@@ -22,19 +22,40 @@
 
 static const struct V9fsTransport virtio_9p_transport;
 
+static void virtio_9p_free_element(V9fsVirtioState *v, unsigned int idx)
+{
+    VirtQueueElement **pelem = &v->elems[idx];
+    g_free(*pelem);
+    *pelem = NULL;
+}
+
 static void virtio_9p_push_and_notify(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
-    VirtQueueElement *elem = v->elems[pdu->idx];
 
     /* push onto queue and notify */
-    virtqueue_push(v->vq, elem, pdu->size);
-    g_free(elem);
-    v->elems[pdu->idx] = NULL;
+    virtqueue_push(v->vq, v->elems[pdu->idx], pdu->size);
+    virtio_9p_free_element(v, pdu->idx);
 
     /* FIXME: we should batch these completions */
     virtio_notify(VIRTIO_DEVICE(v), v->vq);
+}
+
+static void virtio_9p_error_err(V9fsVirtioState *v, unsigned int idx,
+                                Error *err)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(v);
+
+    virtio_error_err(vdev, err);
+    virtqueue_detach_element(v->vq, v->elems[idx], 0);
+    virtio_9p_free_element(v, idx);
+}
+
+#define virtio_9p_error(v, idx, ...) { \
+    Error *err = NULL;                 \
+    error_setg(&err, ## __VA_ARGS__);  \
+    virtio_9p_error_err(v, idx, err);  \
 }
 
 static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -56,22 +77,19 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         if (!elem) {
             goto out_free_pdu;
         }
+        v->elems[pdu->idx] = elem;
 
         if (elem->in_num == 0) {
-            virtio_error(vdev,
-                         "The guest sent a VirtFS request without space for "
-                         "the reply");
-            goto out_free_req;
+            virtio_9p_error(v, pdu->idx, "The guest sent a VirtFS request without space for the reply");
+            goto out_free_pdu;
         }
         QEMU_BUILD_BUG_ON(sizeof(out) != 7);
 
-        v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                          &out, sizeof(out));
         if (len != sizeof(out)) {
-            virtio_error(vdev, "The guest sent a malformed VirtFS request: "
-                         "header size is %zd, should be 7", len);
-            goto out_free_req;
+            virtio_9p_error(v, pdu->idx, "The guest sent a malformed VirtFS request: header size is %zd, should be 7", len);
+            goto out_free_pdu;
         }
 
         pdu->size = le32_to_cpu(out.size_le);
@@ -85,9 +103,6 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
 
     return;
 
-out_free_req:
-    virtqueue_detach_element(vq, elem, 0);
-    g_free(elem);
 out_free_pdu:
     pdu_free(pdu);
 }
