@@ -285,6 +285,22 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 
     if (params) {
         monitor_printf(mon, "parameters:");
+        assert(params->has_announce_initial);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_ANNOUNCE_INITIAL],
+            params->announce_initial);
+        assert(params->has_announce_max);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_ANNOUNCE_MAX],
+            params->announce_max);
+        assert(params->has_announce_rounds);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_ANNOUNCE_ROUNDS],
+            params->announce_rounds);
+        assert(params->has_announce_step);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_ANNOUNCE_STEP],
+            params->announce_step);
         assert(params->has_compress_level);
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_COMPRESS_LEVEL],
@@ -1354,6 +1370,22 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         if (strcmp(param, MigrationParameter_lookup[i]) == 0) {
             MigrationParameters p = { 0 };
             switch (i) {
+            case MIGRATION_PARAMETER_ANNOUNCE_INITIAL:
+                p.has_announce_initial = true;
+                use_int_value = true;
+                break;
+            case MIGRATION_PARAMETER_ANNOUNCE_MAX:
+                p.has_announce_max = true;
+                use_int_value = true;
+                break;
+            case MIGRATION_PARAMETER_ANNOUNCE_ROUNDS:
+                p.has_announce_rounds = true;
+                use_int_value = true;
+                break;
+            case MIGRATION_PARAMETER_ANNOUNCE_STEP:
+                p.has_announce_step = true;
+                use_int_value = true;
+                break;
             case MIGRATION_PARAMETER_COMPRESS_LEVEL:
                 p.has_compress_level = true;
                 use_int_value = true;
@@ -1410,6 +1442,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 }
                 /* Set all integers; only one has_FOO will be set, and
                  * the code ignores the remaining values */
+                p.announce_initial = valueint;
+                p.announce_max = valueint;
+                p.announce_rounds = valueint;
+                p.announce_step = valueint;
                 p.compress_level = valueint;
                 p.compress_threads = valueint;
                 p.decompress_threads = valueint;
