@@ -53,6 +53,14 @@
 #define MAX_MIGRATE_DOWNTIME_SECONDS 2000
 #define MAX_MIGRATE_DOWNTIME (MAX_MIGRATE_DOWNTIME_SECONDS * 1000)
 
+/* Parameters for self_announce_delay giving a stream of RARP/ARP
+ * packets after migration.
+ */
+#define DEFAULT_MIGRATE_ANNOUNCE_INITIAL  50
+#define DEFAULT_MIGRATE_ANNOUNCE_MAX     550
+#define DEFAULT_MIGRATE_ANNOUNCE_ROUNDS    5
+#define DEFAULT_MIGRATE_ANNOUNCE_STEP    100
+
 /* Default compression thread count */
 #define DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT 8
 /* Default decompression thread count, usually decompression is at
@@ -97,6 +105,10 @@ MigrationState *migrate_get_current(void)
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
         .mbps = -1,
         .parameters = {
+            .announce_initial = DEFAULT_MIGRATE_ANNOUNCE_INITIAL,
+            .announce_max = DEFAULT_MIGRATE_ANNOUNCE_MAX,
+            .announce_rounds = DEFAULT_MIGRATE_ANNOUNCE_ROUNDS,
+            .announce_step = DEFAULT_MIGRATE_ANNOUNCE_STEP,
             .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
             .compress_threads = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
             .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
@@ -580,6 +592,14 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     MigrationState *s = migrate_get_current();
 
     params = g_malloc0(sizeof(*params));
+    params->has_announce_initial = true;
+    params->announce_initial = s->parameters.announce_initial;
+    params->has_announce_max = true;
+    params->announce_max = s->parameters.announce_max;
+    params->has_announce_rounds = true;
+    params->announce_rounds = s->parameters.announce_rounds;
+    params->has_announce_step = true;
+    params->announce_step = s->parameters.announce_step;
     params->has_compress_level = true;
     params->compress_level = s->parameters.compress_level;
     params->has_compress_threads = true;
@@ -809,6 +829,26 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
+    if (params->has_announce_initial &&
+        (params->announce_initial < 1 || params->announce_initial > 100000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "announce_initial",
+                   "is invalid, it should be in the range of 1 to 100000 ms");
+    }
+    if (params->has_announce_max &&
+        (params->announce_max < 1 || params->announce_max > 100000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "announce_max",
+                   "is invalid, it should be in the range of 1 to 100000 ms");
+    }
+    if (params->has_announce_rounds &&
+        (params->announce_rounds < 1 || params->announce_rounds > 1000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "announce_rounds",
+                   "is invalid, it should be in the range of 1 to 1000");
+    }
+    if (params->has_announce_step &&
+        (params->announce_step < 0 || params->announce_step > 10000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "announce_step",
+                   "is invalid, it should be in the range of 1 to 10000 ms");
+    }
     if (params->has_compress_level &&
         (params->compress_level < 0 || params->compress_level > 9)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
@@ -865,6 +905,18 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
                     "is invalid, it should be positive");
     }
 
+    if (params->has_announce_initial) {
+        s->parameters.announce_initial = params->announce_initial;
+    }
+    if (params->has_announce_max) {
+        s->parameters.announce_max = params->announce_max;
+    }
+    if (params->has_announce_rounds) {
+        s->parameters.announce_rounds = params->announce_rounds;
+    }
+    if (params->has_announce_step) {
+        s->parameters.announce_step = params->announce_step;
+    }
     if (params->has_compress_level) {
         s->parameters.compress_level = params->compress_level;
     }

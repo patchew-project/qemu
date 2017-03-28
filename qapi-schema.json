@@ -960,6 +960,18 @@
 #
 # Migration parameters enumeration
 #
+# @announce-initial: The inital delay (in ms) before sending the first announce
+#          (Since 2.10)
+#
+# @announce-max: The maximum delay (in ms) between packets in the announcment
+#          (Since 2.10)
+#
+# @announce-rounds: The number of self-announce packets sent after migration
+#          (Since 2.10)
+#
+# @announce-step: The increase in delay (in ms) between subsequent packets in
+#          the announcement (Since 2.10)
+#
 # @compress-level: Set the compression level to be used in live migration,
 #          the compression level is an integer between 0 and 9, where 0 means
 #          no compression, 1 means the best compression speed, and 9 means best
@@ -1009,7 +1021,9 @@
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
-  'data': ['compress-level', 'compress-threads', 'decompress-threads',
+  'data': ['announce-initial', 'announce-max',
+           'announce-rounds', 'announce-step',
+           'compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay' ] }
@@ -1037,6 +1051,18 @@
 # but most members will always be present on output
 # ('query-migrate-parameters'), with the exception of tls-creds and
 # tls-hostname.
+#
+# @announce-initial: The inital delay (in ms) before sending the first announce
+#          (Since 2.10)
+#
+# @announce-max: The maximum delay (in ms) between packets in the announcment
+#          (Since 2.10)
+#
+# @announce-rounds: The number of self-announce packets sent after migration
+#          (Since 2.10)
+#
+# @announce-step: The increase in delay (in ms) between subsequent packets in
+#          the announcement (Since 2.10)
 #
 # @compress-level: compression level
 #
@@ -1082,7 +1108,11 @@
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { '*compress-level': 'int',
+  'data': { '*announce-initial': 'int',
+            '*announce-max': 'int',
+            '*announce-rounds': 'int',
+            '*announce-step': 'int',
+            '*compress-level': 'int',
             '*compress-threads': 'int',
             '*decompress-threads': 'int',
             '*cpu-throttle-initial': 'int',
