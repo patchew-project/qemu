@@ -22,7 +22,7 @@ void udp6_input(struct mbuf *m)
     DEBUG_CALL("udp6_input");
     DEBUG_ARG("m = %lx", (long)m);
 
-    if (slirp->restricted) {
+    if (slirp->restricted || slirp->proxy_server) {
         goto bad;
     }
 

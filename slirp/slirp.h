@@ -214,6 +214,12 @@ struct Slirp {
     char *tftp_prefix;
     struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
 
+    /* proxy */
+    char *proxy_server;
+    int proxy_port;
+    char *proxy_user;
+    char *proxy_password;
+
     ArpTable arp_table;
     NdpTable ndp_table;
 
