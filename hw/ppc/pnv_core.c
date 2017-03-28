@@ -25,6 +25,7 @@
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_xscom.h"
+#include "hw/ppc/xics.h"
 
 static void powernv_cpu_reset(void *opaque)
 {
@@ -43,7 +44,7 @@ static void powernv_cpu_reset(void *opaque)
     env->msr |= MSR_HVB; /* Hypervisor mode */
 }
 
-static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
+static void powernv_cpu_init(PowerPCCPU *cpu, XICSFabric *xi, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     int core_pir;
@@ -63,6 +64,9 @@ static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
     cpu_ppc_tb_init(env, PNV_TIMEBASE_FREQ);
 
     qemu_register_reset(powernv_cpu_reset, cpu);
+
+    cpu->icp = OBJECT(xics_icp_get(xi, pir->default_value));
+    xics_cpu_setup(xi, cpu);
 }
 
 /*
@@ -110,7 +114,7 @@ static const MemoryRegionOps pnv_core_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_core_realize_child(Object *child, Error **errp)
+static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
 {
     Error *local_err = NULL;
     CPUState *cs = CPU(child);
@@ -122,7 +126,7 @@ static void pnv_core_realize_child(Object *child, Error **errp)
         return;
     }
 
-    powernv_cpu_init(cpu, &local_err);
+    powernv_cpu_init(cpu, xi, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -140,6 +144,14 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
     char name[32];
+    Object *xi;
+
+    xi = object_property_get_link(OBJECT(dev), "xics", &local_err);
+    if (!xi) {
+        error_setg(errp, "%s: required link 'xics' not found: %s",
+                   __func__, error_get_pretty(local_err));
+        return;
+    }
 
     pc->threads = g_malloc0(size * cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
@@ -160,7 +172,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     for (j = 0; j < cc->nr_threads; j++) {
         obj = pc->threads + j * size;
 
-        pnv_core_realize_child(obj, &local_err);
+        pnv_core_realize_child(obj, XICS_FABRIC(xi), &local_err);
         if (local_err) {
             goto err;
         }
