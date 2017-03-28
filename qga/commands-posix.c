@@ -15,6 +15,7 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <dirent.h>
+#include <utmpx.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
@@ -2514,4 +2515,38 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
 #if defined(CONFIG_FSFREEZE)
     ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
 #endif
+}
+
+GuestUserList *qmp_guest_get_users(Error **err)
+{
+    GHashTable *cache = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                              NULL, NULL);
+    GuestUserList *head = NULL, *cur_item = NULL;
+    setutxent();
+    for (;;) {
+        struct utmpx *user_info = getutxent();
+        if (user_info == NULL) {
+            break;
+        } else if (user_info->ut_type != USER_PROCESS) {
+            continue;
+        } else if (g_hash_table_contains(cache, user_info->ut_user)) {
+            continue;
+        }
+
+        g_hash_table_insert(cache, user_info->ut_user, NULL);
+
+        GuestUserList *item = g_new0(GuestUserList, 1);
+        item->value = g_new0(GuestUser, 1);
+        item->value->user = g_strdup(user_info->ut_user);
+
+        if (!cur_item) {
+            head = cur_item = item;
+        } else {
+            cur_item->next = item;
+            cur_item = item;
+        }
+    }
+    endutxent();
+    g_hash_table_unref(cache);
+    return head;
 }

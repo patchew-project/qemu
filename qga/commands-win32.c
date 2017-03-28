@@ -1536,3 +1536,83 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
 }
+
+GuestUserList *qmp_guest_get_users(Error **err)
+{
+    GHashTable *cache = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                              NULL, NULL);
+    GuestUserList *head = NULL, *cur_item = NULL;
+
+    LPWKSTA_USER_INFO_1 buffer = NULL, iter_buffer = 0;
+    DWORD level = 1; /* Level 1 has more information */
+    DWORD prefered_max_length = MAX_PREFERRED_LENGTH;
+    DWORD entries_read = 0;
+    DWORD total_entries = 0;
+    DWORD resume_handle = 0;
+    LPWSTR server_name = NULL;
+    NET_API_STATUS result = ERROR_MORE_DATA;
+
+    while (result == ERROR_MORE_DATA) {
+        result = NetWkstaUserEnum(
+            server_name,
+            level,
+            (LPBYTE *)&buffer,
+            prefered_max_length,
+            &entries_read,
+            &total_entries,
+            &resume_handle);
+
+        if (result != ERROR_MORE_DATA && result != ERROR_SUCCESS) {
+            error_setg_win32(err, result, "Failed to enumerate active users");
+            goto error;
+        }
+
+        iter_buffer = buffer;
+        DWORD i = 0;
+        for (i = 0; i < entries_read; ++i, ++iter_buffer) {
+            gchar *name = g_utf16_to_utf8(
+                iter_buffer->wkui1_username,
+                -1, NULL, NULL, NULL
+            );
+
+            if (name == NULL) {
+                continue;
+            }
+
+            if (g_hash_table_contains(cache, name)) {
+                g_free(name);
+                continue;
+            }
+
+            gchar *domain = g_utf16_to_utf8(
+                iter_buffer->wkui1_logon_domain,
+                -1, NULL, NULL, NULL
+            );
+
+            g_hash_table_insert(cache, name, NULL);
+            GuestUserList *item = g_new0(GuestUserList, 1);
+            item->value = g_new0(GuestUser, 1);
+            item->value->user = name;
+            item->value->domain = domain;
+            item->value->has_domain = true;
+
+            if (!cur_item) {
+                head = cur_item = item;
+            } else {
+                cur_item->next = item;
+                cur_item = item;
+            }
+        }
+    }
+    NetApiBufferFree(buffer);
+    g_hash_table_unref(cache);
+    return head;
+
+error:
+    if (buffer != NULL) {
+        NetApiBufferFree(buffer);
+    }
+    g_hash_table_unref(cache);
+    qapi_free_GuestUserList(head);
+    return NULL;
+}

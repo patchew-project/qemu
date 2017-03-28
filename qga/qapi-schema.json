@@ -1042,3 +1042,24 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+##
+# @GuestUser:
+# @user:      Username
+# @domain:    Logon domain (windows only)
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestUser',
+  'data': { 'user': 'str', '*domain': 'str' } }
+
+##
+# @guest-get-users:
+# Retrieves a list of currently active user accounts on the VM.
+#
+# Returns: A unique list of users.
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-users',
+  'returns': ['GuestUser'] }
