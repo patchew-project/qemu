@@ -52,7 +52,7 @@ int xics_get_cpu_index_by_dt_id(int cpu_dt_id)
 void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    ICPState *icp = xics_icp_get(xi, cs->cpu_index);
+    ICPState *icp = ICP(cpu->icp);
 
     assert(icp);
     assert(cs == icp->cs);
@@ -65,7 +65,7 @@ void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    ICPState *icp = xics_icp_get(xi, cs->cpu_index);
+    ICPState *icp = ICP(cpu->icp);
     ICPStateClass *icpc;
 
     assert(icp);
