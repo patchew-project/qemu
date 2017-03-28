@@ -118,16 +118,44 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
     qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
 }
 
+/* Increasing delays between packets in the network announcments,
+ * both in the RARPs sent by QEMU and the ARPs triggered via virtio-net
+ * for the guest to send.
+ *
+ * Default parameters generate delays of
+ *   50, 150, 250, 350
+ *   between 5 packets.
+ * which corresponds to:
+ *  <> initial <> initial+step <> initial+2*step <> initial+3*step <>
+ *   between 'rounds' packets
+ * A maximum can be used to override the step after a few packets.
+ */
+int64_t self_announce_delay(int round)
+{
+    int64_t ret;
+    ret = migrate_announce_initial() +
+           (migrate_announce_rounds() - round - 1) *
+           migrate_announce_step();
+    if (ret < 0 || ret > migrate_announce_max()) {
+        ret = migrate_announce_max();
+    }
+    return ret;
+}
 
 static void qemu_announce_self_once(void *opaque)
 {
-    static int count = SELF_ANNOUNCE_ROUNDS;
+    static bool once = true;
+    static int count = -1;
     QEMUTimer *timer = *(QEMUTimer **)opaque;
+
+    if (once) {
+        count = migrate_announce_rounds();
+        once = false;
+    }
 
     qemu_foreach_nic(qemu_announce_self_iter, NULL);
 
     if (--count) {
-        /* delay 50ms, 150ms, 250ms, ... */
         timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
                   self_announce_delay(count));
     } else {

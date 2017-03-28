@@ -344,6 +344,7 @@ int migrate_announce_initial(void);
 int migrate_announce_max(void);
 int migrate_announce_rounds(void);
 int migrate_announce_step(void);
+int64_t self_announce_delay(int round);
 
 /* Sending on the return path - generic and then for each message type */
 void migrate_send_rp_message(MigrationIncomingState *mis,
