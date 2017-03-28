@@ -54,6 +54,7 @@ typedef struct PCIHostBridgeClass {
     SysBusDeviceClass parent_class;
 
     const char *(*root_bus_path)(PCIHostState *, PCIBus *);
+    bool (*allow_hybrid_pcie)(PCIHostState *, PCIDevice *);
 } PCIHostBridgeClass;
 
 /* common internal helpers for PCI/PCIe hosts, cut off overflows */

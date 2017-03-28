@@ -392,9 +392,16 @@ bool pci_bus_is_root(PCIBus *bus)
 
 bool pci_allow_hybrid_pcie(PCIDevice *pci_dev)
 {
-    PCIBus *bus = pci_dev->bus;
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(pci_device_root_bus(pci_dev)->qbus.parent);
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_GET_CLASS(host_bridge);
 
-    return pci_bus_is_express(bus) && !pci_bus_is_root(bus);
+    if (hc->allow_hybrid_pcie) {
+        return hc->allow_hybrid_pcie(host_bridge, pci_dev);
+    } else {
+        PCIBus *bus = pci_dev->bus;
+
+        return pci_bus_is_express(bus) && !pci_bus_is_root(bus);
+    }
 }
 
 void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
