@@ -33,7 +33,10 @@
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
+#include "hw/intc/intc.h"
 
+#include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
@@ -417,6 +420,23 @@ static void ppc_powernv_init(MachineState *machine)
         machine->cpu_model = "POWER8";
     }
 
+    /* Create the Interrupt Control Presenters before the vCPUs */
+    pnv->nr_servers = pnv->num_chips * smp_cores * smp_threads;
+    pnv->icps = g_new0(PnvICPState, pnv->nr_servers);
+    for (i = 0; i < pnv->nr_servers; i++) {
+        PnvICPState *icp = &pnv->icps[i];
+        char name[32];
+
+        /* TODO: fix ICP object name to be in sync with the core name */
+        snprintf(name, sizeof(name), "icp[%d]", i);
+        object_initialize(icp, sizeof(*icp), TYPE_PNV_ICP);
+        object_property_add_child(OBJECT(pnv), name, OBJECT(icp),
+                                  &error_fatal);
+        object_property_add_const_link(OBJECT(icp), "xics", OBJECT(pnv),
+                                       &error_fatal);
+        object_property_set_bool(OBJECT(icp), true, "realized", &error_fatal);
+    }
+
     /* Create the processor chips */
     chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%s", machine->cpu_model);
     if (!object_class_by_name(chip_typename)) {
@@ -737,6 +757,71 @@ static const TypeInfo pnv_chip_info = {
     .abstract      = true,
 };
 
+static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        /* place holder */
+    }
+    return NULL;
+}
+
+static void pnv_ics_resend(XICSFabric *xi)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        /* place holder */
+    }
+}
+
+static PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
+
+        if (env->spr_cb[SPR_PIR].default_value == pir) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
+static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    PowerPCCPU *cpu = ppc_get_vcpu_by_pir(pir);
+
+    if (!cpu) {
+        return NULL;
+    }
+
+    assert(cpu->parent_obj.cpu_index < pnv->nr_servers);
+    return ICP(&pnv->icps[cpu->parent_obj.cpu_index]);
+}
+
+static void pnv_pic_print_info(InterruptStatsProvider *obj,
+                               Monitor *mon)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    int i;
+
+    for (i = 0; i < pnv->nr_servers; i++) {
+        icp_pic_print_info(ICP(&pnv->icps[i]), mon);
+    }
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        /* place holder */
+    }
+}
+
 static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
@@ -787,6 +872,8 @@ static void powernv_machine_class_props_init(ObjectClass *oc)
 static void powernv_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
+    InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     mc->desc = "IBM PowerNV (Non-Virtualized)";
     mc->init = ppc_powernv_init;
@@ -797,6 +884,10 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_boot_order = NULL;
     mc->default_ram_size = 1 * G_BYTE;
+    xic->icp_get = pnv_icp_get;
+    xic->ics_get = pnv_ics_get;
+    xic->ics_resend = pnv_ics_resend;
+    ispc->print_info = pnv_pic_print_info;
 
     powernv_machine_class_props_init(oc);
 }
@@ -807,6 +898,11 @@ static const TypeInfo powernv_machine_info = {
     .instance_size = sizeof(PnvMachineState),
     .instance_init = powernv_machine_initfn,
     .class_init    = powernv_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_XICS_FABRIC },
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { },
+    },
 };
 
 static void powernv_machine_register_types(void)
