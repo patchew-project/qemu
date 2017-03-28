@@ -110,6 +110,7 @@ typedef struct BlkMigState {
     int transferred;
     int prev_progress;
     int bulk_completed;
+    int time_ns_used;
 
     /* Lock must be taken _inside_ the iothread lock and any AioContexts.  */
     QemuMutex lock;
@@ -263,6 +264,7 @@ static void blk_mig_read_cb(void *opaque, int ret)
     blk_mig_unlock();
 }
 
+#define BILLION 1000000000L
 /* Called with no lock taken.  */
 
 static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
@@ -272,16 +274,33 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     BlockBackend *bb = bmds->blk;
     BlkMigBlock *blk;
     int nr_sectors;
+    struct timespec ts1, ts2;
+    int ret = 0;
+    int timeout_flag = 0;
 
     if (bmds->shared_base) {
         qemu_mutex_lock_iothread();
         aio_context_acquire(blk_get_aio_context(bb));
         /* Skip unallocated sectors; intentionally treats failure as
          * an allocated sector */
-        while (cur_sector < total_sectors &&
-               !bdrv_is_allocated(blk_bs(bb), cur_sector,
-                                  MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
-            cur_sector += nr_sectors;
+        while (cur_sector < total_sectors) {
+            clock_gettime(CLOCK_MONOTONIC_RAW, &ts1);
+            ret = bdrv_is_allocated(blk_bs(bb), cur_sector,
+                                    MAX_IS_ALLOCATED_SEARCH, &nr_sectors);
+            clock_gettime(CLOCK_MONOTONIC_RAW, &ts2);
+
+            block_mig_state.time_ns_used += (ts2.tv_sec - ts1.tv_sec) * BILLION
+                          + (ts2.tv_nsec - ts1.tv_nsec);
+
+            if (!ret) {
+                cur_sector += nr_sectors;
+                if (block_mig_state.time_ns_used > 100000) {
+                    timeout_flag = 1;
+                    break;
+                }
+            } else {
+                break;
+            }
         }
         aio_context_release(blk_get_aio_context(bb));
         qemu_mutex_unlock_iothread();
@@ -290,6 +309,11 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     if (cur_sector >= total_sectors) {
         bmds->cur_sector = bmds->completed_sectors = total_sectors;
         return 1;
+    }
+
+    if (timeout_flag == 1) {
+        bmds->cur_sector = bmds->completed_sectors = cur_sector;
+        return 0;
     }
 
     bmds->completed_sectors = cur_sector;
@@ -576,9 +600,6 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
             }
 
             bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, sector, nr_sectors);
-            sector += nr_sectors;
-            bmds->cur_dirty = sector;
-
             break;
         }
         sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
@@ -756,6 +777,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     }
 
     blk_mig_reset_dirty_cursor();
+    block_mig_state.time_ns_used = 0;
 
     /* control the rate of transfer */
     blk_mig_lock();
@@ -764,7 +786,8 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
            qemu_file_get_rate_limit(f) &&
            (block_mig_state.submitted +
             block_mig_state.read_done) <
-           MAX_INFLIGHT_IO) {
+           MAX_INFLIGHT_IO &&
+           block_mig_state.time_ns_used <= 100000) {
         blk_mig_unlock();
         if (block_mig_state.bulk_completed == 0) {
             /* first finish the bulk phase */
