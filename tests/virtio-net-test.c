@@ -55,7 +55,7 @@ static QOSState *pci_test_start(int socket)
 {
     const char *arch = qtest_get_arch();
     const char *cmd = "-netdev socket,fd=%d,id=hs0 -device "
-                      "virtio-net-pci,netdev=hs0";
+                      "virtio-net-pci,netdev=hs0,disable-legacy=off";
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         return qtest_pc_boot(cmd, socket);

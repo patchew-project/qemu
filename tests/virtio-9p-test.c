@@ -32,7 +32,7 @@ static QVirtIO9P *qvirtio_9p_start(const char *driver)
 {
     const char *arch = qtest_get_arch();
     const char *cmd = "-fsdev local,id=fsdev0,security_model=none,path=%s "
-                      "-device %s,fsdev=fsdev0,mount_tag=%s";
+                      "-device %s,fsdev=fsdev0,mount_tag=%s,disable-legacy=off";
     QVirtIO9P *v9p = g_new0(QVirtIO9P, 1);
 
     v9p->test_share = g_strdup("/tmp/qtest.XXXXXX");

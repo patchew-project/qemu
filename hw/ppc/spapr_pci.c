@@ -1979,6 +1979,14 @@ static const char *spapr_phb_root_bus_path(PCIHostState *host_bridge,
     return sphb->dtbusname;
 }
 
+static bool spapr_phb_allow_hybrid_pcie(PCIHostState *host_bridge,
+                                        PCIDevice *pci_dev)
+{
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(host_bridge);
+
+    return sphb->pcie_ecs;
+}
+
 static void spapr_phb_class_init(ObjectClass *klass, void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
@@ -1986,6 +1994,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     HotplugHandlerClass *hp = HOTPLUG_HANDLER_CLASS(klass);
 
     hc->root_bus_path = spapr_phb_root_bus_path;
+    hc->allow_hybrid_pcie = spapr_phb_allow_hybrid_pcie;
     dc->realize = spapr_phb_realize;
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;

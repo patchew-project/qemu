@@ -65,7 +65,7 @@ static QOSState *pci_test_start(void)
     const char *cmd = "-drive if=none,id=drive0,file=%s,format=raw "
                       "-drive if=none,id=drive1,file=/dev/null,format=raw "
                       "-device virtio-blk-pci,id=drv0,drive=drive0,"
-                      "addr=%x.%x";
+                      "addr=%x.%x,disable-legacy=off";
 
     tmp_path = drive_create();
 
@@ -656,7 +656,7 @@ static void pci_hotplug(void)
 
     /* plug secondary disk */
     qpci_plug_device_test("virtio-blk-pci", "drv1", PCI_SLOT_HP,
-                          "'drive': 'drive1'");
+                          "'drive': 'drive1', 'disable-legacy': 'off'");
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT_HP);
     g_assert(dev);

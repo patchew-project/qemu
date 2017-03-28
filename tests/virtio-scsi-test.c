@@ -36,7 +36,7 @@ static QOSState *qvirtio_scsi_start(const char *extra_opts)
 {
     const char *arch = qtest_get_arch();
     const char *cmd = "-drive id=drv0,if=none,file=/dev/null,format=raw "
-                      "-device virtio-scsi-pci,id=vs0 "
+                      "-device virtio-scsi-pci,id=vs0,disable-legacy=off "
                       "-device scsi-hd,bus=vs0.0,drive=drv0 %s";
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
