@@ -1483,6 +1483,26 @@ int64_t migrate_xbzrle_cache_size(void)
     return s->xbzrle_cache_size;
 }
 
+int migrate_announce_initial(void)
+{
+    return migrate_get_current()->parameters.announce_initial;
+}
+
+int migrate_announce_max(void)
+{
+    return migrate_get_current()->parameters.announce_max;
+}
+
+int migrate_announce_rounds(void)
+{
+    return migrate_get_current()->parameters.announce_rounds;
+}
+
+int migrate_announce_step(void)
+{
+    return migrate_get_current()->parameters.announce_step;
+}
+
 /* migration thread support */
 /*
  * Something bad happened to the RP stream, mark an error
