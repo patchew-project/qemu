@@ -1737,8 +1737,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
-    bool pcie_port = pci_bus_is_express(pci_dev->bus) &&
-                     !pci_bus_is_root(pci_dev->bus);
+    bool pcie_port = pci_allow_hybrid_pcie(pci_dev);
 
     if (!kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;

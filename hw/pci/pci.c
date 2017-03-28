@@ -390,6 +390,13 @@ bool pci_bus_is_root(PCIBus *bus)
     return PCI_BUS_GET_CLASS(bus)->is_root(bus);
 }
 
+bool pci_allow_hybrid_pcie(PCIDevice *pci_dev)
+{
+    PCIBus *bus = pci_dev->bus;
+
+    return pci_bus_is_express(bus) && !pci_bus_is_root(bus);
+}
+
 void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,

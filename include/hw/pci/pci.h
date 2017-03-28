@@ -453,6 +453,7 @@ void pci_for_each_bus(PCIBus *bus,
 
 PCIBus *pci_find_primary_bus(void);
 PCIBus *pci_device_root_bus(const PCIDevice *d);
+bool pci_allow_hybrid_pcie(PCIDevice *pci_dev);
 const char *pci_root_bus_path(PCIDevice *dev);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
