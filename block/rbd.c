@@ -886,6 +886,7 @@ static int qemu_rbd_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 
     r = rbd_resize(s->image, offset);
     if (r < 0) {
+        error_setg_errno(errp, -r, "Failed to resize file");
         return r;
     }
 

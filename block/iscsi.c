@@ -2066,6 +2066,7 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
     Error *local_err = NULL;
 
     if (iscsilun->type != TYPE_DISK) {
+        error_setg(errp, "Cannot resize non-disk iSCSI devices");
         return -ENOTSUP;
     }
 
@@ -2076,6 +2077,7 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
     }
 
     if (offset > iscsi_getlength(bs)) {
+        error_setg(errp, "Cannot grow iSCSI devices");
         return -EINVAL;
     }
 
