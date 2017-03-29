@@ -3647,7 +3647,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
      * cs->nr_threads hasn't be populated yet and the checking is incorrect.
      */
-    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned) {
+    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned && kvm_enabled()) {
         error_report("AMD CPU doesn't support hyperthreading. Please configure"
                      " -smp options properly.");
         ht_warned = true;
