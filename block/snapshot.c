@@ -27,6 +27,7 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qstring.h"
 
 QemuOptsList internal_snapshot_opts = {
     .name = "snapshot",
@@ -189,11 +190,20 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
     }
 
     if (bs->file) {
+        QDict *options = qdict_clone_shallow(bs->options);
+        QDict *file_options;
+
+        qdict_extract_subqdict(options, &file_options, "file.");
+        QDECREF(file_options);
+        qdict_put(options, "file",
+                  qstring_from_str(bdrv_get_node_name(bs->file->bs)));
+
         drv->bdrv_close(bs);
         ret = bdrv_snapshot_goto(bs->file->bs, snapshot_id);
-        open_ret = drv->bdrv_open(bs, NULL, bs->open_flags, NULL);
+        open_ret = drv->bdrv_open(bs, options, bs->open_flags, NULL);
+        QDECREF(options);
         if (open_ret < 0) {
-            bdrv_unref(bs->file->bs);
+            bdrv_unref_child(bs, bs->file);
             bs->drv = NULL;
             return open_ret;
         }
