@@ -1157,6 +1157,12 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     if (file != NULL) {
         filename = blk_bs(file)->filename;
     } else {
+       /*
+        * Caution: direct use of non-string @options members is
+        * problematic.  When they come from -blockdev or blockdev_add,
+        * members are typed according to the QAPI schema, but when
+        * they come from -drive, they're all QString.
+        */
         filename = qdict_get_try_str(options, "filename");
     }
 
@@ -1324,6 +1330,12 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
 
+    /*
+     * Caution: direct use of non-string @options members is
+     * problematic.  When they come from -blockdev or blockdev_add,
+     * members are typed according to the QAPI schema, but when they
+     * come from -drive, they're all QString.
+     */
     drvname = qdict_get_try_str(*options, "driver");
     if (drvname) {
         drv = bdrv_find_format(drvname);
@@ -1358,6 +1370,7 @@ static int bdrv_fill_options(QDict **options, const char *filename,
     }
 
     /* Find the right block driver */
+    /* Direct use of @options members is problematic, see note above */
     filename = qdict_get_try_str(*options, "filename");
 
     if (!drvname && protocol) {
@@ -1987,6 +2000,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     qdict_extract_subqdict(parent_options, &options, bdref_key_dot);
     g_free(bdref_key_dot);
 
+    /*
+     * Caution: direct use of non-string @parent_options members is
+     * problematic.  When they come from -blockdev or blockdev_add,
+     * members are typed according to the QAPI schema, but when they
+     * come from -drive, they're all QString.
+     */
     reference = qdict_get_try_str(parent_options, bdref_key);
     if (reference || qdict_haskey(options, "file.filename")) {
         backing_filename[0] = '\0';
@@ -2059,6 +2078,12 @@ bdrv_open_child_bs(const char *filename, QDict *options, const char *bdref_key,
     qdict_extract_subqdict(options, &image_options, bdref_key_dot);
     g_free(bdref_key_dot);
 
+    /*
+     * Caution: direct use of non-string @options members is
+     * problematic.  When they come from -blockdev or blockdev_add,
+     * members are typed according to the QAPI schema, but when they
+     * come from -drive, they're all QString.
+     */
     reference = qdict_get_try_str(options, bdref_key);
     if (!filename && !reference && !qdict_size(image_options)) {
         if (!allow_none) {
@@ -2275,8 +2300,11 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     }
 
     /* Set the BDRV_O_RDWR and BDRV_O_ALLOW_RDWR flags.
-     * FIXME: we're parsing the QDict to avoid having to create a
-     * QemuOpts just for this, but neither option is optimal. */
+     * Caution: direct use of non-string @options members is
+     * problematic.  When they come from -blockdev or blockdev_add,
+     * members are typed according to the QAPI schema, but when they
+     * come from -drive, they're all QString.
+     */
     if (g_strcmp0(qdict_get_try_str(options, BDRV_OPT_READ_ONLY), "on") &&
         !qdict_get_try_bool(options, BDRV_OPT_READ_ONLY, false)) {
         flags |= (BDRV_O_RDWR | BDRV_O_ALLOW_RDWR);
@@ -2298,6 +2326,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     options = qdict_clone_shallow(options);
 
     /* Find the right image format driver */
+    /* Direct use of @options members is problematic, see note above */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
         drv = bdrv_find_format(drvname);
@@ -2309,6 +2338,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     assert(drvname || !(flags & BDRV_O_PROTOCOL));
 
+    /* Direct use of @options members is problematic, see note above */
     backing = qdict_get_try_str(options, "backing");
     if (backing && *backing == '\0') {
         flags |= BDRV_O_NO_BACKING;
@@ -2787,6 +2817,13 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         do {
             QString *new_obj = qobject_to_qstring(entry->value);
             const char *new = qstring_get_str(new_obj);
+           /*
+            * Caution: direct use of non-string bs->options members is
+            * problematic.  When they come from -blockdev or
+            * blockdev_add, members are typed according to the QAPI
+            * schema, but when they come from -drive, they're all
+            * QString.
+            */
             const char *old = qdict_get_try_str(reopen_state->bs->options,
                                                 entry->key);
 
