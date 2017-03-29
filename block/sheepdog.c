@@ -1175,14 +1175,14 @@ static void sd_parse_filename(const char *filename, QDict *options,
     }
 
     if (cfg.host) {
-        qdict_set_default_str(options, "host", cfg.host);
+        qdict_set_default_str(options, "server.host", cfg.host);
     }
     if (cfg.port) {
         snprintf(buf, sizeof(buf), "%d", cfg.port);
-        qdict_set_default_str(options, "port", buf);
+        qdict_set_default_str(options, "server.port", buf);
     }
     if (cfg.path) {
-        qdict_set_default_str(options, "path", cfg.path);
+        qdict_set_default_str(options, "server.path", cfg.path);
     }
     qdict_set_default_str(options, "vdi", cfg.vdi);
     qdict_set_default_str(options, "tag", cfg.tag);
@@ -1510,15 +1510,15 @@ static QemuOptsList runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "host",
+            .name = "server.host",
             .type = QEMU_OPT_STRING,
         },
         {
-            .name = "port",
+            .name = "server.port",
             .type = QEMU_OPT_STRING,
         },
         {
-            .name = "path",
+            .name = "server.path",
             .type = QEMU_OPT_STRING,
         },
         {
@@ -1560,9 +1560,9 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
         goto err_no_fd;
     }
 
-    host = qemu_opt_get(opts, "host");
-    port = qemu_opt_get(opts, "port");
-    path = qemu_opt_get(opts, "path");
+    host = qemu_opt_get(opts, "server.host");
+    port = qemu_opt_get(opts, "server.port");
+    path = qemu_opt_get(opts, "server.path");
     vdi = qemu_opt_get(opts, "vdi");
     snap_id_str = qemu_opt_get(opts, "snap-id");
     snap_id = qemu_opt_get_number(opts, "snap-id", CURRENT_VDI_ID);
