@@ -474,6 +474,52 @@ struct TypeInfo
     ((Object *)(obj))
 
 /**
+ * REFERENCED_TYPE:
+ * @t: a pointer type
+ *
+ * Returns the referenced type of a pointer type.
+ */
+#define REFERENCED_TYPE(t) \
+    typeof(*((t)0))
+
+/**
+ * QUALIFIED_CAST:
+ * @orig_type: Original type (a pointer type)
+ * @type: A pointer type to which an expression will be cast to.
+ *
+ * Helper to cast an expression to another pointer type while
+ * keeping the 'const' qualifier if it was present in
+ * @orig_type. If the compiler doesn't support _Generic, it
+ * becomes a regular non-const cast.
+ *
+ * Usage examples:
+ *   QUALIFIED_CAST(AType *, BType *)(expr)
+ *     equivalent to (BType *)(expr)
+ *
+ *   QUALIFIED_CAST(const AType *, BType *)(expr)
+ *     If supported, equivalent to: (const BType *)(expr)
+ *     otherwise, equivalent to:          (BType *)(expr)
+ *
+ *   AType *a;
+ *   QUALIFIED_CAST(typeof(a), BType *)(b)
+ *     equivalent to (BType *)(b)
+ *
+ *   const AType *a;
+ *   QUALIFIED_CAST(typeof(a), BType *)(b)
+ *     If supported, equivalent to: (const BType *)(expr)
+ *     otherwise, equivalent to:          (BType *)(expr)
+ */
+#ifdef HAVE_C11_GENERIC
+#define QUALIFIED_CAST(orig_type, type)                     \
+    (typeof(_Generic((const REFERENCED_TYPE(orig_type) *)0, \
+                     orig_type: (const type)(0),            \
+                     default:   (type)(0))))
+#else
+#define QUALIFIED_CAST(orig_type, type) \
+    (type)
+#endif
+
+/**
  * OBJECT_CLASS:
  * @class: A derivative of #ObjectClass.
  *
