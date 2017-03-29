@@ -34,6 +34,7 @@
 #include "qemu/cutils.h"
 #include "qapi/visitor.h"
 
+#include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
@@ -739,6 +740,39 @@ static const TypeInfo pnv_chip_info = {
     .abstract      = true,
 };
 
+/* The XICS layer needs valid handlers for the ICS objects also */
+static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
+{
+    return NULL;
+}
+
+static void pnv_ics_resend(XICSFabric *xi)
+{
+}
+
+static PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *env = &cpu->env;
+
+        if (env->spr_cb[SPR_PIR].default_value == pir) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
+static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
+{
+    PowerPCCPU *cpu = ppc_get_vcpu_by_pir(pir);
+
+    return cpu ? ICP(cpu->intc) : NULL;
+}
+
 static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
@@ -789,6 +823,7 @@ static void powernv_machine_class_props_init(ObjectClass *oc)
 static void powernv_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
 
     mc->desc = "IBM PowerNV (Non-Virtualized)";
     mc->init = ppc_powernv_init;
@@ -799,6 +834,9 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_boot_order = NULL;
     mc->default_ram_size = 1 * G_BYTE;
+    xic->icp_get = pnv_icp_get;
+    xic->ics_get = pnv_ics_get;
+    xic->ics_resend = pnv_ics_resend;
 
     powernv_machine_class_props_init(oc);
 }
@@ -809,6 +847,10 @@ static const TypeInfo powernv_machine_info = {
     .instance_size = sizeof(PnvMachineState),
     .instance_init = powernv_machine_initfn,
     .class_init    = powernv_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_XICS_FABRIC },
+        { },
+    },
 };
 
 static void powernv_machine_register_types(void)
