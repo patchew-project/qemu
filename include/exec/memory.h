@@ -1444,8 +1444,7 @@ struct MemoryRegionCache {
  * @is_write: indicates the transfer direction
  *
  * Will only work with RAM, and may map a subset of the requested range by
- * returning a value that is less than @len.  On failure, return a negative
- * errno value.
+ * returning a value that is less than @len.  On failure, return zero.
  *
  * Because it only works with RAM, this function can be used for
  * read-modify-write operations.  In this case, is_write should be %true.
@@ -1453,11 +1452,11 @@ struct MemoryRegionCache {
  * Note that addresses passed to the address_space_*_cached functions
  * are relative to @addr.
  */
-int64_t address_space_cache_init(MemoryRegionCache *cache,
-                                 AddressSpace *as,
-                                 hwaddr addr,
-                                 hwaddr len,
-                                 bool is_write);
+hwaddr address_space_cache_init(MemoryRegionCache *cache,
+                                AddressSpace *as,
+                                hwaddr addr,
+                                hwaddr len,
+                                bool is_write);
 
 /**
  * address_space_cache_invalidate: complete a write to a #MemoryRegionCache

@@ -129,9 +129,8 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     VirtQueue *vq = &vdev->vq[n];
     VRingMemoryRegionCaches *old = vq->vring.caches;
     VRingMemoryRegionCaches *new;
-    hwaddr addr, size;
+    hwaddr addr, size, len;
     int event_size;
-    int64_t len;
 
     event_size = virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX) ? 2 : 0;
 
@@ -586,7 +585,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
     unsigned int total_bufs, in_total, out_total;
     VRingMemoryRegionCaches *caches;
     MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
-    int64_t len = 0;
+    hwaddr len = 0;
     int rc;
 
     if (unlikely(!vq->vring.desc)) {
@@ -831,7 +830,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     VRingMemoryRegionCaches *caches;
     MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
     MemoryRegionCache *desc_cache;
-    int64_t len;
+    hwaddr len;
     VirtIODevice *vdev = vq->vdev;
     VirtQueueElement *elem = NULL;
     unsigned out_num, in_num;

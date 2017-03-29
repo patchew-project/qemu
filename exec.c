@@ -3230,11 +3230,11 @@ void cpu_physical_memory_unmap(void *buffer, hwaddr len,
 #define RCU_READ_UNLOCK(...)     rcu_read_unlock()
 #include "memory_ldst.inc.c"
 
-int64_t address_space_cache_init(MemoryRegionCache *cache,
-                                 AddressSpace *as,
-                                 hwaddr addr,
-                                 hwaddr len,
-                                 bool is_write)
+hwaddr address_space_cache_init(MemoryRegionCache *cache,
+                                AddressSpace *as,
+                                hwaddr addr,
+                                hwaddr len,
+                                bool is_write)
 {
     hwaddr l, xlat;
     MemoryRegion *mr;
@@ -3245,7 +3245,7 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     l = len;
     mr = address_space_translate(as, addr, &xlat, &l, is_write);
     if (!memory_access_is_direct(mr, is_write)) {
-        return -EINVAL;
+        return 0;
     }
 
     l = address_space_extend_translation(as, addr, len, mr, xlat, l, is_write);
