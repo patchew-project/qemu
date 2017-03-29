@@ -113,9 +113,15 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
     int len;
 
     trace_qemu_announce_self_iter(qemu_ether_ntoa(&nic->conf->macaddr));
+
     len = announce_self_create(buf, nic->conf->macaddr.a);
 
     qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
+
+    /* if the NIC provides it's own announcement support, use it as well */
+    if (nic->ncs->info->announce) {
+        nic->ncs->info->announce(nic->ncs);
+    }
 }
 
 
