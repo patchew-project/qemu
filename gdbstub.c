@@ -573,7 +573,7 @@ static int memtox(char *buf, const char *mem, int len)
 }
 
 static const char *get_feature_xml(const char *p, const char **newp,
-                                   CPUClass *cc)
+                                   const CPUClass *cc)
 {
     size_t len;
     int i;

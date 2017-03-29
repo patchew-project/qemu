@@ -77,7 +77,7 @@ static const QDevAlias qdev_alias_table[] = {
     { }
 };
 
-static const char *qdev_class_get_alias(DeviceClass *dc)
+static const char *qdev_class_get_alias(const DeviceClass *dc)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(dc));
     int i;
@@ -96,7 +96,7 @@ static const char *qdev_class_get_alias(DeviceClass *dc)
     return NULL;
 }
 
-static bool qdev_class_has_alias(DeviceClass *dc)
+static bool qdev_class_has_alias(const DeviceClass *dc)
 {
     return (qdev_class_get_alias(dc) != NULL);
 }

@@ -9773,7 +9773,7 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
     return 0;
 }
 
-static inline bool ppc_cpu_is_valid(PowerPCCPUClass *pcc)
+static inline bool ppc_cpu_is_valid(const PowerPCCPUClass *pcc)
 {
 #ifdef TARGET_PPCEMB
     return pcc->mmu_model == POWERPC_MMU_BOOKE ||

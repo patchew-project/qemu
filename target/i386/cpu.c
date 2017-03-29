@@ -735,7 +735,7 @@ static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
+static char *x86_cpu_class_get_model_name(const X86CPUClass *cc)
 {
     const char *class_name = object_class_get_name(OBJECT_CLASS(cc));
     assert(g_str_has_suffix(class_name, X86_CPU_TYPE_SUFFIX));

@@ -751,12 +751,12 @@ ObjectClass *object_get_class(Object *obj)
     return obj->class;
 }
 
-bool object_class_is_abstract(ObjectClass *klass)
+bool object_class_is_abstract(const ObjectClass *klass)
 {
     return klass->type->abstract;
 }
 
-const char *object_class_get_name(ObjectClass *klass)
+const char *object_class_get_name(const ObjectClass *klass)
 {
     return klass->type->name;
 }
@@ -1029,11 +1029,11 @@ ObjectProperty *object_property_iter_next(ObjectPropertyIterator *iter)
     return val;
 }
 
-ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
-                                           Error **errp)
+ObjectProperty *object_class_property_find(const ObjectClass *klass,
+                                           const char *name, Error **errp)
 {
     ObjectProperty *prop;
-    ObjectClass *parent_klass;
+    const ObjectClass *parent_klass;
 
     parent_klass = object_class_get_parent(klass);
     if (parent_klass) {

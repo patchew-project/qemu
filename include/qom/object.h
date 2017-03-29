@@ -885,7 +885,7 @@ const ObjectClass *object_class_get_parent_const(const ObjectClass *klass);
  *
  * Returns: The QOM typename for @klass.
  */
-const char *object_class_get_name(ObjectClass *klass);
+const char *object_class_get_name(const ObjectClass *klass);
 
 /**
  * object_class_is_abstract:
@@ -893,7 +893,7 @@ const char *object_class_get_name(ObjectClass *klass);
  *
  * Returns: %true if @klass is abstract, %false otherwise.
  */
-bool object_class_is_abstract(ObjectClass *klass);
+bool object_class_is_abstract(const ObjectClass *klass);
 
 /**
  * object_class_by_name:
@@ -984,7 +984,8 @@ ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
  */
 ObjectProperty *object_property_find(Object *obj, const char *name,
                                      Error **errp);
-ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
+ObjectProperty *object_class_property_find(const ObjectClass *klass,
+                                           const char *name,
                                            Error **errp);
 
 typedef struct ObjectPropertyIterator {
