@@ -67,7 +67,7 @@ void cryptodev_backend_cleanup(
              CryptoDevBackend *backend,
              Error **errp)
 {
-    CryptoDevBackendClass *bc =
+    const CryptoDevBackendClass *bc =
                   CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->cleanup) {
@@ -80,7 +80,7 @@ int64_t cryptodev_backend_sym_create_session(
            CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
-    CryptoDevBackendClass *bc =
+    const CryptoDevBackendClass *bc =
                       CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->create_session) {
@@ -95,7 +95,7 @@ int cryptodev_backend_sym_close_session(
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
-    CryptoDevBackendClass *bc =
+    const CryptoDevBackendClass *bc =
                       CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->close_session) {
@@ -110,7 +110,7 @@ static int cryptodev_backend_sym_operation(
                  CryptoDevBackendSymOpInfo *op_info,
                  uint32_t queue_index, Error **errp)
 {
-    CryptoDevBackendClass *bc =
+    const CryptoDevBackendClass *bc =
                       CRYPTODEV_BACKEND_GET_CLASS(backend);
 
     if (bc->do_sym_op) {
@@ -178,7 +178,7 @@ static void
 cryptodev_backend_complete(UserCreatable *uc, Error **errp)
 {
     CryptoDevBackend *backend = CRYPTODEV_BACKEND(uc);
-    CryptoDevBackendClass *bc = CRYPTODEV_BACKEND_GET_CLASS(uc);
+    const CryptoDevBackendClass *bc = CRYPTODEV_BACKEND_GET_CLASS(uc);
     Error *local_err = NULL;
 
     if (bc->init) {

@@ -83,7 +83,7 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
 static int ide_qdev_init(DeviceState *qdev)
 {
     IDEDevice *dev = IDE_DEVICE(qdev);
-    IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
+    const IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
     if (dev->unit == -1) {

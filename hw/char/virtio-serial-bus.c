@@ -80,7 +80,7 @@ static VirtIOSerialPort *find_first_connected_console(VirtIOSerial *vser)
     VirtIOSerialPort *port;
 
     QTAILQ_FOREACH(port, &vser->ports, next) {
-        VirtIOSerialPortClass const *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+        const VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
         if (vsc->is_console && port->host_connected) {
             return port;
         }
@@ -157,7 +157,7 @@ static void discard_throttle_data(VirtIOSerialPort *port)
 static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                  VirtIODevice *vdev)
 {
-    VirtIOSerialPortClass *vsc;
+    const VirtIOSerialPortClass *vsc;
 
     assert(port);
     assert(virtio_queue_ready(vq));
@@ -342,7 +342,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vser);
     struct VirtIOSerialPort *port;
-    VirtIOSerialPortClass *vsc;
+    const VirtIOSerialPortClass *vsc;
     struct virtio_console_control cpkt, *gcpkt;
     uint8_t *buffer;
     size_t buffer_len;
@@ -524,7 +524,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
      */
     VirtIOSerial *vser;
     VirtIOSerialPort *port;
-    VirtIOSerialPortClass *vsc;
+    const VirtIOSerialPortClass *vsc;
 
     vser = VIRTIO_SERIAL(vdev);
     port = find_port_by_vq(vser, vq);
@@ -579,7 +579,7 @@ static void set_config(VirtIODevice *vdev, const uint8_t *config_data)
         (struct virtio_console_config *)config_data;
     uint8_t emerg_wr_lo = le32_to_cpu(config->emerg_wr);
     VirtIOSerialPort *port = find_first_connected_console(vser);
-    VirtIOSerialPortClass *vsc;
+    const VirtIOSerialPortClass *vsc;
 
     if (!config->emerg_wr) {
         return;
@@ -597,7 +597,7 @@ static void set_config(VirtIODevice *vdev, const uint8_t *config_data)
 static void guest_reset(VirtIOSerial *vser)
 {
     VirtIOSerialPort *port;
-    VirtIOSerialPortClass *vsc;
+    const VirtIOSerialPortClass *vsc;
 
     QTAILQ_FOREACH(port, &vser->ports, next) {
         vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
@@ -702,7 +702,7 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
     VirtIOSerial *s = VIRTIO_SERIAL(opaque);
     VirtIOSerialPort *port;
     uint8_t host_connected;
-    VirtIOSerialPortClass *vsc;
+    const VirtIOSerialPortClass *vsc;
 
     if (!s->post_load) {
         return;
@@ -919,7 +919,7 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
 static void virtser_port_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
-    VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+    const VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
     VirtIOSerialBus *bus = VIRTIO_SERIAL_BUS(qdev_get_parent_bus(dev));
     int max_nr_ports;
     bool plugging_port0;
@@ -996,7 +996,7 @@ static void virtser_port_device_plug(HotplugHandler *hotplug_dev,
 static void virtser_port_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
-    VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
+    const VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
     VirtIOSerial *vser = port->vser;
 
     qemu_bh_delete(port->bh);

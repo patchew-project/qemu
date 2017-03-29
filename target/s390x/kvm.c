@@ -1620,7 +1620,7 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
 static void sigp_initial_cpu_reset(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     SigpInfo *si = arg.host_ptr;
 
     cpu_synchronize_state(cs);
@@ -1632,7 +1632,7 @@ static void sigp_initial_cpu_reset(CPUState *cs, run_on_cpu_data arg)
 static void sigp_cpu_reset(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     SigpInfo *si = arg.host_ptr;
 
     cpu_synchronize_state(cs);

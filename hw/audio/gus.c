@@ -175,7 +175,7 @@ void GUS_irqclear (GUSEmuState *emu, int hwirq)
 void GUS_dmarequest (GUSEmuState *emu)
 {
     GUSState *s = emu->opaque;
-    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+    const IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     ldebug ("dma request %d\n", der->gusdma);
     k->hold_DREQ(s->isa_dma, s->emu.gusdma);
 }
@@ -183,7 +183,7 @@ void GUS_dmarequest (GUSEmuState *emu)
 static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 {
     GUSState *s = opaque;
-    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+    const IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     char tmpbuf[4096];
     int pos = dma_pos, mode, left = dma_len - dma_pos;
 
@@ -238,7 +238,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
     GUSState *s = GUS (dev);
-    IsaDmaClass *k;
+    const IsaDmaClass *k;
     struct audsettings as;
 
     AUD_register_card ("gus", &s->card);

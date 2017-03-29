@@ -153,7 +153,7 @@ static char *netfilter_get_status(Object *obj, Error **errp)
 static void netfilter_set_status(Object *obj, const char *str, Error **errp)
 {
     NetFilterState *nf = NETFILTER(obj);
-    NetFilterClass *nfc = NETFILTER_GET_CLASS(obj);
+    const NetFilterClass *nfc = NETFILTER_GET_CLASS(obj);
 
     if (strcmp(str, "on") && strcmp(str, "off")) {
         error_setg(errp, "Invalid value for netfilter status, "
@@ -191,7 +191,7 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
 {
     NetFilterState *nf = NETFILTER(uc);
     NetClientState *ncs[MAX_QUEUE_NUM];
-    NetFilterClass *nfc = NETFILTER_GET_CLASS(uc);
+    const NetFilterClass *nfc = NETFILTER_GET_CLASS(uc);
     int queues;
     Error *local_err = NULL;
 
@@ -232,7 +232,7 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
 static void netfilter_finalize(Object *obj)
 {
     NetFilterState *nf = NETFILTER(obj);
-    NetFilterClass *nfc = NETFILTER_GET_CLASS(obj);
+    const NetFilterClass *nfc = NETFILTER_GET_CLASS(obj);
 
     if (nfc->cleanup) {
         nfc->cleanup(nf);

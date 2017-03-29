@@ -105,7 +105,7 @@ void ioapic_reset_common(DeviceState *dev)
 static void ioapic_dispatch_pre_save(void *opaque)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(opaque);
-    IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
+    const IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -115,7 +115,7 @@ static void ioapic_dispatch_pre_save(void *opaque)
 static int ioapic_dispatch_post_load(void *opaque, int version_id)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(opaque);
-    IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
+    const IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
         info->post_load(s);
@@ -126,7 +126,7 @@ static int ioapic_dispatch_post_load(void *opaque, int version_id)
 static void ioapic_common_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
-    IOAPICCommonClass *info;
+    const IOAPICCommonClass *info;
 
     if (ioapic_no >= MAX_IOAPICS) {
         error_setg(errp, "Only %d ioapics allowed", MAX_IOAPICS);

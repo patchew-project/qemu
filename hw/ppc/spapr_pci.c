@@ -1351,7 +1351,7 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
                                      PCIDevice *pdev,
                                      Error **errp)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     DeviceState *dev = DEVICE(pdev);
     void *fdt = NULL;
     int fdt_start_offset = 0, fdt_size;
@@ -1392,7 +1392,7 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
                                         PCIDevice *pdev,
                                         Error **errp)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     drck->detach(drc, DEVICE(pdev), spapr_phb_remove_pci_device_cb, phb, errp);
 }
@@ -1418,7 +1418,7 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
                                             PCIDevice *pdev)
 {
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
-    sPAPRDRConnectorClass *drck;
+    const sPAPRDRConnectorClass *drck;
 
     if (!drc) {
         return 0;
@@ -1480,7 +1480,7 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
 
         for (i = 0; i < 8; i++) {
             sPAPRDRConnector *func_drc;
-            sPAPRDRConnectorClass *func_drck;
+            const sPAPRDRConnectorClass *func_drck;
             sPAPRDREntitySense state;
 
             func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
@@ -1500,7 +1500,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
 {
     sPAPRPHBState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    sPAPRDRConnectorClass *drck;
+    const sPAPRDRConnectorClass *drck;
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
     Error *local_err = NULL;
 
@@ -1517,7 +1517,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
         PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
         uint32_t slotnr = PCI_SLOT(pdev->devfn);
         sPAPRDRConnector *func_drc;
-        sPAPRDRConnectorClass *func_drck;
+        const sPAPRDRConnectorClass *func_drck;
         sPAPRDREntitySense state;
         int i;
 
@@ -1577,7 +1577,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
 
     if (sphb->index != (uint32_t)-1) {
-        sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+        const sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
         Error *local_err = NULL;
 
         if ((sphb->buid != (uint64_t)-1) || (sphb->dma_liobn[0] != (uint32_t)-1)

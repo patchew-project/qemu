@@ -34,7 +34,7 @@ static inline bool ppc64_use_proc_tbl(PowerPCCPU *cpu)
 
 static inline bool ppc64_radix_guest(PowerPCCPU *cpu)
 {
-    PPCVirtualHypervisorClass *vhc =
+    const PPCVirtualHypervisorClass *vhc =
         PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
 
     return !!(vhc->get_patbe(cpu->vhyp) & PATBE1_GR);

@@ -40,7 +40,7 @@ static bool moxie_cpu_has_work(CPUState *cs)
 static void moxie_cpu_reset(CPUState *s)
 {
     MoxieCPU *cpu = MOXIE_CPU(s);
-    MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(cpu);
+    const MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(cpu);
     CPUMoxieState *env = &cpu->env;
 
     mcc->parent_reset(s);
@@ -58,7 +58,7 @@ static void moxie_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(dev);
+    const MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

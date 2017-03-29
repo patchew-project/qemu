@@ -266,7 +266,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 {
     int xtal;
     struct audsettings as;
-    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+    const IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
 
 #ifdef DEBUG_XLAW
     if (val == 0 || val == 32)
@@ -455,7 +455,7 @@ static void cs_write (void *opaque, hwaddr addr,
             }
             else {
                 if (s->dma_running) {
-                    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+                    const IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
                     k->release_DREQ(s->isa_dma, s->dma);
                     AUD_set_active_out (s->voice, 0);
                     s->dma_running = 0;
@@ -521,7 +521,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
 {
     int temp, net;
     uint8_t tmpbuf[4096];
-    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+    const IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
 
     temp = len;
     net = 0;
@@ -604,7 +604,7 @@ static int cs4231a_pre_load (void *opaque)
     CSState *s = opaque;
 
     if (s->dma_running) {
-        IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+        const IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
         k->release_DREQ(s->isa_dma, s->dma);
         AUD_set_active_out (s->voice, 0);
     }
@@ -661,7 +661,7 @@ static void cs4231a_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE (dev);
     CSState *s = CS4231A (dev);
-    IsaDmaClass *k;
+    const IsaDmaClass *k;
 
     isa_init_irq (d, &s->pic, s->irq);
     s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->dma);

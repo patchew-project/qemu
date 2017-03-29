@@ -38,7 +38,7 @@ enum {
 
 static void smbus_do_quick_cmd(SMBusDevice *dev, int recv)
 {
-    SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
+    const SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
     DPRINTF("Quick Command %d\n", recv);
     if (sc->quick_cmd) {
@@ -48,7 +48,7 @@ static void smbus_do_quick_cmd(SMBusDevice *dev, int recv)
 
 static void smbus_do_write(SMBusDevice *dev)
 {
-    SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
+    const SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
     if (dev->data_len == 0) {
         smbus_do_quick_cmd(dev, 0);
@@ -155,7 +155,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
 static int smbus_i2c_recv(I2CSlave *s)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
-    SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
+    const SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
     int ret;
 
     switch (dev->mode) {
@@ -205,7 +205,7 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
 static int smbus_device_init(I2CSlave *i2c)
 {
     SMBusDevice *dev = SMBUS_DEVICE(i2c);
-    SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
+    const SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
     return sc->init(dev);
 }

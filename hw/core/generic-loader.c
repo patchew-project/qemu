@@ -45,7 +45,7 @@ static void generic_loader_reset(void *opaque)
     GenericLoaderState *s = GENERIC_LOADER(opaque);
 
     if (s->set_pc) {
-        CPUClass *cc = CPU_GET_CLASS(s->cpu);
+        const CPUClass *cc = CPU_GET_CLASS(s->cpu);
         cpu_reset(s->cpu);
         if (cc) {
             cc->set_pc(s->cpu, s->addr);

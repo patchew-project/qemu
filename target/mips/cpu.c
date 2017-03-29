@@ -95,7 +95,7 @@ static bool mips_cpu_has_work(CPUState *cs)
 static void mips_cpu_reset(CPUState *s)
 {
     MIPSCPU *cpu = MIPS_CPU(s);
-    MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(cpu);
+    const MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(cpu);
     CPUMIPSState *env = &cpu->env;
 
     mcc->parent_reset(s);
@@ -122,7 +122,7 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info) {
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
+    const MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

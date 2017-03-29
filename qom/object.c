@@ -993,7 +993,7 @@ ObjectProperty *object_property_find(Object *obj, const char *name,
                                      Error **errp)
 {
     ObjectProperty *prop;
-    ObjectClass *klass = object_get_class(obj);
+    const ObjectClass *klass = object_get_class(obj);
 
     prop = object_class_property_find(klass, name, NULL);
     if (prop) {

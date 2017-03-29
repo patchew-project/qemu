@@ -690,7 +690,7 @@ static uint32_t nvdimm_rw_label_data_check(NVDIMMDevice *nvdimm,
 static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
                                       hwaddr dsm_mem_addr)
 {
-    NVDIMMClass *nvc = NVDIMM_GET_CLASS(nvdimm);
+    const NVDIMMClass *nvc = NVDIMM_GET_CLASS(nvdimm);
     NvdimmFuncGetLabelDataIn *get_label_data;
     NvdimmFuncGetLabelDataOut *get_label_data_out;
     uint32_t status;
@@ -730,7 +730,7 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
 static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
                                       hwaddr dsm_mem_addr)
 {
-    NVDIMMClass *nvc = NVDIMM_GET_CLASS(nvdimm);
+    const NVDIMMClass *nvc = NVDIMM_GET_CLASS(nvdimm);
     NvdimmFuncSetLabelDataIn *set_label_data;
     uint32_t status;
 

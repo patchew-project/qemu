@@ -714,7 +714,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedSMCState *s = ASPEED_SMC(dev);
-    AspeedSMCClass *mc = ASPEED_SMC_GET_CLASS(s);
+    const AspeedSMCClass *mc = ASPEED_SMC_GET_CLASS(s);
     int i;
     char name[32];
     hwaddr offset = 0;

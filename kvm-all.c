@@ -1563,7 +1563,7 @@ bool kvm_vcpu_id_is_valid(int vcpu_id)
 
 static int kvm_init(MachineState *ms)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const MachineClass *mc = MACHINE_GET_CLASS(ms);
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
         "(see http://sourceforge.net/projects/kvm).\n";

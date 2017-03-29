@@ -70,7 +70,7 @@ static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,
 void hmp_info_skeys(Monitor *mon, const QDict *qdict)
 {
     S390SKeysState *ss = s390_get_skeys_device();
-    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    const S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     uint64_t addr = qdict_get_int(qdict, "addr");
     uint8_t key;
     int r;
@@ -104,7 +104,7 @@ void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
 void qmp_dump_skeys(const char *filename, Error **errp)
 {
     S390SKeysState *ss = s390_get_skeys_device();
-    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    const S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     const uint64_t total_count = ram_size / TARGET_PAGE_SIZE;
     uint64_t handled_count = 0, cur_count;
     Error *lerr = NULL;
@@ -247,7 +247,7 @@ static const TypeInfo qemu_s390_skeys_info = {
 static void s390_storage_keys_save(QEMUFile *f, void *opaque)
 {
     S390SKeysState *ss = S390_SKEYS(opaque);
-    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    const S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     uint64_t pages_left = ram_size / TARGET_PAGE_SIZE;
     uint64_t read_count, eos = S390_SKEYS_SAVE_FLAG_EOS;
     vaddr cur_gfn = 0;
@@ -299,7 +299,7 @@ end_stream:
 static int s390_storage_keys_load(QEMUFile *f, void *opaque, int version_id)
 {
     S390SKeysState *ss = S390_SKEYS(opaque);
-    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    const S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     int ret = 0;
 
     while (!ret) {

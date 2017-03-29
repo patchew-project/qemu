@@ -21,7 +21,7 @@
 char *fw_path_provider_get_dev_path(FWPathProvider *p, BusState *bus,
                                     DeviceState *dev)
 {
-    FWPathProviderClass *k = FW_PATH_PROVIDER_GET_CLASS(p);
+    const FWPathProviderClass *k = FW_PATH_PROVIDER_GET_CLASS(p);
 
     return k->get_dev_path(p, bus, dev);
 }

@@ -633,7 +633,7 @@ static void arm_gicv3_icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 static void kvm_arm_gicv3_reset(DeviceState *dev)
 {
     GICv3State *s = ARM_GICV3_COMMON(dev);
-    KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
+    const KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
 
     DPRINTF("Reset\n");
 
@@ -678,7 +678,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
 static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
 {
     GICv3State *s = KVM_ARM_GICV3(dev);
-    KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
+    const KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
     int i;
 

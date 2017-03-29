@@ -75,7 +75,7 @@ static void vhost_vsock_start(VirtIODevice *vdev)
 {
     VHostVSock *vsock = VHOST_VSOCK(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
     int i;
 
@@ -131,7 +131,7 @@ static void vhost_vsock_stop(VirtIODevice *vdev)
 {
     VHostVSock *vsock = VHOST_VSOCK(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
 
     if (!k->set_guest_notifiers) {

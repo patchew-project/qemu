@@ -118,7 +118,7 @@ static void kvm_pic_set_irq(void *opaque, int irq, int level)
 static void kvm_pic_realize(DeviceState *dev, Error **errp)
 {
     PICCommonState *s = PIC_COMMON(dev);
-    KVMPICClass *kpc = KVM_PIC_GET_CLASS(dev);
+    const KVMPICClass *kpc = KVM_PIC_GET_CLASS(dev);
 
     memory_region_init_reservation(&s->base_io, NULL, "kvm-pic", 2);
     memory_region_init_reservation(&s->elcr_io, NULL, "kvm-elcr", 1);

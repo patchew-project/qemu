@@ -88,7 +88,7 @@ void build_acpi_ipmi_devices(Aml *scope, BusState *bus)
 
     QTAILQ_FOREACH(kid, &bus->children,  sibling) {
         IPMIInterface *ii;
-        IPMIInterfaceClass *iic;
+        const IPMIInterfaceClass *iic;
         IPMIFwInfo info;
         Object *obj = object_dynamic_cast(OBJECT(kid->child),
                                           TYPE_IPMI_INTERFACE);

@@ -59,7 +59,7 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
 static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
                                      Error **errp)
 {
-    CPUClass *k = CPU_GET_CLASS(cpu);
+    const CPUClass *k = CPU_GET_CLASS(cpu);
     int64_t cpu_id;
 
     cpu_id = k->get_arch_id(cpu);
@@ -127,7 +127,7 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     Aml *cpus_map = aml_name(CPU_ON_BITMAP);
     Aml *zero = aml_int(0);
     Aml *one = aml_int(1);
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
     PCMachineState *pcms = PC_MACHINE(machine);
 

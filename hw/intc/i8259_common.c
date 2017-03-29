@@ -49,7 +49,7 @@ void pic_reset_common(PICCommonState *s)
 static void pic_dispatch_pre_save(void *opaque)
 {
     PICCommonState *s = opaque;
-    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
+    const PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -59,7 +59,7 @@ static void pic_dispatch_pre_save(void *opaque)
 static int pic_dispatch_post_load(void *opaque, int version_id)
 {
     PICCommonState *s = opaque;
-    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
+    const PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
         info->post_load(s);

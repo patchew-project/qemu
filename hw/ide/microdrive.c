@@ -129,7 +129,7 @@ static void md_reset(DeviceState *dev)
 static uint8_t md_attr_read(PCMCIACardState *card, uint32_t at)
 {
     MicroDriveState *s = MICRODRIVE(card);
-    PCMCIACardClass *pcc = PCMCIA_CARD_GET_CLASS(card);
+    const PCMCIACardClass *pcc = PCMCIA_CARD_GET_CLASS(card);
 
     if (at < s->attr_base) {
         if (at < pcc->cis_len) {
@@ -536,7 +536,7 @@ static const uint8_t dscm1xxxx_cis[0x14a] = {
 static int dscm1xxxx_attach(PCMCIACardState *card)
 {
     MicroDriveState *md = MICRODRIVE(card);
-    PCMCIACardClass *pcc = PCMCIA_CARD_GET_CLASS(card);
+    const PCMCIACardClass *pcc = PCMCIA_CARD_GET_CLASS(card);
 
     md->attr_base = pcc->cis[0x74] | (pcc->cis[0x76] << 8);
     md->io_base = 0x0;

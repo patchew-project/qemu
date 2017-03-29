@@ -348,9 +348,9 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
 
 static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
 {
-    SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
+    const SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     SCLPEventFacility *ef = sclp->event_facility;
-    SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
+    const SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
 
     switch (code & SCLP_CMD_CODE_MASK) {
     case SCLP_CMDW_READ_SCP_INFO:
@@ -391,7 +391,7 @@ static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 {
     SCLPDevice *sclp = get_sclp_device();
-    SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
+    const SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     int r = 0;
     SCCB work_sccb;
 
@@ -440,7 +440,7 @@ out:
 static void service_interrupt(SCLPDevice *sclp, uint32_t sccb)
 {
     SCLPEventFacility *ef = sclp->event_facility;
-    SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
+    const SCLPEventFacilityClass *efc = EVENT_FACILITY_GET_CLASS(ef);
 
     uint32_t param = sccb & ~3;
 
@@ -457,7 +457,7 @@ static void service_interrupt(SCLPDevice *sclp, uint32_t sccb)
 void sclp_service_interrupt(uint32_t sccb)
 {
     SCLPDevice *sclp = get_sclp_device();
-    SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
+    const SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
 
     sclp_c->service_interrupt(sclp, sccb);
 }

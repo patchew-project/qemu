@@ -31,7 +31,7 @@
 static void gicv3_pre_save(void *opaque)
 {
     GICv3State *s = (GICv3State *)opaque;
-    ARMGICv3CommonClass *c = ARM_GICV3_COMMON_GET_CLASS(s);
+    const ARMGICv3CommonClass *c = ARM_GICV3_COMMON_GET_CLASS(s);
 
     if (c->pre_save) {
         c->pre_save(s);
@@ -41,7 +41,7 @@ static void gicv3_pre_save(void *opaque)
 static int gicv3_post_load(void *opaque, int version_id)
 {
     GICv3State *s = (GICv3State *)opaque;
-    ARMGICv3CommonClass *c = ARM_GICV3_COMMON_GET_CLASS(s);
+    const ARMGICv3CommonClass *c = ARM_GICV3_COMMON_GET_CLASS(s);
 
     if (c->post_load) {
         c->post_load(s);

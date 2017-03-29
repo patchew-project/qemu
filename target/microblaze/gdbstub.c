@@ -38,7 +38,7 @@ int mb_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-    CPUClass *cc = CPU_GET_CLASS(cs);
+    const CPUClass *cc = CPU_GET_CLASS(cs);
     CPUMBState *env = &cpu->env;
     uint32_t tmp;
 

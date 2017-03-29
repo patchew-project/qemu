@@ -3021,7 +3021,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 static void x86_cpu_reset(CPUState *s)
 {
     X86CPU *cpu = X86_CPU(s);
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
+    const X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     CPUX86State *env = &cpu->env;
     target_ulong cr4;
     uint64_t xcr0;
@@ -3479,7 +3479,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     X86CPU *cpu = X86_CPU(dev);
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    const X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
     static bool ht_warned;
@@ -3671,7 +3671,7 @@ out:
 static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     X86CPU *cpu = X86_CPU(dev);
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
+    const X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
 #ifndef CONFIG_USER_ONLY
@@ -3838,7 +3838,7 @@ static void x86_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     X86CPU *cpu = X86_CPU(obj);
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(obj);
+    const X86CPUClass *xcc = X86_CPU_GET_CLASS(obj);
     CPUX86State *env = &cpu->env;
     FeatureWord w;
 

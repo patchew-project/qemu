@@ -82,7 +82,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
 {
     VirtIOBlockDataPlane *s;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     *dataplane = NULL;
 
@@ -164,7 +164,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     VirtIOBlock *vblk = VIRTIO_BLK(vdev);
     VirtIOBlockDataPlane *s = vblk->dataplane;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vblk)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
     int r;
@@ -232,7 +232,7 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     VirtIOBlock *vblk = VIRTIO_BLK(vdev);
     VirtIOBlockDataPlane *s = vblk->dataplane;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vblk));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
 

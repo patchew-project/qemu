@@ -364,7 +364,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
     /* Device instance realize function for the GIC sysbus device */
     GICv3State *s = ARM_GICV3(dev);
-    ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(s);
+    const ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
 
     agc->parent_realize(dev, &local_err);

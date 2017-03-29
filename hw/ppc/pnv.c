@@ -109,11 +109,11 @@ static int get_cpus_node(void *fdt)
 static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
 {
     CPUState *cs = CPU(DEVICE(pc->threads));
-    DeviceClass *dc = DEVICE_GET_CLASS(cs);
+    const DeviceClass *dc = DEVICE_GET_CLASS(cs);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     int smt_threads = CPU_CORE(pc)->nr_threads;
     CPUPPCState *env = &cpu->env;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
     uint32_t servers_prop[smt_threads];
     int i;
     uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
@@ -217,7 +217,7 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
 
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     char *typename = pnv_core_typename(pcc->cpu_model);
     size_t typesize = object_type_get_instance_size(typename);
     int i;
@@ -330,7 +330,7 @@ static ISABus *pnv_isa_create(PnvChip *chip)
     PnvLpcController *lpc = &chip->lpc;
     ISABus *isa_bus;
     qemu_irq *irqs;
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     /* let isa_bus_new() create its own bridge on SysBus otherwise
      * devices speficied on the command line won't find the bus and
@@ -601,7 +601,7 @@ static const TypeInfo pnv_chip_power9_info = {
 
 static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 {
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     int cores_max;
 
     /*
@@ -632,7 +632,7 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 static void pnv_chip_init(Object *obj)
 {
     PnvChip *chip = PNV_CHIP(obj);
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     chip->xscom_base = pcc->xscom_base;
 
@@ -644,7 +644,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     char *typename = pnv_core_typename(pcc->cpu_model);
     size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;

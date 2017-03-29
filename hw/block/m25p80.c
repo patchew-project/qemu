@@ -1214,7 +1214,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
 static void m25p80_realize(SSISlave *ss, Error **errp)
 {
     Flash *s = M25P80(ss);
-    M25P80Class *mc = M25P80_GET_CLASS(s);
+    const M25P80Class *mc = M25P80_GET_CLASS(s);
     int ret;
 
     s->pi = mc->pi;

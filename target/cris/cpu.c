@@ -45,7 +45,7 @@ static bool cris_cpu_has_work(CPUState *cs)
 static void cris_cpu_reset(CPUState *s)
 {
     CRISCPU *cpu = CRIS_CPU(s);
-    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(cpu);
+    const CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(cpu);
     CPUCRISState *env = &cpu->env;
     uint32_t vr;
 
@@ -97,8 +97,8 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
 /* Sort alphabetically by VR. */
 static gint cris_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
-    CRISCPUClass *ccc_a = CRIS_CPU_CLASS(a);
-    CRISCPUClass *ccc_b = CRIS_CPU_CLASS(b);
+    const CRISCPUClass *ccc_a = CRIS_CPU_CLASS(a);
+    const CRISCPUClass *ccc_b = CRIS_CPU_CLASS(b);
 
     /*  */
     if (ccc_a->vr > ccc_b->vr) {
@@ -140,7 +140,7 @@ void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(dev);
+    const CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);
@@ -188,7 +188,7 @@ static void cris_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     CRISCPU *cpu = CRIS_CPU(obj);
-    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
+    const CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
     static bool tcg_initialized;
 

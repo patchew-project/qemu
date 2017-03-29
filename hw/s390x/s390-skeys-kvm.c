@@ -16,7 +16,7 @@
 
 static int kvm_s390_skeys_enabled(S390SKeysState *ss)
 {
-    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    const S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     uint8_t single_key;
     int r;
 

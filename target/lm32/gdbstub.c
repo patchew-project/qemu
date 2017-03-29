@@ -55,7 +55,7 @@ int lm32_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 int lm32_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     LM32CPU *cpu = LM32_CPU(cs);
-    CPUClass *cc = CPU_GET_CLASS(cs);
+    const CPUClass *cc = CPU_GET_CLASS(cs);
     CPULM32State *env = &cpu->env;
     uint32_t tmp;
 

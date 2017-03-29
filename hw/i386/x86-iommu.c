@@ -79,7 +79,7 @@ IommuType x86_iommu_get_type(void)
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
-    X86IOMMUClass *x86_class = X86_IOMMU_GET_CLASS(dev);
+    const X86IOMMUClass *x86_class = X86_IOMMU_GET_CLASS(dev);
     QLIST_INIT(&x86_iommu->iec_notifiers);
     if (x86_class->realize) {
         x86_class->realize(dev, errp);

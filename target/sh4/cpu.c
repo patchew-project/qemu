@@ -51,7 +51,7 @@ static bool superh_cpu_has_work(CPUState *cs)
 static void superh_cpu_reset(CPUState *s)
 {
     SuperHCPU *cpu = SUPERH_CPU(s);
-    SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(cpu);
+    const SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(cpu);
     CPUSH4State *env = &cpu->env;
 
     scc->parent_reset(s);
@@ -242,7 +242,7 @@ static const TypeInfo sh7785_type_info = {
 static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
+    const SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

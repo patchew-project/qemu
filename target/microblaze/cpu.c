@@ -98,7 +98,7 @@ static void microblaze_cpu_set_irq(void *opaque, int irq, int level)
 static void mb_cpu_reset(CPUState *s)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(s);
-    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(cpu);
+    const MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(cpu);
     CPUMBState *env = &cpu->env;
 
     mcc->parent_reset(s);
@@ -132,7 +132,7 @@ static void mb_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
+    const MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
     uint8_t version_code = 0;

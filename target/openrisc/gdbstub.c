@@ -50,7 +50,7 @@ int openrisc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 int openrisc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
-    CPUClass *cc = CPU_GET_CLASS(cs);
+    const CPUClass *cc = CPU_GET_CLASS(cs);
     CPUOpenRISCState *env = &cpu->env;
     uint32_t tmp;
 

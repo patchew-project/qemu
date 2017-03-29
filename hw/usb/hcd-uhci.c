@@ -1209,7 +1209,7 @@ static USBBusOps uhci_bus_ops = {
 static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
 {
     Error *err = NULL;
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     UHCIPCIDeviceClass *u = container_of(pc, UHCIPCIDeviceClass, parent_class);
     UHCIState *s = UHCI(dev);
     uint8_t *pci_conf = s->dev.config;

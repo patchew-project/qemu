@@ -173,7 +173,7 @@ static void spapr_cpu_update_tb_offset(PowerPCCPU *cpu)
 static void spapr_cpu_set_endianness(PowerPCCPU *cpu)
 {
     PowerPCCPU *fcpu = POWERPC_CPU(first_cpu);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(fcpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(fcpu);
 
     if (!pcc->interrupts_big_endian(fcpu)) {
         cpu->env.spr[SPR_LPCR] |= LPCR_ILE;
@@ -412,7 +412,7 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     uint32_t sensor_state;
     uint32_t ret = RTAS_OUT_SUCCESS;
     sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
+    const sPAPRDRConnectorClass *drck;
 
     if (nargs != 3 || nret != 1) {
         ret = RTAS_OUT_PARAM_ERROR;
@@ -482,7 +482,7 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     uint32_t sensor_index;
     uint32_t sensor_state = 0;
     sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
+    const sPAPRDRConnectorClass *drck;
     uint32_t ret = RTAS_OUT_SUCCESS;
 
     if (nargs != 2 || nret != 2) {
@@ -544,7 +544,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     uint64_t wa_offset;
     uint32_t drc_index;
     sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
+    const sPAPRDRConnectorClass *drck;
     sPAPRConfigureConnectorState *ccs;
     sPAPRDRCCResponse resp = SPAPR_DR_CC_RESPONSE_CONTINUE;
     int rc;

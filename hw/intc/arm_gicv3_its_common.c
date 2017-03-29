@@ -26,7 +26,7 @@
 static void gicv3_its_pre_save(void *opaque)
 {
     GICv3ITSState *s = (GICv3ITSState *)opaque;
-    GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
+    const GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
 
     if (c->pre_save) {
         c->pre_save(s);
@@ -36,7 +36,7 @@ static void gicv3_its_pre_save(void *opaque)
 static int gicv3_its_post_load(void *opaque, int version_id)
 {
     GICv3ITSState *s = (GICv3ITSState *)opaque;
-    GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
+    const GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
 
     if (c->post_load) {
         c->post_load(s);
@@ -65,7 +65,7 @@ static MemTxResult gicv3_its_trans_write(void *opaque, hwaddr offset,
 {
     if (offset == 0x0040 && ((size == 2) || (size == 4))) {
         GICv3ITSState *s = ARM_GICV3_ITS_COMMON(opaque);
-        GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
+        const GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
         int ret = c->send_msi(s, le64_to_cpu(value), attrs.requester_id);
 
         if (ret <= 0) {

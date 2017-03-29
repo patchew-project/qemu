@@ -332,7 +332,7 @@ static void pit_post_load(PITCommonState *s)
 static void pit_realizefn(DeviceState *dev, Error **errp)
 {
     PITCommonState *pit = PIT_COMMON(dev);
-    PITClass *pc = PIT_GET_CLASS(dev);
+    const PITClass *pc = PIT_GET_CLASS(dev);
     PITChannelState *s;
 
     s = &pit->channels[0];

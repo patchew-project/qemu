@@ -4,7 +4,7 @@
 size_t
 stream_push(StreamSlave *sink, uint8_t *buf, size_t len)
 {
-    StreamSlaveClass *k =  STREAM_SLAVE_GET_CLASS(sink);
+    const StreamSlaveClass *k =  STREAM_SLAVE_GET_CLASS(sink);
 
     return k->push(sink, buf, len);
 }
@@ -13,7 +13,7 @@ bool
 stream_can_push(StreamSlave *sink, StreamCanPushNotifyFn notify,
                 void *notify_opaque)
 {
-    StreamSlaveClass *k =  STREAM_SLAVE_GET_CLASS(sink);
+    const StreamSlaveClass *k =  STREAM_SLAVE_GET_CLASS(sink);
 
     return k->can_push ? k->can_push(sink, notify, notify_opaque) : true;
 }

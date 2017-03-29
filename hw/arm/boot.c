@@ -702,7 +702,7 @@ static int do_arm_linux_init(Object *obj, void *opaque)
 {
     if (object_dynamic_cast(obj, TYPE_ARM_LINUX_BOOT_IF)) {
         ARMLinuxBootIf *albif = ARM_LINUX_BOOT_IF(obj);
-        ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_GET_CLASS(obj);
+        const ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_GET_CLASS(obj);
         struct arm_boot_info *info = opaque;
 
         if (albifc->arm_linux_init) {

@@ -118,7 +118,7 @@ typedef struct IPMIKCS {
 
 static void ipmi_kcs_signal(IPMIKCS *ik, IPMIInterface *ii)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
 
     ik->do_wake = 1;
     while (ik->do_wake) {
@@ -129,7 +129,7 @@ static void ipmi_kcs_signal(IPMIKCS *ik, IPMIInterface *ii)
 
 static void ipmi_kcs_handle_event(IPMIInterface *ii)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     if (ik->cmd_reg == IPMI_KCS_ABORT_STATUS_CMD) {
@@ -186,7 +186,7 @@ static void ipmi_kcs_handle_event(IPMIInterface *ii)
             ik->inlen++;
         }
         if (ik->write_end) {
-            IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(ik->bmc);
+            const IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(ik->bmc);
             ik->outlen = 0;
             ik->write_end = 0;
             ik->outpos = 0;
@@ -228,7 +228,7 @@ static void ipmi_kcs_handle_event(IPMIInterface *ii)
 static void ipmi_kcs_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
                                 unsigned char *rsp, unsigned int rsp_len)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     if (ik->waiting_rsp == msg_id) {
@@ -252,7 +252,7 @@ static void ipmi_kcs_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
 static uint64_t ipmi_kcs_ioport_read(void *opaque, hwaddr addr, unsigned size)
 {
     IPMIInterface *ii = opaque;
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
     uint32_t ret;
 
@@ -284,7 +284,7 @@ static void ipmi_kcs_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
     IPMIInterface *ii = opaque;
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     if (IPMI_KCS_GET_IBF(ik->status_reg)) {
@@ -316,7 +316,7 @@ const MemoryRegionOps ipmi_kcs_io_ops = {
 
 static void ipmi_kcs_set_atn(IPMIInterface *ii, int val, int irq)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     IPMI_KCS_SET_SMS_ATN(ik->status_reg, val);
@@ -339,7 +339,7 @@ static void ipmi_kcs_set_atn(IPMIInterface *ii, int val, int irq)
 
 static void ipmi_kcs_set_irq_enable(IPMIInterface *ii, int val)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     ik->irqs_enabled = val;
@@ -347,7 +347,7 @@ static void ipmi_kcs_set_irq_enable(IPMIInterface *ii, int val)
 
 static void ipmi_kcs_init(IPMIInterface *ii, Error **errp)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
     ik->io_length = 2;
@@ -398,7 +398,7 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     ISADevice *isadev = ISA_DEVICE(dev);
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(dev);
     IPMIInterface *ii = IPMI_INTERFACE(dev);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
 
     if (!iik->kcs.bmc) {
         error_setg(errp, "IPMI device requires a bmc attribute to be set");

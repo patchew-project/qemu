@@ -125,7 +125,7 @@ typedef struct IPMIBT {
 
 static void ipmi_bt_handle_event(IPMIInterface *ii)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     if (ib->inlen < 4) {
@@ -173,7 +173,7 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
     ib->waiting_seq = ib->inmsg[2];
     ib->inmsg[2] = ib->inmsg[1];
     {
-        IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(ib->bmc);
+        const IPMIBmcClass *bk = IPMI_BMC_GET_CLASS(ib->bmc);
         bk->handle_command(ib->bmc, ib->inmsg + 2, ib->inlen - 2,
                            sizeof(ib->inmsg), ib->waiting_rsp);
     }
@@ -184,7 +184,7 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
 static void ipmi_bt_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
                                 unsigned char *rsp, unsigned int rsp_len)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     if (ib->waiting_rsp == msg_id) {
@@ -218,7 +218,7 @@ static void ipmi_bt_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
 static uint64_t ipmi_bt_ioport_read(void *opaque, hwaddr addr, unsigned size)
 {
     IPMIInterface *ii = opaque;
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
     uint32_t ret = 0xff;
 
@@ -247,7 +247,7 @@ static uint64_t ipmi_bt_ioport_read(void *opaque, hwaddr addr, unsigned size)
 
 static void ipmi_bt_signal(IPMIBT *ib, IPMIInterface *ii)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
 
     ib->do_wake = 1;
     while (ib->do_wake) {
@@ -260,7 +260,7 @@ static void ipmi_bt_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned size)
 {
     IPMIInterface *ii = opaque;
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     switch (addr & 3) {
@@ -333,7 +333,7 @@ static const MemoryRegionOps ipmi_bt_io_ops = {
 
 static void ipmi_bt_set_atn(IPMIInterface *ii, int val, int irq)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     if (!!val == IPMI_BT_GET_SMS_ATN(ib->control_reg)) {
@@ -359,7 +359,7 @@ static void ipmi_bt_set_atn(IPMIInterface *ii, int val, int irq)
 
 static void ipmi_bt_handle_reset(IPMIInterface *ii, bool is_cold)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     if (is_cold) {
@@ -374,7 +374,7 @@ static void ipmi_bt_handle_reset(IPMIInterface *ii, bool is_cold)
 
 static void ipmi_bt_set_irq_enable(IPMIInterface *ii, int val)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     ib->irqs_enabled = val;
@@ -382,7 +382,7 @@ static void ipmi_bt_set_irq_enable(IPMIInterface *ii, int val)
 
 static void ipmi_bt_init(IPMIInterface *ii, Error **errp)
 {
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
     ib->io_length = 3;
@@ -436,7 +436,7 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     ISADevice *isadev = ISA_DEVICE(dev);
     ISAIPMIBTDevice *iib = ISA_IPMI_BT(dev);
     IPMIInterface *ii = IPMI_INTERFACE(dev);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+    const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
 
     if (!iib->bt.bmc) {
         error_setg(errp, "IPMI device requires a bmc attribute to be set");

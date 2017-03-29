@@ -241,7 +241,7 @@ static GSource *mux_chr_add_watch(Chardev *s, GIOCondition cond)
 {
     MuxChardev *d = MUX_CHARDEV(s);
     Chardev *chr = qemu_chr_fe_get_driver(&d->chr);
-    ChardevClass *cc = CHARDEV_GET_CLASS(chr);
+    const ChardevClass *cc = CHARDEV_GET_CLASS(chr);
 
     if (!cc->chr_add_watch) {
         return NULL;

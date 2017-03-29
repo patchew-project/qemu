@@ -156,7 +156,7 @@ static bool bus_get_realized(Object *obj, Error **errp)
 static void bus_set_realized(Object *obj, bool value, Error **errp)
 {
     BusState *bus = BUS(obj);
-    BusClass *bc = BUS_GET_CLASS(bus);
+    const BusClass *bc = BUS_GET_CLASS(bus);
     BusChild *kid;
     Error *local_err = NULL;
 

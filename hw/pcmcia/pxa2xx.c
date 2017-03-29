@@ -39,7 +39,7 @@ static uint64_t pxa2xx_pcmcia_common_read(void *opaque,
                 hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         pcc = PCMCIA_CARD_GET_CLASS(s->card);
@@ -53,7 +53,7 @@ static void pxa2xx_pcmcia_common_write(void *opaque, hwaddr offset,
                                        uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         pcc = PCMCIA_CARD_GET_CLASS(s->card);
@@ -65,7 +65,7 @@ static uint64_t pxa2xx_pcmcia_attr_read(void *opaque,
                 hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         pcc = PCMCIA_CARD_GET_CLASS(s->card);
@@ -79,7 +79,7 @@ static void pxa2xx_pcmcia_attr_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         pcc = PCMCIA_CARD_GET_CLASS(s->card);
@@ -91,7 +91,7 @@ static uint64_t pxa2xx_pcmcia_io_read(void *opaque,
                 hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         pcc = PCMCIA_CARD_GET_CLASS(s->card);
@@ -105,7 +105,7 @@ static void pxa2xx_pcmcia_io_write(void *opaque, hwaddr offset,
                                    uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         pcc = PCMCIA_CARD_GET_CLASS(s->card);
@@ -195,7 +195,7 @@ static void pxa2xx_pcmcia_initfn(Object *obj)
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (s->slot.attached) {
         return -EEXIST;
@@ -219,7 +219,7 @@ int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card)
 int pxa2xx_pcmcia_detach(void *opaque)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
-    PCMCIACardClass *pcc;
+    const PCMCIACardClass *pcc;
 
     if (!s->slot.attached) {
         return -ENOENT;

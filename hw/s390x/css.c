@@ -100,7 +100,7 @@ static int s390_io_adapter_map(AdapterInfo *adapter, uint64_t map_addr,
                                bool do_map)
 {
     S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    const S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
     return fsc->io_adapter_map(fs, adapter->adapter_id, map_addr, do_map);
 }
@@ -162,7 +162,7 @@ int css_register_io_adapter(uint8_t type, uint8_t isc, bool swap,
     bool found = false;
     int ret;
     S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    const S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
     *id = 0;
     QTAILQ_FOREACH(adapter, &channel_subsys.io_adapters, sibling) {
@@ -201,7 +201,7 @@ static void css_clear_io_interrupt(uint16_t subchannel_id,
     Error *err = NULL;
     static bool no_clear_irq;
     S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    const S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
     int r;
 
     if (unlikely(no_clear_irq)) {

@@ -45,13 +45,13 @@ static bool qdev_hot_removed = false;
 
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
     return dc->vmsd;
 }
 
 const char *qdev_fw_name(DeviceState *dev)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (dc->fw_name) {
         return dc->fw_name;
@@ -222,7 +222,7 @@ void device_listener_unregister(DeviceListener *listener)
 
 static void device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (dc->init) {
         int rc = dc->init(dev);
@@ -235,7 +235,7 @@ static void device_realize(DeviceState *dev, Error **errp)
 
 static void device_unrealize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (dc->exit) {
         int rc = dc->exit(dev);
@@ -262,7 +262,7 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
         hotplug_ctrl = dev->parent_bus->hotplug_handler;
     } else if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
         MachineState *machine = MACHINE(qdev_get_machine());
-        MachineClass *mc = MACHINE_GET_CLASS(machine);
+        const MachineClass *mc = MACHINE_GET_CLASS(machine);
 
         if (mc->get_hotplug_handler) {
             hotplug_ctrl = mc->get_hotplug_handler(machine, dev);
@@ -273,9 +273,9 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 
 void qdev_unplug(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
     HotplugHandler *hotplug_ctrl;
-    HotplugHandlerClass *hdc;
+    const HotplugHandlerClass *hdc;
 
     if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
@@ -314,7 +314,7 @@ static int qdev_reset_one(DeviceState *dev, void *opaque)
 
 static int qbus_reset_one(BusState *bus, void *opaque)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
+    const BusClass *bc = BUS_GET_CLASS(bus);
     if (bc->reset) {
         bc->reset(bus);
     }
@@ -656,7 +656,7 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id)
 
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
+    const BusClass *bc = BUS_GET_CLASS(bus);
 
     if (bc->get_fw_dev_path) {
         return bc->get_fw_dev_path(dev);
@@ -721,7 +721,7 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
 
 char *qdev_get_dev_path(DeviceState *dev)
 {
-    BusClass *bc;
+    const BusClass *bc;
 
     if (!dev || !dev->parent_bus) {
         return NULL;
@@ -847,12 +847,12 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
  */
 void qdev_alias_all_properties(DeviceState *target, Object *source)
 {
-    ObjectClass *class;
+    const ObjectClass *class;
     Property *prop;
 
     class = object_get_class(OBJECT(target));
     do {
-        DeviceClass *dc = DEVICE_CLASS(class);
+        const DeviceClass *dc = DEVICE_CLASS(class);
 
         for (prop = dc->props; prop && prop->name; prop++) {
             object_property_add_alias(source, prop->name,
@@ -898,7 +898,7 @@ static bool device_get_realized(Object *obj, Error **errp)
 static void device_set_realized(Object *obj, bool value, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
     HotplugHandler *hotplug_ctrl;
     BusState *bus;
     Error *local_err = NULL;
@@ -1023,7 +1023,7 @@ fail:
 
 static bool device_get_hotpluggable(Object *obj, Error **errp)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    const DeviceClass *dc = DEVICE_GET_CLASS(obj);
     DeviceState *dev = DEVICE(obj);
 
     return dc->hotpluggable && (dev->parent_bus == NULL ||
@@ -1047,7 +1047,7 @@ static void device_set_hotplugged(Object *obj, bool value, Error **err)
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    ObjectClass *class;
+    const ObjectClass *class;
     Property *prop;
 
     if (qdev_hotplug) {
@@ -1163,7 +1163,7 @@ static void device_class_init(ObjectClass *class, void *data)
 
 void device_reset(DeviceState *dev)
 {
-    DeviceClass *klass = DEVICE_GET_CLASS(dev);
+    const DeviceClass *klass = DEVICE_GET_CLASS(dev);
 
     if (klass->reset) {
         klass->reset(dev);

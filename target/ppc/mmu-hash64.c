@@ -422,7 +422,7 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
     const ppc_hash_pte64_t *hptes;
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
+        const PPCVirtualHypervisorClass *vhc =
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         return vhc->map_hptes(cpu->vhyp, ptex, n);
     }
@@ -442,7 +442,7 @@ void ppc_hash64_unmap_hptes(PowerPCCPU *cpu, const ppc_hash_pte64_t *hptes,
                             hwaddr ptex, int n)
 {
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
+        const PPCVirtualHypervisorClass *vhc =
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         vhc->unmap_hptes(cpu->vhyp, hptes, ptex, n);
         return;
@@ -922,7 +922,7 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
     hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
+        const PPCVirtualHypervisorClass *vhc =
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         vhc->store_hpte(cpu->vhyp, ptex, pte0, pte1);
         return;

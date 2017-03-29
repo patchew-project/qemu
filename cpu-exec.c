@@ -174,7 +174,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
          * counter hit zero); we must restore the guest PC to the address
          * of the start of the TB.
          */
-        CPUClass *cc = CPU_GET_CLASS(cpu);
+        const CPUClass *cc = CPU_GET_CLASS(cpu);
         qemu_log_mask_and_addr(CPU_LOG_EXEC, last_tb->pc,
                                "Stopped execution of TB chain before %p ["
                                TARGET_FMT_lx "] %s\n",
@@ -223,7 +223,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 
 static void cpu_exec_step(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb;
     target_ulong cs_base, pc;
@@ -421,7 +421,7 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 
 static inline void cpu_handle_debug_exception(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUWatchpoint *wp;
 
     if (!cpu->watchpoint_hit) {
@@ -450,7 +450,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
                which will be handled outside the cpu execution
                loop */
 #if defined(TARGET_I386)
-            CPUClass *cc = CPU_GET_CLASS(cpu);
+            const CPUClass *cc = CPU_GET_CLASS(cpu);
             cc->do_interrupt(cpu);
 #endif
             *ret = cpu->exception_index;
@@ -458,7 +458,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
             return true;
 #else
             if (replay_exception()) {
-                CPUClass *cc = CPU_GET_CLASS(cpu);
+                const CPUClass *cc = CPU_GET_CLASS(cpu);
                 qemu_mutex_lock_iothread();
                 cc->do_interrupt(cpu);
                 qemu_mutex_unlock_iothread();
@@ -486,7 +486,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (unlikely(atomic_read(&cpu->interrupt_request))) {
         int interrupt_request;
@@ -621,7 +621,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 
 int cpu_exec(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
     int ret;
     SyncClocks sc = { 0 };
 

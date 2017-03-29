@@ -27,7 +27,7 @@ static void ccw_device_unplug(HotplugHandler *hotplug_dev,
                               DeviceState *dev, Error **errp)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
-    CCWDeviceClass *k = CCW_DEVICE_GET_CLASS(ccw_dev);
+    const CCWDeviceClass *k = CCW_DEVICE_GET_CLASS(ccw_dev);
     SubchDev *sch = ccw_dev->sch;
     Error *err = NULL;
 

@@ -390,7 +390,7 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
     }
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         DeviceState *dev = kid->child;
-        DeviceClass *dc = DEVICE_GET_CLASS(dev);
+        const DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
         if (qdev_class_has_alias(dc) &&
             strcmp(qdev_class_get_alias(dc), elem) == 0) {
@@ -402,7 +402,7 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 
 static inline bool qbus_is_full(BusState *bus)
 {
-    BusClass *bus_class = BUS_GET_CLASS(bus);
+    const BusClass *bus_class = BUS_GET_CLASS(bus);
     return bus_class->max_dev && bus->max_index >= bus_class->max_dev;
 }
 
@@ -664,7 +664,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
 
 static void bus_print_dev(BusState *bus, Monitor *mon, DeviceState *dev, int indent)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
+    const BusClass *bc = BUS_GET_CLASS(bus);
 
     if (bc->print_dev) {
         bc->print_dev(mon, dev, indent);
@@ -673,7 +673,7 @@ static void bus_print_dev(BusState *bus, Monitor *mon, DeviceState *dev, int ind
 
 static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
-    ObjectClass *class;
+    const ObjectClass *class;
     BusState *child;
     NamedGPIOList *ngl;
 

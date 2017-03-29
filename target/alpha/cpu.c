@@ -58,7 +58,7 @@ static void alpha_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
+    const AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

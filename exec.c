@@ -673,7 +673,7 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 
 void cpu_exec_unrealizefn(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cpu_list_remove(cpu);
 
@@ -711,7 +711,7 @@ void cpu_exec_initfn(CPUState *cpu)
 
 void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 {
-    CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
+    const CPUClass *cc ATTRIBUTE_UNUSED = CPU_GET_CLASS(cpu);
 
     cpu_list_add(cpu);
 
@@ -2207,7 +2207,7 @@ static const MemoryRegionOps notdirty_mem_ops = {
 static void check_watchpoint(int offset, int len, MemTxAttrs attrs, int flags)
 {
     CPUState *cpu = current_cpu;
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = cpu->env_ptr;
     target_ulong pc, cs_base;
     target_ulong vaddr;

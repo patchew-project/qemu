@@ -646,7 +646,7 @@ void m48t59_realize_common(M48t59State *s, Error **errp)
 
 static int m48t59_init1(SysBusDevice *dev)
 {
-    M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_GET_CLASS(dev);
+    const M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_GET_CLASS(dev);
     M48txxSysBusState *d = M48TXX_SYS_BUS(dev);
     Object *o = OBJECT(dev);
     M48t59State *s = &d->state;

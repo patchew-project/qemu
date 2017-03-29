@@ -54,7 +54,7 @@ static uint32_t get_index(sPAPRDRConnector *drc)
 static uint32_t set_isolation_state(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     trace_spapr_drc_set_isolation_state(get_index(drc), state);
 
@@ -122,7 +122,7 @@ static uint32_t set_indicator_state(sPAPRDRConnector *drc,
 static uint32_t set_allocation_state(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     trace_spapr_drc_set_allocation_state(get_index(drc), state);
 
@@ -233,7 +233,7 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     uint32_t value = (uint32_t)drck->get_index(drc);
     visit_type_uint32(v, name, &value, errp);
 }
@@ -242,7 +242,7 @@ static void prop_get_type(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     uint32_t value = (uint32_t)drck->get_type(drc);
     visit_type_uint32(v, name, &value, errp);
 }
@@ -250,7 +250,7 @@ static void prop_get_type(Object *obj, Visitor *v, const char *name,
 static char *prop_get_name(Object *obj, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     return g_strdup(drck->get_name(drc));
 }
 
@@ -258,7 +258,7 @@ static void prop_get_entity_sense(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     uint32_t value;
 
     drck->entity_sense(drc, &value);
@@ -465,7 +465,7 @@ static bool release_pending(sPAPRDRConnector *drc)
 static void reset(DeviceState *d)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     sPAPRDREntitySense state;
 
     trace_spapr_drc_reset(drck->get_index(drc));
@@ -504,7 +504,7 @@ static void reset(DeviceState *d)
 static void realize(DeviceState *d, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     Object *root_container;
     char link_name[256];
     gchar *child_name;
@@ -535,7 +535,7 @@ static void realize(DeviceState *d, Error **errp)
 static void unrealize(DeviceState *d, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    const sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     Object *root_container;
     char name[256];
     Error *err = NULL;
@@ -773,7 +773,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
     while ((prop = object_property_iter_next(&iter))) {
         Object *obj;
         sPAPRDRConnector *drc;
-        sPAPRDRConnectorClass *drck;
+        const sPAPRDRConnectorClass *drck;
         uint32_t drc_index, drc_power_domain;
 
         if (!strstart(prop->type, "link<", NULL)) {

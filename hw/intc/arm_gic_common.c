@@ -26,7 +26,7 @@
 static void gic_pre_save(void *opaque)
 {
     GICState *s = (GICState *)opaque;
-    ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
+    const ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
 
     if (c->pre_save) {
         c->pre_save(s);
@@ -36,7 +36,7 @@ static void gic_pre_save(void *opaque)
 static int gic_post_load(void *opaque, int version_id)
 {
     GICState *s = (GICState *)opaque;
-    ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
+    const ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
 
     if (c->post_load) {
         c->post_load(s);

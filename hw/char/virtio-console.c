@@ -58,7 +58,7 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
     trace_virtio_console_flush_buf(port->id, len, ret);
 
     if (ret < len) {
-        VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+        const VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
         /*
          * Ideally we'd get a better error code than just -1, but
@@ -106,7 +106,7 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     DeviceState *dev = DEVICE(port);
-    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+    const VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
     if (!k->is_console) {
         qemu_chr_fe_set_open(&vcon->chr, guest_connected);
@@ -167,7 +167,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
-    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
+    const VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
     Chardev *chr = qemu_chr_fe_get_driver(&vcon->chr);
 
     if (port->id == 0 && !k->is_console) {

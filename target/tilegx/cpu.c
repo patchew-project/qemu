@@ -79,7 +79,7 @@ static bool tilegx_cpu_has_work(CPUState *cs)
 static void tilegx_cpu_reset(CPUState *s)
 {
     TileGXCPU *cpu = TILEGX_CPU(s);
-    TileGXCPUClass *tcc = TILEGX_CPU_GET_CLASS(cpu);
+    const TileGXCPUClass *tcc = TILEGX_CPU_GET_CLASS(cpu);
     CPUTLGState *env = &cpu->env;
 
     tcc->parent_reset(s);
@@ -90,7 +90,7 @@ static void tilegx_cpu_reset(CPUState *s)
 static void tilegx_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    TileGXCPUClass *tcc = TILEGX_CPU_GET_CLASS(dev);
+    const TileGXCPUClass *tcc = TILEGX_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

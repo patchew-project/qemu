@@ -36,7 +36,7 @@ bool cpu_exists(int64_t id)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        CPUClass *cc = CPU_GET_CLASS(cpu);
+        const CPUClass *cc = CPU_GET_CLASS(cpu);
 
         if (cc->get_arch_id(cpu) == id) {
             return true;
@@ -88,7 +88,7 @@ out:
 
 bool cpu_paging_enabled(const CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     return cc->get_paging_enabled(cpu);
 }
@@ -101,7 +101,7 @@ static bool cpu_common_get_paging_enabled(const CPUState *cpu)
 void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                             Error **errp)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cc->get_memory_mapping(cpu, list, errp);
 }
@@ -139,7 +139,7 @@ void cpu_exit(CPUState *cpu)
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     return (*cc->write_elf32_qemunote)(f, cpu, opaque);
 }
@@ -153,7 +153,7 @@ static int cpu_common_write_elf32_qemunote(WriteCoreDumpFunction f,
 int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
                          int cpuid, void *opaque)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     return (*cc->write_elf32_note)(f, cpu, cpuid, opaque);
 }
@@ -168,7 +168,7 @@ static int cpu_common_write_elf32_note(WriteCoreDumpFunction f,
 int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     return (*cc->write_elf64_qemunote)(f, cpu, opaque);
 }
@@ -182,7 +182,7 @@ static int cpu_common_write_elf64_qemunote(WriteCoreDumpFunction f,
 int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
                          int cpuid, void *opaque)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     return (*cc->write_elf64_note)(f, cpu, cpuid, opaque);
 }
@@ -230,7 +230,7 @@ static bool cpu_common_exec_interrupt(CPUState *cpu, int int_req)
 
 GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
     GuestPanicInformation *res = NULL;
 
     if (cc->get_crash_info) {
@@ -242,7 +242,7 @@ GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
 void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->dump_state) {
         cpu_synchronize_state(cpu);
@@ -253,7 +253,7 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
 void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                          int flags)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->dump_statistics) {
         cc->dump_statistics(cpu, f, cpu_fprintf, flags);
@@ -262,7 +262,7 @@ void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
 
 void cpu_reset(CPUState *cpu)
 {
-    CPUClass *klass = CPU_GET_CLASS(cpu);
+    const CPUClass *klass = CPU_GET_CLASS(cpu);
 
     if (klass->reset != NULL) {
         (*klass->reset)(cpu);
@@ -273,7 +273,7 @@ void cpu_reset(CPUState *cpu)
 
 static void cpu_common_reset(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
     int i;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
@@ -383,7 +383,7 @@ static void cpu_common_unrealizefn(DeviceState *dev, Error **errp)
 static void cpu_common_initfn(Object *obj)
 {
     CPUState *cpu = CPU(obj);
-    CPUClass *cc = CPU_GET_CLASS(obj);
+    const CPUClass *cc = CPU_GET_CLASS(obj);
 
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;

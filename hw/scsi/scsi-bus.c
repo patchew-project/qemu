@@ -48,7 +48,7 @@ static int next_scsi_bus;
 
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
+    const SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
     if (sc->realize) {
         sc->realize(s, errp);
     }
@@ -71,7 +71,7 @@ int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
 static SCSIRequest *scsi_device_alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
                                           uint8_t *buf, void *hba_private)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
+    const SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
     if (sc->alloc_req) {
         return sc->alloc_req(s, tag, lun, buf, hba_private);
     }
@@ -81,7 +81,7 @@ static SCSIRequest *scsi_device_alloc_req(SCSIDevice *s, uint32_t tag, uint32_t 
 
 void scsi_device_unit_attention_reported(SCSIDevice *s)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
+    const SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
     if (sc->unit_attention_reported) {
         sc->unit_attention_reported(s);
     }
@@ -635,7 +635,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 {
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
     const SCSIReqOps *ops;
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
+    const SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
     SCSIRequest *req;
     SCSICommand cmd = { .len = 0 };
     int ret;

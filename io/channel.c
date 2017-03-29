@@ -52,7 +52,7 @@ ssize_t qio_channel_readv_full(QIOChannel *ioc,
                                size_t *nfds,
                                Error **errp)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if ((fds || nfds) &&
         !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
@@ -72,7 +72,7 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
                                 size_t nfds,
                                 Error **errp)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if ((fds || nfds) &&
         !qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
@@ -127,7 +127,7 @@ int qio_channel_set_blocking(QIOChannel *ioc,
                               bool enabled,
                               Error **errp)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
     return klass->io_set_blocking(ioc, enabled, errp);
 }
 
@@ -135,7 +135,7 @@ int qio_channel_set_blocking(QIOChannel *ioc,
 int qio_channel_close(QIOChannel *ioc,
                       Error **errp)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
     return klass->io_close(ioc, errp);
 }
 
@@ -143,7 +143,7 @@ int qio_channel_close(QIOChannel *ioc,
 GSource *qio_channel_create_watch(QIOChannel *ioc,
                                   GIOCondition condition)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
     GSource *ret = klass->io_create_watch(ioc, condition);
 
     if (ioc->name) {
@@ -160,7 +160,7 @@ void qio_channel_set_aio_fd_handler(QIOChannel *ioc,
                                     IOHandler *io_write,
                                     void *opaque)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     klass->io_set_aio_fd_handler(ioc, ctx, io_read, io_write, opaque);
 }
@@ -189,7 +189,7 @@ int qio_channel_shutdown(QIOChannel *ioc,
                          QIOChannelShutdown how,
                          Error **errp)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if (!klass->io_shutdown) {
         error_setg(errp, "Data path shutdown not supported");
@@ -203,7 +203,7 @@ int qio_channel_shutdown(QIOChannel *ioc,
 void qio_channel_set_delay(QIOChannel *ioc,
                            bool enabled)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if (klass->io_set_delay) {
         klass->io_set_delay(ioc, enabled);
@@ -214,7 +214,7 @@ void qio_channel_set_delay(QIOChannel *ioc,
 void qio_channel_set_cork(QIOChannel *ioc,
                           bool enabled)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if (klass->io_set_cork) {
         klass->io_set_cork(ioc, enabled);
@@ -227,7 +227,7 @@ off_t qio_channel_io_seek(QIOChannel *ioc,
                           int whence,
                           Error **errp)
 {
-    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+    const QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if (!klass->io_seek) {
         error_setg(errp, "Channel does not support random access");

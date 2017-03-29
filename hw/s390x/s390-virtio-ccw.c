@@ -244,10 +244,10 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
 bool ri_allowed(void)
 {
     if (kvm_enabled()) {
-        MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+        const MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
         if (object_class_dynamic_cast(OBJECT_CLASS(mc),
                                       TYPE_S390_CCW_MACHINE)) {
-            S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+            const S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
 
             return s390mc->ri_allowed;
         }
@@ -262,10 +262,10 @@ bool ri_allowed(void)
 
 bool cpu_model_allowed(void)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    const MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     if (object_class_dynamic_cast(OBJECT_CLASS(mc),
                                   TYPE_S390_CCW_MACHINE)) {
-        S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+        const S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
 
         return s390mc->cpu_model_allowed;
     }

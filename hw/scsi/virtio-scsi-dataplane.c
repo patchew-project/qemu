@@ -27,7 +27,7 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     if (vs->conf.iothread) {
         if (!k->set_guest_notifiers || !k->ioeventfd_assign) {
@@ -126,7 +126,7 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     int i;
     int rc;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
@@ -188,7 +188,7 @@ fail_guest_notifiers:
 void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     int i;

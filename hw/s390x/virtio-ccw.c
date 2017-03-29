@@ -314,7 +314,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+            const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
             features.index = address_space_ldub(&address_space_memory,
                                                 ccw.cda
@@ -678,7 +678,7 @@ static void virtio_sch_disable_cb(SubchDev *sch)
 
 static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 {
-    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
+    const VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     SubchDev *sch = css_create_virtual_sch(ccw_dev->bus_id, errp);
     Error *err = NULL;
@@ -1067,7 +1067,7 @@ static int virtio_ccw_setup_irqroutes(VirtioCcwDevice *dev, int nvqs)
     VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
     int ret;
     S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    const S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
     ret = virtio_ccw_get_mappings(dev);
     if (ret) {
@@ -1085,7 +1085,7 @@ static int virtio_ccw_setup_irqroutes(VirtioCcwDevice *dev, int nvqs)
 static void virtio_ccw_release_irqroutes(VirtioCcwDevice *dev, int nvqs)
 {
     S390FLICState *fs = s390_get_flic();
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    const S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
     fsc->release_adapter_routes(fs, &dev->routes);
 }
@@ -1118,7 +1118,7 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
     VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
     VirtQueue *vq = virtio_get_queue(vdev, n);
     EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     if (assign) {
         int r = event_notifier_init(notifier, 0);
@@ -1619,7 +1619,7 @@ static void virtio_ccw_busdev_realize(DeviceState *dev, Error **errp)
 static int virtio_ccw_busdev_exit(DeviceState *dev)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
-    VirtIOCCWDeviceClass *_info = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
+    const VirtIOCCWDeviceClass *_info = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
 
     return _info->exit(_dev);
 }

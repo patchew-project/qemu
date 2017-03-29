@@ -88,7 +88,7 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
 
 static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
     SerialState *s;
     Error *err = NULL;

@@ -20,7 +20,7 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,
                                  void *opaque)
 {
-    RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
+    const RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
     RngRequest *req;
 
     if (k->request_entropy) {
@@ -53,7 +53,7 @@ static void rng_backend_complete(UserCreatable *uc, Error **errp)
 static void rng_backend_prop_set_opened(Object *obj, bool value, Error **errp)
 {
     RngBackend *s = RNG_BACKEND(obj);
-    RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
+    const RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
     Error *local_err = NULL;
 
     if (value == s->opened) {

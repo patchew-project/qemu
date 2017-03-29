@@ -119,7 +119,7 @@ USBBus *usb_bus_find(int busnr)
 
 static void usb_device_realize(USBDevice *dev, Error **errp)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
 
     if (klass->realize) {
         klass->realize(dev, errp);
@@ -128,7 +128,7 @@ static void usb_device_realize(USBDevice *dev, Error **errp)
 
 USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->find_device) {
         return klass->find_device(dev, addr);
     }
@@ -137,7 +137,7 @@ USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr)
 
 static void usb_device_unrealize(USBDevice *dev, Error **errp)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
 
     if (klass->unrealize) {
         klass->unrealize(dev, errp);
@@ -146,7 +146,7 @@ static void usb_device_unrealize(USBDevice *dev, Error **errp)
 
 void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->cancel_packet) {
         klass->cancel_packet(dev, p);
     }
@@ -154,7 +154,7 @@ void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)
 
 void usb_device_handle_attach(USBDevice *dev)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_attach) {
         klass->handle_attach(dev);
     }
@@ -162,7 +162,7 @@ void usb_device_handle_attach(USBDevice *dev)
 
 void usb_device_handle_reset(USBDevice *dev)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_reset) {
         klass->handle_reset(dev);
     }
@@ -171,7 +171,7 @@ void usb_device_handle_reset(USBDevice *dev)
 void usb_device_handle_control(USBDevice *dev, USBPacket *p, int request,
                                int value, int index, int length, uint8_t *data)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_control) {
         klass->handle_control(dev, p, request, value, index, length, data);
     }
@@ -179,7 +179,7 @@ void usb_device_handle_control(USBDevice *dev, USBPacket *p, int request,
 
 void usb_device_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_data) {
         klass->handle_data(dev, p);
     }
@@ -187,13 +187,13 @@ void usb_device_handle_data(USBDevice *dev, USBPacket *p)
 
 const char *usb_device_get_product_desc(USBDevice *dev)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     return klass->product_desc;
 }
 
 const USBDesc *usb_device_get_usb_desc(USBDevice *dev)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (dev->usb_desc) {
         return dev->usb_desc;
     }
@@ -203,7 +203,7 @@ const USBDesc *usb_device_get_usb_desc(USBDevice *dev)
 void usb_device_set_interface(USBDevice *dev, int interface,
                               int alt_old, int alt_new)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->set_interface) {
         klass->set_interface(dev, interface, alt_old, alt_new);
     }
@@ -211,7 +211,7 @@ void usb_device_set_interface(USBDevice *dev, int interface,
 
 void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->flush_ep_queue) {
         klass->flush_ep_queue(dev, ep);
     }
@@ -219,7 +219,7 @@ void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
 
 void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->ep_stopped) {
         klass->ep_stopped(dev, ep);
     }
@@ -228,7 +228,7 @@ void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep)
 int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
                              int streams)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->alloc_streams) {
         return klass->alloc_streams(dev, eps, nr_eps, streams);
     }
@@ -237,7 +237,7 @@ int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
 
 void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps)
 {
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->free_streams) {
         klass->free_streams(dev, eps, nr_eps);
     }
@@ -773,7 +773,7 @@ static void usb_set_attached(Object *obj, bool value, Error **errp)
 static void usb_device_instance_init(Object *obj)
 {
     USBDevice *dev = USB_DEVICE(obj);
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    const USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
 
     if (klass->attached_settable) {
         object_property_add_bool(obj, "attached",

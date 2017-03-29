@@ -133,7 +133,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 {
     PnvCore *pc = PNV_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    PnvCoreClass *pcc = PNV_CORE_GET_CLASS(OBJECT(dev));
+    const PnvCoreClass *pcc = PNV_CORE_GET_CLASS(OBJECT(dev));
     const char *typename = object_class_get_name(pcc->cpu_oc);
     size_t size = object_type_get_instance_size(typename);
     Error *local_err = NULL;

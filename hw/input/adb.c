@@ -87,7 +87,7 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
     for(i = 0; i < s->nb_devices; i++) {
         d = s->devices[i];
         if (d->devaddr == devaddr) {
-            ADBDeviceClass *adc = ADB_DEVICE_GET_CLASS(d);
+            const ADBDeviceClass *adc = ADB_DEVICE_GET_CLASS(d);
             return adc->devreq(d, obuf, buf, len);
         }
     }
@@ -491,7 +491,7 @@ static QemuInputHandler adb_keyboard_handler = {
 
 static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
 {
-    ADBKeyboardClass *akc = ADB_KEYBOARD_GET_CLASS(dev);
+    const ADBKeyboardClass *akc = ADB_KEYBOARD_GET_CLASS(dev);
     akc->parent_realize(dev, errp);
     qemu_input_handler_register(dev, &adb_keyboard_handler);
 }
@@ -707,7 +707,7 @@ static const VMStateDescription vmstate_adb_mouse = {
 static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
 {
     MouseState *s = ADB_MOUSE(dev);
-    ADBMouseClass *amc = ADB_MOUSE_GET_CLASS(dev);
+    const ADBMouseClass *amc = ADB_MOUSE_GET_CLASS(dev);
 
     amc->parent_realize(dev, errp);
 

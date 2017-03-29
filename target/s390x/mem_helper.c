@@ -944,7 +944,7 @@ uint32_t HELPER(tprot)(uint64_t a1, uint64_t a2)
 uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
 {
     static S390SKeysState *ss;
-    static S390SKeysClass *skeyclass;
+    static const S390SKeysClass *skeyclass;
     uint64_t addr = get_address(env, 0, 0, r2);
     uint8_t key;
 
@@ -967,7 +967,7 @@ uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
 void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     static S390SKeysState *ss;
-    static S390SKeysClass *skeyclass;
+    static const S390SKeysClass *skeyclass;
     uint64_t addr = get_address(env, 0, 0, r2);
     uint8_t key;
 
@@ -988,7 +988,7 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 {
     static S390SKeysState *ss;
-    static S390SKeysClass *skeyclass;
+    static const S390SKeysClass *skeyclass;
     uint8_t re, key;
 
     if (r2 > ram_size) {

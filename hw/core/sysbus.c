@@ -110,7 +110,7 @@ qemu_irq sysbus_get_connected_irq(SysBusDevice *dev, int n)
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
-    SysBusDeviceClass *sbd = SYS_BUS_DEVICE_GET_CLASS(dev);
+    const SysBusDeviceClass *sbd = SYS_BUS_DEVICE_GET_CLASS(dev);
 
     qdev_connect_gpio_out_named(DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ, n, irq);
 
@@ -203,7 +203,7 @@ void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
 static int sysbus_device_init(DeviceState *dev)
 {
     SysBusDevice *sd = SYS_BUS_DEVICE(dev);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
+    const SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
 
     if (!sbc->init) {
         return 0;
@@ -288,7 +288,7 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 static char *sysbus_get_fw_dev_path(DeviceState *dev)
 {
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(s);
+    const SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(s);
     /* for the explicit unit address fallback case: */
     char *addr, *fw_dev_path;
 

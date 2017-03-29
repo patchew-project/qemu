@@ -146,7 +146,7 @@ static void kvm_arm_host_cpu_class_init(ObjectClass *oc, void *data)
 
 static void kvm_arm_host_cpu_initfn(Object *obj)
 {
-    ARMHostCPUClass *ahcc = ARM_HOST_CPU_GET_CLASS(obj);
+    const ARMHostCPUClass *ahcc = ARM_HOST_CPU_GET_CLASS(obj);
     ARMCPU *cpu = ARM_CPU(obj);
     CPUARMState *env = &cpu->env;
 

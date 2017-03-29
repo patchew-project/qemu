@@ -120,7 +120,7 @@ static const MemoryRegionOps aspeed_soc_io_ops = {
 static void aspeed_soc_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    const AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     char *cpu_typename;
     int i;
 
@@ -181,7 +181,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 {
     int i;
     AspeedSoCState *s = ASPEED_SOC(dev);
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    const AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     Error *err = NULL, *local_err = NULL;
 
     /* IO space */

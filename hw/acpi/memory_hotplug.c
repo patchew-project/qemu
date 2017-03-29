@@ -262,7 +262,7 @@ void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp)
 {
     MemStatus *mdev;
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    const DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (!dc->hotpluggable) {
         return;

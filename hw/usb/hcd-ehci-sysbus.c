@@ -56,7 +56,7 @@ static void ehci_sysbus_init(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
     EHCISysBusState *i = SYS_BUS_EHCI(obj);
-    SysBusEHCIClass *sec = SYS_BUS_EHCI_GET_CLASS(obj);
+    const SysBusEHCIClass *sec = SYS_BUS_EHCI_GET_CLASS(obj);
     EHCIState *s = &i->ehci;
 
     s->capsbase = sec->capsbase;

@@ -40,7 +40,7 @@ void cpu_set_apic_base(DeviceState *dev, uint64_t val)
 
     if (dev) {
         APICCommonState *s = APIC_COMMON(dev);
-        APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+        const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
         /* switching to x2APIC, reset possibly modified xAPIC ID */
         if (!(s->apicbase & MSR_IA32_APICBASE_EXTD) &&
             (val & MSR_IA32_APICBASE_EXTD)) {
@@ -65,7 +65,7 @@ uint64_t cpu_get_apic_base(DeviceState *dev)
 void cpu_set_apic_tpr(DeviceState *dev, uint8_t val)
 {
     APICCommonState *s;
-    APICCommonClass *info;
+    const APICCommonClass *info;
 
     if (!dev) {
         return;
@@ -80,7 +80,7 @@ void cpu_set_apic_tpr(DeviceState *dev, uint8_t val)
 uint8_t cpu_get_apic_tpr(DeviceState *dev)
 {
     APICCommonState *s;
-    APICCommonClass *info;
+    const APICCommonClass *info;
 
     if (!dev) {
         return 0;
@@ -95,7 +95,7 @@ uint8_t cpu_get_apic_tpr(DeviceState *dev)
 void apic_enable_tpr_access_reporting(DeviceState *dev, bool enable)
 {
     APICCommonState *s = APIC_COMMON(dev);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     apic_report_tpr_access = enable;
     if (info->enable_tpr_reporting) {
@@ -106,7 +106,7 @@ void apic_enable_tpr_access_reporting(DeviceState *dev, bool enable)
 void apic_enable_vapic(DeviceState *dev, hwaddr paddr)
 {
     APICCommonState *s = APIC_COMMON(dev);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     s->vapic_paddr = paddr;
     info->vapic_base_update(s);
@@ -149,7 +149,7 @@ int apic_get_irq_delivered(void)
 void apic_deliver_nmi(DeviceState *dev)
 {
     APICCommonState *s = APIC_COMMON(dev);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     info->external_nmi(s);
 }
@@ -190,7 +190,7 @@ bool apic_next_timer(APICCommonState *s, int64_t current_time)
 void apic_init_reset(DeviceState *dev)
 {
     APICCommonState *s;
-    APICCommonClass *info;
+    const APICCommonClass *info;
     int i;
 
     if (!dev) {
@@ -244,7 +244,7 @@ void apic_designate_bsp(DeviceState *dev, bool bsp)
 static void apic_reset_common(DeviceState *dev)
 {
     APICCommonState *s = APIC_COMMON(dev);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     uint32_t bsp;
 
     bsp = s->apicbase & MSR_IA32_APICBASE_BSP;
@@ -263,7 +263,7 @@ static void apic_reset_common(DeviceState *dev)
 static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
 {
     APICCommonState *s = opaque;
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     int i;
 
     if (version_id > 2) {
@@ -310,7 +310,7 @@ static const VMStateDescription vmstate_apic_common;
 static void apic_common_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
-    APICCommonClass *info;
+    const APICCommonClass *info;
     static DeviceState *vapic;
     int instance_id = s->id;
 
@@ -337,7 +337,7 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
 static void apic_common_unrealize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     vmstate_unregister(NULL, &vmstate_apic_common, s);
     info->unrealize(dev, errp);
@@ -363,7 +363,7 @@ static int apic_pre_load(void *opaque)
 static void apic_dispatch_pre_save(void *opaque)
 {
     APICCommonState *s = APIC_COMMON(opaque);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -373,7 +373,7 @@ static void apic_dispatch_pre_save(void *opaque)
 static int apic_dispatch_post_load(void *opaque, int version_id)
 {
     APICCommonState *s = APIC_COMMON(opaque);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+    const APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
         info->post_load(s);

@@ -75,7 +75,7 @@ static void virtio_input_handle_evt(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_input_handle_sts(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
+    const VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
     VirtIOInput *vinput = VIRTIO_INPUT(vdev);
     virtio_input_event event;
     VirtQueueElement *elem;
@@ -190,7 +190,7 @@ static uint64_t virtio_input_get_features(VirtIODevice *vdev, uint64_t f,
 
 static void virtio_input_set_status(VirtIODevice *vdev, uint8_t val)
 {
-    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
+    const VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
     VirtIOInput *vinput = VIRTIO_INPUT(vdev);
 
     if (val & VIRTIO_CONFIG_S_DRIVER_OK) {
@@ -205,7 +205,7 @@ static void virtio_input_set_status(VirtIODevice *vdev, uint8_t val)
 
 static void virtio_input_reset(VirtIODevice *vdev)
 {
-    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
+    const VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
     VirtIOInput *vinput = VIRTIO_INPUT(vdev);
 
     if (vinput->active) {
@@ -219,7 +219,7 @@ static void virtio_input_reset(VirtIODevice *vdev)
 static int virtio_input_post_load(void *opaque, int version_id)
 {
     VirtIOInput *vinput = opaque;
-    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vinput);
+    const VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vinput);
     VirtIODevice *vdev = VIRTIO_DEVICE(vinput);
 
     vinput->active = vdev->status & VIRTIO_CONFIG_S_DRIVER_OK;
@@ -231,7 +231,7 @@ static int virtio_input_post_load(void *opaque, int version_id)
 
 static void virtio_input_device_realize(DeviceState *dev, Error **errp)
 {
-    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
+    const VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
     VirtIOInputConfig *cfg;
@@ -276,7 +276,7 @@ static void virtio_input_finalize(Object *obj)
 }
 static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
+    const VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     Error *local_err = NULL;
 

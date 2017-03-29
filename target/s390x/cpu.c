@@ -75,7 +75,7 @@ static void s390_cpu_load_normal(CPUState *s)
 static void s390_cpu_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
 
     env->pfault_token = -1UL;
@@ -123,7 +123,7 @@ static void s390_cpu_initial_reset(CPUState *s)
 static void s390_cpu_full_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
     int i;
 

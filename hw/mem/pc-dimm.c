@@ -40,7 +40,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     int slot;
     MachineState *machine = MACHINE(qdev_get_machine());
     PCDIMMDevice *dimm = PC_DIMM(dev);
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     Error *local_err = NULL;
     uint64_t existing_dimms_capacity = 0;
@@ -118,7 +118,7 @@ void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
                            MemoryRegion *mr)
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
 
     numa_unset_mem_node_id(dimm->addr, memory_region_size(mr), dimm->node);
@@ -169,7 +169,7 @@ int qmp_pc_dimm_device_list(Object *obj, void *opaque)
             MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);
             MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
             PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
-            DeviceClass *dc = DEVICE_GET_CLASS(obj);
+            const DeviceClass *dc = DEVICE_GET_CLASS(obj);
             PCDIMMDevice *dimm = PC_DIMM(obj);
 
             if (dev->id) {
@@ -358,7 +358,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     int64_t value;
     MemoryRegion *mr;
     PCDIMMDevice *dimm = PC_DIMM(obj);
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(obj);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(obj);
 
     mr = ddc->get_memory_region(dimm);
     value = memory_region_size(mr);
@@ -398,7 +398,7 @@ static void pc_dimm_init(Object *obj)
 static void pc_dimm_realize(DeviceState *dev, Error **errp)
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
 
     if (!dimm->hostmem) {
         error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property is not set");

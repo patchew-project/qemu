@@ -3096,7 +3096,7 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
 {
      PCICirrusVGAState *d = PCI_CIRRUS_VGA(dev);
      CirrusVGAState *s = &d->cirrus_vga;
-     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+     const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
      int16_t device_id = pc->device_id;
 
      /* follow real hardware, cirrus card emulated has 4 MB video memory.

@@ -1403,7 +1403,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     int i;
     GICState *s = ARM_GIC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    ARMGICClass *agc = ARM_GIC_GET_CLASS(s);
+    const ARMGICClass *agc = ARM_GIC_GET_CLASS(s);
     Error *local_err = NULL;
 
     agc->parent_realize(dev, &local_err);

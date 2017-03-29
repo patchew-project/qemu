@@ -257,7 +257,7 @@ static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(uc);
-    HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
+    const HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
     Error *local_err = NULL;
     void *ptr;
     uint64_t sz;

@@ -58,7 +58,7 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
                                     int is_write, sigset_t *old_set)
 {
     CPUState *cpu = current_cpu;
-    CPUClass *cc;
+    const CPUClass *cc;
     int ret;
 
     /* For synchronous signals we expect to be coming from the vCPU

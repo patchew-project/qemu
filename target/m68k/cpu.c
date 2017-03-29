@@ -47,7 +47,7 @@ static void m68k_set_feature(CPUM68KState *env, int feature)
 static void m68k_cpu_reset(CPUState *s)
 {
     M68kCPU *cpu = M68K_CPU(s);
-    M68kCPUClass *mcc = M68K_CPU_GET_CLASS(cpu);
+    const M68kCPUClass *mcc = M68K_CPU_GET_CLASS(cpu);
     CPUM68KState *env = &cpu->env;
 
     mcc->parent_reset(s);
@@ -218,7 +218,7 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     M68kCPU *cpu = M68K_CPU(dev);
-    M68kCPUClass *mcc = M68K_CPU_GET_CLASS(dev);
+    const M68kCPUClass *mcc = M68K_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

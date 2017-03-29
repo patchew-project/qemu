@@ -989,7 +989,7 @@ ObjectProperty *object_class_property_find(const ObjectClass *klass,
                                            Error **errp);
 
 typedef struct ObjectPropertyIterator {
-    ObjectClass *nextclass;
+    const ObjectClass *nextclass;
     GHashTableIter iter;
 } ObjectPropertyIterator;
 

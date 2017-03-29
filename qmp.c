@@ -120,7 +120,7 @@ void qmp_cpu(int64_t index, Error **errp)
 
 void qmp_cpu_add(int64_t id, Error **errp)
 {
-    MachineClass *mc;
+    const MachineClass *mc;
 
     mc = MACHINE_GET_CLASS(current_machine);
     if (mc->hot_add_cpu) {
@@ -707,7 +707,7 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, &ambig);
 
     if (obj) {
-        AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
+        const AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
         AcpiDeviceIf *adev = ACPI_DEVICE_IF(obj);
 
         adevc->ospm_status(adev, &prev);

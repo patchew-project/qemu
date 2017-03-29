@@ -108,7 +108,7 @@ static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
     unsigned int i;
     int sysp_end;
     uint8_t image[0x1ff0];
-    NvramClass *k = NVRAM_GET_CLASS(nvram);
+    const NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 

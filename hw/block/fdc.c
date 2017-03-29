@@ -1629,7 +1629,7 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     fdctrl->fifo[6] = FD_SECTOR_SC;
     fdctrl->data_dir = FD_DIR_READ;
     if (!(fdctrl->msr & FD_MSR_NONDMA)) {
-        IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
+        const IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
         k->release_DREQ(fdctrl->dma, fdctrl->dma_chann);
     }
     fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
@@ -1717,7 +1717,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     fdctrl->eot = fdctrl->fifo[6];
     if (fdctrl->dor & FD_DOR_DMAEN) {
         IsaDmaTransferMode dma_mode;
-        IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
+        const IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
         bool dma_mode_ok;
         /* DMA transfer are enabled. Check if DMA channel is well programmed */
         dma_mode = k->get_transfer_mode(fdctrl->dma, fdctrl->dma_chann);
@@ -1791,7 +1791,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
     FDrive *cur_drv;
     int len, start_pos, rel_pos;
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
-    IsaDmaClass *k;
+    const IsaDmaClass *k;
 
     fdctrl = opaque;
     if (fdctrl->msr & FD_MSR_RQM) {
@@ -2667,7 +2667,7 @@ static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
     fdctrl->num_floppies = MAX_FD;
 
     if (fdctrl->dma_chann != -1) {
-        IsaDmaClass *k;
+        const IsaDmaClass *k;
         assert(fdctrl->dma);
         k = ISADMA_GET_CLASS(fdctrl->dma);
         k->register_channel(fdctrl->dma, fdctrl->dma_chann,

@@ -18,7 +18,7 @@
 
 static void rp_aer_vector_update(PCIDevice *d)
 {
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
+    const PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
 
     if (rpc->aer_vector) {
         pcie_aer_root_set_vector(d, rpc->aer_vector(d));
@@ -56,8 +56,8 @@ static void rp_realize(PCIDevice *d, Error **errp)
 {
     PCIEPort *p = PCIE_PORT(d);
     PCIESlot *s = PCIE_SLOT(d);
-    PCIDeviceClass *dc = PCI_DEVICE_GET_CLASS(d);
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
+    const PCIDeviceClass *dc = PCI_DEVICE_GET_CLASS(d);
+    const PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
     int rc;
     Error *local_err = NULL;
 
@@ -122,7 +122,7 @@ err_bridge:
 
 static void rp_exit(PCIDevice *d)
 {
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
+    const PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
     PCIESlot *s = PCIE_SLOT(d);
 
     pcie_aer_exit(d);

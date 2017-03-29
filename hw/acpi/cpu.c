@@ -189,7 +189,7 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
                          CPUHotplugState *state, hwaddr base_addr)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *id_list;
     int i;
 
@@ -208,7 +208,7 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
 
 static AcpiCpuStatus *get_cpu_status(CPUHotplugState *cpu_st, DeviceState *dev)
 {
-    CPUClass *k = CPU_GET_CLASS(dev);
+    const CPUClass *k = CPU_GET_CLASS(dev);
     uint64_t cpu_arch_id = k->get_arch_id(CPU(dev));
     int i;
 
@@ -323,11 +323,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
     Aml *zero = aml_int(0);
     Aml *one = aml_int(1);
     Aml *sb_scope = aml_scope("_SB");
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(machine);
     char *cphp_res_path = g_strdup_printf("%s." CPUHP_RES_DEVICE, res_root);
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
-    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
+    const AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
     AcpiDeviceIf *adev = ACPI_DEVICE_IF(obj);
 
     cpu_ctrl_dev = aml_device("%s", cphp_res_path);

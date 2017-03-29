@@ -884,7 +884,7 @@ int rom_add_file(const char *file, const char *fw_dir,
                  bool option_rom, MemoryRegion *mr,
                  AddressSpace *as)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    const MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
     int rc, fd = -1;
     char devpath[100];
@@ -989,7 +989,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                    FWCfgReadCallback fw_callback, void *callback_opaque,
                    AddressSpace *as, bool read_only)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    const MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
     MemoryRegion *mr = NULL;
 

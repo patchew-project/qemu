@@ -38,7 +38,7 @@ static bool event_pending(SCLPEventFacility *ef)
 {
     BusChild *kid;
     SCLPEvent *event;
-    SCLPEventClass *event_class;
+    const SCLPEventClass *event_class;
 
     QTAILQ_FOREACH(kid, &ef->sbus.qbus.children, sibling) {
         DeviceState *qdev = kid->child;
@@ -56,7 +56,7 @@ static unsigned int get_host_send_mask(SCLPEventFacility *ef)
 {
     unsigned int mask;
     BusChild *kid;
-    SCLPEventClass *child;
+    const SCLPEventClass *child;
 
     mask = 0;
 
@@ -72,7 +72,7 @@ static unsigned int get_host_receive_mask(SCLPEventFacility *ef)
 {
     unsigned int mask;
     BusChild *kid;
-    SCLPEventClass *child;
+    const SCLPEventClass *child;
 
     mask = 0;
 
@@ -111,7 +111,7 @@ static uint16_t handle_write_event_buf(SCLPEventFacility *ef,
     uint16_t rc;
     BusChild *kid;
     SCLPEvent *event;
-    SCLPEventClass *ec;
+    const SCLPEventClass *ec;
 
     rc = SCLP_RC_INVALID_FUNCTION;
 
@@ -187,7 +187,7 @@ static uint16_t handle_sccb_read_events(SCLPEventFacility *ef, SCCB *sccb,
     unsigned elen;
     BusChild *kid;
     SCLPEvent *event;
-    SCLPEventClass *ec;
+    const SCLPEventClass *ec;
     EventBufferHeader *event_buf;
     ReadEventData *red = (ReadEventData *) sccb;
 
@@ -397,7 +397,7 @@ static const TypeInfo sclp_event_facility_info = {
 static void event_realize(DeviceState *qdev, Error **errp)
 {
     SCLPEvent *event = SCLP_EVENT(qdev);
-    SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
+    const SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
 
     if (child->init) {
         int rc = child->init(event);
@@ -411,7 +411,7 @@ static void event_realize(DeviceState *qdev, Error **errp)
 static void event_unrealize(DeviceState *qdev, Error **errp)
 {
     SCLPEvent *event = SCLP_EVENT(qdev);
-    SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
+    const SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
     if (child->exit) {
         int rc = child->exit(event);
         if (rc < 0) {

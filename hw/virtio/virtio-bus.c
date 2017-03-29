@@ -46,8 +46,8 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
     VirtioBusState *bus = VIRTIO_BUS(qbus);
-    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     bool has_iommu = virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
     Error *local_err = NULL;
 
@@ -102,7 +102,7 @@ void virtio_bus_device_unplugged(VirtIODevice *vdev)
 {
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
-    VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(qbus);
 
     DPRINTF("%s: remove device.\n", qbus->name);
 
@@ -133,7 +133,7 @@ size_t virtio_bus_get_vdev_config_len(VirtioBusState *bus)
 uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioDeviceClass *k;
+    const VirtioDeviceClass *k;
 
     assert(vdev != NULL);
     k = VIRTIO_DEVICE_GET_CLASS(vdev);
@@ -148,7 +148,7 @@ uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 void virtio_bus_get_vdev_config(VirtioBusState *bus, uint8_t *config)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioDeviceClass *k;
+    const VirtioDeviceClass *k;
 
     assert(vdev != NULL);
     k = VIRTIO_DEVICE_GET_CLASS(vdev);
@@ -161,7 +161,7 @@ void virtio_bus_get_vdev_config(VirtioBusState *bus, uint8_t *config)
 void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioDeviceClass *k;
+    const VirtioDeviceClass *k;
 
     assert(vdev != NULL);
     k = VIRTIO_DEVICE_GET_CLASS(vdev);
@@ -173,7 +173,7 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
 /* On success, ioeventfd ownership belongs to the caller.  */
 int virtio_bus_grab_ioeventfd(VirtioBusState *bus)
 {
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
 
     /* vhost can be used even if ioeventfd=off in the proxy device,
      * so do not check k->ioeventfd_enabled.
@@ -205,10 +205,10 @@ void virtio_bus_release_ioeventfd(VirtioBusState *bus)
 
 int virtio_bus_start_ioeventfd(VirtioBusState *bus)
 {
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
     VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     int r;
 
     if (!k->ioeventfd_assign || !k->ioeventfd_enabled(proxy)) {
@@ -233,7 +233,7 @@ int virtio_bus_start_ioeventfd(VirtioBusState *bus)
 void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
 {
     VirtIODevice *vdev;
-    VirtioDeviceClass *vdc;
+    const VirtioDeviceClass *vdc;
 
     if (!bus->ioeventfd_started) {
         return;
@@ -250,7 +250,7 @@ void virtio_bus_stop_ioeventfd(VirtioBusState *bus)
 
 bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
 {
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
 
     return k->ioeventfd_assign && k->ioeventfd_enabled(proxy);
@@ -263,7 +263,7 @@ bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
     DeviceState *proxy = DEVICE(BUS(bus)->parent);
     VirtQueue *vq = virtio_get_queue(vdev, n);
     EventNotifier *notifier = virtio_queue_get_host_notifier(vq);

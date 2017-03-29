@@ -836,7 +836,7 @@ static target_ulong h_set_mode_resource_addr_trans_mode(PowerPCCPU *cpu,
                                                         target_ulong value2)
 {
     CPUState *cs;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     if (!(pcc->insns_flags2 & PPC2_ISA207S)) {
         return H_P2;

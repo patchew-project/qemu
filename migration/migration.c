@@ -1157,7 +1157,7 @@ void migrate_del_blocker(Error *reason)
 
 int check_migratable(Object *obj, Error **err)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    const DeviceClass *dc = DEVICE_GET_CLASS(obj);
     if (only_migratable && dc->vmsd) {
         if (dc->vmsd->unmigratable) {
             error_setg(err, "Device %s is not migratable, but "

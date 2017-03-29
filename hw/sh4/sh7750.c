@@ -256,7 +256,7 @@ static uint32_t sh7750_mem_readw(void *opaque, hwaddr addr)
 static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
 {
     SH7750State *s = opaque;
-    SuperHCPUClass *scc;
+    const SuperHCPUClass *scc;
 
     switch (addr) {
     case SH7750_BCR1_A7:

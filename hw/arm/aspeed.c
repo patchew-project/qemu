@@ -164,7 +164,7 @@ static void aspeed_board_init(MachineState *machine,
                               const AspeedBoardConfig *cfg)
 {
     AspeedBoardState *bmc;
-    AspeedSoCClass *sc;
+    const AspeedSoCClass *sc;
     DriveInfo *drive0 = drive_get(IF_MTD, 0, 0);
 
     bmc = g_new0(AspeedBoardState, 1);

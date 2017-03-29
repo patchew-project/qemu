@@ -716,7 +716,7 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
 
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
-    S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
+    const S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
     S390CPU *cpu = S390_CPU(cs);
     const S390CPUModel *max_model;
 
@@ -886,7 +886,7 @@ void s390_cpu_model_register_props(Object *obj)
 static void s390_cpu_model_initfn(Object *obj)
 {
     S390CPU *cpu = S390_CPU(obj);
-    S390CPUClass *xcc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *xcc = S390_CPU_GET_CLASS(cpu);
 
     cpu->model = g_malloc0(sizeof(*cpu->model));
     /* copy the model, so we can modify it */

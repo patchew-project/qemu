@@ -170,7 +170,7 @@ static void control (SB16State *s, int hold)
 {
     int dma = s->use_hdma ? s->hdma : s->dma;
     IsaDma *isa_dma = s->use_hdma ? s->isa_hdma : s->isa_dma;
-    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
+    const IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
     s->dma_running = hold;
 
     ldebug ("hold %d high %d dma %d\n", hold, s->use_hdma, dma);
@@ -1143,7 +1143,7 @@ static int write_audio (SB16State *s, int nchan, int dma_pos,
                         int dma_len, int len)
 {
     IsaDma *isa_dma = nchan == s->dma ? s->isa_dma : s->isa_hdma;
-    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
+    const IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
     int temp, net;
     uint8_t tmpbuf[4096];
 
@@ -1362,7 +1362,7 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *isadev = ISA_DEVICE (dev);
     SB16State *s = SB16 (dev);
-    IsaDmaClass *k;
+    const IsaDmaClass *k;
 
     isa_init_irq (isadev, &s->pic, s->irq);
 

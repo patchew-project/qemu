@@ -85,7 +85,7 @@ static const CompatInfo *compat_by_pvr(uint32_t pvr)
 bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
                       uint32_t min_compat_pvr, uint32_t max_compat_pvr)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     const CompatInfo *compat = compat_by_pvr(compat_pvr);
     const CompatInfo *min = compat_by_pvr(min_compat_pvr);
     const CompatInfo *max = compat_by_pvr(max_compat_pvr);
@@ -115,7 +115,7 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
 {
     const CompatInfo *compat = compat_by_pvr(compat_pvr);
     CPUPPCState *env = &cpu->env;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     uint64_t pcr;
 
     if (!compat_pvr) {

@@ -313,7 +313,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc)
 {
     static S390SKeysState *ss;
-    static S390SKeysClass *skeyclass;
+    static const S390SKeysClass *skeyclass;
     int r = -1;
     uint8_t key;
 

@@ -453,7 +453,7 @@ static void dump_vmstate_vmsd(FILE *out_file,
 
 static void dump_machine_type(FILE *out_file)
 {
-    MachineClass *mc;
+    const MachineClass *mc;
 
     mc = MACHINE_GET_CLASS(current_machine);
 

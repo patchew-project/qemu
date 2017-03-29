@@ -22,21 +22,21 @@
 
 enum TpmType tpm_backend_get_type(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->type;
 }
 
 const char *tpm_backend_get_desc(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->desc();
 }
 
 void tpm_backend_destroy(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     k->ops->destroy(s);
 }
@@ -44,70 +44,70 @@ void tpm_backend_destroy(TPMBackend *s)
 int tpm_backend_init(TPMBackend *s, TPMState *state,
                      TPMRecvDataCB *datacb)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->init(s, state, datacb);
 }
 
 int tpm_backend_startup_tpm(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->startup_tpm(s);
 }
 
 bool tpm_backend_had_startup_error(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->had_startup_error(s);
 }
 
 size_t tpm_backend_realloc_buffer(TPMBackend *s, TPMSizedBuffer *sb)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->realloc_buffer(sb);
 }
 
 void tpm_backend_deliver_request(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     k->ops->deliver_request(s);
 }
 
 void tpm_backend_reset(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     k->ops->reset(s);
 }
 
 void tpm_backend_cancel_cmd(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     k->ops->cancel_cmd(s);
 }
 
 bool tpm_backend_get_tpm_established_flag(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->get_tpm_established_flag(s);
 }
 
 int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->reset_tpm_established_flag(s, locty);
 }
 
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     return k->ops->get_tpm_version(s);
 }
@@ -127,7 +127,7 @@ void tpm_backend_open(TPMBackend *s, Error **errp)
 static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
 {
     TPMBackend *s = TPM_BACKEND(obj);
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    const TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
     Error *local_err = NULL;
 
     if (value == s->opened) {

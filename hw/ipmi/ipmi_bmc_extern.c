@@ -152,7 +152,7 @@ static void extern_timeout(void *opaque)
 
     if (ibe->connected) {
         if (ibe->waiting_rsp && (ibe->outlen == 0)) {
-            IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+            const IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
             /* The message response timed out, return an error. */
             ibe->waiting_rsp = false;
             ibe->inbuf[1] = ibe->outbuf[1] | 0x04;
@@ -208,7 +208,7 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
         err = IPMI_CC_BMC_INIT_IN_PROGRESS;
     }
     if (err) {
-        IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+        const IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
         unsigned char rsp[3];
         rsp[0] = cmd[0] | 0x04;
         rsp[1] = cmd[1];
@@ -238,7 +238,7 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
 static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)
 {
     IPMIInterface *s = ibe->parent.intf;
-    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    const IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
 
     switch (hw_op) {
     case VM_CMD_VERSION:
@@ -285,7 +285,7 @@ static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)
 
 static void handle_msg(IPMIBmcExtern *ibe)
 {
-    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(ibe->parent.intf);
+    const IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(ibe->parent.intf);
 
     if (ibe->in_escape) {
         ipmi_debug("msg escape not ended\n");
@@ -385,7 +385,7 @@ static void chr_event(void *opaque, int event)
 {
     IPMIBmcExtern *ibe = opaque;
     IPMIInterface *s = ibe->parent.intf;
-    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    const IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
     unsigned char v;
 
     switch (event) {
@@ -466,7 +466,7 @@ static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
      */
     if (ibe->waiting_rsp) {
         IPMIInterface *ii = ibe->parent.intf;
-        IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+        const IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
 
         ibe->waiting_rsp = false;
         ibe->inbuf[1] = ibe->outbuf[1] | 0x04;

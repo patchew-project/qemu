@@ -739,7 +739,7 @@ static int kvm_virtio_pci_vector_use(VirtIOPCIProxy *proxy, int nvqs)
 {
     PCIDevice *dev = &proxy->pci_dev;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     unsigned int vector;
     int ret, queue_no;
 
@@ -788,7 +788,7 @@ static void kvm_virtio_pci_vector_release(VirtIOPCIProxy *proxy, int nvqs)
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     unsigned int vector;
     int queue_no;
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     for (queue_no = 0; queue_no < nvqs; queue_no++) {
         if (!virtio_queue_get_num(vdev, queue_no)) {
@@ -814,7 +814,7 @@ static int virtio_pci_vq_vector_unmask(VirtIOPCIProxy *proxy,
                                        MSIMessage msg)
 {
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     VirtQueue *vq = virtio_get_queue(vdev, queue_no);
     EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     VirtIOIRQFD *irqfd;
@@ -853,7 +853,7 @@ static void virtio_pci_vq_vector_mask(VirtIOPCIProxy *proxy,
                                              unsigned int vector)
 {
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     /* If guest supports masking, keep irqfd but mask it.
      * Otherwise, clean it up now.
@@ -928,7 +928,7 @@ static void virtio_pci_vector_poll(PCIDevice *dev,
 {
     VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int queue_no;
     unsigned int vector;
     EventNotifier *notifier;
@@ -960,7 +960,7 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     VirtQueue *vq = virtio_get_queue(vdev, n);
     EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
 
@@ -994,7 +994,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int r, n;
     bool with_irqfd = msix_enabled(&proxy->pci_dev) &&
         kvm_msi_via_irqfd_enabled();
@@ -1186,7 +1186,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_DF:
         if (proxy->dfselect <= 1) {
-            VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+            const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
             val = (vdev->host_features & ~vdc->legacy_features) >>
                 (32 * proxy->dfselect);
@@ -1736,7 +1736,7 @@ static void virtio_pci_device_unplugged(DeviceState *d)
 static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
-    VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
+    const VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
     bool pcie_port = pci_bus_is_express(pci_dev->bus) &&
                      !pci_bus_is_root(pci_dev->bus);
 
@@ -1918,7 +1918,7 @@ static Property virtio_pci_properties[] = {
 
 static void virtio_pci_dc_realize(DeviceState *qdev, Error **errp)
 {
-    VirtioPCIClass *vpciklass = VIRTIO_PCI_GET_CLASS(qdev);
+    const VirtioPCIClass *vpciklass = VIRTIO_PCI_GET_CLASS(qdev);
     VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
     PCIDevice *pci_dev = &proxy->pci_dev;
 

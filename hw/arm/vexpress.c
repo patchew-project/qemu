@@ -543,7 +543,7 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
 static void vexpress_common_init(MachineState *machine)
 {
     VexpressMachineState *vms = VEXPRESS_MACHINE(machine);
-    VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
+    const VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
     VEDBoardInfo *daughterboard = vmc->daughterboard;
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];

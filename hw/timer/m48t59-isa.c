@@ -112,7 +112,7 @@ static void m48t59_reset_isa(DeviceState *d)
 
 static void m48t59_isa_realize(DeviceState *dev, Error **errp)
 {
-    M48txxISADeviceClass *u = M48TXX_ISA_GET_CLASS(dev);
+    const M48txxISADeviceClass *u = M48TXX_ISA_GET_CLASS(dev);
     ISADevice *isadev = ISA_DEVICE(dev);
     M48txxISAState *d = M48TXX_ISA(dev);
     M48t59State *s = &d->state;

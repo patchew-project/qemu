@@ -102,7 +102,7 @@ static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
 {
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
+        const PPCVirtualHypervisorClass *vhc =
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         return vhc->hpt_mask(cpu->vhyp);
     }

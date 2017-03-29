@@ -1687,7 +1687,7 @@ static int qemu_debug_requested(void)
 
 void qemu_system_reset(bool report)
 {
-    MachineClass *mc;
+    const MachineClass *mc;
 
     mc = current_machine ? MACHINE_GET_CLASS(current_machine) : NULL;
 

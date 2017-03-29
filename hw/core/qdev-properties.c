@@ -937,7 +937,7 @@ static Property *qdev_prop_walk(Property *props, const char *name)
 
 static Property *qdev_prop_find(DeviceState *dev, const char *name)
 {
-    ObjectClass *class;
+    const ObjectClass *class;
     Property *prop;
 
     /* device properties */
@@ -1118,7 +1118,7 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    ObjectClass *class = object_get_class(OBJECT(dev));
+    const ObjectClass *class = object_get_class(OBJECT(dev));
 
     do {
         qdev_prop_set_globals_for_type(dev, object_class_get_name(class));

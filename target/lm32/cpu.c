@@ -122,7 +122,7 @@ static bool lm32_cpu_has_work(CPUState *cs)
 static void lm32_cpu_reset(CPUState *s)
 {
     LM32CPU *cpu = LM32_CPU(s);
-    LM32CPUClass *lcc = LM32_CPU_GET_CLASS(cpu);
+    const LM32CPUClass *lcc = LM32_CPU_GET_CLASS(cpu);
     CPULM32State *env = &cpu->env;
 
     lcc->parent_reset(s);
@@ -142,7 +142,7 @@ static void lm32_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    LM32CPUClass *lcc = LM32_CPU_GET_CLASS(dev);
+    const LM32CPUClass *lcc = LM32_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

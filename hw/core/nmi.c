@@ -39,7 +39,7 @@ static int do_nmi(Object *o, void *opaque)
     NMIState *n = (NMIState *) object_dynamic_cast(o, TYPE_NMI);
 
     if (n) {
-        NMIClass *nc = NMI_GET_CLASS(n);
+        const NMIClass *nc = NMI_GET_CLASS(n);
 
         ns->handled = true;
         nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);

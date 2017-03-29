@@ -40,7 +40,7 @@ static bool openrisc_cpu_has_work(CPUState *cs)
 static void openrisc_cpu_reset(CPUState *s)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(s);
-    OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(cpu);
+    const OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(cpu);
 
     occ->parent_reset(s);
 
@@ -74,7 +74,7 @@ static inline void set_feature(OpenRISCCPU *cpu, int feature)
 static void openrisc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(dev);
+    const OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

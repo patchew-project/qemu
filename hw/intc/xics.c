@@ -66,7 +66,7 @@ void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     ICPState *icp = xics_icp_get(xi, cs->cpu_index);
-    ICPStateClass *icpc;
+    const ICPStateClass *icpc;
 
     assert(icp);
 
@@ -142,7 +142,7 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
 
 static void ics_reject(ICSState *ics, uint32_t nr)
 {
-    ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
+    const ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
 
     if (k->reject) {
         k->reject(ics, nr);
@@ -151,7 +151,7 @@ static void ics_reject(ICSState *ics, uint32_t nr)
 
 void ics_resend(ICSState *ics)
 {
-    ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
+    const ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
 
     if (k->resend) {
         k->resend(ics);
@@ -160,7 +160,7 @@ void ics_resend(ICSState *ics)
 
 static void ics_eoi(ICSState *ics, int nr)
 {
-    ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
+    const ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
 
     if (k->eoi) {
         k->eoi(ics, nr);
@@ -188,7 +188,7 @@ static void icp_check_ipi(ICPState *icp)
 void icp_resend(ICPState *icp)
 {
     XICSFabric *xi = icp->xics;
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+    const XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
 
     if (icp->mfrr < CPPR(icp)) {
         icp_check_ipi(icp);
@@ -256,7 +256,7 @@ uint32_t icp_ipoll(ICPState *icp, uint32_t *mfrr)
 void icp_eoi(ICPState *icp, uint32_t xirr)
 {
     XICSFabric *xi = icp->xics;
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+    const XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
     ICSState *ics;
     uint32_t irq;
 
@@ -299,7 +299,7 @@ static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 static void icp_dispatch_pre_save(void *opaque)
 {
     ICPState *icp = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(icp);
+    const ICPStateClass *info = ICP_GET_CLASS(icp);
 
     if (info->pre_save) {
         info->pre_save(icp);
@@ -309,7 +309,7 @@ static void icp_dispatch_pre_save(void *opaque)
 static int icp_dispatch_post_load(void *opaque, int version_id)
 {
     ICPState *icp = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(icp);
+    const ICPStateClass *info = ICP_GET_CLASS(icp);
 
     if (info->post_load) {
         return info->post_load(icp, version_id);
@@ -545,7 +545,7 @@ static void ics_simple_reset(void *dev)
 static void ics_simple_dispatch_pre_save(void *opaque)
 {
     ICSState *ics = opaque;
-    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
+    const ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
 
     if (info->pre_save) {
         info->pre_save(ics);
@@ -555,7 +555,7 @@ static void ics_simple_dispatch_pre_save(void *opaque)
 static int ics_simple_dispatch_post_load(void *opaque, int version_id)
 {
     ICSState *ics = opaque;
-    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
+    const ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
 
     if (info->post_load) {
         return info->post_load(ics, version_id);
@@ -645,7 +645,7 @@ static const TypeInfo ics_simple_info = {
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
 {
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
+    const ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
     ICSState *ics = ICS_BASE(dev);
     Object *obj;
     Error *err = NULL;
@@ -691,7 +691,7 @@ static const TypeInfo xics_fabric_info = {
  */
 qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
 {
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+    const XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
     ICSState *ics = xic->ics_get(xi, irq);
 
     if (ics) {
@@ -703,7 +703,7 @@ qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
 
 ICPState *xics_icp_get(XICSFabric *xi, int server)
 {
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+    const XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
 
     return xic->icp_get(xi, server);
 }

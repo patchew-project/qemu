@@ -809,7 +809,7 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
 static int hmp_info_irq_foreach(Object *obj, void *opaque)
 {
     InterruptStatsProvider *intc;
-    InterruptStatsProviderClass *k;
+    const InterruptStatsProviderClass *k;
     Monitor *mon = opaque;
 
     if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {
@@ -847,7 +847,7 @@ void hmp_info_irq(Monitor *mon, const QDict *qdict)
 static int hmp_info_pic_foreach(Object *obj, void *opaque)
 {
     InterruptStatsProvider *intc;
-    InterruptStatsProviderClass *k;
+    const InterruptStatsProviderClass *k;
     Monitor *mon = opaque;
 
     if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {

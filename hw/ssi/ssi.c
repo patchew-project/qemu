@@ -34,7 +34,7 @@ static void ssi_cs_default(void *opaque, int n, int level)
     bool cs = !!level;
     assert(n == 0);
     if (s->cs != cs) {
-        SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
+        const SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
         if (ssc->set_cs) {
             ssc->set_cs(s, cs);
         }
@@ -44,7 +44,7 @@ static void ssi_cs_default(void *opaque, int n, int level)
 
 static uint32_t ssi_transfer_raw_default(SSISlave *dev, uint32_t val)
 {
-    SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(dev);
+    const SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(dev);
 
     if ((dev->cs && ssc->cs_polarity == SSI_CS_HIGH) ||
             (!dev->cs && ssc->cs_polarity == SSI_CS_LOW) ||
@@ -57,7 +57,7 @@ static uint32_t ssi_transfer_raw_default(SSISlave *dev, uint32_t val)
 static void ssi_slave_realize(DeviceState *dev, Error **errp)
 {
     SSISlave *s = SSI_SLAVE(dev);
-    SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
+    const SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
 
     if (ssc->transfer_raw == ssi_transfer_raw_default &&
             ssc->cs_polarity != SSI_CS_NONE) {
@@ -111,7 +111,7 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
     BusState *b = BUS(bus);
     BusChild *kid;
-    SSISlaveClass *ssc;
+    const SSISlaveClass *ssc;
     uint32_t r = 0;
 
     QTAILQ_FOREACH(kid, &b->children, sibling) {

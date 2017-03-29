@@ -36,7 +36,7 @@ static DriveInfo *add_init_drive(const char *optstr)
 {
     DriveInfo *dinfo;
     QemuOpts *opts;
-    MachineClass *mc;
+    const MachineClass *mc;
 
     opts = drive_def(optstr);
     if (!opts)

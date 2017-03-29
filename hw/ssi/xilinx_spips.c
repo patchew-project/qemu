@@ -606,7 +606,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
 {
     XilinxSPIPS *s = XILINX_SPIPS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    XilinxSPIPSClass *xsc = XILINX_SPIPS_GET_CLASS(s);
+    const XilinxSPIPSClass *xsc = XILINX_SPIPS_GET_CLASS(s);
     qemu_irq *cs;
     int i;
 

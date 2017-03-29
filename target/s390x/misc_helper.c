@@ -124,7 +124,7 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 #ifndef CONFIG_USER_ONLY
 static int modified_clear_reset(S390CPU *cpu)
 {
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUState *t;
 
     pause_all_vcpus();
@@ -143,7 +143,7 @@ static int modified_clear_reset(S390CPU *cpu)
 
 static int load_normal_reset(S390CPU *cpu)
 {
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    const S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUState *t;
 
     pause_all_vcpus();
@@ -167,7 +167,7 @@ int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
     uint64_t action = env->regs[r3];
     Object *obj;
     DIAG288State *diag288;
-    DIAG288Class *diag288_class;
+    const DIAG288Class *diag288_class;
 
     if (r1 % 2 || action != 0) {
         return -1;

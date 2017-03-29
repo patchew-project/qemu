@@ -481,7 +481,7 @@ static void kvm_arm_gic_get(GICState *s)
 static void kvm_arm_gic_reset(DeviceState *dev)
 {
     GICState *s = ARM_GIC_COMMON(dev);
-    KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
+    const KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
 
     kgc->parent_reset(dev);
 
@@ -494,7 +494,7 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
 {
     int i;
     GICState *s = KVM_ARM_GIC(dev);
-    KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
+    const KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
     Error *local_err = NULL;
     int ret;
 

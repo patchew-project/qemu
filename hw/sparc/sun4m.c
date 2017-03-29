@@ -120,7 +120,7 @@ static void nvram_init(Nvram *nvram, uint8_t *macaddr,
     unsigned int i;
     int sysp_end;
     uint8_t image[0x1ff0];
-    NvramClass *k = NVRAM_GET_CLASS(nvram);
+    const NvramClass *k = NVRAM_GET_CLASS(nvram);
 
     memset(image, '\0', sizeof(image));
 

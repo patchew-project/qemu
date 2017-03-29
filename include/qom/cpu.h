@@ -549,7 +549,7 @@ void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
 static inline hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                                    MemTxAttrs *attrs)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->get_phys_page_attrs_debug) {
         return cc->get_phys_page_attrs_debug(cpu, addr, attrs);
@@ -585,7 +585,7 @@ static inline hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr)
  */
 static inline int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->asidx_from_attrs) {
         return cc->asidx_from_attrs(cpu, attrs);
@@ -644,7 +644,7 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model);
  */
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     g_assert(cc->has_work);
     return cc->has_work(cpu);
@@ -811,7 +811,7 @@ static inline void cpu_unassigned_access(CPUState *cpu, hwaddr addr,
                                          bool is_write, bool is_exec,
                                          int opaque, unsigned size)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->do_unassigned_access) {
         cc->do_unassigned_access(cpu, addr, is_write, is_exec, opaque, size);
@@ -822,7 +822,7 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                         MMUAccessType access_type,
                                         int mmu_idx, uintptr_t retaddr)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cc->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
 }
@@ -837,7 +837,7 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
  */
 static inline void cpu_set_pc(CPUState *cpu, vaddr addr)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    const CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cc->set_pc(cpu, addr);
 }

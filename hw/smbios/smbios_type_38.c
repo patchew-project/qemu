@@ -89,7 +89,7 @@ static void smbios_add_ipmi_devices(BusState *bus)
 
         if (obj) {
             IPMIInterface *ii;
-            IPMIInterfaceClass *iic;
+            const IPMIInterfaceClass *iic;
             IPMIFwInfo info;
 
             ii = IPMI_INTERFACE(obj);

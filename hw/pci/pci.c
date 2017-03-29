@@ -353,7 +353,7 @@ const char *pci_root_bus_path(PCIDevice *dev)
 {
     PCIBus *rootbus = pci_device_root_bus(dev);
     PCIHostState *host_bridge = PCI_HOST_BRIDGE(rootbus->qbus.parent);
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_GET_CLASS(host_bridge);
+    const PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_GET_CLASS(host_bridge);
 
     assert(host_bridge->bus == rootbus);
 
@@ -451,7 +451,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
                                  VMStateField *field)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(s);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(s);
     uint8_t *config;
     int i;
 
@@ -952,7 +952,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
                                          Error **errp)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     PCIConfigReadFunc *config_read = pc->config_read;
     PCIConfigWriteFunc *config_write = pc->config_write;
     Error *local_err = NULL;
@@ -1070,7 +1070,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
 static void pci_qdev_unrealize(DeviceState *dev, Error **errp)
 {
     PCIDevice *pci_dev = PCI_DEVICE(dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
@@ -1195,7 +1195,7 @@ static pcibus_t pci_bar_address(PCIDevice *d,
     int bar = pci_bar(d, reg);
     uint16_t cmd = pci_get_word(d->config + PCI_COMMAND);
     Object *machine = qdev_get_machine();
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
     bool allow_0_address = mc->pci_allow_0_address;
 
     if (type & PCI_BASE_ADDRESS_SPACE_IO) {
@@ -1975,7 +1975,7 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     Error *local_err = NULL;
     PCIBus *bus;
     bool is_default_rom;
@@ -2018,7 +2018,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 
 static void pci_default_realize(PCIDevice *dev, Error **errp)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
 
     if (pc->init) {
         if (pc->init(dev) < 0) {
@@ -2549,7 +2549,7 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    const PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     uint16_t cmd = pci_get_word(dev->config + PCI_COMMAND);
     int i;
 

@@ -255,7 +255,7 @@ static void kvm_pit_vm_state_change(void *opaque, int running,
 static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
 {
     PITCommonState *pit = PIT_COMMON(dev);
-    KVMPITClass *kpc = KVM_PIT_GET_CLASS(dev);
+    const KVMPITClass *kpc = KVM_PIT_GET_CLASS(dev);
     KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_config config = {
         .flags = 0,

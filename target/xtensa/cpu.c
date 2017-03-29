@@ -54,7 +54,7 @@ static bool xtensa_cpu_has_work(CPUState *cs)
 static void xtensa_cpu_reset(CPUState *s)
 {
     XtensaCPU *cpu = XTENSA_CPU(s);
-    XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(cpu);
+    const XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(cpu);
     CPUXtensaState *env = &cpu->env;
 
     xcc->parent_reset(s);
@@ -100,7 +100,7 @@ static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
 static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
+    const XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);
@@ -120,7 +120,7 @@ static void xtensa_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     XtensaCPU *cpu = XTENSA_CPU(obj);
-    XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(obj);
+    const XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(obj);
     CPUXtensaState *env = &cpu->env;
     static bool tcg_inited;
 

@@ -52,7 +52,7 @@ static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
 static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    HPPACPUClass *acc = HPPA_CPU_GET_CLASS(dev);
+    const HPPACPUClass *acc = HPPA_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);

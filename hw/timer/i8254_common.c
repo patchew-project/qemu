@@ -35,7 +35,7 @@ void pit_set_gate(ISADevice *dev, int channel, int val)
 {
     PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s = &pit->channels[channel];
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
+    const PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
 
     c->set_channel_gate(pit, s, val);
 }
@@ -144,7 +144,7 @@ void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info)
 {
     PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s = &pit->channels[channel];
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
+    const PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
 
     c->get_channel_info(pit, s, info);
 }
@@ -203,7 +203,7 @@ static const VMStateDescription vmstate_pit_channel = {
 static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
 {
     PITCommonState *pit = opaque;
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
+    const PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
     PITChannelState *s;
     int i;
 
@@ -240,7 +240,7 @@ static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
 static void pit_dispatch_pre_save(void *opaque)
 {
     PITCommonState *s = opaque;
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
+    const PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
 
     if (c->pre_save) {
         c->pre_save(s);
@@ -250,7 +250,7 @@ static void pit_dispatch_pre_save(void *opaque)
 static int pit_dispatch_post_load(void *opaque, int version_id)
 {
     PITCommonState *s = opaque;
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
+    const PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
 
     if (c->post_load) {
         c->post_load(s);

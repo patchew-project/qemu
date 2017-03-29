@@ -98,7 +98,7 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
 static Exynos4210State *exynos4_boards_init_common(MachineState *machine,
                                                    Exynos4BoardType board_type)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (smp_cpus != EXYNOS4210_NCPUS && !qtest_enabled()) {
         fprintf(stderr, "%s board supports only %d CPU cores. Ignoring smp_cpus"

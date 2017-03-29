@@ -321,7 +321,7 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
     if (ip == NULL) {
         DPRINTF("Read LAS1: IP module %u not installed\n", ip_n);
     } else {
-        IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
+        const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         switch (space) {
 
         case IP_ID_SPACE:
@@ -383,7 +383,7 @@ static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
     if (ip == NULL) {
         DPRINTF("Write LAS1: IP module %u not installed\n", ip_n);
     } else {
-        IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
+        const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         switch (space) {
 
         case IP_ID_SPACE:
@@ -431,7 +431,7 @@ static uint64_t tpci200_read_las2(void *opaque, hwaddr addr, unsigned size)
     if (ip == NULL) {
         DPRINTF("Read LAS2: IP module %u not installed\n", ip_n);
     } else {
-        IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
+        const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         if (k->mem_read16) {
             ret = k->mem_read16(ip, offset);
         }
@@ -462,7 +462,7 @@ static void tpci200_write_las2(void *opaque, hwaddr addr, uint64_t val,
     if (ip == NULL) {
         DPRINTF("Write LAS2: IP module %u not installed\n", ip_n);
     } else {
-        IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
+        const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         if (k->mem_write16) {
             k->mem_write16(ip, offset, val);
         }
@@ -486,7 +486,7 @@ static uint64_t tpci200_read_las3(void *opaque, hwaddr addr, unsigned size)
     if (ip == NULL) {
         DPRINTF("Read LAS3: IP module %u not installed\n", ip_n);
     } else {
-        IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
+        const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         if (k->mem_read8) {
             ret = k->mem_read8(ip, offset);
         }
@@ -512,7 +512,7 @@ static void tpci200_write_las3(void *opaque, hwaddr addr, uint64_t val,
     if (ip == NULL) {
         DPRINTF("Write LAS3: IP module %u not installed\n", ip_n);
     } else {
-        IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
+        const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         if (k->mem_write8) {
             k->mem_write8(ip, offset, val);
         }

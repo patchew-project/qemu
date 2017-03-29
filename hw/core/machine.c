@@ -342,7 +342,7 @@ static void error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
 static void machine_init_notify(Notifier *notifier, void *data)
 {
     Object *machine = qdev_get_machine();
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (mc->has_dynamic_sysbus) {
         /* Our machine can handle dynamic sysbus devices, we're all good */
@@ -610,7 +610,7 @@ static void machine_register_compat_for_subclass(ObjectClass *oc, void *opaque)
 
 void machine_register_compat_props(MachineState *machine)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const MachineClass *mc = MACHINE_GET_CLASS(machine);
     int i;
     GlobalProperty *p;
     ObjectClass *oc;

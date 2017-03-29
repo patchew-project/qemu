@@ -105,7 +105,7 @@ int i2c_bus_busy(I2CBus *bus)
 int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 {
     BusChild *kid;
-    I2CSlaveClass *sc;
+    const I2CSlaveClass *sc;
     I2CNode *node;
     bool bus_scanned = false;
 
@@ -168,7 +168,7 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 
 void i2c_end_transfer(I2CBus *bus)
 {
-    I2CSlaveClass *sc;
+    const I2CSlaveClass *sc;
     I2CNode *node, *next;
 
     QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
@@ -184,7 +184,7 @@ void i2c_end_transfer(I2CBus *bus)
 
 int i2c_send_recv(I2CBus *bus, uint8_t *data, bool send)
 {
-    I2CSlaveClass *sc;
+    const I2CSlaveClass *sc;
     I2CNode *node;
     int ret = 0;
 
@@ -232,7 +232,7 @@ int i2c_recv(I2CBus *bus)
 
 void i2c_nack(I2CBus *bus)
 {
-    I2CSlaveClass *sc;
+    const I2CSlaveClass *sc;
     I2CNode *node;
 
     if (QLIST_EMPTY(&bus->current_devs)) {
@@ -277,7 +277,7 @@ const VMStateDescription vmstate_i2c_slave = {
 static int i2c_slave_qdev_init(DeviceState *dev)
 {
     I2CSlave *s = I2C_SLAVE(dev);
-    I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(s);
+    const I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(s);
 
     if (sc->init) {
         return sc->init(s);

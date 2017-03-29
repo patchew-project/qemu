@@ -9049,7 +9049,7 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
 /* Generic CPU instantiation routine                                         */
 static void init_ppc_proc(PowerPCCPU *cpu)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
 #if !defined(CONFIG_USER_ONLY)
     int i;
@@ -9471,7 +9471,7 @@ static void fix_opcode_tables (opc_handler_t **ppc_opcodes)
 /*****************************************************************************/
 static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     opcode_t *opc;
 
@@ -9788,7 +9788,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     PowerPCCPU *cpu = POWERPC_CPU(dev);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
 #if !defined(CONFIG_USER_ONLY)
     int max_smt = kvmppc_smt_threads();
@@ -10036,7 +10036,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     Error *local_err = NULL;
     opc_handler_t **table, **table_2;
@@ -10412,7 +10412,7 @@ static void ppc_cpu_exec_enter(CPUState *cs)
 static void ppc_cpu_reset(CPUState *s)
 {
     PowerPCCPU *cpu = POWERPC_CPU(s);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong msr;
     int i;
@@ -10503,7 +10503,7 @@ static void ppc_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     PowerPCCPU *cpu = POWERPC_CPU(obj);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    const PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
 
     cs->env_ptr = env;

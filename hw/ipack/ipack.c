@@ -40,7 +40,7 @@ static void ipack_device_realize(DeviceState *dev, Error **errp)
 {
     IPackDevice *idev = IPACK_DEVICE(dev);
     IPackBus *bus = IPACK_BUS(qdev_get_parent_bus(dev));
-    IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
+    const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
 
     if (idev->slot < 0) {
         idev->slot = bus->free_slot;
@@ -59,7 +59,7 @@ static void ipack_device_realize(DeviceState *dev, Error **errp)
 static void ipack_device_unrealize(DeviceState *dev, Error **errp)
 {
     IPackDevice *idev = IPACK_DEVICE(dev);
-    IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
+    const IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
 
     if (k->unrealize) {

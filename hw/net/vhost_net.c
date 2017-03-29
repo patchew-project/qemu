@@ -294,7 +294,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int r, e, i;
 
     if (!k->set_guest_notifiers) {
@@ -360,7 +360,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
 
     for (i = 0; i < total_queues; i++) {

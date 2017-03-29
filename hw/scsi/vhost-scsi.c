@@ -71,7 +71,7 @@ static int vhost_scsi_start(VHostSCSI *s)
     int ret, abi_version, i;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     const VhostOps *vhost_ops = s->dev.vhost_ops;
 
     if (!k->set_guest_notifiers) {
@@ -138,7 +138,7 @@ static void vhost_scsi_stop(VHostSCSI *s)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret = 0;
 
     if (k->set_guest_notifiers) {

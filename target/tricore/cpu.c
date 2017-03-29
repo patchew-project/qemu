@@ -48,7 +48,7 @@ static void tricore_cpu_synchronize_from_tb(CPUState *cs,
 static void tricore_cpu_reset(CPUState *s)
 {
     TriCoreCPU *cpu = TRICORE_CPU(s);
-    TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(cpu);
+    const TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(cpu);
     CPUTriCoreState *env = &cpu->env;
 
     tcc->parent_reset(s);
@@ -65,7 +65,7 @@ static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     TriCoreCPU *cpu = TRICORE_CPU(dev);
-    TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(dev);
+    const TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(dev);
     CPUTriCoreState *env = &cpu->env;
     Error *local_err = NULL;
 

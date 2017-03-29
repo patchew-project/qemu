@@ -1095,7 +1095,7 @@ void qemu_put_virtqueue_element(QEMUFile *f, VirtQueueElement *elem)
 static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     if (unlikely(vdev->broken)) {
         return;
@@ -1113,7 +1113,7 @@ void virtio_update_irq(VirtIODevice *vdev)
 
 static int virtio_validate_features(VirtIODevice *vdev)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM) &&
         !virtio_vdev_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
@@ -1129,7 +1129,7 @@ static int virtio_validate_features(VirtIODevice *vdev)
 
 int virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -1161,7 +1161,7 @@ static enum virtio_device_endian virtio_default_endian(void)
 
 static enum virtio_device_endian virtio_current_cpu_endian(void)
 {
-    CPUClass *cc = CPU_GET_CLASS(current_cpu);
+    const CPUClass *cc = CPU_GET_CLASS(current_cpu);
 
     if (cc->virtio_is_big_endian(current_cpu)) {
         return VIRTIO_DEVICE_ENDIAN_BIG;
@@ -1184,7 +1184,7 @@ static void virtio_virtqueue_reset_region_cache(struct VirtQueue *vq)
 void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int i;
 
     virtio_set_status(vdev, 0);
@@ -1227,7 +1227,7 @@ void virtio_reset(void *opaque)
 
 uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1242,7 +1242,7 @@ uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1257,7 +1257,7 @@ uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1272,7 +1272,7 @@ uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 
 void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val = data;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1288,7 +1288,7 @@ void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
 void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val = data;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1304,7 +1304,7 @@ void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
 void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val = data;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1320,7 +1320,7 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
 uint32_t virtio_config_modern_readb(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1335,7 +1335,7 @@ uint32_t virtio_config_modern_readb(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_modern_readw(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1350,7 +1350,7 @@ uint32_t virtio_config_modern_readw(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_modern_readl(VirtIODevice *vdev, uint32_t addr)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1366,7 +1366,7 @@ uint32_t virtio_config_modern_readl(VirtIODevice *vdev, uint32_t addr)
 void virtio_config_modern_writeb(VirtIODevice *vdev,
                                  uint32_t addr, uint32_t data)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val = data;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1383,7 +1383,7 @@ void virtio_config_modern_writeb(VirtIODevice *vdev,
 void virtio_config_modern_writew(VirtIODevice *vdev,
                                  uint32_t addr, uint32_t data)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val = data;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1400,7 +1400,7 @@ void virtio_config_modern_writew(VirtIODevice *vdev,
 void virtio_config_modern_writel(VirtIODevice *vdev,
                                  uint32_t addr, uint32_t data)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val = data;
 
     if (addr + sizeof(val) > vdev->config_len) {
@@ -1483,7 +1483,7 @@ int virtio_get_num_queues(VirtIODevice *vdev)
 void virtio_queue_set_align(VirtIODevice *vdev, int n, int align)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     /* virtio-1 compliant devices cannot change the alignment */
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -1739,7 +1739,7 @@ static bool virtio_extra_state_needed(void *opaque)
 {
     VirtIODevice *vdev = opaque;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     return k->has_extra_state &&
         k->has_extra_state(qbus->parent);
@@ -1802,7 +1802,7 @@ static int get_extra_state(QEMUFile *f, void *pv, size_t size,
 {
     VirtIODevice *vdev = pv;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     if (!k->load_extra_state) {
         return -1;
@@ -1816,7 +1816,7 @@ static int put_extra_state(QEMUFile *f, void *pv, size_t size,
 {
     VirtIODevice *vdev = pv;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
     k->save_extra_state(qbus->parent, f);
     return 0;
@@ -1902,8 +1902,8 @@ static const VMStateDescription vmstate_virtio = {
 void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t guest_features_lo = (vdev->guest_features & 0xffffffff);
     int i;
 
@@ -1970,7 +1970,7 @@ static int virtio_device_get(QEMUFile *f, void *opaque, size_t size,
                              VMStateField *field)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
-    DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
+    const DeviceClass *dc = DEVICE_CLASS(VIRTIO_DEVICE_GET_CLASS(vdev));
 
     return virtio_load(vdev, f, dc->vmsd->version_id);
 }
@@ -1983,7 +1983,7 @@ const VMStateInfo  virtio_vmstate_info = {
 
 static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     bool bad = (val & ~(vdev->host_features)) != 0;
 
     val &= vdev->host_features;
@@ -2013,8 +2013,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     uint32_t num;
     uint32_t features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     /*
      * We poison the endianness to ensure it does not get used before
@@ -2200,7 +2200,7 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
 {
     VirtIODevice *vdev = opaque;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
     vdev->vm_running = running;
 
@@ -2232,7 +2232,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
                  uint16_t device_id, size_t config_size)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    const VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i;
     int nvectors = k->query_nvectors ? k->query_nvectors(qbus->parent) : 0;
 
@@ -2475,7 +2475,7 @@ static void virtio_memory_listener_commit(MemoryListener *listener)
 static void virtio_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
 
     /* Devices should either use vmsd or the load/save methods */
@@ -2502,7 +2502,7 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
 static void virtio_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
+    const VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
 
     virtio_bus_device_unplugged(vdev);

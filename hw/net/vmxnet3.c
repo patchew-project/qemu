@@ -2604,7 +2604,7 @@ static Property vmxnet3_properties[] = {
 
 static void vmxnet3_realize(DeviceState *qdev, Error **errp)
 {
-    VMXNET3Class *vc = VMXNET3_DEVICE_GET_CLASS(qdev);
+    const VMXNET3Class *vc = VMXNET3_DEVICE_GET_CLASS(qdev);
     PCIDevice *pci_dev = PCI_DEVICE(qdev);
     VMXNET3State *s = VMXNET3(qdev);
 
