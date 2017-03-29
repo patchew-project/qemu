@@ -1548,6 +1548,22 @@ EOF
   fi
 fi
 
+# Ensure we support _Generic, and that it takes type qualifiers into account
+have_c11_generic=
+cat > $TMPC << EOF
+const int *p;
+typedef typeof(_Generic(p,
+                        const int *: (int *)0,
+                        int *: 0,
+                        default: 0)) T;
+T foo;
+int x(void);
+int x(void) { return *foo; }
+EOF
+if do_cc $QEMU_CFLAGS -Werror -c -o $TMPO $TMPC;then
+  have_c11_generic=yes
+fi
+
 # Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
 # large functions that use global variables.  The bug is in all releases of
 # GCC, but it became particularly acute in 4.6.x and 4.7.x.  It is fixed in
@@ -5749,6 +5765,10 @@ fi
 
 if test "$have_sysmacros" = "yes" ; then
   echo "CONFIG_SYSMACROS=y" >> $config_host_mak
+fi
+
+if test "$have_c11_generic" = "yes" ; then
+  echo "HAVE_C11_GENERIC=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
