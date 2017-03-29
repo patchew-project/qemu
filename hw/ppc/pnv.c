@@ -33,6 +33,8 @@
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
+#include "hw/intc/intc.h"
 
 #include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
@@ -773,6 +775,18 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
+static void pnv_pic_print_info(InterruptStatsProvider *obj,
+                               Monitor *mon)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_pic_print_info(ICP(cpu->intc), mon);
+    }
+}
+
 static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
@@ -824,6 +838,7 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
+    InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     mc->desc = "IBM PowerNV (Non-Virtualized)";
     mc->init = ppc_powernv_init;
@@ -837,6 +852,7 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     xic->icp_get = pnv_icp_get;
     xic->ics_get = pnv_ics_get;
     xic->ics_resend = pnv_ics_resend;
+    ispc->print_info = pnv_pic_print_info;
 
     powernv_machine_class_props_init(oc);
 }
@@ -849,6 +865,7 @@ static const TypeInfo powernv_machine_info = {
     .class_init    = powernv_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_XICS_FABRIC },
+        { TYPE_INTERRUPT_STATS_PROVIDER },
         { },
     },
 };
