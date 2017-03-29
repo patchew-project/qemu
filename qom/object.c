@@ -648,10 +648,10 @@ out:
     return obj;
 }
 
-ObjectClass *object_class_dynamic_cast(ObjectClass *class,
-                                       const char *typename)
+const ObjectClass *object_class_dynamic_cast_const(const ObjectClass *class,
+                                                   const char *typename)
 {
-    ObjectClass *ret = NULL;
+    const ObjectClass *ret = NULL;
     TypeImpl *target_type;
     TypeImpl *type;
 
@@ -696,10 +696,11 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
     return ret;
 }
 
-ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
-                                              const char *typename,
-                                              const char *file, int line,
-                                              const char *func)
+const ObjectClass *object_class_dynamic_cast_assert_const(ObjectClass *class,
+                                                          const char *typename,
+                                                          const char *file,
+                                                          int line,
+                                                          const char *func)
 {
     ObjectClass *ret;
 

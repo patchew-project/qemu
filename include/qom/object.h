@@ -527,7 +527,7 @@ struct TypeInfo
  * this function will always succeed.
  */
 #define OBJECT_CLASS(class) \
-    ((ObjectClass *)(class))
+    (QUALIFIED_CAST(typeof(class), ObjectClass *)(class))
 
 /**
  * OBJECT_CHECK:
@@ -556,9 +556,10 @@ struct TypeInfo
  * typically wrapped by each type to perform type safe casts of a class to a
  * specific class type.
  */
-#define OBJECT_CLASS_CHECK(class_type, class, name) \
-    ((class_type *)object_class_dynamic_cast_assert(OBJECT_CLASS(class), (name), \
-                                               __FILE__, __LINE__, __func__))
+#define OBJECT_CLASS_CHECK(class_type, class, name)                \
+    (QUALIFIED_CAST(typeof(class), class_type *)                   \
+     object_class_dynamic_cast_assert(OBJECT_CLASS(class), (name), \
+                                      __FILE__, __LINE__, __func__))
 
 /**
  * OBJECT_GET_CLASS:
@@ -845,10 +846,16 @@ Type type_register(const TypeInfo *info);
  * enabled.  This function is not meant to be called directly, but only through
  * the wrapper macros OBJECT_CLASS_CHECK and INTERFACE_CHECK.
  */
-ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
-                                              const char *typename,
-                                              const char *file, int line,
-                                              const char *func);
+#define object_class_dynamic_cast_assert(klass, typename, file, line, func) \
+    (QUALIFIED_CAST(typeof(klass), ObjectClass *)                           \
+     object_class_dynamic_cast_assert_const((ObjectClass *)klass, typename, \
+                                            file, line, func))
+
+const ObjectClass *object_class_dynamic_cast_assert_const(ObjectClass *klass,
+                                                          const char *typename,
+                                                          const char *file,
+                                                          int line,
+                                                          const char *func);
 
 /**
  * object_class_dynamic_cast:
@@ -864,8 +871,12 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
  * classes or interfaces on the hierarchy leading to @klass implement
  * it.  (FIXME: perhaps this can be detected at type definition time?)
  */
-ObjectClass *object_class_dynamic_cast(ObjectClass *klass,
-                                       const char *typename);
+#define object_class_dynamic_cast(klass, typename) \
+    (QUALIFIED_CAST(typeof(klass), ObjectClass *)  \
+     object_class_dynamic_cast_const(klass, typename))
+
+const ObjectClass *object_class_dynamic_cast_const(const ObjectClass *klass,
+                                                   const char *typename);
 
 /**
  * object_class_get_parent:
