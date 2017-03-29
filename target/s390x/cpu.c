@@ -174,7 +174,7 @@ static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
+    S390CPUClass *scc = (S390CPUClass *)S390_CPU_GET_CLASS(dev);
     S390CPU *cpu = S390_CPU(dev);
     CPUS390XState *env = &cpu->env;
     Error *err = NULL;

@@ -90,7 +90,7 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
         bus->name = g_strdup_printf("%s.%d", bus->parent->id, bus_id);
     } else {
         /* no id -> use lowercase bus type plus global bus-id for bus name */
-        bc = BUS_GET_CLASS(bus);
+        bc = (BusClass *)BUS_GET_CLASS(bus);
         bus_id = bc->automatic_ids++;
         bus->name = g_strdup_printf("%s.%d", typename, bus_id);
         for (i = 0; bus->name[i]; i++) {

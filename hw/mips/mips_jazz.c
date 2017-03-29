@@ -166,7 +166,7 @@ static void mips_jazz_init(MachineState *machine,
      * CPU, which raise an exception.
      * Handle that case by hijacking the do_unassigned_access method on
      * the CPU, and do not raise exceptions for data access. */
-    cc = CPU_GET_CLASS(cpu);
+    cc = (CPUClass *)CPU_GET_CLASS(cpu);
     real_do_unassigned_access = cc->do_unassigned_access;
     cc->do_unassigned_access = mips_jazz_do_unassigned_access;
 
