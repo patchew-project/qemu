@@ -342,8 +342,7 @@ static void error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
 static void machine_init_notify(Notifier *notifier, void *data)
 {
     Object *machine = qdev_get_machine();
-    ObjectClass *oc = object_get_class(machine);
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (mc->has_dynamic_sysbus) {
         /* Our machine can handle dynamic sysbus devices, we're all good */

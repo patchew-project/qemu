@@ -553,8 +553,7 @@ err:
 static void xen_set_dynamic_sysbus(void)
 {
     Object *machine = qdev_get_machine();
-    ObjectClass *oc = object_get_class(machine);
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     mc->has_dynamic_sysbus = true;
 }
