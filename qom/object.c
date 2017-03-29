@@ -774,7 +774,7 @@ ObjectClass *object_class_by_name(const char *typename)
     return type->class;
 }
 
-ObjectClass *object_class_get_parent(ObjectClass *class)
+const ObjectClass *object_class_get_parent_const(const ObjectClass *class)
 {
     TypeImpl *type = type_get_parent(class->type);
 

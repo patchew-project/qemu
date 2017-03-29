@@ -873,7 +873,11 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *klass,
  *
  * Returns: The parent for @klass or %NULL if none.
  */
-ObjectClass *object_class_get_parent(ObjectClass *klass);
+#define object_class_get_parent(klass)            \
+    (QUALIFIED_CAST(typeof(klass), ObjectClass *) \
+     object_class_get_parent_const(klass))
+
+const ObjectClass *object_class_get_parent_const(const ObjectClass *klass);
 
 /**
  * object_class_get_name:
