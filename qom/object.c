@@ -747,7 +747,7 @@ const char *object_get_typename(Object *obj)
     return obj->class->type->name;
 }
 
-ObjectClass *object_get_class(Object *obj)
+const ObjectClass *object_get_class(Object *obj)
 {
     return obj->class;
 }

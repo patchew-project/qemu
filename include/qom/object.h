@@ -803,7 +803,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
  *
  * Returns: The #ObjectClass of the type associated with @obj.
  */
-ObjectClass *object_get_class(Object *obj);
+const ObjectClass *object_get_class(Object *obj);
 
 /**
  * object_get_typename:
