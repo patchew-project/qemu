@@ -390,9 +390,11 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     GuestPhysBlock *block;
 
 #ifdef TARGET_X86_64
-    X86CPU *first_x86_cpu = X86_CPU(first_cpu);
-
-    lma = !!(first_x86_cpu->env.hflags & HF_LMA_MASK);
+    X86CPU *first_x86_cpu = NULL;
+    first_x86_cpu = X86_CPU(first_cpu);
+    if (first_cpu != NULL) {
+        lma = !!(first_x86_cpu->env.hflags & HF_LMA_MASK);
+    }
 #endif
 
     if (lma) {
