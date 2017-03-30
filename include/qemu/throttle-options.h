@@ -94,4 +94,6 @@
 
 void qmp_set_io_throttle(ThrottleConfig *, IOThrottle *);
 
+void parse_io_throttle_options(ThrottleConfig *, QemuOpts *);
+
 #endif
