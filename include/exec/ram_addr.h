@@ -343,6 +343,14 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               ram_addr_t length,
                                               unsigned client);
 
+DirtyCopy *cpu_physical_memory_copy_and_clear_dirty(ram_addr_t start,
+                                                    ram_addr_t length,
+                                                    unsigned client);
+
+bool cpu_physical_memory_copy_get_dirty(DirtyCopy *copy,
+                                        ram_addr_t start,
+                                        ram_addr_t length);
+
 static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
                                                          ram_addr_t length)
 {

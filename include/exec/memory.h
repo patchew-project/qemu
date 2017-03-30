@@ -871,6 +871,19 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
  */
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
                                         hwaddr size, unsigned client);
+
+/**
+ * memory_region_copy_and_clear_dirty: TODO
+ */
+DirtyCopy *memory_region_copy_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
+                                              hwaddr size, unsigned client);
+
+/**
+ * memory_region_copy_get_dirty: TODO
+ */
+bool memory_region_copy_get_dirty(MemoryRegion *mr, DirtyCopy *copy,
+                                  hwaddr addr, hwaddr size);
+
 /**
  * memory_region_sync_dirty_bitmap: Synchronize a region's dirty bitmap with
  *                                  any external TLBs (e.g. kvm)
