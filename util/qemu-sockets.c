@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi-visit.h"
@@ -1340,4 +1341,32 @@ char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
         abort();
     }
     return buf;
+}
+
+SocketAddress *socket_address_crumple(SocketAddressFlat *addr_flat)
+{
+    SocketAddress *addr = g_new(SocketAddress, 1);
+
+    addr->type = addr_flat->type;
+    switch (addr->type) {
+    case SOCKET_ADDRESS_FLAT_TYPE_INET:
+        addr->u.inet.data = QAPI_CLONE(InetSocketAddress,
+                                        &addr_flat->u.inet);
+        break;
+    case SOCKET_ADDRESS_FLAT_TYPE_UNIX:
+        addr->u.q_unix.data = QAPI_CLONE(UnixSocketAddress, &
+                                          addr_flat->u.q_unix);
+        break;
+    case SOCKET_ADDRESS_FLAT_TYPE_VSOCK:
+        addr->u.vsock.data = QAPI_CLONE(VsockSocketAddress,
+                                         &addr_flat->u.vsock);
+        break;
+    case SOCKET_ADDRESS_FLAT_TYPE_FD:
+        addr->u.fd.data = QAPI_CLONE(String, &addr_flat->u.fd);
+        break;
+    default:
+        abort();
+    }
+
+    return addr;
 }
