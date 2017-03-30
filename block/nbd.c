@@ -223,50 +223,11 @@ static bool nbd_process_legacy_socket_options(QDict *output_options,
     const char *path = qemu_opt_get(legacy_opts, "path");
     const char *host = qemu_opt_get(legacy_opts, "host");
     const char *port = qemu_opt_get(legacy_opts, "port");
-    const char *sd_path = qdict_get_try_str(output_options,
-                                            "server.data.path");
-    const char *sd_host = qdict_get_try_str(output_options,
-                                            "server.data.host");
-    const char *sd_port = qdict_get_try_str(output_options,
-                                            "server.data.port");
-    bool bare = path || host || port;
-    bool server_data = sd_path || sd_host || sd_port;
-    QObject *val;
     const QDictEntry *e;
 
-    if (!bare && !server_data) {
+    if (!path && !host && !port) {
         return true;
     }
-
-    if (bare && server_data) {
-        error_setg(errp, "Cannot use 'server' and path/host/port at the "
-                   "same time");
-        return false;
-    }
-
-    if (server_data) {
-        if (sd_host) {
-            val = qdict_get(output_options, "server.data.host");
-            qobject_incref(val);
-            qdict_put_obj(output_options, "server.host", val);
-            qdict_del(output_options, "server.data.host");
-        }
-        if (sd_port) {
-            val = qdict_get(output_options, "server.data.port");
-            qobject_incref(val);
-            qdict_put_obj(output_options, "server.port", val);
-            qdict_del(output_options, "server.data.port");
-        }
-        if (sd_path) {
-            val = qdict_get(output_options, "server.data.path");
-            qobject_incref(val);
-            qdict_put_obj(output_options, "server.path", val);
-            qdict_del(output_options, "server.data.path");
-        }
-        return true;
-    }
-
-    assert(bare);
 
     for (e = qdict_first(output_options); e; e = qdict_next(output_options, e))
     {
