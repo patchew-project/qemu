@@ -10,6 +10,9 @@
 #ifndef THROTTLE_OPTIONS_H
 #define THROTTLE_OPTIONS_H
 
+#include "qemu/throttle.h"
+#include "qmp-commands.h"
+
 #define THROTTLE_OPTS \
           { \
             .name = "throttling.iops-total",\
@@ -88,5 +91,7 @@
             .type = QEMU_OPT_NUMBER,\
             .help = "when limiting by iops max size of an I/O in bytes",\
         }
+
+void qmp_set_io_throttle(ThrottleConfig *, IOThrottle *);
 
 #endif

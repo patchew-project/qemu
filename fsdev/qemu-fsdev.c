@@ -102,7 +102,6 @@ FsDriverEntry *get_fsdev_fsentry(char *id)
 
 void qmp_fsdev_set_io_throttle(IOThrottle *arg, Error **errp)
 {
-
     FsDriverEntry *fse;
 
     fse = get_fsdev_fsentry(arg->has_id ? arg->id : NULL);
