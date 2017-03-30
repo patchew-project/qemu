@@ -43,3 +43,8 @@ common-obj-$(CONFIG_ROCKER) += rocker/rocker.o rocker/rocker_fp.o \
                                rocker/rocker_desc.o rocker/rocker_world.o \
                                rocker/rocker_of_dpa.o
 obj-$(call lnot,$(CONFIG_ROCKER)) += rocker/qmp-norocker.o
+
+obj-$(CONFIG_PCI) += pvrdma/pvrdma_ring.o pvrdma/pvrdma_rm.o \
+		     pvrdma/pvrdma_utils.o pvrdma/pvrdma_qp_ops.o \
+		     pvrdma/pvrdma_kdbr.o pvrdma/pvrdma_cmd.o \
+		     pvrdma/pvrdma_main.o
