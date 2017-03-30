@@ -548,6 +548,12 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
             free_fid(pdu, fidp);
         }
     }
+
+    if (pdu->s->migration_blocker) {
+        migrate_del_blocker(pdu->s->migration_blocker);
+        error_free(pdu->s->migration_blocker);
+        pdu->s->migration_blocker = NULL;
+    }
 }
 
 #define P9_QID_TYPE_DIR         0x80
