@@ -35,7 +35,7 @@ Offset          Length          File
 Offset          Length          File
 0x7ffd0000      0x10000         TEST_DIR/t.IMGFMT.base
 0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
-0x83400000      0x200           TEST_DIR/t.IMGFMT
+0x83400000      0x200           TEST_DIR/t.IMGFMT.itmd
 
 === Test pass 1 ===
 
