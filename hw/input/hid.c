@@ -228,7 +228,7 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
 {
     HIDState *hs = (HIDState *)dev;
     int scancodes[3], i, count;
-    int slot;
+    int slot = -1;
     InputKeyEvent *key = evt->u.key.data;
 
     count = qemu_input_key_value_to_scancode(key->key,
@@ -241,6 +241,13 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
     for (i = 0; i < count; i++) {
         slot = (hs->head + hs->n) & QUEUE_MASK; hs->n++;
         hs->kbd.keycodes[slot] = scancodes[i];
+        hs->kbd.poll_trigger[slot] = NULL;
+    }
+
+    if (slot != -1) {
+        hs->kbd.poll_trigger[slot] = g_new(HIDPollTrigger, 1);
+        hs->kbd.poll_trigger[slot]->key = *key->key;
+        hs->kbd.poll_trigger[slot]->down = key->down;
     }
     hs->event(hs);
 }
@@ -255,6 +262,23 @@ static void hid_keyboard_process_keycode(HIDState *hs)
     }
     slot = hs->head & QUEUE_MASK; QUEUE_INCR(hs->head); hs->n--;
     keycode = hs->kbd.keycodes[slot];
+
+    /* Trace polled key events */
+    if (hs->kbd.poll_trigger[slot]) {
+        HIDPollTrigger *t = hs->kbd.poll_trigger[slot];
+        switch (t->key.type) {
+        case KEY_VALUE_KIND_NUMBER:
+            trace_hid_kbd_key_nr_polled(t->key.u.number.data, t->down);
+            break;
+        case KEY_VALUE_KIND_QCODE:
+            trace_hid_kbd_key_qt_polled(t->key.u.qcode.data, t->down);
+            break;
+        default:
+            break;
+        }
+        g_free(t);
+        hs->kbd.poll_trigger[slot] = NULL;
+    }
 
     key = keycode & 0x7f;
     index = key | ((hs->kbd.modifiers & (1 << 8)) >> 1);

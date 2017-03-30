@@ -25,8 +25,14 @@ typedef struct HIDMouseState {
     int mouse_grabbed;
 } HIDMouseState;
 
+typedef struct HIDPollTrigger {
+    KeyValue key;
+    bool down;
+} HIDPollTrigger;
+
 typedef struct HIDKeyboardState {
     uint32_t keycodes[QUEUE_LENGTH];
+    HIDPollTrigger *poll_trigger[QUEUE_LENGTH];
     uint16_t modifiers;
     uint8_t leds;
     uint8_t key[16];
