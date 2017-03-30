@@ -258,6 +258,8 @@ const QEMULogItem qemu_log_items[] = {
       "show CPU registers before entering a TB (lots of logs)" },
     { CPU_LOG_MMU, "mmu",
       "log MMU-related activities" },
+    { CPU_LOG_IOMMU, "iommu",
+      "log IOMMU-related activities" },
     { CPU_LOG_PCALL, "pcall",
       "x86 only: show protected mode far calls/returns/exceptions" },
     { CPU_LOG_RESET, "cpu_reset",
