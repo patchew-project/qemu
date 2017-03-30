@@ -384,6 +384,12 @@ static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
         goto exit;
     }
 
+    /*
+     * Caution: direct use of non-string @options members is
+     * problematic.  When they come from -blockdev or blockdev_add,
+     * members are typed according to the QAPI schema, but when they
+     * come from -drive, they're all QString.
+     */
     pool       = qdict_get_try_str(options, "pool");
     conf       = qdict_get_try_str(options, "conf");
     clientname = qdict_get_try_str(options, "user");
