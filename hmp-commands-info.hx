@@ -84,6 +84,25 @@ STEXI
 Show block device statistics.
 ETEXI
 
+#if defined(CONFIG_VIRTFS)
+
+    {
+        .name       = "query-fsdev-iothrottle",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show fsdev device throttle information",
+        .cmd        = hmp_fsdev_get_io_throttle,
+    },
+
+#endif
+
+STEXI
+@item info fsdev throttle
+@findex fsdevthrottleinfo
+Show fsdev device throttleinfo.
+
+ETEXI
+
     {
         .name       = "block-jobs",
         .args_type  = "",

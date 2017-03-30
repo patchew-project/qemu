@@ -162,6 +162,20 @@ SpiceInfo *qmp_query_spice(Error **errp)
 };
 #endif
 
+#ifndef CONFIG_VIRTFS
+
+void qmp_fsdev_set_io_throttle(IOThrottle *arg, Error **errp)
+{
+
+}
+
+IOThrottleList *qmp_query_fsdev_io_throttle(Error **errp)
+{
+    abort();
+}
+
+#endif
+
 void qmp_cont(Error **errp)
 {
     Error *local_err = NULL;
