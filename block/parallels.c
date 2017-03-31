@@ -206,7 +206,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
     }
 
     to_allocate = DIV_ROUND_UP(sector_num + *pnum, s->tracks) - idx;
-    space = to_allocate * s->tracks;
+    space = (int64_t)to_allocate * s->tracks;
     if (s->data_end + space > bdrv_getlength(bs->file->bs) >> BDRV_SECTOR_BITS) {
         int ret;
         space += s->prealloc_size;
