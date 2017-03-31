@@ -2304,7 +2304,7 @@ int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
     dev = qdev_device_add(opts, &err);
     if (!dev) {
-        error_report_err(err);
+        error_propagate(errp, err);
         return -1;
     }
     object_unref(OBJECT(dev));
