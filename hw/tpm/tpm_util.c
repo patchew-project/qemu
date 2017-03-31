@@ -23,6 +23,66 @@
 #include "tpm_util.h"
 #include "tpm_int.h"
 
+int tpm_util_unix_write(int fd, const uint8_t *buf, uint32_t len)
+{
+    int ret, remain;
+
+    remain = len;
+    while (remain > 0) {
+        ret = write(fd, buf, remain);
+        if (ret < 0) {
+            if (errno != EINTR && errno != EAGAIN) {
+                return -1;
+            }
+        } else if (ret == 0) {
+            break;
+        } else {
+            buf += ret;
+            remain -= ret;
+        }
+    }
+    return len - remain;
+}
+
+int tpm_util_unix_read(int fd, uint8_t *buf, uint32_t len)
+{
+    int ret;
+ reread:
+    ret = read(fd, buf, len);
+    if (ret < 0) {
+        if (errno != EINTR && errno != EAGAIN) {
+            return -1;
+        }
+        goto reread;
+    }
+    return ret;
+}
+
+/*
+ * Write an error message in the given output buffer.
+ */
+void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len)
+{
+    if (out_len >= sizeof(struct tpm_resp_hdr)) {
+        struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)out;
+
+        resp->tag = cpu_to_be16(TPM_TAG_RSP_COMMAND);
+        resp->len = cpu_to_be32(sizeof(struct tpm_resp_hdr));
+        resp->errcode = cpu_to_be32(TPM_FAIL);
+    }
+}
+
+bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
+{
+    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
+
+    if (in_len >= sizeof(*hdr)) {
+        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
+    }
+
+    return false;
+}
+
 /*
  * A basic test of a TPM device. We expect a well formatted response header
  * (error response is fine) within one second.
