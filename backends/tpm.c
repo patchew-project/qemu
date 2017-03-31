@@ -50,14 +50,16 @@ const char *tpm_backend_get_desc(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->desc();
+    return k->ops->desc ? k->ops->desc() : "";
 }
 
 void tpm_backend_destroy(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    k->ops->destroy(s);
+    if (k->ops->destroy) {
+        k->ops->destroy(s);
+    }
 
     object_unref(OBJECT(s));
 }
@@ -70,7 +72,7 @@ int tpm_backend_init(TPMBackend *s, TPMState *state,
     s->tpm_state = state;
     s->recv_data_callback = datacb;
 
-    return k->ops->init(s);
+    return k->ops->init ? k->ops->init(s) : 0;
 }
 
 int tpm_backend_startup_tpm(TPMBackend *s)
@@ -87,21 +89,21 @@ int tpm_backend_startup_tpm(TPMBackend *s)
                            NULL);
     }
 
-    return k->ops->startup_tpm(s);
+    return k->ops->startup_tpm ? k->ops->startup_tpm(s) : 0;
 }
 
 bool tpm_backend_had_startup_error(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->had_startup_error(s);
+    return k->ops->had_startup_error ? k->ops->had_startup_error(s) : 0;
 }
 
 size_t tpm_backend_realloc_buffer(TPMBackend *s, TPMSizedBuffer *sb)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->realloc_buffer(sb);
+    return k->ops->realloc_buffer ? k->ops->realloc_buffer(sb) : (size_t)0;
 }
 
 void tpm_backend_deliver_request(TPMBackend *s)
@@ -114,7 +116,9 @@ void tpm_backend_reset(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    k->ops->reset(s);
+    if (k->ops->reset) {
+        k->ops->reset(s);
+    }
 
     tpm_backend_thread_end(s);
 }
@@ -123,7 +127,9 @@ void tpm_backend_cancel_cmd(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    k->ops->cancel_cmd(s);
+    if (k->ops->cancel_cmd) {
+        k->ops->cancel_cmd(s);
+    }
 }
 
 bool tpm_backend_get_tpm_established_flag(TPMBackend *s)
