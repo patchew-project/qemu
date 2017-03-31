@@ -11,7 +11,7 @@
  *
  */
 #include "qemu/osdep.h"
-#include "qemu-fsdev.h"
+#include "fsdev/qemu-fsdev.h"
 #include "qemu/config-file.h"
 #include "qemu/module.h"
 
