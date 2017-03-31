@@ -78,6 +78,26 @@ static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm)
     return &nvdimm->nvdimm_mr;
 }
 
+static void nvdimm_flush_init(NVDIMMDevice *nvdimm, MemoryRegion *hostmem_mr)
+{
+    if (nvdimm->flush_hint_enabled) {
+        nvdimm->backend_fd = memory_region_get_fd(hostmem_mr);
+    } else {
+        nvdimm->backend_fd = -1;
+    }
+}
+
+void nvdimm_flush(NVDIMMDevice *nvdimm)
+{
+    if (nvdimm->backend_fd != -1) {
+        /*
+         * If the backend store is a physical NVDIMM device, fsync()
+         * will trigger the flush via the flush hint on the host device.
+         */
+        fsync(nvdimm->backend_fd);
+    }
+}
+
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 {
     MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem, errp);
@@ -105,6 +125,8 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     memory_region_init_alias(&nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);
     nvdimm->nvdimm_mr.align = align;
+
+    nvdimm_flush_init(nvdimm, mr);
 }
 
 /*

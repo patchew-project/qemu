@@ -71,6 +71,18 @@ struct NVDIMMDevice {
      * guest via ACPI NFIT and _FIT method if NVDIMM hotplug is supported.
      */
     MemoryRegion nvdimm_mr;
+
+    /*
+     * If true, a flush hint address structure will be built for this
+     * NVDIMM device.
+     */
+    bool flush_hint_enabled;
+    /*
+     * File descriptor of the backend store, which is used in nvdimm
+     * flush.  It's cached in NVDIMMDevice rather than being fetched
+     * at each request in order to accelerate the flush a little bit.
+     */
+    int backend_fd;
 };
 typedef struct NVDIMMDevice NVDIMMDevice;
 
@@ -132,4 +144,5 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        uint32_t ram_slots);
 void nvdimm_plug(AcpiNVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
+void nvdimm_flush(NVDIMMDevice *nvdimm);
 #endif
