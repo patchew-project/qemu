@@ -28,6 +28,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/hw.h"
 #include "hw/pci-host/q35.h"
 #include "qapi/error.h"
@@ -460,6 +462,26 @@ static void mch_reset(DeviceState *qdev)
     mch_update(mch);
 }
 
+static int x86_iommu_detecter(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *driver = qemu_opt_get(opts, "driver");
+
+    if (!driver) {
+        /*
+         * We don't need to set any error here. It'll be invoked later
+         * when init all the devices. Here we can just concentrate on
+         * the IOMMU device.
+         */
+        return -1;
+    }
+
+    if (!strcmp(driver, "intel-iommu") || !strcmp(driver, "amd-iommu")) {
+        return 0;
+    }
+
+    return -1;
+}
+
 static void mch_realize(PCIDevice *d, Error **errp)
 {
     int i;
@@ -517,6 +539,29 @@ static void mch_realize(PCIDevice *d, Error **errp)
         init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
                  mch->pci_address_space, &mch->pam_regions[i+1],
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
+    }
+
+    /*
+     * Initialize vIOMMUs during machine init. Now we have vIOMMUs
+     * configured with "-device", let's try to pick them out in the
+     * device list, and init them before the rest of the devices (some
+     * device will depend on the vIOMMU during its realization).
+     *
+     * TODO: support multiple vIOMMUs. This loop prepares for that.
+     */
+    while (1) {
+        QemuOpts *iommu_opts;
+
+        iommu_opts = qemu_opts_extract(qemu_find_opts("device"),
+                                       x86_iommu_detecter, NULL, errp);
+        if (!iommu_opts) {
+            break;
+        }
+
+        /* Found one IOMMU device, init it */
+        if (device_init_func(NULL, iommu_opts, errp)) {
+            return;
+        }
     }
 }
 
