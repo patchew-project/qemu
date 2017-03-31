@@ -252,7 +252,6 @@ static const TPMDriverOps *tpm_driver_find_by_type(enum TpmType type)
 static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
 {
     TPMInfo *res = g_new0(TPMInfo, 1);
-    TPMPassthroughOptions *tpo;
 
     res->id = g_strdup(drv->id);
     res->model = drv->fe_model;
@@ -261,16 +260,8 @@ static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
     switch (tpm_backend_get_type(drv)) {
     case TPM_TYPE_PASSTHROUGH:
         res->options->type = TPM_TYPE_OPTIONS_KIND_PASSTHROUGH;
-        tpo = g_new0(TPMPassthroughOptions, 1);
-        res->options->u.passthrough.data = tpo;
-        if (drv->path) {
-            tpo->path = g_strdup(drv->path);
-            tpo->has_path = true;
-        }
-        if (drv->cancel_path) {
-            tpo->cancel_path = g_strdup(drv->cancel_path);
-            tpo->has_cancel_path = true;
-        }
+        res->options->u.passthrough.data =
+            (TPMPassthroughOptions *)tpm_backend_get_tpm_options(drv);
         break;
     case TPM_TYPE__MAX:
         break;

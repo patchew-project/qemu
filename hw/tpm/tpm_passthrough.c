@@ -50,6 +50,7 @@
 struct TPMPassthruState {
     TPMBackend parent;
 
+    TPMPassthroughOptions ops;
     char *tpm_dev;
     int tpm_fd;
     bool tpm_executing;
@@ -314,15 +315,14 @@ static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
  * in Documentation/ABI/stable/sysfs-class-tpm.
  * From /dev/tpm0 create /sys/class/misc/tpm0/device/cancel
  */
-static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
+static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
 {
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     int fd = -1;
     char *dev;
     char path[PATH_MAX];
 
-    if (tb->cancel_path) {
-        fd = qemu_open(tb->cancel_path, O_WRONLY);
+    if (tpm_pt->ops.cancel_path) {
+        fd = qemu_open(tpm_pt->ops.cancel_path, O_WRONLY);
         if (fd < 0) {
             error_report("Could not open TPM cancel path : %s",
                          strerror(errno));
@@ -337,7 +337,7 @@ static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
                      dev) < sizeof(path)) {
             fd = qemu_open(path, O_WRONLY);
             if (fd >= 0) {
-                tb->cancel_path = g_strdup(path);
+                tpm_pt->ops.cancel_path = g_strdup(path);
             } else {
                 error_report("tpm_passthrough: Could not open TPM cancel "
                              "path %s : %s", path, strerror(errno));
@@ -357,16 +357,23 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
     const char *value;
 
     value = qemu_opt_get(opts, "cancel-path");
-    tb->cancel_path = g_strdup(value);
+    if (value) {
+        tpm_pt->ops.cancel_path = g_strdup(value);
+        tpm_pt->ops.has_cancel_path = true;
+    } else {
+        tpm_pt->ops.has_cancel_path = false;
+    }
 
     value = qemu_opt_get(opts, "path");
     if (!value) {
         value = TPM_PASSTHROUGH_DEFAULT_DEVICE;
+        tpm_pt->ops.has_path = false;
+    } else {
+        tpm_pt->ops.has_path = true;
     }
 
+    tpm_pt->ops.path = g_strdup(value);
     tpm_pt->tpm_dev = g_strdup(value);
-
-    tb->path = g_strdup(tpm_pt->tpm_dev);
 
     tpm_pt->tpm_fd = qemu_open(tpm_pt->tpm_dev, O_RDWR);
     if (tpm_pt->tpm_fd < 0) {
@@ -388,8 +395,8 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
     tpm_pt->tpm_fd = -1;
 
  err_free_parameters:
-    g_free(tb->path);
-    tb->path = NULL;
+    g_free(tpm_pt->ops.path);
+    tpm_pt->ops.path = NULL;
 
     g_free(tpm_pt->tpm_dev);
     tpm_pt->tpm_dev = NULL;
@@ -409,7 +416,7 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
         goto err_exit;
     }
 
-    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tb);
+    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tpm_pt);
     if (tpm_pt->cancel_fd < 0) {
         goto err_exit;
     }
@@ -430,7 +437,32 @@ static void tpm_passthrough_destroy(TPMBackend *tb)
 
     qemu_close(tpm_pt->tpm_fd);
     qemu_close(tpm_pt->cancel_fd);
+
+    g_free(tpm_pt->ops.path);
+    g_free(tpm_pt->ops.cancel_path);
     g_free(tpm_pt->tpm_dev);
+}
+
+static TPMOptions *tpm_passthrough_get_tpm_options(TPMBackend *tb)
+{
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
+    TPMPassthroughOptions *ops = g_new0(TPMPassthroughOptions, 1);
+
+    if (!ops) {
+        return NULL;
+    }
+
+    if (tpm_pt->ops.has_path) {
+        ops->has_path = true;
+        ops->path = g_strdup(tpm_pt->ops.path);
+    }
+
+    if (tpm_pt->ops.has_cancel_path) {
+        ops->has_cancel_path = true;
+        ops->cancel_path = g_strdup(tpm_pt->ops.cancel_path);
+    }
+
+    return (TPMOptions *)ops;
 }
 
 static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
@@ -461,6 +493,7 @@ static const TPMDriverOps tpm_passthrough_driver = {
     .get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag,
     .reset_tpm_established_flag = tpm_passthrough_reset_tpm_established_flag,
     .get_tpm_version          = tpm_passthrough_get_tpm_version,
+    .get_tpm_options          = tpm_passthrough_get_tpm_options,
 };
 
 static void tpm_passthrough_inst_init(Object *obj)

@@ -41,10 +41,9 @@ struct TPMBackend {
     GThreadPool *thread_pool;
     TPMRecvDataCB *recv_data_callback;
 
+    /* <public> */
     char *id;
     enum TpmModel fe_model;
-    char *path;
-    char *cancel_path;
 
     QLIST_ENTRY(TPMBackend) list;
 };
@@ -81,6 +80,8 @@ struct TPMDriverOps {
     int (*reset_tpm_established_flag)(TPMBackend *t, uint8_t locty);
 
     TPMVersion (*get_tpm_version)(TPMBackend *t);
+
+    TPMOptions* (*get_tpm_options)(TPMBackend *t);
 };
 
 
@@ -212,6 +213,16 @@ void tpm_backend_open(TPMBackend *s, Error **errp);
  * Returns TPMVersion.
  */
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s);
+
+/**
+ * tpm_backend_get_tpm_options:
+ * @s: the backend
+ *
+ * Get the backend configuration options
+ *
+ * Returns newly allocated TPMOptions
+ */
+TPMOptions *tpm_backend_get_tpm_options(TPMBackend *s);
 
 TPMBackend *qemu_find_tpm(const char *id);
 

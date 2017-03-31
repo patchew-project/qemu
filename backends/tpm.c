@@ -153,6 +153,13 @@ TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
     return k->ops->get_tpm_version(s);
 }
 
+TPMOptions *tpm_backend_get_tpm_options(TPMBackend *s)
+{
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+
+    return k->ops->get_tpm_options ? k->ops->get_tpm_options(s) : NULL;
+}
+
 static bool tpm_backend_prop_get_opened(Object *obj, Error **errp)
 {
     TPMBackend *s = TPM_BACKEND(obj);
@@ -205,9 +212,6 @@ static void tpm_backend_instance_init(Object *obj)
     s->tpm_state = NULL;
     s->thread_pool = NULL;
     s->recv_data_callback = NULL;
-    s->path = NULL;
-    s->cancel_path = NULL;
-
 }
 
 static void tpm_backend_instance_finalize(Object *obj)
@@ -215,8 +219,6 @@ static void tpm_backend_instance_finalize(Object *obj)
     TPMBackend *s = TPM_BACKEND(obj);
 
     g_free(s->id);
-    g_free(s->path);
-    g_free(s->cancel_path);
     tpm_backend_thread_end(s);
 }
 
