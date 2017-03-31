@@ -1121,6 +1121,30 @@ int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
     return rc;
 }
 
+/*
+ * Extract specific QemuOpts from a QemuOptsList. For each QemuOpts
+ * item, if checks against func() returns zero, it'll be picked out
+ * from current QemuOptsList, then returned. If there are more than
+ * one QemuOpts that match the check, will only return the first one
+ * found.
+ */
+QemuOpts *qemu_opts_extract(QemuOptsList *list, qemu_opts_loopfunc func,
+                            void *opaque, Error **errp)
+{
+    QemuOpts *opts, *next_opts;
+
+    assert(list && func);
+
+    QTAILQ_FOREACH_SAFE(opts, &list->head, next, next_opts) {
+        if (func(opaque, opts, errp) == 0) {
+            QTAILQ_REMOVE(&list->head, opts, next);
+            return opts;
+        }
+    }
+
+    return NULL;
+}
+
 static size_t count_opts_list(QemuOptsList *list)
 {
     QemuOptDesc *desc = NULL;
