@@ -1042,3 +1042,32 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+##
+# @GuestOSRelease:
+#
+# @content: OS information in the os-release format as specified at:
+#           https://www.freedesktop.org/software/systemd/man/os-release.html
+#           On GNU/Linux this will be content of /etc/os-release or
+#           /usr/lib/os-release if either exists.
+#           On Windows, the data will be generated in the os-release format.
+#           Additionally on POSIX systems the os-release format will be
+#           extended with 3 fields QGA_UNAME_{VERSION,RELEASE,MACHINE} which
+#           are the retrieved through the uname syscall.
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestOSRelease',
+  'data': { 'content': 'str' } }
+
+##
+# @guest-get-osrelease:
+#
+# Retrieve guest operating system information
+#
+# Returns: operating system information on success
+#
+# Since 2.10
+##
+{ 'command': 'guest-get-osrelease',
+  'returns': 'GuestOSRelease' }

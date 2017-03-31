@@ -1536,3 +1536,130 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
 }
+
+typedef struct _ga_matrix_lookup_t {
+    int major;
+    int minor;
+    char const *name;
+} ga_matrix_lookup_t;
+
+static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][8] = {
+    {
+        { 5, 0, "Microsoft Windows 2000"},
+        { 5, 1, "Microsoft Windows XP"},
+        { 6, 0, "Microsoft Windows Vista"},
+        { 6, 1, "Microsoft Windows 7"},
+
+        { 6, 2, "Microsoft Windows 8"},
+        { 6, 3, "Microsoft Windows 8.1"},
+        {10, 0, "Microsoft Windows 10"},
+        { 0, 0, 0}
+    },{
+        { 5, 2, "Microsoft Windows Server 2003"},
+        { 6, 0, "Microsoft Windows Server 2008"},
+        { 6, 1, "Microsoft Windows Server 2008 R2"},
+        { 6, 2, "Microsoft Windows Server 2012"},
+        { 6, 3, "Microsoft Windows Server 2012 R2"},
+        {10, 0, "Microsoft Windows Server 2016"},
+        { 0, 0, 0},
+        { 0, 0, 0}
+    }
+};
+
+static void ga_get_version(OSVERSIONINFOEXW *info)
+{
+    typedef NTSTATUS(WINAPI * rtl_get_version_t)(
+        OSVERSIONINFOEXW *os_version_info_ex);
+    HMODULE module = GetModuleHandle("ntdll");
+    PVOID fun = GetProcAddress(module, "RtlGetVersion");
+    rtl_get_version_t rtl_get_version = (rtl_get_version_t)fun;
+    rtl_get_version(info);
+}
+
+static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version)
+{
+    int major = (int)os_version->dwMajorVersion;
+    int minor = (int)os_version->dwMinorVersion;
+    int tbl_idx = (os_version->wProductType != VER_NT_WORKSTATION);
+    ga_matrix_lookup_t const *table = WIN_VERSION_MATRIX[tbl_idx];
+    while (table->name != NULL) {
+        if (major == table->major && minor == table->minor) {
+            return g_strdup(table->name);
+        }
+        ++table;
+    }
+    return g_strdup("N/A");
+}
+
+static char *ga_get_windows_product_name(void)
+{
+    HKEY key = NULL;
+    DWORD size = 128;
+    char *result = g_malloc0(size);
+    memset(result, 0, size);
+    LONG err = ERROR_SUCCESS;
+
+    err = RegOpenKeyA(HKEY_LOCAL_MACHINE,
+                      "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                      &key);
+    if (err == ERROR_SUCCESS) {
+        err = RegQueryValueExA(key, "ProductName", NULL, NULL,
+                               (LPBYTE)result, &size);
+        if (err == ERROR_MORE_DATA) {
+            g_free(result);
+            result = NULL;
+            if (size > 0) {
+                result = g_malloc0(size);
+                memset(result, 0, size);
+            }
+            if (result != NULL && size > 0) {
+                err = RegQueryValueExA(key, "ProductName", NULL, NULL,
+                                       (LPBYTE)result, &size);
+                if (err != ERROR_SUCCESS) {
+                    g_free(result);
+                    result = NULL;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+GuestOSRelease *qmp_guest_get_osrelease(Error **errp)
+{
+    OSVERSIONINFOEXW os_version;
+    ga_get_version(&os_version);
+    int major = (int)os_version.dwMajorVersion;
+    int minor = (int)os_version.dwMinorVersion;
+    bool server = os_version.wProductType != VER_NT_WORKSTATION;
+    char *product_name = ga_get_windows_product_name();
+    if (product_name == NULL) {
+        return NULL;
+    }
+
+    GuestOSRelease *info = g_new0(GuestOSRelease, 1);
+    memset(info, 0, sizeof(GuestOSRelease));
+
+    info->content = g_strdup_printf(
+        "NAME=\"Microsoft Windows\"\n"
+        "ID=mswindows\n"
+        "VERSION=\"%s (%d.%d)\"\n"
+        "VERSION_ID=%d.%d\n"
+        "PRETTY_NAME=\"%s\"\n"
+        "VARIANT=\"%s\"\n"
+        "VARIANT_ID=%s\n",
+
+        /* VERSION */
+        ga_get_win_name(&os_version), major, minor,
+        /* VERSION_ID */
+        major, minor,
+        /* PRETTY_NAME */
+        product_name,
+        /* VARIANT */
+        server ? "server" : "client",
+        /* VARIANT_ID */
+        server ? "server" : "client"
+    );
+    g_free(product_name);
+    return info;
+}
