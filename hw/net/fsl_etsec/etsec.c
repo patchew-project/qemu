@@ -303,7 +303,7 @@ static void etsec_timer_hit(void *opaque)
 
 static void etsec_reset(DeviceState *d)
 {
-    eTSEC *etsec = ETSEC_COMMON(d);
+    eTSEC *etsec = ETSEC(d);
     int i = 0;
     int reg_index = 0;
 
@@ -378,7 +378,7 @@ static NetClientInfo net_etsec_info = {
 
 static void etsec_realize(DeviceState *dev, Error **errp)
 {
-    eTSEC        *etsec = ETSEC_COMMON(dev);
+    eTSEC        *etsec = ETSEC(dev);
 
     etsec->nic = qemu_new_nic(&net_etsec_info, &etsec->conf,
                               object_get_typename(OBJECT(dev)), dev->id, etsec);
@@ -392,7 +392,7 @@ static void etsec_realize(DeviceState *dev, Error **errp)
 
 static void etsec_instance_init(Object *obj)
 {
-    eTSEC        *etsec = ETSEC_COMMON(obj);
+    eTSEC        *etsec = ETSEC(obj);
     SysBusDevice *sbd   = SYS_BUS_DEVICE(obj);
 
     memory_region_init_io(&etsec->io_area, OBJECT(etsec), &etsec_ops, etsec,

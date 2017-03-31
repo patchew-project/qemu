@@ -161,7 +161,7 @@ typedef struct PlatformDevtreeData {
 
 static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
 {
-    eTSEC *etsec = ETSEC_COMMON(sbdev);
+    eTSEC *etsec = ETSEC(sbdev);
     PlatformBusDevice *pbus = data->pbus;
     hwaddr mmio0 = platform_bus_get_mmio_addr(pbus, sbdev, 0);
     int irq0 = platform_bus_get_irqn(pbus, sbdev, 0);
@@ -201,7 +201,7 @@ static void sysbus_device_create_devtree(SysBusDevice *sbdev, void *opaque)
     PlatformDevtreeData *data = opaque;
     bool matched = false;
 
-    if (object_dynamic_cast(OBJECT(sbdev), TYPE_ETSEC_COMMON)) {
+    if (object_dynamic_cast(OBJECT(sbdev), TYPE_ETSEC)) {
         create_devtree_etsec(sbdev, data);
         matched = true;
     }

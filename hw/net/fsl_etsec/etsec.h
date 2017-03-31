@@ -149,9 +149,9 @@ typedef struct eTSEC {
     bool need_flush;
 } eTSEC;
 
-#define TYPE_ETSEC_COMMON "eTSEC"
-#define ETSEC_COMMON(obj) \
-     OBJECT_CHECK(eTSEC, (obj), TYPE_ETSEC_COMMON)
+#define TYPE_ETSEC "eTSEC"
+#define ETSEC(obj) \
+     OBJECT_CHECK(eTSEC, (obj), TYPE_ETSEC)
 
 #define eTSEC_TRANSMIT 1
 #define eTSEC_RECEIVE  2
