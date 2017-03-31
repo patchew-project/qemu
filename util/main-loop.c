@@ -476,7 +476,7 @@ static int os_host_main_loop_wait(int64_t timeout)
 }
 #endif
 
-int main_loop_wait(int nonblocking)
+void main_loop_wait(int nonblocking)
 {
     int ret;
     uint32_t timeout = UINT32_MAX;
@@ -513,7 +513,7 @@ int main_loop_wait(int nonblocking)
     qemu_start_warp_timer();
     qemu_clock_run_all_timers();
 
-    return ret;
+    return;
 }
 
 /* Functions to operate on the main QEMU AioContext.  */
