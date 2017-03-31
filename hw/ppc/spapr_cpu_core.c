@@ -167,6 +167,18 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
 
+    if (cc->nr_threads != smp_threads) {
+        error_setg(errp,
+                   "Invalid nr-threads=%d of CPU[core-id: %d], must be %d",
+                   cc->nr_threads, cc->core_id, smp_threads);
+        return;
+    }
+    if ((cc->core_id % smp_threads) != 0) {
+        error_setg(errp, "Invalid CPU core-id=%d, must be a multiple of %d",
+                   cc->core_id, smp_threads);
+        return;
+    }
+
     sc->threads = g_malloc0(size * cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         int node_id;
