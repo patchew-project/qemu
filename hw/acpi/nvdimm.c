@@ -881,7 +881,8 @@ void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev)
 }
 
 void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
-                            FWCfgState *fw_cfg, Object *owner)
+                            FWCfgState *fw_cfg, Object *owner,
+                            unsigned int cache_line_size)
 {
     memory_region_init_io(&state->io_mr, owner, &nvdimm_dsm_ops, state,
                           "nvdimm-acpi-io", NVDIMM_ACPI_IO_LEN);
@@ -893,6 +894,8 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
                     state->dsm_mem->len);
 
     nvdimm_init_fit_buffer(&state->fit_buf);
+
+    state->cache_line_size = cache_line_size;
 }
 
 #define NVDIMM_COMMON_DSM       "NCAL"

@@ -134,11 +134,14 @@ struct AcpiNVDIMMState {
 
     /* the IO region used by OSPM to transfer control to QEMU. */
     MemoryRegion io_mr;
+
+    unsigned int cache_line_size;
 };
 typedef struct AcpiNVDIMMState AcpiNVDIMMState;
 
 void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
-                            FWCfgState *fw_cfg, Object *owner);
+                            FWCfgState *fw_cfg, Object *owner,
+                            unsigned int cache_line_size);
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, AcpiNVDIMMState *state,
                        uint32_t ram_slots);
