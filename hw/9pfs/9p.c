@@ -536,9 +536,29 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
     V9fsFidState *fidp;
+    bool done = false;
+
+    /* Drain any outstanding I/O */
+    while (!done) {
+        V9fsPDU *cancel_pdu;
+
+        done = true;
+        QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
+            if (cancel_pdu != pdu) {
+                done = false;
+                cancel_pdu->cancelled = 1;
+                qemu_co_queue_wait(&cancel_pdu->complete, NULL);
+                cancel_pdu->cancelled = 0;
+                pdu_free(cancel_pdu);
+                break;
+            }
+        }
+    }
 
     /* Free all fids */
     while (s->fid_list) {
+        assert(!fidp->ref);
+
         /* Get fid */
         fidp = s->fid_list;
         fidp->ref++;
@@ -670,7 +690,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 
     pdu_push_and_notify(pdu);
 
-    /* Now wakeup anybody waiting in flush for this request */
+    /* Now wakeup anybody waiting in flush or reset for this request */
     if (!qemu_co_queue_next(&pdu->complete)) {
         pdu_free(pdu);
     }
