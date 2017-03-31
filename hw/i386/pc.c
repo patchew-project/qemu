@@ -1718,7 +1718,10 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
                        "nvdimm is not enabled: missing 'nvdimm' in '-M'");
             goto out;
         }
-        nvdimm_plug(&pcms->acpi_nvdimm_state);
+        nvdimm_plug(&pcms->acpi_nvdimm_state, &local_err);
+        if (local_err) {
+            goto out;
+        }
     }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);

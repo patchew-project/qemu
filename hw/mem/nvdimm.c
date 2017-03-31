@@ -64,11 +64,37 @@ out:
     error_propagate(errp, local_err);
 }
 
+static bool nvdimm_get_flush_hint(Object *obj, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    return nvdimm->flush_hint_enabled;
+}
+
+static void nvdimm_set_flush_hint(Object *obj, bool val, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+    Error *local_err = NULL;
+
+    if (nvdimm->flush_hint_enabled) {
+        error_setg(&local_err, "cannot change property value");
+        goto out;
+    }
+
+    nvdimm->flush_hint_enabled = val;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
 static void nvdimm_init(Object *obj)
 {
     object_property_add(obj, "label-size", "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL, NULL);
+    object_property_add_bool(obj, "flush-hint",
+                             nvdimm_get_flush_hint, nvdimm_set_flush_hint,
+                             NULL);
 }
 
 static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm)

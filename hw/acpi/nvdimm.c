@@ -32,6 +32,8 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
+#include "exec/address-spaces.h"
+#include "qapi/error.h"
 
 static int nvdimm_device_list(Object *obj, void *opaque)
 {
@@ -166,6 +168,22 @@ struct NvdimmNfitControlRegion {
     uint8_t reserved2[6];
 } QEMU_PACKED;
 typedef struct NvdimmNfitControlRegion NvdimmNfitControlRegion;
+
+/*
+ * NVDIMM Flush Hint Address Structure
+ *
+ * It enables the data durability mechanism via ACPI.
+ */
+struct NvdimmNfitFlushHintAddress {
+    uint16_t type;
+    uint16_t length;
+    uint32_t nfit_handle;
+    uint16_t nr_flush_hint_addr;
+    uint8_t  reserved[6];
+#define NR_FLUSH_HINT_ADDR 1
+    uint64_t flush_hint_addr[NR_FLUSH_HINT_ADDR];
+} QEMU_PACKED;
+typedef struct NvdimmNfitFlushHintAddress NvdimmNfitFlushHintAddress;
 
 /*
  * Module serial number is a unique number for each device. We use the
@@ -343,10 +361,79 @@ static void nvdimm_build_structure_dcr(GArray *structures, DeviceState *dev)
                                          (DSM) in DSM Spec Rev1.*/);
 }
 
-static GArray *nvdimm_build_device_structure(void)
+static uint64_t nvdimm_flush_hint_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void nvdimm_flush_hint_write(void *opaque, hwaddr addr,
+                                    uint64_t data, unsigned size)
+{
+    nvdimm_debug("Write Flush Hint: offset 0x%"HWADDR_PRIx", data 0x%"PRIx64"\n",
+                 addr, data);
+    nvdimm_flush((NVDIMMDevice *)opaque);
+}
+
+static const MemoryRegionOps nvdimm_flush_hint_ops = {
+    .read = nvdimm_flush_hint_read,
+    .write = nvdimm_flush_hint_write,
+};
+
+/*
+ * ACPI 6.0: 5.2.25.7 Flush Hint Address Structure
+ */
+static void nvdimm_build_structure_flush_hint(GArray *structures,
+                                              DeviceState *dev,
+                                              unsigned int cache_line_size,
+                                              Error **errp)
+{
+    NvdimmNfitFlushHintAddress *flush_hint;
+    int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP, NULL);
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    NVDIMMDevice *nvdimm = NVDIMM(dev);
+    uint64_t addr;
+    unsigned int i;
+    MemoryRegion *mr;
+    Error *local_err = NULL;
+
+    if (!nvdimm->flush_hint_enabled) {
+        return;
+    }
+
+    if (cache_line_size * NR_FLUSH_HINT_ADDR > dimm->reserved_size) {
+        error_setg(&local_err,
+                   "insufficient reserved space for flush hint buffers");
+        goto out;
+    }
+
+    addr = object_property_get_int(OBJECT(dev), PC_DIMM_ADDR_PROP, NULL);
+    addr += object_property_get_int(OBJECT(dev), PC_DIMM_SIZE_PROP, NULL);
+
+    flush_hint = acpi_data_push(structures, sizeof(*flush_hint));
+    flush_hint->type = cpu_to_le16(6 /* Flush Hint Address Structure */);
+    flush_hint->length = cpu_to_le16(sizeof(*flush_hint));
+    flush_hint->nfit_handle = cpu_to_le32(nvdimm_slot_to_handle(slot));
+    flush_hint->nr_flush_hint_addr = cpu_to_le16(NR_FLUSH_HINT_ADDR);
+
+    for (i = 0; i < NR_FLUSH_HINT_ADDR; i++, addr += cache_line_size) {
+        flush_hint->flush_hint_addr[i] = cpu_to_le64(addr);
+
+        mr = g_new0(MemoryRegion, 1);
+        memory_region_init_io(mr, OBJECT(dev), &nvdimm_flush_hint_ops, nvdimm,
+                              "nvdimm-flush-hint", cache_line_size);
+        memory_region_add_subregion(get_system_memory(), addr, mr);
+    }
+
+ out:
+    error_propagate(errp, local_err);
+}
+
+static GArray *nvdimm_build_device_structure(AcpiNVDIMMState *state,
+                                             Error **errp)
 {
     GSList *device_list = nvdimm_get_device_list();
     GArray *structures = g_array_new(false, true /* clear */, 1);
+    Error *local_err = NULL;
 
     for (; device_list; device_list = device_list->next) {
         DeviceState *dev = device_list->data;
@@ -362,9 +449,17 @@ static GArray *nvdimm_build_device_structure(void)
 
         /* build NVDIMM Control Region Structure. */
         nvdimm_build_structure_dcr(structures, dev);
+
+        /* build Flush Hint Address Structure */
+        nvdimm_build_structure_flush_hint(structures, dev,
+                                          state->cache_line_size, &local_err);
+        if (local_err) {
+            break;
+        }
     }
     g_slist_free(device_list);
 
+    error_propagate(errp, local_err);
     return structures;
 }
 
@@ -373,16 +468,17 @@ static void nvdimm_init_fit_buffer(NvdimmFitBuffer *fit_buf)
     fit_buf->fit = g_array_new(false, true /* clear */, 1);
 }
 
-static void nvdimm_build_fit_buffer(NvdimmFitBuffer *fit_buf)
+static void nvdimm_build_fit_buffer(AcpiNVDIMMState *state, Error **errp)
 {
+    NvdimmFitBuffer *fit_buf = &state->fit_buf;
     g_array_free(fit_buf->fit, true);
-    fit_buf->fit = nvdimm_build_device_structure();
+    fit_buf->fit = nvdimm_build_device_structure(state, errp);
     fit_buf->dirty = true;
 }
 
-void nvdimm_plug(AcpiNVDIMMState *state)
+void nvdimm_plug(AcpiNVDIMMState *state, Error **errp)
 {
-    nvdimm_build_fit_buffer(&state->fit_buf);
+    nvdimm_build_fit_buffer(state, errp);
 }
 
 static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
