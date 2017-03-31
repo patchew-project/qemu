@@ -1059,6 +1059,11 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
     tag = g_source_attach(src, NULL);
     g_source_unref(src);
 
+    /* The main loop may be in blocked waiting on events in another thread.
+     * Kick it so the new watch will be added.
+     */
+    qemu_notify_event();
+
     return tag;
 }
 
