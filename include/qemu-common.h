@@ -125,6 +125,7 @@ const char *qemu_get_vm_name(void);
 #define QEMU_FILE_TYPE_BIOS   0
 #define QEMU_FILE_TYPE_KEYMAP 1
 char *qemu_find_file(int type, const char *name);
+int device_init_func(void *opaque, QemuOpts *opts, Error **errp);
 
 /* OS specific functions */
 void os_setup_early_signal_handling(void);

@@ -2297,7 +2297,7 @@ static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
     return qdev_device_help(opts);
 }
 
-static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
+int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *err = NULL;
     DeviceState *dev;
