@@ -94,24 +94,9 @@ static void pci_init_bus_master(PCIDevice *pci_dev)
                                 &pci_dev->bus_master_enable_region);
 }
 
-static void pcibus_machine_done(Notifier *notifier, void *data)
-{
-    PCIBus *bus = container_of(notifier, PCIBus, machine_done);
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
-        if (bus->devices[i]) {
-            pci_init_bus_master(bus->devices[i]);
-        }
-    }
-}
-
 static void pci_bus_realize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
-
-    bus->machine_done.notify = pcibus_machine_done;
-    qemu_add_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
@@ -119,8 +104,6 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
 static void pci_bus_unrealize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
-
-    qemu_remove_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
@@ -1004,9 +987,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     address_space_init(&pci_dev->bus_master_as,
                        &pci_dev->bus_master_container_region, pci_dev->name);
 
-    if (qdev_hotplug) {
-        pci_init_bus_master(pci_dev);
-    }
+    pci_init_bus_master(pci_dev);
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);
