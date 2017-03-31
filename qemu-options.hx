@@ -2846,7 +2846,12 @@ DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
     "-tpmdev passthrough,id=id[,path=path][,cancel-path=path]\n"
     "                use path to provide path to a character device; default is /dev/tpm0\n"
     "                use cancel-path to provide path to TPM's cancel sysfs entry; if\n"
-    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n",
+    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n"
+    "-tpmdev emulator,id=id,tpmstatedir=dir[,path=emulator-path,logfile=path,loglevel=level]\n"
+    "                use tpmstatedir to provide path to the tpm state dirctory\n"
+    "                use path to provide the emulator binary to launch; default is 'swtpm'\n"
+    "                use logfile to provide where to place the swtpm logs\n"
+    "                use loglevel to controls the swtpm log level\n",
     QEMU_ARCH_ALL)
 STEXI
 
@@ -2855,8 +2860,8 @@ The general form of a TPM device option is:
 
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
-Backend type must be:
-@option{passthrough}.
+Backend type must be either one of the following:
+@option{passthrough}, @option{emulator}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option creates the TPM backend and requires a
@@ -2905,6 +2910,20 @@ To create a passthrough TPM use the following two options:
 @end example
 Note that the @code{-tpmdev} id is @code{tpm0} and is referenced by
 @code{tpmdev=tpm0} in the device option.
+
+@item -tpmdev emulator, id=@var{id}, tpmstatedir=@var{path}, path=@var{emulator-binary-path}, logfile=@var{path}, logevel=@var{level}
+
+(Linux-host only) Enable access to a TPM emulator.
+
+@option{tpmstatedir} specifies the tpm state directory
+@option{path} specifies the emulator binary path to use
+@option{logfile} optional log file to use to place log messages
+@option{loglevel} specifies the log level to use
+
+To create a TPM emulator backend device:
+@example
+-tpmdev emulator,id=tpm0,tpmstatedir=/tmp/my-tpm,path=/usr/local/bin/swtpm,logfile=/tmp/qemu-tpm.log,logevel=5 -device tpm-tis,tpmdev=tpm0
+@end example
 
 @end table
 

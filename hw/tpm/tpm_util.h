@@ -34,4 +34,7 @@ bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
 
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
 
+int tpm_util_ctrlcmd(int fd, unsigned long cmd, void *msg,
+                     size_t msg_len_in, size_t msg_len_out);
+
 #endif /* TPM_TPM_UTIL_H */

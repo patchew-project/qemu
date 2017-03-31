@@ -3356,8 +3356,10 @@ fi
 
 if test "$targetos" = Linux && test "$cpu" = i386 -o "$cpu" = x86_64; then
   tpm_passthrough=$tpm
+  tpm_emulator=$tpm
 else
   tpm_passthrough=no
+  tpm_emulator=no
 fi
 
 ##########################################
@@ -5132,6 +5134,7 @@ echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
+echo "TPM emulator      $tpm_emulator"
 echo "QOM debugging     $qom_cast_debug"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
@@ -5710,6 +5713,9 @@ if test "$tpm" = "yes"; then
   echo 'CONFIG_TPM=$(CONFIG_SOFTMMU)' >> $config_host_mak
   if test "$tpm_passthrough" = "yes"; then
     echo "CONFIG_TPM_PASSTHROUGH=y" >> $config_host_mak
+  fi
+  if test "$tpm_emulator" = "yes"; then
+    echo "CONFIG_TPM_EMULATOR=y" >> $config_host_mak
   fi
 fi
 
