@@ -28,6 +28,7 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "hw/virtio/vhost.h"
+#include "exec/address-spaces.h"
 
 typedef struct pc_dimms_capacity {
      uint64_t size;
@@ -44,7 +45,12 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     Error *local_err = NULL;
     uint64_t existing_dimms_capacity = 0;
-    uint64_t addr;
+    uint64_t addr, size = memory_region_size(mr);
+
+    size += object_property_get_int(OBJECT(dimm), PC_DIMM_RSVD_PROP, &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
@@ -54,7 +60,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     addr = pc_dimm_get_free_addr(hpms->base,
                                  memory_region_size(&hpms->mr),
                                  !addr ? NULL : &addr, align,
-                                 memory_region_size(mr), &local_err);
+                                 size, &local_err);
     if (local_err) {
         goto out;
     }
@@ -64,7 +70,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
         goto out;
     }
 
-    if (existing_dimms_capacity + memory_region_size(mr) >
+    if (existing_dimms_capacity + size >
         machine->maxram_size - machine->ram_size) {
         error_setg(&local_err, "not enough space, currently 0x%" PRIx64
                    " in use of total hot pluggable 0x" RAM_ADDR_FMT,
@@ -315,6 +321,9 @@ uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
         PCDIMMDevice *dimm = item->data;
         uint64_t dimm_size = object_property_get_int(OBJECT(dimm),
                                                      PC_DIMM_SIZE_PROP,
+                                                     errp) +
+                             object_property_get_int(OBJECT(dimm),
+                                                     PC_DIMM_RSVD_PROP,
                                                      errp);
         if (errp && *errp) {
             goto out;
@@ -382,6 +391,37 @@ static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,
     error_propagate(errp, local_err);
 }
 
+static void pc_dimm_get_reserved_size(Object *obj, Visitor *v, const char *name,
+                                      void *opaque, Error **errp)
+{
+    PCDIMMDevice *dimm = PC_DIMM(obj);
+    uint64_t value = dimm->reserved_size;
+
+    visit_type_size(v, name, &value, errp);
+}
+
+static void pc_dimm_set_reserved_size(Object *obj, Visitor *v, const char *name,
+                                      void *opaque, Error **errp)
+{
+    PCDIMMDevice *dimm = PC_DIMM(obj);
+    Error *local_err = NULL;
+    uint64_t value;
+
+    if (dimm->reserved_size) {
+        error_setg(&local_err, "cannot change 'reserved-size'");
+        goto out;
+    }
+
+    visit_type_size(v, name, &value, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    dimm->reserved_size = value;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
 static void pc_dimm_init(Object *obj)
 {
     PCDIMMDevice *dimm = PC_DIMM(obj);
@@ -393,6 +433,8 @@ static void pc_dimm_init(Object *obj)
                              pc_dimm_check_memdev_is_busy,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,
                              &error_abort);
+    object_property_add(obj, PC_DIMM_RSVD_PROP, "int", pc_dimm_get_reserved_size,
+                        pc_dimm_set_reserved_size, NULL, NULL, &error_abort);
 }
 
 static void pc_dimm_realize(DeviceState *dev, Error **errp)

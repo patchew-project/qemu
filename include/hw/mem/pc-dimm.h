@@ -33,6 +33,7 @@
 #define PC_DIMM_NODE_PROP "node"
 #define PC_DIMM_SIZE_PROP "size"
 #define PC_DIMM_MEMDEV_PROP "memdev"
+#define PC_DIMM_RSVD_PROP "reserved-size"
 
 #define PC_DIMM_UNASSIGNED_SLOT -1
 
@@ -53,6 +54,7 @@ typedef struct PCDIMMDevice {
     uint64_t addr;
     uint32_t node;
     int32_t slot;
+    uint64_t reserved_size;
     HostMemoryBackend *hostmem;
 } PCDIMMDevice;
 
