@@ -22,20 +22,21 @@
 #ifndef TPM_BACKEND_INT_H
 #define TPM_BACKEND_INT_H
 
-typedef struct TPMBackendThread {
-    GThreadPool *pool;
-} TPMBackendThread;
-
-void tpm_backend_thread_deliver_request(TPMBackendThread *tbt);
-void tpm_backend_thread_create(TPMBackendThread *tbt,
-                               GFunc func, gpointer user_data);
-void tpm_backend_thread_end(TPMBackendThread *tbt);
-
 typedef enum TPMBackendCmd {
     TPM_BACKEND_CMD_INIT = 1,
     TPM_BACKEND_CMD_PROCESS_CMD,
     TPM_BACKEND_CMD_END,
     TPM_BACKEND_CMD_TPM_RESET,
 } TPMBackendCmd;
+
+struct TPMBackendClass {
+    ObjectClass parent_class;
+
+    const TPMDriverOps *ops;
+
+    void (*opened)(TPMBackend *s, Error **errp);
+
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
+};
 
 #endif /* TPM_BACKEND_INT_H */
