@@ -419,7 +419,7 @@ static void etsec_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo etsec_info = {
-    .name                  = "eTSEC",
+    .name                  = TYPE_ETSEC,
     .parent                = TYPE_SYS_BUS_DEVICE,
     .instance_size         = sizeof(eTSEC),
     .class_init            = etsec_class_init,
@@ -442,7 +442,7 @@ DeviceState *etsec_create(hwaddr         base,
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "eTSEC");
+    dev = qdev_create(NULL, TYPE_ETSEC);
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
 
