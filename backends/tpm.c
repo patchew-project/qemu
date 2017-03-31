@@ -59,7 +59,7 @@ void tpm_backend_destroy(TPMBackend *s)
 
     k->ops->destroy(s);
 
-    tpm_backend_thread_end(s);
+    object_unref(OBJECT(s));
 }
 
 int tpm_backend_init(TPMBackend *s, TPMState *state,
@@ -187,10 +187,20 @@ static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
 
 static void tpm_backend_instance_init(Object *obj)
 {
+    TPMBackend *s = TPM_BACKEND(obj);
+
     object_property_add_bool(obj, "opened",
                              tpm_backend_prop_get_opened,
                              tpm_backend_prop_set_opened,
                              NULL);
+    s->id = NULL;
+    s->fe_model = -1;
+    s->opened = false;
+    s->tpm_state = NULL;
+    s->thread_pool = NULL;
+    s->recv_data_callback = NULL;
+    s->path = NULL;
+    s->cancel_path = NULL;
 
 }
 
@@ -199,6 +209,8 @@ static void tpm_backend_instance_finalize(Object *obj)
     TPMBackend *s = TPM_BACKEND(obj);
 
     g_free(s->id);
+    g_free(s->path);
+    g_free(s->cancel_path);
     tpm_backend_thread_end(s);
 }
 
