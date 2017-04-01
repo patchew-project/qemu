@@ -927,6 +927,11 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
     dc->props = pflash_cfi01_properties;
     dc->vmsd = &vmstate_pflash;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    /*
+     * FIXME: Set only for compatibility on q35 machine-type.
+     * Probably never meant to be user-creatable
+     */
+    dc->user_creatable = true;
 }
 
 

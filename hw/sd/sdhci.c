@@ -1360,6 +1360,11 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = sdhci_sysbus_properties;
     dc->realize = sdhci_sysbus_realize;
     dc->reset = sdhci_poweron_reset;
+    /*
+     * FIXME: Set only for compatibility on q35 machine-type.
+     * Probably never meant to be user-creatable
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo sdhci_sysbus_info = {

@@ -221,6 +221,11 @@ static void isabus_bridge_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "isa";
+    /*
+     * FIXME: Set only for compatibility on q35 machine-type.
+     * Probably never meant to be user-creatable
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo isabus_bridge_info = {

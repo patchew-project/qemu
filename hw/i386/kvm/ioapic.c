@@ -167,6 +167,11 @@ static void kvm_ioapic_class_init(ObjectClass *klass, void *data)
     k->post_load = kvm_ioapic_put;
     dc->reset    = kvm_ioapic_reset;
     dc->props    = kvm_ioapic_properties;
+    /*
+     * FIXME: Set only for compatibility on q35 machine-type.
+     * Probably never meant to be user-creatable
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo kvm_ioapic_info = {

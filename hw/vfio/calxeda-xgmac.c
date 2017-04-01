@@ -38,6 +38,7 @@ static void vfio_calxeda_xgmac_class_init(ObjectClass *klass, void *data)
     dc->realize = calxeda_xgmac_realize;
     dc->desc = "VFIO Calxeda XGMAC";
     dc->vmsd = &vfio_platform_calxeda_xgmac_vmstate;
+    dc->user_creatable = true;
 }
 
 static const TypeInfo vfio_calxeda_xgmac_dev_info = {

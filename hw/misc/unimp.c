@@ -90,6 +90,11 @@ static void unimp_class_init(ObjectClass *klass, void *data)
 
     dc->realize = unimp_realize;
     dc->props = unimp_properties;
+    /*
+     * FIXME: Set only for compatibility on q35 machine-type.
+     * Probably never meant to be user-creatable
+     */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo unimp_info = {
