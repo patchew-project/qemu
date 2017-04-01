@@ -1,0 +1,10 @@
+[package]
+name = "qemu-rust-block-drivers"
+version = "3.0.0"
+authors = ["Max Reitz <mreitz@redhat.com>"]
+
+[dependencies]
+libc = "0.2.0"
+
+[lib]
+crate-type = ["staticlib"]

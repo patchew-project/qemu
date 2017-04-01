@@ -368,9 +368,13 @@ Makefile: $(version-obj-y)
 libqemustub.a: $(stub-obj-y)
 libqemuutil.a: $(util-obj-y)
 
+.PHONY: rust_block_drivers_source
+rust/debug/libqemu_rust_block_drivers.a: rust_block_drivers_source
+	cd "$(SRC_PATH)/block/rust" && CARGO_TARGET_DIR="$(BUILD_DIR)/rust" cargo build
+
 ######################################################################
 
-COMMON_LDADDS = $(trace-obj-y) libqemuutil.a libqemustub.a
+COMMON_LDADDS = $(trace-obj-y) libqemuutil.a libqemustub.a rust/debug/libqemu_rust_block_drivers.a
 
 qemu-img.o: qemu-img-cmds.h
 

@@ -201,7 +201,7 @@ all-obj-$(CONFIG_SOFTMMU) += $(io-obj-y)
 
 $(QEMU_PROG_BUILD): config-devices.mak
 
-COMMON_LDADDS = $(trace-obj-y) ../libqemuutil.a ../libqemustub.a
+COMMON_LDADDS = $(trace-obj-y) ../libqemuutil.a ../libqemustub.a ../rust/debug/libqemu_rust_block_drivers.a
 
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) $(COMMON_LDADDS)
