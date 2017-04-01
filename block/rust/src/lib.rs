@@ -7,3 +7,6 @@ extern crate libc;
 
 #[macro_use]
 mod interface;
+
+mod qcow2;
+pub use qcow2::*; /* Export symbols */
