@@ -319,4 +319,121 @@ impl QCow2BDS {
         let hoi = try!(Self::find_host_offset(cbds, offset));
         Self::do_read_cluster(cbds, &hoi, dest, flags)
     }
+
+
+    /* If necessary. copies a cluster somewhere else (freeing the original
+     * allocation), overlaying the data with the given slice (if given). */
+    fn copy_and_overlay_cluster(cbds: &mut CBDS, mut hoi: HostOffsetInfo,
+                                overlay_opt: Option<&[u8]>, flags: u32)
+        -> Result<(), IOError>
+    {
+        let free_original: L2Entry;
+
+        let mut cluster_data = qemu_blockalign(cbds, hoi.cluster_size as usize);
+        try_vfree!(Self::do_read_cluster(cbds, &hoi, cluster_data, 0),
+                   cluster_data);
+
+        match hoi.l2_entry {
+            None => panic!("L2 entry expected"),
+
+            Some(L2Entry::Zero(Some(offset), true)) => {
+                /* We are going to use this cluster, so do not free it */
+                free_original = L2Entry::Unallocated;
+                hoi.l2_entry = Some(L2Entry::Normal(offset, true));
+                hoi = try_vfree!(Self::update_l2_entry(cbds, hoi),
+                                 cluster_data);
+            },
+
+            Some(unwrapped_entry) => {
+                free_original = unwrapped_entry;
+                hoi.l2_entry = Some(L2Entry::Unallocated);
+
+                hoi = try_vfree!(Self::allocate_data_cluster(cbds, hoi),
+                                 cluster_data);
+            }
+        }
+
+        try_vfree!(Self::free_cluster(cbds, free_original),
+                   cluster_data);
+
+        if let Some(overlay) = overlay_opt {
+            copy_into_byte_slice(cluster_data, hoi.offset_in_cluster as usize,
+                                 overlay);
+        }
+
+        /* TODO: Maybe on failure we should try pointing back to the original
+         *       cluster? */
+        hoi.offset_in_cluster = 0;
+        try_vfree!(Self::do_write_cluster(cbds, hoi, cluster_data, flags),
+                   cluster_data);
+
+        qemu_vfree(cluster_data);
+
+        Ok(())
+    }
+
+
+    fn do_write_cluster(cbds: &mut CBDS, mut hoi: HostOffsetInfo, src: &[u8],
+                        flags: u32)
+        -> Result<(), IOError>
+    {
+        /* Try to set COPIED flag */
+        match hoi.l2_entry {
+            Some(L2Entry::Normal(offset, false)) => {
+                if try!(Self::get_refcount(cbds, offset)) == 1 {
+                    hoi.l2_entry = Some(L2Entry::Normal(offset, true));
+                    /* We are going to write directly into this cluster without
+                     * updating the L2 table, so do it now */
+                    hoi = try!(Self::update_l2_entry(cbds, hoi));
+                }
+            },
+
+            Some(L2Entry::Zero(Some(offset), false)) => {
+                if try!(Self::get_refcount(cbds, offset)) == 1 {
+                    hoi.l2_entry = Some(L2Entry::Zero(Some(offset), true));
+                    /* No need to update the L2 table entry now: We will call
+                     * copy_and_overlay_cluster() and that will do the update */
+                }
+            },
+
+            _ => (),
+        }
+
+        match hoi.l2_entry {
+            None => {
+                hoi = try!(Self::allocate_l2(cbds, hoi));
+                Self::do_write_cluster(cbds, hoi, src, flags)
+            },
+
+            Some(L2Entry::Normal(offset, true)) => {
+                let full_offset = offset + (hoi.offset_in_cluster as u64);
+                if let Err(_) = hoi.file.bdrv_pwrite(full_offset, src) {
+                    Err(IOError::GenericError)
+                } else {
+                    Ok(())
+                }
+            },
+
+            _ => {
+                Self::copy_and_overlay_cluster(cbds, hoi, Some(src), flags)
+            },
+        }
+    }
+
+
+    pub fn write_cluster(cbds: &mut CBDS, offset: u64, bytes: u32,
+                         full_src_mnm: &mut MNMIOVSlice, flags: u32)
+        -> Result<(), IOError>
+    {
+        let src = match *full_src_mnm {
+            MNMIOVSlice::Mut(ref mut full_src) =>
+                full_src.split_at(bytes as usize).0,
+
+            MNMIOVSlice::Const(ref mut full_src) =>
+                full_src.split_at(bytes as usize).0,
+        };
+
+        let hoi = try!(Self::find_host_offset(cbds, offset));
+        Self::do_write_cluster(cbds, hoi, src, flags)
+    }
 }

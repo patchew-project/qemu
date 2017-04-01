@@ -1,4 +1,6 @@
+mod allocation;
 mod io;
+mod refcount;
 mod on_disk_structures;
 
 
@@ -264,8 +266,6 @@ impl BlockDriverOpen for QCow2BDS {
             this.common.set_file(Some(file));
         }
 
-        cbds.read_only = true;
-
         QCow2BDS::do_open(cbds, options, flags)
     }
 }
@@ -286,6 +286,18 @@ impl BlockDriverRead for QCow2BDS {
         /* TODO: Do not split */
         Self::split_io_to_clusters(cbds, offset, bytes, io::MNMIOV::Mut(iov),
                                    flags, &Self::read_cluster)
+    }
+}
+
+
+impl BlockDriverWrite for QCow2BDS {
+    fn bdrv_co_pwritev(cbds: &mut CBDS, offset: u64, bytes: u64,
+                       iov: Vec<&[u8]>, flags: u32)
+        -> Result<(), IOError>
+    {
+        /* TODO: Do not split */
+        Self::split_io_to_clusters(cbds, offset, bytes, io::MNMIOV::Const(iov),
+                                   flags, &Self::write_cluster)
     }
 }
 
@@ -325,6 +337,7 @@ pub extern fn bdrv_qcow2_rust_init()
     bdrv.provides_open();
     bdrv.provides_close();
     bdrv.provides_read();
+    bdrv.provides_write();
     bdrv.provides_child_perm();
     bdrv.provides_info();
 
