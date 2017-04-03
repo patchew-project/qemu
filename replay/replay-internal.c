@@ -199,6 +199,13 @@ void replay_save_instructions(void)
             replay_put_event(EVENT_INSTRUCTION);
             replay_put_dword(diff);
             replay_state.current_step += diff;
+        } else if (diff < 0) {
+            /* Time has caught up with us, so as far as we are
+             * concerned use now, not the past. We still put an event
+             * in the stream to keep in sync.
+             */
+            replay_put_event(EVENT_INSTRUCTION);
+            replay_put_dword(0);
         }
         replay_mutex_unlock();
     }
