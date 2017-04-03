@@ -44,6 +44,7 @@
 #include "pcnet.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 
 #define TYPE_LANCE "lance"
 #define SYSBUS_PCNET(obj) \
@@ -145,10 +146,14 @@ static void lance_instance_init(Object *obj)
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(obj), NULL);
+
+    object_property_add_link(obj, "dma", TYPE_LANCE,
+                             (Object **)&d->state.dma_opaque,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, &error_abort);
 }
 
 static Property lance_properties[] = {
-    DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
     DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -164,7 +169,6 @@ static void lance_class_init(ObjectClass *klass, void *data)
     dc->reset = lance_reset;
     dc->vmsd = &vmstate_lance;
     dc->props = lance_properties;
-    /* Reason: pointer property "dma" */
     dc->cannot_instantiate_with_device_add_yet = true;
 }
 
