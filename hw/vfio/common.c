@@ -228,15 +228,30 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
         map.flags |= VFIO_DMA_MAP_FLAG_WRITE;
     }
 
-    /*
-     * Try the mapping, if it fails with EBUSY, unmap the region and try
-     * again.  This shouldn't be necessary, but we sometimes see it in
-     * the VGA ROM space.
-     */
-    if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0 ||
-        (errno == EBUSY && vfio_dma_unmap(container, iova, size) == 0 &&
-         ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0)) {
+    if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0) {
         return 0;
+    }
+
+    if (errno == ENOMEM) {
+        /*
+         * When quickly unmapping and mapping ranges, the kernel may
+         * return ENOMEM for a map request because the previous unmap
+         * has not been accounted yet. Wait a bit and try again.
+         */
+        usleep(10 * 1000);
+        if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0) {
+            return 0;
+        }
+    } else if (errno == EBUSY) {
+        /*
+         * If mapping fails with EBUSY, unmap the region and try again.
+         * This shouldn't be necessary, but we sometimes see it in the
+         * VGA ROM space.
+         */
+        if (vfio_dma_unmap(container, iova, size) == 0 &&
+            ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0) {
+            return 0;
+        }
     }
 
     error_report("VFIO_MAP_DMA: %d", -errno);
