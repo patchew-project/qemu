@@ -3658,6 +3658,12 @@
 #
 # @guestfwd: forward guest TCP connections
 #
+# @proxy-server: address of the SOCKS5 proxy server to use (since 2.10)
+#
+# @proxy-user: username to use with the proxy server (since 2.10)
+#
+# @proxy-secretid: secret id to use for the proxy server password (since 2.10)
+#
 # Since: 1.2
 ##
 { 'struct': 'NetdevUserOptions',
@@ -3680,6 +3686,9 @@
     '*ipv6-dns':         'str',
     '*smb':       'str',
     '*smbserver': 'str',
+    '*proxy-server': 'str',
+    '*proxy-user':   'str',
+    '*proxy-secretid': 'str',
     '*hostfwd':   ['String'],
     '*guestfwd':  ['String'] } }
 
