@@ -518,7 +518,7 @@ static void gem_update_int_status(CadenceGEMState *s)
     }
 
     for (i = 0; i < s->num_priority_queues; ++i) {
-        if (s->regs[GEM_INT_Q1_STATUS + i]) {
+        if (s->regs[GEM_INT_Q1_STATUS + i] && s->regs[GEM_ISR]) {
             DB_PRINT("asserting int. (q=%d)\n", i);
             qemu_set_irq(s->irq[i], 1);
         }
