@@ -641,7 +641,11 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_open;
     }
 
-    bdrv_set_read_only(bs, (s->snap != NULL));
+    r = bdrv_set_read_only(bs, (s->snap != NULL), &local_err);
+    if (r < 0) {
+        error_propagate(errp, local_err);
+        goto failed_open;
+    }
 
     qemu_opts_del(opts);
     return 0;

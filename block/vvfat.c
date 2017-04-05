@@ -1156,8 +1156,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->current_cluster=0xffffffff;
 
-    /* read only is the default for safety */
-    bdrv_set_read_only(bs, true);
     s->qcow = NULL;
     s->qcow_filename = NULL;
     s->fat2 = NULL;
@@ -1173,7 +1171,18 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         if (ret < 0) {
             goto fail;
         }
-        bdrv_set_read_only(bs, false);
+        ret = bdrv_set_read_only(bs, false, &local_err);
+        if (ret < 0) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+    } else  {
+        /* read only is the default for safety */
+        ret = bdrv_set_read_only(bs, true, &local_err);
+        if (ret < 0) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
     }
 
     bs->total_sectors = cyls * heads * secs;
