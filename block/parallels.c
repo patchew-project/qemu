@@ -728,18 +728,35 @@ fail_options:
     goto fail;
 }
 
+static int parallels_inactivate(BlockDriverState *bs)
+{
+    int err;
+    BDRVParallelsState *s = bs->opaque;
+
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return 0;
+    }
+
+    s->header->inuse = 0;
+    err = parallels_update_header(bs);
+    if (err < 0) {
+        return err;
+    }
+
+    err = bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS);
+    if (err < 0) {
+        return err;
+    }
+
+    return bdrv_flush(bs->file->bs);
+}
 
 static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
 
-    if (bs->open_flags & BDRV_O_RDWR) {
-        s->header->inuse = 0;
-        parallels_update_header(bs);
-    }
-
-    if (bs->open_flags & BDRV_O_RDWR) {
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS);
+    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
+        parallels_inactivate(bs);
     }
 
     g_free(s->bat_dirty_bmap);
@@ -777,6 +794,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_flush_to_os      = parallels_co_flush_to_os,
     .bdrv_co_readv  = parallels_co_readv,
     .bdrv_co_writev = parallels_co_writev,
+    .bdrv_inactivate = parallels_inactivate,
 
     .bdrv_create    = parallels_create,
     .bdrv_check     = parallels_check,
