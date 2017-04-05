@@ -2102,7 +2102,7 @@ static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
     iscsilun = bs->opaque;
 
     bs_options = qdict_new();
-    qdict_put(bs_options, "filename", qstring_from_str(filename));
+    qdict_put_str(bs_options, "filename", filename);
     ret = iscsi_open(bs, bs_options, 0, NULL);
     QDECREF(bs_options);
 
