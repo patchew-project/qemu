@@ -2209,13 +2209,10 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
         goto out;
     }
 
-    g_free(tmp_filename);
-    return bs_snapshot;
-
 out:
     QDECREF(snapshot_options);
     g_free(tmp_filename);
-    return NULL;
+    return bs_snapshot;
 }
 
 /*
