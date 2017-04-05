@@ -298,8 +298,9 @@ static void test_media_insert(void)
 
     /* Insert media in drive. DSKCHK should not be reset until a step pulse
      * is sent. */
-    qmp_discard_response("{'execute':'change', 'arguments':{"
-                         " 'device':'floppy0', 'target': %s, 'arg': 'raw' }}",
+    qmp_discard_response("{'execute':'blockdev-change-medium', 'arguments':{"
+                         " 'device':'floppy0', 'filename': %s, "
+                         "'format': 'raw' }}",
                          test_image);
 
     dir = inb(FLOPPY_BASE + reg_dir);
