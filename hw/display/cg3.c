@@ -93,14 +93,11 @@ static void cg3_update_display(void *opaque)
     uint32_t *data;
     uint32_t dval;
     int x, y, y_start;
-    unsigned int width, height;
     ram_addr_t page, page_min, page_max;
 
     if (surface_bits_per_pixel(surface) != 32) {
         return;
     }
-    width = s->width;
-    height = s->height;
 
     y_start = -1;
     page_min = -1;
@@ -110,11 +107,11 @@ static void cg3_update_display(void *opaque)
     data = (uint32_t *)surface_data(surface);
 
     memory_region_sync_dirty_bitmap(&s->vram_mem);
-    for (y = 0; y < height; y++) {
+    for (y = 0; y < s->height; y++) {
         int update = s->full_update;
 
-        page = y * width;
-        update |= memory_region_get_dirty(&s->vram_mem, page, width,
+        page = y * s->width;
+        update |= memory_region_get_dirty(&s->vram_mem, page, s->width,
                                           DIRTY_MEMORY_VGA);
         if (update) {
             if (y_start < 0) {
@@ -127,7 +124,7 @@ static void cg3_update_display(void *opaque)
                 page_max = page;
             }
 
-            for (x = 0; x < width; x++) {
+            for (x = 0; x < s->width; x++) {
                 dval = *pix++;
                 dval = (s->r[dval] << 16) | (s->g[dval] << 8) | s->b[dval];
                 *data++ = dval;
@@ -137,8 +134,8 @@ static void cg3_update_display(void *opaque)
                 dpy_gfx_update(s->con, 0, y_start, s->width, y - y_start);
                 y_start = -1;
             }
-            pix += width;
-            data += width;
+            pix += s->width;
+            data += s->width;
         }
     }
     s->full_update = 0;
