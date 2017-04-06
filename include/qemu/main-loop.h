@@ -68,7 +68,7 @@ int qemu_init_main_loop(Error **errp);
  *     }
  *
  *     ...
- *     QEMUCoroutine *co = qemu_coroutine_create(coroutine_entry, NULL);
+ *     QEMUCoroutine *co = qemu_coroutine_create(ctx, coroutine_entry, NULL);
  *     QEMUBH *start_bh = qemu_bh_new(enter_co_bh, co);
  *     qemu_bh_schedule(start_bh);
  *     while (...) {

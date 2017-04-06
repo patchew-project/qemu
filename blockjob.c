@@ -286,7 +286,7 @@ void block_job_start(BlockJob *job)
 {
     assert(job && !block_job_started(job) && job->paused &&
            job->driver && job->driver->start);
-    job->co = qemu_coroutine_create(block_job_co_entry, job);
+    job->co = bdrv_coroutine_create(blk_bs(job->blk), block_job_co_entry, job);
     job->pause_count--;
     job->busy = true;
     job->paused = false;

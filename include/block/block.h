@@ -555,6 +555,9 @@ bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
  */
 AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
+Coroutine *bdrv_coroutine_create(BlockDriverState *bs,
+                                 CoroutineEntry *entry, void *opaque);
+
 /**
  * bdrv_set_aio_context:
  *

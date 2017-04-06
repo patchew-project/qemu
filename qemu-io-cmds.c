@@ -520,7 +520,8 @@ static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
         return -ERANGE;
     }
 
-    co = qemu_coroutine_create(co_pwrite_zeroes_entry, &data);
+    co = qemu_coroutine_create(qemu_get_aio_context(),
+                               co_pwrite_zeroes_entry, &data);
     qemu_coroutine_enter(co);
     while (!data.done) {
         aio_poll(blk_get_aio_context(blk), true);

@@ -1363,7 +1363,8 @@ static void nbd_client_receive_next_request(NBDClient *client)
 {
     if (!client->recv_coroutine && client->nb_requests < MAX_NBD_REQUESTS) {
         nbd_client_get(client);
-        client->recv_coroutine = qemu_coroutine_create(nbd_trip, client);
+        client->recv_coroutine = qemu_coroutine_create(client->exp->ctx,
+                                                       nbd_trip, client);
         aio_co_schedule(client->exp->ctx, client->recv_coroutine);
     }
 }
@@ -1417,6 +1418,7 @@ void nbd_client_new(NBDExport *exp,
     client->close = close_fn;
 
     data->client = client;
-    data->co = qemu_coroutine_create(nbd_co_client_start, data);
+    data->co = qemu_coroutine_create(exp ? exp->ctx : qemu_get_aio_context(),
+                                     nbd_co_client_start, data);
     qemu_coroutine_enter(data->co);
 }

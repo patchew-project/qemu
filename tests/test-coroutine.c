@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/main-loop.h"
 
 /*
  * Check that qemu_in_coroutine() works
@@ -30,7 +31,8 @@ static void test_in_coroutine(void)
 
     g_assert(!qemu_in_coroutine());
 
-    coroutine = qemu_coroutine_create(verify_in_coroutine, NULL);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      verify_in_coroutine, NULL);
     qemu_coroutine_enter(coroutine);
 }
 
@@ -48,7 +50,8 @@ static void test_self(void)
 {
     Coroutine *coroutine;
 
-    coroutine = qemu_coroutine_create(verify_self, &coroutine);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      verify_self, &coroutine);
     qemu_coroutine_enter(coroutine);
 }
 
@@ -77,7 +80,8 @@ static void coroutine_fn verify_entered_step_1(void *opaque)
 
     g_assert(qemu_coroutine_entered(self));
 
-    coroutine = qemu_coroutine_create(verify_entered_step_2, self);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      verify_entered_step_2, self);
     g_assert(!qemu_coroutine_entered(coroutine));
     qemu_coroutine_enter(coroutine);
     g_assert(!qemu_coroutine_entered(coroutine));
@@ -88,7 +92,8 @@ static void test_entered(void)
 {
     Coroutine *coroutine;
 
-    coroutine = qemu_coroutine_create(verify_entered_step_1, NULL);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      verify_entered_step_1, NULL);
     g_assert(!qemu_coroutine_entered(coroutine));
     qemu_coroutine_enter(coroutine);
 }
@@ -112,7 +117,8 @@ static void coroutine_fn nest(void *opaque)
     if (nd->n_enter < nd->max) {
         Coroutine *child;
 
-        child = qemu_coroutine_create(nest, nd);
+        child = qemu_coroutine_create(qemu_get_aio_context(),
+                                      nest, nd);
         qemu_coroutine_enter(child);
     }
 
@@ -128,7 +134,8 @@ static void test_nesting(void)
         .max      = 128,
     };
 
-    root = qemu_coroutine_create(nest, &nd);
+    root = qemu_coroutine_create(qemu_get_aio_context(),
+                                 nest, &nd);
     qemu_coroutine_enter(root);
 
     /* Must enter and return from max nesting level */
@@ -157,7 +164,8 @@ static void test_yield(void)
     bool done = false;
     int i = -1; /* one extra time to return from coroutine */
 
-    coroutine = qemu_coroutine_create(yield_5_times, &done);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      yield_5_times, &done);
     while (!done) {
         qemu_coroutine_enter(coroutine);
         i++;
@@ -182,8 +190,11 @@ static void test_co_queue(void)
     Coroutine *c2;
     Coroutine tmp;
 
-    c2 = qemu_coroutine_create(c2_fn, NULL);
-    c1 = qemu_coroutine_create(c1_fn, c2);
+    qemu_init_main_loop(NULL);
+    c2 = qemu_coroutine_create(qemu_get_aio_context(),
+                               c2_fn, NULL);
+    c1 = qemu_coroutine_create(qemu_get_aio_context(),
+                               c1_fn, c2);
 
     qemu_coroutine_enter(c1);
 
@@ -213,13 +224,15 @@ static void test_lifecycle(void)
     bool done = false;
 
     /* Create, enter, and return from coroutine */
-    coroutine = qemu_coroutine_create(set_and_exit, &done);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      set_and_exit, &done);
     qemu_coroutine_enter(coroutine);
     g_assert(done); /* expect done to be true (first time) */
 
     /* Repeat to check that no state affects this test */
     done = false;
-    coroutine = qemu_coroutine_create(set_and_exit, &done);
+    coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                      set_and_exit, &done);
     qemu_coroutine_enter(coroutine);
     g_assert(done); /* expect done to be true (second time) */
 }
@@ -254,7 +267,8 @@ static void do_order_test(void)
 {
     Coroutine *co;
 
-    co = qemu_coroutine_create(co_order_test, NULL);
+    co = qemu_coroutine_create(qemu_get_aio_context(),
+                               co_order_test, NULL);
     record_push(1, 1);
     qemu_coroutine_enter(co);
     record_push(1, 2);
@@ -296,7 +310,8 @@ static void perf_lifecycle(void)
 
     g_test_timer_start();
     for (i = 0; i < max; i++) {
-        coroutine = qemu_coroutine_create(empty_coroutine, NULL);
+        coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                          empty_coroutine, NULL);
         qemu_coroutine_enter(coroutine);
     }
     duration = g_test_timer_elapsed();
@@ -320,7 +335,8 @@ static void perf_nesting(void)
             .n_return = 0,
             .max      = maxnesting,
         };
-        root = qemu_coroutine_create(nest, &nd);
+        root = qemu_coroutine_create(qemu_get_aio_context(),
+                                     nest, &nd);
         qemu_coroutine_enter(root);
     }
     duration = g_test_timer_elapsed();
@@ -350,7 +366,8 @@ static void perf_yield(void)
 
     maxcycles = 100000000;
     i = maxcycles;
-    Coroutine *coroutine = qemu_coroutine_create(yield_loop, &i);
+    Coroutine *coroutine = qemu_coroutine_create(qemu_get_aio_context(),
+                                                 yield_loop, &i);
 
     g_test_timer_start();
     while (i > 0) {
@@ -400,7 +417,8 @@ static void perf_cost(void)
 
     g_test_timer_start();
     while (i++ < maxcycles) {
-        co = qemu_coroutine_create(perf_cost_func, &i);
+        co = qemu_coroutine_create(qemu_get_aio_context(),
+                                   perf_cost_func, &i);
         qemu_coroutine_enter(co);
         qemu_coroutine_enter(co);
     }

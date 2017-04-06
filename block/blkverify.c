@@ -204,8 +204,8 @@ blkverify_co_prwv(BlockDriverState *bs, BlkverifyRequest *r, uint64_t offset,
         .request_fn = is_write ? bdrv_co_pwritev : bdrv_co_preadv,
     };
 
-    co_a = qemu_coroutine_create(blkverify_do_test_req, r);
-    co_b = qemu_coroutine_create(blkverify_do_raw_req, r);
+    co_a = bdrv_coroutine_create(bs, blkverify_do_test_req, r);
+    co_b = bdrv_coroutine_create(bs, blkverify_do_raw_req, r);
 
     qemu_coroutine_enter(co_a);
     qemu_coroutine_enter(co_b);

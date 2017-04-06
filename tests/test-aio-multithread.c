@@ -168,7 +168,8 @@ static void test_multi_co_schedule(int seconds)
 
     create_aio_contexts();
     for (i = 0; i < NUM_CONTEXTS; i++) {
-        Coroutine *co1 = qemu_coroutine_create(test_multi_co_schedule_entry, NULL);
+        Coroutine *co1 = qemu_coroutine_create(ctx[i],
+                                               test_multi_co_schedule_entry, NULL);
         aio_co_schedule(ctx[i], co1);
     }
 
@@ -233,7 +234,8 @@ static void test_multi_co_mutex(int threads, int seconds)
     assert(threads <= NUM_CONTEXTS);
     running = threads;
     for (i = 0; i < threads; i++) {
-        Coroutine *co1 = qemu_coroutine_create(test_multi_co_mutex_entry, NULL);
+        Coroutine *co1 = qemu_coroutine_create(ctx[i],
+                                               test_multi_co_mutex_entry, NULL);
         aio_co_schedule(ctx[i], co1);
     }
 
@@ -352,7 +354,8 @@ static void test_multi_fair_mutex(int threads, int seconds)
     assert(threads <= NUM_CONTEXTS);
     running = threads;
     for (i = 0; i < threads; i++) {
-        Coroutine *co1 = qemu_coroutine_create(test_multi_fair_mutex_entry, NULL);
+        Coroutine *co1 = qemu_coroutine_create(ctx[i],
+                                               test_multi_fair_mutex_entry, NULL);
         aio_co_schedule(ctx[i], co1);
     }
 
@@ -408,7 +411,8 @@ static void test_multi_mutex(int threads, int seconds)
     assert(threads <= NUM_CONTEXTS);
     running = threads;
     for (i = 0; i < threads; i++) {
-        Coroutine *co1 = qemu_coroutine_create(test_multi_mutex_entry, NULL);
+        Coroutine *co1 = qemu_coroutine_create(ctx[i],
+                                               test_multi_mutex_entry, NULL);
         aio_co_schedule(ctx[i], co1);
     }
 

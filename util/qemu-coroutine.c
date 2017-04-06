@@ -43,7 +43,8 @@ static void coroutine_pool_cleanup(Notifier *n, void *value)
     }
 }
 
-Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
+Coroutine *qemu_coroutine_create(AioContext *ctx,
+                                 CoroutineEntry *entry, void *opaque)
 {
     Coroutine *co = NULL;
 
@@ -78,6 +79,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 
     co->entry = entry;
     co->entry_arg = opaque;
+    co->ctx = ctx;
     QSIMPLEQ_INIT(&co->co_queue_wakeup);
     return co;
 }
@@ -107,6 +109,7 @@ void qemu_coroutine_enter(Coroutine *co)
     Coroutine *self = qemu_coroutine_self();
     CoroutineAction ret;
 
+    assert(co->ctx);
     trace_qemu_coroutine_enter(self, co, co->entry_arg);
 
     if (co->caller) {
@@ -115,7 +118,6 @@ void qemu_coroutine_enter(Coroutine *co)
     }
 
     co->caller = self;
-    co->ctx = qemu_get_current_aio_context();
 
     /* Store co->ctx before anything that stores co.  Matches
      * barrier in aio_co_wake and qemu_co_mutex_wake.

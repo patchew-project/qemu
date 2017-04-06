@@ -3462,7 +3462,7 @@ void pdu_submit(V9fsPDU *pdu)
     if (is_ro_export(&s->ctx) && !is_read_only_op(pdu)) {
         handler = v9fs_fs_ro;
     }
-    co = qemu_coroutine_create(handler, pdu);
+    co = qemu_coroutine_create(qemu_get_aio_context(), handler, pdu);
     qemu_coroutine_enter(co);
 }
 
@@ -3595,7 +3595,7 @@ void v9fs_reset(V9fsState *s)
         aio_poll(qemu_get_aio_context(), true);
     }
 
-    co = qemu_coroutine_create(virtfs_co_reset, &data);
+    co = qemu_coroutine_create(qemu_get_aio_context(), virtfs_co_reset, &data);
     qemu_coroutine_enter(co);
 
     while (!data.done) {

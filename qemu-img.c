@@ -1894,7 +1894,8 @@ static int convert_do_copy(ImgConvertState *s)
 
     qemu_co_mutex_init(&s->lock);
     for (i = 0; i < s->num_coroutines; i++) {
-        s->co[i] = qemu_coroutine_create(convert_co_do_copy, s);
+        s->co[i] = qemu_coroutine_create(qemu_get_aio_context(),
+                                         convert_co_do_copy, s);
         s->wait_sector_num[i] = -1;
         qemu_coroutine_enter(s->co[i]);
     }

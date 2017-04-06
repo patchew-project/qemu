@@ -317,7 +317,7 @@ static bool quorum_rewrite_bad_versions(QuorumAIOCB *acb,
                 .idx = item->index,
             };
 
-            co = qemu_coroutine_create(quorum_rewrite_entry, &data);
+            co = bdrv_coroutine_create(acb->bs, quorum_rewrite_entry, &data);
             qemu_coroutine_enter(co);
         }
     }
@@ -625,7 +625,7 @@ static int read_quorum_children(QuorumAIOCB *acb)
             .idx = i,
         };
 
-        co = qemu_coroutine_create(read_quorum_children_entry, &data);
+        co = bdrv_coroutine_create(acb->bs, read_quorum_children_entry, &data);
         qemu_coroutine_enter(co);
     }
 
@@ -730,7 +730,7 @@ static int quorum_co_pwritev(BlockDriverState *bs, uint64_t offset,
             .idx = i,
         };
 
-        co = qemu_coroutine_create(write_quorum_entry, &data);
+        co = bdrv_coroutine_create(bs, write_quorum_entry, &data);
         qemu_coroutine_enter(co);
     }
 
