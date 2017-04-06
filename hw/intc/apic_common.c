@@ -317,8 +317,11 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
 
-    /* Note: We need at least 1M to map the VAPIC option ROM */
+    /* Note: We need at least 1M to map the VAPIC option ROM,
+       if it is KVM, enable kvmvapic only when KVM doesn't have
+       VAPIC capability                */
     if (!vapic && s->vapic_control & VAPIC_ENABLE_MASK &&
+        (!kvm_enabled() || (kvm_enabled() && !kvm_has_vapic())) &&
         !hax_enabled() && ram_size >= 1024 * 1024) {
         vapic = sysbus_create_simple("kvmvapic", -1, NULL);
     }
