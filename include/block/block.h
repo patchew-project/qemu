@@ -473,6 +473,7 @@ void bdrv_round_to_clusters(BlockDriverState *bs,
                             int64_t offset, unsigned int bytes,
                             int64_t *cluster_offset,
                             unsigned int *cluster_bytes);
+int bdrv_get_cluster_size(BlockDriverState *bs);
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,

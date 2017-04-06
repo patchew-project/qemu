@@ -459,7 +459,7 @@ void bdrv_round_to_clusters(BlockDriverState *bs,
     }
 }
 
-static int bdrv_get_cluster_size(BlockDriverState *bs)
+int bdrv_get_cluster_size(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;
     int ret;
