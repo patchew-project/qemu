@@ -885,6 +885,10 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     int64_t total_sectors = 0;
     int nr_sectors;
     int ret;
+    int i;
+    int cluster_size;
+    int64_t addr_offset;
+    uint8_t *buf_offset;
 
     do {
         addr = qemu_get_be64(f);
@@ -934,8 +938,34 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             } else {
                 buf = g_malloc(BLOCK_SIZE);
                 qemu_get_buffer(f, buf, BLOCK_SIZE);
-                ret = blk_pwrite(blk, addr * BDRV_SECTOR_SIZE, buf,
-                                 nr_sectors * BDRV_SECTOR_SIZE, 0);
+
+                cluster_size = bdrv_get_cluster_size(blk_bs(blk));
+
+                if (cluster_size > 0) {
+                    for (i = 0; i < BLOCK_SIZE / cluster_size; i++) {
+                        addr_offset = addr * BDRV_SECTOR_SIZE
+                                        + i * cluster_size;
+                        buf_offset = buf + i * cluster_size;
+
+                        if (buffer_is_zero(buf_offset, cluster_size)) {
+                            ret = blk_pwrite_zeroes(blk, addr_offset,
+                                                    cluster_size,
+                                                    BDRV_REQ_MAY_UNMAP);
+                        } else {
+                            ret = blk_pwrite(blk, addr_offset,
+                                             buf_offset, cluster_size, 0);
+                        }
+
+                        if (ret < 0) {
+                            g_free(buf);
+                            return ret;
+                        }
+                    }
+                } else {
+                    ret = blk_pwrite(blk, addr * BDRV_SECTOR_SIZE, buf,
+                                     nr_sectors * BDRV_SECTOR_SIZE, 0);
+                }
+
                 g_free(buf);
             }
 
