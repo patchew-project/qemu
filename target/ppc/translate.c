@@ -2971,6 +2971,7 @@ static void gen_stswx(DisasContext *ctx)
 /* eieio */
 static void gen_eieio(DisasContext *ctx)
 {
+    tcg_gen_mb(TCG_MO_LD_ST | TCG_BAR_SC);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -3008,6 +3009,7 @@ static void gen_isync(DisasContext *ctx)
     if (!ctx->pr) {
         gen_check_tlb_flush(ctx, false);
     }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     gen_stop_exception(ctx);
 }
 
@@ -3028,6 +3030,7 @@ static void gen_##name(DisasContext *ctx)                            \
     tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop);                \
     tcg_gen_mov_tl(cpu_reserve, t0);                                 \
     tcg_gen_mov_tl(cpu_reserve_val, gpr);                            \
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);                           \
     tcg_temp_free(t0);                                               \
 }
 
@@ -3196,6 +3199,7 @@ static void gen_##name(DisasContext *ctx)                   \
     if (len > 1) {                                          \
         gen_check_align(ctx, t0, (len) - 1);                \
     }                                                       \
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);                  \
     gen_conditional_store(ctx, t0, rS(ctx->opcode), memop); \
     tcg_temp_free(t0);                                      \
 }
@@ -3309,6 +3313,7 @@ static void gen_sync(DisasContext *ctx)
     if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
         gen_check_tlb_flush(ctx, true);
     }
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
 }
 
 /* wait */
