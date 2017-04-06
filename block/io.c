@@ -228,7 +228,12 @@ void bdrv_drained_begin(BlockDriverState *bs)
         bdrv_parent_drained_begin(bs);
     }
 
-    bdrv_drain_recurse(bs);
+    while (true) {
+        if (!bdrv_drain_recurse(bs) &&
+            !aio_poll(bdrv_get_aio_context(bs), false)) {
+                break;
+            }
+    }
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
