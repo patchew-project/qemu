@@ -1626,9 +1626,23 @@ static int qemu_shutdown_requested(void)
     return atomic_xchg(&shutdown_requested, 0);
 }
 
-static void qemu_kill_report(void)
+static ShutdownSignal qemu_kill_report(void)
 {
+    ShutdownSignal ss = SHUTDOWN_SIGNAL__MAX;
     if (!qtest_driver() && shutdown_signal != -1) {
+        switch (shutdown_signal) {
+        case SIGINT:
+            ss = SHUTDOWN_SIGNAL_INT;
+            break;
+#ifdef SIGHUP
+        case SIGHUP:
+            ss = SHUTDOWN_SIGNAL_HUP;
+            break;
+#endif
+        case SIGTERM:
+            ss = SHUTDOWN_SIGNAL_TERM;
+            break;
+        }
         if (shutdown_pid == 0) {
             /* This happens for eg ^C at the terminal, so it's worth
              * avoiding printing an odd message in that case.
@@ -1644,6 +1658,7 @@ static void qemu_kill_report(void)
         }
         shutdown_signal = -1;
     }
+    return ss;
 }
 
 static int qemu_reset_requested(void)
@@ -1852,8 +1867,8 @@ static bool main_loop_should_exit(void)
         qemu_system_suspend();
     }
     if (qemu_shutdown_requested()) {
-        qemu_kill_report();
-        qapi_event_send_shutdown(&error_abort);
+        ShutdownSignal ss = qemu_kill_report();
+        qapi_event_send_shutdown(ss < SHUTDOWN_SIGNAL__MAX, ss, &error_abort);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {

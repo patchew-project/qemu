@@ -5,10 +5,28 @@
 ##
 
 ##
+# @ShutdownSignal:
+#
+# The list of host signal types known to cause qemu to shut down a guest.
+#
+# @int: SIGINT
+# @hup: SIGHUP
+# @term: SIGTERM
+#
+# Since: 2.10
+##
+{ 'enum': 'ShutdownSignal', 'data': [ 'int', 'hup', 'term' ] }
+
+##
 # @SHUTDOWN:
 #
 # Emitted when the virtual machine has shut down, indicating that qemu is
 # about to exit.
+#
+# @signal: If present, the shutdown was (probably) triggered due to
+# the receipt of the given signal in the host, rather than by a guest
+# action (note that there is an inherent race with a guest choosing to
+# shut down near the same time the host sends a signal). (since 2.10)
 #
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event
@@ -21,7 +39,7 @@
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
-{ 'event': 'SHUTDOWN' }
+{ 'event': 'SHUTDOWN', 'data': { '*signal': 'ShutdownSignal' } }
 
 ##
 # @POWERDOWN:
