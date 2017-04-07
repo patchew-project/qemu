@@ -25,7 +25,7 @@ static QLIST_HEAD(, TPMBackend) tpm_backends =
 
 
 #define TPM_MAX_MODELS      1
-#define TPM_MAX_DRIVERS     1
+#define TPM_MAX_DRIVERS     2
 
 static TPMDriverOps const *be_drivers[TPM_MAX_DRIVERS] = {
     NULL,

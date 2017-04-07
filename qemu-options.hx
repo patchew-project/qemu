@@ -2870,7 +2870,15 @@ DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
     "-tpmdev passthrough,id=id[,path=path][,cancel-path=path]\n"
     "                use path to provide path to a character device; default is /dev/tpm0\n"
     "                use cancel-path to provide path to TPM's cancel sysfs entry; if\n"
-    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n",
+    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n"
+    "-tpmdev emulator,id=id,spawn=on|off,tpmstatedir=dir[,path=emulator-path,data-path=path,ctrl-path=path,logfile=path,loglevel=level]\n"
+    "                spawn=on|off controls spawning support\n"
+    "                use tpmstatedir to provide path to the tpm state dirctory\n"
+    "                use path to provide the emulator binary to launch; default is 'swtpm'\n"
+    "                use data-path to provide the socket path for exchanging data messages\n"
+    "                use ctrl-path to provide the socket path for sending control messages to software emulator\n"
+    "                use logfile to provide where to place the swtpm logs\n"
+    "                use loglevel to controls the swtpm log level\n",
     QEMU_ARCH_ALL)
 STEXI
 
@@ -2879,8 +2887,8 @@ The general form of a TPM device option is:
 
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
-Backend type must be:
-@option{passthrough}.
+Backend type must be either one of the following:
+@option{passthrough}, @option{emulator}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option creates the TPM backend and requires a
@@ -2929,6 +2937,45 @@ To create a passthrough TPM use the following two options:
 @end example
 Note that the @code{-tpmdev} id is @code{tpm0} and is referenced by
 @code{tpmdev=tpm0} in the device option.
+
+@item -tpmdev emulator, id=@var{id}, tpmstatedir=@var{path}, spawn=@var{on|off}, path=@var{emulator-binary-path}, data-path=@var{path}, ctrl-path=@var{path}, logfile=@var{path}, loglevel=@var{level}
+
+(Linux-host only) Enable access to a TPM emulator using unix domain sockets.
+
+@option{tpmstatedir} specifies the tpm state directory
+
+@option{spawn} specifies if qemu should spawn new emulator process with given @option{path}
+
+@option{path} specifies the emulator binary path to use for spawning
+
+@option{data-path} optional socket path to use for exchanging TPM data with emulator
+
+@option{ctrl-path} optional socket path to use for sending control data to emulator
+
+@option{logfile} optional log file to use to place log messages
+
+@option{loglevel} specifies the log level to use
+
+To create TPM emulator backend device that spawns new swtpm binary and communicate with socket pairs:
+@example
+
+-tpmdev emulator,id=tpm0,tpmstatedir=/tmp/my-tpm,spawn=on,path=/usr/local/bin/swtpm,logfile=/tmp/qemu-tpm.log,loglevel=5 -device tpm-tis,tpmdev=tpm0
+
+@end example
+
+To create TPM emulator backend device that spawns new swtpm binary and communicate using unix file system sockets:
+@example
+
+-tpmdev emulator,id=tpm0,tpmstatedir=/tmp/my-tpm,spawn=on,path=/usr/local/bin/swtpm,data-path=/tmp/swtpm-data.socket,ctrl-path=/tmp/swtpm-ctrl.socket,logfile=/tmp/qemu-tpm.log,loglevel=5 -device tpm-tis,tpmdev=tpm0
+
+@end example
+
+To create a TOM emulator backend device that connects to already running swtpm binary using file system sockets:
+@example
+
+-tpmdev emulator,id=tpm0,tpmstatedir=/tmp/my-tpm,spawn=off,data-path=/tmp/swtpm-data.socket,ctrl-path=/tmp/swtpm-ctrl.socket,logfile=/tmp/qemu-tpm.log,loglevel=5 -device tpm-tis,tpmdev=tpm0
+
+@end example
 
 @end table
 
