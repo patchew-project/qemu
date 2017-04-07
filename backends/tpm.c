@@ -51,17 +51,6 @@ const char *tpm_backend_get_desc(TPMBackend *s)
     return k->ops->desc ? k->ops->desc() : "";
 }
 
-void tpm_backend_destroy(TPMBackend *s)
-{
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
-
-    if (k->ops->destroy) {
-        k->ops->destroy(s);
-    }
-
-    object_unref(OBJECT(s));
-}
-
 int tpm_backend_init(TPMBackend *s, TPMState *state,
                      TPMRecvDataCB *datacb)
 {

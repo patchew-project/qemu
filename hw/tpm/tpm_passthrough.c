@@ -428,19 +428,6 @@ err_exit:
     return NULL;
 }
 
-static void tpm_passthrough_destroy(TPMBackend *tb)
-{
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
-
-    tpm_passthrough_cancel_cmd(tb);
-
-    qemu_close(tpm_pt->tpm_fd);
-    qemu_close(tpm_pt->cancel_fd);
-    g_free(tpm_pt->tpm_dev);
-
-    qapi_free_TPMPassthroughOptions(tpm_pt->ops);
-}
-
 static TPMOptions *tpm_passthrough_get_tpm_options(TPMBackend *tb)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
@@ -483,7 +470,6 @@ static const TPMDriverOps tpm_passthrough_driver = {
     .opts                     = tpm_passthrough_cmdline_opts,
     .desc                     = tpm_passthrough_create_desc,
     .create                   = tpm_passthrough_create,
-    .destroy                  = tpm_passthrough_destroy,
     .realloc_buffer           = tpm_passthrough_realloc_buffer,
     .reset                    = tpm_passthrough_reset,
     .had_startup_error        = tpm_passthrough_get_startup_error,
