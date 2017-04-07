@@ -305,10 +305,10 @@ static void blkverify_refresh_filename(BlockDriverState *bs, QDict *options)
     if (bs->file->bs->exact_filename[0]
         && s->test_file->bs->exact_filename[0])
     {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+        g_assert_cmpint(snprintf(bs->exact_filename, sizeof(bs->exact_filename),
                  "blkverify:%s:%s",
                  bs->file->bs->exact_filename,
-                 s->test_file->bs->exact_filename);
+                 s->test_file->bs->exact_filename), <, sizeof(bs->exact_filename));
     }
 }
 

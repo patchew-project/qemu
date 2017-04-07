@@ -46,7 +46,7 @@ static inline size_t
 iov_from_buf(const struct iovec *iov, unsigned int iov_cnt,
              size_t offset, const void *buf, size_t bytes)
 {
-    if (__builtin_constant_p(bytes) && iov_cnt &&
+    if (__builtin_constant_p(bytes) && iov_cnt && bytes <= INT_MAX &&
         offset <= iov[0].iov_len && bytes <= iov[0].iov_len - offset) {
         memcpy(iov[0].iov_base + offset, buf, bytes);
         return bytes;
@@ -59,7 +59,7 @@ static inline size_t
 iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
            size_t offset, void *buf, size_t bytes)
 {
-    if (__builtin_constant_p(bytes) && iov_cnt &&
+    if (__builtin_constant_p(bytes) && iov_cnt && bytes <= INT_MAX &&
         offset <= iov[0].iov_len && bytes <= iov[0].iov_len - offset) {
         memcpy(buf, iov[0].iov_base + offset, bytes);
         return bytes;

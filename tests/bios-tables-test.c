@@ -98,7 +98,7 @@ static void test_acpi_rsdt_table(test_data *data)
     AcpiRsdtDescriptorRev1 *rsdt_table = &data->rsdt_table;
     uint32_t addr = data->rsdp_table.rsdt_physical_address;
     uint32_t *tables;
-    int tables_nr;
+    unsigned int tables_nr;
     uint8_t checksum;
 
     /* read the header */
