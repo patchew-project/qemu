@@ -130,7 +130,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     g_free(op);
 
     if (s->waiting_for_io) {
-        qemu_coroutine_enter(s->common.co);
+        bdrv_coroutine_enter(s->source, s->common.co);
     }
 }
 

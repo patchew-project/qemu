@@ -100,7 +100,8 @@ static void secondary_vm_do_failover(void)
     qemu_sem_post(&mis->colo_incoming_sem);
     /* For Secondary VM, jump to incoming co */
     if (mis->migration_incoming_co) {
-        qemu_coroutine_enter(mis->migration_incoming_co);
+        qemu_coroutine_enter(qemu_get_aio_context(),
+                             mis->migration_incoming_co);
     }
 }
 

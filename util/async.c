@@ -388,7 +388,7 @@ static void co_schedule_bh_cb(void *opaque)
         QSLIST_REMOVE_HEAD(&straight, co_scheduled_next);
         trace_aio_co_schedule_bh_cb(ctx, co);
         aio_context_acquire(ctx);
-        qemu_coroutine_enter(co);
+        qemu_coroutine_enter(ctx, co);
         aio_context_release(ctx);
     }
 }
@@ -464,7 +464,7 @@ void aio_co_wake(struct Coroutine *co)
         QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
     } else {
         aio_context_acquire(ctx);
-        qemu_coroutine_enter(co);
+        qemu_coroutine_enter(ctx, co);
         aio_context_release(ctx);
     }
 }

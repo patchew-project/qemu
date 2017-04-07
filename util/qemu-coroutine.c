@@ -102,12 +102,12 @@ static void coroutine_delete(Coroutine *co)
     qemu_coroutine_delete(co);
 }
 
-void qemu_coroutine_enter(Coroutine *co)
+void qemu_coroutine_enter(AioContext *ctx, Coroutine *co)
 {
     Coroutine *self = qemu_coroutine_self();
     CoroutineAction ret;
 
-    trace_qemu_coroutine_enter(self, co, co->entry_arg);
+    trace_qemu_coroutine_enter(self, ctx, co, co->entry_arg);
 
     if (co->caller) {
         fprintf(stderr, "Co-routine re-entered recursively\n");
@@ -115,7 +115,7 @@ void qemu_coroutine_enter(Coroutine *co)
     }
 
     co->caller = self;
-    co->ctx = qemu_get_current_aio_context();
+    co->ctx = ctx;
 
     /* Store co->ctx before anything that stores co.  Matches
      * barrier in aio_co_wake and qemu_co_mutex_wake.
@@ -139,10 +139,10 @@ void qemu_coroutine_enter(Coroutine *co)
     }
 }
 
-void qemu_coroutine_enter_if_inactive(Coroutine *co)
+void qemu_coroutine_enter_if_inactive(AioContext *ctx, Coroutine *co)
 {
     if (!qemu_coroutine_entered(co)) {
-        qemu_coroutine_enter(co);
+        qemu_coroutine_enter(ctx, co);
     }
 }
 

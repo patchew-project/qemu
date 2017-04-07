@@ -1830,7 +1830,7 @@ static void coroutine_fn convert_co_do_copy(void *opaque)
                      * s->wait_sector_num[i] == -1 during A -> B.  Therefore
                      * B will never enter A during this time window.
                      */
-                    qemu_coroutine_enter(s->co[i]);
+                    qemu_coroutine_enter(qemu_get_aio_context(), s->co[i]);
                     break;
                 }
             }
@@ -1896,7 +1896,7 @@ static int convert_do_copy(ImgConvertState *s)
     for (i = 0; i < s->num_coroutines; i++) {
         s->co[i] = qemu_coroutine_create(convert_co_do_copy, s);
         s->wait_sector_num[i] = -1;
-        qemu_coroutine_enter(s->co[i]);
+        qemu_coroutine_enter(qemu_get_aio_context(), s->co[i]);
     }
 
     while (s->ret == -EINPROGRESS) {

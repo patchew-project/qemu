@@ -94,7 +94,7 @@ static void test_submit_co(void)
     WorkerTestData data;
     Coroutine *co = qemu_coroutine_create(co_test_cb, &data);
 
-    qemu_coroutine_enter(co);
+    qemu_coroutine_enter(qemu_get_aio_context(), co);
 
     /* Back here once the worker has started.  */
 

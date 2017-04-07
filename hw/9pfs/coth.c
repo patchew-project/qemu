@@ -22,14 +22,14 @@
 static void coroutine_enter_cb(void *opaque, int ret)
 {
     Coroutine *co = opaque;
-    qemu_coroutine_enter(co);
+    qemu_coroutine_enter(qemu_get_aio_context(), co);
 }
 
 /* Called from worker thread.  */
 static int coroutine_enter_func(void *arg)
 {
     Coroutine *co = arg;
-    qemu_coroutine_enter(co);
+    qemu_coroutine_enter(qemu_get_aio_context(), co);
     return 0;
 }
 

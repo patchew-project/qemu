@@ -3463,7 +3463,7 @@ void pdu_submit(V9fsPDU *pdu)
         handler = v9fs_fs_ro;
     }
     co = qemu_coroutine_create(handler, pdu);
-    qemu_coroutine_enter(co);
+    qemu_coroutine_enter(qemu_get_aio_context(), co);
 }
 
 /* Returns 0 on success, 1 on failure. */
@@ -3596,7 +3596,7 @@ void v9fs_reset(V9fsState *s)
     }
 
     co = qemu_coroutine_create(virtfs_co_reset, &data);
-    qemu_coroutine_enter(co);
+    qemu_coroutine_enter(qemu_get_aio_context(), co);
 
     while (!data.done) {
         aio_poll(qemu_get_aio_context(), true);

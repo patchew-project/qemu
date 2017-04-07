@@ -270,16 +270,16 @@ static void quorum_rewrite_entry(void *opaque)
     QuorumCo *co = opaque;
     QuorumAIOCB *acb = co->acb;
     BDRVQuorumState *s = acb->bs->opaque;
+    BdrvChild *child = s->children[co->idx];
 
     /* Ignore any errors, it's just a correction attempt for already
      * corrupted data. */
-    bdrv_co_pwritev(s->children[co->idx], acb->offset, acb->bytes,
-                    acb->qiov, 0);
+    bdrv_co_pwritev(child, acb->offset, acb->bytes, acb->qiov, 0);
 
     /* Wake up the caller after the last rewrite */
     acb->rewrite_count--;
     if (!acb->rewrite_count) {
-        qemu_coroutine_enter_if_inactive(acb->co);
+        bdrv_coroutine_enter_if_inactive(child->bs, acb->co);
     }
 }
 
@@ -318,7 +318,7 @@ static bool quorum_rewrite_bad_versions(QuorumAIOCB *acb,
             };
 
             co = qemu_coroutine_create(quorum_rewrite_entry, &data);
-            qemu_coroutine_enter(co);
+            bdrv_coroutine_enter(acb->bs, co);
         }
     }
 
@@ -602,7 +602,7 @@ static void read_quorum_children_entry(void *opaque)
 
     /* Wake up the caller after the last read */
     if (acb->count == s->num_children) {
-        qemu_coroutine_enter_if_inactive(acb->co);
+        bdrv_coroutine_enter_if_inactive(sacb->bs, acb->co);
     }
 }
 
@@ -626,7 +626,7 @@ static int read_quorum_children(QuorumAIOCB *acb)
         };
 
         co = qemu_coroutine_create(read_quorum_children_entry, &data);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(acb->bs, co);
     }
 
     while (acb->count < s->num_children) {
@@ -712,7 +712,7 @@ static void write_quorum_entry(void *opaque)
 
     /* Wake up the caller after the last write */
     if (acb->count == s->num_children) {
-        qemu_coroutine_enter_if_inactive(acb->co);
+        bdrv_coroutine_enter_if_inactive(sacb->bs, acb->co);
     }
 }
 
@@ -731,7 +731,7 @@ static int quorum_co_pwritev(BlockDriverState *bs, uint64_t offset,
         };
 
         co = qemu_coroutine_create(write_quorum_entry, &data);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
     }
 
     while (acb->count < s->num_children) {

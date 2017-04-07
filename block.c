@@ -357,10 +357,11 @@ int bdrv_create(BlockDriver *drv, const char* filename,
         /* Fast-path if already in coroutine context */
         bdrv_create_co_entry(&cco);
     } else {
+        AioContext *ctx = qemu_get_aio_context();
         co = qemu_coroutine_create(bdrv_create_co_entry, &cco);
-        qemu_coroutine_enter(co);
+        qemu_coroutine_enter(ctx, co);
         while (cco.ret == NOT_DONE) {
-            aio_poll(qemu_get_aio_context(), true);
+            aio_poll(ctx, true);
         }
     }
 
@@ -4322,6 +4323,16 @@ out:
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
     return bs->aio_context;
+}
+
+void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *coroutine)
+{
+    qemu_coroutine_enter(bdrv_get_aio_context(bs), coroutine);
+}
+
+void bdrv_coroutine_enter_if_inactive(BlockDriverState *bs, Coroutine *co)
+{
+    qemu_coroutine_enter_if_inactive(bdrv_get_aio_context(bs), co);
 }
 
 static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)

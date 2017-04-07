@@ -108,7 +108,7 @@ static gboolean nbd_negotiate_continue(QIOChannel *ioc,
                                        GIOCondition condition,
                                        void *opaque)
 {
-    qemu_coroutine_enter(opaque);
+    qemu_coroutine_enter(ioc->ctx, opaque);
     return TRUE;
 }
 
@@ -1418,5 +1418,6 @@ void nbd_client_new(NBDExport *exp,
 
     data->client = client;
     data->co = qemu_coroutine_create(nbd_co_client_start, data);
-    qemu_coroutine_enter(data->co);
+    qemu_coroutine_enter(exp ? exp->ctx : qemu_get_aio_context(),
+                         data->co);
 }

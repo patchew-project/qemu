@@ -75,7 +75,8 @@ static void fd_coroutine_enter(void *opaque)
 {
     FDYieldUntilData *data = opaque;
     qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
-    qemu_coroutine_enter(data->co);
+    /* XXX: do we need an explicit ctx? */
+    qemu_coroutine_enter(qemu_get_current_aio_context(), data->co);
 }
 
 void coroutine_fn yield_until_fd_readable(int fd)

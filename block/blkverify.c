@@ -172,7 +172,7 @@ static void coroutine_fn blkverify_do_test_req(void *opaque)
     r->ret = r->request_fn(s->test_file, r->offset, r->bytes, r->qiov,
                            r->flags);
     r->done++;
-    qemu_coroutine_enter_if_inactive(r->co);
+    bdrv_coroutine_enter_if_inactive(r->bs, r->co);
 }
 
 static void coroutine_fn blkverify_do_raw_req(void *opaque)
@@ -182,7 +182,7 @@ static void coroutine_fn blkverify_do_raw_req(void *opaque)
     r->raw_ret = r->request_fn(r->bs->file, r->offset, r->bytes, r->raw_qiov,
                                r->flags);
     r->done++;
-    qemu_coroutine_enter_if_inactive(r->co);
+    bdrv_coroutine_enter_if_inactive(r->bs, r->co);
 }
 
 static int coroutine_fn
@@ -207,8 +207,8 @@ blkverify_co_prwv(BlockDriverState *bs, BlkverifyRequest *r, uint64_t offset,
     co_a = qemu_coroutine_create(blkverify_do_test_req, r);
     co_b = qemu_coroutine_create(blkverify_do_raw_req, r);
 
-    qemu_coroutine_enter(co_a);
-    qemu_coroutine_enter(co_b);
+    bdrv_coroutine_enter(bs, co_a);
+    bdrv_coroutine_enter(bs, co_b);
 
     while (r->done < 2) {
         qemu_coroutine_yield();

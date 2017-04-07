@@ -66,15 +66,16 @@ typedef void coroutine_fn CoroutineEntry(void *opaque);
 Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque);
 
 /**
- * Transfer control to a coroutine
+ * Transfer control to a coroutine and associate it to @ctx
  */
-void qemu_coroutine_enter(Coroutine *coroutine);
+void qemu_coroutine_enter(AioContext *ctx, Coroutine *coroutine);
 
 /**
- * Transfer control to a coroutine if it's not active (i.e. part of the call
- * stack of the running coroutine). Otherwise, do nothing.
+ * Transfer control to a coroutine and associate it to @ctx, if it's not active
+ * (i.e. part of the call stack of the running coroutine). Otherwise, do
+ * nothing.
  */
-void qemu_coroutine_enter_if_inactive(Coroutine *co);
+void qemu_coroutine_enter_if_inactive(AioContext *ctx, Coroutine *co);
 
 /**
  * Transfer control back to a coroutine's caller

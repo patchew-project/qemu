@@ -449,7 +449,7 @@ void migration_fd_process_incoming(QEMUFile *f)
 
     migrate_decompress_threads_create();
     qemu_file_set_blocking(f, false);
-    qemu_coroutine_enter(co);
+    qemu_coroutine_enter(qemu_get_aio_context(), co);
 }
 
 

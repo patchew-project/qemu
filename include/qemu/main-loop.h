@@ -64,7 +64,7 @@ int qemu_init_main_loop(Error **errp);
  *
  *     void enter_co_bh(void *opaque) {
  *         QEMUCoroutine *co = opaque;
- *         qemu_coroutine_enter(co);
+ *         qemu_coroutine_enter(ctx, co);
  *     }
  *
  *     ...
