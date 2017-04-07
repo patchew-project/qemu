@@ -417,8 +417,6 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     tb->id = g_strdup(id);
-    /* let frontend set the fe_model to proper value */
-    tb->fe_model = -1;
 
     if (tpm_passthrough_handle_device_opts(opts, tb)) {
         goto err_exit;
@@ -432,7 +430,7 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
     return tb;
 
 err_exit:
-    g_free(tb->id);
+    object_unref(obj);
 
     return NULL;
 }
@@ -445,10 +443,6 @@ static void tpm_passthrough_destroy(TPMBackend *tb)
 
     qemu_close(tpm_pt->tpm_fd);
     qemu_close(tpm_pt->cancel_fd);
-
-    g_free(tb->id);
-    g_free(tb->path);
-    g_free(tb->cancel_path);
     g_free(tpm_pt->tpm_dev);
 }
 
@@ -486,10 +480,20 @@ static const TPMDriverOps tpm_passthrough_driver = {
 
 static void tpm_passthrough_inst_init(Object *obj)
 {
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
+
+    tpm_pt->tpm_fd = -1;
+    tpm_pt->cancel_fd = -1;
 }
 
 static void tpm_passthrough_inst_finalize(Object *obj)
 {
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
+
+    tpm_passthrough_cancel_cmd(TPM_BACKEND(obj));
+
+    qemu_close(tpm_pt->tpm_fd);
+    qemu_close(tpm_pt->cancel_fd);
 }
 
 static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
