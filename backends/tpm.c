@@ -88,8 +88,15 @@ bool tpm_backend_had_startup_error(TPMBackend *s)
 size_t tpm_backend_realloc_buffer(TPMBackend *s, TPMSizedBuffer *sb)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    if (!k->ops->realloc_buffer) {
+        size_t wanted_size = 4096; /* Linux tpm.c buffer size */
 
-    assert(k->ops->realloc_buffer);
+        if (sb->size != wanted_size) {
+            sb->buffer = g_realloc(sb->buffer, wanted_size);
+            sb->size = wanted_size;
+        }
+        return sb->size;
+    }
 
     return k->ops->realloc_buffer(sb);
 }
