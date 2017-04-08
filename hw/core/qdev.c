@@ -84,7 +84,11 @@ static void bus_add_child(BusState *bus, DeviceState *child)
 {
     char name[32];
     BusChild *kid = g_malloc0(sizeof(*kid));
-
+    
+    if (!bus) {
+        error_report("bus not found ");
+        exit(0);
+    }
     kid->index = bus->max_index++;
     kid->child = child;
     object_ref(OBJECT(kid->child));
