@@ -611,7 +611,8 @@ static void vhost_set_memory(MemoryListener *listener,
 static bool vhost_section(MemoryRegionSection *section)
 {
     return memory_region_is_ram(section->mr) &&
-        !memory_region_is_rom(section->mr);
+        !memory_region_is_rom(section->mr) &&
+        !memory_region_is_skip_dump(section->mr);
 }
 
 static void vhost_begin(MemoryListener *listener)
