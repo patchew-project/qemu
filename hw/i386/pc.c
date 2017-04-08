@@ -1443,7 +1443,7 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     /* Initialize PC system firmware */
-    pc_system_firmware_init(rom_memory, !pcmc->pci_enabled);
+    pc_system_firmware_init(system_memory, rom_memory, !pcmc->pci_enabled);
 
     if (pcms->pam) {
         MemoryRegion *option_rom_mr = g_malloc(sizeof(*option_rom_mr));

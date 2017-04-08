@@ -173,7 +173,8 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     }
 }
 
-static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
+static void old_pc_system_rom_init(MemoryRegion *system_memory,
+                                   MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     char *filename;
     MemoryRegion *bios, *isa_bios;
@@ -197,8 +198,11 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     bios = g_malloc(sizeof(*bios));
     memory_region_init_ram(bios, NULL, "pc.bios", bios_size, &error_fatal);
     vmstate_register_ram_global(bios);
-    if (!isapc_ram_fw) {
-        memory_region_set_readonly(bios, true);
+    if (PC_MACHINE(current_machine)->pam) {
+        /* if PAM is disabled, set it as readwrite */
+        if (!isapc_ram_fw) {
+            memory_region_set_readonly(bios, true);
+        }
     }
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
@@ -216,21 +220,29 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     isa_bios = g_malloc(sizeof(*isa_bios));
     memory_region_init_alias(isa_bios, NULL, "isa-bios", bios,
                              bios_size - isa_bios_size, isa_bios_size);
-    memory_region_add_subregion_overlap(rom_memory,
+    if (PC_MACHINE(current_machine)->pam) {
+        memory_region_add_subregion_overlap(rom_memory,
                                         0x100000 - isa_bios_size,
                                         isa_bios,
                                         1);
-    if (!isapc_ram_fw) {
-        memory_region_set_readonly(isa_bios, true);
+        if (!isapc_ram_fw) {
+            memory_region_set_readonly(isa_bios, true);
+        }
+    } else {
+        /* if PAM is disabed, add isa-bios to system memory region */
+        memory_region_add_subregion_overlap(system_memory,
+                                        0x100000 - isa_bios_size,
+                                        isa_bios,
+                                        1);
     }
-
     /* map all the bios at the top of memory */
     memory_region_add_subregion(rom_memory,
                                 (uint32_t)(-bios_size),
                                 bios);
 }
 
-void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
+void pc_system_firmware_init(MemoryRegion *system_memory,
+                             MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     DriveInfo *pflash_drv;
 
@@ -238,7 +250,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 
     if (isapc_ram_fw || pflash_drv == NULL) {
         /* When a pflash drive is not found, use rom-mode */
-        old_pc_system_rom_init(rom_memory, isapc_ram_fw);
+        old_pc_system_rom_init(system_memory, rom_memory, isapc_ram_fw);
         return;
     }
 

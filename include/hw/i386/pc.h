@@ -354,7 +354,9 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
 }
 
 /* pc_sysfw.c */
-void pc_system_firmware_init(MemoryRegion *rom_memory,
+
+void pc_system_firmware_init(MemoryRegion *system_memory,
+                             MemoryRegion *rom_memory,
                              bool isapc_ram_fw);
 
 /* pvpanic.c */
