@@ -336,7 +336,7 @@ static void lance_init(NICInfo *nd, hwaddr leaddr,
 
     dev = qdev_create(NULL, "lance");
     qdev_set_nic_properties(dev, nd);
-    qdev_prop_set_ptr(dev, "dma", dma_opaque);
+    object_property_set_link(OBJECT(dev), OBJECT(dma_opaque), "dma", NULL);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, leaddr);
