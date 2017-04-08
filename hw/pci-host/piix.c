@@ -138,16 +138,11 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int pci_intx)
     return (pci_intx + slot_addend) & 3;
 }
 
-static void i440fx_update_memory_mappings(PCII440FXState *d)
+static void i440fx_update_smram(PCII440FXState *d)
 {
-    int i;
     PCIDevice *pd = PCI_DEVICE(d);
 
     memory_region_transaction_begin();
-    for (i = 0; i < 13; i++) {
-        pam_update(&d->pam_regions[i], i,
-                   pd->config[I440FX_PAM + ((i + 1) / 2)]);
-    }
     memory_region_set_enabled(&d->smram_region,
                               !(pd->config[I440FX_SMRAM] & SMRAM_D_OPEN));
     memory_region_set_enabled(&d->smram,
@@ -155,6 +150,39 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     memory_region_transaction_commit();
 }
 
+static void i440fx_update_pam(PCII440FXState *d)
+{
+    int i;
+    PCIDevice *pd = PCI_DEVICE(d);
+    memory_region_transaction_begin();
+    pam_update(&d->pam_regions[0], 0,
+               pd->config[I440FX_PAM]);
+    for (i = 1; i < 13; i++) {
+        pam_update(&d->pam_regions[i], i,
+                   pd->config[I440FX_PAM + ((i + 1) / 2)]);
+    }
+    memory_region_transaction_commit();
+}
+
+static void i440fx_update_memory_mappings(PCII440FXState *d)
+{
+    i440fx_update_pam(d);
+    i440fx_update_smram(d);
+}
+
+
+static void i440fx_init_pam(PCII440FXState *d)
+{
+    int i;
+    init_pam(DEVICE(d), d->ram_memory, d->system_memory,
+             d->pci_address_space, &d->pam_regions[0],
+             PAM_BIOS_BASE,  PAM_BIOS_SIZE);
+    for (i = 0; i < 12; ++i) {
+        init_pam(DEVICE(d), d->ram_memory, d->system_memory,
+                 d->pci_address_space, &d->pam_regions[i + 1],
+                 PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
+    }
+}
 
 static void i440fx_write_config(PCIDevice *dev,
                                 uint32_t address, uint32_t val, int len)
@@ -163,9 +191,12 @@ static void i440fx_write_config(PCIDevice *dev,
 
     /* XXX: implement SMRAM.D_LOCK */
     pci_default_write_config(dev, address, val, len);
-    if (ranges_overlap(address, len, I440FX_PAM, I440FX_PAM_SIZE) ||
-        range_covers_byte(address, len, I440FX_SMRAM)) {
-        i440fx_update_memory_mappings(d);
+    if (ranges_overlap(address, len, I440FX_PAM, I440FX_PAM_SIZE)) {
+        i440fx_update_pam(d);
+    }
+
+    if (range_covers_byte(address, len, I440FX_SMRAM)) {
+        i440fx_update_smram(d);
     }
 }
 
@@ -335,7 +366,6 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
     PCIHostState *s;
     PIIX3State *piix3;
     PCII440FXState *f;
-    unsigned i;
     I440FXState *i440fx;
 
     dev = qdev_create(NULL, host_type);
@@ -378,13 +408,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
     object_property_add_const_link(qdev_get_machine(), "smram",
                                    OBJECT(&f->smram), &error_abort);
 
-    init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
-             &f->pam_regions[0], PAM_BIOS_BASE, PAM_BIOS_SIZE);
-    for (i = 0; i < 12; ++i) {
-        init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
-                 &f->pam_regions[i+1], PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE,
-                 PAM_EXPAN_SIZE);
-    }
+    i440fx_init_pam(f);
 
     /* Xen supports additional interrupt routes from the PCI devices to
      * the IOAPIC: the four pins of each PCI device on the bus are also
