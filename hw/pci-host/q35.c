@@ -310,15 +310,17 @@ static void mch_update_pciexbar(MCHPCIState *mch)
 /* PAM */
 static void mch_update_pam(MCHPCIState *mch)
 {
-    PCIDevice *pd = PCI_DEVICE(mch);
-    int i;
+    if (PC_MACHINE(current_machine)->pam) {
+        PCIDevice *pd = PCI_DEVICE(mch);
+        int i;
 
-    memory_region_transaction_begin();
-    for (i = 0; i < 13; i++) {
-        pam_update(&mch->pam_regions[i], i,
-                   pd->config[MCH_HOST_BRIDGE_PAM0 + ((i + 1) / 2)]);
+        memory_region_transaction_begin();
+        for (i = 0; i < 13; i++) {
+            pam_update(&mch->pam_regions[i], i,
+                       pd->config[MCH_HOST_BRIDGE_PAM0 + ((i + 1) / 2)]);
+        }
+        memory_region_transaction_commit();
     }
-    memory_region_transaction_commit();
 }
 
 /* SMRAM */
@@ -462,14 +464,16 @@ static void mch_reset(DeviceState *qdev)
 
 static void mch_init_pam(MCHPCIState *mch)
 {
-    int i;
-    init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
-             mch->pci_address_space, &mch->pam_regions[0],
-             PAM_BIOS_BASE, PAM_BIOS_SIZE);
-    for (i = 0; i < 12; ++i) {
+    if (PC_MACHINE(current_machine)->pam) {
+        int i;
         init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
-                 mch->pci_address_space, &mch->pam_regions[i + 1],
-                 PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
+                 mch->pci_address_space, &mch->pam_regions[0],
+                 PAM_BIOS_BASE, PAM_BIOS_SIZE);
+        for (i = 0; i < 12; ++i) {
+            init_pam(DEVICE(mch), mch->ram_memory, mch->system_memory,
+                     mch->pci_address_space, &mch->pam_regions[i + 1],
+                     PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
+        }
     }
 }
 

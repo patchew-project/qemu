@@ -152,16 +152,18 @@ static void i440fx_update_smram(PCII440FXState *d)
 
 static void i440fx_update_pam(PCII440FXState *d)
 {
-    int i;
-    PCIDevice *pd = PCI_DEVICE(d);
-    memory_region_transaction_begin();
-    pam_update(&d->pam_regions[0], 0,
-               pd->config[I440FX_PAM]);
-    for (i = 1; i < 13; i++) {
-        pam_update(&d->pam_regions[i], i,
-                   pd->config[I440FX_PAM + ((i + 1) / 2)]);
+    if (PC_MACHINE(current_machine)->pam) {
+        int i;
+        PCIDevice *pd = PCI_DEVICE(d);
+        memory_region_transaction_begin();
+        pam_update(&d->pam_regions[0], 0,
+                   pd->config[I440FX_PAM]);
+        for (i = 1; i < 13; i++) {
+            pam_update(&d->pam_regions[i], i,
+                       pd->config[I440FX_PAM + ((i + 1) / 2)]);
+        }
+        memory_region_transaction_commit();
     }
-    memory_region_transaction_commit();
 }
 
 static void i440fx_update_memory_mappings(PCII440FXState *d)
@@ -173,14 +175,16 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
 
 static void i440fx_init_pam(PCII440FXState *d)
 {
-    int i;
-    init_pam(DEVICE(d), d->ram_memory, d->system_memory,
-             d->pci_address_space, &d->pam_regions[0],
-             PAM_BIOS_BASE,  PAM_BIOS_SIZE);
-    for (i = 0; i < 12; ++i) {
+    if (PC_MACHINE(current_machine)->pam) {
+        int i;
         init_pam(DEVICE(d), d->ram_memory, d->system_memory,
-                 d->pci_address_space, &d->pam_regions[i + 1],
-                 PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
+                 d->pci_address_space, &d->pam_regions[0],
+                 PAM_BIOS_BASE,  PAM_BIOS_SIZE);
+        for (i = 0; i < 12; ++i) {
+            init_pam(DEVICE(d), d->ram_memory, d->system_memory,
+                     d->pci_address_space, &d->pam_regions[i + 1],
+                     PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
+        }
     }
 }
 
