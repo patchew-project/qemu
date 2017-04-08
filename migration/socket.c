@@ -149,6 +149,7 @@ static gboolean socket_accept_incoming_migration(QIOChannel *ioc,
     trace_migration_socket_incoming_accepted();
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-incoming");
+    qio_channel_set_feature(QIO_CHANNEL(sioc), QIO_CHANNEL_FEATURE_SHUTDOWN);
     migration_channel_process_incoming(migrate_get_current(),
                                        QIO_CHANNEL(sioc));
     object_unref(OBJECT(sioc));
