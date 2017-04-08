@@ -2,8 +2,10 @@
  * Raspberry Pi emulation (c) 2012 Gregory Estrade
  * Upstreaming code cleanup [including bcm2835_*] (c) 2013 Jan Petrous
  *
- * Rasperry Pi 2 emulation Copyright (c) 2015, Microsoft
+ * Raspberry Pi 2 emulation Copyright (c) 2015, Microsoft
  * Written by Andrew Baumann
+ *
+ * Raspberry Pi 1 rebase onto master (c) 2017, Omar Rizwan
  *
  * This code is licensed under the GNU GPLv2 and later.
  */
@@ -12,6 +14,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
+#include "hw/arm/bcm2835.h"
 #include "hw/arm/bcm2836.h"
 #include "qemu/error-report.h"
 #include "hw/boards.h"
@@ -26,6 +29,11 @@
 
 /* Table of Linux board IDs for different Pi versions */
 static const int raspi_boardid[] = {[1] = 0xc42, [2] = 0xc43};
+
+/* Table of board revisions:
+ * https://github.com/AndrewFromMelbourne/raspberry_pi_revision/blob/2764c19983fb7b1ef8cb21031e94c293703afa2e/README.md
+ */
+static const uint32_t raspi_boardrev[] = {[1] = 0x10, [2] = 0xa21041};
 
 typedef struct RasPiState {
     BCM2836State soc;
@@ -113,7 +121,8 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
     arm_load_kernel(ARM_CPU(first_cpu), &binfo);
 }
 
-static void raspi2_init(MachineState *machine)
+static void raspi_machine_init(MachineState *machine, int version,
+                               const char *soc_type)
 {
     RasPiState *s = g_new0(RasPiState, 1);
     uint32_t vcram_size;
@@ -122,7 +131,7 @@ static void raspi2_init(MachineState *machine)
     BusState *bus;
     DeviceState *carddev;
 
-    object_initialize(&s->soc, sizeof(s->soc), TYPE_BCM2836);
+    object_initialize(&s->soc, sizeof(s->soc), soc_type);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
                               &error_abort);
 
@@ -135,10 +144,12 @@ static void raspi2_init(MachineState *machine)
     /* Setup the SOC */
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(&s->ram),
                                    &error_abort);
-    object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
-                            &error_abort);
-    object_property_set_int(OBJECT(&s->soc), 0xa21041, "board-rev",
-                            &error_abort);
+    if (version == 2) {
+        object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
+                                &error_abort);
+    }
+    object_property_set_int(OBJECT(&s->soc), raspi_boardrev[version],
+                            "board-rev", &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
 
     /* Create and plug in the SD cards */
@@ -155,9 +166,29 @@ static void raspi2_init(MachineState *machine)
 
     vcram_size = object_property_get_int(OBJECT(&s->soc), "vcram-size",
                                          &error_abort);
-    setup_boot(machine, 2, machine->ram_size - vcram_size);
+    setup_boot(machine, version, machine->ram_size - vcram_size);
 }
 
+static void raspi1_init(MachineState *machine)
+{
+    raspi_machine_init(machine, 1, TYPE_BCM2835);
+}
+static void raspi1_machine_init(MachineClass *mc)
+{
+    mc->desc = "Raspberry Pi";
+    mc->init = raspi1_init;
+    mc->block_default_type = IF_SD;
+    mc->no_parallel = 1;
+    mc->no_floppy = 1;
+    mc->no_cdrom = 1;
+    mc->default_ram_size = 512 * 1024 * 1024;
+};
+DEFINE_MACHINE("raspi", raspi1_machine_init)
+
+static void raspi2_init(MachineState *machine)
+{
+    raspi_machine_init(machine, 2, TYPE_BCM2836);
+}
 static void raspi2_machine_init(MachineClass *mc)
 {
     mc->desc = "Raspberry Pi 2";
