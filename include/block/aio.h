@@ -511,6 +511,24 @@ void aio_co_schedule(AioContext *ctx, struct Coroutine *co);
 void aio_co_wake(struct Coroutine *co);
 
 /**
+ * aio_co_enter:
+ * @ctx: the context to run the coroutine
+ * @co: the coroutine to run
+ *
+ * Enter a coroutine in the specified AioContext.
+ */
+void aio_co_enter(AioContext *ctx, struct Coroutine *co);
+
+/**
+ * aio_co_enter_if_inactive:
+ * @ctx: the context to run the coroutine
+ * @co: the coroutine to run
+ *
+ * Enter a coroutine in the specified AioContext, if it's not already entered.
+ */
+void aio_co_enter_if_inactive(AioContext *ctx, struct Coroutine *co);
+
+/**
  * Return the AioContext whose event loop runs in the current thread.
  *
  * If called from an IOThread this will be the IOThread's AioContext.  If
