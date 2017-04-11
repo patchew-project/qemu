@@ -23,7 +23,9 @@
 /* cputlb.c */
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
-extern int tlb_flush_count;
+extern int tlb_self_flush_count;
+extern int tlb_async_flush_count;
+extern int tlb_synced_flush_count;
 
 #endif
 #endif

@@ -92,8 +92,13 @@ static void flush_all_helper(CPUState *src, run_on_cpu_func fn,
     }
 }
 
-/* statistics */
-int tlb_flush_count;
+/* Useful statistics - in rough order of expensiveness to the whole
+ * simulation. Synced flushes are the most expensive as all vCPUs need
+ * to be paused for the flush.
+ */
+int tlb_self_flush_count;        /* from vCPU context */
+int tlb_async_flush_count;       /* Deferred flush */
+int tlb_synced_flush_count;      /* Synced flush, all vCPUs halted */
 
 /* This is OK because CPU architectures generally permit an
  * implementation to drop entries from the TLB at any time, so
@@ -112,7 +117,6 @@ static void tlb_flush_nocheck(CPUState *cpu)
     }
 
     assert_cpu_is_self(cpu);
-    tlb_debug("(count: %d)\n", tlb_flush_count++);
 
     tb_lock();
 
@@ -131,6 +135,7 @@ static void tlb_flush_nocheck(CPUState *cpu)
 
 static void tlb_flush_global_async_work(CPUState *cpu, run_on_cpu_data data)
 {
+    atomic_inc(&tlb_async_flush_count);
     tlb_flush_nocheck(cpu);
 }
 
@@ -143,6 +148,7 @@ void tlb_flush(CPUState *cpu)
                              RUN_ON_CPU_NULL);
         }
     } else {
+        atomic_inc(&tlb_self_flush_count);
         tlb_flush_nocheck(cpu);
     }
 }
@@ -157,6 +163,7 @@ void tlb_flush_all_cpus(CPUState *src_cpu)
 void tlb_flush_all_cpus_synced(CPUState *src_cpu)
 {
     const run_on_cpu_func fn = tlb_flush_global_async_work;
+    atomic_inc(&tlb_synced_flush_count);
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_NULL);
     async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_NULL);
 }
@@ -168,6 +175,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
     int mmu_idx;
 
     assert_cpu_is_self(cpu);
+    atomic_inc(&tlb_async_flush_count);
 
     tb_lock();
 
@@ -206,6 +214,7 @@ void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
                              RUN_ON_CPU_HOST_INT(pending_flushes));
         }
     } else {
+        atomic_inc(&tlb_self_flush_count);
         tlb_flush_by_mmuidx_async_work(cpu,
                                        RUN_ON_CPU_HOST_INT(idxmap));
     }
@@ -219,6 +228,7 @@ void tlb_flush_by_mmuidx_all_cpus(CPUState *src_cpu, uint16_t idxmap)
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
     fn(src_cpu, RUN_ON_CPU_HOST_INT(idxmap));
+    atomic_inc(&tlb_self_flush_count);
 }
 
 void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
@@ -230,6 +240,7 @@ void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
     async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
+    atomic_inc(&tlb_synced_flush_count);
 }
 
 
@@ -282,6 +293,8 @@ static void tlb_flush_page_async_work(CPUState *cpu, run_on_cpu_data data)
     }
 
     tb_flush_jmp_cache(cpu, addr);
+
+    atomic_inc(&tlb_async_flush_count);
 }
 
 void tlb_flush_page(CPUState *cpu, target_ulong addr)
@@ -293,6 +306,7 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
                          RUN_ON_CPU_TARGET_PTR(addr));
     } else {
         tlb_flush_page_async_work(cpu, RUN_ON_CPU_TARGET_PTR(addr));
+        atomic_inc(&tlb_self_flush_count);
     }
 }
 
@@ -329,6 +343,7 @@ static void tlb_flush_page_by_mmuidx_async_work(CPUState *cpu,
     }
 
     tb_flush_jmp_cache(cpu, addr);
+    atomic_inc(&tlb_async_flush_count);
 }
 
 static void tlb_check_page_and_flush_by_mmuidx_async_work(CPUState *cpu,
@@ -351,6 +366,7 @@ static void tlb_check_page_and_flush_by_mmuidx_async_work(CPUState *cpu,
                                        RUN_ON_CPU_HOST_INT(mmu_idx_bitmap));
     } else {
         tlb_flush_page_by_mmuidx_async_work(cpu, data);
+        atomic_inc(&tlb_self_flush_count);
     }
 }
 
@@ -370,6 +386,7 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
     } else {
         tlb_check_page_and_flush_by_mmuidx_async_work(
             cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+        atomic_inc(&tlb_self_flush_count);
     }
 }
 
@@ -387,6 +404,7 @@ void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
     fn(src_cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    atomic_inc(&tlb_self_flush_count);
 }
 
 void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
@@ -404,6 +422,7 @@ void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
     async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    atomic_inc(&tlb_synced_flush_count);
 }
 
 void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
@@ -412,6 +431,7 @@ void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
 
     flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
     fn(src, RUN_ON_CPU_TARGET_PTR(addr));
+    atomic_inc(&tlb_self_flush_count);
 }
 
 void tlb_flush_page_all_cpus_synced(CPUState *src,
@@ -421,6 +441,7 @@ void tlb_flush_page_all_cpus_synced(CPUState *src,
 
     flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
     async_safe_run_on_cpu(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
+    atomic_inc(&tlb_synced_flush_count);
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
