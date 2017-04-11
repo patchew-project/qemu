@@ -53,6 +53,15 @@ static void chr_read(void *opaque, const void *buf, size_t size)
         return;
     }
 
+    /* we can't modify the virtqueue until
+     * our state is fully synced
+     */
+
+    if (!runstate_check(RUN_STATE_RUNNING)) {
+        trace_virtio_rng_cpu_is_stopped(vrng);
+        return;
+    }
+
     vrng->quota_remaining -= size;
 
     offset = 0;
@@ -61,6 +70,7 @@ static void chr_read(void *opaque, const void *buf, size_t size)
         if (!elem) {
             break;
         }
+        trace_virtio_rng_popped(vrng);
         len = iov_from_buf(elem->in_sg, elem->in_num,
                            0, buf + offset, size - offset);
         offset += len;
