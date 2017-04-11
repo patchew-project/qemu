@@ -62,12 +62,12 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 # But not requesting unmap must result in allocation (whether a cluster
 # allocation in compat=0.10 or a flag allocation in compat=1.1).
 $QEMU_IO -c "write -z 5M 1M" "$TEST_IMG.base" | _filter_qemu_io
-$QEMU_IO -c "alloc 5M $((1024*1024 / 512))" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "alloc 5M 1M" "$TEST_IMG.base" | _filter_qemu_io
 
 # Presence of a backing file overrides permission to unmap.  Again,
 # compat=0.10 images allocate, while compat=1.1 images set zero flag.
 $QEMU_IO -c "write -z -u 7M 1M" "$TEST_IMG" | _filter_qemu_io
-$QEMU_IO -c "alloc 7M $((1024 * 1024 / 512))" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "alloc 7M 1M" "$TEST_IMG" | _filter_qemu_io
 
 # Final check that images are still sane.
 TEST_IMG="$TEST_IMG.base" _check_test_img

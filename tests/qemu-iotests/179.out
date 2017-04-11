@@ -13,10 +13,10 @@ wrote 1048576/1048576 bytes at offset 3145728
 [{ "start": 0, "length": 16777216, "depth": 1, "zero": true, "data": false}]
 wrote 1048576/1048576 bytes at offset 5242880
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-2048/2048 sectors allocated at offset 5 MiB
+1048576/1048576 bytes allocated at offset 5 MiB
 wrote 1048576/1048576 bytes at offset 7340032
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-2048/2048 sectors allocated at offset 7 MiB
+1048576/1048576 bytes allocated at offset 7 MiB
 No errors were found on the image.
 No errors were found on the image.
 *** done

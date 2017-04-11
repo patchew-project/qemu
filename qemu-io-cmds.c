@@ -1759,7 +1759,7 @@ out:
 static int alloc_f(BlockBackend *blk, int argc, char **argv)
 {
     BlockDriverState *bs = blk_bs(blk);
-    int64_t offset, sector_num, nb_sectors, remaining;
+    int64_t offset, sector_num, nb_sectors, remaining, bytes;
     char s1[64];
     int num, ret;
     int64_t sum_alloc;
@@ -1775,18 +1775,24 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
     }
 
     if (argc == 3) {
-        nb_sectors = cvtnum(argv[2]);
-        if (nb_sectors < 0) {
-            print_cvtnum_err(nb_sectors, argv[2]);
+        bytes = cvtnum(argv[2]);
+        if (bytes < 0) {
+            print_cvtnum_err(bytes, argv[2]);
             return 0;
-        } else if (nb_sectors > INT_MAX) {
-            printf("length argument cannot exceed %d, given %s\n",
-                   INT_MAX, argv[2]);
+        } else if (bytes > INT_MAX * BDRV_SECTOR_SIZE) {
+            printf("length argument cannot exceed %llu, given %s\n",
+                   INT_MAX * BDRV_SECTOR_SIZE, argv[2]);
             return 0;
         }
     } else {
-        nb_sectors = 1;
+        bytes = BDRV_SECTOR_SIZE;
     }
+    if (bytes & 0x1ff) {
+        printf("bytes %" PRId64 " is not sector aligned\n",
+               bytes);
+        return 0;
+    }
+    nb_sectors = bytes >> BDRV_SECTOR_BITS;
 
     remaining = nb_sectors;
     sum_alloc = 0;
@@ -1810,8 +1816,8 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
 
     cvtstr(offset, s1, sizeof(s1));
 
-    printf("%"PRId64"/%"PRId64" sectors allocated at offset %s\n",
-           sum_alloc, nb_sectors, s1);
+    printf("%"PRId64"/%"PRId64" bytes allocated at offset %s\n",
+           sum_alloc << BDRV_SECTOR_BITS, nb_sectors << BDRV_SECTOR_BITS, s1);
     return 0;
 }
 
@@ -1821,8 +1827,8 @@ static const cmdinfo_t alloc_cmd = {
     .argmin     = 1,
     .argmax     = 2,
     .cfunc      = alloc_f,
-    .args       = "off [sectors]",
-    .oneline    = "checks if a sector is present in the file",
+    .args       = "offset [bytes]",
+    .oneline    = "checks if offset is allocated in the file",
 };
 
 
