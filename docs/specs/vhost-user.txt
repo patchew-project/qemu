@@ -139,6 +139,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_KICK
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
+ * VHOST_USER_SET_SLAVE_REQ_FD
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -149,6 +150,11 @@ and slave.
 As older slaves don't support negotiating protocol features,
 a feature bit was dedicated for this purpose:
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
+
+If the slave supports VHOST_USER_PROTOCOL_F_SLAVE_REQ protocol feature, the
+master may create a secondary Unix domain socket and send its file descriptor
+to the slave using VHOST_USER_SET_SLAVE_REQ_FD request. This new channel enables
+the slave to send message requests and master to send message replies.
 
 Starting and stopping rings
 ----------------------
@@ -260,6 +266,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
 #define VHOST_USER_PROTOCOL_F_MTU            4
+#define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 
 Message types
 -------------
@@ -268,6 +275,7 @@ Message types
 
       Id: 1
       Equivalent ioctl: VHOST_GET_FEATURES
+      Initiator: Master
       Master payload: N/A
       Slave payload: u64
 
@@ -279,6 +287,7 @@ Message types
 
       Id: 2
       Ioctl: VHOST_SET_FEATURES
+      Initiator: Master
       Master payload: u64
 
       Enable features in the underlying vhost implementation using a bitmask.
@@ -289,6 +298,7 @@ Message types
 
       Id: 15
       Equivalent ioctl: VHOST_GET_FEATURES
+      Initiator: Master
       Master payload: N/A
       Slave payload: u64
 
@@ -302,6 +312,7 @@ Message types
 
       Id: 16
       Ioctl: VHOST_SET_FEATURES
+      Initiator: Master
       Master payload: u64
 
       Enable protocol features in the underlying vhost implementation.
@@ -314,6 +325,7 @@ Message types
 
       Id: 3
       Equivalent ioctl: VHOST_SET_OWNER
+      Initiator: Master
       Master payload: N/A
 
       Issued when a new connection is established. It sets the current Master
@@ -323,6 +335,7 @@ Message types
  * VHOST_USER_RESET_OWNER
 
       Id: 4
+      Initiator: Master
       Master payload: N/A
 
       This is no longer used. Used to be sent to request disabling
@@ -335,6 +348,7 @@ Message types
 
       Id: 5
       Equivalent ioctl: VHOST_SET_MEM_TABLE
+      Initiator: Master
       Master payload: memory regions description
 
       Sets the memory map regions on the slave so it can translate the vring
@@ -346,6 +360,7 @@ Message types
 
       Id: 6
       Equivalent ioctl: VHOST_SET_LOG_BASE
+      Initiator: Master
       Master payload: u64
       Slave payload: N/A
 
@@ -360,6 +375,7 @@ Message types
 
       Id: 7
       Equivalent ioctl: VHOST_SET_LOG_FD
+      Initiator: Master
       Master payload: N/A
 
       Sets the logging file descriptor, which is passed as ancillary data.
@@ -368,6 +384,7 @@ Message types
 
       Id: 8
       Equivalent ioctl: VHOST_SET_VRING_NUM
+      Initiator: Master
       Master payload: vring state description
 
       Set the size of the queue.
@@ -376,6 +393,7 @@ Message types
 
       Id: 9
       Equivalent ioctl: VHOST_SET_VRING_ADDR
+      Initiator: Master
       Master payload: vring address description
       Slave payload: N/A
 
@@ -385,6 +403,7 @@ Message types
 
       Id: 10
       Equivalent ioctl: VHOST_SET_VRING_BASE
+      Initiator: Master
       Master payload: vring state description
 
       Sets the base offset in the available vring.
@@ -393,6 +412,7 @@ Message types
 
       Id: 11
       Equivalent ioctl: VHOST_USER_GET_VRING_BASE
+      Initiator: Master
       Master payload: vring state description
       Slave payload: vring state description
 
@@ -402,6 +422,7 @@ Message types
 
       Id: 12
       Equivalent ioctl: VHOST_SET_VRING_KICK
+      Initiator: Master
       Master payload: u64
 
       Set the event file descriptor for adding buffers to the vring. It
@@ -415,6 +436,7 @@ Message types
 
       Id: 13
       Equivalent ioctl: VHOST_SET_VRING_CALL
+      Initiator: Master
       Master payload: u64
 
       Set the event file descriptor to signal when buffers are used. It
@@ -428,6 +450,7 @@ Message types
 
       Id: 14
       Equivalent ioctl: VHOST_SET_VRING_ERR
+      Initiator: Master
       Master payload: u64
 
       Set the event file descriptor to signal when error occurs. It
@@ -440,6 +463,7 @@ Message types
 
       Id: 17
       Equivalent ioctl: N/A
+      Initiator: Master
       Master payload: N/A
       Slave payload: u64
 
@@ -451,6 +475,7 @@ Message types
 
       Id: 18
       Equivalent ioctl: N/A
+      Initiator: Master
       Master payload: vring state description
 
       Signal slave to enable or disable corresponding vring.
@@ -461,6 +486,7 @@ Message types
 
       Id: 19
       Equivalent ioctl: N/A
+      Initiator: Master
       Master payload: u64
 
       Ask vhost user backend to broadcast a fake RARP to notify the migration
@@ -475,6 +501,7 @@ Message types
 
       Id: 20
       Equivalent ioctl: N/A
+      Initiator: Master
       Master payload: u64
 
       Set host MTU value exposed to the guest.
@@ -485,6 +512,17 @@ Message types
       VHOST_USER_GET_PROTOCOL_FEATURES.
       If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, slave must respond
       with zero in case the specified MTU is valid, or non-zero otherwise.
+
+ * VHOST_USER_SET_SLAVE_REQ_FD
+
+      Id: 21
+      Equivalent ioctl: N/A
+      Initiator: Master
+
+      Set the socket file descriptor for slave initiated requests.
+      This request should be sent only when VHOST_USER_F_PROTOCOL_FEATURES
+      has been negotiated, and protocol feature bit VHOST_USER_PROTOCOL_F_SLAVE_REQ
+      bit is present in VHOST_USER_GET_PROTOCOL_FEATURES.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
