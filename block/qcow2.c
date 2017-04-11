@@ -2449,6 +2449,10 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
     BlockDriverState *file;
     int64_t res;
 
+    if (start + count > bs->total_sectors) {
+        count = bs->total_sectors - start;
+    }
+
     if (!count) {
         return true;
     }
@@ -2467,6 +2471,9 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
     uint32_t tail = (offset + count) % s->cluster_size;
 
     trace_qcow2_pwrite_zeroes_start_req(qemu_coroutine_self(), offset, count);
+    if (offset + count == bs->total_sectors * BDRV_SECTOR_SIZE) {
+        tail = 0;
+    }
 
     if (head || tail) {
         int64_t cl_start = (offset - head) >> BDRV_SECTOR_BITS;
