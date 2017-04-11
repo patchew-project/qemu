@@ -50,6 +50,8 @@
 #include "qapi-event.h"
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
+#include "exec/cputlb.h"
+#include "trace-root.h"
 
 #ifdef CONFIG_LINUX
 
@@ -1251,6 +1253,10 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
+
+    trace_tlb_flush_stats(tlb_self_flush_count,
+                          tlb_async_flush_count,
+                          tlb_synced_flush_count);
 
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
