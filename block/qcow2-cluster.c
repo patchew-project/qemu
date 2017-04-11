@@ -1579,7 +1579,8 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
         /* Update L2 entries */
         qcow2_cache_entry_mark_dirty(bs, s->l2_table_cache, l2_table);
         if (old_offset & QCOW_OFLAG_COMPRESSED || flags & BDRV_REQ_MAY_UNMAP) {
-            l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
+            l2_table[l2_index + i] = bs->backing
+                ? cpu_to_be64(QCOW_OFLAG_ZERO) : 0;
             qcow2_free_any_clusters(bs, old_offset, 1, QCOW2_DISCARD_REQUEST);
         } else {
             l2_table[l2_index + i] |= cpu_to_be64(QCOW_OFLAG_ZERO);
@@ -1598,8 +1599,11 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors,
     uint64_t nb_clusters;
     int ret;
 
-    /* The zero flag is only supported by version 3 and newer */
-    if (s->qcow_version < 3) {
+    /* The zero flag is only supported by version 3 and newer; we
+     * require the use of that flag if there is a backing file or if
+     * we are not allowed to unmap.  */
+    if (s->qcow_version < 3 &&
+        (bs->backing || !(flags & BDRV_REQ_MAY_UNMAP))) {
         return -ENOTSUP;
     }
 
