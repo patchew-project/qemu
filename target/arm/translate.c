@@ -4085,6 +4085,18 @@ static inline void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
         gen_set_pc_im(s, dest);
         tcg_gen_exit_tb((uintptr_t)s->tb + n);
     } else {
+        TCGv vaddr = tcg_const_tl(dest);
+        TCGv_i32 valid = tcg_temp_new_i32();
+        TCGLabel *label = gen_new_label();
+
+        gen_helper_cross_page_check(valid, cpu_env, vaddr);
+        tcg_temp_free(vaddr);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, valid, 0, label);
+        tcg_temp_free_i32(valid);
+        tcg_gen_goto_tb(n);
+        gen_set_pc_im(s, dest);
+        tcg_gen_exit_tb((uintptr_t)s->tb + n);
+        gen_set_label(label);
         gen_set_pc_im(s, dest);
         tcg_gen_exit_tb(0);
     }
