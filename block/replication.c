@@ -25,9 +25,12 @@
 typedef struct BDRVReplicationState {
     ReplicationMode mode;
     int replication_state;
+    bool is_shared_disk;
+    char *shared_disk_id;
     BdrvChild *active_disk;
     BdrvChild *hidden_disk;
     BdrvChild *secondary_disk;
+    BdrvChild *primary_disk;
     char *top_id;
     ReplicationState *rs;
     Error *blocker;
@@ -53,6 +56,9 @@ static void replication_stop(ReplicationState *rs, bool failover,
 
 #define REPLICATION_MODE        "mode"
 #define REPLICATION_TOP_ID      "top-id"
+#define REPLICATION_SHARED_DISK "shared-disk"
+#define REPLICATION_SHARED_DISK_ID "shared-disk-id"
+
 static QemuOptsList replication_runtime_opts = {
     .name = "replication",
     .head = QTAILQ_HEAD_INITIALIZER(replication_runtime_opts.head),
@@ -64,6 +70,14 @@ static QemuOptsList replication_runtime_opts = {
         {
             .name = REPLICATION_TOP_ID,
             .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = REPLICATION_SHARED_DISK_ID,
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = REPLICATION_SHARED_DISK,
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -85,6 +99,9 @@ static int replication_open(BlockDriverState *bs, QDict *options,
     QemuOpts *opts = NULL;
     const char *mode;
     const char *top_id;
+    const char *shared_disk_id;
+    BlockBackend *blk;
+    BlockDriverState *tmp_bs;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
@@ -125,12 +142,33 @@ static int replication_open(BlockDriverState *bs, QDict *options,
                    "The option mode's value should be primary or secondary");
         goto fail;
     }
+    s->is_shared_disk = qemu_opt_get_bool(opts, REPLICATION_SHARED_DISK,
+                                          false);
+    if (s->is_shared_disk && (s->mode == REPLICATION_MODE_PRIMARY)) {
+        shared_disk_id = qemu_opt_get(opts, REPLICATION_SHARED_DISK_ID);
+        if (!shared_disk_id) {
+            error_setg(&local_err, "Missing shared disk blk option");
+            goto fail;
+        }
+        s->shared_disk_id = g_strdup(shared_disk_id);
+        blk = blk_by_name(s->shared_disk_id);
+        if (!blk) {
+            error_setg(&local_err, "There is no %s block", s->shared_disk_id);
+            goto fail;
+        }
+        /* We have a BlockBackend for the primary disk but use BdrvChild for
+         * consistency - active_disk, secondary_disk, etc are also BdrvChild.
+         */
+        tmp_bs = blk_bs(blk);
+        s->primary_disk = QLIST_FIRST(&tmp_bs->parents);
+    }
 
     s->rs = replication_new(bs, &replication_ops);
 
-    ret = 0;
-
+    qemu_opts_del(opts);
+    return 0;
 fail:
+    g_free(s->shared_disk_id);
     qemu_opts_del(opts);
     error_propagate(errp, local_err);
 
@@ -141,6 +179,7 @@ static void replication_close(BlockDriverState *bs)
 {
     BDRVReplicationState *s = bs->opaque;
 
+    g_free(s->shared_disk_id);
     if (s->replication_state == BLOCK_REPLICATION_RUNNING) {
         replication_stop(s->rs, false, NULL);
     }

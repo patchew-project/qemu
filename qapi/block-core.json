@@ -2663,12 +2663,20 @@
 #          node who owns the replication node chain. Must not be given in
 #          primary mode.
 #
+# @shared-disk-id: Id of shared disk while is replication mode, if @shared-disk
+#                  is true, this option is required (Since: 2.10)
+#
+# @shared-disk: To indicate whether or not a disk is shared by primary VM
+#               and secondary VM. (The default is false) (Since: 2.10)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsReplication',
   'base': 'BlockdevOptionsGenericFormat',
   'data': { 'mode': 'ReplicationMode',
-            '*top-id': 'str' } }
+            '*top-id': 'str',
+            '*shared-disk-id': 'str',
+            '*shared-disk': 'bool' } }
 
 ##
 # @NFSTransport:
