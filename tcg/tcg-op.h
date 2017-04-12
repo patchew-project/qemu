@@ -261,6 +261,12 @@ static inline void tcg_gen_br(TCGLabel *l)
     tcg_gen_op1(&tcg_ctx, INDEX_op_br, label_arg(l));
 }
 
+/* jump to a host address contained in a register */
+static inline void tcg_gen_jr(TCGv_ptr arg)
+{
+    tcg_gen_op1i(INDEX_op_jr, GET_TCGV_PTR(arg));
+}
+
 void tcg_gen_mb(TCGBar);
 
 /* Helper calls. */
