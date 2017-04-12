@@ -146,23 +146,46 @@ static void rtc_coalesced_timer(void *opaque)
 }
 #endif
 
+static int period_code_to_clock(int period_code)
+{
+    /* periodic timer is disabled. */
+    if (!period_code) {
+        return 0;
+    }
+
+    if (period_code <= 2) {
+        period_code += 7;
+    }
+
+    /* period in 32 Khz cycles */
+    return 1 << (period_code - 1);
+}
+
 /* handle periodic timer */
 static void periodic_timer_update(RTCState *s, int64_t current_time)
 {
     int period_code, period;
-    int64_t cur_clock, next_irq_clock;
+    int64_t cur_clock, next_irq_clock, lost_clock = 0;
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
     if (period_code != 0
         && (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
-        if (period_code <= 2)
-            period_code += 7;
-        /* period in 32 Khz cycles */
-        period = 1 << (period_code - 1);
+        period = period_code_to_clock(period_code);
 #ifdef TARGET_I386
         if (period != s->period) {
-            s->irq_coalesced = (s->irq_coalesced * s->period) / period;
-            DPRINTF_C("cmos: coalesced irqs scaled to %d\n", s->irq_coalesced);
+            int current_irq_coalesced = s->irq_coalesced;
+
+            s->irq_coalesced = (current_irq_coalesced * s->period) / period;
+
+            /*
+             * calculate the lost clock after it is scaled which should be
+             * compensated in the next interrupt.
+             */
+            lost_clock += current_irq_coalesced * s->period -
+                            s->irq_coalesced * period;
+            DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, %ld clocks "
+                      "are compensated.\n",
+                      current_irq_coalesced, s->irq_coalesced, lost_clock);
         }
         s->period = period;
 #endif
@@ -170,7 +193,7 @@ static void periodic_timer_update(RTCState *s, int64_t current_time)
         cur_clock =
             muldiv64(current_time, RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
 
-        next_irq_clock = (cur_clock & ~(period - 1)) + period;
+        next_irq_clock = cur_clock + period - lost_clock;
         s->next_periodic_time = muldiv64(next_irq_clock, NANOSECONDS_PER_SECOND,
                                          RTC_CLOCK_RATE) + 1;
         timer_mod(s->periodic_timer, s->next_periodic_time);
