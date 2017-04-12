@@ -1118,6 +1118,8 @@ void tcg_gen_atomic_xor_fetch_i64(TCGv_i64, TCGv, TCGv_i64, TCGArg, TCGMemOp);
     tcg_gen_addi_i32(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
 # define tcg_gen_ext_i32_ptr(R, A) \
     tcg_gen_mov_i32(TCGV_PTR_TO_NAT(R), (A))
+# define tcg_gen_brcondi_ptr(C, A, I, L) \
+    tcg_gen_brcondi_i32(C, TCGV_PTR_TO_NAT(A), (uintptr_t)I, L)
 #else
 # define tcg_gen_ld_ptr(R, A, O) \
     tcg_gen_ld_i64(TCGV_PTR_TO_NAT(R), (A), (O))
@@ -1129,4 +1131,6 @@ void tcg_gen_atomic_xor_fetch_i64(TCGv_i64, TCGv, TCGv_i64, TCGArg, TCGMemOp);
     tcg_gen_addi_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
 # define tcg_gen_ext_i32_ptr(R, A) \
     tcg_gen_ext_i32_i64(TCGV_PTR_TO_NAT(R), (A))
+# define tcg_gen_brcondi_ptr(C, A, I, L) \
+    tcg_gen_brcondi_i64(C, TCGV_PTR_TO_NAT(A), (uintptr_t)I, L)
 #endif /* UINTPTR_MAX == UINT32_MAX */
