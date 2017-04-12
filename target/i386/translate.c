@@ -2153,7 +2153,19 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
         gen_jmp_im(eip);
         tcg_gen_exit_tb((uintptr_t)s->tb + tb_num);
     } else {
-        /* jump to another page: currently not optimized */
+        /* jump to another page */
+        TCGv vaddr = tcg_const_tl(eip);
+        TCGv_i32 valid = tcg_temp_new_i32();
+        TCGLabel *label = gen_new_label();
+
+        gen_helper_cross_page_check(valid, cpu_env, vaddr);
+        tcg_temp_free(vaddr);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, valid, 0, label);
+        tcg_temp_free_i32(valid);
+        tcg_gen_goto_tb(tb_num);
+        gen_jmp_im(eip);
+        tcg_gen_exit_tb((uintptr_t)s->tb + tb_num);
+        gen_set_label(label);
         gen_jmp_im(eip);
         gen_eob(s);
     }

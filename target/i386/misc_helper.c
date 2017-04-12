@@ -640,3 +640,8 @@ void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
     env->pkru = val;
     tlb_flush(cs);
 }
+
+uint32_t helper_cross_page_check(CPUX86State *env, target_ulong vaddr)
+{
+    return !!tb_from_jmp_cache(env, vaddr);
+}
