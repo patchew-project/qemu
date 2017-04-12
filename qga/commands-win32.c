@@ -58,6 +58,11 @@ static struct {
     .filehandles = QTAILQ_HEAD_INITIALIZER(guest_file_state.filehandles),
 };
 
+typedef enum GuestArch {
+    ARCH_WINDOWS = 0,
+    ARCH_LINUX = 1,
+} GuestArch;
+
 #define FILE_GENERIC_APPEND (FILE_GENERIC_WRITE & ~FILE_WRITE_DATA)
 
 typedef struct OpenFlags {
@@ -212,6 +217,11 @@ void qmp_guest_file_close(int64_t handle, Error **errp)
 
     QTAILQ_REMOVE(&guest_file_state.filehandles, gfh, next);
     g_free(gfh);
+}
+
+int64_t qmp_guest_ostype(Error **errp)
+{
+    return ARCH_WINDOWS;
 }
 
 static void acquire_privilege(const char *name, Error **errp)

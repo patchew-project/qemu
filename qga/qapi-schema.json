@@ -26,6 +26,7 @@
         'guest-get-time',
         'guest-set-vcpus',
         'guest-sync',
+        'guest-ostype',
         'guest-sync-delimited' ] } }
 
 ##
@@ -1042,3 +1043,14 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+
+##
+# @guest-ostype:
+#
+# Get guest os type info
+# Returns: os type, Linux/Windows
+#
+# Since: 2.5.0
+##
+{ 'command': 'guest-ostype',
+  'returns': 'int' }

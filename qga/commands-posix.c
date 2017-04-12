@@ -49,6 +49,11 @@ extern char **environ;
 #endif
 #endif
 
+typedef enum GuestArch {
+    ARCH_WINDOWS = 0,
+    ARCH_LINUX = 1,
+} GuestArch;
+
 static void ga_wait_child(pid_t pid, int *status, Error **errp)
 {
     pid_t rpid;
@@ -2469,6 +2474,11 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
     return NULL;
 }
 #endif
+
+int64_t qmp_guest_ostype(Error **errp)
+{
+    return ARCH_LINUX;
+}
 
 /* add unsupported commands to the blacklist */
 GList *ga_command_blacklist_init(GList *blacklist)
