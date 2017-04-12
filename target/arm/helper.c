@@ -9927,3 +9927,14 @@ uint32_t HELPER(cross_page_check)(CPUARMState *env, target_ulong vaddr)
 {
     return !!tb_from_jmp_cache(env, vaddr);
 }
+
+void *HELPER(get_hostptr)(CPUARMState *env, target_ulong vaddr)
+{
+    TranslationBlock *tb;
+
+    tb = tb_from_jmp_cache(env, vaddr);
+    if (unlikely(tb == NULL)) {
+        return NULL;
+    }
+    return tb->tc_ptr;
+}

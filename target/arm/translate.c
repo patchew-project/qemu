@@ -65,6 +65,14 @@ static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
 TCGv_i64 cpu_exclusive_val;
+static bool gen_jr;
+
+static inline void set_jr(void)
+{
+    if (TCG_TARGET_HAS_jr) {
+        gen_jr = true;
+    }
+}
 
 /* FIXME:  These should be removed.  */
 static TCGv_i32 cpu_F0s, cpu_F1s;
@@ -221,6 +229,7 @@ static void store_reg(DisasContext *s, int reg, TCGv_i32 var)
          */
         tcg_gen_andi_i32(var, var, s->thumb ? ~1 : ~3);
         s->is_jmp = DISAS_JUMP;
+        set_jr();
     }
     tcg_gen_mov_i32(cpu_R[reg], var);
     tcg_temp_free_i32(var);
@@ -893,6 +902,7 @@ static inline void gen_bx_im(DisasContext *s, uint32_t addr)
         tcg_temp_free_i32(tmp);
     }
     tcg_gen_movi_i32(cpu_R[15], addr & ~1);
+    set_jr();
 }
 
 /* Set PC and Thumb state from var.  var is marked as dead.  */
@@ -902,6 +912,7 @@ static inline void gen_bx(DisasContext *s, TCGv_i32 var)
     tcg_gen_andi_i32(cpu_R[15], var, ~1);
     tcg_gen_andi_i32(var, var, 1);
     store_cpu_field(var, thumb);
+    set_jr();
 }
 
 /* Variant of store_reg which uses branch&exchange logic when storing
@@ -12042,6 +12053,18 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             gen_set_pc_im(dc, dc->pc);
             /* fall through */
         case DISAS_JUMP:
+            if (TCG_TARGET_HAS_jr && gen_jr) {
+                TCGv_ptr ptr = tcg_temp_local_new_ptr();
+                TCGLabel *label = gen_new_label();
+
+                gen_jr = false;
+                gen_helper_get_hostptr(ptr, cpu_env, cpu_R[15]);
+                tcg_gen_brcondi_ptr(TCG_COND_EQ, ptr, NULL, label);
+                tcg_gen_jr(ptr);
+                tcg_temp_free_ptr(ptr);
+                gen_set_label(label);
+                /* fall through */
+            }
         default:
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(0);
