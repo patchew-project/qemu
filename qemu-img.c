@@ -305,15 +305,17 @@ static BlockBackend *img_open_opts(const char *optstr,
 }
 
 static BlockBackend *img_open_file(const char *filename,
+                                   QDict *options,
                                    const char *fmt, int flags,
                                    bool writethrough, bool quiet)
 {
     BlockBackend *blk;
     Error *local_err = NULL;
-    QDict *options = NULL;
 
     if (fmt) {
-        options = qdict_new();
+        if (!options) {
+            options = qdict_new();
+        }
         qdict_put(options, "driver", qstring_from_str(fmt));
     }
 
@@ -329,6 +331,33 @@ static BlockBackend *img_open_file(const char *filename,
         return NULL;
     }
     return blk;
+}
+
+
+static int img_add_key_secrets(void *opaque,
+                               const char *name, const char *value,
+                               Error **errp)
+{
+    QDict *options = opaque;
+
+    if (g_str_has_suffix(name, "key-secret")) {
+        qdict_put(options, name, qstring_from_str(value));
+    }
+
+    return 0;
+}
+
+static BlockBackend *img_open_new_file(const char *filename,
+                                       QemuOpts *create_opts,
+                                       const char *fmt, int flags,
+                                       bool writethrough, bool quiet)
+{
+    QDict *options = NULL;
+
+    options = qdict_new();
+    qemu_opt_foreach(create_opts, img_add_key_secrets, options, NULL);
+
+    return img_open_file(filename, options, fmt, flags, writethrough, quiet);
 }
 
 
@@ -351,7 +380,7 @@ static BlockBackend *img_open(bool image_opts,
         }
         blk = img_open_opts(filename, opts, flags, writethrough, quiet);
     } else {
-        blk = img_open_file(filename, fmt, flags, writethrough, quiet);
+        blk = img_open_file(filename, NULL, fmt, flags, writethrough, quiet);
     }
     return blk;
 }
@@ -2301,8 +2330,8 @@ static int img_convert(int argc, char **argv)
          * That has to wait for bdrv_create to be improved
          * to allow filenames in option syntax
          */
-        out_blk = img_open_file(out_filename, out_fmt,
-                                flags, writethrough, quiet);
+        out_blk = img_open_new_file(out_filename, opts, out_fmt,
+                                    flags, writethrough, quiet);
     }
     if (!out_blk) {
         ret = -1;
@@ -4351,7 +4380,7 @@ static int img_dd(int argc, char **argv)
      * with the bdrv_create() call above which does not
      * support image-opts style.
      */
-    blk2 = img_open_file(out.filename, out_fmt, BDRV_O_RDWR,
+    blk2 = img_open_file(out.filename, NULL, out_fmt, BDRV_O_RDWR,
                          false, false);
 
     if (!blk2) {
