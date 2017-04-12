@@ -352,19 +352,7 @@ static bool replication_recurse_is_first_non_filter(BlockDriverState *bs,
 
 static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
 {
-    Error *local_err = NULL;
     int ret;
-
-    if (!s->secondary_disk->bs->job) {
-        error_setg(errp, "Backup job was cancelled unexpectedly");
-        return;
-    }
-
-    backup_do_checkpoint(s->secondary_disk->bs->job, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     ret = s->active_disk->bs->drv->bdrv_make_empty(s->active_disk->bs);
     if (ret < 0) {
@@ -578,6 +566,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
         block_job_start(job);
+
+        secondary_do_checkpoint(s, errp);
         break;
     default:
         aio_context_release(aio_context);
@@ -585,10 +575,6 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     }
 
     s->replication_state = BLOCK_REPLICATION_RUNNING;
-
-    if (s->mode == REPLICATION_MODE_SECONDARY) {
-        secondary_do_checkpoint(s, errp);
-    }
 
     s->error = 0;
     aio_context_release(aio_context);
@@ -599,13 +585,29 @@ static void replication_do_checkpoint(ReplicationState *rs, Error **errp)
     BlockDriverState *bs = rs->opaque;
     BDRVReplicationState *s;
     AioContext *aio_context;
+    Error *local_err = NULL;
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
     s = bs->opaque;
 
-    if (s->mode == REPLICATION_MODE_SECONDARY) {
+    switch (s->mode) {
+    case REPLICATION_MODE_PRIMARY:
+        break;
+    case REPLICATION_MODE_SECONDARY:
+        if (!s->secondary_disk->bs->job) {
+            error_setg(errp, "Backup job was cancelled unexpectedly");
+            break;
+        }
+        backup_do_checkpoint(s->secondary_disk->bs->job, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            break;
+        }
         secondary_do_checkpoint(s, errp);
+        break;
+    default:
+        abort();
     }
     aio_context_release(aio_context);
 }
