@@ -144,6 +144,63 @@ static void rtc_coalesced_timer(void *opaque)
 
     rtc_coalesced_timer_update(s);
 }
+
+static int64_t
+arch_periodic_timer_update(RTCState *s, int period, int64_t lost_clock)
+{
+    if (period != s->period) {
+        int64_t scale_lost_clock;
+        int current_irq_coalesced = s->irq_coalesced;
+
+        s->irq_coalesced = (current_irq_coalesced * s->period) / period;
+
+        /*
+         * calculate the lost clock after it is scaled which should be
+         * compensated in the next interrupt.
+         */
+        scale_lost_clock = current_irq_coalesced * s->period -
+                            s->irq_coalesced * period;
+        DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, %ld clocks "
+                  "are compensated.\n", current_irq_coalesced,
+                  s->irq_coalesced, scale_lost_clock);
+        lost_clock += scale_lost_clock;
+        s->period = period;
+    }
+
+    /*
+     * if more than period clocks were passed, i.e, the timer interrupt
+     * has been lost, we should catch up the time.
+     */
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW &&
+       (lost_clock / period)) {
+        int lost_interrupt = lost_clock / period;
+
+        s->irq_coalesced += lost_interrupt;
+        lost_clock -= lost_interrupt * period;
+        if (lost_interrupt) {
+            DPRINTF_C("cmos: compensate %d interrupts, coalesced irqs "
+                      "increased to %d\n", lost_interrupt, s->irq_coalesced);
+            rtc_coalesced_timer_update(s);
+        }
+    }
+
+    return lost_clock;
+}
+
+static void arch_periodic_timer_disable(RTCState *s)
+{
+    s->irq_coalesced = 0;
+}
+#else
+static int64_t
+arch_periodic_timer_update(RTCState *s, int period, int64_t lost_clock)
+{
+    return lost_clock;
+}
+
+static void arch_periodic_timer_disable(RTCState *s)
+{
+}
 #endif
 
 static int period_code_to_clock(int period_code)
@@ -175,24 +232,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, int old_period)
     if (period_code != 0
         && (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
         period = period_code_to_clock(period_code);
-#ifdef TARGET_I386
-        if (period != s->period) {
-            int current_irq_coalesced = s->irq_coalesced;
 
-            s->irq_coalesced = (current_irq_coalesced * s->period) / period;
-
-            /*
-             * calculate the lost clock after it is scaled which should be
-             * compensated in the next interrupt.
-             */
-            lost_clock += current_irq_coalesced * s->period -
-                            s->irq_coalesced * period;
-            DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, %ld clocks "
-                      "are compensated.\n",
-                      current_irq_coalesced, s->irq_coalesced, lost_clock);
-        }
-        s->period = period;
-#endif
         /* compute 32 khz clock */
         cur_clock =
             muldiv64(current_time, RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
@@ -219,42 +259,22 @@ periodic_timer_update(RTCState *s, int64_t current_time, int old_period)
 
             /* calculate the clock since last interrupt. */
             lost_clock += cur_clock - last_periodic_clock;
-
-#ifdef TARGET_I386
-            /*
-             * if more than period clocks were passed, i.e, the timer interrupt
-             * has been lost, we should catch up the time.
-             */
-            if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW &&
-                (lost_clock / period)) {
-                int lost_interrupt = lost_clock / period;
-
-                s->irq_coalesced += lost_interrupt;
-                lost_clock -= lost_interrupt * period;
-                if (lost_interrupt) {
-                    DPRINTF_C("cmos: compensate %d interrupts, coalesced irqs "
-                              "increased to %d\n", lost_interrupt,
-                              s->irq_coalesced);
-                    rtc_coalesced_timer_update(s);
-                }
-            } else
-#endif
-            /*
-             * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
-             * is not used, we should make the time progress anyway.
-             */
-            lost_clock = MIN(lost_clock, period);
-            assert(lost_clock >= 0);
         }
+
+        lost_clock = arch_periodic_timer_update(s, period, lost_clock);
+
+        /*
+         * we should make the time progress anyway.
+         */
+        lost_clock = MIN(lost_clock, period);
+        assert(lost_clock >= 0);
 
         next_irq_clock = cur_clock + period - lost_clock;
         s->next_periodic_time = muldiv64(next_irq_clock, NANOSECONDS_PER_SECOND,
                                          RTC_CLOCK_RATE) + 1;
         timer_mod(s->periodic_timer, s->next_periodic_time);
     } else {
-#ifdef TARGET_I386
-        s->irq_coalesced = 0;
-#endif
+        arch_periodic_timer_disable(s);
         timer_del(s->periodic_timer);
     }
 }
