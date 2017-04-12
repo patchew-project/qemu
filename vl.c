@@ -129,9 +129,12 @@ int main(int argc, char **argv)
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
+#include "exec/memory.h"
+#include "qapi/error.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
+#define CRASH_IO_PORT (0xcff0)
 
 static const char *data_dir[16];
 static int data_dir_idx;
@@ -2939,6 +2942,37 @@ static int qemu_read_default_config_file(void)
     return 0;
 }
 
+static MemoryRegion crash_io;
+
+static uint64_t crash_io_read(void *opaque, hwaddr addr,
+                              unsigned int size)
+{
+    return 0;
+}
+
+static void crash_io_write(void *opaque, hwaddr addr,
+                           uint64_t value, unsigned int size)
+{
+    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
+                                   false, NULL, &error_abort);
+}
+
+static const MemoryRegionOps crash_io_ops = {
+    .read = crash_io_read,
+    .write = crash_io_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void init_crash_port(int port)
+{
+    int addr = port;
+    MemoryRegion *system_io = get_system_io();
+
+    memory_region_init_io(&crash_io, NULL, &crash_io_ops,
+                          NULL, "crash_event_port", 2);
+    memory_region_add_subregion(system_io, addr, &crash_io);
+}
+
 int main(int argc, char **argv, char **envp)
 {
     int i;
@@ -4706,6 +4740,7 @@ int main(int argc, char **argv, char **envp)
 
     os_setup_post();
 
+    init_crash_port(CRASH_IO_PORT);
     main_loop();
     replay_disable_events();
     iothread_stop_all();
