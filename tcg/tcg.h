@@ -912,6 +912,7 @@ do {\
 #define tcg_global_mem_new_ptr(R, O, N) \
     TCGV_NAT_TO_PTR(tcg_global_mem_new_i32((R), (O), (N)))
 #define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i32())
+#define tcg_temp_local_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_local_new_i32())
 #define tcg_temp_free_ptr(T) tcg_temp_free_i32(TCGV_PTR_TO_NAT(T))
 #else
 #define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I64(n))
@@ -923,6 +924,7 @@ do {\
 #define tcg_global_mem_new_ptr(R, O, N) \
     TCGV_NAT_TO_PTR(tcg_global_mem_new_i64((R), (O), (N)))
 #define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i64())
+#define tcg_temp_local_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_local_new_i64())
 #define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
