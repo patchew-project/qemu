@@ -761,6 +761,11 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
     aio_context_release(aio_context);
 }
 
+static int replication_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    return bdrv_get_info(bs->file->bs, bdi);
+}
+
 BlockDriver bdrv_replication = {
     .format_name                = "replication",
     .protocol_name              = "replication",
@@ -774,6 +779,7 @@ BlockDriver bdrv_replication = {
     .bdrv_co_readv              = replication_co_readv,
     .bdrv_co_writev             = replication_co_writev,
 
+    .bdrv_get_info              = replication_get_info,
     .is_filter                  = true,
     .bdrv_recurse_is_first_non_filter = replication_recurse_is_first_non_filter,
 
