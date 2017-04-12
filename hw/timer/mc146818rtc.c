@@ -161,8 +161,12 @@ static int period_code_to_clock(int period_code)
     return 1 << (period_code - 1);
 }
 
-/* handle periodic timer */
-static void periodic_timer_update(RTCState *s, int64_t current_time)
+/*
+ * handle periodic timer. @old_period indicates the periodic timer update
+ * is just due to period adjustment.
+ */
+static void
+periodic_timer_update(RTCState *s, int64_t current_time, int old_period)
 {
     int period_code, period;
     int64_t cur_clock, next_irq_clock, lost_clock = 0;
@@ -193,6 +197,56 @@ static void periodic_timer_update(RTCState *s, int64_t current_time)
         cur_clock =
             muldiv64(current_time, RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
 
+        /*
+        * if the periodic timer's update is due to period re-configuration,
+        * we should count the clock since last interrupt.
+        */
+        if (old_period) {
+            int64_t last_periodic_clock;
+
+            last_periodic_clock = muldiv64(s->next_periodic_time,
+                                    RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
+            /*
+             * if the next interrupt has not happened yet, we recall the last
+             * interrupt based on the original period.
+             */
+            if (last_periodic_clock > cur_clock) {
+                last_periodic_clock -= period_code_to_clock(old_period);
+
+                /* the last interrupt must have happened. */
+                assert(cur_clock >= last_periodic_clock);
+            }
+
+            /* calculate the clock since last interrupt. */
+            lost_clock += cur_clock - last_periodic_clock;
+
+#ifdef TARGET_I386
+            /*
+             * if more than period clocks were passed, i.e, the timer interrupt
+             * has been lost, we should catch up the time.
+             */
+            if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW &&
+                (lost_clock / period)) {
+                int lost_interrupt = lost_clock / period;
+
+                s->irq_coalesced += lost_interrupt;
+                lost_clock -= lost_interrupt * period;
+                if (lost_interrupt) {
+                    DPRINTF_C("cmos: compensate %d interrupts, coalesced irqs "
+                              "increased to %d\n", lost_interrupt,
+                              s->irq_coalesced);
+                    rtc_coalesced_timer_update(s);
+                }
+            } else
+#endif
+            /*
+             * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
+             * is not used, we should make the time progress anyway.
+             */
+            lost_clock = MIN(lost_clock, period);
+            assert(lost_clock >= 0);
+        }
+
         next_irq_clock = cur_clock + period - lost_clock;
         s->next_periodic_time = muldiv64(next_irq_clock, NANOSECONDS_PER_SECOND,
                                          RTC_CLOCK_RATE) + 1;
@@ -209,7 +263,7 @@ static void rtc_periodic_timer(void *opaque)
 {
     RTCState *s = opaque;
 
-    periodic_timer_update(s, s->next_periodic_time);
+    periodic_timer_update(s, s->next_periodic_time, 0);
     s->cmos_data[RTC_REG_C] |= REG_C_PF;
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
@@ -428,6 +482,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
                               uint64_t data, unsigned size)
 {
     RTCState *s = opaque;
+    int cur_period;
     bool update_periodic_timer;
 
     if ((addr & 1) == 0) {
@@ -461,6 +516,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             }
             break;
         case RTC_REG_A:
+            cur_period = s->cmos_data[RTC_REG_A] & 0xf;
             update_periodic_timer = rtc_periodic_timer_updated_by_regA(s, data);
 
             if ((data & 0x60) == 0x60) {
@@ -487,7 +543,8 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
                 (s->cmos_data[RTC_REG_A] & REG_A_UIP);
 
             if (update_periodic_timer) {
-                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
+                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
+                                      cur_period);
             }
 
             check_update_timer(s);
@@ -523,7 +580,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             s->cmos_data[RTC_REG_B] = data;
 
             if (update_periodic_timer) {
-                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
+                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock), 0);
             }
 
             check_update_timer(s);
@@ -793,7 +850,7 @@ static int rtc_post_load(void *opaque, int version_id)
         uint64_t now = qemu_clock_get_ns(rtc_clock);
         if (now < s->next_periodic_time ||
             now > (s->next_periodic_time + get_max_clock_jump())) {
-            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock));
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock), 0);
         }
     }
 
@@ -858,7 +915,7 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
     int64_t now = *(int64_t *)data;
 
     rtc_set_date_from_host(ISA_DEVICE(s));
-    periodic_timer_update(s, now);
+    periodic_timer_update(s, now, 0);
     check_update_timer(s);
 #ifdef TARGET_I386
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
