@@ -11,6 +11,9 @@
  * See the COPYING file in the top-level directory.
  */
 
+#ifndef _WIN32_WINNT
+#   define _WIN32_WINNT 0x0600
+#endif
 #include "qemu/osdep.h"
 #include <wtypes.h>
 #include <powrprof.h>
@@ -25,6 +28,7 @@
 #include <initguid.h>
 #endif
 #include <lm.h>
+#include <wtsapi32.h>
 
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
@@ -1535,4 +1539,89 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
     if (!vss_initialized()) {
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
+}
+
+/* MINGW is missing two fields: IncomingFrames & OutgoingFrames */
+typedef struct _GA_WTSINFOA {
+    WTS_CONNECTSTATE_CLASS State;
+    DWORD SessionId;
+    DWORD IncomingBytes;
+    DWORD OutgoingBytes;
+    DWORD IncomingFrames;
+    DWORD OutgoingFrames;
+    DWORD IncomingCompressedBytes;
+    DWORD OutgoingCompressedBy;
+    CHAR WinStationName[WINSTATIONNAME_LENGTH];
+    CHAR Domain[DOMAIN_LENGTH];
+    CHAR UserName[USERNAME_LENGTH + 1];
+    LARGE_INTEGER ConnectTime;
+    LARGE_INTEGER DisconnectTime;
+    LARGE_INTEGER LastInputTime;
+    LARGE_INTEGER LogonTime;
+    LARGE_INTEGER CurrentTime;
+
+} GA_WTSINFOA;
+
+GuestUserList *qmp_guest_get_users(Error **err)
+{
+#if (_WIN32_WINNT >= 0x0600)
+#ifndef QGA_NANOSECONDS
+#   define QGA_NANOSECONDS 10000000
+#endif
+#ifndef QGA_EPOCH_TIME_DIFF
+#   define QGA_EPOCH_TIME_DIFF 116444736000000000LL
+#endif
+
+    GHashTable *cache = g_hash_table_new(g_str_hash, g_str_equal);
+    GuestUserList *head = NULL, *cur_item = NULL;
+
+    DWORD count = 0;
+    WTS_SESSION_INFOA *entries = NULL;
+    if (WTSEnumerateSessionsA(NULL, 0, 1, &entries, &count)) {
+        for (DWORD i = 0; i < count; ++i) {
+            DWORD buffer_size = 0;
+            GA_WTSINFOA *session_info = NULL;
+            if (WTSQuerySessionInformationA(
+                NULL,
+                entries[i].SessionId,
+                WTSSessionInfo,
+                (LPSTR *)&session_info,
+                &buffer_size
+            )) {
+                if (strlen(session_info->UserName) == 0 ||
+                    g_hash_table_contains(cache, session_info->UserName)) {
+                    WTSFreeMemory(session_info);
+                    continue;
+                }
+
+                GuestUserList *item = g_new0(GuestUserList, 1);
+                item->value = g_new0(GuestUser, 1);
+
+                item->value->user = g_strdup(session_info->UserName);
+                item->value->domain = g_strdup(session_info->Domain);
+                item->value->has_domain = true;
+
+                INT64 login = session_info->LogonTime.QuadPart;
+                login -= QGA_EPOCH_TIME_DIFF;
+                item->value->login_time = ((double)login) / QGA_NANOSECONDS;
+
+                g_hash_table_add(cache, item->value->user);
+
+                if (!cur_item) {
+                    head = cur_item = item;
+                } else {
+                    cur_item->next = item;
+                    cur_item = item;
+                }
+            }
+            WTSFreeMemory(session_info);
+        }
+        WTSFreeMemory(entries);
+    }
+    g_hash_table_destroy(cache);
+    return head;
+#else
+    error_setg(err, QERR_UNSUPPORTED);
+    return NULL;
+#endif
 }
