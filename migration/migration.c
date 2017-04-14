@@ -553,6 +553,19 @@ void migrate_send_rp_message(MigrationIncomingState *mis,
 }
 
 /*
+ * Send postcopy migration downtime,
+ * at the moment of calling this function migration should
+ * be completed.
+ */
+void migrate_send_rp_downtime(MigrationIncomingState *mis, uint64_t downtime)
+{
+    uint64_t buf;
+
+    buf = cpu_to_be64(downtime);
+    migrate_send_rp_message(mis, MIG_RP_MSG_DOWNTIME, sizeof(downtime), &buf);
+}
+
+/*
  * Send a 'SHUT' message on the return channel with the given value
  * to indicate that we've finished with the RP.  Non-0 value indicates
  * error.
@@ -1483,6 +1496,7 @@ static struct rp_cmd_args {
     [MIG_RP_MSG_PONG]           = { .len =  4, .name = "PONG" },
     [MIG_RP_MSG_REQ_PAGES]      = { .len = 12, .name = "REQ_PAGES" },
     [MIG_RP_MSG_REQ_PAGES_ID]   = { .len = -1, .name = "REQ_PAGES_ID" },
+    [MIG_RP_MSG_DOWNTIME]       = { .len =  8, .name = "DOWNTIME" },
     [MIG_RP_MSG_MAX]            = { .len = -1, .name = "MAX" },
 };
 
@@ -1613,6 +1627,10 @@ static void *source_return_path_thread(void *opaque)
             migrate_handle_rp_req_pages(ms, (char *)&buf[13], start, len);
             break;
 
+        case MIG_RP_MSG_DOWNTIME:
+            ms->downtime = ldq_be_p(buf);
+            break;
+
         default:
             break;
         }
@@ -1677,7 +1695,6 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     int ret;
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
-    int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     bool restart_block = false;
     migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_POSTCOPY_ACTIVE);
@@ -1779,7 +1796,6 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      */
     ms->postcopy_after_devices = true;
     notifier_list_notify(&migration_state_notifiers, ms);
-    ms->downtime =  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - time_at_stop;
 
     qemu_mutex_unlock_iothread();
 

@@ -55,7 +55,8 @@ enum mig_rp_message_type {
 
     MIG_RP_MSG_REQ_PAGES_ID, /* data (start: be64, len: be32, id: string) */
     MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
-
+    MIG_RP_MSG_DOWNTIME,    /* downtime value from destination,
+                               calculated and sent in case of post copy */
     MIG_RP_MSG_MAX
 };
 
@@ -364,6 +365,7 @@ void migrate_send_rp_pong(MigrationIncomingState *mis,
                           uint32_t value);
 void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
                               ram_addr_t start, size_t len);
+void migrate_send_rp_downtime(MigrationIncomingState *mis, uint64_t downtime);
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
