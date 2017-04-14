@@ -68,8 +68,13 @@ static int handle_primary_tcp_pkt(NetFilterState *nf,
 
     tcp_pkt = (struct tcphdr *)pkt->transport_header;
     if (trace_event_get_state(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
+        char ip_src[20], ip_dst[20];
+
+        strcpy(ip_src, inet_ntoa(pkt->ip->ip_src));
+        strcpy(ip_dst, inet_ntoa(pkt->ip->ip_dst));
+
         trace_colo_filter_rewriter_pkt_info(__func__,
-                    inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
+                    ip_src, ip_dst,
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
                     tcp_pkt->th_flags);
         trace_colo_filter_rewriter_conn_offset(conn->offset);
@@ -114,8 +119,13 @@ static int handle_secondary_tcp_pkt(NetFilterState *nf,
     tcp_pkt = (struct tcphdr *)pkt->transport_header;
 
     if (trace_event_get_state(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
+        char ip_src[20], ip_dst[20];
+
+        strcpy(ip_src, inet_ntoa(pkt->ip->ip_src));
+        strcpy(ip_dst, inet_ntoa(pkt->ip->ip_dst));
+
         trace_colo_filter_rewriter_pkt_info(__func__,
-                    inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
+                    ip_src, ip_dst,
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
                     tcp_pkt->th_flags);
         trace_colo_filter_rewriter_conn_offset(conn->offset);
