@@ -547,7 +547,6 @@ size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
 int qemu_peek_byte(QEMUFile *f, int offset)
 {
     int index = f->buf_index + offset;
-
     assert(!qemu_file_is_writable(f));
     assert(offset < IO_BUF_SIZE);
 
