@@ -412,7 +412,91 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
     return 0;
 }
 
-static int get_mem_fault_cpu_index(uint32_t pid)
+#define PROC_LEN 1024
+#define DEBUG_FAULT_PROCESS_STATUS 1
+
+#ifdef DEBUG_FAULT_PROCESS_STATUS
+
+static FILE *get_proc_file(const gchar *frmt, pid_t thread_id)
+{
+    FILE *f = NULL;
+    gchar *file_path = g_strdup_printf(frmt, thread_id);
+    if (file_path == NULL) {
+        error_report("Couldn't allocate path for %u", thread_id);
+        return NULL;
+    }
+    f = fopen(file_path, "r");
+    if (!f) {
+        error_report("can't open %s", file_path);
+    }
+
+    trace_get_proc_file(file_path);
+    g_free(file_path);
+    return f;
+}
+
+typedef void(*proc_line_handler)(const char *line);
+
+static void proc_line_cb(const char *line)
+{
+    /* trace_ functions are inline */
+    trace_proc_line_cb(line);
+}
+
+static void foreach_line_in_file(FILE *f, proc_line_handler cb)
+{
+    char *line = NULL;
+    ssize_t read;
+    size_t len;
+
+    while ((read = getline(&line, &len, f)) != -1) {
+        /* workaround, trace_ infrastructure already insert \n
+         * and getline includes it */
+        ssize_t str_len = strlen(line) - 1;
+        if (str_len <= 0)
+            continue;
+        line[str_len] = '\0';
+        cb(line);
+    }
+    free(line);
+}
+
+static void observe_thread_proc(const gchar *path_frmt, pid_t thread_id)
+{
+    FILE *f = get_proc_file(path_frmt, thread_id);
+    if (!f) {
+        error_report("can't read thread's proc");
+        return;
+    }
+
+    foreach_line_in_file(f, proc_line_cb);
+    fclose(f);
+}
+
+/*
+ * for convinience tracing need to trace
+ * observe_thread_begin
+ * get_proc_file
+ * proc_line_cb
+ * observe_thread_end
+ */
+static void observe_thread(const char *msg, pid_t thread_id)
+{
+    trace_observe_thread_begin(msg);
+    observe_thread_proc("/proc/%d/status", thread_id);
+    observe_thread_proc("/proc/%d/syscall", thread_id);
+    observe_thread_proc("/proc/%d/stack", thread_id);
+    trace_observe_thread_end(msg);
+}
+
+#else
+static void observe_thread(const char *msg, pid_t thread_id)
+{
+}
+
+#endif /* DEBUG_FAULT_PROCESS_STATUS */
+
+static int get_mem_fault_cpu_index(pid_t pid)
 {
     CPUState *cpu_iter;
 
@@ -421,7 +505,18 @@ static int get_mem_fault_cpu_index(uint32_t pid)
            return cpu_iter->cpu_index;
     }
     trace_get_mem_fault_cpu_index(pid);
+    observe_thread("not a vCPU", pid);
+
     return -1;
+}
+
+static void observe_vcpu_state(void)
+{
+    CPUState *cpu_iter;
+    CPU_FOREACH(cpu_iter) {
+        observe_thread("vCPU", cpu_iter->thread_id);
+        trace_vcpu_state(cpu_iter->running, cpu_iter->cpu_index);
+    }
 }
 
 /*
@@ -465,6 +560,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
         }
 
         ret = read(mis->userfault_fd, &msg, sizeof(msg));
+        observe_vcpu_state();
         if (ret != sizeof(msg)) {
             if (errno == EAGAIN) {
                 /*
