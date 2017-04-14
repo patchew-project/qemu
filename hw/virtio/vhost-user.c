@@ -63,11 +63,13 @@ typedef enum VhostUserRequest {
     VHOST_USER_SEND_RARP = 19,
     VHOST_USER_NET_SET_MTU = 20,
     VHOST_USER_SET_SLAVE_REQ_FD = 21,
+    VHOST_USER_IOTLB_MSG = 22,
     VHOST_USER_MAX
 } VhostUserRequest;
 
 typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_NONE = 0,
+    VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -105,6 +107,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
         VhostUserLog log;
+        struct vhost_iotlb_msg iotlb;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -582,6 +585,31 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return 0;
 }
 
+static int vhost_user_iotlb_read(struct vhost_dev *dev, VhostUserMsg *msg)
+{
+    struct vhost_iotlb_msg *imsg = &msg->payload.iotlb;
+    int ret = 0;
+
+    switch (imsg->type) {
+    case VHOST_IOTLB_MISS:
+        ret = vhost_device_iotlb_miss(dev, imsg->iova,
+                                      imsg->perm != VHOST_ACCESS_RO);
+        break;
+    case VHOST_IOTLB_ACCESS_FAIL:
+        /* FIXME: report device iotlb error */
+        ret = -ENOTSUP;
+        break;
+    case VHOST_IOTLB_UPDATE:
+    case VHOST_IOTLB_INVALIDATE:
+    default:
+        error_report("Unexpected IOTLB message type");
+        ret = -EINVAL;
+        break;
+    }
+
+    return ret;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -611,6 +639,8 @@ static void slave_read(void *opaque)
     }
 
     switch (msg.request) {
+        ret = vhost_user_iotlb_read(dev, &msg);
+        break;
     default:
         error_report("Received unexpected msg type.");
         ret = -EINVAL;
@@ -848,6 +878,71 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
     return 0;
 }
 
+static int vhost_user_update_device_iotlb(struct vhost_dev *dev,
+                                          uint64_t iova, uint64_t uaddr,
+                                          uint64_t len,
+                                          IOMMUAccessFlags perm)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_IOTLB_MSG,
+        .size = sizeof(msg.payload.iotlb),
+        .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .payload.iotlb = {
+            .iova = iova,
+            .uaddr = uaddr,
+            .size = len,
+            .type = VHOST_IOTLB_UPDATE,
+        },
+    };
+
+    switch (perm) {
+    case IOMMU_RO:
+        msg.payload.iotlb.perm = VHOST_ACCESS_RO;
+        break;
+    case IOMMU_WO:
+        msg.payload.iotlb.perm = VHOST_ACCESS_WO;
+        break;
+    case IOMMU_RW:
+        msg.payload.iotlb.perm = VHOST_ACCESS_RW;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    return process_message_reply(dev, msg.request);
+}
+
+static int vhost_user_invalidate_device_iotlb(struct vhost_dev *dev,
+                                              uint64_t iova, uint64_t len)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_IOTLB_MSG,
+        .size = sizeof(msg.payload.iotlb),
+        .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .payload.iotlb = {
+            .iova = iova,
+            .size = len,
+            .type = VHOST_IOTLB_INVALIDATE,
+        },
+    };
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    return process_message_reply(dev, msg.request);
+}
+
+
+static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
+{
+    /* No-op as the receive channel is not dedicated to IOTLB messages. */
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -872,4 +967,7 @@ const VhostOps user_ops = {
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_backend_can_merge = vhost_user_can_merge,
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
+        .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
+        .vhost_update_device_iotlb = vhost_user_update_device_iotlb,
+        .vhost_invalidate_device_iotlb = vhost_user_invalidate_device_iotlb,
 };
