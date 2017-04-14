@@ -77,6 +77,9 @@ struct uffd_msg {
 		struct {
 			__u64	flags;
 			__u64	address;
+      union {
+			__u32   ptid;
+      } feat;
 		} pagefault;
 
 		struct {
@@ -158,6 +161,8 @@ struct uffdio_api {
 #define UFFD_FEATURE_EVENT_MADVDONTNEED		(1<<3)
 #define UFFD_FEATURE_MISSING_HUGETLBFS		(1<<4)
 #define UFFD_FEATURE_MISSING_SHMEM		(1<<5)
+#define UFFD_FEATURE_EVENT_UNMAP		(1<<6)
+#define UFFD_FEATURE_THREAD_ID			(1<<7)
 	__u64 features;
 
 	__u64 ioctls;
