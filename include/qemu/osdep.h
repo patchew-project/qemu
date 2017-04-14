@@ -104,7 +104,7 @@ extern int daemon(int, int);
 #include "sysemu/os-posix.h"
 #endif
 
-#include "glib-compat.h"
+#include "glib/glib-compat.h"
 #include "qemu/typedefs.h"
 
 #ifndef O_LARGEFILE

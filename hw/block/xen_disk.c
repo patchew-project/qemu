@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "glib/glib-helper.h"
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 
@@ -152,13 +153,6 @@ static void ioreq_reset(struct ioreq *ioreq)
     memset(&ioreq->acct, 0, sizeof(ioreq->acct));
 
     qemu_iovec_reset(&ioreq->v);
-}
-
-static gint int_cmp(gconstpointer a, gconstpointer b, gpointer user_data)
-{
-    uint ua = GPOINTER_TO_UINT(a);
-    uint ub = GPOINTER_TO_UINT(b);
-    return (ua > ub) - (ua < ub);
 }
 
 static void destroy_grant(gpointer pgnt)
@@ -1191,7 +1185,7 @@ static int blk_connect(struct XenDevice *xendev)
     if (blkdev->feature_persistent) {
         /* Init persistent grants */
         blkdev->max_grants = max_requests * BLKIF_MAX_SEGMENTS_PER_REQUEST;
-        blkdev->persistent_gnts = g_tree_new_full((GCompareDataFunc)int_cmp,
+        blkdev->persistent_gnts = g_tree_new_full((GCompareDataFunc)g_int_cmp,
                                              NULL, NULL,
                                              batch_maps ?
                                              (GDestroyNotify)g_free :
