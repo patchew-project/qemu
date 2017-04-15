@@ -1016,6 +1016,16 @@ static inline int64_t cpu_get_host_ticks(void)
     return cur - ofs;
 }
 
+#elif defined(__arm__) || defined(__aarch64__)
+
+/* ARM does not have a user-space readble cycle counter available.
+ * This is a compromise to get monotonically increasing time.
+ */
+static inline int64_t cpu_get_host_ticks(void)
+{
+    return get_clock();
+}
+
 #else
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing value.  This will be
