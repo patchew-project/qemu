@@ -107,7 +107,8 @@ void openrisc_translate_init(void)
                                      "mac");
     for (i = 0; i < 32; i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,
-                                      offsetof(CPUOpenRISCState, gpr[i]),
+                                      offsetof(CPUOpenRISCState,
+                                               shadow_gpr[0][i]),
                                       regnames[i]);
     }
     cpu_R0 = cpu_R[0];

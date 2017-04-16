@@ -269,7 +269,9 @@ typedef struct CPUOpenRISCTLBContext {
 #endif
 
 typedef struct CPUOpenRISCState {
-    target_ulong gpr[32];     /* General registers */
+    target_ulong shadow_gpr[16][32]; /* Shadow registers */
+    target_ulong * gpr;       /* General registers (backed by shadow) */
+
     target_ulong pc;          /* Program counter */
     target_ulong ppc;         /* Prev PC */
     target_ulong jmp_pc;      /* Jump PC */
