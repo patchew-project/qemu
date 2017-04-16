@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "sysemu/sysemu.h"
 
 #define TO_SPR(group, number) (((group) << 11) + (number))
 
@@ -285,4 +286,20 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
 
     /* for rd is passed in, if rd unchanged, just keep it back.  */
     return rd;
+}
+
+/* In openrisc simulators nop can be used to do intersting
+ * things like shut down the simulator */
+void HELPER(nop)(uint32_t arg)
+{
+#ifndef CONFIG_USER_ONLY
+    switch (arg) {
+    case 0x001: /* NOP_EXIT */
+    case 0x00c: /* NOP_EXIT_SILENT */
+        qemu_system_shutdown_request();
+        break;
+    default:
+        break;
+    }
+#endif
 }
