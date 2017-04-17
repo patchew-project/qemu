@@ -15,6 +15,8 @@
 #ifndef QCRYPTO_HASHPRIV_H
 #define QCRYPTO_HASHPRIV_H
 
+#include "afalgpriv.h"
+
 typedef struct QCryptoHashDriver QCryptoHashDriver;
 
 struct QCryptoHashDriver {
@@ -27,5 +29,7 @@ struct QCryptoHashDriver {
 };
 
 extern QCryptoHashDriver qcrypto_hash_lib_driver;
+
+extern QCryptoHashDriver qcrypto_hash_afalg_driver;
 
 #endif
