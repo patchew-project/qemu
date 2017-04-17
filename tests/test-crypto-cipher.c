@@ -715,6 +715,7 @@ static void test_cipher_null_iv(void)
     uint8_t key[32] = { 0 };
     uint8_t plaintext[32] = { 0 };
     uint8_t ciphertext[32] = { 0 };
+    Error *err = NULL;
 
     cipher = qcrypto_cipher_new(
         QCRYPTO_CIPHER_ALG_AES_256,
@@ -729,7 +730,14 @@ static void test_cipher_null_iv(void)
                            plaintext,
                            ciphertext,
                            sizeof(plaintext),
-                           &error_abort);
+                           &err);
+
+    if (qcrypto_cipher_using_afalg_drv(cipher)) {
+        g_assert(err != NULL);
+        error_free_or_abort(&err);
+    } else {
+        g_assert(err == NULL);
+    }
 
     qcrypto_cipher_free(cipher);
 }

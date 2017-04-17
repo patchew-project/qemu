@@ -233,4 +233,12 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
                          const uint8_t *iv, size_t niv,
                          Error **errp);
 
+/**
+ * qcrypto_cipher_using_afalg_drv:
+ * @ the cipher object
+ *
+ * Returns: true if @cipher is using afalg driver, otherwise false.
+ */
+bool qcrypto_cipher_using_afalg_drv(QCryptoCipher *cipher);
+
 #endif /* QCRYPTO_CIPHER_H */

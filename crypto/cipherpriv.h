@@ -15,6 +15,9 @@
 #ifndef QCRYPTO_CIPHERPRIV_H
 #define QCRYPTO_CIPHERPRIV_H
 
+#include "qapi-types.h"
+#include "afalgpriv.h"
+
 typedef struct QCryptoCipherDriver QCryptoCipherDriver;
 
 struct QCryptoCipherDriver {
@@ -36,5 +39,13 @@ struct QCryptoCipherDriver {
 
     void (*cipher_free)(QCryptoCipher *cipher);
 };
+
+extern QCryptoAFAlg *
+qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+                             QCryptoCipherMode mode,
+                             const uint8_t *key,
+                             size_t nkey, Error **errp);
+
+extern struct QCryptoCipherDriver qcrypto_cipher_afalg_driver;
 
 #endif
