@@ -408,6 +408,7 @@ PCIBus *pci_bus_new(PCIHostState *phb, const char *name,
 
     bus = PCI_BUS(qbus_create(typename, DEVICE(phb), name));
     pci_bus_init(bus, phb, address_space_mem, address_space_io, devfn_min);
+    phb->bus = bus;
     return bus;
 }
 
@@ -433,7 +434,6 @@ void pci_register_bus(PCIHostState *phb, const char *name,
     bus = pci_bus_new(phb, name, address_space_mem,
                       address_space_io, devfn_min, typename);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
-    phb->bus = bus;
 }
 
 int pci_bus_num(PCIBus *s)

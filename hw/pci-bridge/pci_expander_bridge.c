@@ -245,8 +245,6 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
     bus->address_space_io = dev->bus->address_space_io;
     bus->map_irq = pxb_map_irq_fn;
 
-    phb->bus = bus;
-
     pxb_register_bus(dev, bus, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
