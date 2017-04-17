@@ -671,7 +671,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     dev = qdev_create(NULL, TYPE_APB);
     d = APB_DEVICE(dev);
     phb = PCI_HOST_BRIDGE(dev);
-    phb->bus = pci_register_bus(DEVICE(phb), "pci",
+    phb->bus = pci_register_bus(phb, "pci",
                                 pci_apb_set_irq, pci_pbm_map_irq, d,
                                 &d->pci_mmio,
                                 get_system_io(),

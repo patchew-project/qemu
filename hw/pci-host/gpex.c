@@ -62,7 +62,7 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(sbd, &s->irq[i]);
     }
 
-    pci->bus = pci_register_bus(dev, "pcie.0", gpex_set_irq,
+    pci->bus = pci_register_bus(pci, "pcie.0", gpex_set_irq,
                                 pci_swizzle_map_irq_fn, s, &s->io_mmio,
                                 &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
 

@@ -131,7 +131,7 @@ static int sh_pci_device_init(SysBusDevice *dev)
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
-    phb->bus = pci_register_bus(DEVICE(dev), "pci",
+    phb->bus = pci_register_bus(phb, "pci",
                                 sh_pci_set_irq, sh_pci_map_irq,
                                 s->irq,
                                 get_system_memory(),

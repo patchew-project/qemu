@@ -233,7 +233,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    h->bus = pci_register_bus(dev, NULL,
+    h->bus = pci_register_bus(h, NULL,
                               pci_unin_set_irq, pci_unin_map_irq,
                               pic,
                               &d->pci_mmio,
@@ -299,7 +299,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    h->bus = pci_register_bus(dev, NULL,
+    h->bus = pci_register_bus(h, NULL,
                               pci_unin_set_irq, pci_unin_map_irq,
                               pic,
                               &d->pci_mmio,

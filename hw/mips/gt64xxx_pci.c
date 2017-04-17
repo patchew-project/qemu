@@ -1171,7 +1171,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
     phb = PCI_HOST_BRIDGE(dev);
     memory_region_init(&d->pci0_mem, OBJECT(dev), "pci0-mem", UINT32_MAX);
     address_space_init(&d->pci0_mem_as, &d->pci0_mem, "pci0-mem");
-    phb->bus = pci_register_bus(dev, "pci",
+    phb->bus = pci_register_bus(phb, "pci",
                                 gt64120_pci_set_irq, gt64120_pci_map_irq,
                                 pic,
                                 &d->pci0_mem,
