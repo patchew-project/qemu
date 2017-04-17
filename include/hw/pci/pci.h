@@ -393,12 +393,13 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 bool pci_bus_is_express(PCIBus *bus);
 bool pci_bus_is_root(PCIBus *bus);
-void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
+void pci_bus_new_inplace(PCIBus *bus, size_t bus_size,
+                         PCIHostState *phb,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, const char *typename);
-PCIBus *pci_bus_new(DeviceState *parent, const char *name,
+PCIBus *pci_bus_new(PCIHostState *phb, const char *name,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     uint8_t devfn_min, const char *typename);

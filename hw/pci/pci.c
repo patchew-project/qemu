@@ -388,26 +388,25 @@ bool pci_bus_is_root(PCIBus *bus)
     return PCI_BUS_GET_CLASS(bus)->is_root(bus);
 }
 
-void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
+void pci_bus_new_inplace(PCIBus *bus, size_t bus_size,
+                         PCIHostState *phb,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, const char *typename)
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
-    qbus_create_inplace(bus, bus_size, typename, parent, name);
+    qbus_create_inplace(bus, bus_size, typename, DEVICE(phb), name);
     pci_bus_init(bus, phb, address_space_mem, address_space_io, devfn_min);
 }
 
-PCIBus *pci_bus_new(DeviceState *parent, const char *name,
+PCIBus *pci_bus_new(PCIHostState *phb, const char *name,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     uint8_t devfn_min, const char *typename)
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
     PCIBus *bus;
 
-    bus = PCI_BUS(qbus_create(typename, parent, name));
+    bus = PCI_BUS(qbus_create(typename, DEVICE(phb), name));
     pci_bus_init(bus, phb, address_space_mem, address_space_io, devfn_min);
     return bus;
 }
@@ -431,7 +430,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 {
     PCIBus *bus;
 
-    bus = pci_bus_new(parent, name, address_space_mem,
+    bus = pci_bus_new(PCI_HOST_BRIDGE(parent), name, address_space_mem,
                       address_space_io, devfn_min, typename);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
     return bus;

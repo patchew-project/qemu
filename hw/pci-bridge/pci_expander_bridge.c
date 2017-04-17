@@ -213,7 +213,8 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
 static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 {
     PXBDev *pxb = convert_to_pxb(dev);
-    DeviceState *ds, *bds = NULL;
+    DeviceState *bds = NULL;
+    PCIHostState *phb;
     PCIBus *bus;
     const char *dev_name = NULL;
     Error *local_err = NULL;
@@ -228,11 +229,11 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         dev_name = dev->qdev.id;
     }
 
-    ds = qdev_create(NULL, TYPE_PXB_HOST);
+    phb = PCI_HOST_BRIDGE(qdev_create(NULL, TYPE_PXB_HOST));
     if (pcie) {
-        bus = pci_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
+        bus = pci_bus_new(phb, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
     } else {
-        bus = pci_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
+        bus = pci_bus_new(phb, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_create(BUS(bus), "pci-bridge");
         bds->id = dev_name;
         qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->bus_nr);
@@ -244,7 +245,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
     bus->address_space_io = dev->bus->address_space_io;
     bus->map_irq = pxb_map_irq_fn;
 
-    PCI_HOST_BRIDGE(ds)->bus = bus;
+    phb->bus = bus;
 
     pxb_register_bus(dev, bus, &local_err);
     if (local_err) {
@@ -252,7 +253,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         goto err_register_bus;
     }
 
-    qdev_init_nofail(ds);
+    qdev_init_nofail(DEVICE(phb));
     if (bds) {
         qdev_init_nofail(bds);
     }
@@ -267,7 +268,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 err_register_bus:
     object_unref(OBJECT(bds));
     object_unparent(OBJECT(bus));
-    object_unref(OBJECT(ds));
+    object_unref(OBJECT(phb));
 }
 
 static void pxb_dev_realize(PCIDevice *dev, Error **errp)
