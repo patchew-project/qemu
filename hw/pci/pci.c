@@ -362,7 +362,7 @@ const char *pci_root_bus_path(PCIDevice *dev)
     return rootbus->qbus.name;
 }
 
-static void pci_bus_init(PCIBus *bus, DeviceState *parent,
+static void pci_bus_init(PCIBus *bus, PCIHostState *phb,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min)
@@ -375,7 +375,7 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     /* host bridge */
     QLIST_INIT(&bus->child);
 
-    pci_host_bus_register(PCI_HOST_BRIDGE(host));
+    pci_host_bus_register(phb);
 }
 
 bool pci_bus_is_express(PCIBus *bus)
@@ -394,8 +394,9 @@ void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, const char *typename)
 {
+    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
     qbus_create_inplace(bus, bus_size, typename, parent, name);
-    pci_bus_init(bus, parent, address_space_mem, address_space_io, devfn_min);
+    pci_bus_init(bus, phb, address_space_mem, address_space_io, devfn_min);
 }
 
 PCIBus *pci_bus_new(DeviceState *parent, const char *name,
@@ -403,10 +404,11 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
                     MemoryRegion *address_space_io,
                     uint8_t devfn_min, const char *typename)
 {
+    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
     PCIBus *bus;
 
     bus = PCI_BUS(qbus_create(typename, parent, name));
-    pci_bus_init(bus, parent, address_space_mem, address_space_io, devfn_min);
+    pci_bus_init(bus, phb, address_space_mem, address_space_io, devfn_min);
     return bus;
 }
 
