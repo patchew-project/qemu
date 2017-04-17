@@ -82,13 +82,8 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    phb->bus = pci_register_bus(phb, NULL,
-                                pci_grackle_set_irq,
-                                pci_grackle_map_irq,
-                                pic,
-                                &d->pci_mmio,
-                                address_space_io,
-                                0, 4, TYPE_PCI_BUS);
+    pci_register_bus(phb, NULL, pci_grackle_set_irq, pci_grackle_map_irq, pic,
+                     &d->pci_mmio, address_space_io, 0, 4, TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, 0, "grackle");
     qdev_init_nofail(dev);

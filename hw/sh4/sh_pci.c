@@ -131,12 +131,9 @@ static int sh_pci_device_init(SysBusDevice *dev)
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
-    phb->bus = pci_register_bus(phb, "pci",
-                                sh_pci_set_irq, sh_pci_map_irq,
-                                s->irq,
-                                get_system_memory(),
-                                get_system_io(),
-                                PCI_DEVFN(0, 0), 4, TYPE_PCI_BUS);
+    pci_register_bus(phb, "pci", sh_pci_set_irq, sh_pci_map_irq, s->irq,
+                     get_system_memory(), get_system_io(), PCI_DEVFN(0, 0), 4,
+                     TYPE_PCI_BUS);
     memory_region_init_io(&s->memconfig_p4, OBJECT(s), &sh_pci_reg_ops, s,
                           "sh_pci", 0x224);
     memory_region_init_alias(&s->memconfig_a7, OBJECT(s), "sh_pci.2",

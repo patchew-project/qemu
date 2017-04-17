@@ -421,19 +421,19 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
 }
 
-PCIBus *pci_register_bus(PCIHostState *phb, const char *name,
-                         pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         void *irq_opaque,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io,
-                         uint8_t devfn_min, int nirq, const char *typename)
+void pci_register_bus(PCIHostState *phb, const char *name,
+                      pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+                      void *irq_opaque,
+                      MemoryRegion *address_space_mem,
+                      MemoryRegion *address_space_io,
+                      uint8_t devfn_min, int nirq, const char *typename)
 {
     PCIBus *bus;
 
     bus = pci_bus_new(phb, name, address_space_mem,
                       address_space_io, devfn_min, typename);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
-    return bus;
+    phb->bus = bus;
 }
 
 int pci_bus_num(PCIBus *s)
