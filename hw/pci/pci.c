@@ -397,6 +397,7 @@ void pci_bus_new_inplace(PCIBus *bus, size_t bus_size,
 {
     qbus_create_inplace(bus, bus_size, typename, DEVICE(phb), name);
     pci_bus_init(bus, phb, address_space_mem, address_space_io, devfn_min);
+    phb->bus = bus;
 }
 
 PCIBus *pci_bus_new(PCIHostState *phb, const char *name,
