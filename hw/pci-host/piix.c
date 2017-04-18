@@ -330,7 +330,6 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
                     MemoryRegion *ram_memory)
 {
     DeviceState *dev;
-    PCIBus *b;
     PCIDevice *d;
     PCIHostState *s;
     PIIX3State *piix3;
@@ -342,11 +341,10 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
     s = PCI_HOST_BRIDGE(dev);
     pci_host_bus_init(s, NULL, pci_address_space, address_space_io, 0,
                       TYPE_PCI_BUS);
-    b = s->bus;
     object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 
-    d = pci_create_simple(b, 0, pci_type);
+    d = pci_create_simple(s->bus, 0, pci_type);
     *pi440fx_state = I440FX_PCI_DEVICE(d);
     f = *pi440fx_state;
     f->system_memory = address_space_mem;
@@ -391,18 +389,20 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
      * connected to the IOAPIC directly.
      * These additional routes can be discovered through ACPI. */
     if (xen_enabled()) {
-        PCIDevice *pci_dev = pci_create_simple_multifunction(b,
-                             -1, true, "PIIX3-xen");
+        PCIDevice *pci_dev = pci_create_simple_multifunction(s->bus,
+                                                             -1, true,
+                                                             "PIIX3-xen");
         piix3 = PIIX3_PCI_DEVICE(pci_dev);
-        pci_bus_irqs(b, xen_piix3_set_irq, xen_pci_slot_get_pirq,
-                piix3, XEN_PIIX_NUM_PIRQS);
+        pci_bus_irqs(s->bus, xen_piix3_set_irq, xen_pci_slot_get_pirq,
+                     piix3, XEN_PIIX_NUM_PIRQS);
     } else {
-        PCIDevice *pci_dev = pci_create_simple_multifunction(b,
-                             -1, true, "PIIX3");
+        PCIDevice *pci_dev = pci_create_simple_multifunction(s->bus,
+                                                             -1, true,
+                                                             "PIIX3");
         piix3 = PIIX3_PCI_DEVICE(pci_dev);
-        pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
-                PIIX_NUM_PIRQS);
-        pci_bus_set_route_irq_fn(b, piix3_route_intx_pin_to_irq);
+        pci_bus_irqs(s->bus, piix3_set_irq, pci_slot_get_pirq, piix3,
+                     PIIX_NUM_PIRQS);
+        pci_bus_set_route_irq_fn(s->bus, piix3_route_intx_pin_to_irq);
     }
     piix3->pic = pic;
     *isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(piix3), "isa.0"));
@@ -417,7 +417,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
 
     i440fx_update_memory_mappings(f);
 
-    return b;
+    return s->bus;
 }
 
 PCIBus *find_i440fx(void)

@@ -820,7 +820,6 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     DeviceState *dev;
     TyphoonState *s;
     PCIHostState *phb;
-    PCIBus *b;
     int i;
 
     dev = qdev_create(NULL, TYPE_TYPHOON_PCI_HOST_BRIDGE);
@@ -886,24 +885,23 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     pci_host_bus_init_irqs(phb, "pci", typhoon_set_irq, sys_map_irq, s,
                            &s->pchip.reg_mem, &s->pchip.reg_io, 0, 64,
                            TYPE_PCI_BUS);
-    b = phb->bus;
     qdev_init_nofail(dev);
 
     /* Host memory as seen from the PCI side, via the IOMMU.  */
     memory_region_init_iommu(&s->pchip.iommu, OBJECT(s), &typhoon_iommu_ops,
                              "iommu-typhoon", UINT64_MAX);
     address_space_init(&s->pchip.iommu_as, &s->pchip.iommu, "pchip0-pci");
-    pci_setup_iommu(b, typhoon_pci_dma_iommu, s);
+    pci_setup_iommu(phb->bus, typhoon_pci_dma_iommu, s);
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
     memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops,
-                          b, "pci0-iack", 64*MB);
+                          phb->bus, "pci0-iack", 64 * MB);
     memory_region_add_subregion(addr_space, 0x801f8000000ULL,
                                 &s->pchip.reg_iack);
 
     /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
     memory_region_init_io(&s->pchip.reg_conf, OBJECT(s), &alpha_pci_conf1_ops,
-                          b, "pci0-conf", 16*MB);
+                          phb->bus, "pci0-conf", 16 * MB);
     memory_region_add_subregion(addr_space, 0x801fe000000ULL,
                                 &s->pchip.reg_conf);
 
@@ -928,7 +926,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
         isa_bus_irqs(*isa_bus, isa_irqs);
     }
 
-    return b;
+    return phb->bus;
 }
 
 static int typhoon_pcihost_init(SysBusDevice *dev)

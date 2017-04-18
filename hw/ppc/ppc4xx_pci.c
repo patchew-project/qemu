@@ -304,7 +304,6 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
 {
     PPC4xxPCIState *s;
     PCIHostState *h;
-    PCIBus *b;
     int i;
 
     h = PCI_HOST_BRIDGE(dev);
@@ -317,9 +316,8 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
     pci_host_bus_init_irqs(h, NULL, ppc4xx_pci_set_irq, ppc4xx_pci_map_irq,
                            s->irq, get_system_memory(), get_system_io(), 0, 4,
                            TYPE_PCI_BUS);
-    b = h->bus;
 
-    pci_create_simple(b, 0, "ppc4xx-host-bridge");
+    pci_create_simple(h->bus, 0, "ppc4xx-host-bridge");
 
     /* XXX split into 2 memory regions, one for config space, one for regs */
     memory_region_init(&s->container, OBJECT(s), "pci-container", PCI_ALL_SIZE);

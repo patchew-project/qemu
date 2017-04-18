@@ -1570,7 +1570,6 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     char *namebuf;
     int i;
-    PCIBus *bus;
     uint64_t msi_window_size = 4096;
     sPAPRTCETable *tcet;
     const unsigned windows_supported =
@@ -1700,7 +1699,6 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     pci_host_bus_init_irqs(phb, NULL, pci_spapr_set_irq, pci_spapr_map_irq,
                            sphb, &sphb->memspace, &sphb->iospace,
                            PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
-    bus = phb->bus;
     qbus_set_hotplug_handler(BUS(phb->bus), DEVICE(sphb), NULL);
 
     /*
@@ -1739,9 +1737,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&sphb->iommu_root, SPAPR_PCI_MSI_WINDOW,
                                 &sphb->msiwindow);
 
-    pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
+    pci_setup_iommu(phb->bus, spapr_pci_dma_iommu, sphb);
 
-    pci_bus_set_route_irq_fn(bus, spapr_route_intx_pin_to_irq);
+    pci_bus_set_route_irq_fn(phb->bus, spapr_route_intx_pin_to_irq);
 
     QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);
 

@@ -553,7 +553,6 @@ static void s390_pci_iommu_free(S390pciState *s, PCIBus *bus, int32_t devfn)
 
 static int s390_pcihost_init(SysBusDevice *dev)
 {
-    PCIBus *b;
     BusState *bus;
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     S390pciState *s = S390_PCI_HOST_BRIDGE(dev);
@@ -563,10 +562,9 @@ static int s390_pcihost_init(SysBusDevice *dev)
     pci_host_bus_init_irqs(phb, NULL, s390_pci_set_irq, s390_pci_map_irq,
                            NULL, get_system_memory(), get_system_io(), 0, 64,
                            TYPE_PCI_BUS);
-    b = phb->bus;
-    pci_setup_iommu(b, s390_pci_dma_iommu, s);
+    pci_setup_iommu(phb->bus, s390_pci_dma_iommu, s);
 
-    bus = BUS(b);
+    bus = BUS(phb->bus);
     qbus_set_hotplug_handler(bus, DEVICE(dev), NULL);
 
     s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, DEVICE(s), NULL));

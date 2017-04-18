@@ -114,7 +114,6 @@ static const char *pxb_host_root_bus_path(PCIHostState *host_bridge,
 static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
 {
     const PCIHostState *pxb_host;
-    const PCIBus *pxb_bus;
     const PXBDev *pxb_dev;
     int position;
     const DeviceState *pxb_dev_base;
@@ -122,8 +121,7 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
     const SysBusDevice *main_host_sbd;
 
     pxb_host = PCI_HOST_BRIDGE(dev);
-    pxb_bus = pxb_host->bus;
-    pxb_dev = convert_to_pxb(pxb_bus->parent_dev);
+    pxb_dev = convert_to_pxb(pxb_host->bus->parent_dev);
     position = g_list_index(pxb_dev_list, pxb_dev);
     assert(position >= 0);
 

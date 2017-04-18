@@ -445,7 +445,6 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *h;
     PPCE500PCIState *s;
-    PCIBus *b;
     int i;
 
     h = PCI_HOST_BRIDGE(dev);
@@ -468,15 +467,14 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     pci_host_bus_init_irqs(h, NULL, mpc85xx_pci_set_irq, mpc85xx_pci_map_irq,
                            s, &s->busmem, &s->pio,
                            PCI_DEVFN(s->first_slot, 0), 4, TYPE_PCI_BUS);
-    b = h->bus;
 
     /* Set up PCI view of memory */
     memory_region_init(&s->bm, OBJECT(s), "bm-e500", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
-    pci_setup_iommu(b, e500_pcihost_set_iommu, s);
+    pci_setup_iommu(h->bus, e500_pcihost_set_iommu, s);
 
-    pci_create_simple(b, 0, "e500-host-bridge");
+    pci_create_simple(h->bus, 0, "e500-host-bridge");
 
     memory_region_init(&s->container, OBJECT(h), "pci-container", PCIE500_ALL_SIZE);
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_be_ops, h,
@@ -489,7 +487,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     memory_region_add_subregion(&s->container, PCIE500_CFGDATA, &h->data_mem);
     memory_region_add_subregion(&s->container, PCIE500_REG_BASE, &s->iomem);
     sysbus_init_mmio(dev, &s->container);
-    pci_bus_set_route_irq_fn(b, e500_route_intx_pin_to_irq);
+    pci_bus_set_route_irq_fn(h->bus, e500_route_intx_pin_to_irq);
 
     return 0;
 }
