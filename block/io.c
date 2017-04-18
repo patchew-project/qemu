@@ -158,7 +158,7 @@ bool bdrv_requests_pending(BlockDriverState *bs)
 
 static bool bdrv_drain_recurse(BlockDriverState *bs)
 {
-    BdrvChild *child;
+    BdrvChild *child, *tmp;
     bool waited;
 
     waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
@@ -167,8 +167,12 @@ static bool bdrv_drain_recurse(BlockDriverState *bs)
         bs->drv->bdrv_drain(bs);
     }
 
-    QLIST_FOREACH(child, &bs->children, next) {
-        waited |= bdrv_drain_recurse(child->bs);
+    QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
+        BlockDriverState *bs = child->bs;
+        assert(bs->refcnt > 0);
+        bdrv_ref(bs);
+        waited |= bdrv_drain_recurse(bs);
+        bdrv_unref(bs);
     }
 
     return waited;
