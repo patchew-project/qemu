@@ -233,7 +233,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    h->bus = pci_host_bus_init_irqs(PCI_HOST_BRIDGE(dev), NULL,
+    h->bus = pci_host_bus_init_irqs(h, NULL,
                                     pci_unin_set_irq, pci_unin_map_irq, pic,
                                     &d->pci_mmio, address_space_io,
                                     PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
