@@ -367,15 +367,13 @@ bool pci_bus_is_root(PCIBus *bus)
     return PCI_BUS_GET_CLASS(bus)->is_root(bus);
 }
 
-void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
-                         const char *name,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io,
-                         uint8_t devfn_min, const char *typename)
+void pci_host_bus_init_inplace(PCIHostState *phb, PCIBus *bus,
+                               size_t bus_size, const char *name,
+                               MemoryRegion *address_space_mem,
+                               MemoryRegion *address_space_io,
+                               uint8_t devfn_min, const char *typename)
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
-
-    qbus_create_inplace(bus, bus_size, typename, parent, name);
+    qbus_create_inplace(bus, bus_size, typename, DEVICE(phb), name);
 
     assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
@@ -389,16 +387,17 @@ void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
 
 }
 
-PCIBus *pci_bus_new(DeviceState *parent, const char *name,
-                    MemoryRegion *address_space_mem,
-                    MemoryRegion *address_space_io,
-                    uint8_t devfn_min, const char *typename)
+PCIBus *pci_host_bus_init(PCIHostState *phb, const char *name,
+                           MemoryRegion *address_space_mem,
+                           MemoryRegion *address_space_io, uint8_t devfn_min,
+                           const char *typename)
 {
     size_t bus_size = object_type_get_instance_size(typename);
     PCIBus *bus = g_malloc(bus_size);
 
-    pci_bus_new_inplace(bus, bus_size, parent, name, address_space_mem,
-                        address_space_io, devfn_min, typename);
+    pci_host_bus_init_inplace(phb, bus, bus_size,
+                              name, address_space_mem, address_space_io,
+                              devfn_min, typename);
     return bus;
 }
 
@@ -412,17 +411,19 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
 }
 
-PCIBus *pci_register_bus(DeviceState *parent, const char *name,
-                         pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         void *irq_opaque,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io,
-                         uint8_t devfn_min, int nirq, const char *typename)
+PCIBus *pci_host_bus_init_irqs(PCIHostState *phb, const char *name,
+                                pci_set_irq_fn set_irq,
+                                pci_map_irq_fn map_irq, void *irq_opaque,
+                                MemoryRegion *address_space_mem,
+                                MemoryRegion *address_space_io,
+                                uint8_t devfn_min, int nirq,
+                                const char *typename)
 {
     PCIBus *bus;
 
-    bus = pci_bus_new(parent, name, address_space_mem,
-                      address_space_io, devfn_min, typename);
+    bus = pci_host_bus_init(phb, name,
+                            address_space_mem,
+                            address_space_io, devfn_min, typename);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
     return bus;
 }
