@@ -357,24 +357,6 @@ const char *pci_root_bus_path(PCIDevice *dev)
     return rootbus->qbus.name;
 }
 
-static void pci_bus_init(PCIBus *bus, DeviceState *parent,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io,
-                         uint8_t devfn_min)
-{
-    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
-
-    assert(PCI_FUNC(devfn_min) == 0);
-    bus->devfn_min = devfn_min;
-    bus->address_space_mem = address_space_mem;
-    bus->address_space_io = address_space_io;
-
-    /* host bridge */
-    QLIST_INIT(&bus->child);
-
-    QLIST_INSERT_HEAD(&pci_host_bridges, phb, next);
-}
-
 bool pci_bus_is_express(PCIBus *bus)
 {
     return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
@@ -391,8 +373,20 @@ void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, const char *typename)
 {
+    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
+
     qbus_create_inplace(bus, bus_size, typename, parent, name);
-    pci_bus_init(bus, parent, address_space_mem, address_space_io, devfn_min);
+
+    assert(PCI_FUNC(devfn_min) == 0);
+    bus->devfn_min = devfn_min;
+    bus->address_space_mem = address_space_mem;
+    bus->address_space_io = address_space_io;
+
+    /* host bridge */
+    QLIST_INIT(&bus->child);
+
+    QLIST_INSERT_HEAD(&pci_host_bridges, phb, next);
+
 }
 
 PCIBus *pci_bus_new(DeviceState *parent, const char *name,
@@ -400,10 +394,11 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
                     MemoryRegion *address_space_io,
                     uint8_t devfn_min, const char *typename)
 {
-    PCIBus *bus;
+    size_t bus_size = object_type_get_instance_size(typename);
+    PCIBus *bus = g_malloc(bus_size);
 
-    bus = PCI_BUS(qbus_create(typename, parent, name));
-    pci_bus_init(bus, parent, address_space_mem, address_space_io, devfn_min);
+    pci_bus_new_inplace(bus, bus_size, parent, name, address_space_mem,
+                        address_space_io, devfn_min, typename);
     return bus;
 }
 
