@@ -312,13 +312,6 @@ static void pcibus_reset(BusState *qbus)
     }
 }
 
-static void pci_host_bus_register(DeviceState *host)
-{
-    PCIHostState *host_bridge = PCI_HOST_BRIDGE(host);
-
-    QLIST_INSERT_HEAD(&pci_host_bridges, host_bridge, next);
-}
-
 PCIBus *pci_find_primary_bus(void)
 {
     PCIBus *primary_bus = NULL;
@@ -369,6 +362,8 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min)
 {
+    PCIHostState *phb = PCI_HOST_BRIDGE(parent);
+
     assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
     bus->address_space_mem = address_space_mem;
@@ -377,7 +372,7 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     /* host bridge */
     QLIST_INIT(&bus->child);
 
-    pci_host_bus_register(parent);
+    QLIST_INSERT_HEAD(&pci_host_bridges, phb, next);
 }
 
 bool pci_bus_is_express(PCIBus *bus)
