@@ -230,11 +230,13 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 
     ds = qdev_create(NULL, TYPE_PXB_HOST);
     if (pcie) {
-        bus = pci_host_bus_init(PCI_HOST_BRIDGE(ds), dev_name, NULL, NULL, 0,
-                                TYPE_PXB_PCIE_BUS);
+        pci_host_bus_init(PCI_HOST_BRIDGE(ds), dev_name, NULL, NULL, 0,
+                          TYPE_PXB_PCIE_BUS);
+        bus = PCI_HOST_BRIDGE(ds)->bus;
     } else {
-        bus = pci_host_bus_init(PCI_HOST_BRIDGE(ds), "pxb-internal", NULL,
-                                NULL, 0, TYPE_PXB_BUS);
+        pci_host_bus_init(PCI_HOST_BRIDGE(ds), "pxb-internal", NULL, NULL, 0,
+                          TYPE_PXB_BUS);
+        bus = PCI_HOST_BRIDGE(ds)->bus;
         bds = qdev_create(BUS(bus), "pci-bridge");
         bds->id = dev_name;
         qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->bus_nr);
@@ -245,8 +247,6 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
     bus->address_space_mem = dev->bus->address_space_mem;
     bus->address_space_io = dev->bus->address_space_io;
     bus->map_irq = pxb_map_irq_fn;
-
-    PCI_HOST_BRIDGE(ds)->bus = bus;
 
     pxb_register_bus(dev, bus, &local_err);
     if (local_err) {

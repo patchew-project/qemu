@@ -129,10 +129,9 @@ static void xilinx_pcie_host_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &pex->mmio);
     sysbus_init_mmio(sbd, &s->mmio);
 
-    pci->bus = pci_host_bus_init_irqs(pci, s->name,
-                                      xilinx_pcie_set_irq,
-                                      pci_swizzle_map_irq_fn, s, &s->mmio,
-                                      &s->io, 0, 4, TYPE_PCIE_BUS);
+    pci_host_bus_init_irqs(pci, s->name, xilinx_pcie_set_irq,
+                           pci_swizzle_map_irq_fn, s, &s->mmio, &s->io, 0, 4,
+                           TYPE_PCIE_BUS);
 
     qdev_set_parent_bus(DEVICE(&s->root), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->root));

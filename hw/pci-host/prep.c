@@ -285,8 +285,6 @@ static void raven_pcihost_initfn(Object *obj)
     address_space_init(&s->bm_as, &s->bm, "raven-bm");
     pci_setup_iommu(&s->pci_bus, raven_pcihost_set_iommu, s);
 
-    h->bus = &s->pci_bus;
-
     object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_RAVEN_PCI_DEVICE);
     pci_dev = DEVICE(&s->pci_dev);
     qdev_set_parent_bus(pci_dev, BUS(&s->pci_bus));

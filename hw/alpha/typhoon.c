@@ -883,10 +883,10 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 
-    b = pci_host_bus_init_irqs(phb, "pci", typhoon_set_irq,
-                               sys_map_irq, s, &s->pchip.reg_mem,
-                               &s->pchip.reg_io, 0, 64, TYPE_PCI_BUS);
-    phb->bus = b;
+    pci_host_bus_init_irqs(phb, "pci", typhoon_set_irq, sys_map_irq, s,
+                           &s->pchip.reg_mem, &s->pchip.reg_io, 0, 64,
+                           TYPE_PCI_BUS);
+    b = phb->bus;
     qdev_init_nofail(dev);
 
     /* Host memory as seen from the PCI side, via the IOMMU.  */

@@ -560,15 +560,14 @@ static int s390_pcihost_init(SysBusDevice *dev)
 
     DPRINTF("host_init\n");
 
-    b = pci_host_bus_init_irqs(phb, NULL,
-                               s390_pci_set_irq, s390_pci_map_irq, NULL,
-                               get_system_memory(), get_system_io(), 0, 64,
-                               TYPE_PCI_BUS);
+    pci_host_bus_init_irqs(phb, NULL, s390_pci_set_irq, s390_pci_map_irq,
+                           NULL, get_system_memory(), get_system_io(), 0, 64,
+                           TYPE_PCI_BUS);
+    b = phb->bus;
     pci_setup_iommu(b, s390_pci_dma_iommu, s);
 
     bus = BUS(b);
     qbus_set_hotplug_handler(bus, DEVICE(dev), NULL);
-    phb->bus = b;
 
     s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, DEVICE(s), NULL));
     qbus_set_hotplug_handler(BUS(s->bus), DEVICE(s), NULL);

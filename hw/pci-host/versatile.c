@@ -390,7 +390,6 @@ static void pci_vpb_init(Object *obj)
                               sizeof(s->pci_bus), "pci", &s->pci_mem_space,
                               &s->pci_io_space, PCI_DEVFN(11, 0),
                               TYPE_PCI_BUS);
-    h->bus = &s->pci_bus;
 
     object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);
     qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));

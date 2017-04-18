@@ -384,7 +384,7 @@ void pci_host_bus_init_inplace(PCIHostState *phb, PCIBus *bus,
     QLIST_INIT(&bus->child);
 
     QLIST_INSERT_HEAD(&pci_host_bridges, phb, next);
-
+    phb->bus = bus;
 }
 
 PCIBus *pci_host_bus_init(PCIHostState *phb, const char *name,

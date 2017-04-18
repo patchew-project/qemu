@@ -62,10 +62,9 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(sbd, &s->irq[i]);
     }
 
-    pci->bus = pci_host_bus_init_irqs(pci, "pcie.0",
-                                      gpex_set_irq, pci_swizzle_map_irq_fn, s,
-                                      &s->io_mmio, &s->io_ioport, 0, 4,
-                                      TYPE_PCIE_BUS);
+    pci_host_bus_init_irqs(pci, "pcie.0", gpex_set_irq,
+                           pci_swizzle_map_irq_fn, s, &s->io_mmio,
+                           &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
 
     qdev_set_parent_bus(DEVICE(&s->gpex_root), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->gpex_root));
