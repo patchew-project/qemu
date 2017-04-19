@@ -10,6 +10,10 @@
 # Emitted when the virtual machine has shut down, indicating that qemu is
 # about to exit.
 #
+# @guest: If true, the shutdown was triggered by a guest request (such as
+# executing a halt instruction) rather than a host request (such as sending
+# qemu a SIGINT). (since 2.10)
+#
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
@@ -17,11 +21,11 @@
 #
 # Example:
 #
-# <- { "event": "SHUTDOWN",
+# <- { "event": "SHUTDOWN", "data": { "guest": true },
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
-{ 'event': 'SHUTDOWN' }
+{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
 
 ##
 # @POWERDOWN:

@@ -1388,7 +1388,7 @@ void xen_shutdown_fatal_error(const char *fmt, ...)
     va_end(ap);
     fprintf(stderr, "Will destroy the domain.\n");
     /* destroy the domain */
-    qemu_system_shutdown_request();
+    qemu_system_shutdown_request(false);
 }
 
 void xen_modified_memory(ram_addr_t start, ram_addr_t length)

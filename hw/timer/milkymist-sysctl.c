@@ -90,7 +90,7 @@ static void sysctl_icap_write(MilkymistSysctlState *s, uint32_t value)
     trace_milkymist_sysctl_icap_write(value);
     switch (value & 0xffff) {
     case 0x000e:
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(true);
         break;
     }
 }
@@ -195,7 +195,7 @@ static void sysctl_write(void *opaque, hwaddr addr, uint64_t value,
         s->regs[addr] = 1;
         break;
     case R_SYSTEM_ID:
-        qemu_system_reset_request();
+        qemu_system_reset_request(true);
         break;
 
     case R_GPIO_IN:

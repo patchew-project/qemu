@@ -1008,7 +1008,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {
-        qemu_system_reset_request();
+        qemu_system_reset_request(true);
     }
 
     return H_SUCCESS;

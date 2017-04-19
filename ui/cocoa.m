@@ -905,7 +905,7 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationWillTerminate\n");
 
-    qemu_system_shutdown_request();
+    qemu_system_shutdown_request(false);
     exit(0);
 }
 

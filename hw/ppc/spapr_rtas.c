@@ -110,7 +110,7 @@ static void rtas_power_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
-    qemu_system_shutdown_request();
+    qemu_system_shutdown_request(true);
     cpu_stop_current();
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -124,7 +124,7 @@ static void rtas_system_reboot(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
-    qemu_system_reset_request();
+    qemu_system_reset_request(true);
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 

@@ -638,7 +638,7 @@ static void rcr_write(void *opaque, hwaddr addr, uint64_t val, unsigned len)
     PIIX3State *d = opaque;
 
     if (val & 4) {
-        qemu_system_reset_request();
+        qemu_system_reset_request(true);
         return;
     }
     d->rcr = val & 2; /* keep System Reset type only */

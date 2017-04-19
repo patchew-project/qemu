@@ -53,9 +53,9 @@ static void mips_qemu_write (void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     if ((addr & 0xffff) == 0 && val == 42)
-        qemu_system_reset_request ();
+        qemu_system_reset_request(true);
     else if ((addr & 0xffff) == 4 && val == 42)
-        qemu_system_shutdown_request ();
+        qemu_system_shutdown_request(true);
 }
 
 static uint64_t mips_qemu_read (void *opaque, hwaddr addr,

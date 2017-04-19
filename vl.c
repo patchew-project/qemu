@@ -1717,7 +1717,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     if (!no_shutdown) {
         qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
                                        !!info, info, &error_abort);
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(false);
     }
 
     if (info) {
@@ -1734,10 +1734,10 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     }
 }
 
-void qemu_system_reset_request(void)
+void qemu_system_reset_request(bool from_guest)
 {
     if (no_reboot) {
-        shutdown_requested = 1;
+        shutdown_requested = 1 + from_guest;
     } else {
         reset_requested = 1;
     }
@@ -1810,11 +1810,11 @@ void qemu_system_killed(int signal, pid_t pid)
     qemu_notify_event();
 }
 
-void qemu_system_shutdown_request(void)
+void qemu_system_shutdown_request(bool from_guest)
 {
-    trace_qemu_system_shutdown_request();
+    trace_qemu_system_shutdown_request(from_guest);
     replay_shutdown_request();
-    shutdown_requested = 1;
+    shutdown_requested = 1 + from_guest;
     qemu_notify_event();
 }
 
@@ -1845,15 +1845,18 @@ void qemu_system_debug_request(void)
 static bool main_loop_should_exit(void)
 {
     RunState r;
+    int request;
+
     if (qemu_debug_requested()) {
         vm_stop(RUN_STATE_DEBUG);
     }
     if (qemu_suspend_requested()) {
         qemu_system_suspend();
     }
-    if (qemu_shutdown_requested()) {
+    request = qemu_shutdown_requested();
+    if (request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(&error_abort);
+        qapi_event_send_shutdown(request > 1, &error_abort);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {

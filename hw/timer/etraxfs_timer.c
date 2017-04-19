@@ -207,7 +207,7 @@ static void watchdog_hit(void *opaque)
         qemu_irq_raise(t->nmi);
     }
     else
-        qemu_system_reset_request();
+        qemu_system_reset_request(true);
 
     t->wd_hits++;
 }
