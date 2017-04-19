@@ -3080,7 +3080,7 @@ static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
     if (c == s->qcow) {
         /* This is a private node, nobody should try to attach to it */
         *nperm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
-        *nshared = BLK_PERM_WRITE_UNCHANGED;
+        *nshared = BLK_PERM_WRITE_UNCHANGED | BLK_PERM_AIO_CONTEXT_CHANGE;
     } else {
         /* The backing file is there so 'commit' can use it. vvfat doesn't
          * access it in any way. */

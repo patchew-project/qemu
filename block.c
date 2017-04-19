@@ -1685,7 +1685,8 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
 #define DEFAULT_PERM_PASSTHROUGH (BLK_PERM_CONSISTENT_READ \
                                  | BLK_PERM_WRITE \
                                  | BLK_PERM_WRITE_UNCHANGED \
-                                 | BLK_PERM_RESIZE)
+                                 | BLK_PERM_RESIZE \
+                                 | BLK_PERM_AIO_CONTEXT_CHANGE)
 #define DEFAULT_PERM_UNCHANGED (BLK_PERM_ALL & ~DEFAULT_PERM_PASSTHROUGH)
 
 void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
@@ -1728,9 +1729,10 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
         perm |= BLK_PERM_CONSISTENT_READ;
         shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
     } else {
-        /* We want consistent read from backing files if the parent needs it.
+        /* We want consistent read and aio context change from backing files if
+         * the parent needs it.
          * No other operations are performed on backing files. */
-        perm &= BLK_PERM_CONSISTENT_READ;
+        perm &= BLK_PERM_CONSISTENT_READ | BLK_PERM_AIO_CONTEXT_CHANGE;
 
         /* If the parent can deal with changing data, we're okay with a
          * writable and resizable backing file. */
@@ -1742,7 +1744,7 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
         }
 
         shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_GRAPH_MOD |
-                  BLK_PERM_WRITE_UNCHANGED;
+                  BLK_PERM_WRITE_UNCHANGED | BLK_PERM_AIO_CONTEXT_CHANGE;
     }
 
     *nperm = perm;
