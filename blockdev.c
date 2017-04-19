@@ -3259,8 +3259,6 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
         goto out;
     }
 
-    bdrv_set_aio_context(target_bs, aio_context);
-
     if (backup->has_bitmap) {
         bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
@@ -3336,18 +3334,6 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
     target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
     if (!target_bs) {
         goto out;
-    }
-
-    if (bdrv_get_aio_context(target_bs) != aio_context) {
-        if (!bdrv_has_blk(target_bs)) {
-            /* The target BDS is not attached, we can safely move it to another
-             * AioContext. */
-            bdrv_set_aio_context(target_bs, aio_context);
-        } else {
-            error_setg(errp, "Target is attached to a different thread from "
-                             "source.");
-            goto out;
-        }
     }
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                             backup->sync, NULL, backup->compress,
