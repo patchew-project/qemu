@@ -1042,3 +1042,37 @@
   'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
                '*input-data': 'str', '*capture-output': 'bool' },
   'returns': 'GuestExec' }
+##
+# @GuestNetworkInterfaceStat:
+#
+# @rx_bytes: received bytes of interface
+#
+# @rx_packets: received packets of interface
+#
+# @rx_errs: received error packets of interface
+# @rx_drop: received drop packets of interface
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestNetworkInterfaceStat',
+  'data': {'rx_bytes': 'uint64',
+            'rx_packets': 'uint64',
+            'rx_errs': 'uint64',
+            'rx_drop': 'uint64',
+            'tx_bytes': 'uint64',
+            'tx_packets': 'uint64',
+            'tx_errs': 'uint64',
+            'tx_drop': 'uint64'
+           } }
+##
+# @guest-network-get-interface-stat:
+#
+# Get list of interface stat
+#
+# Returns: List of GuestNetworkInterfaceStat on success.
+#
+# Since: 2.10
+##
+{ 'command': 'guest-network-get-interface-stat',
+  'data':    {'bus': 'int64', 'slot': 'int64', 'function': 'int64','netname':'str'},
+  'returns': ['GuestNetworkInterfaceStat'] }

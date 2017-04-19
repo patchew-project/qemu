@@ -2357,6 +2357,163 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 
     return info;
 }
+static int ga_get_netname(int bus, int dev, int func, char *netname,
+           int name_len)
+{
+    int cnt = 0;
+    int result = -1;
+
+    FILE *pfilein = NULL;
+
+    bool findnet = false;
+    char *netpos = NULL;
+
+    char netstr[32] = {0};
+    char buffer[1024] = {0};
+
+    if (NULL == netname) {
+        return -1;
+    }
+    snprintf(netstr, 31, "%02x:%02x.%01x", bus, dev, func);
+    g_debug("qga net pci is : %s ", netstr);
+
+    pfilein = popen("ls -l /sys/class/net", "r");
+    if (NULL == pfilein) {
+        g_debug("failed to do shell command for [%s] getting net name", netstr);
+        return -1;
+    }
+
+    while (fgets(buffer, 1023, pfilein) != NULL) {
+        if (strstr(buffer, netstr)) {
+            findnet = true;
+            g_debug("find pci  [%s] net string: %s", netstr, buffer);
+            break;
+        }
+    }
+
+    result = ferror(pfilein);
+    if (pclose(pfilein) || result) {
+        g_debug("error happened while finding pci [%s] net string", netstr);
+        return -1;
+    }
+
+    if (!findnet) {
+        g_debug("didn't finding bdf [%s] block string", netstr);
+        return -1;
+    }
+
+    netpos = strrchr(buffer, '/');
+    if (NULL == netpos) {
+        g_debug("can't get net name for [%s]", netstr);
+        return -1;
+    }
+
+    netpos++;
+    if (name_len < strlen(netpos)) {
+        g_debug("net name buffer of [%s] is not enough", netstr);
+        return -1;
+    }
+
+    cnt = 0;
+    while (('\0' != *netpos) && ('\n' != *netpos)) {
+        netname[cnt] = *netpos;
+        cnt++;
+        netpos++;
+    }
+    netname[cnt] = '\0';
+
+    if ('\0' == netname[0]) {
+        g_debug("net name for pci  [%s] is invalid", netstr);
+        return -1;
+    }
+
+    g_debug("succeed to get pci [%s] actual net name: %s", netstr, netname);
+    return 0;
+}
+
+
+static int ga_get_net_stats(const char *path,
+                     GuestNetworkInterfaceStat *stats)
+{
+    int path_len;
+    FILE *fp;
+    char line[256], *colon;
+
+    fp = fopen("/proc/net/dev", "r");
+    if (!fp) {
+        slog("Could not open /proc/net/dev");
+        return -1;
+    }
+    path_len = strlen(path);
+    while (fgets(line, sizeof(line), fp)) {
+        long long dummy;
+        long long rx_bytes;
+        long long rx_packets;
+        long long rx_errs;
+        long long rx_drop;
+        long long tx_bytes;
+        long long tx_packets;
+        long long tx_errs;
+        long long tx_drop;
+
+        /* The line looks like:
+ *          *   "   eth0:..."
+ *                   * Split it at the colon.
+ *                            */
+        colon = strchr(line, ':');
+        if (!colon) {
+            continue;
+        }
+        *colon = '\0';
+        if (colon - path_len >= line && strcmp(colon - path_len, path) == 0) {
+            if (sscanf(colon + 1,
+                "%lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld",
+                &rx_bytes, &rx_packets, &rx_errs, &rx_drop,
+                &dummy, &dummy, &dummy, &dummy,
+                &tx_bytes, &tx_packets, &tx_errs, &tx_drop,
+                &dummy, &dummy, &dummy, &dummy) != 16) {
+                continue;
+            }
+            stats->rx_bytes = rx_bytes;
+            stats->rx_packets = rx_packets;
+            stats->rx_errs = rx_errs;
+            stats->rx_drop = rx_drop;
+            stats->tx_bytes = tx_bytes;
+            stats->tx_packets = tx_packets;
+            stats->tx_errs = tx_errs;
+            stats->tx_drop = tx_drop;
+            fclose(fp);
+            return 0;
+        }
+    }
+    fclose(fp);
+
+    g_debug("/proc/net/dev: Interface not found");
+    return -1;
+}
+
+GuestNetworkInterfaceStatList *qmp_guest_network_get_interface_stat(int64_t bus,
+    int64_t slot, int64_t function, const char *netname, Error **errp)
+{
+    char guestnetname[14] = {0};
+    GuestNetworkInterfaceStat *info = NULL;
+    GuestNetworkInterfaceStatList *new, *ret = NULL;
+    if (ga_get_netname(bus, slot,
+        function, guestnetname, sizeof(guestnetname))) {
+        return NULL;
+    }
+    info = g_malloc0(sizeof(*info));
+    if (ga_get_net_stats(guestnetname, info)) {
+        g_free(info);
+        return NULL;
+    }
+
+    new = g_malloc(sizeof(*ret));
+    new->value = info;
+    new->next = ret;
+    ret = new;
+    return ret;
+}
 
 #else /* defined(__linux__) */
 
@@ -2415,6 +2572,12 @@ qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 }
 
 GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+GuestNetworkInterfaceStatList *qmp_guest_network_get_interface_stat(int64_t bus,
+   int64_t slot, int64_t function, const char *netname, Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
@@ -2480,7 +2643,8 @@ GList *ga_command_blacklist_init(GList *blacklist)
             "guest-suspend-hybrid", "guest-network-get-interfaces",
             "guest-get-vcpus", "guest-set-vcpus",
             "guest-get-memory-blocks", "guest-set-memory-blocks",
-            "guest-get-memory-block-size", NULL};
+            "guest-get-memory-block-size",
+            "guest-network-get-interfaces-stat", NULL};
         char **p = (char **)list;
 
         while (*p) {

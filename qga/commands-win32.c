@@ -1497,6 +1497,12 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
+GuestNetworkInterfaceStatList *qmp_guest_network_get_interface_stat(int64_t bus,
+   int64_t slot, int64_t function, const char *netname, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
 
 /* add unsupported commands to the blacklist */
 GList *ga_command_blacklist_init(GList *blacklist)
