@@ -997,7 +997,9 @@ void HELPER(exception_return)(CPUARMState *env)
     }
 
     if (!return_to_aa64) {
+        pmu_sync(env);
         env->aarch64 = 0;
+        pmu_sync(env);
         /* We do a raw CPSR write because aarch64_sync_64_to_32()
          * will sort the register banks out for us, and we've already
          * caught all the bad-mode cases in el_from_spsr().
@@ -1017,7 +1019,9 @@ void HELPER(exception_return)(CPUARMState *env)
                       "AArch32 EL%d PC 0x%" PRIx32 "\n",
                       cur_el, new_el, env->regs[15]);
     } else {
+        pmu_sync(env);
         env->aarch64 = 1;
+        pmu_sync(env);
         pstate_write(env, spsr);
         if (!arm_singlestep_active(env)) {
             env->pstate &= ~PSTATE_SS;

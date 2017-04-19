@@ -139,6 +139,8 @@ static void arm_cpu_reset(CPUState *s)
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
     }
 
+    pmu_sync(env); /* Surround writes to uncached_cpsr, pstate, and aarch64 */
+
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
         env->aarch64 = 1;
@@ -179,6 +181,8 @@ static void arm_cpu_reset(CPUState *s)
     /* SVC mode with interrupts disabled.  */
     env->uncached_cpsr = ARM_CPU_MODE_SVC;
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
+
+    pmu_sync(env); /* Surround writes to uncached_cpsr, pstate, and aarch64 */
 
     if (arm_feature(env, ARM_FEATURE_M)) {
         uint32_t initial_msp; /* Loaded from 0x0 */

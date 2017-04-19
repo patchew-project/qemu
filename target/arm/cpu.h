@@ -767,6 +767,19 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
  */
 void pmccntr_sync(CPUARMState *env);
 
+/**
+ * pmu_sync
+ * @env: CPUARMState
+ *
+ * Synchronises all PMU counters. This must always be called twice, once before
+ * any action that might affect the filtering of all counters and again
+ * afterwards. The function is used to swap the state of the registers if
+ * required. This only happens when not in user mode (!CONFIG_USER_ONLY). Any
+ * writes to env's aarch64, pstate, uncached_cpsr, cp15.scr_el3, or
+ * cp15.hcr_el2 must be protected by calls to this function.
+ */
+void pmu_sync(CPUARMState *env);
+
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants
  * for both old and new bit meanings. Code which tests against those
@@ -947,7 +960,9 @@ static inline void pstate_write(CPUARMState *env, uint32_t val)
     env->CF = (val >> 29) & 1;
     env->VF = (val << 3) & 0x80000000;
     env->daif = val & PSTATE_DAIF;
+    pmu_sync(env);
     env->pstate = val & ~CACHED_PSTATE_BITS;
+    pmu_sync(env);
 }
 
 /* Return the current CPSR value.  */
