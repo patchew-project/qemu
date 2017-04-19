@@ -14,6 +14,7 @@
 #include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 #include "exec/semihost.h"
+#include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
@@ -901,8 +902,53 @@ typedef struct pm_event {
     uint64_t (*get_count)(CPUARMState *);
 } pm_event;
 
+static bool event_always_supported(CPUARMState *env)
+{
+    return true;
+}
+
+static uint64_t cycles_get_count(CPUARMState *env)
+{
+    uint64_t ret;
+    CPUState *cpu = ENV_GET_CPU(env);
+    uint32_t saved_can_do_io = cpu->can_do_io;
+    cpu->can_do_io = 1;
+
+    ret = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                   ARM_CPU_FREQ, NANOSECONDS_PER_SECOND);
+
+    cpu->can_do_io = saved_can_do_io;
+    return ret;
+}
+
+static bool instructions_supported(CPUARMState *env)
+{
+    return use_icount == 1 /* Precise instruction counting */;
+}
+
+static uint64_t instructions_get_count(CPUARMState *env)
+{
+    uint64_t ret;
+    CPUState *cpu = ENV_GET_CPU(env);
+    uint32_t saved_can_do_io = cpu->can_do_io;
+    cpu->can_do_io = 1;
+
+    ret = (uint64_t)cpu_get_icount_raw();
+
+    cpu->can_do_io = saved_can_do_io;
+    return ret;
+}
+
 #define SUPPORTED_EVENT_SENTINEL UINT16_MAX
 static const pm_event pm_events[] = {
+    { .number = 0x008, /* INST_RETIRED */
+      .supported = instructions_supported,
+      .get_count = instructions_get_count
+    },
+    { .number = 0x011, /* CPU_CYCLES */
+      .supported = event_always_supported,
+      .get_count = cycles_get_count
+    },
     { .number = SUPPORTED_EVENT_SENTINEL }
 };
 static uint16_t supported_event_map[0x3f];
@@ -1087,8 +1133,7 @@ void pmccntr_sync(CPUARMState *env)
           !pmu_counter_filtered(env, env->cp15.pmccfiltr_el0)) {
         uint64_t temp_ticks;
 
-        temp_ticks = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
-                              ARM_CPU_FREQ, NANOSECONDS_PER_SECOND);
+        temp_ticks = cycles_get_count(env);
 
         if (env->cp15.c9_pmcr & PMCRD) {
             /* Increment once every 64 processor clock cycles */
