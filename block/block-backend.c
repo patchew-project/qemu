@@ -68,6 +68,7 @@ struct BlockBackend {
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
 
     int quiesce_counter;
+    AioContext *aio_context;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -564,6 +565,10 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
         return -EPERM;
     }
     bdrv_ref(bs);
+
+    if (blk->aio_context != NULL) {
+        bdrv_set_aio_context(bs, blk->aio_context);
+    }
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (blk->public.throttle_state) {
@@ -1667,6 +1672,7 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
     BlockDriverState *bs = blk_bs(blk);
 
+    blk->aio_context = new_context;
     if (bs) {
         if (blk->public.throttle_state) {
             throttle_timers_detach_aio_context(&blk->public.throttle_timers);
