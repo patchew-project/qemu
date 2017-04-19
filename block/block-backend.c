@@ -629,6 +629,18 @@ void blk_resume_after_migration(Error **errp)
     }
 }
 
+int blk_request_perm(BlockBackend *blk, uint64_t perm, Error **errp)
+{
+    uint64_t blk_perm, shared_perm;
+
+    blk_get_perm(blk, &blk_perm, &shared_perm);
+    if ((blk_perm & perm) == perm) {
+        return 0;
+    }
+    blk_perm |= perm;
+    return blk_set_perm(blk, blk_perm, shared_perm, errp);
+}
+
 static int blk_do_attach_dev(BlockBackend *blk, void *dev)
 {
     if (blk->dev) {
