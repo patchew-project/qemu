@@ -365,7 +365,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
          * for its backing file). The other options would be a second filter
          * driver above s->base. */
         ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
-                                 BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE,
+                                 BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE |
+                                 BLK_PERM_AIO_CONTEXT_CHANGE,
                                  errp);
         if (ret < 0) {
             goto fail;
