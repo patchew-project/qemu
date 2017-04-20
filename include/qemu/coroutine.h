@@ -157,6 +157,12 @@ void qemu_co_mutex_init(CoMutex *mutex);
 void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
 
 /**
+ * Locks the mutex and immediately unlock it.  This is faster than back-to-back
+ * lock/unlock if the mutex is not taken by anyone.
+ */
+void coroutine_fn qemu_co_mutex_lock_unlock(CoMutex *mutex);
+
+/**
  * Unlocks the mutex and schedules the next coroutine that was waiting for this
  * lock to be run.
  */

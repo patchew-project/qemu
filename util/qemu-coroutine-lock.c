@@ -287,6 +287,42 @@ retry_fast_path:
     self->locks_held++;
 }
 
+void coroutine_fn qemu_co_mutex_lock_unlock(CoMutex *mutex)
+{
+    AioContext *ctx = qemu_get_current_aio_context();
+    int waiters, i;
+
+retry_fast_path:
+    waiters = atomic_read(&mutex->locked);
+    if (waiters == 0) {
+        /* Provide same memory ordering semantics as mutex lock/unlock.  */
+        smp_mb_acquire();
+        smp_mb_release();
+        return;
+    }
+
+    i = 0;
+    while (waiters == 1 && ++i < 1000) {
+        if (atomic_read(&mutex->ctx) == ctx) {
+            break;
+        }
+        waiters = atomic_read(&mutex->locked);
+        if (waiters == 0) {
+            smp_mb_acquire();
+            smp_mb_release();
+            return;
+        }
+        cpu_relax();
+    }
+
+    if (atomic_cmpxchg(&mutex->locked, waiters, waiters + 1) != waiters) {
+        goto retry_fast_path;
+    }
+
+    qemu_co_mutex_lock_slowpath(ctx, mutex);
+    qemu_co_mutex_unlock(mutex);
+}
+
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
 {
     Coroutine *self = qemu_coroutine_self();
