@@ -83,6 +83,7 @@ typedef struct CompareState {
     GHashTable *connection_track_table;
     /* compare thread, a thread for each NIC */
     QemuThread thread;
+    QemuSemaphore thread_ready;
 
     GMainContext *worker_context;
     GMainLoop *compare_loop;
@@ -557,6 +558,8 @@ static void *colo_compare_thread(void *opaque)
                           (GSourceFunc)check_old_packet_regular, s, NULL);
     g_source_attach(timeout_source, s->worker_context);
 
+    qemu_sem_post(&s->thread_ready);
+
     g_main_loop_run(s->compare_loop);
 
     g_source_unref(timeout_source);
@@ -707,12 +710,15 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
                                                       connection_key_equal,
                                                       g_free,
                                                       connection_destroy);
+    qemu_sem_init(&s->thread_ready, 0);
 
     sprintf(thread_name, "colo-compare %d", compare_id);
     qemu_thread_create(&s->thread, thread_name,
                        colo_compare_thread, s,
                        QEMU_THREAD_JOINABLE);
     compare_id++;
+    qemu_sem_wait(&s->thread_ready);
+    qemu_sem_destroy(&s->thread_ready);
 
     return;
 }
