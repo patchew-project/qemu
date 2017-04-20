@@ -391,8 +391,10 @@ static void tracked_request_end(BdrvTrackedRequest *req)
         atomic_dec(&req->bs->serialising_in_flight);
     }
 
+    qemu_co_mutex_lock(&req->bs->reqs_lock);
     QLIST_REMOVE(req, list);
     qemu_co_queue_restart_all(&req->wait_queue);
+    qemu_co_mutex_unlock(&req->bs->reqs_lock);
 }
 
 /**
@@ -417,7 +419,9 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
 
     qemu_co_queue_init(&req->wait_queue);
 
+    qemu_co_mutex_lock(&bs->reqs_lock);
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
+    qemu_co_mutex_unlock(&bs->reqs_lock);
 }
 
 static void mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
@@ -539,6 +543,7 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
 
     do {
         retry = false;
+        qemu_co_mutex_lock(&bs->reqs_lock);
         QLIST_FOREACH(req, &bs->tracked_requests, list) {
             if (req == self || (!req->serialising && !self->serialising)) {
                 continue;
@@ -557,7 +562,7 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
                  * (instead of producing a deadlock in the former case). */
                 if (!req->waiting_for) {
                     self->waiting_for = req;
-                    qemu_co_queue_wait(&req->wait_queue, NULL);
+                    qemu_co_queue_wait(&req->wait_queue, &bs->reqs_lock);
                     self->waiting_for = NULL;
                     retry = true;
                     waited = true;
@@ -565,6 +570,7 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
                 }
             }
         }
+        qemu_co_mutex_unlock(&bs->reqs_lock);
     } while (retry);
 
     return waited;
@@ -2315,11 +2321,13 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     current_gen = atomic_read(&bs->write_gen);
 
     /* Wait until any previous flushes are completed */
+    qemu_co_mutex_lock(&bs->reqs_lock);
     while (bs->active_flush_req) {
-        qemu_co_queue_wait(&bs->flush_queue, NULL);
+        qemu_co_queue_wait(&bs->flush_queue, &bs->reqs_lock);
     }
 
     bs->active_flush_req = true;
+    qemu_co_mutex_unlock(&bs->reqs_lock);
 
     /* Write back all layers by calling one driver function */
     if (bs->drv->bdrv_co_flush) {
@@ -2341,10 +2349,14 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
         goto flush_parent;
     }
 
-    /* Check if we really need to flush anything */
+    /* Check if we really need to flush anything
+     * TODO: use int and atomic access */
+    qemu_co_mutex_lock(&bs->reqs_lock);
     if (bs->flushed_gen == current_gen) {
+        qemu_co_mutex_unlock(&bs->reqs_lock);
         goto flush_parent;
     }
+    qemu_co_mutex_unlock(&bs->reqs_lock);
 
     BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_DISK);
     if (bs->drv->bdrv_co_flush_to_disk) {
@@ -2388,12 +2400,14 @@ flush_parent:
     ret = bs->file ? bdrv_co_flush(bs->file->bs) : 0;
 out:
     /* Notify any pending flushes that we have completed */
+    qemu_co_mutex_lock(&bs->reqs_lock);
     if (ret == 0) {
         bs->flushed_gen = current_gen;
     }
     bs->active_flush_req = false;
     /* Return value is ignored - it's ok if wait queue is empty */
     qemu_co_queue_next(&bs->flush_queue);
+    qemu_co_mutex_unlock(&bs->reqs_lock);
 
 early_exit:
     bdrv_dec_in_flight(bs);
