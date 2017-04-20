@@ -2225,6 +2225,13 @@ static int img_convert(int argc, char **argv)
         out_baseimg = out_baseimg_param;
     }
 
+    if (bs_n > 1 && out_baseimg) {
+        error_report("-B makes no sense when concatenating multiple input "
+                     "images");
+        ret = -1;
+        goto out;
+    }
+
     /* Check if compression is supported */
     if (compress) {
         bool encryption =
