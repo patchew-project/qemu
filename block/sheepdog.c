@@ -608,6 +608,7 @@ static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
         qemu_set_nonblock(fd);
     } else {
         fd = -EIO;
+        error_setg(errp, "Failed to connect to sheepdog server");
     }
 
     return fd;
