@@ -35,6 +35,7 @@ static const int qtest_latency_ns = NANOSECONDS_PER_SECOND / 1000;
 void block_acct_init(BlockAcctStats *stats, bool account_invalid,
                      bool account_failed)
 {
+    qemu_spin_init(&stats->spin);
     stats->account_invalid = account_invalid;
     stats->account_failed = account_failed;
 
@@ -58,12 +59,15 @@ void block_acct_add_interval(BlockAcctStats *stats, unsigned interval_length)
 
     s = g_new0(BlockAcctTimedStats, 1);
     s->interval_length = interval_length;
+    s->stats = stats;
+    qemu_spin_lock(&stats->spin);
     QSLIST_INSERT_HEAD(&stats->intervals, s, entries);
 
     for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
         timed_average_init(&s->latency[i], clock_type,
                            (uint64_t) interval_length * NANOSECONDS_PER_SECOND);
     }
+    qemu_spin_unlock(&stats->spin);
 }
 
 BlockAcctTimedStats *block_acct_interval_next(BlockAcctStats *stats,
@@ -98,6 +102,7 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
+    qemu_spin_lock(&stats->spin);
     stats->nr_bytes[cookie->type] += cookie->bytes;
     stats->nr_ops[cookie->type]++;
     stats->total_time_ns[cookie->type] += latency_ns;
@@ -106,12 +111,14 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
     QSLIST_FOREACH(s, &stats->intervals, entries) {
         timed_average_account(&s->latency[cookie->type], latency_ns);
     }
+    qemu_spin_unlock(&stats->spin);
 }
 
 void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
 {
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
+    qemu_spin_lock(&stats->spin);
     stats->failed_ops[cookie->type]++;
 
     if (stats->account_failed) {
@@ -130,6 +137,7 @@ void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
             timed_average_account(&s->latency[cookie->type], latency_ns);
         }
     }
+    qemu_spin_unlock(&stats->spin);
 }
 
 void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
@@ -141,18 +149,23 @@ void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
      * invalid requests are accounted during their submission,
      * therefore there's no actual I/O involved. */
 
+    qemu_spin_lock(&stats->spin);
     stats->invalid_ops[type]++;
 
     if (stats->account_invalid) {
         stats->last_access_time_ns = qemu_clock_get_ns(clock_type);
     }
+    qemu_spin_unlock(&stats->spin);
 }
 
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
                       int num_requests)
 {
     assert(type < BLOCK_MAX_IOTYPE);
+
+    qemu_spin_lock(&stats->spin);
     stats->merged[type] += num_requests;
+    qemu_spin_unlock(&stats->spin);
 }
 
 int64_t block_acct_idle_time_ns(BlockAcctStats *stats)
@@ -167,7 +180,9 @@ double block_acct_queue_depth(BlockAcctTimedStats *stats,
 
     assert(type < BLOCK_MAX_IOTYPE);
 
+    qemu_spin_lock(&stats->stats->spin);
     sum = timed_average_sum(&stats->latency[type], &elapsed);
+    qemu_spin_unlock(&stats->stats->spin);
 
     return (double) sum / elapsed;
 }
