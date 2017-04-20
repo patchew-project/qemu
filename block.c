@@ -2372,7 +2372,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
             goto fail;
         }
         if (file_bs != NULL) {
-            file = blk_new(BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+            file = blk_new(flags & BDRV_O_UNSAFE_READ ?
+                               0 : BLK_PERM_CONSISTENT_READ,
+                           BLK_PERM_ALL);
             blk_insert_bs(file, file_bs, &local_err);
             bdrv_unref(file_bs);
             if (local_err) {
