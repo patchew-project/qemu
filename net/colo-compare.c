@@ -79,6 +79,8 @@ typedef struct CompareState {
      * element type: Connection
      */
     GQueue conn_list;
+    /* compare lock */
+    QemuMutex compare_lock;
     /* hashtable to save connection */
     GHashTable *connection_track_table;
     /* compare thread, a thread for each NIC */
@@ -619,7 +621,9 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
         compare_chr_send(&s->chr_out, pri_rs->buf, pri_rs->packet_len);
     } else {
         /* compare connection */
+        qemu_mutex_lock(&s->compare_lock);
         g_queue_foreach(&s->conn_list, colo_compare_connection, s);
+        qemu_mutex_unlock(&s->compare_lock);
     }
 }
 
@@ -631,7 +635,9 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
         trace_colo_compare_main("secondary: unsupported packet in");
     } else {
         /* compare connection */
+        qemu_mutex_lock(&s->compare_lock);
         g_queue_foreach(&s->conn_list, colo_compare_connection, s);
+        qemu_mutex_unlock(&s->compare_lock);
     }
 }
 
@@ -702,6 +708,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
 
     g_queue_init(&s->conn_list);
+    qemu_mutex_init(&s->compare_lock);
 
     s->connection_track_table = g_hash_table_new_full(connection_key_hash,
                                                       connection_key_equal,
@@ -771,6 +778,7 @@ static void colo_compare_finalize(Object *obj)
     g_queue_foreach(&s->conn_list, colo_flush_packets, s);
 
     g_queue_clear(&s->conn_list);
+    qemu_mutex_destroy(&s->compare_lock);
 
     g_hash_table_destroy(s->connection_track_table);
     g_free(s->pri_indev);
