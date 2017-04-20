@@ -770,7 +770,9 @@ static void colo_compare_finalize(Object *obj)
                              s->worker_context, true);
     qemu_chr_fe_deinit(&s->chr_out);
 
-    g_main_loop_quit(s->compare_loop);
+    if (s->compare_loop) {
+        g_main_loop_quit(s->compare_loop);
+    }
     qemu_thread_join(&s->thread);
 
     /* Release all unhandled packets after compare thead exited */
