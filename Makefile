@@ -503,7 +503,10 @@ clean:
 
 VERSION ?= $(shell cat VERSION)
 
-dist: qemu-$(VERSION).tar.bz2
+dist: qemu-$(VERSION).tar.bz2 qemu-bundled-$(VERSION).tar.bz2
+
+qemu-bundled-%.tar.bz2:
+	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-bundled-%.tar.bz2,%,$@)" --bundled
 
 qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"

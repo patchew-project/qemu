@@ -12,14 +12,42 @@
 
 src="$1"
 version="$2"
+shift
+shift
+bundled=no
+
+for opt do
+  case "$opt" in
+      --bundled)
+	  bundled=yes
+	  ;;
+      *)
+	  echo "Unknown arg '$opt'"
+	  exit 1
+  esac
+done
+
 destination=qemu-${version}
+if test "$bundled" = "yes"
+then
+    archive=qemu-bundled-${version}.tar.bz2
+else
+    archive=qemu-${version}.tar.bz2
+fi
 
 git clone "${src}" ${destination}
 pushd ${destination}
 git checkout "v${version}"
-git submodule update --init
-(cd roms/seabios && git describe --tags --long --dirty > .version)
-rm -rf .git roms/*/.git dtc/.git pixman/.git
+if test "$bundled" = "yes"
+then
+    git submodule update --init
+    (cd roms/seabios && git describe --tags --long --dirty > .version)
+    rm -rf .git roms/*/.git dtc/.git pixman/.git
+else
+    rm -rf .git roms dtc pixman
+    rm -f pc-bios/*.{rom,bin} pc-bios/{openbios*,u-boot.s500}
+fi
+
 popd
-tar cfj ${destination}.tar.bz2 ${destination}
+tar cfj ${archive} ${destination}
 rm -rf ${destination}
