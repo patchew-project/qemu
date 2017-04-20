@@ -562,7 +562,9 @@ static void *colo_compare_thread(void *opaque)
 
     g_main_loop_run(s->compare_loop);
 
+    g_source_destroy(timeout_source);
     g_source_unref(timeout_source);
+
     g_main_loop_unref(s->compare_loop);
     g_main_context_unref(s->worker_context);
     return NULL;
