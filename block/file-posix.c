@@ -394,6 +394,11 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
         },
+        {
+            .name = "locking",
+            .type = QEMU_OPT_BOOL,
+            .help = "lock the file",
+        },
         { /* end of list */ }
     },
 };
