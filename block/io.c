@@ -387,14 +387,29 @@ void bdrv_drain_all(void)
  */
 static void tracked_request_end(BdrvTrackedRequest *req)
 {
+    BlockDriverState *bs = req->bs;
+
     if (req->serialising) {
-        atomic_dec(&req->bs->serialising_in_flight);
+        atomic_dec(&bs->serialising_in_flight);
     }
 
-    qemu_co_mutex_lock(&req->bs->reqs_lock);
+    /* Note that there can be a concurrent visit while we remove the list,
+     * so we need to...
+     */
+    qemu_spin_lock(&bs->reqs_list_write_lock);
     QLIST_REMOVE(req, list);
+    qemu_spin_unlock(&bs->reqs_list_write_lock);
+
+    /* ... wait for it to end before we leave.  qemu_co_mutex_lock_unlock
+     * avoids cacheline bouncing in the common case of no concurrent
+     * reader.
+     */
+    qemu_co_mutex_lock_unlock(&bs->reqs_lock);
+
+    /* Now no coroutine can add itself to the wait queue, so it is
+     * safe to call qemu_co_queue_restart_all outside the reqs_lock.
+     */
     qemu_co_queue_restart_all(&req->wait_queue);
-    qemu_co_mutex_unlock(&req->bs->reqs_lock);
 }
 
 /**
@@ -419,9 +434,9 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
 
     qemu_co_queue_init(&req->wait_queue);
 
-    qemu_co_mutex_lock(&bs->reqs_lock);
+    qemu_spin_lock(&bs->reqs_list_write_lock);
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
-    qemu_co_mutex_unlock(&bs->reqs_lock);
+    qemu_spin_unlock(&bs->reqs_list_write_lock);
 }
 
 static void mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
