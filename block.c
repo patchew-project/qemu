@@ -1722,9 +1722,15 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
         }
 
         /* bs->file always needs to be consistent because of the metadata. We
-         * can never allow other users to resize or write to it. */
-        perm |= BLK_PERM_CONSISTENT_READ;
-        shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
+         * cannot allow other users to resize or write to it unless the caller
+         * explicitly expects unsafe readings. */
+        if (!(bdrv_get_flags(bs) & BDRV_O_UNSAFE_READ)) {
+            perm |= BLK_PERM_CONSISTENT_READ;
+            shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
+        } else {
+            perm &= ~BLK_PERM_CONSISTENT_READ;
+            shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+        }
     } else {
         /* We want consistent read from backing files if the parent needs it.
          * No other operations are performed on backing files. */
