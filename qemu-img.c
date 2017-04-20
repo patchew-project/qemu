@@ -1675,13 +1675,20 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
              * write if the buffer is completely zeroed and we're allowed to
              * keep the target sparse. */
             if (s->compressed) {
-                if (s->has_zero_init && s->min_sparse &&
-                    buffer_is_zero(buf, n * BDRV_SECTOR_SIZE))
-                {
-                    assert(!s->target_has_backing);
-                    break;
+                if (buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)) {
+                    if (s->has_zero_init && s->min_sparse) {
+                        assert(!s->target_has_backing);
+                        break;
+                    } else {
+                        ret = blk_co_pwrite_zeroes(s->target,
+                                           sector_num << BDRV_SECTOR_BITS,
+                                           n << BDRV_SECTOR_BITS, 0);
+                        if (ret < 0) {
+                            return ret;
+                        }
+                        break;
+                    }
                 }
-
                 iov.iov_base = buf;
                 iov.iov_len = n << BDRV_SECTOR_BITS;
                 qemu_iovec_init_external(&qiov, &iov, 1);
