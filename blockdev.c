@@ -3223,6 +3223,9 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
         }
     }
     if (backup->sync == MIRROR_SYNC_MODE_NONE) {
+        /* FIXME: block layer should really open target with BDRV_O_NO_BACKING
+         * and reuse source's backing chain, if they share one. */
+        flags |= BDRV_O_UNSAFE_READ;
         source = bs;
     }
 
