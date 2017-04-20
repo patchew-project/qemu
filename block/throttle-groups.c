@@ -268,8 +268,13 @@ static bool throttle_group_schedule_timer(BlockBackend *blk, bool is_write)
 static bool throttle_group_co_restart_queue(BlockBackend *blk, bool is_write)
 {
     BlockBackendPublic *blkp = blk_get_public(blk);
+    bool ret;
 
-    return qemu_co_queue_next(&blkp->throttled_reqs[is_write]);
+    qemu_co_mutex_lock(&blkp->reqs_lock);
+    ret = qemu_co_queue_next(&blkp->throttled_reqs[is_write]);
+    qemu_co_mutex_unlock(&blkp->reqs_lock);
+
+    return ret;
 }
 
 /* Look for the next pending I/O request and schedule it.
@@ -338,7 +343,9 @@ void coroutine_fn throttle_group_co_io_limits_intercept(BlockBackend *blk,
     if (must_wait || blkp->pending_reqs[is_write]) {
         blkp->pending_reqs[is_write]++;
         qemu_mutex_unlock(&tg->lock);
-        qemu_co_queue_wait(&blkp->throttled_reqs[is_write], NULL);
+        qemu_co_mutex_lock(&blkp->reqs_lock);
+        qemu_co_queue_wait(&blkp->throttled_reqs[is_write], &blkp->reqs_lock);
+        qemu_co_mutex_unlock(&blkp->reqs_lock);
         qemu_mutex_lock(&tg->lock);
         blkp->pending_reqs[is_write]--;
     }
