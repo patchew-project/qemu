@@ -2108,14 +2108,6 @@ static int img_convert(int argc, char **argv)
         error_exit("Must specify image file name");
     }
 
-
-    if (bs_n > 1 && out_baseimg) {
-        error_report("-B makes no sense when concatenating multiple input "
-                     "images");
-        ret = -1;
-        goto out;
-    }
-
     src_flags = 0;
     ret = bdrv_parse_cache_mode(src_cache, &src_flags, &src_writethrough);
     if (ret < 0) {
@@ -2223,6 +2215,13 @@ static int img_convert(int argc, char **argv)
     out_baseimg_param = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
     if (out_baseimg_param) {
         out_baseimg = out_baseimg_param;
+    }
+
+    if (bs_n > 1 && out_baseimg) {
+        error_report("Specifying backing image makes no sense when "
+                     "concatenating multiple input images");
+        ret = -1;
+        goto out;
     }
 
     /* Check if compression is supported */
