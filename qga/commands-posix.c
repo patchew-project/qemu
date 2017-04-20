@@ -1638,6 +1638,65 @@ guest_find_interface(GuestNetworkInterfaceList *head,
     return head;
 }
 
+ static int guest_get_network_stats(const char *path,
+                       GuestNetworkInterfaceStat *stats)
+{
+    int path_len;
+    char const *devinfo = "/proc/net/dev";
+    FILE *fp;
+    char *line = NULL, *colon;
+    size_t n;
+    fp = fopen(devinfo, "r");
+    if (!fp) {
+        return -1;
+    }
+    path_len = strlen(path);
+    while (getline(&line, &n, fp) != -1) {
+        int64_t dummy;
+        int64_t rx_bytes;
+        int64_t rx_packets;
+        int64_t rx_errs;
+        int64_t rx_drop;
+        int64_t tx_bytes;
+        int64_t tx_packets;
+        int64_t tx_errs;
+        int64_t tx_drop;
+
+  /* The line looks like:
+   *"   eth0:..."
+   *Split it at the colon.
+   */
+        colon = strchr(line, ':');
+        if (!colon) {
+            continue;
+        }
+        *colon = '\0';
+        if (colon - path_len >= line && strcmp(colon - path_len, path) == 0) {
+            if (sscanf(colon + 1,
+                "%lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld",
+                  &rx_bytes, &rx_packets, &rx_errs, &rx_drop,
+                  &dummy, &dummy, &dummy, &dummy,
+                  &tx_bytes, &tx_packets, &tx_errs, &tx_drop,
+                  &dummy, &dummy, &dummy, &dummy) != 16) {
+                continue;
+            }
+            stats->rx_bytes = rx_bytes;
+            stats->rx_packets = rx_packets;
+            stats->rx_errs = rx_errs;
+            stats->rx_drop = rx_drop;
+            stats->tx_bytes = tx_bytes;
+            stats->tx_packets = tx_packets;
+            stats->tx_errs = tx_errs;
+            stats->tx_drop = tx_drop;
+            fclose(fp);
+            return 0;
+        }
+    }
+    fclose(fp);
+    g_debug("/proc/net/dev: Interface not found");
+    return -1;
+}
+
 /*
  * Build information about guest interfaces
  */
@@ -1654,6 +1713,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
         GuestNetworkInterfaceList *info;
         GuestIpAddressList **address_list = NULL, *address_item = NULL;
+        GuestNetworkInterfaceStatList  *interface_stat_item = NULL;
         char addr4[INET_ADDRSTRLEN];
         char addr6[INET6_ADDRSTRLEN];
         int sock;
@@ -1770,9 +1830,20 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
         } else {
             (*address_list)->next = address_item;
         }
-
         info->value->has_ip_addresses = true;
 
+        if (!info->value->has_interface_statics) {
+            interface_stat_item = g_malloc0(sizeof(*interface_stat_item));
+            interface_stat_item->value = g_malloc0(
+               sizeof(*interface_stat_item->value));
+            if (guest_get_network_stats(info->value->name,
+                interface_stat_item->value) == -1) {
+                error_setg_errno(errp, errno, "guest_get_network_stats failed");
+                goto error;
+            }
+            info->value->interface_statics = interface_stat_item;
+        }
+        info->value->has_interface_statics = true;
 
     }
 

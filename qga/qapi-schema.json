@@ -635,6 +635,31 @@
            'prefix': 'int'} }
 
 ##
+# @GuestNetworkInterfaceStat:
+#
+# @rx-bytes: received bytes of interface
+# @rx-packets: received packets of interface
+# @rx-errs: received error packets of interface
+# @rx-drop: received drop packets of interface
+#
+# @tx-bytes: send bytes of interface
+# @tx-packets: send packets of interface
+# @tx-errs: send error packets of interface
+# @tx-drop: send drop packets of interface
+# Since: 2.10
+##
+{ 'struct': 'GuestNetworkInterfaceStat',
+  'data': {'rx-bytes': 'uint64',
+            'rx-packets': 'uint64',
+            'rx-errs': 'uint64',
+            'rx-drop': 'uint64',
+            'tx-bytes': 'uint64',
+            'tx-packets': 'uint64',
+            'tx-errs': 'uint64',
+            'tx-drop': 'uint64'
+           } }
+
+##
 # @GuestNetworkInterface:
 #
 # @name: The name of interface for which info are being delivered
@@ -648,7 +673,8 @@
 { 'struct': 'GuestNetworkInterface',
   'data': {'name': 'str',
            '*hardware-address': 'str',
-           '*ip-addresses': ['GuestIpAddress'] } }
+           '*ip-addresses': ['GuestIpAddress'],
+           '*interface-statics': ['GuestNetworkInterfaceStat'] } }
 
 ##
 # @guest-network-get-interfaces:
