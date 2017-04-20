@@ -33,6 +33,7 @@
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
+#include "hw/virtio/virtio-net.h"
 
 typedef struct NetSocketState {
     NetClientState nc;
@@ -81,11 +82,16 @@ static void net_socket_writable(void *opaque)
 static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
+    VirtIONet *n = qemu_get_nic_opaque(nc->peer);
     uint32_t len = htonl(size);
+    uint32_t vnet_hdr_len = htonl(n->guest_hdr_len);
     struct iovec iov[] = {
         {
             .iov_base = &len,
             .iov_len  = sizeof(len),
+        }, {
+            .iov_base = &vnet_hdr_len,
+            .iov_len  = sizeof(vnet_hdr_len),
         }, {
             .iov_base = (void *)buf,
             .iov_len  = size,
