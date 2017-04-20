@@ -260,6 +260,18 @@ static bool throttle_group_schedule_timer(BlockBackend *blk, bool is_write)
     return must_wait;
 }
 
+/* Start the next pending I/O request for a BlockBackend.
+ *
+ * @blk:       the current BlockBackend
+ * @is_write:  the type of operation (read/write)
+ */
+static bool throttle_group_co_restart_queue(BlockBackend *blk, bool is_write)
+{
+    BlockBackendPublic *blkp = blk_get_public(blk);
+
+    return qemu_co_queue_next(&blkp->throttled_reqs[is_write]);
+}
+
 /* Look for the next pending I/O request and schedule it.
  *
  * This assumes that tg->lock is held.
@@ -287,7 +299,7 @@ static void schedule_next_request(BlockBackend *blk, bool is_write)
     if (!must_wait) {
         /* Give preference to requests from the current blk */
         if (qemu_in_coroutine() &&
-            qemu_co_queue_next(&blkp->throttled_reqs[is_write])) {
+            throttle_group_co_restart_queue(blk, is_write)) {
             token = blk;
         } else {
             ThrottleTimers *tt = &blk_get_public(token)->throttle_timers;
@@ -340,16 +352,55 @@ void coroutine_fn throttle_group_co_io_limits_intercept(BlockBackend *blk,
     qemu_mutex_unlock(&tg->lock);
 }
 
-void throttle_group_restart_blk(BlockBackend *blk)
+typedef struct {
+    BlockBackend *blk;
+    bool is_write;
+    int ret;
+} RestartData;
+
+static void throttle_group_restart_queue_entry(void *opaque)
 {
-    BlockBackendPublic *blkp = blk_get_public(blk);
+    RestartData *data = opaque;
+
+    data->ret = throttle_group_co_restart_queue(data->blk, data->is_write);
+}
+
+static int throttle_group_restart_queue(BlockBackend *blk, bool is_write)
+{
+    Coroutine *co;
+    RestartData rd = {
+        .blk = blk,
+        .is_write = is_write
+    };
+
+    aio_context_acquire(blk_get_aio_context(blk));
+    co = qemu_coroutine_create(throttle_group_restart_queue_entry, &rd);
+    /* The request doesn't start until after throttle_group_restart_queue_entry
+     * returns, so the coroutine cannot yield.
+     */
+    qemu_coroutine_enter(co);
+    aio_context_release(blk_get_aio_context(blk));
+    return rd.ret;
+}
+
+static void throttle_group_restart_blk_entry(void *opaque)
+{
+    BlockBackend *blk = opaque;
     int i;
 
     for (i = 0; i < 2; i++) {
-        while (qemu_co_enter_next(&blkp->throttled_reqs[i])) {
+        while (throttle_group_co_restart_queue(blk, i)) {
             ;
         }
     }
+}
+
+void throttle_group_restart_blk(BlockBackend *blk)
+{
+    Coroutine *co;
+
+    co = qemu_coroutine_create(throttle_group_restart_blk_entry, blk);
+    qemu_coroutine_enter(co);
 }
 
 /* Update the throttle configuration for a particular group. Similar
@@ -376,8 +427,8 @@ void throttle_group_config(BlockBackend *blk, ThrottleConfig *cfg)
     throttle_config(ts, tt, cfg);
     qemu_mutex_unlock(&tg->lock);
 
-    qemu_co_enter_next(&blkp->throttled_reqs[0]);
-    qemu_co_enter_next(&blkp->throttled_reqs[1]);
+    throttle_group_restart_queue(blk, 0);
+    throttle_group_restart_queue(blk, 1);
 }
 
 /* Get the throttle configuration from a particular group. Similar to
@@ -417,7 +468,7 @@ static void timer_cb(BlockBackend *blk, bool is_write)
 
     /* Run the request that was waiting for this timer */
     aio_context_acquire(blk_get_aio_context(blk));
-    empty_queue = !qemu_co_enter_next(&blkp->throttled_reqs[is_write]);
+    empty_queue = !throttle_group_restart_queue(blk, is_write);
     aio_context_release(blk_get_aio_context(blk));
 
     /* If the request queue was empty then we have to take care of
