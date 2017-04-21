@@ -1259,6 +1259,7 @@ static inline int get_depth_index(DisplaySurface *surface)
 static void sm501_draw_crt(SM501State * s)
 {
     DisplaySurface *surface = qemu_console_surface(s->con);
+    DirtyBitmapSnapshot *snap;
     int y;
     int width = (s->dc_crt_h_total & 0x00000FFF) + 1;
     int height = (s->dc_crt_v_total & 0x00000FFF) + 1;
@@ -1274,8 +1275,6 @@ static void sm501_draw_crt(SM501State * s)
     draw_hwc_line_func * draw_hwc_line = NULL;
     int full_update = 0;
     int y_start = -1;
-    ram_addr_t page_min = ~0l;
-    ram_addr_t page_max = 0l;
     ram_addr_t offset = 0;
 
     /* choose draw_line function */
@@ -1326,15 +1325,15 @@ static void sm501_draw_crt(SM501State * s)
 
     /* draw each line according to conditions */
     memory_region_sync_dirty_bitmap(&s->local_mem_region);
+    snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
+              offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
     for (y = 0; y < height; y++) {
 	int update_hwc = draw_hwc_line ? within_hwc_y_range(s, y, 1) : 0;
 	int update = full_update || update_hwc;
-        ram_addr_t page0 = offset;
-        ram_addr_t page1 = offset + width * src_bpp - 1;
 
 	/* check dirty flags for each line */
-        update = memory_region_get_dirty(&s->local_mem_region, page0,
-                                         page1 - page0, DIRTY_MEMORY_VGA);
+        update = memory_region_snapshot_get_dirty(&s->local_mem_region, snap,
+                                                  offset, width * src_bpp);
 
 	/* draw line and change status */
 	if (update) {
@@ -1351,10 +1350,6 @@ static void sm501_draw_crt(SM501State * s)
 
 	    if (y_start < 0)
 		y_start = y;
-	    if (page0 < page_min)
-		page_min = page0;
-	    if (page1 > page_max)
-		page_max = page1;
 	} else {
 	    if (y_start >= 0) {
 		/* flush to display */
@@ -1366,17 +1361,11 @@ static void sm501_draw_crt(SM501State * s)
 	src += width * src_bpp;
 	offset += width * src_bpp;
     }
+    g_free(snap);
 
     /* complete flush to display */
     if (y_start >= 0)
         dpy_gfx_update(s->con, 0, y_start, width, y - y_start);
-
-    /* clear dirty flags */
-    if (page_min != ~0l) {
-	memory_region_reset_dirty(&s->local_mem_region,
-                                  page_min, page_max + TARGET_PAGE_SIZE,
-                                  DIRTY_MEMORY_VGA);
-    }
 }
 
 static void sm501_update_display(void *opaque)
