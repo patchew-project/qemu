@@ -1818,7 +1818,7 @@ F: tests/image-fuzzer/
 
 Replication
 M: Wen Congyang <wency@cn.fujitsu.com>
-M: Changlong Xie <xiecl.fnst@cn.fujitsu.com>
+M: Xie Changlong <xiechanglong.d@gmail.com>
 S: Supported
 F: replication*
 F: block/replication.c
