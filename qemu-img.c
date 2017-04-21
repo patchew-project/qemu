@@ -145,9 +145,10 @@ static void QEMU_NORETURN help(void)
            "  'snapshot_id_or_name' is deprecated, use 'snapshot_param'\n"
            "    instead\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
-           "  '-u' enables unsafe rebasing. It is assumed that old and new backing file\n"
-           "       match exactly. The image doesn't need a working backing file before\n"
-           "       rebasing in this case (useful for renaming the backing file)\n"
+           "  '-u' enables unsafe rebasing or amending. It is assumed that old and new\n"
+           "       backing file match exactly. For rebasing, the image doesn't need a working\n"
+           "       backing file before rebasing in this case(useful for renaming the backing file).\n"
+           "       For amending, it doesn't open backing file(useful for moving images)\n"
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "  '-p' show progress of command (only certain commands)\n"
            "  '-q' use Quiet mode - do not print any output (except errors)\n"
@@ -3538,7 +3539,7 @@ static int img_amend(int argc, char **argv)
     QemuOptsList *create_opts = NULL;
     QemuOpts *opts = NULL;
     const char *fmt = NULL, *filename, *cache;
-    int flags;
+    int flags = 0;
     bool writethrough;
     bool quiet = false, progress = false;
     BlockBackend *blk = NULL;
@@ -3553,7 +3554,7 @@ static int img_amend(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":ho:f:t:pq",
+        c = getopt_long(argc, argv, ":ho:f:t:pqu",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -3594,6 +3595,9 @@ static int img_amend(int argc, char **argv)
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'u':
+            flags |= BDRV_O_NO_BACKING;
             break;
         case OPTION_OBJECT:
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
@@ -3639,7 +3643,7 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    flags = BDRV_O_RDWR;
+    flags |= BDRV_O_RDWR;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
