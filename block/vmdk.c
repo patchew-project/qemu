@@ -1486,25 +1486,16 @@ static int vmdk_alloc_clusters(BlockDriverState *bs,
  * For flat extents, the start offset as parsed from the description file is
  * returned.
  *
- * For sparse extents, look up in L1, L2 table. If allocate is true, return an
- * offset for a new cluster and update L2 cache. If there is a backing file,
- * COW is done before returning; otherwise, zeroes are written to the allocated
- * cluster. Both COW and zero writing skips the sector range
- * [@skip_start_sector, @skip_end_sector) passed in by caller, because caller
- * has new data to write there.
+ * For sparse extents, look up the L1, L2 table.
  *
  * Returns: VMDK_OK if cluster exists and mapped in the image.
- *          VMDK_UNALLOC if cluster is not mapped and @allocate is false.
- *          VMDK_ERROR if failed.
+ *          VMDK_UNALLOC if cluster is not mapped.
+ *          VMDK_ERROR if failed
  */
 static int vmdk_get_cluster_offset(BlockDriverState *bs,
                                    VmdkExtent *extent,
-                                   VmdkMetaData *m_data,
                                    uint64_t offset,
-                                   bool allocate,
-                                   uint64_t *cluster_offset,
-                                   uint64_t skip_start_bytes,
-                                   uint64_t skip_end_bytes)
+                                   uint64_t *cluster_offset)
 {
     int l1_index, l2_offset, l2_index;
     uint32_t *l2_table;
@@ -1529,31 +1520,9 @@ static int vmdk_get_cluster_offset(BlockDriverState *bs,
     }
 
     if (!cluster_sector || zeroed) {
-        if (!allocate) {
-            return zeroed ? VMDK_ZEROED : VMDK_UNALLOC;
-        }
-
-        cluster_sector = extent->next_cluster_sector;
-        extent->next_cluster_sector += extent->cluster_sectors;
-
-        /* First of all we write grain itself, to avoid race condition
-         * that may to corrupt the image.
-         * This problem may occur because of insufficient space on host disk
-         * or inappropriate VM shutdown.
-         */
-        ret = vmdk_perform_cow(bs, extent, cluster_sector * BDRV_SECTOR_SIZE,
-                                offset, skip_start_bytes, skip_end_bytes);
-        if (ret) {
-            return ret;
-        }
-        if (m_data) {
-            m_data->valid = 1;
-            m_data->l1_index = l1_index;
-            m_data->l2_index = l2_index;
-            m_data->l2_offset = l2_offset;
-            m_data->l2_cache_entry = &l2_table[l2_index];
-        }
+        return zeroed ? VMDK_ZEROED : VMDK_UNALLOC;
     }
+
     *cluster_offset = cluster_sector << BDRV_SECTOR_BITS;
     return VMDK_OK;
 }
@@ -1596,9 +1565,7 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
         return 0;
     }
     qemu_co_mutex_lock(&s->lock);
-    ret = vmdk_get_cluster_offset(bs, extent, NULL,
-                                  sector_num * 512, false, &offset,
-                                  0, 0);
+    ret = vmdk_get_cluster_offset(bs, extent, sector_num * 512, &offset);
     qemu_co_mutex_unlock(&s->lock);
 
     index_in_cluster = vmdk_find_index_in_cluster(extent, sector_num);
@@ -1789,12 +1756,13 @@ vmdk_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
             ret = -EIO;
             goto fail;
         }
-        ret = vmdk_get_cluster_offset(bs, extent, NULL,
-                                      offset, false, &cluster_offset, 0, 0);
+
         offset_in_cluster = vmdk_find_offset_in_cluster(extent, offset);
 
         n_bytes = MIN(bytes, extent->cluster_sectors * BDRV_SECTOR_SIZE
                              - offset_in_cluster);
+
+        ret = vmdk_get_cluster_offset(bs, extent, offset, &cluster_offset);
 
         if (ret != VMDK_OK) {
             /* if not allocated, try to read from parent image, if exist */
@@ -2535,9 +2503,9 @@ static int vmdk_check(BlockDriverState *bs, BdrvCheckResult *result,
                     sector_num);
             break;
         }
-        ret = vmdk_get_cluster_offset(bs, extent, NULL,
+        ret = vmdk_get_cluster_offset(bs, extent,
                                       sector_num << BDRV_SECTOR_BITS,
-                                      false, &cluster_offset, 0, 0);
+                                      &cluster_offset);
         if (ret == VMDK_ERROR) {
             fprintf(stderr,
                     "ERROR: could not get cluster_offset for sector %"
