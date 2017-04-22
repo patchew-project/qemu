@@ -164,4 +164,12 @@ int qcrypto_hmac_digest(QCryptoHmac *hmac,
                         char **digest,
                         Error **errp);
 
+/**
+ * qcrypto_cipher_using_afalg_drv:
+ * @hmac: the hmac object
+ *
+ * Returns: True if @hmac using afalg driver, otherwise false.
+ */
+bool qcrypto_hmac_using_afalg_drv(QCryptoHmac *hmac);
+
 #endif

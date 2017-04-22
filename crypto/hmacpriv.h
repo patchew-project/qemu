@@ -15,6 +15,8 @@
 #ifndef QCRYPTO_HMACPRIV_H
 #define QCRYPTO_HMACPRIV_H
 
+#include "afalgpriv.h"
+
 typedef struct QCryptoHmacDriver QCryptoHmacDriver;
 
 struct QCryptoHmacDriver {
@@ -32,5 +34,12 @@ extern void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
                                   const uint8_t *key, size_t nkey,
                                   Error **errp);
 extern QCryptoHmacDriver qcrypto_hmac_lib_driver;
+
+
+extern QCryptoAFAlg *
+qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                           const uint8_t *key, size_t nkey,
+                           Error **errp);
+extern QCryptoHmacDriver qcrypto_hmac_afalg_driver;
 
 #endif
