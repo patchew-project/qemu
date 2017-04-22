@@ -46,6 +46,17 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
                         size_t *resultlen,
                         Error **errp)
 {
+#ifdef CONFIG_AF_ALG
+    int ret;
+
+    ret = qcrypto_hash_afalg_driver.hash_bytesv(alg, iov, niov,
+                                                result, resultlen,
+                                                errp);
+    if (ret == 0) {
+        return ret;
+    }
+#endif
+
     return qcrypto_hash_lib_driver.hash_bytesv(alg, iov, niov,
                                                result, resultlen,
                                                errp);
