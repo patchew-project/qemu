@@ -281,6 +281,7 @@ opengl=""
 opengl_dmabuf="no"
 avx2_opt="no"
 zlib="yes"
+libav="yes"
 lzo=""
 snappy=""
 bzip2=""
@@ -1987,6 +1988,25 @@ if test "$seccomp" != "no" ; then
         seccomp="no"
     fi
 fi
+#########################################
+# libav check
+
+if test "$libav" != "no" ; then
+    cat > $TMPC << EOF
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+
+int main(void){ av_register_all(); avcodec_register_all(); return 0; }
+EOF
+    if compile_prog "" "-lm -lpthread -lavformat -lavcodec -lavutil -lswscale -lswresample" ; then
+        :
+    else
+        error_exit "libav check failed" \
+            "Make sure to have the libav libs and headers installed."
+    fi
+fi
+LIBS="$LIBS -lm -lpthread -lavformat -lavcodec -lavutil -lswscale -lswresample"
+
 ##########################################
 # xen probe
 

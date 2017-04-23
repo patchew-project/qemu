@@ -1777,3 +1777,37 @@ ETEXI
 STEXI
 @end table
 ETEXI
+
+    {
+        .name       = "capture_start",
+        .args_type  = "filename:F,fps:i?",
+        .params     = "filename [framerate]",
+        .help       = "Start video capture",
+        .cmd        = hmp_capture_start,
+    },
+
+STEXI
+@item capture_start @var{filename} [@var{framerate}]
+@findex capture_start
+Start video capture.
+Capture video into @var{filename} with framerate @var{framerate}.
+
+Defaults:
+@itemize @minus
+@item framerate = 60
+@end itemize
+ETEXI
+
+    {
+        .name       = "capture_stop",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Stop video capture",
+        .cmd        = hmp_capture_stop,
+    },
+
+STEXI
+@item capture_stop
+@findex capture_stop
+Stop video capture.
+ETEXI
