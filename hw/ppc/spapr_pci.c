@@ -1922,11 +1922,33 @@ static void spapr_pci_pre_save(void *opaque)
     }
 }
 
+/*
+ * detach_cb in the DRC state is a function pointer that cannot be
+ * migrated. We set it right after migration so that a migrated
+ * hot-unplug event could finish its work.
+ */
+static void spapr_pci_set_detach_cb(PCIBus *bus, PCIDevice *pdev,
+                                 void *opaque)
+{
+    sPAPRPHBState *sphb = opaque;
+    sPAPRDRConnector *drc = spapr_phb_get_pci_drc(sphb, pdev);
+    drc->detach_cb = spapr_phb_remove_pci_device_cb;
+}
+
 static int spapr_pci_post_load(void *opaque, int version_id)
 {
     sPAPRPHBState *sphb = opaque;
     gpointer key, value;
     int i;
+
+    PCIBus *bus = PCI_HOST_BRIDGE(sphb)->bus;
+    unsigned int bus_no = 0;
+
+    /* Set detach_cb for the drc unconditionally after migration */
+    if (bus) {
+        pci_for_each_device(bus, pci_bus_num(bus), spapr_pci_set_detach_cb,
+                            &bus_no);
+    }
 
     for (i = 0; i < sphb->msi_devs_num; ++i) {
         key = g_memdup(&sphb->msi_devs[i].key,
