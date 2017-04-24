@@ -342,7 +342,8 @@ static int rtas_event_log_to_irq(sPAPRMachineState *spapr, int log_type)
     return source->irq;
 }
 
-static void rtas_event_log_queue(int log_type, void *data, bool exception)
+static void rtas_event_log_queue(int log_type, void *data, bool exception,
+                                 int data_size)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry = g_new(sPAPREventLogEntry, 1);
@@ -351,6 +352,7 @@ static void rtas_event_log_queue(int log_type, void *data, bool exception)
     entry->log_type = log_type;
     entry->exception = exception;
     entry->data = data;
+    entry->data_size = data_size;
     QTAILQ_INSERT_TAIL(&spapr->pending_events, entry, next);
 }
 
@@ -445,6 +447,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     struct rtas_event_log_v6_mainb *mainb;
     struct rtas_event_log_v6_epow *epow;
     struct epow_log_full *new_epow;
+    uint32_t data_size;
 
     new_epow = g_malloc0(sizeof(*new_epow));
     hdr = &new_epow->hdr;
@@ -453,14 +456,13 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     mainb = &new_epow->mainb;
     epow = &new_epow->epow;
 
+    data_size = sizeof(*new_epow);
     hdr->summary = cpu_to_be32(RTAS_LOG_VERSION_6
                                | RTAS_LOG_SEVERITY_EVENT
                                | RTAS_LOG_DISPOSITION_NOT_RECOVERED
                                | RTAS_LOG_OPTIONAL_PART_PRESENT
                                | RTAS_LOG_TYPE_EPOW);
-    hdr->extended_length = cpu_to_be32(sizeof(*new_epow)
-                                       - sizeof(new_epow->hdr));
-
+    hdr->extended_length = cpu_to_be32(data_size - sizeof(new_epow->hdr));
     spapr_init_v6hdr(v6hdr);
     spapr_init_maina(maina, 3 /* Main-A, Main-B and EPOW */);
 
@@ -479,7 +481,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     epow->event_modifier = RTAS_LOG_V6_EPOW_MODIFIER_NORMAL;
     epow->extended_modifier = RTAS_LOG_V6_EPOW_XMODIFIER_PARTITION_SPECIFIC;
 
-    rtas_event_log_queue(RTAS_LOG_TYPE_EPOW, new_epow, true);
+    rtas_event_log_queue(RTAS_LOG_TYPE_EPOW, new_epow, true, data_size);
 
     qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
                                  rtas_event_log_to_irq(spapr,
@@ -504,6 +506,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     struct rtas_event_log_v6_maina *maina;
     struct rtas_event_log_v6_mainb *mainb;
     struct rtas_event_log_v6_hp *hp;
+    uint32_t data_size;
 
     new_hp = g_malloc0(sizeof(struct hp_log_full));
     hdr = &new_hp->hdr;
@@ -512,14 +515,14 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     mainb = &new_hp->mainb;
     hp = &new_hp->hp;
 
+    data_size = sizeof(*new_hp);
     hdr->summary = cpu_to_be32(RTAS_LOG_VERSION_6
                                | RTAS_LOG_SEVERITY_EVENT
                                | RTAS_LOG_DISPOSITION_NOT_RECOVERED
                                | RTAS_LOG_OPTIONAL_PART_PRESENT
                                | RTAS_LOG_INITIATOR_HOTPLUG
                                | RTAS_LOG_TYPE_HOTPLUG);
-    hdr->extended_length = cpu_to_be32(sizeof(*new_hp)
-                                       - sizeof(new_hp->hdr));
+    hdr->extended_length = cpu_to_be32(data_size - sizeof(new_hp->hdr));
 
     spapr_init_v6hdr(v6hdr);
     spapr_init_maina(maina, 3 /* Main-A, Main-B, HP */);
@@ -572,7 +575,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
             cpu_to_be32(drc_id->count_indexed.index);
     }
 
-    rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true);
+    rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true, data_size);
 
     qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
                                  rtas_event_log_to_irq(spapr,
@@ -671,8 +674,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     if (!event) {
         goto out_no_events;
     }
-
-    hdr = event->data;
+    hdr = (struct rtas_error_log *)event->data;
     event_len = be32_to_cpu(hdr->extended_length) + sizeof(*hdr);
 
     if (event_len < len) {
@@ -728,7 +730,7 @@ static void event_scan(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         goto out_no_events;
     }
 
-    hdr = event->data;
+    hdr = (struct rtas_error_log *)event->data;
     event_len = be32_to_cpu(hdr->extended_length) + sizeof(*hdr);
 
     if (event_len < len) {
