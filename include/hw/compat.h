@@ -138,6 +138,10 @@
         .driver   = "vmgenid",\
         .property = "x-write-pointer-available",\
         .value    = "off",\
+    },{\
+        .driver   = "vmcoreinfo",\
+        .property = "x-write-pointer-available",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_3 \

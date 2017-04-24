@@ -211,6 +211,7 @@ struct AcpiBuildTables {
     GArray *rsdp;
     GArray *tcpalog;
     GArray *vmgenid;
+    GArray *vmcoreinfo;
     BIOSLinker *linker;
 } AcpiBuildTables;
 
