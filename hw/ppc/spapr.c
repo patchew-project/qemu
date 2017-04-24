@@ -1388,6 +1388,37 @@ static bool version_before_3(void *opaque, int version_id)
     return version_id < 3;
 }
 
+static bool spapr_ccs_list_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+    return !QTAILQ_EMPTY(&spapr->ccs_list);
+}
+
+static const VMStateDescription vmstate_spapr_ccs = {
+    .name = "spaprconfigureconnectorstate",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(drc_index, sPAPRConfigureConnectorState),
+        VMSTATE_INT32(fdt_offset, sPAPRConfigureConnectorState),
+        VMSTATE_INT32(fdt_depth, sPAPRConfigureConnectorState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_ccs_list = {
+    .name = "spaprccslist",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_ccs_list_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_QTAILQ_V(ccs_list, sPAPRMachineState, 1,
+                         vmstate_spapr_ccs, sPAPRConfigureConnectorState,
+                         next),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static bool spapr_ov5_cas_needed(void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
@@ -1486,6 +1517,7 @@ static const VMStateDescription vmstate_spapr = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
+        &vmstate_spapr_ccs_list,
         NULL
     }
 };
