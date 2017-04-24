@@ -606,6 +606,9 @@ int register_savevm_live(DeviceState *dev,
                          calculate_compat_instance_id(idstr) : instance_id;
             instance_id = -1;
         }
+        if (DEVICE_GET_CLASS(dev)->dev_get_instance_id) {
+            instance_id = DEVICE_GET_CLASS(dev)->dev_get_instance_id(dev);
+        }
     }
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
@@ -695,6 +698,9 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
             se->compat->instance_id = instance_id == -1 ?
                          calculate_compat_instance_id(vmsd->name) : instance_id;
             instance_id = -1;
+        }
+        if (DEVICE_GET_CLASS(dev)->dev_get_instance_id) {
+            instance_id = DEVICE_GET_CLASS(dev)->dev_get_instance_id(dev);
         }
     }
     pstrcat(se->idstr, sizeof(se->idstr), vmsd->name);

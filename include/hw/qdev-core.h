@@ -127,6 +127,12 @@ typedef struct DeviceClass {
     qdev_initfn init; /* TODO remove, once users are converted to realize */
     qdev_event exit; /* TODO remove, once users are converted to unrealize */
     const char *bus_type;
+
+    /* When this field is set, qemu will use it to get an unique instance_id
+     * instead of calculating an auto idstr and instance_id for the relevant
+     * SaveStateEntry
+     */
+    int (*dev_get_instance_id)(DeviceState *dev);
 } DeviceClass;
 
 typedef struct NamedGPIOList NamedGPIOList;
