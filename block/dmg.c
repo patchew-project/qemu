@@ -37,8 +37,8 @@ enum {
     /* Limit chunk sizes to prevent unreasonable amounts of memory being used
      * or truncating when converting to 32-bit types
      */
-    DMG_LENGTHS_MAX = 64 * 1024 * 1024, /* 64 MB */
-    DMG_SECTORCOUNTS_MAX = DMG_LENGTHS_MAX / 512,
+    DMG_MAX_OUTPUT = 2 * 1024 * 1024, /* 2 MB */
+    DMG_SECTOR_MAX = DMG_MAX_OUTPUT / 512,
 };
 
 static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -260,10 +260,10 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
 
         /* all-zeroes sector (type 2) does not need to be "uncompressed" and can
          * therefore be unbounded. */
-        if (s->types[i] != 2 && s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
+        if (s->types[i] != 2 && s->sectorcounts[i] > DMG_SECTOR_MAX) {
             error_report("sector count %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
-                         s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
+                         s->sectorcounts[i], i, DMG_SECTOR_MAX);
             ret = -EINVAL;
             goto fail;
         }
@@ -275,10 +275,10 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         /* length in (compressed) data fork */
         s->lengths[i] = buff_read_uint64(buffer, offset + 0x20);
 
-        if (s->lengths[i] > DMG_LENGTHS_MAX) {
+        if (s->lengths[i] > DMG_MAX_OUTPUT) {
             error_report("length %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
-                         s->lengths[i], i, DMG_LENGTHS_MAX);
+                         s->lengths[i], i, DMG_MAX_OUTPUT);
             ret = -EINVAL;
             goto fail;
         }
