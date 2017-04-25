@@ -2229,6 +2229,8 @@ static int img_convert(int argc, char **argv)
     if (compress) {
         bool encryption =
             qemu_opt_get_bool(opts, BLOCK_OPT_ENCRYPT, false);
+        const char *encryptfmt =
+            qemu_opt_get(opts, BLOCK_OPT_ENCRYPT_FORMAT);
         const char *preallocation =
             qemu_opt_get(opts, BLOCK_OPT_PREALLOC);
 
@@ -2238,7 +2240,7 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
 
-        if (encryption) {
+        if (encryption || encryptfmt) {
             error_report("Compression and encryption not supported at "
                          "the same time");
             ret = -1;
