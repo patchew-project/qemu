@@ -722,7 +722,7 @@ dmg_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     BDRVDMGState *s = bs->opaque;
     uint64_t sector_num = offset >> BDRV_SECTOR_BITS;
     int nb_sectors = bytes >> BDRV_SECTOR_BITS;
-    int ret, i;
+    int ret, i = 0;
     DMGReadState *drs = s->drs;
 
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
@@ -730,8 +730,7 @@ dmg_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 
     qemu_co_mutex_lock(&s->lock);
 
-    for (i = 0; i < nb_sectors; i++) {
-        uint32_t sector_offset_in_chunk;
+    while (i < nb_sectors) {
         void *data;
 
         if (dmg_read_chunk(bs, sector_num + i, drs) != 0) {
@@ -742,12 +741,20 @@ dmg_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
          * s->uncompressed_chunk may be too small to cover the large all-zeroes
          * section. dmg_read_chunk is called to find s->current_chunk */
         if (s->types[s->current_chunk] == 2) { /* all zeroes block entry */
-            qemu_iovec_memset(qiov, i * 512, 0, 512);
-            continue;
+            qemu_iovec_memset(qiov, i * 512, 0,
+                                    512 * drs->sectors_read);
+            goto increment;
         }
-        sector_offset_in_chunk = sector_num + i - s->sectors[s->current_chunk];
-        data = s->uncompressed_chunk + sector_offset_in_chunk * 512;
-        qemu_iovec_from_buf(qiov, i * 512, data, 512);
+
+        if (drs->saved_next_in == NULL) {
+            data = s->uncompressed_chunk + drs->sector_offset_in_chunk * 512;
+        } else {
+            data = s->uncompressed_chunk;
+        }
+        qemu_iovec_from_buf(qiov, i * 512, data, drs->sectors_read * 512);
+
+increment:
+        i += drs->sectors_read;
     }
 
     ret = 0;
