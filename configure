@@ -4601,6 +4601,9 @@ int main(void)
 EOF
   if compile_prog "" "" ; then
     atomic128=yes
+  elif compile_prog "" "-latomic" ; then
+     atomic128=yes
+     lib_atomic="-latomic"
   fi
 fi
 
@@ -4631,6 +4634,9 @@ int main(void)
 EOF
 if compile_prog "" "" ; then
   atomic64=yes
+elif compile_prog "" "-latomic" ; then
+  atomic64=yes
+  lib_atomic="-latomic"
 fi
 
 ########################################
@@ -6064,6 +6070,16 @@ esac
 # TARGET_BASE_ARCH needs to be defined after TARGET_ARCH
 if [ "$TARGET_BASE_ARCH" = "" ]; then
   TARGET_BASE_ARCH=$TARGET_ARCH
+fi
+
+if test $atomic64 == "yes" || test $atomic128 == "yes" ; then
+    libs_softmmu="$lib_atomic $libs_softmmu"
+elif test $mttcg == "yes" && test $TARGET_BASE_ARCH == "ppc"; then
+    echo
+    echo "Note: Atomic library (-latomic) not available, falling"
+    echo "      back to single threaded mode by default"
+    echo
+    mttcg=no
 fi
 
 symlink "$source_path/Makefile.target" "$target_dir/Makefile"
