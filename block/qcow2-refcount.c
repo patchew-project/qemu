@@ -1859,6 +1859,16 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return ret;
     }
 
+    /* encryption */
+    if (s->crypto_header.length) {
+        ret = inc_refcounts(bs, res, refcount_table, nb_clusters,
+                            s->crypto_header.offset,
+                            s->crypto_header.length);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return check_refblocks(bs, res, fix, rebuild, refcount_table, nb_clusters);
 }
 

@@ -2319,7 +2319,7 @@
 # Since: 2.10
 ##
 { 'enum': 'BlockdevQcow2EncryptionFormat',
-  'data': [ 'qcow' ] }
+  'data': [ 'qcow', 'luks' ] }
 
 ##
 # @BlockdevQcow2Encryption:
@@ -2329,7 +2329,8 @@
 { 'union': 'BlockdevQcow2Encryption',
   'base': { 'format': 'BlockdevQcow2EncryptionFormat' },
   'discriminator': 'format',
-  'data': { 'qcow': 'QCryptoBlockOptionsQCow' } }
+  'data': { 'qcow': 'QCryptoBlockOptionsQCow',
+            'luks': 'QCryptoBlockOptionsLUKS'} }
 
 ##
 # @BlockdevOptionsQcow2:
