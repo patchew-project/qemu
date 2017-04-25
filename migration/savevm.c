@@ -1237,8 +1237,6 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
     MigrationParams params = {
-        .blk = 0,
-        .shared = 0
     };
     MigrationState *ms = migrate_init(&params);
     MigrationStatus status;

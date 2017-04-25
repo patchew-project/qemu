@@ -787,6 +787,10 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
         s->enabled_capabilities[cap->value->capability] = cap->value->state;
     }
 
+    if (s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK_SHARED]) {
+        s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK_ENABLED] = true;
+    }
+
     if (migrate_postcopy_ram()) {
         if (migrate_use_compression()) {
             /* The decompression threads asynchronously write into RAM
@@ -1229,9 +1233,6 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     MigrationParams params;
     const char *p;
 
-    params.blk = has_blk && blk;
-    params.shared = has_inc && inc;
-
     if (migration_is_setup_or_active(s->state) ||
         s->state == MIGRATION_STATUS_CANCELLING ||
         s->state == MIGRATION_STATUS_COLO) {
@@ -1254,6 +1255,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (has_inc && inc) {
+        migrate_set_block_enabled(s);
         migrate_set_block_shared(s);
     }
 

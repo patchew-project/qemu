@@ -43,8 +43,7 @@
 extern int only_migratable;
 
 struct MigrationParams {
-    bool blk;
-    bool shared;
+    bool unused; /* C don't allow empty structs */
 };
 
 /* Messages sent on the return path from destination to source */

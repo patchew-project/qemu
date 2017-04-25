@@ -332,9 +332,6 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
-    /* Disable block migration */
-    s->params.blk = 0;
-    s->params.shared = 0;
     qemu_savevm_state_header(fb);
     qemu_savevm_state_begin(fb, &s->params);
     qemu_mutex_lock_iothread();
