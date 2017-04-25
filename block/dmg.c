@@ -625,27 +625,47 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num,
 
     switch (s->types[chunk]) { /* block entry type */
     case 0x80000005: { /* zlib compressed */
-        /* we need to buffer, because only the chunk as whole can be
-         * inflated. */
-        ret = bdrv_pread(bs->file, s->offsets[chunk],
-                         s->compressed_chunk, s->lengths[chunk]);
-        if (ret != s->lengths[chunk]) {
-            return -1;
+        /* check for cached random access point */
+        if (drs->saved_next_in == NULL) {
+            /* we need to buffer, because only the chunk as whole can be
+             * inflated. */
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
+                             s->compressed_chunk, s->lengths[chunk]);
+            if (ret != s->lengths[chunk]) {
+                return -1;
+            }
+
+            s->zstream.next_in = s->compressed_chunk;
+            s->zstream.avail_in = s->lengths[chunk];
+        } else {
+            s->zstream.next_in = drs->saved_next_in;
+            s->zstream.avail_in = drs->saved_avail_in;
         }
 
-        s->zstream.next_in = s->compressed_chunk;
-        s->zstream.avail_in = s->lengths[chunk];
         s->zstream.next_out = s->uncompressed_chunk;
-        s->zstream.avail_out = 512 * s->sectorcounts[chunk];
-        ret = inflateReset(&s->zstream);
-        if (ret != Z_OK) {
-            return -1;
+
+        s->zstream.avail_out = sectors_read * BDRV_SECTOR_SIZE;
+
+        if (drs->saved_next_in == NULL) {
+            ret = inflateReset(&s->zstream);
+            if (ret != Z_OK) {
+                return -1;
+            }
         }
-        ret = inflate(&s->zstream, Z_FINISH);
+        /* reset total_out for each successive call */
+        s->zstream.total_out = 0;
+        ret = inflate(&s->zstream, Z_SYNC_FLUSH);
+        if (ret == Z_OK &&
+            s->zstream.total_out == 512 * sectors_read) {
+            goto update;
+        }
         if (ret != Z_STREAM_END ||
-            s->zstream.total_out != 512 * s->sectorcounts[chunk]) {
+            s->zstream.total_out != 512 * sectors_read) {
             return -1;
         }
+update:
+        cache_access_point(drs, s->zstream.next_in, s->zstream.avail_in,
+                           chunk, sectors_read, sector_offset);
         break; }
     case 0x80000006: /* bzip2 compressed */
         if (!dmg_uncompress_bz2) {
