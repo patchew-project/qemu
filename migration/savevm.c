@@ -2480,3 +2480,13 @@ void vmstate_register_ram_global(MemoryRegion *mr)
 {
     vmstate_register_ram(mr, NULL);
 }
+
+bool vmstate_device_is_migratable(const VMStateDescription *vmsd)
+{
+    if (only_migratable && vmsd) {
+        if (vmsd->unmigratable) {
+            return false;
+        }
+    }
+    return true;
+}
