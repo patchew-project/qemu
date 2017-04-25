@@ -279,7 +279,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             if (flags & BDRV_O_NO_IO) {
                 cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
             }
-            s->crypto = qcrypto_block_open(s->crypto_opts,
+            s->crypto = qcrypto_block_open(s->crypto_opts, "encrypt.",
                                            qcow2_crypto_hdr_read_func,
                                            bs, cflags, errp);
             if (!s->crypto) {
@@ -1312,8 +1312,8 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
             if (flags & BDRV_O_NO_IO) {
                 cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
             }
-            s->crypto = qcrypto_block_open(s->crypto_opts, NULL, NULL,
-                                           cflags, errp);
+            s->crypto = qcrypto_block_open(s->crypto_opts, "encrypt.",
+                                           NULL, NULL, cflags, errp);
             if (!s->crypto) {
                 ret = -EINVAL;
                 goto fail;
@@ -2245,6 +2245,7 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
     QCryptoBlock *crypto = NULL;
     int ret = -EINVAL;
     QDict *options, *encryptopts;
+    const char *optprefix;
 
     options = qemu_opts_to_qdict(opts, NULL);
     qdict_extract_subqdict(options, &encryptopts, "encrypt.");
@@ -2254,10 +2255,12 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
 
     switch (fmt) {
     case QCOW_CRYPT_LUKS:
+        optprefix = "luks-";
         cryptoopts = block_crypto_create_opts_init(
             Q_CRYPTO_BLOCK_FORMAT_LUKS, encryptopts, errp);
         break;
     case QCOW_CRYPT_AES:
+        optprefix = "aes-";
         cryptoopts = block_crypto_create_opts_init(
             Q_CRYPTO_BLOCK_FORMAT_QCOW, encryptopts, errp);
         break;
@@ -2271,7 +2274,7 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
     }
     s->crypt_method_header = fmt;
 
-    crypto = qcrypto_block_create(cryptoopts,
+    crypto = qcrypto_block_create(cryptoopts, optprefix,
                                   qcow2_crypto_hdr_init_func,
                                   qcow2_crypto_hdr_write_func,
                                   bs, errp);
