@@ -333,7 +333,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     }
 
     qemu_savevm_state_header(fb);
-    qemu_savevm_state_begin(fb, &s->params);
+    qemu_savevm_state_begin(fb);
     qemu_mutex_lock_iothread();
     qemu_savevm_state_complete_precopy(fb, false);
     qemu_mutex_unlock_iothread();
