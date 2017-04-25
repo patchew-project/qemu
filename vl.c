@@ -3230,6 +3230,8 @@ int main(int argc, char **argv, char **envp)
                         }
                     }
                 }
+                error_report("'-hdachs' is deprecated. Please use '-drive"
+                             " ...,cyls=c,heads=h,secs=s,trans=t' instead.");
                 break;
             case QEMU_OPTION_numa:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("numa"),
