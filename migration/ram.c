@@ -2274,10 +2274,12 @@ static inline void *host_from_ram_block_offset(RAMBlock *block,
  * @host: host address for the zero page
  * @ch: what the page is filled from.  We only support zero
  * @size: size of the zero page
+ * @always_write: Always perform the memset even if it's zero
  */
-void ram_handle_compressed(void *host, uint8_t ch, uint64_t size)
+void ram_handle_compressed(void *host, uint8_t ch, uint64_t size,
+                           bool always_write)
 {
-    if (ch != 0 || !is_zero_range(host, size)) {
+    if (ch != 0 || always_write || !is_zero_range(host, size)) {
         memset(host, ch, size);
     }
 }
@@ -2514,7 +2516,8 @@ static int ram_load_postcopy(QEMUFile *f)
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
         case RAM_SAVE_FLAG_COMPRESS:
             ch = qemu_get_byte(f);
-            memset(page_buffer, ch, TARGET_PAGE_SIZE);
+            ram_handle_compressed(page_buffer, ch, TARGET_PAGE_SIZE,
+                                  true);
             if (ch) {
                 all_zero = false;
             }
@@ -2664,7 +2667,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
         case RAM_SAVE_FLAG_COMPRESS:
             ch = qemu_get_byte(f);
-            ram_handle_compressed(host, ch, TARGET_PAGE_SIZE);
+            ram_handle_compressed(host, ch, TARGET_PAGE_SIZE,
+                                  postcopy_advised);
             break;
 
         case RAM_SAVE_FLAG_PAGE:
