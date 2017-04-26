@@ -33,6 +33,7 @@
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
+#include "io/channel-socket.h"
 
 typedef struct NetSocketState {
     NetClientState nc;
@@ -525,16 +526,22 @@ typedef struct {
     char *name;
 } socket_connect_data;
 
-static void socket_connect_data_free(socket_connect_data *c)
+static void socket_connect_data_free(void *opaque)
 {
+    socket_connect_data *c = opaque;
+    if (!c) {
+        return;
+    }
+
     qapi_free_SocketAddress(c->saddr);
     g_free(c->model);
     g_free(c->name);
     g_free(c);
 }
 
-static void net_socket_connected(int fd, Error *err, void *opaque)
+static void net_socket_connected(QIOTask *task, void *opaque)
 {
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
     socket_connect_data *c = opaque;
     NetSocketState *s;
     char *addr_str = NULL;
@@ -543,13 +550,13 @@ static void net_socket_connected(int fd, Error *err, void *opaque)
     addr_str = socket_address_to_string(c->saddr, &local_error);
     if (addr_str == NULL) {
         error_report_err(local_error);
-        closesocket(fd);
+        closesocket(sioc->fd);
         goto end;
     }
 
-    s = net_socket_fd_init(c->peer, c->model, c->name, fd, true);
+    s = net_socket_fd_init(c->peer, c->model, c->name, sioc->fd, true);
     if (!s) {
-        closesocket(fd);
+        closesocket(sioc->fd);
         goto end;
     }
 
@@ -567,7 +574,7 @@ static int net_socket_connect_init(NetClientState *peer,
                                    const char *host_str)
 {
     socket_connect_data *c = g_new0(socket_connect_data, 1);
-    int fd = -1;
+    QIOChannelSocket *sioc;
     Error *local_error = NULL;
 
     c->peer = peer;
@@ -578,11 +585,12 @@ static int net_socket_connect_init(NetClientState *peer,
         goto err;
     }
 
-    fd = socket_connect(c->saddr, net_socket_connected, c, &local_error);
-    if (fd < 0) {
-        goto err;
-    }
-
+    sioc = qio_channel_socket_new();
+    qio_channel_socket_connect_async(sioc,
+                                     c->saddr,
+                                     net_socket_connected,
+                                     c,
+                                     NULL);
     return 0;
 
 err:
