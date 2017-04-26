@@ -672,7 +672,7 @@ uint64_t ram_pagesize_summary(void)
     RAMBlock *block;
     uint64_t summary = 0;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         summary |= block->page_size;
     }
 
@@ -700,7 +700,7 @@ static void migration_bitmap_sync(RAMState *rs)
 
     qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         migration_bitmap_sync_range(rs, block, 0, block->used_length);
     }
     rcu_read_unlock();
@@ -1439,8 +1439,9 @@ uint64_t ram_bytes_total(void)
     uint64_t total = 0;
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next)
+    RAMBLOCK_FOREACH(block) {
         total += block->used_length;
+    }
     rcu_read_unlock();
     return total;
 }
@@ -1543,7 +1544,7 @@ void ram_postcopy_migrated_memory_release(MigrationState *ms)
     struct RAMBlock *block;
     unsigned long *bitmap = atomic_rcu_read(&rs->ram_bitmap)->bmap;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         unsigned long first = block->offset >> TARGET_PAGE_BITS;
         unsigned long range = first + (block->used_length >> TARGET_PAGE_BITS);
         unsigned long run_start = find_next_zero_bit(bitmap, range, first);
@@ -1624,7 +1625,7 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
     struct RAMBlock *block;
     int ret;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         unsigned long first = block->offset >> TARGET_PAGE_BITS;
         PostcopyDiscardState *pds = postcopy_discard_send_init(ms,
                                                                first,
@@ -1802,7 +1803,7 @@ static int postcopy_chunk_hostpages(MigrationState *ms)
     rs->last_sent_block = NULL;
     rs->last_page = 0;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         unsigned long first = block->offset >> TARGET_PAGE_BITS;
 
         PostcopyDiscardState *pds =
@@ -2021,7 +2022,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
         qemu_put_be64(f, block->used_length);
