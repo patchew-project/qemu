@@ -118,7 +118,7 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
  *
  * Returns: the socket address in string format, or NULL on error
  */
-char *socket_address_to_string(struct SocketAddress *addr, Error **errp);
+char *socket_address_to_string(struct SocketAddress *addr);
 
 /**
  * socket_address_crumple:

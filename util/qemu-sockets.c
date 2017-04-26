@@ -1312,7 +1312,7 @@ SocketAddress *socket_remote_address(int fd, Error **errp)
     return socket_sockaddr_to_address(&ss, sslen, errp);
 }
 
-char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
+char *socket_address_to_string(struct SocketAddress *addr)
 {
     char *buf;
     InetSocketAddress *inet;
