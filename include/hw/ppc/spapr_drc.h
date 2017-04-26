@@ -189,7 +189,6 @@ typedef struct sPAPRDRConnectorClass {
     void (*attach)(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                    int fdt_start_offset, bool coldplug, Error **errp);
     void (*detach)(sPAPRDRConnector *drc, DeviceState *d,
-                   spapr_drc_detach_cb *detach_cb,
                    void *detach_cb_opaque, Error **errp);
     bool (*release_pending)(sPAPRDRConnector *drc);
     void (*set_signalled)(sPAPRDRConnector *drc);
@@ -197,7 +196,8 @@ typedef struct sPAPRDRConnectorClass {
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
                                          sPAPRDRConnectorType type,
-                                         uint32_t id);
+                                         uint32_t id,
+                                         spapr_drc_detach_cb *detach_cb);
 sPAPRDRConnector *spapr_dr_connector_by_index(uint32_t index);
 sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
                                            uint32_t id);

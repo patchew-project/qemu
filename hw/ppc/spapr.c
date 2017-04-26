@@ -1887,6 +1887,29 @@ static void spapr_drc_reset(void *opaque)
     }
 }
 
+typedef struct sPAPRDIMMState {
+    uint32_t nr_lmbs;
+} sPAPRDIMMState;
+
+static void spapr_lmb_release(DeviceState *dev, void *opaque)
+{
+    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
+    HotplugHandler *hotplug_ctrl;
+
+    if (--ds->nr_lmbs) {
+        return;
+    }
+
+    g_free(ds);
+
+    /*
+     * Now that all the LMBs have been removed by the guest, call the
+     * pc-dimm unplug handler to cleanup up the pc-dimm device.
+     */
+    hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+}
+
 static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
@@ -1900,7 +1923,7 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
 
         addr = i * lmb_size + spapr->hotplug_memory.base;
         drc = spapr_dr_connector_new(OBJECT(spapr), SPAPR_DR_CONNECTOR_TYPE_LMB,
-                                     addr/lmb_size);
+                                     (addr / lmb_size), spapr_lmb_release);
         qemu_register_reset(spapr_drc_reset, drc);
     }
 }
@@ -1956,6 +1979,14 @@ static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
     return &ms->possible_cpus->cpus[index];
 }
 
+static void spapr_core_release(DeviceState *dev, void *opaque)
+{
+    HotplugHandler *hotplug_ctrl;
+
+    hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+}
+
 static void spapr_init_cpus(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
@@ -1998,7 +2029,8 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
             sPAPRDRConnector *drc =
                 spapr_dr_connector_new(OBJECT(spapr),
                                        SPAPR_DR_CONNECTOR_TYPE_CPU,
-                                       (core_id / smp_threads) * smt);
+                                       (core_id / smp_threads) * smt,
+                                       spapr_core_release);
 
             qemu_register_reset(spapr_drc_reset, drc);
         }
@@ -2596,29 +2628,6 @@ out:
     error_propagate(errp, local_err);
 }
 
-typedef struct sPAPRDIMMState {
-    uint32_t nr_lmbs;
-} sPAPRDIMMState;
-
-static void spapr_lmb_release(DeviceState *dev, void *opaque)
-{
-    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
-    HotplugHandler *hotplug_ctrl;
-
-    if (--ds->nr_lmbs) {
-        return;
-    }
-
-    g_free(ds);
-
-    /*
-     * Now that all the LMBs have been removed by the guest, call the
-     * pc-dimm unplug handler to cleanup up the pc-dimm device.
-     */
-    hotplug_ctrl = qdev_get_hotplug_handler(dev);
-    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
-}
-
 static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                            Error **errp)
 {
@@ -2636,7 +2645,7 @@ static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
         g_assert(drc);
 
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->detach(drc, dev, spapr_lmb_release, ds, errp);
+        drck->detach(drc, dev, ds, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
@@ -2712,14 +2721,6 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     object_unparent(OBJECT(dev));
 }
 
-static void spapr_core_release(DeviceState *dev, void *opaque)
-{
-    HotplugHandler *hotplug_ctrl;
-
-    hotplug_ctrl = qdev_get_hotplug_handler(dev);
-    hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
-}
-
 static
 void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp)
@@ -2745,7 +2746,7 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
+    drck->detach(drc, dev, NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

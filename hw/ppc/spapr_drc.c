@@ -99,8 +99,8 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
         if (drc->awaiting_release) {
             if (drc->configured) {
                 trace_spapr_drc_set_isolation_state_finalizing(get_index(drc));
-                drck->detach(drc, DEVICE(drc->dev), drc->detach_cb,
-                             drc->detach_cb_opaque, NULL);
+                drck->detach(drc, DEVICE(drc->dev), drc->detach_cb_opaque,
+                                         NULL);
             } else {
                 trace_spapr_drc_set_isolation_state_deferring(get_index(drc));
             }
@@ -153,8 +153,8 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         if (drc->awaiting_release &&
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
             trace_spapr_drc_set_allocation_state_finalizing(get_index(drc));
-            drck->detach(drc, DEVICE(drc->dev), drc->detach_cb,
-                         drc->detach_cb_opaque, NULL);
+            drck->detach(drc, DEVICE(drc->dev), drc->detach_cb_opaque,
+                         NULL);
         } else if (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
             drc->awaiting_allocation = false;
         }
@@ -405,12 +405,10 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
 }
 
 static void detach(sPAPRDRConnector *drc, DeviceState *d,
-                   spapr_drc_detach_cb *detach_cb,
                    void *detach_cb_opaque, Error **errp)
 {
     trace_spapr_drc_detach(get_index(drc));
 
-    drc->detach_cb = detach_cb;
     drc->detach_cb_opaque = detach_cb_opaque;
 
     /* if we've signalled device presence to the guest, or if the guest
@@ -498,8 +496,7 @@ static void reset(DeviceState *d)
          * force removal if we are
          */
         if (drc->awaiting_release) {
-            drck->detach(drc, DEVICE(drc->dev), drc->detach_cb,
-                         drc->detach_cb_opaque, NULL);
+            drck->detach(drc, DEVICE(drc->dev), drc->detach_cb_opaque, NULL);
         }
 
         /* non-PCI devices may be awaiting a transition to UNUSABLE */
@@ -566,7 +563,8 @@ static void unrealize(DeviceState *d, Error **errp)
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
                                          sPAPRDRConnectorType type,
-                                         uint32_t id)
+                                         uint32_t id,
+                                         spapr_drc_detach_cb *detach_cb)
 {
     sPAPRDRConnector *drc =
         SPAPR_DR_CONNECTOR(object_new(TYPE_SPAPR_DR_CONNECTOR));
@@ -577,6 +575,7 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
     drc->type = type;
     drc->id = id;
     drc->owner = owner;
+    drc->detach_cb = detach_cb;
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]", get_index(drc));
     object_property_add_child(owner, prop_name, OBJECT(drc), NULL);
     object_property_set_bool(OBJECT(drc), true, "realized", NULL);
