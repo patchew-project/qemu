@@ -52,7 +52,7 @@ typedef struct {
     int *write_msgfds;
     size_t write_msgfds_num;
 
-    SocketAddressLegacy *addr;
+    SocketAddress *addr;
     bool is_listen;
     bool is_telnet;
 
@@ -337,30 +337,30 @@ static void tcp_chr_free_connection(Chardev *chr)
     s->connected = 0;
 }
 
-static char *SocketAddress_to_str(const char *prefix, SocketAddressLegacy *addr,
+static char *SocketAddressto_str(const char *prefix, SocketAddress *addr,
                                   bool is_listen, bool is_telnet)
 {
     switch (addr->type) {
-    case SOCKET_ADDRESS_LEGACY_KIND_INET:
+    case SOCKET_ADDRESS_TYPE_INET:
         return g_strdup_printf("%s%s:%s:%s%s", prefix,
                                is_telnet ? "telnet" : "tcp",
-                               addr->u.inet.data->host,
-                               addr->u.inet.data->port,
+                               addr->u.inet.host,
+                               addr->u.inet.port,
                                is_listen ? ",server" : "");
         break;
-    case SOCKET_ADDRESS_LEGACY_KIND_UNIX:
+    case SOCKET_ADDRESS_TYPE_UNIX:
         return g_strdup_printf("%sunix:%s%s", prefix,
-                               addr->u.q_unix.data->path,
+                               addr->u.q_unix.path,
                                is_listen ? ",server" : "");
         break;
-    case SOCKET_ADDRESS_LEGACY_KIND_FD:
-        return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd.data->str,
+    case SOCKET_ADDRESS_TYPE_FD:
+        return g_strdup_printf("%sfd:%s%s", prefix, addr->u.fd.str,
                                is_listen ? ",server" : "");
         break;
-    case SOCKET_ADDRESS_LEGACY_KIND_VSOCK:
+    case SOCKET_ADDRESS_TYPE_VSOCK:
         return g_strdup_printf("%svsock:%s:%s", prefix,
-                               addr->u.vsock.data->cid,
-                               addr->u.vsock.data->port);
+                               addr->u.vsock.cid,
+                               addr->u.vsock.port);
     default:
         abort();
     }
@@ -380,7 +380,7 @@ static void tcp_chr_disconnect(Chardev *chr)
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
-    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
+    chr->filename = SocketAddressto_str("disconnected:", s->addr,
                                          s->is_listen, s->is_telnet);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
     if (s->reconnect_time) {
@@ -609,7 +609,7 @@ static void tcp_chr_tls_init(Chardev *chr)
     } else {
         tioc = qio_channel_tls_new_client(
             s->ioc, s->tls_creds,
-            s->addr->u.inet.data->host,
+            s->addr->u.inet.host,
             &err);
     }
     if (tioc == NULL) {
@@ -757,7 +757,7 @@ static void char_socket_finalize(Object *obj)
         g_source_remove(s->reconnect_timer);
         s->reconnect_timer = 0;
     }
-    qapi_free_SocketAddressLegacy(s->addr);
+    qapi_free_SocketAddress(s->addr);
     if (s->listen_tag) {
         g_source_remove(s->listen_tag);
         s->listen_tag = 0;
@@ -820,13 +820,13 @@ static void qmp_chardev_open_socket(Chardev *chr,
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
-    SocketAddressLegacy *addr = sock->addr;
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
+    SocketAddress *addr;
 
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
@@ -864,18 +864,18 @@ static void qmp_chardev_open_socket(Chardev *chr,
         }
     }
 
-    s->addr = QAPI_CLONE(SocketAddressLegacy, sock->addr);
+    s->addr = addr = socket_address_flatten(sock->addr);
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
     /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
-    if (addr->type == SOCKET_ADDRESS_LEGACY_KIND_UNIX) {
+    if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
         qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
     }
 
     /* be isn't opened until we get a connection */
     *be_opened = false;
 
-    chr->filename = SocketAddress_to_str("disconnected:",
+    chr->filename = SocketAddressto_str("disconnected:",
                                          addr, is_listen, is_telnet);
 
     if (is_listen) {
