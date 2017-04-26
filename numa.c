@@ -336,15 +336,19 @@ void parse_numa_opts(MachineClass *mc)
             }
         }
         if (i == nb_numa_nodes) {
-            uint64_t usedmem = 0;
+            uint64_t usedmem = 0, node_mem;
+            uint64_t granularity = ram_size / nb_numa_nodes;
+            uint64_t propagate = 0;
 
             /* Align each node according to the alignment
              * requirements of the machine class
              */
             for (i = 0; i < nb_numa_nodes - 1; i++) {
-                numa_info[i].node_mem = (ram_size / nb_numa_nodes) &
+                node_mem = (granularity + propagate) &
                                         ~((1 << mc->numa_mem_align_shift) - 1);
-                usedmem += numa_info[i].node_mem;
+                propagate = granularity + propagate - node_mem;
+                numa_info[i].node_mem = node_mem;
+                usedmem += node_mem;
             }
             numa_info[i].node_mem = ram_size - usedmem;
         }
