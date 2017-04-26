@@ -71,6 +71,8 @@
 #include "qemu/mmap-alloc.h"
 #endif
 
+#include "monitor/monitor.h"
+
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1331,6 +1333,38 @@ void qemu_mutex_lock_ramlist(void)
 void qemu_mutex_unlock_ramlist(void)
 {
     qemu_mutex_unlock(&ram_list.mutex);
+}
+
+static const char *page_size_to_str(size_t psize)
+{
+    switch (psize) {
+    case 0x1000:
+        return "4K";
+    case 0x10000:
+        return "64K";
+    case 0x200000:
+        return "2M";
+    case 0x40000000:
+        return "1G";
+    default:
+        return "N/A";
+    }
+}
+
+void ram_block_dump(Monitor *mon)
+{
+    RAMBlock *block;
+
+    rcu_read_lock();
+    monitor_printf(mon, "%24s %8s  %18s %18s %18s\n",
+                   "Block Name", "PSize", "Offset", "Used", "Total");
+    RAMBLOCK_FOREACH(block) {
+        monitor_printf(mon, "%24s %8s  0x%016lx 0x%016lx 0x%016lx\n",
+                       block->idstr, page_size_to_str(block->page_size),
+                       block->offset, block->used_length,
+                       block->max_length);
+    }
+    rcu_read_unlock();
 }
 
 #ifdef __linux__
