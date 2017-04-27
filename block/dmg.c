@@ -128,6 +128,18 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
     }
 }
 
+static void cache_access_point(DMGReadState *drs, uint8_t *next_in,
+                                int64_t avail_in, int32_t chunk,
+                                int64_t sectors_read, int32_t sector_offset)
+{
+    drs->saved_next_in = next_in;
+    drs->saved_avail_in = avail_in;
+    drs->saved_chunk_type = chunk;
+    drs->sectors_read = sectors_read;
+    drs->sector_offset_in_chunk = sector_offset;
+    return;
+}
+
 static int64_t dmg_find_koly_offset(BdrvChild *file, Error **errp)
 {
     BlockDriverState *file_bs = file->bs;
@@ -511,6 +523,10 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    s->drs = g_malloc(sizeof(DMGReadState));
+    /* initialise our access point cache */
+    cache_access_point(s->drs, NULL, -1, -1, -1, -1);
+
     if (inflateInit(&s->zstream) != Z_OK) {
         ret = -EINVAL;
         goto fail;
@@ -527,6 +543,7 @@ fail:
     g_free(s->lengths);
     g_free(s->sectors);
     g_free(s->sectorcounts);
+    g_free(s->drs);
     qemu_vfree(s->compressed_chunk);
     qemu_vfree(s->uncompressed_chunk);
     return ret;
@@ -689,6 +706,7 @@ static void dmg_close(BlockDriverState *bs)
     g_free(s->lengths);
     g_free(s->sectors);
     g_free(s->sectorcounts);
+    g_free(s->drs);
     qemu_vfree(s->compressed_chunk);
     qemu_vfree(s->uncompressed_chunk);
 
