@@ -2500,6 +2500,14 @@ void address_space_destroy(AddressSpace *as)
     call_rcu(as, do_address_space_destroy, rcu);
 }
 
+IOMMUObject *address_space_iommu_get(AddressSpace *as)
+{
+    if (!as->as_ops.iommu_get) {
+        return NULL;
+    }
+    return as->as_ops.iommu_get(as);
+}
+
 static const char *memory_region_type(MemoryRegion *mr)
 {
     if (memory_region_is_ram_device(mr)) {

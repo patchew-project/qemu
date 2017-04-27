@@ -183,6 +183,15 @@ struct MemoryRegionOps {
     const MemoryRegionMmio old_mmio;
 };
 
+/*
+ * This stands for an IOMMU unit. Normally it should be exactly the
+ * IOMMU device, however this can also be actually anything which is
+ * related to that translation unit. What it is should be totally
+ * arch-dependent. Maybe one day we can have something better than a
+ * (void *) here.
+ */
+typedef void *IOMMUObject;
+
 typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
 
 struct MemoryRegionIOMMUOps {
@@ -282,6 +291,19 @@ struct MemoryListener {
 };
 
 /**
+ * AddressSpaceOps: callbacks structure for address space specific operations
+ *
+ * @iommu_get: returns an IOMMU object that backs the address space.
+ *             Normally this should be NULL for generic address
+ *             spaces, and it's only used when there is one
+ *             translation unit behind this address space.
+ */
+struct AddressSpaceOps {
+    IOMMUObject *(*iommu_get)(AddressSpace *as);
+};
+typedef struct AddressSpaceOps AddressSpaceOps;
+
+/**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
  */
 struct AddressSpace {
@@ -302,6 +324,7 @@ struct AddressSpace {
     MemoryListener dispatch_listener;
     QTAILQ_HEAD(memory_listeners_as, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
+    AddressSpaceOps as_ops;
 };
 
 /**
@@ -1799,6 +1822,13 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
     assert(addr < cache->len && len <= cache->len - addr);
     address_space_write(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
 }
+
+/**
+ * address_space_iommu_get: Get the backend IOMMU for the address space
+ *
+ * @as: the address space to fetch IOMMU from
+ */
+IOMMUObject *address_space_iommu_get(AddressSpace *as);
 
 #endif
 
