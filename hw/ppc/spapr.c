@@ -3106,6 +3106,23 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
     ics_pic_print_info(spapr->ics, mon);
 }
 
+static void spapr_numa_auto_assign_ram(uint64_t *nodes, int nb_nodes,
+                                       ram_addr_t size)
+{
+    int i;
+    uint64_t usedmem = 0, node_mem;
+    uint64_t granularity = size / nb_nodes;
+    uint64_t propagate = 0;
+
+    for (i = 0; i < nb_nodes - 1; i++) {
+        node_mem = (granularity + propagate) & ~(SPAPR_MEMORY_BLOCK_SIZE - 1);
+        propagate = granularity + propagate - node_mem;
+        nodes[i] = node_mem;
+        usedmem += node_mem;
+    }
+    nodes[i] = ram_size - usedmem;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -3162,7 +3179,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      * SPAPR_MEMORY_BLOCK_SIZE (256M) since that's the granularity
      * in which LMBs are represented and hot-added
      */
-    mc->numa_mem_align_shift = 28;
+    mc->numa_mem_align_shift = SPAPR_MEMORY_BLOCK_SIZE_SHIFT;
+    mc->numa_auto_assign_ram = spapr_numa_auto_assign_ram;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -3242,6 +3260,7 @@ static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
     spapr_machine_2_10_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
+    mc->numa_auto_assign_ram = NULL;
 }
 
 DEFINE_SPAPR_MACHINE(2_9, "2.9", false);

@@ -653,7 +653,8 @@ int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
 
 int spapr_rng_populate_dt(void *fdt);
 
-#define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
+#define SPAPR_MEMORY_BLOCK_SIZE_SHIFT 28 /* 256MB */
+#define SPAPR_MEMORY_BLOCK_SIZE (1 << SPAPR_MEMORY_BLOCK_SIZE_SHIFT)
 
 /*
  * This defines the maximum number of DIMM slots we can have for sPAPR
