@@ -2306,7 +2306,10 @@
 ##
 # @ShutdownType:
 #
-# Enumeration of various causes for shutdown.
+# Enumeration of various causes for shutdown, used in SHUTDOWN and RESET
+# events.  It is anticipated that if any new reasons are added, the prefix
+# will still make it possible to distinguish whether it was the guest or
+# the host that requested the change in state.
 #
 # @host-qmp: Reaction to a QMP command, such as 'quit'
 # @host-signal: Reaction to a signal, such as SIGINT
