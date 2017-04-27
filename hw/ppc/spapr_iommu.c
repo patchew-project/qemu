@@ -158,14 +158,14 @@ static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)
 }
 
 static void spapr_tce_notify_flag_changed(MemoryRegion *iommu,
-                                          IOMMUNotifierFlag old,
-                                          IOMMUNotifierFlag new)
+                                          IOMMUMREventFlags old,
+                                          IOMMUMREventFlags new)
 {
     struct sPAPRTCETable *tbl = container_of(iommu, sPAPRTCETable, iommu);
 
-    if (old == IOMMU_NOTIFIER_NONE && new != IOMMU_NOTIFIER_NONE) {
+    if (old == IOMMU_MR_EVENT_NONE && new != IOMMU_MR_EVENT_NONE) {
         spapr_tce_set_need_vfio(tbl, true);
-    } else if (old != IOMMU_NOTIFIER_NONE && new == IOMMU_NOTIFIER_NONE) {
+    } else if (old != IOMMU_MR_EVENT_NONE && new == IOMMU_MR_EVENT_NONE) {
         spapr_tce_set_need_vfio(tbl, false);
     }
 }

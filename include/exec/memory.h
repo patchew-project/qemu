@@ -70,14 +70,14 @@ struct IOMMUTLBEntry {
  * register with one or multiple IOMMU Notifier capability bit(s).
  */
 typedef enum {
-    IOMMU_NOTIFIER_NONE = 0,
+    IOMMU_MR_EVENT_NONE = 0,
     /* Notify cache invalidations */
-    IOMMU_NOTIFIER_UNMAP = 0x1,
+    IOMMU_MR_EVENT_UNMAP = 0x1,
     /* Notify entry changes (newly created entries) */
-    IOMMU_NOTIFIER_MAP = 0x2,
-} IOMMUNotifierFlag;
+    IOMMU_MR_EVENT_MAP = 0x2,
+} IOMMUMREventFlags;
 
-#define IOMMU_NOTIFIER_ALL (IOMMU_NOTIFIER_MAP | IOMMU_NOTIFIER_UNMAP)
+#define IOMMU_MR_EVENT_ALL (IOMMU_MR_EVENT_MAP | IOMMU_MR_EVENT_UNMAP)
 
 struct IOMMUNotifier;
 typedef void (*IOMMUNotify)(struct IOMMUNotifier *notifier,
@@ -85,7 +85,7 @@ typedef void (*IOMMUNotify)(struct IOMMUNotifier *notifier,
 
 struct IOMMUNotifier {
     IOMMUNotify notify;
-    IOMMUNotifierFlag notifier_flags;
+    IOMMUMREventFlags notifier_flags;
     /* Notify for address space range start <= addr <= end */
     hwaddr start;
     hwaddr end;
@@ -94,7 +94,7 @@ struct IOMMUNotifier {
 typedef struct IOMMUNotifier IOMMUNotifier;
 
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
-                                       IOMMUNotifierFlag flags,
+                                       IOMMUMREventFlags flags,
                                        hwaddr start, hwaddr end)
 {
     n->notify = fn;
@@ -191,8 +191,8 @@ struct MemoryRegionIOMMUOps {
     uint64_t (*get_min_page_size)(MemoryRegion *iommu);
     /* Called when IOMMU Notifier flag changed */
     void (*notify_flag_changed)(MemoryRegion *iommu,
-                                IOMMUNotifierFlag old_flags,
-                                IOMMUNotifierFlag new_flags);
+                                IOMMUMREventFlags old_flags,
+                                IOMMUMREventFlags new_flags);
     /* Set this up to provide customized IOMMU replay function */
     void (*replay)(MemoryRegion *iommu, IOMMUNotifier *notifier);
 };
@@ -240,7 +240,7 @@ struct MemoryRegion {
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
     QLIST_HEAD(, IOMMUNotifier) iommu_notify;
-    IOMMUNotifierFlag iommu_notify_flags;
+    IOMMUMREventFlags iommu_notify_flags;
 };
 
 #define IOMMU_NOTIFIER_FOREACH(n, mr) \

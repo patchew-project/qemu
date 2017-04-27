@@ -1132,7 +1132,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 /*
                  * So a device is moving out of (or moving into) a
                  * domain, a replay() suites here to notify all the
-                 * IOMMU_NOTIFIER_MAP registers about this change.
+                 * IOMMU_MR_EVENT_MAP registers about this change.
                  * This won't bring bad even if we have no such
                  * notifier registered - the IOMMU notification
                  * framework will skip MAP notifications if that
@@ -2253,21 +2253,21 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
 }
 
 static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
-                                          IOMMUNotifierFlag old,
-                                          IOMMUNotifierFlag new)
+                                          IOMMUMREventFlags old,
+                                          IOMMUMREventFlags new)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
     IntelIOMMUNotifierNode *node = NULL;
     IntelIOMMUNotifierNode *next_node = NULL;
 
-    if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
+    if (!s->caching_mode && new & IOMMU_MR_EVENT_MAP) {
         error_report("We need to set cache_mode=1 for intel-iommu to enable "
                      "device assignment with IOMMU protection.");
         exit(1);
     }
 
-    if (old == IOMMU_NOTIFIER_NONE) {
+    if (old == IOMMU_MR_EVENT_NONE) {
         node = g_malloc0(sizeof(*node));
         node->vtd_as = vtd_as;
         QLIST_INSERT_HEAD(&s->notifiers_list, node, next);
@@ -2277,7 +2277,7 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
     /* update notifier node with new flags */
     QLIST_FOREACH_SAFE(node, &s->notifiers_list, next, next_node) {
         if (node->vtd_as == vtd_as) {
-            if (new == IOMMU_NOTIFIER_NONE) {
+            if (new == IOMMU_MR_EVENT_NONE) {
                 QLIST_REMOVE(node, next);
                 g_free(node);
             }

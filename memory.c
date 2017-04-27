@@ -1483,7 +1483,7 @@ void memory_region_init_iommu(MemoryRegion *mr,
     mr->iommu_ops = ops,
     mr->terminates = true;  /* then re-forwards */
     QLIST_INIT(&mr->iommu_notify);
-    mr->iommu_notify_flags = IOMMU_NOTIFIER_NONE;
+    mr->iommu_notify_flags = IOMMU_MR_EVENT_NONE;
 }
 
 static void memory_region_finalize(Object *obj)
@@ -1580,7 +1580,7 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
 
 static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
 {
-    IOMMUNotifierFlag flags = IOMMU_NOTIFIER_NONE;
+    IOMMUMREventFlags flags = IOMMU_MR_EVENT_NONE;
     IOMMUNotifier *iommu_notifier;
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
@@ -1605,7 +1605,7 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
     }
 
     /* We need to register for at least one bitfield */
-    assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
+    assert(n->notifier_flags != IOMMU_MR_EVENT_NONE);
     assert(n->start <= n->end);
     QLIST_INSERT_HEAD(&mr->iommu_notify, n, node);
     memory_region_update_iommu_notify_flags(mr);
@@ -1671,7 +1671,7 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
 void memory_region_notify_one(IOMMUNotifier *notifier,
                               IOMMUTLBEntry *entry)
 {
-    IOMMUNotifierFlag request_flags;
+    IOMMUMREventFlags request_flags;
 
     /*
      * Skip the notification if the notification does not overlap
@@ -1683,9 +1683,9 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
     }
 
     if (entry->perm & IOMMU_RW) {
-        request_flags = IOMMU_NOTIFIER_MAP;
+        request_flags = IOMMU_MR_EVENT_MAP;
     } else {
-        request_flags = IOMMU_NOTIFIER_UNMAP;
+        request_flags = IOMMU_MR_EVENT_UNMAP;
     }
 
     if (notifier->notifier_flags & request_flags) {

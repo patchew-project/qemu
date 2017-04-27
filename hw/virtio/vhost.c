@@ -747,7 +747,7 @@ static void vhost_iommu_region_add(MemoryListener *listener,
                      section->size);
     end = int128_sub(end, int128_one());
     iommu_notifier_init(&iommu->n, vhost_iommu_unmap_notify,
-                        IOMMU_NOTIFIER_UNMAP,
+                        IOMMU_MR_EVENT_UNMAP,
                         section->offset_within_region,
                         int128_get64(end));
     iommu->mr = section->mr;
