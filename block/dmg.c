@@ -684,20 +684,30 @@ update:
                                  (char *)s->uncompressed_chunk,
                                  (unsigned int)
                                     (512 * s->sectorcounts[chunk]));
+
         if (ret < 0) {
             return ret;
         }
+        cache_access_point(drs, NULL, -1, chunk, sectors_read,
+                           sector_offset);
         break;
     case 1: /* copy */
-        ret = bdrv_pread(bs->file, s->offsets[chunk],
-                         s->uncompressed_chunk, s->lengths[chunk]);
-        if (ret != s->lengths[chunk]) {
-            return -1;
+        if (drs->sectors_read == -1) {
+            ret = bdrv_pread(bs->file, s->offsets[chunk],
+                             s->uncompressed_chunk, s->lengths[chunk]);
+            if (ret != s->lengths[chunk]) {
+                return -1;
+            }
         }
+        cache_access_point(drs, NULL, -1, chunk, sectors_read,
+                           sector_offset);
         break;
     case 2: /* zero */
         /* see dmg_read, it is treated specially. No buffer needs to be
          * pre-filled, the zeroes can be set directly. */
+        cache_access_point(drs, NULL, -1, chunk, sectors_read,
+                           sector_offset);
+
         break;
     }
     s->current_chunk = chunk;
