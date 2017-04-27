@@ -27,6 +27,7 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
+#include "hw/core/iommu.h"
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -182,15 +183,6 @@ struct MemoryRegionOps {
      */
     const MemoryRegionMmio old_mmio;
 };
-
-/*
- * This stands for an IOMMU unit. Normally it should be exactly the
- * IOMMU device, however this can also be actually anything which is
- * related to that translation unit. What it is should be totally
- * arch-dependent. Maybe one day we can have something better than a
- * (void *) here.
- */
-typedef void *IOMMUObject;
 
 typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
 

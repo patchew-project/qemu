@@ -2635,7 +2635,7 @@ static const MemoryRegionOps vtd_mem_ir_ops = {
 static IOMMUObject *vtd_as_iommu_get(AddressSpace *as)
 {
     VTDAddressSpace *vtd_dev_as = container_of(as, VTDAddressSpace, as);
-    return (IOMMUObject *)vtd_dev_as->iommu_state;
+    return &vtd_dev_as->iommu_state->iommu_common;
 }
 
 VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)

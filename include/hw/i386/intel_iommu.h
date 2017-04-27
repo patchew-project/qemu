@@ -26,6 +26,7 @@
 #include "hw/i386/x86-iommu.h"
 #include "hw/i386/ioapic.h"
 #include "hw/pci/msi.h"
+#include "hw/core/iommu.h"
 #include "hw/sysbus.h"
 
 #define TYPE_INTEL_IOMMU_DEVICE "intel-iommu"
@@ -258,6 +259,7 @@ struct IntelIOMMUMRNotifierNode {
 /* The iommu (DMAR) device state struct */
 struct IntelIOMMUState {
     X86IOMMUState x86_iommu;
+    IOMMUObject iommu_common;
     MemoryRegion csrmem;
     uint8_t csr[DMAR_REG_SIZE];     /* register values */
     uint8_t wmask[DMAR_REG_SIZE];   /* R/W bytes */
