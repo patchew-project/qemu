@@ -51,7 +51,10 @@ bool replay_next_event_is(int event)
         switch (replay_state.data_kind) {
         case EVENT_SHUTDOWN:
             replay_finish_event();
-            qemu_system_shutdown_request();
+            /* TODO: track source of shutdown request, to replay a
+             * guest-initiated request rather than always claiming to
+             * be from the host? */
+            qemu_system_shutdown_request(SHUTDOWN_TYPE_HOST_REPLAY);
             break;
         default:
             /* clock, time_t, checkpoint and other events */

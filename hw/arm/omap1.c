@@ -355,7 +355,7 @@ static void omap_wd_timer_write(void *opaque, hwaddr addr,
                 /* XXX: on T|E hardware somehow this has no effect,
                  * on Zire 71 it works as specified.  */
                 s->reset = 1;
-                qemu_system_reset_request();
+                qemu_system_reset_request(SHUTDOWN_TYPE_GUEST_RESET);
             }
         }
         s->last_wr = value & 0xff;
@@ -1546,7 +1546,7 @@ static inline void omap_clkm_idlect1_update(struct omap_mpu_state_s *s,
         cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
     }
     if (!(value & (1 << 10)))				/* WKUP_MODE */
-        qemu_system_shutdown_request();	/* XXX: disable wakeup from IRQ */
+        qemu_system_shutdown_request(SHUTDOWN_TYPE_GUEST_SHUTDOWN); /* XXX: disable wakeup from IRQ */
 
 #define SET_CANIDLE(clock, bit)				\
     if (diff & (1 << bit)) {				\
@@ -1693,7 +1693,7 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
         diff = s->clkm.arm_rstct1 ^ value;
         s->clkm.arm_rstct1 = value & 0x0007;
         if (value & 9) {
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_TYPE_GUEST_RESET);
             s->clkm.cold_start = 0xa;
         }
         if (diff & ~value & 4) {				/* DSP_RST */
