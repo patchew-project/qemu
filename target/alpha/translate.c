@@ -89,6 +89,10 @@ typedef enum {
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
 
+    /* Similarly, but force TB exit without chaining.  */
+    EXIT_PC_UPDATED_FORCE,
+    EXIT_PC_STALE_FORCE,
+
     /* We are ending the TB with a noreturn function call, e.g. longjmp.
        No following code will be executed.  */
     EXIT_NORETURN,
@@ -455,11 +459,16 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 #endif
 }
 
+static bool use_exit_tb(DisasContext *ctx)
+{
+    /* Suppress any optimization in the case of single-steping and IO.  */
+    return ((ctx->tb->cflags & CF_LAST_IO)
+            || ctx->singlestep_enabled || singlestep);
+}
+
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
-    /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((ctx->tb->cflags & CF_LAST_IO)
-        || ctx->singlestep_enabled || singlestep) {
+    if (use_exit_tb(ctx)) {
         return false;
     }
 #ifndef CONFIG_USER_ONLY
@@ -1257,14 +1266,14 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
            need the page permissions check.  We'll see the existence of
            the page when we create the TB, and we'll flush all TBs if
            we change the PAL base register.  */
-        if (!ctx->singlestep_enabled && !(ctx->tb->cflags & CF_LAST_IO)) {
+        if (use_exit_tb(ctx)) {
+            tcg_gen_movi_i64(cpu_pc, entry);
+            return EXIT_PC_UPDATED;
+        } else {
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(cpu_pc, entry);
             tcg_gen_exit_tb((uintptr_t)ctx->tb);
             return EXIT_GOTO_TB;
-        } else {
-            tcg_gen_movi_i64(cpu_pc, entry);
-            return EXIT_PC_UPDATED;
         }
     }
 #endif
@@ -1323,7 +1332,7 @@ static ExitStatus gen_mfpr(DisasContext *ctx, TCGv va, int regno)
             gen_io_start();
             helper(va);
             gen_io_end();
-            return EXIT_PC_STALE;
+            return EXIT_PC_STALE_FORCE;
         } else {
             helper(va);
         }
@@ -1374,7 +1383,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
     case 252:
         /* HALT */
         gen_helper_halt(vb);
-        return EXIT_PC_STALE;
+        return EXIT_PC_STALE_FORCE;
 
     case 251:
         /* ALARM */
@@ -1388,7 +1397,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
            that ended with a CALL_PAL.  Since the base register usually only
            changes during boot, flushing everything works well.  */
         gen_helper_tb_flush(cpu_env);
-        return EXIT_PC_STALE;
+        return EXIT_PC_STALE_FORCE;
 
     case 32 ... 39:
         /* Accessing the "non-shadow" general registers.  */
@@ -2373,7 +2382,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 gen_io_start();
                 gen_helper_load_pcc(va, cpu_env);
                 gen_io_end();
-                ret = EXIT_PC_STALE;
+                ret = EXIT_PC_STALE_FORCE;
             } else {
                 gen_helper_load_pcc(va, cpu_env);
             }
@@ -2990,18 +2999,32 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     case EXIT_GOTO_TB:
     case EXIT_NORETURN:
         break;
+
     case EXIT_PC_STALE:
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
-        /* FALLTHRU */
+        goto do_exit_pc_updated;
+    case EXIT_PC_STALE_FORCE:
+        tcg_gen_movi_i64(cpu_pc, ctx.pc);
+        goto do_exit_pc_updated_force;
+
     case EXIT_PC_UPDATED:
+    do_exit_pc_updated:
+        if (!use_exit_tb(&ctx)) {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            break;
+        }
+        /* FALLTHRU */
+    case EXIT_PC_UPDATED_FORCE:
+    do_exit_pc_updated_force:
         if (ctx.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG, 0);
         } else {
             tcg_gen_exit_tb(0);
         }
         break;
+
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     gen_tb_end(tb, num_insns);
