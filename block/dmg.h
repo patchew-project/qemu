@@ -31,6 +31,15 @@
 #include "block/block_int.h"
 #include <zlib.h>
 
+/* used to cache current position in compressed input stream */
+typedef struct DMGReadState {
+    uint8_t *saved_next_in;
+    int64_t saved_avail_in;
+    int32_t saved_chunk_type;
+    int64_t sectors_read; /* possible sectors read in each cycle */
+    int32_t sector_offset_in_chunk;
+} DMGReadState;
+
 typedef struct BDRVDMGState {
     CoMutex lock;
     /* each chunk contains a certain number of sectors,
@@ -51,6 +60,7 @@ typedef struct BDRVDMGState {
     uint8_t *compressed_chunk;
     uint8_t *uncompressed_chunk;
     z_stream zstream;
+    DMGReadState *drs;
 } BDRVDMGState;
 
 extern int (*dmg_uncompress_bz2)(char *next_in, unsigned int avail_in,
