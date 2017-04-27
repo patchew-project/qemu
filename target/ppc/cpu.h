@@ -1185,7 +1185,6 @@ typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
  * PowerPCCPU:
  * @env: #CPUPPCState
  * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
- * @max_compat: Maximal supported logical PVR from the command line
  * @compat_pvr: Current logical PVR, zero if in "raw" mode
  *
  * A PowerPC CPU.
@@ -1197,7 +1196,6 @@ struct PowerPCCPU {
 
     CPUPPCState env;
     int cpu_dt_id;
-    uint32_t max_compat;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
     Object *intc;
@@ -1369,6 +1367,10 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp);
 void ppc_set_compat_all(uint32_t compat_pvr, Error **errp);
 #endif
 int ppc_compat_max_threads(PowerPCCPU *cpu);
+void ppc_compat_prop_get(Object *obj, Visitor *v,
+                         const char *name, void *opaque, Error **err);
+void ppc_compat_prop_set(Object *obj, Visitor *v,
+                         const char *name, void *opaque, Error **err);
 #endif /* defined(TARGET_PPC64) */
 
 #include "exec/cpu-all.h"
