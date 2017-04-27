@@ -2304,6 +2304,29 @@
 { 'command': 'system_powerdown' }
 
 ##
+# @ShutdownType:
+#
+# Enumeration of various causes for shutdown.
+#
+# @host-qmp: Reaction to a QMP command, such as 'quit'
+# @host-signal: Reaction to a signal, such as SIGINT
+# @host-ui: Reaction to a UI event, such as closing the window
+# @host-replay: The host is replaying an earlier shutdown event
+# @host-error: Qemu encountered an error that prevents further use of the guest
+# @guest-shutdown: The guest requested a shutdown, such as via ACPI or
+#                  other hardware-specific action
+# @guest-reset: The guest requested a reset, and the command line
+#               response to a reset is to instead trigger a shutdown
+# @guest-panic: The guest panicked, and the command line response to
+#               a panic is to trigger a shutdown
+#
+# Since: 2.10
+##
+{ 'enum': 'ShutdownType',
+  'data': [ 'host-qmp', 'host-signal', 'host-ui', 'host-replay', 'host-error',
+            'guest-shutdown', 'guest-reset', 'guest-panic' ] }
+
+##
 # @cpu:
 #
 # This command is a nop that is only provided for the purposes of compatibility.

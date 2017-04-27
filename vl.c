@@ -1597,8 +1597,8 @@ void vm_state_notify(int running, RunState state)
     }
 }
 
-static int reset_requested;
-static int shutdown_requested, shutdown_signal;
+static int reset_requested = -1;
+static int shutdown_requested = -1, shutdown_signal;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
@@ -1624,7 +1624,7 @@ int qemu_reset_requested_get(void)
 
 static int qemu_shutdown_requested(void)
 {
-    return atomic_xchg(&shutdown_requested, 0);
+    return atomic_xchg(&shutdown_requested, -1);
 }
 
 static void qemu_kill_report(void)
@@ -1650,11 +1650,11 @@ static void qemu_kill_report(void)
 static int qemu_reset_requested(void)
 {
     int r = reset_requested;
-    if (r && replay_checkpoint(CHECKPOINT_RESET_REQUESTED)) {
-        reset_requested = 0;
+    if (r >= 0 && replay_checkpoint(CHECKPOINT_RESET_REQUESTED)) {
+        reset_requested = -1;
         return r;
     }
-    return false;
+    return -1;
 }
 
 static int qemu_suspend_requested(void)
@@ -1686,7 +1686,12 @@ static int qemu_debug_requested(void)
     return r;
 }
 
-void qemu_system_reset(bool report)
+/*
+ * Reset the VM. If @report is VMRESET_REPORT, issue an event, using
+ * the @reason interpreted as ShutdownType for details.  Otherwise,
+ * @report is VMRESET_SILENT and @reason is ignored.
+ */
+void qemu_system_reset(bool report, int reason)
 {
     MachineClass *mc;
 
@@ -1700,6 +1705,7 @@ void qemu_system_reset(bool report)
         qemu_devices_reset();
     }
     if (report) {
+        assert(reason >= 0);
         qapi_event_send_reset(&error_abort);
     }
     cpu_synchronize_all_post_reset();
@@ -1738,9 +1744,10 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 void qemu_system_reset_request(void)
 {
     if (no_reboot) {
-        shutdown_requested = 1;
+        /* FIXME - add a parameter to allow callers to specify reason */
+        shutdown_requested = SHUTDOWN_TYPE_GUEST_RESET;
     } else {
-        reset_requested = 1;
+        reset_requested = SHUTDOWN_TYPE_GUEST_RESET;
     }
     cpu_stop_current();
     qemu_notify_event();
@@ -1807,7 +1814,7 @@ void qemu_system_killed(int signal, pid_t pid)
     /* Cannot call qemu_system_shutdown_request directly because
      * we are in a signal handler.
      */
-    shutdown_requested = 1;
+    shutdown_requested = SHUTDOWN_TYPE_HOST_SIGNAL;
     qemu_notify_event();
 }
 
@@ -1815,7 +1822,8 @@ void qemu_system_shutdown_request(void)
 {
     trace_qemu_system_shutdown_request();
     replay_shutdown_request();
-    shutdown_requested = 1;
+    /* FIXME - add a parameter to allow callers to specify reason */
+    shutdown_requested = SHUTDOWN_TYPE_GUEST_SHUTDOWN;
     qemu_notify_event();
 }
 
@@ -1846,13 +1854,16 @@ void qemu_system_debug_request(void)
 static bool main_loop_should_exit(void)
 {
     RunState r;
+    int request;
+
     if (qemu_debug_requested()) {
         vm_stop(RUN_STATE_DEBUG);
     }
     if (qemu_suspend_requested()) {
         qemu_system_suspend();
     }
-    if (qemu_shutdown_requested()) {
+    request = qemu_shutdown_requested();
+    if (request >= 0) {
         qemu_kill_report();
         qapi_event_send_shutdown(&error_abort);
         if (no_shutdown) {
@@ -1861,9 +1872,10 @@ static bool main_loop_should_exit(void)
             return true;
         }
     }
-    if (qemu_reset_requested()) {
+    request = qemu_reset_requested();
+    if (request >= 0) {
         pause_all_vcpus();
-        qemu_system_reset(VMRESET_REPORT);
+        qemu_system_reset(VMRESET_REPORT, request);
         resume_all_vcpus();
         if (!runstate_check(RUN_STATE_RUNNING) &&
                 !runstate_check(RUN_STATE_INMIGRATE)) {
@@ -1872,7 +1884,7 @@ static bool main_loop_should_exit(void)
     }
     if (qemu_wakeup_requested()) {
         pause_all_vcpus();
-        qemu_system_reset(VMRESET_SILENT);
+        qemu_system_reset(VMRESET_SILENT, -1);
         notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
         wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
@@ -4684,7 +4696,7 @@ int main(int argc, char **argv, char **envp)
        reading from the other reads, because timer polling functions query
        clock values from the log. */
     replay_checkpoint(CHECKPOINT_RESET);
-    qemu_system_reset(VMRESET_SILENT);
+    qemu_system_reset(VMRESET_SILENT, -1);
     register_global_state();
     if (replay_mode != REPLAY_MODE_NONE) {
         replay_vmstate_init();
