@@ -93,9 +93,10 @@ struct IOMMUMRNotifier {
 };
 typedef struct IOMMUMRNotifier IOMMUMRNotifier;
 
-static inline void iommu_notifier_init(IOMMUMRNotifier *n, IOMMUNotify fn,
-                                       IOMMUMREventFlags flags,
-                                       hwaddr start, hwaddr end)
+static inline void iommu_mr_notifier_init(IOMMUMRNotifier *n,
+                                          IOMMUNotify fn,
+                                          IOMMUMREventFlags flags,
+                                          hwaddr start, hwaddr end)
 {
     n->notify = fn;
     n->notifier_flags = flags;
