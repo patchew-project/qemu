@@ -1668,8 +1668,8 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
     memory_region_update_iommu_notify_flags(mr);
 }
 
-void memory_region_notify_one(IOMMUMRNotifier *notifier,
-                              IOMMUTLBEntry *entry)
+void memory_region_notify_iotlb_one(IOMMUMRNotifier *notifier,
+                                    IOMMUTLBEntry *entry)
 {
     IOMMUMREventFlags request_flags;
 
@@ -1693,7 +1693,7 @@ void memory_region_notify_one(IOMMUMRNotifier *notifier,
     }
 }
 
-void memory_region_notify_iommu(MemoryRegion *mr,
+void memory_region_notify_iotlb(MemoryRegion *mr,
                                 IOMMUTLBEntry entry)
 {
     IOMMUMRNotifier *iommu_notifier;
@@ -1701,7 +1701,7 @@ void memory_region_notify_iommu(MemoryRegion *mr,
     assert(memory_region_is_iommu(mr));
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
-        memory_region_notify_one(iommu_notifier, &entry);
+        memory_region_notify_iotlb_one(iommu_notifier, &entry);
     }
 }
 

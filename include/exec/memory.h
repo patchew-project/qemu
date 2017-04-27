@@ -673,7 +673,7 @@ static inline bool memory_region_is_iommu(MemoryRegion *mr)
 uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr);
 
 /**
- * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
+ * memory_region_notify_iotlb: notify a change in an IOMMU translation entry.
  *
  * The notification type will be decided by entry.perm bits:
  *
@@ -689,12 +689,12 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr);
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
-void memory_region_notify_iommu(MemoryRegion *mr,
+void memory_region_notify_iotlb(MemoryRegion *mr,
                                 IOMMUTLBEntry entry);
 
 /**
- * memory_region_notify_one: notify a change in an IOMMU translation
- *                           entry to a single notifier
+ * memory_region_notify_iotlb_one: notify a change in an IOMMU translation
+ *                                 entry to a single notifier
  *
  * This works just like memory_region_notify_iommu(), but it only
  * notifies a specific notifier, not all of them.
@@ -704,8 +704,8 @@ void memory_region_notify_iommu(MemoryRegion *mr,
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
-void memory_region_notify_one(IOMMUMRNotifier *notifier,
-                              IOMMUTLBEntry *entry);
+void memory_region_notify_iotlb_one(IOMMUMRNotifier *notifier,
+                                    IOMMUTLBEntry *entry);
 
 /**
  * memory_region_register_iommu_notifier: register a notifier for changes to

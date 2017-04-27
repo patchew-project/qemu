@@ -1205,7 +1205,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
                                            void *private)
 {
-    memory_region_notify_iommu((MemoryRegion *)private, *entry);
+    memory_region_notify_iotlb((MemoryRegion *)private, *entry);
     return 0;
 }
 
@@ -1709,7 +1709,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
     entry.iova = addr;
     entry.perm = IOMMU_NONE;
     entry.translated_addr = 0;
-    memory_region_notify_iommu(&vtd_dev_as->iommu, entry);
+    memory_region_notify_iotlb(&vtd_dev_as->iommu, entry);
 
 done:
     return true;
@@ -2752,7 +2752,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUMRNotifier *n)
                              VTD_PCI_FUNC(as->devfn),
                              entry.iova, size);
 
-    memory_region_notify_one(n, &entry);
+    memory_region_notify_iotlb_one(n, &entry);
 }
 
 static void vtd_address_space_unmap_all(IntelIOMMUState *s)
@@ -2771,7 +2771,7 @@ static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 
 static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
 {
-    memory_region_notify_one((IOMMUMRNotifier *)private, entry);
+    memory_region_notify_iotlb_one((IOMMUMRNotifier *)private, entry);
     return 0;
 }
 
