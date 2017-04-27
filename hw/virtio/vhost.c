@@ -754,7 +754,7 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     iommu->iommu_offset = section->offset_within_address_space -
                           section->offset_within_region;
     iommu->hdev = dev;
-    memory_region_register_iommu_notifier(section->mr, &iommu->n);
+    memory_region_register_iotlb_notifier(section->mr, &iommu->n);
     QLIST_INSERT_HEAD(&dev->iommu_list, iommu, iommu_next);
     /* TODO: can replay help performance here? */
 }
@@ -773,7 +773,7 @@ static void vhost_iommu_region_del(MemoryListener *listener,
     QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
         if (iommu->mr == section->mr &&
             iommu->n.start == section->offset_within_region) {
-            memory_region_unregister_iommu_notifier(iommu->mr,
+            memory_region_unregister_iotlb_notifier(iommu->mr,
                                                     &iommu->n);
             QLIST_REMOVE(iommu, iommu_next);
             g_free(iommu);

@@ -1581,10 +1581,10 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
 static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
 {
     IOMMUMREventFlags flags = IOMMU_MR_EVENT_NONE;
-    IOMMUMRNotifier *iommu_notifier;
+    IOMMUMRNotifier *iotlb_notifier;
 
-    IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
-        flags |= iommu_notifier->notifier_flags;
+    IOMMU_NOTIFIER_FOREACH(iotlb_notifier, mr) {
+        flags |= iotlb_notifier->notifier_flags;
     }
 
     if (flags != mr->iommu_notify_flags &&
@@ -1596,11 +1596,11 @@ static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
     mr->iommu_notify_flags = flags;
 }
 
-void memory_region_register_iommu_notifier(MemoryRegion *mr,
+void memory_region_register_iotlb_notifier(MemoryRegion *mr,
                                            IOMMUMRNotifier *n)
 {
     if (mr->alias) {
-        memory_region_register_iommu_notifier(mr->alias, n);
+        memory_region_register_iotlb_notifier(mr->alias, n);
         return;
     }
 
@@ -1657,11 +1657,11 @@ void memory_region_iommu_replay_all(MemoryRegion *mr)
     }
 }
 
-void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
+void memory_region_unregister_iotlb_notifier(MemoryRegion *mr,
                                              IOMMUMRNotifier *n)
 {
     if (mr->alias) {
-        memory_region_unregister_iommu_notifier(mr->alias, n);
+        memory_region_unregister_iotlb_notifier(mr->alias, n);
         return;
     }
     QLIST_REMOVE(n, node);
@@ -1696,12 +1696,12 @@ void memory_region_notify_iotlb_one(IOMMUMRNotifier *notifier,
 void memory_region_notify_iotlb(MemoryRegion *mr,
                                 IOMMUTLBEntry entry)
 {
-    IOMMUMRNotifier *iommu_notifier;
+    IOMMUMRNotifier *iotlb_notifier;
 
     assert(memory_region_is_iommu(mr));
 
-    IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
-        memory_region_notify_iotlb_one(iommu_notifier, &entry);
+    IOMMU_NOTIFIER_FOREACH(iotlb_notifier, mr) {
+        memory_region_notify_iotlb_one(iotlb_notifier, &entry);
     }
 }
 

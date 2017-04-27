@@ -708,7 +708,7 @@ void memory_region_notify_iotlb_one(IOMMUMRNotifier *notifier,
                                     IOMMUTLBEntry *entry);
 
 /**
- * memory_region_register_iommu_notifier: register a notifier for changes to
+ * memory_region_register_iotlb_notifier: register a notifier for changes to
  * IOMMU translation entries.
  *
  * @mr: the memory region to observe
@@ -716,7 +716,7 @@ void memory_region_notify_iotlb_one(IOMMUMRNotifier *notifier,
  *     pointer to an #IOMMUTLBEntry as the opaque value; the pointer
  *     ceases to be valid on exit from the notifier.
  */
-void memory_region_register_iommu_notifier(MemoryRegion *mr,
+void memory_region_register_iotlb_notifier(MemoryRegion *mr,
                                            IOMMUMRNotifier *n);
 
 /**
@@ -741,14 +741,14 @@ void memory_region_iommu_replay(MemoryRegion *mr, IOMMUMRNotifier *n,
 void memory_region_iommu_replay_all(MemoryRegion *mr);
 
 /**
- * memory_region_unregister_iommu_notifier: unregister a notifier for
+ * memory_region_unregister_iotlb_notifier: unregister a notifier for
  * changes to IOMMU translation entries.
  *
  * @mr: the memory region which was observed and for which notity_stopped()
  *      needs to be called
  * @n: the notifier to be removed.
  */
-void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
+void memory_region_unregister_iotlb_notifier(MemoryRegion *mr,
                                              IOMMUMRNotifier *n);
 
 /**
