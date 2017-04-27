@@ -46,10 +46,17 @@ ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     ssize_t ret;
     va_list ap;
 
+    if (unlikely(pdu->s->transport_broken)) {
+        return -EIO;
+    }
+
     va_start(ap, fmt);
     ret = pdu->s->transport->pdu_vmarshal(pdu, offset, fmt, ap);
     va_end(ap);
 
+    if (ret < 0) {
+        pdu->s->transport_broken = true;
+    }
     return ret;
 }
 
@@ -58,10 +65,17 @@ ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     ssize_t ret;
     va_list ap;
 
+    if (unlikely(pdu->s->transport_broken)) {
+        return -EIO;
+    }
+
     va_start(ap, fmt);
     ret = pdu->s->transport->pdu_vunmarshal(pdu, offset, fmt, ap);
     va_end(ap);
 
+    if (ret < 0) {
+        pdu->s->transport_broken = true;
+    }
     return ret;
 }
 
@@ -624,15 +638,15 @@ void pdu_free(V9fsPDU *pdu)
     QLIST_INSERT_HEAD(&s->free_list, pdu, next);
 }
 
-/*
- * We don't do error checking for pdu_marshal/unmarshal here
- * because we always expect to have enough space to encode
- * error details
- */
 static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 {
     int8_t id = pdu->id + 1; /* Response */
     V9fsState *s = pdu->s;
+    int ret;
+
+    if (unlikely(s->transport_broken)) {
+        goto out_complete;
+    }
 
     if (len < 0) {
         int err = -len;
@@ -644,11 +658,19 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
             str.data = strerror(err);
             str.size = strlen(str.data);
 
-            len += pdu_marshal(pdu, len, "s", &str);
+            ret = pdu_marshal(pdu, len, "s", &str);
+            if (ret < 0) {
+                goto out_complete;
+            }
+            len += ret;
             id = P9_RERROR;
         }
 
-        len += pdu_marshal(pdu, len, "d", err);
+        ret = pdu_marshal(pdu, len, "d", err);
+        if (ret < 0) {
+            goto out_complete;
+        }
+        len += ret;
 
         if (s->proto_version == V9FS_PROTO_2000L) {
             id = P9_RLERROR;
@@ -657,7 +679,10 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
     }
 
     /* fill out the header */
-    pdu_marshal(pdu, 0, "dbw", (int32_t)len, id, pdu->tag);
+    ret = pdu_marshal(pdu, 0, "dbw", (int32_t)len, id, pdu->tag);
+    if (ret < 0) {
+        goto out_complete;
+    }
 
     /* keep these in sync */
     pdu->size = len;
@@ -665,6 +690,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 
     pdu->s->transport->push_and_notify(pdu);
 
+out_complete:
     /* Now wakeup anybody waiting in flush for this request */
     if (!qemu_co_queue_next(&pdu->complete)) {
         pdu_free(pdu);
@@ -1702,6 +1728,7 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
                     read_count);
     qemu_iovec_destroy(&qiov_full);
     if (err < 0) {
+        s->transport_broken = true;
         return err;
     }
     offset += err;
@@ -3596,6 +3623,8 @@ void v9fs_reset(V9fsState *s)
     while (!data.done) {
         aio_poll(qemu_get_aio_context(), true);
     }
+
+    s->transport_broken = false;
 }
 
 static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
