@@ -1041,7 +1041,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
 
 static void vtd_iommu_replay_all(IntelIOMMUState *s)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
 
     QLIST_FOREACH(node, &s->notifiers_list, next) {
         memory_region_iommu_replay_all(&node->vtd_as->iommu);
@@ -1185,7 +1185,7 @@ static void vtd_iotlb_global_invalidate(IntelIOMMUState *s)
 
 static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
     VTDContextEntry ce;
     VTDAddressSpace *vtd_as;
 
@@ -1213,7 +1213,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                            uint16_t domain_id, hwaddr addr,
                                            uint8_t am)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
     VTDContextEntry ce;
     int ret;
 
@@ -2258,8 +2258,8 @@ static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
-    IntelIOMMUNotifierNode *node = NULL;
-    IntelIOMMUNotifierNode *next_node = NULL;
+    IntelIOMMUMRNotifierNode *node = NULL;
+    IntelIOMMUMRNotifierNode *next_node = NULL;
 
     if (!s->caching_mode && new & IOMMU_MR_EVENT_MAP) {
         error_report("We need to set cache_mode=1 for intel-iommu to enable "
@@ -2702,7 +2702,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
 }
 
 /* Unmap the whole range in the notifier's scope. */
-static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
+static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUMRNotifier *n)
 {
     IOMMUTLBEntry entry;
     hwaddr size;
@@ -2757,9 +2757,9 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 
 static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
     VTDAddressSpace *vtd_as;
-    IOMMUNotifier *n;
+    IOMMUMRNotifier *n;
 
     QLIST_FOREACH(node, &s->notifiers_list, next) {
         vtd_as = node->vtd_as;
@@ -2771,11 +2771,11 @@ static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 
 static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
 {
-    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    memory_region_notify_one((IOMMUMRNotifier *)private, entry);
     return 0;
 }
 
-static void vtd_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n)
+static void vtd_iommu_replay(MemoryRegion *mr, IOMMUMRNotifier *n)
 {
     VTDAddressSpace *vtd_as = container_of(mr, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;

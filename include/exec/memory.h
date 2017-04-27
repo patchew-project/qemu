@@ -66,7 +66,7 @@ struct IOMMUTLBEntry {
 };
 
 /*
- * Bitmap for different IOMMUNotifier capabilities. Each notifier can
+ * Bitmap for different IOMMUMRNotifier capabilities. Each notifier can
  * register with one or multiple IOMMU Notifier capability bit(s).
  */
 typedef enum {
@@ -79,21 +79,21 @@ typedef enum {
 
 #define IOMMU_MR_EVENT_ALL (IOMMU_MR_EVENT_MAP | IOMMU_MR_EVENT_UNMAP)
 
-struct IOMMUNotifier;
-typedef void (*IOMMUNotify)(struct IOMMUNotifier *notifier,
+struct IOMMUMRNotifier;
+typedef void (*IOMMUNotify)(struct IOMMUMRNotifier *notifier,
                             IOMMUTLBEntry *data);
 
-struct IOMMUNotifier {
+struct IOMMUMRNotifier {
     IOMMUNotify notify;
     IOMMUMREventFlags notifier_flags;
     /* Notify for address space range start <= addr <= end */
     hwaddr start;
     hwaddr end;
-    QLIST_ENTRY(IOMMUNotifier) node;
+    QLIST_ENTRY(IOMMUMRNotifier) node;
 };
-typedef struct IOMMUNotifier IOMMUNotifier;
+typedef struct IOMMUMRNotifier IOMMUMRNotifier;
 
-static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
+static inline void iommu_notifier_init(IOMMUMRNotifier *n, IOMMUNotify fn,
                                        IOMMUMREventFlags flags,
                                        hwaddr start, hwaddr end)
 {
@@ -194,7 +194,7 @@ struct MemoryRegionIOMMUOps {
                                 IOMMUMREventFlags old_flags,
                                 IOMMUMREventFlags new_flags);
     /* Set this up to provide customized IOMMU replay function */
-    void (*replay)(MemoryRegion *iommu, IOMMUNotifier *notifier);
+    void (*replay)(MemoryRegion *iommu, IOMMUMRNotifier *notifier);
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -239,7 +239,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
-    QLIST_HEAD(, IOMMUNotifier) iommu_notify;
+    QLIST_HEAD(, IOMMUMRNotifier) iommu_notify;
     IOMMUMREventFlags iommu_notify_flags;
 };
 
@@ -703,7 +703,7 @@ void memory_region_notify_iommu(MemoryRegion *mr,
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
-void memory_region_notify_one(IOMMUNotifier *notifier,
+void memory_region_notify_one(IOMMUMRNotifier *notifier,
                               IOMMUTLBEntry *entry);
 
 /**
@@ -711,12 +711,12 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
  * IOMMU translation entries.
  *
  * @mr: the memory region to observe
- * @n: the IOMMUNotifier to be added; the notify callback receives a
+ * @n: the IOMMUMRNotifier to be added; the notify callback receives a
  *     pointer to an #IOMMUTLBEntry as the opaque value; the pointer
  *     ceases to be valid on exit from the notifier.
  */
 void memory_region_register_iommu_notifier(MemoryRegion *mr,
-                                           IOMMUNotifier *n);
+                                           IOMMUMRNotifier *n);
 
 /**
  * memory_region_iommu_replay: replay existing IOMMU translations to
@@ -728,7 +728,7 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
  * @is_write: Whether to treat the replay as a translate "write"
  *     through the iommu
  */
-void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+void memory_region_iommu_replay(MemoryRegion *mr, IOMMUMRNotifier *n,
                                 bool is_write);
 
 /**
@@ -748,7 +748,7 @@ void memory_region_iommu_replay_all(MemoryRegion *mr);
  * @n: the notifier to be removed.
  */
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
-                                             IOMMUNotifier *n);
+                                             IOMMUMRNotifier *n);
 
 /**
  * memory_region_name: get a memory region's name

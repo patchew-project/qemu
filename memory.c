@@ -1581,7 +1581,7 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
 static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
 {
     IOMMUMREventFlags flags = IOMMU_MR_EVENT_NONE;
-    IOMMUNotifier *iommu_notifier;
+    IOMMUMRNotifier *iommu_notifier;
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
         flags |= iommu_notifier->notifier_flags;
@@ -1597,7 +1597,7 @@ static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
 }
 
 void memory_region_register_iommu_notifier(MemoryRegion *mr,
-                                           IOMMUNotifier *n)
+                                           IOMMUMRNotifier *n)
 {
     if (mr->alias) {
         memory_region_register_iommu_notifier(mr->alias, n);
@@ -1620,7 +1620,7 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
     return TARGET_PAGE_SIZE;
 }
 
-void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+void memory_region_iommu_replay(MemoryRegion *mr, IOMMUMRNotifier *n,
                                 bool is_write)
 {
     hwaddr addr, granularity;
@@ -1650,7 +1650,7 @@ void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
 
 void memory_region_iommu_replay_all(MemoryRegion *mr)
 {
-    IOMMUNotifier *notifier;
+    IOMMUMRNotifier *notifier;
 
     IOMMU_NOTIFIER_FOREACH(notifier, mr) {
         memory_region_iommu_replay(mr, notifier, false);
@@ -1658,7 +1658,7 @@ void memory_region_iommu_replay_all(MemoryRegion *mr)
 }
 
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
-                                             IOMMUNotifier *n)
+                                             IOMMUMRNotifier *n)
 {
     if (mr->alias) {
         memory_region_unregister_iommu_notifier(mr->alias, n);
@@ -1668,7 +1668,7 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
     memory_region_update_iommu_notify_flags(mr);
 }
 
-void memory_region_notify_one(IOMMUNotifier *notifier,
+void memory_region_notify_one(IOMMUMRNotifier *notifier,
                               IOMMUTLBEntry *entry)
 {
     IOMMUMREventFlags request_flags;
@@ -1696,7 +1696,7 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
 void memory_region_notify_iommu(MemoryRegion *mr,
                                 IOMMUTLBEntry entry)
 {
-    IOMMUNotifier *iommu_notifier;
+    IOMMUMRNotifier *iommu_notifier;
 
     assert(memory_region_is_iommu(mr));
 
