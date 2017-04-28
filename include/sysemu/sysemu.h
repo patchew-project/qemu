@@ -65,7 +65,7 @@ bool qemu_vmstop_requested(RunState *r);
 int qemu_shutdown_requested_get(void);
 int qemu_reset_requested_get(void);
 void qemu_system_killed(int signal, pid_t pid);
-void qemu_system_reset(bool report);
+void qemu_system_reset(bool report, int reason);
 void qemu_system_guest_panicked(GuestPanicInformation *info);
 size_t qemu_target_page_size(void);
 
