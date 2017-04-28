@@ -89,10 +89,14 @@ static void rx_test(QVirtioDevice *dev,
     char test[] = "TEST";
     char buffer[64];
     int len = htonl(sizeof(test));
+    int vnet_hdr_len = 0;
     struct iovec iov[] = {
         {
             .iov_base = &len,
             .iov_len = sizeof(len),
+        }, {
+            .iov_base = &vnet_hdr_len,
+            .iov_len = sizeof(vnet_hdr_len),
         }, {
             .iov_base = test,
             .iov_len = sizeof(test),
@@ -105,8 +109,9 @@ static void rx_test(QVirtioDevice *dev,
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
     qvirtqueue_kick(dev, vq, free_head);
 
-    ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
-    g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
+    ret = iov_send(socket, iov, 3, 0, sizeof(len)
+                   + sizeof(test) + sizeof(vnet_hdr_len));
+    g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len) + sizeof(vnet_hdr_len));
 
     qvirtio_wait_queue_isr(dev, vq, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
@@ -151,11 +156,15 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     char test[] = "TEST";
     char buffer[64];
     int len = htonl(sizeof(test));
+    int vnet_hdr_len = 0;
     QDict *rsp;
     struct iovec iov[] = {
         {
             .iov_base = &len,
             .iov_len = sizeof(len),
+        }, {
+            .iov_base = &vnet_hdr_len,
+            .iov_len = sizeof(vnet_hdr_len),
         }, {
             .iov_base = test,
             .iov_len = sizeof(test),
@@ -171,8 +180,9 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     rsp = qmp("{ 'execute' : 'stop'}");
     QDECREF(rsp);
 
-    ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
-    g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
+    ret = iov_send(socket, iov, 3, 0, sizeof(len)
+                   + sizeof(test) + sizeof(vnet_hdr_len));
+    g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len) + sizeof(vnet_hdr_len));
 
     /* We could check the status, but this command is more importantly to
      * ensure the packet data gets queued in QEMU, before we do 'cont'.
