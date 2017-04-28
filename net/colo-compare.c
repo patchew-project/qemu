@@ -99,7 +99,8 @@ enum {
 
 static int compare_chr_send(CharBackend *out,
                             const uint8_t *buf,
-                            uint32_t size);
+                            uint32_t size,
+                            uint32_t vnet_hdr_len);
 
 static gint seq_sorter(Packet *a, Packet *b, gpointer data)
 {
@@ -121,9 +122,13 @@ static int packet_enqueue(CompareState *s, int mode)
     Connection *conn;
 
     if (mode == PRIMARY_IN) {
-        pkt = packet_new(s->pri_rs.buf, s->pri_rs.packet_len);
+        pkt = packet_new(s->pri_rs.buf,
+                         s->pri_rs.packet_len,
+                         s->pri_rs.vnet_hdr_len);
     } else {
-        pkt = packet_new(s->sec_rs.buf, s->sec_rs.packet_len);
+        pkt = packet_new(s->sec_rs.buf,
+                         s->sec_rs.packet_len,
+                         s->sec_rs.vnet_hdr_len);
     }
 
     if (parse_packet_early(pkt)) {
@@ -468,7 +473,10 @@ static void colo_compare_connection(void *opaque, void *user_data)
         }
 
         if (result) {
-            ret = compare_chr_send(&s->chr_out, pkt->data, pkt->size);
+            ret = compare_chr_send(&s->chr_out,
+                                   pkt->data,
+                                   pkt->size,
+                                   pkt->vnet_hdr_len);
             if (ret < 0) {
                 error_report("colo_send_primary_packet failed");
             }
@@ -491,7 +499,8 @@ static void colo_compare_connection(void *opaque, void *user_data)
 
 static int compare_chr_send(CharBackend *out,
                             const uint8_t *buf,
-                            uint32_t size)
+                            uint32_t size,
+                            uint32_t vnet_hdr_len)
 {
     int ret = 0;
     uint32_t len = htonl(size);
@@ -500,6 +509,16 @@ static int compare_chr_send(CharBackend *out,
         return 0;
     }
 
+    ret = qemu_chr_fe_write_all(out, (uint8_t *)&len, sizeof(len));
+    if (ret != sizeof(len)) {
+        goto err;
+    }
+
+    /*
+     * We send vnet header len make other module(like colo-compare)
+     * know how to parse net packet correctly.
+     */
+    len = htonl(vnet_hdr_len);
     ret = qemu_chr_fe_write_all(out, (uint8_t *)&len, sizeof(len));
     if (ret != sizeof(len)) {
         goto err;
@@ -648,7 +667,10 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 
     if (packet_enqueue(s, PRIMARY_IN)) {
         trace_colo_compare_main("primary: unsupported packet in");
-        compare_chr_send(&s->chr_out, pri_rs->buf, pri_rs->packet_len);
+        compare_chr_send(&s->chr_out,
+                         pri_rs->buf,
+                         pri_rs->packet_len,
+                         pri_rs->vnet_hdr_len);
     } else {
         /* compare connection */
         g_queue_foreach(&s->conn_list, colo_compare_connection, s);
@@ -757,7 +779,10 @@ static void colo_flush_packets(void *opaque, void *user_data)
 
     while (!g_queue_is_empty(&conn->primary_list)) {
         pkt = g_queue_pop_head(&conn->primary_list);
-        compare_chr_send(&s->chr_out, pkt->data, pkt->size);
+        compare_chr_send(&s->chr_out,
+                         pkt->data,
+                         pkt->size,
+                         pkt->vnet_hdr_len);
         packet_destroy(pkt, NULL);
     }
     while (!g_queue_is_empty(&conn->secondary_list)) {
