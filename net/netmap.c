@@ -360,6 +360,13 @@ static bool netmap_has_vnet_hdr_len(NetClientState *nc, int len)
     return true;
 }
 
+static int netmap_get_vnet_hdr_len(NetClientState *nc)
+{
+    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
+
+    return s->vnet_hdr_len;
+}
+
 /* A netmap interface that supports virtio-net headers always
  * supports UFO, so we use this callback also for the has_ufo hook. */
 static bool netmap_has_vnet_hdr(NetClientState *nc)
@@ -409,6 +416,7 @@ static NetClientInfo net_netmap_info = {
     .has_ufo = netmap_has_vnet_hdr,
     .has_vnet_hdr = netmap_has_vnet_hdr,
     .has_vnet_hdr_len = netmap_has_vnet_hdr_len,
+    .get_vnet_hdr_len = netmap_get_vnet_hdr_len,
     .using_vnet_hdr = netmap_using_vnet_hdr,
     .set_offload = netmap_set_offload,
     .set_vnet_hdr_len = netmap_set_vnet_hdr_len,
