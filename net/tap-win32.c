@@ -729,6 +729,11 @@ static void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
 {
 }
 
+static void tap_get_using_vnet_hdr(NetClientState *nc)
+{
+    return false;
+}
+
 static void tap_set_offload(NetClientState *nc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
@@ -744,6 +749,11 @@ static bool tap_has_vnet_hdr_len(NetClientState *nc, int len)
     return false;
 }
 
+static int tap_get_vnet_hdr_len(NetClientState *nc)
+{
+    return 0;
+}
+
 static void tap_set_vnet_hdr_len(NetClientState *nc, int len)
 {
     abort();
@@ -757,7 +767,9 @@ static NetClientInfo net_tap_win32_info = {
     .has_ufo = tap_has_ufo,
     .has_vnet_hdr = tap_has_vnet_hdr,
     .has_vnet_hdr_len = tap_has_vnet_hdr_len,
+    .get_vnet_hdr_len = tap_get_vnet_hdr_len,
     .using_vnet_hdr = tap_using_vnet_hdr,
+    .get_using_vnet_hdr = tap_get_using_vnet_hdr,
     .set_offload = tap_set_offload,
     .set_vnet_hdr_len = tap_set_vnet_hdr_len,
 };
