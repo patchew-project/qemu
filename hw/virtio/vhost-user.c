@@ -205,10 +205,11 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
     /*
      * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
      * we just need send it once in the first time. For later such
-     * request, we just ignore it.
+     * request, we just ignore it. In this case, return value is 1 which is
+     * different from 0 that stands for message written successfully.
      */
     if (vhost_user_one_time_request(msg->request) && dev->vq_index != 0) {
-        return 0;
+        return 1;
     }
 
     if (qemu_chr_fe_set_msgfds(chr, fds, fd_num) < 0) {
@@ -270,7 +271,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                     struct vhost_memory *mem)
 {
     int fds[VHOST_MEMORY_MAX_NREGIONS];
-    int i, fd;
+    int i, fd, ret;
     size_t fd_num = 0;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
@@ -315,11 +316,12 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     msg.size += sizeof(msg.payload.memory.padding);
     msg.size += fd_num * sizeof(VhostUserMemoryRegion);
 
-    if (vhost_user_write(dev, &msg, fds, fd_num) < 0) {
+    ret = vhost_user_write(dev, &msg, fds, fd_num);
+    if (ret < 0) {
         return -1;
     }
 
-    if (reply_supported) {
+    if (reply_supported && (ret == 0)) {
         return process_message_reply(dev, msg.request);
     }
 
@@ -691,6 +693,7 @@ static bool vhost_user_can_merge(struct vhost_dev *dev,
 static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
 {
     VhostUserMsg msg;
+    int ret;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
 
@@ -706,12 +709,13 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
         msg.flags |= VHOST_USER_NEED_REPLY_MASK;
     }
 
-    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
         return -1;
     }
 
     /* If reply_ack supported, slave has to ack specified MTU is valid */
-    if (reply_supported) {
+    if (reply_supported && (ret == 0)) {
         return process_message_reply(dev, msg.request);
     }
 
