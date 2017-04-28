@@ -413,11 +413,7 @@ static void event_unrealize(DeviceState *qdev, Error **errp)
     SCLPEvent *event = SCLP_EVENT(qdev);
     SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
     if (child->exit) {
-        int rc = child->exit(event);
-        if (rc < 0) {
-            error_setg(errp, "SCLP event exit failed.");
-            return;
-        }
+        child->exit(event);
     }
 }
 
