@@ -139,6 +139,9 @@ void migration_incoming_state_destroy(void);
  * Functions to work with downtime context
  */
 struct DowntimeContext *downtime_context_new(void);
+void mark_postcopy_downtime_begin(uint64_t addr, int cpu);
+void mark_postcopy_downtime_end(uint64_t addr);
+uint64_t get_postcopy_total_downtime(void);
 
 struct MigrationState
 {

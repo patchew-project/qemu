@@ -23,6 +23,7 @@
 #include "migration/postcopy-ram.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
+#include <sys/param.h>
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -468,6 +469,19 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
     return 0;
 }
 
+static int get_mem_fault_cpu_index(uint32_t pid)
+{
+    CPUState *cpu_iter;
+
+    CPU_FOREACH(cpu_iter) {
+        if (cpu_iter->thread_id == pid) {
+            return cpu_iter->cpu_index;
+        }
+    }
+    trace_get_mem_fault_cpu_index(pid);
+    return -1;
+}
+
 /*
  * Handle faults detected by the USERFAULT markings
  */
@@ -545,8 +559,11 @@ static void *postcopy_ram_fault_thread(void *opaque)
         rb_offset &= ~(qemu_ram_pagesize(rb) - 1);
         trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
                                                 qemu_ram_get_idstr(rb),
-                                                rb_offset);
+                                                rb_offset,
+                                                msg.arg.pagefault.feat.ptid);
 
+        mark_postcopy_downtime_begin((uintptr_t)(msg.arg.pagefault.address),
+                         get_mem_fault_cpu_index(msg.arg.pagefault.feat.ptid));
         /*
          * Send the request to the source - we want to request one
          * of our host page sizes (which is >= TPS)
@@ -641,6 +658,7 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
 
         return -e;
     }
+    mark_postcopy_downtime_end((uint64_t)host);
 
     trace_postcopy_place_page(host);
     return 0;

@@ -2150,3 +2150,106 @@ PostcopyState postcopy_state_set(PostcopyState new_state)
     return atomic_xchg(&incoming_postcopy_state, new_state);
 }
 
+void mark_postcopy_downtime_begin(uint64_t addr, int cpu)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    DowntimeContext *dc;
+    if (!mis->downtime_ctx || cpu < 0) {
+        return;
+    }
+    dc = mis->downtime_ctx;
+    dc->vcpu_addr[cpu] = addr;
+    dc->last_begin = dc->page_fault_vcpu_time[cpu] =
+        qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    trace_mark_postcopy_downtime_begin(addr, dc, dc->page_fault_vcpu_time[cpu],
+            cpu);
+}
+
+void mark_postcopy_downtime_end(uint64_t addr)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    DowntimeContext *dc;
+    int i;
+    bool all_vcpu_down = true;
+    int64_t now;
+
+    if (!mis->downtime_ctx) {
+        return;
+    }
+    dc = mis->downtime_ctx;
+    now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    /* check all vCPU down,
+     * QEMU has bitmap.h, but even with bitmap_and
+     * will be a cycle */
+    for (i = 0; i < smp_cpus; i++) {
+        if (dc->vcpu_addr[i]) {
+            continue;
+        }
+        all_vcpu_down = false;
+        break;
+    }
+
+    if (all_vcpu_down) {
+        dc->total_downtime += now - dc->last_begin;
+    }
+
+    /* lookup cpu, to clear it */
+    for (i = 0; i < smp_cpus; i++) {
+        uint64_t vcpu_downtime;
+
+        if (dc->vcpu_addr[i] != addr) {
+            continue;
+        }
+
+        vcpu_downtime = now - dc->page_fault_vcpu_time[i];
+
+        dc->vcpu_addr[i] = 0;
+        dc->vcpu_downtime[i] += vcpu_downtime;
+    }
+
+    trace_mark_postcopy_downtime_end(addr, dc, dc->total_downtime);
+}
+
+/*
+ * This function just provide calculated before downtime per cpu and trace it.
+ * Total downtime is calculated in mark_postcopy_downtime_end.
+ *
+ *
+ * Assume we have 3 CPU
+ *
+ *      S1        E1           S1               E1
+ * -----***********------------xxx***************------------------------> CPU1
+ *
+ *             S2                E2
+ * ------------****************xxx---------------------------------------> CPU2
+ *
+ *                         S3            E3
+ * ------------------------****xxx********-------------------------------> CPU3
+ *
+ * We have sequence S1,S2,E1,S3,S1,E2,E3,E1
+ * S2,E1 - doesn't match condition due to sequence S1,S2,E1 doesn't include CPU3
+ * S3,S1,E2 - sequence includes all CPUs, in this case overlap will be S1,E2 -
+ *            it's a part of total downtime.
+ * S1 - here is last_begin
+ * Legend of the picture is following:
+ *              * - means downtime per vCPU
+ *              x - means overlapped downtime (total downtime)
+ */
+uint64_t get_postcopy_total_downtime(void)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (!mis->downtime_ctx) {
+        return 0;
+    }
+
+    if (trace_event_get_state(TRACE_DOWNTIME_PER_CPU)) {
+        int i;
+        for (i = 0; i < smp_cpus; i++) {
+            trace_downtime_per_cpu(i, mis->downtime_ctx->vcpu_downtime[i]);
+        }
+    }
+    return mis->downtime_ctx->total_downtime;
+}
