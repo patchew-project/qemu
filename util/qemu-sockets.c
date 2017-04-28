@@ -207,22 +207,36 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         }
 
         socket_set_fast_reuse(slisten);
-#ifdef IPV6_V6ONLY
-        if (e->ai_family == PF_INET6) {
-            /* listen on both ipv4 and ipv6 */
-            const int off = 0;
-            qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &off,
-                            sizeof(off));
-        }
-#endif
 
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
             inet_setport(e, p);
+#ifdef IPV6_V6ONLY
+            if (e->ai_family == PF_INET6) {
+                /* listen on both ipv4 and ipv6 */
+                const int off = 0;
+                qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &off,
+                                sizeof(off));
+            }
+#endif
             if (bind(slisten, e->ai_addr, e->ai_addrlen) == 0) {
                 goto listen;
             }
+
+#ifdef IPV6_V6ONLY
+            if (e->ai_family == PF_INET6 && errno == EADDRINUSE) {
+                /* listen on only ipv6 */
+                const int on = 1;
+                qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &on,
+                                sizeof(on));
+
+                if (bind(slisten, e->ai_addr, e->ai_addrlen) == 0) {
+                    goto listen;
+                }
+            }
+#endif
+
             if (p == port_max) {
                 if (!e->ai_next) {
                     error_setg_errno(errp, errno, "Failed to bind socket");
