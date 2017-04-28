@@ -132,6 +132,14 @@ static bool ufd_version_check(int ufd, MigrationIncomingState *mis)
         return false;
     }
 
+#ifdef UFFD_FEATURE_THREAD_ID
+    if (mis && UFFD_FEATURE_THREAD_ID & supported_features) {
+        /* kernel supports that feature */
+        mis->downtime_ctx = downtime_context_new();
+        new_features |= UFFD_FEATURE_THREAD_ID;
+    }
+#endif
+
     /* request features */
     if (new_features && !request_ufd_features(ufd, new_features)) {
         error_report("ufd_version_check failed: features %" PRIu64,

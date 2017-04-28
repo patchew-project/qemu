@@ -77,6 +77,18 @@ static NotifierList migration_state_notifiers =
 
 static bool deferred_incoming;
 
+typedef struct DowntimeContext {
+    /* time when page fault initiated per vCPU */
+    int64_t *page_fault_vcpu_time;
+    /* page address per vCPU */
+    uint64_t *vcpu_addr;
+    int64_t total_downtime;
+    /* downtime per vCPU */
+    int64_t *vcpu_downtime;
+    /* point in time when last page fault was initiated */
+    int64_t last_begin;
+} DowntimeContext;
+
 /*
  * Current state of incoming postcopy; note this is not part of
  * MigrationIncomingState since it's state is used during cleanup
@@ -116,6 +128,23 @@ MigrationState *migrate_get_current(void)
     return &current_migration;
 }
 
+struct DowntimeContext *downtime_context_new(void)
+{
+    DowntimeContext *ctx = g_new0(DowntimeContext, 1);
+    ctx->page_fault_vcpu_time = g_new0(int64_t, smp_cpus);
+    ctx->vcpu_addr = g_new0(uint64_t, smp_cpus);
+    ctx->vcpu_downtime = g_new0(int64_t, smp_cpus);
+    return ctx;
+}
+
+static void destroy_downtime_context(struct DowntimeContext *ctx)
+{
+    g_free(ctx->page_fault_vcpu_time);
+    g_free(ctx->vcpu_addr);
+    g_free(ctx->vcpu_downtime);
+    g_free(ctx);
+}
+
 MigrationIncomingState *migration_incoming_get_current(void)
 {
     static bool once;
@@ -138,6 +167,10 @@ void migration_incoming_state_destroy(void)
 
     qemu_event_destroy(&mis->main_thread_load_event);
     loadvm_free_handlers(mis);
+    if (mis->downtime_ctx) {
+        destroy_downtime_context(mis->downtime_ctx);
+        mis->downtime_ctx = NULL;
+    }
 }
 
 

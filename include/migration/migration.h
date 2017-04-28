@@ -83,6 +83,8 @@ typedef enum {
     POSTCOPY_INCOMING_END
 } PostcopyState;
 
+struct DowntimeContext;
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -123,10 +125,20 @@ struct MigrationIncomingState {
 
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
+
+    /*
+     * DowntimeContext to keep information for postcopy
+     * live migration, to calculate downtime
+     * */
+    struct DowntimeContext *downtime_ctx;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
+/*
+ * Functions to work with downtime context
+ */
+struct DowntimeContext *downtime_context_new(void);
 
 struct MigrationState
 {
