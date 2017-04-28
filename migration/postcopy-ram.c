@@ -388,6 +388,8 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
     }
 
     postcopy_state_set(POSTCOPY_INCOMING_END);
+    /* here should be downtime receiving back operation */
+    trace_postcopy_ram_incoming_cleanup_downtime(get_postcopy_total_downtime());
     migrate_send_rp_shut(mis, qemu_file_get_error(mis->from_src_file) != 0);
 
     if (mis->postcopy_tmp_page) {
