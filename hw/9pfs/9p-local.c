@@ -983,12 +983,20 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
          * .virtfs_metadata directory.
          */
         map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-        ret = unlinkat(map_dirfd, name, 0);
-        close_preserve_errno(map_dirfd);
-        if (ret < 0 && errno != ENOENT) {
+        if (map_dirfd != -1) {
+            ret = unlinkat(map_dirfd, name, 0);
+            close_preserve_errno(map_dirfd);
+            if (ret < 0 && errno != ENOENT) {
+                /*
+                 * We didn't had the .virtfs_metadata file. May be file created
+                 * in non-mapped mode ?. Ignore ENOENT.
+                 */
+                goto err_out;
+            }
+        } else if (errno != ENOENT) {
             /*
-             * We didn't had the .virtfs_metadata file. May be file created
-             * in non-mapped mode ?. Ignore ENOENT.
+             * We didn't had the parent .virtfs_metadata directory. May be
+             * file created in non-mapped mode ?. Ignore ENOENT.
              */
             goto err_out;
         }
