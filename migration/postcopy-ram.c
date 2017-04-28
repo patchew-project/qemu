@@ -60,15 +60,51 @@ struct PostcopyDiscardState {
 #include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
-static bool ufd_version_check(int ufd, MigrationIncomingState *mis)
-{
-    struct uffdio_api api_struct;
-    uint64_t ioctl_mask;
 
+/*
+ * Check userfault fd features, to request only supported features in
+ * future.
+ * __NR_userfaultfd - should be checked before
+ * Return obtained features
+ */
+static bool receive_ufd_features(__u64 *features)
+{
+    struct uffdio_api api_struct = {0};
+    int ufd;
+    bool ret = true;
+
+    /* if we are here __NR_userfaultfd should exists */
+    ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    if (ufd == -1) {
+        return false;
+    }
+
+    /* ask features */
     api_struct.api = UFFD_API;
     api_struct.features = 0;
     if (ioctl(ufd, UFFDIO_API, &api_struct)) {
-        error_report("postcopy_ram_supported_by_host: UFFDIO_API failed: %s",
+        error_report("receive_ufd_features: UFFDIO_API failed: %s",
+                strerror(errno));
+        ret = false;
+        goto release_ufd;
+    }
+
+    *features = api_struct.features;
+
+release_ufd:
+    close(ufd);
+    return ret;
+}
+
+static bool request_ufd_features(int ufd, __u64 features)
+{
+    struct uffdio_api api_struct = {0};
+    uint64_t ioctl_mask;
+
+    api_struct.api = UFFD_API;
+    api_struct.features = features;
+    if (ioctl(ufd, UFFDIO_API, &api_struct)) {
+        error_report("request_ufd_features: UFFDIO_API failed: %s",
                      strerror(errno));
         return false;
     }
@@ -81,11 +117,33 @@ static bool ufd_version_check(int ufd, MigrationIncomingState *mis)
         return false;
     }
 
+    return true;
+}
+
+static bool ufd_version_check(int ufd, MigrationIncomingState *mis)
+{
+    __u64 new_features = 0;
+
+    /* ask features */
+    __u64 supported_features;
+
+    if (!receive_ufd_features(&supported_features)) {
+        error_report("ufd_version_check failed");
+        return false;
+    }
+
+    /* request features */
+    if (new_features && !request_ufd_features(ufd, new_features)) {
+        error_report("ufd_version_check failed: features %" PRIu64,
+                (uint64_t)new_features);
+        return false;
+    }
+
     if (getpagesize() != ram_pagesize_summary()) {
         bool have_hp = false;
         /* We've got a huge page */
 #ifdef UFFD_FEATURE_MISSING_HUGETLBFS
-        have_hp = api_struct.features & UFFD_FEATURE_MISSING_HUGETLBFS;
+        have_hp = supported_features & UFFD_FEATURE_MISSING_HUGETLBFS;
 #endif
         if (!have_hp) {
             error_report("Userfault on this host does not support huge pages");
