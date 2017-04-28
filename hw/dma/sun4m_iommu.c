@@ -134,7 +134,7 @@
 typedef struct IOMMUState {
     SysBusDevice parent_obj;
 
-    MemoryRegion iomem;
+    IOMMUMemoryRegion iomem;
     uint32_t regs[IOMMU_NREGS];
     hwaddr iostart;
     qemu_irq irq;
