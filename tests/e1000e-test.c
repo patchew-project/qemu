@@ -329,10 +329,14 @@ static void e1000e_receive_verify(e1000e_device *d)
 
     char test[] = "TEST";
     int len = htonl(sizeof(test));
+    int vnet_hdr_len = 0;
     struct iovec iov[] = {
         {
             .iov_base = &len,
             .iov_len = sizeof(len),
+        },{
+            .iov_base = &vnet_hdr_len,
+            .iov_len = sizeof(vnet_hdr_len),
         },{
             .iov_base = test,
             .iov_len = sizeof(test),
@@ -344,8 +348,10 @@ static void e1000e_receive_verify(e1000e_device *d)
     int ret;
 
     /* Send a dummy packet to device's socket*/
-    ret = iov_send(test_sockets[0], iov, 2, 0, sizeof(len) + sizeof(test));
-    g_assert_cmpint(ret, == , sizeof(test) + sizeof(len));
+    ret = iov_send(test_sockets[0], iov, 3, 0, sizeof(len)
+                   + sizeof(vnet_hdr_len) + sizeof(test));
+    g_assert_cmpint(ret, == , sizeof(test) + sizeof(len)
+                    + sizeof(vnet_hdr_len));
 
     /* Prepare test data buffer */
     uint64_t data = guest_alloc(test_alloc, data_len);
