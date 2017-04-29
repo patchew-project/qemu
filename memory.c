@@ -975,12 +975,11 @@ static char *memory_region_escape_name(const char *name)
     return escaped;
 }
 
-void memory_region_init(MemoryRegion *mr,
-                        Object *owner,
-                        const char *name,
-                        uint64_t size)
+static void memory_region_do_init(MemoryRegion *mr,
+                                  Object *owner,
+                                  const char *name,
+                                  uint64_t size)
 {
-    object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
@@ -1002,6 +1001,15 @@ void memory_region_init(MemoryRegion *mr,
         g_free(name_array);
         g_free(escaped_name);
     }
+}
+
+void memory_region_init(MemoryRegion *mr,
+                        Object *owner,
+                        const char *name,
+                        uint64_t size)
+{
+    object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
+    memory_region_do_init(mr, owner, name, size);
 }
 
 static void memory_region_get_addr(Object *obj, Visitor *v, const char *name,
@@ -1088,6 +1096,13 @@ static void memory_region_initfn(Object *obj)
                         memory_region_get_size,
                         NULL, /* memory_region_set_size, */
                         NULL, NULL, &error_abort);
+}
+
+static void iommu_memory_region_initfn(Object *obj)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+
+    mr->is_iommu = true;
 }
 
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
@@ -1473,17 +1488,33 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_block = qemu_ram_alloc(size, mr, errp);
 }
 
-void memory_region_init_iommu(MemoryRegion *mr,
+void memory_region_init_iommu_type(const char *mrtypename,
+                                   IOMMUMemoryRegion *iommumr,
+                                   Object *owner,
+                                   const MemoryRegionIOMMUOps *ops,
+                                   const char *name,
+                                   uint64_t size)
+{
+    struct MemoryRegion *mr;
+    size_t instance_size = object_type_get_instance_size(mrtypename);
+
+    object_initialize(iommumr, instance_size, mrtypename);
+    mr = MEMORY_REGION(iommumr);
+    memory_region_do_init(mr, owner, name, size);
+    iommumr->iommu_ops = ops,
+    mr->terminates = true;  /* then re-forwards */
+    QLIST_INIT(&iommumr->iommu_notify);
+    iommumr->iommu_notify_flags = IOMMU_NOTIFIER_NONE;
+}
+
+void memory_region_init_iommu(IOMMUMemoryRegion *iommumr,
                               Object *owner,
                               const MemoryRegionIOMMUOps *ops,
                               const char *name,
                               uint64_t size)
 {
-    memory_region_init(mr, owner, name, size);
-    mr->iommu_ops = ops,
-    mr->terminates = true;  /* then re-forwards */
-    QLIST_INIT(&mr->iommu_notify);
-    mr->iommu_notify_flags = IOMMU_NOTIFIER_NONE;
+    memory_region_init_iommu_type(TYPE_IOMMU_MEMORY_REGION, iommumr,
+                                  owner, ops, name, size);
 }
 
 static void memory_region_finalize(Object *obj)
@@ -1578,64 +1609,68 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
-static void memory_region_update_iommu_notify_flags(MemoryRegion *mr)
+static void memory_region_update_iommu_notify_flags(IOMMUMemoryRegion *iommumr)
 {
     IOMMUNotifierFlag flags = IOMMU_NOTIFIER_NONE;
     IOMMUNotifier *iommu_notifier;
 
-    IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
+    IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommumr) {
         flags |= iommu_notifier->notifier_flags;
     }
 
-    if (flags != mr->iommu_notify_flags &&
-        mr->iommu_ops->notify_flag_changed) {
-        mr->iommu_ops->notify_flag_changed(mr, mr->iommu_notify_flags,
-                                           flags);
+    if (flags != iommumr->iommu_notify_flags &&
+        iommumr->iommu_ops->notify_flag_changed) {
+        iommumr->iommu_ops->notify_flag_changed(iommumr,
+                                                iommumr->iommu_notify_flags,
+                                                flags);
     }
 
-    mr->iommu_notify_flags = flags;
+    iommumr->iommu_notify_flags = flags;
 }
 
 void memory_region_register_iommu_notifier(MemoryRegion *mr,
                                            IOMMUNotifier *n)
 {
+    IOMMUMemoryRegion *iommumr;
+
     if (mr->alias) {
         memory_region_register_iommu_notifier(mr->alias, n);
         return;
     }
 
     /* We need to register for at least one bitfield */
+    iommumr = IOMMU_MEMORY_REGION(mr);
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
     assert(n->start <= n->end);
-    QLIST_INSERT_HEAD(&mr->iommu_notify, n, node);
-    memory_region_update_iommu_notify_flags(mr);
+    QLIST_INSERT_HEAD(&iommumr->iommu_notify, n, node);
+    memory_region_update_iommu_notify_flags(iommumr);
 }
 
-uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr)
+uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommumr)
 {
-    assert(memory_region_is_iommu(mr));
-    if (mr->iommu_ops && mr->iommu_ops->get_min_page_size) {
-        return mr->iommu_ops->get_min_page_size(mr);
+    if (iommumr->iommu_ops && iommumr->iommu_ops->get_min_page_size) {
+        return iommumr->iommu_ops->get_min_page_size(iommumr);
     }
     return TARGET_PAGE_SIZE;
 }
 
-void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+void memory_region_iommu_replay(IOMMUMemoryRegion *iommumr, IOMMUNotifier *n,
                                 bool is_write)
 {
+    MemoryRegion *mr = MEMORY_REGION(iommumr);
     hwaddr addr, granularity;
     IOMMUTLBEntry iotlb;
 
     /* If the IOMMU has its own replay callback, override */
-    if (mr->iommu_ops->replay) {
-        mr->iommu_ops->replay(mr, n);
+    if (iommumr->iommu_ops->replay) {
+        iommumr->iommu_ops->replay(iommumr, n);
         return;
     }
 
-    granularity = memory_region_iommu_get_min_page_size(mr);
+    granularity = memory_region_iommu_get_min_page_size(iommumr);
 
     for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
+        iotlb = iommumr->iommu_ops->translate(iommumr, addr, is_write);
         if (iotlb.perm != IOMMU_NONE) {
             n->notify(n, &iotlb);
         }
@@ -1648,24 +1683,27 @@ void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
     }
 }
 
-void memory_region_iommu_replay_all(MemoryRegion *mr)
+void memory_region_iommu_replay_all(IOMMUMemoryRegion *iommumr)
 {
     IOMMUNotifier *notifier;
 
-    IOMMU_NOTIFIER_FOREACH(notifier, mr) {
-        memory_region_iommu_replay(mr, notifier, false);
+    IOMMU_NOTIFIER_FOREACH(notifier, iommumr) {
+        memory_region_iommu_replay(iommumr, notifier, false);
     }
 }
 
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
                                              IOMMUNotifier *n)
 {
+    IOMMUMemoryRegion *iommumr;
+
     if (mr->alias) {
         memory_region_unregister_iommu_notifier(mr->alias, n);
         return;
     }
     QLIST_REMOVE(n, node);
-    memory_region_update_iommu_notify_flags(mr);
+    iommumr = IOMMU_MEMORY_REGION(mr);
+    memory_region_update_iommu_notify_flags(iommumr);
 }
 
 void memory_region_notify_one(IOMMUNotifier *notifier,
@@ -1693,14 +1731,14 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
     }
 }
 
-void memory_region_notify_iommu(MemoryRegion *mr,
+void memory_region_notify_iommu(IOMMUMemoryRegion *iommumr,
                                 IOMMUTLBEntry entry)
 {
     IOMMUNotifier *iommu_notifier;
 
-    assert(memory_region_is_iommu(mr));
+    assert(memory_region_is_iommu(MEMORY_REGION(iommumr)));
 
-    IOMMU_NOTIFIER_FOREACH(iommu_notifier, mr) {
+    IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommumr) {
         memory_region_notify_one(iommu_notifier, &entry);
     }
 }
@@ -2709,9 +2747,17 @@ static const TypeInfo memory_region_info = {
     .instance_finalize  = memory_region_finalize,
 };
 
+static const TypeInfo iommu_memory_region_info = {
+    .parent             = TYPE_MEMORY_REGION,
+    .name               = TYPE_IOMMU_MEMORY_REGION,
+    .instance_size      = sizeof(IOMMUMemoryRegion),
+    .instance_init      = iommu_memory_region_initfn,
+};
+
 static void memory_register_types(void)
 {
     type_register_static(&memory_region_info);
+    type_register_static(&iommu_memory_region_info);
 }
 
 type_init(memory_register_types)

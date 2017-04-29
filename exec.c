@@ -468,20 +468,20 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
 {
     IOMMUTLBEntry iotlb = {0};
     MemoryRegionSection *section;
-    MemoryRegion *mr;
+    IOMMUMemoryRegion *iommumr;
 
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
         section = address_space_lookup_region(d, addr, false);
         addr = addr - section->offset_within_address_space
                + section->offset_within_region;
-        mr = section->mr;
 
-        if (!mr->iommu_ops) {
+        iommumr = memory_region_get_iommu(section->mr);
+        if (!iommumr) {
             break;
         }
 
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
+        iotlb = iommumr->iommu_ops->translate(iommumr, addr, is_write);
         if (!(iotlb.perm & (1 << is_write))) {
             iotlb.target_as = NULL;
             break;
@@ -503,17 +503,19 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     IOMMUTLBEntry iotlb;
     MemoryRegionSection *section;
     MemoryRegion *mr;
+    IOMMUMemoryRegion *iommumr;
 
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
         section = address_space_translate_internal(d, addr, &addr, plen, true);
         mr = section->mr;
 
-        if (!mr->iommu_ops) {
+        iommumr = memory_region_get_iommu(mr);
+        if (!iommumr) {
             break;
         }
 
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
+        iotlb = iommumr->iommu_ops->translate(iommumr, addr, is_write);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
         *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);
@@ -544,7 +546,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
 
     section = address_space_translate_internal(d, addr, xlat, plen, false);
 
-    assert(!section->mr->iommu_ops);
+    assert(!memory_region_is_iommu(section->mr));
     return section;
 }
 #endif

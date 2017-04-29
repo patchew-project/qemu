@@ -123,7 +123,7 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct IOMMUState {
     AddressSpace iommu_as;
-    MemoryRegion iommu;
+    IOMMUMemoryRegion iommu;
 
     uint64_t regs[IOMMU_NREGS];
 } IOMMUState;
