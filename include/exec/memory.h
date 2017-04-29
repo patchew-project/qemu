@@ -37,6 +37,10 @@
 #define MEMORY_REGION(obj) \
         OBJECT_CHECK(MemoryRegion, (obj), TYPE_MEMORY_REGION)
 
+#define TYPE_IOMMU_MEMORY_REGION "qemu:iommu-memory-region"
+#define IOMMU_MEMORY_REGION(obj) \
+        OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_IOMMU_MEMORY_REGION)
+
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
 
@@ -186,15 +190,16 @@ typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
 
 struct MemoryRegionIOMMUOps {
     /* Return a TLB entry that contains a given address. */
-    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr, bool is_write);
+    IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
+                               bool is_write);
     /* Returns minimum supported page size */
-    uint64_t (*get_min_page_size)(MemoryRegion *iommu);
+    uint64_t (*get_min_page_size)(IOMMUMemoryRegion *iommu);
     /* Called when IOMMU Notifier flag changed */
-    void (*notify_flag_changed)(MemoryRegion *iommu,
+    void (*notify_flag_changed)(IOMMUMemoryRegion *iommu,
                                 IOMMUNotifierFlag old_flags,
                                 IOMMUNotifierFlag new_flags);
     /* Set this up to provide customized IOMMU replay function */
-    void (*replay)(MemoryRegion *iommu, IOMMUNotifier *notifier);
+    void (*replay)(IOMMUMemoryRegion *iommu, IOMMUNotifier *notifier);
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -216,7 +221,6 @@ struct MemoryRegion {
     uint8_t dirty_log_mask;
     RAMBlock *ram_block;
     Object *owner;
-    const MemoryRegionIOMMUOps *iommu_ops;
 
     const MemoryRegionOps *ops;
     void *opaque;
@@ -239,6 +243,13 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    bool is_iommu;
+};
+
+struct IOMMUMemoryRegion {
+    MemoryRegion parent_obj;
+
+    const MemoryRegionIOMMUOps *iommu_ops;
     QLIST_HEAD(, IOMMUNotifier) iommu_notify;
     IOMMUNotifierFlag iommu_notify_flags;
 };
@@ -579,19 +590,40 @@ static inline void memory_region_init_reservation(MemoryRegion *mr,
 }
 
 /**
+ * memory_region_init_iommu_type: Initialize a memory region of a custom type
+ * that translates addresses
+ *
+ * An IOMMU region translates addresses and forwards accesses to a target
+ * memory region.
+ *
+ * @typename: QOM class name
+ * @iommumr: the #IOMMUMemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count
+ * @ops: a function that translates addresses into the @target region
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region.
+ */
+void memory_region_init_iommu_type(const char *mrtypename,
+                                   IOMMUMemoryRegion *iommumr,
+                                   Object *owner,
+                                   const MemoryRegionIOMMUOps *ops,
+                                   const char *name,
+                                   uint64_t size);
+
+/**
  * memory_region_init_iommu: Initialize a memory region that translates
  * addresses
  *
  * An IOMMU region translates addresses and forwards accesses to a target
  * memory region.
  *
- * @mr: the #MemoryRegion to be initialized
+ * @iommumr: the #IOMMUMemoryRegion to be initialized
  * @owner: the object that tracks the region's reference count
  * @ops: a function that translates addresses into the @target region
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region.
  */
-void memory_region_init_iommu(MemoryRegion *mr,
+void memory_region_init_iommu(IOMMUMemoryRegion *iommumr,
                               struct Object *owner,
                               const MemoryRegionIOMMUOps *ops,
                               const char *name,
@@ -646,20 +678,25 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
 }
 
 /**
- * memory_region_is_iommu: check whether a memory region is an iommu
+ * memory_region_get_iommu: check whether a memory region is an iommu
  *
- * Returns %true is a memory region is an iommu.
+ * Returns pointer to IOMMUMemoryRegion if a memory region is an iommu,
+ * otherwise NULL.
  *
  * @mr: the memory region being queried
  */
-static inline bool memory_region_is_iommu(MemoryRegion *mr)
+static inline IOMMUMemoryRegion *memory_region_get_iommu(MemoryRegion *mr)
 {
     if (mr->alias) {
-        return memory_region_is_iommu(mr->alias);
+        return memory_region_get_iommu(mr->alias);
     }
-    return mr->iommu_ops;
+    if (mr->is_iommu) {
+        return (IOMMUMemoryRegion *) mr;
+    }
+    return NULL;
 }
 
+#define memory_region_is_iommu(mr) (memory_region_get_iommu(mr) != NULL)
 
 /**
  * memory_region_iommu_get_min_page_size: get minimum supported page size
@@ -667,9 +704,9 @@ static inline bool memory_region_is_iommu(MemoryRegion *mr)
  *
  * Returns minimum supported page size for an iommu.
  *
- * @mr: the memory region being queried
+ * @iommumr: the memory region being queried
  */
-uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr);
+uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommumr);
 
 /**
  * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
@@ -683,12 +720,12 @@ uint64_t memory_region_iommu_get_min_page_size(MemoryRegion *mr);
  * Note: for any IOMMU implementation, an in-place mapping change
  * should be notified with an UNMAP followed by a MAP.
  *
- * @mr: the memory region that was changed
+ * @iommumr: the memory region that was changed
  * @entry: the new entry in the IOMMU translation table.  The entry
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
-void memory_region_notify_iommu(MemoryRegion *mr,
+void memory_region_notify_iommu(IOMMUMemoryRegion *iommumr,
                                 IOMMUTLBEntry entry);
 
 /**
@@ -723,21 +760,21 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
  * a notifier with the minimum page granularity returned by
  * mr->iommu_ops->get_page_size().
  *
- * @mr: the memory region to observe
+ * @iommumr: the memory region to observe
  * @n: the notifier to which to replay iommu mappings
  * @is_write: Whether to treat the replay as a translate "write"
  *     through the iommu
  */
-void memory_region_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n,
+void memory_region_iommu_replay(IOMMUMemoryRegion *iommumr, IOMMUNotifier *n,
                                 bool is_write);
 
 /**
  * memory_region_iommu_replay_all: replay existing IOMMU translations
  * to all the notifiers registered.
  *
- * @mr: the memory region to observe
+ * @iommumr: the memory region to observe
  */
-void memory_region_iommu_replay_all(MemoryRegion *mr);
+void memory_region_iommu_replay_all(IOMMUMemoryRegion *iommumr);
 
 /**
  * memory_region_unregister_iommu_notifier: unregister a notifier for
