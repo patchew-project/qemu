@@ -1392,7 +1392,7 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    drck->detach(drc, DEVICE(pdev), spapr_phb_remove_pci_device_cb, phb, errp);
+    drck->detach(drc, DEVICE(pdev), phb, errp);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
@@ -1764,7 +1764,8 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
             spapr_dr_connector_new(OBJECT(phb),
                                    SPAPR_DR_CONNECTOR_TYPE_PCI,
-                                   (sphb->index << 16) | i);
+                                   (sphb->index << 16) | i,
+                                   spapr_phb_remove_pci_device_cb);
         }
     }
 
