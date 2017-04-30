@@ -130,7 +130,7 @@ typedef enum {
     SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE = -9003,
 } sPAPRDRCCResponse;
 
-typedef void (spapr_drc_detach_cb)(DeviceState *d, void *opaque);
+typedef void (spapr_drc_detach_cb)(DeviceState *d);
 
 typedef struct sPAPRDRConnector {
     /*< private >*/
@@ -159,7 +159,6 @@ typedef struct sPAPRDRConnector {
     /* device pointer, via link property */
     DeviceState *dev;
     spapr_drc_detach_cb *detach_cb;
-    void *detach_cb_opaque;
 } sPAPRDRConnector;
 
 typedef struct sPAPRDRConnectorClass {
@@ -188,8 +187,7 @@ typedef struct sPAPRDRConnectorClass {
     /* QEMU interfaces for managing hotplug operations */
     void (*attach)(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                    int fdt_start_offset, bool coldplug, Error **errp);
-    void (*detach)(sPAPRDRConnector *drc, DeviceState *d,
-                   void *detach_cb_opaque, Error **errp);
+    void (*detach)(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
     bool (*release_pending)(sPAPRDRConnector *drc);
     void (*set_signalled)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;

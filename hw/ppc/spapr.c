@@ -1887,20 +1887,42 @@ static void spapr_drc_reset(void *opaque)
     }
 }
 
-typedef struct sPAPRDIMMState {
-    uint32_t nr_lmbs;
-} sPAPRDIMMState;
-
-static void spapr_lmb_release(DeviceState *dev, void *opaque)
+static bool spapr_all_lmbs_drcs_released(PCDIMMDevice *dimm)
 {
-    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
+    Error *local_err = NULL;
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t size = memory_region_size(mr);
+
+    uint64_t addr;
+    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    if (local_err) {
+        error_propagate(&error_abort, local_err);
+        return false;
+    }
+    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+
+    sPAPRDRConnector *drc;
+    int i = 0;
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+        if (drc->indicator_state != SPAPR_DR_INDICATOR_STATE_INACTIVE) {
+            return false;
+        }
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+    return true;
+}
+
+static void spapr_lmb_release(DeviceState *dev)
+{
     HotplugHandler *hotplug_ctrl;
 
-    if (--ds->nr_lmbs) {
+    if (!spapr_all_lmbs_drcs_released(PC_DIMM(dev))) {
         return;
     }
-
-    g_free(ds);
 
     /*
      * Now that all the LMBs have been removed by the guest, call the
@@ -1979,7 +2001,7 @@ static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
     return &ms->possible_cpus->cpus[index];
 }
 
-static void spapr_core_release(DeviceState *dev, void *opaque)
+static void spapr_core_release(DeviceState *dev)
 {
     HotplugHandler *hotplug_ctrl;
 
@@ -2635,17 +2657,15 @@ static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     sPAPRDRConnectorClass *drck;
     uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
     int i;
-    sPAPRDIMMState *ds = g_malloc0(sizeof(sPAPRDIMMState));
     uint64_t addr = addr_start;
 
-    ds->nr_lmbs = nr_lmbs;
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
                 addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->detach(drc, dev, ds, errp);
+        drck->detach(drc, dev, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
@@ -2746,7 +2766,7 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    drck->detach(drc, dev, NULL, &local_err);
+    drck->detach(drc, dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
