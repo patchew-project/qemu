@@ -3690,10 +3690,14 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_enable_kvm:
+                error_report("'-enable-kvm' is depreacted, please use "
+                             "'-accel kvm' instead");
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse_noisily(olist, "accel=kvm", false);
                 break;
             case QEMU_OPTION_enable_hax:
+                error_report("'-enable-hax' is depreacted, please use "
+                             "'-accel hax' instead");
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse_noisily(olist, "accel=hax", false);
                 break;

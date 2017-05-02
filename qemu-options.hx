@@ -3367,7 +3367,8 @@ STEXI
 @item -enable-kvm
 @findex -enable-kvm
 Enable KVM full virtualization support. This option is only available
-if KVM support is enabled when compiling.
+if KVM support is enabled when compiling. Note: This option is deprecated,
+please use @code{-accel kvm} instead.
 ETEXI
 
 DEF("enable-hax", 0, QEMU_OPTION_enable_hax, \
@@ -3378,7 +3379,7 @@ STEXI
 Enable HAX (Hardware-based Acceleration eXecution) support. This option
 is only available if HAX support is enabled when compiling. HAX is only
 applicable to MAC and Windows platform, and thus does not conflict with
-KVM.
+KVM. Note: This option is deprecated, please use @code{-accel hax} instead.
 ETEXI
 
 DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,
