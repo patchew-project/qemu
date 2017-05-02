@@ -19,6 +19,7 @@
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/range.h"
+#include "qemu/bitops.h"
 
 
 struct StringInputVisitor
@@ -278,21 +279,34 @@ static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
     *obj = val;
 }
 
+static int try_parse_bool(const char *s, bool *result)
+{
+    if (!strcasecmp(s, "on") ||
+        !strcasecmp(s, "yes") ||
+        !strcasecmp(s, "true")) {
+        if (result) {
+            *result = true;
+        }
+        return 0;
+    }
+    if (!strcasecmp(s, "off") ||
+        !strcasecmp(s, "no") ||
+        !strcasecmp(s, "false")) {
+        if (result) {
+            *result = false;
+        }
+        return 0;
+    }
+
+    return -1;
+}
+
 static void parse_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
 
-    if (!strcasecmp(siv->string, "on") ||
-        !strcasecmp(siv->string, "yes") ||
-        !strcasecmp(siv->string, "true")) {
-        *obj = true;
-        return;
-    }
-    if (!strcasecmp(siv->string, "off") ||
-        !strcasecmp(siv->string, "no") ||
-        !strcasecmp(siv->string, "false")) {
-        *obj = false;
+    if (try_parse_bool(siv->string, obj) == 0) {
         return;
     }
 
@@ -326,6 +340,42 @@ static void parse_type_number(Visitor *v, const char *name, double *obj,
     *obj = val;
 }
 
+/* Support for alternates on string-input-visitor is limited, because
+ * the input string doesn't have any type information.
+ *
+ * Supported alternate member types:
+ * 1) enums
+ * 2) integer types
+ * 3) booleans (but only if the there's no enum variant
+ *    containing "on", "off", "true", or "false" as members)
+ *
+ * UNSUPPORTED alternate member types:
+ * 1) strings
+ * 2) complex types
+ */
+static void start_alternate(Visitor *v, const char *name,
+                            GenericAlternate **obj, size_t size,
+                            unsigned long supported_qtypes, Error **errp)
+{
+    StringInputVisitor *siv = to_siv(v);
+    QType t = QTYPE_QSTRING;
+
+    if (supported_qtypes & BIT(QTYPE_QBOOL)) {
+        if (try_parse_bool(siv->string, NULL) == 0) {
+            t = QTYPE_QBOOL;
+        }
+    }
+
+    if (supported_qtypes & BIT(QTYPE_QINT)) {
+        if (parse_str(siv, name, NULL) == 0) {
+            t = QTYPE_QINT;
+        }
+    }
+
+    *obj = g_malloc0(size);
+    (*obj)->type = t;
+}
+
 static void string_input_free(Visitor *v)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -353,6 +403,7 @@ Visitor *string_input_visitor_new(const char *str)
     v->visitor.next_list = next_list;
     v->visitor.check_list = check_list;
     v->visitor.end_list = end_list;
+    v->visitor.start_alternate = start_alternate;
     v->visitor.free = string_input_free;
 
     v->string = str;
