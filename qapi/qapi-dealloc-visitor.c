@@ -38,7 +38,8 @@ static void qapi_dealloc_end_struct(Visitor *v, void **obj)
 
 static void qapi_dealloc_start_alternate(Visitor *v, const char *name,
                                          GenericAlternate **obj, size_t size,
-                                         bool promote_int, Error **errp)
+                                         unsigned long supported_qtypes,
+                                         Error **errp)
 {
 }
 

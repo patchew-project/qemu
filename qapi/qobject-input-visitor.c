@@ -22,6 +22,7 @@
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"
+#include "qemu/bitops.h"
 #include "qemu/option.h"
 
 typedef struct StackObject {
@@ -338,7 +339,8 @@ static void qobject_input_check_list(Visitor *v, Error **errp)
 
 static void qobject_input_start_alternate(Visitor *v, const char *name,
                                           GenericAlternate **obj, size_t size,
-                                          bool promote_int, Error **errp)
+                                          unsigned long supported_qtypes,
+                                          Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, false, errp);
@@ -349,7 +351,7 @@ static void qobject_input_start_alternate(Visitor *v, const char *name,
     }
     *obj = g_malloc0(size);
     (*obj)->type = qobject_type(qobj);
-    if (promote_int && (*obj)->type == QTYPE_QINT) {
+    if (!(supported_qtypes & BIT(QTYPE_QINT)) && (*obj)->type == QTYPE_QINT) {
         (*obj)->type = QTYPE_QFLOAT;
     }
 }

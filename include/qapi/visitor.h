@@ -408,7 +408,8 @@ void visit_end_list(Visitor *v, void **list);
  * the qtype of the next thing to be visited, stored in (*@obj)->type.
  * Other visitors will leave @obj unchanged.
  *
- * If @promote_int, treat integers as QTYPE_FLOAT.
+ * @supported_qtypes is a bit mask indicating which QTypes are supported
+ * by the alternate.
  *
  * If successful, this must be paired with visit_end_alternate() with
  * the same @obj to clean up, even if visiting the contents of the
@@ -416,7 +417,7 @@ void visit_end_list(Visitor *v, void **list);
  */
 void visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
-                           bool promote_int, Error **errp);
+                           unsigned long supported_qtypes, Error **errp);
 
 /*
  * Finish visiting an alternate type.

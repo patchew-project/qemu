@@ -70,7 +70,8 @@ static GenericList *qapi_clone_next_list(Visitor *v, GenericList *tail,
 
 static void qapi_clone_start_alternate(Visitor *v, const char *name,
                                        GenericAlternate **obj, size_t size,
-                                       bool promote_int, Error **errp)
+                                       unsigned long supported_qtypes,
+                                       Error **errp)
 {
     qapi_clone_start_struct(v, name, (void **)obj, size, errp);
 }
