@@ -89,6 +89,9 @@ typedef enum {
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
 
+    /* We are exiting the TB due to page crossing or space constraints.  */
+    EXIT_FALLTHRU,
+
     /* We are ending the TB with a noreturn function call, e.g. longjmp.
        No following code will be executed.  */
     EXIT_NORETURN,
@@ -455,11 +458,17 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 #endif
 }
 
+static bool use_exit_tb(DisasContext *ctx)
+{
+    return ((ctx->tb->cflags & CF_LAST_IO)
+            || ctx->singlestep_enabled
+            || singlestep);
+}
+
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((ctx->tb->cflags & CF_LAST_IO)
-        || ctx->singlestep_enabled || singlestep) {
+    if (unlikely(use_exit_tb(ctx))) {
         return false;
     }
 #ifndef CONFIG_USER_ONLY
@@ -492,7 +501,12 @@ static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
         return EXIT_GOTO_TB;
     } else {
         tcg_gen_movi_i64(cpu_pc, dest);
-        return EXIT_PC_UPDATED;
+        if (use_exit_tb(ctx)) {
+            return EXIT_PC_UPDATED;
+        } else {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            return EXIT_GOTO_TB;
+        }
     }
 }
 
@@ -2421,7 +2435,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         if (ra != 31) {
             tcg_gen_movi_i64(ctx->ir[ra], ctx->pc);
         }
-        ret = EXIT_PC_UPDATED;
+        if (use_exit_tb(ctx)) {
+            ret = EXIT_PC_UPDATED;
+        } else {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            ret = EXIT_GOTO_TB;
+        }
         break;
 
     case 0x1B:
@@ -2677,7 +2696,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         tcg_gen_andi_i64(tmp, vb, 1);
         tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, pal_mode));
         tcg_gen_andi_i64(cpu_pc, vb, ~3);
-        ret = EXIT_PC_UPDATED;
+        if (use_exit_tb(ctx)) {
+            ret = EXIT_PC_UPDATED;
+        } else {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            ret = EXIT_GOTO_TB;
+        }
         break;
 #else
         goto invalid_opc;
@@ -2978,7 +3002,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
                 || num_insns >= max_insns
                 || singlestep
                 || ctx.singlestep_enabled)) {
-            ret = EXIT_PC_STALE;
+            ret = EXIT_FALLTHRU;
         }
     } while (ret == NO_EXIT);
 
@@ -3000,8 +3024,24 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
             tcg_gen_exit_tb(0);
         }
         break;
+    case EXIT_FALLTHRU:
+        if (ctx.singlestep_enabled) {
+            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            gen_excp_1(EXCP_DEBUG, 0);
+        } else if (use_exit_tb(&ctx)) {
+            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            tcg_gen_exit_tb(0);
+        } else if (use_goto_tb(&ctx, ctx.pc)) {
+            tcg_gen_goto_tb(0);
+            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            tcg_gen_exit_tb((uintptr_t)ctx.tb);
+        } else {
+            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+        }
+        break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     gen_tb_end(tb, num_insns);
