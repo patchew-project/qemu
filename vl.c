@@ -3705,7 +3705,9 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-             case QEMU_OPTION_no_kvm:
+            case QEMU_OPTION_no_kvm:
+                error_report("'-no-kvm' is depreacted, please use "
+                             "'-accel tcg' instead");
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse_noisily(olist, "accel=tcg", false);
                 break;
