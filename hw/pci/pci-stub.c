@@ -35,3 +35,9 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "PCI devices not supported\n");
 }
+
+void hmp_info_virtio_pci_status(Monitor *mon, const QDict *qdict)
+{
+    monitor_printf(mon, "PCI devices not supported\n");
+}
+

@@ -815,6 +815,20 @@ ETEXI
         .cmd = hmp_info_vm_generation_id,
     },
 
+    {
+        .name       = "virtio-pci-status",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "show virtio pci device  status",
+        .cmd        = hmp_info_virtio_pci_status,
+    },
+
+STEXI
+@item info virtio-pci-status  @var{id}
+@findex virtio-pci-status
+Show status about virtio pci device
+ETEXI
+
 STEXI
 @end table
 ETEXI

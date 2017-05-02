@@ -238,4 +238,5 @@ extern QemuOptsList qemu_net_opts;
 extern QemuOptsList qemu_global_opts;
 extern QemuOptsList qemu_mon_opts;
 
+extern void hmp_info_virtio_pci_status(Monitor *mon, const QDict *qdict);
 #endif

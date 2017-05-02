@@ -37,6 +37,7 @@
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/visitor.h"
+#include "monitor/monitor.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -50,6 +51,7 @@ static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev);
 static void virtio_pci_reset(DeviceState *qdev);
 
+static void query_virtio_pci_status(Monitor *mon, const char *id);
 /* virtio device */
 /* DeviceState to VirtIOPCIProxy. For use off data-path. TODO: use QOM. */
 static inline VirtIOPCIProxy *to_virtio_pci_proxy(DeviceState *d)
@@ -2554,6 +2556,51 @@ static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
 
     qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_PCI_BUS, qdev,
                         virtio_bus_name);
+}
+
+static void query_virtio_pci_status(Monitor *mon, const char *id)
+{
+    int ret = 0, i = 0;
+    PCIDevice *dev = NULL;
+    hwaddr addr = 0;
+    uint8_t val = 0;
+    const char *devtype = NULL;
+
+    ret = pci_qdev_find_device(id, &dev);
+    if (ret) {
+        monitor_printf(mon, "Can not find device %s\n", id);
+        return;
+    }
+    devtype = object_get_typename(OBJECT(dev));
+    if (strncmp("virtio-", devtype, 7) == 0) {
+        for (i = 0; i < PCI_NUM_REGIONS; i++) {
+            if (dev->io_regions[i].type == PCI_BASE_ADDRESS_SPACE_IO) {
+                addr = dev->io_regions[i].addr;
+                break;
+            }
+        }
+        if (addr != -1 && addr != 0) {
+            address_space_rw(&address_space_io, addr + VIRTIO_PCI_STATUS,
+            MEMTXATTRS_UNSPECIFIED, &val, 1, 0);
+            if (val & VIRTIO_CONFIG_S_DRIVER_OK) {
+                fprintf(stderr, "driver is ok\n");
+            } else {
+                fprintf(stderr, "driver is not ok\n");
+            }
+            monitor_printf(mon, "status=%d", val);
+        } else {
+            monitor_printf(mon, "status=%d", val);
+        }
+    } else {
+        monitor_printf(mon, "the 'info virtio_pci_status' command "
+           "only supports virtio pci devices");
+    }
+}
+
+void hmp_info_virtio_pci_status(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_try_str(qdict, "id");
+    query_virtio_pci_status(mon, id);
 }
 
 static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
