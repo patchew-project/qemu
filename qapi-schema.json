@@ -5117,10 +5117,12 @@
 # An enumeration of TPM types
 #
 # @passthrough: TPM passthrough type
+# @emulator: Software Emulator TPM type
+#            Since: 2.10
 #
 # Since: 1.5
 ##
-{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
+{ 'enum': 'TpmType', 'data': [ 'passthrough', 'emulator' ] }
 
 ##
 # @query-tpm-types:
@@ -5134,7 +5136,7 @@
 # Example:
 #
 # -> { "execute": "query-tpm-types" }
-# <- { "return": [ "passthrough" ] }
+# <- { "return": [ "passthrough", "emulator" ] }
 #
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'] }
@@ -5164,6 +5166,36 @@
 { 'struct': 'TPMPassthroughOptions', 'base': 'TPMOptions',
   'data': { '*path' : 'str', '*cancel-path' : 'str'} }
 
+##
+# @TPMEmulatorOptions:
+#
+# Information about the TPM emulator
+#
+# @tpmstatedir: TPM emulator state directory
+# @spawn: true if, qemu has to spawn a new emulator process with given @path,
+#         otherwise it connects to already rinning emulator with given @data-path
+#         and @ctrl-path sockets. (default: 'false')
+# @path: TPM emulator binary path to spawn.(default: 'swtpm')
+# @data-path: path of the unix socket to use for exchanging data messages, if
+#             not provided socket pairs are used when @sapwn is true.
+# @ctrl-path: path of the unix socket file to use for exchagning out-of-band
+#             control messages, if not provided socket pairs are used when
+#             @spawn is true.
+# @logfile: file to use to place TPM emulator logs, if not provided logging is
+#           disabled.
+# @loglevel: optional log level number, loglevel is ignored if no logfile
+#            provided. (default: 5)
+#
+# Since: 2.10
+##
+{ 'struct': 'TPMEmulatorOptions', 'base': 'TPMOptions',
+  'data': { 'tpmstatedir' : 'str',
+            'spawn': 'bool',
+            '*path': 'str',
+            '*data-path': 'str',
+            '*ctrl-path': 'str',
+            '*logfile': 'str',
+            '*loglevel': 'int' } }
 
 ##
 # @TPMInfo:
