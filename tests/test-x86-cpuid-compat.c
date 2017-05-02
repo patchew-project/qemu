@@ -98,6 +98,8 @@ typedef struct FeatureTestArgs {
     int bitnr;
     /* The expected value for the bit in (X86CPUFeatureWordInfo.features) */
     bool expected_value;
+    /* Don't look at filtered-features when checking feature value */
+    bool ignore_filtered_features;
 } FeatureTestArgs;
 
 /* Get the value for a feature word in a X86CPUFeatureWordInfo list */
@@ -129,7 +131,9 @@ static void test_feature_flag(const void *data)
     present = qobject_to_qlist(qom_get(path, "feature-words"));
     filtered = qobject_to_qlist(qom_get(path, "filtered-features"));
     value = get_feature_word(present, args->input_eax, args->input_ecx, args->reg);
-    value |= get_feature_word(filtered, args->input_eax, args->input_ecx, args->reg);
+    if (!args->ignore_filtered_features) {
+        value |= get_feature_word(filtered, args->input_eax, args->input_ecx, args->reg);
+    }
     qtest_end();
 
     g_assert(!!(value & (1U << args->bitnr)) == args->expected_value);
@@ -335,6 +339,14 @@ int main(int argc, char **argv)
     add_feature_test("x86/cpuid/features/max-invtsc-on,mmx=off",
                      "-machine accel=kvm:tcg -cpu max,mmx=off",
                      1, 0, "EDX", 23, false);
+
+    {
+    FeatureTestArgs *a;
+    a = add_feature_test("x86/cpuid/features/monitor-force",
+                         "-machine accel=kvm:tcg -cpu 486,monitor=force",
+                         1, 0, "ECX",  3, true);
+    a->ignore_filtered_features = true;
+    }
 
     return g_test_run();
 }

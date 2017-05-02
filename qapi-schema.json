@@ -4250,6 +4250,38 @@
 { 'command': 'query-machines', 'returns': ['MachineInfo'] }
 
 ##
+# @CPUFeatureSettingEnum:
+#
+# Additional valid values for a CPUFeatureSetting property.
+#
+# @force: Force feature to be enabled, even if the accelerator
+#         reports the feature as unavailable. Should be used only
+#         for testing or debugging purposes.
+#
+# Since: 2.10
+##
+{ 'enum': 'CPUFeatureSettingEnum',
+  'data': ['force'] }
+
+##
+# @CPUFeatureSetting:
+#
+# Values for a CPU feature property.
+#
+# @bool: If false, the feature is forcibly disabled.
+#        If true, QEMU will try to enable the feature. QEMU will
+#        refuse to start if the feature is unavailable and
+#        'enforce' mode is enabled in the CPU.
+#
+# @enum: See @CPUFeatureSettingEnum.
+#
+# Since: 2.10
+##
+{ 'alternate': 'CPUFeatureSetting',
+  'data': { 'bool': 'bool',
+            'enum': 'CPUFeatureSettingEnum' } }
+
+##
 # @CpuDefinitionInfo:
 #
 # Virtual CPU definition.

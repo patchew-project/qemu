@@ -3463,7 +3463,7 @@ static int x86_cpu_filter_features(X86CPU *cpu)
         uint32_t host_feat =
             x86_cpu_get_supported_feature_word(w, false);
         uint32_t requested_features = env->features[w];
-        env->features[w] &= host_feat;
+        env->features[w] &= host_feat | env->forced_features[w];
         cpu->filtered_features[w] = requested_features & ~env->features[w];
         if (cpu->filtered_features[w]) {
             rv = 1;
@@ -3705,9 +3705,19 @@ static void x86_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
 {
     X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
-    uint32_t f = cpu->env.features[fp->w];
-    bool value = (f & fp->mask) == fp->mask;
-    visit_type_bool(v, name, &value, errp);
+    bool bvalue = (cpu->env.features[fp->w] & fp->mask) == fp->mask;
+    bool forced = (cpu->env.forced_features[fp->w] & fp->mask) == fp->mask;
+    CPUFeatureSetting *value = g_new0(CPUFeatureSetting, 1);
+
+    if (!forced) {
+        value->type = QTYPE_QBOOL;
+        value->u.q_bool = bvalue;
+    } else {
+        value->type = QTYPE_QSTRING;
+        value->u.q_enum = CPU_FEATURE_SETTING_ENUM_FORCE;
+    }
+    visit_type_CPUFeatureSetting(v, name, &value, errp);
+    qapi_free_CPUFeatureSetting(value);
 }
 
 static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
@@ -3717,25 +3727,46 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
     Error *local_err = NULL;
-    bool value;
+    CPUFeatureSetting *value = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
-    visit_type_bool(v, name, &value, &local_err);
+    visit_type_CPUFeatureSetting(v, name, &value, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
-    if (value) {
-        cpu->env.features[fp->w] |= fp->mask;
-    } else {
-        cpu->env.features[fp->w] &= ~fp->mask;
+    switch (value->type) {
+    case QTYPE_QBOOL:
+        if (value->u.q_bool) {
+            cpu->env.features[fp->w] |= fp->mask;
+        } else {
+            cpu->env.features[fp->w] &= ~fp->mask;
+        }
+        cpu->env.forced_features[fp->w] &= ~fp->mask;
+        cpu->env.user_features[fp->w] |= fp->mask;
+    break;
+    case QTYPE_QSTRING:
+        switch (value->u.q_enum) {
+        case CPU_FEATURE_SETTING_ENUM_FORCE:
+            cpu->env.features[fp->w] |= fp->mask;
+            cpu->env.forced_features[fp->w] |= fp->mask;
+        break;
+        default:
+            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name,
+                       "CPUFeatureSetting");
+        }
+    break;
+    default:
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name,
+                   "CPUFeatureSetting");
     }
-    cpu->env.user_features[fp->w] |= fp->mask;
+
+    qapi_free_CPUFeatureSetting(value);
 }
 
 static void x86_cpu_release_bit_prop(Object *obj, const char *name,
@@ -3769,7 +3800,7 @@ static void x86_cpu_register_bit_prop(X86CPU *cpu,
         fp = g_new0(BitProperty, 1);
         fp->w = w;
         fp->mask = mask;
-        object_property_add(OBJECT(cpu), prop_name, "bool",
+        object_property_add(OBJECT(cpu), prop_name, "CPUFeatureSetting",
                             x86_cpu_get_bit_prop,
                             x86_cpu_set_bit_prop,
                             x86_cpu_release_bit_prop, fp, &error_abort);
