@@ -4471,7 +4471,9 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+#ifdef CONFIG_LIVE_BLOCK_MIGRATION
     blk_mig_init();
+#endif
     ram_mig_init();
 
     /* If the currently selected machine wishes to override the units-per-bus

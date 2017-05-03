@@ -692,6 +692,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 
         populate_ram_info(info, s);
 
+#ifdef CONFIG_LIVE_BLOCK_MIGRATION
         if (blk_mig_active()) {
             info->has_disk = true;
             info->disk = g_malloc0(sizeof(*info->disk));
@@ -699,6 +700,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->remaining = blk_mig_bytes_remaining();
             info->disk->total = blk_mig_bytes_total();
         }
+#endif
 
         if (cpu_throttle_active()) {
             info->has_cpu_throttle_percentage = true;
@@ -720,6 +722,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 
         populate_ram_info(info, s);
 
+#ifdef CONFIG_LIVE_BLOCK_MIGRATION
         if (blk_mig_active()) {
             info->has_disk = true;
             info->disk = g_malloc0(sizeof(*info->disk));
@@ -727,6 +730,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->remaining = blk_mig_bytes_remaining();
             info->disk->total = blk_mig_bytes_total();
         }
+#endif
 
         get_xbzrle_cache_stats(info);
         break;
@@ -1221,6 +1225,14 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
     params.blk = has_blk && blk;
     params.shared = has_inc && inc;
+
+#ifndef CONFIG_LIVE_BLOCK_MIGRATION
+    if (params.blk || params.shared) {
+        error_setg(errp, "QEMU compiled without old-style block migration. "
+                         "Use drive_mirror+NBD.");
+        return;
+    }
+#endif
 
     if (migration_is_setup_or_active(s->state) ||
         s->state == MIGRATION_STATUS_CANCELLING ||
