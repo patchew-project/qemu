@@ -394,7 +394,7 @@ void parse_numa_opts(MachineState *ms)
 
         possible_cpus = mc->possible_cpu_arch_ids(ms);
         for (i = 0; i < possible_cpus->len; i++) {
-            if (possible_cpus->cpus[i].props.has_node_id) {
+            if (numa_has_node_id(possible_cpus, i)) {
                 break;
             }
         }
