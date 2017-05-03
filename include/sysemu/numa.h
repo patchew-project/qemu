@@ -32,10 +32,6 @@ void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node);
 void numa_unset_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node);
 uint32_t numa_get_node(ram_addr_t addr, Error **errp);
 
-/* on success returns node index in numa_info,
- * on failure returns nb_numa_nodes */
-int numa_get_node_for_cpu(int idx);
-
 static inline bool numa_has_node_id(const CPUArchIdList *possible_cpus, int idx)
 {
     return possible_cpus->cpus[idx].props.has_node_id;
