@@ -5683,10 +5683,12 @@
 ##
 # @NumaOptionsType:
 #
+# @cpu: property based CPU(s) to node mapping (Since: 2.10)
+#
 # Since: 2.1
 ##
 { 'enum': 'NumaOptionsType',
-  'data': [ 'node' ] }
+  'data': [ 'node', 'cpu' ] }
 
 ##
 # @NumaOptions:
@@ -5699,7 +5701,8 @@
   'base': { 'type': 'NumaOptionsType' },
   'discriminator': 'type',
   'data': {
-    'node': 'NumaNodeOptions' }}
+    'node': 'NumaNodeOptions',
+    'cpu': 'NumaCpuOptions' }}
 
 ##
 # @NumaNodeOptions:
@@ -5726,6 +5729,20 @@
    '*cpus':   ['uint16'],
    '*mem':    'size',
    '*memdev': 'str' }}
+
+##
+# @NumaCpuOptions:
+#
+# Option "-numa cpu" overrides default cpu to node mapping.
+# It accepts the same set of cpu properties as returned by
+# query-hotpluggable-cpus[].props, where node-id could be used to
+# override default node mapping.
+#
+# Since: 2.10
+##
+{ 'struct': 'NumaCpuOptions',
+   'base': 'CpuInstanceProperties',
+   'data' : {} }
 
 ##
 # @HostMemPolicy:

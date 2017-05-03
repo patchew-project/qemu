@@ -227,6 +227,7 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     NumaOptions *object = NULL;
     MachineState *ms = opaque;
     Error *err = NULL;
+    CpuInstanceProperties cpu;
 
     {
         Visitor *v = opts_visitor_new(opts);
@@ -245,6 +246,30 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
             goto end;
         }
         nb_numa_nodes++;
+        break;
+    case NUMA_OPTIONS_TYPE_CPU:
+        if (!object->u.cpu.has_node_id) {
+            error_setg(&err, "Missing mandatory node-id property");
+            goto end;
+        }
+        if (!numa_info[object->u.cpu.node_id].present) {
+            error_setg(&err, "Invalid node-id=%" PRId64 ", NUMA node must be "
+                "defined with -numa node,nodeid=ID before it's used with "
+                "-numa cpu,node-id=ID", object->u.cpu.node_id);
+            goto end;
+        }
+
+        memset(&cpu, 0, sizeof(cpu));
+        cpu.has_node_id = object->u.cpu.has_node_id;
+        cpu.node_id = object->u.cpu.node_id;
+        cpu.has_socket_id = object->u.cpu.has_socket_id;
+        cpu.socket_id = object->u.cpu.socket_id;
+        cpu.has_core_id = object->u.cpu.has_core_id;
+        cpu.core_id = object->u.cpu.core_id;
+        cpu.has_thread_id = object->u.cpu.has_thread_id;
+        cpu.thread_id = object->u.cpu.thread_id;
+
+        machine_set_cpu_numa_node(ms, &cpu, &err);
         break;
     default:
         abort();
