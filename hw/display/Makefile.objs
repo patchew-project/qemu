@@ -20,6 +20,8 @@ common-obj-$(CONFIG_ZAURUS) += tc6393xb.o
 
 common-obj-$(CONFIG_MILKYMIST_TMU2) += milkymist-tmu2.o
 
+obj-$(CONFIG_CAPTURE) += capture.o
+
 obj-$(CONFIG_OMAP) += omap_dss.o
 obj-$(CONFIG_OMAP) += omap_lcdc.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_lcd.o
