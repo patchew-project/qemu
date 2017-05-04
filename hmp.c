@@ -1934,7 +1934,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     bool all = qdict_get_try_bool(qdict, "all", false);
     Error *local_err = NULL;
     BlockInfoList *block_list, *info;
-    SocketAddress *addr;
+    SocketAddressLegacy *addr;
 
     if (writable && !all) {
         error_setg(&local_err, "-w only valid together with -a");
@@ -1948,7 +1948,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     }
 
     qmp_nbd_server_start(addr, false, NULL, &local_err);
-    qapi_free_SocketAddress(addr);
+    qapi_free_SocketAddressLegacy(addr);
     if (local_err != NULL) {
         goto exit;
     }
