@@ -33,6 +33,7 @@
 #include "qapi-visit.h"
 #include "qom/object_interfaces.h"
 #include "ui/console.h"
+#include "block/nbd.h"
 #include "block/qapi.h"
 #include "qemu-io.h"
 #include "qemu/cutils.h"
@@ -1934,7 +1935,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     bool all = qdict_get_try_bool(qdict, "all", false);
     Error *local_err = NULL;
     BlockInfoList *block_list, *info;
-    SocketAddressLegacy *addr;
+    SocketAddress *addr;
 
     if (writable && !all) {
         error_setg(&local_err, "-w only valid together with -a");
@@ -1947,8 +1948,8 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
         goto exit;
     }
 
-    qmp_nbd_server_start(addr, false, NULL, &local_err);
-    qapi_free_SocketAddressLegacy(addr);
+    nbd_server_start(addr, NULL, &local_err);
+    qapi_free_SocketAddress(addr);
     if (local_err != NULL) {
         goto exit;
     }
