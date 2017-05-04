@@ -301,6 +301,7 @@ static int vxhs_open(BlockDriverState *bs, QDict *options,
 
     ret = vxhs_init_and_ref();
     if (ret < 0) {
+        error_setg(&local_err, "libvxhs iio_init() failed");
         ret = -EINVAL;
         goto out;
     }
