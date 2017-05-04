@@ -3379,6 +3379,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    enum MirrorSyncMode sync,
                                    BlockMirrorBackingMode backing_mode,
                                    bool has_speed, int64_t speed,
+                                   bool has_bitmap, const char *bitmap,
                                    bool has_granularity, uint32_t granularity,
                                    bool has_buf_size, int64_t buf_size,
                                    bool has_on_source_error,
@@ -3435,12 +3436,22 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
+    if (sync == MIRROR_SYNC_MODE_INCREMENTAL && !has_bitmap) {
+        error_setg(errp, "Mode incremental requires parameter 'bitmap'");
+        return;
+    }
+
+    if (has_bitmap && sync != MIRROR_SYNC_MODE_INCREMENTAL) {
+        error_setg(errp, "Bitmap set but mode is not incremental");
+        return;
+    }
+
     /* pass the node name to replace to mirror start since it's loose coupling
      * and will allow to check whether the node still exist at mirror completion
      */
     mirror_start(job_id, bs, target,
                  has_replaces ? replaces : NULL,
-                 speed, granularity, buf_size, sync, backing_mode,
+                 speed, granularity, buf_size, sync, bitmap, backing_mode,
                  on_source_error, on_target_error, unmap, filter_node_name,
                  errp);
 }
@@ -3575,6 +3586,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
                            arg->has_replaces, arg->replaces, arg->sync,
                            backing_mode, arg->has_speed, arg->speed,
+                           arg->has_bitmap, arg->bitmap,
                            arg->has_granularity, arg->granularity,
                            arg->has_buf_size, arg->buf_size,
                            arg->has_on_source_error, arg->on_source_error,
@@ -3593,6 +3605,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          bool has_replaces, const char *replaces,
                          MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
+                         bool has_bitmap, const char *bitmap,
                          bool has_granularity, uint32_t granularity,
                          bool has_buf_size, int64_t buf_size,
                          bool has_on_source_error,
@@ -3627,6 +3640,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
                            has_speed, speed,
+                           has_bitmap, bitmap,
                            has_granularity, granularity,
                            has_buf_size, buf_size,
                            has_on_source_error, on_source_error,
