@@ -5859,7 +5859,7 @@ if test "$pthread_setname_np" = "yes" ; then
 fi
 
 if test "$vxhs" = "yes" ; then
-  echo "CONFIG_VXHS=y" >> $config_host_mak
+  echo "CONFIG_VXHS=m" >> $config_host_mak
   echo "VXHS_LIBS=$vxhs_libs" >> $config_host_mak
 fi
 
