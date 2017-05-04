@@ -2626,6 +2626,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     X86CPU *cpu = x86_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
     uint32_t pkg_offset;
+    uint32_t signature[3];
 
     /* test if maximum index reached */
     if (index & 0x80000000) {
@@ -2646,8 +2647,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             }
         }
     } else {
-        if (index > env->cpuid_level)
+        /* XXX this just breaks CPUID turning guest requests
+         * into something totally different, thus returning
+         * garbage data
+         */
+        if (0 && index > env->cpuid_level) {
             index = env->cpuid_level;
+        }
     }
 
     switch(index) {
@@ -2872,6 +2878,14 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     }
+    case 0x40000000:
+        /* XXX add flag to let us hide this */
+        memcpy(signature, "TCGTCGTCGTCG", 12);
+        *eax = 0x40000001;
+        *ebx = signature[0];
+        *ecx = signature[1];
+        *edx = signature[2];
+        break;
     case 0x80000000:
         *eax = env->cpuid_xlevel;
         *ebx = env->cpuid_vendor1;
