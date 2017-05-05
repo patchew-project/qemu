@@ -34,6 +34,11 @@ qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
 
+# util/qemu-thread.c
+qemu_mutex_lock(void *mutex, const char *file, const int line) "waiting on mutex %p (%s:%d)"
+qemu_mutex_locked(void *mutex, const char *file, const int line) "taken mutex %p (%s:%d)"
+qemu_mutex_unlock(void *mutex, const char *file, const int line) "released mutex %p (%s:%d)"
+
 # util/oslib-win32.c
 # util/oslib-posix.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"

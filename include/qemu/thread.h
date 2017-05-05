@@ -22,9 +22,12 @@ typedef struct QemuThread QemuThread;
 
 void qemu_mutex_init(QemuMutex *mutex);
 void qemu_mutex_destroy(QemuMutex *mutex);
-void qemu_mutex_lock(QemuMutex *mutex);
 int qemu_mutex_trylock(QemuMutex *mutex);
-void qemu_mutex_unlock(QemuMutex *mutex);
+void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line);
+void qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file, const int line);
+
+#define qemu_mutex_lock(mutex) qemu_mutex_lock_impl(mutex, __FILE__, __LINE__)
+#define qemu_mutex_unlock(mutex) qemu_mutex_unlock_impl(mutex, __FILE__, __LINE__)
 
 /* Prototypes for other functions are in thread-posix.h/thread-win32.h.  */
 void qemu_rec_mutex_init(QemuRecMutex *mutex);
