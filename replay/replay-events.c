@@ -77,16 +77,14 @@ bool replay_has_events(void)
 
 void replay_flush_events(void)
 {
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
+
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
-        replay_mutex_unlock();
         replay_run_event(event);
-        replay_mutex_lock();
         QTAILQ_REMOVE(&events_list, event, events);
         g_free(event);
     }
-    replay_mutex_unlock();
 }
 
 void replay_disable_events(void)
@@ -100,14 +98,14 @@ void replay_disable_events(void)
 
 void replay_clear_events(void)
 {
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
+
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
         QTAILQ_REMOVE(&events_list, event, events);
 
         g_free(event);
     }
-    replay_mutex_unlock();
 }
 
 /*! Adds specified async event to the queue */
@@ -134,9 +132,8 @@ void replay_add_event(ReplayAsyncEventKind event_kind,
     event->opaque2 = opaque2;
     event->id = id;
 
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
     QTAILQ_INSERT_TAIL(&events_list, event, events);
-    replay_mutex_unlock();
 }
 
 void replay_bh_schedule_event(QEMUBH *bh)
@@ -208,10 +205,7 @@ void replay_save_events(int checkpoint)
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
         replay_save_event(event, checkpoint);
-
-        replay_mutex_unlock();
         replay_run_event(event);
-        replay_mutex_lock();
         QTAILQ_REMOVE(&events_list, event, events);
         g_free(event);
     }
@@ -295,9 +289,7 @@ void replay_read_events(int checkpoint)
         if (!event) {
             break;
         }
-        replay_mutex_unlock();
         replay_run_event(event);
-        replay_mutex_lock();
 
         g_free(event);
         replay_finish_event();
