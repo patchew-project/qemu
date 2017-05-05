@@ -338,7 +338,8 @@ static void qobject_input_check_list(Visitor *v, Error **errp)
 
 static void qobject_input_start_alternate(Visitor *v, const char *name,
                                           GenericAlternate **obj, size_t size,
-                                          bool promote_int, Error **errp)
+                                          uint32_t supported_qtypes,
+                                          Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, false, errp);
@@ -349,7 +350,8 @@ static void qobject_input_start_alternate(Visitor *v, const char *name,
     }
     *obj = g_malloc0(size);
     (*obj)->type = qobject_type(qobj);
-    if (promote_int && (*obj)->type == QTYPE_QINT) {
+    if (!(supported_qtypes & (1U << QTYPE_QINT)) &&
+        (*obj)->type == QTYPE_QINT) {
         (*obj)->type = QTYPE_QFLOAT;
     }
 }
