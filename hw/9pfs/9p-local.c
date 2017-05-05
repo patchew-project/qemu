@@ -1097,14 +1097,30 @@ static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
                               const char *name, V9fsPath *target)
 {
     if (dir_path) {
-        v9fs_path_sprintf(target, "%s/%s", dir_path->data, name);
-    } else if (strcmp(name, "/")) {
-        v9fs_path_sprintf(target, "%s", name);
+        if (!strcmp(name, ".")) {
+            /* "." relative to "foo/bar" is "foo/bar" */
+            v9fs_path_copy(target, dir_path);
+        } else if (!strcmp(name, "..")) {
+            if (!strcmp(dir_path->data, ".")) {
+                /* ".." relative to the root is "." */
+                v9fs_path_sprintf(target, ".");
+            } else {
+                char *tmp = g_path_get_dirname(dir_path->data);
+                /* ".." relative to "foo/bar" is equivalent to "foo" */
+                v9fs_path_sprintf(target, "%s", tmp);
+                g_free(tmp);
+            }
+        } else {
+            assert(!strchr(name, '/'));
+            v9fs_path_sprintf(target, "%s/%s", dir_path->data, name);
+        }
+    } else if (!strcmp(name, "/") || !strcmp(name, ".") ||
+               !strcmp(name, "..")) {
+            /* This is the root fid */
+        v9fs_path_sprintf(target, ".");
     } else {
-        /* We want the path of the export root to be relative, otherwise
-         * "*at()" syscalls would treat it as "/" in the host.
-         */
-        v9fs_path_sprintf(target, "%s", ".");
+        assert(!strchr(name, '/'));
+        v9fs_path_sprintf(target, "./%s", name);
     }
     return 0;
 }
