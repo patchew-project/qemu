@@ -17,14 +17,11 @@
 int relative_openat_nofollow(int dirfd, const char *path, int flags,
                              mode_t mode)
 {
-    int fd;
+    int fd = dirfd;
 
-    fd = dup(dirfd);
-    if (fd == -1) {
-        return -1;
-    }
+    assert(*path);
 
-    while (*path) {
+    while (*path && fd != -1) {
         const char *c;
         int next_fd;
         char *head;
@@ -33,25 +30,22 @@ int relative_openat_nofollow(int dirfd, const char *path, int flags,
         assert(path[0] != '/');
 
         head = g_strdup(path);
-        c = strchr(path, '/');
-        if (c) {
+        c = strchrnul(path, '/');
+        if (*c) {
+            /* Intermediate path element */
             head[c - path] = 0;
+            path = c + 1;
             next_fd = openat_dir(fd, head);
         } else {
+            /* Rightmost path element */
             next_fd = openat_file(fd, head, flags, mode);
+            path = c;
         }
         g_free(head);
-        if (next_fd == -1) {
+        if (dirfd != fd) {
             close_preserve_errno(fd);
-            return -1;
         }
-        close(fd);
         fd = next_fd;
-
-        if (!c) {
-            break;
-        }
-        path = c + 1;
     }
 
     return fd;
