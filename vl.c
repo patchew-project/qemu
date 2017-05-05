@@ -1821,8 +1821,7 @@ void qemu_system_killed(int signal, pid_t pid)
 void qemu_system_shutdown_request(ShutdownCause reason)
 {
     trace_qemu_system_shutdown_request(reason);
-    /* FIXME - add a parameter to let replay preserve reason */
-    replay_shutdown_request();
+    replay_shutdown_request(reason);
     shutdown_requested = reason;
     qemu_notify_event();
 }
