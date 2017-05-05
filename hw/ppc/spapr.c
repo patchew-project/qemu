@@ -1437,6 +1437,36 @@ static bool version_before_3(void *opaque, int version_id)
     return version_id < 3;
 }
 
+static bool spapr_pending_dimm_unplugs_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+    return !QTAILQ_EMPTY(&spapr->pending_dimm_unplugs);
+}
+
+static const VMStateDescription vmstate_spapr_dimmstate = {
+    .name = "spapr_dimm_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(addr, sPAPRDIMMState),
+        VMSTATE_UINT32(nr_lmbs, sPAPRDIMMState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_spapr_pending_dimm_unplugs = {
+    .name = "spapr_pending_dimm_unplugs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_pending_dimm_unplugs_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_QTAILQ_V(pending_dimm_unplugs, sPAPRMachineState, 1,
+                         vmstate_spapr_dimmstate, sPAPRDIMMState,
+                         next),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static bool spapr_ov5_cas_needed(void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
@@ -1535,6 +1565,7 @@ static const VMStateDescription vmstate_spapr = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
+        &vmstate_spapr_pending_dimm_unplugs,
         NULL
     }
 };
