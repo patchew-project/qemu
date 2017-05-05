@@ -339,6 +339,7 @@ static void qobject_input_check_list(Visitor *v, Error **errp)
 static void qobject_input_start_alternate(Visitor *v, const char *name,
                                           GenericAlternate **obj, size_t size,
                                           uint32_t supported_qtypes,
+                                          const char *const enum_table[],
                                           Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);

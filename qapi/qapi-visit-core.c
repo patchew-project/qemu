@@ -107,6 +107,7 @@ void visit_end_list(Visitor *v, void **obj)
 void visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
                            uint32_t supported_qtypes,
+                           const char *const enum_table[],
                            Error **errp)
 {
     Error *err = NULL;
@@ -115,9 +116,11 @@ void visit_start_alternate(Visitor *v, const char *name,
 
     assert(obj && size >= sizeof(GenericAlternate));
     assert(!(v->type & VISITOR_OUTPUT) || *obj);
-    trace_visit_start_alternate(v, name, obj, size, supported_qtypes);
+    trace_visit_start_alternate(v, name, obj, size, supported_qtypes,
+                                (void *)enum_table);
     if (v->start_alternate) {
-        v->start_alternate(v, name, obj, size, supported_qtypes, &err);
+        v->start_alternate(v, name, obj, size, supported_qtypes,
+                           enum_table, &err);
     }
     if (v->type & VISITOR_INPUT) {
         assert(v->start_alternate && !err != !*obj);

@@ -39,6 +39,7 @@ static void qapi_dealloc_end_struct(Visitor *v, void **obj)
 static void qapi_dealloc_start_alternate(Visitor *v, const char *name,
                                          GenericAlternate **obj, size_t size,
                                          uint32_t supported_qtypes,
+                                         const char *const enum_table[],
                                          Error **errp)
 {
 }

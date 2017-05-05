@@ -71,6 +71,7 @@ static GenericList *qapi_clone_next_list(Visitor *v, GenericList *tail,
 static void qapi_clone_start_alternate(Visitor *v, const char *name,
                                        GenericAlternate **obj, size_t size,
                                        uint32_t supported_qtypes,
+                                       const char *const enum_table[],
                                        Error **errp)
 {
     qapi_clone_start_struct(v, name, (void **)obj, size, errp);

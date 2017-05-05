@@ -411,13 +411,21 @@ void visit_end_list(Visitor *v, void **list);
  * @supported_qtypes is a bit mask indicating which QTypes are supported
  * by the alternate.
  *
+ * @enum_table contains the enum value lookup table, in case
+ * strings in the input are going to be parsed as enums. Visitors
+ * aren't required to validate string input according to
+ * enum_table, as visit_type_enum() will be called automatically
+ * if (*obj)->type is QTYPE_QSTRING.
+ *
  * If successful, this must be paired with visit_end_alternate() with
  * the same @obj to clean up, even if visiting the contents of the
  * alternate fails.
  */
 void visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
-                           uint32_t supported_qtypes, Error **errp);
+                           uint32_t supported_qtypes,
+                           const char *const enum_table[],
+                           Error **errp);
 
 /*
  * Finish visiting an alternate type.

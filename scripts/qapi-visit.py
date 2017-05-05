@@ -166,6 +166,12 @@ def gen_visit_alternate(name, variants):
     supported_qtypes = ' | '.join(qtypes)
     ret = ''
 
+    enum_table = 'NULL'
+    for var in variants.variants:
+        if isinstance(var.type, QAPISchemaEnumType):
+            enum_table = '%s_lookup' % (var.type.c_name())
+            break
+
     ret += mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error **errp)
@@ -174,7 +180,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     uint32_t supported_qtypes = %(supported_qtypes)s;
 
     visit_start_alternate(v, name, (GenericAlternate **)obj, sizeof(**obj),
-                          supported_qtypes, &err);
+                          supported_qtypes, %(enum_table)s, &err);
     if (err) {
         goto out;
     }
@@ -183,7 +189,8 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
     switch ((*obj)->type) {
 ''',
-                 c_name=c_name(name), supported_qtypes=supported_qtypes)
+                 c_name=c_name(name), supported_qtypes=supported_qtypes,
+                 enum_table=enum_table)
 
     for var in variants.variants:
         ret += mcgen('''

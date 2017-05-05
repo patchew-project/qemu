@@ -71,7 +71,9 @@ struct Visitor
      * optional for output visitors. */
     void (*start_alternate)(Visitor *v, const char *name,
                             GenericAlternate **obj, size_t size,
-                            uint32_t supported_qtypes, Error **errp);
+                            uint32_t supported_qtypes,
+                            const char *const enum_table[],
+                            Error **errp);
 
     /* Optional, needed for dealloc visitor */
     void (*end_alternate)(Visitor *v, void **obj);
