@@ -182,8 +182,9 @@ The appropriate DEVNAME depends on the machine type.  For type "pc":
 
   This lets you control I/O ports and IRQs.
 
-* -usbdevice serial:vendorid=VID,productid=PRID becomes
-  -device usb-serial,vendorid=VID,productid=PRID
+* -usbdevice serial:[vendorid=VID,productid=PRID]:chardev becomes
+  -device usb-serial,chardev=dev.  The possibility to set a vendor
+  and product ID has been removed since QEMU version 0.14.0.
 
 * -usbdevice braille doesn't support LEGACY-CHARDEV syntax.  It always
   uses "braille".  With -device, this useful default is gone, so you
