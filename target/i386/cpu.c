@@ -2626,6 +2626,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     X86CPU *cpu = x86_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
     uint32_t pkg_offset;
+    uint32_t signature[3];
 
     /* test if maximum index reached */
     switch (index & 0xF0000000) {
@@ -2635,6 +2636,16 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
          * (Intel SDM Vol. 2A - Instruction Set Reference - CPUID)
          */
         if (index > env->cpuid_level) {
+            index = env->cpuid_level;
+        }
+        break;
+    case 0x40000000:
+        /* Not sure what we should do here. Intel and KVM
+         * documentation is not explicit about it, but it
+         * looks like KVM will return the highest _basic_
+         * leaf (env->cpuid_level) on that case.
+         */
+        if (index > 0x40000001) {
             index = env->cpuid_level;
         }
         break;
@@ -2879,6 +2890,24 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     }
+    case 0x40000000:
+        /*
+         * CPUID code in kvm_arch_init_vcpu() ignores stuff
+         * set here, but we restrict to TCG none the less.
+         */
+        if (tcg_enabled() && cpu->expose_tcg) {
+            memcpy(signature, "TCGTCGTCGTCG", 12);
+            *eax = 0;
+            *ebx = signature[0];
+            *ecx = signature[1];
+            *edx = signature[2];
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
+        break;
     case 0x80000000:
         *eax = env->cpuid_xlevel;
         *ebx = env->cpuid_vendor1;
@@ -4020,6 +4049,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("kvm-no-smi-migration", X86CPU, kvm_no_smi_migration,
                      false),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
+    DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
