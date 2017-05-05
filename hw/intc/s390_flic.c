@@ -18,6 +18,7 @@
 #include "trace.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 S390FLICState *s390_get_flic(void)
 {
@@ -137,3 +138,50 @@ static void qemu_s390_flic_register_types(void)
 }
 
 type_init(qemu_s390_flic_register_types)
+
+static bool adapter_info_so_needed(void *opaque)
+{
+    return css_migration_enabled();
+}
+
+const VMStateDescription vmstate_adapter_info_so = {
+    .name = "s390_adapter_info/summary_offset",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = adapter_info_so_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(summary_offset, AdapterInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_adapter_info = {
+    .name = "s390_adapter_info",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(ind_offset, AdapterInfo),
+        /*
+         * We do not have to migrate neither the id nor the addresses.
+         * The id is set by css_register_io_adapter and the addresses
+         * are set based on the IndAddr objects after those get mapped.
+         */
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_adapter_info_so,
+        NULL
+    }
+};
+
+const VMStateDescription vmstate_adapter_routes = {
+
+    .name = "s390_adapter_routes",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(adapter, AdapterRoutes, 1, vmstate_adapter_info, \
+                       AdapterInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};

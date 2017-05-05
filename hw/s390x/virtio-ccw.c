@@ -34,8 +34,46 @@
 #include "virtio-ccw.h"
 #include "trace.h"
 #include "hw/s390x/css-bridge.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 #define NR_CLASSIC_INDICATOR_BITS 64
+
+static int virtio_ccw_dev_post_load(void *opaque, int version_id)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(opaque);
+    CcwDevice *ccw_dev = CCW_DEVICE(dev);
+    CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
+
+    ccw_dev->sch->driver_data = dev;
+    if (CCW_DEVICE(dev)->sch->thinint_active) {
+        dev->routes.adapter.adapter_id = css_get_adapter_id(
+                                         CSS_IO_ADAPTER_VIRTIO,
+                                         dev->thinint_isc);
+    }
+    /* Re-fill subch_id after loading the subchannel states.*/
+    if (ck->refill_ids) {
+        ck->refill_ids(ccw_dev);
+    }
+    return 0;
+}
+
+const VMStateDescription vmstate_virtio_ccw_dev = {
+    .name = "s390_virtio_ccw_dev",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = virtio_ccw_dev_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_CCW_DEVICE(parent_obj, VirtioCcwDevice),
+        VMSTATE_PTR_TO_IND_ADDR(indicators, VirtioCcwDevice),
+        VMSTATE_PTR_TO_IND_ADDR(indicators2, VirtioCcwDevice),
+        VMSTATE_PTR_TO_IND_ADDR(summary_indicator, VirtioCcwDevice),
+        VMSTATE_STRUCT(routes, VirtioCcwDevice, 1, vmstate_adapter_routes, \
+                       AdapterRoutes),
+        VMSTATE_UINT8(thinint_isc, VirtioCcwDevice),
+        VMSTATE_INT32(revision, VirtioCcwDevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
