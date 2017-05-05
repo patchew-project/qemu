@@ -26,6 +26,9 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error);
 
 void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
 
+int slirp_add_proxy(Slirp *slirp, const char *server, int port,
+                    const char *user, const char *password);
+
 /* you must provide the following functions: */
 void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len);
 

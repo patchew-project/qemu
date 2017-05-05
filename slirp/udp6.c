@@ -27,6 +27,14 @@ void udp6_input(struct mbuf *m)
     }
 
     ip = mtod(m, struct ip6 *);
+
+    /* as our SOCKS5 client is not able to route UDP6 packets,
+     * only allow local UDP6 traffic
+     */
+    if (slirp->proxy_server && !in6_equal_host(&ip->ip_dst)) {
+        goto bad;
+    }
+
     m->m_len -= iphlen;
     m->m_data += iphlen;
     uh = mtod(m, struct udphdr *);
