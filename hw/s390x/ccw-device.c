@@ -48,6 +48,7 @@ static void ccw_device_class_init(ObjectClass *klass, void *data)
     k->realize = ccw_device_realize;
     k->refill_ids = ccw_device_refill_ids;
     dc->props = ccw_device_properties;
+    dc->vmsd = &vmstate_ccw_dev;
 }
 
 const VMStateDescription vmstate_ccw_dev = {

@@ -207,4 +207,8 @@ extern PropertyInfo css_devid_ro_propinfo;
  * is responsible for unregistering and freeing it.
  */
 SubchDev *css_create_virtual_sch(CssDevId bus_id, Error **errp);
+
+/** Turn on css migration */
+void css_register_vmstate(void);
+
 #endif

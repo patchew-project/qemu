@@ -385,6 +385,11 @@ static int subch_dev_post_load(void *opaque, int version_id)
     return 0;
 }
 
+void css_register_vmstate(void)
+{
+    vmstate_register(NULL, 0, &vmstate_css, &channel_subsys);
+}
+
 IndAddr *get_indicator(hwaddr ind_addr, int len)
 {
     IndAddr *indicator;

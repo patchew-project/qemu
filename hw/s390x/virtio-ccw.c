@@ -1307,6 +1307,10 @@ static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
 
+    if (css_migration_enabled()) {
+        /* we migrate via DeviceClass.vmsd */
+        return;
+    }
     /*
      * We save in legacy mode. The components take care of their own
      * compat. representation (based on css_migration_enabled).
@@ -1318,6 +1322,10 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
 
+    if (css_migration_enabled()) {
+        /* we migrate via DeviceClass.vmsd */
+        return 0;
+    }
     /*
      * We load in legacy mode. The components take take care to read
      * only stuff which is actually there (based on css_migration_enabled).
@@ -1364,6 +1372,11 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
+
+    /* Avoid generating unknown section for legacy migration target. */
+    if (!css_migration_enabled()) {
+        DEVICE_GET_CLASS(ccw_dev)->vmsd = NULL;
+    }
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           d->hotplugged, 1);
@@ -1657,6 +1670,7 @@ static void virtio_ccw_device_class_init(ObjectClass *klass, void *data)
     dc->realize = virtio_ccw_busdev_realize;
     dc->exit = virtio_ccw_busdev_exit;
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
+    dc->vmsd = &vmstate_virtio_ccw_dev;
 }
 
 static const TypeInfo virtio_ccw_device_info = {
