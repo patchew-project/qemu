@@ -1707,7 +1707,8 @@ void qemu_system_reset(bool report, ShutdownCause reason)
     }
     if (report) {
         assert(reason);
-        qapi_event_send_reset(&error_abort);
+        qapi_event_send_reset(reason >= SHUTDOWN_CAUSE_GUEST_SHUTDOWN,
+                              &error_abort);
     }
     cpu_synchronize_all_post_reset();
 }
@@ -1864,7 +1865,8 @@ static bool main_loop_should_exit(void)
     request = qemu_shutdown_requested();
     if (request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(&error_abort);
+        qapi_event_send_shutdown(request >= SHUTDOWN_CAUSE_GUEST_SHUTDOWN,
+                                 &error_abort);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
