@@ -32,6 +32,7 @@ struct sPAPRRTCState {
     int64_t ns_offset;
 };
 
+typedef struct sPAPRDIMMState sPAPRDIMMState;
 typedef struct sPAPRMachineClass sPAPRMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
@@ -103,6 +104,9 @@ struct sPAPRMachineState {
 
     /* RTAS state */
     QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
+
+    /* pending DIMM unplug queue */
+    QTAILQ_HEAD(, sPAPRDIMMState) pending_dimm_unplugs;
 
     /*< public >*/
     char *kvm_type;
@@ -645,6 +649,19 @@ struct sPAPRConfigureConnectorState {
 };
 
 void spapr_ccs_reset_hook(void *opaque);
+
+struct sPAPRDIMMState {
+    uint64_t addr;
+    uint32_t nr_lmbs;
+    QTAILQ_ENTRY(sPAPRDIMMState) next;
+};
+
+sPAPRDIMMState *spapr_pending_dimm_unplugs_find(sPAPRMachineState *spapr,
+                                               uint64_t addr);
+void spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
+                                   sPAPRDIMMState *dimm_state);
+void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
+                                      sPAPRDIMMState *dimm_state);
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);

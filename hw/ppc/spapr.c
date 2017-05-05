@@ -2043,6 +2043,7 @@ static void ppc_spapr_init(MachineState *machine)
     msi_nonbroken = true;
 
     QLIST_INIT(&spapr->phbs);
+    QTAILQ_INIT(&spapr->pending_dimm_unplugs);
 
     /* Allocate RMA if necessary */
     rma_alloc_size = kvmppc_alloc_rma(&rma);
@@ -2596,20 +2597,32 @@ out:
     error_propagate(errp, local_err);
 }
 
-typedef struct sPAPRDIMMState {
-    uint32_t nr_lmbs;
-} sPAPRDIMMState;
+static uint64_t spapr_dimm_get_address(PCDIMMDevice *dimm)
+{
+    Error *local_err = NULL;
+    uint64_t addr;
+    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                   &local_err);
+    if (local_err) {
+        error_propagate(&error_abort, local_err);
+        return 0;
+    }
+    return addr;
+}
 
 static void spapr_lmb_release(DeviceState *dev, void *opaque)
 {
-    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
     HotplugHandler *hotplug_ctrl;
+
+    uint64_t addr = spapr_dimm_get_address(PC_DIMM(dev));
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    sPAPRDIMMState *ds = spapr_pending_dimm_unplugs_find(spapr, addr);
 
     if (--ds->nr_lmbs) {
         return;
     }
 
-    g_free(ds);
+    spapr_pending_dimm_unplugs_remove(spapr, ds);
 
     /*
      * Now that all the LMBs have been removed by the guest, call the
@@ -2626,17 +2639,20 @@ static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     sPAPRDRConnectorClass *drck;
     uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
     int i;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPRDIMMState *ds = g_malloc0(sizeof(sPAPRDIMMState));
     uint64_t addr = addr_start;
 
     ds->nr_lmbs = nr_lmbs;
+    ds->addr = addr_start;
+    spapr_pending_dimm_unplugs_add(spapr, ds);
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
                 addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->detach(drc, dev, spapr_lmb_release, ds, errp);
+        drck->detach(drc, dev, spapr_lmb_release, NULL, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
@@ -3515,3 +3531,29 @@ static void spapr_machine_register_types(void)
 }
 
 type_init(spapr_machine_register_types)
+
+sPAPRDIMMState *spapr_pending_dimm_unplugs_find(sPAPRMachineState *spapr,
+                                                uint64_t addr)
+{
+    sPAPRDIMMState *dimm_state = NULL;
+    QTAILQ_FOREACH(dimm_state, &spapr->pending_dimm_unplugs, next) {
+        if (dimm_state->addr == addr) {
+            break;
+        }
+    }
+    return dimm_state;
+}
+
+void spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
+                                   sPAPRDIMMState *dimm_state)
+{
+    g_assert(!spapr_pending_dimm_unplugs_find(spapr, dimm_state->addr));
+    QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, dimm_state, next);
+}
+
+void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
+                                      sPAPRDIMMState *dimm_state)
+{
+    QTAILQ_REMOVE(&spapr->pending_dimm_unplugs, dimm_state, next);
+    g_free(dimm_state);
+}
