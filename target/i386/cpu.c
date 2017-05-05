@@ -2628,26 +2628,33 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t pkg_offset;
 
     /* test if maximum index reached */
-    if (index & 0x80000000) {
-        if (index > env->cpuid_xlevel) {
-            if (env->cpuid_xlevel2 > 0) {
-                /* Handle the Centaur's CPUID instruction. */
-                if (index > env->cpuid_xlevel2) {
-                    index = env->cpuid_xlevel2;
-                } else if (index < 0xC0000000) {
-                    index = env->cpuid_xlevel;
-                }
-            } else {
-                /* Intel documentation states that invalid EAX input will
-                 * return the same information as EAX=cpuid_level
-                 * (Intel SDM Vol. 2A - Instruction Set Reference - CPUID)
-                 */
-                index =  env->cpuid_level;
-            }
-        }
-    } else {
-        if (index > env->cpuid_level)
+    switch (index & 0xF0000000) {
+    case 0:
+        /* Intel documentation states that invalid EAX input will
+         * return the same information as EAX=cpuid_level
+         * (Intel SDM Vol. 2A - Instruction Set Reference - CPUID)
+         */
+        if (index > env->cpuid_level) {
             index = env->cpuid_level;
+        }
+        break;
+    case 0x80000000:
+        if (index > env->cpuid_xlevel) {
+            index = env->cpuid_xlevel;
+        }
+        break;
+    case 0xC0000000:
+        if (index > env->cpuid_xlevel2) {
+            index = env->cpuid_xlevel2;
+        }
+        break;
+    default:
+        /* Intel documentation states that invalid EAX input will
+         * return the same information as EAX=cpuid_level
+         * (Intel SDM Vol. 2A - Instruction Set Reference - CPUID)
+         */
+        index =  env->cpuid_level;
+        break;
     }
 
     switch(index) {
