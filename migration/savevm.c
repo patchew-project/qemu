@@ -2300,7 +2300,7 @@ int load_vmstate(const char *name)
         return -EINVAL;
     }
 
-    qemu_system_reset(VMRESET_SILENT);
+    qemu_system_reset(VMRESET_SILENT, SHUTDOWN_CAUSE_NONE);
     mis->from_src_file = f;
 
     aio_context_acquire(aio_context);

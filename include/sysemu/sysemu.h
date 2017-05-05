@@ -36,6 +36,22 @@ void vm_state_notify(int running, RunState state);
 #define VMRESET_SILENT   false
 #define VMRESET_REPORT   true
 
+/* Enumeration of various causes for shutdown. */
+typedef enum ShutdownCause ShutdownCause;
+enum ShutdownCause {
+    SHUTDOWN_CAUSE_NONE,          /* No shutdown requested yet */
+    SHUTDOWN_CAUSE_HOST_QMP,      /* Reaction to a QMP command, like 'quit' */
+    SHUTDOWN_CAUSE_HOST_SIGNAL,   /* Reaction to a signal, such as SIGINT */
+    SHUTDOWN_CAUSE_HOST_UI,       /* Reaction to UI event, like window close */
+    SHUTDOWN_CAUSE_HOST_ERROR,    /* An error prevents further use of guest */
+    SHUTDOWN_CAUSE_GUEST_SHUTDOWN,/* Guest requested shutdown, such as via
+                                     ACPI or other hardware-specific means */
+    SHUTDOWN_CAUSE_GUEST_RESET,   /* Guest requested reset, and command line
+                                     turns that into a shutdown */
+    SHUTDOWN_CAUSE_GUEST_PANIC,   /* Guest panicked, and command line turns
+                                     that into a shutdown */
+};
+
 void vm_start(void);
 int vm_prepare_start(void);
 int vm_stop(RunState state);
@@ -62,10 +78,10 @@ void qemu_system_debug_request(void);
 void qemu_system_vmstop_request(RunState reason);
 void qemu_system_vmstop_request_prepare(void);
 bool qemu_vmstop_requested(RunState *r);
-int qemu_shutdown_requested_get(void);
-int qemu_reset_requested_get(void);
+ShutdownCause qemu_shutdown_requested_get(void);
+ShutdownCause qemu_reset_requested_get(void);
 void qemu_system_killed(int signal, pid_t pid);
-void qemu_system_reset(bool report);
+void qemu_system_reset(bool report, ShutdownCause reason);
 void qemu_system_guest_panicked(GuestPanicInformation *info);
 size_t qemu_target_page_size(void);
 
