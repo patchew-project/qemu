@@ -263,6 +263,30 @@ static void blk_mig_read_cb(void *opaque, int ret)
     blk_mig_unlock();
 }
 
+typedef struct {
+    int64_t *total_sectors;
+    int64_t *cur_sector;
+    BlockBackend *bb;
+    QemuEvent event;
+} MigNextAllocatedClusterData;
+
+static void coroutine_fn mig_next_allocated_cluster(void *opaque)
+{
+    MigNextAllocatedClusterData *data = opaque;
+    int nr_sectors;
+
+    /* Skip unallocated sectors; intentionally treats failure as
+     * an allocated sector */
+    while (*data->cur_sector < *data->total_sectors &&
+           !bdrv_is_allocated(blk_bs(data->bb), *data->cur_sector,
+                              MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
+        *data->cur_sector += nr_sectors;
+    }
+
+    bdrv_dec_in_flight(blk_bs(data->bb));
+    qemu_event_set(&data->event);
+}
+
 /* Called with no lock taken.  */
 
 static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
@@ -274,17 +298,23 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     int nr_sectors;
 
     if (bmds->shared_base) {
+        AioContext *bb_ctx;
+        Coroutine *co;
+        MigNextAllocatedClusterData data = {
+            .cur_sector = &cur_sector,
+            .total_sectors = &total_sectors,
+            .bb = bb,
+        };
+        qemu_event_init(&data.event, false);
+
         qemu_mutex_lock_iothread();
-        aio_context_acquire(blk_get_aio_context(bb));
-        /* Skip unallocated sectors; intentionally treats failure as
-         * an allocated sector */
-        while (cur_sector < total_sectors &&
-               !bdrv_is_allocated(blk_bs(bb), cur_sector,
-                                  MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
-            cur_sector += nr_sectors;
-        }
-        aio_context_release(blk_get_aio_context(bb));
+        bdrv_inc_in_flight(blk_bs(bb));
+        bb_ctx = blk_get_aio_context(bb);
+        co = qemu_coroutine_create(mig_next_allocated_cluster, &data);
+        aio_co_schedule(bb_ctx, co);
         qemu_mutex_unlock_iothread();
+
+        qemu_event_wait(&data.event);
     }
 
     if (cur_sector >= total_sectors) {
