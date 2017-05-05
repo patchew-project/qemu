@@ -87,6 +87,7 @@ struct SubchDev {
     bool ccw_fmt_1;
     bool thinint_active;
     uint8_t ccw_no_data_cnt;
+    uint16_t migrated_schid; /* used for missmatch detection */
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
@@ -94,13 +95,20 @@ struct SubchDev {
     void *driver_data;
 };
 
+extern const VMStateDescription vmstate_subch_dev;
+
 typedef struct IndAddr {
     hwaddr addr;
     uint64_t map;
     unsigned long refcnt;
-    int len;
+    int32_t len;
     QTAILQ_ENTRY(IndAddr) sibling;
 } IndAddr;
+
+extern const VMStateInfo vmstate_info_ind_addr;
+
+#define VMSTATE_PTR_TO_IND_ADDR(_f, _s)                                   \
+    VMSTATE_SINGLE(_f, _s, 1 , vmstate_info_ind_addr, IndAddr*)
 
 IndAddr *get_indicator(hwaddr ind_addr, int len);
 void release_indicator(AdapterInfo *adapter, IndAddr *indicator);
