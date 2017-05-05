@@ -1963,8 +1963,6 @@ int kvm_cpu_exec(CPUState *cpu)
         return EXCP_HLT;
     }
 
-    qemu_mutex_unlock_iothread();
-
     do {
         MemTxAttrs attrs;
 
@@ -2092,8 +2090,6 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         }
     } while (ret == 0);
-
-    qemu_mutex_lock_iothread();
 
     if (ret < 0) {
         cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_CODE);
