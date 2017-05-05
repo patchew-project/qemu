@@ -1,3 +1,7 @@
+alternate AltBoolEnum
+    tag type
+    case b: bool
+    case e: EnumOne
 alternate AltIntNum
     tag type
     case i: int
@@ -10,6 +14,10 @@ alternate AltNumStr
     tag type
     case n: number
     case s: str
+alternate AltOnOffBool
+    tag type
+    case o: TestOnOffAuto
+    case b: bool
 alternate AltStrBool
     tag type
     case s: str
@@ -56,6 +64,7 @@ enum QEnumTwo ['value1', 'value2']
     prefix QENUM_TWO
 enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
     prefix QTYPE
+enum TestOnOffAuto ['on', 'off', 'auto']
 object TestStruct
     member integer: int optional=False
     member boolean: bool optional=False

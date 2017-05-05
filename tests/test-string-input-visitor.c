@@ -290,6 +290,76 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
     }
 }
 
+static void test_visitor_in_alt_bool_enum(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    Error *err = NULL;
+    Visitor *v;
+    AltBoolEnum *be = NULL;
+
+    v = visitor_input_test_init(data, "true");
+    visit_type_AltBoolEnum(v, NULL, &be, &error_abort);
+    g_assert_cmpint(be->type, ==, QTYPE_QBOOL);
+    g_assert(be->u.b);
+    qapi_free_AltBoolEnum(be);
+
+    v = visitor_input_test_init(data, "off");
+    visit_type_AltBoolEnum(v, NULL, &be, &error_abort);
+    g_assert_cmpint(be->type, ==, QTYPE_QBOOL);
+    g_assert(!be->u.b);
+    qapi_free_AltBoolEnum(be);
+
+    v = visitor_input_test_init(data, "value2");
+    visit_type_AltBoolEnum(v, NULL, &be, &error_abort);
+    g_assert_cmpint(be->type, ==, QTYPE_QSTRING);
+    g_assert_cmpint(be->u.e, ==, ENUM_ONE_VALUE2);
+    qapi_free_AltBoolEnum(be);
+
+    v = visitor_input_test_init(data, "value100");
+    visit_type_AltBoolEnum(v, NULL, &be, &err);
+    error_free_or_abort(&err);
+    qapi_free_AltBoolEnum(be);
+
+    v = visitor_input_test_init(data, "10");
+    visit_type_AltBoolEnum(v, NULL, &be, &err);
+    error_free_or_abort(&err);
+    qapi_free_AltBoolEnum(be);
+}
+
+static void test_visitor_in_alt_ambig_str(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    Error *err = NULL;
+    Visitor *v;
+    AltStrBool *sb = NULL;
+
+    /*
+     * AltStrBool has an ambiguous string representation, and
+     * can't be handled by string-input-visitor:
+     */
+    v = visitor_input_test_init(data, "s");
+    visit_type_AltStrBool(v, NULL, &sb, &err);
+    error_free_or_abort(&err);
+    qapi_free_AltStrBool(sb);
+}
+
+static void test_visitor_in_alt_ambig_enum(TestInputVisitorData *data,
+                                          const void *unused)
+{
+    Error *err = NULL;
+    Visitor *v;
+    AltOnOffBool *ob = NULL;
+
+    /*
+     * AltOnOffBool has an ambiguous string representation, and
+     * can't be handled by string-input-visitor:
+     */
+    v = visitor_input_test_init(data, "on");
+    visit_type_AltOnOffBool(v, NULL, &ob, &err);
+    error_free_or_abort(&err);
+    qapi_free_AltOnOffBool(ob);
+}
+
 /* Try to crash the visitors */
 static void test_visitor_in_fuzz(TestInputVisitorData *data,
                                  const void *unused)
@@ -366,6 +436,12 @@ int main(int argc, char **argv)
                             &in_visitor_data, test_visitor_in_string);
     input_visitor_test_add("/string-visitor/input/enum",
                             &in_visitor_data, test_visitor_in_enum);
+    input_visitor_test_add("/string-visitor/input/alternate/bool_enum",
+                            &in_visitor_data, test_visitor_in_alt_bool_enum);
+    input_visitor_test_add("/string-visitor/input/alternate/ambig_enum",
+                            &in_visitor_data, test_visitor_in_alt_ambig_enum);
+    input_visitor_test_add("/string-visitor/input/alternate/ambig_str",
+                            &in_visitor_data, test_visitor_in_alt_ambig_str);
     input_visitor_test_add("/string-visitor/input/fuzz",
                             &in_visitor_data, test_visitor_in_fuzz);
 

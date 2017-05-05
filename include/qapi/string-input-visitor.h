@@ -19,8 +19,12 @@ typedef struct StringInputVisitor StringInputVisitor;
 
 /*
  * The string input visitor does not implement support for visiting
- * QAPI structs, alternates, null, or arbitrary QTypes.  It also
+ * QAPI structs, null, or arbitrary QTypes.  It also
  * requires a non-null list argument to visit_start_list().
+ *
+ * Support for alternates is very limited: only bool and enum
+ * members are supported, and only when the enum members'
+ * representations can't be confused with a bool value.
  */
 Visitor *string_input_visitor_new(const char *str);
 

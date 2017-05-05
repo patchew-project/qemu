@@ -19,6 +19,7 @@
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/range.h"
+#include "qemu/host-utils.h"
 
 
 struct StringInputVisitor
@@ -278,21 +279,34 @@ static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
     *obj = val;
 }
 
+static int try_parse_bool(const char *s, bool *result)
+{
+    if (!strcasecmp(s, "on") ||
+        !strcasecmp(s, "yes") ||
+        !strcasecmp(s, "true")) {
+        if (result) {
+            *result = true;
+        }
+        return 0;
+    }
+    if (!strcasecmp(s, "off") ||
+        !strcasecmp(s, "no") ||
+        !strcasecmp(s, "false")) {
+        if (result) {
+            *result = false;
+        }
+        return 0;
+    }
+
+    return -1;
+}
+
 static void parse_type_bool(Visitor *v, const char *name, bool *obj,
                             Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
 
-    if (!strcasecmp(siv->string, "on") ||
-        !strcasecmp(siv->string, "yes") ||
-        !strcasecmp(siv->string, "true")) {
-        *obj = true;
-        return;
-    }
-    if (!strcasecmp(siv->string, "off") ||
-        !strcasecmp(siv->string, "no") ||
-        !strcasecmp(siv->string, "false")) {
-        *obj = false;
+    if (try_parse_bool(siv->string, obj) == 0) {
         return;
     }
 
@@ -326,6 +340,70 @@ static void parse_type_number(Visitor *v, const char *name, double *obj,
     *obj = val;
 }
 
+/*
+ * Check if alternate type string representation is ambiguous and
+ * can't be parsed by StringInputVisitor
+ */
+static bool ambiguous_alternate(uint32_t qtypes, const char *const enum_table[])
+{
+    uint32_t non_str_qtypes = qtypes & ~(1U << QTYPE_QSTRING);
+
+    if ((qtypes & (1U << QTYPE_QSTRING)) && !enum_table && non_str_qtypes) {
+        return true;
+    }
+
+    if (qtypes & (1U << QTYPE_QBOOL)) {
+        const char *const *e;
+        /*
+         * If the string representation of enum members can be parsed as
+         * booleans, the alternate string representation is ambiguous.
+         */
+        for (e = enum_table; e && *e; e++) {
+            if (try_parse_bool(*e, NULL) == 0) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static void start_alternate(Visitor *v, const char *name,
+                            GenericAlternate **obj, size_t size,
+                            uint32_t qtypes, const char *const enum_table[],
+                            Error **errp)
+{
+    /*
+     * Enum types are represented as QTYPE_QSTRING, so this is
+     * the default. Actual parsing of the string as an enum is
+     * done by visit_type_<EnumType>(), which is called just
+     * after visit_start_alternate().
+     */
+    QType qtype = QTYPE_QSTRING;
+    uint32_t unsupported_qtypes = qtypes & ~((1U << QTYPE_QSTRING) |
+                                             (1U << QTYPE_QBOOL));
+    StringInputVisitor *siv = to_siv(v);
+
+    if (ambiguous_alternate(qtypes, enum_table)) {
+        error_setg(errp, "Can't parse ambiguous alternate type");
+        return;
+    }
+
+    if (unsupported_qtypes) {
+        error_setg(errp, "Can't parse %s' alternate member",
+                   QType_lookup[ctz32(unsupported_qtypes)]);
+        return;
+    }
+
+    if ((qtypes & (1U << QTYPE_QBOOL)) &&
+        try_parse_bool(siv->string, NULL) == 0) {
+        qtype = QTYPE_QBOOL;
+    }
+
+    *obj = g_malloc0(size);
+    (*obj)->type = qtype;
+}
+
 static void string_input_free(Visitor *v)
 {
     StringInputVisitor *siv = to_siv(v);
@@ -353,6 +431,7 @@ Visitor *string_input_visitor_new(const char *str)
     v->visitor.next_list = next_list;
     v->visitor.check_list = check_list;
     v->visitor.end_list = end_list;
+    v->visitor.start_alternate = start_alternate;
     v->visitor.free = string_input_free;
 
     v->string = str;
