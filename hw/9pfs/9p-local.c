@@ -588,6 +588,11 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
     int err = -1;
     int dirfd;
 
+    if (local_must_skip_metadata(fs_ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
+
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
     if (dirfd == -1) {
         return -1;
@@ -633,6 +638,11 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
 {
     int err = -1;
     int dirfd;
+
+    if (local_must_skip_metadata(fs_ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
     if (dirfd == -1) {
@@ -723,6 +733,11 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     int err = -1;
     int dirfd;
 
+    if (local_must_skip_metadata(fs_ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
+
     /*
      * Mark all the open to not follow symlinks
      */
@@ -780,6 +795,11 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
 {
     int err = -1;
     int dirfd;
+
+    if (local_must_skip_metadata(fs_ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
 
     dirfd = local_opendir_nofollow(fs_ctx, dir_path->data);
     if (dirfd == -1) {
@@ -854,6 +874,11 @@ static int local_link(FsContext *ctx, V9fsPath *oldpath,
     char *oname = g_path_get_basename(oldpath->data);
     int ret = -1;
     int odirfd, ndirfd;
+
+    if (local_must_skip_metadata(ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
 
     odirfd = local_opendir_nofollow(ctx, odirpath);
     if (odirfd == -1) {
@@ -982,6 +1007,11 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
                                  int flags)
 {
     int ret = -1;
+
+    if (local_must_skip_metadata(ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
 
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         int map_dirfd;
@@ -1125,6 +1155,11 @@ static int local_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
 static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
                               const char *name, V9fsPath *target)
 {
+    if (local_must_skip_metadata(ctx, name)) {
+        errno = EINVAL;
+        return -1;
+    }
+
     if (dir_path) {
         if (!strcmp(name, ".")) {
             /* "." relative to "foo/bar" is "foo/bar" */
@@ -1160,6 +1195,12 @@ static int local_renameat(FsContext *ctx, V9fsPath *olddir,
 {
     int ret;
     int odirfd, ndirfd;
+
+    if (local_must_skip_metadata(ctx, old_name) ||
+        local_must_skip_metadata(ctx, new_name)) {
+        errno = EINVAL;
+        return -1;
+    }
 
     odirfd = local_opendir_nofollow(ctx, olddir->data);
     if (odirfd == -1) {
