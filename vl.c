@@ -1725,7 +1725,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     if (!no_shutdown) {
         qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
                                        !!info, info, &error_abort);
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_PANIC);
     }
 
     if (info) {
@@ -1742,13 +1742,12 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     }
 }
 
-void qemu_system_reset_request(void)
+void qemu_system_reset_request(ShutdownCause reason)
 {
     if (no_reboot) {
-        /* FIXME - add a parameter to allow callers to specify reason */
-        shutdown_requested = SHUTDOWN_CAUSE_HOST_ERROR;
+        shutdown_requested = reason;
     } else {
-        reset_requested = SHUTDOWN_CAUSE_HOST_ERROR;
+        reset_requested = reason;
     }
     cpu_stop_current();
     qemu_notify_event();
@@ -1819,12 +1818,12 @@ void qemu_system_killed(int signal, pid_t pid)
     qemu_notify_event();
 }
 
-void qemu_system_shutdown_request(void)
+void qemu_system_shutdown_request(ShutdownCause reason)
 {
-    trace_qemu_system_shutdown_request();
+    trace_qemu_system_shutdown_request(reason);
+    /* FIXME - add a parameter to let replay preserve reason */
     replay_shutdown_request();
-    /* FIXME - add a parameter to allow callers to specify reason */
-    shutdown_requested = SHUTDOWN_CAUSE_HOST_ERROR;
+    shutdown_requested = reason;
     qemu_notify_event();
 }
 
