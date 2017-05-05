@@ -57,6 +57,32 @@ static int virtio_ccw_dev_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static int get_config_vector(QEMUFile *f, void *pv, size_t size,
+                             VMStateField *field)
+{
+    VirtioCcwDevice *dev = pv;
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+
+    qemu_get_be16s(f, &vdev->config_vector);
+    return 0;
+}
+
+static int put_config_vector(QEMUFile *f, void *pv, size_t size,
+                             VMStateField *field, QJSON *vmdesc)
+{
+    VirtioCcwDevice *dev = pv;
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+
+    qemu_put_be16(f, vdev->config_vector);
+    return 0;
+}
+
+const VMStateInfo vmstate_info_config_vector = {
+    .name = "config_vector",
+    .get = get_config_vector,
+    .put = put_config_vector,
+};
+
 const VMStateDescription vmstate_virtio_ccw_dev = {
     .name = "s390_virtio_ccw_dev",
     .version_id = 1,
@@ -67,6 +93,14 @@ const VMStateDescription vmstate_virtio_ccw_dev = {
         VMSTATE_PTR_TO_IND_ADDR(indicators, VirtioCcwDevice),
         VMSTATE_PTR_TO_IND_ADDR(indicators2, VirtioCcwDevice),
         VMSTATE_PTR_TO_IND_ADDR(summary_indicator, VirtioCcwDevice),
+        {
+        /*
+         * Ugly hack because VirtIODevice does not migrate itself.
+         * This also makes legacy via vmstate_save_state possible.
+         */
+            .name         = "virtio/config_vector",
+            .info         = &vmstate_info_config_vector,
+        },
         VMSTATE_STRUCT(routes, VirtioCcwDevice, 1, vmstate_adapter_routes, \
                        AdapterRoutes),
         VMSTATE_UINT8(thinint_isc, VirtioCcwDevice),
@@ -1272,85 +1306,23 @@ static int virtio_ccw_load_queue(DeviceState *d, int n, QEMUFile *f)
 static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-    CcwDevice *ccw_dev = CCW_DEVICE(d);
-    SubchDev *s = ccw_dev->sch;
-    VirtIODevice *vdev = virtio_ccw_get_vdev(s);
 
-    subch_device_save(s, f);
-    if (dev->indicators != NULL) {
-        qemu_put_be32(f, dev->indicators->len);
-        qemu_put_be64(f, dev->indicators->addr);
-    } else {
-        qemu_put_be32(f, 0);
-        qemu_put_be64(f, 0UL);
-    }
-    if (dev->indicators2 != NULL) {
-        qemu_put_be32(f, dev->indicators2->len);
-        qemu_put_be64(f, dev->indicators2->addr);
-    } else {
-        qemu_put_be32(f, 0);
-        qemu_put_be64(f, 0UL);
-    }
-    if (dev->summary_indicator != NULL) {
-        qemu_put_be32(f, dev->summary_indicator->len);
-        qemu_put_be64(f, dev->summary_indicator->addr);
-    } else {
-        qemu_put_be32(f, 0);
-        qemu_put_be64(f, 0UL);
-    }
-    qemu_put_be16(f, vdev->config_vector);
-    qemu_put_be64(f, dev->routes.adapter.ind_offset);
-    qemu_put_byte(f, dev->thinint_isc);
-    qemu_put_be32(f, dev->revision);
+    /*
+     * We save in legacy mode. The components take care of their own
+     * compat. representation (based on css_migration_enabled).
+     */
+    vmstate_save_state(f, &vmstate_virtio_ccw_dev, dev, NULL);
 }
 
 static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-    CcwDevice *ccw_dev = CCW_DEVICE(d);
-    CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
-    SubchDev *s = ccw_dev->sch;
-    VirtIODevice *vdev = virtio_ccw_get_vdev(s);
-    int len;
 
-    s->driver_data = dev;
-    subch_device_load(s, f);
-    /* Re-fill subch_id after loading the subchannel states.*/
-    if (ck->refill_ids) {
-        ck->refill_ids(ccw_dev);
-    }
-    len = qemu_get_be32(f);
-    if (len != 0) {
-        dev->indicators = get_indicator(qemu_get_be64(f), len);
-    } else {
-        qemu_get_be64(f);
-        dev->indicators = NULL;
-    }
-    len = qemu_get_be32(f);
-    if (len != 0) {
-        dev->indicators2 = get_indicator(qemu_get_be64(f), len);
-    } else {
-        qemu_get_be64(f);
-        dev->indicators2 = NULL;
-    }
-    len = qemu_get_be32(f);
-    if (len != 0) {
-        dev->summary_indicator = get_indicator(qemu_get_be64(f), len);
-    } else {
-        qemu_get_be64(f);
-        dev->summary_indicator = NULL;
-    }
-    qemu_get_be16s(f, &vdev->config_vector);
-    dev->routes.adapter.ind_offset = qemu_get_be64(f);
-    dev->thinint_isc = qemu_get_byte(f);
-    dev->revision = qemu_get_be32(f);
-    if (s->thinint_active) {
-        dev->routes.adapter.adapter_id = css_get_adapter_id(
-                                         CSS_IO_ADAPTER_VIRTIO,
-                                         dev->thinint_isc);
-    }
-
-    return 0;
+    /*
+     * We load in legacy mode. The components take take care to read
+     * only stuff which is actually there (based on css_migration_enabled).
+     */
+    return vmstate_load_state(f, &vmstate_virtio_ccw_dev, dev, 1);
 }
 
 static void virtio_ccw_pre_plugged(DeviceState *d, Error **errp)
