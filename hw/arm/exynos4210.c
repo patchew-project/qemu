@@ -160,9 +160,10 @@ static uint64_t exynos4210_calc_affinity(int cpu)
     return mp_affinity;
 }
 
-Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
+static void exynos4210_init(Object *obj)
 {
-    Exynos4210State *s = g_new(Exynos4210State, 1);
+    MemoryRegion *system_mem = get_system_memory();
+    Exynos4210State *s = EXYNOS4210(obj);
     qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     SysBusDevice *busdev;
     ObjectClass *cpu_oc;
@@ -402,6 +403,17 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
 
     sysbus_create_simple(TYPE_EXYNOS4210_EHCI, EXYNOS4210_EHCI_BASE_ADDR,
             s->irq_table[exynos4210_get_irq(28, 3)]);
-
-    return s;
 }
+
+static const TypeInfo exynos4210_type_info = {
+    .name = TYPE_EXYNOS4210,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(Exynos4210State),
+    .instance_init = exynos4210_init,
+};
+
+static void exynos4210_register_types(void)
+{
+    type_register_static(&exynos4210_type_info);
+}
+type_init(exynos4210_register_types)

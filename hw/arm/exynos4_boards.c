@@ -58,7 +58,7 @@ typedef enum Exynos4BoardType {
 } Exynos4BoardType;
 
 typedef struct Exynos4BoardState {
-    Exynos4210State *soc;
+    Exynos4210State soc;
     MemoryRegion dram0_mem;
     MemoryRegion dram1_mem;
 } Exynos4BoardState;
@@ -162,7 +162,10 @@ exynos4_boards_init_common(MachineState *machine,
     exynos4_boards_init_ram(s, get_system_memory(),
                             exynos4_board_ram_size[board_type]);
 
-    s->soc = exynos4210_init(get_system_memory());
+    object_initialize(&s->soc, sizeof(s->soc), TYPE_EXYNOS4210);
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
+                              &error_abort);
+    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
     return s;
 }
@@ -180,7 +183,7 @@ static void smdkc210_init(MachineState *machine)
                                                       EXYNOS4_BOARD_SMDKC210);
 
     lan9215_init(SMDK_LAN9118_BASE_ADDR,
-            qemu_irq_invert(s->soc->irq_table[exynos4210_get_irq(37, 1)]));
+            qemu_irq_invert(s->soc.irq_table[exynos4210_get_irq(37, 1)]));
     arm_load_kernel(ARM_CPU(first_cpu), &exynos4_board_binfo);
 }
 
