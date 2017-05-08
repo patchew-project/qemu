@@ -334,6 +334,13 @@ static int cryptodev_builtin_sym_operation(
         return -VIRTIO_CRYPTO_NOTSUPP;
     }
 
+    if (op_info->op_code != VIRTIO_CRYPTO_CIPHER_ENCRYPT &&
+        op_info->op_code != VIRTIO_CRYPTO_CIPHER_DECRYPT) {
+        error_setg(errp,
+               "Unsupported op code: %u", op_info->op_code);
+        return -VIRTIO_CRYPTO_NOTSUPP;
+    }
+
     sess = builtin->sessions[op_info->session_id];
 
     if (op_info->iv_len > 0) {
