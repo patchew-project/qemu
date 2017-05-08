@@ -2,6 +2,10 @@ language: c
 env:
   global:
     - LC_ALL=C
+    # sometimes Shippable fails to clone from github (git_sync stage):
+    # "Problem with the SSL CA cert (path? access rights?)"
+    # for now disable SSL verification.
+    - GIT_SSL_NO_VERIFY=1
   matrix:
     - IMAGE=debian-armhf-cross
       TARGET_LIST=arm-softmmu,arm-linux-user
