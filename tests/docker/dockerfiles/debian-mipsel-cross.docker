@@ -1,0 +1,31 @@
+#
+# Docker mipsel cross-compiler target
+#
+# This docker target builds on the base debian image.
+#
+FROM qemu:debian
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+# Add the foreign architecture we want and install dependencies
+RUN dpkg --add-architecture mipsel && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -y --no-install-recommends \
+        crossbuild-essential-mipsel
+
+# <kludge> to fix "following packages have unmet dependencies" ...
+ADD debian-apt-fake.sh /usr/local/bin/apt-fake
+RUN apt-get install -y --no-install-recommends equivs pkg-config && \
+    apt-fake install pkgconf:mipsel=0.9.7-fake pkg-config:mipsel=0.28-1.1-fake && \
+    ln -s pkg-config /usr/bin/mipsel-linux-gnu-pkg-config
+ENV PKG_CONFIG_PATH /usr/lib/mipsel-linux-gnu/pkgconfig
+# </kludge>
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=mipsel-linux-gnu-
+
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get build-dep -yy -a mipsel qemu && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -y --no-install-recommends \
+        glusterfs-common:mipsel \
+        libncursesw5-dev:mipsel libnfs-dev:mipsel \
+        libbz2-dev:mipsel liblzo2-dev:mipsel \
+        libsnappy-dev:mipsel librdmacm-dev:mipsel
