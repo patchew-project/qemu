@@ -51,7 +51,8 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(SRC_PATH)/tests/docker/docker.py build qemu:$* $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
 		$(if $(NOUSER),,--add-current-user) \
-		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
+		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE))\
+		$(if $(EXTRA_FILE),--include-file=$(EXTRA_FILE)),\
 		"BUILD","$*")
 
 # Enforce dependancies for composite images
