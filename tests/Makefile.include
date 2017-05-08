@@ -168,6 +168,8 @@ check-qtest-virtio-y += tests/virtio-serial-test$(EXESUF)
 gcov-files-virtio-y += i386-softmmu/hw/char/virtio-serial-bus.c
 check-qtest-virtio-y += $(check-qtest-virtioserial-y)
 gcov-files-virtio-y += $(gcov-files-virtioserial-y)
+check-qtest-virtio-y += tests/virtio-crypto-test$(EXESUF)
+gcov-files-virtio-y += i386-softmmu/hw/virtio/virtio-crypto.c
 
 check-qtest-pci-y += tests/e1000-test$(EXESUF)
 gcov-files-pci-y += hw/net/e1000.c
@@ -717,6 +719,7 @@ tests/virtio-scsi-test$(EXESUF): tests/virtio-scsi-test.o $(libqos-virtio-obj-y)
 tests/virtio-9p-test$(EXESUF): tests/virtio-9p-test.o $(libqos-virtio-obj-y)
 tests/virtio-serial-test$(EXESUF): tests/virtio-serial-test.o
 tests/virtio-console-test$(EXESUF): tests/virtio-console-test.o
+tests/virtio-crypto-test$(EXESUF): tests/virtio-crypto-test.o $(libqos-virtio-obj-y)
 tests/tpci200-test$(EXESUF): tests/tpci200-test.o
 tests/display-vga-test$(EXESUF): tests/display-vga-test.o
 tests/ipoctal232-test$(EXESUF): tests/ipoctal232-test.o
