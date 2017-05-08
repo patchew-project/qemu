@@ -14,4 +14,10 @@ RUN dpkg --add-architecture arm64 && \
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=aarch64-linux-gnu-
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get build-dep -yy -a arm64 qemu
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get build-dep -yy -a arm64 qemu && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -y --no-install-recommends \
+        glusterfs-common:arm64 \
+        libncursesw5-dev:arm64 libnfs-dev:arm64 \
+        libbz2-dev:arm64 liblzo2-dev:arm64 \
+        libsnappy-dev:arm64 librdmacm-dev:arm64 \
+        libxen-dev:arm64
