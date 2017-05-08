@@ -61,6 +61,7 @@ docker-image-debian: EXTRA_FILE:=tests/docker/dockerfiles/debian-apt-fake.sh
 docker-image-debian-armhf-cross: docker-image-debian
 docker-image-debian-arm64-cross: docker-image-debian
 docker-image-debian-mipsel-cross: docker-image-debian
+docker-image-debian-powerpc-cross: docker-image-debian
 
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(DOCKER_IMAGES), \
