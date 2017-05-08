@@ -1,4 +1,6 @@
 language: c
+git:
+   submodules: false
 env:
   global:
     - LC_ALL=C
