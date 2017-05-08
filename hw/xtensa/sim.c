@@ -41,13 +41,13 @@ static void xtensa_create_memory_regions(const XtensaMemory *memory,
                                          const char *name)
 {
     unsigned i;
-    char *num_name = malloc(strlen(name) + sizeof(i) * 3 + 1);
+    char *num_name = g_malloc(strlen(name) + sizeof(i) * 3 + 1);
 
     for (i = 0; i < memory->num; ++i) {
         MemoryRegion *m;
 
         sprintf(num_name, "%s%u", name, i);
-        m = g_malloc(sizeof(*m));
+        m = g_new(MemoryRegion, 1);
         memory_region_init_ram(m, NULL, num_name,
                                memory->location[i].size,
                                &error_fatal);
@@ -55,7 +55,7 @@ static void xtensa_create_memory_regions(const XtensaMemory *memory,
         memory_region_add_subregion(get_system_memory(),
                                     memory->location[i].addr, m);
     }
-    free(num_name);
+    g_free(num_name);
 }
 
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
