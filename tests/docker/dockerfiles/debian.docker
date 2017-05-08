@@ -22,6 +22,8 @@ RUN apt-get update && \
 # Duplicate deb line as deb-src
 RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
 
+ADD debian-apt-fake.sh /usr/local/bin/apt-fake
+
 # Setup Emdebian
 RUN echo "deb http://emdebian.org/tools/debian/ jessie main" >> /etc/apt/sources.list && \
     curl http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | apt-key add -
