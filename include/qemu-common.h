@@ -146,6 +146,7 @@ int parse_debug_env(const char *name, int max, int initial);
 
 const char *qemu_ether_ntoa(const MACAddr *mac);
 void page_size_init(void);
+const char *page_size_to_str(size_t psize);
 
 /* returns non-zero if dump is in progress, otherwise zero is
  * returned. */

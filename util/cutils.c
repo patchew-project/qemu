@@ -619,3 +619,49 @@ const char *qemu_ether_ntoa(const MACAddr *mac)
 
     return ret;
 }
+
+const char *page_size_to_str(size_t psize)
+{
+    switch (psize) {
+    case 0x1000:
+        return "4K";
+    case 0x2000:
+        return "8K";
+    case 0x4000:
+        return "16K";
+    case 0x8000:
+        return "32K";
+    case 0x10000:
+        return "64K";
+    case 0x20000:
+        return "128K";
+    case 0x40000:
+        return "256K";
+    case 0x80000:
+        return "512K";
+    case 0x100000:
+        return "1M";
+    case 0x200000:
+        return "2M";
+    case 0x400000:
+        return "4M";
+    case 0x800000:
+        return "8M";
+    case 0x1000000:
+        return "16M";
+    case 0x2000000:
+        return "32M";
+    case 0x4000000:
+        return "64M";
+    case 0x8000000:
+        return "128M";
+    case 0x10000000:
+        return "256M";
+    case 0x20000000:
+        return "512M";
+    case 0x40000000:
+        return "1G";
+    default:
+        return "N/A";
+    }
+}
