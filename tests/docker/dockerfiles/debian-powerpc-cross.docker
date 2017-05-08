@@ -12,6 +12,13 @@ RUN dpkg --add-architecture powerpc && \
     DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -y --no-install-recommends \
         crossbuild-essential-powerpc
 
+# <kludge> to fix "following packages have unmet dependencies" ...
+RUN apt-get install -y --no-install-recommends equivs pkg-config && \
+    apt-fake install pkg-config:powerpc=0.28-1.1-fake && \
+    ln -s pkg-config /usr/bin/powerpc-linux-gnu-pkg-config
+ENV PKG_CONFIG_PATH /usr/lib/powerpc-linux-gnu/pkgconfig
+# </kludge>
+
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=powerpc-linux-gnu-
 
