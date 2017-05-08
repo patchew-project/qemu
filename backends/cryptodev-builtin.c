@@ -401,7 +401,76 @@ cryptodev_builtin_sym_stateless_operation(
                  CryptoDevBackendSymStatelessInfo *op_info,
                  uint32_t queue_index, Error **errp)
 {
-    return -VIRTIO_CRYPTO_ERR;
+    CryptoDevBackendSymSessionInfo *sess_info;
+    CryptoDevBackendSymOpInfo *sym_op_info;
+    int algo, mode;
+    int ret;
+    QCryptoCipher *cipher = NULL;
+
+    sess_info = &op_info->session_info;
+    sym_op_info = &op_info->op_info;
+
+    if (sess_info->op_type != VIRTIO_CRYPTO_SYM_OP_CIPHER) {
+        error_setg(errp, "Unsupported op_type: %u", sess_info->op_type);
+        return -VIRTIO_CRYPTO_ERR;
+    }
+
+    switch (sym_op_info->op_code) {
+    case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
+    case VIRTIO_CRYPTO_CIPHER_DECRYPT:
+        ret = cryptodev_builtin_get_cipher_alg_mode(sess_info,
+                                                &algo, &mode, errp);
+        if (ret < 0) {
+            return -VIRTIO_CRYPTO_ERR;
+        }
+
+        cipher = qcrypto_cipher_new(algo, mode,
+                                   sess_info->cipher_key,
+                                   sess_info->key_len,
+                                   errp);
+        if (!cipher) {
+            return -VIRTIO_CRYPTO_ERR;
+        }
+
+        if (sym_op_info->iv_len > 0) {
+            ret = qcrypto_cipher_setiv(cipher, sym_op_info->iv,
+                                       sym_op_info->iv_len, errp);
+            if (ret < 0) {
+                ret = -VIRTIO_CRYPTO_ERR;
+                goto out;
+            }
+        }
+
+        if (sess_info->direction == VIRTIO_CRYPTO_OP_ENCRYPT) {
+            ret = qcrypto_cipher_encrypt(cipher, sym_op_info->src,
+                                         sym_op_info->dst,
+                                         sym_op_info->src_len, errp);
+            if (ret < 0) {
+                ret = -VIRTIO_CRYPTO_ERR;
+                goto out;
+            }
+        } else {
+            ret = qcrypto_cipher_decrypt(cipher, sym_op_info->src,
+                                         sym_op_info->dst,
+                                         sym_op_info->src_len, errp);
+            if (ret < 0) {
+                ret = -VIRTIO_CRYPTO_ERR;
+                goto out;
+            }
+        }
+        break;
+
+    default:
+        error_setg(errp, "Unsupported op_code: %" PRIu32 "",
+                   sym_op_info->op_code);
+        return -VIRTIO_CRYPTO_ERR;
+    }
+
+    ret = VIRTIO_CRYPTO_OK;
+
+out:
+    qcrypto_cipher_free(cipher);
+    return ret;
 }
 
 static void
