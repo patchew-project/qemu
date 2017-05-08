@@ -577,6 +577,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     VirtQueueElement *elem = &request->elem;
     int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(request->vq));
     struct virtio_crypto_op_data_req req;
+    struct virtio_crypto_op_data_req_mux req_mux;
     int ret;
     struct iovec *in_iov;
     struct iovec *out_iov;
@@ -587,6 +588,9 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     uint64_t session_id;
     CryptoDevBackendSymOpInfo *sym_op_info = NULL;
     Error *local_err = NULL;
+    bool mux_mode_is_negotiated;
+    struct virtio_crypto_op_header *header;
+    bool is_stateless_req = false;
 
     if (elem->out_num < 1 || elem->in_num < 1) {
         virtio_error(vdev, "virtio-crypto dataq missing headers");
@@ -597,12 +601,28 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     out_iov = elem->out_sg;
     in_num = elem->in_num;
     in_iov = elem->in_sg;
-    if (unlikely(iov_to_buf(out_iov, out_num, 0, &req, sizeof(req))
-                != sizeof(req))) {
-        virtio_error(vdev, "virtio-crypto request outhdr too short");
-        return -1;
+
+    mux_mode_is_negotiated =
+        virtio_vdev_has_feature(vdev, VIRTIO_CRYPTO_F_MUX_MODE);
+    if (!mux_mode_is_negotiated) {
+        if (unlikely(iov_to_buf(out_iov, out_num, 0, &req, sizeof(req))
+                    != sizeof(req))) {
+            virtio_error(vdev, "virtio-crypto request outhdr too short");
+            return -1;
+        }
+        iov_discard_front(&out_iov, &out_num, sizeof(req));
+
+        header = &req.header;
+    } else {
+        if (unlikely(iov_to_buf(out_iov, out_num, 0, &req_mux,
+                sizeof(req_mux)) != sizeof(req_mux))) {
+            virtio_error(vdev, "virtio-crypto request outhdr too short");
+            return -1;
+        }
+        iov_discard_front(&out_iov, &out_num, sizeof(req_mux));
+
+        header = &req_mux.header;
     }
-    iov_discard_front(&out_iov, &out_num, sizeof(req));
 
     if (in_iov[in_num - 1].iov_len <
             sizeof(struct virtio_crypto_inhdr)) {
@@ -623,16 +643,51 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     request->in_num = in_num;
     request->in_iov = in_iov;
 
-    opcode = ldl_le_p(&req.header.opcode);
-    session_id = ldq_le_p(&req.header.session_id);
+    opcode = ldl_le_p(&header->opcode);
 
     switch (opcode) {
     case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
     case VIRTIO_CRYPTO_CIPHER_DECRYPT:
-        ret = virtio_crypto_handle_sym_req(vcrypto,
+        if (!mux_mode_is_negotiated) {
+            ret = virtio_crypto_handle_sym_req(vcrypto,
                          &req.u.sym_req,
                          &sym_op_info,
                          out_iov, out_num);
+        } else {
+            if (!virtio_vdev_has_feature(vdev,
+                    VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE)) {
+                /*
+                 * If the VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE is not
+                 * negotiated, the driver MUST use the session mode
+                 */
+                ret = virtio_crypto_handle_sym_req(vcrypto,
+                         &req_mux.u.sym_req.data,
+                         &sym_op_info,
+                         out_iov, out_num);
+            } else {
+                /*
+                 * If the VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE is
+                 * negotiated, the device MUST parse header.flag
+                 * in order to decide which mode the driver uses.
+                 */
+                if (header->flag == VIRTIO_CRYPTO_FLAG_SESSION_MODE) {
+                    ret = virtio_crypto_handle_sym_req(vcrypto,
+                         &req_mux.u.sym_req.data,
+                         &sym_op_info,
+                         out_iov, out_num);
+                } else {
+                    is_stateless_req = true;
+                    /*
+                     * Handle stateless mode, that is
+                     * header->flag == VIRTIO_CRYPTO_FLAG_STATELESS_MODE
+                     */
+                    virtio_error(vdev,
+                        "virtio-crypto do not support stateless mode");
+                    return -1;
+                }
+            }
+        }
+
         /* Serious errors, need to reset virtio crypto device */
         if (ret == -EFAULT) {
             return -1;
@@ -640,11 +695,15 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
             virtio_crypto_req_complete(request, VIRTIO_CRYPTO_NOTSUPP);
             virtio_crypto_free_request(request);
         } else {
-            sym_op_info->session_id = session_id;
+            if (!is_stateless_req) {
+                sym_op_info->op_code = opcode;
+                session_id = ldq_le_p(&header->session_id);
+                sym_op_info->session_id = session_id;
+                /* Set request's parameter */
+                request->flags = CRYPTODEV_BACKEND_ALG_SYM;
+                request->u.sym_op_info = sym_op_info;
+            }
 
-            /* Set request's parameter */
-            request->flags = CRYPTODEV_BACKEND_ALG_SYM;
-            request->u.sym_op_info = sym_op_info;
             ret = cryptodev_backend_crypto_operation(vcrypto->cryptodev,
                                     request, queue_index, &local_err);
             if (ret < 0) {
