@@ -237,6 +237,9 @@ class BuildCommand(SubCommand):
                             help="""Specify a binary that will be copied to the
                             container together with all its dependent
                             libraries""")
+        parser.add_argument("--include-file", "-f",
+                            help="""Specify a file that will be copied to the
+                            container""")
         parser.add_argument("--add-current-user", "-u", dest="user",
                             action="store_true",
                             help="Add the current user to image's passwd")
@@ -274,6 +277,8 @@ class BuildCommand(SubCommand):
             if args.include_executable:
                 _copy_binary_with_libs(args.include_executable,
                                        docker_dir)
+            if args.include_file:
+                _copy_with_mkdir(args.include_file, docker_dir)
 
             argv += ["--build-arg=" + k.lower() + "=" + v
                         for k, v in os.environ.iteritems()
