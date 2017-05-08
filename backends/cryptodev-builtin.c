@@ -91,7 +91,8 @@ static void cryptodev_builtin_init(
      * Why this value? Just avoid to overflow when
      * memory allocation for each crypto request.
      */
-    backend->conf.max_size = LONG_MAX - sizeof(CryptoDevBackendSymOpInfo);
+    backend->conf.max_size = LONG_MAX -
+                    sizeof(CryptoDevBackendSymStatelessInfo);
     backend->conf.max_cipher_key_len = CRYPTODEV_BUITLIN_MAX_CIPHER_KEY_LEN;
     backend->conf.max_auth_key_len = CRYPTODEV_BUITLIN_MAX_AUTH_KEY_LEN;
 
