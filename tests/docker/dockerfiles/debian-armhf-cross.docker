@@ -14,4 +14,10 @@ RUN dpkg --add-architecture armhf && \
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=arm-linux-gnueabihf-
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get build-dep -yy -a armhf qemu
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get build-dep -yy -a armhf qemu && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -y --no-install-recommends \
+        glusterfs-common:armhf \
+        libncursesw5-dev:armhf libnfs-dev:armhf \
+        libbz2-dev:armhf liblzo2-dev:armhf \
+        libsnappy-dev:armhf librdmacm-dev:armhf \
+        libxen-dev:armhf
