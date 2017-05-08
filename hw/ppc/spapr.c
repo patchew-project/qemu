@@ -2333,12 +2333,10 @@ static void ppc_spapr_init(MachineState *machine)
 
     qemu_register_boot_set(spapr_boot_set, spapr);
 
+    /* to stop and start vmclock */
     if (kvm_enabled()) {
-        /* to stop and start vmclock */
         qemu_add_vm_change_state_handler(cpu_ppc_clock_vm_state_change,
                                          &spapr->tb);
-
-        kvmppc_spapr_enable_inkernel_multitce();
     }
 }
 
