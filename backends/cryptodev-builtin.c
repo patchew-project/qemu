@@ -372,6 +372,15 @@ static void cryptodev_builtin_cleanup(
     cryptodev_backend_set_ready(backend, false);
 }
 
+static int
+cryptodev_builtin_sym_stateless_operation(
+                 CryptoDevBackend *backend,
+                 CryptoDevBackendSymStatelessInfo *op_info,
+                 uint32_t queue_index, Error **errp)
+{
+    return -VIRTIO_CRYPTO_ERR;
+}
+
 static void
 cryptodev_builtin_class_init(ObjectClass *oc, void *data)
 {
@@ -382,6 +391,7 @@ cryptodev_builtin_class_init(ObjectClass *oc, void *data)
     bc->create_session = cryptodev_builtin_sym_create_session;
     bc->close_session = cryptodev_builtin_sym_close_session;
     bc->do_sym_op = cryptodev_builtin_sym_operation;
+    bc->do_sym_stateless_op = cryptodev_builtin_sym_stateless_operation;
 }
 
 static const TypeInfo cryptodev_builtin_info = {
