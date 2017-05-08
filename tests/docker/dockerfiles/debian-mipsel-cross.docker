@@ -12,6 +12,13 @@ RUN dpkg --add-architecture mipsel && \
     DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -y --no-install-recommends \
         crossbuild-essential-mipsel
 
+# <kludge> to fix "following packages have unmet dependencies" ...
+RUN apt-get install -y --no-install-recommends equivs pkg-config && \
+    apt-fake install pkgconf:mipsel=0.9.7-fake pkg-config:mipsel=0.28-1.1-fake && \
+    ln -s pkg-config /usr/bin/mipsel-linux-gnu-pkg-config
+ENV PKG_CONFIG_PATH /usr/lib/mipsel-linux-gnu/pkgconfig
+# </kludge>
+
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mipsel-linux-gnu-
 
