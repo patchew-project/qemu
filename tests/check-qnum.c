@@ -107,11 +107,10 @@ static void qnum_get_uint_test(void)
     error_free_or_abort(&err);
     QDECREF(qn);
 
-    /* temporarily disabled until visitor is switched */
-    /* qn = qnum_from_uint(-1ULL); */
-    /* qnum_get_int(qn, &err); */
-    /* error_free_or_abort(&err); */
-    /* QDECREF(qn); */
+    qn = qnum_from_uint(-1ULL);
+    qnum_get_int(qn, &err);
+    error_free_or_abort(&err);
+    QDECREF(qn);
 
     /* invalid case */
     qn = qnum_from_double(0.42);
