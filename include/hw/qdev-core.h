@@ -225,7 +225,10 @@ struct Property {
     PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
-    int64_t      defval;
+    union {
+        int64_t i;
+        uint64_t u;
+    } defval;
     int          arrayoffset;
     PropertyInfo *arrayinfo;
     int          arrayfieldsize;

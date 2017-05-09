@@ -764,17 +764,21 @@ static bool prop_info_is_bool(const PropertyInfo *info)
 
 static bool prop_info_is_int(const PropertyInfo *info)
 {
-    return info == &qdev_prop_uint8
-        || info == &qdev_prop_uint16
-        || info == &qdev_prop_uint32
-        || info == &qdev_prop_int32
-        || info == &qdev_prop_uint64
-        || info == &qdev_prop_size
+    return info == &qdev_prop_int32
         || info == &qdev_prop_pci_devfn
         || info == &qdev_prop_on_off_auto
         || info == &qdev_prop_losttickpolicy
         || info == &qdev_prop_blockdev_on_error
-        || info == &qdev_prop_bios_chs_trans
+        || info == &qdev_prop_bios_chs_trans;
+}
+
+static bool prop_info_is_uint(const PropertyInfo *info)
+{
+    return info == &qdev_prop_uint8
+        || info == &qdev_prop_uint16
+        || info == &qdev_prop_uint32
+        || info == &qdev_prop_uint64
+        || info == &qdev_prop_size
         || info == &qdev_prop_blocksize
         || info == &qdev_prop_arraylen;
 }
@@ -819,12 +823,14 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
                                     &error_abort);
 
     if (prop_info_is_bool(prop->info)) {
-        object_property_set_bool(obj, prop->defval, prop->name, &error_abort);
+        object_property_set_bool(obj, prop->defval.u, prop->name, &error_abort);
     } else if (prop->info->enum_table) {
-        object_property_set_str(obj, prop->info->enum_table[prop->defval],
+        object_property_set_str(obj, prop->info->enum_table[prop->defval.i],
                                 prop->name, &error_abort);
     } else if (prop_info_is_int(prop->info)) {
-        object_property_set_int(obj, prop->defval, prop->name, &error_abort);
+        object_property_set_int(obj, prop->defval.i, prop->name, &error_abort);
+    } else if (prop_info_is_uint(prop->info)) {
+        object_property_set_uint(obj, prop->defval.u, prop->name, &error_abort);
     }
 }
 
