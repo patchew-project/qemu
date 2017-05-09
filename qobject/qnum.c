@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
@@ -29,6 +30,22 @@ QNum *qnum_from_int(int64_t value)
     qobject_init(QOBJECT(qn), QTYPE_QNUM);
     qn->type = QNUM_I64;
     qn->u.i64 = value;
+
+    return qn;
+}
+
+/**
+ * qnum_from_uint(): Create a new QNum from an uint64_t
+ *
+ * Return strong reference.
+ */
+QNum *qnum_from_uint(uint64_t value)
+{
+    QNum *qn = g_new(QNum, 1);
+
+    qobject_init(QOBJECT(qn), QTYPE_QNUM);
+    qn->type = QNUM_U64;
+    qn->u.u64 = value;
 
     return qn;
 }
@@ -57,6 +74,34 @@ int64_t qnum_get_int(const QNum *qn, Error **errp)
     switch (qn->type) {
     case QNUM_I64:
         return qn->u.i64;
+    case QNUM_U64:
+        if (qn->u.u64 > INT64_MAX) {
+            error_setg(errp, "The number is too large, use qnum_get_uint()");
+            return 0;
+        }
+        return qn->u.u64;
+    case QNUM_DOUBLE:
+        error_setg(errp, "The number is a float");
+        return 0;
+    }
+
+    g_assert_not_reached();
+}
+
+/**
+ * qnum_get_uint(): Get an unsigned integer from the number
+ */
+uint64_t qnum_get_uint(const QNum *qn, Error **errp)
+{
+    switch (qn->type) {
+    case QNUM_I64:
+        if (qn->u.i64 < 0) {
+            error_setg(errp, "The number is negative");
+            return 0;
+        }
+        return qn->u.i64;
+    case QNUM_U64:
+        return qn->u.u64;
     case QNUM_DOUBLE:
         error_setg(errp, "The number is a float");
         return 0;
@@ -73,6 +118,8 @@ double qnum_get_double(QNum *qn)
     switch (qn->type) {
     case QNUM_I64:
         return qn->u.i64;
+    case QNUM_U64:
+        return qn->u.u64;
     case QNUM_DOUBLE:
         return qn->u.dbl;
     }
@@ -88,6 +135,8 @@ char *qnum_to_string(QNum *qn)
     switch (qn->type) {
     case QNUM_I64:
         return g_strdup_printf("%" PRId64, qn->u.i64);
+    case QNUM_U64:
+        return g_strdup_printf("%" PRIu64, qn->u.u64);
     case QNUM_DOUBLE:
         /* FIXME: snprintf() is locale dependent; but JSON requires
          * numbers to be formatted as if in the C locale. Dependence

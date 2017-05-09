@@ -36,6 +36,21 @@ static void qnum_from_int_test(void)
     g_free(qi);
 }
 
+static void qnum_from_uint_test(void)
+{
+    QNum *qu;
+    const int value = UINT_MAX;
+
+    qu = qnum_from_int(value);
+    g_assert(qu != NULL);
+    g_assert(qu->u.u64 == value);
+    g_assert(qu->base.refcnt == 1);
+    g_assert(qobject_type(QOBJECT(qu)) == QTYPE_QNUM);
+
+    // destroy doesn't exit yet
+    g_free(qu);
+}
+
 static void qnum_from_double_test(void)
 {
     QNum *qf;
@@ -71,6 +86,37 @@ static void qnum_get_int_test(void)
     g_assert_cmpint(qnum_get_int(qi, &error_abort), ==, value);
 
     QDECREF(qi);
+}
+
+static void qnum_get_uint_test(void)
+{
+    QNum *qn;
+    const int value = 123456;
+    Error *err = NULL;
+
+    qn = qnum_from_uint(value);
+    g_assert(qnum_get_uint(qn, &error_abort) == value);
+    QDECREF(qn);
+
+    qn = qnum_from_int(value);
+    g_assert(qnum_get_uint(qn, &error_abort) == value);
+    QDECREF(qn);
+
+    qn = qnum_from_int(-1);
+    qnum_get_uint(qn, &err);
+    error_free_or_abort(&err);
+    QDECREF(qn);
+
+    qn = qnum_from_uint(-1ULL);
+    qnum_get_int(qn, &err);
+    error_free_or_abort(&err);
+    QDECREF(qn);
+
+    /* invalid case */
+    qn = qnum_from_double(0.42);
+    qnum_get_uint(qn, &err);
+    error_free_or_abort(&err);
+    QDECREF(qn);
 }
 
 static void qobject_to_qnum_test(void)
@@ -111,6 +157,9 @@ static void qnum_destroy_test(void)
     qn = qnum_from_int(0);
     QDECREF(qn);
 
+    qn = qnum_from_uint(0);
+    QDECREF(qn);
+
     qn = qnum_from_double(0.42);
     QDECREF(qn);
 }
@@ -120,10 +169,12 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/qnum/from_int", qnum_from_int_test);
+    g_test_add_func("/qnum/from_uint", qnum_from_uint_test);
     g_test_add_func("/qnum/from_double", qnum_from_double_test);
     g_test_add_func("/qnum/destroy", qnum_destroy_test);
     g_test_add_func("/qnum/from_int64", qnum_from_int64_test);
     g_test_add_func("/qnum/get_int", qnum_get_int_test);
+    g_test_add_func("/qnum/get_uint", qnum_get_uint_test);
     g_test_add_func("/qnum/to_qnum", qobject_to_qnum_test);
     g_test_add_func("/qnum/to_string", qnum_to_string_test);
 
