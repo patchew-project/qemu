@@ -586,8 +586,6 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     AltStrNum *asn;
     AltNumStr *ans;
     AltStrInt *asi;
-    AltIntNum *ain;
-    AltNumInt *ani;
 
     /* Parsing an int */
 
@@ -614,18 +612,6 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     g_assert_cmpint(asi->u.i, ==, 42);
     qapi_free_AltStrInt(asi);
 
-    v = visitor_input_test_init(data, "42");
-    visit_type_AltIntNum(v, NULL, &ain, &error_abort);
-    g_assert_cmpint(ain->type, ==, QTYPE_QINT);
-    g_assert_cmpint(ain->u.i, ==, 42);
-    qapi_free_AltIntNum(ain);
-
-    v = visitor_input_test_init(data, "42");
-    visit_type_AltNumInt(v, NULL, &ani, &error_abort);
-    g_assert_cmpint(ani->type, ==, QTYPE_QINT);
-    g_assert_cmpint(ani->u.i, ==, 42);
-    qapi_free_AltNumInt(ani);
-
     /* Parsing a double */
 
     v = visitor_input_test_init(data, "42.5");
@@ -649,18 +635,6 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     visit_type_AltStrInt(v, NULL, &asi, &err);
     error_free_or_abort(&err);
     qapi_free_AltStrInt(asi);
-
-    v = visitor_input_test_init(data, "42.5");
-    visit_type_AltIntNum(v, NULL, &ain, &error_abort);
-    g_assert_cmpint(ain->type, ==, QTYPE_QFLOAT);
-    g_assert_cmpfloat(ain->u.n, ==, 42.5);
-    qapi_free_AltIntNum(ain);
-
-    v = visitor_input_test_init(data, "42.5");
-    visit_type_AltNumInt(v, NULL, &ani, &error_abort);
-    g_assert_cmpint(ani->type, ==, QTYPE_QFLOAT);
-    g_assert_cmpfloat(ani->u.n, ==, 42.5);
-    qapi_free_AltNumInt(ani);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,

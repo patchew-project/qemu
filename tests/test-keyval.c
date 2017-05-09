@@ -615,7 +615,6 @@ static void test_keyval_visit_alternate(void)
     Visitor *v;
     QDict *qdict;
     AltNumStr *ans;
-    AltNumInt *ani;
 
     /*
      * Can't do scalar alternate variants other than string.  You get
@@ -629,8 +628,6 @@ static void test_keyval_visit_alternate(void)
     g_assert_cmpint(ans->type, ==, QTYPE_QSTRING);
     g_assert_cmpstr(ans->u.s, ==, "1");
     qapi_free_AltNumStr(ans);
-    visit_type_AltNumInt(v, "a", &ani, &err);
-    error_free_or_abort(&err);
     visit_end_struct(v, NULL);
     visit_free(v);
 }

@@ -1,11 +1,3 @@
-alternate AltIntNum
-    tag type
-    case i: int
-    case n: number
-alternate AltNumInt
-    tag type
-    case n: number
-    case i: int
 alternate AltNumStr
     tag type
     case n: number
