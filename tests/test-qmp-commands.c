@@ -162,7 +162,7 @@ static void test_dispatch_cmd_io(void)
     QDict *ud1b = qdict_new();
     QDict *ret, *ret_dict, *ret_dict_dict, *ret_dict_dict_userdef;
     QDict *ret_dict_dict2, *ret_dict_dict2_userdef;
-    QInt *ret3;
+    QNum *ret3;
 
     qdict_put_int(ud1a, "integer", 42);
     qdict_put_str(ud1a, "string", "hello");
@@ -194,8 +194,8 @@ static void test_dispatch_cmd_io(void)
     qdict_put(req, "arguments", args3);
     qdict_put_str(req, "execute", "guest-get-time");
 
-    ret3 = qobject_to_qint(test_qmp_dispatch(req));
-    assert(qint_get_int(ret3) == 66);
+    ret3 = qobject_to_qnum(test_qmp_dispatch(req));
+    assert(qnum_get_int(ret3, &error_abort) == 66);
     QDECREF(ret3);
 
     QDECREF(req);

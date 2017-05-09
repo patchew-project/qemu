@@ -466,16 +466,16 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     } else if (!strcmp(token->str, "%i")) {
         return QOBJECT(qbool_from_bool(va_arg(*ap, int)));
     } else if (!strcmp(token->str, "%d")) {
-        return QOBJECT(qint_from_int(va_arg(*ap, int)));
+        return QOBJECT(qnum_from_int(va_arg(*ap, int)));
     } else if (!strcmp(token->str, "%ld")) {
-        return QOBJECT(qint_from_int(va_arg(*ap, long)));
+        return QOBJECT(qnum_from_int(va_arg(*ap, long)));
     } else if (!strcmp(token->str, "%lld") ||
                !strcmp(token->str, "%I64d")) {
-        return QOBJECT(qint_from_int(va_arg(*ap, long long)));
+        return QOBJECT(qnum_from_int(va_arg(*ap, long long)));
     } else if (!strcmp(token->str, "%s")) {
         return QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
     } else if (!strcmp(token->str, "%f")) {
-        return QOBJECT(qfloat_from_double(va_arg(*ap, double)));
+        return QOBJECT(qnum_from_double(va_arg(*ap, double)));
     }
     return NULL;
 }
@@ -494,12 +494,12 @@ static QObject *parse_literal(JSONParserContext *ctxt)
         /* A possibility exists that this is a whole-valued float where the
          * fractional part was left out due to being 0 (.0). It's not a big
          * deal to treat these as ints in the parser, so long as users of the
-         * resulting QObject know to expect a QInt in place of a QFloat in
+         * resulting QObject know to expect a QNum in place of a QNum in
          * cases like these.
          *
          * However, in some cases these values will overflow/underflow a
-         * QInt/int64 container, thus we should assume these are to be handled
-         * as QFloats/doubles rather than silently changing their values.
+         * QNum/int64 container, thus we should assume these are to be handled
+         * as QNums/doubles rather than silently changing their values.
          *
          * strtoll() indicates these instances by setting errno to ERANGE
          */
@@ -508,7 +508,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
         errno = 0; /* strtoll doesn't set errno on success */
         value = strtoll(token->str, NULL, 10);
         if (errno != ERANGE) {
-            return QOBJECT(qint_from_int(value));
+            return QOBJECT(qnum_from_int(value));
         }
         /* fall through to JSON_FLOAT */
     }
@@ -516,7 +516,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
         /* FIXME dependent on locale; a pervasive issue in QEMU */
         /* FIXME our lexer matches RFC 7159 in forbidding Inf or NaN,
          * but those might be useful extensions beyond JSON */
-        return QOBJECT(qfloat_from_double(strtod(token->str, NULL)));
+        return QOBJECT(qnum_from_double(strtod(token->str, NULL)));
     default:
         abort();
     }

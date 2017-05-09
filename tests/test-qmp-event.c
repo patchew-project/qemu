@@ -18,7 +18,6 @@
 #include "test-qapi-visit.h"
 #include "test-qapi-event.h"
 #include "qapi/qmp/types.h"
-#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp-event.h"
 
@@ -62,9 +61,9 @@ void qdict_cmp_do_simple(const char *key, QObject *obj1, void *opaque)
         d->result = (qbool_get_bool(qobject_to_qbool(obj1)) ==
                      qbool_get_bool(qobject_to_qbool(obj2)));
         return;
-    case QTYPE_QINT:
-        d->result = (qint_get_int(qobject_to_qint(obj1)) ==
-                     qint_get_int(qobject_to_qint(obj2)));
+    case QTYPE_QNUM:
+        d->result = (qnum_get_int(qobject_to_qnum(obj1), &error_abort) ==
+                     qnum_get_int(qobject_to_qnum(obj2), &error_abort));
         return;
     case QTYPE_QSTRING:
         d->result = g_strcmp0(qstring_get_str(qobject_to_qstring(obj1)),

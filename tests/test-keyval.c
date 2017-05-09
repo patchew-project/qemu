@@ -611,7 +611,6 @@ static void test_keyval_visit_optional(void)
 
 static void test_keyval_visit_alternate(void)
 {
-    Error *err = NULL;
     Visitor *v;
     QDict *qdict;
     AltNumStr *ans;

@@ -1,9 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qint.h"
-#include "qapi/qmp/qbool.h"
+#include "qapi/error.h"
+#include "qapi/qmp/types.h"
 #include "libqtest.h"
 
 static char *get_cpu0_qom_path(void)
@@ -56,12 +54,13 @@ static void test_cpuid_prop(const void *data)
 {
     const CpuidTestArgs *args = data;
     char *path;
-    QInt *value;
+    QNum *value;
 
     qtest_start(args->cmdline);
     path = get_cpu0_qom_path();
-    value = qobject_to_qint(qom_get(path, args->property));
-    g_assert_cmpint(qint_get_int(value), ==, args->expected_value);
+    value = qobject_to_qnum(qom_get(path, args->property));
+    g_assert_cmpint(qnum_get_int(value, &error_abort), ==,
+                    args->expected_value);
     qtest_end();
 
     QDECREF(value);
