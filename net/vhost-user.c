@@ -155,6 +155,10 @@ static void vhost_user_cleanup(NetClientState *nc)
 
         qemu_chr_fe_deinit(&s->chr);
         object_unparent(OBJECT(chr));
+        if (s->watch) {
+            g_source_remove(s->watch);
+            s->watch = 0;
+        }
     }
 
     qemu_purge_queued_packets(nc);
