@@ -755,6 +755,30 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     g_free(name);
 }
 
+static bool prop_info_is_bool(const PropertyInfo *info)
+{
+    return info == &qdev_prop_bit
+        || info == &qdev_prop_bit64
+        || info == &qdev_prop_bool;
+}
+
+static bool prop_info_is_int(const PropertyInfo *info)
+{
+    return info == &qdev_prop_uint8
+        || info == &qdev_prop_uint16
+        || info == &qdev_prop_uint32
+        || info == &qdev_prop_int32
+        || info == &qdev_prop_uint64
+        || info == &qdev_prop_size
+        || info == &qdev_prop_pci_devfn
+        || info == &qdev_prop_on_off_auto
+        || info == &qdev_prop_losttickpolicy
+        || info == &qdev_prop_blockdev_on_error
+        || info == &qdev_prop_bios_chs_trans
+        || info == &qdev_prop_blocksize
+        || info == &qdev_prop_arraylen;
+}
+
 /**
  * qdev_property_add_static:
  * @dev: Device to add the property to.
@@ -794,16 +818,12 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
                                     prop->info->description,
                                     &error_abort);
 
-    if (prop->qtype == QTYPE_NONE) {
-        return;
-    }
-
-    if (prop->qtype == QTYPE_QBOOL) {
+    if (prop_info_is_bool(prop->info)) {
         object_property_set_bool(obj, prop->defval, prop->name, &error_abort);
     } else if (prop->info->enum_table) {
         object_property_set_str(obj, prop->info->enum_table[prop->defval],
                                 prop->name, &error_abort);
-    } else if (prop->qtype == QTYPE_QINT) {
+    } else if (prop_info_is_int(prop->info)) {
         object_property_set_int(obj, prop->defval, prop->name, &error_abort);
     }
 }
