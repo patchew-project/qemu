@@ -187,8 +187,8 @@ static void aspeed_board_init(MachineState *machine,
      * Allocate RAM after the memory controller has checked the size
      * was valid. If not, a default value is used.
      */
-    ram_size = object_property_get_int(OBJECT(&bmc->soc), "ram-size",
-                                       &error_abort);
+    ram_size = object_property_get_uint(OBJECT(&bmc->soc), "ram-size",
+                                        &error_abort);
 
     memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
     memory_region_add_subregion(get_system_memory(), sc->info->sdram_base,
