@@ -105,6 +105,21 @@ static void qdict_get_int_test(void)
     QDECREF(tests_dict);
 }
 
+static void qdict_get_uint_test(void)
+{
+    uint64_t ret;
+    const uint64_t value = UINT64_MAX;
+    const char *key = "uint";
+    QDict *tests_dict = qdict_new();
+
+    qdict_put_uint(tests_dict, key, value);
+
+    ret = qdict_get_uint(tests_dict, key);
+    g_assert(ret == value);
+
+    QDECREF(tests_dict);
+}
+
 static void qdict_get_try_int_test(void)
 {
     int ret;
@@ -115,6 +130,21 @@ static void qdict_get_try_int_test(void)
     qdict_put_int(tests_dict, key, value);
 
     ret = qdict_get_try_int(tests_dict, key, 0);
+    g_assert(ret == value);
+
+    QDECREF(tests_dict);
+}
+
+static void qdict_get_try_uint_test(void)
+{
+    uint64_t ret;
+    const uint64_t value = UINT64_MAX;
+    const char *key = "uint";
+    QDict *tests_dict = qdict_new();
+
+    qdict_put_uint(tests_dict, key, value);
+
+    ret = qdict_get_try_uint(tests_dict, key, 0);
     g_assert(ret == value);
 
     QDECREF(tests_dict);
@@ -852,7 +882,9 @@ int main(int argc, char **argv)
     /* Continue, but now with fixtures */
     g_test_add_func("/public/get", qdict_get_test);
     g_test_add_func("/public/get_int", qdict_get_int_test);
+    g_test_add_func("/public/get_uint", qdict_get_uint_test);
     g_test_add_func("/public/get_try_int", qdict_get_try_int_test);
+    g_test_add_func("/public/get_try_uint", qdict_get_try_uint_test);
     g_test_add_func("/public/get_str", qdict_get_str_test);
     g_test_add_func("/public/get_try_str", qdict_get_try_str_test);
     g_test_add_func("/public/defaults", qdict_defaults_test);
