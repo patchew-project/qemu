@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qmp/types.h"
 #include "acpi-build.h"
 #include "qemu-common.h"
 #include "qemu/bitmap.h"
@@ -149,14 +150,14 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
-        pm->s3_disabled = qnum_get_uint(qobject_to_qnum(o), &error_abort);
+        pm->s3_disabled = qbool_get_bool(qobject_to_qbool(o));
     } else {
         pm->s3_disabled = false;
     }
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_DISABLED, NULL);
     if (o) {
-        pm->s4_disabled = qnum_get_uint(qobject_to_qnum(o), &error_abort);
+        pm->s4_disabled = qbool_get_bool(qobject_to_qbool(o));
     } else {
         pm->s4_disabled = false;
     }

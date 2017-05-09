@@ -359,9 +359,9 @@ static void ich9_pm_get_disable_s3(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
-    uint8_t value = pm->disable_s3;
+    bool value = pm->disable_s3;
 
-    visit_type_uint8(v, name, &value, errp);
+    visit_type_bool(v, name, &value, errp);
 }
 
 static void ich9_pm_set_disable_s3(Object *obj, Visitor *v, const char *name,
@@ -369,9 +369,9 @@ static void ich9_pm_set_disable_s3(Object *obj, Visitor *v, const char *name,
 {
     ICH9LPCPMRegs *pm = opaque;
     Error *local_err = NULL;
-    uint8_t value;
+    bool value;
 
-    visit_type_uint8(v, name, &value, &local_err);
+    visit_type_bool(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }
@@ -384,9 +384,9 @@ static void ich9_pm_get_disable_s4(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     ICH9LPCPMRegs *pm = opaque;
-    uint8_t value = pm->disable_s4;
+    bool value = pm->disable_s4;
 
-    visit_type_uint8(v, name, &value, errp);
+    visit_type_bool(v, name, &value, errp);
 }
 
 static void ich9_pm_set_disable_s4(Object *obj, Visitor *v, const char *name,
@@ -394,9 +394,9 @@ static void ich9_pm_set_disable_s4(Object *obj, Visitor *v, const char *name,
 {
     ICH9LPCPMRegs *pm = opaque;
     Error *local_err = NULL;
-    uint8_t value;
+    bool value;
 
-    visit_type_uint8(v, name, &value, &local_err);
+    visit_type_bool(v, name, &value, &local_err);
     if (local_err) {
         goto out;
     }
@@ -447,8 +447,8 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
     static const uint32_t gpe0_len = ICH9_PMIO_GPE0_LEN;
     pm->acpi_memory_hotplug.is_enabled = true;
     pm->cpu_hotplug_legacy = true;
-    pm->disable_s3 = 0;
-    pm->disable_s4 = 0;
+    pm->disable_s3 = false;
+    pm->disable_s4 = false;
     pm->s4_val = 2;
 
     object_property_add_uint32_ptr(obj, ACPI_PM_PROP_PM_IO_BASE,
@@ -466,11 +466,11 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp)
                              ich9_pm_get_cpu_hotplug_legacy,
                              ich9_pm_set_cpu_hotplug_legacy,
                              NULL);
-    object_property_add(obj, ACPI_PM_PROP_S3_DISABLED, "uint8",
+    object_property_add(obj, ACPI_PM_PROP_S3_DISABLED, "bool",
                         ich9_pm_get_disable_s3,
                         ich9_pm_set_disable_s3,
                         NULL, pm, NULL);
-    object_property_add(obj, ACPI_PM_PROP_S4_DISABLED, "uint8",
+    object_property_add(obj, ACPI_PM_PROP_S4_DISABLED, "bool",
                         ich9_pm_get_disable_s4,
                         ich9_pm_set_disable_s4,
                         NULL, pm, NULL);

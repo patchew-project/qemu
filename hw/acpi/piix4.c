@@ -83,8 +83,8 @@ typedef struct PIIX4PMState {
     AcpiPciHpState acpi_pci_hotplug;
     bool use_acpi_pci_hotplug;
 
-    uint8_t disable_s3;
-    uint8_t disable_s4;
+    bool disable_s3;
+    bool disable_s4;
     uint8_t s4_val;
 
     bool cpu_hotplug_legacy;
@@ -670,8 +670,8 @@ static void piix4_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 
 static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
-    DEFINE_PROP_UINT8(ACPI_PM_PROP_S3_DISABLED, PIIX4PMState, disable_s3, 0),
-    DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_DISABLED, PIIX4PMState, disable_s4, 0),
+    DEFINE_PROP_BOOL(ACPI_PM_PROP_S3_DISABLED, PIIX4PMState, disable_s3, false),
+    DEFINE_PROP_BOOL(ACPI_PM_PROP_S4_DISABLED, PIIX4PMState, disable_s4, false),
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_VAL, PIIX4PMState, s4_val, 2),
     DEFINE_PROP_BOOL("acpi-pci-hotplug-with-bridge-support", PIIX4PMState,
                      use_acpi_pci_hotplug, true),
