@@ -76,8 +76,8 @@ int64_t qnum_get_int(const QNum *qn, Error **errp)
         return qn->u.i64;
     case QNUM_U64:
         if (qn->u.u64 > INT64_MAX) {
-            error_setg(errp, "The number is too large, use qnum_get_uint()");
-            return 0;
+            /* temporarily accepts to cast to i64 until visitor is switched */
+            error_report("The number is too large, use qnum_get_uint()");
         }
         return qn->u.u64;
     case QNUM_DOUBLE:

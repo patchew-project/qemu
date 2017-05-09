@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qapi/qmp/types.h"
@@ -472,6 +473,13 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     } else if (!strcmp(token->str, "%lld") ||
                !strcmp(token->str, "%I64d")) {
         return QOBJECT(qnum_from_int(va_arg(*ap, long long)));
+    } else if (!strcmp(token->str, "%u")) {
+        return QOBJECT(qnum_from_uint(va_arg(*ap, unsigned int)));
+    } else if (!strcmp(token->str, "%lu")) {
+        return QOBJECT(qnum_from_uint(va_arg(*ap, unsigned long)));
+    } else if (!strcmp(token->str, "%llu") ||
+               !strcmp(token->str, "%I64u")) {
+        return QOBJECT(qnum_from_uint(va_arg(*ap, unsigned long long)));
     } else if (!strcmp(token->str, "%s")) {
         return QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
     } else if (!strcmp(token->str, "%f")) {
@@ -494,21 +502,27 @@ static QObject *parse_literal(JSONParserContext *ctxt)
         /* A possibility exists that this is a whole-valued float where the
          * fractional part was left out due to being 0 (.0). It's not a big
          * deal to treat these as ints in the parser, so long as users of the
-         * resulting QObject know to expect a QNum in place of a QNum in
-         * cases like these.
+         * resulting QObject know to expect a QNum that will handle
+         * implicit conversions to the expected type.
          *
-         * However, in some cases these values will overflow/underflow a
-         * QNum/int64 container, thus we should assume these are to be handled
-         * as QNums/doubles rather than silently changing their values.
+         * However, in some cases these values will overflow/underflow
+         * a QNum/int64 container, thus we should assume these are to
+         * be handled as QNum/uint64 or QNums/doubles rather than
+         * silently changing their values.
          *
-         * strtoll() indicates these instances by setting errno to ERANGE
+         * qemu_strto*() indicates these instances by setting errno to ERANGE
          */
         int64_t value;
+        uint64_t uvalue;
 
-        errno = 0; /* strtoll doesn't set errno on success */
-        value = strtoll(token->str, NULL, 10);
+        qemu_strtoi64(token->str, NULL, 10, &value);
         if (errno != ERANGE) {
             return QOBJECT(qnum_from_int(value));
+        }
+
+        qemu_strtou64(token->str, NULL, 10, &uvalue);
+        if (errno != ERANGE) {
+            return QOBJECT(qnum_from_uint(uvalue));
         }
         /* fall through to JSON_FLOAT */
     }
