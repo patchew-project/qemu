@@ -145,9 +145,11 @@ static void QEMU_NORETURN help(void)
            "  'snapshot_id_or_name' is deprecated, use 'snapshot_param'\n"
            "    instead\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
-           "  '-u' enables unsafe rebasing. It is assumed that old and new backing file\n"
-           "       match exactly. The image doesn't need a working backing file before\n"
-           "       rebasing in this case (useful for renaming the backing file)\n"
+           "  '-u' allows unsafe backing chains. For rebasing, it is assumed that old and new\n"
+           "       backing file match exactly. The image doesn't need a working backing file\n"
+           "       before rebasing in this case (useful for renaming the backing file)\n"
+           "       For image creation, allow creating without attempting to"
+           "       open the backing file.\n"
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "  '-p' show progress of command (only certain commands)\n"
            "  '-q' use Quiet mode - do not print any output (except errors)\n"
@@ -409,6 +411,7 @@ static int img_create(int argc, char **argv)
     char *options = NULL;
     Error *local_err = NULL;
     bool quiet = false;
+    int flags = 0;
 
     for(;;) {
         static const struct option long_options[] = {
@@ -416,7 +419,7 @@ static int img_create(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":F:b:f:he6o:q",
+        c = getopt_long(argc, argv, ":F:b:f:he6o:qu",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -463,6 +466,9 @@ static int img_create(int argc, char **argv)
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'u':
+            flags |= BDRV_O_NO_BACKING;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -516,7 +522,7 @@ static int img_create(int argc, char **argv)
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
-                    options, img_size, 0, quiet, &local_err);
+                    options, img_size, flags, quiet, &local_err);
     if (local_err) {
         error_reportf_err(local_err, "%s: ", filename);
         goto fail;
