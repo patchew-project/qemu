@@ -455,29 +455,41 @@ static void curl_multi_timeout_do(void *arg)
 }
 
 /* Called with s->mutex held.  */
+static bool curl_find_unused_state_locked(BDRVCURLState *s, CURLState **state)
+{
+    int i;
+
+    for (i = 0; i < CURL_NUM_STATES; i++) {
+        if (!s->states[i].in_use) {
+            s->states[i].in_use = 1;
+            *state = &s->states[i];
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool curl_find_unused_state(BDRVCURLState *s, CURLState **state)
+{
+    bool ret;
+
+    qemu_mutex_lock(&s->mutex);
+    ret = curl_find_unused_state_locked(s, state);
+    qemu_mutex_unlock(&s->mutex);
+    return ret;
+}
+
+/* Called with s->mutex held.  */
 static CURLState *curl_init_state(BlockDriverState *bs, BDRVCURLState *s)
 {
     CURLState *state = NULL;
-    int i, j;
 
-    do {
-        for (i=0; i<CURL_NUM_STATES; i++) {
-            for (j=0; j<CURL_NUM_ACB; j++)
-                if (s->states[i].acb[j])
-                    continue;
-            if (s->states[i].in_use)
-                continue;
-
-            state = &s->states[i];
-            state->in_use = 1;
-            break;
-        }
-        if (!state) {
-            qemu_mutex_unlock(&s->mutex);
-            aio_poll(bdrv_get_aio_context(bs), true);
-            qemu_mutex_lock(&s->mutex);
-        }
-    } while(!state);
+    if (!curl_find_unused_state_locked(s, &state)) {
+        qemu_mutex_unlock(&s->mutex);
+        BDRV_POLL_WHILE(bs, !curl_find_unused_state(s, &state));
+        qemu_mutex_lock(&s->mutex);
+    }
 
     if (!state->curl) {
         state->curl = curl_easy_init();
