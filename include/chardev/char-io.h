@@ -21,31 +21,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_WIN_H
-#define CHAR_WIN_H
+#ifndef CHAR_IO_H
+#define CHAR_IO_H
 
-#include "sysemu/char.h"
+#include "qemu-common.h"
+#include "io/channel.h"
+#include "chardev/char.h"
 
-typedef struct {
-    Chardev parent;
+/* Can only be used for read */
+guint io_add_watch_poll(Chardev *chr,
+                        QIOChannel *ioc,
+                        IOCanReadHandler *fd_can_read,
+                        QIOChannelFunc fd_read,
+                        gpointer user_data,
+                        GMainContext *context);
 
-    bool dont_close; /* console do not close file */
-    HANDLE file, hrecv, hsend;
-    OVERLAPPED orecv;
-    BOOL fpipe;
+void remove_fd_in_watch(Chardev *chr, GMainContext *context);
 
-    /* Protected by the Chardev chr_write_lock.  */
-    OVERLAPPED osend;
-} WinChardev;
+int io_channel_send(QIOChannel *ioc, const void *buf, size_t len);
 
-#define NSENDBUF 2048
-#define NRECVBUF 2048
+int io_channel_send_full(QIOChannel *ioc, const void *buf, size_t len,
+                         int *fds, size_t nfds);
 
-#define TYPE_CHARDEV_WIN "chardev-win"
-#define WIN_CHARDEV(obj) OBJECT_CHECK(WinChardev, (obj), TYPE_CHARDEV_WIN)
-
-void win_chr_set_file(Chardev *chr, HANDLE file, bool dont_close);
-int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp);
-int win_chr_pipe_poll(void *opaque);
-
-#endif /* CHAR_WIN_H */
+#endif /* CHAR_IO_H */

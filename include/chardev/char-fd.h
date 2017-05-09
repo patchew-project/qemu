@@ -21,26 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_IO_H
-#define CHAR_IO_H
+#ifndef CHAR_FD_H
+#define CHAR_FD_H
 
-#include "qemu-common.h"
 #include "io/channel.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
-/* Can only be used for read */
-guint io_add_watch_poll(Chardev *chr,
-                        QIOChannel *ioc,
-                        IOCanReadHandler *fd_can_read,
-                        QIOChannelFunc fd_read,
-                        gpointer user_data,
-                        GMainContext *context);
+typedef struct FDChardev {
+    Chardev parent;
+    Chardev *chr;
+    QIOChannel *ioc_in, *ioc_out;
+    int max_size;
+} FDChardev;
 
-void remove_fd_in_watch(Chardev *chr, GMainContext *context);
+#define TYPE_CHARDEV_FD "chardev-fd"
 
-int io_channel_send(QIOChannel *ioc, const void *buf, size_t len);
+#define FD_CHARDEV(obj) OBJECT_CHECK(FDChardev, (obj), TYPE_CHARDEV_FD)
 
-int io_channel_send_full(QIOChannel *ioc, const void *buf, size_t len,
-                         int *fds, size_t nfds);
+void qemu_chr_open_fd(Chardev *chr, int fd_in, int fd_out);
+int qmp_chardev_open_file_source(char *src, int flags, Error **errp);
 
-#endif /* CHAR_IO_H */
+#endif /* CHAR_FD_H */

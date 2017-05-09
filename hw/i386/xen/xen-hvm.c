@@ -18,7 +18,7 @@
 #include "hw/xen/xen_backend.h"
 #include "qmp-commands.h"
 
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "sysemu/xen-mapcache.h"
