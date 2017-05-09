@@ -155,7 +155,7 @@ icmp_input(struct mbuf *m, int hlen)
     if (ip->ip_dst.s_addr == slirp->vhost_addr.s_addr ||
         ip->ip_dst.s_addr == slirp->vnameserver_addr.s_addr) {
         icmp_reflect(m);
-    } else if (slirp->restricted) {
+    } else if (slirp->restricted || slirp->proxy_server) {
         goto freeit;
     } else {
       struct socket *so;
