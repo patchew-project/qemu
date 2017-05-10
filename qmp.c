@@ -130,6 +130,21 @@ void qmp_cpu_add(int64_t id, Error **errp)
     }
 }
 
+#ifdef _WIN64
+
+void qmp_fsdev_set_io_throttle(IOThrottle *arg, Error **errp)
+{
+  return;
+}
+
+IOThrottleList *qmp_query_fsdev_io_throttle(Error **errp)
+{
+    abort();
+}
+
+#endif
+
+
 #ifndef CONFIG_VNC
 /* If VNC support is enabled, the "true" query-vnc command is
    defined in the VNC subsystem */

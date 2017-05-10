@@ -21,6 +21,12 @@
 #include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/throttle-options.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qmp/types.h"
+#include "qapi-visit.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qapi/util.h"
+#include "qmp-commands.h"
 
 typedef struct FsThrottle {
     ThrottleState ts;
@@ -37,4 +43,10 @@ void coroutine_fn fsdev_co_throttle_request(FsThrottle *, bool ,
                                             struct iovec *, int);
 
 void fsdev_throttle_cleanup(FsThrottle *);
+
+void fsdev_set_io_throttle(IOThrottle *, FsThrottle *, Error **errp);
+
+void fsdev_get_io_throttle(FsThrottle *, IOThrottle **iothp,
+                           char *, Error **errp);
+
 #endif /* _FSDEV_THROTTLE_H */
