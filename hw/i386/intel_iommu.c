@@ -836,6 +836,8 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
 {
     VTDRootEntry re;
     int ret_fr;
+    bool type_fail = false;
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
     ret_fr = vtd_get_root_entry(s, bus_num, &re);
     if (ret_fr) {
@@ -872,10 +874,19 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     } else {
         switch (vtd_ce_get_type(ce)) {
         case VTD_CONTEXT_TT_MULTI_LEVEL:
-            /* fall through */
+            /* Always supported */
+            break;
         case VTD_CONTEXT_TT_DEV_IOTLB:
+            if (!x86_iommu->dt_supported) {
+                type_fail = true;
+            }
             break;
         default:
+            /* Unknwon type */
+            type_fail = true;
+            break;
+        }
+        if (type_fail) {
             trace_vtd_ce_invalid(ce->hi, ce->lo);
             return -VTD_FR_CONTEXT_ENTRY_INV;
         }
