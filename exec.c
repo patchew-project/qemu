@@ -481,7 +481,8 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
             break;
         }
 
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
+        iotlb = mr->iommu_ops->translate(mr, addr, is_write ?
+                                         IOMMU_WO : IOMMU_RO);
         if (!(iotlb.perm & (1 << is_write))) {
             iotlb.target_as = NULL;
             break;
@@ -513,7 +514,8 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
             break;
         }
 
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
+        iotlb = mr->iommu_ops->translate(mr, addr, is_write ?
+                                         IOMMU_WO : IOMMU_RO);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
         *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);
