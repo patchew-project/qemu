@@ -2515,6 +2515,7 @@ static void virtio_device_unrealize(DeviceState *dev, Error **errp)
         }
     }
 
+    memory_listener_unregister(&vdev->listener);
     g_free(vdev->bus_name);
     vdev->bus_name = NULL;
 }
