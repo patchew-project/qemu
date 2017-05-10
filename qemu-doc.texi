@@ -36,6 +36,8 @@
 * QEMU System emulator for non PC targets::
 * QEMU User space emulator::
 * Implementation notes::
+* Support lifetime::
+* Deprecations::
 * License::
 * Index::
 @end menu
@@ -2995,6 +2997,51 @@ Run the emulation in single step mode.
 
 
 @include qemu-tech.texi
+
+@node Support lifetime
+@appendix Support lifetime
+
+Features provided by QEMU are subject to varying support lifetimes.
+
+In general features are intended to be supported indefinitely once
+introduced. In the event that a feature needs to be removed, there
+will be some period in which it will be marked as deprecated before
+eventual removal. All deprecated features will be listed in the
+``Deprecations'' appendix of this document. They may also generate
+a warning if used when QEMU starts up/
+
+Certain features will have an inherently finite lifetime, and thus
+will be removed on a fixed schedule.
+
+@node Machine types
+@section Machine types
+
+For architectures which aim to support live migration compatibility
+across releases, each release will introduce a new versioned machine
+type. For example, the 2.8.0 release introduced machine types
+``pc-i440fx-2.8'' and ``pc-q35-2.8' 'for the x86_64/i686 architectures.
+
+To allow live migration of a guest running on a 2.8.0 release to a
+2.9.0, the QEMU 2.9.0 version must support the ``pc-i440fx-2.8'' and
+``pc-q35-2.8''.  To allow users live migrating VMs to skip multiple
+intermediate releases when upgrading, new releases of QEMU will
+support machine types from many previous versions.
+
+The supported lifetime for machine types is 12 releases, which is
+equivalent to 4 years worth of previous QEMU releases.
+
+@node Deprecations
+@appendix Deprecations
+
+The following is a list of features which have been marked as deprecated,
+pending removal in a future list:
+
+@section -drive boot=on|off (since v1.3.0)
+Since release 1.3.0, the ``boot=on|off'' parameter to ``-drive''
+is no longer honoured. It is currently ignored, but a future verson
+will reject this parameter with an error. Applications should use
+the ``bootindex=N'' parameter to set an absolute ordering between
+devices instead.
 
 @node License
 @appendix License
