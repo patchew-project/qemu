@@ -2,7 +2,11 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_9 \
-    /* empty */
+    {\
+        .driver   = "intel-iommu",\
+        .property = "pt",\
+        .value    = "off",\
+    },
 
 #define HW_COMPAT_2_8 \
     {\
