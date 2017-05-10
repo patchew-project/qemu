@@ -442,8 +442,7 @@ static inline void t_gen_swapb(TCGv d, TCGv s)
     tcg_gen_mov_tl(org_s, s);
     tcg_gen_shli_tl(t, org_s, 8);
     tcg_gen_andi_tl(d, t, 0xff00ff00);
-    tcg_gen_shri_tl(t, org_s, 8);
-    tcg_gen_andi_tl(t, t, 0x00ff00ff);
+    tcg_gen_extract_tl(t, org_s, 8, 0x00ff00ff);
     tcg_gen_or_tl(d, d, t);
     tcg_temp_free(t);
     tcg_temp_free(org_s);
