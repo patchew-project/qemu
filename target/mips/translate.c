@@ -4573,8 +4573,7 @@ static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
         {
             TCGv t1 = tcg_temp_new();
 
-            tcg_gen_shri_tl(t1, t0, 8);
-            tcg_gen_andi_tl(t1, t1, 0x00FF00FF);
+            tcg_gen_extract_tl(t1, t0, 8, 0x00FF00FF);
             tcg_gen_shli_tl(t0, t0, 8);
             tcg_gen_andi_tl(t0, t0, ~0x00FF00FF);
             tcg_gen_or_tl(t0, t0, t1);
@@ -4593,8 +4592,7 @@ static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
         {
             TCGv t1 = tcg_temp_new();
 
-            tcg_gen_shri_tl(t1, t0, 8);
-            tcg_gen_andi_tl(t1, t1, 0x00FF00FF00FF00FFULL);
+            tcg_gen_extract_tl(t1, t0, 8, 0x00FF00FF00FF00FFULL);
             tcg_gen_shli_tl(t0, t0, 8);
             tcg_gen_andi_tl(t0, t0, ~0x00FF00FF00FF00FFULL);
             tcg_gen_or_tl(cpu_gpr[rd], t0, t1);
@@ -4605,8 +4603,7 @@ static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
         {
             TCGv t1 = tcg_temp_new();
 
-            tcg_gen_shri_tl(t1, t0, 16);
-            tcg_gen_andi_tl(t1, t1, 0x0000FFFF0000FFFFULL);
+            tcg_gen_extract_tl(t1, t0, 16, 0x0000FFFF0000FFFFULL);
             tcg_gen_shli_tl(t0, t0, 16);
             tcg_gen_andi_tl(t0, t0, ~0x0000FFFF0000FFFFULL);
             tcg_gen_or_tl(t0, t0, t1);
