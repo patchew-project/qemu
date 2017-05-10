@@ -463,12 +463,13 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
 }
 
 /* Called from RCU critical section */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr iova,
                                             bool is_write)
 {
     IOMMUTLBEntry iotlb = {0};
     MemoryRegionSection *section;
     MemoryRegion *mr;
+    hwaddr addr = iova, psize;
 
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
@@ -478,6 +479,23 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
         mr = section->mr;
 
         if (!mr->iommu_ops) {
+            /*
+             * We didn't translate() but reached here. It possibly
+             * means it's a static mapping. If so (it should be RAM),
+             * we set the IOTLB up.
+             */
+            if (!iotlb.target_as && memory_region_is_ram(mr) &&
+                !memory_region_is_rom(mr)) {
+                psize = mr->ram_block->page_size;
+                iova &= ~(psize - 1);
+                iotlb = (IOMMUTLBEntry) {
+                    .target_as = &address_space_memory,
+                    .iova = iova,
+                    .translated_addr = iova,
+                    .addr_mask = psize - 1,
+                    .perm = IOMMU_RW,
+                };
+            }
             break;
         }
 
