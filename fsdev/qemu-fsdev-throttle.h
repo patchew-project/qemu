@@ -20,6 +20,7 @@
 #include "qemu/coroutine.h"
 #include "qapi/error.h"
 #include "qemu/throttle.h"
+#include "qemu/throttle-options.h"
 
 typedef struct FsThrottle {
     ThrottleState ts;
