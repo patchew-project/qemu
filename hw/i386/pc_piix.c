@@ -38,6 +38,7 @@
 #include "sysemu/kvm.h"
 #include "hw/kvm/clock.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/sysbus.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/block-backend.h"
@@ -84,6 +85,14 @@ static void pc_init1(MachineState *machine,
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
     ram_addr_t lowmem;
+    char *mc_name = MACHINE_CLASS(pcmc)->name;
+
+    /* Machines pc-0.10 up to pc-1.2 are considered as deprecated */
+    if (!qtest_enabled() && (!strncmp(mc_name, "pc-0.", 5)
+        || (!strncmp(mc_name, "pc-1.", 5) && mc_name[5] < '3'))) {
+        error_report("Machine type '%s' is deprecated, "
+                     "please use a newer type instead", mc_name);
+    }
 
     /*
      * Calculate ram split, for memory below and above 4G.  It's a bit
