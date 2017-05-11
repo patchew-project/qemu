@@ -22,7 +22,6 @@
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
-#include "qom/object.h"
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
@@ -38,9 +37,6 @@
 #define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
-
-/* for vl.c */
-extern int only_migratable;
 
 struct MigrationParams {
     bool blk;
@@ -292,8 +288,6 @@ int migrate_add_blocker(Error *reason, Error **errp);
  * @reason - the error blocking migration
  */
 void migrate_del_blocker(Error *reason);
-
-int check_migratable(Object *obj, Error **err);
 
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);
