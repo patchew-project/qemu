@@ -622,7 +622,7 @@ const char *qemu_ether_ntoa(const MACAddr *mac)
 
 /*
  * Return human readable string for size @val.
- * @val must be between (-1000Eib, 1000EiB), exclusively.
+ * @val can be any value.
  * Use IEC binary units like KiB, MiB, and so forth.
  * Caller is responsible for passing it to g_free().
  */
@@ -640,7 +640,12 @@ char *size_to_str(double val)
      */
     frexp(val / (1000.0 / 1024.0), &i);
     i = (i - 1) / 10;
-    assert(i < ARRAY_SIZE(suffixes));
+
+    /* Use the biggest possible suffix */
+    if (i > ARRAY_SIZE(suffixes) - 1) {
+        i = ARRAY_SIZE(suffixes) - 1;
+    }
+
     div = 1ULL << (i * 10);
 
     return g_strdup_printf("%0.3g %sB", val / div, suffixes[i]);
