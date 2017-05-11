@@ -799,7 +799,17 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
         .log_guest_addr = vq->used_phys,
         .flags = enable_log ? (1 << VHOST_VRING_F_LOG) : 0,
     };
-    int r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
+    int r;
+
+    /* Update rings information for IOTLB to work correctly,
+     * vhost-kernel & vhost-user backends require for this.*/
+    if (vhost_dev_has_iommu(dev)) {
+        vhost_device_iotlb_miss(dev, addr.desc_user_addr, true);
+        vhost_device_iotlb_miss(dev, addr.used_user_addr, true);
+        vhost_device_iotlb_miss(dev, addr.avail_user_addr, true);
+    }
+
+    r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_vring_addr failed");
         return -errno;
@@ -1551,13 +1561,6 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     if (vhost_dev_has_iommu(hdev)) {
         hdev->vhost_ops->vhost_set_iotlb_callback(hdev, true);
-
-        /* Update used ring information for IOTLB to work correctly,
-         * vhost-kernel code requires for this.*/
-        for (i = 0; i < hdev->nvqs; ++i) {
-            struct vhost_virtqueue *vq = hdev->vqs + i;
-            vhost_device_iotlb_miss(hdev, vq->used_phys, true);
-        }
     }
     return 0;
 fail_log:
