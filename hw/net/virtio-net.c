@@ -1287,8 +1287,7 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
     for (;;) {
         ssize_t ret;
         unsigned int out_num;
-        struct iovec sg[VIRTQUEUE_MAX_SIZE], sg2[VIRTQUEUE_MAX_SIZE + 1], *out_sg;
-        struct virtio_net_hdr_mrg_rxbuf mhdr;
+        struct iovec sg[VIRTQUEUE_MAX_SIZE], mhdr, *out_sg;
 
         elem = virtqueue_pop(q->tx_vq, sizeof(VirtQueueElement));
         if (!elem) {
@@ -1305,7 +1304,10 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         }
 
         if (n->has_vnet_hdr) {
-            if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
+            /* Buffer to copy vnet_hdr and the possible adjacent data */
+            mhdr.iov_len = out_sg[0].iov_len;
+            mhdr.iov_base = g_malloc0(mhdr.iov_len);
+            if (iov_to_buf(out_sg, out_num, 0, mhdr.iov_base, mhdr.iov_len) <
                 n->guest_hdr_len) {
                 virtio_error(vdev, "virtio-net header incorrect");
                 virtqueue_detach_element(q->tx_vq, elem, 0);
@@ -1313,17 +1315,12 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
                 return -EINVAL;
             }
             if (n->needs_vnet_hdr_swap) {
-                virtio_net_hdr_swap(vdev, (void *) &mhdr);
-                sg2[0].iov_base = &mhdr;
-                sg2[0].iov_len = n->guest_hdr_len;
-                out_num = iov_copy(&sg2[1], ARRAY_SIZE(sg2) - 1,
-                                   out_sg, out_num,
-                                   n->guest_hdr_len, -1);
-                if (out_num == VIRTQUEUE_MAX_SIZE) {
-                    goto drop;
-		}
-                out_num += 1;
-                out_sg = sg2;
+                virtio_net_hdr_swap(vdev, mhdr.iov_base);
+                /* Copy the first iov where the vnet_hdr resides in */
+                out_num = iov_copy(sg, 1, &mhdr, 1, 0, mhdr.iov_len);
+                out_num += iov_copy(sg + 1, ARRAY_SIZE(sg) - 1, out_sg + 1,
+                                    elem->out_num - 1, 0, -1);
+                out_sg = sg;
 	    }
         }
         /*
@@ -1345,13 +1342,15 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
 
         ret = qemu_sendv_packet_async(qemu_get_subqueue(n->nic, queue_index),
                                       out_sg, out_num, virtio_net_tx_complete);
+        if (n->has_vnet_hdr) {
+            g_free(mhdr.iov_base);
+        }
         if (ret == 0) {
             virtio_queue_set_notification(q->tx_vq, 0);
             q->async_tx.elem = elem;
             return -EBUSY;
         }
 
-drop:
         virtqueue_push(q->tx_vq, elem, 0);
         virtio_notify(vdev, q->tx_vq);
         g_free(elem);
