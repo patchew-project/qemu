@@ -619,3 +619,29 @@ const char *qemu_ether_ntoa(const MACAddr *mac)
 
     return ret;
 }
+
+/*
+ * Return human readable string for size @val.
+ * @val must be between (-1000Eib, 1000EiB), exclusively.
+ * Use IEC binary units like KiB, MiB, and so forth.
+ * Caller is responsible for passing it to g_free().
+ */
+char *size_to_str(double val)
+{
+    static const char *suffixes[] = { "", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei" };
+    unsigned long div;
+    int i;
+
+    /*
+     * The exponent (returned in i) minus one gives us
+     * floor(log2(val * 1024 / 1000).  The correction makes us
+     * switch to the higher power when the integer part is >= 1000.
+     * (see e41b509d68afb1f for more info)
+     */
+    frexp(val / (1000.0 / 1024.0), &i);
+    i = (i - 1) / 10;
+    assert(i < ARRAY_SIZE(suffixes));
+    div = 1ULL << (i * 10);
+
+    return g_strdup_printf("%0.3g %sB", val / div, suffixes[i]);
+}
