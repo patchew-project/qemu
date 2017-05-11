@@ -4275,37 +4275,37 @@ void bdrv_img_create(const char *filename, const char *fmt,
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
     size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
-    if (size == -1) {
-        if (backing_file) {
-            BlockDriverState *bs;
-            char *full_backing = g_new0(char, PATH_MAX);
-            int64_t size;
-            int back_flags;
-            QDict *backing_options = NULL;
+    if (backing_file && !(flags & BDRV_O_NO_BACKING)) {
+        BlockDriverState *bs;
+        char *full_backing = g_new0(char, PATH_MAX);
+        int back_flags;
+        QDict *backing_options = NULL;
 
-            bdrv_get_full_backing_filename_from_filename(filename, backing_file,
-                                                         full_backing, PATH_MAX,
-                                                         &local_err);
-            if (local_err) {
-                g_free(full_backing);
-                goto out;
-            }
-
-            /* backing files always opened read-only */
-            back_flags = flags;
-            back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
-
-            if (backing_fmt) {
-                backing_options = qdict_new();
-                qdict_put_str(backing_options, "driver", backing_fmt);
-            }
-
-            bs = bdrv_open(full_backing, NULL, backing_options, back_flags,
-                           &local_err);
+        bdrv_get_full_backing_filename_from_filename(filename, backing_file,
+                                                     full_backing, PATH_MAX,
+                                                     &local_err);
+        if (local_err) {
             g_free(full_backing);
-            if (!bs) {
-                goto out;
-            }
+            goto out;
+        }
+
+        /* backing files always opened read-only */
+        back_flags = flags;
+        back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+        if (backing_fmt) {
+            backing_options = qdict_new();
+            qdict_put_str(backing_options, "driver", backing_fmt);
+        }
+
+        bs = bdrv_open(full_backing, NULL, backing_options, back_flags,
+                       &local_err);
+        g_free(full_backing);
+        if (!bs) {
+            goto out;
+        }
+
+        if (size == -1) {
             size = bdrv_getlength(bs);
             if (size < 0) {
                 error_setg_errno(errp, -size, "Could not get size of '%s'",
@@ -4313,14 +4313,15 @@ void bdrv_img_create(const char *filename, const char *fmt,
                 bdrv_unref(bs);
                 goto out;
             }
-
             qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
-
-            bdrv_unref(bs);
-        } else {
-            error_setg(errp, "Image creation needs a size parameter");
-            goto out;
         }
+
+        bdrv_unref(bs);
+    }
+
+    if (size == -1) {
+        error_setg(errp, "Image creation needs a size parameter");
+        goto out;
     }
 
     if (!quiet) {
