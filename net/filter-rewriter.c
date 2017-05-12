@@ -33,6 +33,7 @@ typedef struct RewriterState {
     NetQueue *incoming_queue;
     /* hashtable to save connection */
     GHashTable *connection_track_table;
+    bool vnet_hdr;
 } RewriterState;
 
 static void filter_rewriter_flush(NetFilterState *nf)
@@ -237,6 +238,42 @@ static void colo_rewriter_setup(NetFilterState *nf, Error **errp)
     s->incoming_queue = qemu_new_net_queue(qemu_netfilter_pass_to_next, nf);
 }
 
+static char *filter_rewriter_get_vnet_hdr(Object *obj, Error **errp)
+{
+    RewriterState *s = FILTER_COLO_REWRITER(obj);
+
+    return s->vnet_hdr ? g_strdup("on") : g_strdup("off");
+}
+
+static void filter_rewriter_set_vnet_hdr(Object *obj,
+                                         const char *value,
+                                         Error **errp)
+{
+    RewriterState *s = FILTER_COLO_REWRITER(obj);
+
+    if (strcmp(value, "on") && strcmp(value, "off")) {
+        error_setg(errp, "Invalid value for filter-rewriter vnet_hdr, "
+                         "should be 'on' or 'off'");
+        return;
+    }
+
+    s->vnet_hdr = !strcmp(value, "on");
+}
+
+static void filter_rewriter_init(Object *obj)
+{
+    RewriterState *s = FILTER_COLO_REWRITER(obj);
+
+    /*
+     * The vnet_hdr is disabled by default, if you want to enable
+     * this option, you must enable all the option on related modules
+     * (like other filter or colo-compare).
+     */
+    s->vnet_hdr = false;
+    object_property_add_str(obj, "vnet_hdr", filter_rewriter_get_vnet_hdr,
+                            filter_rewriter_set_vnet_hdr, NULL);
+}
+
 static void colo_rewriter_class_init(ObjectClass *oc, void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
@@ -250,6 +287,7 @@ static const TypeInfo colo_rewriter_info = {
     .name = TYPE_FILTER_REWRITER,
     .parent = TYPE_NETFILTER,
     .class_init = colo_rewriter_class_init,
+    .instance_init = filter_rewriter_init,
     .instance_size = sizeof(RewriterState),
 };
 
