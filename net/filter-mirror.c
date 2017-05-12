@@ -38,6 +38,7 @@ typedef struct MirrorState {
     NetFilterState parent_obj;
     char *indev;
     char *outdev;
+    bool vnet_hdr;
     CharBackend chr_in;
     CharBackend chr_out;
     SocketReadState rs;
@@ -308,6 +309,13 @@ static char *filter_mirror_get_outdev(Object *obj, Error **errp)
     return g_strdup(s->outdev);
 }
 
+static char *filter_mirror_get_vnet_hdr(Object *obj, Error **errp)
+{
+    MirrorState *s = FILTER_MIRROR(obj);
+
+    return s->vnet_hdr ? g_strdup("on") : g_strdup("off");
+}
+
 static void
 filter_mirror_set_outdev(Object *obj, const char *value, Error **errp)
 {
@@ -320,6 +328,21 @@ filter_mirror_set_outdev(Object *obj, const char *value, Error **errp)
                    "property set");
         return;
     }
+}
+
+static void filter_mirror_set_vnet_hdr(Object *obj,
+                                       const char *value,
+                                       Error **errp)
+{
+    MirrorState *s = FILTER_MIRROR(obj);
+
+    if (strcmp(value, "on") && strcmp(value, "off")) {
+        error_setg(errp, "Invalid value for filter-mirror vnet_hdr, "
+                         "should be 'on' or 'off'");
+        return;
+    }
+
+    s->vnet_hdr = !strcmp(value, "on");
 }
 
 static char *filter_redirector_get_outdev(Object *obj, Error **errp)
@@ -340,8 +363,19 @@ filter_redirector_set_outdev(Object *obj, const char *value, Error **errp)
 
 static void filter_mirror_init(Object *obj)
 {
+    MirrorState *s = FILTER_MIRROR(obj);
+
     object_property_add_str(obj, "outdev", filter_mirror_get_outdev,
                             filter_mirror_set_outdev, NULL);
+
+    /*
+     * The vnet_hdr is disabled by default, if you want to enable
+     * this option, you must enable all the option on related modules
+     * (like other filter or colo-compare).
+     */
+    s->vnet_hdr = false;
+    object_property_add_str(obj, "vnet_hdr", filter_mirror_get_vnet_hdr,
+                             filter_mirror_set_vnet_hdr, NULL);
 }
 
 static void filter_redirector_init(Object *obj)

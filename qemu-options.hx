@@ -4024,10 +4024,11 @@ queue @var{all|rx|tx} is an option that can be applied to any netfilter.
 @option{tx}: the filter is attached to the transmit queue of the netdev,
              where it will receive packets sent by the netdev.
 
-@item -object filter-mirror,id=@var{id},netdev=@var{netdevid},outdev=@var{chardevid}[,queue=@var{all|rx|tx}]
+@item -object filter-mirror,id=@var{id},netdev=@var{netdevid},outdev=@var{chardevid},vnet_hdr=@var{on|off}[,queue=@var{all|rx|tx}]
 
 filter-mirror on netdev @var{netdevid},mirror net packet to chardev
-@var{chardevid}
+@var{chardevid}, if vnet_hdr = on, filter-mirror will mirror packet
+with vnet_hdr_len.
 
 @item -object filter-redirector,id=@var{id},netdev=@var{netdevid},indev=@var{chardevid},
 outdev=@var{chardevid}[,queue=@var{all|rx|tx}]
