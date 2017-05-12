@@ -22,6 +22,11 @@
 #define VHOST_PCI_NET(obj) \
         OBJECT_CHECK(VhostPCINet, (obj), TYPE_VHOST_PCI_NET)
 
+typedef struct VirtqueueFD {
+    int kickfd;
+    int callfd;
+} VirtqueueFD;
+
 typedef struct VhostPCINet {
     VirtIODevice parent_obj;
     VirtQueue *ctrlq;
@@ -29,6 +34,7 @@ typedef struct VhostPCINet {
     uint16_t vq_pairs;
     size_t config_size;
     uint64_t device_features;
+    VirtqueueFD *remoteq_fds;
 } VhostPCINet;
 
 #endif

@@ -274,11 +274,20 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
     }
 
     if (assign) {
-        r = event_notifier_init(notifier, 1);
-        if (r < 0) {
-            error_report("%s: unable to init event notifier: %s (%d)",
-                         __func__, strerror(-r), r);
-            return r;
+        if (notifier->wfd == -1) {
+            r = event_notifier_init(notifier, 1);
+            if (r < 0) {
+                error_report("%s: unable to init event notifier: %s (%d)",
+                             __func__, strerror(-r), r);
+                return r;
+            }
+        } else {
+            r = event_notifier_set(notifier);
+            if (r < 0) {
+                error_report("%s: unable to set event notifier: %s (%d)",
+                             __func__, strerror(-r), r);
+                return r;
+            }
         }
         r = k->ioeventfd_assign(proxy, notifier, n, true);
         if (r < 0) {

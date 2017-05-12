@@ -1196,10 +1196,6 @@ void virtio_reset(void *opaque)
         vdev->device_endian = virtio_default_endian();
     }
 
-    if (k->reset) {
-        k->reset(vdev);
-    }
-
     vdev->broken = false;
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
@@ -1222,6 +1218,14 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
         vdev->vq[i].inuse = 0;
         virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
+        vdev->vq[i].host_notifier.rfd = -1;
+        vdev->vq[i].host_notifier.wfd = -1;
+        vdev->vq[i].guest_notifier.rfd = -1;
+        vdev->vq[i].guest_notifier.wfd = -1;
+    }
+
+    if (k->reset) {
+        k->reset(vdev);
     }
 }
 
@@ -2253,7 +2257,11 @@ void virtio_init(VirtIODevice *vdev, const char *name,
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
         vdev->vq[i].queue_index = i;
-    }
+        vdev->vq[i].host_notifier.rfd = -1;
+        vdev->vq[i].host_notifier.wfd = -1;
+        vdev->vq[i].guest_notifier.rfd = -1;
+        vdev->vq[i].guest_notifier.wfd = -1;
+     }
 
     vdev->name = name;
     vdev->config_len = config_size;
@@ -2364,6 +2372,13 @@ EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq)
     return &vq->guest_notifier;
 }
 
+void virtio_queue_set_guest_notifier(VirtQueue *vq, int fd)
+{
+    EventNotifier *e = &vq->guest_notifier;
+    e->rfd = fd;
+    e->wfd = fd;
+}
+
 static void virtio_queue_host_notifier_aio_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
@@ -2435,6 +2450,13 @@ void virtio_queue_host_notifier_read(EventNotifier *n)
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
 {
     return &vq->host_notifier;
+}
+
+void virtio_queue_set_host_notifier(VirtQueue *vq, int fd)
+{
+    EventNotifier *e = &vq->host_notifier;
+    e->rfd = fd;
+    e->wfd = fd;
 }
 
 void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)

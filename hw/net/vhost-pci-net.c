@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/vhost-pci-net.h"
+#include "hw/virtio/virtio-bus.h"
 
 #define VPNET_CTRLQ_SIZE 32
 #define VPNET_VQ_SIZE 256
@@ -114,12 +115,53 @@ static void vpnet_send_ctrlq_msg_remoteq(VhostPCINet *vpnet)
     g_free(msg);
 }
 
+static inline bool vq_is_txq(uint16_t id)
+{
+    return (id % 2 == 0);
+}
+
+static inline uint16_t tx2rx(uint16_t id)
+{
+    return id + 1;
+}
+
+static inline uint16_t rx2tx(uint16_t id)
+{
+    return id - 1;
+}
+
 static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
+    uint16_t vq_num = vpnet->vq_pairs * 2;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    VirtQueue *vq;
+    int r, i;
 
     /* Send the ctrlq messages to the driver when the ctrlq is ready */
     if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+        /*
+         * Set up the callfd when the driver is ready.
+         * Crosse share the eventfds from the remoteq.
+         * Use the tx remoteq's kickfd as the rx localq's callfd.
+         * Use the rx remoteq's kickfd as the tx localq's callfd.
+         */
+        for (i = 0; i < vq_num; i++) {
+            vq = virtio_get_queue(vdev, i);
+            if (vq_is_txq(i)) {
+                virtio_queue_set_guest_notifier(vq,
+                                          vpnet->remoteq_fds[tx2rx(i)].kickfd);
+            } else {
+                virtio_queue_set_guest_notifier(vq,
+                                          vpnet->remoteq_fds[rx2tx(i)].kickfd);
+            }
+        }
+        r = k->set_guest_notifiers(qbus->parent, vq_num, true);
+        if (r < 0) {
+            error_report("Error binding guest notifier: %d", -r);
+        }
         vpnet_send_ctrlq_msg_remote_mem(vpnet);
         vpnet_send_ctrlq_msg_remoteq(vpnet);
     }
@@ -155,17 +197,29 @@ static void vpnet_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
 }
 
+static void vpnet_copy_fds_from_vhostdev(VirtqueueFD *fds, Remoteq *remoteq)
+{
+    fds[remoteq->vring_num].callfd = remoteq->callfd;
+    fds[remoteq->vring_num].kickfd = remoteq->kickfd;
+}
+
 static void vpnet_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
     uint16_t i, vq_num;
     VhostPCIDev *vp_dev = get_vhost_pci_dev();
+    Remoteq *remoteq;
 
     vq_num = vp_dev->remoteq_num;
     vpnet->vq_pairs = vq_num / 2;
     virtio_init(vdev, "vhost-pci-net", VIRTIO_ID_VHOST_PCI_NET,
                 vpnet->config_size);
+    vpnet->remoteq_fds = g_malloc(sizeof(struct VirtqueueFD) *
+                                  vq_num);
+    QLIST_FOREACH(remoteq, &vp_dev->remoteq_list, node) {
+        vpnet_copy_fds_from_vhostdev(vpnet->remoteq_fds, remoteq);
+    }
 
     /* Add local vqs */
     for (i = 0; i < vq_num; i++) {
@@ -192,6 +246,25 @@ static void vpnet_device_unrealize(DeviceState *dev, Error **errp)
 
 static void vpnet_reset(VirtIODevice *vdev)
 {
+    VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
+    VirtQueue *vq;
+    uint16_t i, vq_num = vpnet->vq_pairs * 2;
+
+    for (i = 0; i < vq_num; i++) {
+        vq = virtio_get_queue(vdev, i);
+        /*
+         * Cross share the eventfds.
+         * Use the tx remoteq's callfd as the rx localq's kickfd.
+         * Use the rx remoteq's callfd as the tx localq's kickfd.
+         */
+        if (vq_is_txq(i)) {
+            virtio_queue_set_host_notifier(vq,
+                                          vpnet->remoteq_fds[tx2rx(i)].callfd);
+        } else {
+            virtio_queue_set_host_notifier(vq,
+                                          vpnet->remoteq_fds[rx2tx(i)].callfd);
+        }
+    }
 }
 
 static Property vpnet_properties[] = {

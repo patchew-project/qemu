@@ -963,11 +963,24 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     VirtQueue *vq = virtio_get_queue(vdev, n);
     EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
+    int r = 0;
 
     if (assign) {
-        int r = event_notifier_init(notifier, 0);
-        if (r < 0) {
-            return r;
+        if (notifier->wfd == -1) {
+            r = event_notifier_init(notifier, 0);
+            if (r < 0) {
+                error_report("%s: unable to init event notifier: %s (%d)",
+                             __func__, strerror(-r), r);
+                return r;
+
+            }
+        } else {
+            r = event_notifier_set(notifier);
+            if (r < 0) {
+                error_report("%s: unable to set event notifier: %s (%d)",
+                             __func__, strerror(-r), r);
+                return r;
+            }
         }
         virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
     } else {
@@ -2370,6 +2383,9 @@ static const TypeInfo virtio_net_pci_info = {
 /* vhost-pci-net */
 
 static Property vpnet_pci_properties[] = {
+    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 4),
     DEFINE_PROP_END_OF_LIST(),
 };
 
