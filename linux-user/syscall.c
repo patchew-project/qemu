@@ -6279,6 +6279,9 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         ts->bprm = parent_ts->bprm;
         ts->info = parent_ts->info;
         ts->signal_mask = parent_ts->signal_mask;
+#ifdef TRACK_TARGET_SIGMASK
+        ts->target_signal_mask = parent_ts->target_signal_mask;
+#endif
 
         if (flags & CLONE_CHILD_CLEARTID) {
             ts->child_tidptr = child_tidptr;

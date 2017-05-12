@@ -139,6 +139,11 @@ typedef struct TaskState {
      * currently in the middle of such a syscall
      */
     sigset_t sigsuspend_mask;
+#ifdef TRACK_TARGET_SIGMASK
+    /* Track the target signal and suspend masks. */
+    target_sigset_t target_signal_mask;
+    target_sigset_t target_sigsuspend_mask;
+#endif
     /* Nonzero if we're leaving a sigsuspend and sigsuspend_mask is valid. */
     int in_sigsuspend;
 

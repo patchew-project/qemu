@@ -485,6 +485,9 @@ void signal_init(void)
 
     /* Set the signal mask from the host mask. */
     sigprocmask(0, 0, &ts->signal_mask);
+#ifdef TRACK_TARGET_SIGMASK
+    host_to_target_sigset_internal(&ts->target_signal_mask, &ts->signal_mask);
+#endif
 
     /* set all host signal handlers. ALL signals are blocked during
        the handlers to serialize them. */
