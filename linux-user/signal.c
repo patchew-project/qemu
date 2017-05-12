@@ -149,7 +149,7 @@ static void host_to_target_sigset_internal(target_sigset_t *d,
     int i;
     target_sigemptyset(d);
     for (i = 1; i <= TARGET_NSIG; i++) {
-        if (sigismember(s, i)) {
+        if (sigismember(s, i) == 1) {
             target_sigaddset(d, host_to_target_signal(i));
         }
     }
@@ -171,7 +171,7 @@ static void target_to_host_sigset_internal(sigset_t *d,
     int i;
     sigemptyset(d);
     for (i = 1; i <= TARGET_NSIG; i++) {
-        if (target_sigismember(s, i)) {
+        if (target_sigismember(s, i) == 1) {
             sigaddset(d, target_to_host_signal(i));
         }
     }
