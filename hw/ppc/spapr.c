@@ -95,8 +95,6 @@
 
 #define PHANDLE_XICP            0x00001111
 
-#define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
-
 static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
                                   const char *type_ics,
                                   int nr_irqs, Error **errp)
@@ -1207,7 +1205,7 @@ static void spapr_store_hpte(PPCVirtualHypervisor *vhyp, hwaddr ptex,
     }
 }
 
-static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
+int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
 {
     int shift;
 

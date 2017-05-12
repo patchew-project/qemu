@@ -14,6 +14,7 @@ struct sPAPRNVRAM;
 typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
 typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 typedef struct sPAPREventSource sPAPREventSource;
+typedef struct sPAPRPendingHPT sPAPRPendingHPT;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
@@ -84,6 +85,8 @@ struct sPAPRMachineState {
     void *htab;
     uint32_t htab_shift;
     uint64_t patb_entry; /* Process tbl registed in H_REGISTER_PROCESS_TABLE */
+    sPAPRPendingHPT *pending_hpt; /* in-progress resize */
+
     hwaddr rma_size;
     int vrma_adjust;
     ssize_t rtas_size;
@@ -646,6 +649,7 @@ void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
                                                uint32_t count, uint32_t index);
 void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
                                     sPAPRMachineState *spapr);
+int spapr_hpt_shift_for_ramsize(uint64_t ramsize);
 
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {
@@ -691,5 +695,7 @@ int spapr_rng_populate_dt(void *fdt);
 #define SPAPR_LMB_FLAGS_RESERVED 0x00000080
 
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
+
+#define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
 #endif /* HW_SPAPR_H */
