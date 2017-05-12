@@ -20,4 +20,7 @@ uint64_t blk_mig_bytes_transferred(void);
 uint64_t blk_mig_bytes_remaining(void);
 uint64_t blk_mig_bytes_total(void);
 
+void migrate_set_block_shared(MigrationState *s, bool value);
+void migrate_set_block_enabled(MigrationState *s, bool value);
+
 #endif /* MIGRATION_BLOCK_H */

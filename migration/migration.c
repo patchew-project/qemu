@@ -1210,6 +1210,16 @@ bool migration_is_blocked(Error **errp)
     return false;
 }
 
+void migrate_set_block_shared(MigrationState *s, bool value)
+{
+    s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK_SHARED] = value;
+}
+
+void migrate_set_block_enabled(MigrationState *s, bool value)
+{
+    s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK_ENABLED] = value;
+}
+
 void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  Error **errp)
@@ -1238,6 +1248,14 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     s = migrate_init(&params);
+
+    if (has_blk && blk) {
+        migrate_set_block_enabled(s, true);
+    }
+
+    if (has_inc && inc) {
+        migrate_set_block_shared(s, true);
+    }
 
     if (strstart(uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
@@ -1432,6 +1450,24 @@ int64_t migrate_xbzrle_cache_size(void)
     s = migrate_get_current();
 
     return s->xbzrle_cache_size;
+}
+
+bool migrate_use_block_enabled(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK_ENABLED];
+}
+
+bool migrate_use_block_shared(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK_SHARED];
 }
 
 /* migration thread support */
