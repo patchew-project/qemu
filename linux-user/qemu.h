@@ -395,6 +395,11 @@ long do_sigreturn(CPUArchState *env);
 long do_rt_sigreturn(CPUArchState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+#ifdef TRACK_TARGET_SIGMASK
+int do_target_sigprocmask(int how, const target_sigset_t *target_set,
+                          target_sigset_t *target_oldset,
+                          const sigset_t *set, sigset_t *oldset);
+#endif
 /**
  * block_signals: block all signals while handling this guest syscall
  *
