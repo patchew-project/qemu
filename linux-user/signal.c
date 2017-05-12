@@ -120,11 +120,27 @@ static inline void target_sigaddset(target_sigset_t *set, int signum)
     set->sig[signum / TARGET_NSIG_BPW] |= mask;
 }
 
+static inline void target_sigdelset(target_sigset_t *set, int signum)
+{
+    abi_ulong mask = (abi_ulong)1 << (--signum % TARGET_NSIG_BPW);
+    set->sig[signum / TARGET_NSIG_BPW] &= ~mask;
+}
+
 static inline int target_sigismember(const target_sigset_t *set, int signum)
 {
     signum--;
     abi_ulong mask = (abi_ulong)1 << (signum % TARGET_NSIG_BPW);
     return ((set->sig[signum / TARGET_NSIG_BPW] & mask) != 0);
+}
+
+static inline void target_sigorset(target_sigset_t *set,
+                                   const target_sigset_t *left,
+                                   const target_sigset_t *right)
+{
+    int i;
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
+        set->sig[i] = left->sig[i] | right->sig[i];
+    }
 }
 
 static void host_to_target_sigset_internal(target_sigset_t *d,
