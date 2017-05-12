@@ -139,6 +139,42 @@ static int vp_slave_send_u64(int request, uint64_t u64)
     return 0;
 }
 
+static DeviceState *virtio_to_pci_dev(VirtIODevice *vdev, uint16_t virtio_id)
+{
+    DeviceState *qdev = NULL;
+    VhostPCINet *vpnet;
+    VhostPCINetPCI *netpci;
+
+    if (!vdev) {
+        return NULL;
+    }
+
+    switch (virtio_id) {
+    case VIRTIO_ID_NET:
+        vpnet = VHOST_PCI_NET(vdev);
+        netpci = container_of(vpnet, VhostPCINetPCI, vdev);
+        qdev = &netpci->parent_obj.pci_dev.qdev;
+        break;
+    default:
+        error_report("virtio_to_pci_dev: device type %d not supported",
+                     virtio_id);
+    }
+
+    return qdev;
+}
+
+static void vp_slave_device_del(VirtIODevice *vdev)
+{
+    Error *errp = NULL;
+    VhostPCIDev *vp_dev = vp_slave->vp_dev;
+    DeviceState *qdev = virtio_to_pci_dev(vdev, vp_dev->dev_type);
+
+    if (qdev != NULL) {
+        qdev_unplug(qdev, &errp);
+        vp_dev_cleanup();
+    }
+}
+
 int vp_slave_send_feature_bits(uint64_t features)
 {
     return vp_slave_send_u64(VHOST_USER_SET_FEATURES, features);
@@ -146,10 +182,13 @@ int vp_slave_send_feature_bits(uint64_t features)
 
 static void vp_slave_event(void *opaque, int event)
 {
+    VhostPCIDev *vp_dev = vp_slave->vp_dev;
+
     switch (event) {
     case CHR_EVENT_OPENED:
         break;
     case CHR_EVENT_CLOSED:
+        vp_slave_device_del(vp_dev->vdev);
         break;
     }
 }
@@ -416,6 +455,8 @@ static int vp_slave_set_vhost_pci(VhostUserMsg *msg)
         }
         break;
     case VHOST_USER_SET_VHOST_PCI_STOP:
+        vp_slave_device_del(vp_dev->vdev);
+        ret = 0;
         break;
     default:
         error_report("%s: cmd %d not supported", __func__, cmd);
