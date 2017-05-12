@@ -472,6 +472,7 @@ void qemu_using_vnet_hdr(NetClientState *nc, bool enable)
         return;
     }
 
+    nc->using_vnet_hdr = enable;
     nc->info->using_vnet_hdr(nc, enable);
 }
 
@@ -491,6 +492,7 @@ void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
         return;
     }
 
+    nc->vnet_hdr_len = len;
     nc->info->set_vnet_hdr_len(nc, len);
 }
 
