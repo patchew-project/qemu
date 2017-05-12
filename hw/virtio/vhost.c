@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/vhost-user.h"
 #include "migration/migration.h"
 #include "sysemu/dma.h"
 
@@ -1001,6 +1002,12 @@ out:
     rcu_read_unlock();
 }
 
+bool vhost_pci_enabled(struct vhost_dev *dev)
+{
+    return ((dev->protocol_features &
+            (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI)) != 0);
+}
+
 static int vhost_virtqueue_start(struct vhost_dev *dev,
                                 struct VirtIODevice *vdev,
                                 struct vhost_virtqueue *vq,
@@ -1044,26 +1051,38 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         }
     }
 
-    vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
     vq->desc_phys = a = virtio_queue_get_desc_addr(vdev, idx);
-    vq->desc = vhost_memory_map(dev, a, &l, 0);
-    if (!vq->desc || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc_desc;
+    if (vhost_pci_enabled(dev)) {
+        vq->desc = (void *)a;
+    } else {
+        vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
+        vq->desc = cpu_physical_memory_map(a, &l, 0);
+        if (!vq->desc || l != s) {
+            r = -ENOMEM;
+            goto fail_alloc_desc;
+        }
     }
     vq->avail_size = s = l = virtio_queue_get_avail_size(vdev, idx);
     vq->avail_phys = a = virtio_queue_get_avail_addr(vdev, idx);
-    vq->avail = vhost_memory_map(dev, a, &l, 0);
-    if (!vq->avail || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc_avail;
+    if (vhost_pci_enabled(dev)) {
+        vq->avail = (void *)a;
+    } else {
+        vq->avail = cpu_physical_memory_map(a, &l, 0);
+        if (!vq->avail || l != s) {
+            r = -ENOMEM;
+            goto fail_alloc_avail;
+        }
     }
     vq->used_size = s = l = virtio_queue_get_used_size(vdev, idx);
     vq->used_phys = a = virtio_queue_get_used_addr(vdev, idx);
-    vq->used = vhost_memory_map(dev, a, &l, 1);
-    if (!vq->used || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc_used;
+    if (vhost_pci_enabled(dev)) {
+        vq->used = (void *)a;
+    } else {
+        vq->used = cpu_physical_memory_map(a, &l, 1);
+        if (!vq->used || l != s) {
+            r = -ENOMEM;
+            goto fail_alloc_used;
+        }
     }
 
     r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
@@ -1146,13 +1165,17 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 !virtio_is_big_endian(vdev),
                                                 vhost_vq_index);
     }
-
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
-                       1, virtio_queue_get_used_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                       0, virtio_queue_get_avail_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                       0, virtio_queue_get_desc_size(vdev, idx));
+    if (!vhost_pci_enabled(dev)) {
+        cpu_physical_memory_unmap(vq->used,
+                                  virtio_queue_get_used_size(vdev, idx),
+                                  1, virtio_queue_get_used_size(vdev, idx));
+        cpu_physical_memory_unmap(vq->avail,
+                                  virtio_queue_get_avail_size(vdev, idx),
+                                  0, virtio_queue_get_avail_size(vdev, idx));
+        cpu_physical_memory_unmap(vq->desc,
+                                  virtio_queue_get_desc_size(vdev, idx),
+                                  0, virtio_queue_get_desc_size(vdev, idx));
+    }
 }
 
 static void vhost_eventfd_add(MemoryListener *listener,
