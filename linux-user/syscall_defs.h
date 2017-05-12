@@ -426,6 +426,10 @@ void host_to_target_old_sigset(abi_ulong *old_sigset,
                                const sigset_t *sigset);
 void target_to_host_old_sigset(sigset_t *sigset,
                                const abi_ulong *old_sigset);
+void target_to_abi_ulong_old_sigset(abi_ulong *old_sigset,
+                                    const target_sigset_t *target_sigset);
+void abi_ulong_to_target_old_sigset(target_sigset_t *target_sigset,
+                                    const abi_ulong *old_sigset);
 struct target_sigaction;
 int do_sigaction(int sig, const struct target_sigaction *act,
                  struct target_sigaction *oact);

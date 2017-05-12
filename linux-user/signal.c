@@ -207,6 +207,33 @@ void target_to_host_old_sigset(sigset_t *sigset,
     target_to_host_sigset(sigset, &d);
 }
 
+static void tswapal_target_sigset(target_sigset_t *d, const target_sigset_t *s)
+{
+    int i;
+
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
+        d->sig[i] = tswapal(s->sig[i]);
+    }
+}
+
+void target_to_abi_ulong_old_sigset(abi_ulong *old_sigset,
+                                    const target_sigset_t *target_sigset)
+{
+    target_sigset_t d;
+    tswapal_target_sigset(&d, target_sigset);
+
+    memcpy(old_sigset, &d.sig, sizeof(target_sigset_t));
+}
+
+void abi_ulong_to_target_old_sigset(target_sigset_t *target_sigset,
+                                    const abi_ulong *old_sigset)
+{
+    target_sigset_t d;
+
+    memcpy(&d.sig, old_sigset, sizeof(target_sigset_t));
+    tswapal_target_sigset(target_sigset, &d);
+}
+
 int block_signals(void)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
