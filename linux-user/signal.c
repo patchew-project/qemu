@@ -787,6 +787,28 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     sig = host_to_target_signal(host_signum);
     if (sig < 1 || sig > TARGET_NSIG)
         return;
+
+#ifdef MUX_SIG
+    if (sig == MUX_SIG) {
+        /* return the spoofed kill/tgkill signals into standard form */
+        if (info->si_code == SIG_SPOOF(SI_USER)) {
+            info->si_code = SI_USER;
+        } else if (info->si_code == SIG_SPOOF(SI_TKILL)) {
+            info->si_code = SI_TKILL;
+        }
+
+        /*
+         * We assume that si_errno field will remain intact during signal
+         * processing on the host. If it changes, the signal will be sent to
+         * the wrong number (most likely to MUX_SIG).
+         */
+        /* get the actual target signal number */
+        int target_sig = info->si_errno;
+        if (target_sig >= _NSIG && target_sig < TARGET_NSIG) {
+            sig = target_sig;
+        }
+    }
+#endif
     trace_user_host_signal(env, host_signum, sig);
 
     rewind_if_in_safe_syscall(puc);
