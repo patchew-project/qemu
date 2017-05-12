@@ -189,8 +189,19 @@ static void vpnet_set_features(VirtIODevice *vdev, uint64_t features)
      */
     static bool need_send;
     int ret;
+    VhostPCIDev *vp_dev = get_vhost_pci_dev();
 
     if (need_send) {
+        /*
+         * If the remote negotiated feature bits are not equal to the
+         * feature bits that have been negotiated between the device and
+         * driver, the remote virtio device needs a reset. Set reset_virtio
+         * to indicate to the slave about this case.
+         */
+        if (vp_dev->feature_bits != features) {
+            vp_dev->feature_bits = features;
+            vp_dev->reset_virtio = 1;
+        }
         need_send = 0;
         ret = vp_slave_send_feature_bits(features);
         if (ret < 0) {

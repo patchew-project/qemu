@@ -29,6 +29,7 @@ typedef struct RemoteMem {
 typedef struct VhostPCIDev {
     /* Ponnter to the slave device */
     VirtIODevice *vdev;
+    bool reset_virtio;
     uint16_t dev_type;
     uint64_t feature_bits;
     /* Records the end (offset to the BAR) of the last mapped region */

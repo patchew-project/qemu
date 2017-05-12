@@ -171,8 +171,15 @@ static void vp_slave_set_device_type(VhostUserMsg *msg)
 
     switch (vp_dev->dev_type) {
     case VIRTIO_ID_NET:
-        vp_dev->feature_bits |= VHOST_PCI_FEATURE_BITS |
-                                VHOST_PCI_NET_FEATURE_BITS;
+        /*
+         * The setting of reset_virtio implies that the feature_bits has been
+         * remotely negotiated. So, skip adding the supported features to
+         * feature_bits in this case.
+         */
+        if (!vp_dev->reset_virtio) {
+            vp_dev->feature_bits |= VHOST_PCI_FEATURE_BITS |
+                                    VHOST_PCI_NET_FEATURE_BITS;
+        }
         break;
     default:
         error_report("%s: device type %d is not supported",
@@ -400,6 +407,9 @@ static int vp_slave_set_vhost_pci(VhostUserMsg *msg)
 
     switch (cmd) {
     case VHOST_USER_SET_VHOST_PCI_START:
+        if (vp_dev->reset_virtio) {
+            vp_dev->reset_virtio = 0;
+        }
         ret = vp_slave_device_create(vp_dev->dev_type);
         if (ret < 0) {
             return ret;
@@ -585,6 +595,7 @@ static void vp_dev_init(VhostPCIDev *vp_dev)
     vp_dev->vdev = NULL;
     QLIST_INIT(&vp_dev->remoteq_list);
     vp_dev->remoteq_num = 0;
+    vp_dev->reset_virtio = 0;
 }
 
 int vhost_pci_slave_init(QemuOpts *opts)
