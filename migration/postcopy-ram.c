@@ -59,6 +59,73 @@ struct PostcopyDiscardState {
 #include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
+typedef struct PostcopyBlocktimeContext {
+    /* time when page fault initiated per vCPU */
+    int64_t *page_fault_vcpu_time;
+    /* page address per vCPU */
+    uint64_t *vcpu_addr;
+    int64_t total_blocktime;
+    /* blocktime per vCPU */
+    int64_t *vcpu_blocktime;
+    /* point in time when last page fault was initiated */
+    int64_t last_begin;
+    /* number of vCPU are suspended */
+    int smp_cpus_down;
+
+    /*
+     * Handler for exit event, necessary for
+     * releasing whole blocktime_ctx
+     */
+    Notifier exit_notifier;
+    /*
+     * Handler for postcopy event, necessary for
+     * releasing unnecessary part of blocktime_ctx
+     */
+    Notifier postcopy_notifier;
+} PostcopyBlocktimeContext;
+
+static void destroy_blocktime_context(struct PostcopyBlocktimeContext *ctx)
+{
+    g_free(ctx->page_fault_vcpu_time);
+    g_free(ctx->vcpu_addr);
+    g_free(ctx->vcpu_blocktime);
+    g_free(ctx);
+}
+
+static void postcopy_migration_cb(Notifier *n, void *data)
+{
+    PostcopyBlocktimeContext *ctx = container_of(n, PostcopyBlocktimeContext,
+                                               postcopy_notifier);
+    MigrationState *s = data;
+    if (migration_has_finished(s) || migration_has_failed(s)) {
+        g_free(ctx->page_fault_vcpu_time);
+        /* g_free is NULL robust */
+        ctx->page_fault_vcpu_time = NULL;
+        g_free(ctx->vcpu_addr);
+        ctx->vcpu_addr = NULL;
+    }
+}
+
+static void migration_exit_cb(Notifier *n, void *data)
+{
+    PostcopyBlocktimeContext *ctx = container_of(n, PostcopyBlocktimeContext,
+                                               exit_notifier);
+    destroy_blocktime_context(ctx);
+}
+
+static struct PostcopyBlocktimeContext *blocktime_context_new(void)
+{
+    PostcopyBlocktimeContext *ctx = g_new0(PostcopyBlocktimeContext, 1);
+    ctx->page_fault_vcpu_time = g_new0(int64_t, smp_cpus);
+    ctx->vcpu_addr = g_new0(uint64_t, smp_cpus);
+    ctx->vcpu_blocktime = g_new0(int64_t, smp_cpus);
+
+    ctx->exit_notifier.notify = migration_exit_cb;
+    ctx->postcopy_notifier.notify = postcopy_migration_cb;
+    qemu_add_exit_notifier(&ctx->exit_notifier);
+    add_migration_state_change_notifier(&ctx->postcopy_notifier);
+    return ctx;
+}
 
 /*
  * Check userfault fd features, to request only supported features in
@@ -132,6 +199,15 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
         error_report("%s failed", __func__);
         return false;
     }
+
+#ifdef UFFD_FEATURE_THREAD_ID
+    if (migrate_postcopy_blocktime() && mis &&
+            UFFD_FEATURE_THREAD_ID & supported_features) {
+        /* kernel supports that feature */
+        mis->blocktime_ctx = blocktime_context_new();
+        asked_features |= UFFD_FEATURE_THREAD_ID;
+    }
+#endif
 
     /*
      * request features, even if asked_features is 0, due to
