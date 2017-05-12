@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
+#include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost-user.h"
@@ -75,6 +76,26 @@ fail:
     return -1;
 }
 
+static void handle_slave_acked_features(const char *name, VhostUserMsg *msg)
+{
+    CharBackend *chr_be = net_name_to_chr_be(name);
+    VhostUserState *s = container_of(chr_be, VhostUserState, chr);
+    VirtIODevice *vdev = s->vdev;
+    uint64_t master_features, slave_features;
+
+    master_features = vhost_net_get_acked_features(s->vhost_net) &
+                      ~(1 << VHOST_USER_F_PROTOCOL_FEATURES);
+    slave_features = msg->payload.u64;
+
+    /*
+     * It is a rare case: vhost-pci driver only accepted a subset of the
+     * feature bits. In this case, reset the virtio device.
+     */
+    if (master_features != slave_features) {
+        master_reset_virtio_net(vdev);
+    }
+}
+
 int vhost_user_can_read(void *opaque)
 {
     return VHOST_USER_HDR_SIZE;
@@ -109,6 +130,9 @@ void vhost_user_asyn_read(void *opaque, const uint8_t *buf, int size)
     }
 
     switch (msg.request) {
+    case VHOST_USER_SET_FEATURES:
+        handle_slave_acked_features(name, &msg);
+        break;
     default:
         error_report("%s: does not support msg %d", __func__, msg.request);
         break;

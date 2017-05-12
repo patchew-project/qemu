@@ -399,4 +399,6 @@ struct VirtIOCryptoPCI {
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0
 
+void master_reset_virtio_net(VirtIODevice *vdev);
+
 #endif

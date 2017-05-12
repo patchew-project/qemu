@@ -37,6 +37,7 @@
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/visitor.h"
+#include "monitor/qdev.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -2326,6 +2327,25 @@ static const TypeInfo virtio_serial_pci_info = {
 };
 
 /* virtio-net-pci */
+
+void master_reset_virtio_net(VirtIODevice *vdev)
+{
+    VirtIONet *net = VIRTIO_NET(vdev);
+    VirtIONetPCI *net_pci = container_of(net, VirtIONetPCI, vdev);
+    VirtIOPCIProxy *proxy = &net_pci->parent_obj;
+    DeviceState *qdev = DEVICE(proxy);
+    DeviceState *qdev_new;
+    Error *err = NULL;
+
+    virtio_pci_reset(qdev);
+    qdev_unplug(qdev, &err);
+    qdev->realized = false;
+    qdev_new = qdev_device_add(qdev->opts, &err);
+    if (!qdev_new) {
+        qemu_opts_del(qdev->opts);
+    }
+    object_unref(OBJECT(qdev));
+}
 
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
