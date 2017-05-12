@@ -453,6 +453,18 @@ static int vhost_user_get_features(struct vhost_dev *dev, uint64_t *features)
     return vhost_user_get_u64(dev, VHOST_USER_GET_FEATURES, features);
 }
 
+static int vhost_user_set_dev_id(struct vhost_dev *dev, uint16_t virtio_id)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_DEVICE_ID,
+        .flags = VHOST_USER_VERSION,
+        .payload.u64 = virtio_id,
+        .size = sizeof(msg.payload.u64),
+    };
+
+    return vhost_user_write(dev, &msg, NULL, 0);
+}
+
 static int vhost_user_set_owner(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
@@ -508,6 +520,14 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
             return err;
+        }
+
+        if (dev->protocol_features &
+            (1ULL << VHOST_USER_PROTOCOL_F_SET_DEVICE_ID)) {
+            err = vhost_user_set_dev_id(dev, dev->dev_type);
+            if (err < 0) {
+                return err;
+            }
         }
 
         /* query the max queues we support if backend supports Multiple Queue */

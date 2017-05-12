@@ -155,6 +155,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     net->dev.max_queues = 1;
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
+    net->dev.dev_type = VIRTIO_ID_NET;
 
     if (backend_kernel) {
         r = vhost_net_get_fd(options->net_backend);
