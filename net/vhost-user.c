@@ -12,7 +12,7 @@
 #include "clients.h"
 #include "net/vhost_net.h"
 #include "net/vhost-user.h"
-#include "sysemu/char.h"
+#include "hw/virtio/vhost-user.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
@@ -221,6 +221,22 @@ static void chr_closed_bh(void *opaque)
     }
 }
 
+CharBackend *net_name_to_chr_be(const char *name)
+{
+    NetClientState *ncs[MAX_QUEUE_NUM];
+    VhostUserState *s;
+    int queues;
+
+    queues = qemu_find_net_clients_except(name, ncs,
+                                          NET_CLIENT_DRIVER_NIC,
+                                          MAX_QUEUE_NUM);
+    assert(queues < MAX_QUEUE_NUM);
+
+    s = DO_UPCAST(VhostUserState, nc, ncs[0]);
+
+    return &s->chr;
+}
+
 static void net_vhost_user_event(void *opaque, int event)
 {
     const char *name = opaque;
@@ -307,8 +323,9 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
             error_report_err(err);
             return -1;
         }
-        qemu_chr_fe_set_handlers(&s->chr, NULL, NULL,
-                                 net_vhost_user_event, nc0->name, NULL, true);
+        qemu_chr_fe_set_handlers(&s->chr, vhost_user_can_read,
+                                 vhost_user_asyn_read, net_vhost_user_event,
+                                 nc0->name, NULL, true);
     } while (!s->started);
 
     assert(s->vhost_net);

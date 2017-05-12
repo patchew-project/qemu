@@ -14,7 +14,7 @@
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/virtio-net.h"
-#include "sysemu/char.h"
+#include "net/vhost-user.h"
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -73,6 +73,46 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 
 fail:
     return -1;
+}
+
+int vhost_user_can_read(void *opaque)
+{
+    return VHOST_USER_HDR_SIZE;
+}
+
+void vhost_user_asyn_read(void *opaque, const uint8_t *buf, int size)
+{
+    const char *name = opaque;
+    VhostUserMsg msg;
+    uint8_t *p = (uint8_t *) &msg;
+    CharBackend *chr_be = net_name_to_chr_be(name);
+
+    if (size != VHOST_USER_HDR_SIZE) {
+        error_report("%s: wrong message size received %d", __func__, size);
+        return;
+    }
+
+    memcpy(p, buf, VHOST_USER_HDR_SIZE);
+
+    if (msg.size) {
+        p += VHOST_USER_HDR_SIZE;
+        size = qemu_chr_fe_read_all(chr_be, p, msg.size);
+        if (size != msg.size) {
+            error_report("%s: wrong message size %d != %d", __func__,
+                         size, msg.size);
+            return;
+        }
+    }
+
+    if (msg.request > VHOST_USER_MAX) {
+        error_report("%s:incorrect msg %d", __func__, msg.request);
+    }
+
+    switch (msg.request) {
+    default:
+        error_report("%s: does not support msg %d", __func__, msg.request);
+        break;
+    }
 }
 
 static int process_message_reply(struct vhost_dev *dev,

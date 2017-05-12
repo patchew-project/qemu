@@ -103,4 +103,8 @@ static VhostUserMsg m __attribute__ ((unused));
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION    (0x1)
 
+int vhost_user_can_read(void *opaque);
+
+void vhost_user_asyn_read(void *opaque, const uint8_t *buf, int size);
+
 #endif

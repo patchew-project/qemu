@@ -10,7 +10,7 @@ obj-$(CONFIG_LINUX) += vhost.o vhost-backend.o vhost-user.o
 obj-$(CONFIG_VHOST_VSOCK) += vhost-vsock.o
 obj-y += virtio-crypto.o
 obj-$(CONFIG_VIRTIO_PCI) += virtio-crypto-pci.o
-endif
-
+else
 common-obj-$(call lnot,$(CONFIG_LINUX)) += vhost-stub.o
-common-obj-$(CONFIG_ALL) += vhost-stub.o
+common-obj-y += vhost-stub.o
+endif
