@@ -17,6 +17,7 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qapi-visit.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h"
@@ -156,10 +157,24 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
     ConnectionKey key;
     Packet *pkt;
     ssize_t size = iov_size(iov, iovcnt);
+    ssize_t vnet_hdr_len = 0;
     char *buf = g_malloc0(size);
 
     iov_to_buf(iov, iovcnt, 0, buf, size);
-    pkt = packet_new(buf, size, 0);
+
+    if (s->vnet_hdr) {
+        if (nf->netdev->using_vnet_hdr) {
+            vnet_hdr_len = nf->netdev->vnet_hdr_len;
+        } else if (nf->netdev->peer->using_vnet_hdr) {
+            vnet_hdr_len = nf->netdev->peer->vnet_hdr_len;
+        } else {
+            error_report("filter-rewriter get vnet_hdr_len failed");
+            /* When error occurred we drop the packet  */
+            return 1;
+        }
+    }
+
+    pkt = packet_new(buf, size, vnet_hdr_len);
     g_free(buf);
 
     /*
