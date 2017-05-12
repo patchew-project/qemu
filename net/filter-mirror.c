@@ -44,10 +44,11 @@ typedef struct MirrorState {
     SocketReadState rs;
 } MirrorState;
 
-static int filter_mirror_send(CharBackend *chr_out,
+static int filter_mirror_send(MirrorState *s,
                               const struct iovec *iov,
                               int iovcnt)
 {
+    NetFilterState *nf = NETFILTER(s);
     int ret = 0;
     ssize_t size = 0;
     uint32_t len = 0;
@@ -59,14 +60,38 @@ static int filter_mirror_send(CharBackend *chr_out,
     }
 
     len = htonl(size);
-    ret = qemu_chr_fe_write_all(chr_out, (uint8_t *)&len, sizeof(len));
+    ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
     if (ret != sizeof(len)) {
         goto err;
     }
 
+    if (s->vnet_hdr) {
+        /*
+         * If vnet_hdr = on, we send vnet header len to make other
+         * module(like colo-compare) know how to parse net
+         * packet correctly.
+         */
+        ssize_t vnet_hdr_len;
+
+        if (nf->netdev->using_vnet_hdr) {
+            vnet_hdr_len = nf->netdev->vnet_hdr_len;
+        } else if (nf->netdev->peer->using_vnet_hdr) {
+            vnet_hdr_len = nf->netdev->peer->vnet_hdr_len;
+        } else {
+            error_report("filter get vnet_hdr_len failed");
+            goto err;
+        }
+
+        len = htonl(vnet_hdr_len);
+        ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
+        if (ret != sizeof(len)) {
+            goto err;
+        }
+    }
+
     buf = g_malloc(size);
     iov_to_buf(iov, iovcnt, 0, buf, size);
-    ret = qemu_chr_fe_write_all(chr_out, (uint8_t *)buf, size);
+    ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)buf, size);
     g_free(buf);
     if (ret != size) {
         goto err;
@@ -142,7 +167,7 @@ static ssize_t filter_mirror_receive_iov(NetFilterState *nf,
     MirrorState *s = FILTER_MIRROR(nf);
     int ret;
 
-    ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
+    ret = filter_mirror_send(s, iov, iovcnt);
     if (ret) {
         error_report("filter_mirror_send failed(%s)", strerror(-ret));
     }
@@ -165,7 +190,7 @@ static ssize_t filter_redirector_receive_iov(NetFilterState *nf,
     int ret;
 
     if (qemu_chr_fe_get_driver(&s->chr_out)) {
-        ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
+        ret = filter_mirror_send(s, iov, iovcnt);
         if (ret) {
             error_report("filter_mirror_send failed(%s)", strerror(-ret));
         }
