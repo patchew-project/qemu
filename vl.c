@@ -129,6 +129,7 @@ int main(int argc, char **argv)
 #include "sysemu/replay.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
+#include "hw/virtio/vhost-pci-slave.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -187,6 +188,7 @@ uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
 int only_migratable; /* turn it off unless user states otherwise */
+bool vhost_pci_slave_enabled;
 
 int icount_align_option;
 
@@ -4066,6 +4068,7 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
+                vhost_pci_slave_enabled = true;
                 break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
@@ -4597,6 +4600,18 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    /* check if the vhost-pci-server is enabled */
+    if (vhost_pci_slave_enabled) {
+        int ret;
+        ret = vhost_pci_slave_init(qemu_opts_find(
+                                    qemu_find_opts("vhost-pci-slave"),
+                                    NULL));
+        if (ret < 0) {
+            error_report("vhost-pci-slave init failed");
+            exit(1);
+        }
+    }
+
     /* init USB devices */
     if (machine_usb(current_machine)) {
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
@@ -4741,6 +4756,15 @@ int main(int argc, char **argv, char **envp)
     bdrv_close_all();
     pause_all_vcpus();
     res_free();
+
+    if (vhost_pci_slave_enabled) {
+        int ret;
+        ret = vhost_pci_slave_cleanup();
+        if (ret < 0) {
+            error_report("vhost-pci-slave init failed");
+            exit(1);
+        }
+    }
 
     /* vhost-user must be cleaned up before chardevs.  */
     net_cleanup();
