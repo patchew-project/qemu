@@ -122,6 +122,28 @@ static void vp_slave_set_features(VhostUserMsg *msg)
                            ~(1 << VHOST_USER_F_PROTOCOL_FEATURES);
 }
 
+static int vp_slave_send_u64(int request, uint64_t u64)
+{
+    VhostUserMsg msg = {
+        .request = request,
+        .flags = VHOST_USER_VERSION,
+        .payload.u64 = u64,
+        .size = sizeof(msg.payload.u64),
+    };
+
+    if (vp_slave_write(&vp_slave->chr_be, &msg) < 0) {
+        error_report("%s: failed to send", __func__);
+        return -1;
+    }
+
+    return 0;
+}
+
+int vp_slave_send_feature_bits(uint64_t features)
+{
+    return vp_slave_send_u64(VHOST_USER_SET_FEATURES, features);
+}
+
 static void vp_slave_event(void *opaque, int event)
 {
     switch (event) {

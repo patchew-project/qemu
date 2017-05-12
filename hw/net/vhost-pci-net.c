@@ -181,6 +181,24 @@ static uint64_t vpnet_get_features(VirtIODevice *vdev, uint64_t features,
 
 static void vpnet_set_features(VirtIODevice *vdev, uint64_t features)
 {
+    /*
+     * The implementation split the write of the 64-bit "features" into 2
+     * 32-bit writes, so the function is called twice. need_send is used to
+     * detect the second write which finishes the write of "features", and
+     * need to send to the remote device.
+     */
+    static bool need_send;
+    int ret;
+
+    if (need_send) {
+        need_send = 0;
+        ret = vp_slave_send_feature_bits(features);
+        if (ret < 0) {
+            error_report("%s failed to send feature bits", __func__);
+        }
+    } else {
+        need_send = 1;
+    }
 }
 
 static void vpnet_get_config(VirtIODevice *vdev, uint8_t *config)
