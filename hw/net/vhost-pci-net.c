@@ -117,12 +117,6 @@ static void vpnet_send_ctrlq_msg_remoteq(VhostPCINet *vpnet)
 static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
-    uint16_t vq_num = vpnet->vq_pairs * 2;
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-    VirtQueue *vq;
-    int r, i;
 
     /* Send the ctrlq messages to the driver when the ctrlq is ready */
     if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
