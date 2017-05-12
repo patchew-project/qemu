@@ -2503,7 +2503,9 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
         printf("\n");
     }
 #endif
-
+    if (req) {
+        req->timeout = d->timeout;
+    }
     return req;
 }
 
@@ -2679,7 +2681,7 @@ static BlockAIOCB *scsi_block_do_sgio(SCSIBlockReq *req,
     /* The rest is as in scsi-generic.c.  */
     io_header->mx_sb_len = sizeof(r->req.sense);
     io_header->sbp = r->req.sense;
-    io_header->timeout = s->qdev.timeout;
+    io_header->timeout = r->req.timeout;
     io_header->usr_ptr = r;
     io_header->flags |= SG_FLAG_DIRECT_IO;
 
@@ -2812,14 +2814,19 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
                                            void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
+    struct SCSIRequest *req;
 
     if (scsi_block_is_passthrough(s, buf)) {
-        return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
+        req = scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
                               hba_private);
     } else {
-        return scsi_req_alloc(&scsi_block_dma_reqops, &s->qdev, tag, lun,
+        req = scsi_req_alloc(&scsi_block_dma_reqops, &s->qdev, tag, lun,
                               hba_private);
     }
+    if (req) {
+        req->timeout = d->timeout;
+    }
+    return req;
 }
 
 static int scsi_block_parse_cdb(SCSIDevice *d, SCSICommand *cmd,

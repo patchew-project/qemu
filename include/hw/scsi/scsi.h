@@ -51,6 +51,7 @@ struct SCSIRequest {
     uint32_t          tag;
     uint32_t          lun;
     uint32_t          status;
+    uint32_t          timeout;
     void              *hba_private;
     size_t            resid;
     SCSICommand       cmd;

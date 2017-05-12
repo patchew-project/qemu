@@ -690,6 +690,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
     req->cmd = cmd;
     req->resid = req->cmd.xfer;
+    req->timeout = d->timeout;
 
     switch (buf[0]) {
     case INQUIRY:

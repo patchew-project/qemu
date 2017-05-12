@@ -157,8 +157,6 @@ static int execute_command(BlockBackend *blk,
                            SCSIGenericReq *r, int direction,
                            BlockCompletionFunc *complete)
 {
-    SCSIDevice *s = r->req.dev;
-
     r->io_header.interface_id = 'S';
     r->io_header.dxfer_direction = direction;
     r->io_header.dxferp = r->buf;
@@ -167,7 +165,7 @@ static int execute_command(BlockBackend *blk,
     r->io_header.cmd_len = r->req.cmd.len;
     r->io_header.mx_sb_len = sizeof(r->req.sense);
     r->io_header.sbp = r->req.sense;
-    r->io_header.timeout = s->timeout;
+    r->io_header.timeout = r->req.timeout;
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
@@ -596,7 +594,13 @@ const SCSIReqOps scsi_generic_req_ops = {
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                      uint8_t *buf, void *hba_private)
 {
-    return scsi_req_alloc(&scsi_generic_req_ops, d, tag, lun, hba_private);
+    struct SCSIRequest *req;
+
+    req = scsi_req_alloc(&scsi_generic_req_ops, d, tag, lun, hba_private);
+    if (req) {
+        req->timeout = d->timeout;
+    }
+    return req;
 }
 
 static Property scsi_generic_properties[] = {
