@@ -39,6 +39,11 @@
 
 VhostPCISlave *vp_slave;
 
+VhostPCIDev *get_vhost_pci_dev(void)
+{
+    return vp_slave->vp_dev;
+}
+
 /* Clean up VhostPCIDev */
 static void vp_dev_cleanup(void)
 {
