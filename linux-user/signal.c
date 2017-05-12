@@ -308,6 +308,15 @@ int do_target_sigprocmask(int how, const target_sigset_t *target_set,
     }
     if (oldset) {
         *oldset = ts->signal_mask;
+#ifdef MUX_SIG
+        /*
+         * The emulation of MUX_SIG being blocked is done using the
+         * target_signal_mask, so the status of MUX_SIG is taken from there.
+         */
+        if (target_sigismember(&ts->target_signal_mask, MUX_SIG) == 1) {
+            sigaddset(oldset, MUX_SIG);
+        }
+#endif
     }
 
     if (target_set && set) {
@@ -348,6 +357,15 @@ int do_target_sigprocmask(int how, const target_sigset_t *target_set,
         target_sigdelset(&ts->target_signal_mask, SIGSTOP);
         sigdelset(&ts->signal_mask, SIGKILL);
         sigdelset(&ts->signal_mask, SIGSTOP);
+#ifdef MUX_SIG
+        /*
+         * Since MUX_SIG is used for all the target signals out of the host
+         * range it must never be blocked on host. The emulation of MUX_SIG
+         * being blocked is done using the target_signal_mask. The status
+         * of MUX_SIG is taken form the target_signal_mask.
+         */
+        sigdelset(&ts->signal_mask, MUX_SIG);
+#endif
     }
     return 0;
 }
@@ -373,6 +391,10 @@ static void target_set_sigmask(const sigset_t *set,
 
     ts->signal_mask = *set;
     ts->target_signal_mask = *target_set;
+#ifdef MUX_SIG
+    /* MUX_SIG can't be blocked on host */
+    sigdelset(&ts->signal_mask, MUX_SIG);
+#endif
 }
 #endif
 #endif
@@ -909,6 +931,12 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
         /* we update the host linux signal state */
         host_sig = target_to_host_signal(sig);
+#ifdef MUX_SIG
+        /* put the out of host range signal into the multiplex */
+        if (sig >= _NSIG && sig < TARGET_NSIG) {
+            host_sig = MUX_SIG;
+        }
+#endif
         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
             sigfillset(&act1.sa_mask);
             act1.sa_flags = SA_SIGINFO;
@@ -6842,6 +6870,10 @@ void process_pending_signals(CPUArchState *cpu_env)
         set = ts->signal_mask;
         sigdelset(&set, SIGSEGV);
         sigdelset(&set, SIGBUS);
+#ifdef MUX_SIG
+        /* MUX_SIG can't be blocked on host */
+        sigdelset(&ts->signal_mask, MUX_SIG);
+#endif
         sigprocmask(SIG_SETMASK, &set, 0);
     }
     ts->in_sigsuspend = 0;
