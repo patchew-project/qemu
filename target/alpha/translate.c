@@ -747,9 +747,8 @@ static void gen_cvtlq(TCGv vc, TCGv vb)
     /* The arithmetic right shift here, plus the sign-extended mask below
        yields a sign-extended result without an explicit ext32s_i64.  */
     tcg_gen_sari_i64(tmp, vb, 32);
-    tcg_gen_shri_i64(vc, vb, 29);
+    tcg_gen_extract_i64(vc, vb, 29, 30);
     tcg_gen_andi_i64(tmp, tmp, (int32_t)0xc0000000);
-    tcg_gen_andi_i64(vc, vc, 0x3fffffff);
     tcg_gen_or_i64(vc, vc, tmp);
 
     tcg_temp_free(tmp);
