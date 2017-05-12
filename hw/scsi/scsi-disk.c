@@ -2898,8 +2898,7 @@ static Property scsi_hd_properties[] = {
                        DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
                        DEFAULT_MAX_IO_SIZE),
-    DEFINE_PROP_UINT32("timeout", SCSIDevice, timeout,
-                       MAX_UINT),
+    DEFINE_PROP_UINT32("timeout", SCSIDevice, timeout, 0),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };

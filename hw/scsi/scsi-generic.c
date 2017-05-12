@@ -601,7 +601,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
 static Property scsi_generic_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.blk),
-    DEFINE_PROP_UINT32("timeout", SCSIDevice, timeout, MAX_UINT),
+    DEFINE_PROP_UINT32("timeout", SCSIDevice, timeout, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
