@@ -130,6 +130,20 @@ static inline uint16_t rx2tx(uint16_t id)
     return id - 1;
 }
 
+static void vpnet_set_link_up(VhostPCINet *vpnet)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(vpnet);
+    uint16_t old_status = vpnet->status;
+
+    /*
+     * Set the LINK_UP status bit and notify the driver that it can send
+     * packets.
+     */
+    vpnet->status |= VPNET_S_LINK_UP;
+    if (vpnet->status != old_status)
+        virtio_notify_config(vdev);
+}
+
 static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
@@ -137,6 +151,7 @@ static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    VhostPCIDev *vp_dev = get_vhost_pci_dev();
     VirtQueue *vq;
     int r, i;
 
@@ -164,6 +179,11 @@ static void vpnet_set_status(struct VirtIODevice *vdev, uint8_t status)
         }
         vpnet_send_ctrlq_msg_remote_mem(vpnet);
         vpnet_send_ctrlq_msg_remoteq(vpnet);
+        /* If the peer device is not reset, start the device now */
+        if (!vp_dev->reset_virtio) {
+            vdev->status = status;
+            vpnet_set_link_up(vpnet);
+        }
     }
 }
 
