@@ -4196,6 +4196,10 @@ contents of @code{iv.b64} to the second secret
 
 ETEXI
 
+DEF("vhost-pci-slave", HAS_ARG, QEMU_OPTION_vhost_pci_slave,
+    "-vhost-pci-slave socket,chrdev={id}\n"
+    "                  creates a vhost-pci-slave",
+    QEMU_ARCH_I386)
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
