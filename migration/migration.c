@@ -666,9 +666,15 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     }
 }
 
-MigrationInfo *qmp_query_migrate(Error **errp)
+/* TODO improve this assumption */
+static bool is_source_migration(void)
 {
-    MigrationInfo *info = g_malloc0(sizeof(*info));
+    MigrationState *ms = migrate_get_current();
+    return ms->state != MIGRATION_STATUS_NONE;
+}
+
+static void fill_source_migration_info(MigrationInfo *info)
+{
     MigrationState *s = migrate_get_current();
 
     switch (s->state) {
@@ -759,9 +765,44 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         break;
     }
     info->status = s->state;
-
-    return info;
 }
+
+static void fill_destination_migration_info(MigrationInfo *info)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    switch (mis->state) {
+    case MIGRATION_STATUS_NONE:
+        break;
+    case MIGRATION_STATUS_SETUP:
+    case MIGRATION_STATUS_CANCELLING:
+    case MIGRATION_STATUS_CANCELLED:
+    case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
+    case MIGRATION_STATUS_FAILED:
+    case MIGRATION_STATUS_COLO:
+        info->has_status = true;
+        break;
+    case MIGRATION_STATUS_COMPLETED:
+        info->has_status = true;
+        fill_destination_postcopy_migration_info(info);
+        break;
+    }
+    info->status = mis->state;
+}
+
+MigrationInfo *qmp_query_migrate(Error **errp)
+{
+    MigrationInfo *info = g_malloc0(sizeof(*info));
+
+    if (is_source_migration()) {
+        fill_source_migration_info(info);
+    } else {
+        fill_destination_migration_info(info);
+    }
+
+     return info;
+ }
 
 void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
                                   Error **errp)
