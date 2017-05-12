@@ -313,6 +313,22 @@ static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
     return 0;
 }
 
+static int vhost_user_set_vhost_pci(struct vhost_dev *dev, uint8_t cmd)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_VHOST_PCI,
+        .flags = VHOST_USER_VERSION,
+        .payload.u64 = (uint64_t)cmd,
+        .size = sizeof(msg.payload.u64),
+    };
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static int vhost_user_get_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)
 {
@@ -671,6 +687,7 @@ const VhostOps user_ops = {
         .vhost_reset_device = vhost_user_reset_device,
         .vhost_get_vq_index = vhost_user_get_vq_index,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
+        .vhost_set_vhost_pci = vhost_user_set_vhost_pci,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_backend_can_merge = vhost_user_can_merge,

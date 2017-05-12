@@ -18,6 +18,7 @@
 #include "net/tap.h"
 #include "net/vhost-user.h"
 
+#include "hw/virtio/vhost-user.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "qemu/error-report.h"
@@ -296,6 +297,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    struct vhost_net *last_net;
     int r, e, i;
 
     if (!k->set_guest_notifiers) {
@@ -341,6 +343,15 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
+    last_net = get_vhost_net(ncs[total_queues - 1].peer);
+    if (vhost_pci_enabled(&last_net->dev)) {
+        r = vhost_set_vhost_pci(ncs[total_queues - 1].peer,
+                              VHOST_USER_SET_VHOST_PCI_START);
+        if (r < 0) {
+            goto err_start;
+        }
+    }
+
     return 0;
 
 err_start:
@@ -362,7 +373,14 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    struct vhost_net *last_net;
     int i, r;
+
+    last_net = get_vhost_net(ncs[total_queues - 1].peer);
+    if (vhost_pci_enabled(&last_net->dev)) {
+        vhost_set_vhost_pci(ncs[total_queues - 1].peer,
+                              VHOST_USER_SET_VHOST_PCI_STOP);
+    }
 
     for (i = 0; i < total_queues; i++) {
         vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
@@ -450,6 +468,18 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
 
+int vhost_set_vhost_pci(NetClientState *nc, uint8_t cmd)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (vhost_ops && vhost_ops->vhost_set_vhost_pci) {
+        return vhost_ops->vhost_set_vhost_pci(&net->dev, cmd);
+    }
+
+    return 0;
+}
+
 #else
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
@@ -521,4 +551,10 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 {
     return 0;
 }
+
+int vhost_set_vhost_pci(NetClientState *nc, uint8_t cmd)
+{
+    return 0;
+}
+
 #endif
