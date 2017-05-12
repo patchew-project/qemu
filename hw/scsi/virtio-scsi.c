@@ -534,6 +534,7 @@ static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
 static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     VirtIOSCSICommon *vs = &s->parent_obj;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     SCSIDevice *d;
     int rc;
 
@@ -559,6 +560,21 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
                              req->req.cmd.cdb, req);
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_TIMEOUT)) {
+        int timeout = (int)req->req.cmd.crn;
+
+        if (timeout < 60) {
+            /* Timeouts below 60 are in seconds */
+            req->sreq->timeout = timeout * 1000;
+        } else if (timeout == 255) {
+            /* 255 is infinite timeout */
+            req->sreq->timeout = UINT_MAX;
+        } else {
+            /* Otherwise the timeout is in minutes */
+            req->sreq->timeout = timeout * 1000 * 60;
+        }
+    }
 
     if (req->sreq->cmd.mode != SCSI_XFER_NONE
         && (req->sreq->cmd.mode != req->mode ||
