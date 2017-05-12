@@ -182,7 +182,7 @@ static void net_socket_send(void *opaque)
     }
     buf = buf1;
 
-    ret = net_fill_rstate(&s->rs, buf, size);
+    ret = net_fill_rstate(&s->rs, buf, size, false);
 
     if (ret == -1) {
         goto eoc;

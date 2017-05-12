@@ -530,7 +530,7 @@ static void compare_pri_chr_in(void *opaque, const uint8_t *buf, int size)
     CompareState *s = COLO_COMPARE(opaque);
     int ret;
 
-    ret = net_fill_rstate(&s->pri_rs, buf, size);
+    ret = net_fill_rstate(&s->pri_rs, buf, size, false);
     if (ret == -1) {
         qemu_chr_fe_set_handlers(&s->chr_pri_in, NULL, NULL, NULL,
                                  NULL, NULL, true);
@@ -547,7 +547,7 @@ static void compare_sec_chr_in(void *opaque, const uint8_t *buf, int size)
     CompareState *s = COLO_COMPARE(opaque);
     int ret;
 
-    ret = net_fill_rstate(&s->sec_rs, buf, size);
+    ret = net_fill_rstate(&s->sec_rs, buf, size, false);
     if (ret == -1) {
         qemu_chr_fe_set_handlers(&s->chr_sec_in, NULL, NULL, NULL,
                                  NULL, NULL, true);

@@ -134,7 +134,7 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
     MirrorState *s = FILTER_REDIRECTOR(nf);
     int ret;
 
-    ret = net_fill_rstate(&s->rs, buf, size);
+    ret = net_fill_rstate(&s->rs, buf, size, s->vnet_hdr);
 
     if (ret == -1) {
         qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
