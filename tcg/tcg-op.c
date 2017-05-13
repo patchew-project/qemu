@@ -2562,8 +2562,7 @@ void tcg_gen_extr_i64_i32(TCGv_i32 lo, TCGv_i32 hi, TCGv_i64 arg)
         tcg_gen_mov_i32(lo, TCGV_LOW(arg));
         tcg_gen_mov_i32(hi, TCGV_HIGH(arg));
     } else {
-        tcg_gen_extrl_i64_i32(lo, arg);
-        tcg_gen_extrh_i64_i32(hi, arg);
+        tcg_gen_extr_i64_i32(lo, hi, arg);
     }
 }
 
