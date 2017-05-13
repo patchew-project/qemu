@@ -7881,6 +7881,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_nop_modrm(env, s, modrm);
         break;
     case 0x119: case 0x11c ... 0x11f: /* nop (multi byte) */
+        if (prefixes & PREFIX_LOCK) {
+            goto illegal_op;
+        }
         modrm = cpu_ldub_code(env, s->pc++);
         gen_nop_modrm(env, s, modrm);
         break;
