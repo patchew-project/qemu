@@ -27,10 +27,10 @@
 #ifndef VIXL_UTILS_H
 #define VIXL_UTILS_H
 
-#include <string.h>
-#include <cmath>
 #include "vixl/globals.h"
 #include "vixl/compiler-intrinsics.h"
+#include <string.h>
+#include <cmath>
 
 namespace vixl {
 
