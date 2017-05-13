@@ -2,3 +2,15 @@
 
 # hw/arm/virt-acpi-build.c
 virt_acpi_setup(void) "No fw cfg or ACPI disabled. Bailing out."
+
+# hw/arm/smmu-common.c
+
+smmu_page_walk(int stage, uint64_t baseaddr, int first_level, uint64_t start, uint64_t end) "stage=%d, baseaddr=0x%"PRIx64", first level=%d, start=0x%"PRIx64", end=0x%"PRIx64
+smmu_page_walk_level_in(int level, uint64_t baseaddr, int granule_sz, uint64_t start, uint64_t end, uint64_t subpage_size) "level=%d baseaddr=0x%"PRIx64" granule=%d, start=0x%"PRIx64" end=0x%"PRIx64", subpage_size=0x%lx"
+smmu_page_walk_level(int level, uint64_t iova, uint64_t baseaddr, uint32_t offset, uint64_t pte) "level=%d iova=0x%lx baseaddr=0x%"PRIx64" offset=0x%x => pte=0x%lx"
+smmu_page_walk_level_res_invalid_pte(uint64_t baseaddr, uint32_t offset, uint64_t pte) "baseaddr=0x%"PRIx64" offset=0x%x pte=0x%lx"
+smmu_page_walk_level_page_pte(uint64_t pte, uint64_t address) "pte=0x%"PRIx64" page address = 0x%"PRIx64
+smmu_page_walk_level_block_pte(uint64_t pte, uint64_t address) "pte=0x%"PRIx64" block address = 0x%"PRIx64
+smmu_page_walk_level_table_pte(uint64_t pte, uint64_t address) "pte=0x%"PRIx64" next table address = 0x%"PRIx64
+smmu_get_pte(uint64_t baseaddr, int index, uint64_t pteaddr, uint64_t pte) "baseaddr=0x%"PRIx64" index=0x%x, pteaddr=0x%"PRIx64", pte=0x%"PRIx64
+smmu_set_translated_address(hwaddr iova, hwaddr va) "iova = 0x%"PRIx64" -> pa = 0x%"PRIx64
