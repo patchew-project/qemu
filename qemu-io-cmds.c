@@ -1565,6 +1565,82 @@ static const cmdinfo_t flush_cmd = {
     .oneline    = "flush all in-core file state to disk",
 };
 
+static const cmdinfo_t drain_cmd;
+
+static int drain_f(BlockBackend *blk, int argc, char **argv)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    bool flush = false;
+    int c;
+
+    while ((c = getopt(argc, argv, "f")) != -1) {
+        switch (c) {
+        case 'f':
+            flush = true;
+            break;
+        default:
+            return qemuio_command_usage(&drain_cmd);
+        }
+    }
+
+    if (optind != argc) {
+        return qemuio_command_usage(&drain_cmd);
+    }
+
+
+    if (bs->quiesce_counter) {
+        printf("drain failed: device is already drained!\n");
+        return 1;
+    }
+
+    bdrv_drained_begin(bs); /* complete I/O */
+    if (flush) {
+        bdrv_flush(bs);
+        bdrv_drain(bs); /* in case flush left pending I/O */
+        printf("flushed all pending I/O\n");
+    }
+    printf("drain successful\n");
+    return 0;
+}
+
+static void drain_help(void)
+{
+    printf(
+"\n"
+" Drains all external I/O from the device\n"
+"\n"
+" -f, -- flush all in-core file state to disk\n"
+"\n");
+}
+
+static const cmdinfo_t drain_cmd = {
+    .name       = "drain",
+    .cfunc      = drain_f,
+    .args       = "[-f]",
+    .argmin     = 0,
+    .argmax     = -1,
+    .oneline    = "cease to send I/O to the device",
+    .help       = drain_help
+};
+
+static int undrain_f(BlockBackend *blk, int argc, char **argv)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    if (!bs->quiesce_counter) {
+        printf("undrain failed: device is not drained!\n");
+        return 1;
+    }
+    bdrv_drained_end(bs);
+    printf("undrain successful\n");
+    return 0;
+}
+
+static const cmdinfo_t undrain_cmd = {
+    .name       = "undrain",
+    .cfunc      = undrain_f,
+    .oneline    = "continue I/O to a drained device",
+};
+
 static int truncate_f(BlockBackend *blk, int argc, char **argv)
 {
     Error *local_err = NULL;
@@ -2297,6 +2373,8 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&aio_write_cmd);
     qemuio_add_command(&aio_flush_cmd);
     qemuio_add_command(&flush_cmd);
+    qemuio_add_command(&drain_cmd);
+    qemuio_add_command(&undrain_cmd);
     qemuio_add_command(&truncate_cmd);
     qemuio_add_command(&length_cmd);
     qemuio_add_command(&info_cmd);
