@@ -403,7 +403,7 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
 /* Called from RCU critical section */
 static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
                                                         hwaddr addr,
-                                                        bool resolve_subpage)
+                                                        bool is_mmio)
 {
     MemoryRegionSection *section = atomic_read(&d->mru_section);
     subpage_t *subpage;
@@ -416,7 +416,7 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
         section = phys_page_find(d, addr);
         update = true;
     }
-    if (resolve_subpage && section->mr->subpage) {
+    if (is_mmio && section->mr->subpage) {
         subpage = container_of(section->mr, subpage_t, iomem);
         section = &d->map.sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
     }
@@ -429,13 +429,13 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
 /* Called from RCU critical section */
 static MemoryRegionSection *
 address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *xlat,
-                                 hwaddr *plen, bool resolve_subpage)
+                                 hwaddr *plen, bool is_mmio)
 {
     MemoryRegionSection *section;
     MemoryRegion *mr;
     Int128 diff;
 
-    section = address_space_lookup_region(d, addr, resolve_subpage);
+    section = address_space_lookup_region(d, addr, is_mmio);
     /* Compute offset within MemoryRegionSection */
     addr -= section->offset_within_address_space;
 
