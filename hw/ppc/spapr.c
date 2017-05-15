@@ -133,6 +133,7 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
         if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
             error_reportf_err(err,
                               "kernel_irqchip requested but unavailable: ");
+            exit(EXIT_FAILURE);
         } else {
             error_free(err);
         }
