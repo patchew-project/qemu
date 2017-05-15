@@ -119,6 +119,7 @@ static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
     size_t size = object_type_get_instance_size(typename);
     CPUCore *cc = CPU_CORE(dev);
     int i;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     for (i = 0; i < cc->nr_threads; i++) {
         void *obj = sc->threads + i * size;
@@ -127,7 +128,9 @@ static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         spapr_cpu_destroy(cpu);
-        object_unparent(cpu->intc);
+        if (!spapr->legacy_icps) {
+            object_unparent(cpu->intc);
+        }
         cpu_remove_sync(cs);
         object_unparent(obj);
     }
@@ -142,12 +145,19 @@ static void spapr_cpu_core_realize_child(Object *child, Error **errp)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     Object *obj;
 
-    obj = object_new(spapr->icp_type);
-    object_property_add_child(OBJECT(cpu), "icp", obj, NULL);
-    object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
-    object_property_set_bool(obj, true, "realized", &local_err);
-    if (local_err) {
-        goto error;
+    if (spapr->legacy_icps) {
+        int index = cpu->parent_obj.cpu_index;
+
+        obj = OBJECT(&spapr->legacy_icps[index]);
+    } else {
+        obj = object_new(spapr->icp_type);
+        object_property_add_child(OBJECT(cpu), "icp", obj, &error_abort);
+        object_property_add_const_link(obj, "xics", OBJECT(spapr),
+                                       &error_abort);
+        object_property_set_bool(obj, true, "realized", &local_err);
+        if (local_err) {
+            goto error;
+        }
     }
 
     object_property_set_bool(child, true, "realized", &local_err);
@@ -164,7 +174,9 @@ static void spapr_cpu_core_realize_child(Object *child, Error **errp)
     return;
 
 error:
-    object_unparent(obj);
+    if (!spapr->legacy_icps) {
+        object_unparent(obj);
+    }
     error_propagate(errp, local_err);
 }
 

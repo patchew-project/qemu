@@ -126,6 +126,7 @@ error:
 static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     Error *local_err = NULL;
 
     if (kvm_enabled()) {
@@ -151,6 +152,38 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
                                       &local_err);
     }
 
+    if (!spapr->ics) {
+        goto out;
+    }
+
+    if (smc->must_pre_allocate_icps) {
+        int smt = kvmppc_smt_threads();
+        int nr_servers = DIV_ROUND_UP(max_cpus * smt, smp_threads);
+        int i;
+
+        spapr->legacy_icps = g_malloc0(nr_servers * sizeof(ICPState));
+
+        for (i = 0; i < nr_servers; i++) {
+            void* obj = &spapr->legacy_icps[i];
+
+            object_initialize(obj, sizeof(ICPState), spapr->icp_type);
+            object_property_add_child(OBJECT(spapr), "icp[*]", obj,
+                                      &error_abort);
+            object_unref(obj);
+            object_property_add_const_link(obj, "xics", OBJECT(spapr),
+                                           &error_abort);
+            object_property_set_bool(obj, true, "realized", &local_err);
+            if (local_err) {
+                while (i--) {
+                    object_unparent(obj);
+                }
+                g_free(spapr->legacy_icps);
+                break;
+            }
+        }
+    }
+
+out:
     error_propagate(errp, local_err);
 }
 
@@ -3249,8 +3282,11 @@ static void spapr_machine_2_9_instance_options(MachineState *machine)
 
 static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_10_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
+    smc->must_pre_allocate_icps = true;
 }
 
 DEFINE_SPAPR_MACHINE(2_9, "2.9", false);
