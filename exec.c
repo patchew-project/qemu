@@ -455,7 +455,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
      * everything works fine.  If the incoming length is large, however,
      * the caller really has to do the clamping through memory_access_size.
      */
-    if (memory_region_is_ram(mr)) {
+    if (is_mmio && memory_region_is_ram(mr)) {
         diff = int128_sub(section->size, int128_make64(addr));
         *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     }
