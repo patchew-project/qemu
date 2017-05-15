@@ -7123,6 +7123,24 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
     return 0;
 }
 
+#ifdef MUX_SIG
+static inline int multiplex(abi_long *arg, siginfo_t *uinfo)
+{
+    if (*arg >= _NSIG && *arg < TARGET_NSIG) {
+        /*
+         * Using si_errno to transfer the signal number assumes that the field
+         * doesn't change its value before it gets handled in the
+         * host_signal_handler().
+         */
+        uinfo->si_errno = *arg;
+        *arg = MUX_SIG;
+        uinfo->si_signo = MUX_SIG;
+    }
+
+    return 0;
+}
+#endif
+
 /* ??? Using host futex calls even when target atomic operations
    are not really atomic probably breaks things.  However implementing
    futexes locally would make futexes shared between multiple processes
@@ -8258,7 +8276,42 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_kill:
+#ifdef MUX_SIG
+        if (arg2 >= _NSIG && arg2 < TARGET_NSIG) {
+            siginfo_t info;
+
+            info.si_errno = arg2;
+            info.si_signo = MUX_SIG;
+            info.si_code = SIG_SPOOF(SI_USER);
+            info.si_pid = getpid();
+            info.si_uid = getuid();
+
+            /* pid > 0 */
+            if (arg1 > 0) {
+                ret = get_errno(sys_rt_sigqueueinfo(arg1, MUX_SIG, &info));
+            } else {
+                ret = -TARGET_EINVAL;
+            }
+            /*
+             * TODO: In order to implement kill with rt_tgsigqueueinfo() for
+             * cases where pid <= 0 one needs to get a list of all the relevant
+             * processes and simultaniously send the signal to them.
+             * Missing:
+             * (pid = 0):
+             *     send to every process in the process group of
+             *     the calling process
+             * (pid = -1):
+             *     send to every process for which the calling process
+             *     has permission to send signals, except for process 1 (init)
+             * (pid < -1):
+             *     send to every process in the process group whose ID is -pid
+             */
+        } else {
+            ret = get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
+        }
+#else
         ret = get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
+#endif
         break;
 #ifdef TARGET_NR_rename
     case TARGET_NR_rename:
@@ -8929,6 +8982,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             target_to_host_siginfo(&uinfo, p);
             unlock_user(p, arg3, 0);
+#ifdef MUX_SIG
+            multiplex(&arg2, &uinfo);
+#endif
             ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
         }
         break;
@@ -8942,6 +8998,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             target_to_host_siginfo(&uinfo, p);
             unlock_user(p, arg4, 0);
+#ifdef MUX_SIG
+            multiplex(&arg3, &uinfo);
+#endif
             ret = get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, arg3, &uinfo));
         }
         break;
@@ -11743,12 +11802,34 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 
     case TARGET_NR_tkill:
+        /*
+         * TODO: In order to implement tkill with rt_sigqueueinfo() one needs
+         * to get a list of all the threads with the specifiend tid and
+         * simultaniously send the signal to them.
+         */
         ret = get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
         break;
 
     case TARGET_NR_tgkill:
+#ifdef MUX_SIG
+        if (arg3 >= _NSIG && arg3 < TARGET_NSIG) {
+            siginfo_t info;
+
+            info.si_errno = arg3;
+            info.si_signo = MUX_SIG;
+            info.si_code = SIG_SPOOF(SI_TKILL);
+            info.si_pid = getpid();
+            info.si_uid = getuid();
+
+            ret = get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, MUX_SIG, &info));
+        } else {
+            ret = get_errno(safe_tgkill((int)arg1, (int)arg2,
+                            target_to_host_signal(arg3)));
+        }
+#else
         ret = get_errno(safe_tgkill((int)arg1, (int)arg2,
                         target_to_host_signal(arg3)));
+#endif
         break;
 
 #ifdef TARGET_NR_set_robust_list

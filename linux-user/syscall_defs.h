@@ -412,6 +412,14 @@ struct target_dirent64 {
  * the host signal masks.
  */
 #define TRACK_TARGET_SIGMASK
+
+/*
+ * This macro is used to change a kill/tgkill signal so it can be sent through
+ * rt_sigqueueinfo()/rt_tgsigqueueinfo(), since the host kernel doesn't allow
+ * direct impersonations of those signals. Subtracting 8 from the code moves
+ * it to the nearest unused kernel si_code value.
+ */
+#define SIG_SPOOF(code)  ((code) - 8)
 #endif
 
 typedef struct {
