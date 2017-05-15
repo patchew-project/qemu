@@ -1272,30 +1272,14 @@ static const struct SCSIBusInfo mptsas_scsi_info = {
 static void mptsas_scsi_realize(PCIDevice *dev, Error **errp)
 {
     MPTSASState *s = MPT_SAS(dev);
-    Error *err = NULL;
-    int ret;
 
     dev->config[PCI_LATENCY_TIMER] = 0;
     dev->config[PCI_INTERRUPT_PIN] = 0x01;
 
     if (s->msi != ON_OFF_AUTO_OFF) {
-        ret = msi_init(dev, 0, 1, true, false, &err);
-        /* Any error other than -ENOTSUP(board's MSI support is broken)
-         * is a programming error */
-        assert(!ret || ret == -ENOTSUP);
-        if (ret && s->msi == ON_OFF_AUTO_ON) {
-            /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&err, "You have to use msi=auto (default) or "
-                    "msi=off with this machine type.\n");
-            error_propagate(errp, err);
-            return;
-        }
-        assert(!err || s->msi == ON_OFF_AUTO_AUTO);
-        /* With msi=auto, we fall back to MSI off silently */
-        error_free(err);
-
+        msi_init(dev, 0, 1, true, false);
         /* Only used for migration.  */
-        s->msi_in_use = (ret == 0);
+        s->msi_in_use = true;
     }
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &mptsas_mmio_ops, s,

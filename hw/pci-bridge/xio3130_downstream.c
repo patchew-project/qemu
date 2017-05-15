@@ -66,14 +66,9 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
-    rc = msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,
-                  XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
-                  XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT, &err);
-    if (rc < 0) {
-        assert(rc == -ENOTSUP);
-        error_report_err(err);
-        goto err_bridge;
-    }
+    msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,
+             XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
+             XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT);
 
     rc = pci_bridge_ssvid_init(d, XIO3130_SSVID_OFFSET,
                                XIO3130_SSVID_SVID, XIO3130_SSVID_SSID);

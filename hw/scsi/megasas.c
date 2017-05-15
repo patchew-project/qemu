@@ -2329,8 +2329,6 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     MegasasBaseClass *b = MEGASAS_DEVICE_GET_CLASS(s);
     uint8_t *pci_conf;
     int i, bar_type;
-    Error *err = NULL;
-    int ret;
 
     pci_conf = dev->config;
 
@@ -2340,21 +2338,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
     if (s->msi != ON_OFF_AUTO_OFF) {
-        ret = msi_init(dev, 0x50, 1, true, false, &err);
-        /* Any error other than -ENOTSUP(board's MSI support is broken)
-         * is a programming error */
-        assert(!ret || ret == -ENOTSUP);
-        if (ret && s->msi == ON_OFF_AUTO_ON) {
-            /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&err, "You have to use msi=auto (default) or "
-                    "msi=off with this machine type.\n");
-            error_propagate(errp, err);
-            return;
-        } else if (ret) {
-            /* With msi=auto, we fall back to MSI off silently */
-            s->msi = ON_OFF_AUTO_OFF;
-            error_free(err);
-        }
+        msi_init(dev, 0x50, 1, true, false);
     }
 
     memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,

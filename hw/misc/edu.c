@@ -352,9 +352,7 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
 
     pci_config_set_interrupt_pin(pci_conf, 1);
 
-    if (msi_init(pdev, 0, 1, true, false, errp)) {
-        return;
-    }
+    msi_init(pdev, 0, 1, true, false);
 
     memory_region_init_io(&edu->mmio, OBJECT(edu), &edu_mmio_ops, edu,
                     "edu-mmio", 1 << 20);
