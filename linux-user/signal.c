@@ -296,17 +296,85 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
     return 0;
 }
 
+#ifdef TRACK_TARGET_SIGMASK
+int do_target_sigprocmask(int how, const target_sigset_t *target_set,
+                          target_sigset_t *target_oldset,
+                          const sigset_t *set, sigset_t *oldset)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+    if (target_oldset) {
+        *target_oldset = ts->target_signal_mask;
+    }
+    if (oldset) {
+        *oldset = ts->signal_mask;
+    }
+
+    if (target_set && set) {
+        int i;
+
+        if (block_signals()) {
+            return -TARGET_ERESTARTSYS;
+        }
+
+        switch (how) {
+        case SIG_BLOCK:
+            target_sigorset(&ts->target_signal_mask, &ts->target_signal_mask,
+                            target_set);
+            sigorset(&ts->signal_mask, &ts->signal_mask, set);
+            break;
+        case SIG_UNBLOCK:
+            for (i = 1; i <= TARGET_NSIG; ++i) {
+                if (target_sigismember(target_set, i) == 1) {
+                    target_sigdelset(&ts->target_signal_mask, i);
+                }
+            }
+            for (i = 1; i <= NSIG; ++i) {
+                if (sigismember(set, i) == 1) {
+                    sigdelset(&ts->signal_mask, i);
+                }
+            }
+            break;
+        case SIG_SETMASK:
+            ts->target_signal_mask = *target_set;
+            ts->signal_mask = *set;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        /* Silently ignore attempts to change blocking status of KILL or STOP */
+        target_sigdelset(&ts->target_signal_mask, SIGKILL);
+        target_sigdelset(&ts->target_signal_mask, SIGSTOP);
+        sigdelset(&ts->signal_mask, SIGKILL);
+        sigdelset(&ts->signal_mask, SIGSTOP);
+    }
+    return 0;
+}
+#endif
+
 #if !defined(TARGET_OPENRISC) && !defined(TARGET_UNICORE32) && \
     !defined(TARGET_NIOS2)
 /* Just set the guest's signal mask to the specified value; the
  * caller is assumed to have called block_signals() already.
  */
+#ifndef TRACK_TARGET_SIGMASK
 static void set_sigmask(const sigset_t *set)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
 
     ts->signal_mask = *set;
 }
+#else
+static void target_set_sigmask(const sigset_t *set,
+                               const target_sigset_t *target_set)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+    ts->signal_mask = *set;
+    ts->target_signal_mask = *target_set;
+}
+#endif
 #endif
 
 /* siginfo conversion */
@@ -3315,6 +3383,9 @@ long do_sigreturn(CPUMIPSState *regs)
     abi_ulong frame_addr;
     sigset_t blocked;
     target_sigset_t target_set;
+#ifdef TRACK_TARGET_SIGMASK
+    target_sigset_t target_blocked;
+#endif
     int i;
 
     frame_addr = regs->active_tc.gpr[29];
@@ -3327,7 +3398,12 @@ long do_sigreturn(CPUMIPSState *regs)
     }
 
     target_to_host_sigset_internal(&blocked, &target_set);
+#ifdef TRACK_TARGET_SIGMASK
+    tswapal_target_sigset(&target_blocked, &target_set);
+    target_set_sigmask(&blocked, &target_blocked);
+#else
     set_sigmask(&blocked);
+#endif
 
     restore_sigcontext(regs, &frame->sf_sc);
 
@@ -3423,6 +3499,9 @@ long do_rt_sigreturn(CPUMIPSState *env)
     struct target_rt_sigframe *frame;
     abi_ulong frame_addr;
     sigset_t blocked;
+#ifdef TRACK_TARGET_SIGMASK
+    target_sigset_t target_blocked;
+#endif
 
     frame_addr = env->active_tc.gpr[29];
     trace_user_do_rt_sigreturn(env, frame_addr);
@@ -3431,7 +3510,12 @@ long do_rt_sigreturn(CPUMIPSState *env)
     }
 
     target_to_host_sigset(&blocked, &frame->rs_uc.tuc_sigmask);
+#ifdef TRACK_TARGET_SIGMASK
+    tswapal_target_sigset(&target_blocked, &frame->rs_uc.tuc_sigmask);
+    target_set_sigmask(&blocked, &target_blocked);
+#else
     set_sigmask(&blocked);
+#endif
 
     restore_sigcontext(env, &frame->rs_uc.tuc_mcontext);
 
@@ -6575,6 +6659,9 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     abi_ulong handler;
     sigset_t set;
     target_sigset_t target_old_set;
+#ifdef TRACK_TARGET_SIGMASK
+    target_sigset_t target_set;
+#endif
     struct target_sigaction *sa;
     TaskState *ts = cpu->opaque;
 
@@ -6612,21 +6699,39 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     } else {
         /* compute the blocked signals during the handler execution */
         sigset_t *blocked_set;
+#ifdef TRACK_TARGET_SIGMASK
+        target_sigset_t *target_blocked_set;
 
+        tswapal_target_sigset(&target_set, &sa->sa_mask);
+#endif
         target_to_host_sigset(&set, &sa->sa_mask);
         /* SA_NODEFER indicates that the current signal should not be
            blocked during the handler */
-        if (!(sa->sa_flags & TARGET_SA_NODEFER))
+        if (!(sa->sa_flags & TARGET_SA_NODEFER)) {
+#ifdef TRACK_TARGET_SIGMASK
+            target_sigaddset(&target_set, sig);
+#endif
             sigaddset(&set, target_to_host_signal(sig));
+        }
 
         /* save the previous blocked signal state to restore it at the
            end of the signal execution (see do_sigreturn) */
+#ifdef TRACK_TARGET_SIGMASK
+        target_old_set = ts->target_signal_mask;
+#else
         host_to_target_sigset_internal(&target_old_set, &ts->signal_mask);
+#endif
 
         /* block signals in the handler */
         blocked_set = ts->in_sigsuspend ?
             &ts->sigsuspend_mask : &ts->signal_mask;
         sigorset(&ts->signal_mask, blocked_set, &set);
+#ifdef TRACK_TARGET_SIGMASK
+        target_blocked_set = ts->in_sigsuspend ?
+            &ts->target_sigsuspend_mask : &ts->target_signal_mask;
+        target_sigorset(&ts->target_signal_mask, target_blocked_set,
+                        &target_set);
+#endif
         ts->in_sigsuspend = 0;
 
         /* if the CPU is in VM86 mode, we restore the 32 bit values */
@@ -6662,7 +6767,11 @@ void process_pending_signals(CPUArchState *cpu_env)
     int sig;
     TaskState *ts = cpu->opaque;
     sigset_t set;
+#ifdef TRACK_TARGET_SIGMASK
+    target_sigset_t *target_blocked_set;
+#else
     sigset_t *blocked_set;
+#endif
 
     while (atomic_read(&ts->signal_pending)) {
         /* FIXME: This is not threadsafe.  */
@@ -6680,22 +6789,42 @@ void process_pending_signals(CPUArchState *cpu_env)
              * to block a synchronous signal since it could then just end up
              * looping round and round indefinitely.
              */
+#ifdef TRACK_TARGET_SIGMASK
+            if (sigismember(&ts->signal_mask, target_to_host_signal(sig)) == 1
+                || target_sigismember(&ts->target_signal_mask, sig) == 1
+                || sigact_table[sig - 1]._sa_handler == TARGET_SIG_IGN) {
+                sigdelset(&ts->signal_mask, target_to_host_signal(sig));
+                target_sigdelset(&ts->target_signal_mask, sig);
+                sigact_table[sig - 1]._sa_handler = TARGET_SIG_DFL;
+            }
+#else
             if (sigismember(&ts->signal_mask, target_to_host_signal_table[sig])
                 || sigact_table[sig - 1]._sa_handler == TARGET_SIG_IGN) {
                 sigdelset(&ts->signal_mask, target_to_host_signal_table[sig]);
                 sigact_table[sig - 1]._sa_handler = TARGET_SIG_DFL;
             }
+#endif
 
             handle_pending_signal(cpu_env, sig, &ts->sync_signal);
         }
 
         for (sig = 1; sig <= TARGET_NSIG; sig++) {
+#ifdef TRACK_TARGET_SIGMASK
+            target_blocked_set = ts->in_sigsuspend ?
+                &ts->target_sigsuspend_mask : &ts->target_signal_mask;
+#else
             blocked_set = ts->in_sigsuspend ?
                 &ts->sigsuspend_mask : &ts->signal_mask;
+#endif
 
+#ifdef TRACK_TARGET_SIGMASK
+            if (ts->sigtab[sig - 1].pending &&
+                (!target_sigismember(target_blocked_set, sig))) {
+#else
             if (ts->sigtab[sig - 1].pending &&
                 (!sigismember(blocked_set,
                               target_to_host_signal_table[sig]))) {
+#endif
                 handle_pending_signal(cpu_env, sig, &ts->sigtab[sig - 1]);
                 /* Restart scan from the beginning, as handle_pending_signal
                  * might have resulted in a new synchronous signal (eg SIGSEGV).
