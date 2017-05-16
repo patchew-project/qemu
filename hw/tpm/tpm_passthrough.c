@@ -227,15 +227,6 @@ static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd cmd)
     }
 }
 
-/*
- * Start the TPM (thread). If it had been started before, then terminate
- * and start it again.
- */
-static int tpm_passthrough_startup_tpm(TPMBackend *tb)
-{
-    return 0;
-}
-
 static void tpm_passthrough_reset(TPMBackend *tb)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
@@ -245,11 +236,6 @@ static void tpm_passthrough_reset(TPMBackend *tb)
     tpm_passthrough_cancel_cmd(tb);
 
     tpm_pt->had_startup_error = false;
-}
-
-static int tpm_passthrough_init(TPMBackend *tb)
-{
-    return 0;
 }
 
 static bool tpm_passthrough_get_tpm_established_flag(TPMBackend *tb)
@@ -307,11 +293,6 @@ static void tpm_passthrough_cancel_cmd(TPMBackend *tb)
                          "TPM sysfs cancel entry");
         }
     }
-}
-
-static const char *tpm_passthrough_create_desc(void)
-{
-    return "Passthrough TPM backend driver";
 }
 
 static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
@@ -453,10 +434,8 @@ static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
 static const TPMDriverOps tpm_passthrough_driver = {
     .type                     = TPM_TYPE_PASSTHROUGH,
     .opts                     = tpm_passthrough_cmdline_opts,
-    .desc                     = tpm_passthrough_create_desc,
+    .desc                     = "Passthrough TPM backend driver",
     .create                   = tpm_passthrough_create,
-    .init                     = tpm_passthrough_init,
-    .startup_tpm              = tpm_passthrough_startup_tpm,
     .realloc_buffer           = tpm_passthrough_realloc_buffer,
     .reset                    = tpm_passthrough_reset,
     .had_startup_error        = tpm_passthrough_get_startup_error,

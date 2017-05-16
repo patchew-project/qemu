@@ -75,7 +75,7 @@ struct TPMDriverOps {
     enum TpmType type;
     const QemuOptDesc *opts;
     /* get a descriptive text of the backend to display to the user */
-    const char *(*desc)(void);
+    const char *desc;
 
     TPMBackend *(*create)(QemuOpts *opts, const char *id);
 
@@ -98,23 +98,6 @@ struct TPMDriverOps {
 
     TPMVersion (*get_tpm_version)(TPMBackend *t);
 };
-
-
-/**
- * tpm_backend_get_type:
- * @s: the backend
- *
- * Returns the TpmType of the backend.
- */
-enum TpmType tpm_backend_get_type(TPMBackend *s);
-
-/**
- * tpm_backend_get_desc:
- * @s: the backend
- *
- * Returns a human readable description of the backend.
- */
-const char *tpm_backend_get_desc(TPMBackend *s);
 
 /**
  * tpm_backend_init:
