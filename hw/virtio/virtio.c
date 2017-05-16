@@ -2515,6 +2515,7 @@ static void virtio_device_unrealize(DeviceState *dev, Error **errp)
         }
     }
 
+    memory_listener_unregister(&vdev->listener);
     g_free(vdev->bus_name);
     vdev->bus_name = NULL;
 }
@@ -2539,7 +2540,6 @@ static void virtio_device_instance_finalize(Object *obj)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(obj);
 
-    memory_listener_unregister(&vdev->listener);
     virtio_device_free_virtqueues(vdev);
 
     g_free(vdev->config);
