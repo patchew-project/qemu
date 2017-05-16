@@ -433,20 +433,19 @@ static inline void t_gen_subx_carry(DisasContext *dc, TCGv d)
    T0 = ((T0 << 8) & 0xff00ff00) | ((T0 >> 8) & 0x00ff00ff)  */
 static inline void t_gen_swapb(TCGv d, TCGv s)
 {
-    TCGv t, org_s;
+    TCGv t, m;
 
     t = tcg_temp_new();
-    org_s = tcg_temp_new();
+    m = tcg_const_tl(0x00ff00ff);
 
     /* d and s may refer to the same object.  */
-    tcg_gen_mov_tl(org_s, s);
-    tcg_gen_shli_tl(t, org_s, 8);
-    tcg_gen_andi_tl(d, t, 0xff00ff00);
-    tcg_gen_shri_tl(t, org_s, 8);
-    tcg_gen_andi_tl(t, t, 0x00ff00ff);
+    tcg_gen_shri_tl(t, s, 8);
+    tcg_gen_and_tl(t, t, m);
+    tcg_gen_and_tl(d, s, m);
+    tcg_gen_shli_tl(d, d, 8);
     tcg_gen_or_tl(d, d, t);
+    tcg_temp_free(m);
     tcg_temp_free(t);
-    tcg_temp_free(org_s);
 }
 
 /* Swap the halfwords of the s operand.  */
