@@ -1583,6 +1583,7 @@ static int kvm_init(MachineState *ms)
     const char *kvm_type;
 
     s = KVM_STATE(ms->accelerator);
+    kvm_state = s;
 
     /*
      * On systems where the kernel can support different base page
@@ -1754,8 +1755,6 @@ static int kvm_init(MachineState *ms)
     if (machine_kernel_irqchip_allowed(ms)) {
         kvm_irqchip_create(ms, s);
     }
-
-    kvm_state = s;
 
     if (kvm_eventfds_allowed) {
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
