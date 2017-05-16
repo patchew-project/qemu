@@ -938,6 +938,7 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
     unsigned int c = 0;
     TPMPassthroughOptions *tpo;
+    TPMEmulatorOptions *teo;
 
     info_list = qmp_query_tpm(&err);
     if (err) {
@@ -966,6 +967,26 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
                            tpo->has_path ? tpo->path : "",
                            tpo->has_cancel_path ? ",cancel-path=" : "",
                            tpo->has_cancel_path ? tpo->cancel_path : "");
+            break;
+        case TPM_TYPE_EMULATOR:
+            teo = ti->options->u.emulator.data;
+            monitor_printf(mon, ",tmpstatedir=%s", teo->tpmstatedir);
+            monitor_printf(mon, ",spawn=%s", teo->spawn ? "on" : "off");
+            if (teo->has_path) {
+                monitor_printf(mon, ",path=%s", teo->path);
+            }
+            if (teo->has_data_path) {
+                monitor_printf(mon, ",data-path=%s", teo->data_path);
+            }
+            if (teo->has_ctrl_path) {
+                monitor_printf(mon, ",ctrl-path=%s", teo->ctrl_path);
+            }
+            if (teo->has_logfile) {
+                monitor_printf(mon, ",logfile=%s", teo->logfile);
+            }
+            if (teo->has_loglevel) {
+                monitor_printf(mon, ",loglevel=%u", teo->loglevel);
+            }
             break;
         default:
             break;
