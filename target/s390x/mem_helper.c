@@ -933,6 +933,18 @@ void HELPER(stctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
     }
 }
 
+void HELPER(testblock)(CPUS390XState *env, uint64_t addr)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+    int i;
+
+    addr = get_address(env, 0, 0, addr) & ~0xfffULL;
+    for (i = 0; i < TARGET_PAGE_SIZE; i += 8) {
+        stq_phys(cs->as, addr + i, 0);
+    }
+    env->cc_op = 0;
+}
+
 uint32_t HELPER(tprot)(uint64_t a1, uint64_t a2)
 {
     /* XXX implement */
