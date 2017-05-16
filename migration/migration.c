@@ -598,6 +598,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
+    params->has_block_incremental = true;
+    params->block_incremental = s->parameters.block_incremental;
 
     return params;
 }
@@ -906,6 +908,9 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
             colo_checkpoint_notify(s);
         }
     }
+    if (params->has_block_incremental) {
+        s->parameters.block_incremental = params->block_incremental;
+    }
 }
 
 
@@ -941,6 +946,35 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
+void migrate_set_block_enabled(bool value, Error **errp)
+{
+    MigrationCapabilityStatusList *cap;
+
+    cap = g_malloc0(sizeof(*cap));
+    cap->value = g_malloc(sizeof(*cap->value));
+    cap->value->capability = MIGRATION_CAPABILITY_BLOCK;
+    cap->value->state = value;
+    qmp_migrate_set_capabilities(cap, errp);
+    qapi_free_MigrationCapabilityStatusList(cap);
+}
+
+static void migrate_set_block_incremental(MigrationState *s, bool value)
+{
+    s->parameters.block_incremental = value;
+}
+
+static void block_cleanup_parameters(MigrationState *s)
+{
+    if (s->must_remove_block) {
+        migrate_set_block_enabled(false, NULL);
+        s->must_remove_block = false;
+    }
+    if (s->must_remove_block_incremental) {
+        migrate_set_block_incremental(s, false);
+        s->must_remove_block_incremental = false;
+    }
+}
+
 static void migrate_fd_cleanup(void *opaque)
 {
     MigrationState *s = opaque;
@@ -973,6 +1007,7 @@ static void migrate_fd_cleanup(void *opaque)
     }
 
     notifier_list_notify(&migration_state_notifiers, s);
+    block_cleanup_parameters(s);
 }
 
 void migrate_fd_error(MigrationState *s, const Error *error)
@@ -985,6 +1020,7 @@ void migrate_fd_error(MigrationState *s, const Error *error)
         s->error = error_copy(error);
     }
     notifier_list_notify(&migration_state_notifiers, s);
+    block_cleanup_parameters(s);
 }
 
 static void migrate_fd_cancel(MigrationState *s)
@@ -1026,6 +1062,7 @@ static void migrate_fd_cancel(MigrationState *s)
             s->block_inactive = false;
         }
     }
+    block_cleanup_parameters(s);
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
@@ -1208,6 +1245,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     MigrationParams params;
+    bool block_enabled = false;
     const char *p;
 
     params.blk = has_blk && blk;
@@ -1226,6 +1264,38 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
     if (migration_is_blocked(errp)) {
         return;
+    }
+
+    if (has_blk && blk) {
+        if (migrate_use_block() || migrate_use_block_incremental()) {
+            error_setg(errp, "You can't use block capability and -b/i");
+            return;
+        }
+        migrate_set_block_enabled(true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+        block_enabled = true;
+        s->must_remove_block = true;
+    }
+
+    if (has_inc && inc) {
+        if ((migrate_use_block() && !block_enabled)
+            || migrate_use_block_incremental()) {
+            error_setg(errp, "You can't use block capability and -b/i");
+            return;
+        }
+        if (!block_enabled) {
+            migrate_set_block_enabled(true, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+            s->must_remove_block = true;
+        }
+        migrate_set_block_incremental(s, true);
+        s->must_remove_block_incremental = true;
     }
 
     s = migrate_init(&params);
@@ -1423,6 +1493,24 @@ int64_t migrate_xbzrle_cache_size(void)
     s = migrate_get_current();
 
     return s->xbzrle_cache_size;
+}
+
+bool migrate_use_block(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
+}
+
+bool migrate_use_block_incremental(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.block_incremental;
 }
 
 /* migration thread support */
