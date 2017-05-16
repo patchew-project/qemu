@@ -1126,7 +1126,7 @@ bool migration_is_idle(void)
     return false;
 }
 
-MigrationState *migrate_init(const MigrationParams *params)
+MigrationState *migrate_init(void)
 {
     MigrationState *s = migrate_get_current();
 
@@ -1140,7 +1140,6 @@ MigrationState *migrate_init(const MigrationParams *params)
     s->cleanup_bh = 0;
     s->to_dst_file = NULL;
     s->state = MIGRATION_STATUS_NONE;
-    s->params = *params;
     s->rp_state.from_dst_file = NULL;
     s->rp_state.error = false;
     s->mbps = 0.0;
@@ -1244,7 +1243,6 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 {
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
-    MigrationParams params;
     bool block_enabled = false;
     const char *p;
 
@@ -1295,7 +1293,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         s->must_remove_block_incremental = true;
     }
 
-    s = migrate_init(&params);
+    s = migrate_init();
 
     if (strstart(uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
@@ -2019,7 +2017,7 @@ static void *migration_thread(void *opaque)
         qemu_savevm_send_postcopy_advise(s->to_dst_file);
     }
 
-    qemu_savevm_state_begin(s->to_dst_file, &s->params);
+    qemu_savevm_state_begin(s->to_dst_file);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
