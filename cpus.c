@@ -1755,8 +1755,13 @@ void qemu_init_vcpu(CPUState *cpu)
         /* If the target cpu hasn't set up any address spaces itself,
          * give it the default one.
          */
-        AddressSpace *as = address_space_init_shareable(cpu->memory,
-                                                        "cpu-memory");
+        AddressSpace *as;
+        if (cpu->memory == address_space_memory.root) {
+            address_space_memory.ref_count++;
+            as = &address_space_memory;
+        } else {
+            as = address_space_init_shareable(cpu->memory, "cpu-memory");
+        }
         cpu->num_ases = 1;
         cpu_address_space_init(cpu, as, 0);
     }
