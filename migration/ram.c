@@ -1305,6 +1305,8 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
  * a host page in which case the remainder of the hostpage is sent.
  * Only dirty target pages are sent. Note that the host page size may
  * be a huge page for this block.
+ * The saving stops at the boundary of the used_length of the block
+ * if the RAMBlock isn't a multiple of the host page size.
  *
  * Returns the number of pages written or negative on error
  *
@@ -1328,7 +1330,8 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
 
         pages += tmppages;
         pss->page++;
-    } while (pss->page & (pagesize_bits - 1));
+    } while ((pss->page & (pagesize_bits - 1)) &&
+             offset_in_ramblock(pss->block, pss->page << TARGET_PAGE_BITS));
 
     /* The offset we leave with is the last one we looked at */
     pss->page--;
