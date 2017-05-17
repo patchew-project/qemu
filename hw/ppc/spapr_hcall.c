@@ -1047,19 +1047,13 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
     }
 }
 
-static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
-                                                  sPAPRMachineState *spapr,
-                                                  target_ulong opcode,
-                                                  target_ulong *args)
+static uint32_t cas_check_pvr(PowerPCCPU *cpu, target_ulong list,
+                              Error **errp)
 {
-    target_ulong list = ppc64_phys_to_real(args[0]);
-    target_ulong ov_table;
     bool explicit_match = false; /* Matched the CPU's real PVR */
     uint32_t max_compat = cpu->max_compat;
     uint32_t best_compat = 0;
     int i;
-    sPAPROptionVector *ov1_guest, *ov5_guest, *ov5_cas_old, *ov5_updates;
-    bool guest_radix;
 
     /*
      * We scan the supplied table of PVRs looking for two things
@@ -1090,25 +1084,42 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         /* We couldn't find a suitable compatibility mode, and either
          * the guest doesn't support "raw" mode for this CPU, or raw
          * mode is disabled because a maximum compat mode is set */
-        return H_HARDWARE;
+        error_setg(errp, "Couldn't negotiate a suitable PVR during CAS");
+        return 0;
     }
 
     /* Parsing finished */
     trace_spapr_cas_pvr(cpu->compat_pvr, explicit_match, best_compat);
 
-    /* Update CPUs */
-    if (cpu->compat_pvr != best_compat) {
-        Error *local_err = NULL;
+    return best_compat;
+}
 
-        ppc_set_compat_all(best_compat, &local_err);
+static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
+                                                  sPAPRMachineState *spapr,
+                                                  target_ulong opcode,
+                                                  target_ulong *args)
+{
+    /* @ov_table points to the first option vector */
+    target_ulong ov_table = ppc64_phys_to_real(args[0]);
+    uint32_t cas_pvr;
+    sPAPROptionVector *ov1_guest, *ov5_guest, *ov5_cas_old, *ov5_updates;
+    bool guest_radix;
+    Error *local_err = NULL;
+
+    cas_pvr = cas_check_pvr(cpu, ov_table, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return H_HARDWARE;
+    }
+
+    /* Update CPUs */
+    if (cpu->compat_pvr != cas_pvr) {
+        ppc_set_compat_all(cas_pvr, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return H_HARDWARE;
         }
     }
-
-    /* For the future use: here @ov_table points to the first option vector */
-    ov_table = list;
 
     ov1_guest = spapr_ovec_parse_vector(ov_table, 1);
     ov5_guest = spapr_ovec_parse_vector(ov_table, 5);
