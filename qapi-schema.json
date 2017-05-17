@@ -3034,12 +3034,24 @@
 #
 # @name: the type name found in the search
 #
+# @user-creatable-device: If true, the type is a user-creatable device that
+#                         can be used with the "-device" command-line option.
+#                         Note that this does not guarantee that the device
+#                         is going to be accepted by all machine-types.
+#                         (since 2.10)
+#
+# @hotpluggable-device: If true, the type is a hotpluggable device that can
+#                       be plugged using the "device_add" monitor command.
+#                       Note that this does not guarantee that the device can
+#                       be hotplugged on any machine-type. (since 2.10)
+#
 # Since: 1.1
 #
 # Notes: This command is experimental and may change syntax in future releases.
 ##
 { 'struct': 'ObjectTypeInfo',
-  'data': { 'name': 'str' } }
+  'data': { 'name': 'str', 'user-creatable-device': 'bool',
+            'hotpluggable-device': 'bool' } }
 
 ##
 # @qom-list-types:
@@ -3050,12 +3062,21 @@
 #
 # @abstract: if true, include abstract types in the results
 #
+# @user-creatable-devices-only: If true, return only user-creatable device types
+#                               (See @ObjectTypeInfo.user-creatable-device)
+#                               (since 2.10)
+#
+# @hotpluggable-devices-only: If true, return only hotpluggable device types
+#                             (See @ObjectTypeInfo.hotpluggable-device)
+#                             (since 2.10)
+#
 # Returns: a list of @ObjectTypeInfo or an empty list if no results are found
 #
 # Since: 1.1
 ##
 { 'command': 'qom-list-types',
-  'data': { '*implements': 'str', '*abstract': 'bool' },
+  'data': { '*implements': 'str', '*abstract': 'bool',
+            '*user-creatable-devices-only': 'bool', '*hotpluggable-devices-only': 'bool' },
   'returns': [ 'ObjectTypeInfo' ] }
 
 ##

@@ -436,29 +436,58 @@ void qmp_change(const char *device, const char *target,
     }
 }
 
+typedef struct QOMListTypesArgs {
+    bool user_creatable_devices_only;
+    bool hotpluggable_devices_only;
+    ObjectTypeInfoList **pret;
+} QOMListTypesArgs;
+
 static void qom_list_types_tramp(ObjectClass *klass, void *data)
 {
-    ObjectTypeInfoList *e, **pret = data;
+    QOMListTypesArgs *args = data;
+    ObjectTypeInfoList *e;
     ObjectTypeInfo *info;
+    DeviceClass *dc = DEVICE_CLASS(object_class_dynamic_cast(klass,
+                                                             TYPE_DEVICE));
+    bool uc = dc ? dc->user_creatable : false;
+    bool hp = dc ? uc && dc->hotpluggable : false;
+
+    if ((args->user_creatable_devices_only && !uc) ||
+        (args->hotpluggable_devices_only && !hp)) {
+        return;
+    }
 
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(object_class_get_name(klass));
+    info->user_creatable_device = uc;
+    info->hotpluggable_device = hp;
 
     e = g_malloc0(sizeof(*e));
     e->value = info;
-    e->next = *pret;
-    *pret = e;
+    e->next = *args->pret;
+    *args->pret = e;
 }
 
 ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
                                        const char *implements,
                                        bool has_abstract,
                                        bool abstract,
+                                       bool has_user_creatable_devices_only,
+                                       bool user_creatable_devices_only,
+                                       bool has_hotpluggable_devices_only,
+                                       bool hotpluggable_devices_only,
                                        Error **errp)
 {
     ObjectTypeInfoList *ret = NULL;
+    QOMListTypesArgs args = {
+        .pret = &ret,
+        .user_creatable_devices_only = has_user_creatable_devices_only &&
+                                      user_creatable_devices_only,
+        .hotpluggable_devices_only = has_hotpluggable_devices_only &&
+                                    hotpluggable_devices_only,
+    };
 
-    object_class_foreach(qom_list_types_tramp, implements, abstract, &ret);
+    object_class_foreach(qom_list_types_tramp, implements, abstract, &args);
 
     return ret;
 }
