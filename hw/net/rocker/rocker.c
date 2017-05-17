@@ -1371,7 +1371,8 @@ static int pci_rocker_init(PCIDevice *dev)
         fprintf(stderr,
                 "rocker: name too long; please shorten to at most %d chars\n",
                 MAX_ROCKER_NAME_LEN);
-        return -EINVAL;
+        err = -EINVAL;
+        goto err_name_too_long;
     }
 
     if (memcmp(&r->fp_start_macaddr, &zero, sizeof(zero)) == 0) {
@@ -1430,6 +1431,7 @@ static int pci_rocker_init(PCIDevice *dev)
 
     return 0;
 
+err_name_too_long:
 err_duplicate:
     rocker_msix_uninit(r);
 err_msix_init:
