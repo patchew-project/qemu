@@ -1237,6 +1237,7 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 
     /* Clean up any HPT info from a previous boot */
     spapr_free_hpt(spapr);
+    spapr_htab_savevm_unregister(spapr);
 
     rc = kvmppc_reset_htab(shift);
     if (rc < 0) {
@@ -1275,6 +1276,7 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
             DIRTY_HPTE(HPTE(spapr->htab, i));
         }
     }
+    spapr_htab_savevm_register(spapr);
 }
 
 void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
@@ -1874,6 +1876,17 @@ static SaveVMHandlers savevm_htab_handlers = {
     .load_state = htab_load,
 };
 
+void spapr_htab_savevm_register(sPAPRMachineState *spapr)
+{
+    register_savevm_live(NULL, "spapr/htab", -1, 1,
+                         &savevm_htab_handlers, spapr);
+}
+
+void spapr_htab_savevm_unregister(sPAPRMachineState *spapr)
+{
+    unregister_savevm_live(NULL, "spapr/htab", spapr);
+}
+
 static void spapr_boot_set(void *opaque, const char *boot_device,
                            Error **errp)
 {
@@ -2336,8 +2349,6 @@ static void ppc_spapr_init(MachineState *machine)
      * interface, this is a legacy from the sPAPREnvironment structure
      * which predated MachineState but had a similar function */
     vmstate_register(NULL, 0, &vmstate_spapr, spapr);
-    register_savevm_live(NULL, "spapr/htab", -1, 1,
-                         &savevm_htab_handlers, spapr);
 
     /* used by RTAS */
     QTAILQ_INIT(&spapr->ccs_list);

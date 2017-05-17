@@ -914,6 +914,7 @@ static void spapr_check_setup_free_hpt(sPAPRMachineState *spapr,
     } else if (!(patbe_old & PATBE1_GR)) {
         /* HASH->RADIX : Free HPT */
         spapr_free_hpt(spapr);
+        spapr_htab_savevm_unregister(spapr);
     } else if (!(patbe_new & PATBE1_GR)) {
         /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
         spapr_setup_hpt_and_vrma(spapr);
