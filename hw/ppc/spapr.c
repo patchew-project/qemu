@@ -1443,6 +1443,20 @@ static int spapr_post_load(void *opaque, int version_id)
         err = spapr_rtc_import_offset(&spapr->rtc, spapr->rtc_offset);
     }
 
+    if (spapr->patb_entry) {
+        if (kvmppc_has_cap_mmu_radix() && kvm_enabled()) {
+            err = kvmppc_configure_v3_mmu(POWERPC_CPU(first_cpu),
+                                          spapr->patb_flags &
+                                          SPAPR_PROC_TABLE_RADIX,
+                                          spapr->patb_flags &
+                                          SPAPR_PROC_TABLE_GTSE,
+                                          spapr->patb_entry);
+        } else {
+            error_report("Radix guest is unsupported by the host");
+            return -EINVAL;
+        }
+    }
+
     return err;
 }
 
@@ -1527,6 +1541,7 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     .needed = spapr_patb_entry_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(patb_entry, sPAPRMachineState),
+        VMSTATE_UINT64(patb_flags, sPAPRMachineState),
         VMSTATE_END_OF_LIST()
     },
 };

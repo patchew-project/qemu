@@ -986,6 +986,7 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     spapr_check_setup_free_hpt(spapr, spapr->patb_entry, cproc);
 
     spapr->patb_entry = cproc; /* Save new process table */
+    spapr->patb_flags = flags; /* Save the flags */
 
     /* Update the UPRT and GTSE bits in the LPCR for all cpus */
     CPU_FOREACH(cs) {
