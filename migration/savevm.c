@@ -648,7 +648,9 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
     QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
         if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
             QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
-            g_free(se->compat);
+            if (dev) {
+                g_free(se->compat);
+            }
             g_free(se->ops);
             g_free(se);
         }
