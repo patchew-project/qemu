@@ -78,6 +78,13 @@ disable exec_tb(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
 disable exec_tb_nocache(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
 disable exec_tb_exit(void *last_tb, unsigned int flags) "tb:%p flags=%x"
 
+# SoftMMU TLB flushes
+#   - setting to=-1 indicates work scheduled on all vCPUs
+tlb_flush_self(const char *fn, int vcpu) "%s: cpu %d"
+tlb_flush_async_schedule(const char *fn, int from, int to) "%s: from_cpu=%d to_cpu=%d"
+tlb_flush_synced_schedule(const char *fn, int from, int to) "%s: from_cpu=%d to_cpu=%d"
+tlb_flush_work(const char *fn, int vcpu) "%s: cpu %d"
+
 # translate-all.c
 translate_block(void *tb, uintptr_t pc, uint8_t *tb_code) "tb:%p, pc:0x%"PRIxPTR", tb_code:%p"
 

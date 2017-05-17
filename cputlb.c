@@ -127,6 +127,7 @@ static void tlb_flush_nocheck(CPUState *cpu)
 
 static void tlb_flush_global_async_work(CPUState *cpu, run_on_cpu_data data)
 {
+    trace_tlb_flush_work(__func__, cpu->cpu_index);
     tlb_flush_nocheck(cpu);
 }
 
@@ -135,17 +136,22 @@ void tlb_flush(CPUState *cpu)
     if (cpu->created && !qemu_cpu_is_self(cpu)) {
         if (atomic_mb_read(&cpu->pending_tlb_flush) != ALL_MMUIDX_BITS) {
             atomic_mb_set(&cpu->pending_tlb_flush, ALL_MMUIDX_BITS);
+            trace_tlb_flush_async_schedule(__func__, current_cpu ?
+                                           current_cpu->cpu_index :
+                                           cpu->cpu_index, cpu->cpu_index);
             async_run_on_cpu(cpu, tlb_flush_global_async_work,
                              RUN_ON_CPU_NULL);
         }
     } else {
-        tlb_flush_nocheck(cpu);
+        trace_tlb_flush_self(__func__, cpu->cpu_index);
+        tlb_flush_global_async_work(cpu, RUN_ON_CPU_NULL);
     }
 }
 
 void tlb_flush_all_cpus(CPUState *src_cpu)
 {
     const run_on_cpu_func fn = tlb_flush_global_async_work;
+    trace_tlb_flush_async_schedule(__func__, src_cpu->cpu_index, -1);
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_NULL);
     fn(src_cpu, RUN_ON_CPU_NULL);
 }
@@ -153,6 +159,7 @@ void tlb_flush_all_cpus(CPUState *src_cpu)
 void tlb_flush_all_cpus_synced(CPUState *src_cpu)
 {
     const run_on_cpu_func fn = tlb_flush_global_async_work;
+    trace_tlb_flush_synced_schedule(__func__, src_cpu->cpu_index, -1);
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_NULL);
     async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_NULL);
 }
@@ -162,6 +169,8 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
     CPUArchState *env = cpu->env_ptr;
     unsigned long mmu_idx_bitmask = data.host_int;
     int mmu_idx;
+
+    trace_tlb_flush_work(__func__, cpu->cpu_index);
 
     assert_cpu_is_self(cpu);
 
@@ -196,12 +205,16 @@ void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
 
         if (pending_flushes) {
             tlb_debug("reduced mmu_idx: 0x%" PRIx16 "\n", pending_flushes);
+            trace_tlb_flush_async_schedule(__func__,
+                                           current_cpu->cpu_index,
+                                           cpu->cpu_index);
 
             atomic_or(&cpu->pending_tlb_flush, pending_flushes);
             async_run_on_cpu(cpu, tlb_flush_by_mmuidx_async_work,
                              RUN_ON_CPU_HOST_INT(pending_flushes));
         }
     } else {
+        trace_tlb_flush_self(__func__, cpu->cpu_index);
         tlb_flush_by_mmuidx_async_work(cpu,
                                        RUN_ON_CPU_HOST_INT(idxmap));
     }
@@ -212,6 +225,7 @@ void tlb_flush_by_mmuidx_all_cpus(CPUState *src_cpu, uint16_t idxmap)
     const run_on_cpu_func fn = tlb_flush_by_mmuidx_async_work;
 
     tlb_debug("mmu_idx: 0x%"PRIx16"\n", idxmap);
+    trace_tlb_flush_async_schedule(__func__, src_cpu->cpu_index, -1);
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
     fn(src_cpu, RUN_ON_CPU_HOST_INT(idxmap));
@@ -223,6 +237,7 @@ void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
     const run_on_cpu_func fn = tlb_flush_by_mmuidx_async_work;
 
     tlb_debug("mmu_idx: 0x%"PRIx16"\n", idxmap);
+    trace_tlb_flush_synced_schedule(__func__, src_cpu->cpu_index, -1);
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
     async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
@@ -252,6 +267,7 @@ static void tlb_flush_page_async_work(CPUState *cpu, run_on_cpu_data data)
     assert_cpu_is_self(cpu);
 
     tlb_debug("page :" TARGET_FMT_lx "\n", addr);
+    trace_tlb_flush_work(__func__, cpu->cpu_index);
 
     /* Check if we need to flush due to large pages.  */
     if ((addr & env->tlb_flush_mask) == env->tlb_flush_addr) {
@@ -285,9 +301,12 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     tlb_debug("page :" TARGET_FMT_lx "\n", addr);
 
     if (!qemu_cpu_is_self(cpu)) {
+        trace_tlb_flush_async_schedule(__func__, current_cpu->cpu_index,
+                                       cpu->cpu_index);
         async_run_on_cpu(cpu, tlb_flush_page_async_work,
                          RUN_ON_CPU_TARGET_PTR(addr));
     } else {
+        trace_tlb_flush_self(__func__, cpu->cpu_index);
         tlb_flush_page_async_work(cpu, RUN_ON_CPU_TARGET_PTR(addr));
     }
 }
@@ -312,6 +331,7 @@ static void tlb_flush_page_by_mmuidx_async_work(CPUState *cpu,
 
     tlb_debug("page:%d addr:"TARGET_FMT_lx" mmu_idx:0x%lx\n",
               page, addr, mmu_idx_bitmap);
+    trace_tlb_flush_work(__func__, cpu->cpu_index);
 
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         if (test_bit(mmu_idx, &mmu_idx_bitmap)) {
@@ -336,6 +356,7 @@ static void tlb_check_page_and_flush_by_mmuidx_async_work(CPUState *cpu,
     unsigned long mmu_idx_bitmap = addr_and_mmuidx & ALL_MMUIDX_BITS;
 
     tlb_debug("addr:"TARGET_FMT_lx" mmu_idx: %04lx\n", addr, mmu_idx_bitmap);
+    trace_tlb_flush_work(__func__, cpu->cpu_index);
 
     /* Check if we need to flush due to large pages.  */
     if ((addr & env->tlb_flush_mask) == env->tlb_flush_addr) {
@@ -343,9 +364,11 @@ static void tlb_check_page_and_flush_by_mmuidx_async_work(CPUState *cpu,
                   TARGET_FMT_lx "/" TARGET_FMT_lx ")\n",
                   env->tlb_flush_addr, env->tlb_flush_mask);
 
+        trace_tlb_flush_self(__func__, cpu->cpu_index);
         tlb_flush_by_mmuidx_async_work(cpu,
                                        RUN_ON_CPU_HOST_INT(mmu_idx_bitmap));
     } else {
+        trace_tlb_flush_self(__func__, cpu->cpu_index);
         tlb_flush_page_by_mmuidx_async_work(cpu, data);
     }
 }
@@ -361,9 +384,12 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
     addr_and_mmu_idx |= idxmap;
 
     if (!qemu_cpu_is_self(cpu)) {
+        trace_tlb_flush_async_schedule(__func__, current_cpu->cpu_index,
+                                       cpu->cpu_index);
         async_run_on_cpu(cpu, tlb_check_page_and_flush_by_mmuidx_async_work,
                          RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
     } else {
+        trace_tlb_flush_self(__func__, cpu->cpu_index);
         tlb_check_page_and_flush_by_mmuidx_async_work(
             cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
     }
@@ -376,6 +402,7 @@ void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
     target_ulong addr_and_mmu_idx;
 
     tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%"PRIx16"\n", addr, idxmap);
+    trace_tlb_flush_async_schedule(__func__, src_cpu->cpu_index, -1);
 
     /* This should already be page aligned */
     addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
@@ -393,6 +420,7 @@ void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
     target_ulong addr_and_mmu_idx;
 
     tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%"PRIx16"\n", addr, idxmap);
+    trace_tlb_flush_synced_schedule(__func__, src_cpu->cpu_index, -1);
 
     /* This should already be page aligned */
     addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
@@ -406,6 +434,8 @@ void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
 {
     const run_on_cpu_func fn = tlb_flush_page_async_work;
 
+    trace_tlb_flush_async_schedule(__func__, src->cpu_index, -1);
+
     flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
     fn(src, RUN_ON_CPU_TARGET_PTR(addr));
 }
@@ -414,6 +444,8 @@ void tlb_flush_page_all_cpus_synced(CPUState *src,
                                                   target_ulong addr)
 {
     const run_on_cpu_func fn = tlb_flush_page_async_work;
+
+    trace_tlb_flush_synced_schedule(__func__, src->cpu_index, -1);
 
     flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
     async_safe_run_on_cpu(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
