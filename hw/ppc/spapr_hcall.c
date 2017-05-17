@@ -1047,6 +1047,89 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
     }
 }
 
+/*
+ * Old logic for PVR negotiation, used old <2.9 machine types for
+ * compatibility with old qemu versions
+ */
+#define get_compat_level(cpuver) (                  \
+        ((cpuver) == CPU_POWERPC_LOGICAL_2_05) ? 2050 : \
+        ((cpuver) == CPU_POWERPC_LOGICAL_2_06) ? 2060 :  \
+        ((cpuver) == CPU_POWERPC_LOGICAL_2_06_PLUS) ? 2061 :    \
+        ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
+
+static void cas_handle_compat_cpu(PowerPCCPUClass *pcc, uint32_t pvr,
+                                  unsigned max_lvl, unsigned *compat_lvl,
+                                  unsigned *compat_pvr)
+{
+    unsigned lvl = get_compat_level(pvr);
+    bool is205, is206, is207;
+
+    if (!lvl) {
+        return;
+    }
+
+    /* If it is a logical PVR, try to determine the highest level */
+    is205 = (pcc->pcr_supported & PCR_COMPAT_2_05) &&
+        (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_05));
+    is206 = (pcc->pcr_supported & PCR_COMPAT_2_06) &&
+        ((lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06)) ||
+         (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_06_PLUS)));
+    is207 = (pcc->pcr_supported & PCR_COMPAT_2_07) &&
+        (lvl == get_compat_level(CPU_POWERPC_LOGICAL_2_07));
+
+    if (is205 || is206 || is207) {
+        if (!max_lvl) {
+            /* User did not set the level, choose the highest */
+            if (*compat_lvl <= lvl) {
+                *compat_lvl = lvl;
+                *compat_pvr = pvr;
+            }
+        } else if (max_lvl >= lvl) {
+            /* User chose the level, don't set higher than this */
+            *compat_lvl = lvl;
+            *compat_pvr = pvr;
+        }
+    }
+}
+
+static uint32_t cas_check_pvr_pre_2_9(PowerPCCPU *cpu, target_ulong list,
+                                      Error **errp)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    int counter;
+    unsigned max_lvl = get_compat_level(cpu->max_compat);
+    bool cpu_match = false;
+    unsigned compat_lvl = 0, compat_pvr = 0;
+
+    for (counter = 0; counter < 512; ++counter) {
+        uint32_t pvr, pvr_mask;
+
+        pvr_mask = ldl_be_phys(&address_space_memory, list);
+        pvr = ldl_be_phys(&address_space_memory, list + 4);
+        list += 8;
+
+        if (~pvr_mask & pvr) {
+            break; /* Terminator record */
+        }
+
+        trace_spapr_cas_pvr_try(pvr);
+        if (!max_lvl &&
+            ((cpu->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask))) {
+            cpu_match = true;
+            compat_pvr = 0;
+        } else if (pvr == cpu->compat_pvr) {
+            cpu_match = true;
+            compat_pvr = cpu->compat_pvr;
+        } else if (!cpu_match) {
+            cas_handle_compat_cpu(pcc, pvr, max_lvl, &compat_lvl, &compat_pvr);
+        }
+    }
+
+    trace_spapr_cas_pvr(cpu->compat_pvr, cpu_match, compat_pvr);
+
+    return compat_pvr;
+}
+
 static uint32_t cas_check_pvr(PowerPCCPU *cpu, target_ulong list,
                               Error **errp)
 {
@@ -1099,6 +1182,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
                                                   target_ulong opcode,
                                                   target_ulong *args)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     /* @ov_table points to the first option vector */
     target_ulong ov_table = ppc64_phys_to_real(args[0]);
     uint32_t cas_pvr;
@@ -1106,7 +1190,11 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     bool guest_radix;
     Error *local_err = NULL;
 
-    cas_pvr = cas_check_pvr(cpu, ov_table, &local_err);
+    if (smc->pre_2_9_cas_pvr) {
+        cas_pvr = cas_check_pvr_pre_2_9(cpu, ov_table, &local_err);
+    } else {
+        cas_pvr = cas_check_pvr(cpu, ov_table, &local_err);
+    }
     if (local_err) {
         error_report_err(local_err);
         return H_HARDWARE;

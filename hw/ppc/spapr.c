@@ -3303,9 +3303,12 @@ static void spapr_machine_2_8_instance_options(MachineState *machine)
 
 static void spapr_machine_2_8_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_9_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_8);
     mc->numa_mem_align_shift = 23;
+    smc->pre_2_9_cas_pvr = true;
 }
 
 DEFINE_SPAPR_MACHINE(2_8, "2.8", false);
