@@ -630,7 +630,8 @@ int register_savevm(DeviceState *dev,
                                 ops, opaque);
 }
 
-void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
+void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque,
+                       bool live)
 {
     SaveStateEntry *se, *new_se;
     char id[256] = "";
@@ -651,10 +652,17 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
             if (dev) {
                 g_free(se->compat);
             }
-            g_free(se->ops);
+            if (!live) {
+                g_free(se->ops);
+            }
             g_free(se);
         }
     }
+}
+
+void unregister_savevm_live(DeviceState *dev, const char *idstr, void *opaque)
+{
+    unregister_savevm(dev, idstr, opaque, true);
 }
 
 int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,

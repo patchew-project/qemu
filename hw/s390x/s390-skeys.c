@@ -379,7 +379,7 @@ static inline void s390_skeys_set_migration_enabled(Object *obj, bool value,
         register_savevm(NULL, TYPE_S390_SKEYS, 0, 1, s390_storage_keys_save,
                         s390_storage_keys_load, ss);
     } else {
-        unregister_savevm(DEVICE(ss), TYPE_S390_SKEYS, ss);
+        unregister_savevm(DEVICE(ss), TYPE_S390_SKEYS, ss, false);
     }
 }
 

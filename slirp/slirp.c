@@ -333,7 +333,7 @@ void slirp_cleanup(Slirp *slirp)
 {
     QTAILQ_REMOVE(&slirp_instances, slirp, entry);
 
-    unregister_savevm(NULL, "slirp", slirp);
+    unregister_savevm(NULL, "slirp", slirp, false);
 
     ip_cleanup(slirp);
     ip6_cleanup(slirp);

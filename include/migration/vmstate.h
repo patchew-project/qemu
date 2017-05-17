@@ -78,7 +78,9 @@ int register_savevm_live(DeviceState *dev,
                          SaveVMHandlers *ops,
                          void *opaque);
 
-void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);
+void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque,
+                       bool live);
+void unregister_savevm_live(DeviceState *dev, const char *idstr, void *opaque);
 
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateDescription VMStateDescription;

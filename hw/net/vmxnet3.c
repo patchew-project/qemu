@@ -2350,7 +2350,7 @@ static void vmxnet3_pci_uninit(PCIDevice *pci_dev)
 
     VMW_CBPRN("Starting uninit...");
 
-    unregister_savevm(dev, "vmxnet3-msix", s);
+    unregister_savevm(dev, "vmxnet3-msix", s, false);
 
     vmxnet3_net_uninit(s);
 
