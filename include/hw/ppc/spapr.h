@@ -681,4 +681,14 @@ int spapr_rng_populate_dt(void *fdt);
 
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
+/*
+ * Defines for flag value used in H_REGISTER_PROC_TBL hcall.
+ */
+#define SPAPR_PROC_TABLE_MASK        0x01FULL
+#define SPAPR_PROC_TABLE_MODIFY      0x10
+#define SPAPR_PROC_TABLE_REGISTER    0x08
+#define SPAPR_PROC_TABLE_RADIX       0x04
+#define SPAPR_PROC_TABLE_HPT_PT      0x02
+#define SPAPR_PROC_TABLE_GTSE        0x01
+
 #endif /* HW_SPAPR_H */

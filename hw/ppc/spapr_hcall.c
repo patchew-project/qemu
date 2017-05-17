@@ -924,13 +924,6 @@ static void spapr_check_setup_free_hpt(sPAPRMachineState *spapr,
     return;
 }
 
-#define FLAGS_MASK              0x01FULL
-#define FLAG_MODIFY             0x10
-#define FLAG_REGISTER           0x08
-#define FLAG_RADIX              0x04
-#define FLAG_HASH_PROC_TBL      0x02
-#define FLAG_GTSE               0x01
-
 static target_ulong h_register_process_table(PowerPCCPU *cpu,
                                              sPAPRMachineState *spapr,
                                              target_ulong opcode,
@@ -943,12 +936,13 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     target_ulong table_size = args[3];
     uint64_t cproc;
 
-    if (flags & ~FLAGS_MASK) { /* Check no reserved bits are set */
+    if (flags & ~SPAPR_PROC_TABLE_MASK) { /* Check no reserved bits are set */
         return H_PARAMETER;
     }
-    if (flags & FLAG_MODIFY) {
-        if (flags & FLAG_REGISTER) {
-            if (flags & FLAG_RADIX) { /* Register new RADIX process table */
+    if (flags & SPAPR_PROC_TABLE_MODIFY) {
+        if (flags & SPAPR_PROC_TABLE_REGISTER) {
+            if (flags & SPAPR_PROC_TABLE_RADIX) {
+                /* Register new RADIX process table */
                 if (proc_tbl & 0xfff || proc_tbl >> 60) {
                     return H_P2;
                 } else if (page_size) {
@@ -958,7 +952,8 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
                 }
                 cproc = PATBE1_GR | proc_tbl | table_size;
             } else { /* Register new HPT process table */
-                if (flags & FLAG_HASH_PROC_TBL) { /* Hash with Segment Tables */
+                if (flags & SPAPR_PROC_TABLE_HPT_PT) {
+                    /* Hash with Segment Tables */
                     /* TODO - Not Supported */
                     /* Technically caused by flag bits => H_PARAMETER */
                     return H_PARAMETER;
@@ -981,7 +976,8 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
             cproc = spapr->patb_entry & PATBE1_GR;
         }
     } else { /* Maintain current registration */
-        if (!(flags & FLAG_RADIX) != !(spapr->patb_entry & PATBE1_GR)) {
+        if (!(flags & SPAPR_PROC_TABLE_RADIX) !=
+            !(spapr->patb_entry & PATBE1_GR)) {
             /* Technically caused by flag bits => H_PARAMETER */
             return H_PARAMETER; /* Existing Process Table Mismatch */
         }
@@ -996,13 +992,14 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     /* Update the UPRT and GTSE bits in the LPCR for all cpus */
     CPU_FOREACH(cs) {
         set_spr(cs, SPR_LPCR, LPCR_UPRT | LPCR_GTSE,
-                ((flags & (FLAG_RADIX | FLAG_HASH_PROC_TBL)) ? LPCR_UPRT : 0) |
-                ((flags & FLAG_GTSE) ? LPCR_GTSE : 0));
+                ((flags & (SPAPR_PROC_TABLE_RADIX | SPAPR_PROC_TABLE_HPT_PT)) ?
+                LPCR_UPRT : 0) | ((flags & SPAPR_PROC_TABLE_GTSE) ?
+                SPAPR_PROC_TABLE_GTSE : 0));
     }
 
     if (kvm_enabled()) {
-        return kvmppc_configure_v3_mmu(cpu, flags & FLAG_RADIX,
-                                       flags & FLAG_GTSE, cproc);
+        return kvmppc_configure_v3_mmu(cpu, flags & SPAPR_PROC_TABLE_RADIX,
+                                       flags & SPAPR_PROC_TABLE_GTSE, cproc);
     }
     return H_SUCCESS;
 }
