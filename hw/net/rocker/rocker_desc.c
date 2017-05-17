@@ -347,9 +347,6 @@ DescRing *desc_ring_alloc(Rocker *r, int index)
     DescRing *ring;
 
     ring = g_new0(DescRing, 1);
-    if (!ring) {
-        return NULL;
-    }
 
     ring->r = r;
     ring->index = index;
