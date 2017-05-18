@@ -52,6 +52,7 @@ struct sPAPRMachineClass {
     /*< public >*/
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
+    bool pre_2_9_cas_pvr;      /* Use old logic for PVR compat negotiation */
     const char *tcg_default_cpu; /* which (TCG) CPU to simulate by default */
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
