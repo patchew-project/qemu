@@ -2649,6 +2649,36 @@ static uint64_t spapr_dimm_get_address(PCDIMMDevice *dimm)
     return addr;
 }
 
+static sPAPRDIMMState *spapr_recover_pending_dimm_state(PCDIMMDevice *dimm,
+                                                        uint64_t addr)
+{
+    sPAPRDRConnector *drc;
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t curr_addr = addr;
+    uint64_t size = memory_region_size(mr);
+    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+    uint32_t avail_lmbs = 0;
+    int i = 0;
+
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                       curr_addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+        if (drc->indicator_state != SPAPR_DR_INDICATOR_STATE_INACTIVE) {
+            avail_lmbs++;
+        }
+        curr_addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    sPAPRDIMMState *ds = g_malloc0(sizeof(sPAPRDIMMState));
+    ds->nr_lmbs = avail_lmbs;
+    ds->addr = addr;
+    spapr_pending_dimm_unplugs_add(spapr, ds);
+    return ds;
+}
+
 /* Callback to be called during DRC release. */
 void spapr_lmb_release(DeviceState *dev)
 {
@@ -2657,7 +2687,14 @@ void spapr_lmb_release(DeviceState *dev)
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPRDIMMState *ds = spapr_pending_dimm_unplugs_find(spapr, addr);
 
-    if (--ds->nr_lmbs) {
+    /* This information will get lost if a migration occurs
+     * during the unplug process. In this case recover it. */
+    if (ds == NULL) {
+        ds = spapr_recover_pending_dimm_state(PC_DIMM(dev), addr);
+        if (ds->nr_lmbs) {
+            return;
+        }
+    } else if (--ds->nr_lmbs) {
         return;
     }
 
