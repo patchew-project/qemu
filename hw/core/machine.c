@@ -21,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "sysemu/numa.h"
+#include "sysemu/qtest.h"
 
 static char *machine_get_accel(Object *obj, Error **errp)
 {
@@ -732,7 +733,7 @@ static void machine_numa_finish_init(MachineState *machine)
             }
         }
     }
-    if (s->len) {
+    if (s->len && !qtest_enabled()) {
         error_report("warning: CPU(s) not present in any NUMA nodes: %s",
                      s->str);
         error_report("warning: All CPU(s) up to maxcpus should be described "
