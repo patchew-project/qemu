@@ -2927,6 +2927,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
             .refcount_bits      = s->refcount_bits,
         };
     } else if (s->qcow_version == 3) {
+        int64_t nb_allocated = qcow2_nb_allocated_clusters(bs);
+
         *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
             .compat             = g_strdup("1.1"),
             .lazy_refcounts     = s->compatible_features &
@@ -2936,6 +2938,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
                                   QCOW2_INCOMPAT_CORRUPT,
             .has_corrupt        = true,
             .refcount_bits      = s->refcount_bits,
+            .allocated_size     = MAX(0, nb_allocated) << s->cluster_bits,
+            .has_allocated_size = nb_allocated >= 0,
         };
     } else {
         /* if this assertion fails, this probably means a new version was

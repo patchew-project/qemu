@@ -44,6 +44,9 @@
 #
 # @refcount-bits: width of a refcount entry in bits (since 2.3)
 #
+# @allocated-size: number of allocated clusters (including metadata)
+#                  if available; only valid for compat >= 1.1 (since v2.10)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -51,7 +54,8 @@
       'compat': 'str',
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
-      'refcount-bits': 'int'
+      'refcount-bits': 'int',
+      '*allocated-size': 'uint64'
   } }
 
 ##
