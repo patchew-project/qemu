@@ -350,6 +350,7 @@ static void rtas_event_log_queue(int log_type, void *data)
     g_assert(data);
     entry->log_type = log_type;
     entry->data = data;
+    entry->data_size = sizeof(*data);
     QTAILQ_INSERT_TAIL(&spapr->pending_events, entry, next);
 }
 

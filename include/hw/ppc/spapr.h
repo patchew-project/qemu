@@ -597,8 +597,9 @@ struct sPAPRTCETable {
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
 
 struct sPAPREventLogEntry {
-    int log_type;
+    int32_t log_type;
     void *data;
+    uint32_t data_size;
     QTAILQ_ENTRY(sPAPREventLogEntry) next;
 };
 
