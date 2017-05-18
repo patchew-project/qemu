@@ -1112,7 +1112,6 @@ static uint32_t cas_check_pvr_pre_2_9(PowerPCCPU *cpu, target_ulong *addr,
             break; /* Terminator record */
         }
 
-        trace_spapr_cas_pvr_try(pvr);
         if (!max_lvl &&
             ((cpu->env.spr[SPR_PVR] & pvr_mask) == (pvr & pvr_mask))) {
             cpu_match = true;
@@ -1123,9 +1122,9 @@ static uint32_t cas_check_pvr_pre_2_9(PowerPCCPU *cpu, target_ulong *addr,
         } else if (!cpu_match) {
             cas_handle_compat_cpu(pcc, pvr, max_lvl, &compat_lvl, &compat_pvr);
         }
+        trace_cas_check_pvr_pre_2_9(pvr, pvr_mask, cpu_match,
+                                    compat_lvl, compat_pvr);
     }
-
-    trace_spapr_cas_pvr(cpu->compat_pvr, cpu_match, compat_pvr);
 
     return compat_pvr;
 }
@@ -1161,6 +1160,7 @@ static uint32_t cas_check_pvr(PowerPCCPU *cpu, target_ulong *addr,
                 best_compat = pvr;
             }
         }
+        trace_cas_check_pvr(pvr, pvr_mask, explicit_match, best_compat);
     }
 
     if ((best_compat == 0) && (!explicit_match || max_compat)) {
@@ -1170,9 +1170,6 @@ static uint32_t cas_check_pvr(PowerPCCPU *cpu, target_ulong *addr,
         error_setg(errp, "Couldn't negotiate a suitable PVR during CAS");
         return 0;
     }
-
-    /* Parsing finished */
-    trace_spapr_cas_pvr(cpu->compat_pvr, explicit_match, best_compat);
 
     return best_compat;
 }
@@ -1191,6 +1188,9 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     bool guest_radix;
     Error *local_err = NULL;
 
+    trace_cas_check_pvr_start(cpu->compat_pvr, cpu->max_compat,
+                              cpu->env.spr[SPR_PVR]);
+
     if (smc->pre_2_9_cas_pvr) {
         cas_pvr = cas_check_pvr_pre_2_9(cpu, &addr, &local_err);
     } else {
@@ -1200,6 +1200,8 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         error_report_err(local_err);
         return H_HARDWARE;
     }
+
+    trace_cas_check_pvr_complete(cpu->compat_pvr, cas_pvr);
 
     /* Update CPUs */
     if (cpu->compat_pvr != cas_pvr) {
