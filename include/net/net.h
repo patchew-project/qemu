@@ -6,7 +6,6 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/option.h"
 #include "net/queue.h"
-#include "migration/vmstate.h"
 #include "qapi-types.h"
 
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
