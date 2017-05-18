@@ -26,6 +26,7 @@
 
 #define MSI_ADDR_DEST_ID_SHIFT          12
 #define MSI_ADDR_DEST_IDX_SHIFT         4
-#define  MSI_ADDR_DEST_ID_MASK          0x00ffff0
+#define  MSI_ADDR_DEST_ID_MASK          0x000fff00
+#define  MSI_ADDR_IF_MASK               0x00000010
 
 #endif /* HW_APIC_MSIDEF_H */
