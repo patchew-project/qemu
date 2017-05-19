@@ -18,7 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "trace-root.h"
+#include "trace.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg.h"
@@ -200,8 +200,9 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 
     /* Should never happen.
        We only end up here when an existing TB is too long.  */
-    if (max_cycles > CF_COUNT_MASK)
+    if (max_cycles > CF_COUNT_MASK) {
         max_cycles = CF_COUNT_MASK;
+    }
 
     tb_lock();
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
