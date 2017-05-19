@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
+#include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -730,6 +731,11 @@ static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     }
 }
 
+static bool vhost_iommu_mr_enabled(struct vhost_dev *dev)
+{
+    return !QLIST_EMPTY(&dev->iommu_list);
+}
+
 static void vhost_iommu_region_add(MemoryListener *listener,
                                    MemoryRegionSection *section)
 {
@@ -779,6 +785,48 @@ static void vhost_iommu_region_del(MemoryListener *listener,
             g_free(iommu);
             break;
         }
+    }
+}
+
+static void vhost_iommu_commit(MemoryListener *listener)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         iommu_listener);
+    struct vhost_memory_region *r;
+    int i;
+
+    trace_vhost_iommu_commit();
+
+    if (!vhost_iommu_mr_enabled(dev)) {
+        /*
+        * This means iommu_platform is enabled, however iommu memory
+        * region is disabled, e.g., when device passthrough is setup.
+        * Then, no translation is needed any more.
+        *
+        * Let's first invalidate the whole IOTLB, then pre-heat the
+        * static mapping by looping over vhost memory ranges.
+        */
+
+        if (dev->vhost_ops->vhost_invalidate_device_iotlb(dev, 0,
+                                                          UINT64_MAX)) {
+            error_report("%s: flush existing IOTLB failed", __func__);
+            return;
+        }
+
+        for (i = 0; i < dev->mem->nregions; i++) {
+            r = &dev->mem->regions[i];
+            /* Vhost regions are writable RAM, so IOMMU_RW suites. */
+            if (dev->vhost_ops->vhost_update_device_iotlb(dev,
+                                                          r->guest_phys_addr,
+                                                          r->userspace_addr,
+                                                          r->memory_size,
+                                                          IOMMU_RW)) {
+                error_report("%s: pre-heat static mapping failed", __func__);
+                return;
+            }
+        }
+
+        trace_vhost_iommu_static_preheat();
     }
 }
 
@@ -1298,6 +1346,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->iommu_listener = (MemoryListener) {
         .region_add = vhost_iommu_region_add,
         .region_del = vhost_iommu_region_del,
+        .commit = vhost_iommu_commit,
     };
 
     if (hdev->migration_blocker == NULL) {
