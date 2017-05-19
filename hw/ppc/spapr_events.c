@@ -350,6 +350,18 @@ static void rtas_event_log_queue(int log_type, void *data)
     g_assert(data);
     entry->log_type = log_type;
     entry->data = data;
+
+    switch (log_type) {
+    case RTAS_LOG_TYPE_EPOW:
+        entry->data_size = sizeof(struct epow_log_full);
+        break;
+    case RTAS_LOG_TYPE_HOTPLUG:
+        entry->data_size = sizeof(struct hp_log_full);
+        break;
+    default:
+        g_assert(false);
+    }
+
     QTAILQ_INSERT_TAIL(&spapr->pending_events, entry, next);
 }
 
