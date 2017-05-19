@@ -29,7 +29,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    _cleanup_test_img
+    rm "$TEST_DIR/blkdebug.conf"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -188,6 +189,37 @@ overlay_io | $QEMU_IO blkdebug::"$TEST_IMG" | _filter_qemu_io |\
 	sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
 
 echo
+echo "== Concurrency error case =="
+
+# 1. 1st request allocated the cluster, stop before it writes and updates L2
+# 2. 2nd request starts at the same cluster must complete write and start
+#    waiting for the 1st to update L2
+# 3. Resume the 1st request to make it fail (injected error)
+# 4. 2nd request must wake and fail as well
+#    1 cluster will end up leaked
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
+[inject-error]
+event = "write_aio"
+sector = "0xb00"
+EOF
+function error_io()
+{
+cat <<EOF
+discard 0x120000 0x20000
+break write_aio A
+aio_write -P 180 0x120000 0x200
+wait_break A
+aio_write -P 181 0x120200 0x10000
+resume A
+EOF
+}
+
+error_io | $QEMU_IO "blkdebug:$TEST_DIR/blkdebug.conf:$TEST_IMG" | _filter_qemu_io |\
+	sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
+
+_check_test_img -r leaks
+
+echo
 echo "== Verify image content =="
 
 function verify_io()
@@ -259,6 +291,10 @@ function verify_io()
     # Undefined content for 0x10c000 0x8000
     echo read -P 160 0x114000 0x8000
     echo read -P 17  0x11c000 0x4000
+
+    echo read -P ${discarded:-18} 0x120000 0x10000
+    echo read -P 181 0x130000 0x200
+    echo read -P ${discarded:-19} 0x130200 0xfe00
 }
 
 verify_io | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
