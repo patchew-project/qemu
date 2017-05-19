@@ -2113,6 +2113,8 @@ int save_vmstate(const char *name, Error **errp)
     }
     vm_stop(RUN_STATE_SAVE_VM);
 
+    bdrv_drain_all_begin();
+
     aio_context_acquire(aio_context);
 
     memset(sn, 0, sizeof(*sn));
@@ -2171,6 +2173,9 @@ int save_vmstate(const char *name, Error **errp)
     if (aio_context) {
         aio_context_release(aio_context);
     }
+
+    bdrv_drain_all_end();
+
     if (saved_vm_running) {
         vm_start();
     }
@@ -2279,7 +2284,7 @@ int load_vmstate(const char *name, Error **errp)
     }
 
     /* Flush all IO requests so they don't interfere with the new state.  */
-    bdrv_drain_all();
+    bdrv_drain_all_begin();
 
     ret = bdrv_all_goto_snapshot(name, &bs);
     if (ret < 0) {
@@ -2302,6 +2307,8 @@ int load_vmstate(const char *name, Error **errp)
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
     aio_context_release(aio_context);
+
+    bdrv_drain_all_end();
 
     migration_incoming_state_destroy();
     if (ret < 0) {
