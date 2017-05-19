@@ -2046,7 +2046,7 @@ static void *migration_thread(void *opaque)
 static bool migrate_return_path_create(MigrationState *s)
 {
     /* Whether we should enable return path */
-    bool enable_return_path = false;
+    bool enable_return_path = s->enable_return_path;
     /* Whether we should force its success */
     bool force_return_path = false;
 
@@ -2114,9 +2114,22 @@ static void migration_instance_init(Object *obj)
     ms->parameters.tls_hostname = g_strdup("");
 }
 
+static Property migration_properties[] = {
+    DEFINE_PROP_BOOL("return-path", MigrationState, enable_return_path, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void migration_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->props = migration_properties;
+}
+
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
     .parent = TYPE_DEVICE,
+    .class_init = migration_class_init,
     .class_size = sizeof(MigrationClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,

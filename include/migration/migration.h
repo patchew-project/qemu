@@ -169,6 +169,9 @@ typedef struct MigrationState {
     int64_t colo_checkpoint_time;
     QEMUTimer *colo_delay_timer;
 
+    /* Whether to try to enable return-path even for pre-copy */
+    bool enable_return_path;
+
     /* The last error that occurred */
     Error *error;
 } MigrationState ;
