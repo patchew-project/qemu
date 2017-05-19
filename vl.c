@@ -1435,6 +1435,9 @@ static int usb_parse(const char *cmdline)
 void hmp_usb_add(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
+
+    error_report("usb_add is deprecated, please use device_add instead");
+
     if (usb_device_add(devname) < 0) {
         error_report("could not add USB device '%s'", devname);
     }
@@ -1443,6 +1446,9 @@ void hmp_usb_add(Monitor *mon, const QDict *qdict)
 void hmp_usb_del(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
+
+    error_report("usb_del is deprecated, please use device_del instead");
+
     if (usb_device_del(devname) < 0) {
         error_report("could not delete USB device '%s'", devname);
     }
