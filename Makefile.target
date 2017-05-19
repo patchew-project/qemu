@@ -91,7 +91,6 @@ all: $(PROGS) stap
 obj-y = exec.o translate-all.o
 obj-y += accel/
 obj-y += translate-common.o
-obj-y += cpu-exec-common.o
 obj-y += tcg/tcg.o tcg/tcg-op.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
 obj-y += tcg/tcg-common.o
