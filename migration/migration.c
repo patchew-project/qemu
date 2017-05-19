@@ -86,28 +86,14 @@ static bool deferred_incoming;
 MigrationState *migrate_get_current(void)
 {
     static bool once;
-    static MigrationState current_migration = {
-        .state = MIGRATION_STATUS_NONE,
-        .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
-        .mbps = -1,
-        .parameters = {
-            .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
-            .compress_threads = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
-            .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
-            .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
-            .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
-            .max_bandwidth = MAX_THROTTLE,
-            .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
-            .x_checkpoint_delay = DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
-        },
-    };
+    static MigrationState *current_migration;
 
     if (!once) {
-        current_migration.parameters.tls_creds = g_strdup("");
-        current_migration.parameters.tls_hostname = g_strdup("");
+        current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
         once = true;
     }
-    return &current_migration;
+
+    return current_migration;
 }
 
 MigrationIncomingState *migration_incoming_get_current(void)
@@ -2107,3 +2093,38 @@ void migrate_fd_connect(MigrationState *s)
     s->migration_thread_running = true;
 }
 
+static void migration_instance_init(Object *obj)
+{
+    MigrationState *ms = MIGRATION_OBJ(obj);
+
+    ms->state = MIGRATION_STATUS_NONE;
+    ms->xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE;
+    ms->mbps = -1;
+    ms->parameters = (MigrationParameters) {
+        .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
+        .compress_threads = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
+        .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
+        .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
+        .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+        .max_bandwidth = MAX_THROTTLE,
+        .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
+        .x_checkpoint_delay = DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
+    };
+    ms->parameters.tls_creds = g_strdup("");
+    ms->parameters.tls_hostname = g_strdup("");
+}
+
+static const TypeInfo migration_type = {
+    .name = TYPE_MIGRATION,
+    .parent = TYPE_DEVICE,
+    .class_size = sizeof(MigrationClass),
+    .instance_size = sizeof(MigrationState),
+    .instance_init = migration_instance_init,
+};
+
+static void register_migration_types(void)
+{
+    type_register_static(&migration_type);
+}
+
+type_init(register_migration_types);
