@@ -2482,7 +2482,7 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
     int64_t res;
 
     if (start + count > bs->total_sectors) {
-        count = bs->total_sectors - start;
+        count = start < bs->total_sectors ? bs->total_sectors - start : 0;
     }
 
     if (!count) {
@@ -2490,7 +2490,9 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
     }
     res = bdrv_get_block_status_above(bs, NULL, start, count,
                                       &nr, &file);
-    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == count;
+    return res >= 0
+        && (((res & BDRV_BLOCK_ZERO) && nr == count)
+            || nr == 0);
 }
 
 static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
