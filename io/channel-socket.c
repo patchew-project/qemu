@@ -56,6 +56,7 @@ qio_channel_socket_new(void)
 
     ioc = QIO_CHANNEL(sioc);
     qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
+    qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_RETURN_PATH);
 
 #ifdef WIN32
     ioc->event = CreateEvent(NULL, FALSE, FALSE, NULL);

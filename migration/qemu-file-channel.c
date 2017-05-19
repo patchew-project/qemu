@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/object.h"
 #include "migration/qemu-file.h"
 #include "io/channel-socket.h"
 #include "qemu/iov.h"
@@ -139,12 +140,20 @@ static QEMUFile *channel_get_input_return_path(void *opaque)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
 
+    if (!qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_RETURN_PATH)) {
+        return NULL;
+    }
+
     return qemu_fopen_channel_output(ioc);
 }
 
 static QEMUFile *channel_get_output_return_path(void *opaque)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
+
+    if (!qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_RETURN_PATH)) {
+        return NULL;
+    }
 
     return qemu_fopen_channel_input(ioc);
 }
