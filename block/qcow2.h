@@ -97,6 +97,7 @@
 #define QCOW2_OPT_L2_CACHE_SIZE "l2-cache-size"
 #define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
 #define QCOW2_OPT_CACHE_CLEAN_INTERVAL "cache-clean-interval"
+#define QCOW2_OPT_PREALLOC_SIZE "prealloc-size"
 
 typedef struct QCowHeader {
     uint32_t magic;
@@ -294,6 +295,8 @@ typedef struct BDRVQcow2State {
      * override) */
     char *image_backing_file;
     char *image_backing_format;
+
+    uint64_t prealloc_size;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -493,6 +496,8 @@ int qcow2_mark_dirty(BlockDriverState *bs);
 int qcow2_mark_corrupt(BlockDriverState *bs);
 int qcow2_mark_consistent(BlockDriverState *bs);
 int qcow2_update_header(BlockDriverState *bs);
+void qcow2_handle_prealloc(BlockDriverState *bs,
+                           uint64_t offset, uint64_t size);
 
 void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                              int64_t size, const char *message_format, ...)

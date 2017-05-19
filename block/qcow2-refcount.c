@@ -547,6 +547,8 @@ static int alloc_refcount_block(BlockDriverState *bs,
     }
 
     /* Write refcount blocks to disk */
+    qcow2_handle_prealloc(bs, meta_offset, blocks_clusters * s->cluster_size);
+
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS);
     ret = bdrv_pwrite_sync(bs->file, meta_offset, new_blocks,
         blocks_clusters * s->cluster_size);
@@ -560,6 +562,10 @@ static int alloc_refcount_block(BlockDriverState *bs,
     for(i = 0; i < table_size; i++) {
         cpu_to_be64s(&new_table[i]);
     }
+
+    qcow2_handle_prealloc(bs, table_offset,
+                          QEMU_ALIGN_UP(table_size * sizeof(uint64_t),
+                                        s->cluster_size));
 
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE);
     ret = bdrv_pwrite_sync(bs->file, table_offset, new_table,
@@ -2104,6 +2110,8 @@ write_refblocks:
             goto fail;
         }
 
+        qcow2_handle_prealloc(bs, refblock_offset, s->cluster_size);
+
         /* The size of *refcount_table is always cluster-aligned, therefore the
          * write operation will not overflow */
         on_disk_refblock = (void *)((char *) *refcount_table +
@@ -2158,6 +2166,8 @@ write_refblocks:
     }
 
     assert(reftable_size < INT_MAX / sizeof(uint64_t));
+    qcow2_handle_prealloc(bs, reftable_offset,
+                          reftable_size * sizeof(uint64_t));
     ret = bdrv_pwrite(bs->file, reftable_offset, on_disk_reftable,
                       reftable_size * sizeof(uint64_t));
     if (ret < 0) {
@@ -2844,6 +2854,10 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
     for (i = 0; i < new_reftable_size; i++) {
         cpu_to_be64s(&new_reftable[i]);
     }
+
+    qcow2_handle_prealloc(bs, new_reftable_offset,
+                          QEMU_ALIGN_UP(new_reftable_size * sizeof(uint64_t),
+                                        s->cluster_size));
 
     ret = bdrv_pwrite(bs->file, new_reftable_offset, new_reftable,
                       new_reftable_size * sizeof(uint64_t));
