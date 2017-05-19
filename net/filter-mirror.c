@@ -163,7 +163,7 @@ static ssize_t filter_redirector_receive_iov(NetFilterState *nf,
     MirrorState *s = FILTER_REDIRECTOR(nf);
     int ret;
 
-    if (qemu_chr_fe_get_driver(&s->chr_out)) {
+    if (qemu_chr_fe_backend_connected(&s->chr_out)) {
         ret = filter_mirror_send(&s->chr_out, iov, iovcnt);
         if (ret) {
             error_report("filter_mirror_send failed(%s)", strerror(-ret));
