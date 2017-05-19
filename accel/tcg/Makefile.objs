@@ -1,1 +1,2 @@
 obj-$(CONFIG_SOFTMMU) += tcg-all.o
+obj-$(CONFIG_SOFTMMU) += cputlb.o
