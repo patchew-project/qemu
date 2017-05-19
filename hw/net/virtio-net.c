@@ -33,8 +33,12 @@
 
 /* previously fixed value */
 #define VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE 256
+#define VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE 256
 /* for now, only allow larger queues; with virtio-1, guest can downsize */
 #define VIRTIO_NET_RX_QUEUE_MIN_SIZE VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE
+#define VIRTIO_NET_TX_QUEUE_MIN_SIZE VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE
+
+#define VIRTIO_NET_MAX_CHAIN_SIZE 1023
 
 /*
  * Calculate the number of bytes up to and including the given 'field' of
@@ -57,6 +61,8 @@ static VirtIOFeature feature_sizes[] = {
      .end = endof(struct virtio_net_config, max_virtqueue_pairs)},
     {.flags = 1 << VIRTIO_NET_F_MTU,
      .end = endof(struct virtio_net_config, mtu)},
+    {.flags = 1 << VIRTIO_NET_F_MAX_CHAIN_SIZE,
+     .end = endof(struct virtio_net_config, max_chain_size)},
     {}
 };
 
@@ -84,6 +90,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     virtio_stw_p(vdev, &netcfg.status, n->status);
     virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
     virtio_stw_p(vdev, &netcfg.mtu, n->net_conf.mtu);
+    virtio_stw_p(vdev, &netcfg.max_chain_size, VIRTIO_NET_MAX_CHAIN_SIZE);
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, n->config_size);
 }
@@ -568,6 +575,7 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
     features |= n->host_features;
 
     virtio_add_feature(&features, VIRTIO_NET_F_MAC);
+    virtio_add_feature(&features, VIRTIO_NET_F_MAX_CHAIN_SIZE);
 
     if (!peer_has_vnet_hdr(n)) {
         virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
@@ -603,6 +611,7 @@ static uint64_t virtio_net_bad_features(VirtIODevice *vdev)
     virtio_add_feature(&features, VIRTIO_NET_F_HOST_TSO4);
     virtio_add_feature(&features, VIRTIO_NET_F_HOST_TSO6);
     virtio_add_feature(&features, VIRTIO_NET_F_HOST_ECN);
+    virtio_add_feature(&features, VIRTIO_NET_F_MAX_CHAIN_SIZE);
 
     return features;
 }
@@ -635,6 +644,27 @@ static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
     return virtio_net_guest_offloads_by_features(vdev->guest_features);
 }
 
+static bool is_tx(int queue_index)
+{
+    return queue_index % 2 == 1;
+}
+
+static void virtio_net_change_tx_queue_size(VirtIONet *n)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int i, num_queues = virtio_get_num_queues(vdev);
+
+    if (n->net_conf.tx_queue_size == VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE) {
+        return;
+    }
+
+    for (i = 0; i < num_queues; i++) {
+        if (is_tx(i)) {
+            virtio_queue_set_num(vdev, i, n->net_conf.tx_queue_size);
+        }
+    }
+}
+
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -648,6 +678,16 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
                                                   VIRTIO_NET_F_MRG_RXBUF),
                                virtio_has_feature(features,
                                                   VIRTIO_F_VERSION_1));
+
+    /*
+     * Change the tx queue size if the guest supports
+     * VIRTIO_NET_F_MAX_CHAIN_SIZE. This will restrict the guest from sending
+     * a very large chain of vring descriptors (e.g. 1024), which may cause
+     * 1025 iov to be written to writev.
+     */
+    if (virtio_has_feature(features, VIRTIO_NET_F_MAX_CHAIN_SIZE)) {
+        virtio_net_change_tx_queue_size(n);
+    }
 
     if (n->has_vnet_hdr) {
         n->curr_guest_offloads =
@@ -1297,8 +1337,8 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
 
         out_num = elem->out_num;
         out_sg = elem->out_sg;
-        if (out_num < 1) {
-            virtio_error(vdev, "virtio-net header not in first element");
+        if (out_num < 1 || out_num > VIRTIO_NET_F_MAX_CHAIN_SIZE) {
+            virtio_error(vdev, "no packet or too large vring desc chain");
             virtqueue_detach_element(q->tx_vq, elem, 0);
             g_free(elem);
             return -EINVAL;
@@ -1491,18 +1531,27 @@ static void virtio_net_tx_bh(void *opaque)
 static void virtio_net_add_queue(VirtIONet *n, int index)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    /*
+     * If the user specified tx queue size is less than IOV_MAX (e.g. 512),
+     * it is safe to use the specified queue size here. Otherwise, use the
+     * default queue size here, and change it when the guest confirms that
+     * it supports the VIRTIO_NET_F_MAX_CHAIN_SIZE feature.
+     */
+    uint16_t tx_queue_size = n->net_conf.tx_queue_size < IOV_MAX ?
+                                       n->net_conf.tx_queue_size :
+                                 VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
 
     n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
                                            virtio_net_handle_rx);
     if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
         n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, 256, virtio_net_handle_tx_timer);
+            virtio_add_queue(vdev, tx_queue_size, virtio_net_handle_tx_timer);
         n->vqs[index].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                               virtio_net_tx_timer,
                                               &n->vqs[index]);
     } else {
         n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, 256, virtio_net_handle_tx_bh);
+            virtio_add_queue(vdev, tx_queue_size, virtio_net_handle_tx_bh);
         n->vqs[index].tx_bh = qemu_bh_new(virtio_net_tx_bh, &n->vqs[index]);
     }
 
@@ -1857,6 +1906,7 @@ static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)
 {
     int i, config_size = 0;
     virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
+    virtio_add_feature(&host_features, VIRTIO_NET_F_MAX_CHAIN_SIZE);
 
     for (i = 0; feature_sizes[i].flags != 0; i++) {
         if (host_features & feature_sizes[i].flags) {
@@ -1905,6 +1955,17 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Invalid rx_queue_size (= %" PRIu16 "), "
                    "must be a power of 2 between %d and %d.",
                    n->net_conf.rx_queue_size, VIRTIO_NET_RX_QUEUE_MIN_SIZE,
+                   VIRTQUEUE_MAX_SIZE);
+        virtio_cleanup(vdev);
+        return;
+    }
+
+    if (n->net_conf.tx_queue_size < VIRTIO_NET_TX_QUEUE_MIN_SIZE ||
+        n->net_conf.tx_queue_size > VIRTQUEUE_MAX_SIZE ||
+        (n->net_conf.tx_queue_size & (n->net_conf.tx_queue_size - 1))) {
+        error_setg(errp, "Invalid tx_queue_size (= %" PRIu16 "), "
+                   "must be a power of 2 between %d and %d.",
+                   n->net_conf.tx_queue_size, VIRTIO_NET_TX_QUEUE_MIN_SIZE,
                    VIRTQUEUE_MAX_SIZE);
         virtio_cleanup(vdev);
         return;
@@ -2089,6 +2150,8 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
     DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
                        VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
+    DEFINE_PROP_UINT16("tx_queue_size", VirtIONet, net_conf.tx_queue_size,
+                       VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE),
     DEFINE_PROP_UINT16("host_mtu", VirtIONet, net_conf.mtu, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
