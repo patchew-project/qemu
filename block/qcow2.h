@@ -310,7 +310,8 @@ typedef struct Qcow2COWRegion {
     /** Number of bytes to copy */
     int         nb_bytes;
 
-    /** The region is filled with zeroes and does not require COW
+    /** The region does not require COW
+     *  (either filled with zeroes or busy with other request)
      */
     bool        reduced;
 } Qcow2COWRegion;
@@ -336,6 +337,13 @@ typedef struct QCowL2Meta
     /** True if the area is allocated after the end of data area
      *  (i.e. >= s->data_end), which means that it is zeroed */
     bool clusters_are_trailing;
+
+    /**
+     * True if the described clusters are being allocated by
+     * the other concurrent request; so this one must not actually update L2
+     * or COW but only write its data
+     */
+    bool piggybacked;
 
     /**
      * Requests that overlap with this allocation and wait to be restarted
@@ -574,6 +582,8 @@ int qcow2_cluster_zeroize(BlockDriverState *bs, uint64_t offset,
 int qcow2_expand_zero_clusters(BlockDriverState *bs,
                                BlockDriverAmendStatusCB *status_cb,
                                void *cb_opaque);
+
+int qcow2_wait_l2table_update(BlockDriverState *bs, const QCowL2Meta *m);
 
 /* qcow2-snapshot.c functions */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);
