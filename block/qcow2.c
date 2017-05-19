@@ -1575,6 +1575,32 @@ fail:
     return ret;
 }
 
+static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
+{
+    BDRVQcow2State *s = bs->opaque;
+    BlockDriverState *file = bs->file->bs;
+    QCowL2Meta *m;
+    int ret;
+
+    for (m = l2meta; m != NULL; m = m->next) {
+        uint64_t bytes = m->nb_clusters << s->cluster_bits;
+
+        if (m->cow_start.nb_bytes == 0 && m->cow_end.nb_bytes == 0) {
+            continue;
+        }
+
+        /* try to alloc host space in one chunk for better locality */
+        ret = file->drv->bdrv_co_pwrite_zeroes(file, m->alloc_offset, bytes, 0);
+
+        if (ret != 0) {
+            continue;
+        }
+
+        file->total_sectors = MAX(file->total_sectors,
+                                  (m->alloc_offset + bytes) / BDRV_SECTOR_SIZE);
+    }
+}
+
 static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -1656,8 +1682,12 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         if (ret < 0) {
             goto fail;
         }
-
         qemu_co_mutex_unlock(&s->lock);
+
+        if (bs->file->bs->drv->bdrv_co_pwrite_zeroes != NULL) {
+            handle_alloc_space(bs, l2meta);
+        }
+
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
                                 cluster_offset + offset_in_cluster);
