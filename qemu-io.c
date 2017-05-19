@@ -63,7 +63,7 @@ static int openfile(char *name, int flags, bool writethrough, bool force_share,
     if (qemuio_blk) {
         error_report("file open already, try 'help close'");
         QDECREF(opts);
-        return 1;
+        return 0;
     }
 
     if (force_share) {
