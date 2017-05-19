@@ -71,7 +71,7 @@ echo
 _make_test_img $IMG_SIZE
 
 # Create data clusters (not aligned to an L2 table)
-$QEMU_IO -c 'write -P 42 1M 256k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 42 $(((1024 + 32) * 1024)) 192k" "$TEST_IMG" | _filter_qemu_io
 orig_map=$($QEMU_IMG map --output=json "$TEST_IMG")
 
 # Convert the data clusters to preallocated zero clusters

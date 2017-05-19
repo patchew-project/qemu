@@ -305,6 +305,10 @@ typedef struct Qcow2COWRegion {
 
     /** Number of bytes to copy */
     int         nb_bytes;
+
+    /** The region is filled with zeroes and does not require COW
+     */
+    bool        reduced;
 } Qcow2COWRegion;
 
 /**

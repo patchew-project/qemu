@@ -758,7 +758,7 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m, Qcow2COWRegion *r)
     BDRVQcow2State *s = bs->opaque;
     int ret;
 
-    if (r->nb_bytes == 0) {
+    if (r->nb_bytes == 0 || r->reduced) {
         return 0;
     }
 
@@ -1267,10 +1267,12 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         .cow_start = {
             .offset     = 0,
             .nb_bytes   = offset_into_cluster(s, guest_offset),
+            .reduced    = false,
         },
         .cow_end = {
             .offset     = nb_bytes,
             .nb_bytes   = avail_bytes - nb_bytes,
+            .reduced    = false,
         },
     };
     qemu_co_queue_init(&(*m)->dependent_requests);
