@@ -61,6 +61,20 @@ static QDict *type_list_find(QList *types, const char *name)
     return NULL;
 }
 
+static bool str_list_has(QList *strlist, const char *str)
+{
+    QListEntry *e;
+
+    QLIST_FOREACH_ENTRY(strlist, e) {
+        const char *s = qstring_get_str(qobject_to_qstring(qlist_entry_obj(e)));
+        if (!strcmp(s, str)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static QList *device_type_list(bool abstract)
 {
     return qom_list_types("device", abstract);
@@ -103,6 +117,31 @@ static void test_device_intro_list(void)
     qtest_end();
 }
 
+/*
+ * Ensure all entries returned by qom-list-types implements=<parent>
+ * have <parent> in parent-types.
+ */
+static void test_qom_list_parents(const char *parent)
+{
+    QList *types;
+    QListEntry *e;
+
+    types = qom_list_types(parent, true);
+
+    QLIST_FOREACH_ENTRY(types, e) {
+        QDict *d = qobject_to_qdict(qlist_entry_obj(e));
+
+        /* The parent type being queried is included in the list too, skip it */
+        if (!strcmp(qdict_get_str(d, "name"), parent)) {
+            continue;
+        }
+
+        g_assert(str_list_has(qdict_get_qlist(d, "parent-types"), parent));
+    }
+
+    QDECREF(types);
+}
+
 static void test_qom_list_fields(void)
 {
     QList *all_types;
@@ -122,6 +161,10 @@ static void test_qom_list_fields(void)
 
         g_assert(abstract == expected_abstract);
     }
+
+    test_qom_list_parents("object");
+    test_qom_list_parents("device");
+    test_qom_list_parents("sys-bus-device");
 
     QDECREF(all_types);
     QDECREF(non_abstract);
@@ -165,23 +208,22 @@ static void test_device_intro_concrete(void)
 static void test_abstract_interfaces(void)
 {
     QList *all_types;
-    QList *obj_types;
     QListEntry *e;
 
     qtest_start(common_args);
-    /*
-     * qom-list-types implements=interface returns all types that
-     * implement _any_ interface (not just interface types), but
-     * we can filter them out because interfaces don't implement
-     * the "object" type.
-     */
+
     all_types = qom_list_types("interface", true);
-    obj_types = qom_list_types("object", true);
 
     QLIST_FOREACH_ENTRY(all_types, e) {
         QDict *d = qobject_to_qdict(qlist_entry_obj(e));
 
-        if (type_list_find(obj_types, qdict_get_str(d, "name"))) {
+        /*
+         * qom-list-types implements=interface returns all types
+         * that implement _any_ interface (not just interface
+         * types), so skip the ones that don't have "interface"
+         * on parent-types.
+         */
+        if (!str_list_has(qdict_get_qlist(d, "parent-types"), "interface")) {
             /* Not an interface type */
             continue;
         }
@@ -190,7 +232,6 @@ static void test_abstract_interfaces(void)
     }
 
     QDECREF(all_types);
-    QDECREF(obj_types);
     qtest_end();
 }
 

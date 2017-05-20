@@ -3037,12 +3037,16 @@
 # @abstract: the type is abstract and can't be directly instantiated
 #            (since 2.10)
 #
+# @parent-types: parent types.  Parent types implemented by the type.  Note that
+#           this doesn't include interface names also implemented by the type.
+#           (since 2.10)
+#
 # Since: 1.1
 #
 # Notes: This command is experimental and may change syntax in future releases.
 ##
 { 'struct': 'ObjectTypeInfo',
-  'data': { 'name': 'str', 'abstract': 'bool' } }
+  'data': { 'name': 'str', 'abstract': 'bool', 'parent-types': [ 'str' ] } }
 
 ##
 # @qom-list-types:

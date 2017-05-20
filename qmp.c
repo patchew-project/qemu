@@ -436,6 +436,21 @@ void qmp_change(const char *device, const char *target,
     }
 }
 
+static strList *qom_type_get_parents(ObjectClass *klass)
+{
+    ObjectClass *parent = object_class_get_parent(klass);
+    strList *r = NULL;
+
+    if (!parent) {
+        return NULL;
+    }
+
+    r = g_new0(strList, 1);
+    r->value = g_strdup(object_class_get_name(parent));
+    r->next = qom_type_get_parents(parent);
+    return r;
+}
+
 static void qom_list_types_tramp(ObjectClass *klass, void *data)
 {
     ObjectTypeInfoList *e, **pret = data;
@@ -444,6 +459,7 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(object_class_get_name(klass));
     info->abstract = object_class_is_abstract(klass);
+    info->parent_types = qom_type_get_parents(klass);
 
     e = g_malloc0(sizeof(*e));
     e->value = info;
