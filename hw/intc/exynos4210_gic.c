@@ -283,9 +283,20 @@ static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
 
 static void exynos4210_gic_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
     Exynos4210GicState *s = EXYNOS4210_GIC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memory_region_init(&s->cpu_container, obj, "exynos4210-cpu-container",
+            EXYNOS4210_EXT_GIC_CPU_REGION_SIZE);
+    memory_region_init(&s->dist_container, obj, "exynos4210-dist-container",
+            EXYNOS4210_EXT_GIC_DIST_REGION_SIZE);
+
+}
+
+static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
+{
+    Exynos4210GicState *s = EXYNOS4210_GIC(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Object *obj = OBJECT(dev);
     uint32_t i;
     const char cpu_prefix[] = "exynos4210-gic-alias_cpu";
     const char dist_prefix[] = "exynos4210-gic-alias_dist";
@@ -305,11 +316,6 @@ static void exynos4210_gic_init(Object *obj)
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(dev, exynos4210_gic_set_irq,
                       EXYNOS4210_GIC_NIRQ - 32);
-
-    memory_region_init(&s->cpu_container, obj, "exynos4210-cpu-container",
-            EXYNOS4210_EXT_GIC_CPU_REGION_SIZE);
-    memory_region_init(&s->dist_container, obj, "exynos4210-dist-container",
-            EXYNOS4210_EXT_GIC_DIST_REGION_SIZE);
 
     for (i = 0; i < s->num_cpu; i++) {
         /* Map CPU interface per SMP Core */
@@ -346,6 +352,7 @@ static void exynos4210_gic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = exynos4210_gic_realize;
     dc->props = exynos4210_gic_properties;
 }
 
