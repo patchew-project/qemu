@@ -397,7 +397,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
         Aml *rm_evt = aml_name("%s.%s", cphp_res_path, CPU_REMOVE_EVENT);
         Aml *ej_evt = aml_name("%s.%s", cphp_res_path, CPU_EJECT_EVENT);
 
-        aml_append(cpus_dev, aml_name_decl("_HID", aml_string("ACPI0010")));
+        aml_append(cpus_dev, aml_name_decl("_HID", aml_string("PNP0A05")));
         aml_append(cpus_dev, aml_name_decl("_CID", aml_eisaid("PNP0A05")));
 
         method = aml_method(CPU_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
