@@ -101,6 +101,20 @@ struct MigrationIncomingState {
     LoadStateEntry_Head loadvm_handlers;
 
     /*
+     * bitmap indicates whether page copied,
+     * based on ramblock offset
+     * now it is using only for blocktime calculation in
+     * postcopy migration, so livetime of this entry:
+     * since user requested blocktime calculation,
+     * till the end of postcopy migration
+     * as an example it could represend following memory map
+     * ___________________________________
+     * |4k pages | hugepages | 4k pages
+     *
+     * */
+    unsigned long *copied_pages;
+
+    /*
      * PostcopyBlocktimeContext to keep information for postcopy
      * live migration, to calculate vCPU block time
      * */
@@ -279,6 +293,8 @@ int migrate_compress_threads(void);
 int migrate_decompress_threads(void);
 bool migrate_use_events(void);
 bool migrate_postcopy_blocktime(void);
+unsigned long int get_copied_bit_offset(ram_addr_t addr);
+unsigned long int *copied_pages_bitmap_new(void);
 
 /* Sending on the return path - generic and then for each message type */
 void migrate_send_rp_message(MigrationIncomingState *mis,

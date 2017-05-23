@@ -2661,6 +2661,69 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
+static unsigned long get_total_bits_per_page(ram_addr_t mem_length,
+        size_t page_size)
+{
+    unsigned long page_size_bit = find_last_bit((unsigned long *)&page_size,
+            BITS_PER_LONG);
+    unsigned long total_bits = mem_length >> page_size_bit;
+    if (mem_length % page_size) {
+        total_bits += 1;
+    }
+    return total_bits;
+}
+
+/*
+ * this function allocates bitmap for copied pages,
+ * also it calculates
+ * how many entries do we need
+ * */
+unsigned long int *copied_pages_bitmap_new(void)
+{
+    RAMBlock *block;
+    unsigned long int total_bits = 0;
+
+    rcu_read_lock();
+    RAMBLOCK_FOREACH(block) {
+        /* in general case used_length may not be aligned
+         * by page_size */
+
+        total_bits += get_total_bits_per_page(block->used_length,
+                block->page_size);
+    }
+    rcu_read_unlock();
+
+    return bitmap_new(total_bits);
+}
+
+unsigned long int get_copied_bit_offset(ram_addr_t addr)
+{
+    RAMBlock *block;
+    unsigned long int iter_bit = 0;
+
+    rcu_read_lock();
+    RAMBLOCK_FOREACH(block) {
+        /* in general case used_length may not be aligned
+         * by page_size */
+        if (block->host == NULL) {
+            continue;
+        }
+        if (addr - (ram_addr_t)block->host < block->max_length) {
+            unsigned long page_size_bit = find_last_bit(
+                    (unsigned long *)&block->page_size,
+                    BITS_PER_LONG);
+            ram_addr_t offset = addr - (ram_addr_t)block->host;
+            iter_bit += offset >> page_size_bit;
+            break;
+        }
+        iter_bit += get_total_bits_per_page(block->used_length,
+                block->page_size);
+    }
+    rcu_read_unlock();
+
+    return iter_bit;
+}
+
 static SaveVMHandlers savevm_ram_handlers = {
     .save_live_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,

@@ -94,23 +94,34 @@ static void destroy_blocktime_context(struct PostcopyBlocktimeContext *ctx)
 
 static void postcopy_migration_cb(Notifier *n, void *data)
 {
-    PostcopyBlocktimeContext *ctx = container_of(n, PostcopyBlocktimeContext,
-                                               postcopy_notifier);
     MigrationState *s = data;
     if (migration_has_finished(s) || migration_has_failed(s)) {
+        MigrationIncomingState *mis = migration_incoming_get_current();
+        PostcopyBlocktimeContext *ctx = mis->blocktime_ctx;
+
+        if (!ctx) {
+            return;
+        }
+
         g_free(ctx->page_fault_vcpu_time);
         /* g_free is NULL robust */
         ctx->page_fault_vcpu_time = NULL;
         g_free(ctx->vcpu_addr);
         ctx->vcpu_addr = NULL;
+        g_free(mis->copied_pages);
+        mis->copied_pages = NULL;
     }
 }
 
 static void migration_exit_cb(Notifier *n, void *data)
 {
-    PostcopyBlocktimeContext *ctx = container_of(n, PostcopyBlocktimeContext,
-                                               exit_notifier);
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyBlocktimeContext *ctx = mis->blocktime_ctx;
+    if (!ctx) {
+        return;
+    }
     destroy_blocktime_context(ctx);
+    mis->blocktime_ctx = NULL;
 }
 
 static struct PostcopyBlocktimeContext *blocktime_context_new(void)
@@ -227,6 +238,9 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
             mis->blocktime_ctx = blocktime_context_new();
         }
 
+        if (!mis->copied_pages) {
+            mis->copied_pages = copied_pages_bitmap_new();
+        }
         asked_features |= UFFD_FEATURE_THREAD_ID;
     }
 #endif
