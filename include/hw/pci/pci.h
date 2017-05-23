@@ -283,6 +283,12 @@ struct PCIDevice {
      * MSI). For conventional PCI root complex, this field is
      * meaningless. */
     PCIReqIDCache requester_id_cache;
+    /* Some platforms need a unique ID for IOMMU source identification
+     * or MSI source identification. QEMU implements a simple scheme:
+     * stream_id =  stream_id_base + requester_id. The stream_id_base will
+     * ensure that all the devices in the system have different stream ID
+     * domains */
+    uint32_t stream_id_base;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
     AddressSpace bus_master_as;
@@ -736,6 +742,8 @@ static inline uint16_t pci_get_bdf(PCIDevice *dev)
 }
 
 uint16_t pci_requester_id(PCIDevice *dev);
+
+uint32_t pci_stream_id(PCIDevice *dev);
 
 /* DMA access functions */
 static inline AddressSpace *pci_get_address_space(PCIDevice *dev)

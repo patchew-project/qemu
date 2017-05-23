@@ -951,6 +951,30 @@ uint16_t pci_requester_id(PCIDevice *dev)
     return pci_req_id_cache_extract(&dev->requester_id_cache);
 }
 
+static uint32_t pci_get_stream_id_base(PCIDevice *dev)
+{
+    PCIBus *rootbus = pci_device_root_bus(dev);
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(rootbus->qbus.parent);
+    Error *err = NULL;
+    int64_t stream_id;
+
+    stream_id = object_property_get_int(OBJECT(host_bridge), "stream-id-base",
+                                        &err);
+    if (stream_id < 0) {
+        stream_id = 0;
+    }
+
+    return stream_id;
+}
+
+uint32_t pci_stream_id(PCIDevice *dev)
+{
+    /* Stream ID = RequesterID[15:0] + stream_id_base. stream_id_base may
+     * be 0 for devices that are not using any translation between requester_id
+     * and stream_id */
+    return  (uint16_t)pci_requester_id(dev) + dev->stream_id_base;
+}
+
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
@@ -1000,6 +1024,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
 
     pci_dev->devfn = devfn;
     pci_dev->requester_id_cache = pci_req_id_cache_get(pci_dev);
+    pci_dev->stream_id_base = pci_get_stream_id_base(pci_dev);
 
     memory_region_init(&pci_dev->bus_master_container_region, OBJECT(pci_dev),
                        "bus master container", UINT64_MAX);
