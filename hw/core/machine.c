@@ -730,9 +730,6 @@ static void machine_numa_finish_init(MachineState *machine)
                 g_string_append_printf(s, "%sCPU %d [%s]",
                                        s->len ? ", " : "", i, cpu_str);
                 g_free(cpu_str);
-
-                /* non mapped cpus used to fallback to node 0 */
-                props.node_id = 0;
             }
 
             props.has_node_id = true;
