@@ -29,7 +29,7 @@
 #define TYPE_KVM_ARM_ITS "arm-its-kvm"
 #define KVM_ARM_ITS(obj) OBJECT_CHECK(GICv3ITSState, (obj), TYPE_KVM_ARM_ITS)
 
-static int kvm_its_send_msi(GICv3ITSState *s, uint32_t value, uint16_t devid)
+static int kvm_its_send_msi(GICv3ITSState *s, uint32_t value, uint32_t devid)
 {
     struct kvm_msi msi;
 

@@ -146,7 +146,7 @@ static void amdvi_generate_msi_interrupt(AMDVIState *s)
 {
     MSIMessage msg = {};
     MemTxAttrs attrs = {
-        .requester_id = pci_requester_id(&s->pci.dev)
+        .stream_id = pci_requester_id(&s->pci.dev)
     };
 
     if (msi_enabled(&s->pci.dev)) {

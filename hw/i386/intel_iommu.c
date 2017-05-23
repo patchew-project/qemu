@@ -2597,7 +2597,7 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
 
     if (!attrs.unspecified) {
         /* We have explicit Source ID */
-        sid = attrs.requester_id;
+        sid = attrs.stream_id;
     }
 
     ret = vtd_interrupt_remap_msi(opaque, &from, &to, sid);
