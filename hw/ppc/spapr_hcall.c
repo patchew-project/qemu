@@ -1058,7 +1058,8 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     uint32_t max_compat = cpu->max_compat;
     uint32_t best_compat = 0;
     int i;
-    sPAPROptionVector *ov1_guest, *ov5_guest, *ov5_cas_old, *ov5_updates;
+    sPAPROptionVector *ov1_guest, *ov5_guest, *ov5_cas_old, *ov5_updates,
+                      *ov6_guest;
     bool guest_radix;
 
     /*
@@ -1112,6 +1113,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
     ov1_guest = spapr_ovec_parse_vector(ov_table, 1);
     ov5_guest = spapr_ovec_parse_vector(ov_table, 5);
+    ov6_guest = spapr_ovec_parse_vector(ov_table, 6);
     if (spapr_ovec_test(ov5_guest, OV5_MMU_BOTH)) {
         error_report("guest requested hash and radix MMU, which is invalid.");
         exit(EXIT_FAILURE);
@@ -1154,6 +1156,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     }
     spapr->cas_legacy_guest_workaround = !spapr_ovec_test(ov1_guest,
                                                           OV1_PPC_3_00);
+    spapr->os_name = spapr_ovec_byte(ov6_guest, OV6_OS_NAME);
     if (!spapr->cas_reboot) {
         spapr->cas_reboot =
             (spapr_h_cas_compose_response(spapr, args[1], args[2],

@@ -160,6 +160,14 @@ static uint8_t guest_byte_from_bitmap(unsigned long *bitmap, long bitmap_offset)
     return entry;
 }
 
+uint8_t spapr_ovec_byte(sPAPROptionVector *ov, long bitnr)
+{
+    g_assert(ov);
+    g_assert(bitnr < OV_MAXBITS);
+
+    return guest_byte_from_bitmap(ov->bitmap, bitnr);
+}
+
 static target_ulong vector_addr(target_ulong table_addr, int vector)
 {
     uint16_t vector_count, vector_len;

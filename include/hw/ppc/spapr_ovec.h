@@ -56,6 +56,12 @@ typedef struct sPAPROptionVector sPAPROptionVector;
 #define OV5_MMU_RADIX_300       OV_BIT(24, 1) /* 1=Radix only, 0=Hash only */
 #define OV5_MMU_RADIX_GTSE      OV_BIT(26, 1) /* Radix GTSE */
 
+/* option vector 6 */
+#define OV6_OS_NAME             OV_BIT(3, 0)
+#define OV6_NONE                0x00
+#define OV6_AIX                 0x01
+#define OV6_LINUX               0x02
+
 /* interfaces */
 sPAPROptionVector *spapr_ovec_new(void);
 sPAPROptionVector *spapr_ovec_clone(sPAPROptionVector *ov_orig);
@@ -69,6 +75,7 @@ void spapr_ovec_cleanup(sPAPROptionVector *ov);
 void spapr_ovec_set(sPAPROptionVector *ov, long bitnr);
 void spapr_ovec_clear(sPAPROptionVector *ov, long bitnr);
 bool spapr_ovec_test(sPAPROptionVector *ov, long bitnr);
+uint8_t spapr_ovec_byte(sPAPROptionVector *ov, long bitnr);
 sPAPROptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector);
 int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
                            sPAPROptionVector *ov, const char *name);

@@ -1369,6 +1369,7 @@ static void ppc_spapr_reset(void)
     first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
     spapr->cas_reboot = false;
+    spapr->os_name = OV6_NONE;
 }
 
 static void spapr_create_nvram(sPAPRMachineState *spapr)
@@ -1524,10 +1525,41 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static bool spapr_os_name_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    return smc->need_os_name;
+}
+
+static const VMStateDescription vmstate_spapr_os_name = {
+    .name = "spapr_os_name",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_os_name_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(os_name, sPAPRMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static int spapr_pre_load(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    /* if the os_name is not migrated from the source,
+     * we must allow hotplug, so set os_name to linux
+     */
+    spapr->os_name = OV6_LINUX;
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
     .minimum_version_id = 1,
+    .pre_load = spapr_pre_load,
     .post_load = spapr_post_load,
     .fields = (VMStateField[]) {
         /* used to be @next_irq */
@@ -1542,6 +1574,7 @@ static const VMStateDescription vmstate_spapr = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
+        &vmstate_spapr_os_name,
         NULL
     }
 };
@@ -3216,6 +3249,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      * in which LMBs are represented and hot-added
      */
     mc->numa_mem_align_shift = 28;
+    smc->need_os_name = true;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -3293,9 +3327,11 @@ static void spapr_machine_2_9_instance_options(MachineState *machine)
 
 static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     spapr_machine_2_10_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
     mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
+    smc->need_os_name = false;
 }
 
 DEFINE_SPAPR_MACHINE(2_9, "2.9", false);
