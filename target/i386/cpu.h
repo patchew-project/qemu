@@ -1278,6 +1278,7 @@ struct X86CPU {
     int32_t socket_id;
     int32_t core_id;
     int32_t thread_id;
+    int32_t node_id; /* NUMA node this CPU is belonging to */
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
