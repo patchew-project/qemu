@@ -15,6 +15,7 @@
 #define BCM2835_GPIO_H
 
 #include "hw/sd/sd.h"
+#include "qemu/PanelEmu.h"
 
 typedef struct BCM2835GpioState {
     SysBusDevice parent_obj;
@@ -30,6 +31,9 @@ typedef struct BCM2835GpioState {
     uint32_t lev0, lev1;
     uint8_t sd_fsel;
     qemu_irq out[54];
+
+    panel_connection_t panel;
+
 } BCM2835GpioState;
 
 #define TYPE_BCM2835_GPIO "bcm2835_gpio"
