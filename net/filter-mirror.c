@@ -266,6 +266,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
     }
 
     net_socket_rs_init(&s->rs, redirector_rs_finalize);
+    s->rs.vnet_hdr = s->vnet_hdr;
 
     if (s->indev) {
         chr = qemu_chr_find(s->indev);
