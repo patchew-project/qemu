@@ -6,6 +6,10 @@
         .driver   = "pci-bridge",\
         .property = "shpc",\
         .value    = "off",\
+    },{\
+        .driver   = "virtio-net-device",\
+        .property = "x-mtu-bypass-backend",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_8 \
