@@ -213,21 +213,19 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
     qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
 }
 
-
 static void qemu_announce_self_once(void *opaque)
 {
-    static int count = SELF_ANNOUNCE_ROUNDS;
-    QEMUTimer *timer = *(QEMUTimer **)opaque;
+    AnnounceTimer *timer = (AnnounceTimer *)opaque;
 
     qemu_foreach_nic(qemu_announce_self_iter, NULL);
 
-    if (--count) {
-        /* delay 50ms, 150ms, 250ms, ... */
-        timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
-                  self_announce_delay(count));
+    if (--timer->round) {
+        timer_mod(timer->tm, qemu_clock_get_ms(timer->type) +
+                  self_announce_delay(timer));
     } else {
-            timer_del(timer);
-            timer_free(timer);
+            timer_del(timer->tm);
+            timer_free(timer->tm);
+            g_free(timer);
     }
 }
 
@@ -253,11 +251,13 @@ AnnounceTimer *qemu_announce_timer_create(AnnounceParameters *params,
     return timer;
 }
 
-void qemu_announce_self(void)
+void qemu_announce_self(AnnounceParameters *params)
 {
-    static QEMUTimer *timer;
-    timer = timer_new_ms(QEMU_CLOCK_REALTIME, qemu_announce_self_once, &timer);
-    qemu_announce_self_once(&timer);
+    AnnounceTimer *timer;
+
+    timer = qemu_announce_timer_create(params, QEMU_CLOCK_REALTIME,
+                                       qemu_announce_self_once);
+    qemu_announce_self_once(timer);
 }
 
 /***********************************************************/
@@ -1726,7 +1726,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
      */
     cpu_synchronize_all_post_init();
 
-    qemu_announce_self();
+    qemu_announce_self(qemu_get_announce_params());
 
     /* Make sure all file formats flush their mutable metadata.
      * If we get an error here, just don't restart the VM yet. */

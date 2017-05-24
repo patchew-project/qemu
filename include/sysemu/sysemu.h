@@ -84,7 +84,7 @@ bool qemu_validate_announce_parameters(AnnounceParameters *params,
                                        Error **errp);
 void qemu_set_announce_parameters(AnnounceParameters *announce_params,
                                   AnnounceParameters *params);
-void qemu_announce_self(void);
+void qemu_announce_self(AnnounceParameters *params);
 
 /* Subcommands for QEMU_VM_COMMAND */
 enum qemu_vm_cmd {

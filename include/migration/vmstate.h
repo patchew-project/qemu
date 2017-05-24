@@ -1018,8 +1018,6 @@ extern const VMStateInfo vmstate_info_qtailq;
 #define VMSTATE_END_OF_LIST()                                         \
     {}
 
-#define SELF_ANNOUNCE_ROUNDS 5
-
 void loadvm_free_handlers(MigrationIncomingState *mis);
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
@@ -1067,11 +1065,18 @@ AnnounceTimer *qemu_announce_timer_create(AnnounceParameters *params,
                                           QEMUTimerCB *cb);
 
 static inline
-int64_t self_announce_delay(int round)
+int64_t self_announce_delay(AnnounceTimer *timer)
 {
-    assert(round < SELF_ANNOUNCE_ROUNDS && round > 0);
-    /* delay 50ms, 150ms, 250ms, ... */
-    return 50 + (SELF_ANNOUNCE_ROUNDS - round - 1) * 100;
+    int64_t ret;
+
+    ret =  timer->params.initial +
+           (timer->params.rounds - timer->round - 1) *
+           timer->params.step;
+
+    if (ret < 0 || ret > timer->params.max) {
+        ret = timer->params.max;
+    }
+    return ret;
 }
 
 void dump_vmstate_json_to_file(FILE *out_fp);
