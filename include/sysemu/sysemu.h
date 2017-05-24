@@ -77,6 +77,13 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify);
 int save_vmstate(const char *name, Error **errp);
 int load_vmstate(const char *name, Error **errp);
 
+AnnounceParameters *qemu_get_announce_params(void);
+void qemu_fill_announce_parameters(AnnounceParameters **to,
+                                   AnnounceParameters *from);
+bool qemu_validate_announce_parameters(AnnounceParameters *params,
+                                       Error **errp);
+void qemu_set_announce_parameters(AnnounceParameters *announce_params,
+                                  AnnounceParameters *params);
 void qemu_announce_self(void);
 
 /* Subcommands for QEMU_VM_COMMAND */

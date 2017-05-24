@@ -569,6 +569,90 @@
 ##
 { 'command': 'query-events', 'returns': ['EventInfo'] }
 
+
+##
+# @AnnounceParameter:
+#
+# @AnnounceParameter enumeration
+#
+# @initial: Initial delay (in ms) before sending the first GARP/RARP
+#       announcement
+#
+# @max: Maximum delay (in ms) to between GARP/RARP announcemnt packets
+#
+# @rounds: Number of self-announcement attempts
+#
+# @step: Delay increate (in ms) after each self-announcment attempt
+#
+# Since: 2.10
+##
+{ 'enum' : 'AnnounceParameter',
+  'data' : [ 'initial', 'max', 'rounds', 'step' ] }
+
+##
+# @AnnounceParameters:
+#
+# Optional members may be omited on input, but all values will be present
+# on output.
+#           
+# @initial: Initial delay (in ms) before sending the first GARP/RARP
+#       announcement
+#
+# @max: Maximum delay (in ms) to between GARP/RARP announcemnt packets
+#
+# @rounds: Number of self-announcement attempts
+#
+# @step: Delay increate (in ms) after each self-announcment attempt
+#
+# Since: 2.10
+##
+
+{ 'struct': 'AnnounceParameters',
+  'data': { '*initial': 'int',
+            '*max': 'int',
+            '*rounds': 'int',
+            '*step': 'int' } }
+
+##
+# @announce-set-parameters:
+#
+# Set qemu announce parameters.
+#
+# Since: 2.10
+#
+# Example:
+#
+# -> { "execute": "announce-set-parameters",
+#      "arguments": { "announce-rounds": 10 } }
+#
+##
+{ 'command': 'announce-set-parameters', 'boxed': true,
+  'data': 'AnnounceParameters' }
+
+##
+# @query-announce-parameters:
+#
+# Returns information about the current announce parameters
+#
+# Returns: @AnnounceParameters
+#
+# Since: 2.10
+#
+# Example:
+#
+# -> { "execute": "query-announce-parameters" }
+# <- { "return": {
+#          "initial": 50,
+#          "max": 500,
+#          "rounds": 5,
+#          "step": 100
+#       }
+#    }
+#
+##
+{ 'command': 'query-announce-parameters',
+  'returns': 'AnnounceParameters' }
+
 ##
 # @MigrationStats:
 #

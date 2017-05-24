@@ -79,6 +79,104 @@ static struct mig_cmd_args {
     [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
 };
 
+#define QEMU_ANNOUNCE_INITIAL    50
+#define QEMU_ANNOUNCE_MAX       550
+#define QEMU_ANNOUNCE_ROUNDS      5
+#define QEMU_ANNOUNCE_STEP      100
+
+AnnounceParameters *qemu_get_announce_params(void)
+{
+    static AnnounceParameters announce = {
+        .initial = QEMU_ANNOUNCE_INITIAL,
+        .max = QEMU_ANNOUNCE_MAX,
+        .rounds = QEMU_ANNOUNCE_ROUNDS,
+        .step = QEMU_ANNOUNCE_STEP,
+    };
+
+    return &announce;
+}
+
+void qemu_fill_announce_parameters(AnnounceParameters **to,
+                                   AnnounceParameters *from)
+{
+    AnnounceParameters *params;
+
+    params = *to = g_malloc0(sizeof(*params));
+    params->has_initial = true;
+    params->initial = from->initial;
+    params->has_max = true;
+    params->max = from->max;
+    params->has_rounds = true;
+    params->rounds = from->rounds;
+    params->has_step = true;
+    params->step = from->step;
+}
+
+bool qemu_validate_announce_parameters(AnnounceParameters *params, Error **errp)
+{
+    if (params->has_initial &&
+        (params->initial < 1 || params->initial > 100000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "initial",
+                   "is invalid, it should be in the range of 1 to 100000 ms");
+        return false;
+    }
+    if (params->has_max &&
+        (params->max < 1 || params->max > 100000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "max",
+                   "is invalid, it should be in the range of 1 to 100000 ms");
+        return false;
+    }
+    if (params->has_rounds &&
+        (params->rounds < 1 || params->rounds > 1000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "rounds",
+                   "is invalid, it should be in the range of 1 to 1000");
+        return false;
+    }
+    if (params->has_step &&
+        (params->step < 0 || params->step > 10000)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "step",
+                   "is invalid, it should be in the range of 1 to 10000 ms");
+        return false;
+    }
+
+    return true;
+}
+
+void qemu_set_announce_parameters(AnnounceParameters *announce_params,
+                                  AnnounceParameters *params)
+{
+    if (params->has_initial) {
+        announce_params->initial = params->initial;
+    }
+    if (params->has_max) {
+        announce_params->max = params->max;
+    }
+    if (params->has_rounds) {
+        announce_params->rounds = params->rounds;
+    }
+    if (params->has_step) {
+        announce_params->step = params->step;
+    }
+}
+
+AnnounceParameters *qmp_query_announce_parameters(Error **errp)
+{
+    AnnounceParameters *params = NULL;
+
+    qemu_fill_announce_parameters(&params, qemu_get_announce_params());
+    return params;
+}
+
+void qmp_announce_set_parameters(AnnounceParameters *params, Error **errp)
+{
+    AnnounceParameters *current = qemu_get_announce_params();
+
+    if (!qemu_validate_announce_parameters(params, errp))
+        return;
+
+    qemu_set_announce_parameters(current, params);
+}
+
 static int announce_self_create(uint8_t *buf,
                                 uint8_t *mac_addr)
 {
