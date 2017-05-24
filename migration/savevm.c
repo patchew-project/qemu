@@ -219,6 +219,8 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
     }
 }
 
+AnnounceTimer *announce_timers[QEMU_ANNOUNCE__MAX];
+
 static void qemu_announce_self_once(void *opaque)
 {
     AnnounceTimer *timer = (AnnounceTimer *)opaque;
@@ -229,6 +231,7 @@ static void qemu_announce_self_once(void *opaque)
         timer_mod(timer->tm, qemu_clock_get_ms(timer->type) +
                   self_announce_delay(timer));
     } else {
+            *(timer->entry) = NULL;
             timer_del(timer->tm);
             timer_free(timer->tm);
             g_free(timer);
@@ -257,12 +260,23 @@ AnnounceTimer *qemu_announce_timer_create(AnnounceParameters *params,
     return timer;
 }
 
-void qemu_announce_self(AnnounceParameters *params)
+void qemu_announce_self(AnnounceParameters *params, AnnounceType type)
 {
     AnnounceTimer *timer;
 
-    timer = qemu_announce_timer_create(params, QEMU_CLOCK_REALTIME,
-                                       qemu_announce_self_once);
+    timer = announce_timers[type];
+    if (!timer) {
+        timer = qemu_announce_timer_create(params, QEMU_CLOCK_REALTIME,
+                                            qemu_announce_self_once);
+        announce_timers[type] = timer;
+        timer->entry = &announce_timers[type];
+    } else {
+        /* For now, don't do anything.  If we want to reset the timer,
+         * we'll need to add locking to each announce timer to prevent
+         * races between timeout handling and a reset.
+         */
+        return;
+    }
     qemu_announce_self_once(timer);
 }
 
@@ -277,7 +291,7 @@ void qmp_announce_self(bool has_params, AnnounceParameters *params,
     if (has_params)
         qemu_set_announce_parameters(&announce_params, params);
 
-    qemu_announce_self(&announce_params);
+    qemu_announce_self(&announce_params, QEMU_ANNOUNCE_USER);
 }
 
 /***********************************************************/
@@ -1746,7 +1760,7 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
      */
     cpu_synchronize_all_post_init();
 
-    qemu_announce_self(qemu_get_announce_params());
+    qemu_announce_self(qemu_get_announce_params(), QEMU_ANNOUNCE_MIGRATION);
 
     /* Make sure all file formats flush their mutable metadata.
      * If we get an error here, just don't restart the VM yet. */

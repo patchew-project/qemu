@@ -348,7 +348,7 @@ static void process_incoming_migration_bh(void *opaque)
      * This must happen after all error conditions are dealt with and
      * we're sure the VM is going to be running on this host.
      */
-    qemu_announce_self(qemu_get_announce_params());
+    qemu_announce_self(qemu_get_announce_params(), QEMU_ANNOUNCE_MIGRATION);
 
     /* If global state section was not received or we are in running
        state, we need to obey autostart. Any other state is set with
