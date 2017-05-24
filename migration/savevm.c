@@ -266,6 +266,20 @@ void qemu_announce_self(AnnounceParameters *params)
     qemu_announce_self_once(timer);
 }
 
+void qmp_announce_self(bool has_params, AnnounceParameters *params,
+                       Error **errp)
+{
+    AnnounceParameters announce_params;
+
+    memcpy(&announce_params, qemu_get_announce_params(),
+           sizeof(announce_params));
+
+    if (has_params)
+        qemu_set_announce_parameters(&announce_params, params);
+
+    qemu_announce_self(&announce_params);
+}
+
 /***********************************************************/
 /* savevm/loadvm support */
 

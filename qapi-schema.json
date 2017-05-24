@@ -654,6 +654,25 @@
   'returns': 'AnnounceParameters' }
 
 ##
+# @announce-self:
+#
+# Trigger generation of broadcast RARP frames to update network switches.
+# This can be useful when network bonds fail-over the active slave.
+#
+# Arguments: None.
+#
+# Example:
+#
+# -> { "execute": "announce-self"
+#      "arguments": { "announce-rounds": 5 } }
+# <- { "return": {} }
+#
+# Since: 2.10
+##
+{ 'command': 'announce-self',
+  'data' : {'*params': 'AnnounceParameters'} }
+
+##
 # @MigrationStats:
 #
 # Detailed migration status.
