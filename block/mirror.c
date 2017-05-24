@@ -1123,13 +1123,44 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              bool auto_complete, const char *filter_node_name,
                              Error **errp)
 {
+    AioContext *aio_context, *target_context;
     MirrorBlockJob *s;
     BlockDriverState *mirror_top_bs;
+    BlockBackend *target_blk;
     bool target_graph_mod;
     bool target_is_backing;
     Error *local_err = NULL;
     int ret;
 
+    /* No resize for the target either; while the mirror is still running, a
+     * consistent read isn't necessarily possible. We could possibly allow
+     * writes and graph modifications, though it would likely defeat the
+     * purpose of a mirror, so leave them blocked for now.
+     *
+     * In the case of active commit, things look a bit different, though,
+     * because the target is an already populated backing file in active use.
+     * We can allow anything except resize there.*/
+    target_is_backing = bdrv_chain_contains(bs, target);
+    target_graph_mod = (backing_mode != MIRROR_LEAVE_BACKING_CHAIN);
+    target_blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE |
+                         BLK_PERM_AIO_CONTEXT_CHANGE |
+                         (target_graph_mod ? BLK_PERM_GRAPH_MOD : 0),
+                         BLK_PERM_WRITE_UNCHANGED |
+                         (target_is_backing ? BLK_PERM_CONSISTENT_READ |
+                                              BLK_PERM_WRITE |
+                                              BLK_PERM_GRAPH_MOD : 0));
+    ret = blk_insert_bs(target_blk, target, errp);
+    if (ret < 0) {
+        blk_unref(target_blk);
+        return;
+    }
+    aio_context = bdrv_get_aio_context(bs);
+    target_context = bdrv_get_aio_context(target);
+    if (target_context != aio_context) {
+        aio_context_acquire(target_context);
+        blk_set_aio_context(target_blk, aio_context);
+        aio_context_release(target_context);
+    }
     if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
     }
@@ -1184,28 +1215,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     s->source = bs;
     s->mirror_top_bs = mirror_top_bs;
 
-    /* No resize for the target either; while the mirror is still running, a
-     * consistent read isn't necessarily possible. We could possibly allow
-     * writes and graph modifications, though it would likely defeat the
-     * purpose of a mirror, so leave them blocked for now.
-     *
-     * In the case of active commit, things look a bit different, though,
-     * because the target is an already populated backing file in active use.
-     * We can allow anything except resize there.*/
-    target_is_backing = bdrv_chain_contains(bs, target);
-    target_graph_mod = (backing_mode != MIRROR_LEAVE_BACKING_CHAIN);
-    s->target = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE |
-                        BLK_PERM_AIO_CONTEXT_CHANGE |
-                        (target_graph_mod ? BLK_PERM_GRAPH_MOD : 0),
-                        BLK_PERM_WRITE_UNCHANGED |
-                        (target_is_backing ? BLK_PERM_CONSISTENT_READ |
-                                             BLK_PERM_WRITE |
-                                             BLK_PERM_GRAPH_MOD : 0));
-    ret = blk_insert_bs(s->target, target, errp);
-    if (ret < 0) {
-        goto fail;
-    }
-
+    s->target = target_blk;
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
