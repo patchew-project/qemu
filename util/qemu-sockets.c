@@ -845,6 +845,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 {
     struct sockaddr_un un;
     int sock, fd;
+    size_t pathlen;
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
@@ -854,15 +855,25 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
-    if (saddr->path && strlen(saddr->path)) {
-        snprintf(un.sun_path, sizeof(un.sun_path), "%s", saddr->path);
+    pathlen = saddr->path ? strlen(saddr->path) : 0;
+    if (pathlen != 0) {
+        if (pathlen > sizeof(un.sun_path)) {
+            error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
+            error_append_hint(errp, "Path must be less than %zu bytes\n",
+                              sizeof(un.sun_path));
+            goto err;
+        }
+        strncpy(un.sun_path, saddr->path, sizeof(un.sun_path));
     } else {
+        const char *template = "qemu-socket-XXXXXX";
         const char *tmpdir = getenv("TMPDIR");
         tmpdir = tmpdir ? tmpdir : "/tmp";
-        if (snprintf(un.sun_path, sizeof(un.sun_path), "%s/qemu-socket-XXXXXX",
-                     tmpdir) >= sizeof(un.sun_path)) {
-            error_setg_errno(errp, errno,
-                             "TMPDIR environment variable (%s) too large", tmpdir);
+        if (snprintf(un.sun_path, sizeof(un.sun_path), "%s/%s",
+                     tmpdir, template) >= sizeof(un.sun_path)) {
+            error_setg(errp,
+                       "TMPDIR environment variable (%s) too large", tmpdir);
+            error_append_hint(errp, "Path must be less than %zu bytes\n",
+                              sizeof(un.sun_path) - strlen(template) - 1);
             goto err;
         }
 
