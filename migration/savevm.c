@@ -221,20 +221,29 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
 
 AnnounceTimer *announce_timers[QEMU_ANNOUNCE__MAX];
 
+static void qemu_announce_timer_destroy(AnnounceTimer *timer)
+{
+    timer_del(timer->tm);
+    timer_free(timer->tm);
+    qemu_mutex_destroy(&timer->active_lock);
+    g_free(timer);
+}
+
 static void qemu_announce_self_once(void *opaque)
 {
     AnnounceTimer *timer = (AnnounceTimer *)opaque;
 
+    qemu_mutex_lock(&timer->active_lock);
     qemu_foreach_nic(qemu_announce_self_iter, NULL);
 
-    if (--timer->round) {
+    if (--timer->round ) {
         timer_mod(timer->tm, qemu_clock_get_ms(timer->type) +
                   self_announce_delay(timer));
+        qemu_mutex_unlock(&timer->active_lock);
     } else {
-            *(timer->entry) = NULL;
-            timer_del(timer->tm);
-            timer_free(timer->tm);
-            g_free(timer);
+        *(timer->entry) = NULL;
+        qemu_mutex_unlock(&timer->active_lock);
+        qemu_announce_timer_destroy(timer);
     }
 }
 
@@ -243,6 +252,7 @@ AnnounceTimer *qemu_announce_timer_new(AnnounceParameters *params,
 {
     AnnounceTimer *timer = g_new(AnnounceTimer, 1);
 
+    qemu_mutex_init(&timer->active_lock);
     timer->params = *params;
     timer->round = params->rounds;
     timer->type = type;
@@ -260,6 +270,21 @@ AnnounceTimer *qemu_announce_timer_create(AnnounceParameters *params,
     return timer;
 }
 
+static void qemu_announce_timer_update(AnnounceTimer *timer,
+                                       AnnounceParameters *params)
+{
+    qemu_mutex_lock(&timer->active_lock);
+
+    /* Update timer paramenter with any new values.
+     * Reset the number of rounds to run, and stop the current timer.
+     */
+    timer->params = *params;
+    timer->round = params->rounds;
+    timer_del(timer->tm);
+
+    qemu_mutex_unlock(&timer->active_lock);
+}
+
 void qemu_announce_self(AnnounceParameters *params, AnnounceType type)
 {
     AnnounceTimer *timer;
@@ -271,11 +296,7 @@ void qemu_announce_self(AnnounceParameters *params, AnnounceType type)
         announce_timers[type] = timer;
         timer->entry = &announce_timers[type];
     } else {
-        /* For now, don't do anything.  If we want to reset the timer,
-         * we'll need to add locking to each announce timer to prevent
-         * races between timeout handling and a reset.
-         */
-        return;
+        qemu_announce_timer_update(timer, params);
     }
     qemu_announce_self_once(timer);
 }
