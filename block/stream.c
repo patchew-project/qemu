@@ -265,7 +265,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
      * and resizes. */
     for (iter = backing_bs(bs); iter && iter != base; iter = backing_bs(iter)) {
         block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
-                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED,
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                           BLK_PERM_AIO_CONTEXT_CHANGE,
                            &error_abort);
     }
 
