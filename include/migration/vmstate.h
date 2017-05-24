@@ -1053,6 +1053,19 @@ void vmstate_register_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
 
+typedef struct AnnounceTimer {
+    QEMUTimer *tm;
+    AnnounceParameters params;
+    QEMUClockType type;
+    int round;
+} AnnounceTimer;
+
+AnnounceTimer *qemu_announce_timer_new(AnnounceParameters *params,
+                                       QEMUClockType type);
+AnnounceTimer *qemu_announce_timer_create(AnnounceParameters *params,
+                                          QEMUClockType type,
+                                          QEMUTimerCB *cb);
+
 static inline
 int64_t self_announce_delay(int round)
 {

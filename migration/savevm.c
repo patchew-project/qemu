@@ -231,6 +231,28 @@ static void qemu_announce_self_once(void *opaque)
     }
 }
 
+AnnounceTimer *qemu_announce_timer_new(AnnounceParameters *params,
+                                       QEMUClockType type)
+{
+    AnnounceTimer *timer = g_new(AnnounceTimer, 1);
+
+    timer->params = *params;
+    timer->round = params->rounds;
+    timer->type = type;
+
+    return timer;
+}
+
+AnnounceTimer *qemu_announce_timer_create(AnnounceParameters *params,
+                                          QEMUClockType type,
+                                          QEMUTimerCB *cb)
+{
+    AnnounceTimer *timer = qemu_announce_timer_new(params, type);
+
+    timer->tm = timer_new_ms(type, cb, timer);
+    return timer;
+}
+
 void qemu_announce_self(void)
 {
     static QEMUTimer *timer;
