@@ -57,6 +57,8 @@ typedef struct SaveVMHandlers {
                               uint64_t *non_postcopiable_pending,
                               uint64_t *postcopiable_pending);
     LoadStateHandler *load_state;
+    /* Has been allocated by migratation code */
+    bool is_allocated;
 } SaveVMHandlers;
 
 int register_savevm(DeviceState *dev,
