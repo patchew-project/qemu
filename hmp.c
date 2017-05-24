@@ -1514,6 +1514,11 @@ void hmp_announce_set_parameter(Monitor *mon, const QDict *qdict)
     }
 }
 
+void hmp_announce_self(Monitor *mon, const QDict *qdict)
+{
+    qmp_announce_self(false, NULL, NULL);
+}
+
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);

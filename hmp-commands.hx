@@ -939,6 +939,20 @@ Set the parameter @var{parameter} for GARP/RARP announcements.
 ETEXI
 
     {
+        .name       = "qemu_announce_self",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Trigger GARP/RARP announcements",
+        .cmd        = hmp_announce_self,
+    },
+
+STEXI
+@item qemu_announce_self
+@findex qemu_announce_self
+Trigger GARP/RARP announcements.
+ETEXI
+
+    {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
         .params     = "[-d] [-b] [-i] uri",
