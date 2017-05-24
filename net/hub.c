@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "clients.h"
@@ -285,6 +286,9 @@ int net_init_hubport(const Netdev *netdev, const char *name,
                      NetClientState *peer, Error **errp)
 {
     const NetdevHubPortOptions *hubport;
+
+    error_report("hubports are deprecated and will be removed in a "
+                 "future release");
 
     assert(netdev->type == NET_CLIENT_DRIVER_HUBPORT);
     assert(!peer);

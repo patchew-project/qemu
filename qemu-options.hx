@@ -1806,7 +1806,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "-netdev vhost-user,id=str,chardev=dev[,vhostforce=on|off]\n"
     "                configure a vhost-user network, backed by a chardev 'dev'\n"
     "-netdev hubport,id=str,hubid=n\n"
-    "                configure a hub port on QEMU VLAN 'n'\n", QEMU_ARCH_ALL)
+    "                configure a hub port on QEMU VLAN 'n' (deprecated)\n", QEMU_ARCH_ALL)
 DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                old way to create a new NIC and connect it to VLAN 'n'\n"
@@ -2235,7 +2235,9 @@ Create a hub port on QEMU "vlan" @var{hubid}.
 
 The hubport netdev lets you connect a NIC to a QEMU "vlan" instead of a single
 netdev.  @code{-net} and @code{-device} with parameter @option{vlan} create the
-required hub automatically.
+required hub automatically. Note that the "vlan" concept and thus the hubport
+option, too, are considered as deprecated and might be removed in a future
+release of QEMU.
 
 @item -netdev vhost-user,chardev=@var{id}[,vhostforce=on|off][,queues=n]
 
