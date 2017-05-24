@@ -1454,6 +1454,66 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 
 }
 
+void hmp_announce_set_parameter(Monitor *mon, const QDict *qdict)
+{
+    const char *param = qdict_get_str(qdict, "parameter");
+    const char *valuestr = qdict_get_str(qdict, "value");
+    Error *err = NULL;
+    bool use_int_value = false;
+    int64_t  *set;
+    int i;
+
+    for (i = 0; i < ANNOUNCE_PARAMETER__MAX; i++) {
+        if (strcmp(param, AnnounceParameter_lookup[i]) == 0) {
+            AnnounceParameters p = { 0 };
+            switch (i) {
+            case ANNOUNCE_PARAMETER_INITIAL:
+                p.has_initial = true;
+                use_int_value = true;
+                set = &p.initial;
+                break;
+            case ANNOUNCE_PARAMETER_MAX:
+                p.has_max = true;
+                use_int_value = true;
+                set = &p.max;
+                break;
+            case ANNOUNCE_PARAMETER_ROUNDS:
+                p.has_rounds = true;
+                use_int_value = true;
+                set = &p.rounds;
+                break;
+            case ANNOUNCE_PARAMETER_STEP:
+                p.has_step = true;
+                use_int_value = true;
+                set = &p.step;
+                break;
+            }
+
+            if (use_int_value) {
+                long valueint = 0;
+                if (qemu_strtol(valuestr, NULL, 10, &valueint) < 0) {
+                    error_setg(&err, "Unable to parse '%s' as an int",
+                               valuestr);
+                    goto cleanup;
+                }
+                *set = valueint;
+            }
+
+            qmp_announce_set_parameters(&p, &err);
+            break;
+        }
+    }
+
+    if (i == ANNOUNCE_PARAMETER__MAX) {
+        error_setg(&err, QERR_INVALID_PARAMETER, param);
+    }
+
+ cleanup:
+    if (err) {
+        error_report_err(err);
+    }
+}
+
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);
@@ -2815,4 +2875,30 @@ void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
     }
     hmp_handle_error(mon, &err);
     qapi_free_GuidInfo(info);
+}
+
+void hmp_info_announce_parameters(Monitor *mon, const QDict *qdict)
+{
+    AnnounceParameters *params;
+
+    params = qmp_query_announce_parameters(NULL);
+
+    if (params) {
+        assert(params->has_initial);
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            AnnounceParameter_lookup[ANNOUNCE_PARAMETER_INITIAL],
+            params->initial);
+        assert(params->has_max);
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            AnnounceParameter_lookup[ANNOUNCE_PARAMETER_MAX],
+            params->max);
+        assert(params->has_rounds);
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            AnnounceParameter_lookup[ANNOUNCE_PARAMETER_ROUNDS],
+            params->rounds);
+        assert(params->has_step);
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            AnnounceParameter_lookup[ANNOUNCE_PARAMETER_STEP],
+            params->step);
+    }
 }

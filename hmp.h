@@ -67,6 +67,7 @@ void hmp_loadvm(Monitor *mon, const QDict *qdict);
 void hmp_savevm(Monitor *mon, const QDict *qdict);
 void hmp_delvm(Monitor *mon, const QDict *qdict);
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
+void hmp_announce_set_parameter(Monitor *mon, const QDict *qdict);
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict);
 void hmp_migrate_incoming(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict);
@@ -130,6 +131,8 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
                                        const char *str);
 void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
                                       const char *str);
+void announce_set_parameter_completion(ReadLineState *rs, int nb_args,
+                                      const char *str);
 void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str);
 void host_net_remove_completion(ReadLineState *rs, int nb_args,
                                 const char *str);
@@ -143,5 +146,6 @@ void hmp_info_dump(Monitor *mon, const QDict *qdict);
 void hmp_info_ramblock(Monitor *mon, const QDict *qdict);
 void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict);
 void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict);
+void hmp_info_announce_parameters(Monitor *mon, const QDict *qdict);
 
 #endif

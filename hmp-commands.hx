@@ -921,7 +921,21 @@ character code in hexadecimal.  Character \ is printed \\.
 Bug: can screw up when the buffer contains invalid UTF-8 sequences,
 NUL characters, after the ring buffer lost data, and when reading
 stops because the size limit is reached.
+ETEXI
 
+    {
+        .name       = "announce_set_parameter",
+        .args_type  = "parameter:s,value:s",
+        .params     = "parameter value",
+        .help       = "Set the parameter for GARP/RARP announcements",
+        .cmd        = hmp_announce_set_parameter,
+        .command_completion = announce_set_parameter_completion,
+    },
+
+STEXI
+@item announce_set_parameter @var{parameter} @var{value}
+@findex announce_set_parameter
+Set the parameter @var{parameter} for GARP/RARP announcements.
 ETEXI
 
     {

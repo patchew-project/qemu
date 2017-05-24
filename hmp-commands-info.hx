@@ -830,6 +830,19 @@ ETEXI
     },
 
 STEXI
+@item info announce_parameters
+@findex announce_parameters
+Show current RARP/GARP announce parameters.
+ETEXI
+    {
+        .name       = "announce_parameters",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current RARP/GARP announce parameters",
+        .cmd        = hmp_info_announce_parameters,
+    },
+
+STEXI
 @end table
 ETEXI
 

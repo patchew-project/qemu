@@ -3562,6 +3562,24 @@ void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
     }
 }
 
+void announce_set_parameter_completion(ReadLineState *rs, int nb_args,
+                                      const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        int i;
+        for (i = 0; i < ANNOUNCE_PARAMETER__MAX; i++) {
+            const char *name = AnnounceParameter_lookup[i];
+            if (!strncmp(str, name, len)) {
+                readline_add_completion(rs, name);
+            }
+        }
+    }
+}
+
 void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     int i;
