@@ -57,17 +57,47 @@ struct pvclock_vcpu_time_info {
     uint8_t    pad[2];
 } __attribute__((__packed__)); /* 32 bytes */
 
+static void update_all_system_time_msr(void)
+{
+    CPUState *cpu;
+    CPUX86State *env;
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    int ret;
+
+    msr_data.info.nmsrs = 1;
+    msr_data.entries[0].index = MSR_KVM_SYSTEM_TIME;
+
+    CPU_FOREACH(cpu) {
+        ret = kvm_vcpu_ioctl(cpu, KVM_GET_MSRS, &msr_data);
+
+        if (ret < 0) {
+            fprintf(stderr, "KVM_GET_MSRS failed: %s\n", strerror(ret));
+            abort();
+        }
+
+        assert(ret == 1);
+        env = cpu->env_ptr;
+        env->system_time_msr = msr_data.entries[0].data;
+    }
+}
+
 static uint64_t kvmclock_current_nsec(KVMClockState *s)
 {
     CPUState *cpu = first_cpu;
     CPUX86State *env = cpu->env_ptr;
-    hwaddr kvmclock_struct_pa = env->system_time_msr & ~1ULL;
+    hwaddr kvmclock_struct_pa;
     uint64_t migration_tsc = env->tsc;
     struct pvclock_vcpu_time_info time;
     uint64_t delta;
     uint64_t nsec_lo;
     uint64_t nsec_hi;
     uint64_t nsec;
+
+    update_all_system_time_msr();
+    kvmclock_struct_pa = env->system_time_msr & ~1ULL;
 
     if (!(env->system_time_msr & 1ULL)) {
         /* KVM clock not active */
