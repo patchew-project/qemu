@@ -392,7 +392,6 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     while (nb_chunks > 0 && sector_num < end) {
         int64_t ret;
         int io_sectors, io_sectors_acct;
-        BlockDriverState *file;
         enum MirrorMethod {
             MIRROR_METHOD_COPY,
             MIRROR_METHOD_ZERO,
@@ -402,7 +401,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         assert(!(sector_num % sectors_per_chunk));
         ret = bdrv_get_block_status_above(source, NULL, sector_num,
                                           nb_chunks * sectors_per_chunk,
-                                          &io_sectors, &file);
+                                          &io_sectors, NULL);
         if (ret < 0) {
             io_sectors = MIN(nb_chunks * sectors_per_chunk, max_io_sectors);
         } else if (ret & BDRV_BLOCK_DATA) {

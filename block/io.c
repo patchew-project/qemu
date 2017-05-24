@@ -693,7 +693,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 {
     int64_t target_sectors, ret, nb_sectors, sector_num = 0;
     BlockDriverState *bs = child->bs;
-    BlockDriverState *file;
     int n;
 
     target_sectors = bdrv_nb_sectors(bs);
@@ -706,7 +705,7 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         if (nb_sectors <= 0) {
             return 0;
         }
-        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n, &file);
+        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &n, NULL);
         if (ret < 0) {
             error_report("error getting block status at sector %" PRId64 ": %s",
                          sector_num, strerror(-ret));
@@ -1724,8 +1723,9 @@ typedef struct BdrvCoGetBlockStatusData {
  * 'nb_sectors' is the max value 'pnum' should be set to.  If nb_sectors goes
  * beyond the end of the disk image it will be clamped.
  *
- * If returned value is positive and BDRV_BLOCK_OFFSET_VALID bit is set, 'file'
- * points to the BDS which the sector range is allocated in.
+ * If returned value is positive, BDRV_BLOCK_OFFSET_VALID bit is set, and
+ * 'file' is non-NULL, then '*file' points to the BDS which the sector range
+ * is allocated in.
  */
 static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
                                                      int64_t sector_num,
@@ -1735,7 +1735,11 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
     int64_t total_sectors;
     int64_t n;
     int64_t ret, ret2;
+    BlockDriverState *tmpfile;
 
+    if (!file) {
+        file = &tmpfile;
+    }
     *file = NULL;
     total_sectors = bdrv_nb_sectors(bs);
     if (total_sectors < 0) {
@@ -1903,9 +1907,8 @@ int64_t bdrv_get_block_status(BlockDriverState *bs,
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
                                    int nb_sectors, int *pnum)
 {
-    BlockDriverState *file;
     int64_t ret = bdrv_get_block_status(bs, sector_num, nb_sectors, pnum,
-                                        &file);
+                                        NULL);
     if (ret < 0) {
         return ret;
     }
