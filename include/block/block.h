@@ -225,7 +225,12 @@ enum {
      */
     BLK_PERM_GRAPH_MOD          = 0x10,
 
-    BLK_PERM_ALL                = 0x1f,
+    /**
+     * This permission is required to change the AioContext of this node.
+     */
+    BLK_PERM_AIO_CONTEXT_CHANGE = 0x20,
+
+    BLK_PERM_ALL                = 0x3f,
 };
 
 char *bdrv_perm_names(uint64_t perm);
