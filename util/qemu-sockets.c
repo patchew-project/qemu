@@ -855,6 +855,12 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
     if (saddr->path && strlen(saddr->path)) {
+        if (strlen(saddr->path) > sizeof(un.sun_path)) {
+            error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
+            error_append_hint(errp, "Path must be less than %zu bytes\n",
+                              sizeof(un.sun_path));
+            return -1;
+        }
         snprintf(un.sun_path, sizeof(un.sun_path), "%s", saddr->path);
     } else {
         const char *tmpdir = getenv("TMPDIR");
