@@ -140,6 +140,8 @@ check-qtest-generic-y = tests/qmp-test$(EXESUF)
 gcov-files-generic-y = monitor.c qapi/qmp-dispatch.c
 check-qtest-generic-y += tests/device-introspect-test$(EXESUF)
 gcov-files-generic-y = qdev-monitor.c qmp.c
+check-qtest-generic-y += tests/test-announce-self$(EXESUF)
+gcov-files-generic-y = migration/savevm.c
 
 gcov-files-ipack-y += hw/ipack/ipack.c
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
