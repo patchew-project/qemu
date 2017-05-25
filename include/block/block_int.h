@@ -207,7 +207,7 @@ struct BlockDriver {
 
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
     bool has_variable_length;
-    int64_t (*bdrv_get_allocated_file_size)(BlockDriverState *bs);
+    int64_t (*bdrv_get_fs_allocated_size)(BlockDriverState *bs);
     int64_t (*bdrv_get_format_allocated_size)(BlockDriverState *bs);
 
     int coroutine_fn (*bdrv_co_pwritev_compressed)(BlockDriverState *bs,

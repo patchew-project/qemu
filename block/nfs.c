@@ -719,7 +719,7 @@ static int nfs_has_zero_init(BlockDriverState *bs)
 
 /* Called (via nfs_service) with QemuMutex held.  */
 static void
-nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
+nfs_get_fs_allocated_size_cb(int ret, struct nfs_context *nfs, void *data,
                                void *private_data)
 {
     NFSRPC *task = private_data;
@@ -734,7 +734,7 @@ nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
     bdrv_wakeup(task->bs);
 }
 
-static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
+static int64_t nfs_get_fs_allocated_size(BlockDriverState *bs)
 {
     NFSClient *client = bs->opaque;
     NFSRPC task = {0};
@@ -747,7 +747,7 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
 
     task.bs = bs;
     task.st = &st;
-    if (nfs_fstat_async(client->context, client->fh, nfs_get_allocated_file_size_cb,
+    if (nfs_fstat_async(client->context, client->fh, nfs_get_fs_allocated_size_cb,
                         &task) != 0) {
         return -ENOMEM;
     }
@@ -880,7 +880,7 @@ static BlockDriver bdrv_nfs = {
     .create_opts                    = &nfs_create_opts,
 
     .bdrv_has_zero_init             = nfs_has_zero_init,
-    .bdrv_get_allocated_file_size   = nfs_get_allocated_file_size,
+    .bdrv_get_fs_allocated_size   = nfs_get_fs_allocated_size,
     .bdrv_truncate                  = nfs_file_truncate,
 
     .bdrv_file_open                 = nfs_file_open,

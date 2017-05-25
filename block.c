@@ -3391,17 +3391,17 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, Error **errp)
  * Size of allocated in underlying file system area. Sparseness is taken into
  * account for sparse file systems. Return < 0 if error or unknown.
  */
-int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
+int64_t bdrv_get_fs_allocated_size(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (drv->bdrv_get_allocated_file_size) {
-        return drv->bdrv_get_allocated_file_size(bs);
+    if (drv->bdrv_get_fs_allocated_size) {
+        return drv->bdrv_get_fs_allocated_size(bs);
     }
     if (bs->file) {
-        return bdrv_get_allocated_file_size(bs->file->bs);
+        return bdrv_get_fs_allocated_size(bs->file->bs);
     }
     return -ENOTSUP;
 }

@@ -303,7 +303,7 @@ void bdrv_refresh_filename(BlockDriverState *bs);
 int bdrv_truncate(BdrvChild *child, int64_t offset, Error **errp);
 int64_t bdrv_nb_sectors(BlockDriverState *bs);
 int64_t bdrv_getlength(BlockDriverState *bs);
-int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);
+int64_t bdrv_get_fs_allocated_size(BlockDriverState *bs);
 int64_t bdrv_get_format_allocated_size(BlockDriverState *bs);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp);
