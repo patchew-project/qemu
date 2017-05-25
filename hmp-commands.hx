@@ -1644,6 +1644,8 @@ STEXI
 @item block_passwd @var{device} @var{password}
 @findex block_passwd
 Set the encrypted device @var{device} password to @var{password}
+
+This command is now obsolete and will always return an error since 2.10
 ETEXI
 
     {
