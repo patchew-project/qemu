@@ -3407,6 +3407,21 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
 }
 
 /**
+ * Actually used by top-level format driver space (in it's .file) in bytes
+ */
+int64_t bdrv_get_format_allocated_size(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+    if (drv->bdrv_get_format_allocated_size) {
+        return drv->bdrv_get_format_allocated_size(bs);
+    }
+    return -ENOTSUP;
+}
+
+/**
  * Return number of sectors on success, -errno on error.
  */
 int64_t bdrv_nb_sectors(BlockDriverState *bs)
