@@ -152,4 +152,6 @@ void page_size_init(void);
  * returned. */
 bool dump_in_progress(void);
 
+char *get_human_readable_size(char *buf, int buf_size, int64_t size);
+
 #endif
