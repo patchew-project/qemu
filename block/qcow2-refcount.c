@@ -2931,3 +2931,64 @@ done:
     qemu_vfree(new_refblock);
     return ret;
 }
+
+typedef struct NbAllocatedClustersCo {
+    BlockDriverState *bs;
+    int64_t ret;
+} NbAllocatedClustersCo;
+
+static void coroutine_fn qcow2_get_format_allocated_size_co_entry(void *opaque)
+{
+    NbAllocatedClustersCo *nbco = opaque;
+    BlockDriverState *bs = nbco->bs;
+    BDRVQcow2State *s = bs->opaque;
+    int64_t size, nb_clusters, nb_allocated = 0, i;
+    int ret = 0;
+
+    size = bdrv_getlength(bs->file->bs);
+    if (size < 0) {
+        nbco->ret = size;
+        return;
+    }
+
+    nb_clusters = size_to_clusters(s, size);
+
+    qemu_co_mutex_lock(&s->lock);
+
+    for (i = 0; i < nb_clusters; ++i) {
+        uint64_t refcount;
+        ret = qcow2_get_refcount(bs, i, &refcount);
+        if (ret < 0) {
+            nbco->ret = ret;
+            qemu_co_mutex_unlock(&s->lock);
+            return;
+        }
+        if (refcount > 0) {
+            nb_allocated++;
+        }
+    }
+
+    qemu_co_mutex_unlock(&s->lock);
+
+    nbco->ret = nb_allocated << s->cluster_bits;
+}
+
+int64_t qcow2_get_format_allocated_size(BlockDriverState *bs)
+{
+    NbAllocatedClustersCo nbco = {
+        .bs = bs,
+        .ret = -EINPROGRESS
+    };
+
+    if (qemu_in_coroutine()) {
+        qcow2_get_format_allocated_size_co_entry(&nbco);
+    } else {
+        Coroutine *co =
+            qemu_coroutine_create(qcow2_get_format_allocated_size_co_entry,
+                                  &nbco);
+        qemu_coroutine_enter(co);
+        BDRV_POLL_WHILE(bs, nbco.ret == -EINPROGRESS);
+    }
+
+    return nbco.ret;
+}
