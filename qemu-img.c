@@ -601,6 +601,13 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
         qprintf(quiet,
                 "Image end offset: %" PRId64 "\n", check->image_end_offset);
     }
+
+    if (check->has_format_unallocated_size) {
+        char u_buf[128];
+        qprintf(quiet, "Format unallocated size: %s\n",
+                get_human_readable_size(u_buf, sizeof(u_buf),
+                                        check->format_unallocated_size));
+    }
 }
 
 static int collect_image_check(BlockDriverState *bs,
@@ -638,6 +645,18 @@ static int collect_image_check(BlockDriverState *bs,
     check->has_fragmented_clusters  = result.bfi.fragmented_clusters != 0;
     check->compressed_clusters      = result.bfi.compressed_clusters;
     check->has_compressed_clusters  = result.bfi.compressed_clusters != 0;
+
+    if (bs->file) {
+        int64_t file_size = bdrv_getlength(bs->file->bs);
+        if (file_size >= 0) {
+            int64_t format_allocated_size = bdrv_get_format_allocated_size(bs);
+            if (format_allocated_size >= 0) {
+                check->format_unallocated_size =
+                    file_size - format_allocated_size;
+                check->has_format_unallocated_size = true;
+            }
+        }
+    }
 
     return 0;
 }
