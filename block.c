@@ -3388,8 +3388,8 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, Error **errp)
 }
 
 /**
- * Length of a allocated file in bytes. Sparse files are counted by actual
- * allocated space. Return < 0 if error or unknown.
+ * Size of allocated in underlying file system area. Sparseness is taken into
+ * account for sparse file systems. Return < 0 if error or unknown.
  */
 int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
 {
