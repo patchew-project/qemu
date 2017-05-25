@@ -48,7 +48,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -61,7 +62,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -74,7 +76,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -87,7 +90,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -100,7 +104,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -113,7 +118,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -126,7 +132,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -139,7 +146,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -167,7 +175,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -229,7 +238,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -242,7 +252,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -255,7 +266,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -268,7 +280,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -281,7 +294,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -294,7 +308,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -307,7 +322,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -320,7 +336,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -348,7 +365,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -407,7 +425,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -420,7 +439,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -433,7 +453,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -446,7 +467,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -459,7 +481,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -472,7 +495,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -485,7 +509,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -498,7 +523,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -528,7 +554,8 @@ size             Virtual disk size
 compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
-encryption       Encrypt the image
+encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
+encrypt.format   Encrypt the image, format choices: 'aes'
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
