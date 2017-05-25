@@ -603,10 +603,13 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
     }
 
     if (check->has_format_unallocated_size) {
-        char u_buf[128];
-        qprintf(quiet, "Format unallocated size: %s\n",
+        char buf[128], u_buf[128];
+        assert(check->has_file_size);
+        qprintf(quiet, "Format unallocated size: %s/%s = %0.2f%%\n",
                 get_human_readable_size(u_buf, sizeof(u_buf),
-                                        check->format_unallocated_size));
+                                        check->format_unallocated_size),
+                get_human_readable_size(buf, sizeof(buf), check->file_size),
+                check->format_unallocated_size * 100.0 / check->file_size);
     }
 }
 
@@ -650,6 +653,8 @@ static int collect_image_check(BlockDriverState *bs,
         int64_t file_size = bdrv_getlength(bs->file->bs);
         if (file_size >= 0) {
             int64_t format_allocated_size = bdrv_get_format_allocated_size(bs);
+            check->file_size = file_size;
+            check->has_file_size = true;
             if (format_allocated_size >= 0) {
                 check->format_unallocated_size =
                     file_size - format_allocated_size;
