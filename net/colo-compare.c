@@ -100,6 +100,12 @@ enum {
     SECONDARY_IN,
 };
 
+typedef enum ProxyRemoteRequest {
+    USERSPACE_PROXY_INIT = 0,
+    USERSPACE_PROXY_GET_REMOTE_INIT = 1,
+    USERSPACE_PROXY_NOTIFY_CHECKPOINT = 2
+} ProxyRemoteRequest;
+
 static int compare_chr_send(CharBackend *out,
                             const uint8_t *buf,
                             uint32_t size);
@@ -498,6 +504,18 @@ static void colo_compare_connection(void *opaque, void *user_data)
             trace_colo_compare_main("packet different");
             g_queue_push_tail(&conn->primary_list, pkt);
             /* TODO: colo_notify_checkpoint();*/
+            /*
+             * If we have notify_dev that means COLO didn't running on KVM,
+             * So we use remote checkpoint notify, Xen is the first user.
+             */
+            if (s->notify_dev) {
+                ProxyRemoteRequest msg = USERSPACE_PROXY_NOTIFY_CHECKPOINT;
+                ret = compare_chr_send(&s->chr_notify_dev, (uint8_t *)msg,
+                                       sizeof(msg));
+                if (ret < 0) {
+                    error_report("Notify remote COLO-frame failed");
+                }
+            }
             break;
         }
     }
@@ -713,7 +731,21 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 
 static void compare_notify_rs_finalize(SocketReadState *notify_rs)
 {
+    CompareState *s = container_of(notify_rs, CompareState, notify_rs);
+
     /* Get remote colo-frame's notify and handle the message */
+    char *data = g_memdup(notify_rs->buf, notify_rs->packet_len);
+    ProxyRemoteRequest msg = USERSPACE_PROXY_GET_REMOTE_INIT;
+    ProxyRemoteRequest msg_recv = *data;
+    int ret;
+
+    if (msg_recv == USERSPACE_PROXY_INIT) {
+        ret = compare_chr_send(&s->chr_notify_dev, (uint8_t *)msg,
+                               sizeof(msg));
+        if (ret < 0) {
+            error_report("Notify remote COLO-frame INIT failed");
+        }
+    }
 }
 
 /*
@@ -784,7 +816,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
             !qemu_chr_fe_init(&s->chr_notify_dev, chr, errp)) {
             return;
         }
-        net_socket_rs_init(&s->notify_dev, compare_notify_rs_finalize);
+        net_socket_rs_init(&s->notify_rs, compare_notify_rs_finalize);
     }
 
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize);
