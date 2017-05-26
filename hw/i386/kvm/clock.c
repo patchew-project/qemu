@@ -69,6 +69,8 @@ static uint64_t kvmclock_current_nsec(KVMClockState *s)
     uint64_t nsec_hi;
     uint64_t nsec;
 
+    cpu_synchronize_state(cpu);
+
     if (!(env->system_time_msr & 1ULL)) {
         /* KVM clock not active */
         return 0;
