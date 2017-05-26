@@ -1982,7 +1982,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
-    Error *local_err = NULL;
     PCIBus *bus;
     bool is_default_rom;
 
@@ -1999,9 +1998,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         return;
 
     if (pc->realize) {
-        pc->realize(pci_dev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        pc->realize(pci_dev, errp);
+        if (errp && *errp) {
             do_pci_unregister_device(pci_dev);
             return;
         }
@@ -2014,9 +2012,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         is_default_rom = true;
     }
 
-    pci_add_option_rom(pci_dev, is_default_rom, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pci_add_option_rom(pci_dev, is_default_rom, errp);
+    if (errp && *errp) {
         pci_qdev_unrealize(DEVICE(pci_dev), NULL);
         return;
     }
