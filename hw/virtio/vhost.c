@@ -1552,11 +1552,15 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     if (vhost_dev_has_iommu(hdev)) {
         hdev->vhost_ops->vhost_set_iotlb_callback(hdev, true);
 
-        /* Update used ring information for IOTLB to work correctly,
-         * vhost-kernel code requires for this.*/
+        /*
+         * Update rings information for IOTLB to work correctly,
+         * vhost-kernel and vhost-user codes require for this.
+         */
         for (i = 0; i < hdev->nvqs; ++i) {
             struct vhost_virtqueue *vq = hdev->vqs + i;
             vhost_device_iotlb_miss(hdev, vq->used_phys, true);
+            vhost_device_iotlb_miss(hdev, vq->desc_phys, true);
+            vhost_device_iotlb_miss(hdev, vq->avail_phys, true);
         }
     }
     return 0;
