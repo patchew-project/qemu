@@ -334,68 +334,84 @@ static void fdt_add_timer_nodes(const VirtMachineState *vms)
                        GIC_FDT_IRQ_TYPE_PPI, ARCH_TIMER_NS_EL2_IRQ, irqflags);
 }
 
-static void fdt_add_cpu_nodes(const VirtMachineState *vms)
+/*
+ * From Documentation/devicetree/bindings/arm/cpus.txt
+ *  On ARM v8 64-bit systems value should be set to 2,
+ *  that corresponds to the MPIDR_EL1 register size.
+ *  If MPIDR_EL1[63:32] value is equal to 0 on all CPUs
+ *  in the system, #address-cells can be set to 1, since
+ *  MPIDR_EL1[63:32] bits are not used for CPUs
+ *  identification.
+ *
+ *  Here we actually don't know whether our system is 32- or 64-bit one.
+ *  The simplest way to go is to examine affinity IDs of all our CPUs. If
+ *  at least one of them has Aff3 populated, we set #address-cells to 2.
+ */
+
+static int fdt_get_addr_cells(const VirtMachineState *vms)
 {
     int cpu;
     int addr_cells = 1;
-    const MachineState *ms = MACHINE(vms);
 
-    /*
-     * From Documentation/devicetree/bindings/arm/cpus.txt
-     *  On ARM v8 64-bit systems value should be set to 2,
-     *  that corresponds to the MPIDR_EL1 register size.
-     *  If MPIDR_EL1[63:32] value is equal to 0 on all CPUs
-     *  in the system, #address-cells can be set to 1, since
-     *  MPIDR_EL1[63:32] bits are not used for CPUs
-     *  identification.
-     *
-     *  Here we actually don't know whether our system is 32- or 64-bit one.
-     *  The simplest way to go is to examine affinity IDs of all our CPUs. If
-     *  at least one of them has Aff3 populated, we set #address-cells to 2.
-     */
     for (cpu = 0; cpu < vms->smp_cpus; cpu++) {
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
-
         if (armcpu->mp_affinity & ARM_AFF3_MASK) {
             addr_cells = 2;
             break;
         }
     }
+    return addr_cells;
+}
+
+
+static void fdt_add_cpu_node(const VirtMachineState *vms, int cpu)
+{
+    char *nodename;
+    int addr_cells = fdt_get_addr_cells(vms);
+    const MachineState *ms = MACHINE(vms);
+    ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
+    CPUState *cs = CPU(armcpu);
+
+    if (cpu < 0 || cpu >= max_cpus) {
+        error_report("Invalid cpu index.");
+        return;
+    }
+
+    nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
+
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop_string(vms->fdt, nodename, "device_type", "cpu");
+    qemu_fdt_setprop_string(vms->fdt, nodename, "compatible",
+                            armcpu->dtb_compatible);
+    if (vms->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED) {
+        qemu_fdt_setprop_string(vms->fdt, nodename, "enable-method", "psci");
+    }
+
+    if (addr_cells == 2) {
+        qemu_fdt_setprop_u64(vms->fdt, nodename, "reg", armcpu->mp_affinity);
+    } else {
+        qemu_fdt_setprop_cell(vms->fdt, nodename, "reg", armcpu->mp_affinity);
+    }
+
+    if (ms->possible_cpus->cpus[cs->cpu_index].props.has_node_id) {
+        qemu_fdt_setprop_cell(vms->fdt, nodename, "numa-node-id",
+            ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
+    }
+
+    g_free(nodename);
+}
+
+static void fdt_add_cpu_nodes(const VirtMachineState *vms)
+{
+    int cpu;
+    int addr_cells = fdt_get_addr_cells(vms);
 
     qemu_fdt_add_subnode(vms->fdt, "/cpus");
     qemu_fdt_setprop_cell(vms->fdt, "/cpus", "#address-cells", addr_cells);
     qemu_fdt_setprop_cell(vms->fdt, "/cpus", "#size-cells", 0x0);
 
     for (cpu = vms->smp_cpus - 1; cpu >= 0; cpu--) {
-        char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
-        ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
-        CPUState *cs = CPU(armcpu);
-
-        qemu_fdt_add_subnode(vms->fdt, nodename);
-        qemu_fdt_setprop_string(vms->fdt, nodename, "device_type", "cpu");
-        qemu_fdt_setprop_string(vms->fdt, nodename, "compatible",
-                                    armcpu->dtb_compatible);
-
-        if (vms->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED
-            && vms->smp_cpus > 1) {
-            qemu_fdt_setprop_string(vms->fdt, nodename,
-                                        "enable-method", "psci");
-        }
-
-        if (addr_cells == 2) {
-            qemu_fdt_setprop_u64(vms->fdt, nodename, "reg",
-                                 armcpu->mp_affinity);
-        } else {
-            qemu_fdt_setprop_cell(vms->fdt, nodename, "reg",
-                                  armcpu->mp_affinity);
-        }
-
-        if (ms->possible_cpus->cpus[cs->cpu_index].props.has_node_id) {
-            qemu_fdt_setprop_cell(vms->fdt, nodename, "numa-node-id",
-                ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
-        }
-
-        g_free(nodename);
+        fdt_add_cpu_node(vms, cpu);
     }
 }
 
