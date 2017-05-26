@@ -527,6 +527,24 @@ out:
     error_propagate(errp, err);
 }
 
+static void virt_hot_add_cpu(const int64_t id, Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    VirtMachineState *vms = VIRT_MACHINE(ms);
+
+    if (id < 0 || id >= max_cpus) {
+        error_setg(errp, "Invalid CPU id: %" PRIi64, id);
+        return;
+    }
+
+    virt_new_cpu(ms, id, errp);
+    if (errp) {
+        return;
+    }
+
+    fdt_add_cpu_node(vms, id);
+}
+
 static void fdt_add_its_gic_node(VirtMachineState *vms)
 {
     vms->msi_phandle = qemu_fdt_alloc_phandle(vms->fdt);
@@ -1654,6 +1672,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->minimum_page_bits = 12;
     mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
+    mc->hot_add_cpu = virt_hot_add_cpu;
 }
 
 static const TypeInfo virt_machine_info = {
