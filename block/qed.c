@@ -776,14 +776,14 @@ static int64_t coroutine_fn bdrv_qed_co_get_block_status(BlockDriverState *bs,
         .file = file,
     };
     QEDRequest request = { .l2_table = NULL };
+    uint64_t offset;
+    int ret;
 
-    qed_find_cluster(s, &request, cb.pos, len, qed_is_allocated_cb, &cb);
+    ret = qed_find_cluster(s, &request, cb.pos, &len, &offset);
+    qed_is_allocated_cb(&cb, ret, offset, len);
 
-    /* Now sleep if the callback wasn't invoked immediately */
-    while (cb.status == BDRV_BLOCK_OFFSET_MASK) {
-        cb.co = qemu_coroutine_self();
-        qemu_coroutine_yield();
-    }
+    /* The callback was invoked immediately */
+    assert(cb.status != BDRV_BLOCK_OFFSET_MASK);
 
     qed_unref_l2_cache_entry(request.l2_table);
 
@@ -1393,6 +1393,8 @@ static void qed_aio_next_io(QEDAIOCB *acb, int ret)
     BDRVQEDState *s = acb_to_s(acb);
     QEDFindClusterFunc *io_fn = (acb->flags & QED_AIOCB_WRITE) ?
                                 qed_aio_write_data : qed_aio_read_data;
+    uint64_t offset;
+    size_t len;
 
     trace_qed_aio_next_io(s, acb, ret, acb->cur_pos + acb->cur_qiov.size);
 
@@ -1419,9 +1421,9 @@ static void qed_aio_next_io(QEDAIOCB *acb, int ret)
     }
 
     /* Find next cluster and start I/O */
-    qed_find_cluster(s, &acb->request,
-                      acb->cur_pos, acb->end_pos - acb->cur_pos,
-                      io_fn, acb);
+    len = acb->end_pos - acb->cur_pos;
+    ret = qed_find_cluster(s, &acb->request, acb->cur_pos, &len, &offset);
+    io_fn(acb, ret, offset, len);
 }
 
 static BlockAIOCB *qed_aio_setup(BlockDriverState *bs,
