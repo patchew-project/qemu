@@ -11,7 +11,11 @@ FROM debian:stable-slim
 
 # Setup some basic tools we need
 RUN apt update
-RUN apt install -yy aptitude ca-certificates curl
+RUN DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
+RUN DEBIAN_FRONTEND=noninteractive \
+    eatmydata apt install -y --no-install-recommends \
+        aptitude ca-certificates curl \
+        build-essential clang git bison flex
 
 # Install common build utilities
 RUN apt update
