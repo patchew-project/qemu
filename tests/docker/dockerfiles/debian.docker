@@ -11,7 +11,7 @@ FROM debian:stable-slim
 
 # Setup some basic tools we need
 RUN apt update
-RUN apt install -yy curl aptitude
+RUN apt install -yy aptitude ca-certificates curl
 
 # Setup Emdebian
 RUN echo "deb http://emdebian.org/tools/debian/ jessie main" >> /etc/apt/sources.list
