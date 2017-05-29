@@ -1395,6 +1395,14 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 
     gen = info->gen;
 
+    /* Setup our quirk to munge GTT addresses to the VM allocated buffer */
+    quirk = g_malloc0(sizeof(*quirk));
+    igd = quirk->data = g_malloc0(sizeof(*igd));
+    igd->vdev = vdev;
+    igd->index = ~0;
+    igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
+    igd->bdsm &= ~((1 << 20) - 1); /* 1MB aligned */
+
     /*
      * We need to create an LPC/ISA bridge at PCI bus address 00:1f.0 that we
      * can stuff host values into, so if there's already one there and it's not
@@ -1502,23 +1510,19 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         goto out;
     }
 
-    /* Setup our quirk to munge GTT addresses to the VM allocated buffer */
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_new0(MemoryRegion, 2);
-    quirk->nr_mem = 2;
-    igd = quirk->data = g_malloc0(sizeof(*igd));
-    igd->vdev = vdev;
-    igd->index = ~0;
-    igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
-    igd->bdsm &= ~((1 << 20) - 1); /* 1MB aligned */
+    quirk->mem = g_renew(MemoryRegion, quirk->mem, 2);
 
-    memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_igd_index_quirk,
-                          igd, "vfio-igd-index-quirk", 4);
+    memory_region_init_io(&quirk->mem[quirk->nr_mem++], OBJECT(vdev),
+                          &vfio_igd_index_quirk, igd, "vfio-igd-index-quirk",
+                          4);
+
     memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         0, &quirk->mem[0], 1);
 
-    memory_region_init_io(&quirk->mem[1], OBJECT(vdev), &vfio_igd_data_quirk,
-                          igd, "vfio-igd-data-quirk", 4);
+    memory_region_init_io(&quirk->mem[quirk->nr_mem++], OBJECT(vdev),
+                          &vfio_igd_data_quirk, igd, "vfio-igd-data-quirk",
+                          4);
+
     memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
                                         4, &quirk->mem[1], 1);
 
