@@ -18,6 +18,7 @@
 #include "pci.h"
 #include "trace.h"
 #include "intel-platform.h"
+#include "hw/i386/pc.h"
 
 /* Use uin32_t for vendor & device so PCI_ANY_ID expands and cannot match hw */
 static bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t device)
@@ -1362,9 +1363,10 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     VFIOQuirk *quirk;
     VFIOIGDQuirk *igd;
     const struct intel_device_info *info;
+    void *stolen;
     PCIDevice *lpc_bridge;
-    int i, ret, ggms_mb, gms_mb = 0, gen;
-    uint64_t *bdsm_size;
+    int i, ret;
+    uint64_t bdsm_size;
     uint32_t gmch;
     uint16_t cmd_orig, cmd;
     Error *err = NULL;
@@ -1393,15 +1395,37 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    gen = info->gen;
-
     /* Setup our quirk to munge GTT addresses to the VM allocated buffer */
     quirk = g_malloc0(sizeof(*quirk));
+    quirk->mem = g_new0(MemoryRegion, 1);
+    quirk->nr_mem = 1;
+
     igd = quirk->data = g_malloc0(sizeof(*igd));
     igd->vdev = vdev;
     igd->index = ~0;
     igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
     igd->bdsm &= ~((1 << 20) - 1); /* 1MB aligned */
+
+    /* Setup stolen memory for IGD device. */
+    gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
+    bdsm_size = info->get_stolen_size(gmch);
+
+    stolen = qemu_memalign(bdsm_size, bdsm_size);
+
+    memory_region_init_ram_ptr(&quirk->mem[0], OBJECT(vdev),
+                               "vfio-igd-stolen", bdsm_size, stolen);
+    memory_region_add_subregion_overlap(get_system_memory(),
+                                        igd->bdsm, &quirk->mem[0], 1);
+
+    e820_add_entry(igd->bdsm, bdsm_size, E820_RESERVED);
+
+    /* GMCH is read-only, emulated */
+    pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
+    pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
+
+    /* BDSM is read-only, emulated */
+    pci_set_long(vdev->pdev.wmask + IGD_BDSM, 0);
+    pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
 
     /*
      * We need to create an LPC/ISA bridge at PCI bus address 00:1f.0 that we
@@ -1472,8 +1496,6 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         goto out;
     }
 
-    gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
-
     /*
      * If IGD VGA Disable is clear (expected) and VGA is not already enabled,
      * try to enable it.  Probably shouldn't be using legacy mode without VGA,
@@ -1528,53 +1550,6 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    /* Determine the size of stolen memory needed for GTT */
-    ggms_mb = (gmch >> (gen < 8 ? 8 : 6)) & 0x3;
-    if (gen > 6) {
-        ggms_mb = 1 << ggms_mb;
-    }
-
-    /*
-     * Assume we have no GMS memory, but allow it to be overrided by device
-     * option (experimental).  The spec doesn't actually allow zero GMS when
-     * when IVD (IGD VGA Disable) is clear, but the claim is that it's unused,
-     * so let's not waste VM memory for it.
-     */
-    gmch &= ~((gen < 8 ? 0x1f : 0xff) << (gen < 8 ? 3 : 8));
-
-    if (vdev->igd_gms) {
-        if (vdev->igd_gms <= 0x10) {
-            gms_mb = vdev->igd_gms * 32;
-            gmch |= vdev->igd_gms << (gen < 8 ? 3 : 8);
-        } else {
-            error_report("Unsupported IGD GMS value 0x%x", vdev->igd_gms);
-            vdev->igd_gms = 0;
-        }
-    }
-
-    /*
-     * Request reserved memory for stolen memory via fw_cfg.  VM firmware
-     * must allocate a 1MB aligned reserved memory region below 4GB with
-     * the requested size (in bytes) for use by the Intel PCI class VGA
-     * device at VM address 00:02.0.  The base address of this reserved
-     * memory region must be written to the device BDSM regsiter at PCI
-     * config offset 0x5C.
-     */
-    bdsm_size = g_malloc(sizeof(*bdsm_size));
-    *bdsm_size = cpu_to_le64((ggms_mb + gms_mb) * 1024 * 1024);
-    fw_cfg_add_file(fw_cfg_find(), "etc/igd-bdsm-size",
-                    bdsm_size, sizeof(*bdsm_size));
-
-    /* GMCH is read-only, emulated */
-    pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
-    pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
-    pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
-
-    /* BDSM is read-write, emulated.  The BIOS needs to be able to write it */
-    pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
-    pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
-    pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
-
     /*
      * This IOBAR gives us access to GTTADR, which allows us to write to
      * the GTT itself.  So let's go ahead and write zero to all the GTT
@@ -1606,7 +1581,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                      vdev->vbasedev.name);
     }
 
-    trace_vfio_pci_igd_bdsm_enabled(vdev->vbasedev.name, ggms_mb + gms_mb);
+    trace_vfio_pci_igd_bdsm_enabled(vdev->vbasedev.name, bdsm_size >> 20);
 
 out:
     g_free(rom);
