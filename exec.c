@@ -519,6 +519,15 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
     section = address_space_do_translate(as, addr, &xlat, &plen,
                                          is_write, false);
 
+    if (plen == (hwaddr)-1) {
+        /* If not specified during translation, use default mask */
+        plen = TARGET_PAGE_MASK;
+    } else {
+        /* Make it a valid page mask */
+        assert(plen);
+        plen = (1ULL << (63 - clz64(plen))) - 1;
+    }
+
     /* Illegal translation */
     if (section.mr == &io_mem_unassigned) {
         goto iotlb_fail;
@@ -527,17 +536,6 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
     /* Convert memory region offset into address space offset */
     xlat += section.offset_within_address_space -
         section.offset_within_region;
-
-    if (plen == (hwaddr)-1) {
-        /*
-         * We use default page size here. Logically it only happens
-         * for identity mappings.
-         */
-        plen = TARGET_PAGE_SIZE;
-    }
-
-    /* Convert to address mask */
-    plen -= 1;
 
     return (IOMMUTLBEntry) {
         .target_as = section.address_space,
