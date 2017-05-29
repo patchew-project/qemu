@@ -1365,7 +1365,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     const struct intel_device_info *info;
     void *stolen;
     PCIDevice *lpc_bridge;
-    int i, ret;
+    int i, j, ret;
     uint64_t bdsm_size;
     uint32_t gmch;
     uint16_t cmd_orig, cmd;
@@ -1570,9 +1570,11 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                      vdev->vbasedev.name);
     }
 
-    for (i = 1; i < vfio_igd_gtt_max(vdev); i += 4) {
-        vfio_region_write(&vdev->bars[4].region, 0, i, 4);
-        vfio_region_write(&vdev->bars[4].region, 4, 0, 4);
+    for (i = 1; i < info->get_gtt_size(gmch); i += info->gtt_entry_size) {
+        for (j = 0; j < info->gtt_entry_size; j += 4) {
+            vfio_region_write(&vdev->bars[4].region, 0, i + j, 4);
+            vfio_region_write(&vdev->bars[4].region, 4, 0, 4);
+        }
     }
 
     if (pwrite(vdev->vbasedev.fd, &cmd_orig, sizeof(cmd_orig),
