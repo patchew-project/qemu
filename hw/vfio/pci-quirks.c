@@ -1196,16 +1196,11 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     Error *err = NULL;
 
     /*
-     * This must be an Intel VGA device at address 00:02.0 for us to even
-     * consider enabling legacy mode.  The vBIOS has dependencies on the
-     * PCI bus address.
+     * This must be an Intel VGA device.
      */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev) || nr != 4 ||
-        &vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
-                                       0, PCI_DEVFN(0x2, 0))) {
+        !vfio_is_vga(vdev) || nr != 4)
         return;
-    }
 
     /*
      * IGD is not a standard, they like to change their specs often.  We
@@ -1249,6 +1244,15 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     /* BDSM is read-only, emulated */
     pci_set_long(vdev->pdev.wmask + IGD_BDSM, 0);
     pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
+
+    /*
+     * This must be an Intel VGA device at address 00:02.0 for us to even
+     * consider enabling legacy mode.  The vBIOS has dependencies on the
+     * PCI bus address.
+     */
+    if (&vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
+                0, PCI_DEVFN(0x2, 0)))
+        return;
 
     /*
      * We need to create an LPC/ISA bridge at PCI bus address 00:1f.0 that we
