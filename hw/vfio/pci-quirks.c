@@ -17,6 +17,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
 #include "trace.h"
+#include "intel-platform.h"
 
 /* Use uin32_t for vendor & device so PCI_ANY_ID expands and cannot match hw */
 static bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t device)
@@ -1360,6 +1361,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                             *host = NULL, *lpc = NULL;
     VFIOQuirk *quirk;
     VFIOIGDQuirk *igd;
+    const struct intel_device_info *info;
     PCIDevice *lpc_bridge;
     int i, ret, ggms_mb, gms_mb = 0, gen;
     uint64_t *bdsm_size;
@@ -1380,6 +1382,20 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     /*
+     * IGD is not a standard, they like to change their specs often.  We
+     * only attempt to support back to SandBridge and we hope that newer
+     * devices maintain compatibility with generation 8.
+     */
+    info = intel_get_device_info(vdev->device_id);
+    if (!info) {
+        error_report("IGD device %s is unsupported in legacy mode, "
+                     "try SandyBridge or newer", vdev->vbasedev.name);
+        return;
+    }
+
+    gen = info->gen;
+
+    /*
      * We need to create an LPC/ISA bridge at PCI bus address 00:1f.0 that we
      * can stuff host values into, so if there's already one there and it's not
      * one we can hack on, legacy mode is no-go.  Sorry Q35.
@@ -1390,18 +1406,6 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                                            "vfio-pci-igd-lpc-bridge")) {
         error_report("IGD device %s cannot support legacy mode due to existing "
                      "devices at address 1f.0", vdev->vbasedev.name);
-        return;
-    }
-
-    /*
-     * IGD is not a standard, they like to change their specs often.  We
-     * only attempt to support back to SandBridge and we hope that newer
-     * devices maintain compatibility with generation 8.
-     */
-    gen = igd_gen(vdev);
-    if (gen != 6 && gen != 8) {
-        error_report("IGD device %s is unsupported in legacy mode, "
-                     "try SandyBridge or newer", vdev->vbasedev.name);
         return;
     }
 
