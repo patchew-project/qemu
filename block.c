@@ -3407,6 +3407,22 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
 }
 
 /**
+ * Collect format allocation info. See BlockFormatAllocInfo definition in
+ * qapi/block-core.json.
+ */
+int bdrv_get_format_alloc_stat(BlockDriverState *bs, BlockFormatAllocInfo *bfai)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+    if (drv->bdrv_get_format_alloc_stat) {
+        return drv->bdrv_get_format_alloc_stat(bs, bfai);
+    }
+    return -ENOTSUP;
+}
+
+/**
  * Return number of sectors on success, -errno on error.
  */
 int64_t bdrv_nb_sectors(BlockDriverState *bs)

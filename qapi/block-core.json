@@ -139,6 +139,32 @@
            '*format-specific': 'ImageInfoSpecific' } }
 
 ##
+# @BlockFormatAllocInfo:
+#
+# Information about allocations, including metadata. All fields are in bytes.
+#
+# @alloc_alloc: allocated by format driver and allocated in underlying file
+#
+# @alloc_hole: allocated by format driver but actually is a hole in
+#              underlying file
+#
+# @alloc_overhead: allocated by format driver after end of underlying file
+#
+# @hole_alloc: not allocated by format driver but allocated in underlying file
+#
+# @hole_hole: not allocated by format driver hole in underlying file
+#
+# Since: 2.10
+#
+##
+{ 'struct': 'BlockFormatAllocInfo',
+  'data': {'alloc_alloc':    'uint64',
+           'alloc_hole':     'uint64',
+           'alloc_overhead': 'uint64',
+           'hole_alloc':     'uint64',
+           'hole_hole':      'uint64' } }
+
+##
 # @ImageCheck:
 #
 # Information about a QEMU image file check
