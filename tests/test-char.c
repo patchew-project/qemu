@@ -456,6 +456,8 @@ static void char_udp_test(void)
 
     close(sock);
     g_free(tmp);
+    qemu_chr_fe_deinit(&be);
+    object_unparent(OBJECT(chr));
 }
 
 static void char_file_test(void)
