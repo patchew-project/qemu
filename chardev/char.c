@@ -888,7 +888,7 @@ help_string_append(const char *name, void *opaque)
     g_string_append_printf(str, "\n%s", name);
 }
 
-static ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
+ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     const ChardevClass *cc;
