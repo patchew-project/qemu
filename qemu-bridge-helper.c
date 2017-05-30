@@ -228,7 +228,7 @@ int main(int argc, char **argv)
     ACLRule *acl_rule;
     ACLList acl_list;
     int access_allowed, access_denied;
-    int ret = EXIT_SUCCESS;
+    int rv, ret = EXIT_FAILURE;
 
 #ifdef CONFIG_LIBCAP
     /* if we're run from an suid binary, immediately drop privileges preserving
@@ -265,7 +265,6 @@ int main(int argc, char **argv)
     if (parse_acl_file(DEFAULT_ACL_FILE, &acl_list) == -1) {
         fprintf(stderr, "failed to parse default acl file `%s'\n",
                 DEFAULT_ACL_FILE);
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -298,7 +297,6 @@ int main(int argc, char **argv)
 
     if ((access_allowed == 0) || (access_denied == 1)) {
         fprintf(stderr, "access denied by acl file\n");
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -306,7 +304,6 @@ int main(int argc, char **argv)
     ctlfd = socket(AF_INET, SOCK_STREAM, 0);
     if (ctlfd == -1) {
         fprintf(stderr, "failed to open control socket: %s\n", strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -314,7 +311,6 @@ int main(int argc, char **argv)
     fd = open("/dev/net/tun", O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "failed to open /dev/net/tun: %s\n", strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -328,7 +324,6 @@ int main(int argc, char **argv)
 
     if (ioctl(fd, TUNSETIFF, &ifr) == -1) {
         fprintf(stderr, "failed to create tun device: %s\n", strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -340,7 +335,6 @@ int main(int argc, char **argv)
     if (ioctl(ctlfd, SIOCGIFMTU, &ifr) == -1) {
         fprintf(stderr, "failed to get mtu of bridge `%s': %s\n",
                 bridge, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -353,7 +347,6 @@ int main(int argc, char **argv)
     if (ioctl(ctlfd, SIOCSIFMTU, &ifr) == -1) {
         fprintf(stderr, "failed to set mtu of device `%s' to %d: %s\n",
                 iface, mtu, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -364,14 +357,12 @@ int main(int argc, char **argv)
     if (ioctl(ctlfd, SIOCGIFHWADDR, &ifr) < 0) {
         fprintf(stderr, "failed to get MAC address of device `%s': %s\n",
                 iface, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
     ifr.ifr_hwaddr.sa_data[0] = 0xFE;
     if (ioctl(ctlfd, SIOCSIFHWADDR, &ifr) < 0) {
         fprintf(stderr, "failed to set MAC address of device `%s': %s\n",
                 iface, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -384,15 +375,14 @@ int main(int argc, char **argv)
     ifargs[2] = 0;
     ifargs[3] = 0;
     ifr.ifr_data = (void *)ifargs;
-    ret = ioctl(ctlfd, SIOCDEVPRIVATE, &ifr);
+    rv = ioctl(ctlfd, SIOCDEVPRIVATE, &ifr);
 #else
     ifr.ifr_ifindex = ifindex;
-    ret = ioctl(ctlfd, SIOCBRADDIF, &ifr);
+    rv = ioctl(ctlfd, SIOCBRADDIF, &ifr);
 #endif
-    if (ret == -1) {
+    if (rv == -1) {
         fprintf(stderr, "failed to add interface `%s' to bridge `%s': %s\n",
                 iface, bridge, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -401,7 +391,6 @@ int main(int argc, char **argv)
     if (ioctl(ctlfd, SIOCGIFFLAGS, &ifr) == -1) {
         fprintf(stderr, "failed to get interface flags for `%s': %s\n",
                 iface, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -409,7 +398,6 @@ int main(int argc, char **argv)
     if (ioctl(ctlfd, SIOCSIFFLAGS, &ifr) == -1) {
         fprintf(stderr, "failed to bring up interface `%s': %s\n",
                 iface, strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -417,13 +405,13 @@ int main(int argc, char **argv)
     if (send_fd(unixfd, fd) == -1) {
         fprintf(stderr, "failed to write fd to unix socket: %s\n",
                 strerror(errno));
-        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
     /* ... */
 
     /* profit! */
+    ret = EXIT_SUCCESS;
 
 cleanup:
     if (fd >= 0) {
