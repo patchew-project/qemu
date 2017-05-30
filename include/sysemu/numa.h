@@ -36,4 +36,13 @@ void numa_legacy_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
 void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
                                   int nb_nodes, ram_addr_t size);
 void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp);
+
+static inline void assert_nb_numa_nodes_change(void)
+{
+    static int saved_nb_numa_nodes;
+    assert(nb_numa_nodes);
+    assert(saved_nb_numa_nodes == 0 || saved_nb_numa_nodes == nb_numa_nodes);
+    saved_nb_numa_nodes = nb_numa_nodes;
+}
+
 #endif
