@@ -65,6 +65,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
     FILE *f;
     char line[4096];
     ACLRule *acl_rule;
+    int ret = -1;
 
     f = fopen(filename, "r");
     if (f == NULL) {
@@ -92,9 +93,8 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
 
         if (arg == NULL) {
             fprintf(stderr, "Invalid config line:\n  %s\n", line);
-            fclose(f);
             errno = EINVAL;
-            return -1;
+            goto cleanup;
         }
 
         *arg = 0;
@@ -132,15 +132,16 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
             parse_acl_file(arg, acl_list);
         } else {
             fprintf(stderr, "Unknown command `%s'\n", cmd);
-            fclose(f);
             errno = EINVAL;
-            return -1;
+            goto cleanup;
         }
     }
 
-    fclose(f);
+    ret = 0;
 
-    return 0;
+ cleanup:
+    fclose(f);
+    return ret;
 }
 
 static bool has_vnet_hdr(int fd)
