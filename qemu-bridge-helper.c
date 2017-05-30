@@ -48,6 +48,7 @@ enum {
 
 typedef struct ACLRule {
     int type;
+    gid_t group;
     char iface[IFNAMSIZ];
     QSIMPLEQ_ENTRY(ACLRule) entry;
 } ACLRule;
@@ -65,7 +66,12 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
     FILE *f;
     char line[4096];
     ACLRule *acl_rule;
+    struct stat stbuf;
     int ret = -1;
+
+    if (stat(filename, &stbuf) < 0) {
+        return -1;
+    }
 
     f = fopen(filename, "r");
     if (f == NULL) {
@@ -117,6 +123,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
                 acl_rule->type = ACL_DENY;
                 snprintf(acl_rule->iface, IFNAMSIZ, "%s", arg);
             }
+            acl_rule->group = stbuf.st_gid;
             QSIMPLEQ_INSERT_TAIL(acl_list, acl_rule, entry);
         } else if (strcmp(cmd, "allow") == 0) {
             acl_rule = g_malloc(sizeof(*acl_rule));
@@ -126,6 +133,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
                 acl_rule->type = ACL_ALLOW;
                 snprintf(acl_rule->iface, IFNAMSIZ, "%s", arg);
             }
+            acl_rule->group = stbuf.st_gid;
             QSIMPLEQ_INSERT_TAIL(acl_list, acl_rule, entry);
         } else if (strcmp(cmd, "include") == 0) {
             /* ignore errors */
@@ -229,6 +237,7 @@ int main(int argc, char **argv)
     ACLRule *acl_rule;
     ACLList acl_list;
     int access_allowed, access_denied;
+    gid_t group;
     int rv, ret = EXIT_FAILURE;
 
 #ifdef CONFIG_LIBCAP
@@ -275,24 +284,31 @@ int main(int argc, char **argv)
      */
     access_allowed = 0;
     access_denied = 0;
+    group = getgid();
     QSIMPLEQ_FOREACH(acl_rule, &acl_list, entry) {
-        switch (acl_rule->type) {
-        case ACL_ALLOW_ALL:
-            access_allowed = 1;
-            break;
-        case ACL_ALLOW:
-            if (strcmp(bridge, acl_rule->iface) == 0) {
+        /* If the acl policy file is owned by root group it
+         * applies to all groups. Otherwise it applies to that
+         * specific group. */
+        if (!acl_rule->group ||
+            (acl_rule->group && acl_rule->group == group)) {
+            switch (acl_rule->type) {
+            case ACL_ALLOW_ALL:
                 access_allowed = 1;
-            }
-            break;
-        case ACL_DENY_ALL:
-            access_denied = 1;
-            break;
-        case ACL_DENY:
-            if (strcmp(bridge, acl_rule->iface) == 0) {
+                break;
+            case ACL_ALLOW:
+                if (strcmp(bridge, acl_rule->iface) == 0) {
+                    access_allowed = 1;
+                }
+                break;
+            case ACL_DENY_ALL:
                 access_denied = 1;
+                break;
+            case ACL_DENY:
+                if (strcmp(bridge, acl_rule->iface) == 0) {
+                    access_denied = 1;
+                }
+                break;
             }
-            break;
         }
     }
 
