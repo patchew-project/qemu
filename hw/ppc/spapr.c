@@ -2511,6 +2511,12 @@ static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+static bool spapr_coldplugged(DeviceState *dev)
+{
+    return runstate_check(RUN_STATE_INMIGRATE) ||
+           !dev->hotplugged;
+}
+
 static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                            uint32_t node, bool dedicated_hp_event_source,
                            Error **errp)
@@ -2521,6 +2527,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     int i, fdt_offset, fdt_size;
     void *fdt;
     uint64_t addr = addr_start;
+    bool coldplugged = spapr_coldplugged(dev);
 
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
@@ -2532,9 +2539,9 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                                                 SPAPR_MEMORY_BLOCK_SIZE);
 
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, errp);
+        drck->attach(drc, dev, fdt, fdt_offset, coldplugged, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
-        if (!dev->hotplugged) {
+        if (coldplugged) {
             /* guests expect coldplugged LMBs to be pre-allocated */
             drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
             drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
@@ -2543,7 +2550,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     /* send hotplug notification to the
      * guest only in case of hotplugged memory
      */
-    if (dev->hotplugged) {
+    if (!coldplugged) {
         if (dedicated_hp_event_source) {
             drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
                     addr_start / SPAPR_MEMORY_BLOCK_SIZE);
@@ -2776,6 +2783,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int smt = kvmppc_smt_threads();
     CPUArchId *core_slot;
     int index;
+    bool coldplugged = spapr_coldplugged(dev);
 
     core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
     if (!core_slot) {
@@ -2797,7 +2805,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (drc) {
         sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, &local_err);
+        drck->attach(drc, dev, fdt, fdt_offset, coldplugged, &local_err);
         if (local_err) {
             g_free(fdt);
             error_propagate(errp, local_err);
@@ -2805,7 +2813,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         }
     }
 
-    if (dev->hotplugged) {
+    if (!coldplugged) {
         /*
          * Send hotplug notification interrupt to the guest only in case
          * of hotplugged CPUs.
@@ -2838,7 +2846,7 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int node_id;
     int index;
 
-    if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
+    if (!spapr_coldplugged(dev) && !mc->has_hotpluggable_cpus) {
         error_setg(&local_err, "CPU hotplug not supported for this machine");
         goto out;
     }
