@@ -560,7 +560,8 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     QDECREF(str);
 }
 
-static void dump_human_format_alloc_info(BlockFormatAllocInfo *bfai, bool quiet)
+static void dump_human_format_alloc_info(BlockDriverState *bs,
+                                         BlockFormatAllocInfo *bfai, bool quiet)
 {
     char *alloc_alloc = size_to_str(bfai->alloc_alloc);
     char *alloc_hole = size_to_str(bfai->alloc_hole);
@@ -568,13 +569,28 @@ static void dump_human_format_alloc_info(BlockFormatAllocInfo *bfai, bool quiet)
     char *hole_alloc = size_to_str(bfai->hole_alloc);
     char *hole_hole = size_to_str(bfai->hole_hole);
 
+    const char *format = bdrv_get_format_name(bs);
+    const char *f_format =
+        bs->file ? bdrv_get_format_name(bs->file->bs) : "file";
+    int format_len, cw;
+
+    if (format == NULL) {
+        format = "format";
+    }
+    if (f_format == NULL) {
+        f_format = "file";
+    }
+    format_len = strlen(format);
+    cw = MAX(10, strlen(f_format) + 6);
+
     qprintf(quiet,
             "Format allocation info (including metadata):\n"
-            "               file-alloc   file-hole   after-eof\n"
-            "format-alloc   %10s  %10s  %10s\n"
-            "format-hole    %10s  %10s\n",
-            alloc_alloc, alloc_hole, alloc_overhead,
-            hole_alloc, hole_hole);
+            "%*s         %*s-alloc  %*s-hole  %*s\n"
+            "%s-alloc   %*s  %*s  %*s\n"
+            "%s-hole    %*s  %*s\n",
+            format_len, "", cw - 6, f_format, cw - 5, f_format, cw, "after-eof",
+            format, cw, alloc_alloc, cw, alloc_hole, cw, alloc_overhead,
+            format, cw, hole_alloc, cw, hole_hole);
 
     g_free(alloc_alloc);
     g_free(alloc_hole);
@@ -583,7 +599,8 @@ static void dump_human_format_alloc_info(BlockFormatAllocInfo *bfai, bool quiet)
     g_free(hole_hole);
 }
 
-static void dump_human_image_check(ImageCheck *check, bool quiet)
+static void dump_human_image_check(BlockDriverState *bs, ImageCheck *check,
+                                   bool quiet)
 {
     if (!(check->corruptions || check->leaks || check->check_errors)) {
         qprintf(quiet, "No errors were found on the image.\n");
@@ -626,7 +643,7 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
     }
 
     if (check->has_format_alloc_info) {
-        dump_human_format_alloc_info(check->format_alloc_info, quiet);
+        dump_human_format_alloc_info(bs, check->format_alloc_info, quiet);
     }
 }
 
@@ -840,7 +857,7 @@ static int img_check(int argc, char **argv)
     if (!ret) {
         switch (output_format) {
         case OFORMAT_HUMAN:
-            dump_human_image_check(check, quiet);
+            dump_human_image_check(bs, check, quiet);
             break;
         case OFORMAT_JSON:
             dump_json_image_check(check, quiet);
