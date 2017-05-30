@@ -132,12 +132,16 @@ static bool qemu_chr_replay(Chardev *chr)
 
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    Chardev *s;
     ChardevClass *cc;
     int ret;
 
+    qemu_mutex_lock(&be->chr_lock);
+    s = be->chr;
+
     if (!s) {
-        return 0;
+        ret = 0;
+        goto end;
     }
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
@@ -145,7 +149,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
         replay_char_write_event_load(&ret, &offset);
         assert(offset <= len);
         qemu_chr_fe_write_buffer(s, buf, offset, &offset);
-        return ret;
+        goto end;
     }
 
     cc = CHARDEV_GET_CLASS(s);
@@ -161,7 +165,9 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(ret, ret < 0 ? 0 : ret);
     }
-    
+
+end:
+    qemu_mutex_unlock(&be->chr_lock);
     return ret;
 }
 
@@ -191,13 +197,16 @@ int qemu_chr_write_all(Chardev *s, const uint8_t *buf, int len)
 
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    Chardev *s;
+    int ret;
 
-    if (!s) {
-        return 0;
-    }
+    qemu_mutex_lock(&be->chr_lock);
 
-    return qemu_chr_write_all(s, buf, len);
+    s = be->chr;
+    ret = s ? qemu_chr_write_all(s, buf, len) : 0;
+
+    qemu_mutex_unlock(&be->chr_lock);
+    return ret;
 }
 
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
@@ -478,7 +487,7 @@ Chardev *qemu_chr_fe_get_driver(CharBackend *be)
     return be->chr;
 }
 
-bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+static bool qemu_chr_fe_connect(CharBackend *b, Chardev *s, Error **errp)
 {
     int tag = 0;
 
@@ -507,6 +516,16 @@ unavailable:
     return false;
 }
 
+bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+{
+    if (!qemu_chr_fe_connect(b, s, errp)) {
+        return false;
+    }
+
+    qemu_mutex_init(&b->chr_lock);
+    return true;
+}
+
 static bool qemu_chr_is_busy(Chardev *s)
 {
     if (CHARDEV_IS_MUX(s)) {
@@ -531,6 +550,7 @@ void qemu_chr_fe_deinit(CharBackend *b)
             d->backends[b->tag] = NULL;
         }
         b->chr = NULL;
+        qemu_mutex_destroy(&b->chr_lock);
     }
 }
 
@@ -1300,6 +1320,92 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ret = g_new0(ChardevReturn, 1);
     if (CHARDEV_IS_PTY(chr)) {
         ret->pty = g_strdup(chr->filename + 4);
+        ret->has_pty = true;
+    }
+
+    return ret;
+}
+
+ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
+                                  Error **errp)
+{
+    CharBackend *be;
+    const ChardevClass *cc;
+    Chardev *chr, *chr_new;
+    bool closed_sent = false;
+    ChardevReturn *ret;
+
+    chr = qemu_chr_find(id);
+    if (!chr) {
+        error_setg(errp, "Chardev '%s' does not exist", id);
+        return NULL;
+    }
+
+    if (CHARDEV_IS_MUX(chr)) {
+        error_setg(errp, "Mux device hotswap not supported yet");
+        return NULL;
+    }
+
+    if (qemu_chr_replay(chr)) {
+        error_setg(errp,
+            "Chardev '%s' cannot be changed in record/replay mode", id);
+        return NULL;
+    }
+
+    be = chr->be;
+    if (!be) {
+        /* easy case */
+        object_unparent(OBJECT(chr));
+        return qmp_chardev_add(id, backend, errp);
+    }
+
+    if (!be->chr_be_change) {
+        error_setg(errp, "Chardev user does not support chardev hotswap");
+        return NULL;
+    }
+
+    cc = char_get_class(ChardevBackendKind_lookup[backend->type], errp);
+    if (!cc) {
+        return NULL;
+    }
+
+    chr_new = qemu_chardev_new(NULL, object_class_get_name(OBJECT_CLASS(cc)),
+                               backend, errp);
+    if (!chr_new) {
+        return NULL;
+    }
+    chr_new->label = g_strdup(id);
+
+    if (chr->be_open && !chr_new->be_open) {
+        qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+        closed_sent = true;
+    }
+
+    qemu_mutex_lock(&be->chr_lock);
+    chr->be = NULL;
+    qemu_chr_fe_connect(be, chr_new, &error_abort);
+
+    if (be->chr_be_change(be->opaque) < 0) {
+        error_setg(errp, "Chardev '%s' change failed", chr_new->label);
+        chr_new->be = NULL;
+        qemu_chr_fe_connect(be, chr, &error_abort);
+        qemu_mutex_unlock(&be->chr_lock);
+        if (closed_sent) {
+            qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+        }
+        object_unref(OBJECT(chr_new));
+        return NULL;
+    }
+    qemu_mutex_unlock(&be->chr_lock);
+
+    object_unparent(OBJECT(chr));
+    object_property_add_child(get_chardevs_root(), chr_new->label,
+                              OBJECT(chr_new), &error_abort);
+    object_unref(OBJECT(chr_new));
+
+    ret = g_new0(ChardevReturn, 1);
+    if (CHARDEV_IS_PTY(chr_new)) {
+        ret->pty = g_strdup(chr_new->filename + 4);
         ret->has_pty = true;
     }
 

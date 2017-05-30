@@ -92,6 +92,7 @@ typedef struct CharBackend {
     void *opaque;
     int tag;
     int fe_open;
+    QemuMutex chr_lock;
 } CharBackend;
 
 struct Chardev {
@@ -141,6 +142,14 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  */
 Chardev *qemu_chr_new(const char *label, const char *filename);
 
+/**
+ * @qemu_chr_change:
+ *
+ * Change an existing character backend
+ *
+ * @opts the new backend options
+ */
+void qemu_chr_change(QemuOpts *opts, Error **errp);
 
 /**
  * @qemu_chr_fe_disconnect:
