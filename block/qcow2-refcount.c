@@ -2931,3 +2931,147 @@ done:
     qemu_vfree(new_refblock);
     return ret;
 }
+
+typedef struct FormatAllocStatCo {
+    BlockDriverState *bs;
+    BlockFormatAllocInfo *bfai;
+    int64_t ret;
+} FormatAllocStatCo;
+
+static void coroutine_fn qcow2_get_format_alloc_stat_entry(void *opaque)
+{
+    int ret = 0;
+    FormatAllocStatCo *nbco = opaque;
+    BlockDriverState *bs = nbco->bs;
+    BDRVQcow2State *s = bs->opaque;
+    BlockFormatAllocInfo *bfai = nbco->bfai;
+    int64_t cluster, file_sectors, sector;
+    int refcount_block_offset;
+    uint32_t i;
+    bool allocated, f_allocated;
+    int dif, num = 0, f_num = 0;
+
+    memset(bfai, 0, sizeof(*bfai));
+
+    file_sectors = bdrv_nb_sectors(bs->file->bs);
+    if (file_sectors < 0) {
+        nbco->ret = file_sectors;
+        return;
+    }
+
+    qemu_co_mutex_lock(&s->lock);
+
+    for (sector = 0; sector < file_sectors; sector += dif) {
+        if (f_num == 0) {
+            ret = bdrv_is_allocated_above(bs->file->bs, NULL, sector,
+                                          file_sectors - sector, &f_num);
+            if (ret < 0) {
+                goto fail;
+            }
+            f_allocated = ret;
+        }
+
+        if (num == 0) {
+            uint64_t refcount;
+            assert(((sector << BDRV_SECTOR_BITS) & (s->cluster_size - 1)) == 0);
+            ret = qcow2_get_refcount(
+                bs, (sector << BDRV_SECTOR_BITS) >> s->cluster_bits, &refcount);
+            if (ret < 0) {
+                goto fail;
+            }
+            allocated = refcount > 0;
+            num = s->cluster_size >> BDRV_SECTOR_BITS;
+        }
+
+        dif = MIN(f_num, MIN(num, file_sectors - sector));
+        if (allocated) {
+            if (f_allocated) {
+                bfai->alloc_alloc += dif;
+            } else {
+                bfai->alloc_hole += dif;
+            }
+        } else {
+            if (f_allocated) {
+                bfai->hole_alloc += dif;
+            } else {
+                bfai->hole_hole += dif;
+            }
+        }
+        f_num -= dif;
+        num -= dif;
+    }
+
+    assert(f_num == 0);
+
+    if (allocated) {
+        bfai->alloc_overhead += num;
+    }
+
+    cluster = size_to_clusters(s, sector << BDRV_SECTOR_BITS);
+    refcount_block_offset = cluster & (s->refcount_block_size - 1);
+    for (i = cluster >> s->refcount_block_bits;
+         i <= s->max_refcount_table_index; i++)
+    {
+        int j;
+
+        if (!(s->refcount_table[i] & REFT_OFFSET_MASK)) {
+            refcount_block_offset = 0;
+            continue;
+        }
+
+        for (j = refcount_block_offset; j < s->refcount_block_size; j++) {
+            uint64_t refcount;
+            cluster = (i << s->refcount_block_bits) + j;
+
+            ret = qcow2_get_refcount(bs, cluster, &refcount);
+            if (ret < 0) {
+                goto fail;
+            }
+            if (refcount > 0) {
+                bfai->alloc_overhead++;
+            }
+        }
+
+        refcount_block_offset = 0;
+    }
+
+    qemu_co_mutex_unlock(&s->lock);
+
+    bfai->alloc_alloc = bfai->alloc_alloc << BDRV_SECTOR_BITS;
+    bfai->alloc_hole = bfai->alloc_hole << BDRV_SECTOR_BITS;
+    bfai->alloc_overhead = bfai->alloc_overhead << BDRV_SECTOR_BITS;
+
+    bfai->hole_alloc = bfai->hole_alloc << BDRV_SECTOR_BITS;
+    bfai->hole_hole = bfai->hole_hole << BDRV_SECTOR_BITS;
+
+    nbco->ret = 0;
+    return;
+
+fail:
+    nbco->ret = ret;
+    qemu_co_mutex_unlock(&s->lock);
+}
+
+/* qcow2_get_format_alloc_stat()
+ * Fills @bfai struct. In case of failure @bfai content is unpredicted.
+ */
+int qcow2_get_format_alloc_stat(BlockDriverState *bs,
+                                BlockFormatAllocInfo *bfai)
+{
+    FormatAllocStatCo nbco = {
+        .bs = bs,
+        .bfai = bfai,
+        .ret = -EINPROGRESS
+    };
+
+    if (qemu_in_coroutine()) {
+        qcow2_get_format_alloc_stat_entry(&nbco);
+    } else {
+        Coroutine *co =
+            qemu_coroutine_create(qcow2_get_format_alloc_stat_entry, &nbco);
+        qemu_coroutine_enter(co);
+        BDRV_POLL_WHILE(bs, nbco.ret == -EINPROGRESS);
+    }
+
+    return nbco.ret;
+}
