@@ -484,7 +484,14 @@ static Notifier muxes_realize_notify = {
 
 Chardev *qemu_chr_fe_get_driver(CharBackend *be)
 {
+    /* this is unsafe for the users that support chardev hotswap */
+    assert(be->chr_be_change == NULL);
     return be->chr;
+}
+
+bool qemu_chr_fe_backend_connected(CharBackend *be)
+{
+    return !!be->chr;
 }
 
 static bool qemu_chr_fe_connect(CharBackend *b, Chardev *s, Error **errp)

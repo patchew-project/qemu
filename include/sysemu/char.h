@@ -391,8 +391,18 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
  *
  * Returns the driver associated with a CharBackend or NULL if no
  * associated Chardev.
+ * Note: avoid this function as the driver should never be accessed directly,
+ *       especially by the frontends that support chardevice hotswap.
+ *       Consider qemu_chr_fe_backend_connected() to check for driver existence
  */
 Chardev *qemu_chr_fe_get_driver(CharBackend *be);
+
+/**
+ * @qemu_chr_fe_backend_connected:
+ *
+ * Returns true if there is a chardevice associated with @be.
+ */
+bool qemu_chr_fe_backend_connected(CharBackend *be);
 
 /**
  * @qemu_chr_fe_deinit:
