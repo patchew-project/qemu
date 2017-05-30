@@ -560,6 +560,29 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     QDECREF(str);
 }
 
+static void dump_human_format_alloc_info(BlockFormatAllocInfo *bfai, bool quiet)
+{
+    char *alloc_alloc = size_to_str(bfai->alloc_alloc);
+    char *alloc_hole = size_to_str(bfai->alloc_hole);
+    char *alloc_overhead = size_to_str(bfai->alloc_overhead);
+    char *hole_alloc = size_to_str(bfai->hole_alloc);
+    char *hole_hole = size_to_str(bfai->hole_hole);
+
+    qprintf(quiet,
+            "Format allocation info (including metadata):\n"
+            "               file-alloc   file-hole   after-eof\n"
+            "format-alloc   %10s  %10s  %10s\n"
+            "format-hole    %10s  %10s\n",
+            alloc_alloc, alloc_hole, alloc_overhead,
+            hole_alloc, hole_hole);
+
+    g_free(alloc_alloc);
+    g_free(alloc_hole);
+    g_free(alloc_overhead);
+    g_free(hole_alloc);
+    g_free(hole_hole);
+}
+
 static void dump_human_image_check(ImageCheck *check, bool quiet)
 {
     if (!(check->corruptions || check->leaks || check->check_errors)) {
@@ -601,6 +624,10 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
         qprintf(quiet,
                 "Image end offset: %" PRId64 "\n", check->image_end_offset);
     }
+
+    if (check->has_format_alloc_info) {
+        dump_human_format_alloc_info(check->format_alloc_info, quiet);
+    }
 }
 
 static int collect_image_check(BlockDriverState *bs,
@@ -611,6 +638,7 @@ static int collect_image_check(BlockDriverState *bs,
 {
     int ret;
     BdrvCheckResult result;
+    BlockFormatAllocInfo *bfai = g_new0(BlockFormatAllocInfo, 1);
 
     ret = bdrv_check(bs, &result, fix);
     if (ret < 0) {
@@ -638,6 +666,14 @@ static int collect_image_check(BlockDriverState *bs,
     check->has_fragmented_clusters  = result.bfi.fragmented_clusters != 0;
     check->compressed_clusters      = result.bfi.compressed_clusters;
     check->has_compressed_clusters  = result.bfi.compressed_clusters != 0;
+
+    ret = bdrv_get_format_alloc_stat(bs, bfai);
+    if (ret < 0) {
+        qapi_free_BlockFormatAllocInfo(bfai);
+    } else {
+        check->has_format_alloc_info = true;
+        check->format_alloc_info = bfai;
+    }
 
     return 0;
 }

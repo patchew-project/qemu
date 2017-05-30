@@ -203,6 +203,9 @@
 #                       field is present if the driver for the image format
 #                       supports it
 #
+# @format-alloc-info: Format-allocation information, see
+#                     BlockFormatAllocInfo description. (Since: 2.10)
+#
 # Since: 1.4
 #
 ##
@@ -211,7 +214,8 @@
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
            '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
            '*total-clusters': 'int', '*allocated-clusters': 'int',
-           '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
+           '*fragmented-clusters': 'int', '*compressed-clusters': 'int',
+           '*format-alloc-info': 'BlockFormatAllocInfo' } }
 
 ##
 # @MapEntry:
