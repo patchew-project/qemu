@@ -2001,7 +2001,7 @@ int gdbserver_start(const char *device)
                                    NULL, &error_abort);
         monitor_init(mon_chr, 0);
     } else {
-        if (qemu_chr_fe_get_driver(&s->chr)) {
+        if (qemu_chr_fe_backend_connected(&s->chr)) {
             object_unparent(OBJECT(qemu_chr_fe_get_driver(&s->chr)));
         }
         mon_chr = s->mon_chr;
