@@ -2634,10 +2634,9 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     if (!o) {
         return false;
     }
-    if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+    if (!qnum_get_uint(qobject_to_qnum(o), &mcfg->mcfg_base)) {
         g_assert_not_reached();
     }
-    mcfg->mcfg_base = val;
     qobject_decref(o);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
