@@ -1559,16 +1559,17 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
 
-    /* "Iteration" header */
-    qemu_put_be32(f, spapr->htab_shift);
+    /* "Iteration" header: no-HPT or HPT size encoding */
+    if (!spapr->htab_shift) {
+        qemu_put_be32(f, -1);
+    } else {
+        qemu_put_be32(f, spapr->htab_shift);
+    }
 
     if (spapr->htab) {
         spapr->htab_save_index = 0;
         spapr->htab_first_pass = true;
-    } else {
-        assert(kvm_enabled());
     }
-
 
     return 0;
 }
@@ -1714,9 +1715,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
     /* Iteration header */
     qemu_put_be32(f, 0);
 
-    if (!spapr->htab) {
-        assert(kvm_enabled());
-
+    if (!spapr->htab && kvm_enabled()) {
         fd = get_htab_fd(spapr);
         if (fd < 0) {
             return fd;
@@ -1748,7 +1747,7 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
     /* Iteration header */
     qemu_put_be32(f, 0);
 
-    if (!spapr->htab) {
+    if (!spapr->htab && kvm_enabled()) {
         int rc;
 
         assert(kvm_enabled());
@@ -1793,6 +1792,12 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     if (section_hdr) {
         Error *local_err = NULL;
 
+        if (section_hdr == -1) {
+            spapr_free_hpt(spapr);
+            unregister_savevm(NULL, "spapr/htab", spapr);
+            return 0;
+        }
+
         /* First section gives the htab size */
         spapr_reallocate_hpt(spapr, section_hdr, &local_err);
         if (local_err) {
@@ -1802,9 +1807,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
         return 0;
     }
 
-    if (!spapr->htab) {
-        assert(kvm_enabled());
-
+    if (!spapr->htab && kvm_enabled()) {
         fd = kvmppc_get_htab_fd(true);
         if (fd < 0) {
             error_report("Unable to open fd to restore KVM hash table: %s",
@@ -1843,7 +1846,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
                 memset(HPTE(spapr->htab, index + n_valid), 0,
                        HASH_PTE_SIZE_64 * n_invalid);
             }
-        } else {
+        } else if (kvm_enabled()) {
             int rc;
 
             assert(fd >= 0);
@@ -1855,7 +1858,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
-    if (!spapr->htab) {
+    if (!spapr->htab && kvm_enabled()) {
         assert(fd >= 0);
         close(fd);
     }
