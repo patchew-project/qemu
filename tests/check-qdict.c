@@ -11,7 +11,6 @@
  */
 #include "qemu/osdep.h"
 
-#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/error.h"
@@ -39,10 +38,11 @@ static void qdict_new_test(void)
 
 static void qdict_put_obj_test(void)
 {
-    QInt *qi;
+    QNum *qi;
     QDict *qdict;
     QDictEntry *ent;
     const int num = 42;
+    int64_t val;
 
     qdict = qdict_new();
 
@@ -51,8 +51,9 @@ static void qdict_put_obj_test(void)
 
     g_assert(qdict_size(qdict) == 1);
     ent = QLIST_FIRST(&qdict->table[12345 % QDICT_BUCKET_MAX]);
-    qi = qobject_to_qint(ent->value);
-    g_assert(qint_get_int(qi) == num);
+    qi = qobject_to_qnum(ent->value);
+    g_assert(qnum_get_int(qi, &val));
+    g_assert_cmpint(val, ==, num);
 
     // destroy doesn't exit yet
     QDECREF(qi);
@@ -74,19 +75,21 @@ static void qdict_destroy_simple_test(void)
 
 static void qdict_get_test(void)
 {
-    QInt *qi;
+    QNum *qi;
     QObject *obj;
     const int value = -42;
     const char *key = "test";
     QDict *tests_dict = qdict_new();
+    int64_t val;
 
     qdict_put_int(tests_dict, key, value);
 
     obj = qdict_get(tests_dict, key);
     g_assert(obj != NULL);
 
-    qi = qobject_to_qint(obj);
-    g_assert(qint_get_int(qi) == value);
+    qi = qobject_to_qnum(obj);
+    g_assert(qnum_get_int(qi, &val));
+    g_assert_cmpint(val, ==, value);
 
     QDECREF(tests_dict);
 }
@@ -329,8 +332,9 @@ static void qdict_array_split_test(void)
 {
     QDict *test_dict = qdict_new();
     QDict *dict1, *dict2;
-    QInt *int1;
+    QNum *int1;
     QList *test_list;
+    int64_t val;
 
     /*
      * Test the split of
@@ -380,7 +384,7 @@ static void qdict_array_split_test(void)
 
     dict1 = qobject_to_qdict(qlist_pop(test_list));
     dict2 = qobject_to_qdict(qlist_pop(test_list));
-    int1 = qobject_to_qint(qlist_pop(test_list));
+    int1 = qobject_to_qnum(qlist_pop(test_list));
 
     g_assert(dict1);
     g_assert(dict2);
@@ -402,7 +406,8 @@ static void qdict_array_split_test(void)
 
     QDECREF(dict2);
 
-    g_assert(qint_get_int(int1) == 66);
+    g_assert(qnum_get_int(int1, &val));
+    g_assert_cmpint(val, ==, 66);
 
     QDECREF(int1);
 
@@ -447,14 +452,15 @@ static void qdict_array_split_test(void)
 
     qdict_array_split(test_dict, &test_list);
 
-    int1 = qobject_to_qint(qlist_pop(test_list));
+    int1 = qobject_to_qnum(qlist_pop(test_list));
 
     g_assert(int1);
     g_assert(qlist_empty(test_list));
 
     QDECREF(test_list);
 
-    g_assert(qint_get_int(int1) == 42);
+    g_assert(qnum_get_int(int1, &val));
+    g_assert_cmpint(val, ==, 42);
 
     QDECREF(int1);
 

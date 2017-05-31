@@ -164,7 +164,7 @@ static void test_visitor_in_int_overflow(TestInputVisitorData *data,
     Visitor *v;
 
     /* this will overflow a Qint/int64, so should be deserialized into
-     * a QFloat/double field instead, leading to an error if we pass it
+     * a QNum/double field instead, leading to an error if we pass it
      * to visit_type_int. confirm this.
      */
     v = visitor_input_test_init(data, "%f", DBL_MAX);
@@ -466,17 +466,19 @@ static void test_visitor_in_any(TestInputVisitorData *data,
 {
     QObject *res = NULL;
     Visitor *v;
-    QInt *qint;
+    QNum *qnum;
     QBool *qbool;
     QString *qstring;
     QDict *qdict;
     QObject *qobj;
+    int64_t val;
 
     v = visitor_input_test_init(data, "-42");
     visit_type_any(v, NULL, &res, &error_abort);
-    qint = qobject_to_qint(res);
-    g_assert(qint);
-    g_assert_cmpint(qint_get_int(qint), ==, -42);
+    qnum = qobject_to_qnum(res);
+    g_assert(qnum);
+    g_assert(qnum_get_int(qnum, &val));
+    g_assert_cmpint(val, ==, -42);
     qobject_decref(res);
 
     v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
@@ -485,9 +487,10 @@ static void test_visitor_in_any(TestInputVisitorData *data,
     g_assert(qdict && qdict_size(qdict) == 3);
     qobj = qdict_get(qdict, "integer");
     g_assert(qobj);
-    qint = qobject_to_qint(qobj);
-    g_assert(qint);
-    g_assert_cmpint(qint_get_int(qint), ==, -42);
+    qnum = qobject_to_qnum(qobj);
+    g_assert(qnum);
+    g_assert(qnum_get_int(qnum, &val));
+    g_assert_cmpint(val, ==, -42);
     qobj = qdict_get(qdict, "boolean");
     g_assert(qobj);
     qbool = qobject_to_qbool(qobj);
@@ -565,7 +568,7 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_UserDefAlternate(v, NULL, &tmp, &error_abort);
-    g_assert_cmpint(tmp->type, ==, QTYPE_QINT);
+    g_assert_cmpint(tmp->type, ==, QTYPE_QNUM);
     g_assert_cmpint(tmp->u.i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
 
@@ -593,7 +596,7 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "{ 'alt': 42 }");
     visit_type_WrapAlternate(v, NULL, &wrap, &error_abort);
-    g_assert_cmpint(wrap->alt->type, ==, QTYPE_QINT);
+    g_assert_cmpint(wrap->alt->type, ==, QTYPE_QNUM);
     g_assert_cmpint(wrap->alt->u.i, ==, 42);
     qapi_free_WrapAlternate(wrap);
 
@@ -634,19 +637,19 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltEnumNum(v, NULL, &aen, &error_abort);
-    g_assert_cmpint(aen->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpint(aen->type, ==, QTYPE_QNUM);
     g_assert_cmpfloat(aen->u.n, ==, 42);
     qapi_free_AltEnumNum(aen);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumEnum(v, NULL, &ans, &error_abort);
-    g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpint(ans->type, ==, QTYPE_QNUM);
     g_assert_cmpfloat(ans->u.n, ==, 42);
     qapi_free_AltNumEnum(ans);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltEnumInt(v, NULL, &asi, &error_abort);
-    g_assert_cmpint(asi->type, ==, QTYPE_QINT);
+    g_assert_cmpint(asi->type, ==, QTYPE_QNUM);
     g_assert_cmpint(asi->u.i, ==, 42);
     qapi_free_AltEnumInt(asi);
 
@@ -659,13 +662,13 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltEnumNum(v, NULL, &aen, &error_abort);
-    g_assert_cmpint(aen->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpint(aen->type, ==, QTYPE_QNUM);
     g_assert_cmpfloat(aen->u.n, ==, 42.5);
     qapi_free_AltEnumNum(aen);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumEnum(v, NULL, &ans, &error_abort);
-    g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpint(ans->type, ==, QTYPE_QNUM);
     g_assert_cmpfloat(ans->u.n, ==, 42.5);
     qapi_free_AltNumEnum(ans);
 

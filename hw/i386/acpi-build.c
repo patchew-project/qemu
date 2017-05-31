@@ -57,7 +57,6 @@
 
 #include "hw/acpi/aml-build.h"
 
-#include "qapi/qmp/qint.h"
 #include "qom/qom-qobject.h"
 #include "hw/i386/amd_iommu.h"
 #include "hw/i386/intel_iommu.h"
@@ -129,6 +128,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     Object *lpc = ich9_lpc_find();
     Object *obj = NULL;
     QObject *o;
+    int64_t val;
 
     pm->cpu_hp_io_base = 0;
     pm->pcihp_io_base = 0;
@@ -150,21 +150,30 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
-        pm->s3_disabled = qint_get_int(qobject_to_qint(o));
+        if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+            g_assert_not_reached();
+        }
+        pm->s3_disabled = val;
     } else {
         pm->s3_disabled = false;
     }
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_DISABLED, NULL);
     if (o) {
-        pm->s4_disabled = qint_get_int(qobject_to_qint(o));
+        if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+            g_assert_not_reached();
+        }
+        pm->s4_disabled = val;
     } else {
         pm->s4_disabled = false;
     }
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_VAL, NULL);
     if (o) {
-        pm->s4_val = qint_get_int(qobject_to_qint(o));
+        if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+            g_assert_not_reached();
+        }
+        pm->s4_val = val;
     } else {
         pm->s4_val = false;
     }
@@ -529,7 +538,11 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
-        int64_t bsel_val = qint_get_int(qobject_to_qint(bsel));
+        int64_t bsel_val;
+
+        if (!qnum_get_int(qobject_to_qnum(bsel), &bsel_val)) {
+            g_assert_not_reached();
+        }
 
         aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
         notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
@@ -639,7 +652,12 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     /* If bus supports hotplug select it and notify about local events */
     if (bsel) {
-        int64_t bsel_val = qint_get_int(qobject_to_qint(bsel));
+        int64_t bsel_val;
+
+        if (!qnum_get_int(qobject_to_qnum(bsel), &bsel_val)) {
+            g_assert_not_reached();
+        }
+
         aml_append(method, aml_store(aml_int(bsel_val), aml_name("BNUM")));
         aml_append(method,
             aml_call2("DVNT", aml_name("PCIU"), aml_int(1) /* Device Check */)
@@ -2607,6 +2625,7 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
 {
     Object *pci_host;
     QObject *o;
+    int64_t val;
 
     pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
@@ -2615,12 +2634,18 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     if (!o) {
         return false;
     }
-    mcfg->mcfg_base = qint_get_int(qobject_to_qint(o));
+    if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+        g_assert_not_reached();
+    }
+    mcfg->mcfg_base = val;
     qobject_decref(o);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
     assert(o);
-    mcfg->mcfg_size = qint_get_int(qobject_to_qint(o));
+    if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+        g_assert_not_reached();
+    }
+    mcfg->mcfg_size = val;
     qobject_decref(o);
     return true;
 }
