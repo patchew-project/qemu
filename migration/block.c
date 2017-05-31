@@ -673,15 +673,13 @@ static int64_t get_remaining_dirty(void)
     return dirty << BDRV_SECTOR_BITS;
 }
 
-/* Called with iothread lock taken.  */
 
-static void block_migration_cleanup(void *opaque)
+
+/* Called with iothread lock taken.  */
+static void block_migration_cleanup_bmds(void)
 {
     BlkMigDevState *bmds;
-    BlkMigBlock *blk;
     AioContext *ctx;
-
-    bdrv_drain_all();
 
     unset_dirty_tracking();
 
@@ -700,6 +698,16 @@ static void block_migration_cleanup(void *opaque)
         g_free(bmds->aio_bitmap);
         g_free(bmds);
     }
+}
+
+/* Called with iothread lock taken.  */
+static void block_migration_cleanup(void *opaque)
+{
+    BlkMigBlock *blk;
+
+    bdrv_drain_all();
+
+    block_migration_cleanup_bmds();
 
     blk_mig_lock();
     while ((blk = QSIMPLEQ_FIRST(&block_mig_state.blk_list)) != NULL) {
@@ -842,6 +850,10 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     DPRINTF("Block migration completed\n");
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
+
+    /* Make sure that our BlockBackends are gone, so that the block driver
+     * nodes can be inactivated. */
+    block_migration_cleanup_bmds();
 
     return 0;
 }
