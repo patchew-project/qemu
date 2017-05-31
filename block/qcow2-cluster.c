@@ -32,6 +32,89 @@
 #include "qemu/bswap.h"
 #include "trace.h"
 
+int qcow2_reduce_l1_table(BlockDriverState *bs, uint64_t max_size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t new_l1_size_bytes, free_l1_clusters;
+    uint64_t *new_l1_table;
+    int new_l1_size, i, ret;
+
+    if (max_size >= s->l1_size) {
+        return 0;
+    }
+
+    new_l1_size = max_size;
+
+#ifdef DEBUG_ALLOC2
+    fprintf(stderr, "reduce l1_table from %d to %" PRId64 "\n",
+            s->l1_size, new_l1_size);
+#endif
+
+    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    if (ret < 0) {
+        return ret;
+    }
+
+    BLKDBG_EVENT(bs->file, BLKDBG_L1_REDUCE_FREE_L2_CLUSTERS);
+    for (i = s->l1_size - 1; i > new_l1_size - 1; i--) {
+        if ((s->l1_table[i] & L1E_OFFSET_MASK) == 0) {
+            continue;
+        }
+        qcow2_free_clusters(bs, s->l1_table[i] & L1E_OFFSET_MASK,
+                            s->l2_size * sizeof(uint64_t),
+                            QCOW2_DISCARD_ALWAYS);
+    }
+
+    new_l1_size_bytes = sizeof(uint64_t) * new_l1_size;
+
+    BLKDBG_EVENT(bs->file, BLKDBG_L1_REDUCE_WRITE_TABLE);
+    ret = bdrv_pwrite_zeroes(bs->file, s->l1_table_offset + new_l1_size_bytes,
+                             s->l1_size * sizeof(uint64_t) - new_l1_size_bytes,
+                             0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_flush(bs->file->bs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* set new table size */
+    BLKDBG_EVENT(bs->file, BLKDBG_L1_REDUCE_ACTIVATE_TABLE);
+    new_l1_size = cpu_to_be32(new_l1_size);
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_size),
+                           &new_l1_size, sizeof(new_l1_size));
+    new_l1_size = be32_to_cpu(new_l1_size);
+    if (ret < 0) {
+        return ret;
+    }
+
+    BLKDBG_EVENT(bs->file, BLKDBG_L1_REDUCE_FREE_L1_CLUSTERS);
+    free_l1_clusters =
+        DIV_ROUND_UP(s->l1_size * sizeof(uint64_t), s->cluster_size) -
+        DIV_ROUND_UP(new_l1_size_bytes, s->cluster_size);
+    if (free_l1_clusters) {
+        qcow2_free_clusters(bs, s->l1_table_offset +
+                                ROUND_UP(new_l1_size_bytes, s->cluster_size),
+                            free_l1_clusters << s->cluster_bits,
+                            QCOW2_DISCARD_ALWAYS);
+    }
+
+    new_l1_table = qemu_try_blockalign(bs->file->bs,
+                                       align_offset(new_l1_size_bytes, 512));
+    if (new_l1_table == NULL) {
+        return -ENOMEM;
+    }
+    memcpy(new_l1_table, s->l1_table, new_l1_size_bytes);
+
+    qemu_vfree(s->l1_table);
+    s->l1_table = new_l1_table;
+    s->l1_size = new_l1_size;
+
+    return 0;
+}
+
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size)
 {
