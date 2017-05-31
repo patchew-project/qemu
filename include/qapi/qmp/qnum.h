@@ -18,6 +18,7 @@
 
 typedef enum {
     QNUM_I64,
+    QNUM_U64,
     QNUM_DOUBLE
 } QNumKind;
 
@@ -26,14 +27,17 @@ typedef struct QNum {
     QNumKind kind;
     union {
         int64_t i64;
+        uint64_t u64;
         double dbl;
     } u;
 } QNum;
 
 QNum *qnum_from_int(int64_t value);
+QNum *qnum_from_uint(uint64_t value);
 QNum *qnum_from_double(double value);
 
 bool qnum_get_int(const QNum *qn, int64_t *val);
+bool qnum_get_uint(const QNum *qn, uint64_t *val);
 double qnum_get_double(QNum *qn);
 
 char *qnum_to_string(QNum *qn);
