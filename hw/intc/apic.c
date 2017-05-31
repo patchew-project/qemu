@@ -890,8 +890,6 @@ static void apic_realize(DeviceState *dev, Error **errp)
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, apic_timer, s);
     local_apics[s->id] = s;
-
-    msi_nonbroken = true;
 }
 
 static void apic_unrealize(DeviceState *dev, Error **errp)

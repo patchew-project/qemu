@@ -106,8 +106,6 @@ void gicv3_its_init_mmio(GICv3ITSState *s, const MemoryRegionOps *ops)
     memory_region_add_subregion(&s->iomem_main, ITS_CONTROL_SIZE,
                                 &s->iomem_its_translation);
     sysbus_init_mmio(sbd, &s->iomem_main);
-
-    msi_nonbroken = true;
 }
 
 static void gicv3_its_common_reset(DeviceState *dev)
