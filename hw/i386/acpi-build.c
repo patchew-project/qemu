@@ -128,7 +128,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     Object *lpc = ich9_lpc_find();
     Object *obj = NULL;
     QObject *o;
-    int64_t val;
+    uint64_t val;
 
     pm->cpu_hp_io_base = 0;
     pm->pcihp_io_base = 0;
@@ -150,7 +150,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
-        if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+        if (!qnum_get_uint(qobject_to_qnum(o), &val)) {
             g_assert_not_reached();
         }
         pm->s3_disabled = val;
@@ -160,7 +160,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_DISABLED, NULL);
     if (o) {
-        if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+        if (!qnum_get_uint(qobject_to_qnum(o), &val)) {
             g_assert_not_reached();
         }
         pm->s4_disabled = val;
@@ -170,7 +170,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_VAL, NULL);
     if (o) {
-        if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+        if (!qnum_get_uint(qobject_to_qnum(o), &val)) {
             g_assert_not_reached();
         }
         pm->s4_val = val;
@@ -538,9 +538,9 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
-        int64_t bsel_val;
+        uint64_t bsel_val;
 
-        if (!qnum_get_int(qobject_to_qnum(bsel), &bsel_val)) {
+        if (!qnum_get_uint(qobject_to_qnum(bsel), &bsel_val)) {
             g_assert_not_reached();
         }
 
@@ -652,9 +652,9 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     /* If bus supports hotplug select it and notify about local events */
     if (bsel) {
-        int64_t bsel_val;
+        uint64_t bsel_val;
 
-        if (!qnum_get_int(qobject_to_qnum(bsel), &bsel_val)) {
+        if (!qnum_get_uint(qobject_to_qnum(bsel), &bsel_val)) {
             g_assert_not_reached();
         }
 
@@ -2625,7 +2625,7 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
 {
     Object *pci_host;
     QObject *o;
-    int64_t val;
+    uint64_t val;
 
     pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
@@ -2641,7 +2641,7 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
     assert(o);
-    if (!qnum_get_int(qobject_to_qnum(o), &val)) {
+    if (!qnum_get_uint(qobject_to_qnum(o), &val)) {
         g_assert_not_reached();
     }
     mcfg->mcfg_size = val;
