@@ -9,8 +9,16 @@ wrote 134217728/134217728 bytes at offset 0
 128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
 
-=== Resizing image
+=== Growing image
 128 MiB
+512 MiB
+No errors were found on the image.
+
+=== Verifying image size after reopen
+512 MiB
+
+=== Reducing image
+512 MiB
 384 MiB
 No errors were found on the image.
 
@@ -24,4 +32,6 @@ read 134217728/134217728 bytes at offset 0
 === IO: pattern 0
 read 268435456/268435456 bytes at offset 134217728
 256 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+=== IO: pattern 0
+read failed: Input/output error
 *** done

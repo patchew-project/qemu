@@ -38,7 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 . ./common.pattern
 
-_supported_fmt raw qcow2 qed
+_supported_fmt raw qcow2
 _supported_proto file sheepdog rbd nfs
 _supported_os Linux
 
@@ -46,6 +46,7 @@ echo "=== Creating image"
 echo
 small_size=$((128 * 1024 * 1024))
 big_size=$((384 * 1024 * 1024))
+bigger_size=$((512 * 1024 * 1024))
 _make_test_img $small_size
 
 echo
@@ -54,7 +55,20 @@ io_pattern write 0 $small_size 0 1 0xc5
 _check_test_img
 
 echo
-echo "=== Resizing image"
+echo "=== Growing image"
+$QEMU_IO "$TEST_IMG" <<EOF | _filter_qemu_io
+length
+truncate $bigger_size
+length
+EOF
+_check_test_img
+
+echo
+echo "=== Verifying image size after reopen"
+$QEMU_IO -c "length" "$TEST_IMG"
+
+echo
+echo "=== Reducing image"
 $QEMU_IO "$TEST_IMG" <<EOF | _filter_qemu_io
 length
 truncate $big_size
@@ -70,6 +84,7 @@ echo
 echo "=== Verifying resized image"
 io_pattern read 0 $small_size 0 1 0xc5
 io_pattern read $small_size $(($big_size - $small_size)) 0 1 0
+io_pattern read $big_size $(($bigger_size - $big_size)) 0 1 0
 
 # success, all done
 echo "*** done"
