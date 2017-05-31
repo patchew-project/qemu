@@ -54,7 +54,6 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     PCIBridge *br = PCI_BRIDGE(dev);
     PCIBridgeDev *bridge_dev = PCI_BRIDGE_DEV(dev);
     int err;
-    Error *local_err = NULL;
 
     pci_bridge_initfn(dev, TYPE_PCI_BUS);
 
@@ -78,21 +77,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
 
     if (bridge_dev->msi != ON_OFF_AUTO_OFF) {
         /* it means SHPC exists, because MSI is needed by SHPC */
-
-        err = msi_init(dev, 0, 1, true, true, &local_err);
-        /* Any error other than -ENOTSUP(board's MSI support is broken)
-         * is a programming error */
-        assert(!err || err == -ENOTSUP);
-        if (err && bridge_dev->msi == ON_OFF_AUTO_ON) {
-            /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&local_err, "You have to use msi=auto (default) "
-                    "or msi=off with this machine type.\n");
-            error_report_err(local_err);
-            goto msi_error;
-        }
-        assert(!local_err || bridge_dev->msi == ON_OFF_AUTO_AUTO);
-        /* With msi=auto, we fall back to MSI off silently */
-        error_free(local_err);
+        msi_init(dev, 0, 1, true, true);
     }
 
     if (shpc_present(dev)) {
@@ -103,8 +88,6 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     }
     return 0;
 
-msi_error:
-    slotid_cap_cleanup(dev);
 slotid_error:
     if (shpc_present(dev)) {
         shpc_cleanup(dev, &bridge_dev->bar);

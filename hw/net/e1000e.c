@@ -412,7 +412,6 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     static const uint16_t e1000e_dsn_offset =  0x140;
     E1000EState *s = E1000E(pci_dev);
     uint8_t *macaddr;
-    int ret;
 
     trace_e1000e_cb_pci_realize();
 
@@ -462,10 +461,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize PCIe capability");
     }
 
-    ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
-    if (ret) {
-        trace_e1000e_msi_init_fail(ret);
-    }
+    msi_init(PCI_DEVICE(s), 0xD0, 1, true, false);
 
     if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
                                   PCI_PM_CAP_DSI) < 0) {

@@ -1251,8 +1251,7 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
     uint16_t ctrl;
     bool msi_64bit, msi_maskbit;
-    int ret, entries;
-    Error *err = NULL;
+    int entries;
 
     if (pread(vdev->vbasedev.fd, &ctrl, sizeof(ctrl),
               vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
@@ -1267,15 +1266,7 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 
     trace_vfio_msi_setup(vdev->vbasedev.name, pos);
 
-    ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit, &err);
-    if (ret < 0) {
-        if (ret == -ENOTSUP) {
-            return 0;
-        }
-        error_prepend(&err, "msi_init failed: ");
-        error_propagate(errp, err);
-        return ret;
-    }
+    msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit);
     vdev->msi_cap_size = 0xa + (msi_maskbit ? 0xa : 0) + (msi_64bit ? 0x4 : 0);
 
     return 0;

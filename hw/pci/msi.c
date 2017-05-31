@@ -158,17 +158,11 @@ bool msi_enabled(const PCIDevice *dev)
  * If @msi64bit, make the device capable of sending a 64-bit message
  * address.
  * If @msi_per_vector_mask, make the device support per-vector masking.
- * @errp is for returning errors.
- * Return 0 on success; set @errp and return -errno on error.
  *
- * -ENOTSUP means lacking msi support for a msi-capable platform.
- * -EINVAL means capability overlap, happens when @offset is non-zero,
- *  also means a programming error, except device assignment, which can check
- *  if a real HW is broken.
+ * This function never fails.
  */
-int msi_init(struct PCIDevice *dev, uint8_t offset,
-             unsigned int nr_vectors, bool msi64bit,
-             bool msi_per_vector_mask, Error **errp)
+void msi_init(struct PCIDevice *dev, uint8_t offset, unsigned int nr_vectors,
+              bool msi64bit, bool msi_per_vector_mask)
 {
     unsigned int vectors_order;
     uint16_t flags;
@@ -196,10 +190,8 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
 
     cap_size = msi_cap_sizeof(flags);
     config_offset = pci_add_capability2(dev, PCI_CAP_ID_MSI, offset,
-                                        cap_size, errp);
-    if (config_offset < 0) {
-        return config_offset;
-    }
+                                        cap_size, NULL);
+    assert(config_offset >= 0);
 
     dev->msi_cap = config_offset;
     dev->cap_present |= QEMU_PCI_CAP_MSI;
@@ -219,8 +211,6 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
         pci_set_long(dev->wmask + msi_mask_off(dev, msi64bit),
                      0xffffffff >> (PCI_MSI_VECTORS_MAX - nr_vectors));
     }
-
-    return 0;
 }
 
 void msi_uninit(struct PCIDevice *dev)

@@ -2286,7 +2286,6 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     DeviceState *dev = DEVICE(pci_dev);
     VMXNET3State *s = VMXNET3(pci_dev);
-    int ret;
 
     VMW_CBPRN("Starting init...");
 
@@ -2310,11 +2309,8 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
     /* Interrupt pin A */
     pci_dev->config[PCI_INTERRUPT_PIN] = 0x01;
 
-    ret = msi_init(pci_dev, VMXNET3_MSI_OFFSET(s), VMXNET3_MAX_NMSIX_INTRS,
-                   VMXNET3_USE_64BIT, VMXNET3_PER_VECTOR_MASK, NULL);
-    /* Any error other than -ENOTSUP(board's MSI support is broken)
-     * is a programming error. Fall back to INTx silently on -ENOTSUP */
-    assert(!ret || ret == -ENOTSUP);
+    msi_init(pci_dev, VMXNET3_MSI_OFFSET(s), VMXNET3_MAX_NMSIX_INTRS,
+             VMXNET3_USE_64BIT, VMXNET3_PER_VECTOR_MASK);
 
     if (!vmxnet3_init_msix(s)) {
         VMW_WRPRN("Failed to initialize MSI-X, configuration is inconsistent.");

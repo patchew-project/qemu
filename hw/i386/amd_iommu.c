@@ -1174,7 +1174,7 @@ static void amdvi_realize(DeviceState *dev, Error **err)
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, AMDVI_BASE_ADDR);
     pci_setup_iommu(bus, amdvi_host_dma_iommu, s);
     s->devid = object_property_get_int(OBJECT(&s->pci), "addr", err);
-    msi_init(&s->pci.dev, 0, 1, true, false, err);
+    msi_init(&s->pci.dev, 0, 1, true, false);
     amdvi_init(s);
 }
 

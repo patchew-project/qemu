@@ -254,7 +254,6 @@ e1000e_wrn_io_addr_undefined(uint64_t addr) "IO undefined register 0x%"PRIx64
 e1000e_wrn_io_addr_flash(uint64_t addr) "IO flash access (0x%"PRIx64") not implemented"
 e1000e_wrn_io_addr_unknown(uint64_t addr) "IO unknown register 0x%"PRIx64
 
-e1000e_msi_init_fail(int32_t res) "Failed to initialize MSI, error %d"
 e1000e_msix_init_fail(int32_t res) "Failed to initialize MSI-X, error %d"
 e1000e_msix_use_vector_fail(uint32_t vec, int32_t res) "Failed to use MSI-X vector %d, error %d"
 

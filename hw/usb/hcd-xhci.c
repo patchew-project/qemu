@@ -3333,7 +3333,6 @@ static void usb_xhci_init(XHCIState *xhci)
 static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
 {
     int i, ret;
-    Error *err = NULL;
 
     XHCIState *xhci = XHCI(dev);
 
@@ -3367,20 +3366,7 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     }
 
     if (xhci->msi != ON_OFF_AUTO_OFF) {
-        ret = msi_init(dev, 0x70, xhci->numintrs, true, false, &err);
-        /* Any error other than -ENOTSUP(board's MSI support is broken)
-         * is a programming error */
-        assert(!ret || ret == -ENOTSUP);
-        if (ret && xhci->msi == ON_OFF_AUTO_ON) {
-            /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&err, "You have to use msi=auto (default) or "
-                    "msi=off with this machine type.\n");
-            error_propagate(errp, err);
-            return;
-        }
-        assert(!err || xhci->msi == ON_OFF_AUTO_AUTO);
-        /* With msi=auto, we fall back to MSI off silently */
-        error_free(err);
+        msi_init(dev, 0x70, xhci->numintrs, true, false);
     }
 
     usb_xhci_init(xhci);
