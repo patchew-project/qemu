@@ -826,6 +826,10 @@ def check_alternate(expr, info):
                 conflicting.add('QTYPE_QINT')
                 conflicting.add('QTYPE_QFLOAT')
                 conflicting.add('QTYPE_QBOOL')
+        elif qtype == 'QTYPE_QINT':
+            conflicting.add('QTYPE_QFLOAT')
+        elif qtype == 'QTYPE_QFLOAT':
+            conflicting.add('QTYPE_QINT')
         if conflicting & set(types_seen):
             raise QAPISemError(info, "Alternate '%s' member '%s' can't "
                                "be distinguished from member '%s'"
