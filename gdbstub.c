@@ -934,8 +934,8 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
              * CPU first, and only then we can use its index.
              */
             cpu = find_cpu(idx);
-            /* invalid CPU/thread specified */
-            if (!idx || !cpu) {
+            /* invalid thread specified, cpu not found. */
+            if (!cpu) {
                 res = -EINVAL;
                 goto out;
             }
