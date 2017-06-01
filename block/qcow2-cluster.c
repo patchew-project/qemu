@@ -108,6 +108,9 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
         goto fail;
     }
 
+    qcow2_handle_prealloc(bs, new_l1_table_offset,
+                          QEMU_ALIGN_UP(new_l1_size2, s->cluster_size));
+
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_WRITE_TABLE);
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
@@ -1820,6 +1823,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 }
                 goto fail;
             }
+
+            qcow2_handle_prealloc(bs, offset, s->cluster_size);
 
             ret = bdrv_pwrite_zeroes(bs->file, offset, s->cluster_size, 0);
             if (ret < 0) {

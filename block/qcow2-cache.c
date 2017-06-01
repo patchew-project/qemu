@@ -204,6 +204,9 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
         return ret;
     }
 
+    /* check and preallocate extra space if touching a fresh metadata cluster */
+    qcow2_handle_prealloc(bs, c->entries[i].offset, s->cluster_size);
+
     if (c == s->refcount_block_cache) {
         BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
     } else if (c == s->l2_table_cache) {

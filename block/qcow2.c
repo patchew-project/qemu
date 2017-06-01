@@ -464,6 +464,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Clean unused cache entries after this time (in seconds)",
         },
+        {
+            .name = QCOW2_OPT_PREALLOC_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Preallocation amount at image expand",
+        },
         { /* end of list */ }
     },
 };
@@ -753,6 +758,15 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
     r->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
+
+    s->prealloc_size =
+        ROUND_UP(qemu_opt_get_size_del(opts, QCOW2_OPT_PREALLOC_SIZE, 0),
+                 s->cluster_size);
+    if (s->prealloc_size &&
+        !(bs->file->bs->supported_zero_flags & BDRV_REQ_ALLOCATE))
+    {
+        s->prealloc_size = 0;
+    }
 
     ret = 0;
 fail:
@@ -1597,6 +1611,129 @@ static void handle_cow_reduce(BlockDriverState *bs, QCowL2Meta *m)
     }
 }
 
+/*
+ * Checks that the host space area specified by @m is not being preallocated
+ * at the moment, and does co_queue_wait() if it is.
+ * If the specified area is not allocated yet, allocates it + prealloc_size
+ * bytes ahead.
+ *
+ * Returns
+ *   true if the space is allocated and contains zeroes
+ */
+static bool coroutine_fn handle_prealloc(BlockDriverState *bs,
+                                         const QCowL2Meta *m)
+{
+    BDRVQcow2State *s = bs->opaque;
+    BlockDriverState *file = bs->file->bs;
+    QCowL2Meta *old, *meta;
+    uint64_t start = m->alloc_offset;
+    uint64_t end = start + (m->nb_clusters << s->cluster_bits);
+    uint64_t nbytes;
+    int ret;
+
+    assert(offset_into_cluster(s, start) == 0);
+
+restart:
+    /* check that the request is not overlapped with any
+       currently running preallocations */
+    QLIST_FOREACH(old, &s->cluster_allocs, next_in_flight) {
+        uint64_t old_start, old_end;
+
+        old_start = old->alloc_offset;
+        old_end = old_start + (old->nb_clusters << s->cluster_bits);
+
+        if (old == m || end <= old_start || start >= old_end) {
+            /* No intersection */
+            continue;
+        }
+
+        qemu_co_queue_wait(&old->dependent_requests, NULL);
+        goto restart;
+    }
+
+    if (end <= bdrv_getlength(file)) {
+        /* No need to care, file size will not be changed */
+        return false;
+    }
+
+    meta = g_alloca(sizeof(*meta));
+    *meta = (QCowL2Meta) {
+        /* this meta is invisible for handle_dependencies() */
+        .alloc_offset   = bdrv_getlength(file),
+        .nb_clusters    = size_to_clusters(s, start +
+                (m->nb_clusters << s->cluster_bits) +
+                s->prealloc_size - bdrv_getlength(file)),
+    };
+    qemu_co_queue_init(&meta->dependent_requests);
+    QLIST_INSERT_HEAD(&s->cluster_allocs, meta, next_in_flight);
+
+    nbytes = meta->nb_clusters << s->cluster_bits;
+
+    /* try to alloc host space in one chunk for better locality */
+    ret = bdrv_co_pwrite_zeroes(bs->file, meta->alloc_offset, nbytes,
+                                BDRV_REQ_ALLOCATE);
+
+    QLIST_REMOVE(meta, next_in_flight);
+    qemu_co_queue_restart_all(&meta->dependent_requests);
+
+    return (ret == 0) ? start >= meta->alloc_offset : false;
+}
+
+typedef struct {
+    BlockDriverState *bs;
+    uint64_t offset;
+    uint64_t size;
+    int ret;
+} PreallocCo;
+
+static void coroutine_fn handle_prealloc_co_entry(void* opaque)
+{
+    PreallocCo *prco = opaque;
+    BDRVQcow2State *s = prco->bs->opaque;
+    QCowL2Meta meta = {
+        /* this meta is invisible for handle_dependencies() */
+        .alloc_offset = prco->offset,
+        .nb_clusters  = size_to_clusters(s, prco->size)
+    };
+    handle_prealloc(prco->bs, &meta);
+    prco->ret = 0;
+}
+
+/*
+ * Context(coroutine)-independent interface around handle_prealloc(), see
+ * its description.
+ * Must be called on a first write on the newly allocated cluster(s).
+ * @offset and @size must be cluster_aligned
+ */
+void qcow2_handle_prealloc(BlockDriverState *bs, uint64_t offset, uint64_t size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    PreallocCo prco = {
+        .bs     = bs,
+        .offset = offset,
+        .size   = size,
+        .ret    = -EAGAIN
+    };
+
+    assert(offset_into_cluster(s, offset) == 0);
+    assert(offset_into_cluster(s, size) == 0);
+
+    if (s->prealloc_size == 0) {
+        return;
+    }
+
+    if (qemu_in_coroutine()) {
+        handle_prealloc_co_entry(&prco);
+    } else {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        Coroutine *co = qemu_coroutine_create(handle_prealloc_co_entry, &prco);
+        qemu_coroutine_enter(co);
+        while (prco.ret == -EAGAIN) {
+            aio_poll(aio_context, true);
+        }
+    }
+}
+
 static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -1605,6 +1742,11 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 
     for (m = l2meta; m != NULL; m = m->next) {
         uint64_t bytes = m->nb_clusters << s->cluster_bits;
+
+        if (s->prealloc_size != 0 && handle_prealloc(bs, m)) {
+            handle_cow_reduce(bs, m);
+            continue;
+        }
 
         if (m->cow_start.nb_bytes == 0 && m->cow_end.nb_bytes == 0) {
             continue;
@@ -2719,6 +2861,11 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     if (ret < 0) {
         goto fail;
     }
+
+    qcow2_handle_prealloc(bs, start_of_cluster(s, cluster_offset),
+                          QEMU_ALIGN_UP(
+                              offset_into_cluster(s, cluster_offset) + out_len,
+                              s->cluster_size));
 
     iov = (struct iovec) {
         .iov_base   = out_buf,
