@@ -13,7 +13,10 @@ discard 67109376/67109376 bytes at offset 0
 64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 67109376/67109376 bytes at offset 0
 64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-No errors were found on the image.
+ERROR space leaked at the end of the image 327680
+
+5 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
 Offset          Length          Mapped to       File
 
 === Writing to preallocated zero clusters ===

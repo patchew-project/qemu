@@ -93,7 +93,10 @@ refcount bits: 1
 
 === Amend from refcount_bits=1 to refcount_bits=64 ===
 
-No errors were found on the image.
+ERROR space leaked at the end of the image 131072
+
+2 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
 refcount bits: 64
 
 === Amend to compat=0.10 ===
