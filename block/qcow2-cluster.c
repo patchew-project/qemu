@@ -827,12 +827,10 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 
     assert(l2_index + m->nb_clusters <= s->l2_size);
     for (i = 0; i < m->nb_clusters; i++) {
-        /* if two concurrent writes happen to the same unallocated cluster
-         * each write allocates separate cluster and writes data concurrently.
-         * The first one to complete updates l2 table with pointer to its
-         * cluster the second one has to do RMW (which is done above by
-         * perform_cow()), update l2 table with its cluster pointer and free
-         * old cluster. This is what this loop does */
+        /* handle_dependencies() protects from normal cluster allocation
+         * collision; still L2 entry might be !0 in case of zero or compressed
+         * cluster reusage or writing over the snapshot
+         */
         if (l2_table[l2_index + i] != 0) {
             old_cluster[j++] = l2_table[l2_index + i];
         }
