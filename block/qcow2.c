@@ -1686,7 +1686,13 @@ restart:
 
     if (end <= bdrv_getlength(file)) {
         /* No need to care, file size will not be changed */
-        return false;
+
+        /* We're safe to assume that the area is zeroes if the area
+         * was allocated at the end of data (s->data_end).
+         * In this case, the only way for file length to be bigger is that
+         * the area was preallocated by another request.
+         */
+        return m->clusters_are_trailing;
     }
 
     meta = g_alloca(sizeof(*meta));

@@ -333,6 +333,10 @@ typedef struct QCowL2Meta
     /** Do not free the old clusters */
     bool keep_old_clusters;
 
+    /** True if the area is allocated after the end of data area
+     *  (i.e. >= s->data_end), which means that it is zeroed */
+    bool clusters_are_trailing;
+
     /**
      * Requests that overlap with this allocation and wait to be restarted
      * when the allocating request has completed.
