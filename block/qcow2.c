@@ -1627,6 +1627,8 @@ fail:
 
 static void handle_cow_reduce(BlockDriverState *bs, QCowL2Meta *m)
 {
+    bool trimmed = false;
+
     if (bs->encrypted) {
         return;
     }
@@ -1635,12 +1637,19 @@ static void handle_cow_reduce(BlockDriverState *bs, QCowL2Meta *m)
                         (m->offset + m->cow_start.offset) >> BDRV_SECTOR_BITS,
                         m->cow_start.nb_bytes >> BDRV_SECTOR_BITS)) {
         m->cow_start.reduced = true;
+        trimmed = true;
     }
     if (!m->cow_end.reduced && m->cow_end.nb_bytes != 0 &&
         is_zero_sectors(bs,
                         (m->offset + m->cow_end.offset) >> BDRV_SECTOR_BITS,
                         m->cow_end.nb_bytes >> BDRV_SECTOR_BITS)) {
         m->cow_end.reduced = true;
+        trimmed = true;
+    }
+    /* The request is trimmed. Let's try to start dependent
+       ones, may be we will be lucky */
+    if (trimmed) {
+        qemu_co_queue_restart_all(&m->dependent_requests);
     }
 }
 
@@ -1782,6 +1791,10 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
     for (m = l2meta; m != NULL; m = m->next) {
         uint64_t bytes = m->nb_clusters << s->cluster_bits;
 
+        if (m->piggybacked) {
+            continue;
+        }
+
         if (s->prealloc_size != 0 && handle_prealloc(bs, m)) {
             handle_cow_reduce(bs, m);
             continue;
@@ -1903,9 +1916,18 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         while (l2meta != NULL) {
             QCowL2Meta *next;
 
-            ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
-            if (ret < 0) {
-                goto fail;
+            if (!l2meta->piggybacked) {
+                ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
+                if (ret < 0) {
+                    goto fail;
+                }
+            } else {
+                ret = qcow2_wait_l2table_update(bs, l2meta);
+                if (ret < 0) {
+                    /* dependency request failed, return general EIO */
+                    ret = -EIO;
+                    goto fail;
+                }
             }
 
             /* Take the request off the list of running requests */

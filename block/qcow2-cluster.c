@@ -898,20 +898,32 @@ out:
 
 /*
  * Check if there already is an AIO write request in flight which allocates
- * the same cluster. In this case we need to wait until the previous
- * request has completed and updated the L2 table accordingly.
+ * the same cluster.
+ * In this case, check if that request has explicitly allowed to write
+ * in its COW area(s).
+ *   If yes - fill the meta to point to the same cluster.
+ *   If no  - we need to wait until the previous request has completed and
+ *            updated the L2 table accordingly or
+ *            has allowed writing in its COW area(s).
  * Returns:
  *   0       if there was no dependency. *cur_bytes indicates the number of
  *           bytes from guest_offset that can be read before the next
  *           dependency must be processed (or the request is complete).
- *           *m is not modified
+ *           *m, *host_offset are not modified
+ *
+ *   1       if there is a dependency but it is possible to write concurrently
+ *           *m is filled accordingly,
+ *           *cur_bytes may have decreased and describes
+ *             the length of the area that can be written to,
+ *           *host_offset contains the starting host image offset to write to
  *
  *   -EAGAIN if we had to wait for another request. The caller
- *           must start over, so consider *cur_bytes undefined.
+ *           must start over, so consider *cur_bytes and *host_offset undefined.
  *           *m is not modified
  */
 static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *cur_bytes, QCowL2Meta **m)
+                               uint64_t *host_offset, uint64_t *cur_bytes,
+                               QCowL2Meta **m)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowL2Meta *old_alloc;
@@ -924,7 +936,7 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
         const uint64_t old_start = l2meta_cow_start(old_alloc);
         const uint64_t old_end = l2meta_cow_end(old_alloc);
 
-        if (end <= old_start || start >= old_end) {
+        if (end <= old_start || start >= old_end || old_alloc->piggybacked) {
             /* No intersection */
             continue;
         }
@@ -936,21 +948,95 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
             continue;
         }
 
-        /* Stop if an l2meta already exists. After yielding, it wouldn't
-         * be valid any more, so we'd have to clean up the old L2Metas
-         * and deal with requests depending on them before starting to
-         * gather new ones. Not worth the trouble. */
-        if (*m) {
-            /* start must be cluster aligned at this point */
-            assert(start == start_of_cluster(s, start));
-            *cur_bytes = 0;
-            return 0;
+        /* offsets of the cluster we're intersecting in */
+        const uint64_t cluster_start = start_of_cluster(s, start);
+        const uint64_t cluster_end = cluster_start + s->cluster_size;
+
+        const uint64_t old_data_start = old_start
+            + old_alloc->cow_start.nb_bytes;
+        const uint64_t old_data_end = old_alloc->offset
+            + old_alloc->cow_end.offset;
+
+        const bool conflict_in_data_area =
+            end > old_data_start && start < old_data_end;
+        const bool conflict_in_old_cow_start =
+            /* 1). new write request area is before the old */
+            start < old_data_start
+            && /* 2). old request did not allow writing in its cow area */
+            !old_alloc->cow_start.reduced;
+        const bool conflict_in_old_cow_end =
+            /* 1). new write request area is after the old */
+            start > old_data_start
+            && /* 2). old request did not allow writing in its cow area */
+            !old_alloc->cow_end.reduced;
+
+        if (conflict_in_data_area ||
+            conflict_in_old_cow_start || conflict_in_old_cow_end) {
+
+            /* Stop if an l2meta already exists. After yielding, it wouldn't
+             * be valid any more, so we'd have to clean up the old L2Metas
+             * and deal with requests depending on them before starting to
+             * gather new ones. Not worth the trouble. */
+            if (*m) {
+                /* start must be cluster aligned at this point */
+                assert(start == cluster_start);
+                *cur_bytes = 0;
+                return 0;
+            }
+
+            /* Wait for the dependency to complete. We need to recheck
+             * the free/allocated clusters when we continue. */
+            qemu_co_queue_wait(&old_alloc->dependent_requests, &s->lock);
+            return -EAGAIN;
         }
 
-        /* Wait for the dependency to complete. We need to recheck
-         * the free/allocated clusters when we continue. */
-        qemu_co_queue_wait(&old_alloc->dependent_requests, &s->lock);
-        return -EAGAIN;
+        /* allocations do conflict, but the competitor kindly allowed us
+         * to write concurrently (our data area only, not the whole cluster!)
+         * Inter alia, this means we must not touch the COW areas */
+
+        if (*host_offset) {
+            /* start must be cluster aligned at this point */
+            assert(start == cluster_start);
+            if ((old_alloc->alloc_offset + (start - old_start))
+                != *host_offset) {
+                /* can't extend contiguous allocation */
+                *cur_bytes = 0;
+                return 0;
+            }
+        }
+
+        QCowL2Meta *old_m = *m;
+        *m = g_malloc0(sizeof(**m));
+
+        **m = (QCowL2Meta) {
+            .next           = old_m,
+
+            .alloc_offset   = old_alloc->alloc_offset
+                              + (cluster_start - old_start),
+            .offset         = old_alloc->offset
+                              + (cluster_start - old_start),
+            .nb_clusters    = 1,
+            .piggybacked    = true,
+            .clusters_are_trailing = false,
+
+            /* reduced COW areas. see above */
+            .cow_start = {
+                .offset   = 0,
+                .nb_bytes = start - cluster_start,
+                .reduced  = true,
+            },
+            .cow_end = {
+                .offset   = MIN(end - cluster_start, s->cluster_size),
+                .nb_bytes = end < cluster_end ? cluster_end - end : 0,
+                .reduced  = true,
+            },
+        };
+        qemu_co_queue_init(&(*m)->dependent_requests);
+        QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
+
+        *host_offset = old_alloc->alloc_offset + (start - old_start);
+        *cur_bytes = MIN(*cur_bytes, cluster_end - start);
+        return 1;
     }
 
     /* Make sure that existing clusters and new allocations are only used up to
@@ -1264,6 +1350,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         .alloc_offset   = alloc_cluster_offset,
         .offset         = start_of_cluster(s, guest_offset),
         .nb_clusters    = nb_clusters,
+        .piggybacked    = false,
         .clusters_are_trailing = alloc_cluster_offset >= old_data_end,
 
         .keep_old_clusters  = keep_old_clusters,
@@ -1364,13 +1451,12 @@ again:
          *         for contiguous clusters (the situation could have changed
          *         while we were sleeping)
          *
-         *      c) TODO: Request starts in the same cluster as the in-flight
-         *         allocation ends. Shorten the COW of the in-fight allocation,
-         *         set cluster_offset to write to the same cluster and set up
-         *         the right synchronisation between the in-flight request and
-         *         the new one.
+         *      c) Overlap with another request's writeable COW area. Use
+         *         the stolen offset (and let the original request update L2
+         *         when it pleases)
+         *
          */
-        ret = handle_dependencies(bs, start, &cur_bytes, m);
+        ret = handle_dependencies(bs, start, &cluster_offset, &cur_bytes, m);
         if (ret == -EAGAIN) {
             /* Currently handle_dependencies() doesn't yield if we already had
              * an allocation. If it did, we would have to clean up the L2Meta
@@ -1379,6 +1465,8 @@ again:
             goto again;
         } else if (ret < 0) {
             return ret;
+        } else if (ret) {
+            continue;
         } else if (cur_bytes == 0) {
             break;
         } else {
@@ -1967,4 +2055,37 @@ void qcow2_update_data_end(BlockDriverState *bs, uint64_t off)
     if (s->data_end < off) {
         s->data_end = off;
     }
+}
+
+/*
+ * For each @m, wait for its dependency request to finish and check for its
+ * success, i.e. that L2 table is updated as expected.
+ */
+int qcow2_wait_l2table_update(BlockDriverState *bs, const QCowL2Meta *m)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QCowL2Meta *old_alloc;
+    uint64_t alloc_offset;
+    unsigned int bytes;
+    int ret;
+
+    for (; m != NULL; m = m->next) {
+        assert(m->piggybacked);
+        QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
+            uint64_t a_off;
+            a_off = old_alloc->alloc_offset + (m->offset - old_alloc->offset);
+            if (!old_alloc->piggybacked && m->offset >= old_alloc->offset &&
+                a_off == m->alloc_offset) {
+
+                qemu_co_queue_wait(&old_alloc->dependent_requests, &s->lock);
+                break;
+            }
+        }
+        ret = qcow2_get_cluster_offset(bs, m->offset, &bytes, &alloc_offset);
+        if (ret != QCOW2_CLUSTER_NORMAL ||
+            alloc_offset != m->alloc_offset) {
+            return -1;
+        }
+    }
+    return 0;
 }
