@@ -1194,6 +1194,8 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    s->data_end = bdrv_getlength(bs->file->bs);
+
 #ifdef DEBUG_ALLOC
     {
         BdrvCheckResult result = {0};
@@ -1941,12 +1943,18 @@ static int qcow2_inactivate(BlockDriverState *bs)
 static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
+
     qemu_vfree(s->l1_table);
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
     if (!(s->flags & BDRV_O_INACTIVE)) {
         qcow2_inactivate(bs);
+
+        /* truncate preallocated space */
+        if (!bs->read_only && s->data_end < bdrv_getlength(bs->file->bs)) {
+            bdrv_truncate(bs->file, s->data_end, NULL);
+        }
     }
 
     cache_clean_timer_del(bs);

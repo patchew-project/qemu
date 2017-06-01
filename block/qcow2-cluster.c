@@ -1958,3 +1958,12 @@ fail:
     g_free(l1_table);
     return ret;
 }
+
+void qcow2_update_data_end(BlockDriverState *bs, uint64_t off)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    if (s->data_end < off) {
+        s->data_end = off;
+    }
+}
