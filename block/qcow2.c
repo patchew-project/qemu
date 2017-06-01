@@ -64,6 +64,9 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 #define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
 
+static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
+                            uint32_t count);
+
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
@@ -1575,10 +1578,30 @@ fail:
     return ret;
 }
 
+static void handle_cow_reduce(BlockDriverState *bs, QCowL2Meta *m)
+{
+    if (bs->encrypted) {
+        return;
+    }
+    if (!m->cow_start.reduced && m->cow_start.nb_bytes != 0 &&
+        is_zero_sectors(bs,
+                        (m->offset + m->cow_start.offset) >> BDRV_SECTOR_BITS,
+                        m->cow_start.nb_bytes >> BDRV_SECTOR_BITS)) {
+        m->cow_start.reduced = true;
+    }
+    if (!m->cow_end.reduced && m->cow_end.nb_bytes != 0 &&
+        is_zero_sectors(bs,
+                        (m->offset + m->cow_end.offset) >> BDRV_SECTOR_BITS,
+                        m->cow_end.nb_bytes >> BDRV_SECTOR_BITS)) {
+        m->cow_end.reduced = true;
+    }
+}
+
 static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowL2Meta *m;
+    int ret;
 
     for (m = l2meta; m != NULL; m = m->next) {
         uint64_t bytes = m->nb_clusters << s->cluster_bits;
@@ -1588,8 +1611,13 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
         }
 
         /* try to alloc host space in one chunk for better locality */
-        bdrv_co_pwrite_zeroes(bs->file, m->alloc_offset, bytes,
-                              BDRV_REQ_ALLOCATE);
+        ret = bdrv_co_pwrite_zeroes(bs->file, m->alloc_offset, bytes,
+                                    BDRV_REQ_ALLOCATE);
+        if (ret != 0) {
+            continue;
+        }
+
+        handle_cow_reduce(bs, m);
     }
 }
 
