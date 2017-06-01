@@ -900,15 +900,15 @@ out:
  * Check if there already is an AIO write request in flight which allocates
  * the same cluster. In this case we need to wait until the previous
  * request has completed and updated the L2 table accordingly.
- *
  * Returns:
  *   0       if there was no dependency. *cur_bytes indicates the number of
  *           bytes from guest_offset that can be read before the next
- *           dependency must be processed (or the request is complete)
+ *           dependency must be processed (or the request is complete).
+ *           *m is not modified
  *
- *   -EAGAIN if we had to wait for another request, previously gathered
- *           information on cluster allocation may be invalid now. The caller
- *           must start over anyway, so consider *cur_bytes undefined.
+ *   -EAGAIN if we had to wait for another request. The caller
+ *           must start over, so consider *cur_bytes undefined.
+ *           *m is not modified
  */
 static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *cur_bytes, QCowL2Meta **m)
@@ -919,10 +919,10 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
 
     QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
 
-        uint64_t start = guest_offset;
-        uint64_t end = start + bytes;
-        uint64_t old_start = l2meta_cow_start(old_alloc);
-        uint64_t old_end = l2meta_cow_end(old_alloc);
+        const uint64_t start = guest_offset;
+        const uint64_t end = start + bytes;
+        const uint64_t old_start = l2meta_cow_start(old_alloc);
+        const uint64_t old_end = l2meta_cow_end(old_alloc);
 
         if (end <= old_start || start >= old_end) {
             /* No intersection */
@@ -939,6 +939,8 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
              * and deal with requests depending on them before starting to
              * gather new ones. Not worth the trouble. */
             if (bytes == 0 && *m) {
+                /* start must be cluster aligned at this point */
+                assert(start == start_of_cluster(s, start));
                 *cur_bytes = 0;
                 return 0;
             }
