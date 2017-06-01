@@ -140,6 +140,23 @@ wrote 32768/32768 bytes at offset XXX
 wrote 98304/98304 bytes at offset XXX
 96 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+== Concurrency error case ==
+discard 131072/131072 bytes at offset XXX
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+blkdebug: Suspended request 'A'
+blkdebug: Resuming request 'A'
+aio_write failed: Input/output error
+aio_write failed: Input/output error
+Leaked cluster 22 refcount=1 reference=0
+Repairing cluster 22 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    1 leaked clusters
+    0 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
 == Verify image content ==
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -235,5 +252,11 @@ read 32768/32768 bytes at offset 1130496
 32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 16384/16384 bytes at offset 1163264
 16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 1179648
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 1245184
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65024/65024 bytes at offset 1245696
+63.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
 *** done
