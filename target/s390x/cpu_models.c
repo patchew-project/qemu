@@ -701,8 +701,6 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
 
     if (kvm_enabled()) {
         kvm_s390_apply_cpu_model(model, errp);
-    } else if (model) {
-        /* FIXME TCG - use data for stdip/stfl */
     }
 
     if (!*errp) {
