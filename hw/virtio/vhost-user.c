@@ -387,6 +387,9 @@ static int vhost_user_set_vring_base(struct vhost_dev *dev,
 static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
     int i;
+    if (!dev) {
+        return -1;
+    }
 
     if (!virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
         return -1;
