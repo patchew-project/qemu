@@ -3974,6 +3974,17 @@ The @option{share} boolean option determines whether the memory
 region is marked as private to QEMU, or shared. The latter allows
 a co-operating external process to access the QEMU memory region.
 
+@item -object memory-backend-memfd,id=@var{id},size=@var{size}
+
+Creates an anonymous memory file backend object, which can be used to
+share the memory with a co-operating external process. The memory is
+allocated with memfd and sealing. (Linux only)
+
+The @option{id} parameter is a unique ID that will be used to
+reference this memory region when configuring the @option{-numa}
+argument. The @option{size} option provides the size of the memory
+region, and accepts common suffixes, eg @option{500M}.
+
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
 Creates a random number generator backend which obtains entropy from
