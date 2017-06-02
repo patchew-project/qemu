@@ -90,8 +90,9 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
 
     /* Allocate guest memory for the Data fw_cfg blob */
-    bios_linker_loader_alloc(linker, VMGENID_GUID_FW_CFG_FILE, guid, 4096,
-                             false /* page boundary, high memory */);
+    bios_linker_loader_alloc(linker, VMGENID_GUID_FW_CFG_FILE, guid,
+                             4096 /* page boundary */,
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH);
 
     /* Patch address of GUID fw_cfg blob into the ADDR fw_cfg blob
      * so QEMU can write the GUID there.  The address is expected to be

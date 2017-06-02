@@ -40,7 +40,7 @@ struct BiosLinkerLoaderEntry {
         /*
          * COMMAND_ALLOCATE - allocate a table from @alloc.file
          * subject to @alloc.align alignment (must be power of 2)
-         * and @alloc.zone (can be HIGH or FSEG) requirements.
+         * and @alloc.zone (see BIOSLinkerLoaderAllocZone) requirements.
          *
          * Must appear exactly once for each file, and before
          * this file is referenced by any other command.
@@ -104,11 +104,6 @@ enum {
     BIOS_LINKER_LOADER_COMMAND_ADD_POINTER       = 0x2,
     BIOS_LINKER_LOADER_COMMAND_ADD_CHECKSUM      = 0x3,
     BIOS_LINKER_LOADER_COMMAND_WRITE_POINTER     = 0x4,
-};
-
-enum {
-    BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH = 0x1,
-    BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG = 0x2,
 };
 
 /*
@@ -175,7 +170,7 @@ bios_linker_find_file(const BIOSLinker *linker, const char *name)
  * @file_name: name of the file blob to be loaded
  * @file_blob: pointer to blob corresponding to @file_name
  * @alloc_align: required minimal alignment in bytes. Must be a power of 2.
- * @alloc_fseg: request allocation in FSEG zone (useful for the RSDP ACPI table)
+ * @zone: request allocation in this zone
  *
  * Note: this command must precede any other linker command using this file.
  */
@@ -183,7 +178,7 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
                               const char *file_name,
                               GArray *file_blob,
                               uint32_t alloc_align,
-                              bool alloc_fseg)
+                              BIOSLinkerLoaderAllocZone zone)
 {
     BiosLinkerLoaderEntry entry;
     BiosLinkerFileEntry file = { g_strdup(file_name), file_blob};
@@ -197,8 +192,7 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
     strncpy(entry.alloc.file, file_name, sizeof entry.alloc.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ALLOCATE);
     entry.alloc.align = cpu_to_le32(alloc_align);
-    entry.alloc.zone = alloc_fseg ? BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG :
-                                    BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH;
+    entry.alloc.zone = zone;
 
     /* Alloc entries must come first, so prepend them */
     g_array_prepend_vals(linker->cmd_blob, &entry, sizeof entry);

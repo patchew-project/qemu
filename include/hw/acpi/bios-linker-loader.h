@@ -7,13 +7,21 @@ typedef struct BIOSLinker {
     GArray *file_list;
 } BIOSLinker;
 
+typedef enum BIOSLinkerLoaderAllocZone {
+    /* request blob allocation in 32-bit memory */
+    BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH = 0x1,
+
+    /* request blob allocation in FSEG zone (useful for the RSDP ACPI table) */
+    BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG = 0x2,
+} BIOSLinkerLoaderAllocZone;
+
 BIOSLinker *bios_linker_loader_init(void);
 
 void bios_linker_loader_alloc(BIOSLinker *linker,
                               const char *file_name,
                               GArray *file_blob,
                               uint32_t alloc_align,
-                              bool alloc_fseg);
+                              BIOSLinkerLoaderAllocZone zone);
 
 void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
                                      unsigned start_offset, unsigned size,

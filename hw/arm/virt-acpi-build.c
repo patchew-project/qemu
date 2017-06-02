@@ -372,7 +372,7 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned xsdt_tbl_offset)
         (char *)&rsdp->xsdt_physical_address - rsdp_table->data;
 
     bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, rsdp_table, 16,
-                             true /* fseg memory */);
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG);
 
     memcpy(&rsdp->signature, "RSD PTR ", sizeof(rsdp->signature));
     memcpy(rsdp->oem_id, ACPI_BUILD_APPNAME6, sizeof(rsdp->oem_id));
@@ -751,7 +751,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     bios_linker_loader_alloc(tables->linker,
                              ACPI_BUILD_TABLE_FILE, tables_blob,
-                             64, false /* high memory */);
+                             64, BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH);
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
