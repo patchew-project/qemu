@@ -15,13 +15,22 @@ typedef enum BIOSLinkerLoaderAllocZone {
     BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG = 0x2,
 } BIOSLinkerLoaderAllocZone;
 
+typedef enum BIOSLinkerLoaderAllocContent {
+    /* the blob may or may not contain ACPI tables */
+    BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED = 0x00,
+
+    /* the blob is guaranteed not to contain ACPI tables */
+    BIOS_LINKER_LOADER_ALLOC_CONTENT_NOACPI = 0x80,
+} BIOSLinkerLoaderAllocContent;
+
 BIOSLinker *bios_linker_loader_init(void);
 
 void bios_linker_loader_alloc(BIOSLinker *linker,
                               const char *file_name,
                               GArray *file_blob,
                               uint32_t alloc_align,
-                              BIOSLinkerLoaderAllocZone zone);
+                              BIOSLinkerLoaderAllocZone zone,
+                              BIOSLinkerLoaderAllocContent content);
 
 void bios_linker_loader_add_checksum(BIOSLinker *linker, const char *file,
                                      unsigned start_offset, unsigned size,

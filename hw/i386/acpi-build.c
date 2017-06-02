@@ -2287,7 +2287,8 @@ build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
     acpi_data_push(tcpalog, le32_to_cpu(tcpa->log_area_minimum_length));
 
     bios_linker_loader_alloc(linker, ACPI_BUILD_TPMLOG_FILE, tcpalog, 1,
-                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH);
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH,
+                             BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED);
 
     /* log area start address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
@@ -2575,7 +2576,8 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned rsdt_tbl_offset)
         (char *)&rsdp->rsdt_physical_address - rsdp_table->data;
 
     bios_linker_loader_alloc(linker, ACPI_BUILD_RSDP_FILE, rsdp_table, 16,
-                             BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG);
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG,
+                             BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED);
 
     memcpy(&rsdp->signature, "RSD PTR ", 8);
     memcpy(rsdp->oem_id, ACPI_BUILD_APPNAME6, 6);
@@ -2654,7 +2656,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     bios_linker_loader_alloc(tables->linker,
                              ACPI_BUILD_TABLE_FILE, tables_blob,
                              64 /* Ensure FACS is aligned */,
-                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH);
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH,
+                             BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED);
 
     /*
      * FACS is pointed to by FADT.

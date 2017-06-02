@@ -1264,7 +1264,8 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
     bios_linker_loader_alloc(linker,
                              NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
                              sizeof(NvdimmDsmIn),
-                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH);
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH,
+                             BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED);
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, mem_addr_offset, sizeof(uint32_t),
         NVDIMM_DSM_MEM_FILE, 0);

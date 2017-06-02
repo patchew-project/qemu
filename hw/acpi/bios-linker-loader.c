@@ -41,6 +41,8 @@ struct BiosLinkerLoaderEntry {
          * COMMAND_ALLOCATE - allocate a table from @alloc.file
          * subject to @alloc.align alignment (must be power of 2)
          * and @alloc.zone (see BIOSLinkerLoaderAllocZone) requirements.
+         * The most significant bit (bit 7) of @alloc.zone is used as a content
+         * hint for UEFI guest firmware, see BIOSLinkerLoaderAllocContent.
          *
          * Must appear exactly once for each file, and before
          * this file is referenced by any other command.
@@ -171,6 +173,7 @@ bios_linker_find_file(const BIOSLinker *linker, const char *name)
  * @file_blob: pointer to blob corresponding to @file_name
  * @alloc_align: required minimal alignment in bytes. Must be a power of 2.
  * @zone: request allocation in this zone
+ * @content: information about the blob content for the firmware
  *
  * Note: this command must precede any other linker command using this file.
  */
@@ -178,7 +181,8 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
                               const char *file_name,
                               GArray *file_blob,
                               uint32_t alloc_align,
-                              BIOSLinkerLoaderAllocZone zone)
+                              BIOSLinkerLoaderAllocZone zone,
+                              BIOSLinkerLoaderAllocContent content)
 {
     BiosLinkerLoaderEntry entry;
     BiosLinkerFileEntry file = { g_strdup(file_name), file_blob};
@@ -192,7 +196,7 @@ void bios_linker_loader_alloc(BIOSLinker *linker,
     strncpy(entry.alloc.file, file_name, sizeof entry.alloc.file - 1);
     entry.command = cpu_to_le32(BIOS_LINKER_LOADER_COMMAND_ALLOCATE);
     entry.alloc.align = cpu_to_le32(alloc_align);
-    entry.alloc.zone = zone;
+    entry.alloc.zone = zone | content;
 
     /* Alloc entries must come first, so prepend them */
     g_array_prepend_vals(linker->cmd_blob, &entry, sizeof entry);
