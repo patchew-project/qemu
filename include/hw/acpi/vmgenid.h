@@ -11,9 +11,6 @@
 #define VMGENID_ADDR_FW_CFG_FILE      "etc/vmgenid_addr"
 
 #define VMGENID_FW_CFG_SIZE      4096 /* Occupy a page of memory */
-#define VMGENID_GUID_OFFSET      40   /* allow space for
-                                       * OVMF SDT Header Probe Supressor
-                                       */
 
 #define VMGENID(obj) OBJECT_CHECK(VmGenIdState, (obj), VMGENID_DEVICE)
 

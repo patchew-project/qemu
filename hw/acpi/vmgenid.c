@@ -31,12 +31,7 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     g_array_set_size(guid, VMGENID_FW_CFG_SIZE - ARRAY_SIZE(guid_le.data));
     guid_le = vms->guid;
     qemu_uuid_bswap(&guid_le);
-    /* The GUID is written at a fixed offset into the fw_cfg file
-     * in order to implement the "OVMF SDT Header probe suppressor"
-     * see docs/specs/vmgenid.txt for more details
-     */
-    g_array_insert_vals(guid, VMGENID_GUID_OFFSET, guid_le.data,
-                        ARRAY_SIZE(guid_le.data));
+    g_array_insert_vals(guid, 0, guid_le.data, ARRAY_SIZE(guid_le.data));
 
     /* Put this in a separate SSDT table */
     ssdt = init_aml_allocator();
@@ -72,8 +67,7 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     addr = aml_local(0);
     aml_append(method, aml_store(aml_package(2), addr));
 
-    aml_append(method, aml_store(aml_add(aml_name("VGIA"),
-                                         aml_int(VMGENID_GUID_OFFSET), NULL),
+    aml_append(method, aml_store(aml_name("VGIA"),
                                  aml_index(addr, aml_int(0))));
     aml_append(method, aml_store(aml_int(0), aml_index(addr, aml_int(1))));
     aml_append(method, aml_return(addr));
@@ -93,18 +87,15 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     bios_linker_loader_alloc(linker, VMGENID_GUID_FW_CFG_FILE, guid,
                              4096 /* page boundary */,
                              BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH,
-                             BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED);
+                             BIOS_LINKER_LOADER_ALLOC_CONTENT_NOACPI);
 
     /* Patch address of GUID fw_cfg blob into the ADDR fw_cfg blob
      * so QEMU can write the GUID there.  The address is expected to be
      * < 4GB, but write 64 bits anyway.
-     * The address that is patched in is offset in order to implement
-     * the "OVMF SDT Header probe suppressor"
-     * see docs/specs/vmgenid.txt for more details.
      */
     bios_linker_loader_write_pointer(linker,
         VMGENID_ADDR_FW_CFG_FILE, 0, sizeof(uint64_t),
-        VMGENID_GUID_FW_CFG_FILE, VMGENID_GUID_OFFSET);
+        VMGENID_GUID_FW_CFG_FILE, 0);
 
     /* Patch address of GUID fw_cfg blob into the AML so OSPM can retrieve
      * and read it.  Note that while we provide storage for 64 bits, only
@@ -152,10 +143,6 @@ static void vmgenid_update_guest(VmGenIdState *vms)
              */
             guid_le = vms->guid;
             qemu_uuid_bswap(&guid_le);
-            /* The GUID is written at a fixed offset into the fw_cfg file
-             * in order to implement the "OVMF SDT Header probe suppressor"
-             * see docs/specs/vmgenid.txt for more details.
-             */
             cpu_physical_memory_write(vmgenid_addr, guid_le.data,
                                       sizeof(guid_le.data));
             /* Send _GPE.E05 event */

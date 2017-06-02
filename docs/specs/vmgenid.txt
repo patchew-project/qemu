@@ -65,49 +65,47 @@ put it in its own Secondary System Description Table, or SSDT.
 
 The following is a dump of the contents from a running system:
 
-# iasl -p ./SSDT -d /sys/firmware/acpi/tables/SSDT
+# acpidump -n SSDT -b
+# iasl -d ssdt.dat
 
 Intel ACPI Component Architecture
-ASL+ Optimizing Compiler version 20150717-64
-Copyright (c) 2000 - 2015 Intel Corporation
+ASL+ Optimizing Compiler version 20160527-64
+Copyright (c) 2000 - 2016 Intel Corporation
 
-Reading ACPI table from file /sys/firmware/acpi/tables/SSDT - Length
-00000198 (0x0000C6)
+Input file ssdt.dat, Length 0xC6 (198) bytes
 ACPI: SSDT 0x0000000000000000 0000C6 (v01 BOCHS  VMGENID  00000001 BXPC
 00000001)
-Acpi table [SSDT] successfully installed and loaded
 Pass 1 parse of [SSDT]
 Pass 2 parse of [SSDT]
 Parsing Deferred Opcodes (Methods/Buffers/Packages/Regions)
 
 Parsing completed
 Disassembly completed
-ASL Output:    ./SSDT.dsl - 1631 bytes
-# cat SSDT.dsl
+ASL Output:    ssdt.dsl - 1559 bytes
+# cat ssdt.dsl
 /*
  * Intel ACPI Component Architecture
- * AML/ASL+ Disassembler version 20150717-64
- * Copyright (c) 2000 - 2015 Intel Corporation
+ * AML/ASL+ Disassembler version 20160527-64
+ * Copyright (c) 2000 - 2016 Intel Corporation
  *
  * Disassembling to symbolic ASL+ operators
  *
- * Disassembly of /sys/firmware/acpi/tables/SSDT, Sun Feb  5 00:19:37 2017
+ * Disassembly of ssdt.dat, Fri Jun  2 15:29:10 2017
  *
  * Original Table Header:
  *     Signature        "SSDT"
- *     Length           0x000000CA (202)
+ *     Length           0x000000C6 (198)
  *     Revision         0x01
- *     Checksum         0x4B
+ *     Checksum         0x38
  *     OEM ID           "BOCHS "
  *     OEM Table ID     "VMGENID"
  *     OEM Revision     0x00000001 (1)
  *     Compiler ID      "BXPC"
  *     Compiler Version 0x00000001 (1)
  */
-DefinitionBlock ("/sys/firmware/acpi/tables/SSDT.aml", "SSDT", 1, "BOCHS ",
-"VMGENID", 0x00000001)
+DefinitionBlock ("", "SSDT", 1, "BOCHS ", "VMGENID", 0x00000001)
 {
-    Name (VGIA, 0x07FFF000)
+    Name (VGIA, 0xBFFFF000)
     Scope (\_SB)
     {
         Device (VGEN)
@@ -118,7 +116,7 @@ DefinitionBlock ("/sys/firmware/acpi/tables/SSDT.aml", "SSDT", 1, "BOCHS ",
             Method (_STA, 0, NotSerialized)  // _STA: Status
             {
                 Local0 = 0x0F
-                If ((VGIA == Zero))
+                If (VGIA == Zero)
                 {
                     Local0 = Zero
                 }
@@ -129,8 +127,8 @@ DefinitionBlock ("/sys/firmware/acpi/tables/SSDT.aml", "SSDT", 1, "BOCHS ",
             Method (ADDR, 0, NotSerialized)
             {
                 Local0 = Package (0x02) {}
-                Index (Local0, Zero) = (VGIA + 0x28)
-                Index (Local0, One) = Zero
+                Local0 [Zero] = VGIA /* \VGIA */
+                Local0 [One] = Zero
                 Return (Local0)
             }
         }
@@ -199,8 +197,7 @@ GUID values displayed via monitor are shown in big-endian format.
 GUID Storage Format:
 --------------------
 
-In order to implement an OVMF "SDT Header Probe Suppressor", the contents of
-the vmgenid_guid fw_cfg blob are not simply a 128-bit GUID.  There is also
+The contents of the vmgenid_guid fw_cfg blob are a 128-bit GUID, followed by
 significant padding in order to align and fill a memory page, as shown in the
 following diagram:
 
@@ -212,13 +209,9 @@ following diagram:
 | ...                              |       | fw-allocated array for    |
 | _STA method referring to VGIA    |       | "etc/vmgenid_guid"        |
 | ...                              |       +---------------------------+
-| ADDR method referring to VGIA    |       |  0: OVMF SDT Header probe |
-| ...                              |       |     suppressor            |
-+----------------------------------+       | 36: padding for 8-byte    |
-                                           |     alignment             |
-                                           | 40: GUID                  |
-                                           | 56: padding to page size  |
-                                           +---------------------------+
+| ADDR method referring to VGIA    |       |  0: GUID                  |
+| ...                              |       | 16: padding to page size  |
++----------------------------------+       +---------------------------+
                                            END OF PAGE
 
 
