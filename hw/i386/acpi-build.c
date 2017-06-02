@@ -2287,8 +2287,8 @@ build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
     acpi_data_push(tcpalog, le32_to_cpu(tcpa->log_area_minimum_length));
 
     bios_linker_loader_alloc(linker, ACPI_BUILD_TPMLOG_FILE, tcpalog, 1,
-                             BIOS_LINKER_LOADER_ALLOC_ZONE_HIGH,
-                             BIOS_LINKER_LOADER_ALLOC_CONTENT_MIXED);
+                             BIOS_LINKER_LOADER_ALLOC_ZONE_64BIT,
+                             BIOS_LINKER_LOADER_ALLOC_CONTENT_NOACPI);
 
     /* log area start address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
