@@ -113,6 +113,8 @@
 cscope.*
 tags
 TAGS
+.vim*
+.clang_complete
 docker-src.*
 *~
 trace.h
