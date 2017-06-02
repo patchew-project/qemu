@@ -13,6 +13,9 @@ typedef enum BIOSLinkerLoaderAllocZone {
 
     /* request blob allocation in FSEG zone (useful for the RSDP ACPI table) */
     BIOS_LINKER_LOADER_ALLOC_ZONE_FSEG = 0x2,
+
+    /* request blob allocation in 64-bit memory */
+    BIOS_LINKER_LOADER_ALLOC_ZONE_64BIT = 0x3,
 } BIOSLinkerLoaderAllocZone;
 
 typedef enum BIOSLinkerLoaderAllocContent {
