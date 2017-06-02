@@ -1161,9 +1161,14 @@ static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
 {
     PCIDevice *dev = &proxy->pci_dev;
     int offset;
+    Error *local_err = NULL;
 
-    offset = pci_add_capability(dev, PCI_CAP_ID_VNDR, 0, cap->cap_len);
-    assert(offset > 0);
+    offset = pci_add_capability(dev, PCI_CAP_ID_VNDR, 0,
+                                cap->cap_len, &local_err);
+    if (offset < 0) {
+        error_report_err(local_err);
+        abort();
+    }
 
     assert(cap->cap_len >= sizeof *cap);
     memcpy(dev->config + offset + PCI_CAP_FLAGS, &cap->cap_len,
@@ -1810,9 +1815,13 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         pos = pcie_endpoint_cap_init(pci_dev, 0);
         assert(pos > 0);
 
-        pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF);
-        assert(pos > 0);
-        pci_dev->exp.pm_cap = pos;
+        pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0,
+                                 PCI_PM_SIZEOF, errp);
+        if (pos > 0) {
+            pci_dev->exp.pm_cap = pos;
+        } else {
+            return;
+        }
 
         /*
          * Indicates that this function complies with revision 1.2 of the

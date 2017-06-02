@@ -494,7 +494,7 @@ static void eepro100_fcp_interrupt(EEPRO100State *s)
 }
 #endif
 
-static void e100_pci_reset(EEPRO100State *s)
+static void e100_pci_reset(EEPRO100State *s, Error **errp)
 {
     E100PCIDeviceInfo *info = eepro100_get_class(s);
     uint32_t device = s->device;
@@ -570,9 +570,13 @@ static void e100_pci_reset(EEPRO100State *s)
         /* Power Management Capabilities */
         int cfg_offset = 0xdc;
         int r = pci_add_capability(&s->dev, PCI_CAP_ID_PM,
-                                   cfg_offset, PCI_PM_SIZEOF);
-        assert(r > 0);
-        pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
+                                   cfg_offset, PCI_PM_SIZEOF,
+                                   errp);
+        if (r > 0) {
+            pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
+        } else {
+            return;
+        }
 #if 0 /* TODO: replace dummy code for power management emulation. */
         /* TODO: Power Management Control / Status. */
         pci_set_word(pci_conf + cfg_offset + PCI_PM_CTRL, 0x0000);
@@ -1863,7 +1867,10 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 
     s->device = info->device;
 
-    e100_pci_reset(s);
+    e100_pci_reset(s, errp);
+    if (errp && *errp) {
+        return;
+    }
 
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
