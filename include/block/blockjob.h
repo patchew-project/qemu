@@ -282,6 +282,13 @@ int block_job_cancel_sync(BlockJob *job);
 void block_job_cancel_sync_all(void);
 
 /**
+ * block_jobs_is_empty:
+ *
+ * Check whether block_jobs is empty.
+ */
+bool block_jobs_is_empty(void);
+
+/**
  * block_job_complete_sync:
  * @job: The job to be completed.
  * @errp: Error object which may be set by block_job_complete(); this is not

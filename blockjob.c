@@ -539,6 +539,11 @@ void block_job_cancel_sync_all(void)
     }
 }
 
+bool block_jobs_is_empty(void)
+{
+    return QLIST_EMPTY(&block_jobs);
+}
+
 int block_job_complete_sync(BlockJob *job, Error **errp)
 {
     return block_job_finish_sync(job, &block_job_complete, errp);

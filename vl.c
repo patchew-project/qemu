@@ -4751,6 +4751,7 @@ int main(int argc, char **argv, char **envp)
 
     main_loop();
     replay_disable_events();
+    bdrv_cancel_all();
     iothread_stop_all();
 
     bdrv_close_all();
