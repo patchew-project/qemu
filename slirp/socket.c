@@ -404,7 +404,14 @@ sowrite(struct socket *so)
 	DEBUG_ARG("so = %p", so);
 
 	if (so->so_urgc) {
-		sosendoob(so);
+		if (sosendoob(so) < so->so_urgc) {
+			/* Treat a short write as a fatal error too,
+			 * rather than continuing on and sending the urgent
+			 * data as if it were non-urgent and leaving the
+			 * so_urgc count wrong.
+			 */
+			goto err_disconnected;
+		}
 		if (sb->sb_cc == 0)
 			return 0;
 	}
@@ -448,11 +455,7 @@ sowrite(struct socket *so)
 		return 0;
 
 	if (nn <= 0) {
-		DEBUG_MISC((dfd, " --- sowrite disconnected, so->so_state = %x, errno = %d\n",
-			so->so_state, errno));
-		sofcantsendmore(so);
-		tcp_sockclosed(sototcpcb(so));
-		return -1;
+		goto err_disconnected;
 	}
 
 #ifndef HAVE_READV
@@ -479,6 +482,13 @@ sowrite(struct socket *so)
 		sofcantsendmore(so);
 
 	return nn;
+
+err_disconnected:
+	DEBUG_MISC((dfd, " --- sowrite disconnected, so->so_state = %x, errno = %d\n",
+		    so->so_state, errno));
+	sofcantsendmore(so);
+	tcp_sockclosed(sototcpcb(so));
+	return -1;
 }
 
 /*
