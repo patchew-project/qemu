@@ -131,9 +131,9 @@ typedef struct HDGeometry {
  *                       layer (short for DATA || ZERO), set by block layer
  *
  * Internal flag:
- * BDRV_BLOCK_RAW: used internally to indicate that the request was
- *                 answered by a passthrough driver such as raw and that the
- *                 block layer should recompute the answer from bs->file.
+ * BDRV_BLOCK_RAW: for use by passthrough drivers, such as raw, to request
+ *                 that the block layer recompute the answer from the returned
+ *                 BDS; must be accompanied by just BDRV_BLOCK_OFFSET_VALID.
  *
  * If BDRV_BLOCK_OFFSET_VALID is set, bits 9-62 (BDRV_BLOCK_OFFSET_MASK)
  * represent the offset in the returned BDS that is allocated for the
