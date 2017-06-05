@@ -40,6 +40,23 @@
 # define QEMU_PACKED __attribute__((packed))
 #endif
 
+/*
+ * Cache line size of the host. Can be overriden.
+ * Note that this is just a compile-time hint to hopefully avoid false sharing
+ * of cache lines; code must be correct regardless of the constant's value.
+ */
+#ifndef QEMU_CACHELINE_SIZE
+# ifdef HOST_CACHELINE_SIZE
+#  define QEMU_CACHELINE_SIZE HOST_CACHELINE_SIZE
+# else
+#  if defined(__powerpc64__)
+#   define QEMU_CACHELINE_SIZE 128
+#  else
+#   define QEMU_CACHELINE_SIZE 64
+#  endif
+# endif
+#endif
+
 #define QEMU_ALIGNED(X) __attribute__((aligned(X)))
 
 #ifndef glue

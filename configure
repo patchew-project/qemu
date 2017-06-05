@@ -4832,6 +4832,41 @@ EOF
   fi
 fi
 
+# Find out the size of a cache line on the host
+# TODO: support more platforms
+cat > $TMPC<<EOF
+#ifdef __linux__
+
+#include <stdio.h>
+
+#define SYSFS "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size"
+
+int main(int argc, char *argv[])
+{
+    unsigned int size;
+    FILE *fp;
+
+    fp = fopen(SYSFS, "r");
+    if (fp == NULL) {
+        return -1;
+    }
+    if (!fscanf(fp, "%u", &size)) {
+        return -1;
+    }
+    return size;
+}
+#else
+#error Cannot find host cache line size
+#endif
+EOF
+
+host_cacheline_size=0
+if compile_prog "" "" ; then
+    ./$TMPE
+    host_cacheline_size=$?
+fi
+
+
 ##########################################
 # check for _Static_assert()
 
@@ -5283,6 +5318,9 @@ if test "$strip_opt" = "yes" ; then
 fi
 if test "$bigendian" = "yes" ; then
   echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak
+fi
+if test "$host_cacheline_size" -gt 0 ; then
+    echo "HOST_CACHELINE_SIZE=$host_cacheline_size" >> $config_host_mak
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
