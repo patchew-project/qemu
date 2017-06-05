@@ -60,6 +60,9 @@
 #define VIRTIO_F_ANY_LAYOUT		27
 #endif /* VIRTIO_CONFIG_NO_LEGACY */
 
+/* Guest chains vring descriptors within a limit */
+#define VIRTIO_F_MAX_CHAIN_SIZE		31
+
 /* v1.0 compliant. */
 #define VIRTIO_F_VERSION_1		32
 

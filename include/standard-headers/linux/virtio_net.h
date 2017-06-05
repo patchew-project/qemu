@@ -76,6 +76,8 @@ struct virtio_net_config {
 	uint16_t max_virtqueue_pairs;
 	/* Default maximum transmit unit advice */
 	uint16_t mtu;
+        /* Maximum number of vring descriptors that can be chained */
+	uint16_t max_chain_size;
 } QEMU_PACKED;
 
 /*
