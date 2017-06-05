@@ -363,7 +363,7 @@ struct TranslationBlock {
      */
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_list_first;
-};
+} QEMU_ALIGNED(QEMU_CACHELINE_SIZE);
 
 void tb_free(TranslationBlock *tb);
 void tb_flush(CPUState *cpu);

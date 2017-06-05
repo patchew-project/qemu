@@ -383,6 +383,22 @@ void tcg_context_init(TCGContext *s)
     }
 }
 
+/*
+ * Allocate TBs right before their corresponding translated code, making
+ * sure that TBs and code are on different cache lines.
+ */
+TranslationBlock *tcg_tb_alloc(TCGContext *s)
+{
+    void *aligned;
+
+    aligned = (void *)ROUND_UP((uintptr_t)s->code_gen_ptr, QEMU_CACHELINE_SIZE);
+    if (unlikely(aligned + sizeof(TranslationBlock) > s->code_gen_highwater)) {
+        return NULL;
+    }
+    s->code_gen_ptr += aligned - s->code_gen_ptr + sizeof(TranslationBlock);
+    return aligned;
+}
+
 void tcg_prologue_init(TCGContext *s)
 {
     size_t prologue_size, total_size;
