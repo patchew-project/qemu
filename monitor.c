@@ -3806,6 +3806,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     QDict *qdict = NULL;
     Monitor *mon = cur_mon;
     Error *err = NULL;
+    QString *req_json;
 
     req = json_parser_parse_err(tokens, NULL, &err);
     if (!req && !err) {
@@ -3822,6 +3823,10 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         qobject_incref(id);
         qdict_del(qdict, "id");
     } /* else will fail qmp_dispatch() */
+
+    req_json = qobject_to_json(req);
+    trace_handle_qmp_command(mon, qstring_get_str(req_json));
+    qobject_decref(QOBJECT(req_json));
 
     rsp = qmp_dispatch(cur_mon->qmp.commands, req);
 
