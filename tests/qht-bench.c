@@ -28,7 +28,7 @@ struct thread_info {
     uint64_t r;
     bool write_op; /* writes alternate between insertions and removals */
     bool resize_down;
-} QEMU_ALIGNED(64); /* avoid false sharing among threads */
+} QEMU_ALIGNED(QEMU_CACHELINE_SIZE); /* avoid false sharing among threads */
 
 static struct qht ht;
 static QemuThread *rw_threads;

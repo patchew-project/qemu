@@ -5,11 +5,11 @@
 
 struct thread_info {
     uint64_t r;
-} QEMU_ALIGNED(64);
+} QEMU_ALIGNED(QEMU_CACHELINE_SIZE);
 
 struct count {
     unsigned long val;
-} QEMU_ALIGNED(64);
+} QEMU_ALIGNED(QEMU_CACHELINE_SIZE);
 
 static QemuThread *threads;
 static struct thread_info *th_info;
