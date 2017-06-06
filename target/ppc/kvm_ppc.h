@@ -64,7 +64,7 @@ int kvmppc_enable_hwrng(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
 
-bool kvmppc_is_mem_backend_page_size_ok(char *obj_path);
+bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
 
 #else
 
