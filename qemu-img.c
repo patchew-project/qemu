@@ -594,6 +594,35 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     QDECREF(str);
 }
 
+static void dump_human_format_alloc_info(BlockFormatAllocInfo *bfai, bool quiet)
+{
+    char *used_data = size_to_str(bfai->used_data);
+    char *used_zero = size_to_str(bfai->used_zero);
+    char *used_discarded = size_to_str(bfai->used_discarded);
+    char *used_overrun = size_to_str(bfai->used_overrun);
+
+    char *unused_data = size_to_str(bfai->unused_data);
+    char *unused_zero = size_to_str(bfai->unused_zero);
+    char *unused_discarded = size_to_str(bfai->unused_discarded);
+
+    qprintf(quiet,
+            "Format allocation info (including metadata):\n"
+            "               data        zero   discarded   after-eof\n"
+            "used     %10s  %10s  %10s  %10s\n"
+            "unused   %10s  %10s  %10s\n",
+            used_data, used_zero, used_discarded, used_overrun,
+            unused_data, unused_zero, unused_discarded);
+
+    g_free(used_data);
+    g_free(used_zero);
+    g_free(used_discarded);
+    g_free(used_overrun);
+
+    g_free(unused_data);
+    g_free(unused_zero);
+    g_free(unused_discarded);
+}
+
 static void dump_human_image_check(ImageCheck *check, bool quiet)
 {
     if (!(check->corruptions || check->leaks || check->check_errors)) {
@@ -635,6 +664,10 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
         qprintf(quiet,
                 "Image end offset: %" PRId64 "\n", check->image_end_offset);
     }
+
+    if (check->has_format_alloc_info) {
+        dump_human_format_alloc_info(check->format_alloc_info, quiet);
+    }
 }
 
 static int collect_image_check(BlockDriverState *bs,
@@ -645,6 +678,7 @@ static int collect_image_check(BlockDriverState *bs,
 {
     int ret;
     BdrvCheckResult result;
+    BlockFormatAllocInfo *bfai = g_new0(BlockFormatAllocInfo, 1);
 
     ret = bdrv_check(bs, &result, fix);
     if (ret < 0) {
@@ -672,6 +706,14 @@ static int collect_image_check(BlockDriverState *bs,
     check->has_fragmented_clusters  = result.bfi.fragmented_clusters != 0;
     check->compressed_clusters      = result.bfi.compressed_clusters;
     check->has_compressed_clusters  = result.bfi.compressed_clusters != 0;
+
+    ret = bdrv_get_format_alloc_stat(bs, bfai);
+    if (ret < 0) {
+        qapi_free_BlockFormatAllocInfo(bfai);
+    } else {
+        check->has_format_alloc_info = true;
+        check->format_alloc_info = bfai;
+    }
 
     return 0;
 }
