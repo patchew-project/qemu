@@ -405,7 +405,7 @@ enum scb_stat_ack {
     stat_ack_tx = (stat_ack_cu_idle | stat_ack_cu_cmd_done),
 };
 
-static void disable_interrupt(EEPRO100State * s)
+static void disable_interrupt(EEPRO100State *s)
 {
     if (s->int_stat) {
         TRACE(INT, logout("interrupt disabled\n"));
@@ -414,7 +414,7 @@ static void disable_interrupt(EEPRO100State * s)
     }
 }
 
-static void enable_interrupt(EEPRO100State * s)
+static void enable_interrupt(EEPRO100State *s)
 {
     if (!s->int_stat) {
         TRACE(INT, logout("interrupt enabled\n"));
@@ -423,7 +423,7 @@ static void enable_interrupt(EEPRO100State * s)
     }
 }
 
-static void eepro100_acknowledge(EEPRO100State * s)
+static void eepro100_acknowledge(EEPRO100State *s)
 {
     s->scb_stat &= ~s->mem[SCBAck];
     s->mem[SCBAck] = s->scb_stat;
@@ -432,7 +432,7 @@ static void eepro100_acknowledge(EEPRO100State * s)
     }
 }
 
-static void eepro100_interrupt(EEPRO100State * s, uint8_t status)
+static void eepro100_interrupt(EEPRO100State *s, uint8_t status)
 {
     uint8_t mask = ~s->mem[SCBIntmask];
     s->mem[SCBAck] |= status;
@@ -449,52 +449,52 @@ static void eepro100_interrupt(EEPRO100State * s, uint8_t status)
     }
 }
 
-static void eepro100_cx_interrupt(EEPRO100State * s)
+static void eepro100_cx_interrupt(EEPRO100State *s)
 {
     /* CU completed action command. */
     /* Transmit not ok (82557 only, not in emulation). */
     eepro100_interrupt(s, 0x80);
 }
 
-static void eepro100_cna_interrupt(EEPRO100State * s)
+static void eepro100_cna_interrupt(EEPRO100State *s)
 {
     /* CU left the active state. */
     eepro100_interrupt(s, 0x20);
 }
 
-static void eepro100_fr_interrupt(EEPRO100State * s)
+static void eepro100_fr_interrupt(EEPRO100State *s)
 {
     /* RU received a complete frame. */
     eepro100_interrupt(s, 0x40);
 }
 
-static void eepro100_rnr_interrupt(EEPRO100State * s)
+static void eepro100_rnr_interrupt(EEPRO100State *s)
 {
     /* RU is not ready. */
     eepro100_interrupt(s, 0x10);
 }
 
-static void eepro100_mdi_interrupt(EEPRO100State * s)
+static void eepro100_mdi_interrupt(EEPRO100State *s)
 {
     /* MDI completed read or write cycle. */
     eepro100_interrupt(s, 0x08);
 }
 
-static void eepro100_swi_interrupt(EEPRO100State * s)
+static void eepro100_swi_interrupt(EEPRO100State *s)
 {
     /* Software has requested an interrupt. */
     eepro100_interrupt(s, 0x04);
 }
 
 #if 0
-static void eepro100_fcp_interrupt(EEPRO100State * s)
+static void eepro100_fcp_interrupt(EEPRO100State *s)
 {
     /* Flow control pause interrupt (82558 and later). */
     eepro100_interrupt(s, 0x01);
 }
 #endif
 
-static void e100_pci_reset(EEPRO100State * s)
+static void e100_pci_reset(EEPRO100State *s)
 {
     E100PCIDeviceInfo *info = eepro100_get_class(s);
     uint32_t device = s->device;
@@ -598,7 +598,7 @@ static void e100_pci_reset(EEPRO100State * s)
 #endif /* EEPROM_SIZE > 0 */
 }
 
-static void nic_selective_reset(EEPRO100State * s)
+static void nic_selective_reset(EEPRO100State *s)
 {
     size_t i;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
@@ -669,7 +669,7 @@ static char *regname(uint32_t addr)
  ****************************************************************************/
 
 #if 0
-static uint16_t eepro100_read_command(EEPRO100State * s)
+static uint16_t eepro100_read_command(EEPRO100State *s)
 {
     uint16_t val = 0xffff;
     TRACE(OTHER, logout("val=0x%04x\n", val));
@@ -694,27 +694,27 @@ enum commands {
     CmdTxFlex = 0x0008,         /* Use "Flexible mode" for CmdTx command. */
 };
 
-static cu_state_t get_cu_state(EEPRO100State * s)
+static cu_state_t get_cu_state(EEPRO100State *s)
 {
     return ((s->mem[SCBStatus] & BITS(7, 6)) >> 6);
 }
 
-static void set_cu_state(EEPRO100State * s, cu_state_t state)
+static void set_cu_state(EEPRO100State *s, cu_state_t state)
 {
     s->mem[SCBStatus] = (s->mem[SCBStatus] & ~BITS(7, 6)) + (state << 6);
 }
 
-static ru_state_t get_ru_state(EEPRO100State * s)
+static ru_state_t get_ru_state(EEPRO100State *s)
 {
     return ((s->mem[SCBStatus] & BITS(5, 2)) >> 2);
 }
 
-static void set_ru_state(EEPRO100State * s, ru_state_t state)
+static void set_ru_state(EEPRO100State *s, ru_state_t state)
 {
     s->mem[SCBStatus] = (s->mem[SCBStatus] & ~BITS(5, 2)) + (state << 2);
 }
 
-static void dump_statistics(EEPRO100State * s)
+static void dump_statistics(EEPRO100State *s)
 {
     /* Dump statistical data. Most data is never changed by the emulation
      * and always 0, so we first just copy the whole block and then those
@@ -962,7 +962,7 @@ static void action_command(EEPRO100State *s)
     /* List is empty. Now CU is idle or suspended. */
 }
 
-static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
+static void eepro100_cu_command(EEPRO100State *s, uint8_t val)
 {
     cu_state_t cu_state;
     switch (val) {
@@ -1036,7 +1036,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
     }
 }
 
-static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
+static void eepro100_ru_command(EEPRO100State *s, uint8_t val)
 {
     switch (val) {
     case RU_NOP:
@@ -1084,7 +1084,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
     }
 }
 
-static void eepro100_write_command(EEPRO100State * s, uint8_t val)
+static void eepro100_write_command(EEPRO100State *s, uint8_t val)
 {
     eepro100_ru_command(s, val & 0x0f);
     eepro100_cu_command(s, val & 0xf0);
@@ -1106,7 +1106,7 @@ static void eepro100_write_command(EEPRO100State * s, uint8_t val)
 #define EEPROM_DI       0x04
 #define EEPROM_DO       0x08
 
-static uint16_t eepro100_read_eeprom(EEPRO100State * s)
+static uint16_t eepro100_read_eeprom(EEPRO100State *s)
 {
     uint16_t val = e100_read_reg2(s, SCBeeprom);
     if (eeprom93xx_read(s->eeprom)) {
@@ -1170,7 +1170,7 @@ static const char *reg2name(uint8_t reg)
 }
 #endif                          /* DEBUG_EEPRO100 */
 
-static uint32_t eepro100_read_mdi(EEPRO100State * s)
+static uint32_t eepro100_read_mdi(EEPRO100State *s)
 {
     uint32_t val = e100_read_reg4(s, SCBCtrlMDI);
 
@@ -1302,7 +1302,7 @@ typedef struct {
     uint32_t st_result;         /* Self Test Results */
 } eepro100_selftest_t;
 
-static uint32_t eepro100_read_port(EEPRO100State * s)
+static uint32_t eepro100_read_port(EEPRO100State *s)
 {
     return 0;
 }
@@ -1340,7 +1340,7 @@ static void eepro100_write_port(EEPRO100State *s)
  *
  ****************************************************************************/
 
-static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
+static uint8_t eepro100_read1(EEPRO100State *s, uint32_t addr)
 {
     uint8_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
@@ -1393,7 +1393,7 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
     return val;
 }
 
-static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
+static uint16_t eepro100_read2(EEPRO100State *s, uint32_t addr)
 {
     uint16_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
@@ -1421,7 +1421,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
     return val;
 }
 
-static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
+static uint32_t eepro100_read4(EEPRO100State *s, uint32_t addr)
 {
     uint32_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
@@ -1453,7 +1453,7 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
     return val;
 }
 
-static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
+static void eepro100_write1(EEPRO100State *s, uint32_t addr, uint8_t val)
 {
     /* SCBStatus is readonly. */
     if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
@@ -1519,7 +1519,7 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
     }
 }
 
-static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
+static void eepro100_write2(EEPRO100State *s, uint32_t addr, uint16_t val)
 {
     /* SCBStatus is readonly. */
     if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
@@ -1565,7 +1565,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
     }
 }
 
-static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
+static void eepro100_write4(EEPRO100State *s, uint32_t addr, uint32_t val)
 {
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         e100_write_reg4(s, addr, val);
