@@ -223,7 +223,6 @@ typedef struct sPAPRDRConnectorClass {
                                     sPAPRDRIndicatorState state);
     uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state);
-    const char *(*get_name)(sPAPRDRConnector *drc);
 
     /* QEMU interfaces for managing hotplug operations */
     void (*attach)(sPAPRDRConnector *drc, DeviceState *d, void *fdt,

@@ -167,11 +167,6 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
     return RTAS_OUT_SUCCESS;
 }
 
-static const char *get_name(sPAPRDRConnector *drc)
-{
-    return drc->name;
-}
-
 /* has the guest been notified of device attachment? */
 static void set_signalled(sPAPRDRConnector *drc)
 {
@@ -221,8 +216,7 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
 static char *prop_get_name(Object *obj, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return g_strdup(drck->get_name(drc));
+    return g_strdup(drc->name);
 }
 
 static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
@@ -653,7 +647,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->set_isolation_state = set_isolation_state;
     drck->set_indicator_state = set_indicator_state;
     drck->set_allocation_state = set_allocation_state;
-    drck->get_name = get_name;
     drck->attach = attach;
     drck->detach = detach;
     drck->release_pending = release_pending;
@@ -848,7 +841,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
         g_array_append_val(drc_power_domains, drc_power_domain);
 
         /* ibm,drc-names */
-        drc_names = g_string_append(drc_names, drck->get_name(drc));
+        drc_names = g_string_append(drc_names, drc->name);
         drc_names = g_string_insert_len(drc_names, -1, "\0", 1);
 
         /* ibm,drc-types */
