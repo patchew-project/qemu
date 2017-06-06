@@ -138,6 +138,8 @@ struct NvdimmNfitMemDev {
 } QEMU_PACKED;
 typedef struct NvdimmNfitMemDev NvdimmNfitMemDev;
 
+#define ACPI_NFIT_MEM_NOT_ARMED    (1 << 3)
+
 /*
  * NVDIMM Control Region Structure
  *
@@ -289,6 +291,10 @@ nvdimm_build_structure_memdev(GArray *structures, DeviceState *dev)
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
                                             NULL);
     uint32_t handle = nvdimm_slot_to_handle(slot);
+    bool dev_dax = object_property_get_bool(OBJECT(dev), NVDIMM_DEV_DAX_PROP,
+                                            NULL);
+    bool restrict_mode = object_property_get_bool(OBJECT(dev),
+                                                  NVDIMM_RESTRICT_PROP, NULL);
 
     nfit_memdev = acpi_data_push(structures, sizeof(*nfit_memdev));
 
@@ -312,6 +318,16 @@ nvdimm_build_structure_memdev(GArray *structures, DeviceState *dev)
 
     /* Only one interleave for PMEM. */
     nfit_memdev->interleave_ways = cpu_to_le16(1);
+
+    /*
+     * If a vNVDIMM device in the restrict mode and is not backed by a
+     * DAX device, QEMU will set ACPI_NFIT_MEM_NOT_ARMED bit of state
+     * flags in its region mapping structure, in order to notify the
+     * guest of the lack of write persistence guarantee.
+     */
+    if (!dev_dax && restrict_mode) {
+        nfit_memdev->flags = cpu_to_le16(ACPI_NFIT_MEM_NOT_ARMED);
+    }
 }
 
 /*

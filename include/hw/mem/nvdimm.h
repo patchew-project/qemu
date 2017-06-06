@@ -49,6 +49,8 @@
                                                TYPE_NVDIMM)
 
 #define NVDIMM_LABEL_SIZE_PROP "label-size"
+#define NVDIMM_DEV_DAX_PROP    "dev-dax"
+#define NVDIMM_RESTRICT_PROP   "restrict"
 
 struct NVDIMMDevice {
     /* private */
@@ -74,6 +76,9 @@ struct NVDIMMDevice {
      * guest via ACPI NFIT and _FIT method if NVDIMM hotplug is supported.
      */
     MemoryRegion nvdimm_mr;
+
+    bool backend_dev_dax;
+    bool restrict_mode;
 };
 typedef struct NVDIMMDevice NVDIMMDevice;
 

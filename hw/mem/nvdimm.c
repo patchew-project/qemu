@@ -65,11 +65,46 @@ out:
     error_propagate(errp, local_err);
 }
 
+static bool nvdimm_get_backend_dev_dax(Object *obj, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    return nvdimm->backend_dev_dax;
+}
+
+static bool nvdimm_get_restrict(Object *obj, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    return nvdimm->restrict_mode;
+}
+
+static void nvdimm_set_restrict(Object *obj, bool val, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+    Error *local_err = NULL;
+
+    if (dev->realized) {
+        error_setg(&local_err, "cannot change property value");
+        goto out;
+    }
+
+    nvdimm->restrict_mode = val;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
 static void nvdimm_init(Object *obj)
 {
     object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL, NULL);
+    object_property_add_bool(obj, NVDIMM_DEV_DAX_PROP,
+                             nvdimm_get_backend_dev_dax, NULL, NULL);
+    object_property_add_bool(obj, NVDIMM_RESTRICT_PROP,
+                             nvdimm_get_restrict, nvdimm_set_restrict, NULL);
 }
 
 static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm)
@@ -85,7 +120,8 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
     uint64_t align, pmem_size, size = memory_region_size(mr);
 
-    if (!qemu_fd_is_dev_dax(memory_region_get_fd(mr))) {
+    nvdimm->backend_dev_dax = qemu_fd_is_dev_dax(memory_region_get_fd(mr));
+    if (!nvdimm->backend_dev_dax) {
         error_report("warning: nvdimm backend does not look like a DAX device, "
                      "unable to guarantee persistence of guest writes");
     }
