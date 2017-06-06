@@ -471,3 +471,64 @@ writev(int fd, const struct iovec *iov, int iov_cnt)
     return readv_writev(fd, iov, iov_cnt, true);
 }
 #endif
+
+#ifdef __linux__
+static ssize_t qemu_dev_dax_sysfs_read(int fd, const char *entry,
+                                       char *buf, size_t len)
+{
+    ssize_t read_bytes;
+    struct stat st;
+    unsigned int major, minor;
+    char *path, *pos;
+    int sysfs_fd;
+
+    if (fstat(fd, &st)) {
+        return 0;
+    }
+
+    major = major(st.st_rdev);
+    minor = minor(st.st_rdev);
+    path = g_strdup_printf("/sys/dev/char/%u:%u/%s", major, minor, entry);
+
+    sysfs_fd = open(path, O_RDONLY);
+    g_free(path);
+    if (sysfs_fd == -1) {
+        return 0;
+    }
+
+    read_bytes = read(sysfs_fd, buf, len - 1);
+    close(sysfs_fd);
+    if (read_bytes > 0) {
+        buf[read_bytes] = '\0';
+        pos = g_strstr_len(buf, read_bytes, "\n");
+        if (pos) {
+            *pos = '\0';
+        }
+    }
+
+    return read_bytes;
+}
+#endif /* __linux__ */
+
+bool qemu_fd_is_dev_dax(int fd)
+{
+    bool is_dax = false;
+
+#ifdef __linux__
+    char devtype[7];
+    ssize_t len;
+
+    if (fd == -1) {
+        return false;
+    }
+
+    len = qemu_dev_dax_sysfs_read(fd, "device/devtype",
+                                  devtype, sizeof(devtype));
+    if (len <= 0) {
+        return false;
+    }
+    is_dax = !strncmp(devtype, "nd_dax", len);
+#endif /* __linux__ */
+
+    return is_dax;
+}

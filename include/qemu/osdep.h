@@ -470,4 +470,13 @@ char *qemu_get_pid_name(pid_t pid);
  */
 pid_t qemu_fork(Error **errp);
 
+/**
+ * qemu_fd_is_dev_dax:
+ *
+ * Check whether @fd describes a DAX device.
+ *
+ * Returns true if it is; otherwise, return false.
+ */
+bool qemu_fd_is_dev_dax(int fd);
+
 #endif

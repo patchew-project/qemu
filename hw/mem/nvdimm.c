@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
+#include "qemu/error-report.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -83,6 +84,11 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem, errp);
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
     uint64_t align, pmem_size, size = memory_region_size(mr);
+
+    if (!qemu_fd_is_dev_dax(memory_region_get_fd(mr))) {
+        error_report("warning: nvdimm backend does not look like a DAX device, "
+                     "unable to guarantee persistence of guest writes");
+    }
 
     align = memory_region_get_alignment(mr);
 
