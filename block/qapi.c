@@ -703,10 +703,11 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
                  "image: %s\n"
                  "file format: %s\n"
                  "virtual size: %s (%" PRId64 " bytes)\n"
-                 "disk size: %s\n",
+                 "disk size: %s (%" PRId64 " bytes)\n",
                  info->filename, info->format, size_buf,
                  info->virtual_size,
-                 dsize_buf);
+                 dsize_buf,
+                 info->actual_size);
 
     if (info->has_encrypted && info->encrypted) {
         func_fprintf(f, "encrypted: yes\n");
