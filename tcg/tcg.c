@@ -383,6 +383,25 @@ void tcg_context_init(TCGContext *s)
     }
 }
 
+/*
+ * Allocate TBs right before their corresponding translated code, making
+ * sure that TBs and code are on different cache lines.
+ */
+TranslationBlock *tcg_tb_alloc(TCGContext *s)
+{
+    size_t struct_size;
+    void *aligned;
+
+    struct_size = ROUND_UP(sizeof(TranslationBlock), qemu_icache_linesize);
+    aligned = (void *)ROUND_UP((uintptr_t)s->code_gen_ptr,
+                               qemu_icache_linesize);
+    if (unlikely(aligned + struct_size > s->code_gen_highwater)) {
+        return NULL;
+    }
+    s->code_gen_ptr += aligned - s->code_gen_ptr + struct_size;
+    return aligned;
+}
+
 void tcg_prologue_init(TCGContext *s)
 {
     size_t prologue_size, total_size;
