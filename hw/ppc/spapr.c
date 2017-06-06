@@ -1907,11 +1907,14 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
 
     for (i = 0; i < nr_lmbs; i++) {
         sPAPRDRConnector *drc;
+        char *drc_name;
         uint64_t addr;
 
         addr = i * lmb_size + spapr->hotplug_memory.base;
+        drc_name = g_strdup_printf("LMB %"PRId64, addr / lmb_size);
         drc = spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_LMB,
-                                     addr/lmb_size);
+                                     addr / lmb_size, drc_name, &error_abort);
+        g_free(drc_name);
         qemu_register_reset(spapr_drc_reset, drc);
     }
 }
@@ -2006,9 +2009,14 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
         int core_id = i * smp_threads;
 
         if (mc->has_hotpluggable_cpus) {
-            sPAPRDRConnector *drc =
-                spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_CPU,
-                                       (core_id / smp_threads) * smt);
+            int id = (core_id / smp_threads) * smt;
+            char *drc_name;
+            sPAPRDRConnector *drc;
+
+            drc_name = g_strdup_printf("CPU %d", id);
+            drc = spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_CPU,
+                                         id, drc_name, &error_abort);
+            g_free(drc_name);
 
             qemu_register_reset(spapr_drc_reset, drc);
         }

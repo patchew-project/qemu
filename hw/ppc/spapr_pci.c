@@ -1570,10 +1570,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     sPAPRTCETable *tcet;
     const unsigned windows_supported =
         sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
+    Error *local_err = NULL;
 
     if (sphb->index != (uint32_t)-1) {
         sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-        Error *local_err = NULL;
 
         if ((sphb->buid != (uint64_t)-1) || (sphb->dma_liobn[0] != (uint32_t)-1)
             || (sphb->dma_liobn[1] != (uint32_t)-1 && windows_supported == 2)
@@ -1759,8 +1759,33 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     /* allocate connectors for child PCI devices */
     if (sphb->dr_enabled) {
         for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
+            int id = sphb->index << 16 | i;
+            char *drc_name;
+
+            /* Name for a DRC for the DT. For PCI devices, it is a
+             * "location code" mapping a logical device/function (DRC
+             * index) to a physical location in the system.
+             *
+             * This is more to do with diagnosing physical hardware
+             * issues than guest compatibility, so choose names that
+             * adhere to the documented format, but avoid encoding the
+             * entire topology information into the label/code,
+             * instead just using the location codes based on the
+             * labels for the endpoints (VIO/PCI adaptor connectors),
+             * which is basically just "C" followed by an integer ID.
+             *
+             * DRC names as documented by PAPR+ v2.7, 13.5.2.4
+             * location codes as documented by PAPR+ v2.7, 12.3.1.5
+             */
+
+            drc_name = g_strdup_printf("C%d", id);
             spapr_dr_connector_new(OBJECT(phb), TYPE_SPAPR_DRC_PCI,
-                                   (sphb->index << 16) | i);
+                                   id, drc_name, &local_err);
+            g_free(drc_name);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
         }
     }
 

@@ -213,12 +213,6 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static char *prop_get_name(Object *obj, Error **errp)
-{
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    return g_strdup(drc->name);
-}
-
 static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
@@ -564,9 +558,11 @@ static void unrealize(DeviceState *d, Error **errp)
 }
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
-                                         uint32_t id)
+                                         uint32_t id, const char *name,
+                                         Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(object_new(type));
+    Error *local_err = NULL;
     char *prop_name;
 
     drc->id = id;
@@ -574,47 +570,15 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
                                 spapr_drc_index(drc));
     object_property_add_child(owner, prop_name, OBJECT(drc), NULL);
-    object_property_set_bool(OBJECT(drc), true, "realized", NULL);
     g_free(prop_name);
 
-    /* human-readable name for a DRC to encode into the DT
-     * description. this is mainly only used within a guest in place
-     * of the unique DRC index.
-     *
-     * in the case of VIO/PCI devices, it corresponds to a
-     * "location code" that maps a logical device/function (DRC index)
-     * to a physical (or virtual in the case of VIO) location in the
-     * system by chaining together the "location label" for each
-     * encapsulating component.
-     *
-     * since this is more to do with diagnosing physical hardware
-     * issues than guest compatibility, we choose location codes/DRC
-     * names that adhere to the documented format, but avoid encoding
-     * the entire topology information into the label/code, instead
-     * just using the location codes based on the labels for the
-     * endpoints (VIO/PCI adaptor connectors), which is basically
-     * just "C" followed by an integer ID.
-     *
-     * DRC names as documented by PAPR+ v2.7, 13.5.2.4
-     * location codes as documented by PAPR+ v2.7, 12.3.1.5
-     */
-    switch (spapr_drc_type(drc)) {
-    case SPAPR_DR_CONNECTOR_TYPE_CPU:
-        drc->name = g_strdup_printf("CPU %d", id);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_PHB:
-        drc->name = g_strdup_printf("PHB %d", id);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_VIO:
-    case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        drc->name = g_strdup_printf("C%d", id);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_LMB:
-        drc->name = g_strdup_printf("LMB %d", id);
-        break;
-    default:
-        g_assert(false);
+    object_property_set_str(OBJECT(drc), name, "name", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
     }
+
+    object_property_set_bool(OBJECT(drc), true, "realized", NULL);
 
     /* PCI slot always start in a USABLE state, and stay there */
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
@@ -631,16 +595,21 @@ static void spapr_dr_connector_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "id", &drc->id, NULL);
     object_property_add(obj, "index", "uint32", prop_get_index,
                         NULL, NULL, NULL, NULL);
-    object_property_add_str(obj, "name", prop_get_name, NULL, NULL);
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
                         NULL, NULL, NULL, NULL);
 }
+
+static Property spapr_drc_properties[] = {
+    DEFINE_PROP_STRING("name", sPAPRDRConnector, name),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
+    dk->props = spapr_drc_properties;
     dk->reset = reset;
     dk->realize = realize;
     dk->unrealize = unrealize;
