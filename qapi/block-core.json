@@ -139,6 +139,61 @@
            '*format-specific': 'ImageInfoSpecific' } }
 
 ##
+# @BlockFormatAllocInfo:
+#
+#
+# Allocation relations between format file and underlying protocol file.
+# All fields are in bytes.
+#
+# There are two types of the format file portions: 'used' and 'unused'. It's up
+# to the format how to interpret these types. For now the only format supporting
+# the feature is Qcow2 and for this case 'used' are clusters with positive
+# refcount and unused a clusters with zero refcount. Described portions include
+# all format file allocations, not only virtual disk data (metadata, internal
+# snapshots, etc. are included).
+#
+# For the underlying file there are native block-status types of the portions:
+#  - data: allocated data
+#  - zero: read-as-zero holes
+#  - discarded: not allocated
+# 4th additional type is 'overrun', which is for the format file portions beyond
+# the end of the underlying file.
+#
+# So, the fields are:
+#
+# @used-data: used by the format file and backed by data in the underlying file
+#
+# @used-zero: used by the format file and backed by a hole in the underlying
+#             file
+#
+# @used-discarded: used by the format file but actually unallocated in the
+#                  underlying file
+#
+# @used-overrun: used by the format file beyond the end of the underlying file
+#
+# @unused-data: allocated data in the underlying file not used by the format
+#
+# @unused-zero: holes in the underlying file not used by the format file
+#
+# @unused-discarded: unallocated areas in the underlying file not used by the
+#                    format file
+#
+# Note: sum of 6 fields {used,unused}-{data,zero,discarded} is equal to the
+#       length of the underlying file.
+#
+# Since: 2.10
+#
+##
+{ 'struct': 'BlockFormatAllocInfo',
+  'data': {'used-data':        'uint64',
+           'used-zero':        'uint64',
+           'used-discarded':   'uint64',
+           'used-overrun':     'uint64',
+           'unused-data':      'uint64',
+           'unused-zero':      'uint64',
+           'unused-discarded': 'uint64' } }
+
+##
 # @ImageCheck:
 #
 # Information about a QEMU image file check

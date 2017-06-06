@@ -335,6 +335,9 @@ typedef enum {
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
+int bdrv_get_format_alloc_stat(BlockDriverState *bs,
+                               BlockFormatAllocInfo *bfai);
+
 /* The units of offset and total_work_size may be chosen arbitrarily by the
  * block driver; total_work_size may change during the course of the amendment
  * operation */
