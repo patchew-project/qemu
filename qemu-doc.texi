@@ -37,6 +37,7 @@
 * QEMU Guest Agent::
 * QEMU User space emulator::
 * Implementation notes::
+* Deprecations::
 * License::
 * Index::
 @end menu
@@ -3015,6 +3016,19 @@ Run the emulation in single step mode.
 
 
 @include qemu-tech.texi
+
+@node Deprecations
+@appendix Deprecations
+
+The following is a list of features which have been marked as deprecated,
+pending removal in a future release:
+
+@section -drive boot=on|off (since v1.3.0)
+Since release 1.3.0, the ``boot=on|off'' parameter to ``-drive''
+is no longer honoured. It is currently ignored, but a future verson
+will reject this parameter with an error. Applications should use
+the ``bootindex=N'' parameter to set an absolute ordering between
+devices instead.
 
 @node License
 @appendix License
