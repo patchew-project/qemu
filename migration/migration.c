@@ -140,13 +140,13 @@ void migration_incoming_state_destroy(void)
 
 
 typedef struct {
-    bool optional;
     uint32_t size;
     uint8_t runstate[100];
     RunState state;
     bool received;
 } GlobalState;
 
+/* This is only used if MigrationState.store_global_state is set. */
 static GlobalState global_state;
 
 int global_state_store(void)
@@ -179,7 +179,7 @@ static RunState global_state_get_runstate(void)
 
 void global_state_set_optional(void)
 {
-    global_state.optional = true;
+    migrate_get_current()->store_global_state = false;
 }
 
 static bool global_state_needed(void *opaque)
@@ -188,8 +188,7 @@ static bool global_state_needed(void *opaque)
     char *runstate = (char *)s->runstate;
 
     /* If it is not optional, it is mandatory */
-
-    if (s->optional == false) {
+    if (migrate_get_current()->store_global_state) {
         return true;
     }
 
@@ -2100,6 +2099,19 @@ void migrate_fd_connect(MigrationState *s)
     s->migration_thread_running = true;
 }
 
+static Property migration_properties[] = {
+    DEFINE_PROP_BOOL("store-global-state", MigrationState,
+                     store_global_state, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void migration_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props = migration_properties;
+}
+
 static void migration_instance_init(Object *obj)
 {
     MigrationState *ms = MIGRATION_OBJ(obj);
@@ -2124,6 +2136,7 @@ static void migration_instance_init(Object *obj)
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
     .parent = TYPE_DEVICE,
+    .class_init = migration_class_init,
     .class_size = sizeof(MigrationClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
