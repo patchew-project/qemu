@@ -174,6 +174,8 @@ struct MigrationState
 
     /* Whether we skip QEMU_VM_CONFIGURATION for migration */
     bool skip_configuration;
+    /* Whether we skip section footer */
+    bool skip_section_footer;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
