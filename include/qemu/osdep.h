@@ -479,4 +479,14 @@ pid_t qemu_fork(Error **errp);
  */
 bool qemu_fd_is_dev_dax(int fd);
 
+/**
+ * qemu_get_dev_dax_align:
+ *
+ * Get the suggested alignment of a DAX device descried by @fd.
+ *
+ * Return a non-zero suggested alignment on success; return 0 if @fd
+ * does not describe a DAX device, or if it fails to get alignment
+ * of the DAX device.
+ */
+size_t qemu_get_dev_dax_align(int fd);
 #endif

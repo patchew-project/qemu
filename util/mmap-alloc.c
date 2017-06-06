@@ -25,8 +25,14 @@ size_t qemu_fd_getpagesize(int fd)
 #ifdef CONFIG_LINUX
     struct statfs fs;
     int ret;
+    size_t align;
 
     if (fd != -1) {
+        align = qemu_get_dev_dax_align(fd);
+        if (align) {
+            return align;
+        }
+
         do {
             ret = fstatfs(fd, &fs);
         } while (ret != 0 && errno == EINTR);

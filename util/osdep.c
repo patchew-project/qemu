@@ -532,3 +532,26 @@ bool qemu_fd_is_dev_dax(int fd)
 
     return is_dax;
 }
+
+size_t qemu_get_dev_dax_align(int fd)
+{
+    size_t align = 0;
+
+#ifdef __linux__
+    char buf[12];
+    ssize_t len;
+
+    if (!qemu_fd_is_dev_dax(fd)) {
+        return 0;
+    }
+    len = qemu_dev_dax_sysfs_read(fd, "device/align", buf, sizeof(buf));
+    if (len <= 0) {
+        return 0;
+    }
+    if (qemu_strtosz(buf, NULL, &align) < 0) {
+        align = 0;
+    }
+#endif /* __linux__ */
+
+    return align;
+}
