@@ -1126,3 +1126,60 @@
 ##
 { 'command': 'guest-get-timezone',
   'returns': 'GuestTimezone' }
+
+##
+# @GuestOSInfo:
+#
+# Notes:
+#
+# The fields @id, @name, @pretty-name, @version, @version-id, @variant and
+# @variant-id follow the definition specified in os-release(5). Refer to the
+# manual page for exact description of the fields.
+#
+# On POSIX systems:
+#
+# kernel-release: release field returned by uname(2)
+# kernel-version': version field returned by uname(2)
+# machine-hardware': machine field returned by uname(2)
+# id: as defined by os-release(5)
+# name: as defined by os-release(5)
+# pretty-name: as defined by os-release(5)
+# version: as defined by os-release(5)
+# version-id: as defined by os-release(5)
+# variant: as defined by os-release(5)
+# variant-id: as defined by os-release(5)
+# 
+#
+# On Windows:
+# 
+# kernel-release: version number of the OS
+# kernel-version': build number of the OS
+# machine-hardware': architecture of the hardware
+# id: contains string "mswindows"
+# name: contains string "Microsoft Windows"
+# pretty-name: product name, e.g. "Microsoft Windows 10 Enterprise"
+# version: long version string, e.g. "Microsoft Windows Server 2008"
+# version-id: short version identifier, e.g. "7" or "20012r2"
+# variant: contains string "server" or "client"
+# variant-id: contains string "server" or "client"
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestOSInfo',
+  'data': {
+      'kernel-release': 'str', 'kernel-version': 'str',
+      'machine-hardware': 'str', '*id': 'str', '*name': 'str',
+      '*pretty-name': 'str', '*version': 'str', '*version-id': 'str',
+      '*variant': 'str', '*variant-id': 'str' } }
+
+##
+# @guest-get-osinfo:
+#
+# Retrieve guest operating system information
+#
+# Returns: operating system information on success
+#
+# Since 2.10
+##
+{ 'command': 'guest-get-osinfo',
+  'returns': 'GuestOSInfo' }

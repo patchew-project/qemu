@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <dirent.h>
 #include <utmpx.h>
@@ -24,6 +25,7 @@
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
+#include <gio/gio.h>
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__
@@ -2576,4 +2578,157 @@ GuestUserList *qmp_guest_get_users(Error **err)
     endutxent();
     g_hash_table_destroy(cache);
     return head;
+}
+
+static GHashTable* ga_parse_osrelease(const char *fname)
+{
+    GFile *f;
+    GFileInputStream *fis = NULL;
+    GDataInputStream* dis = NULL;
+    GError *err = NULL;
+    gsize length;
+    char *line;
+    char *value;
+    GHashTable *tbl = NULL;
+
+    /* Open the file */
+    f = g_file_new_for_path(fname);
+    fis = g_file_read(f, NULL, &err);
+    if (err != NULL) {
+        slog("failed to open file '%s', error: %s", fname, err->message);
+        g_error_free(err);
+        g_object_unref(f);
+        return NULL;
+    }
+    dis = g_data_input_stream_new(G_INPUT_STREAM(fis));
+
+    err = NULL;
+    tbl = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    /* Go through all lines */
+    line = NULL;
+    while (err == NULL) {
+        g_free(line);
+        line = g_data_input_stream_read_line_utf8(dis, &length, NULL, &err);
+        if (err != NULL) {
+            slog("failed to open file '%s', error: %s", fname, err->message);
+            g_error_free(err);
+            break;
+        } else if (line == NULL) {
+            /* EOF */
+            break;
+        } else if((length == 0) || (line[0] == '#')) {
+            continue;
+        }
+
+        value = strchr(line, '=');
+        if (value == NULL) {
+            continue;
+        }
+        value[0] = 0;
+        value++;
+
+        if ((value[0] == '"') || (value[0] == '\'')) {
+            char *p;
+            char end = value[0];
+            value++;
+            p = value;
+            while (*p != 0) {
+                if (*p == '\\') {
+                    switch(*(p+1)) {
+                        case '\'':
+                        case '"':
+                        case '$':
+                        case '`':
+                            memmove(p, p+1, strlen(p+1));
+                            break;
+                        default:
+                            /* Keep literal backslash */
+                            p++;
+                            break;
+                    }
+                    if (*p != 0) {
+                        p++;
+                    }
+                    continue;
+                }
+                if (*p == end) {
+                    *p = 0;
+                    break;
+                }
+                p++;
+            }
+        }
+        g_hash_table_insert(tbl, g_strdup(line), g_strdup(value));
+    }
+    g_free(line);
+
+    g_object_unref(fis);
+    g_object_unref(dis);
+    g_object_unref(f);
+
+    return tbl;
+}
+
+GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
+{
+    GuestOSInfo *info = g_new0(GuestOSInfo, 1);
+    memset(info, 0, sizeof(GuestOSInfo));
+
+    struct utsname kinfo;
+    uname(&kinfo);
+
+    info->kernel_version = g_strdup(kinfo.version);
+    info->kernel_release = g_strdup(kinfo.release);
+    info->machine_hardware = g_strdup(kinfo.machine);
+
+    GHashTable *osrelease = ga_parse_osrelease("/etc/os-release");
+    if (osrelease == NULL) {
+        slog("could not read /etc/os-release");
+        osrelease = ga_parse_osrelease("/usr/lib/os-release");
+        if (osrelease == NULL) {
+            slog("could not read /usr/lib/os-release");
+        }
+    }
+
+    if (osrelease != NULL) {
+        char *value;
+        value = g_hash_table_lookup(osrelease, "ID");
+        if (value != NULL) {
+            info->has_id = true;
+            info->id = g_strdup(value);
+        }
+        value = g_hash_table_lookup(osrelease, "PRETTY_NAME");
+        if (value != NULL) {
+            info->has_pretty_name = true;
+            info->pretty_name = g_strdup(value);
+        }
+        value = g_hash_table_lookup(osrelease, "NAME");
+        if (value != NULL) {
+            info->has_name = true;
+            info->name = g_strdup(value);
+        }
+        value = g_hash_table_lookup(osrelease, "VERSION");
+        if (value != NULL) {
+            info->has_version = true;
+            info->version = g_strdup(value);
+        }
+        value = g_hash_table_lookup(osrelease, "VERSION_ID");
+        if (value != NULL) {
+            info->has_version_id = true;
+            info->version_id = g_strdup(value);
+        }
+        value = g_hash_table_lookup(osrelease, "VARIANT");
+        if (value != NULL) {
+            info->has_variant = true;
+            info->variant = g_strdup(value);
+        }
+        value = g_hash_table_lookup(osrelease, "VARIANT_ID");
+        if (value != NULL) {
+            info->has_variant_id = true;
+            info->variant_id = g_strdup(value);
+        }
+        g_hash_table_destroy(osrelease);
+    }
+
+    return info;
 }
