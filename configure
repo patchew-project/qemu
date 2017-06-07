@@ -3130,7 +3130,7 @@ if test "$mingw32" = yes; then
 else
     glib_req_ver=2.22
 fi
-glib_modules=gthread-2.0
+glib_modules="gthread-2.0 gio-2.0"
 if test "$modules" = yes; then
     glib_modules="$glib_modules gmodule-2.0"
 fi
