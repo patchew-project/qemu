@@ -34,6 +34,8 @@
 #include "qemu/help_option.h"
 
 #include "chardev/char-mux.h"
+#include "chardev/char-parallel.h" /* for HAVE_CHARDEV_PARPORT */
+#include "chardev/char-serial.h" /* for HAVE_CHARDEV_SERIAL */
 
 /***********************************************************/
 /* character device */
