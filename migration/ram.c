@@ -149,6 +149,25 @@ out:
     return ret;
 }
 
+static unsigned long int get_copied_bit_offset(uint64_t addr, RAMBlock *rb)
+{
+    uint64_t addr_offset = addr - (uint64_t)(uintptr_t)rb->host;
+    int page_shift = find_first_bit((unsigned long *)&rb->page_size,
+                                    sizeof(rb->page_size));
+
+    return addr_offset >> page_shift;
+}
+
+int test_copiedmap_by_addr(uint64_t addr, RAMBlock *rb)
+{
+    return test_bit(get_copied_bit_offset(addr, rb), rb->copiedmap);
+}
+
+void set_copiedmap_by_addr(uint64_t addr, RAMBlock *rb)
+{
+    set_bit_atomic(get_copied_bit_offset(addr, rb), rb->copiedmap);
+}
+
 /*
  * An outstanding page request, on the source, having been received
  * and queued
@@ -1449,6 +1468,8 @@ static void ram_migration_cleanup(void *opaque)
         block->bmap = NULL;
         g_free(block->unsentmap);
         block->unsentmap = NULL;
+        g_free(block->copiedmap);
+        block->copiedmap = NULL;
     }
 
     XBZRLE_cache_lock();
@@ -2517,6 +2538,14 @@ static int ram_load_postcopy(QEMUFile *f)
     return ret;
 }
 
+static unsigned long get_copiedmap_size(RAMBlock *rb)
+{
+    unsigned long pages;
+    pages = rb->max_length >> find_first_bit((unsigned long *)&rb->page_size,
+                                             sizeof(rb->page_size));
+    return pages;
+}
+
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     int flags = 0, ret = 0;
@@ -2544,6 +2573,13 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     rcu_read_lock();
 
     if (postcopy_running) {
+        RAMBlock *rb;
+        RAMBLOCK_FOREACH(rb) {
+            /* need for destination, bitmap_new calls
+             * g_try_malloc0 and this function
+             * Attempts to allocate @n_bytes, initialized to 0'sh */
+            rb->copiedmap = bitmap_new(get_copiedmap_size(rb));
+        }
         ret = ram_load_postcopy(f);
     }
 
