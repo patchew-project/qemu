@@ -601,8 +601,8 @@ static void kvm_sw_tlb_put(PowerPCCPU *cpu)
         return;
     }
 
-    bitmap = g_malloc((env->nb_tlb + 7) / 8);
-    memset(bitmap, 0xFF, (env->nb_tlb + 7) / 8);
+    bitmap = g_malloc(DIV_ROUND_UP(env->nb_tlb, 8));
+    memset(bitmap, 0xFF, DIV_ROUND_UP(env->nb_tlb, 8));
 
     dirty_tlb.bitmap = (uintptr_t)bitmap;
     dirty_tlb.num_dirty = env->nb_tlb;

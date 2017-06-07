@@ -5021,7 +5021,7 @@ static decNumber * decMultiplyOp(decNumber *res, const decNumber *lhs,
       /* to the right to avoid overwrite during the unchunking. */
       needbytes=iacc*sizeof(uLong);
       #if DECDPUN==1
-      zoff=(iacc+7)/8;	      /* items to offset by */
+      zoff=DIV_ROUND_UP(iacc, 8);	      /* items to offset by */
       needbytes+=zoff*8;
       #endif
       if (needbytes>(Int)sizeof(zaccbuff)) {

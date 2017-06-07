@@ -10156,14 +10156,14 @@ locate_opcode_ent (ia64_insn opcode, enum ia64_insn_type type)
 		    }
 		  if (x > count)
 		    {
-		      next_op = op_pointer + ((oplen + 7) / 8);
+		      next_op = op_pointer + (DIV_ROUND_UP(oplen, 8));
 		      currbitnum -= count;
 		      break;
 		    }
 		}
 	      else if (! currbit)
 		{
-		  next_op = op_pointer + ((oplen + 7) / 8);
+		  next_op = op_pointer + (DIV_ROUND_UP(oplen, 8));
 		  break;
 		}
 	    }
