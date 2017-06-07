@@ -60,6 +60,8 @@ size_t qlist_size(const QList *qlist);
 QList *qobject_to_qlist(const QObject *obj);
 void qlist_destroy_obj(QObject *obj);
 
+char *qlist_to_string(QList *list, int indent);
+
 static inline const QListEntry *qlist_first(const QList *qlist)
 {
     return QTAILQ_FIRST(&qlist->head);

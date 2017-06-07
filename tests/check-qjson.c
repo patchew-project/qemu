@@ -1372,6 +1372,23 @@ static void simple_whitespace(void)
     }
 }
 
+static void qobject_to_string_test(void)
+{
+    QObject *obj;
+    char *tmp;
+
+    obj = qobject_from_json("[ 43, { 'c': { 'd' : 12 } }, [ 1, 2 ], 42 ]",
+                            &error_abort);
+    tmp = qobject_to_string(obj);
+    g_assert_cmpstr(tmp, ==,
+                    "[0]: 43\n"
+                    "[1]:\n    c:\n        d: 12\n"
+                    "[2]:\n    [0]: 1\n    [1]: 2\n"
+                    "[3]: 42\n");
+    g_free(tmp);
+    qobject_decref(obj);
+}
+
 static void simple_varargs(void)
 {
     QObject *embedded_obj;
@@ -1544,6 +1561,8 @@ int main(int argc, char **argv)
     g_test_add_func("/errors/invalid_dict_comma", invalid_dict_comma);
     g_test_add_func("/errors/unterminated/literal", unterminated_literal);
     g_test_add_func("/errors/limits/nesting", limits_nesting);
+
+    g_test_add_func("/qobject/to_string", qobject_to_string_test);
 
     return g_test_run();
 }
