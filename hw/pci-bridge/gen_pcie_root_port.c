@@ -54,6 +54,7 @@ static const VMStateDescription vmstate_rp_dev = {
         VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
         VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
                        PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
+        VMSTATE_MSIX(parent_obj.parent_obj, PCIEPort),
         VMSTATE_END_OF_LIST()
     }
 };
