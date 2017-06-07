@@ -793,7 +793,7 @@ static void decode_fast_read_cmd(Flash *s)
     switch (get_man(s)) {
     /* Dummy cycles - modeled with bytes writes instead of bits */
     case MAN_WINBOND:
-        s->needed_bytes += 8;
+        s->needed_bytes += 1;
         break;
     case MAN_NUMONYX:
         s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
