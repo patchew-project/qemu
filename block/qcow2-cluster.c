@@ -777,34 +777,53 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     Qcow2COWRegion *start = &m->cow_start;
     Qcow2COWRegion *end = &m->cow_end;
     unsigned buffer_size = start->nb_bytes + end->nb_bytes;
+    unsigned data_bytes = end->offset - (start->offset + start->nb_bytes);
+    bool merge_reads = false;
     uint8_t *start_buffer, *end_buffer;
     int ret;
 
     assert(start->nb_bytes <= UINT_MAX - end->nb_bytes);
+    assert(buffer_size <= UINT_MAX - data_bytes);
+    assert(start->offset + start->nb_bytes <= end->offset);
 
     if (start->nb_bytes == 0 && end->nb_bytes == 0) {
         return 0;
     }
 
-    /* Reserve a buffer large enough to store the data from both the
-     * start and end COW regions */
+    /* If we have to read both the start and end COW regions and the
+     * middle region is not too large then perform just one read
+     * operation */
+    if (start->nb_bytes && end->nb_bytes && data_bytes <= 16384) {
+        merge_reads = true;
+        buffer_size += data_bytes;
+    }
+
+    /* Reserve a buffer large enough to store all the data that we're
+     * going to read */
     start_buffer = qemu_try_blockalign(bs, buffer_size);
     if (start_buffer == NULL) {
         return -ENOMEM;
     }
     /* The part of the buffer where the end region is located */
-    end_buffer = start_buffer + start->nb_bytes;
+    end_buffer = start_buffer + buffer_size - end->nb_bytes;
 
     qemu_co_mutex_unlock(&s->lock);
-    /* First we read the existing data from both COW regions */
-    ret = do_perform_cow_read(bs, m->offset, start->offset,
-                              start_buffer, start->nb_bytes);
-    if (ret < 0) {
-        goto fail;
-    }
+    /* First we read the existing data from both COW regions. We
+     * either read the whole region in one go, or the start and end
+     * regions separately. */
+    if (merge_reads) {
+        ret = do_perform_cow_read(bs, m->offset, start->offset,
+                                  start_buffer, buffer_size);
+    } else {
+        ret = do_perform_cow_read(bs, m->offset, start->offset,
+                                  start_buffer, start->nb_bytes);
+        if (ret < 0) {
+            goto fail;
+        }
 
-    ret = do_perform_cow_read(bs, m->offset, end->offset,
-                              end_buffer, end->nb_bytes);
+        ret = do_perform_cow_read(bs, m->offset, end->offset,
+                                  end_buffer, end->nb_bytes);
+    }
     if (ret < 0) {
         goto fail;
     }
