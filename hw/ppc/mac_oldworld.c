@@ -241,7 +241,7 @@ static void ppc_heathrow_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0xfe000000, isa);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
-    heathrow_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
+    heathrow_irqs = g_new0(qemu_irq *, smp_cpus);
     heathrow_irqs[0] =
         g_malloc0(smp_cpus * sizeof(qemu_irq) * 1);
     /* Connect the heathrow PIC outputs to the 6xx bus */

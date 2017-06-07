@@ -242,7 +242,7 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
     while ((prop = object_property_iter_next(&iter))) {
         ObjectPropertyInfoList *entry = g_malloc0(sizeof(*entry));
 
-        entry->value = g_malloc0(sizeof(ObjectPropertyInfo));
+        entry->value = g_new0(ObjectPropertyInfo, 1);
         entry->next = props;
         props = entry;
 

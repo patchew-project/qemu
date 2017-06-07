@@ -687,7 +687,7 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
     }
 
     region->nr_mmaps = j;
-    region->mmaps = g_realloc(region->mmaps, j * sizeof(VFIOMmap));
+    region->mmaps = g_renew(VFIOMmap, region->mmaps, j);
 
     return 0;
 }

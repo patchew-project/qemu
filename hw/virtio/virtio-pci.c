@@ -1033,8 +1033,8 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
     if ((with_irqfd || k->guest_notifier_mask) && assign) {
         if (with_irqfd) {
             proxy->vector_irqfd =
-                g_malloc0(sizeof(*proxy->vector_irqfd) *
-                          msix_nr_vectors_allocated(&proxy->pci_dev));
+                g_new0(typeof(*proxy->vector_irqfd),
+                       msix_nr_vectors_allocated(&proxy->pci_dev));
             r = kvm_virtio_pci_vector_use(proxy, nvqs);
             if (r < 0) {
                 goto assign_error;

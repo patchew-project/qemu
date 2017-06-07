@@ -106,7 +106,7 @@ milkymist_init(MachineState *machine)
     hwaddr cmdline_base = sdram_base + 0x1000000;
     size_t initrd_max = sdram_size - 0x1002000;
 
-    reset_info = g_malloc0(sizeof(ResetInfo));
+    reset_info = g_new0(ResetInfo, 1);
 
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";

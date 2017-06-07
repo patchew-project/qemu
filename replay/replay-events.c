@@ -128,7 +128,7 @@ void replay_add_event(ReplayAsyncEventKind event_kind,
         return;
     }
 
-    Event *event = g_malloc0(sizeof(Event));
+    Event *event = g_new0(Event, 1);
     event->event_kind = event_kind;
     event->opaque = opaque;
     event->opaque2 = opaque2;
@@ -239,17 +239,17 @@ static Event *replay_read_event(int checkpoint)
         }
         break;
     case REPLAY_ASYNC_EVENT_INPUT:
-        event = g_malloc0(sizeof(Event));
+        event = g_new0(Event, 1);
         event->event_kind = read_event_kind;
         event->opaque = replay_read_input_event();
         return event;
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
-        event = g_malloc0(sizeof(Event));
+        event = g_new0(Event, 1);
         event->event_kind = read_event_kind;
         event->opaque = 0;
         return event;
     case REPLAY_ASYNC_EVENT_CHAR_READ:
-        event = g_malloc0(sizeof(Event));
+        event = g_new0(Event, 1);
         event->event_kind = read_event_kind;
         event->opaque = replay_event_char_read_load();
         return event;
@@ -259,7 +259,7 @@ static Event *replay_read_event(int checkpoint)
         }
         break;
     case REPLAY_ASYNC_EVENT_NET:
-        event = g_malloc0(sizeof(Event));
+        event = g_new0(Event, 1);
         event->event_kind = read_event_kind;
         event->opaque = replay_event_net_load();
         return event;

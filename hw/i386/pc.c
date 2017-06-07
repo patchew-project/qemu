@@ -720,7 +720,7 @@ static void pc_build_smbios(PCMachineState *pcms)
     }
 
     /* build the array of physical mem area from e820 table */
-    mem_array = g_malloc0(sizeof(*mem_array) * e820_get_num_entries());
+    mem_array = g_new0(typeof(*mem_array), e820_get_num_entries());
     for (i = 0, array_count = 0; i < e820_get_num_entries(); i++) {
         uint64_t addr, len;
 
@@ -1280,8 +1280,7 @@ void pc_guest_info_init(PCMachineState *pcms)
 
     pcms->apic_xrupt_override = kvm_allows_irq0_override();
     pcms->numa_nodes = nb_numa_nodes;
-    pcms->node_mem = g_malloc0(pcms->numa_nodes *
-                                    sizeof *pcms->node_mem);
+    pcms->node_mem = g_new0(typeof(*pcms->node_mem), pcms->numa_nodes);
     for (i = 0; i < nb_numa_nodes; i++) {
         pcms->node_mem[i] = numa_info[i].node_mem;
     }

@@ -128,7 +128,7 @@ int qemu_add_child_watch(pid_t pid)
             return 1;
         }
     }
-    rec = g_malloc0(sizeof(ChildProcessRecord));
+    rec = g_new0(ChildProcessRecord, 1);
     rec->pid = pid;
     QLIST_INSERT_HEAD(&child_watches, rec, next);
     return 0;

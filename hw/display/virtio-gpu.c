@@ -628,9 +628,9 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
         return -1;
     }
 
-    *iov = g_malloc0(sizeof(struct iovec) * ab->nr_entries);
+    *iov = g_new0(struct iovec, ab->nr_entries);
     if (addr) {
-        *addr = g_malloc0(sizeof(uint64_t) * ab->nr_entries);
+        *addr = g_new0(uint64_t, ab->nr_entries);
     }
     for (i = 0; i < ab->nr_entries; i++) {
         hwaddr len = ents[i].length;

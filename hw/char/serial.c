@@ -941,7 +941,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 {
     SerialState *s;
 
-    s = g_malloc0(sizeof(SerialState));
+    s = g_new0(SerialState, 1);
 
     s->irq = irq;
     s->baudbase = baudbase;
@@ -997,7 +997,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 {
     SerialState *s;
 
-    s = g_malloc0(sizeof(SerialState));
+    s = g_new0(SerialState, 1);
 
     s->it_shift = it_shift;
     s->irq = irq;

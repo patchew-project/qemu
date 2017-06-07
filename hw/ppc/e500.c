@@ -812,7 +812,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         machine->cpu_model = "e500v2_v30";
     }
 
-    irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
+    irqs = g_new0(qemu_irq *, smp_cpus);
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
         PowerPCCPU *cpu;
@@ -851,7 +851,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         if (!i) {
             /* Primary CPU */
             struct boot_info *boot_info;
-            boot_info = g_malloc0(sizeof(struct boot_info));
+            boot_info = g_new0(struct boot_info, 1);
             qemu_register_reset(ppce500_cpu_reset, cpu);
             env->load_info = boot_info;
         } else {

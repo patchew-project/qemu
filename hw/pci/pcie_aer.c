@@ -117,8 +117,8 @@ int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
                 "is %d", dev->exp.aer_log.log_max, PCIE_AER_LOG_MAX_LIMIT);
         return -EINVAL;
     }
-    dev->exp.aer_log.log = g_malloc0(sizeof dev->exp.aer_log.log[0] *
-                                        dev->exp.aer_log.log_max);
+    dev->exp.aer_log.log = g_new0(typeof(dev->exp.aer_log.log[0]),
+                                  dev->exp.aer_log.log_max);
 
     pci_set_long(dev->w1cmask + offset + PCI_ERR_UNCOR_STATUS,
                  PCI_ERR_UNC_SUPPORTED);

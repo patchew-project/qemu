@@ -731,7 +731,7 @@ void *postcopy_get_tmp_page(MigrationIncomingState *mis)
 PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
                                                  const char *name)
 {
-    PostcopyDiscardState *res = g_malloc0(sizeof(PostcopyDiscardState));
+    PostcopyDiscardState *res = g_new0(PostcopyDiscardState, 1);
 
     if (res) {
         res->ramblock_name = name;

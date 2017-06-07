@@ -2925,7 +2925,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     VNC_DEBUG("Client sioc=%p ws=%d auth=%d subauth=%d\n",
               sioc, websocket, vs->auth, vs->subauth);
 
-    vs->lossy_rect = g_malloc0(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
+    vs->lossy_rect = g_new0(typeof(*vs->lossy_rect), VNC_STAT_ROWS);
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
         vs->lossy_rect[i] = g_new0(uint8_t, VNC_STAT_COLS);
     }

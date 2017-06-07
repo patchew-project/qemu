@@ -555,7 +555,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     MaltaFPGAState *s;
     Chardev *chr;
 
-    s = (MaltaFPGAState *)g_malloc0(sizeof(MaltaFPGAState));
+    s = g_new0(MaltaFPGAState, 1);
 
     memory_region_init_io(&s->iomem, NULL, &malta_fpga_ops, s,
                           "malta-fpga", 0x100000);

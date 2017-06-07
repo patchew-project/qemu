@@ -444,7 +444,7 @@ static void exynos4210_irq_gate_realize(DeviceState *dev, Error **errp)
      * them */
     qdev_init_gpio_in(dev, exynos4210_irq_gate_handler, s->n_in);
 
-    s->level = g_malloc0(s->n_in * sizeof(*s->level));
+    s->level = g_new0(typeof(*s->level), s->n_in);
 }
 
 static void exynos4210_irq_gate_class_init(ObjectClass *klass, void *data)

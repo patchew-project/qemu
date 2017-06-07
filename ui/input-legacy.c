@@ -93,7 +93,7 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
     for (p = keys; p != NULL; p = p->next) {
         qemu_input_event_send_key(NULL, copy_key_value(p->value), true);
         qemu_input_event_send_key_delay(hold_time);
-        up = g_realloc(up, sizeof(*up) * (count+1));
+        up = g_renew(typeof(*up), up, count + 1);
         up[count] = copy_key_value(p->value);
         count++;
     }

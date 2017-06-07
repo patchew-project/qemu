@@ -406,7 +406,7 @@ static int init_blk_migration(QEMUFile *f)
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         num_bs++;
     }
-    bmds_bs = g_malloc0(num_bs * sizeof(*bmds_bs));
+    bmds_bs = g_new0(typeof(*bmds_bs), num_bs);
 
     for (i = 0, bs = bdrv_first(&it); bs; bs = bdrv_next(&it), i++) {
         if (bdrv_is_read_only(bs)) {

@@ -106,7 +106,7 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
     unsigned long size;
     struct rlimit rlimit_as;
 
-    mapcache = g_malloc0(sizeof (MapCache));
+    mapcache = g_new0(MapCache, 1);
 
     mapcache->phys_offset_to_gaddr = f;
     mapcache->opaque = opaque;
@@ -160,8 +160,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
 
     trace_xen_remap_bucket(address_index);
 
-    pfns = g_malloc0(nb_pfn * sizeof (xen_pfn_t));
-    err = g_malloc0(nb_pfn * sizeof (int));
+    pfns = g_new0(xen_pfn_t, nb_pfn);
+    err = g_new0(int, nb_pfn);
 
     if (entry->vaddr_base != NULL) {
         ram_block_notify_remove(entry->vaddr_base, entry->size);
@@ -187,8 +187,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     entry->vaddr_base = vaddr_base;
     entry->paddr_index = address_index;
     entry->size = size;
-    entry->valid_mapping = (unsigned long *) g_malloc0(sizeof(unsigned long) *
-            BITS_TO_LONGS(size >> XC_PAGE_SHIFT));
+    entry->valid_mapping = g_new0(unsigned long,
+                                  BITS_TO_LONGS(size >> XC_PAGE_SHIFT));
 
     ram_block_notify_add(entry->vaddr_base, entry->size);
     bitmap_zero(entry->valid_mapping, nb_pfn);
@@ -260,7 +260,7 @@ tryagain:
         entry = entry->next;
     }
     if (!entry) {
-        entry = g_malloc0(sizeof (MapCacheEntry));
+        entry = g_new0(MapCacheEntry, 1);
         pentry->next = entry;
         xen_remap_bucket(entry, cache_size, address_index);
     } else if (!entry->lock) {
@@ -288,7 +288,7 @@ tryagain:
 
     mapcache->last_entry = entry;
     if (lock) {
-        MapCacheRev *reventry = g_malloc0(sizeof(MapCacheRev));
+        MapCacheRev *reventry = g_new0(MapCacheRev, 1);
         entry->lock++;
         reventry->dma = dma;
         reventry->vaddr_req = mapcache->last_entry->vaddr_base + address_offset;

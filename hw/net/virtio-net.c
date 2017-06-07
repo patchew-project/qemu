@@ -1934,7 +1934,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         virtio_cleanup(vdev);
         return;
     }
-    n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
+    n->vqs = g_new0(VirtIONetQueue, n->max_queues);
     n->curr_queues = 1;
     n->tx_timeout = n->net_conf.txtimer;
 

@@ -742,7 +742,7 @@ static void bt_hci_connection_reject_event(struct bt_hci_s *hci,
 static void bt_hci_connection_accept(struct bt_hci_s *hci,
                 struct bt_device_s *host)
 {
-    struct bt_hci_link_s *link = g_malloc0(sizeof(struct bt_hci_link_s));
+    struct bt_hci_link_s *link = g_new0(struct bt_hci_link_s, 1);
     evt_conn_complete params;
     uint16_t handle;
     uint8_t status = HCI_SUCCESS;
@@ -2158,7 +2158,7 @@ static void bt_hci_destroy(struct bt_device_s *dev)
 
 struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net)
 {
-    struct bt_hci_s *s = g_malloc0(sizeof(struct bt_hci_s));
+    struct bt_hci_s *s = g_new0(struct bt_hci_s, 1);
 
     s->lm.inquiry_done = timer_new_ns(QEMU_CLOCK_VIRTUAL, bt_hci_inquiry_done, s);
     s->lm.inquiry_next = timer_new_ns(QEMU_CLOCK_VIRTUAL, bt_hci_inquiry_next, s);

@@ -494,7 +494,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     struct rtas_event_log_v6_mainb *mainb;
     struct rtas_event_log_v6_hp *hp;
 
-    new_hp = g_malloc0(sizeof(struct hp_log_full));
+    new_hp = g_new0(struct hp_log_full, 1);
     hdr = &new_hp->hdr;
     v6hdr = &new_hp->v6hdr;
     maina = &new_hp->maina;

@@ -832,7 +832,7 @@ static const char **slirp_dnssearch(const StringList *dnsname)
         return NULL;
     }
 
-    ret = g_malloc((num_opts + 1) * sizeof(*ret));
+    ret = g_new(typeof(*ret), num_opts + 1);
     c = dnsname;
     while (c) {
         ret[i++] = c->value->str;

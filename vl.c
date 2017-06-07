@@ -1339,7 +1339,7 @@ static int add_semihosting_arg(void *opaque,
     if (strcmp(name, "arg") == 0) {
         s->argc++;
         /* one extra element as g_strjoinv() expects NULL-terminated array */
-        s->argv = g_realloc(s->argv, (s->argc + 1) * sizeof(void *));
+        s->argv = g_renew(const char *, s->argv, s->argc + 1);
         s->argv[s->argc - 1] = val;
         s->argv[s->argc] = NULL;
     }

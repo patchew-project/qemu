@@ -773,7 +773,7 @@ void *etraxfs_dmac_init(hwaddr base, int nr_channels)
         ctrl->bh = qemu_bh_new(DMA_run, ctrl);
 
 	ctrl->nr_channels = nr_channels;
-	ctrl->channels = g_malloc0(sizeof ctrl->channels[0] * nr_channels);
+	ctrl->channels = g_new0(typeof(ctrl->channels[0]), nr_channels);
 
 	memory_region_init_io(&ctrl->mmio, NULL, &dma_ops, ctrl, "etraxfs-dma",
 			      nr_channels * 0x2000);

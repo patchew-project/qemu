@@ -609,7 +609,7 @@ static int handle_init(FsContext *ctx)
     int ret, mnt_id;
     struct statfs stbuf;
     struct file_handle fh;
-    struct handle_data *data = g_malloc(sizeof(struct handle_data));
+    struct handle_data *data = g_new(struct handle_data, 1);
 
     data->mountfd = open(ctx->fs_root, O_DIRECTORY);
     if (data->mountfd < 0) {

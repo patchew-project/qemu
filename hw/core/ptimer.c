@@ -349,7 +349,7 @@ ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
 {
     ptimer_state *s;
 
-    s = (ptimer_state *)g_malloc0(sizeof(ptimer_state));
+    s = (ptimer_state *) g_new0(ptimer_state, 1);
     s->bh = bh;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
     s->policy_mask = policy_mask;

@@ -186,7 +186,7 @@ bitbang_i2c_interface *bitbang_i2c_init(I2CBus *bus)
 {
     bitbang_i2c_interface *s;
 
-    s = g_malloc0(sizeof(bitbang_i2c_interface));
+    s = g_new0(bitbang_i2c_interface, 1);
 
     s->bus = bus;
     s->last_data = 1;

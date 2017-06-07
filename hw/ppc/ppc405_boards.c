@@ -169,7 +169,7 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
     ref405ep_fpga_t *fpga;
     MemoryRegion *fpga_memory = g_new(MemoryRegion, 1);
 
-    fpga = g_malloc0(sizeof(ref405ep_fpga_t));
+    fpga = g_new0(ref405ep_fpga_t, 1);
     memory_region_init_io(fpga_memory, NULL, &ref405ep_fpga_ops, fpga,
                           "fpga", 0x00000100);
     memory_region_add_subregion(sysmem, base, fpga_memory);
@@ -189,7 +189,7 @@ static void ref405ep_init(MachineState *machine)
     MemoryRegion *bios;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     ram_addr_t bdloc;
-    MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
+    MemoryRegion *ram_memories = g_new(typeof(*ram_memories), 2);
     hwaddr ram_bases[2], ram_sizes[2];
     target_ulong sram_size;
     long bios_size;
@@ -474,7 +474,7 @@ static void taihu_cpld_init(MemoryRegion *sysmem, uint32_t base)
     taihu_cpld_t *cpld;
     MemoryRegion *cpld_memory = g_new(MemoryRegion, 1);
 
-    cpld = g_malloc0(sizeof(taihu_cpld_t));
+    cpld = g_new0(taihu_cpld_t, 1);
     memory_region_init_io(cpld_memory, NULL, &taihu_cpld_ops, cpld, "cpld", 0x100);
     memory_region_add_subregion(sysmem, base, cpld_memory);
     qemu_register_reset(&taihu_cpld_reset, cpld);
@@ -489,7 +489,7 @@ static void taihu_405ep_init(MachineState *machine)
     qemu_irq *pic;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *bios;
-    MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
+    MemoryRegion *ram_memories = g_new(typeof(*ram_memories), 2);
     MemoryRegion *ram = g_malloc0(sizeof(*ram));
     hwaddr ram_bases[2], ram_sizes[2];
     long bios_size;

@@ -317,7 +317,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
 
     dev->msix_table = g_malloc0(table_size);
     dev->msix_pba = g_malloc0(pba_size);
-    dev->msix_entry_used = g_malloc0(nentries * sizeof *dev->msix_entry_used);
+    dev->msix_entry_used = g_new0(typeof(*dev->msix_entry_used), nentries);
 
     msix_mask_all(dev, nentries);
 

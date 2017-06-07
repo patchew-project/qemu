@@ -1068,7 +1068,7 @@ static int assigned_dev_update_msix_mmio(PCIDevice *pci_dev)
     free_msi_virqs(adev);
 
     adev->msi_virq_nr = adev->msix_max;
-    adev->msi_virq = g_malloc(adev->msix_max * sizeof(*adev->msi_virq));
+    adev->msi_virq = g_new(typeof(*adev->msi_virq), adev->msix_max);
 
     entry = adev->msix_table;
     for (i = 0; i < adev->msix_max; i++, entry++) {

@@ -262,8 +262,7 @@ void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
 
-    dma->memmap = g_realloc(dma->memmap, sizeof(*entry) *
-                    (dma->memmap_size + 1));
+    dma->memmap = g_renew(typeof(*entry), dma->memmap, dma->memmap_size + 1);
     entry = soc_dma_lookup(dma, virt_base);
 
     if (dma->memmap_size) {
@@ -312,8 +311,7 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
 
-    dma->memmap = g_realloc(dma->memmap, sizeof(*entry) *
-                    (dma->memmap_size + 1));
+    dma->memmap = g_renew(typeof(*entry), dma->memmap, dma->memmap_size + 1);
     entry = soc_dma_lookup(dma, virt_base);
 
     if (dma->memmap_size) {

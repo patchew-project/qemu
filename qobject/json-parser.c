@@ -246,7 +246,7 @@ static JSONParserContext *parser_context_new(GQueue *tokens)
         return NULL;
     }
 
-    ctxt = g_malloc0(sizeof(JSONParserContext));
+    ctxt = g_new0(JSONParserContext, 1);
     ctxt->buf = tokens;
 
     return ctxt;

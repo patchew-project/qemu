@@ -722,9 +722,9 @@ static void sdp_service_record_build(struct sdp_service_record_s *record,
     }
     record->uuids = pow2ceil(record->uuids);
     record->attribute_list =
-            g_malloc0(record->attributes * sizeof(*record->attribute_list));
+            g_new0(typeof(*record->attribute_list), record->attributes);
     record->uuid =
-            g_malloc0(record->uuids * sizeof(*record->uuid));
+            g_new0(typeof(*record->uuid), record->uuids);
     data = g_malloc(len);
 
     record->attributes = 0;
@@ -766,7 +766,7 @@ static void sdp_service_db_build(struct bt_l2cap_sdp_state_s *sdp,
     while (service[sdp->services])
         sdp->services ++;
     sdp->service_list =
-            g_malloc0(sdp->services * sizeof(*sdp->service_list));
+            g_new0(typeof(*sdp->service_list), sdp->services);
 
     sdp->services = 0;
     while (*service) {

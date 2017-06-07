@@ -270,8 +270,8 @@ static void flatview_insert(FlatView *view, unsigned pos, FlatRange *range)
 {
     if (view->nr == view->nr_allocated) {
         view->nr_allocated = MAX(2 * view->nr, 10);
-        view->ranges = g_realloc(view->ranges,
-                                    view->nr_allocated * sizeof(*view->ranges));
+        view->ranges = g_renew(typeof(*view->ranges), view->ranges,
+                               view->nr_allocated);
     }
     memmove(view->ranges + pos + 1, view->ranges + pos,
             (view->nr - pos) * sizeof(FlatRange));
@@ -792,8 +792,8 @@ static void address_space_update_ioeventfds(AddressSpace *as)
                                              int128_make64(fr->offset_in_region)));
             if (addrrange_intersects(fr->addr, tmp)) {
                 ++ioeventfd_nb;
-                ioeventfds = g_realloc(ioeventfds,
-                                          ioeventfd_nb * sizeof(*ioeventfds));
+                ioeventfds = g_renew(typeof(*ioeventfds), ioeventfds,
+                                     ioeventfd_nb);
                 ioeventfds[ioeventfd_nb-1] = fr->mr->ioeventfds[i];
                 ioeventfds[ioeventfd_nb-1].addr = tmp;
             }
@@ -2028,8 +2028,8 @@ void memory_region_add_eventfd(MemoryRegion *mr,
         }
     }
     ++mr->ioeventfd_nb;
-    mr->ioeventfds = g_realloc(mr->ioeventfds,
-                                  sizeof(*mr->ioeventfds) * mr->ioeventfd_nb);
+    mr->ioeventfds = g_renew(typeof(*mr->ioeventfds), mr->ioeventfds,
+                             mr->ioeventfd_nb);
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;

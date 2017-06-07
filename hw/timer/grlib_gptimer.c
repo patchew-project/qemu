@@ -355,7 +355,7 @@ static int grlib_gptimer_init(SysBusDevice *dev)
     assert(unit->nr_timers > 0);
     assert(unit->nr_timers <= GPTIMER_MAX_TIMERS);
 
-    unit->timers = g_malloc0(sizeof unit->timers[0] * unit->nr_timers);
+    unit->timers = g_new0(typeof(unit->timers[0]), unit->nr_timers);
 
     for (i = 0; i < unit->nr_timers; i++) {
         GPTimer *timer = &unit->timers[i];

@@ -1241,7 +1241,7 @@ static void l2cap_lmp_connection_request(struct bt_link_s *link)
 
     /* Always accept - we only get called if (dev->device->page_scan).  */
 
-    l2cap = g_malloc0(sizeof(struct slave_l2cap_instance_s));
+    l2cap = g_new0(struct slave_l2cap_instance_s, 1);
     l2cap->link.slave = &dev->device;
     l2cap->link.host = link->host;
     l2cap_init(&l2cap->l2cap, &l2cap->link, 0);
@@ -1262,7 +1262,7 @@ static void l2cap_lmp_connection_complete(struct bt_link_s *link)
         return;
     }
 
-    l2cap = g_malloc0(sizeof(struct l2cap_instance_s));
+    l2cap = g_new0(struct l2cap_instance_s, 1);
     l2cap_init(l2cap, link, 1);
 
     link->acl_mode = acl_active;

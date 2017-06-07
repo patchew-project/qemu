@@ -66,7 +66,7 @@ qemu_acl *qemu_acl_init(const char *aclname)
     acl->nentries = 0;
     QTAILQ_INIT(&acl->entries);
 
-    acls = g_realloc(acls, sizeof(*acls) * (nacls +1));
+    acls = g_renew(typeof(*acls), acls, nacls + 1);
     acls[nacls] = acl;
     nacls++;
 

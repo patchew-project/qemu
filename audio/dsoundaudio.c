@@ -787,7 +787,7 @@ static void *dsound_audio_init (void)
 {
     int err;
     HRESULT hr;
-    dsound *s = g_malloc0(sizeof(dsound));
+    dsound *s = g_new0(dsound, 1);
 
     s->conf = glob_conf;
     hr = CoInitialize (NULL);

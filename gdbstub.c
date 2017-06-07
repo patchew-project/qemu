@@ -1789,7 +1789,7 @@ static void gdb_accept(void)
     /* set short latency */
     socket_set_nodelay(fd);
 
-    s = g_malloc0(sizeof(GDBState));
+    s = g_new0(GDBState, 1);
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->fd = fd;
@@ -1983,7 +1983,7 @@ int gdbserver_start(const char *device)
 
     s = gdbserver_state;
     if (!s) {
-        s = g_malloc0(sizeof(GDBState));
+        s = g_new0(GDBState, 1);
         gdbserver_state = s;
 
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);

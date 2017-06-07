@@ -136,7 +136,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     cpu_sparc_set_id(env, 0);
 
     /* Reset data */
-    reset_info        = g_malloc0(sizeof(ResetData));
+    reset_info        = g_new0(ResetData, 1);
     reset_info->cpu   = cpu;
     reset_info->sp    = 0x40000000 + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);

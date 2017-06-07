@@ -249,7 +249,7 @@ int translate_dnssearch(Slirp *s, const char **names)
         return -2;
     }
 
-    domains = g_malloc(num_domains * sizeof(*domains));
+    domains = g_new(typeof(*domains), num_domains);
 
     for (i = 0; i < num_domains; i++) {
         size_t nlen = strlen(names[i]);
@@ -262,7 +262,7 @@ int translate_dnssearch(Slirp *s, const char **names)
 
     /* reserve extra 2 header bytes for each 255 bytes of output */
     memreq += DIV_ROUND_UP(memreq, MAX_OPT_LEN) * OPT_HEADER_LEN;
-    result = g_malloc(memreq * sizeof(*result));
+    result = g_new(typeof(*result), memreq);
 
     outptr = result;
     for (i = 0; i < num_domains; i++) {

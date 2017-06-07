@@ -742,7 +742,7 @@ static int fetch_active_ports_list(QEMUFile *f,
     s->post_load = g_malloc0(sizeof(*s->post_load));
     s->post_load->nr_active_ports = nr_active_ports;
     s->post_load->connected =
-        g_malloc0(sizeof(*s->post_load->connected) * nr_active_ports);
+        g_new0(typeof(*s->post_load->connected), nr_active_ports);
 
     s->post_load->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                             virtio_serial_post_load_timer_cb,
@@ -1047,10 +1047,8 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     QTAILQ_INIT(&vser->ports);
 
     vser->bus.max_nr_ports = vser->serial.max_virtserial_ports;
-    vser->ivqs = g_malloc(vser->serial.max_virtserial_ports
-                          * sizeof(VirtQueue *));
-    vser->ovqs = g_malloc(vser->serial.max_virtserial_ports
-                          * sizeof(VirtQueue *));
+    vser->ivqs = g_new(VirtQueue *, vser->serial.max_virtserial_ports);
+    vser->ovqs = g_new(VirtQueue *, vser->serial.max_virtserial_ports);
 
     /* Add a queue for host to guest transfers for port 0 (backward compat) */
     vser->ivqs[0] = virtio_add_queue(vdev, 128, handle_input);
@@ -1076,8 +1074,8 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     }
 
     vser->ports_map =
-        g_malloc0(DIV_ROUND_UP(vser->serial.max_virtserial_ports, 32)
-                  * sizeof(vser->ports_map[0]));
+        g_new0(typeof(vser->ports_map[0]),
+               DIV_ROUND_UP(vser->serial.max_virtserial_ports, 32));
     /*
      * Reserve location 0 for a console port for backward compat
      * (old kernel, new qemu)

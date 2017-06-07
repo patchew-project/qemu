@@ -2056,7 +2056,7 @@ static void load_elf_image(const char *image_name, int image_fd,
 #ifdef CONFIG_USE_FDPIC
     {
         struct elf32_fdpic_loadseg *loadsegs = info->loadsegs =
-            g_malloc(sizeof(*loadsegs) * info->nsegs);
+            g_new(typeof(*loadsegs), info->nsegs);
 
         for (i = 0; i < ehdr->e_phnum; ++i) {
             switch (phdr[i].p_type) {

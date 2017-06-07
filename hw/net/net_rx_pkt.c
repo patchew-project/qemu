@@ -78,7 +78,7 @@ net_rx_pkt_iovec_realloc(struct NetRxPkt *pkt,
 {
     if (pkt->vec_len_total < new_iov_len) {
         g_free(pkt->vec);
-        pkt->vec = g_malloc(sizeof(*pkt->vec) * new_iov_len);
+        pkt->vec = g_new(typeof(*pkt->vec), new_iov_len);
         pkt->vec_len_total = new_iov_len;
     }
 }

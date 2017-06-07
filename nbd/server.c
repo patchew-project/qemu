@@ -890,7 +890,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
                           Error **errp)
 {
     BlockBackend *blk;
-    NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    NBDExport *exp = g_new0(NBDExport, 1);
     uint64_t perm;
     int ret;
 
@@ -1402,7 +1402,7 @@ void nbd_client_new(NBDExport *exp,
     NBDClient *client;
     NBDClientNewData *data = g_new(NBDClientNewData, 1);
 
-    client = g_malloc0(sizeof(NBDClient));
+    client = g_new0(NBDClient, 1);
     client->refcount = 1;
     client->exp = exp;
     client->tlscreds = tlscreds;

@@ -254,7 +254,7 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->portio);
 
     d->current = -1;
-    d->tests = g_malloc0(IOTEST_MAX * sizeof *d->tests);
+    d->tests = g_new0(typeof(*d->tests), IOTEST_MAX);
     for (i = 0; i < IOTEST_MAX; ++i) {
         IOTest *test = &d->tests[i];
         name = g_strdup_printf("%s-%s", IOTEST_TYPE(i), IOTEST_TEST(i));

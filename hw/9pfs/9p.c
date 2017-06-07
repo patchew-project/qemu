@@ -298,7 +298,7 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
             return NULL;
         }
     }
-    f = g_malloc0(sizeof(V9fsFidState));
+    f = g_new0(V9fsFidState, 1);
     f->fid = fid;
     f->fid_type = P9_FID_NONE;
     f->ref = 1;
@@ -1307,8 +1307,8 @@ static void coroutine_fn v9fs_walk(void *opaque)
     trace_v9fs_walk(pdu->tag, pdu->id, fid, newfid, nwnames);
 
     if (nwnames && nwnames <= P9_MAXWELEM) {
-        wnames = g_malloc0(sizeof(wnames[0]) * nwnames);
-        qids   = g_malloc0(sizeof(qids[0]) * nwnames);
+        wnames = g_new0(typeof(wnames[0]), nwnames);
+        qids   = g_new0(typeof(qids[0]), nwnames);
         for (i = 0; i < nwnames; i++) {
             err = pdu_unmarshal(pdu, offset, "s", &wnames[i]);
             if (err < 0) {

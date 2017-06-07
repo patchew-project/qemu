@@ -814,7 +814,7 @@ static PAConf glob_conf = {
 
 static void *qpa_audio_init (void)
 {
-    paaudio *g = g_malloc(sizeof(paaudio));
+    paaudio *g = g_new(paaudio, 1);
     g->conf = glob_conf;
     g->mainloop = NULL;
     g->context = NULL;

@@ -855,7 +855,7 @@ static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     MIPSCPU *cpu = mips_env_get_cpu(env);
 
-    env->tlb = g_malloc0(sizeof(CPUMIPSTLBContext));
+    env->tlb = g_new0(CPUMIPSTLBContext, 1);
 
     switch (def->mmu_type) {
         case MMU_TYPE_NONE:
@@ -888,7 +888,7 @@ static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 
 static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
 {
-    env->mvp = g_malloc0(sizeof(CPUMIPSMVPContext));
+    env->mvp = g_new0(CPUMIPSMVPContext, 1);
 
     /* MVPConf1 implemented, TLB sharable, no gating storage support,
        programmable cache partitioning implemented, number of allocatable

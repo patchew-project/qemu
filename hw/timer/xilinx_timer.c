@@ -211,7 +211,7 @@ static void xilinx_timer_realize(DeviceState *dev, Error **errp)
     unsigned int i;
 
     /* Init all the ptimers.  */
-    t->timers = g_malloc0(sizeof t->timers[0] * num_timers(t));
+    t->timers = g_new0(typeof(t->timers[0]), num_timers(t));
     for (i = 0; i < num_timers(t); i++) {
         struct xlx_timer *xt = &t->timers[i];
 

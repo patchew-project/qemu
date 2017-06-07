@@ -31,8 +31,8 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     /* queue up events ... */
     if (vinput->qindex == vinput->qsize) {
         vinput->qsize++;
-        vinput->queue = g_realloc(vinput->queue, vinput->qsize *
-                                  sizeof(vinput->queue[0]));
+        vinput->queue = g_renew(typeof(vinput->queue[0]), vinput->queue,
+                                vinput->qsize);
     }
     vinput->queue[vinput->qindex++].event = *event;
 

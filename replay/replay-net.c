@@ -38,9 +38,8 @@ ReplayNetState *replay_register_net(NetFilterState *nfs)
     ReplayNetState *rns = g_new0(ReplayNetState, 1);
     rns->nfs = nfs;
     rns->id = network_filters_count++;
-    network_filters = g_realloc(network_filters,
-                                network_filters_count
-                                    * sizeof(*network_filters));
+    network_filters = g_renew(typeof(*network_filters), network_filters,
+                              network_filters_count);
     network_filters[network_filters_count - 1] = nfs;
     return rns;
 }

@@ -1033,13 +1033,13 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
     /* allocate memory during the first run */
     if (!iommu_as) {
-        iommu_as = g_malloc0(sizeof(AMDVIAddressSpace *) * PCI_DEVFN_MAX);
+        iommu_as = g_new0(AMDVIAddressSpace *, PCI_DEVFN_MAX);
         s->address_spaces[bus_num] = iommu_as;
     }
 
     /* set up AMD-Vi region */
     if (!iommu_as[devfn]) {
-        iommu_as[devfn] = g_malloc0(sizeof(AMDVIAddressSpace));
+        iommu_as[devfn] = g_new0(AMDVIAddressSpace, 1);
         iommu_as[devfn]->bus_num = (uint8_t)bus_num;
         iommu_as[devfn]->devfn = (uint8_t)devfn;
         iommu_as[devfn]->iommu_state = s;

@@ -2679,7 +2679,7 @@ static sPAPRDIMMState *spapr_recover_pending_dimm_state(sPAPRMachineState *ms,
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
-    ds = g_malloc0(sizeof(sPAPRDIMMState));
+    ds = g_new0(sPAPRDIMMState, 1);
     ds->nr_lmbs = avail_lmbs;
     ds->dimm = dimm;
     spapr_pending_dimm_unplugs_add(ms, ds);
@@ -2747,7 +2747,7 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    ds = g_malloc0(sizeof(sPAPRDIMMState));
+    ds = g_new0(sPAPRDIMMState, 1);
     ds->nr_lmbs = nr_lmbs;
     ds->dimm = dimm;
     spapr_pending_dimm_unplugs_add(spapr, ds);

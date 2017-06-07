@@ -165,7 +165,7 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
 
     del_boot_device_path(dev, suffix);
 
-    node = g_malloc0(sizeof(FWBootEntry));
+    node = g_new0(FWBootEntry, 1);
     node->bootindex = bootindex;
     node->suffix = g_strdup(suffix);
     node->dev = dev;

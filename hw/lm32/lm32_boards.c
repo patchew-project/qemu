@@ -99,7 +99,7 @@ static void lm32_evr_init(MachineState *machine)
     int timer0_irq                 = 1;
     int timer1_irq                 = 3;
 
-    reset_info = g_malloc0(sizeof(ResetInfo));
+    reset_info = g_new0(ResetInfo, 1);
 
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";
@@ -200,7 +200,7 @@ static void lm32_uclinux_init(MachineState *machine)
     hwaddr initrd_base  = 0x08400000;
     size_t initrd_max               = 0x01000000;
 
-    reset_info = g_malloc0(sizeof(ResetInfo));
+    reset_info = g_new0(ResetInfo, 1);
 
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";

@@ -1262,7 +1262,7 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     s->ds = ds;
     s->console_type = console_type;
 
-    consoles = g_realloc(consoles, sizeof(*consoles) * (nb_consoles+1));
+    consoles = g_renew(typeof(*consoles), consoles, nb_consoles + 1);
     if (console_type != GRAPHIC_CONSOLE) {
         s->index = nb_consoles;
         consoles[nb_consoles++] = s;

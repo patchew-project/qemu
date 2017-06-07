@@ -513,7 +513,7 @@ static void ppc_prep_init(MachineState *machine)
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
 
-    sysctrl = g_malloc0(sizeof(sysctrl_t));
+    sysctrl = g_new0(sysctrl_t, 1);
 
     linux_boot = (kernel_filename != NULL);
 

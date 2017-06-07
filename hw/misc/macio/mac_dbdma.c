@@ -803,7 +803,7 @@ void* DBDMA_init (MemoryRegion **dbdma_mem)
     DBDMAState *s;
     int i;
 
-    s = g_malloc0(sizeof(DBDMAState));
+    s = g_new0(DBDMAState, 1);
 
     for (i = 0; i < DBDMA_CHANNELS; i++) {
         DBDMA_io *io = &s->channels[i].io;
