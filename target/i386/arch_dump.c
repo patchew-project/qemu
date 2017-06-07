@@ -84,9 +84,9 @@ static int x86_64_write_elf64_note(WriteCoreDumpFunction f,
     note->n_descsz = cpu_to_le32(descsz);
     note->n_type = cpu_to_le32(NT_PRSTATUS);
     buf = (char *)note;
-    buf += ((sizeof(Elf64_Nhdr) + 3) / 4) * 4;
+    buf += ROUND_UP(sizeof(Elf64_Nhdr), 4);
     memcpy(buf, name, name_size);
-    buf += ((name_size + 3) / 4) * 4;
+    buf += ROUND_UP(name_size, 4);
     memcpy(buf + 32, &id, 4); /* pr_pid */
     buf += descsz - sizeof(x86_64_user_regs_struct)-sizeof(target_ulong);
     memcpy(buf, &regs, sizeof(x86_64_user_regs_struct));
@@ -163,9 +163,9 @@ static int x86_write_elf64_note(WriteCoreDumpFunction f, CPUX86State *env,
     note->n_descsz = cpu_to_le32(descsz);
     note->n_type = cpu_to_le32(NT_PRSTATUS);
     buf = (char *)note;
-    buf += ((sizeof(Elf64_Nhdr) + 3) / 4) * 4;
+    buf += ROUND_UP(sizeof(Elf64_Nhdr), 4);
     memcpy(buf, name, name_size);
-    buf += ((name_size + 3) / 4) * 4;
+    buf += ROUND_UP(name_size, 4);
     memcpy(buf, &prstatus, sizeof(prstatus));
 
     ret = f(note, note_size, opaque);
@@ -218,9 +218,9 @@ int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
     note->n_descsz = cpu_to_le32(descsz);
     note->n_type = cpu_to_le32(NT_PRSTATUS);
     buf = (char *)note;
-    buf += ((sizeof(Elf32_Nhdr) + 3) / 4) * 4;
+    buf += ROUND_UP(sizeof(Elf32_Nhdr), 4);
     memcpy(buf, name, name_size);
-    buf += ((name_size + 3) / 4) * 4;
+    buf += ROUND_UP(name_size, 4);
     memcpy(buf, &prstatus, sizeof(prstatus));
 
     ret = f(note, note_size, opaque);
