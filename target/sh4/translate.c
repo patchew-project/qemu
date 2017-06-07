@@ -249,7 +249,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled)
             gen_helper_debug(cpu_env);
-        tcg_gen_exit_tb(0);
+        tcg_gen_lookup_and_goto_ptr(cpu_pc);
     }
 }
 
@@ -262,7 +262,7 @@ static void gen_jump(DisasContext * ctx)
         tcg_gen_discard_i32(cpu_delayed_pc);
 	if (ctx->singlestep_enabled)
             gen_helper_debug(cpu_env);
-	tcg_gen_exit_tb(0);
+        tcg_gen_lookup_and_goto_ptr(cpu_pc);
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);
     }
