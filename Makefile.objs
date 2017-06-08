@@ -40,6 +40,7 @@ io-obj-y = io/
 
 ifeq ($(CONFIG_SOFTMMU),y)
 common-obj-y = blockdev.o blockdev-nbd.o block/
+common-obj-y += balloon.o numa.o bootdevice.o
 common-obj-y += iothread.o
 common-obj-y += net/
 common-obj-y += qdev-monitor.o device-hotplug.o
