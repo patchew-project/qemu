@@ -55,6 +55,7 @@ struct XenInput {
     int vkbd_standalone;    /* Guest supports vkbd without vfb device */
     int button_state;       /* Last seen pointer button state */
     int extended;
+    QEMUPutKbdEntry *qkbd;
     QEMUPutMouseEntry *qmouse;
 };
 
@@ -365,7 +366,6 @@ static int input_initialise(struct XenDevice *xendev)
     if (rc != 0)
 	return rc;
 
-    qemu_add_kbd_event_handler(xenfb_key_event, in);
     return 0;
 }
 
@@ -378,10 +378,14 @@ static void input_connected(struct XenDevice *xendev)
         in->abs_pointer_wanted = 0;
     }
 
+    if (in->qkbd) {
+        qemu_remove_kbd_event_handler(in->qkbd);
+    }
     if (in->qmouse) {
         qemu_remove_mouse_event_handler(in->qmouse);
     }
     trace_xenfb_input_connected(xendev, in->abs_pointer_wanted);
+    in->qkbd = qemu_add_kbd_event_handler(xenfb_key_event, in);
     in->qmouse = qemu_add_mouse_event_handler(xenfb_mouse_event, in,
 					      in->abs_pointer_wanted,
 					      "Xen PVFB Mouse");
@@ -392,11 +396,14 @@ static void input_disconnect(struct XenDevice *xendev)
 {
     struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
 
+    if (in->qkbd) {
+        qemu_remove_kbd_event_handler(in->qkbd);
+        in->qkbd = NULL;
+    }
     if (in->qmouse) {
 	qemu_remove_mouse_event_handler(in->qmouse);
 	in->qmouse = NULL;
     }
-    qemu_add_kbd_event_handler(NULL, NULL);
     common_unbind(&in->c);
 }
 
