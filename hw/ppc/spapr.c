@@ -1308,6 +1308,7 @@ static void ppc_spapr_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;
     hwaddr rtas_addr, fdt_addr;
@@ -1373,6 +1374,7 @@ static void ppc_spapr_reset(void)
     first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
     spapr->cas_reboot = false;
+    spapr->cas_completed = smc->cas_completed_default;
 }
 
 static void spapr_create_nvram(sPAPRMachineState *spapr)
@@ -1528,6 +1530,27 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static bool spapr_cas_completed_needed(void *opaque)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(opaque);
+
+    /* we need to migrate cas_completed only if it is
+     * not set by default
+     */
+    return !smc->cas_completed_default;
+}
+
+static const VMStateDescription vmstate_spapr_cas_completed = {
+    .name = "spapr_cas_completed",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_cas_completed_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(cas_completed, sPAPRMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1546,6 +1569,7 @@ static const VMStateDescription vmstate_spapr = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
+        &vmstate_spapr_cas_completed,
         NULL
     }
 };
@@ -2599,6 +2623,7 @@ out:
 static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
+    sPAPRMachineState *ms = SPAPR_MACHINE(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
@@ -2616,6 +2641,14 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         error_setg(errp, "Memory backend has bad page size. "
                    "Use 'memory-backend-file' with correct mem-path.");
         return;
+    }
+    if (dev->hotplugged) {
+        if (!runstate_check(RUN_STATE_PRELAUNCH) &&
+            !runstate_check(RUN_STATE_INMIGRATE) &&
+            !ms->cas_completed) {
+            error_setg(errp, "Memory hotplug not supported without OS");
+            return;
+        }
     }
 }
 
@@ -2915,6 +2948,7 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     MachineState *machine = MACHINE(OBJECT(hotplug_dev));
+    sPAPRMachineState *ms = SPAPR_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     Error *local_err = NULL;
     CPUCore *cc = CPU_CORE(dev);
@@ -2923,9 +2957,18 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUArchId *core_slot;
     int index;
 
-    if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
-        error_setg(&local_err, "CPU hotplug not supported for this machine");
-        goto out;
+    if (dev->hotplugged) {
+        if (!mc->has_hotpluggable_cpus) {
+            error_setg(&local_err,
+                       "CPU hotplug not supported for this machine");
+            goto out;
+        }
+        if (!runstate_check(RUN_STATE_PRELAUNCH) &&
+            !runstate_check(RUN_STATE_INMIGRATE) &&
+            !ms->cas_completed) {
+            error_setg(&local_err, "CPU hotplug not supported without OS");
+            goto out;
+        }
     }
 
     if (strcmp(base_core_type, type)) {
@@ -3358,9 +3401,11 @@ static void spapr_machine_2_9_instance_options(MachineState *machine)
 
 static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     spapr_machine_2_10_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
     mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
+    smc->cas_completed_default = true;
 }
 
 DEFINE_SPAPR_MACHINE(2_9, "2.9", false);

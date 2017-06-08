@@ -1185,6 +1185,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         }
     }
 
+    spapr->cas_completed = true;
     return H_SUCCESS;
 }
 

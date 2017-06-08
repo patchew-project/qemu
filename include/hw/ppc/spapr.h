@@ -57,6 +57,7 @@ struct sPAPRMachineClass {
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
+    bool cas_completed_default;
 };
 
 /**
@@ -90,6 +91,7 @@ struct sPAPRMachineState {
     sPAPROptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
     bool cas_reboot;
     bool cas_legacy_guest_workaround;
+    bool cas_completed;
 
     Notifier epow_notifier;
     QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
