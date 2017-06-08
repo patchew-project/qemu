@@ -1013,6 +1013,13 @@ struct CPUPPCState {
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 
+    /* CPU in reset, shouldn't process any interrupts.
+     *
+     * Decrementer interrupts in TCG can still wake the CPU up. Make sure that
+     * when this variable is set, cpu_has_work_* should return false.
+     */
+    int in_reset;
+
     CPU_COMMON
 
     /* MMU context - only relevant for full system emulation */

@@ -1427,6 +1427,7 @@ static void ppc_spapr_reset(void)
     first_ppc_cpu->env.gpr[3] = fdt_addr;
     first_ppc_cpu->env.gpr[5] = 0;
     first_cpu->halted = 0;
+    first_ppc_cpu->env.in_reset = 0;
     first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
     spapr->cas_reboot = false;

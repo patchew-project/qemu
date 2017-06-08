@@ -84,6 +84,7 @@ static void spapr_cpu_reset(void *opaque)
      * reset code and the rest are explicitly started up by the guest
      * using an RTAS call */
     cs->halted = 1;
+    env->in_reset = 1;
 
     env->spr[SPR_HIOR] = 0;
 

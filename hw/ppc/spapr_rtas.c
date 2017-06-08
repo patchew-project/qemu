@@ -177,6 +177,7 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
         env->nip = start;
         env->gpr[3] = r3;
         cs->halted = 0;
+        env->in_reset = 0;
         spapr_cpu_set_endianness(cpu);
         spapr_cpu_update_tb_offset(cpu);
 
