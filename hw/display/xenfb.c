@@ -385,6 +385,7 @@ static void input_connected(struct XenDevice *xendev)
     in->qmouse = qemu_add_mouse_event_handler(xenfb_mouse_event, in,
 					      in->abs_pointer_wanted,
 					      "Xen PVFB Mouse");
+    qemu_activate_mouse_event_handler(in->qmouse);
 }
 
 static void input_disconnect(struct XenDevice *xendev)
