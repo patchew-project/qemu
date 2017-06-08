@@ -39,6 +39,8 @@
 
 /* TODO: Should be configurable */
 #define REGULAR_PACKET_CHECK_MS 3000
+/* TODO: Should be configurable */
+#define CHECKPOINT_MIN_TIME 3000
 
 /*
   + CompareState ++
@@ -455,6 +457,7 @@ static void colo_compare_connection(void *opaque, void *user_data)
     Packet *pkt = NULL;
     GList *result = NULL;
     int ret;
+    static int64_t checkpoint_time_ms;
 
     while (!g_queue_is_empty(&conn->primary_list) &&
            !g_queue_is_empty(&conn->secondary_list)) {
@@ -494,7 +497,11 @@ static void colo_compare_connection(void *opaque, void *user_data)
              */
             trace_colo_compare_main("packet different");
             g_queue_push_tail(&conn->primary_list, pkt);
-            /* TODO: colo_notify_checkpoint();*/
+
+            if (pkt->creation_ms - checkpoint_time_ms > CHECKPOINT_MIN_TIME) {
+                /* TODO: colo_notify_checkpoint();*/
+                checkpoint_time_ms = pkt->creation_ms;
+            }
             break;
         }
     }
