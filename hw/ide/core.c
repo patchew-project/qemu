@@ -416,16 +416,16 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                 /* 6-byte LBA + 2-byte range per entry */
                 uint64_t entry = le64_to_cpu(buffer[i]);
                 uint64_t sector = entry & 0x0000ffffffffffffULL;
-                uint16_t count = entry >> 48;
+                uint16_t bytes = entry >> 48;
 
-                if (count == 0) {
+                if (bytes == 0) {
                     continue;
                 }
 
                 /* Got an entry! Submit and exit.  */
                 iocb->aiocb = blk_aio_pdiscard(iocb->blk,
                                                sector << BDRV_SECTOR_BITS,
-                                               count << BDRV_SECTOR_BITS,
+                                               bytes << BDRV_SECTOR_BITS,
                                                ide_issue_trim_cb, opaque);
                 return;
             }
