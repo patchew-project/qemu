@@ -5,6 +5,7 @@
 #include "qemu/config-file.h"
 #include "qemu/sockets.h"
 #include "chardev/char-fe.h"
+#include "chardev/char-serial.h" /* for HAVE_CHARDEV_SERIAL */
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"
@@ -450,6 +451,32 @@ static void char_udp_test(void)
     g_free(tmp);
 }
 
+#ifdef HAVE_CHARDEV_SERIAL
+static void char_serial_test(void)
+{
+    QemuOpts *opts;
+    Chardev *chr;
+
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "serial-id",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "serial", &error_abort);
+    qemu_opt_set(opts, "path", "/dev/null", &error_abort);
+
+    chr = qemu_chr_new_from_opts(opts, NULL);
+    g_assert_nonnull(chr);
+    /* TODO: add more tests with a pty */
+    object_unparent(OBJECT(chr));
+
+    /* test tty alias */
+    qemu_opt_set(opts, "backend", "tty", &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL);
+    g_assert_nonnull(chr);
+    object_unparent(OBJECT(chr));
+
+    qemu_opts_del(opts);
+}
+#endif
+
 static void char_file_test(void)
 {
     char *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
@@ -597,6 +624,9 @@ int main(int argc, char **argv)
     g_test_add_func("/char/file", char_file_test);
     g_test_add_func("/char/socket", char_socket_test);
     g_test_add_func("/char/udp", char_udp_test);
+#ifdef HAVE_CHARDEV_SERIAL
+    g_test_add_func("/char/serial", char_serial_test);
+#endif
 
     return g_test_run();
 }
