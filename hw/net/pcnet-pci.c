@@ -38,14 +38,6 @@
 
 #include "pcnet.h"
 
-//#define PCNET_DEBUG
-//#define PCNET_DEBUG_IO
-//#define PCNET_DEBUG_BCR
-//#define PCNET_DEBUG_CSR
-//#define PCNET_DEBUG_RMD
-//#define PCNET_DEBUG_TMD
-//#define PCNET_DEBUG_MATCH
-
 #define TYPE_PCI_PCNET "pcnet"
 
 #define PCI_PCNET(obj) \
@@ -283,11 +275,6 @@ static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
     PCIPCNetState *d = PCI_PCNET(pci_dev);
     PCNetState *s = &d->state;
     uint8_t *pci_conf;
-
-#if 0
-    printf("sizeof(RMD)=%d, sizeof(TMD)=%d\n",
-        sizeof(struct pcnet_RMD), sizeof(struct pcnet_TMD));
-#endif
 
     pci_conf = pci_dev->config;
 
