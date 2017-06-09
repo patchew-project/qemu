@@ -770,9 +770,9 @@ static void machine_class_finalize(ObjectClass *klass, void *data)
     g_free(mc->name);
 }
 
-static void register_compat_prop(const char *driver,
-                                 const char *property,
-                                 const char *value)
+void register_compat_prop(const char *driver,
+                          const char *property,
+                          const char *value)
 {
     GlobalProperty *p = g_new0(GlobalProperty, 1);
     /* Machine compat_props must never cause errors: */
