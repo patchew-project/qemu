@@ -570,7 +570,7 @@ static void e100_pci_reset(EEPRO100State *s, Error **errp)
     if (info->power_management) {
         /* Power Management Capabilities */
         int cfg_offset = 0xdc;
-        int r = pci_add_capability(&s->dev, PCI_CAP_ID_PM,
+        int r = pci_add_capability2(&s->dev, PCI_CAP_ID_PM,
                                    cfg_offset, PCI_PM_SIZEOF,
                                    errp);
         if (r < 0) {

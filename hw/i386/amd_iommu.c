@@ -1158,19 +1158,19 @@ static void amdvi_realize(DeviceState *dev, Error **err)
     x86_iommu->type = TYPE_AMD;
     qdev_set_parent_bus(DEVICE(&s->pci), &bus->qbus);
     object_property_set_bool(OBJECT(&s->pci), true, "realized", err);
-    ret = pci_add_capability(&s->pci.dev, AMDVI_CAPAB_ID_SEC, 0,
+    ret = pci_add_capability2(&s->pci.dev, AMDVI_CAPAB_ID_SEC, 0,
                                          AMDVI_CAPAB_SIZE, err);
     if (ret < 0) {
         return;
     }
     s->capab_offset = ret;
 
-    ret = pci_add_capability(&s->pci.dev, PCI_CAP_ID_MSI, 0,
+    ret = pci_add_capability2(&s->pci.dev, PCI_CAP_ID_MSI, 0,
                              AMDVI_CAPAB_REG_SIZE, err);
     if (ret < 0) {
         return;
     }
-    ret = pci_add_capability(&s->pci.dev, PCI_CAP_ID_HT, 0,
+    ret = pci_add_capability2(&s->pci.dev, PCI_CAP_ID_HT, 0,
                              AMDVI_CAPAB_REG_SIZE, err);
     if (ret < 0) {
         return;

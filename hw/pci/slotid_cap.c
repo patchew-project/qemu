@@ -24,7 +24,7 @@ int slotid_cap_init(PCIDevice *d, int nslots,
         return -EINVAL;
     }
 
-    cap = pci_add_capability(d, PCI_CAP_ID_SLOTID, offset,
+    cap = pci_add_capability2(d, PCI_CAP_ID_SLOTID, offset,
                              SLOTID_CAP_LENGTH, &local_err);
     if (cap < 0) {
         error_report_err(local_err);

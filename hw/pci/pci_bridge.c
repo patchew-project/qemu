@@ -46,7 +46,7 @@ int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
     int pos;
     Error *local_err = NULL;
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_SSVID, offset,
+    pos = pci_add_capability2(dev, PCI_CAP_ID_SSVID, offset,
                              PCI_SSVID_SIZEOF, &local_err);
     if (pos < 0) {
         error_report_err(local_err);
