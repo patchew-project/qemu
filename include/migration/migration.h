@@ -174,6 +174,8 @@ struct MigrationState
 
     /* Whether we skip QEMU_VM_CONFIGURATION for migration */
     bool skip_configuration;
+    /* Whether we skip section footer */
+    bool skip_section_footer;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -250,7 +252,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                              ram_addr_t offset, size_t size,
                              uint64_t *bytes_sent);
 
-void savevm_skip_section_footers(void);
 void register_global_state(void);
 int global_state_store(void);
 void global_state_store_running(void);

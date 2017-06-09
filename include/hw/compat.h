@@ -183,6 +183,10 @@
         .value    = "on",\
     },{\
         .driver   = "migration",\
+        .property = "skip-section-footer",\
+        .value    = "on",\
+    },{\
+        .driver   = "migration",\
         .property = "store-global-state",\
         .value    = "off",\
     },

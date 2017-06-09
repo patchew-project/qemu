@@ -146,7 +146,7 @@ static int xen_init(MachineState *ms)
      */
     register_compat_prop("migration", "store-global-state", "off");
     register_compat_prop("migration", "skip-configuration", "on");
-    savevm_skip_section_footers();
+    register_compat_prop("migration", "skip-section-footer", "on");
 
     return 0;
 }
