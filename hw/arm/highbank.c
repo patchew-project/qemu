@@ -31,6 +31,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
+#include "hw/ide/ahci.h"
 
 #define SMP_BOOT_ADDR           0x100
 #define SMP_BOOT_REG            0x40
@@ -341,7 +342,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     sysbus_create_simple("pl031", 0xfff35000, pic[19]);
     sysbus_create_simple("pl022", 0xfff39000, pic[23]);
 
-    sysbus_create_simple("sysbus-ahci", 0xffe08000, pic[83]);
+    sysbus_create_simple(TYPE_SYSBUS_AHCI, 0xffe08000, pic[83]);
 
     if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], "xgmac");
