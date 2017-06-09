@@ -2096,6 +2096,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
                      store_global_state, true),
     DEFINE_PROP_BOOL("only-migratable", MigrationState, only_migratable, false),
+    DEFINE_PROP_BOOL("skip-configuration", MigrationState,
+                     skip_configuration, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

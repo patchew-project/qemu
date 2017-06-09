@@ -171,6 +171,9 @@ struct MigrationState
 
     /* Whether the VM is only allowing for migratable devices */
     bool only_migratable;
+
+    /* Whether we skip QEMU_VM_CONFIGURATION for migration */
+    bool skip_configuration;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -249,7 +252,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
 
 void savevm_skip_section_footers(void);
 void register_global_state(void);
-void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
 
