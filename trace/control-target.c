@@ -40,6 +40,7 @@ static void trace_event_synchronize_vcpu_state_dynamic(
 {
     bitmap_copy(vcpu->trace_dstate, vcpu->trace_dstate_delayed,
                 CPU_TRACE_DSTATE_MAX_EVENTS);
+    tb_flush_jmp_cache_all(vcpu);
 }
 
 void trace_event_set_state_dynamic(TraceEvent *ev, bool state)

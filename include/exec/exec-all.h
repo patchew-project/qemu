@@ -324,6 +324,9 @@ struct TranslationBlock {
 #define CF_USE_ICOUNT  0x20000
 #define CF_IGNORE_ICOUNT 0x40000 /* Do not generate icount code */
 
+    /* Tracing Dynamic State (hence '_ds') used to generate this TB */
+    uint32_t trace_ds;
+
     uint16_t invalid;
 
     void *tc_ptr;    /* pointer to the translated code */

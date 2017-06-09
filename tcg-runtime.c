@@ -155,9 +155,10 @@ void *HELPER(lookup_tb_ptr)(CPUArchState *env, target_ulong addr)
     if (likely(tb)) {
         cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
         if (likely(tb->pc == addr && tb->cs_base == cs_base &&
-                   tb->flags == flags)) {
+                   tb->flags == flags && tb->trace_ds == *cpu->trace_dstate)) {
             goto found;
         }
+
         tb = tb_htable_lookup(cpu, addr, cs_base, flags);
         if (likely(tb)) {
             atomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(addr)], tb);
