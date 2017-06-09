@@ -25,6 +25,8 @@
 #define HW_IDE_AHCI_H
 
 #include "hw/sysbus.h"
+#include "hw/ide/internal.h"
+#include "sysemu/dma.h"
 
 #define AHCI_MEM_BAR_SIZE         0x1000
 #define AHCI_MAX_PORTS            32
