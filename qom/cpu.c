@@ -382,7 +382,6 @@ static void cpu_common_unrealizefn(DeviceState *dev, Error **errp)
 
 static void cpu_common_initfn(Object *obj)
 {
-    uint32_t count;
     CPUState *cpu = CPU(obj);
     CPUClass *cc = CPU_GET_CLASS(obj);
 
@@ -397,18 +396,11 @@ static void cpu_common_initfn(Object *obj)
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
 
-    count = trace_get_vcpu_event_count();
-    if (count) {
-        cpu->trace_dstate = bitmap_new(count);
-    }
-
     cpu_exec_initfn(cpu);
 }
 
 static void cpu_common_finalize(Object *obj)
 {
-    CPUState *cpu = CPU(obj);
-    g_free(cpu->trace_dstate);
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)
