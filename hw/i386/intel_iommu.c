@@ -2253,24 +2253,20 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
     IOMMUTLBEntry ret = {
+        /* We'll fill in the rest later. */
         .target_as = &address_space_memory,
-        .iova = addr,
-        .translated_addr = 0,
-        .addr_mask = ~(hwaddr)0,
-        .perm = IOMMU_NONE,
     };
 
-    if (!s->dmar_enabled) {
+    if (likely(s->dmar_enabled)) {
+        vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn, addr,
+                               flag & IOMMU_WO, &ret);
+    } else {
         /* DMAR disabled, passthrough, use 4k-page*/
         ret.iova = addr & VTD_PAGE_MASK_4K;
         ret.translated_addr = addr & VTD_PAGE_MASK_4K;
         ret.addr_mask = ~VTD_PAGE_MASK_4K;
         ret.perm = IOMMU_RW;
-        return ret;
     }
-
-    vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn, addr,
-                           flag & IOMMU_WO, &ret);
 
     trace_vtd_dmar_translate(pci_bus_num(vtd_as->bus),
                              VTD_PCI_SLOT(vtd_as->devfn),
