@@ -138,7 +138,13 @@ static int xen_init(MachineState *ms)
     }
     qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
 
-    global_state_set_optional();
+    /*
+     * TODO: make sure global MigrationState has not yet been created
+     * (otherwise the compat trick won't work). For now we are in
+     * configure_accelerator() so we are mostly good. Better to
+     * confirm that in the future.
+     */
+    register_compat_prop("migration", "store-global-state", "off");
     savevm_skip_configuration();
     savevm_skip_section_footers();
 

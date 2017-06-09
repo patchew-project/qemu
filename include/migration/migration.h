@@ -162,6 +162,12 @@ struct MigrationState
     /* Do we have to clean up -b/-i from old migrate parameters */
     /* This feature is deprecated and will be removed */
     bool must_remove_block_options;
+
+    /*
+     * Global switch on whether we need to store the global state
+     * during migration.
+     */
+    bool store_global_state;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -240,7 +246,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
 
 void savevm_skip_section_footers(void);
 void register_global_state(void);
-void global_state_set_optional(void);
 void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
