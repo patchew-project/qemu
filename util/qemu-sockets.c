@@ -133,6 +133,64 @@ int inet_ai_family_from_address(InetSocketAddress *addr,
     return PF_UNSPEC;
 }
 
+static int create_fast_reuse_socket(struct addrinfo *e, Error **errp)
+{
+    int slisten = qemu_socket(e->ai_family, e->ai_socktype, e->ai_protocol);
+    if (slisten < 0) {
+        if (!e->ai_next) {
+            error_setg_errno(errp, errno, "Failed to create socket");
+        }
+        return -1;
+    }
+
+    socket_set_fast_reuse(slisten);
+#ifdef IPV6_V6ONLY
+    if (e->ai_family == PF_INET6) {
+        /* listen on both ipv4 and ipv6 */
+        const int off = 0;
+        qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &off,
+                        sizeof(off));
+    }
+#endif
+    return slisten;
+}
+
+static int try_bind_listen(int *socket, struct addrinfo *e,
+                           int port, Error **errp)
+{
+    int s = *socket;
+    int ret;
+
+    inet_setport(e, port);
+    ret = bind(s, e->ai_addr, e->ai_addrlen);
+    if (ret) {
+        if (errno != EADDRINUSE) {
+            error_setg_errno(errp, errno, "Failed to bind socket");
+        }
+        return errno;
+    }
+    if (listen(s, 1) == 0) {
+            return 0;
+    }
+    if (errno == EADDRINUSE) {
+        /* We got to bind the socket to a port but someone else managed
+         * to bind to the same port and beat us to listen on it!
+         * Recreate the socket and return EADDRINUSE to preserve the
+         * expected state by the caller:
+         */
+        closesocket(s);
+        s = create_fast_reuse_socket(e, errp);
+        if (s < 0) {
+            return errno;
+        }
+        *socket = s;
+        errno = EADDRINUSE;
+        return errno;
+    }
+    error_setg_errno(errp, errno, "Failed to listen on socket");
+    return errno;
+}
+
 static int inet_listen_saddr(InetSocketAddress *saddr,
                              int port_offset,
                              bool update_addr,
@@ -143,6 +201,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
     int slisten, rc, port_min, port_max, p;
+    int saved_errno = 0;
     Error *err = NULL;
 
     memset(&ai,0, sizeof(ai));
@@ -194,54 +253,39 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         return -1;
     }
 
-    /* create socket + bind */
+    /* create socket + bind/listen */
     for (e = res; e != NULL; e = e->ai_next) {
         getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
 		        uaddr,INET6_ADDRSTRLEN,uport,32,
 		        NI_NUMERICHOST | NI_NUMERICSERV);
-        slisten = qemu_socket(e->ai_family, e->ai_socktype, e->ai_protocol);
+
+        slisten = create_fast_reuse_socket(e, &err);
         if (slisten < 0) {
-            if (!e->ai_next) {
-                error_setg_errno(errp, errno, "Failed to create socket");
-            }
             continue;
         }
-
-        socket_set_fast_reuse(slisten);
-#ifdef IPV6_V6ONLY
-        if (e->ai_family == PF_INET6) {
-            /* listen on both ipv4 and ipv6 */
-            const int off = 0;
-            qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &off,
-                            sizeof(off));
-        }
-#endif
-
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
-            inet_setport(e, p);
-            if (bind(slisten, e->ai_addr, e->ai_addrlen) == 0) {
-                goto listen;
-            }
-            if (p == port_max) {
-                if (!e->ai_next) {
-                    error_setg_errno(errp, errno, "Failed to bind socket");
-                }
+            int eno = try_bind_listen(&slisten, e, p, &err);
+            if (!eno) {
+                goto listen_ok;
+            } else if (eno != EADDRINUSE) {
+                goto listen_failed;
             }
         }
+    }
+    error_setg_errno(errp, errno, "Failed to find available port");
+
+listen_failed:
+    saved_errno = errno;
+    if (slisten >= 0) {
         closesocket(slisten);
     }
     freeaddrinfo(res);
+    errno = saved_errno;
     return -1;
 
-listen:
-    if (listen(slisten,1) != 0) {
-        error_setg_errno(errp, errno, "Failed to listen on socket");
-        closesocket(slisten);
-        freeaddrinfo(res);
-        return -1;
-    }
+listen_ok:
     if (update_addr) {
         g_free(saddr->host);
         saddr->host = g_strdup(uaddr);
