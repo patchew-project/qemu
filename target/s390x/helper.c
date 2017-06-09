@@ -737,6 +737,6 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     if (retaddr) {
         cpu_restore_state(cs, retaddr);
     }
-    program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER);
+    program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
 }
 #endif /* CONFIG_USER_ONLY */
