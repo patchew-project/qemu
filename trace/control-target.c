@@ -1,13 +1,14 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2014-2016 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2014-2017 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpu.h"
 #include "cpu.h"
 #include "trace-root.h"
 #include "trace/control.h"
@@ -32,6 +33,13 @@ void trace_event_set_state_dynamic_init(TraceEvent *ev, bool state)
             *ev->dstate = 0;
         }
     }
+}
+
+static void trace_event_synchronize_vcpu_state_dynamic(
+    CPUState *vcpu, run_on_cpu_data ignored)
+{
+    bitmap_copy(vcpu->trace_dstate, vcpu->trace_dstate_delayed,
+                CPU_TRACE_DSTATE_MAX_EVENTS);
 }
 
 void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
@@ -69,13 +77,20 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
     if (state_pre != state) {
         if (state) {
             trace_events_enabled_count++;
-            set_bit(vcpu_id, vcpu->trace_dstate);
+            set_bit(vcpu_id, vcpu->trace_dstate_delayed);
             (*ev->dstate)++;
         } else {
             trace_events_enabled_count--;
-            clear_bit(vcpu_id, vcpu->trace_dstate);
+            clear_bit(vcpu_id, vcpu->trace_dstate_delayed);
             (*ev->dstate)--;
         }
+        /*
+         * Delay changes until next TB; we want all TBs to be built from a
+         * single set of dstate values to ensure consistency of generated
+         * tracing code.
+         */
+        async_run_on_cpu(vcpu, trace_event_synchronize_vcpu_state_dynamic,
+                         RUN_ON_CPU_NULL);
     }
 }
 
