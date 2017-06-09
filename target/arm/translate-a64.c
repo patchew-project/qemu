@@ -1394,6 +1394,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
          * any pending interrupts immediately.
          */
         s->is_jmp = DISAS_UPDATE;
+        /* s->is_magic = true; */
         return;
     default:
         unallocated_encoding(s);
@@ -1423,6 +1424,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         tcg_temp_free_i32(tcg_imm);
         tcg_temp_free_i32(tcg_op);
         s->is_jmp = DISAS_UPDATE;
+        /* s->is_magic = true; */
         break;
     }
     default:
@@ -1592,12 +1594,14 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         /* I/O operations must end the TB here (whether read or write) */
         gen_io_end();
         s->is_jmp = DISAS_UPDATE;
+        /* s->is_magic = true; */
     } else if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
         /* We default to ending the TB on a coprocessor register write,
          * but allow this to be suppressed by the register definition
          * (usually only necessary to work around guest bugs).
          */
         s->is_jmp = DISAS_UPDATE;
+        /* s->is_magic = true; */
     }
 }
 
@@ -1772,13 +1776,18 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 
     switch (opc) {
     case 0: /* BR */
+        /* s->is_magic = true; */
+        gen_a64_set_pc(s, cpu_reg(s, rn));
+        break;
     case 1: /* BLR */
-    case 2: /* RET */
+        /* s->is_magic = true; */
         gen_a64_set_pc(s, cpu_reg(s, rn));
         /* BLR also needs to load return address */
-        if (opc == 1) {
-            tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
-        }
+        tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+        break;
+    case 2: /* RET */
+        s->is_magic = true;
+        gen_a64_set_pc(s, cpu_reg(s, rn));
         break;
     case 4: /* ERET */
         if (s->current_el == 0) {
@@ -1787,6 +1796,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         }
         gen_helper_exception_return(cpu_env);
         s->is_jmp = DISAS_JUMP;
+        /* s->is_magic = true; */
         return;
     case 5: /* DRPS */
         if (rn != 0x1f) {
@@ -11250,6 +11260,7 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
     dc->pstate_ss = ARM_TBFLAG_PSTATE_SS(tb->flags);
     dc->is_ldex = false;
     dc->ss_same_el = (arm_debug_target_el(env) == dc->current_el);
+    dc->is_magic = false;
 
     init_tmp_a64_array(dc);
 
@@ -11281,6 +11292,7 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
                         gen_helper_check_breakpoints(cpu_env);
                         /* End the TB early; it likely won't be executed */
                         dc->is_jmp = DISAS_UPDATE;
+                        /* dc->is_magic = true; */
                     } else {
                         gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
                         /* The address covered by the breakpoint must be
@@ -11367,6 +11379,7 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
             gen_a64_set_pc_im(dc->pc);
             /* fall through */
         case DISAS_JUMP:
+            tb->is_magic = dc->is_magic;
             tcg_gen_lookup_and_goto_ptr(cpu_pc);
             break;
         case DISAS_TB_JUMP:

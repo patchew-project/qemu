@@ -62,6 +62,8 @@ typedef struct DisasContext {
     bool ss_same_el;
     /* Bottom two bits of XScale c15_cpar coprocessor access control reg */
     int c15_cpar;
+
+    bool is_magic;
     /* TCG op index of the current insn_start.  */
     int insn_start_idx;
 #define TMP_A64_MAX 16

@@ -326,6 +326,8 @@ struct TranslationBlock {
 
     uint16_t invalid;
 
+    bool is_magic;
+
     void *tc_ptr;    /* pointer to the translated code */
     uint8_t *tc_search;  /* pointer to search data */
     /* original tb when cflags has CF_NOCACHE */

@@ -168,7 +168,9 @@ void *HELPER(lookup_tb_ptr)(CPUArchState *env, target_ulong addr)
             tb = tb_htable_lookup(cpu, addr, cs_base, flags);
             if (likely(tb)) {
                 atomic_set(&cpu->tb_jmp_cache[addr_hash], tb);
-                code_ptr = tb->tc_ptr;
+                if (!tb->is_magic) {
+                    code_ptr = tb->tc_ptr;
+                }
             }
         }
     }
