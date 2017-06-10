@@ -492,7 +492,9 @@ static bool tracked_request_overlaps(BdrvTrackedRequest *req,
 
 void bdrv_inc_in_flight(BlockDriverState *bs)
 {
-    atomic_inc(&bs->in_flight);
+    if (bs) {
+        atomic_inc(&bs->in_flight);
+    }
 }
 
 static void dummy_bh_cb(void *opaque)
@@ -508,8 +510,10 @@ void bdrv_wakeup(BlockDriverState *bs)
 
 void bdrv_dec_in_flight(BlockDriverState *bs)
 {
-    atomic_dec(&bs->in_flight);
-    bdrv_wakeup(bs);
+    if (bs) {
+        atomic_dec(&bs->in_flight);
+        bdrv_wakeup(bs);
+    }
 }
 
 static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
