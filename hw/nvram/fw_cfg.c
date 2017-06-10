@@ -941,6 +941,7 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
                                 AddressSpace *dma_as)
 {
     DeviceState *dev;
+    SysBusDevice *sbd;
     FWCfgState *s;
     bool dma_requested = dma_iobase && dma_as;
 
@@ -953,12 +954,16 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
 
     qdev_init_nofail(dev);
 
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_add_io(sbd, iobase, sysbus_mmio_get_region(sbd, 0));
+
     s = FW_CFG(dev);
 
     if (s->dma_enabled) {
         /* 64 bits for the address field */
         s->dma_as = dma_as;
         s->dma_addr = 0;
+        sysbus_add_io(sbd, dma_iobase, sysbus_mmio_get_region(sbd, 1));
     }
 
     return s;
@@ -1090,13 +1095,13 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
      * of the i/o region used is FW_CFG_CTL_SIZE */
     memory_region_init_io(&s->comb_iomem, OBJECT(s), &fw_cfg_comb_mem_ops,
                           FW_CFG(s), "fwcfg", FW_CFG_CTL_SIZE);
-    sysbus_add_io(sbd, s->iobase, &s->comb_iomem);
+    sysbus_init_mmio(sbd, &s->comb_iomem);
 
     if (FW_CFG(s)->dma_enabled) {
         memory_region_init_io(&FW_CFG(s)->dma_iomem, OBJECT(s),
                               &fw_cfg_dma_mem_ops, FW_CFG(s), "fwcfg.dma",
                               sizeof(dma_addr_t));
-        sysbus_add_io(sbd, s->dma_iobase, &FW_CFG(s)->dma_iomem);
+        sysbus_init_mmio(sbd, &FW_CFG(s)->dma_iomem);
     }
 }
 
