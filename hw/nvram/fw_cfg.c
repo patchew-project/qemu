@@ -910,7 +910,7 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 
 
 
-static void fw_cfg_init1(DeviceState *dev)
+static void fw_cfg_common_realize(DeviceState *dev)
 {
     FWCfgState *s = FW_CFG(dev);
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -951,7 +951,6 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
         qdev_prop_set_bit(dev, "dma_enabled", false);
     }
 
-    fw_cfg_init1(dev);
     qdev_init_nofail(dev);
 
     s = FW_CFG(dev);
@@ -985,7 +984,6 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
         qdev_prop_set_bit(dev, "dma_enabled", false);
     }
 
-    fw_cfg_init1(dev);
     qdev_init_nofail(dev);
 
     sbd = SYS_BUS_DEVICE(dev);
@@ -1085,6 +1083,8 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    fw_cfg_common_realize(dev);
+
     /* when using port i/o, the 8-bit data register ALWAYS overlaps
      * with half of the 16-bit control register. Hence, the total size
      * of the i/o region used is FW_CFG_CTL_SIZE */
@@ -1137,6 +1137,8 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    fw_cfg_common_realize(dev);
 
     memory_region_init_io(&s->ctl_iomem, OBJECT(s), &fw_cfg_ctl_mem_ops,
                           FW_CFG(s), "fwcfg.ctl", FW_CFG_CTL_SIZE);
