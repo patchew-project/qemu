@@ -1017,6 +1017,15 @@ FWCfgState *fw_cfg_find(void)
     return FW_CFG(object_resolve_path(FW_CFG_PATH, NULL));
 }
 
+static void fw_cfg_init(Object *obj)
+{
+    FWCfgState *s = FW_CFG(obj);
+
+    s->entries[0] = g_new0(FWCfgEntry, fw_cfg_max_entry(s));
+    s->entries[1] = g_new0(FWCfgEntry, fw_cfg_max_entry(s));
+    s->entry_order = g_new0(int, fw_cfg_max_entry(s));
+}
+
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1030,6 +1039,7 @@ static const TypeInfo fw_cfg_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .abstract      = true,
     .instance_size = sizeof(FWCfgState),
+    .instance_init = fw_cfg_init,
     .class_init    = fw_cfg_class_init,
 };
 
@@ -1052,10 +1062,6 @@ static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
                    file_slots_max);
         return;
     }
-
-    s->entries[0] = g_new0(FWCfgEntry, fw_cfg_max_entry(s));
-    s->entries[1] = g_new0(FWCfgEntry, fw_cfg_max_entry(s));
-    s->entry_order = g_new0(int, fw_cfg_max_entry(s));
 }
 
 static Property fw_cfg_io_properties[] = {
