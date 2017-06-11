@@ -185,6 +185,9 @@ static bool throttle_compute_timer(ThrottleState *ts,
 void throttle_timers_attach_aio_context(ThrottleTimers *tt,
                                         AioContext *new_context)
 {
+    ThrottleGroupMember *tgm = container_of(tt, ThrottleGroupMember, throttle_timers);
+    tgm->aio_context = new_context;
+
     tt->timers[0] = aio_timer_new(new_context, tt->clock_type, SCALE_NS,
                                   tt->read_timer_cb, tt->timer_opaque);
     tt->timers[1] = aio_timer_new(new_context, tt->clock_type, SCALE_NS,
@@ -241,6 +244,8 @@ static void throttle_timer_destroy(QEMUTimer **timer)
 /* Remove timers from event loop */
 void throttle_timers_detach_aio_context(ThrottleTimers *tt)
 {
+    ThrottleGroupMember *tgm = container_of(tt, ThrottleGroupMember, throttle_timers);
+    tgm->aio_context = NULL;
     int i;
 
     for (i = 0; i < 2; i++) {

@@ -27,6 +27,9 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
+#include "qemu/queue.h"
+#include "qemu/thread.h"
+#include "qemu/coroutine.h"
 
 #define THROTTLE_VALUE_MAX 1000000000000000LL
 
@@ -152,5 +155,66 @@ bool throttle_schedule_timer(ThrottleState *ts,
                              bool is_write);
 
 void throttle_account(ThrottleState *ts, bool is_write, uint64_t size);
+
+/* The ThrottleGroup structure (with its ThrottleState) is shared among
+ * different ThrottleGroupMembers and it's independent from AioContext, so in
+ * order to use it from different threads it needs its own locking.
+ *
+ * This locking is however handled internally in block/throttle-groups.c so
+ * it's transparent to outside users.
+ *
+ * The whole ThrottleGroup structure is private and invisible to outside users,
+ * that only use it through its ThrottleState.
+ *
+ * In addition to the ThrottleGroup structure, ThrottleGroupMember has fields
+ * that need to be accessed by other members of the group and therefore also
+ * need to be protected by this lock. Once a ThrottleGroupMember is registered
+ * in a group those fields can be accessed by other threads any time.
+ *
+ * Again, all this is handled internally in block/throttle-groups.c and is
+ * mostly transparent to the outside. The 'throttle_timers' field however has
+ * an additional constraint because it may be temporarily invalid (see for
+ * example bdrv_set_aio_context()). Therefore block/throttle-groups.c will
+ * access some other ThrottleGroupMember's timers only after verifying that
+ * ThrottleGroupMember  has throttled requests in the queue.
+ */
+
+typedef struct ThrottleGroup {
+    char *name; /* This is constant during the lifetime of the group */
+
+    QemuMutex lock; /* This lock protects the following four fields */
+    ThrottleState ts;
+    QLIST_HEAD(, ThrottleGroupMember) head;
+    struct ThrottleGroupMember *tokens[2];
+    bool any_timer_armed[2];
+
+    /* These two are protected by the global throttle_groups_lock */
+    unsigned refcount;
+    QTAILQ_ENTRY(ThrottleGroup) list;
+} ThrottleGroup;
+
+/* The ThrottleGroupMember structure indicates membership in a ThrottleGroup
+ * and holds related data.
+ */
+
+typedef struct ThrottleGroupMember {
+    AioContext *aio_context;
+    /* I/O throttling has its own locking, but also some fields are
+     * protected by the AioContext lock.
+     */
+
+    /* Protected by AioContext lock.  */
+    CoQueue      throttled_reqs[2];
+
+    /* Nonzero if the I/O limits are currently being ignored; generally
+     * it is zero.  */
+    unsigned int io_limits_disabled;
+
+    ThrottleState *throttle_state;
+    ThrottleTimers throttle_timers;
+    unsigned       pending_reqs[2];
+    QLIST_ENTRY(ThrottleGroupMember) round_robin;
+
+} ThrottleGroupMember;
 
 #endif
