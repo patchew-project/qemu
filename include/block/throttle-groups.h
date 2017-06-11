@@ -44,5 +44,9 @@ void throttle_group_restart_tgm(ThrottleGroupMember *tgm);
 void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm,
                                                         unsigned int bytes,
                                                         bool is_write);
-
+ThrottleGroupMember *throttle_group_next_tgm(ThrottleGroupMember *tgm);
+void schedule_next_request(struct ThrottleGroupMember *tgm, bool is_write);
+void timer_cb(ThrottleGroupMember *tgm, bool is_write);
+void read_timer_cb(void *opaque);
+void write_timer_cb(void *opaque);
 #endif

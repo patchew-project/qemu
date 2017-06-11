@@ -29,10 +29,10 @@
 #include "qemu/thread.h"
 #include "sysemu/qtest.h"
 
-
-static QemuMutex throttle_groups_lock;
-static QTAILQ_HEAD(, ThrottleGroup) throttle_groups =
+QemuMutex throttle_groups_lock;
+QTAILQ_HEAD(throttle_groups_head, ThrottleGroup) throttle_groups =
     QTAILQ_HEAD_INITIALIZER(throttle_groups);
+
 
 /* Increments the reference count of a ThrottleGroup given its name.
  *
@@ -117,7 +117,7 @@ const char *throttle_group_get_name(ThrottleGroupMember *tgm)
  * @tgm: the current ThrottleGroupMember
  * @ret: the next ThrottleGroupMember in the sequence
  */
-static ThrottleGroupMember *throttle_group_next_tgm(ThrottleGroupMember *tgm)
+ThrottleGroupMember *throttle_group_next_tgm(ThrottleGroupMember *tgm)
 {
     ThrottleState *ts = tgm->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
@@ -229,7 +229,7 @@ static bool throttle_group_schedule_timer(ThrottleGroupMember *tgm,
  * @tgm:       the current ThrottleGroupMember
  * @is_write:  the type of operation (read/write)
  */
-static void schedule_next_request(ThrottleGroupMember *tgm, bool is_write)
+void schedule_next_request(ThrottleGroupMember *tgm, bool is_write)
 {
     ThrottleState *ts = tgm->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
@@ -358,7 +358,7 @@ void throttle_group_get_config(ThrottleGroupMember *tgm, ThrottleConfig *cfg)
  * @tgm:       the ThrottleGroupMember whose request had been throttled
  * @is_write:  the type of operation (read/write)
  */
-static void timer_cb(ThrottleGroupMember *tgm, bool is_write)
+void timer_cb(ThrottleGroupMember *tgm, bool is_write)
 {
     ThrottleState *ts = tgm->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
@@ -383,12 +383,12 @@ static void timer_cb(ThrottleGroupMember *tgm, bool is_write)
     }
 }
 
-static void read_timer_cb(void *opaque)
+void read_timer_cb(void *opaque)
 {
     timer_cb(opaque, false);
 }
 
-static void write_timer_cb(void *opaque)
+void write_timer_cb(void *opaque)
 {
     timer_cb(opaque, true);
 }
