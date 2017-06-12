@@ -30,6 +30,7 @@
 
 #define TYPE_KVM_CLOCK "kvmclock"
 #define KVM_CLOCK(obj) OBJECT_CHECK(KVMClockState, (obj), TYPE_KVM_CLOCK)
+#define PVCLOCK_TSC_STABLE_BIT (1 << 0)
 
 typedef struct KVMClockState {
     /*< private >*/
@@ -58,7 +59,7 @@ struct pvclock_vcpu_time_info {
     uint8_t    pad[2];
 } __attribute__((__packed__)); /* 32 bytes */
 
-static uint64_t kvmclock_current_nsec(KVMClockState *s)
+static uint64_t kvmclock_current_nsec(KVMClockState *s, uint8_t *flags)
 {
     CPUState *cpu = first_cpu;
     CPUX86State *env = cpu->env_ptr;
@@ -80,6 +81,7 @@ static uint64_t kvmclock_current_nsec(KVMClockState *s)
     cpu_physical_memory_read(kvmclock_struct_pa, &time, sizeof(time));
 
     assert(time.tsc_timestamp <= migration_tsc);
+    *flags = time.flags;
     delta = migration_tsc - time.tsc_timestamp;
     if (time.tsc_shift < 0) {
         delta >>= -time.tsc_shift;
@@ -156,16 +158,22 @@ static void kvmclock_vm_state_change(void *opaque, int running,
 
     if (running) {
         struct kvm_clock_data data = {};
+        uint8_t flags_at_migration;
 
         /*
          * If the host where s->clock was read did not support reliable
          * KVM_GET_CLOCK, read kvmclock value from memory.
          */
         if (!s->clock_is_reliable) {
-            uint64_t pvclock_via_mem = kvmclock_current_nsec(s);
+            uint64_t pvclock_via_mem = kvmclock_current_nsec(s,
+                                                    &flags_at_migration);
             /* We can't rely on the saved clock value, just discard it */
             if (pvclock_via_mem) {
                 s->clock = pvclock_via_mem;
+                /* whether src kvmclock has PVCLOCK_TSC_STABLE_BIT flag */
+                if (!(flags_at_migration & PVCLOCK_TSC_STABLE_BIT)) {
+                    data.flags |= MIGRATION_PVCLOCK_TSC_UNSTABLE_BIT;
+                }
             }
         }
 

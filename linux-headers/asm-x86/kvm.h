@@ -360,4 +360,6 @@ struct kvm_sync_regs {
 #define KVM_X86_QUIRK_LINT0_REENABLED	(1 << 0)
 #define KVM_X86_QUIRK_CD_NW_CLEARED	(1 << 1)
 
+#define MIGRATION_PVCLOCK_TSC_UNSTABLE_BIT (1 << 0)
+
 #endif /* _ASM_X86_KVM_H */
