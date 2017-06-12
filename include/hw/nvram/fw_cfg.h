@@ -4,6 +4,14 @@
 #include "exec/hwaddr.h"
 #include "hw/nvram/fw_cfg_keys.h"
 
+#define TYPE_FW_CFG     "fw_cfg"
+#define TYPE_FW_CFG_IO  "fw_cfg_io"
+#define TYPE_FW_CFG_MEM "fw_cfg_mem"
+
+#define FW_CFG(obj)     OBJECT_CHECK(FWCfgState,    (obj), TYPE_FW_CFG)
+#define FW_CFG_IO(obj)  OBJECT_CHECK(FWCfgIoState,  (obj), TYPE_FW_CFG_IO)
+#define FW_CFG_MEM(obj) OBJECT_CHECK(FWCfgMemState, (obj), TYPE_FW_CFG_MEM)
+
 typedef struct FWCfgFile {
     uint32_t  size;        /* file size */
     uint16_t  select;      /* write this to 0x510 to read it */
