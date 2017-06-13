@@ -17,6 +17,7 @@ import string
 import os
 import sys
 import subprocess
+import socket
 import qmp.qmp
 
 
@@ -118,7 +119,18 @@ class QEMUMachine(object):
                                                 debug=self._debug)
 
     def _post_launch(self):
-        self._qmp.accept()
+        # Wait for a connection while checking if QEMU is still running:
+        timeout = 0.015
+        tries = 10 # 0.015*2**10 = ~15 seconds
+        for i in range(tries):
+            try:
+                self._qmp.accept(timeout=timeout)
+                break
+            except socket.timeout:
+                if self._popen.poll():
+                    raise Exception("QEMU terminated before connecting to QMP")
+                # wait a little longer on the next try:
+                timeout *= 2
 
     def _post_shutdown(self):
         if not isinstance(self._monitor_address, tuple):
