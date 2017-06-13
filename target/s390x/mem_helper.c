@@ -1508,6 +1508,9 @@ uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
     HELPER_LOG("%s dest %" PRIx64 ", src %" PRIx64 ", len %" PRIx64 "\n",
                __func__, dest, src, len);
 
+    if (!s390_has_feat(S390_FEAT_MOVE_WITH_OPTIONAL_SPEC)) {
+        program_interrupt(env, PGM_OPERATION, 6);
+    }
     if (!(env->psw.mask & PSW_MASK_DAT)) {
         program_interrupt(env, PGM_SPECIAL_OP, 6);
     }
