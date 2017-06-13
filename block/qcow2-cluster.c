@@ -32,6 +32,48 @@
 #include "qemu/bswap.h"
 #include "trace.h"
 
+int qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t max_size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int new_l1_size, i, ret;
+
+    if (max_size >= s->l1_size) {
+        return 0;
+    }
+
+    new_l1_size = max_size;
+
+#ifdef DEBUG_ALLOC2
+    fprintf(stderr, "shrink l1_table from %d to %" PRId64 "\n",
+            s->l1_size, new_l1_size);
+#endif
+
+    BLKDBG_EVENT(bs->file, BLKDBG_L1_SHRINK_WRITE_TABLE);
+    ret = bdrv_pwrite_zeroes(bs->file, s->l1_table_offset +
+                                       sizeof(uint64_t) * new_l1_size,
+                             (s->l1_size - new_l1_size) * sizeof(uint64_t), 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_flush(bs->file->bs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    BLKDBG_EVENT(bs->file, BLKDBG_L1_SHRINK_FREE_L2_CLUSTERS);
+    for (i = s->l1_size - 1; i > new_l1_size - 1; i--) {
+        if ((s->l1_table[i] & L1E_OFFSET_MASK) == 0) {
+            continue;
+        }
+        qcow2_free_clusters(bs, s->l1_table[i] & L1E_OFFSET_MASK,
+                            s->l2_size * sizeof(uint64_t),
+                            QCOW2_DISCARD_ALWAYS);
+        s->l1_table[i] = 0;
+    }
+    return 0;
+}
+
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size)
 {

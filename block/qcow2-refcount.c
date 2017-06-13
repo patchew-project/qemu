@@ -29,6 +29,7 @@
 #include "block/qcow2.h"
 #include "qemu/range.h"
 #include "qemu/bswap.h"
+#include "qemu/cutils.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
@@ -2934,5 +2935,69 @@ done:
     }
 
     qemu_vfree(new_refblock);
+    return ret;
+}
+
+int qcow2_shrink_reftable(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t *reftable_tmp =
+        g_try_malloc(sizeof(uint64_t) * s->refcount_table_size);
+    int i, ret;
+
+    if (s->refcount_table_size && reftable_tmp == NULL) {
+        return -ENOMEM;
+    }
+
+    for (i = 0; i < s->refcount_table_size; i++) {
+        int64_t refblock_offs = s->refcount_table[i] & REFT_OFFSET_MASK;
+        void *refblock;
+        bool unused_block;
+
+        if (refblock_offs == 0) {
+            reftable_tmp[i] = 0;
+            continue;
+        }
+        ret = qcow2_cache_get(bs, s->refcount_block_cache, refblock_offs,
+                              &refblock);
+        if (ret < 0) {
+            goto out;
+        }
+
+        /* the refblock has own reference */
+        if (i == refblock_offs >> (s->refcount_block_bits + s->cluster_bits)) {
+            uint64_t blk_index = (refblock_offs >> s->cluster_bits) &
+                                 (s->refcount_block_size - 1);
+            uint64_t refcount = s->get_refcount(refblock, blk_index);
+
+            s->set_refcount(refblock, blk_index, 0);
+
+            unused_block = buffer_is_zero(refblock, s->refcount_block_size);
+
+            s->set_refcount(refblock, blk_index, refcount);
+        } else {
+            unused_block = buffer_is_zero(refblock, s->refcount_block_size);
+        }
+        qcow2_cache_put(bs, s->refcount_block_cache, &refblock);
+
+        reftable_tmp[i] = unused_block ? 0 : cpu_to_be64(s->refcount_table[i]);
+    }
+
+    ret = bdrv_pwrite_sync(bs->file, s->refcount_table_offset, reftable_tmp,
+                           sizeof(uint64_t) * s->refcount_table_size);
+    if (ret < 0) {
+        goto out;
+    }
+
+    for (i = 0; i < s->refcount_table_size; i++) {
+        if (s->refcount_table[i] && !reftable_tmp[i]) {
+            qcow2_free_clusters(bs, s->refcount_table[i] & REFT_OFFSET_MASK,
+                                s->cluster_size, QCOW2_DISCARD_ALWAYS);
+            s->refcount_table[i] = 0;
+        }
+    }
+
+out:
+    g_free(reftable_tmp);
     return ret;
 }
