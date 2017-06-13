@@ -51,6 +51,9 @@ typedef struct GPEXHost {
     MemoryRegion io_ioport;
     MemoryRegion io_mmio;
     qemu_irq irq[GPEX_NUM_IRQS];
+    uint32_t irq_num[GPEX_NUM_IRQS];
 } GPEXHost;
+
+int gpex_set_irq_num(GPEXHost *s, int index, uint32_t gsi);
 
 #endif /* HW_GPEX_H */
