@@ -1493,6 +1493,110 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
     return re >> 1;
 }
 
+uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
+                       uint64_t len)
+{
+    const uint64_t r0 = env->regs[0];
+    const uint8_t psw_key = (env->psw.mask & PSW_MASK_KEY) >> PSW_SHIFT_KEY;
+    const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
+    const uintptr_t ra = GETPC();
+    uint8_t dest_key, dest_as, dest_k, dest_a;
+    uint8_t src_key, src_as, src_k, src_a;
+    uint64_t val;
+    int cc = 0, i;
+
+    HELPER_LOG("%s dest %" PRIx64 ", src %" PRIx64 ", len %" PRIx64 "\n",
+               __func__, dest, src, len);
+
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+
+    /* OAC (operand access control) for the first operand -> dest */
+    val = (r0 & 0xffff0000ULL) >> 16;
+    dest_key = (val >> 12) & 0xf;
+    dest_as = (val >> 6) & 0x3;
+    dest_k = (val >> 1) & 0x1;
+    dest_a = (val) & 0x1;
+
+    /* OAC (operand access control) for the second operand -> src */
+    val = (r0 & 0x0000ffffULL);
+    src_key = (val >> 12) & 0xf;
+    src_as = (val >> 6) & 0x3;
+    src_k = (val >> 1) & 0x1;
+    src_a = (val) & 0x1;
+
+    if (!dest_k) {
+        dest_key = psw_key;
+    }
+    if (!src_k) {
+        src_key = psw_key;
+    }
+    if (!dest_a) {
+        dest_as = psw_as;
+    }
+    if (!src_a) {
+        src_as = psw_as;
+    }
+
+    if (dest_a && dest_as == 0x11 && (env->psw.mask & PSW_MASK_PSTATE)) {
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+    if (!(env->cregs[0] & CR0_SECONDARY) &&
+        (dest_as == 0x10 || src_as == 0x10)) {
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+    if (!psw_key_valid(env, dest_key) || !psw_key_valid(env, src_key)) {
+        program_interrupt(env, PGM_PRIVILEGED, 6);
+    }
+    /* FIXME: AR-mode and proper problem state mode (using PSW keys) missing */
+    if ((src_as | dest_as) == 0x01 || (env->psw.mask & PSW_MASK_PSTATE)) {
+        program_interrupt(env, PGM_ADDRESSING, 6);
+    }
+
+    if (len > 4096) {
+        cc = 3;
+        len = 4096;
+    }
+
+    /*
+     * FIXME: a) LAP protection
+     *        b) Access using correct PSW keys
+     *        c) AR-mode (mmu support missing)
+     *        d) bulk transfer
+     */
+    for (i = 0; i < len; i++, src++, dest++) {
+        uint8_t x = 0;
+
+        src = wrap_address(env, src);
+        dest = wrap_address(env, dest);
+        switch (src_as) {
+        case 0x0:
+            x = cpu_ldub_primary_ra(env, src, ra);
+            break;
+        case 0x2:
+            x = cpu_ldub_secondary_ra(env, src, ra);
+            break;
+        case 0x3:
+            x = cpu_ldub_home_ra(env, src, ra);
+            break;
+        }
+        switch (dest_as) {
+        case 0x0:
+            cpu_stb_primary_ra(env, dest, x, ra);
+            break;
+        case 0x2:
+            cpu_stb_secondary_ra(env, dest, x, ra);
+            break;
+        case 0x3:
+            cpu_stb_home_ra(env, dest, x, ra);
+            break;
+        }
+    }
+
+    return cc;
+}
+
 uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
     uintptr_t ra = GETPC();

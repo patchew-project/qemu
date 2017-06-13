@@ -1203,6 +1203,7 @@ typedef enum DisasFacility {
     FAC_SCF,                /* store clock fast */
     FAC_SFLE,               /* store facility list extended */
     FAC_ILA,                /* interlocked access facility 1 */
+    FAC_MVCOS,              /* move-with-optional-specification */
     FAC_LPP,                /* load-program-parameter */
     FAC_DAT_ENH,            /* DAT-enhancement */
     FAC_E2,                 /* extended-translation facility 2 */
@@ -3070,6 +3071,15 @@ static ExitStatus op_mvclu(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_mvcos(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    potential_page_fault(s);
+    gen_helper_mvcos(cc_op, cpu_env, o->addr1, o->in2, regs[r3]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_mvcp(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, l1);
