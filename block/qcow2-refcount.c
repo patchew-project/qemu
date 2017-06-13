@@ -767,6 +767,11 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         s->set_refcount(refcount_block, block_index, refcount);
 
         if (refcount == 0 && s->discard_passthrough[type]) {
+            qcow2_cache_put(bs, s->refcount_block_cache, &refcount_block);
+            qcow2_cache_discard(bs, s->refcount_block_cache, offset);
+
+            qcow2_cache_discard(bs, s->l2_table_cache, offset);
+
             update_refcount_discard(bs, cluster_offset, s->cluster_size);
         }
     }
