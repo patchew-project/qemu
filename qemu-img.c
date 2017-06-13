@@ -61,6 +61,7 @@ enum {
     OPTION_FLUSH_INTERVAL = 261,
     OPTION_NO_DRAIN = 262,
     OPTION_TARGET_IMAGE_OPTS = 263,
+    OPTION_SHRINK = 264,
 };
 
 typedef enum OutputFormat {
@@ -3452,6 +3453,7 @@ static int img_resize(int argc, char **argv)
         },
     };
     bool image_opts = false;
+    bool shrink = false;
 
     /* Remove size from argv manually so that negative numbers are not treated
      * as options by getopt. */
@@ -3469,6 +3471,7 @@ static int img_resize(int argc, char **argv)
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"shrink", no_argument, 0, OPTION_SHRINK},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":f:hq",
@@ -3502,6 +3505,9 @@ static int img_resize(int argc, char **argv)
         }   break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
+            break;
+        case OPTION_SHRINK:
+            shrink = true;
             break;
         }
     }
@@ -3560,6 +3566,15 @@ static int img_resize(int argc, char **argv)
         error_report("New image size must be positive");
         ret = -1;
         goto out;
+    }
+
+    if (total_size < blk_getlength(blk) && !shrink) {
+        qprintf(quiet, "Warning: shrinking of the image can lead to data loss. "
+                       "Before performing shrink operation you must make sure "
+                       "that the shrink part of image doesn't contain important"
+                       " data.\n");
+        qprintf(quiet,
+                "If you don't want to see this message use --shrink option.\n");
     }
 
     ret = blk_truncate(blk, total_size, &err);
