@@ -171,6 +171,10 @@ ERROR_WHITELIST = [
     # this fails on some machine-types, but not all, so they don't have expected=True:
     {'device':'vmgenid'}, # vmgenid requires DMA write support in fw_cfg, which this machine type does not provide
 
+    # silence exitcode=1 errors caused by -object, as most of them will complain
+    # about missing options.
+    {'object': '.*', 'log':".*"},
+
     # Silence INFO messages for errors that are common on multiple
     # devices/machines:
     {'log':r"No '[\w-]+' bus found for device '[\w-]+'"},
@@ -231,6 +235,7 @@ ERROR_WHITELIST = [
     {'exitcode':-11, 'device':'cs4231a', 'loglevel':logging.ERROR, 'expected':True},
     {'exitcode':-11, 'device':'arm-gicv3', 'loglevel':logging.ERROR, 'expected':True},
     {'exitcode':-11, 'machine':'isapc', 'device':'.*-iommu', 'loglevel':logging.ERROR, 'expected':True},
+    {'exitcode':-11, 'object':'colo-compare', 'loglevel':logging.ERROR, 'expected':True},
 
     # everything else (including SIGABRT and SIGSEGV) will be a fatal error:
     {'exitcode':None, 'fatal':True, 'loglevel':logging.FATAL},
@@ -245,14 +250,17 @@ def whitelistTestCaseMatch(wl, t):
     results/output match the entry.  See whitelistResultMatch().
     """
     return (('machine' not in wl or
-             'machine' not in t or
-             re.match(wl['machine'] + '$', t['machine'])) and
+             ('machine' in t and
+              re.match(wl['machine'] + '$', t['machine']))) and
             ('accel' not in wl or
              'accel' not in t or
              re.match(wl['accel'] + '$', t['accel'])) and
             ('device' not in wl or
-             'device' not in t or
-             re.match(wl['device'] + '$', t['device'])))
+             ('device' in t and
+              re.match(wl['device'] + '$', t['device']))) and
+            ('object' not in wl or
+             ('object' in t and
+              re.match(wl['object'] + '$', t['object']))))
 
 
 def whitelistCandidates(t):
@@ -330,28 +338,49 @@ def infoQDM(vm):
 
 
 class QemuBinaryInfo(object):
-    def __init__(self, binary, devtype):
-        if devtype is None:
-            devtype = 'device'
+    def __init__(self, binary, basetypes):
+        """Constructor
 
+        @basetypes: device types to be queried in advance using qom-list-types
+        """
         self.binary = binary
         self._machine_info = {}
 
-        dbg("devtype: %r", devtype)
+        dbg("basetypes: %r", basetypes)
         args = ['-S', '-machine', 'none,accel=kvm:tcg']
         dbg("querying info for QEMU binary: %s", binary)
         vm = QEMUMachine(binary=binary, args=args)
         vm.launch()
         try:
-            self.alldevs = set(qomListTypeNames(vm, implements=devtype, abstract=False))
+            self.type_lists = {}
+            for bt in basetypes:
+                self.type_lists[bt] = \
+                    set(qomListTypeNames(vm, implements=bt, abstract=False))
             # there's no way to query DeviceClass::user_creatable using QMP,
             # so use 'info qdm':
             self.no_user_devs = set([d['name'] for d in infoQDM(vm, ) if d['no-user']])
             self.machines = list(m['name'] for m in vm.command('query-machines'))
-            self.user_devs = self.alldevs.difference(self.no_user_devs)
             self.kvm_available = vm.command('query-kvm')['enabled']
         finally:
             vm.shutdown()
+
+    def getTypes(self, basetype):
+        """Return list of subtypes of @basetype
+
+        @basetype must be in the basetypes list used when
+        constructing the QemuBinaryObject, so it can be
+        loaded in advance.
+        """
+        return self.type_lists[basetype]
+
+    def getUserDevs(self, devtype):
+        """Return list of user-creatable devices that implement a devtype
+
+        @devtype must be in the basetypes list used when
+        constructing the QemuBinaryObject, so it can be
+        loaded in advance.
+        """
+        return self.getTypes(devtype).difference(self.no_user_devs)
 
     def machineInfo(self, machine):
         """Query for information on a specific machine-type
@@ -386,7 +415,8 @@ BINARY_INFO = {}
 
 def getBinaryInfo(args, binary):
     if binary not in BINARY_INFO:
-        BINARY_INFO[binary] = QemuBinaryInfo(binary, args.devtype)
+        BINARY_INFO[binary] = QemuBinaryInfo(binary,
+                                             [args.devtype, 'user-creatable'])
     return BINARY_INFO[binary]
 
 
@@ -397,14 +427,20 @@ def checkOneCase(args, testcase):
     or None on success
     """
     binary = testcase['binary']
-    accel = testcase['accel']
-    machine = testcase['machine']
-    device = testcase['device']
 
     dbg("will test: %r", testcase)
 
-    args = ['-S', '-machine', '%s,accel=%s' % (machine, accel),
-            '-device', qemuOptsEscape(device)]
+    args = ['-S']
+    if 'machine' in testcase:
+        m = testcase['machine']
+        if 'accel' in testcase:
+            m += ',accel=%s' % (testcase['accel'])
+        args.extend(['-machine', m])
+    if 'device' in testcase:
+        args.extend(['-device', qemuOptsEscape(testcase['device'])])
+    if 'object' in testcase:
+        args.extend(['-object', '%s,id=test-object' % (qemuOptsEscape(testcase['object']))])
+
     cmdline = ' '.join([binary] + args)
     dbg("will launch QEMU: %s", cmdline)
     vm = QEMUMachine(binary=binary, args=args)
@@ -449,16 +485,20 @@ def machinesToTest(args, testcase):
 
 
 def devicesToTest(args, testcase):
-    return getBinaryInfo(args, testcase['binary']).user_devs
+    return getBinaryInfo(args, testcase['binary']).getUserDevs(args.devtype)
 
+def objectsToTest(args, testcase):
+    return getBinaryInfo(args, testcase['binary']).getTypes('user-creatable')
 
-TESTCASE_VARIABLES = [
-    ('binary', binariesToTest),
-    ('accel', accelsToTest),
-    ('machine', machinesToTest),
-    ('device', devicesToTest),
-]
-
+def testCaseVariables(args, testcase):
+    """Generate list of test case variables over which we will iterate"""
+    yield ('binary', binariesToTest)
+    if 'device' in testcase or args.mode == 'device':
+        yield ('accel', accelsToTest)
+        yield ('machine', machinesToTest)
+        yield ('device', devicesToTest)
+    elif 'object' in testcase or args.mode == 'object':
+        yield ('object', objectsToTest)
 
 def genCases1(args, testcases, var, fn):
     """Generate new testcases for one variable
@@ -482,7 +522,7 @@ def genCases(args, testcase):
     """Generate test cases for all variables
     """
     cases = [testcase.copy()]
-    for var, fn in TESTCASE_VARIABLES:
+    for var, fn in testCaseVariables(args, testcase):
         dbg("var: %r, fn: %r", var, fn)
         cases = genCases1(args, cases, var, fn)
     return cases
@@ -534,7 +574,13 @@ def main():
     parser.add_argument('--dry-run', action='store_true',
                         help="Don't run any tests, just generate list")
     parser.add_argument('-D', '--devtype', metavar='TYPE',
-                        help="Test only device types that implement TYPE")
+                        help="Test only device types that implement TYPE",
+                        default="device")
+    parser.add_argument('-M', '--mode', metavar='MODE',
+                        help="Test mode (object, device)", choices=['object', 'device'],
+                        default='device')
+    parser.add_argument('-O', '--object', action='store_const', const='object',
+                        dest='mode')
     parser.add_argument('-Q', '--quick', action='store_true', default=True,
                         help="Quick mode: skip test cases that are expected to fail")
     parser.add_argument('-F', '--full', action='store_false', dest='quick',
@@ -578,7 +624,8 @@ def main():
         expected_match = findExpectedResult(t)
         if (args.quick and
                 (expected_match or
-                 not getBinaryInfo(args, t['binary']).machineInfo(t['machine'])['runnable'])):
+                 ('machine' in t and
+                  not getBinaryInfo(args, t['binary']).machineInfo(t['machine'])['runnable']))):
             dbg("skipped: %s", formatTestCase(t))
             skipped += 1
             continue
