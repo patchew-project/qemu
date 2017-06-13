@@ -973,6 +973,9 @@ static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
     qemu_del_vm_change_state_handler(s->change);
+    if (blk_bs(s->blk) && bdrv_requests_pending(blk_bs(s->blk))) {
+        blk_drain(s->blk);
+    }
     blockdev_mark_auto_del(s->blk);
     virtio_cleanup(vdev);
 }
