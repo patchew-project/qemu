@@ -132,7 +132,7 @@ class QEMUMonitorProtocol:
         if negotiate:
             return self.__negotiate_capabilities()
 
-    def accept(self):
+    def accept(self, timeout=15):
         """
         Await connection from QMP Monitor and perform capabilities negotiation.
 
@@ -141,7 +141,7 @@ class QEMUMonitorProtocol:
         @raise QMPConnectError if the greeting is not received
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
-        self.__sock.settimeout(15)
+        self.__sock.settimeout(timeout)
         self.__sock, _ = self.__sock.accept()
         self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
