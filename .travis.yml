@@ -210,3 +210,27 @@ matrix:
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
+    # Build and upload to Coverity Scan.
+    # We do not impose any rate limiting here, but instead rely on the
+    # limiting done by the coverity servers, which for a project of QEMU's
+    # size means one build a day. The run-coverity-scan script will exit
+    # early if the limiter does not permit a new upload, so the effect will
+    # be that the first build (only) in each 24 hour period will be scanned.
+    # If we needed to apply a limit at the Travis end, the simplest approach
+    # would be to run the scan only if the branch was 'coverity-scan', and
+    # use a cron job to push master to the 'coverity-scan' branch periodically.
+    # We run on the trusty Travis hosts so that there's a wider set of
+    # dependencies satisfied to improve coverage.
+    - dist: trusty
+      env:
+        - COVERITY=1
+        - COVERITY_BUILD_CMD="make -j3"
+        - COVERITY_EMAIL=peter.maydell@linaro.org
+        # This 'secure' setting sets COVERITY_TOKEN=<secret token>
+        # and was created with travis encrypt -r qemu/qemu COVERITY_TOKEN=...
+        - secure: "D3E6E5bacui53fYBQrx0wQr8ZTvo6VIBPKfg0QHj2uwa6OPFkUlcMr/EHWvdbZNAa4Q1bv1vhlED5OPRfPmQYzxQNT4SAxDZeuZnikgIymfqQXNOjKw4kRUDO9P42QanyFd+EAu2JDVClAeJPgBpa/ns4CNrGDK+Q3coGndCP8o="
+      before_script:
+        - if [ "$TRAVIS_PULL_REQUEST" = "true" ]; then echo "Skipping Coverity (pullreq)"; exit 0; fi
+        - if [ "$TRAVIS_BRANCH" != "master" ]; then echo "Skipping Coverity (wrong branch)"; exit 0; fi
+      script:
+        - ./scripts/run-coverity-scan
