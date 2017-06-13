@@ -1336,6 +1336,10 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     uint64_t bytes_remaining = bytes;
     int max_transfer;
 
+    if (bdrv_has_readonly_bitmaps(bs)) {
+        return -EPERM;
+    }
+
     assert(is_power_of_2(align));
     assert((offset & (align - 1)) == 0);
     assert((bytes & (align - 1)) == 0);
@@ -2422,6 +2426,10 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
 
     if (!bs->drv) {
         return -ENOMEDIUM;
+    }
+
+    if (bdrv_has_readonly_bitmaps(bs)) {
+        return -EPERM;
     }
 
     ret = bdrv_check_byte_request(bs, offset, count);
