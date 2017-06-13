@@ -2817,3 +2817,17 @@ void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
     qapi_free_GuidInfo(info);
 }
+
+void hmp_info_memory(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    MemoryInfo *info = qmp_query_memory(&err);
+    if (info) {
+        monitor_printf(mon, "base-memory: %lu\n", info->base_memory);
+        monitor_printf(mon, "hot-plug-memory: %lu\n", info->hot_plug_memory);
+        monitor_printf(mon, "ballooned-actual-memory: %lu\n",
+                       info->ballooned_actual_memory);
+        g_free(info);
+    }
+    hmp_handle_error(mon, &err);
+}
