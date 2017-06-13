@@ -576,6 +576,13 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
     copy_struct.len = pagesize;
     copy_struct.mode = 0;
 
+
+    /* copied page isn't feature of blocktime calculation,
+     * it's more general entity, so keep it here,
+     * but gup betwean two following operation could be high,
+     * and in this case blocktime for such small interval will be lost */
+    set_copiedmap_by_addr(host, rb);
+
     /* copy also acks to the kernel waking the stalled thread up
      * TODO: We can inhibit that ack and only do it if it was requested
      * which would be slightly cheaper, but we'd have to be careful

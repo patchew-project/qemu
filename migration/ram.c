@@ -151,6 +151,58 @@ out:
     return ret;
 }
 
+void init_copiedmap(void)
+{
+    RAMBlock *rb;
+    RAMBLOCK_FOREACH(rb) {
+        unsigned long pages;
+        pages = rb->max_length >> find_first_bit(&rb->page_size,
+                8 * sizeof(rb->page_size));
+        /* need for destination, bitmap_new calls
+         * g_try_malloc0 and this function
+         * Attempts to allocate @n_bytes, initialized to 0'sh */
+        rb->copiedmap = bitmap_new(pages);
+        rb->nr_copiedmap = pages;
+    }
+}
+
+static unsigned long int get_copied_bit_offset(void *host_addr, RAMBlock *rb)
+{
+    uint64_t host_addr_offset = (uint64_t)(uintptr_t)(host_addr
+                                                      - (void *)rb->host);
+    int page_shift = find_first_bit(&rb->page_size, 8 * sizeof(rb->page_size));
+
+    return host_addr_offset >> page_shift;
+}
+
+int test_copiedmap_by_addr(void *host_addr, RAMBlock *rb)
+{
+    return test_bit(get_copied_bit_offset(host_addr, rb), rb->copiedmap);
+}
+
+void set_copiedmap_by_addr(void *host_addr, RAMBlock *rb)
+{
+    set_bit_atomic(get_copied_bit_offset(host_addr, rb), rb->copiedmap);
+}
+
+size_t get_copiedmap_size(RAMBlock *rb)
+{
+    return rb->nr_copiedmap;
+}
+
+/*
+ * This function copies copiedmap from RAMBlock into
+ * dst memory region
+ *
+ * @dst destination address
+ * @rb RAMBlock source
+ * @len length in bytes
+ */
+void movecopiedmap(void *dst, RAMBlock *rb, size_t len)
+{
+    memcpy(dst, rb->copiedmap, len);
+}
+
 /*
  * An outstanding page request, on the source, having been received
  * and queued
@@ -1781,11 +1833,11 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
 {
     int ret = -1;
 
-    trace_ram_discard_range(rbname, start, length);
 
     rcu_read_lock();
     RAMBlock *rb = qemu_ram_block_by_name(rbname);
 
+    trace_ram_discard_range(rbname, start, length);
     if (!rb) {
         error_report("ram_discard_range: Failed to find block '%s'", rbname);
         goto err;

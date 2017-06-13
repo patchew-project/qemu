@@ -1369,6 +1369,7 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
         return -1;
     }
 
+    init_copiedmap();
     remote_pagesize_summary = qemu_get_be64(mis->from_src_file);
     local_pagesize_summary = ram_pagesize_summary();
 

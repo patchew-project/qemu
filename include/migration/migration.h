@@ -226,4 +226,7 @@ void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
 
+size_t get_copiedmap_size(RAMBlock *rb);
+void movecopiedmap(void *dst, RAMBlock *rb, size_t len);
+
 #endif
