@@ -504,7 +504,7 @@ clean:
 VERSION ?= $(shell cat VERSION)
 
 dist: qemu-$(VERSION).tar.bz2
-
+qemu-backup.8: contrib/qemu-backup/qemu-backup.texi
 qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
