@@ -4325,6 +4325,33 @@
             '*unavailable-features': [ 'str' ], 'typename': 'str' } }
 
 ##
+# @MemoryInfo:
+#
+# Memory information in bytes.
+#
+# @base-memory: size of static memory which was specified on Qemu start.
+#
+# @hot-plug-memory: size of hot-plugged memory.
+#
+# @ballooned-actual-memory: amount of guest memory available after ballooning.
+#
+# Since: 2.10.0
+##
+{ 'struct': 'MemoryInfo',
+  'data'  : { 'base-memory': 'int', 'hot-plug-memory': 'int',
+              'ballooned-actual-memory': 'int' } }
+
+##
+# @query-memory:
+#
+# Return memory size information which includes
+# static, hotplugged and ballooned memory.
+#
+# Since: 2.10.0
+##
+{ 'command': 'query-memory', 'returns': 'MemoryInfo' }
+
+##
 # @query-cpu-definitions:
 #
 # Return a list of supported virtual CPU definitions

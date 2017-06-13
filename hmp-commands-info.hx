@@ -834,5 +834,20 @@ STEXI
 ETEXI
 
 STEXI
+@item info memory
+@findex memory
+Display total memory size in bytes (static, hotplugged, ballooned)
+ETEXI
+
+    {
+        .name       = "memory",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show memory size information in bytes (static, "
+                      "hotplugged, ballooned)",
+        .cmd        = hmp_info_memory,
+    },
+
+STEXI
 @end table
 ETEXI
