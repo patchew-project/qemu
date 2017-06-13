@@ -1422,7 +1422,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         gen_helper_msr_i_pstate(cpu_env, tcg_op, tcg_imm);
         tcg_temp_free_i32(tcg_imm);
         tcg_temp_free_i32(tcg_op);
-        s->is_jmp = DISAS_UPDATE;
+        s->is_jmp = DISAS_EXIT;
         break;
     }
     default:
@@ -11361,6 +11361,10 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
         switch (dc->is_jmp) {
         case DISAS_NEXT:
             gen_goto_tb(dc, 1, dc->pc);
+            break;
+        case DISAS_EXIT:
+            gen_a64_set_pc_im(dc->pc);
+            tcg_gen_exit_tb(0);
             break;
         default:
         case DISAS_UPDATE:
