@@ -28,8 +28,8 @@
 #define QEMU_VMSTATE_H
 
 #include "migration/qjson.h"
+#include "migration/register.h"
 
-typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateDescription VMStateDescription;
 typedef struct VMStateField VMStateField;
