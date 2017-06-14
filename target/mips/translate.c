@@ -13403,9 +13403,11 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
                 save_cpu_state(ctx, 1);
                 gen_helper_ei(t0, cpu_env);
                 gen_store_gpr(t0, rs);
-                /* Stop translation as we may have switched the execution mode */
-                ctx->bstate = BS_STOP;
                 tcg_temp_free(t0);
+                /* BS_STOP isn't good enough here;
+                   reevaluate cpu_mips_hw_interrupts_enabled.  */
+                gen_save_pc(ctx->pc + 4);
+                ctx->bstate = BS_EXCP;
             }
             break;
         default:
