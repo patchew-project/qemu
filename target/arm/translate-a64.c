@@ -11367,7 +11367,8 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
             gen_a64_set_pc_im(dc->pc);
             /* fall through */
         case DISAS_JUMP:
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            /* indicate that the hash table must be used to find the next TB */
+            tcg_gen_exit_tb(0);
             break;
         case DISAS_TB_JUMP:
         case DISAS_EXC:
