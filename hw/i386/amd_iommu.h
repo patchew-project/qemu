@@ -276,9 +276,6 @@ typedef struct AMDVIState {
     uint8_t romask[AMDVI_MMIO_SIZE];   /* MMIO read/only mask          */
     bool mmio_enabled;
 
-    /* IOMMU function */
-    MemoryRegionIOMMUOps iommu_ops;
-
     /* for each served device */
     AMDVIAddressSpace **address_spaces[PCI_BUS_MAX];
 

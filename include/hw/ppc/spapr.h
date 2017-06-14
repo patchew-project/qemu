@@ -579,6 +579,10 @@ typedef struct sPAPRTCETable sPAPRTCETable;
 #define SPAPR_TCE_TABLE(obj) \
     OBJECT_CHECK(sPAPRTCETable, (obj), TYPE_SPAPR_TCE_TABLE)
 
+#define TYPE_SPAPR_IOMMU_MEMORY_REGION "qemu:spapr-iommu-memory-region"
+#define SPAPR_IOMMU_MEMORY_REGION(obj) \
+        OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_SPAPR_IOMMU_MEMORY_REGION)
+
 struct sPAPRTCETable {
     DeviceState parent;
     uint32_t liobn;

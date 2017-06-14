@@ -37,6 +37,8 @@
 #include "kvm_i386.h"
 #include "trace.h"
 
+#define TYPE_INTEL_VTD_IOMMU_MEMORY_REGION "intel_vtd:iommu_memory_region"
+
 /*#define DEBUG_INTEL_IOMMU*/
 #ifdef DEBUG_INTEL_IOMMU
 enum {
@@ -2814,8 +2816,9 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
          * vtd_sys_alias and intel_iommu regions. IR region is always
          * enabled.
          */
-        memory_region_init_iommu(&vtd_dev_as->iommu, OBJECT(s),
-                                 &s->iommu_ops, "intel_iommu_dmar",
+        memory_region_init_iommu(&vtd_dev_as->iommu, sizeof(vtd_dev_as->iommu),
+                                 TYPE_INTEL_VTD_IOMMU_MEMORY_REGION, OBJECT(s),
+                                 "intel_iommu_dmar",
                                  UINT64_MAX);
         memory_region_init_alias(&vtd_dev_as->sys_alias, OBJECT(s),
                                  "vtd_sys_alias", get_system_memory(),
@@ -2953,9 +2956,6 @@ static void vtd_init(IntelIOMMUState *s)
     memset(s->w1cmask, 0, DMAR_REG_SIZE);
     memset(s->womask, 0, DMAR_REG_SIZE);
 
-    s->iommu_ops.translate = vtd_iommu_translate;
-    s->iommu_ops.notify_flag_changed = vtd_iommu_notify_flag_changed;
-    s->iommu_ops.replay = vtd_iommu_replay;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
@@ -3172,10 +3172,27 @@ static const TypeInfo vtd_info = {
     .class_init    = vtd_class_init,
 };
 
+static void intel_vtd_iommu_memory_region_class_init(ObjectClass *klass,
+                                                     void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = vtd_iommu_translate;
+    imrc->notify_flag_changed = vtd_iommu_notify_flag_changed;
+    imrc->replay = vtd_iommu_replay;
+}
+
+static const TypeInfo intel_vtd_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_INTEL_VTD_IOMMU_MEMORY_REGION,
+    .class_init = intel_vtd_iommu_memory_region_class_init,
+};
+
 static void vtd_register_types(void)
 {
     VTD_DPRINTF(GENERAL, "");
     type_register_static(&vtd_info);
+    type_register_static(&intel_vtd_iommu_memory_region_info);
 }
 
 type_init(vtd_register_types)
