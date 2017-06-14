@@ -93,12 +93,4 @@ static inline QType qobject_type(const QObject *obj)
     return obj->type;
 }
 
-extern QObject qnull_;
-
-static inline QObject *qnull(void)
-{
-    qobject_incref(&qnull_);
-    return &qnull_;
-}
-
 #endif /* QOBJECT_H */
