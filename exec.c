@@ -3522,7 +3522,7 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
         goto err;
     }
 
-    if ((start + length) <= rb->used_length) {
+    if ((start + length) <= rb->max_length) {
         uint8_t *host_endaddr = host_startaddr + length;
         if ((uintptr_t)host_endaddr & (rb->page_size - 1)) {
             error_report("ram_block_discard_range: Unaligned end address: %p",
