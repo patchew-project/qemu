@@ -1937,8 +1937,8 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 
 #ifdef __linux__
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
-                                   bool share, const char *mem_path,
-                                   Error **errp)
+                                   bool share, bool persistent,
+                                   const char *mem_path, Error **errp)
 {
     RAMBlock *new_block;
     Error *local_err = NULL;
@@ -1965,6 +1965,9 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
+    if (!persistent) {
+        new_block->flags |= RAM_NONPERSISTENT;
+    }
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
     if (!new_block->host) {

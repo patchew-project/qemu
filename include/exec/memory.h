@@ -446,6 +446,9 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  *        must be unique within any device
  * @size: size of the region.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
+ * @persistent: %false if RAM contents can be discarded and don't
+ *              need to be flushed to disk when the memory region
+ *              is freed.
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
  */
@@ -454,6 +457,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       const char *name,
                                       uint64_t size,
                                       bool share,
+                                      bool persistent,
                                       const char *path,
                                       Error **errp);
 #endif
