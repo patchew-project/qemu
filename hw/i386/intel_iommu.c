@@ -993,9 +993,9 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
     /* Turn off first then on the other */
     if (use_iommu) {
         memory_region_set_enabled(&as->sys_alias, false);
-        memory_region_set_enabled(&as->iommu, true);
+        memory_region_set_enabled(MEMORY_REGION(&as->iommu), true);
     } else {
-        memory_region_set_enabled(&as->iommu, false);
+        memory_region_set_enabled(MEMORY_REGION(&as->iommu), false);
         memory_region_set_enabled(&as->sys_alias, true);
     }
 
@@ -1378,7 +1378,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
                                            void *private)
 {
-    memory_region_notify_iommu((MemoryRegion *)private, *entry);
+    memory_region_notify_iommu((IOMMUMemoryRegion *)private, *entry);
     return 0;
 }
 
@@ -2357,7 +2357,7 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     }
 }
 
-static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
                                          IOMMUAccessFlags flag)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
@@ -2389,7 +2389,7 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
+static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
 {
@@ -2832,7 +2832,8 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
                                             &vtd_dev_as->sys_alias, 1);
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
-                                            &vtd_dev_as->iommu, 1);
+                                            MEMORY_REGION(&vtd_dev_as->iommu),
+                                            1);
         vtd_switch_address_space(vtd_dev_as);
     }
     return vtd_dev_as;
@@ -2912,9 +2913,9 @@ static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
     return 0;
 }
 
-static void vtd_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n)
+static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
 {
-    VTDAddressSpace *vtd_as = container_of(mr, VTDAddressSpace, iommu);
+    VTDAddressSpace *vtd_as = container_of(iommu_mr, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
     uint8_t bus_n = pci_bus_num(vtd_as->bus);
     VTDContextEntry ce;
