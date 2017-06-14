@@ -15,6 +15,19 @@
 
 #define kvm_apic_in_kernel() (kvm_irqchip_in_kernel())
 
+#ifdef CONFIG_KVM
+#define kvm_pit_in_kernel() \
+    (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
+#define kvm_pic_in_kernel()  \
+    (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
+#define kvm_ioapic_in_kernel() \
+    (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
+#else
+#define kvm_pit_in_kernel()      0
+#define kvm_pic_in_kernel()      0
+#define kvm_ioapic_in_kernel()   0
+#endif
+
 bool kvm_allows_irq0_override(void);
 bool kvm_has_smm(void);
 bool kvm_has_adjust_clock_stable(void);
