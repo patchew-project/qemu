@@ -712,3 +712,39 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
 
     return head;
 }
+
+MemoryInfo *qmp_query_memory(Error **errp)
+{
+    MemoryInfo *mem_info = g_malloc0(sizeof(MemoryInfo));
+    BalloonInfo *balloon_info;
+    Error *local_err = NULL;
+
+    mem_info->base_memory = ram_size;
+
+    /* If current configuration does not have CONFIG_MEM_HOTPLUG
+     * enabled, report zero hot-plugged memory.
+     */
+#ifdef CONFIG_MEM_HOTPLUG
+    mem_info->hot_plug_memory = pc_existing_dimms_capacity(&local_err);
+    if (local_err) {
+        error_setg(errp, "could not get hot-plug memory info: %s",
+                   error_get_pretty(local_err));
+        g_free(mem_info);
+        return NULL;
+    }
+#else
+    mem_info->hot_plug_memory = 0;
+#endif
+    /* In case if it is not possible to get balloon info, just ignore it. */
+    balloon_info = qmp_query_balloon(&local_err);
+    if (local_err) {
+        mem_info->ballooned_actual_memory = 0;
+        error_free(local_err);
+    } else {
+        mem_info->ballooned_actual_memory = balloon_info->actual;
+    }
+
+    qapi_free_BalloonInfo(balloon_info);
+
+    return mem_info;
+}
