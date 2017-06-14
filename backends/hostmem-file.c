@@ -32,6 +32,7 @@ struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
 
     bool share;
+    bool persistent;
     char *mem_path;
 };
 
@@ -57,7 +58,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         path = object_get_canonical_path(OBJECT(backend));
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
-                                 backend->size, fb->share, true,
+                                 backend->size, fb->share, fb->persistent,
                                  fb->mem_path, errp);
         g_free(path);
     }
@@ -103,6 +104,26 @@ static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
     fb->share = value;
 }
 
+static bool file_memory_backend_get_persistent(Object *o, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    return fb->persistent;
+}
+
+static void file_memory_backend_set_persistent(Object *o, bool value,
+                                               Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(errp, "cannot change property value");
+        return;
+    }
+    fb->persistent = value;
+}
+
 static void
 file_backend_class_init(ObjectClass *oc, void *data)
 {
@@ -110,12 +131,23 @@ file_backend_class_init(ObjectClass *oc, void *data)
 
     bc->alloc = file_backend_memory_alloc;
 
+
     object_class_property_add_bool(oc, "share",
         file_memory_backend_get_share, file_memory_backend_set_share,
+        &error_abort);
+    object_class_property_add_bool(oc, "persistent",
+        file_memory_backend_get_persistent, file_memory_backend_set_persistent,
         &error_abort);
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path,
         &error_abort);
+}
+
+static void file_backend_instance_init(Object *o)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    fb->persistent = true;
 }
 
 static void file_backend_instance_finalize(Object *o)
@@ -129,6 +161,7 @@ static const TypeInfo file_backend_info = {
     .name = TYPE_MEMORY_BACKEND_FILE,
     .parent = TYPE_MEMORY_BACKEND,
     .class_init = file_backend_class_init,
+    .instance_init = file_backend_instance_init,
     .instance_finalize = file_backend_instance_finalize,
     .instance_size = sizeof(HostMemoryBackendFile),
 };

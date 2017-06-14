@@ -3961,7 +3961,7 @@ property must be set.  These objects are placed in the
 
 @table @option
 
-@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off}
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},persistent=@var{on|off}
 
 Creates a memory file backend object, which can be used to back
 the guest RAM with huge pages. The @option{id} parameter is a
@@ -3973,6 +3973,13 @@ the path to either a shared memory or huge page filesystem mount.
 The @option{share} boolean option determines whether the memory
 region is marked as private to QEMU, or shared. The latter allows
 a co-operating external process to access the QEMU memory region.
+Setting the @option{persistent} boolean option to @var{off}
+indicates that memory contents can be safely discarded and not
+flushed to disk when the backend object is destroyed or QEMU
+exits.  @option{persistent} is @var{on} by default.  It is valid
+to set @option{persistent} to @var{off} if @option{share} is
+@var{on}. It is redundant to set @option{persistent} to @var{off}
+if @option{share} is @var{off}.
 
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
