@@ -102,6 +102,11 @@ static MemoryRegion io_mem_unassigned;
  */
 #define RAM_RESIZEABLE (1 << 2)
 
+/* RAMBlock contents are not persistent, and we can discard memory contents
+ * when freeing the memory block.
+ */
+#define RAM_NONPERSISTENT (1 << 3)
+
 #endif
 
 #ifdef TARGET_PAGE_BITS_VARY
@@ -2061,6 +2066,10 @@ void qemu_ram_free(RAMBlock *block)
         ram_block_notify_remove(block->host, block->max_length);
     }
 
+    if (block->flags & RAM_NONPERSISTENT) {
+        ram_block_discard_range(block, 0, block->max_length);
+    }
+
     qemu_mutex_lock_ramlist();
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
@@ -3537,7 +3546,13 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
             /* Note: We need the madvise MADV_DONTNEED behaviour of definitely
              * freeing the page.
              */
-            ret = madvise(host_startaddr, length, MADV_DONTNEED);
+            if (rb->flags & RAM_NONPERSISTENT) {
+                ret = madvise(host_startaddr, length, MADV_REMOVE);
+            }
+            /* Fallback to MADV_DONTNEED if MADV_REMOVE fails */
+            if (ret || !(rb->flags & RAM_NONPERSISTENT)) {
+                ret = madvise(host_startaddr, length, MADV_DONTNEED);
+            }
 #endif
         } else {
             /* Huge page case  - unfortunately it can't do DONTNEED, but
