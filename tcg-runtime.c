@@ -147,28 +147,35 @@ uint64_t HELPER(ctpop_i64)(uint64_t arg)
 void *HELPER(lookup_tb_ptr)(CPUArchState *env, target_ulong addr)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    unsigned int addr_hash = tb_jmp_cache_hash_func(addr);
     void *code_ptr = NULL;
-    TranslationBlock *tb;
 
-    tb = atomic_rcu_read(&cpu->tb_jmp_cache[addr_hash]);
-    if (likely(tb)) {
-        target_ulong cs_base, pc;
-        uint32_t flags;
+    /* If there is an interrupt pending request or the TCG exit flag
+     * has been set we might as well stop here and return to the main
+     * loop.
+     */
+    if (!cpu->icount_decr.u16.high && !cpu->interrupt_request) {
+        unsigned int addr_hash = tb_jmp_cache_hash_func(addr);
+        TranslationBlock *tb;
 
-        cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+        tb = atomic_rcu_read(&cpu->tb_jmp_cache[addr_hash]);
+        if (likely(tb)) {
+            target_ulong cs_base, pc;
+            uint32_t flags;
 
-        if (likely(tb->pc == addr && tb->cs_base == cs_base &&
-                   tb->flags == flags)) {
-            code_ptr = tb->tc_ptr;
-        } else {
-            /* If we didn't find it in the jmp_cache we still might
-             * find it in the global tb_htable
-             */
-            tb = tb_htable_lookup(cpu, addr, cs_base, flags);
-            if (likely(tb)) {
-                atomic_set(&cpu->tb_jmp_cache[addr_hash], tb);
+            cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+
+            if (likely(tb->pc == addr && tb->cs_base == cs_base &&
+                       tb->flags == flags)) {
                 code_ptr = tb->tc_ptr;
+            } else {
+                /* If we didn't find it in the jmp_cache we still might
+                 * find it in the global tb_htable
+                 */
+                tb = tb_htable_lookup(cpu, addr, cs_base, flags);
+                if (likely(tb)) {
+                    atomic_set(&cpu->tb_jmp_cache[addr_hash], tb);
+                    code_ptr = tb->tc_ptr;
+                }
             }
         }
     }
