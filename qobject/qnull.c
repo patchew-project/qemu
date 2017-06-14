@@ -19,3 +19,8 @@ QObject qnull_ = {
     .type = QTYPE_QNULL,
     .refcnt = 1,
 };
+
+bool qnull_is_equal(const QObject *x, const QObject *y)
+{
+    return true;
+}

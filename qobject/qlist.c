@@ -140,6 +140,31 @@ QList *qobject_to_qlist(const QObject *obj)
 }
 
 /**
+ * qlist_is_equal(): Tests whether the two QLists are equal
+ */
+bool qlist_is_equal(const QObject *x, const QObject *y)
+{
+    const QList *list_x = qobject_to_qlist(x), *list_y = qobject_to_qlist(y);
+    const QListEntry *entry_x, *entry_y;
+
+    entry_x = qlist_first(list_x);
+    entry_y = qlist_first(list_y);
+
+    while (entry_x && entry_y) {
+        if (!qobject_is_equal(qlist_entry_obj(entry_x),
+                              qlist_entry_obj(entry_y)))
+        {
+            return false;
+        }
+
+        entry_x = qlist_next(entry_x);
+        entry_y = qlist_next(entry_y);
+    }
+
+    return !entry_x && !entry_y;
+}
+
+/**
  * qlist_destroy_obj(): Free all the memory allocated by a QList
  */
 void qlist_destroy_obj(QObject *obj)

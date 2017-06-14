@@ -52,6 +52,14 @@ QFloat *qobject_to_qfloat(const QObject *obj)
 }
 
 /**
+ * qfloat_is_equal(): Tests whether the two QFloats are equal
+ */
+bool qfloat_is_equal(const QObject *x, const QObject *y)
+{
+    return qobject_to_qfloat(x)->value == qobject_to_qfloat(y)->value;
+}
+
+/**
  * qfloat_destroy_obj(): Free all memory allocated by a
  * QFloat object
  */
