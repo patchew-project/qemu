@@ -1207,7 +1207,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_temp_free(tmp);
 
             /* Allow interrupts to be recognized right away.  */
-            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            tcg_gen_movi_i64(cpu_pc, ctx->pc);
             return EXIT_PC_UPDATED_NOCHAIN;
 
         case 0x36:
