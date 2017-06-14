@@ -646,6 +646,7 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v)
     XHCITRB ev_trb;
     dma_addr_t addr;
 
+    memset(&ev_trb, 0, sizeof(ev_trb));
     ev_trb.parameter = cpu_to_le64(event->ptr);
     ev_trb.status = cpu_to_le32(event->length | (event->ccode << 24));
     ev_trb.control = (event->slotid << 24) | (event->epid << 16) |
