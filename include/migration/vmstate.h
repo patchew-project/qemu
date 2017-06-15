@@ -29,7 +29,6 @@
 
 #include "migration/qjson.h"
 
-typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateDescription VMStateDescription;
 typedef struct VMStateField VMStateField;
@@ -176,7 +175,7 @@ struct VMStateDescription {
     int minimum_version_id;
     int minimum_version_id_old;
     MigrationPriority priority;
-    LoadStateHandler *load_state_old;
+    int (*load_state_old)(QEMUFile *f, void *opaque, int version_id);
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
     void (*pre_save)(void *opaque);
