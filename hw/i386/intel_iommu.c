@@ -1466,10 +1466,7 @@ static uint64_t vtd_iotlb_flush(IntelIOMMUState *s, uint64_t val)
     return iaig;
 }
 
-static inline bool vtd_queued_inv_enable_check(IntelIOMMUState *s)
-{
-    return s->iq_tail == 0;
-}
+static void vtd_fetch_inv_desc(IntelIOMMUState *s);
 
 static inline bool vtd_queued_inv_disable_check(IntelIOMMUState *s)
 {
@@ -1483,19 +1480,20 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
 
     VTD_DPRINTF(INV, "Queued Invalidation Enable %s", (en ? "on" : "off"));
     if (en) {
-        if (vtd_queued_inv_enable_check(s)) {
-            s->iq = iqa_val & VTD_IQA_IQA_MASK;
-            /* 2^(x+8) entries */
-            s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
-            s->qi_enabled = true;
-            VTD_DPRINTF(INV, "DMAR_IQA_REG 0x%"PRIx64, iqa_val);
-            VTD_DPRINTF(INV, "Invalidation Queue addr 0x%"PRIx64 " size %d",
-                        s->iq, s->iq_size);
-            /* Ok - report back to driver */
-            vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_QIES);
-        } else {
-            VTD_DPRINTF(GENERAL, "error: can't enable Queued Invalidation: "
-                        "tail %"PRIu16, s->iq_tail);
+        s->iq = iqa_val & VTD_IQA_IQA_MASK;
+        /* 2^(x+8) entries */
+        s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
+        s->qi_enabled = true;
+        VTD_DPRINTF(INV, "DMAR_IQA_REG 0x%"PRIx64, iqa_val);
+        VTD_DPRINTF(INV, "Invalidation Queue addr 0x%"PRIx64 " size %d",
+                    s->iq, s->iq_size);
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_QIES);
+
+        if (s->iq_tail != 0 &&
+            !(vtd_get_long_raw(s, DMAR_FSTS_REG) & VTD_FSTS_IQE)) {
+            VTD_DPRINTF(INV, "warning: QI enabled with non-zero tail");
+            vtd_fetch_inv_desc(s);
         }
     } else {
         if (vtd_queued_inv_disable_check(s)) {
