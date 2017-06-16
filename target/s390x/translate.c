@@ -55,6 +55,7 @@ typedef struct DisasFields DisasFields;
 
 struct DisasContext {
     struct TranslationBlock *tb;
+    const unsigned long *features;
     const DisasInsn *insn;
     DisasFields *fields;
     uint64_t ex_value;
@@ -5601,6 +5602,12 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     }
 #endif
 
+    /* Check for insn feature enabled.  */
+    if (s->features && !test_bit(insn->fac, s->features)) {
+        gen_program_exception(s, PGM_OPERATION);
+        return EXIT_NORETURN;
+    }
+
     /* Check for insn specification exceptions.  */
     if (insn->spec) {
         int spec = insn->spec, excp = 0, r;
@@ -5727,6 +5734,8 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     }
 
     dc.tb = tb;
+    dc.features = (s390_has_feat(S390_FEAT_TCG_ALL_INSNS)
+                   ? NULL : cpu->model->features);
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
     dc.ex_value = tb->cs_base;

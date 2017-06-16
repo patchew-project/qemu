@@ -685,6 +685,11 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
         S390_FEAT_GENERAL_INSTRUCTIONS_EXT,
         S390_FEAT_EXECUTE_EXT,
         S390_FEAT_STFLE_45,
+
+        /* There are other features that are only partially implemented.
+           We do not advertise those above.  Indicate that we should not
+           enforce PGM_OPERATION for insns without the feature bit set.  */
+        S390_FEAT_TCG_ALL_INSNS,
     };
     int i;
 

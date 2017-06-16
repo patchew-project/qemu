@@ -24,7 +24,7 @@
     }
 
 /* indexed by feature number for easy lookup */
-static const S390FeatDef s390_features[] = {
+static const S390FeatDef s390_features[S390_FEAT_MAX] = {
     FEAT_INIT("esan3", S390_FEAT_TYPE_STFL, 0, "Instructions marked as n3"),
     FEAT_INIT("zarch", S390_FEAT_TYPE_STFL, 1, "z/Architecture architectural mode"),
     FEAT_INIT("dateh", S390_FEAT_TYPE_STFL, 3, "DAT-enhancement facility"),
@@ -251,6 +251,8 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("pcc-xts-eaes-256", S390_FEAT_TYPE_PCC, 60, "PCC Compute-XTS-Parameter-Using-Encrypted-AES-256"),
 
     FEAT_INIT("ppno-sha-512-drng", S390_FEAT_TYPE_PPNO, 3, "PPNO SHA-512-DRNG"),
+
+    FEAT_INIT("tcg-all-insns", S390_FEAT_TYPE_MISC, 0, "Enable all insns supported by TCG"),
 };
 
 const S390FeatDef *s390_feat_def(S390Feat feat)
