@@ -783,6 +783,8 @@ bool cpu_throttle_active(void);
  */
 int cpu_throttle_get_percentage(void);
 
+#ifdef NEED_CPU_H
+
 #ifndef CONFIG_USER_ONLY
 
 typedef void (*CPUInterruptHandler)(CPUState *, int);
@@ -828,6 +830,8 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
     cc->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
 }
 #endif
+
+#endif /* NEED_CPU_H */
 
 /**
  * cpu_set_pc:
@@ -1005,6 +1009,8 @@ void cpu_exec_initfn(CPUState *cpu);
 void cpu_exec_realizefn(CPUState *cpu, Error **errp);
 void cpu_exec_unrealizefn(CPUState *cpu);
 
+#ifdef NEED_CPU_H
+
 #ifdef CONFIG_SOFTMMU
 extern const struct VMStateDescription vmstate_cpu_common;
 #else
@@ -1018,6 +1024,8 @@ extern const struct VMStateDescription vmstate_cpu_common;
     .flags = VMS_STRUCT,                                                    \
     .offset = 0,                                                            \
 }
+
+#endif /* NEED_CPU_H */
 
 #define UNASSIGNED_CPU_INDEX -1
 
