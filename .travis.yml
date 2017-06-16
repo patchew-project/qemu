@@ -46,7 +46,7 @@ notifications:
 env:
   global:
     - PARALLEL_JOBS="$(($(getconf _NPROCESSORS_ONLN) + 1))"
-    - TEST_CMD="make check"
+    - RUN_TESTS="yes"
   matrix:
     - CONFIG=""
     - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
@@ -66,7 +66,7 @@ before_script:
   - ./configure ${CONFIG}
 script:
   - make -j${PARALLEL_JOBS}
-  - test -z "${TEST_CMD}" || ${TEST_CMD}
+  - if [ "${RUN_TESTS}" == "yes" ]; then make check; fi
 matrix:
   include:
     # Test with CLang for compile portability
@@ -77,16 +77,16 @@ matrix:
       compiler: gcc
     # We manually include builds which we disable "make check" for
     - env: CONFIG="--enable-debug --enable-tcg-interpreter"
-           TEST_CMD=""
+           RUN_TESTS="no"
       compiler: gcc
     - env: CONFIG="--enable-trace-backends=simple"
-           TEST_CMD=""
+           RUN_TESTS="no"
       compiler: gcc
     - env: CONFIG="--enable-trace-backends=ftrace"
-           TEST_CMD=""
+           RUN_TESTS="no"
       compiler: gcc
     - env: CONFIG="--enable-trace-backends=ust"
-           TEST_CMD=""
+           RUN_TESTS="no"
       compiler: gcc
     - env: CONFIG=""
       os: osx
@@ -191,6 +191,6 @@ matrix:
       env:
         - COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
         - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user"
-        - TEST_CMD=""
+        - RUN_TESTS="no"
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
