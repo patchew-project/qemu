@@ -66,7 +66,7 @@ before_script:
   - ./configure ${CONFIG}
 script:
   - make -j${PARALLEL_JOBS}
-  - if [ "${RUN_TESTS}" == "yes" ]; then make check; fi
+  - if [ "${RUN_TESTS}" == "yes" ]; then make -j${PARALLEL_JOBS} check-compile && make check; fi
 matrix:
   include:
     # Test with CLang for compile portability
