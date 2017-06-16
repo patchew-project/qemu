@@ -65,7 +65,8 @@ before_install:
 before_script:
   - ./configure ${CONFIG}
 script:
-  - make -j${PARALLEL_JOBS} && ${TEST_CMD}
+  - make -j${PARALLEL_JOBS}
+  - test -z "${TEST_CMD}" || ${TEST_CMD}
 matrix:
   include:
     # Test with CLang for compile portability
