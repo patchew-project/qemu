@@ -232,7 +232,7 @@ int hax_init_vcpu(CPUState *cpu)
     }
 
     cpu->hax_vcpu = hax_global.vm->vcpus[cpu->cpu_index];
-    cpu->hax_vcpu_dirty = true;
+    cpu->vcpu_dirty = true;
     qemu_register_reset(hax_reset_vcpu_state, (CPUArchState *) (cpu->env_ptr));
 
     return ret;
@@ -598,12 +598,12 @@ static void do_hax_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
     CPUArchState *env = cpu->env_ptr;
 
     hax_arch_get_registers(env);
-    cpu->hax_vcpu_dirty = true;
+    cpu->vcpu_dirty = true;
 }
 
 void hax_cpu_synchronize_state(CPUState *cpu)
 {
-    if (!cpu->hax_vcpu_dirty) {
+    if (!cpu->vcpu_dirty) {
         run_on_cpu(cpu, do_hax_cpu_synchronize_state, RUN_ON_CPU_NULL);
     }
 }
@@ -614,7 +614,7 @@ static void do_hax_cpu_synchronize_post_reset(CPUState *cpu,
     CPUArchState *env = cpu->env_ptr;
 
     hax_vcpu_sync_state(env, 1);
-    cpu->hax_vcpu_dirty = false;
+    cpu->vcpu_dirty = false;
 }
 
 void hax_cpu_synchronize_post_reset(CPUState *cpu)
@@ -627,7 +627,7 @@ static void do_hax_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
     CPUArchState *env = cpu->env_ptr;
 
     hax_vcpu_sync_state(env, 1);
-    cpu->hax_vcpu_dirty = false;
+    cpu->vcpu_dirty = false;
 }
 
 void hax_cpu_synchronize_post_init(CPUState *cpu)
@@ -637,7 +637,7 @@ void hax_cpu_synchronize_post_init(CPUState *cpu)
 
 static void do_hax_cpu_synchronize_pre_loadvm(CPUState *cpu, run_on_cpu_data arg)
 {
-    cpu->hax_vcpu_dirty = true;
+    cpu->vcpu_dirty = true;
 }
 
 void hax_cpu_synchronize_pre_loadvm(CPUState *cpu)
