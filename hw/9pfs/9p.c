@@ -3533,6 +3533,9 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
 
     s->ops = fse->ops;
 
+    s->ctx.fmask = fse->fmask;
+    s->ctx.dmask = fse->dmask;
+
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
 

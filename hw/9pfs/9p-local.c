@@ -633,7 +633,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        err = mknodat(dirfd, name, SM_LOCAL_MODE_BITS | S_IFREG, 0);
+        err = mknodat(dirfd, name, fs_ctx->fmask | S_IFREG, 0);
         if (err == -1) {
             goto out;
         }
@@ -685,7 +685,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        err = mkdirat(dirfd, name, SM_LOCAL_DIR_MODE_BITS);
+        err = mkdirat(dirfd, name, fs_ctx->dmask);
         if (err == -1) {
             goto out;
         }
@@ -786,7 +786,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     /* Determine the security model */
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        fd = openat_file(dirfd, name, flags, SM_LOCAL_MODE_BITS);
+        fd = openat_file(dirfd, name, flags, fs_ctx->fmask);
         if (fd == -1) {
             goto out;
         }
@@ -849,7 +849,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         ssize_t oldpath_size, write_size;
 
         fd = openat_file(dirfd, name, O_CREAT | O_EXCL | O_RDWR,
-                         SM_LOCAL_MODE_BITS);
+                         fs_ctx->fmask);
         if (fd == -1) {
             goto out;
         }
@@ -1431,6 +1431,9 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
 {
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
+    const char *fmask = qemu_opt_get(opts, "fmask");
+    const char *dmask = qemu_opt_get(opts, "dmask");
+    long mask;
     Error *err = NULL;
 
     if (!sec_model) {
@@ -1468,6 +1471,28 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
     }
 
     fse->path = g_strdup(path);
+
+    fse->fmask = SM_LOCAL_MODE_BITS;
+    if (fmask) {
+        mask = strtol(fmask, NULL, 0);
+        if((!mask || mask == LONG_MIN || mask == LONG_MAX) && errno)
+        {
+            error_report("Invalid fmask %s specified", fmask);
+            return -1;
+	}
+        fse->fmask = ((mode_t)mask) & 0777;
+    }
+
+    fse->dmask = SM_LOCAL_DIR_MODE_BITS;
+    if (dmask) {
+        mask = strtol(dmask, NULL, 0);
+        if((!mask || mask == LONG_MIN || mask == LONG_MAX) && errno)
+        {
+            error_report("Invalid dmask %s specified", dmask);
+            return -1;
+	}
+        fse->dmask = ((mode_t)mask) & 0777;
+    }
 
     return 0;
 }
