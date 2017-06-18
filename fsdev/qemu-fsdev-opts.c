@@ -38,6 +38,12 @@ static QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "sock_fd",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "fmask",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "dmask",
+            .type = QEMU_OPT_STRING,
         },
 
         THROTTLE_OPTS,
@@ -75,6 +81,12 @@ static QemuOptsList qemu_virtfs_opts = {
         }, {
             .name = "sock_fd",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "fmask",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "dmask",
+            .type = QEMU_OPT_STRING,
         },
 
         { /*End of list */ }

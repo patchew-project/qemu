@@ -76,6 +76,8 @@ typedef struct FsDriverEntry {
     int export_flags;
     FileOperations *ops;
     FsThrottle fst;
+    mode_t fmask;
+    mode_t dmask;
 } FsDriverEntry;
 
 typedef struct FsContext
@@ -88,6 +90,8 @@ typedef struct FsContext
     FsThrottle *fst;
     /* fs driver specific data */
     void *private;
+    mode_t fmask;
+    mode_t dmask;
 } FsContext;
 
 typedef struct V9fsPath {
