@@ -105,6 +105,7 @@ static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
 static void pci_unplug_nics(PCIBus *bus)
 {
     pci_for_each_device(bus, 0, unplug_nic, NULL);
+    net_cleanup();
 }
 
 static void unplug_disks(PCIBus *b, PCIDevice *d, void *opaque)
