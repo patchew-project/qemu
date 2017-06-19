@@ -633,7 +633,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        err = mknodat(dirfd, name, SM_LOCAL_MODE_BITS | S_IFREG, 0);
+        err = mknodat(dirfd, name, fs_ctx->fmode | S_IFREG, 0);
         if (err == -1) {
             goto out;
         }
@@ -685,7 +685,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
 
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        err = mkdirat(dirfd, name, SM_LOCAL_DIR_MODE_BITS);
+        err = mkdirat(dirfd, name, fs_ctx->dmode);
         if (err == -1) {
             goto out;
         }
@@ -786,7 +786,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     /* Determine the security model */
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
-        fd = openat_file(dirfd, name, flags, SM_LOCAL_MODE_BITS);
+        fd = openat_file(dirfd, name, flags, fs_ctx->fmode);
         if (fd == -1) {
             goto out;
         }
@@ -849,7 +849,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         ssize_t oldpath_size, write_size;
 
         fd = openat_file(dirfd, name, O_CREAT | O_EXCL | O_RDWR,
-                         SM_LOCAL_MODE_BITS);
+                         fs_ctx->fmode);
         if (fd == -1) {
             goto out;
         }
@@ -1431,6 +1431,8 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
 {
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
+    uint64_t fmode = qemu_opt_get_number(opts, "fmode", SM_LOCAL_MODE_BITS);
+    uint64_t dmode = qemu_opt_get_number(opts, "dmode", SM_LOCAL_DIR_MODE_BITS);
     Error *err = NULL;
 
     if (!sec_model) {
@@ -1456,14 +1458,28 @@ static int local_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
         return -1;
     }
 
-    if (!path) {
-        error_report("fsdev: No path specified");
-        return -1;
-    }
-
     fsdev_throttle_parse_opts(opts, &fse->fst, &err);
     if (err) {
         error_reportf_err(err, "Throttle configuration is not valid: ");
+        return -1;
+    }
+
+    if (!(fse->export_flags & (V9FS_SM_MAPPED | V9FS_SM_MAPPED_FILE))) {
+        if (qemu_opt_find(opts, "fmode")) {
+            error_report("fmode is only valid for mapped 9p modes");
+            return -1;
+        }
+        if (qemu_opt_find(opts, "dmode")) {
+            error_report("dmode is only valid for mapped 9p modes");
+            return -1;
+        }
+    }
+
+    fse->fmode = ((mode_t)fmode) & 0777;
+    fse->dmode = ((mode_t)dmode) & 0777;
+
+    if (!path) {
+        error_report("fsdev: No path specified");
         return -1;
     }
 
