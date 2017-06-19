@@ -11,6 +11,7 @@
 #define THROTTLE_OPTIONS_H
 
 #include "qemu/throttle.h"
+#include "qmp-commands.h"
 
 #define THROTTLE_OPTS \
           { \
@@ -92,5 +93,7 @@
         }
 
 void throttle_parse_options(ThrottleConfig *, QemuOpts *);
+
+void throttle_set_io_limits(ThrottleConfig *, IOThrottle *);
 
 #endif
