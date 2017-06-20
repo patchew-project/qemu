@@ -2407,6 +2407,17 @@ static ExitStatus op_ipm(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_idte(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m4;
+
+    check_privileged(s);
+    m4 = tcg_const_i32(get_field(s->fields, m4));
+    gen_helper_idte(cpu_env, o->in1, o->in2, m4);
+    tcg_temp_free_i32(m4);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ipte(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 m4;
