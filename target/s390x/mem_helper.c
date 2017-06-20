@@ -1558,18 +1558,13 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
-    /* XXX: the LC bit should be considered as 0 if the local-TLB-clearing
-       facility is not installed.  */
-    if (m4 & 1) {
+    if (s390_has_feat(S390_FEAT_LOCAL_TLB_CLEARING) && (m4 & 1)) {
         tlb_flush_page(cs, page);
-    } else {
-        tlb_flush_page_all_cpus_synced(cs, page);
-    }
-
-    /* XXX 31-bit hack */
-    if (m4 & 1) {
+        /* 31 bit hack */
         tlb_flush_page(cs, page ^ 0x80000000);
     } else {
+        tlb_flush_page_all_cpus_synced(cs, page);
+        /* 31 bit hack */
         tlb_flush_page_all_cpus_synced(cs, page ^ 0x80000000);
     }
 }
