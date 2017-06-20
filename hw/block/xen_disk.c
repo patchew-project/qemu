@@ -27,10 +27,13 @@
 #include "hw/xen/xen_backend.h"
 #include "xen_blkif.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/iothread.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qom/object_interfaces.h"
+#include "trace.h"
 
 /* ------------------------------------------------------------- */
 
@@ -128,6 +131,9 @@ struct XenBlkDev {
     DriveInfo           *dinfo;
     BlockBackend        *blk;
     QEMUBH              *bh;
+
+    IOThread            *iothread;
+    AioContext          *ctx;
 };
 
 /* ------------------------------------------------------------- */
@@ -923,11 +929,31 @@ static void blk_bh(void *opaque)
 static void blk_alloc(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
+    Object *obj;
+    char *name;
+    Error *err = NULL;
+
+    trace_xen_disk_alloc(xendev->name);
 
     QLIST_INIT(&blkdev->inflight);
     QLIST_INIT(&blkdev->finished);
     QLIST_INIT(&blkdev->freelist);
-    blkdev->bh = qemu_bh_new(blk_bh, blkdev);
+
+    obj = object_new(TYPE_IOTHREAD);
+    name = g_strdup_printf("iothread-%s", xendev->name);
+
+    object_property_add_child(object_get_objects_root(), name, obj, &err);
+    assert(!err);
+
+    g_free(name);
+
+    user_creatable_complete(obj, &err);
+    assert(!err);
+
+    blkdev->iothread = (IOThread *)object_dynamic_cast(obj, TYPE_IOTHREAD);
+    blkdev->ctx = iothread_get_aio_context(blkdev->iothread);
+    blkdev->bh = aio_bh_new(blkdev->ctx, blk_bh, blkdev);
+
     if (xen_mode != XEN_EMULATE) {
         batch_maps = 1;
     }
@@ -953,6 +979,8 @@ static int blk_init(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int info = 0;
     char *directiosafe = NULL;
+
+    trace_xen_disk_init(xendev->name);
 
     /* read xenstore entries */
     if (blkdev->params == NULL) {
@@ -1068,6 +1096,8 @@ static int blk_connect(struct XenDevice *xendev)
     unsigned int ring_size, max_grants;
     unsigned int i;
     uint32_t *domids;
+
+    trace_xen_disk_connect(xendev->name);
 
     /* read-only ? */
     if (blkdev->directiosafe) {
@@ -1285,6 +1315,8 @@ static int blk_connect(struct XenDevice *xendev)
         blkdev->persistent_gnt_count = 0;
     }
 
+    blk_set_aio_context(blkdev->blk, blkdev->ctx);
+
     xen_be_bind_evtchn(&blkdev->xendev);
 
     xen_pv_printf(&blkdev->xendev, 1, "ok: proto %s, nr-ring-ref %u, "
@@ -1298,12 +1330,19 @@ static void blk_disconnect(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
 
+    trace_xen_disk_disconnect(xendev->name);
+
+    aio_context_acquire(blkdev->ctx);
+
     if (blkdev->blk) {
+        blk_set_aio_context(blkdev->blk, qemu_get_aio_context());
         blk_detach_dev(blkdev->blk, blkdev);
         blk_unref(blkdev->blk);
         blkdev->blk = NULL;
     }
     xen_pv_unbind_evtchn(&blkdev->xendev);
+
+    aio_context_release(blkdev->ctx);
 
     if (blkdev->sring) {
         xengnttab_unmap(blkdev->xendev.gnttabdev, blkdev->sring,
@@ -1338,6 +1377,8 @@ static int blk_free(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     struct ioreq *ioreq;
 
+    trace_xen_disk_free(xendev->name);
+
     if (blkdev->blk || blkdev->sring) {
         blk_disconnect(xendev);
     }
@@ -1355,6 +1396,7 @@ static int blk_free(struct XenDevice *xendev)
     g_free(blkdev->dev);
     g_free(blkdev->devtype);
     qemu_bh_delete(blkdev->bh);
+    object_unparent(OBJECT(blkdev->iothread));
     return 0;
 }
 
