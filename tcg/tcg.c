@@ -810,11 +810,11 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
 #else
         if (TCG_TARGET_REG_BITS < 64 && (sizemask & 1)) {
 #ifdef HOST_WORDS_BIGENDIAN
-            op->args[pi++] = ret + 1;
+            op->args[pi++] = ret + sizeof(TCGTemp);
             op->args[pi++] = ret;
 #else
             op->args[pi++] = ret;
-            op->args[pi++] = ret + 1;
+            op->args[pi++] = ret + sizeof(TCGTemp);
 #endif
             nb_rets = 2;
         } else {
@@ -849,11 +849,11 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
               have to get more complicated to differentiate between
               stack arguments and register arguments.  */
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
-            op->args[pi++] = args[i] + 1;
+            op->args[pi++] = args[i] + sizeof(TCGTemp);
             op->args[pi++] = args[i];
 #else
             op->args[pi++] = args[i];
-            op->args[pi++] = args[i] + 1;
+            op->args[pi++] = args[i] + sizeof(TCGTemp);
 #endif
             real_args += 2;
             continue;

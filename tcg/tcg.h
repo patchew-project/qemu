@@ -520,7 +520,7 @@ typedef TCGv_ptr TCGv_env;
 #define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
 
 /* used to align parameters */
-#define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
+#define TCG_CALL_DUMMY_ARG      0
 
 /* Conditions.  Note that these are laid out for easy manipulation by
    the functions below:
@@ -714,24 +714,26 @@ extern bool parallel_cpus;
 
 static inline size_t temp_idx(TCGTemp *ts)
 {
-    ptrdiff_t n = ts - tcg_ctx.temps;
-    tcg_debug_assert(n >= 0 && n < tcg_ctx.nb_temps);
+    size_t n = ts - tcg_ctx.temps;
+    tcg_debug_assert(n < tcg_ctx.nb_temps);
     return n;
 }
 
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
-    return temp_idx(ts);
+    size_t n = ts - tcg_ctx.temps;
+    tcg_debug_assert(n < tcg_ctx.nb_temps);
+    return (uintptr_t)ts;
 }
 
 static inline TCGTemp *arg_temp(TCGArg a)
 {
-    return a == TCG_CALL_DUMMY_ARG ? NULL : &tcg_ctx.temps[a];
+    return (TCGTemp *)(uintptr_t)a;
 }
 
 static inline size_t arg_index(TCGArg a)
 {
-    return a;
+    return temp_idx(arg_temp(a));
 }
 
 static inline TCGv_i32 QEMU_ARTIFICIAL MAKE_TCGV_I32(TCGArg i)
