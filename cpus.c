@@ -76,6 +76,7 @@ int64_t max_advance;
 /* vcpu throttling controls */
 static QEMUTimer *throttle_timer;
 static unsigned int throttle_percentage;
+CPUInterruptHandler cpu_interrupt_handler;
 
 #define CPU_THROTTLE_PCT_MIN 1
 #define CPU_THROTTLE_PCT_MAX 99

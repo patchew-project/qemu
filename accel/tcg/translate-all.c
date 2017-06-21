@@ -798,6 +798,33 @@ static void tb_htable_init(void)
     qht_init(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
 }
 
+#ifndef CONFIG_USER_ONLY
+/* mask must never be zero, except for A20 change call */
+static void tcg_handle_interrupt(CPUState *cpu, int mask)
+{
+    int old_mask;
+    g_assert(qemu_mutex_iothread_locked());
+
+    old_mask = cpu->interrupt_request;
+    cpu->interrupt_request |= mask;
+
+    /*
+     * If called from iothread context, wake the target cpu in
+     * case its halted.
+     */
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
+    } else {
+        cpu->icount_decr.u16.high = -1;
+        if (use_icount &&
+            !cpu->can_do_io
+            && (mask & ~old_mask) != 0) {
+            cpu_abort(cpu, "Raised interrupt while not in I/O function");
+        }
+    }
+}
+#endif
+
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
@@ -807,6 +834,9 @@ void tcg_exec_init(unsigned long tb_size)
     page_init();
     tb_htable_init();
     code_gen_alloc(tb_size);
+#ifndef CONFIG_USER_ONLY
+    cpu_interrupt_handler = tcg_handle_interrupt;
+#endif
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
