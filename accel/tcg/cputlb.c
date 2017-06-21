@@ -21,6 +21,7 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "translate-all.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "exec/cpu_ldst.h"
