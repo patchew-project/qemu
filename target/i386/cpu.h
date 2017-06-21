@@ -52,7 +52,9 @@
 
 #include "exec/cpu-defs.h"
 
+#ifdef CONFIG_TCG
 #include "fpu/softfloat.h"
+#endif
 
 #define R_EAX 0
 #define R_ECX 1
@@ -1130,8 +1132,9 @@ typedef struct CPUX86State {
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
-
+#ifdef CONFIG_TCG
     CPU_COMMON
+#endif
 
     /* Fields after CPU_COMMON are preserved across CPU reset. */
 
