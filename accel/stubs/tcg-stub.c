@@ -83,6 +83,10 @@ void tcg_set_fpuc(CPUX86State *env)
 {
 }
 
+void flush_icache_range(uintptr_t start, uintptr_t stop)
+{
+}
+
 void cpu_loop_exit(CPUState *cpu)
 {
     abort();

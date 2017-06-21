@@ -2751,3 +2751,7 @@ void tcg_register_jit(void *buf, size_t buf_size)
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
 #endif
+
+void flush_icache_range(uintptr_t start, uintptr_t stop)
+{
+}
