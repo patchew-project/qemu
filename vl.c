@@ -3738,8 +3738,13 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
              case QEMU_OPTION_no_kvm:
+#ifdef CONFIG_TCG
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse_noisily(olist, "accel=tcg", false);
+#else
+                error_report("TCG is disabled");
+                exit(1);
+#endif
                 break;
             case QEMU_OPTION_no_kvm_pit: {
                 error_report("warning: ignoring deprecated option");
@@ -3915,10 +3920,15 @@ int main(int argc, char **argv, char **envp)
                 configure_rtc(opts);
                 break;
             case QEMU_OPTION_tb_size:
+#ifdef CONFIG_TCG
                 tcg_tb_size = strtol(optarg, NULL, 0);
                 if (tcg_tb_size < 0) {
                     tcg_tb_size = 0;
                 }
+#else
+                error_report("TCG is disabled");
+                exit(1);
+#endif
                 break;
             case QEMU_OPTION_icount:
                 icount_opts = qemu_opts_parse_noisily(qemu_find_opts("icount"),
@@ -4457,7 +4467,9 @@ int main(int argc, char **argv, char **envp)
         qemu_opts_del(icount_opts);
     }
 
+#ifdef CONFIG_TCG
     qemu_tcg_configure(accel_opts, &error_fatal);
+#endif
 
     if (default_net) {
         QemuOptsList *net = qemu_find_opts("net");

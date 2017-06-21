@@ -170,7 +170,7 @@ bool mttcg_enabled;
  * implicit memory order requirements which would likely slow things
  * down a lot.
  */
-
+#ifdef CONFIG_TCG
 static bool check_tcg_memory_orders_compatible(void)
 {
 #if defined(TCG_GUEST_DEFAULT_MO) && defined(TCG_TARGET_DEFAULT_MO)
@@ -223,6 +223,7 @@ void qemu_tcg_configure(QemuOpts *opts, Error **errp)
         mttcg_enabled = default_mttcg_enabled();
     }
 }
+#endif
 
 /* The current number of executed instructions is based on what we
  * originally budgeted minus the current state of the decrementing
