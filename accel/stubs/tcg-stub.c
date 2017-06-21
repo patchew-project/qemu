@@ -75,6 +75,14 @@ void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
 {
 }
 
+void tcg_update_mxcsr(CPUX86State *env)
+{
+}
+
+void tcg_set_fpuc(CPUX86State *env)
+{
+}
+
 void cpu_loop_exit(CPUState *cpu)
 {
     abort();
