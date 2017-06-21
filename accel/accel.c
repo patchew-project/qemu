@@ -120,6 +120,16 @@ void configure_accelerator(MachineState *ms)
     }
 }
 
+void accel_register_compat_props(AccelState *accel)
+{
+    AccelClass *class = ACCEL_GET_CLASS(accel);
+    GlobalProperty *prop;
+
+    for (prop = class->global_props; prop && prop->driver; prop++) {
+        register_compat_prop(prop->driver, prop->property, prop->value);
+    }
+}
+
 static void register_accel_types(void)
 {
     type_register_static(&accel_type);
