@@ -224,6 +224,7 @@ cap_ng=""
 attr=""
 libattr=""
 xfs=""
+tcg="yes"
 
 vhost_net="no"
 vhost_scsi="no"
@@ -952,6 +953,10 @@ for opt do
   --disable-hax) hax="no"
   ;;
   --enable-hax) hax="yes"
+  ;;
+  --disable-tcg) tcg="no"
+  ;;
+  --enable-tcg) tcg="yes"
   ;;
   --disable-tcg-interpreter) tcg_interpreter="no"
   ;;
@@ -5117,7 +5122,6 @@ echo "module support    $modules"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
-echo "tcg debug enabled $debug_tcg"
 echo "gprof enabled     $gprof"
 echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
@@ -5171,6 +5175,11 @@ echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
+echo "TCG support       $tcg"
+if test "$tcg" = "yes" ; then
+    echo "TCG debug enabled $debug_tcg"
+    echo "TCG interpreter   $tcg_interpreter"
+fi
 echo "HAX support       $hax"
 echo "RDMA support      $rdma"
 echo "TCG interpreter   $tcg_interpreter"
@@ -6229,6 +6238,7 @@ fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_target_mak
   echo "CONFIG_QEMU_INTERP_PREFIX=\"$interp_prefix1\"" >> $config_target_mak
+  echo "CONFIG_TCG=y" >> $config_target_mak
 fi
 if test "$target_linux_user" = "yes" ; then
   echo "CONFIG_LINUX_USER=y" >> $config_target_mak
@@ -6248,6 +6258,22 @@ if test "$target_bsd_user" = "yes" ; then
   echo "CONFIG_BSD_USER=y" >> $config_target_mak
 fi
 
+case "$target_name" in
+  alpha|arm|armeb|aarch64|cris|hppa|lm32|m68k|microblaze|microblazeel|mips|mipsel| \
+  mipsn32|mipsn32el|mips64|mips64el|moxie|nios2|or1k|ppc|ppcemb|ppc64|ppc64le|ppc64abi32| \
+  sh4|sh4eb|sparc|sparc64|sparc32plus|s390x|tilegx|tricore|unicore32|xtensa|xtensaeb)
+  if test "$target_softmmu" = "yes" ; then
+    echo "CONFIG_TCG=y" >> $config_target_mak
+  fi
+  ;;
+esac
+case "$target_name" in
+  i386|x86_64)
+  if test "$tcg" = "yes" -a "$target_softmmu" = "yes" ; then
+    echo "CONFIG_TCG=y" >> $config_target_mak
+  fi
+  ;;
+esac
 # generate QEMU_CFLAGS/LDFLAGS for targets
 
 cflags=""
