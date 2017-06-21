@@ -51,6 +51,14 @@ QInt *qobject_to_qint(const QObject *obj)
 }
 
 /**
+ * qint_is_equal(): Tests whether the two QInts are equal
+ */
+bool qint_is_equal(const QObject *x, const QObject *y)
+{
+    return qobject_to_qint(x)->value == qobject_to_qint(y)->value;
+}
+
+/**
  * qint_destroy_obj(): Free all memory allocated by a
  * QInt object
  */
