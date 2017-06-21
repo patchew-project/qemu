@@ -17,6 +17,7 @@
 #include "qemu/range.h"
 #include "qemu/sockets.h"
 #include "chardev/char-fe.h"
+#include "qemu/memfd.h"
 #include "sysemu/sysemu.h"
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
@@ -40,14 +41,13 @@
 #define HAVE_MONOTONIC_TIME
 #endif
 
-#define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM,"\
+#define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM," \
                         "mem-path=%s,share=on -numa node,memdev=mem"
+#define QEMU_CMD_MEMFD  " -m %d -object memory-backend-memfd,id=mem,size=%dM," \
+                        " -numa node,memdev=mem"
 #define QEMU_CMD_CHR    " -chardev socket,id=%s,path=%s%s"
 #define QEMU_CMD_NETDEV " -netdev vhost-user,id=net0,chardev=%s,vhostforce"
 #define QEMU_CMD_NET    " -device virtio-net-pci,netdev=net0"
-
-#define QEMU_CMD        QEMU_CMD_MEM QEMU_CMD_CHR \
-                        QEMU_CMD_NETDEV QEMU_CMD_NET
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
@@ -158,6 +158,22 @@ typedef struct TestServer {
 
 static const char *tmpfs;
 static const char *root;
+
+static char *get_qemu_cmd(TestServer *s, int mem, const char *mem_path,
+                          const char *chr_opts, const char *extra)
+{
+    if (qemu_memfd_check()) {
+        return g_strdup_printf(QEMU_CMD_MEMFD QEMU_CMD_CHR
+                               QEMU_CMD_NETDEV QEMU_CMD_NET "%s", mem, mem,
+                               s->chr_name, s->socket_path,
+                               chr_opts, s->chr_name, extra);
+    } else {
+        return g_strdup_printf(QEMU_CMD_MEM QEMU_CMD_CHR
+                               QEMU_CMD_NETDEV QEMU_CMD_NET "%s", mem, mem,
+                               mem_path, s->chr_name, s->socket_path,
+                               chr_opts, s->chr_name, extra);
+    }
+}
 
 static void init_virtio_dev(TestServer *s)
 {
@@ -477,14 +493,6 @@ static inline void test_server_connect(TestServer *server)
     test_server_create_chr(server, ",reconnect=1");
 }
 
-#define GET_QEMU_CMD(s)                                         \
-    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
-                    (s)->socket_path, "", (s)->chr_name)
-
-#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                     \
-    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name, \
-                    (s)->socket_path, (chr_opts), (s)->chr_name, ##__VA_ARGS__)
-
 static gboolean _test_server_free(TestServer *server)
 {
     int i;
@@ -628,7 +636,7 @@ static void test_migrate(void)
     char *uri = g_strdup_printf("%s%s", "unix:", dest->mig_path);
     QTestState *global = global_qtest, *from, *to;
     GSource *source;
-    gchar *cmd;
+    gchar *cmd, *tmp;
     QDict *rsp;
     guint8 *log;
     guint64 size;
@@ -636,7 +644,7 @@ static void test_migrate(void)
     test_server_listen(s);
     test_server_listen(dest);
 
-    cmd = GET_QEMU_CMDE(s, 2, "", "");
+    cmd = get_qemu_cmd(s, 2, root, "", "");
     from = qtest_start(cmd);
     g_free(cmd);
 
@@ -645,7 +653,9 @@ static void test_migrate(void)
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
 
-    cmd = GET_QEMU_CMDE(dest, 2, "", " -incoming %s", uri);
+    tmp = g_strdup_printf(" -incoming %s", uri);
+    cmd = get_qemu_cmd(dest, 2, root, "", tmp);
+    g_free(tmp);
     to = qtest_init(cmd);
     g_free(cmd);
 
@@ -751,7 +761,7 @@ static void test_reconnect_subprocess(void)
     char *cmd;
 
     g_thread_new("connect", connect_thread, s);
-    cmd = GET_QEMU_CMDE(s, 2, ",server", "");
+    cmd = get_qemu_cmd(s, 2, root, ",server", "");
     qtest_start(cmd);
     g_free(cmd);
 
@@ -787,7 +797,7 @@ static void test_connect_fail_subprocess(void)
 
     s->test_fail = true;
     g_thread_new("connect", connect_thread, s);
-    cmd = GET_QEMU_CMDE(s, 2, ",server", "");
+    cmd = get_qemu_cmd(s, 2, root, ",server", "");
     qtest_start(cmd);
     g_free(cmd);
 
@@ -815,7 +825,7 @@ static void test_flags_mismatch_subprocess(void)
 
     s->test_flags = TEST_FLAGS_DISCONNECT;
     g_thread_new("connect", connect_thread, s);
-    cmd = GET_QEMU_CMDE(s, 2, ",server", "");
+    cmd = get_qemu_cmd(s, 2, root, ",server", "");
     qtest_start(cmd);
     g_free(cmd);
 
@@ -883,11 +893,21 @@ static void test_multiqueue(void)
     s->queues = queues;
     test_server_listen(s);
 
-    cmd = g_strdup_printf(QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
-                          "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
-                          512, 512, root, s->chr_name,
-                          s->socket_path, "", s->chr_name,
-                          queues, queues * 2 + 2);
+    if (qemu_memfd_check()) {
+        cmd = g_strdup_printf(
+            QEMU_CMD_MEMFD QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
+            "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
+            512, 512, s->chr_name,
+            s->socket_path, "", s->chr_name,
+            queues, queues * 2 + 2);
+    } else {
+        cmd = g_strdup_printf(
+            QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
+            "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
+            512, 512, root, s->chr_name,
+            s->socket_path, "", s->chr_name,
+            queues, queues * 2 + 2);
+    }
     qtest_start(cmd);
     g_free(cmd);
 
@@ -953,7 +973,7 @@ int main(int argc, char **argv)
     /* run the main loop thread so the chardev may operate */
     thread = g_thread_new(NULL, thread_function, loop);
 
-    qemu_cmd = GET_QEMU_CMD(server);
+    qemu_cmd = get_qemu_cmd(server, 512, root, "", "");
 
     s = qtest_start(qemu_cmd);
     g_free(qemu_cmd);
