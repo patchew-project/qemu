@@ -18,7 +18,6 @@
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/sysbus.h"
-#include "tcg/tcg.h"
 
 #define VAPIC_IO_PORT           0x7e
 
@@ -396,29 +395,14 @@ static void patch_call(VAPICROMState *s, X86CPU *cpu, target_ulong ip,
 static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 {
     CPUState *cs = CPU(cpu);
-    CPUX86State *env = &cpu->env;
     VAPICHandlers *handlers;
     uint8_t opcode[2];
     uint32_t imm32 = 0;
-    target_ulong current_pc = 0;
-    target_ulong current_cs_base = 0;
-    uint32_t current_flags = 0;
 
     if (smp_cpus == 1) {
         handlers = &s->rom_state.up;
     } else {
         handlers = &s->rom_state.mp;
-    }
-
-    if (!kvm_enabled()) {
-        cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
-                             &current_flags);
-        /* Account this instruction, because we will exit the tb.
-           This is the first instruction in the block. Therefore
-           there is no need in restoring CPU state. */
-        if (use_icount) {
-            --cs->icount_decr.u16.low;
-        }
     }
 
     pause_all_vcpus();
@@ -455,14 +439,6 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     }
 
     resume_all_vcpus();
-
-    if (!kvm_enabled()) {
-        /* Both tb_lock and iothread_mutex will be reset when
-         *  longjmps back into the cpu_exec loop. */
-        tb_lock();
-        tb_gen_code(cs, current_pc, current_cs_base, current_flags, 1);
-        cpu_loop_exit_noexc(cs);
-    }
 }
 
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
