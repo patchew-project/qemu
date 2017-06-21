@@ -35,6 +35,7 @@
 #include "trace/control.h"
 #include "glib-compat.h"
 
+bool tcg_allowed = true;
 int singlestep;
 unsigned long mmap_min_addr;
 unsigned long guest_base;

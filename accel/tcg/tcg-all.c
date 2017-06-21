@@ -29,7 +29,7 @@
 #include "qom/object.h"
 
 int tcg_tb_size;
-static bool tcg_allowed = true;
+bool tcg_allowed;
 
 static int tcg_init(MachineState *ms)
 {
