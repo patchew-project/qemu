@@ -2492,6 +2492,7 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.exception.has_error_code = env->has_error_code;
     events.exception.error_code = env->error_code;
     events.exception.pad = 0;
+    events.exception.async_page_fault = env->async_page_fault;
 
     events.interrupt.injected = (env->interrupt_injected >= 0);
     events.interrupt.nr = env->interrupt_injected;
@@ -2530,7 +2531,8 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
 
     if (level >= KVM_PUT_RESET_STATE) {
         events.flags |=
-            KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR;
+            KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR |
+		             KVM_VCPUEVENT_VALID_ASYNC_PF;
     }
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_VCPU_EVENTS, &events);
@@ -2555,6 +2557,8 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
        events.exception.injected ? events.exception.nr : -1;
     env->has_error_code = events.exception.has_error_code;
     env->error_code = events.exception.error_code;
+    if (events.flags & KVM_VCPUEVENT_VALID_ASYNC_PF)
+        env->async_page_fault = events.exception.async_page_fault;
 
     env->interrupt_injected =
         events.interrupt.injected ? events.interrupt.nr : -1;
