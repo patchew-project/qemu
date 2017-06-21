@@ -20,5 +20,6 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qnull.h"
 
 #endif /* QAPI_QMP_TYPES_H */

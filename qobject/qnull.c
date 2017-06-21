@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qnull.h"
 
 QObject qnull_ = {
     .type = QTYPE_QNULL,
