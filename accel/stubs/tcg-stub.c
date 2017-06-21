@@ -63,6 +63,12 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc)
     return false;
 }
 
+void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
+                             hwaddr paddr, MemTxAttrs attrs,
+                             int prot, int mmu_idx, target_ulong size)
+{
+}
+
 void update_fp_status(CPUX86State *env)
 {
 }
