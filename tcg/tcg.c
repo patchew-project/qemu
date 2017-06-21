@@ -492,8 +492,8 @@ static inline TCGTemp *tcg_global_alloc(TCGContext *s)
     return ts;
 }
 
-static int tcg_global_reg_new_internal(TCGContext *s, TCGType type,
-                                       TCGReg reg, const char *name)
+static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
+                                            TCGReg reg, const char *name)
 {
     TCGTemp *ts;
 
@@ -509,47 +509,45 @@ static int tcg_global_reg_new_internal(TCGContext *s, TCGType type,
     ts->name = name;
     tcg_regset_set_reg(s->reserved_regs, reg);
 
-    return temp_idx(ts);
+    return ts;
 }
 
 void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size)
 {
-    int idx;
     s->frame_start = start;
     s->frame_end = start + size;
-    idx = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, reg, "_frame");
-    s->frame_temp = &s->temps[idx];
+    s->frame_temp = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, reg, "_frame");
 }
 
 TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name)
 {
     TCGContext *s = &tcg_ctx;
-    int idx;
+    TCGTemp *t;
 
     if (tcg_regset_test_reg(s->reserved_regs, reg)) {
         tcg_abort();
     }
-    idx = tcg_global_reg_new_internal(s, TCG_TYPE_I32, reg, name);
-    return MAKE_TCGV_I32(idx);
+    t = tcg_global_reg_new_internal(s, TCG_TYPE_I32, reg, name);
+    return (TCGv_i32)t;
 }
 
 TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name)
 {
     TCGContext *s = &tcg_ctx;
-    int idx;
+    TCGTemp *t;
 
     if (tcg_regset_test_reg(s->reserved_regs, reg)) {
         tcg_abort();
     }
-    idx = tcg_global_reg_new_internal(s, TCG_TYPE_I64, reg, name);
-    return MAKE_TCGV_I64(idx);
+    t = tcg_global_reg_new_internal(s, TCG_TYPE_I64, reg, name);
+    return (TCGv_i64)t;
 }
 
-int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
-                                intptr_t offset, const char *name)
+TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
+                                     intptr_t offset, const char *name)
 {
     TCGContext *s = &tcg_ctx;
-    TCGTemp *base_ts = &s->temps[GET_TCGV_PTR(base)];
+    TCGTemp *base_ts = &base->impl;
     TCGTemp *ts = tcg_global_alloc(s);
     int indirect_reg = 0, bigendian = 0;
 #ifdef HOST_WORDS_BIGENDIAN
@@ -598,10 +596,10 @@ int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
         ts->mem_offset = offset;
         ts->name = name;
     }
-    return temp_idx(ts);
+    return ts;
 }
 
-static int tcg_temp_new_internal(TCGType type, int temp_local)
+TCGTemp *tcg_temp_new_internal(TCGType type, bool temp_local)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -638,36 +636,18 @@ static int tcg_temp_new_internal(TCGType type, int temp_local)
             ts->temp_allocated = 1;
             ts->temp_local = temp_local;
         }
-        idx = temp_idx(ts);
     }
 
 #if defined(CONFIG_DEBUG_TCG)
     s->temps_in_use++;
 #endif
-    return idx;
+    return ts;
 }
 
-TCGv_i32 tcg_temp_new_internal_i32(int temp_local)
-{
-    int idx;
-
-    idx = tcg_temp_new_internal(TCG_TYPE_I32, temp_local);
-    return MAKE_TCGV_I32(idx);
-}
-
-TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
-{
-    int idx;
-
-    idx = tcg_temp_new_internal(TCG_TYPE_I64, temp_local);
-    return MAKE_TCGV_I64(idx);
-}
-
-static void tcg_temp_free_internal(int idx)
+void tcg_temp_free_internal(TCGTemp *ts)
 {
     TCGContext *s = &tcg_ctx;
-    TCGTemp *ts;
-    int k;
+    int k, idx = temp_idx(ts);
 
 #if defined(CONFIG_DEBUG_TCG)
     s->temps_in_use--;
@@ -677,22 +657,11 @@ static void tcg_temp_free_internal(int idx)
 #endif
 
     tcg_debug_assert(idx >= s->nb_globals && idx < s->nb_temps);
-    ts = &s->temps[idx];
     tcg_debug_assert(ts->temp_allocated != 0);
     ts->temp_allocated = 0;
 
     k = ts->base_type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
     set_bit(idx, s->free_temps[k].l);
-}
-
-void tcg_temp_free_i32(TCGv_i32 arg)
-{
-    tcg_temp_free_internal(GET_TCGV_I32(arg));
-}
-
-void tcg_temp_free_i64(TCGv_i64 arg)
-{
-    tcg_temp_free_internal(GET_TCGV_I64(arg));
 }
 
 TCGv_i32 tcg_const_i32(int32_t val)
