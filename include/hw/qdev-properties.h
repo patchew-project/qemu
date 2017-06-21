@@ -201,6 +201,9 @@ void qdev_prop_set_globals(DeviceState *dev);
 void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                                     Property *prop, const char *value);
 
+void register_compat_prop(const char *driver, const char *property,
+                          const char *value);
+
 /**
  * qdev_property_add_static:
  * @dev: Device to add the property to.
