@@ -93,7 +93,7 @@ before_script:
   - if [ -x "$(command -v ccache 2>/dev/null)" ]; then export CC="ccache ${CC}"; ccache -s -M 0 -z; fi
   - echo "Using ${PARALLEL_JOBS} parallel jobs"
   - export HOST_CC="${CC}"
-  - ./configure ${CONFIG}
+  - ./configure ${CONFIG} || cat config.log
 script:
   - make -j${PARALLEL_JOBS} && ccache -s
   - ${TEST_CMD}
