@@ -62,7 +62,14 @@ notifications:
     on_failure: always
 env:
   global:
-    - TEST_CMD="make check"
+    # jobs
+      # detects cores on the hosting hardware, rather than the VM (https://docs.travis-ci.com/user/languages/c#hints)
+    - VM_CORES="4" HW_CORES="$(getconf _NPROCESSORS_ONLN)"
+      # be kind with Travis free plan, restrict to at most 4 cores
+    - PARALLEL_JOBS="$(($(test ${HW_CORES} -gt ${VM_CORES} && echo ${VM_CORES} || echo ${HW_CORES}) + 1))"
+    - HOMEBREW_MAKE_JOBS="${PARALLEL_JOBS}"
+    # tests
+    - TEST_CMD="make -j${PARALLEL_JOBS} check"
   matrix:
     - CONFIG=""
     - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
@@ -78,9 +85,11 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ; fi
   - git submodule update --init --recursive
 before_script:
+  - echo "Using ${PARALLEL_JOBS} parallel jobs"
   - ./configure ${CONFIG}
 script:
-  - make -j3 && ${TEST_CMD}
+  - make -j${PARALLEL_JOBS}
+  - ${TEST_CMD}
 matrix:
   include:
     # Test with CLang for compile portability
@@ -234,7 +243,7 @@ matrix:
       group: edge
       env:
         - COVERITY=1
-        - COVERITY_BUILD_CMD="make -j3"
+        - COVERITY_BUILD_CMD="make -j${PARALLEL_JOBS}"
         - COVERITY_EMAIL=peter.maydell@linaro.org
         # This 'secure' setting sets COVERITY_TOKEN=<secret token>
         # and was created with travis encrypt -r qemu/qemu COVERITY_TOKEN=...
