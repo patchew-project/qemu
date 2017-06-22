@@ -3416,12 +3416,6 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
         pos += 32;
     }
 
-    /* In some cases we can implement this with extract.  */
-    if (imask == 0 && pos == 0 && len > 0 && rot + len <= 64) {
-        tcg_gen_extract_i64(o->out, o->in2, rot, len);
-        return NO_EXIT;
-    }
-
     /* In some cases we can implement this with deposit.  */
     if (len > 0 && (imask == 0 || ~mask == imask)) {
         /* Note that we rotate the bits to be inserted to the lsb, not to
