@@ -6,6 +6,14 @@ vnc-obj-y += vnc-auth-vencrypt.o
 vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 vnc-obj-y += vnc-ws.o
 vnc-obj-y += vnc-jobs.o
+ifeq ($(CONFIG_VNC_SASL),y)
+# silent OSX SASL warnings (from https://stackoverflow.com/a/7406994):
+# because OpenSSL doesn’t offer API compatibility between versions, [...] Apple
+# can't provide security updates without breaking existing apps, so is migrating
+# from OpenSSL to Common Crypto.
+vnc.o-cflags := -Wno-deprecated-declarations
+vnc-auth-sasl.o-cflags := -Wno-deprecated-declarations
+endif
 
 common-obj-y += keymaps.o console.o cursor.o qemu-pixman.o
 common-obj-y += input.o input-keymap.o input-legacy.o
