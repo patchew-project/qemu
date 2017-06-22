@@ -85,7 +85,7 @@ git:
 before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update ; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ccache ; fi
-  - git submodule update --init --recursive
+  - travis_retry git submodule update --init --recursive
 before_script:
   # https://docs.travis-ci.com/user/caching#ccache-on-os-x
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export PATH=/usr/local/opt/ccache/libexec:$PATH ; fi
