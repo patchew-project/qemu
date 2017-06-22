@@ -432,7 +432,7 @@ static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* fil
 {
     char buffer[258];
     int length=short2long_name(buffer,filename),
-        number_of_entries=(length+25)/26,i;
+        number_of_entries=DIV_ROUND_UP(length, 26),i;
     direntry_t* entry;
 
     for(i=0;i<number_of_entries;i++) {
@@ -2423,7 +2423,7 @@ static int commit_one_file(BDRVVVFATState* s,
 		(size > offset && c >=2 && !fat_eof(s, c)));
 
 	ret = vvfat_read(s->bs, cluster2sector(s, c),
-	    (uint8_t*)cluster, (rest_size + 0x1ff) / 0x200);
+	    (uint8_t*)cluster, DIV_ROUND_UP(rest_size, 0x200));
 
         if (ret < 0) {
             qemu_close(fd);
