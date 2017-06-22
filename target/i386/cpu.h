@@ -1105,6 +1105,7 @@ typedef struct CPUX86State {
 
     /* exception/interrupt handling */
     int error_code;
+    uint8_t async_page_fault;
     int exception_is_int;
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers; note dr4 and dr5 are unused */
