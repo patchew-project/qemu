@@ -126,6 +126,17 @@ matrix:
     - env: CONFIG=""
            CCACHE_SLOPPINESS="file_macro,time_macros,include_file_ctime,include_file_mtime"
       os: osx
+      osx_image: xcode6.4
+      compiler: clang
+    - env: CONFIG=""
+           CCACHE_SLOPPINESS="file_macro,time_macros,include_file_ctime,include_file_mtime"
+      os: osx
+      osx_image: xcode7.3
+      compiler: clang
+    - env: CONFIG=""
+           CCACHE_SLOPPINESS="file_macro,time_macros,include_file_ctime,include_file_mtime"
+      os: osx
+      osx_image: xcode8.3
       compiler: clang
     # Plain Trusty System Build
     - env: CONFIG="--disable-linux-user"
