@@ -128,6 +128,7 @@ matrix:
     - sudo: required
       addons:
       dist: trusty
+      group: edge
       language: generic
       compiler: none
       env:
@@ -147,6 +148,7 @@ matrix:
     - sudo: required
       addons:
       dist: trusty
+      group: edge
       language: generic
       compiler: none
       env:
@@ -230,6 +232,7 @@ matrix:
     # We run on the trusty Travis hosts so that there's a wider set of
     # dependencies satisfied to improve coverage.
     - dist: trusty
+      group: edge
       env:
         - COVERITY=1
         - COVERITY_BUILD_CMD="make -j3"
