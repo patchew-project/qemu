@@ -4,7 +4,8 @@ python:
   - "2.4"
 compiler:
   - gcc
-cache: ccache
+cache:
+  ccache: true
 addons:
   apt:
     packages:
