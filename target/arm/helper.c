@@ -211,6 +211,11 @@ static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
     return true;
 }
 
+/*
+ * FIXME: the KVM API has switched encodings for
+ * CNTV_CVAL_EL0/CNTVCT_EL0 which need to be fixed if we want to
+ * change the reset values or support KVM<->TCG migration.
+ */
 bool write_cpustate_to_list(ARMCPU *cpu)
 {
     /* Write the coprocessor state from cpu->env to the (index,value) list. */
@@ -234,6 +239,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
     return ok;
 }
 
+/* FIXME: see above re:CNTV_CVAL_EL0/CNTVCT_EL0 encodings */
 bool write_list_to_cpustate(ARMCPU *cpu)
 {
     int i;
@@ -1961,6 +1967,11 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
                                    cp15.c14_timer[GTIMER_VIRT].ctl),
       .writefn = gt_virt_ctl_write, .raw_writefn = raw_write,
     },
+    /* WARNING! For *KVM only* the switched API encoding means this
+     * actually gets loaded in fresh VMs as CNTV_CVAL_EL0. This will
+     * need to be fixed in write_[cpustate_to_list|list_to_cpustate]
+     * if you want to change the reset value.
+     */
     { .name = "CNTV_CTL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 1,
       .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
@@ -2053,6 +2064,11 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .accessfn = gt_vtimer_access,
       .writefn = gt_virt_cval_write, .raw_writefn = raw_write,
     },
+    /* WARNING! For *KVM only* the switched API encoding means this
+     * actually gets loaded in fresh VMs as CNTVCT_EL0. This will need
+     * to be fixed in write_[cpustate_to_list|list_to_cpustate] if you
+     * want to change the reset value.
+     */
     { .name = "CNTV_CVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 2,
       .access = PL1_RW | PL0_R,
