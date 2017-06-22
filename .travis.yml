@@ -9,10 +9,12 @@ addons:
   apt:
     packages:
       # Build dependencies
+      - glusterfs-common
       - libaio-dev
       - libattr1-dev
       - libbluetooth-dev
       - libbrlapi-dev
+      - libbz2-dev
       - libcap-dev
       - libcap-ng-dev
       - libgnutls-dev
@@ -22,6 +24,8 @@ addons:
       - liblzo2-dev
       - libnfs-dev
       - libncurses5-dev
+      - libncursesw5-dev
+      - libnfs-dev
       - libnss3-dev
       - libpixman-1-dev
       - libpng12-dev
@@ -169,10 +173,12 @@ matrix:
             - gcc-5
             - g++-5
             # Build dependencies
+            - glusterfs-common
             - libaio-dev
             - libattr1-dev
             - libbluetooth-dev
             - libbrlapi-dev
+            - libbz2-dev
             - libcap-dev
             - libcap-ng-dev
             - libgnutls-dev
@@ -182,6 +188,8 @@ matrix:
             - liblzo2-dev
             - libnfs-dev
             - libncurses5-dev
+            - libncursesw5-dev
+            - libnfs-dev
             - libnss3-dev
             - libpixman-1-dev
             - libpng12-dev
