@@ -293,7 +293,7 @@ static unsigned int next_refcount_table_size(BDRVQcow2State *s,
         MAX(1, s->refcount_table_size >> (s->cluster_bits - 3));
 
     while (min_clusters > refcount_table_clusters) {
-        refcount_table_clusters = (refcount_table_clusters * 3 + 1) / 2;
+        refcount_table_clusters = DIV_ROUND_UP(refcount_table_clusters * 3, 2);
     }
 
     return refcount_table_clusters << (s->cluster_bits - 3);
