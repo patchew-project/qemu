@@ -68,6 +68,8 @@ env:
       # be kind with Travis free plan, restrict to at most 4 cores
     - PARALLEL_JOBS="$(($(test ${HW_CORES} -gt ${VM_CORES} && echo ${VM_CORES} || echo ${HW_CORES}) + 1))"
     - HOMEBREW_MAKE_JOBS="${PARALLEL_JOBS}"
+    # ccache
+    - CCACHE_SLOPPINESS="file_macro,time_macros"
     # tests
     - TEST_CMD="make -j${PARALLEL_JOBS} check"
   matrix:
@@ -82,14 +84,21 @@ git:
   submodules: false
 before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update ; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ccache ; fi
   - git submodule update --init --recursive
 before_script:
+  # https://docs.travis-ci.com/user/caching#ccache-on-os-x
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export PATH=/usr/local/opt/ccache/libexec:$PATH ; fi
+  - if [ "$CC" == "clang" ]; then export CCACHE_CPP2=1 ; fi
+  - if [ -x "$(command -v ccache 2>/dev/null)" ]; then export CC="ccache ${CC}"; ccache -s -M 0 -z; fi
   - echo "Using ${PARALLEL_JOBS} parallel jobs"
+  - export HOST_CC="${CC}"
   - ./configure ${CONFIG}
 script:
-  - make -j${PARALLEL_JOBS}
+  - make -j${PARALLEL_JOBS} && ccache -s
   - ${TEST_CMD}
+before_cache:
+  - ccache -s
 matrix:
   include:
     # Test with CLang for compile portability
@@ -112,6 +121,7 @@ matrix:
            TEST_CMD=""
       compiler: gcc
     - env: CONFIG=""
+           CCACHE_SLOPPINESS="file_macro,time_macros,include_file_ctime,include_file_mtime"
       os: osx
       compiler: clang
     # Plain Trusty System Build
