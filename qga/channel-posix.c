@@ -118,6 +118,14 @@ static int ga_channel_client_add(GAChannel *c, int fd)
     return 0;
 }
 
+gboolean ga_channel_client_attached(GAChannel *c)
+{
+    g_assert(c);
+    /* TODO: make this work with all methods. following works only with
+     * unix-listen */
+    return c->client_channel != NULL;
+}
+
 static gboolean ga_channel_open(GAChannel *c, const gchar *path,
                                 GAChannelMethod method, int fd)
 {

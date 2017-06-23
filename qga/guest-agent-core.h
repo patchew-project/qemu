@@ -13,6 +13,7 @@
 #include "qapi/qmp/dispatch.h"
 #include "qemu-common.h"
 #include "qga-qmp-commands.h"
+#include "qga-qapi-event.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096
 

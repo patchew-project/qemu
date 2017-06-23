@@ -22,6 +22,8 @@
 #include "qapi/qmp/qjson.h"
 #include "qga/guest-agent-core.h"
 #include "qemu/module.h"
+#include "qapi/qmp-event.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/dispatch.h"
 #include "qga/channel.h"
@@ -671,6 +673,59 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
         return false;
     }
     return true;
+}
+
+/* TODO: HACK HACK HACK... can't we get a GAstate somehow? */
+QDict *queued_event;
+static void ga_event_emit(qga_QAPIEvent event, QDict *qdict, Error **errp)
+{
+    if (queued_event) {
+        error_setg(errp, "unsent event already waiting");
+    } else {
+        QINCREF(qdict);
+        queued_event = qdict;
+    }
+}
+/* HACK HACK HACK!!! */
+
+static gboolean monitoring_cb(gpointer data)
+{
+    Error *err = NULL;
+    GAState *s = (GAState *)data;
+
+    g_assert(s->channel);
+    g_warning("monitoring!");
+
+    if (!ga_channel_client_attached(s->channel)) {
+        goto ok;
+    }
+
+    /* TODO: call something */
+    goto ok;
+
+/*fail:*/
+    g_assert(err);
+    g_warning("%s", error_get_pretty(err));
+    error_free(err);
+
+ok:
+    /* Always return true. False would remove this callback. */
+    return true;
+}
+
+static gboolean monitoring_init(GAState *s)
+{
+    if (g_timeout_add_seconds(5, monitoring_cb, (gpointer)s) <= 0) {
+        g_error("failed to create monitoring timer");
+        goto fail;
+    }
+    g_debug("monitoring timer created");
+
+    qmp_event_set_func_emit(ga_event_emit);
+    return true;
+
+fail:
+    return false;
 }
 
 static gboolean channel_init(GAState *s, const gchar *method, const gchar *path,
@@ -1329,6 +1384,10 @@ static int run_agent(GAState *s, GAConfig *config, int socket_activation)
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
+
+    /* TODO: error handling? */
+    monitoring_init(ga_state);
+
 #ifndef _WIN32
     g_main_loop_run(ga_state->main_loop);
 #else

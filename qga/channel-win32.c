@@ -315,6 +315,12 @@ static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
     return true;
 }
 
+gboolean ga_channel_client_attached(GAChannel *c)
+{
+    /* TODO: make this work with all methods */
+    return true;
+}
+
 GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
                           int listen_fd, GAChannelCallback cb, gpointer opaque)
 {

@@ -1,5 +1,7 @@
 # *-*- Mode: Python -*-*
 
+{ 'include': 'qapi-event.json' }
+
 ##
 #
 # General note concerning the use of guest agent interfaces:
