@@ -694,16 +694,29 @@ static gboolean monitoring_cb(gpointer data)
     GAState *s = (GAState *)data;
 
     g_assert(s->channel);
-    g_warning("monitoring!");
 
     if (!ga_channel_client_attached(s->channel)) {
         goto ok;
     }
 
-    /* TODO: call something */
+    /* Fire an event */
+    qapi_event_send_guest_heartbeat(12345, &err);
+    if (err) {
+        goto fail;
+    }
+
+    if (queued_event) {
+        int ret;
+        ret = send_response(s, QOBJECT(queued_event));
+        QDECREF(queued_event);
+        queued_event = NULL;
+        if (ret < 0) {
+            g_warning("error sending event: %s", strerror(-ret));
+        }
+    }
     goto ok;
 
-/*fail:*/
+fail:
     g_assert(err);
     g_warning("%s", error_get_pretty(err));
     error_free(err);

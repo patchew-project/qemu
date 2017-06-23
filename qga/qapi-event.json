@@ -1,2 +1,18 @@
 # *-*- Mode: Python -*-*
 
+##
+# @GUEST_HEARTBEAT:
+#
+# Mostrly returns memory statistics. TODO
+#
+# @free-ram: Amount of free memory in kB
+#
+# Since: 2.10
+#
+# Example:
+#
+# <- { "event": "GUEST_HEARTBEAT", "data": { "free-ram": "12345" },
+#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#
+##
+{ 'event': 'GUEST_HEARTBEAT', 'data': { 'free-ram': 'size' } }
