@@ -714,6 +714,32 @@ static gboolean monitoring_cb(gpointer data)
             g_warning("error sending event: %s", strerror(-ret));
         }
     }
+
+    /* Run arbitrary command */
+    const char *command = "guest-get-users";
+    QDict *args = qdict_new();
+
+    QmpCommand *cmd = qmp_find_command(&ga_commands, command);
+    g_assert(cmd);
+    g_assert(cmd->fn);
+    QObject *ret;
+    qmp_marshal_guest_get_users(args, &ret, &err);
+    QDECREF(args);
+    if (err) {
+        goto fail;
+    }
+    qapi_event_send_guest_monitor_command(command, ret, &err);
+
+    if (queued_event) {
+        int ret;
+        ret = send_response(s, QOBJECT(queued_event));
+        QDECREF(queued_event);
+        queued_event = NULL;
+        if (ret < 0) {
+            g_warning("error sending event: %s", strerror(-ret));
+        }
+    }
+
     goto ok;
 
 fail:

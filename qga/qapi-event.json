@@ -16,3 +16,20 @@
 #
 ##
 { 'event': 'GUEST_HEARTBEAT', 'data': { 'free-ram': 'size' } }
+
+##
+# @GUEST_MONITOR_COMMAND:
+#
+# Run periodicaly arbitrary command and return it's result.
+#
+# @command: The executed command.
+# @return: Returned value.
+#
+# Since: 2.10
+#
+# Example:
+#
+# TODO
+#
+##
+{ 'event': 'GUEST_MONITOR_COMMAND', 'data': { 'command': 'str', 'return': 'any' } }
