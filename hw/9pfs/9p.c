@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include <glib/gprintf.h>
+#include <linux/limits.h>
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
