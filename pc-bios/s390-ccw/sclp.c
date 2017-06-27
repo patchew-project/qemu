@@ -8,6 +8,7 @@
  * directory.
  */
 
+#include <unistd.h>
 #include "s390-ccw.h"
 #include "sclp.h"
 
@@ -51,34 +52,29 @@ void sclp_setup(void)
     sclp_set_write_mask();
 }
 
-static int _strlen(const char *str)
+ssize_t write(int fd, const void *buf, size_t len)
 {
-    int i;
-    for (i = 0; *str; i++)
-        str++;
-    return i;
-}
-
-static void _memcpy(char *dest, const char *src, int len)
-{
-    int i;
-    for (i = 0; i < len; i++)
-        dest[i] = src[i];
-}
-
-void sclp_print(const char *str)
-{
-    int len = _strlen(str);
     WriteEventData *sccb = (void *)_sccb;
+
+    if (fd != 1 && fd != 2) {
+        return -EIO;
+    }
 
     sccb->h.length = sizeof(WriteEventData) + len;
     sccb->h.function_code = SCLP_FC_NORMAL_WRITE;
     sccb->ebh.length = sizeof(EventBufferHeader) + len;
     sccb->ebh.type = SCLP_EVENT_ASCII_CONSOLE_DATA;
     sccb->ebh.flags = 0;
-    _memcpy(sccb->data, str, len);
+    memcpy(sccb->data, buf, len);
 
     sclp_service_call(SCLP_CMD_WRITE_EVENT_DATA, sccb);
+
+    return len;
+}
+
+void sclp_print(const char *str)
+{
+    write(1, str, strlen(str));
 }
 
 void sclp_get_loadparm_ascii(char *loadparm)
