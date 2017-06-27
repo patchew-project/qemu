@@ -76,6 +76,23 @@ IommuType x86_iommu_get_type(void)
     return x86_iommu_default->type;
 }
 
+void arch_iommu_info(Monitor *mon, const QDict *qdict)
+{
+    X86IOMMUState *iommu = x86_iommu_get_default();
+    X86IOMMUClass *class;
+
+    if (!iommu) {
+        monitor_printf(mon, "No IOMMU is detected.\n");
+        return;
+    }
+
+    class = X86_IOMMU_GET_CLASS(iommu);
+
+    if (class->info_dump) {
+        class->info_dump(iommu, mon, qdict);
+    }
+}
+
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);

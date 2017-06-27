@@ -22,6 +22,8 @@
 
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
+#include "hw/iommu.h"
+#include "monitor/monitor.h"
 
 #define  TYPE_X86_IOMMU_DEVICE  ("x86-iommu")
 #define  X86_IOMMU_DEVICE(obj) \
@@ -50,6 +52,9 @@ struct X86IOMMUClass {
     /* MSI-based interrupt remapping */
     int (*int_remap)(X86IOMMUState *iommu, MSIMessage *src,
                      MSIMessage *dst, uint16_t sid);
+    /* Dump IOMMU information */
+    void (*info_dump)(X86IOMMUState *iommu, Monitor *mon,
+                      const QDict *qdict);
 };
 
 /**

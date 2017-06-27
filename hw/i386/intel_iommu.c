@@ -2991,6 +2991,44 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
+#define DUMP(...) monitor_printf(mon, ## __VA_ARGS__)
+static void vtd_info_dump(X86IOMMUState *x86_iommu, Monitor *mon,
+                          const QDict *qdict)
+{
+    IntelIOMMUState *s = INTEL_IOMMU_DEVICE(x86_iommu);
+
+    DUMP("Version: %d\n", 1);
+    DUMP("Cap: 0x%"PRIx64"\n", s->cap);
+    DUMP("Extended Cap: 0x%"PRIx64"\n", s->ecap);
+
+    DUMP("DMAR: %s", s->dmar_enabled ? "enabled" : "disabled");
+    if (s->dmar_enabled) {
+        DUMP(", root=0x%"PRIx64" (extended=%d)",
+             s->root, s->root_extended);
+    }
+    DUMP("\n");
+
+    DUMP("IR: %s", s->intr_enabled ? "enabled" : "disabled");
+    if (s->intr_enabled) {
+        DUMP(", root=0x%"PRIx64", size=0x%"PRIx32" (eim=%d)",
+             s->intr_root, s->intr_size, s->intr_eime);
+    }
+    DUMP("\n");
+
+    DUMP("QI: %s", s->qi_enabled ? "enabled" : "disabled");
+    if (s->qi_enabled) {
+        DUMP(", root=0x%"PRIx64", head=%u, tail=%u, size=%u",
+             s->iq, s->iq_head, s->iq_tail, s->iq_size);
+    }
+    DUMP("\n");
+
+    DUMP("Caching-mode: %s\n", s->caching_mode ? "enabled" : "disabled");
+    DUMP("Misc: next_frr=%d, context_gen=%d, buggy_eim=%d\n",
+         s->next_frcd_reg, s->context_cache_gen, s->buggy_eim);
+    DUMP("      iotlb_size=%d\n", g_hash_table_size(s->iotlb));
+}
+#undef DUMP
+
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -3042,6 +3080,7 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable = false;
     x86_class->realize = vtd_realize;
     x86_class->int_remap = vtd_int_remap;
+    x86_class->info_dump = vtd_info_dump;
     /* Supported by the pc-q35-* machine types */
     dc->user_creatable = true;
 }
