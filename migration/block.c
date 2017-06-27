@@ -34,7 +34,7 @@
 #define BLK_MIG_FLAG_PROGRESS           0x04
 #define BLK_MIG_FLAG_ZERO_BLOCK         0x08
 
-#define MAX_IS_ALLOCATED_SEARCH 65536
+#define MAX_IS_ALLOCATED_SEARCH (65536 * BDRV_SECTOR_SIZE)
 
 #define MAX_INFLIGHT_IO 512
 
@@ -267,6 +267,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     BlockBackend *bb = bmds->blk;
     BlkMigBlock *blk;
     int nr_sectors;
+    int64_t count;
 
     if (bmds->shared_base) {
         qemu_mutex_lock_iothread();
@@ -274,9 +275,9 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
         /* Skip unallocated sectors; intentionally treats failure as
          * an allocated sector */
         while (cur_sector < total_sectors &&
-               !bdrv_is_allocated(blk_bs(bb), cur_sector,
-                                  MAX_IS_ALLOCATED_SEARCH, &nr_sectors)) {
-            cur_sector += nr_sectors;
+               !bdrv_is_allocated(blk_bs(bb), cur_sector * BDRV_SECTOR_SIZE,
+                                  MAX_IS_ALLOCATED_SEARCH, &count)) {
+            cur_sector += DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
         }
         aio_context_release(blk_get_aio_context(bb));
         qemu_mutex_unlock_iothread();
