@@ -11,6 +11,7 @@
 #include "s390-ccw.h"
 #include "bootmap.h"
 #include "virtio.h"
+#include "libnet/netapps.h"
 
 #ifdef DEBUG
 /* #define DEBUG_FALLBACK */
@@ -744,7 +745,14 @@ void zipl_load(void)
     }
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
-        jump_to_IPL_code(vdev->netboot_start_addr);
+        long len;
+
+        len = netload();
+        if (len < 0) {
+            panic("Network loading failed");
+        }
+        sclp_print("Netload done, starting kernel...\n");
+        asm volatile (" lpsw 0(%0) " : : "r"(0) : "memory");
     }
 
     ipl_scsi();
