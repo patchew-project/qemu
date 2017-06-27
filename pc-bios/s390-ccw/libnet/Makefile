@@ -24,7 +24,7 @@ QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-stack-protector)
 LDFLAGS += -Wl,-pie -nostdlib
 
 SRCS =	ethernet.c ipv4.c udp.c tcp.c dns.c dhcp.c tftp.c \
-	ipv6.c dhcpv6.c icmpv6.c ndp.c netload.c args.c
+	ipv6.c dhcpv6.c icmpv6.c ndp.c netload.c args.c timer.c
 
 OBJS = $(SRCS:%.c=%.o)
 
