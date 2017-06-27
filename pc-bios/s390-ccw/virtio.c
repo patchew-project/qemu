@@ -69,7 +69,7 @@ static long virtio_notify(SubChannelId schid, int vq_idx, long cookie)
  *             Virtio functions                *
  ***********************************************/
 
-static int drain_irqs(SubChannelId schid)
+int drain_irqs(SubChannelId schid)
 {
     Irb irb = {};
     int r = 0;
@@ -148,13 +148,13 @@ static void vring_init(VRing *vr, VqInfo *info)
     debug_print_addr("init vr", vr);
 }
 
-static bool vring_notify(VRing *vr)
+bool vring_notify(VRing *vr)
 {
     vr->cookie = virtio_notify(vr->schid, vr->id, vr->cookie);
     return vr->cookie >= 0;
 }
 
-static void vring_send_buf(VRing *vr, void *p, int len, int flags)
+void vring_send_buf(VRing *vr, void *p, int len, int flags)
 {
     /* For follow-up chains we need to keep the first entry point */
     if (!(flags & VRING_HIDDEN_IS_CHAIN)) {
@@ -187,7 +187,7 @@ ulong get_second(void)
     return (get_clock() >> 12) / 1000000;
 }
 
-static int vr_poll(VRing *vr)
+int vr_poll(VRing *vr)
 {
     if (vr->used->idx == vr->used_idx) {
         vring_notify(vr);
@@ -495,6 +495,11 @@ static void virtio_setup_ccw(VDev *vdev)
     run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0);
 
     switch (vdev->senseid.cu_model) {
+    case VIRTIO_ID_NET:
+        vdev->nr_vqs = 3;
+        vdev->cmd_vr_idx = 0;
+        cfg_size = sizeof(vdev->config.net);
+        break;
     case VIRTIO_ID_BLOCK:
         vdev->nr_vqs = 1;
         vdev->cmd_vr_idx = 0;
@@ -549,6 +554,9 @@ void virtio_setup_device(SubChannelId schid)
     virtio_setup_ccw(&vdev);
 
     switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_NET:
+        sclp_print("Using virtio-net.\n");
+        break;
     case VIRTIO_ID_BLOCK:
         sclp_print("Using virtio-blk.\n");
         if (!virtio_ipl_disk_is_valid()) {

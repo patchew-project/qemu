@@ -254,6 +254,12 @@ struct ScsiDevice {
 };
 typedef struct ScsiDevice ScsiDevice;
 
+struct VirtioNetConfig {
+     uint8_t mac[6];
+     uint16_t status;
+};
+typedef struct VirtioNetConfig VirtioNetConfig;
+
 struct VDev {
     int nr_vqs;
     VRing *vrings;
@@ -266,6 +272,7 @@ struct VDev {
     union {
         VirtioBlkConfig blk;
         VirtioScsiConfig scsi;
+        VirtioNetConfig net;
     } config;
     ScsiDevice *scsi_device;
     bool is_cdrom;
@@ -291,6 +298,10 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+bool vring_notify(VRing *vr);
+int drain_irqs(SubChannelId schid);
+void vring_send_buf(VRing *vr, void *p, int len, int flags);
+int vr_poll(VRing *vr);
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
 
 #endif /* VIRTIO_H */
