@@ -803,8 +803,8 @@ ETEXI
 
     {
         .name       = "iommu",
-        .args_type  = "",
-        .params     = "",
+        .args_type  = "clear_stats:-c",
+        .params     = "[-c]",
         .help       = "Display system IOMMU information",
         .cmd        = hmp_info_iommu,
     },
