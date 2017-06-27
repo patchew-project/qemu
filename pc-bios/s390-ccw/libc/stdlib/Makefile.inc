@@ -19,4 +19,5 @@ STDLIB_SRCS = $(STDLIB_SRC_C:%=$(STDLIBCMNDIR)/%) $(STDLIB_SRC_ASM:%=$(STDLIBCMN
 STDLIB_OBJS = $(STDLIB_SRC_C:%.c=%.o) $(STDLIB_SRC_ASM:%.S=%.o)
 
 %.o : $(STDLIBCMNDIR)/%.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $($@-cflags) \
+		-c -o $@ $<,"CC","$(TARGET_DIR)$@")

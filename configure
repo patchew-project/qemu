@@ -6377,7 +6377,8 @@ fi
 # build tree in object directory in case the source is not in the current directory
 DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/libqos tests/qapi-schema tests/tcg/xtensa tests/qemu-iotests"
 DIRS="$DIRS docs docs/interop fsdev"
-DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas pc-bios/s390-ccw"
+DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
+DIRS="$DIRS pc-bios/s390-ccw pc-bios/s390-ccw/libc"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS qapi-generated"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
@@ -6385,7 +6386,7 @@ FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
 FILES="$FILES tests/tcg/lm32/Makefile tests/tcg/xtensa/Makefile po/Makefile"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
 FILES="$FILES pc-bios/spapr-rtas/Makefile"
-FILES="$FILES pc-bios/s390-ccw/Makefile"
+FILES="$FILES pc-bios/s390-ccw/Makefile pc-bios/s390-ccw/libc/Makefile"
 FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
 FILES="$FILES pc-bios/qemu-icon.bmp"
 FILES="$FILES .gdbinit scripts" # scripts needed by relative path in .gdbinit

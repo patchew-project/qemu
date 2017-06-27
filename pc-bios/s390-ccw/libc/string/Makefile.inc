@@ -19,4 +19,5 @@ STRING_SRCS = $(STRING_SRC_C:%=$(STRINGCMNDIR)/%) $(STRING_SRC_ASM:%=$(STRINGCMN
 STRING_OBJS = $(STRING_SRC_C:%.c=%.o) $(STRING_SRC_ASM:%.S=%.o)
 
 %.o : $(STRINGCMNDIR)/%.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $($@-cflags) \
+		-c -o $@ $<,"CC","$(TARGET_DIR)$@")

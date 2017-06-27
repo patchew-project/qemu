@@ -10,52 +10,38 @@
 # *     IBM Corporation - initial implementation
 # ****************************************************************************/
 
-TOPCMNDIR ?= ../..
+include ../../../config-host.mak
+include $(SRC_PATH)/rules.mak
 
-LIBCCMNDIR = $(shell pwd)
+LIBCCMNDIR = $(SRC_PATH)/pc-bios/s390-ccw/libc
 STRINGCMNDIR = $(LIBCCMNDIR)/string
 CTYPECMNDIR = $(LIBCCMNDIR)/ctype
 STDLIBCMNDIR = $(LIBCCMNDIR)/stdlib
 STDIOCMNDIR = $(LIBCCMNDIR)/stdio
-GETOPTCMNDIR = $(LIBCCMNDIR)/getopt
 
-include $(TOPCMNDIR)/make.rules
-
-
-CPPFLAGS = -I$(LIBCCMNDIR)/include
-LDFLAGS= -nostdlib
+QEMU_CFLAGS := $(filter -W%, $(QEMU_CFLAGS))
+QEMU_CFLAGS += -ffreestanding -fno-delete-null-pointer-checks -msoft-float
+QEMU_CFLAGS += -march=z900 -fPIE -fno-strict-aliasing
+QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-stack-protector)
+QEMU_CFLAGS += -I$(LIBCCMNDIR)/include
+LDFLAGS += -Wl,-pie -nostdlib
 
 TARGET = ../libc.a
 
-
 all: $(TARGET)
-
-# Use the following target to build a native version of the lib
-# (for example for debugging purposes):
-native:
-	$(MAKE) CROSS="" CC=$(HOSTCC) NATIVEBUILD=1
-
 
 include $(STRINGCMNDIR)/Makefile.inc
 include $(CTYPECMNDIR)/Makefile.inc
 include $(STDLIBCMNDIR)/Makefile.inc
 include $(STDIOCMNDIR)/Makefile.inc
-include $(GETOPTCMNDIR)/Makefile.inc
 
-OBJS = $(STRING_OBJS) $(CTYPE_OBJS) $(STDLIB_OBJS) $(STDIO_OBJS) $(GETOPT_OBJS)
-
-ifneq ($(NATIVEBUILD),1)
-# These parts of the libc use assembler, so they can only be compiled when
-# we are _not_ building a native version.
-endif
+OBJS = $(STRING_OBJS) $(CTYPE_OBJS) $(STDLIB_OBJS) $(STDIO_OBJS)
 
 
 $(TARGET): $(OBJS)
-	$(AR) -rc $@ $(OBJS)
-	$(RANLIB) $@
-
+	$(call quiet-command,$(AR) -rc $@ $(OBJS),"AR","$(TARGET_DIR)$@")
 
 clean:
-	$(RM) $(TARGET) $(OBJS)
+	rm -f $(TARGET) $(OBJS)
 
 distclean: clean

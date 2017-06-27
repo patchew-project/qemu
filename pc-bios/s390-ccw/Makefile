@@ -7,12 +7,14 @@ include $(SRC_PATH)/rules.mak
 
 $(call set-vpath, $(SRC_PATH)/pc-bios/s390-ccw)
 
-.PHONY : all clean build-all
+.PHONY : all clean build-all libc.a
 
 OBJECTS = start.o main.o bootmap.o sclp.o virtio.o virtio-scsi.o
+OBJECTS += libc.a
 QEMU_CFLAGS := $(filter -W%, $(QEMU_CFLAGS))
 QEMU_CFLAGS += -ffreestanding -fno-delete-null-pointer-checks -msoft-float
 QEMU_CFLAGS += -march=z900 -fPIE -fno-strict-aliasing
+QEMU_CFLAGS += -I$(SRC_PATH)/pc-bios/s390-ccw/libc/include
 QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-stack-protector)
 LDFLAGS += -Wl,-pie -nostdlib
 
@@ -20,6 +22,9 @@ build-all: s390-ccw.img
 
 s390-ccw.elf: $(OBJECTS)
 	$(call quiet-command,$(CC) $(LDFLAGS) -o $@ $(OBJECTS),"BUILD","$(TARGET_DIR)$@")
+
+libc.a:
+	@$(MAKE) -C libc V="$(V)"
 
 STRIP ?= strip
 
@@ -30,3 +35,4 @@ $(OBJECTS): Makefile
 
 clean:
 	rm -f *.o *.d *.img *.elf *~
+	@$(MAKE) -C libc clean

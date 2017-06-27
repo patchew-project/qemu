@@ -11,6 +11,7 @@
 #ifndef _PC_BIOS_S390_CCW_BOOTMAP_H
 #define _PC_BIOS_S390_CCW_BOOTMAP_H
 
+#include <stddef.h>
 #include "s390-ccw.h"
 #include "virtio.h"
 

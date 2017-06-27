@@ -17,4 +17,5 @@ CTYPE_SRCS = $(CTYPE_SRC_C:%=$(CTYPECMNDIR)/%) $(CTYPE_SRC_ASM:%=$(CTYPECMNDIR)/
 CTYPE_OBJS = $(CTYPE_SRC_C:%.c=%.o) $(CTYPE_SRC_ASM:%.S=%.o)
 
 %.o : $(CTYPECMNDIR)/%.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $($@-cflags) \
+		-c -o $@ $<,"CC","$(TARGET_DIR)$@")
