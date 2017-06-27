@@ -24,6 +24,9 @@
 
 #include "qemu/osdep.h"
 #include <zlib.h>
+#ifdef CONFIG_LZO
+#include <lzo/lzo1x.h>
+#endif
 
 #include "qapi/error.h"
 #include "qemu-common.h"
@@ -1521,30 +1524,49 @@ again:
 }
 
 static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
-                             const uint8_t *buf, int buf_size)
+                             const uint8_t *buf, int buf_size,
+                             uint32_t compression_algorithm_id)
 {
     z_stream strm1, *strm = &strm1;
-    int ret, out_len;
+    int ret = 0, out_len;
 
-    memset(strm, 0, sizeof(*strm));
+    switch (compression_algorithm_id) {
+    case QCOW2_COMPRESSION_ZLIB:
+        memset(strm, 0, sizeof(*strm));
 
-    strm->next_in = (uint8_t *)buf;
-    strm->avail_in = buf_size;
-    strm->next_out = out_buf;
-    strm->avail_out = out_buf_size;
+        strm->next_in = (uint8_t *)buf;
+        strm->avail_in = buf_size;
+        strm->next_out = out_buf;
+        strm->avail_out = out_buf_size;
 
-    ret = inflateInit2(strm, -12);
-    if (ret != Z_OK)
-        return -1;
-    ret = inflate(strm, Z_FINISH);
-    out_len = strm->next_out - out_buf;
-    if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) ||
-        out_len != out_buf_size) {
+        ret = inflateInit2(strm, -12);
+        if (ret != Z_OK) {
+            return -1;
+        }
+        ret = inflate(strm, Z_FINISH);
+        out_len = strm->next_out - out_buf;
+        ret = -(ret != Z_STREAM_END);
         inflateEnd(strm);
-        return -1;
+        break;
+#ifdef CONFIG_LZO
+    case QCOW2_COMPRESSION_LZO:
+        out_len = out_buf_size;
+        ret = lzo1x_decompress_safe(buf, buf_size, out_buf,
+                                    (lzo_uint *) &out_len, NULL);
+        if (ret == LZO_E_INPUT_NOT_CONSUMED) {
+            /* We always read up to the next sector boundary. Thus
+             * buf_size may be larger than the original compressed size. */
+            ret = 0;
+        }
+        break;
+#endif
+    default:
+        abort(); /* should never reach this point */
     }
-    inflateEnd(strm);
-    return 0;
+    if (out_len != out_buf_size) {
+        ret = -1;
+    }
+    return ret;
 }
 
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
@@ -1565,7 +1587,8 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
             return ret;
         }
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
-                              s->cluster_data + sector_offset, csize) < 0) {
+                              s->cluster_data + sector_offset, csize,
+                              s->compression_algorithm_id) < 0) {
             return -EIO;
         }
         s->cluster_cache_offset = coffset;
