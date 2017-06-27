@@ -802,6 +802,20 @@ Dump all the ramblocks of the system.
 ETEXI
 
     {
+        .name       = "iommu",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Display system IOMMU information",
+        .cmd        = hmp_info_iommu,
+    },
+
+STEXI
+@item info ramblock
+@findex ramblock
+Dump all the ramblocks of the system.
+ETEXI
+
+    {
         .name       = "hotpluggable-cpus",
         .args_type  = "",
         .params     = "",
