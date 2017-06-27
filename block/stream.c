@@ -108,12 +108,11 @@ static void coroutine_fn stream_run(void *opaque)
     BlockBackend *blk = s->common.blk;
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *base = s->base;
-    int64_t sector_num = 0;
-    int64_t end = -1;
+    int64_t offset = 0;
     uint64_t delay_ns = 0;
     int error = 0;
     int ret = 0;
-    int n = 0;
+    int n = 0; /* sectors */
     void *buf;
 
     if (!bs->backing) {
@@ -126,7 +125,6 @@ static void coroutine_fn stream_run(void *opaque)
         goto out;
     }
 
-    end = s->common.len >> BDRV_SECTOR_BITS;
     buf = qemu_blockalign(bs, STREAM_BUFFER_SIZE);
 
     /* Turn on copy-on-read for the whole block device so that guest read
@@ -138,7 +136,7 @@ static void coroutine_fn stream_run(void *opaque)
         bdrv_enable_copy_on_read(bs);
     }
 
-    for (sector_num = 0; sector_num < end; sector_num += n) {
+    for ( ; offset < s->common.len; offset += n * BDRV_SECTOR_SIZE) {
         bool copy;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -151,28 +149,26 @@ static void coroutine_fn stream_run(void *opaque)
 
         copy = false;
 
-        ret = bdrv_is_allocated(bs, sector_num,
+        ret = bdrv_is_allocated(bs, offset / BDRV_SECTOR_SIZE,
                                 STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
         } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
-             * known-unallocated area [sector_num, sector_num+n).  */
+             * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).  */
             ret = bdrv_is_allocated_above(backing_bs(bs), base,
-                                          sector_num, n, &n);
+                                          offset / BDRV_SECTOR_SIZE, n, &n);
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {
-                n = end - sector_num;
+                n = (s->common.len - offset) / BDRV_SECTOR_SIZE;
             }
 
             copy = (ret == 1);
         }
-        trace_stream_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
-                                   n * BDRV_SECTOR_SIZE, ret);
+        trace_stream_one_iteration(s, offset, n * BDRV_SECTOR_SIZE, ret);
         if (copy) {
-            ret = stream_populate(blk, sector_num * BDRV_SECTOR_SIZE,
-                                  n * BDRV_SECTOR_SIZE, buf);
+            ret = stream_populate(blk, offset, n * BDRV_SECTOR_SIZE, buf);
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -211,7 +207,7 @@ out:
     /* Modify backing chain and close BDSes in main loop */
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    data->reached_end = sector_num == end;
+    data->reached_end = offset == s->common.len;
     block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }
 
