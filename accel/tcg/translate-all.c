@@ -928,11 +928,7 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     }
 
     CPU_FOREACH(cpu) {
-        int i;
-
-        for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
-            atomic_set(&cpu->tb_jmp_cache[i], NULL);
-        }
+        tb_flush_jmp_cache_all(cpu);
     }
 
     tcg_ctx.tb_ctx.nb_tbs = 0;
@@ -947,6 +943,15 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 
 done:
     tb_unlock();
+}
+
+void tb_flush_jmp_cache_all(CPUState *cpu)
+{
+    int i;
+
+    for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
+        atomic_set(&cpu->tb_jmp_cache[i], NULL);
+    }
 }
 
 void tb_flush(CPUState *cpu)
