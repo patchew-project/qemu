@@ -18,7 +18,7 @@
 
 struct filename_ip;
 
-extern int netload(char *buffer, int len, char *ret_buffer);
+extern int netload(void);
 extern int dhcp(char *ret_buffer, struct filename_ip *fn_ip,
 		unsigned int retries, int flags);
 

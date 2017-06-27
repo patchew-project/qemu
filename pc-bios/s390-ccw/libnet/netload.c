@@ -26,6 +26,8 @@
 #include "args.h"
 #include "netapps.h"
 
+#define MAX_INS_FILE_LEN 16384
+
 #define IP_INIT_DEFAULT 5
 #define IP_INIT_NONE    0
 #define IP_INIT_BOOTP   1
@@ -138,7 +140,7 @@ static void seed_rng(uint8_t mac[])
 	srand(seed);
 }
 
-static int tftp_load(filename_ip_t *fnip, unsigned char *buffer, int len,
+static int tftp_load(filename_ip_t *fnip, void *buffer, int len,
 		     unsigned int retries, int ip_vers)
 {
 	tftp_err_t tftp_err;
@@ -227,7 +229,56 @@ static int tftp_load(filename_ip_t *fnip, unsigned char *buffer, int len,
 	return rc;
 }
 
-int netload(char *buffer, int len, char *ret_buffer)
+static int load_from_ins_file(char *insbuf, filename_ip_t *fn_ip, int retries,
+			      int ip_version)
+{
+	char *ptr;
+	int rc = -1, llen;
+	void *destaddr;
+
+	ptr = strchr(insbuf, '\n');
+
+	if (!ptr || insbuf[0] != '*' || insbuf[1] != ' ') {
+		puts("Does not seem to be a valid .INS file");
+		return -1;
+	}
+
+	*ptr = 0;
+	printf("\nParsing .INS file:\n  %s\n", &insbuf[2]);
+
+	insbuf = ptr + 1;
+	while (*insbuf) {
+		ptr = strchr(insbuf, '\n');
+		if (ptr) {
+			*ptr = 0;
+		}
+		llen = strlen(insbuf);
+		if (!llen) {
+			insbuf = ptr + 1;
+			continue;
+		}
+		ptr = strchr(insbuf, ' ');
+		if (!ptr) {
+			puts("Missing space separator in .INS file");
+			return -1;
+		}
+		*ptr = 0;
+		strncpy((char *)fn_ip->filename, insbuf,
+			sizeof(fn_ip->filename));
+		destaddr = (char *)atol(ptr + 1);
+		printf("\n  Loading file \"%s\" via TFTP to %p\n", insbuf,
+		       destaddr);
+		rc = tftp_load(fn_ip, destaddr, 50000000, retries, ip_version);
+		if (rc <= 0) {
+			break;
+		}
+		insbuf += llen + 1;
+	}
+
+	return rc;
+}
+
+int netload(void)
 {
 	int rc;
 	filename_ip_t fn_ip;
@@ -239,6 +290,7 @@ int netload(char *buffer, int len, char *ret_buffer)
 			     0x00, 0x00, 0x00, 0x00, 
 			     0x00, 0x00, 0x00, 0x00 };
 	uint8_t own_mac[6];
+	char *ins_buf, *ret_buffer = NULL;
 
 	puts("\n Initializing NIC");
 	memset(&fn_ip, 0, sizeof(filename_ip_t));
@@ -420,9 +472,19 @@ int netload(char *buffer, int len, char *ret_buffer)
 		printf("%s\n", ip6_str);
 	}
 
-	/* Do the TFTP load and print error message if necessary */
-	rc = tftp_load(&fn_ip, (unsigned char *)buffer, len,
-		       obp_tftp_args.tftp_retries, ip_version);
+	ins_buf = malloc(MAX_INS_FILE_LEN);
+	if (!ins_buf) {
+		puts("Failed to allocate memory for the .INS file");
+		return -1;
+	}
+	memset(ins_buf, 0, MAX_INS_FILE_LEN);
+	rc = tftp_load(&fn_ip, ins_buf, MAX_INS_FILE_LEN - 1,
+	               obp_tftp_args.tftp_retries, ip_version);
+	if (rc > 0) {
+		rc = load_from_ins_file(ins_buf, &fn_ip,
+					obp_tftp_args.tftp_retries, ip_version);
+	}
+	free(ins_buf);
 
 	if (obp_tftp_args.ip_init == IP_INIT_DHCP)
 		dhcp_send_release(fn_ip.fd);
