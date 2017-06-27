@@ -85,7 +85,11 @@ in the description of a field.
                                 be written to (unless for regaining
                                 consistency).
 
-                    Bits 2-63:  Reserved (set to 0)
+                    Bit 2:      Compress algorithm bit.  If this bit is set then
+                                the compress algorithm extension must be parsed
+                                and checked for compatiblity.
+
+                    Bits 3-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -135,6 +139,8 @@ be stored. Each extension has a structure like the following:
                         0xE2792ACA - Backing file format name
                         0x6803f857 - Feature name table
                         0x23852875 - Bitmaps extension
+                        0xC0318300 - Compression Algorithm
+                        0xC03183xx - Reserved for compression algorithm params
                         other      - Unknown header extension, can be safely
                                      ignored
 

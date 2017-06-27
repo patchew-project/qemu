@@ -171,6 +171,10 @@ typedef struct Qcow2UnknownHeaderExtension {
 } Qcow2UnknownHeaderExtension;
 
 enum {
+    QCOW2_COMPRESSION_ZLIB          = 0xC0318301,
+};
+
+enum {
     QCOW2_FEAT_TYPE_INCOMPATIBLE    = 0,
     QCOW2_FEAT_TYPE_COMPATIBLE      = 1,
     QCOW2_FEAT_TYPE_AUTOCLEAR       = 2,
@@ -178,13 +182,16 @@ enum {
 
 /* Incompatible feature bits */
 enum {
-    QCOW2_INCOMPAT_DIRTY_BITNR   = 0,
-    QCOW2_INCOMPAT_CORRUPT_BITNR = 1,
-    QCOW2_INCOMPAT_DIRTY         = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
-    QCOW2_INCOMPAT_CORRUPT       = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_DIRTY_BITNR        = 0,
+    QCOW2_INCOMPAT_CORRUPT_BITNR      = 1,
+    QCOW2_INCOMPAT_COMPRESSION_BITNR  = 2,
+    QCOW2_INCOMPAT_DIRTY              = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
+    QCOW2_INCOMPAT_CORRUPT            = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_COMPRESSION        = 1 << QCOW2_INCOMPAT_COMPRESSION_BITNR,
 
     QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY
-                                 | QCOW2_INCOMPAT_CORRUPT,
+                                 | QCOW2_INCOMPAT_CORRUPT
+                                 | QCOW2_INCOMPAT_COMPRESSION,
 };
 
 /* Compatible feature bits */
@@ -294,6 +301,9 @@ typedef struct BDRVQcow2State {
      * override) */
     char *image_backing_file;
     char *image_backing_format;
+
+    char compression_algorithm[16];
+    uint32_t compression_algorithm_id;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {

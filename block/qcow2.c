@@ -60,9 +60,11 @@ typedef struct {
     uint32_t len;
 } QEMU_PACKED QCowExtension;
 
-#define  QCOW2_EXT_MAGIC_END 0
-#define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
-#define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
+#define QCOW2_EXT_MAGIC_END                   0
+#define QCOW2_EXT_MAGIC_BACKING_FORMAT        0xE2792ACA
+#define QCOW2_EXT_MAGIC_FEATURE_TABLE         0x6803f857
+#define QCOW2_EXT_MAGIC_COMPRESSION_ALGORITHM 0xc0318300
+/* 0xc03183xx reserved for further use of compression algorithm parameters */
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -76,6 +78,15 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
+static uint32_t is_compression_algorithm_supported(char *algorithm)
+{
+    if (!algorithm[0] || !strcmp(algorithm, "zlib")) {
+        /* no algorithm means the old default of zlib compression
+         * with 12 window bits */
+        return QCOW2_COMPRESSION_ZLIB;
+    }
+    return 0;
+}
 
 /* 
  * read qcow2 extension and fill bs
@@ -145,6 +156,34 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             s->image_backing_format = g_strdup(bs->backing_format);
 #ifdef DEBUG_EXT
             printf("Qcow2: Got format extension %s\n", bs->backing_format);
+#endif
+            break;
+
+        case QCOW2_EXT_MAGIC_COMPRESSION_ALGORITHM:
+            if (ext.len >= sizeof(s->compression_algorithm)) {
+                error_setg(errp, "ERROR: ext_compression_algorithm: len=%"
+                           PRIu32 " too large (>=%zu)", ext.len,
+                           sizeof(s->compression_algorithm));
+                return 2;
+            }
+            ret = bdrv_pread(bs->file, offset, s->compression_algorithm,
+                             ext.len);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "ERROR: ext_compression_algorithm:"
+                                 " Could not read algorithm name");
+                return 3;
+            }
+            s->compression_algorithm[ext.len] = '\0';
+            s->compression_algorithm_id =
+                is_compression_algorithm_supported(s->compression_algorithm);
+            if (!s->compression_algorithm_id) {
+                error_setg(errp, "ERROR: compression algorithm '%s' is "
+                           " unsupported", s->compression_algorithm);
+                return 4;
+            }
+#ifdef DEBUG_EXT
+            printf("Qcow2: Got compression algorithm %s\n",
+                   s->compression_algorithm);
 #endif
             break;
 
@@ -1104,6 +1143,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->cluster_cache_offset = -1;
     s->flags = flags;
+    s->compression_algorithm_id = QCOW2_COMPRESSION_ZLIB;
 
     ret = qcow2_refcount_init(bs);
     if (ret != 0) {
@@ -1981,6 +2021,21 @@ int qcow2_update_header(BlockDriverState *bs)
         buflen -= ret;
     }
 
+    /* Compression Algorithm header extension */
+    if (s->compression_algorithm[0]) {
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_COMPRESSION_ALGORITHM,
+                             s->compression_algorithm,
+                             strlen(s->compression_algorithm),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
+        header->incompatible_features |=
+            cpu_to_be64(QCOW2_INCOMPAT_COMPRESSION);
+    }
+
     /* Feature table */
     if (s->qcow_version >= 3) {
         Qcow2Feature features[] = {
@@ -1993,6 +2048,11 @@ int qcow2_update_header(BlockDriverState *bs)
                 .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
                 .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
                 .name = "corrupt bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_COMPRESSION_BITNR,
+                .name = "compression algorithm",
             },
             {
                 .type = QCOW2_FEAT_TYPE_COMPATIBLE,
@@ -2144,7 +2204,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
                          QemuOpts *opts, int version, int refcount_order,
-                         Error **errp)
+                         char *compression_algorithm, Error **errp)
 {
     int cluster_bits;
     QDict *options;
@@ -2332,6 +2392,12 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         abort();
     }
 
+    if (compression_algorithm[0]) {
+        BDRVQcow2State *s = blk_bs(blk)->opaque;
+        memcpy(s->compression_algorithm, compression_algorithm,
+               strlen(compression_algorithm));
+    }
+
     /* Create a full header (including things like feature table) */
     ret = qcow2_update_header(blk_bs(blk));
     if (ret < 0) {
@@ -2395,6 +2461,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     char *backing_file = NULL;
     char *backing_fmt = NULL;
     char *buf = NULL;
+    char *compression_algorithm = NULL;
     uint64_t size = 0;
     int flags = 0;
     size_t cluster_size = DEFAULT_CLUSTER_SIZE;
@@ -2475,15 +2542,25 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 
     refcount_order = ctz32(refcount_bits);
 
+    compression_algorithm = qemu_opt_get_del(opts,
+                                             BLOCK_OPT_COMPRESSION_ALGORITHM);
+    if (!is_compression_algorithm_supported(compression_algorithm)) {
+        error_setg(errp, "Compression algorithm '%s' is not supported",
+                   compression_algorithm);
+        ret = -EINVAL;
+        goto finish;
+    }
+
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, refcount_order,
-                        &local_err);
+                        compression_algorithm, &local_err);
     error_propagate(errp, local_err);
 
 finish:
     g_free(backing_file);
     g_free(backing_fmt);
     g_free(buf);
+    g_free(compression_algorithm);
     return ret;
 }
 
@@ -3457,6 +3534,12 @@ static QemuOptsList qcow2_create_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Width of a reference count entry in bits",
             .def_value_str = "16"
+        },
+        {
+            .name = BLOCK_OPT_COMPRESSION_ALGORITHM,
+            .type = QEMU_OPT_STRING,
+            .help = "Compression algorithm used for compressed clusters",
+            .def_value_str = ""
         },
         { /* end of list */ }
     }
