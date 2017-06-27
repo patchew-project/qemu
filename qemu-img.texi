@@ -627,6 +627,7 @@ The following options are available if support for the respective libraries
 has been enabled at compile time:
 
    zlib            Uses standard zlib compression (default)
+   zlib-fast       Uses zlib compression with optimized compression parameters
    lzo             Uses LZO1X compression
 
 The compression algorithm can only be defined at image create time and cannot

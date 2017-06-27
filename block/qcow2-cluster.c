@@ -1532,6 +1532,7 @@ static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
 
     switch (compression_algorithm_id) {
     case QCOW2_COMPRESSION_ZLIB:
+    case QCOW2_COMPRESSION_ZLIB_FAST:
         memset(strm, 0, sizeof(*strm));
 
         strm->next_in = (uint8_t *)buf;
@@ -1539,7 +1540,7 @@ static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
         strm->next_out = out_buf;
         strm->avail_out = out_buf_size;
 
-        ret = inflateInit2(strm, -12);
+        ret = inflateInit2(strm, -15);
         if (ret != Z_OK) {
             return -1;
         }

@@ -87,6 +87,8 @@ static uint32_t is_compression_algorithm_supported(char *algorithm)
         /* no algorithm means the old default of zlib compression
          * with 12 window bits */
         return QCOW2_COMPRESSION_ZLIB;
+    } else if (!strcmp(algorithm, "zlib-fast")) {
+        return QCOW2_COMPRESSION_ZLIB_FAST;
 #ifdef CONFIG_LZO
     } else if (!strcmp(algorithm, "lzo")) {
         return QCOW2_COMPRESSION_LZO;
@@ -2722,6 +2724,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     QEMUIOVector hd_qiov;
     struct iovec iov;
     z_stream strm;
+    int z_level = Z_DEFAULT_COMPRESSION, z_windowBits = -12;
     int ret, out_len = 0;
     uint8_t *buf, *out_buf = NULL, *local_buf = NULL, *work_buf = NULL;
     uint64_t cluster_offset;
@@ -2749,13 +2752,17 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     }
 
     switch (s->compression_algorithm_id) {
+    case QCOW2_COMPRESSION_ZLIB_FAST:
+        z_level = Z_BEST_SPEED;
+        z_windowBits = -15;
+        /* fall-through */
     case QCOW2_COMPRESSION_ZLIB:
         out_buf = g_malloc(s->cluster_size);
 
         /* best compression, small window, no zlib header */
         memset(&strm, 0, sizeof(strm));
-        ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION,
-                           Z_DEFLATED, -12,
+        ret = deflateInit2(&strm, z_level,
+                           Z_DEFLATED, z_windowBits,
                            9, Z_DEFAULT_STRATEGY);
         if (ret != 0) {
             ret = -EINVAL;

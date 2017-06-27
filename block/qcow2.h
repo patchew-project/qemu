@@ -173,6 +173,7 @@ typedef struct Qcow2UnknownHeaderExtension {
 enum {
     QCOW2_COMPRESSION_ZLIB          = 0xC0318301,
     QCOW2_COMPRESSION_LZO           = 0xC0318302,
+    QCOW2_COMPRESSION_ZLIB_FAST     = 0xC0318303,
 };
 
 enum {
