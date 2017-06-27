@@ -7,7 +7,7 @@ include $(SRC_PATH)/rules.mak
 
 $(call set-vpath, $(SRC_PATH)/pc-bios/s390-ccw)
 
-.PHONY : all clean build-all libc.a
+.PHONY : all clean build-all libc.a libnet.a
 
 OBJECTS = start.o main.o bootmap.o sclp.o virtio.o virtio-scsi.o
 OBJECTS += libc.a sbrk.o
@@ -26,6 +26,9 @@ s390-ccw.elf: $(OBJECTS)
 libc.a:
 	@$(MAKE) -C libc V="$(V)"
 
+libnet.a:
+	@$(MAKE) -C libnet V="$(V)"
+
 STRIP ?= strip
 
 s390-ccw.img: s390-ccw.elf
@@ -36,3 +39,4 @@ $(OBJECTS): Makefile
 clean:
 	rm -f *.o *.d *.img *.elf *~
 	@$(MAKE) -C libc clean
+	@$(MAKE) -C libnet clean

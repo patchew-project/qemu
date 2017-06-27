@@ -23,8 +23,6 @@
 #include <time.h>
 #include <stdlib.h>
 #include <sys/socket.h>
-#include <libbootmsg/libbootmsg.h>
-#include <helpers.h>
 #include "args.h"
 #include "netapps.h"
 
@@ -66,266 +64,7 @@ static void netload_error(int errcode, const char *format, ...)
 	vsnprintf(&buf[13], sizeof(buf) - 13, format, vargs);
 	va_end(vargs);
 
-	bootmsg_error(errcode, &buf[7]);
-	write_mm_log(buf, strlen(buf), 0x91);
-}
-
-/**
- * Parses a argument string for IPv6 booting, extracts all
- * parameters and fills a structure accordingly
- *
- * @param  arg_str        string with arguments, separated with ','
- * @param  argc           number of arguments
- * @param  obp_tftp_args  structure which contains the result
- * @return                updated arg_str
- */
-static const char * 
-parse_ipv6args (const char *arg_str, unsigned int argc,
-		obp_tftp_args_t *obp_tftp_args)
-{
-	char *ptr = NULL;
-	char arg_buf[100];
-
-	// find out siaddr
-	if (argc == 0)
-		memset(&obp_tftp_args->si6addr.addr, 0, 16);
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if(str_to_ipv6(arg_buf, (uint8_t *) &(obp_tftp_args->si6addr.addr[0]))) {
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(arg_buf[0] == 0) {
-			memset(&obp_tftp_args->si6addr.addr, 0, 16);
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else
-			memset(&obp_tftp_args->si6addr.addr, 0, 16);
-	}
-
-	// find out filename
-	if (argc == 0)
-		obp_tftp_args->filename[0] = 0;
-	else {
-		argncpy(arg_str, 0, obp_tftp_args->filename, 100);
-		for(ptr = obp_tftp_args->filename; *ptr != 0; ++ptr)
-			if(*ptr == '\\') {
-				*ptr = '/';
-			}
-		arg_str = get_arg_ptr(arg_str, 1);
-		--argc;
-	}
-
-	// find out ciaddr
-	if (argc == 0)
-		memset(&obp_tftp_args->ci6addr, 0, 16);
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if (str_to_ipv6(arg_buf, (uint8_t *) &(obp_tftp_args->ci6addr.addr[0]))) {
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(arg_buf[0] == 0) {
-			memset(&obp_tftp_args->ci6addr.addr, 0, 16);
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else
-			memset(&obp_tftp_args->ci6addr.addr, 0, 16);
-	}
-
-	// find out giaddr
-	if (argc == 0)
-		memset(&obp_tftp_args->gi6addr, 0, 16);
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if (str_to_ipv6(arg_buf, (uint8_t *) &(obp_tftp_args->gi6addr.addr)) ) {
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(arg_buf[0] == 0) {
-			memset(&obp_tftp_args->gi6addr, 0, 16);
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else
-			memset(&obp_tftp_args->gi6addr.addr, 0, 16);
-	}
-
-	return arg_str;
-}
-
-
-/**
- * Parses a argument string for IPv4 booting, extracts all
- * parameters and fills a structure accordingly
- *
- * @param  arg_str        string with arguments, separated with ','
- * @param  argc           number of arguments
- * @param  obp_tftp_args  structure which contains the result
- * @return                updated arg_str
- */
-static const char * 
-parse_ipv4args (const char *arg_str, unsigned int argc,
-		obp_tftp_args_t *obp_tftp_args)
-{
-	char *ptr = NULL;
-	char arg_buf[100];
-
-	// find out siaddr
-	if(argc==0) {
-		memset(obp_tftp_args->siaddr, 0, 4);
-	} else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if(strtoip(arg_buf, obp_tftp_args->siaddr)) {
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(arg_buf[0] == 0) {
-			memset(obp_tftp_args->siaddr, 0, 4);
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else
-			memset(obp_tftp_args->siaddr, 0, 4);
-	}
-
-	// find out filename
-	if(argc==0)
-		obp_tftp_args->filename[0] = 0;
-	else {
-		argncpy(arg_str, 0, obp_tftp_args->filename, 100);
-		for(ptr = obp_tftp_args->filename; *ptr != 0; ++ptr)
-			if(*ptr == '\\')
-				*ptr = '/';
-		arg_str = get_arg_ptr(arg_str, 1);
-		--argc;
-	}
-
-	// find out ciaddr
-	if(argc==0)
-		memset(obp_tftp_args->ciaddr, 0, 4);
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if(strtoip(arg_buf, obp_tftp_args->ciaddr)) {
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(arg_buf[0] == 0) {
-			memset(obp_tftp_args->ciaddr, 0, 4);
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else
-			memset(obp_tftp_args->ciaddr, 0, 4);
-	}
-
-	// find out giaddr
-	if(argc==0)
-		memset(obp_tftp_args->giaddr, 0, 4);
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if(strtoip(arg_buf, obp_tftp_args->giaddr)) {
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(arg_buf[0] == 0) {
-			memset(obp_tftp_args->giaddr, 0, 4);
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else
-			memset(obp_tftp_args->giaddr, 0, 4);
-	}
-
-	return arg_str;
-}
-
-/**
- * Parses a argument string which is given by netload, extracts all
- * parameters and fills a structure according to this
- *
- * Netload-Parameters:
- *    [bootp,]siaddr,filename,ciaddr,giaddr,bootp-retries,tftp-retries
- *
- * @param  arg_str        string with arguments, separated with ','
- * @param  obp_tftp_args  structure which contains the result
- * @return                none
- */
-static void
-parse_args(const char *arg_str, obp_tftp_args_t *obp_tftp_args)
-{
-	unsigned int argc;
-	char arg_buf[100];
-
-	memset(obp_tftp_args, 0, sizeof(*obp_tftp_args));
-
-	argc = get_args_count(arg_str);
-
-	// find out if we should use BOOTP or DHCP
-	if(argc==0)
-		obp_tftp_args->ip_init = IP_INIT_DEFAULT;
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if (strcasecmp(arg_buf, "bootp") == 0) {
-			obp_tftp_args->ip_init = IP_INIT_BOOTP;
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(strcasecmp(arg_buf, "dhcp") == 0) {
-			obp_tftp_args->ip_init = IP_INIT_DHCP;
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-		}
-		else if(strcasecmp(arg_buf, "ipv6") == 0) {
-			obp_tftp_args->ip_init = IP_INIT_DHCPV6_STATELESS;
-			arg_str = get_arg_ptr(arg_str, 1);
-			--argc;
-			ip_version = 6;
-		}
-		else
-			obp_tftp_args->ip_init = IP_INIT_DEFAULT;
-	}
-
-	if (ip_version == 4) {
-		arg_str = parse_ipv4args (arg_str, argc, obp_tftp_args);
-	}
-	else if (ip_version == 6) {
-		arg_str = parse_ipv6args (arg_str, argc, obp_tftp_args);
-	}
-
-	// find out bootp-retries
-	if (argc == 0)
-		obp_tftp_args->bootp_retries = DEFAULT_BOOT_RETRIES;
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if(arg_buf[0] == 0)
-			obp_tftp_args->bootp_retries = DEFAULT_BOOT_RETRIES;
-		else {
-			obp_tftp_args->bootp_retries = strtol(arg_buf, 0, 10);
-			if(obp_tftp_args->bootp_retries < 0)
-				obp_tftp_args->bootp_retries = DEFAULT_BOOT_RETRIES;
-		}
-		arg_str = get_arg_ptr(arg_str, 1);
-		--argc;
-	}
-
-	// find out tftp-retries
-	if (argc == 0)
-		obp_tftp_args->tftp_retries = DEFAULT_TFTP_RETRIES;
-	else {
-		argncpy(arg_str, 0, arg_buf, 100);
-		if(arg_buf[0] == 0)
-			obp_tftp_args->tftp_retries = DEFAULT_TFTP_RETRIES;
-		else {
-			obp_tftp_args->tftp_retries = strtol(arg_buf, 0, 10);
-			if(obp_tftp_args->tftp_retries < 0)
-				obp_tftp_args->tftp_retries = DEFAULT_TFTP_RETRIES;
-		}
-		arg_str = get_arg_ptr(arg_str, 1);
-		--argc;
-	}
+	puts(buf);
 }
 
 /**
@@ -361,10 +100,6 @@ int dhcp(char *ret_buffer, struct filename_ip *fn_ip, unsigned int retries,
 
 	do {
 		printf("\b\b\b%03d", i-1);
-		if (getchar() == 27) {
-			printf("\nAborted\n");
-			return -1;
-		}
 		if (!--i) {
 			printf("\nGiving up after %d DHCP requests\n", retries);
 			return -1;
@@ -396,9 +131,9 @@ int dhcp(char *ret_buffer, struct filename_ip *fn_ip, unsigned int retries,
  */
 static void seed_rng(uint8_t mac[])
 {
-	unsigned int seed;
+	uint64_t seed;
 
-	asm volatile("mftbl %0" : "=r"(seed));
+	asm volatile(" stck %0 " : : "Q"(seed) : "memory");
 	seed ^= (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
 	srand(seed);
 }
@@ -445,7 +180,7 @@ static int tftp_load(filename_ip_t *fnip, unsigned char *buffer, int len,
 		netload_error(0x3018, "file exceeds maximum TFTP transfer size");
 		return -117;
 	} else if (rc <= -10 && rc >= -15) {
-		char *icmp_err_str;
+		const char *icmp_err_str;
 		switch (rc) {
 		case -ICMP_NET_UNREACHABLE - 10:
 			icmp_err_str = "net unreachable";
@@ -492,8 +227,7 @@ static int tftp_load(filename_ip_t *fnip, unsigned char *buffer, int len,
 	return rc;
 }
 
-int netload(char *buffer, int len, char *ret_buffer, int huge_load,
-	    int block_size, char *args_fs, int alen)
+int netload(char *buffer, int len, char *ret_buffer)
 {
 	int rc;
 	filename_ip_t fn_ip;
@@ -524,10 +258,6 @@ int netload(char *buffer, int len, char *ret_buffer, int huge_load,
 		fd_device = socket(0, 0, 0, (char*) own_mac);
 		if(fd_device != -2)
 			break;
-		if(getchar() == 27) {
-			fd_device = -2;
-			break;
-		}
 	}
 
 	if (fd_device == -1) {
@@ -551,27 +281,10 @@ int netload(char *buffer, int len, char *ret_buffer, int huge_load,
 
 	seed_rng(own_mac);
 
-	if (alen > 0) {
-		char args[256];
-		if (alen > sizeof(args) - 1) {
-			puts("ERROR: Parameter string is too long.");
-			return -7;
-		}
-		/* Convert forth string into NUL-terminated C-string */
-		strncpy(args, args_fs, alen);
-		args[alen] = 0;
-		parse_args(args, &obp_tftp_args);
-		if(obp_tftp_args.bootp_retries - rc < DEFAULT_BOOT_RETRIES)
-			obp_tftp_args.bootp_retries = DEFAULT_BOOT_RETRIES;
-		else
-			obp_tftp_args.bootp_retries -= rc;
-	}
-	else {
-		memset(&obp_tftp_args, 0, sizeof(obp_tftp_args_t));
-		obp_tftp_args.ip_init = IP_INIT_DEFAULT;
-		obp_tftp_args.bootp_retries = DEFAULT_BOOT_RETRIES;
-		obp_tftp_args.tftp_retries = DEFAULT_TFTP_RETRIES;
-	}
+	memset(&obp_tftp_args, 0, sizeof(obp_tftp_args_t));
+	obp_tftp_args.ip_init = IP_INIT_DEFAULT;
+	obp_tftp_args.bootp_retries = DEFAULT_BOOT_RETRIES;
+	obp_tftp_args.tftp_retries = DEFAULT_TFTP_RETRIES;
 	memcpy(&fn_ip.own_ip, obp_tftp_args.ciaddr, 4);
 
 	//  reset of error code
@@ -602,20 +315,6 @@ int netload(char *buffer, int len, char *ret_buffer, int huge_load,
 
 	// construction of fn_ip from parameter
 	switch(obp_tftp_args.ip_init) {
-	case IP_INIT_BOOTP:
-		// if giaddr in not specified, then we have to identify
-		// the BOOTP server via broadcasts
-		if(memcmp(obp_tftp_args.giaddr, null_ip, 4) == 0) {
-			// don't do this, when using DHCP !!!
-			fn_ip.server_ip = 0xFFFFFFFF;
-		}
-		// if giaddr is specified, then we have to use this
-		// IP address as proxy to identify the BOOTP server
-		else {
-			memcpy(&fn_ip.server_ip, obp_tftp_args.giaddr, 4);
-		}
-		rc = bootp(ret_buffer, &fn_ip, obp_tftp_args.bootp_retries);
-		break;
 	case IP_INIT_DHCP:
 		rc = dhcp(ret_buffer, &fn_ip, obp_tftp_args.bootp_retries, F_IPV4);
 		break;
