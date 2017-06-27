@@ -203,6 +203,23 @@ void error_vreport(const char *fmt, va_list ap)
 }
 
 /*
+ * Print a warning message ot the current monitor if we have one, else to
+ * stderr. This follows similar formating and use cases as error_vreport()
+ * except for these two differentce:
+ *     - It prefixes the message with 'warning: ' to indicate it is only a
+ *       warning.
+ *     - It does not print the timestamp.
+ */
+void warning_vreport(const char *fmt, va_list ap)
+{
+    error_vprintf("warning: ", ap);
+
+    print_loc();
+    error_vprintf(fmt, ap);
+    error_printf("\n");
+}
+
+/*
  * Print an error message to current monitor if we have one, else to stderr.
  * Format arguments like sprintf().  The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
@@ -215,5 +232,20 @@ void error_report(const char *fmt, ...)
 
     va_start(ap, fmt);
     error_vreport(fmt, ap);
+    va_end(ap);
+}
+
+/*
+ * Print an warning message to current monitor if we have one, else to stderr.
+ * This follows the same formating and use cases as error_report()
+ * except it prefixes the message with 'warning: ' to indicate it is only a
+ * warning.
+ */
+void warning_report(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    warning_vreport(fmt, ap);
     va_end(ap);
 }
