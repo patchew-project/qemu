@@ -113,7 +113,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
      * even if an external kernel has been defined.
      */
     if (!ipl->kernel || ipl->enforce_bios) {
-        uint64_t fwbase = (MIN(ram_size, 0x80000000U) - 0x200000) & ~0xffffUL;
+        uint64_t fwbase = (MIN(ram_size, 0x80000000U) - 0x400000) & ~0xffffUL;
 
         if (bios_name == NULL) {
             bios_name = ipl->firmware;
