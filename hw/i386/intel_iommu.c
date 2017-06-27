@@ -37,6 +37,11 @@
 #include "kvm_i386.h"
 #include "trace.h"
 
+static void vtd_reset_stats(IntelIOMMUState *s)
+{
+    memset(&s->cache_stat, 0, sizeof(s->cache_stat));
+}
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -1095,9 +1100,12 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      */
     assert(!vtd_is_interrupt_addr(addr));
 
+    s->cache_stat.iotlb_total++;
+
     /* Try to fetch slpte form IOTLB */
     iotlb_entry = vtd_lookup_iotlb(s, source_id, addr);
     if (iotlb_entry) {
+        s->cache_stat.iotlb_hit++;
         trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->slpte,
                                  iotlb_entry->domain_id);
         slpte = iotlb_entry->slpte;
@@ -1107,8 +1115,11 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         goto out;
     }
 
+    s->cache_stat.context_total++;
+
     /* Try to fetch context-entry from cache first */
     if (cc_entry->context_cache_gen == s->context_cache_gen) {
+        s->cache_stat.context_hit++;
         trace_vtd_iotlb_cc_hit(bus_num, devfn, cc_entry->context_entry.hi,
                                cc_entry->context_entry.lo,
                                cc_entry->context_cache_gen);
@@ -2875,6 +2886,7 @@ static void vtd_init(IntelIOMMUState *s)
 
     vtd_reset_context_cache(s);
     vtd_reset_iotlb(s);
+    vtd_reset_stats(s);
 
     /* Define registers with default values and bit semantics */
     vtd_define_long(s, DMAR_VER_REG, 0x10UL, 0, 0);
@@ -3021,6 +3033,15 @@ static void vtd_info_dump(X86IOMMUState *x86_iommu, Monitor *mon,
              s->iq, s->iq_head, s->iq_tail, s->iq_size);
     }
     DUMP("\n");
+
+    DUMP("Statistics: iotlb=%.2lf%% (%"PRIu64"/%"PRIu64"), "
+         "context=%.2lf%% (%"PRIu64"/%"PRIu64")\n",
+         (double)s->cache_stat.iotlb_hit /
+         s->cache_stat.iotlb_total * 100,
+         s->cache_stat.iotlb_hit, s->cache_stat.iotlb_total,
+         (double)s->cache_stat.context_hit /
+         s->cache_stat.context_total * 100,
+         s->cache_stat.context_hit, s->cache_stat.context_total);
 
     DUMP("Caching-mode: %s\n", s->caching_mode ? "enabled" : "disabled");
     DUMP("Misc: next_frr=%d, context_gen=%d, buggy_eim=%d\n",

@@ -255,6 +255,13 @@ struct IntelIOMMUNotifierNode {
     QLIST_ENTRY(IntelIOMMUNotifierNode) next;
 };
 
+typedef struct IOMMUCacheStats {
+    uint64_t iotlb_hit;
+    uint64_t iotlb_total;
+    uint64_t context_hit;
+    uint64_t context_total;
+} IOMMUCacheStats;
+
 /* The iommu (DMAR) device state struct */
 struct IntelIOMMUState {
     X86IOMMUState x86_iommu;
@@ -302,6 +309,9 @@ struct IntelIOMMUState {
     bool intr_eime;                 /* Extended interrupt mode enabled */
     OnOffAuto intr_eim;             /* Toggle for EIM cabability */
     bool buggy_eim;                 /* Force buggy EIM unless eim=off */
+
+    /* For statistics */
+    IOMMUCacheStats cache_stat;
 };
 
 /* Find the VTD Address space associated with the given bus pointer,
