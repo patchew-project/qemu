@@ -11843,6 +11843,18 @@ static void arm_trblock_init_disas_context(DisasContextBase *dcbase,
     dc->ss_same_el = false; /* Can't be true since EL_d must be AArch64 */
 }
 
+static void arm_trblock_init_globals(DisasContextBase *dcbase, CPUState *cpu)
+{
+    cpu_F0s = tcg_temp_new_i32();
+    cpu_F1s = tcg_temp_new_i32();
+    cpu_F0d = tcg_temp_new_i64();
+    cpu_F1d = tcg_temp_new_i64();
+    cpu_V0 = cpu_F0d;
+    cpu_V1 = cpu_F1d;
+    /* FIXME: cpu_M0 can probably be the same as cpu_V0.  */
+    cpu_M0 = tcg_temp_new_i64();
+}
+
 /* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
@@ -11871,14 +11883,7 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
     arm_trblock_init_disas_context(&dc->base, cpu);
 
 
-    cpu_F0s = tcg_temp_new_i32();
-    cpu_F1s = tcg_temp_new_i32();
-    cpu_F0d = tcg_temp_new_i64();
-    cpu_F1d = tcg_temp_new_i64();
-    cpu_V0 = cpu_F0d;
-    cpu_V1 = cpu_F1d;
-    /* FIXME: cpu_M0 can probably be the same as cpu_V0.  */
-    cpu_M0 = tcg_temp_new_i64();
+    arm_trblock_init_globals(&dc->base, cpu);
     next_page_start = (dc->base.pc_first & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
