@@ -71,7 +71,6 @@ struct XenFB {
     int               fbpages;
     int               feature_update;
     int               bug_trigger;
-    int               have_console;
     int               do_resize;
 
     struct {
@@ -80,6 +79,7 @@ struct XenFB {
     int               up_count;
     int               up_fullscreen;
 };
+static const GraphicHwOps xenfb_ops;
 
 /* -------------------------------------------------------------------- */
 
@@ -855,6 +855,8 @@ static int fb_init(struct XenDevice *xendev)
 static int fb_initialise(struct XenDevice *xendev)
 {
     struct XenFB *fb = container_of(xendev, struct XenFB, c.xendev);
+    struct XenDevice *xin;
+    struct XenInput *in;
     struct xenfb_page *fb_page;
     int videoram;
     int rc;
@@ -877,16 +879,16 @@ static int fb_initialise(struct XenDevice *xendev)
     if (rc != 0)
 	return rc;
 
-#if 0  /* handled in xen_init_display() for now */
-    if (!fb->have_console) {
-        fb->c.ds = graphic_console_init(xenfb_update,
-                                        xenfb_invalidate,
-                                        NULL,
-                                        NULL,
-                                        fb);
-        fb->have_console = 1;
+    fb->c.con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
+
+    xin = xen_pv_find_xendev("vkbd", xen_domid, 0);
+    if (xin == NULL) {
+        xen_pv_printf(xendev, 1, "xenfb is up, but vkbd is not present\n");
+    } else {
+        in = container_of(xin, struct XenInput, c.xendev);
+        in->c.con = fb->c.con;
+        xen_be_check_state(xin);
     }
-#endif
 
     if (xenstore_read_fe_int(xendev, "feature-update", &fb->feature_update) == -1)
 	fb->feature_update = 0;
@@ -972,42 +974,3 @@ static const GraphicHwOps xenfb_ops = {
     .gfx_update  = xenfb_update,
     .update_interval = xenfb_update_interval,
 };
-
-/*
- * FIXME/TODO: Kill this.
- * Temporary needed while DisplayState reorganization is in flight.
- */
-void xen_init_display(int domid)
-{
-    struct XenDevice *xfb, *xin;
-    struct XenFB *fb;
-    struct XenInput *in;
-    int i = 0;
-
-wait_more:
-    i++;
-    main_loop_wait(true);
-    xfb = xen_pv_find_xendev("vfb", domid, 0);
-    xin = xen_pv_find_xendev("vkbd", domid, 0);
-    if (!xfb || !xin) {
-        if (i < 256) {
-            usleep(10000);
-            goto wait_more;
-        }
-        xen_pv_printf(NULL, 1, "displaystate setup failed\n");
-        return;
-    }
-
-    /* vfb */
-    fb = container_of(xfb, struct XenFB, c.xendev);
-    fb->c.con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
-    fb->have_console = 1;
-
-    /* vkbd */
-    in = container_of(xin, struct XenInput, c.xendev);
-    in->c.con = fb->c.con;
-
-    /* retry ->init() */
-    xen_be_check_state(xin);
-    xen_be_check_state(xfb);
-}
