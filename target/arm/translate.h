@@ -9,6 +9,7 @@ typedef struct DisasContext {
     DisasContextBase base;
 
     target_ulong pc;
+    target_ulong next_page_start;
     uint32_t insn;
     /* Nonzero if this instruction has been conditionally skipped.  */
     int condjmp;
@@ -148,6 +149,9 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
  * as opposed to attempting to use lookup_and_goto_ptr.
  */
 #define DISAS_EXIT DISAS_TARGET_11
+#define DISAS_SS   DISAS_TARGET_12
+#define DISAS_PAGE_CROSS DISAS_TARGET_13
+#define DISAS_SKIP DISAS_TARGET_14
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
