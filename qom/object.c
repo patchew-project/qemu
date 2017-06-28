@@ -1470,7 +1470,10 @@ static Object *object_resolve_link(Object *obj, const char *name,
     Object *target;
 
     /* Go from link<FOO> to FOO.  */
-    type = object_property_get_type(obj, name, NULL);
+    type = object_property_get_type(obj, name, errp);
+    if (!type) {
+        return NULL;
+    }
     target_type = g_strndup(&type[5], strlen(type) - 6);
     target = object_resolve_path_type(path, target_type, &ambiguous);
 
