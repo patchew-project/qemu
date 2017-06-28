@@ -1434,15 +1434,9 @@ void object_property_allow_set_link(Object *obj, const char *name,
     /* Allow the link to be set, always */
 }
 
-typedef struct {
-    Object **child;
-    void (*check)(Object *, const char *, Object *, Error **);
-    ObjectPropertyLinkFlags flags;
-} LinkProperty;
-
-static void object_get_link_property(Object *obj, Visitor *v,
-                                     const char *name, void *opaque,
-                                     Error **errp)
+void object_get_link_property(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp)
 {
     LinkProperty *lprop = opaque;
     Object **child = lprop->child;
@@ -1498,9 +1492,9 @@ static Object *object_resolve_link(Object *obj, const char *name,
     return target;
 }
 
-static void object_set_link_property(Object *obj, Visitor *v,
-                                     const char *name, void *opaque,
-                                     Error **errp)
+void object_set_link_property(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp)
 {
     Error *local_err = NULL;
     LinkProperty *prop = opaque;

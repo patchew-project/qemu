@@ -1613,4 +1613,17 @@ Object *container_get(Object *root, const char *path);
  * Returns the instance_size of the given @typename.
  */
 size_t object_type_get_instance_size(const char *typename);
+
+typedef struct {
+    Object **child;
+    void (*check)(Object *, const char *, Object *, Error **);
+    ObjectPropertyLinkFlags flags;
+} LinkProperty;
+
+void object_get_link_property(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp);
+void object_set_link_property(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp);
 #endif
