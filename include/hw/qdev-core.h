@@ -233,6 +233,9 @@ struct Property {
     int          arrayoffset;
     PropertyInfo *arrayinfo;
     int          arrayfieldsize;
+    /* Only @check and @flags are used; @child is unuseful because we need a
+     * dynamic pointer in @obj as derived from @offset. */
+    LinkProperty link;
 };
 
 struct PropertyInfo {

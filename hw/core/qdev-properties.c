@@ -1192,3 +1192,84 @@ PropertyInfo qdev_prop_size = {
     .set = set_size,
     .set_default_value = set_default_value_uint,
 };
+
+/* --- object link property --- */
+
+static ObjectProperty *link_property_get_or_create(Object *obj, Property *prop,
+                                                   Error **errp)
+{
+    Error *local_err = NULL;
+    Object **child = qdev_get_prop_ptr(DEVICE(obj), prop);
+    char *link_prop_name = g_strdup_printf("link-%s", prop->name);
+    ObjectProperty *op = object_property_find(obj, link_prop_name, NULL);
+
+    if (op) {
+        goto out;
+    }
+    object_property_add_link(obj, link_prop_name, prop->link.type,
+                             child, prop->link.check,
+                             prop->link.flags, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+    op = object_property_find(obj, link_prop_name, errp);
+out:
+    g_free(link_prop_name);
+    return op;
+}
+
+static void get_link_property(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp)
+{
+    Property *prop = opaque;
+    ObjectProperty *op = link_property_get_or_create(obj, prop, NULL);
+    char *link_prop_name;
+
+    if (!op) {
+        return;
+    }
+    link_prop_name = g_strdup_printf("link-%s", name);
+    object_get_link_property(obj, v, link_prop_name, op->opaque, errp);
+    g_free(link_prop_name);
+}
+
+static void set_link_property(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp)
+{
+    Object *target;
+    Property *prop = opaque;
+    Object **link_ptr = qdev_get_prop_ptr(DEVICE(obj), prop);
+    ObjectProperty *op = link_property_get_or_create(obj, prop, errp);
+    char *link_prop_name;
+    Error *local_err = NULL;
+
+    if (!op) {
+        return;
+    }
+
+    link_prop_name = g_strdup_printf("link-%s", name);
+    object_set_link_property(obj, v, link_prop_name, op->opaque, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+    target = object_property_get_link(obj, link_prop_name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+    *link_ptr = target;
+
+out:
+    g_free(link_prop_name);
+}
+
+PropertyInfo qdev_prop_link = {
+    .name = "link",
+    .get = get_link_property,
+    .set = set_link_property,
+};

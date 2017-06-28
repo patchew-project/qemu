@@ -30,6 +30,7 @@ extern PropertyInfo qdev_prop_pci_devfn;
 extern PropertyInfo qdev_prop_blocksize;
 extern PropertyInfo qdev_prop_pci_host_devaddr;
 extern PropertyInfo qdev_prop_arraylen;
+extern PropertyInfo qdev_prop_link;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \
@@ -115,6 +116,16 @@ extern PropertyInfo qdev_prop_arraylen;
         .arrayinfo = &(_arrayprop),                                     \
         .arrayfieldsize = sizeof(_arraytype),                           \
         .arrayoffset = offsetof(_state, _arrayfield),                   \
+        }
+
+#define DEFINE_PROP_LINK(_name, _state, _field, _type, _check, _flags) {\
+        .name = (_name),                                                \
+        .info = &(qdev_prop_link),                                      \
+        .offset = offsetof(_state, _field)                              \
+            + type_check(Object *, typeof_field(_state, _field)),       \
+        .link.check = _check,                                           \
+        .link.flags = _flags,                                           \
+        .link.type  = _type,                                            \
         }
 
 #define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \
