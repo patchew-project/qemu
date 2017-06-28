@@ -1618,6 +1618,7 @@ typedef struct {
     Object **child;
     void (*check)(Object *, const char *, Object *, Error **);
     ObjectPropertyLinkFlags flags;
+    const char *type;
 } LinkProperty;
 
 void object_get_link_property(Object *obj, Visitor *v,

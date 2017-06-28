@@ -1562,6 +1562,7 @@ void object_property_add_link(Object *obj, const char *name,
     prop->child = child;
     prop->check = check;
     prop->flags = flags;
+    prop->type = type;
 
     full_type = g_strdup_printf("link<%s>", type);
 
