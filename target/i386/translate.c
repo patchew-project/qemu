@@ -8435,6 +8435,22 @@ static void i386_trblock_init_disas_context(DisasContextBase *dcbase, CPUState *
 #endif
 }
 
+static void i386_trblock_init_globals(DisasContextBase *dcbase, CPUState *cpu)
+{
+    cpu_T0 = tcg_temp_new();
+    cpu_T1 = tcg_temp_new();
+    cpu_A0 = tcg_temp_new();
+
+    cpu_tmp0 = tcg_temp_new();
+    cpu_tmp1_i64 = tcg_temp_new_i64();
+    cpu_tmp2_i32 = tcg_temp_new_i32();
+    cpu_tmp3_i32 = tcg_temp_new_i32();
+    cpu_tmp4 = tcg_temp_new();
+    cpu_ptr0 = tcg_temp_new_ptr();
+    cpu_ptr1 = tcg_temp_new_ptr();
+    cpu_cc_srcT = tcg_temp_local_new();
+}
+
 /* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
@@ -8451,18 +8467,7 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
     dc->base.pc_next = dc->base.pc_first;
     i386_trblock_init_disas_context(&dc->base, cpu);
 
-    cpu_T0 = tcg_temp_new();
-    cpu_T1 = tcg_temp_new();
-    cpu_A0 = tcg_temp_new();
-
-    cpu_tmp0 = tcg_temp_new();
-    cpu_tmp1_i64 = tcg_temp_new_i64();
-    cpu_tmp2_i32 = tcg_temp_new_i32();
-    cpu_tmp3_i32 = tcg_temp_new_i32();
-    cpu_tmp4 = tcg_temp_new();
-    cpu_ptr0 = tcg_temp_new_ptr();
-    cpu_ptr1 = tcg_temp_new_ptr();
-    cpu_cc_srcT = tcg_temp_local_new();
+    i386_trblock_init_globals(&dc->base, cpu);
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
