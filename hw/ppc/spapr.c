@@ -2080,7 +2080,7 @@ static void ppc_spapr_init(MachineState *machine)
          * is going to be as it depends on the size of the hash table
          * isn't determined yet.
          */
-        if (kvm_enabled()) {
+        if (kvm_enabled() && !kvmppc_has_cap_mmu_radix()) {
             spapr->vrma_adjust = 1;
             spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
         }
