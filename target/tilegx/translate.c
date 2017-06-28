@@ -2370,12 +2370,11 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     }
 }
 
-void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    TileGXCPU *cpu = tilegx_env_get_cpu(env);
+    CPUTLGState *env = cpu->env_ptr;
     DisasContext ctx;
     DisasContext *dc = &ctx;
-    CPUState *cs = CPU(cpu);
     uint64_t pc_start = tb->pc;
     uint64_t next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     int num_insns = 0;
@@ -2397,7 +2396,7 @@ void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
     if (!max_insns) {
         max_insns = CF_COUNT_MASK;
     }
-    if (cs->singlestep_enabled || singlestep) {
+    if (cpu->singlestep_enabled || singlestep) {
         max_insns = 1;
     }
     if (max_insns > TCG_MAX_INSNS) {

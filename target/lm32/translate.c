@@ -1044,10 +1044,10 @@ static inline void decode(DisasContext *dc, uint32_t ir)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    LM32CPU *cpu = lm32_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPULM32State *env = cpu->env_ptr;
+    LM32CPU *lm32_cpu = lm32_env_get_cpu(env);
     struct DisasContext ctx, *dc = &ctx;
     uint32_t pc_start;
     uint32_t next_page_start;
@@ -1055,14 +1055,14 @@ void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
     int max_insns;
 
     pc_start = tb->pc;
-    dc->features = cpu->features;
-    dc->num_breakpoints = cpu->num_breakpoints;
-    dc->num_watchpoints = cpu->num_watchpoints;
+    dc->features = lm32_cpu->features;
+    dc->num_breakpoints = lm32_cpu->num_breakpoints;
+    dc->num_watchpoints = lm32_cpu->num_watchpoints;
     dc->tb = tb;
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->singlestep_enabled = cpu->singlestep_enabled;
 
     if (pc_start & 3) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1085,7 +1085,7 @@ void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(dc->pc);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc->pc, BP_ANY))) {
             tcg_gen_movi_tl(cpu_pc, dc->pc);
             t_gen_raise_exception(dc, EXCP_DEBUG);
             dc->is_jmp = DISAS_UPDATE;
@@ -1108,7 +1108,7 @@ void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
         dc->pc += 4;
     } while (!dc->is_jmp
          && !tcg_op_buf_full()
-         && !cs->singlestep_enabled
+         && !cpu->singlestep_enabled
          && !singlestep
          && (dc->pc < next_page_start)
          && num_insns < max_insns);
@@ -1117,7 +1117,7 @@ void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
         gen_io_end();
     }
 
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu->singlestep_enabled)) {
         if (dc->is_jmp == DISAS_NEXT) {
             tcg_gen_movi_tl(cpu_pc, dc->pc);
         }
@@ -1150,7 +1150,7 @@ void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
         qemu_log("\n");
-        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());
         qemu_log_unlock();

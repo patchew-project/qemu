@@ -3117,10 +3117,9 @@ static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
     }
 }
 
-void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUXtensaState *env = cpu->env_ptr;
     DisasContext dc;
     int insn_count = 0;
     int max_insns = tb->cflags & CF_COUNT_MASK;
@@ -3136,7 +3135,7 @@ void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
     }
 
     dc.config = env->config;
-    dc.singlestep_enabled = cs->singlestep_enabled;
+    dc.singlestep_enabled = cpu->singlestep_enabled;
     dc.tb = tb;
     dc.pc = pc_start;
     dc.ring = tb->flags & XTENSA_TBFLAG_RING_MASK;
@@ -3179,7 +3178,7 @@ void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
         tcg_gen_insn_start(dc.pc);
         ++insn_count;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc.pc, BP_ANY))) {
             tcg_gen_movi_i32(cpu_pc, dc.pc);
             gen_exception(&dc, EXCP_DEBUG);
             dc.is_jmp = DISAS_UPDATE;
@@ -3215,7 +3214,7 @@ void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
         if (dc.icount) {
             tcg_gen_mov_i32(cpu_SR[ICOUNT], dc.next_icount);
         }
-        if (cs->singlestep_enabled) {
+        if (cpu->singlestep_enabled) {
             tcg_gen_movi_i32(cpu_pc, dc.pc);
             gen_exception(&dc, EXCP_DEBUG);
             break;
@@ -3247,7 +3246,7 @@ done:
         qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc.pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, dc.pc - pc_start, 0);
         qemu_log("\n");
         qemu_log_unlock();
     }

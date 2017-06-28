@@ -1518,10 +1518,10 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
     }
 }
 
-void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUOpenRISCState *env = cpu->env_ptr;
+    OpenRISCCPU *or_cpu = openrisc_env_get_cpu(env);
     struct DisasContext ctx, *dc = &ctx;
     uint32_t pc_start;
     uint32_t next_page_start;
@@ -1533,10 +1533,10 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
-    dc->mem_idx = cpu_mmu_index(&cpu->env, false);
+    dc->mem_idx = cpu_mmu_index(&or_cpu->env, false);
     dc->tb_flags = tb->flags;
     dc->delayed_branch = (dc->tb_flags & TB_FLAGS_DFLAG) != 0;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->singlestep_enabled = cpu->singlestep_enabled;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
@@ -1571,7 +1571,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
 			   | (num_insns ? 2 : 0));
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc->pc, BP_ANY))) {
             tcg_gen_movi_tl(cpu_pc, dc->pc);
             gen_exception(dc, EXCP_DEBUG);
             dc->is_jmp = DISAS_UPDATE;
@@ -1586,7 +1586,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
-        disas_openrisc_insn(dc, cpu);
+        disas_openrisc_insn(dc, or_cpu);
         dc->pc = dc->pc + 4;
 
         /* delay slot */
@@ -1601,7 +1601,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
         }
     } while (!dc->is_jmp
              && !tcg_op_buf_full()
-             && !cs->singlestep_enabled
+             && !cpu->singlestep_enabled
              && !singlestep
              && (dc->pc < next_page_start)
              && num_insns < max_insns);
@@ -1619,7 +1619,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
         dc->is_jmp = DISAS_UPDATE;
         tcg_gen_movi_tl(cpu_pc, dc->pc);
     }
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu->singlestep_enabled)) {
         gen_exception(dc, EXCP_DEBUG);
     } else {
         switch (dc->is_jmp) {
@@ -1647,7 +1647,7 @@ void gen_intermediate_code(CPUOpenRISCState *env, struct TranslationBlock *tb)
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        log_target_disas(cs, pc_start, tb->size, 0);
+        log_target_disas(cpu, pc_start, tb->size, 0);
         qemu_log("\n");
         qemu_log_unlock();
     }

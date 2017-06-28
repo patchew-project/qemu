@@ -1594,10 +1594,10 @@ static inline void decode(DisasContext *dc, uint32_t ir)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUMBState *env = cpu->env_ptr;
+    MicroBlazeCPU *mb_cpu = mb_env_get_cpu(env);
     uint32_t pc_start;
     struct DisasContext ctx;
     struct DisasContext *dc = &ctx;
@@ -1607,7 +1607,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
     int max_insns;
 
     pc_start = tb->pc;
-    dc->cpu = cpu;
+    dc->cpu = mb_cpu;
     dc->tb = tb;
     org_flags = dc->synced_flags = dc->tb_flags = tb->flags;
 
@@ -1618,13 +1618,13 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
         dc->jmp = JMP_INDIRECT;
     }
     dc->pc = pc_start;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->singlestep_enabled = cpu->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
     dc->nr_nops = 0;
 
     if (pc_start & 3) {
-        cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
+        cpu_abort(cpu, "Microblaze: unaligned PC=%x\n", pc_start);
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -1650,7 +1650,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
         }
 #endif
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc->pc, BP_ANY))) {
             t_gen_raise_exception(dc, EXCP_DEBUG);
             dc->is_jmp = DISAS_UPDATE;
             /* The address covered by the breakpoint must be included in
@@ -1707,7 +1707,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
                 break;
             }
         }
-        if (cs->singlestep_enabled) {
+        if (cpu->singlestep_enabled) {
             break;
         }
     } while (!dc->is_jmp && !dc->cpustate_changed
@@ -1728,7 +1728,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
 
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    /* Force an update if the per-tb cpu state has changed.  */
+    /* Force an update if the per-tb mb_cpu state has changed.  */
     if (dc->is_jmp == DISAS_NEXT
         && (dc->cpustate_changed || org_flags != dc->tb_flags)) {
         dc->is_jmp = DISAS_UPDATE;
@@ -1736,7 +1736,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
     }
     t_sync_flags(dc);
 
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu->singlestep_enabled)) {
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
         if (dc->is_jmp != DISAS_JUMP) {
@@ -1773,7 +1773,7 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
         qemu_log_lock();
         qemu_log("--------------\n");
 #if DISAS_GNU
-        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());

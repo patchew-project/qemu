@@ -19878,10 +19878,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUMIPSState *env = cpu->env_ptr;
     DisasContext ctx;
     target_ulong pc_start;
     target_ulong next_page_start;
@@ -19894,7 +19893,7 @@ void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
-    ctx.singlestep_enabled = cs->singlestep_enabled;
+    ctx.singlestep_enabled = cpu->singlestep_enabled;
     ctx.insn_flags = env->insn_flags;
     ctx.CP0_Config1 = env->CP0_Config1;
     ctx.tb = tb;
@@ -19941,7 +19940,7 @@ void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(ctx.pc, ctx.hflags & MIPS_HFLAG_BMASK, ctx.btarget);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, ctx.pc, BP_ANY))) {
             save_cpu_state(&ctx, 1);
             ctx.bstate = BS_BRANCH;
             gen_helper_raise_exception_debug(cpu_env);
@@ -19996,7 +19995,7 @@ void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
            This is what GDB expects and is consistent with what the
            hardware does (e.g. if a delay slot instruction faults, the
            reported PC is the PC of the branch).  */
-        if (cs->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0) {
+        if (cpu->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0) {
             break;
         }
 
@@ -20017,7 +20016,7 @@ void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
     }
-    if (cs->singlestep_enabled && ctx.bstate != BS_BRANCH) {
+    if (cpu->singlestep_enabled && ctx.bstate != BS_BRANCH) {
         save_cpu_state(&ctx, ctx.bstate != BS_EXCP);
         gen_helper_raise_exception_debug(cpu_env);
     } else {
@@ -20049,7 +20048,7 @@ done_generating:
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, ctx.pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, ctx.pc - pc_start, 0);
         qemu_log("\n");
         qemu_log_unlock();
     }

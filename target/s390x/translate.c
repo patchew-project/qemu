@@ -5764,10 +5764,9 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     return ret;
 }
 
-void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUS390XState *env = cpu->env_ptr;
     DisasContext dc;
     target_ulong pc_start;
     uint64_t next_page_start;
@@ -5786,7 +5785,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
     dc.ex_value = tb->cs_base;
-    do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
+    do_debug = dc.singlestep_enabled = cpu->singlestep_enabled;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
 
@@ -5805,7 +5804,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(dc.pc, dc.cc_op);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc.pc, BP_ANY))) {
             status = EXIT_PC_STALE;
             do_debug = true;
             /* The address covered by the breakpoint must be included in
@@ -5829,7 +5828,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
                 || tcg_op_buf_full()
                 || num_insns >= max_insns
                 || singlestep
-                || cs->singlestep_enabled
+                || cpu->singlestep_enabled
                 || dc.ex_value)) {
             status = EXIT_PC_STALE;
         }
@@ -5880,7 +5879,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
             qemu_log("IN: EXECUTE %016" PRIx64 "\n", dc.ex_value);
         } else {
             qemu_log("IN: %s\n", lookup_symbol(pc_start));
-            log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
+            log_target_disas(cpu, pc_start, dc.pc - pc_start, 1);
             qemu_log("\n");
         }
         qemu_log_unlock();

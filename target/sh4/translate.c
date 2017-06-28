@@ -1815,10 +1815,9 @@ static void decode_opc(DisasContext * ctx)
     }
 }
 
-void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    SuperHCPU *cpu = sh_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUSH4State *env = cpu->env_ptr;
     DisasContext ctx;
     target_ulong pc_start;
     int num_insns;
@@ -1834,7 +1833,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
        so assume it is a dynamic branch.  */
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
-    ctx.singlestep_enabled = cs->singlestep_enabled;
+    ctx.singlestep_enabled = cpu->singlestep_enabled;
     ctx.features = env->features;
     ctx.has_movcal = (ctx.tbflags & TB_FLAG_PENDING_MOVCA);
 
@@ -1852,7 +1851,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
         tcg_gen_insn_start(ctx.pc, ctx.envflags);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, ctx.pc, BP_ANY))) {
             /* We have hit a breakpoint - make sure PC is up-to-date */
             gen_save_cpu_state(&ctx, true);
             gen_helper_debug(cpu_env);
@@ -1874,7 +1873,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
 	ctx.pc += 2;
 	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
 	    break;
-        if (cs->singlestep_enabled) {
+        if (cpu->singlestep_enabled) {
 	    break;
         }
         if (num_insns >= max_insns)
@@ -1884,7 +1883,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (cs->singlestep_enabled) {
+    if (cpu->singlestep_enabled) {
         gen_save_cpu_state(&ctx, true);
         gen_helper_debug(cpu_env);
     } else {
@@ -1915,7 +1914,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
 	qemu_log("IN:\n");	/* , lookup_symbol(pc_start)); */
-        log_target_disas(cs, pc_start, ctx.pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, ctx.pc - pc_start, 0);
 	qemu_log("\n");
         qemu_log_unlock();
     }

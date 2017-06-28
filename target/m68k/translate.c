@@ -5519,10 +5519,9 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
-    M68kCPU *cpu = m68k_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUM68KState *env = cpu->env_ptr;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_start;
     int pc_offset;
@@ -5539,7 +5538,7 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
     dc->pc = pc_start;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cc_op_synced = 1;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->singlestep_enabled = cpu->singlestep_enabled;
     dc->user = (env->sr & SR_S) == 0;
     dc->done_mac = 0;
     dc->writeback_mask = 0;
@@ -5559,7 +5558,7 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
         tcg_gen_insn_start(dc->pc, dc->cc_op);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, dc->pc, BP_ANY))) {
             gen_exception(dc, dc->pc, EXCP_DEBUG);
             dc->is_jmp = DISAS_JUMP;
             /* The address covered by the breakpoint must be included in
@@ -5577,14 +5576,14 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
-             !cs->singlestep_enabled &&
+             !cpu->singlestep_enabled &&
              !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
              num_insns < max_insns);
 
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (!dc->is_jmp) {
             update_cc_op(dc);
@@ -5617,7 +5616,7 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
         qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cpu, pc_start, dc->pc - pc_start, 0);
         qemu_log("\n");
         qemu_log_unlock();
     }

@@ -7203,10 +7203,9 @@ void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
 }
 
 /*****************************************************************************/
-void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = cpu->env_ptr;
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     target_ulong pc_start;
@@ -7267,7 +7266,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         ctx.singlestep_enabled = 0;
     if ((env->flags & POWERPC_FLAG_BE) && msr_be)
         ctx.singlestep_enabled |= CPU_BRANCH_STEP;
-    if (unlikely(cs->singlestep_enabled)) {
+    if (unlikely(cpu->singlestep_enabled)) {
         ctx.singlestep_enabled |= GDBSTUB_SINGLE_STEP;
     }
 #if defined (DO_SINGLE_STEP) && 0
@@ -7290,7 +7289,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(ctx.nip);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, ctx.nip, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, ctx.nip, BP_ANY))) {
             gen_debug_exception(ctxp);
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
@@ -7369,7 +7368,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
                      ctx.exception != POWERPC_EXCP_BRANCH)) {
             gen_exception_nip(ctxp, POWERPC_EXCP_TRACE, ctx.nip);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
-                            (cs->singlestep_enabled) ||
+                            (cpu->singlestep_enabled) ||
                             singlestep ||
                             num_insns >= max_insns)) {
             /* if we reach a page boundary or are single stepping, stop
@@ -7389,7 +7388,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
     if (ctx.exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(&ctx, 0, ctx.nip);
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
-        if (unlikely(cs->singlestep_enabled)) {
+        if (unlikely(cpu->singlestep_enabled)) {
             gen_debug_exception(ctxp);
         }
         /* Generate the return instruction */
@@ -7408,7 +7407,7 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         flags |= ctx.le_mode << 16;
         qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, ctx.nip - pc_start, flags);
+        log_target_disas(cpu, pc_start, ctx.nip - pc_start, flags);
         qemu_log("\n");
         qemu_log_unlock();
     }

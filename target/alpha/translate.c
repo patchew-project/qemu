@@ -2911,10 +2911,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb)
 {
-    AlphaCPU *cpu = alpha_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUAlphaState *env = cpu->env_ptr;
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
     target_ulong pc_mask;
@@ -2929,7 +2928,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     ctx.pc = pc_start;
     ctx.mem_idx = cpu_mmu_index(env, false);
     ctx.implver = env->implver;
-    ctx.singlestep_enabled = cs->singlestep_enabled;
+    ctx.singlestep_enabled = cpu->singlestep_enabled;
 
 #ifdef CONFIG_USER_ONLY
     ctx.ir = cpu_std_ir;
@@ -2972,7 +2971,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
 
-        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+        if (unlikely(cpu_breakpoint_test(cpu, ctx.pc, BP_ANY))) {
             ret = gen_excp(&ctx, EXCP_DEBUG, 0);
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
@@ -3047,7 +3046,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, ctx.pc - pc_start, 1);
+        log_target_disas(cpu, pc_start, ctx.pc - pc_start, 1);
         qemu_log("\n");
         qemu_log_unlock();
     }

@@ -8378,10 +8378,9 @@ void tcg_x86_init(void)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUX86State *env = cpu->env_ptr;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
     uint32_t flags;
@@ -8404,7 +8403,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
     dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
     dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tf = (flags >> TF_SHIFT) & 1;
-    dc->singlestep_enabled = cs->singlestep_enabled;
+    dc->singlestep_enabled = cpu->singlestep_enabled;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cc_op_dirty = false;
     dc->cs_base = cs_base;
@@ -8426,7 +8425,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
 #endif
     dc->flags = flags;
-    dc->jmp_opt = !(dc->tf || cs->singlestep_enabled ||
+    dc->jmp_opt = !(dc->tf || cpu->singlestep_enabled ||
                     (flags & HF_INHIBIT_IRQ_MASK));
     /* Do not optimize repz jumps at all in icount mode, because
        rep movsS instructions are execured with different paths
@@ -8475,7 +8474,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
         num_insns++;
 
         /* If RF is set, suppress an internally generated breakpoint.  */
-        if (unlikely(cpu_breakpoint_test(cs, pc_ptr,
+        if (unlikely(cpu_breakpoint_test(cpu, pc_ptr,
                                          tb->flags & HF_RF_MASK
                                          ? BP_GDB : BP_ANY))) {
             gen_debug(dc, pc_ptr - dc->cs_base);
@@ -8551,7 +8550,7 @@ done_generating:
         else
 #endif
             disas_flags = !dc->code32;
-        log_target_disas(cs, pc_start, pc_ptr - pc_start, disas_flags);
+        log_target_disas(cpu, pc_start, pc_ptr - pc_start, disas_flags);
         qemu_log("\n");
         qemu_log_unlock();
     }
