@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
+#include "exec/translator.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -70,6 +71,9 @@
     case (3 << 6) | (OP << 3) | 0 ... (3 << 6) | (OP << 3) | 7
 
 //#define MACRO_TEST   1
+
+/* is_jmp field values */
+#define DISAS_TB_JUMP DISAS_TARGET_0 /* only pc was modified statically */
 
 /* global register indexes */
 static TCGv_env cpu_env;
