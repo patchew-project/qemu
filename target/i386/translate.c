@@ -8454,6 +8454,10 @@ static void i386_trblock_init_globals(DisasContextBase *dcbase, CPUState *cpu)
     cpu_cc_srcT = tcg_temp_local_new();
 }
 
+static void i386_trblock_tb_start(DisasContextBase *db, CPUState *cpu)
+{
+}
+
 static void i386_trblock_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
@@ -8472,7 +8476,7 @@ static BreakpointCheckType i386_trblock_breakpoint_check(
         /* The address covered by the breakpoint must be included in
            [tb->pc, tb->pc + tb->size) in order to for it to be
            properly cleared -- thus we increment the PC here so that
-           the logic setting tb->size below does the right thing.  */
+           the generic logic setting tb->size later does the right thing.  */
         dc->base.pc_next += 1;
         return BC_HIT_TB;
     } else {
@@ -8544,111 +8548,23 @@ static void i386_trblock_disas_log(const DisasContextBase *dcbase,
 
 }
 
+static const TranslatorOps i386_trblock_ops = {
+    .init_disas_context = i386_trblock_init_disas_context,
+    .init_globals = i386_trblock_init_globals,
+    .tb_start = i386_trblock_tb_start,
+    .insn_start = i386_trblock_insn_start,
+    .breakpoint_check = i386_trblock_breakpoint_check,
+    .translate_insn = i386_trblock_translate_insn,
+    .tb_stop = i386_trblock_tb_stop,
+    .disas_log = i386_trblock_disas_log,
+};
+
 /* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
 {
-    DisasContext dc1, *dc = &dc1;
-    int num_insns;
-    int max_insns;
+    DisasContext dc1;
 
-    /* generate intermediate code */
-    dc->base.singlestep_enabled = cpu->singlestep_enabled;
-    dc->base.tb = tb;
-    dc->base.is_jmp = DISAS_NEXT;
-    dc->base.pc_first = tb->pc;
-    dc->base.pc_next = dc->base.pc_first;
-    i386_trblock_init_disas_context(&dc->base, cpu);
-
-    i386_trblock_init_globals(&dc->base, cpu);
-
-    num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0) {
-        max_insns = CF_COUNT_MASK;
-    }
-    if (max_insns > TCG_MAX_INSNS) {
-        max_insns = TCG_MAX_INSNS;
-    }
-
-    gen_tb_start(tb);
-    for(;;) {
-        i386_trblock_insn_start(&dc->base, cpu);
-        num_insns++;
-
-        if (unlikely(!QTAILQ_EMPTY(&cpu->breakpoints))) {
-            CPUBreakpoint *bp;
-            QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-                if (bp->pc == dc->base.pc_next) {
-                    BreakpointCheckType bp_check =
-                        i386_trblock_breakpoint_check(&dc->base, cpu, bp);
-                    switch (bp_check) {
-                    case BC_MISS:
-                        /* Target ignored this breakpoint, go to next */
-                        break;
-                    case BC_HIT_INSN:
-                        /* Hit, keep translating */
-                        /*
-                         * TODO: if we're never going to have more than one
-                         *       BP in a single address, we can simply use a
-                         *       bool here.
-                         */
-                        goto done_breakpoints;
-                    case BC_HIT_TB:
-                        /* Hit, end TB */
-                        goto done_generating;
-                    default:
-                        g_assert_not_reached();
-                    }
-                }
-            }
-        }
-    done_breakpoints:
-
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
-            gen_io_start();
-        }
-
-        dc->base.pc_next = i386_trblock_translate_insn(&dc->base, cpu);
-        /* stop translation if indicated */
-        if (dc->base.is_jmp) {
-            break;
-        }
-        /* if single step mode, we generate only one instruction and
-           generate an exception */
-        if (dc->base.singlestep_enabled) {
-            dc->base.is_jmp = DISAS_TOO_MANY;
-            break;
-        }
-        /* if too long translation, stop generation too */
-        if (tcg_op_buf_full() ||
-            num_insns >= max_insns) {
-            dc->base.is_jmp = DISAS_TOO_MANY;
-            break;
-        }
-        if (singlestep) {
-            dc->base.is_jmp = DISAS_TOO_MANY;
-            break;
-        }
-    }
-    i386_trblock_tb_stop(&dc->base, cpu);
-    if (tb->cflags & CF_LAST_IO)
-        gen_io_end();
-done_generating:
-    gen_tb_end(tb, num_insns);
-
-#ifdef DEBUG_DISAS
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
-        && qemu_log_in_addr_range(dc->base.pc_first)) {
-        qemu_log_lock();
-        qemu_log("----------------\n");
-        i386_trblock_disas_log(&dc->base, cpu);
-        qemu_log("\n");
-        qemu_log_unlock();
-    }
-#endif
-
-    tb->size = dc->base.pc_next - dc->base.pc_first;
-    tb->icount = num_insns;
+    translate_block(&i386_trblock_ops, &dc1.base, cpu, tb);
 }
 
 void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb,
