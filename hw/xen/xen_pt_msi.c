@@ -163,16 +163,23 @@ static int msi_msix_update(XenPCIPassthroughState *s,
     int rc = 0;
     uint64_t table_addr = 0;
 
-    XEN_PT_LOG(d, "Updating MSI%s with pirq %d gvec %#x gflags %#x"
-               " (entry: %#x)\n",
-               is_msix ? "-X" : "", pirq, gvec, gflags, msix_entry);
-
     if (is_msix) {
         table_addr = s->msix->mmio_base_addr;
     }
 
-    rc = xc_domain_update_msi_irq(xen_xc, xen_domid, gvec,
-                                  pirq, gflags, table_addr);
+    if (addr & MSI_ADDR_IF_MASK) {
+        XEN_PT_LOG(d, "Updating MSI%s with addr %#" PRIx64 " data %#x\n",
+                   is_msix ? "-X" : "", addr, data);
+        rc = xc_domain_update_msi_irq_remapping(xen_xc, xen_domid, pirq,
+                                             d->devfn, data, addr, table_addr);
+    } else {
+        XEN_PT_LOG(d, "Updating MSI%s with pirq %d gvec %#x gflags %#x"
+                   " (entry: %#x)\n",
+                   is_msix ? "-X" : "", pirq, gvec, gflags, msix_entry);
+
+        rc = xc_domain_update_msi_irq(xen_xc, xen_domid, gvec,
+                                      pirq, gflags, table_addr);
+    }
 
     if (rc) {
         XEN_PT_ERR(d, "Updating of MSI%s failed. (err: %d)\n",
@@ -204,13 +211,30 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
     }
 
     if (is_binded) {
-        XEN_PT_LOG(d, "Unbind MSI%s with pirq %d, gvec %#x\n",
-                   is_msix ? "-X" : "", pirq, gvec);
-        rc = xc_domain_unbind_msi_irq(xen_xc, xen_domid, gvec, pirq, gflags);
-        if (rc) {
-            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, gvec: %#x)\n",
-                       is_msix ? "-X" : "", errno, pirq, gvec);
-            return rc;
+        if (addr & MSI_ADDR_IF_MASK) {
+            XEN_PT_LOG(d, "Unbinding of MSI%s . ( pirq: %d, data: %x, "
+                       "addr: %#" PRIx64 ")\n",
+                       is_msix ? "-X" : "", pirq, data, addr);
+            rc = xc_domain_unbind_msi_irq_remapping(xen_xc, xen_domid, pirq,
+                                                    d->devfn, data, addr);
+            if (rc) {
+                XEN_PT_ERR(d, "Unbinding of MSI%s . (error: %d, pirq: %d, "
+                           "data: %x, addr: %#" PRIx64 ")\n",
+                           is_msix ? "-X" : "", rc, pirq, data, addr);
+                return rc;
+            }
+
+        } else {
+            XEN_PT_LOG(d, "Unbind MSI%s with pirq %d, gvec %#x\n",
+                       is_msix ? "-X" : "", pirq, gvec);
+            rc = xc_domain_unbind_msi_irq(xen_xc, xen_domid, gvec,
+                                          pirq, gflags);
+            if (rc) {
+                XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, "
+                           "gvec: %#x)\n",
+                           is_msix ? "-X" : "", errno, pirq, gvec);
+                return rc;
+            }
         }
     }
 
