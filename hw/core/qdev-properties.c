@@ -1192,3 +1192,19 @@ PropertyInfo qdev_prop_size = {
     .set = set_size,
     .set_default_value = set_default_value_uint,
 };
+
+/* --- object link property --- */
+
+static void create_link_property(Object *obj, Property *prop, Error **errp)
+{
+    Object **child = qdev_get_prop_ptr(DEVICE(obj), prop);
+
+    object_property_add_link(obj, prop->name, prop->link_type,
+                             child, prop->link.check,
+                             prop->link.flags, errp);
+}
+
+PropertyInfo qdev_prop_link = {
+    .name = "link",
+    .create = create_link_property,
+};
