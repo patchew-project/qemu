@@ -74,9 +74,6 @@ matrix:
     - env: CONFIG="--enable-gprof --enable-gcov --disable-pie"
       compiler: gcc
     # We manually include builds which we disable "make check" for
-    - env: CONFIG="--enable-debug --enable-tcg-interpreter"
-           TEST_CMD=""
-      compiler: gcc
     - env: CONFIG="--enable-trace-backends=simple"
            TEST_CMD=""
       compiler: gcc
