@@ -187,13 +187,16 @@ enum {
 
 /* Incompatible feature bits */
 enum {
-    QCOW2_INCOMPAT_DIRTY_BITNR   = 0,
-    QCOW2_INCOMPAT_CORRUPT_BITNR = 1,
-    QCOW2_INCOMPAT_DIRTY         = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
-    QCOW2_INCOMPAT_CORRUPT       = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_DIRTY_BITNR    = 0,
+    QCOW2_INCOMPAT_CORRUPT_BITNR  = 1,
+    QCOW2_INCOMPAT_COMPRESS_BITNR = 2,
+    QCOW2_INCOMPAT_DIRTY          = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
+    QCOW2_INCOMPAT_CORRUPT        = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_COMPRESS       = 1 << QCOW2_INCOMPAT_COMPRESS_BITNR,
 
     QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY
-                                 | QCOW2_INCOMPAT_CORRUPT,
+                                 | QCOW2_INCOMPAT_CORRUPT
+                                 | QCOW2_INCOMPAT_COMPRESS,
 };
 
 /* Compatible feature bits */
@@ -218,6 +221,13 @@ typedef struct Qcow2Feature {
     uint8_t bit;
     char    name[46];
 } QEMU_PACKED Qcow2Feature;
+
+typedef struct Qcow2CompressFormatExt {
+    char name[16];
+    uint8_t level;
+    char res[3];
+    uint32_t extra_data_size;
+} QEMU_PACKED Qcow2CompressFormatExt;
 
 typedef struct Qcow2DiscardRegion {
     BlockDriverState *bs;
@@ -303,6 +313,9 @@ typedef struct BDRVQcow2State {
      * override) */
     char *image_backing_file;
     char *image_backing_format;
+
+    Qcow2CompressFormatExt compress_format;
+    int compress_format_id;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {

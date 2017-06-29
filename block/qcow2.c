@@ -63,6 +63,7 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_END 0
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 #define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
+#define  QCOW2_EXT_MAGIC_COMPRESS_FORMAT 0xC03183A3
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -76,6 +77,26 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
+static int qcow2_compress_format_from_name(char *fmt)
+{
+    if (!fmt || !fmt[0]) {
+        return QCOW2_COMPRESS_ZLIB_COMPAT;
+    } else if (g_str_equal(fmt, "zlib")) {
+        return QCOW2_COMPRESS_ZLIB;
+    } else {
+        return -EINVAL;
+    }
+}
+
+static int qcow2_compress_level_supported(int id, uint64_t level)
+{
+    if ((id == QCOW2_COMPRESS_ZLIB_COMPAT && level > 0) ||
+        (id == QCOW2_COMPRESS_ZLIB && level > 9) ||
+        level > 0xff) {
+        return -EINVAL;
+    }
+    return 0;
+}
 
 /* 
  * read qcow2 extension and fill bs
@@ -147,6 +168,43 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             printf("Qcow2: Got format extension %s\n", bs->backing_format);
 #endif
             break;
+
+        case QCOW2_EXT_MAGIC_COMPRESS_FORMAT:
+            if (ext.len != sizeof(s->compress_format)) {
+                error_setg(errp, "ERROR: ext_compress_format: len=%"
+                           PRIu32 " invalid (!=%zu)", ext.len,
+                           sizeof(s->compress_format));
+                return 2;
+            }
+            ret = bdrv_pread(bs->file, offset, &s->compress_format,
+                             ext.len);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "ERROR: ext_compress_fromat:"
+                                 " Could not read extension");
+                return 3;
+            }
+            s->compress_format_id =
+                qcow2_compress_format_from_name(s->compress_format.name);
+            if (s->compress_format_id < 0) {
+                error_setg(errp, "ERROR: compression algorithm '%s' is "
+                           " unsupported", s->compress_format.name);
+                return 4;
+            }
+            if (qcow2_compress_level_supported(s->compress_format_id,
+                                               s->compress_format.level) < 0) {
+                error_setg(errp, "ERROR: compress level %" PRIu8 " is not"
+                           " supported for format '%s'",
+                           s->compress_format.level, s->compress_format.name);
+                return 5;
+            }
+
+#ifdef DEBUG_EXT
+            printf("Qcow2: Got compress format %s with compress level %"
+                   PRIu8 "\n", s->compress_format.name,
+                   s->compress_format.level);
+#endif
+            break;
+
 
         case QCOW2_EXT_MAGIC_FEATURE_TABLE:
             if (p_feature_table != NULL) {
@@ -1981,6 +2039,20 @@ int qcow2_update_header(BlockDriverState *bs)
         buflen -= ret;
     }
 
+    /* Compress Format header extension */
+    if (s->compress_format.name[0]) {
+        assert(!s->compress_format.extra_data_size);
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_COMPRESS_FORMAT,
+                             &s->compress_format, sizeof(s->compress_format),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
+        header->incompatible_features |= cpu_to_be64(QCOW2_INCOMPAT_COMPRESS);
+    }
+
     /* Feature table */
     if (s->qcow_version >= 3) {
         Qcow2Feature features[] = {
@@ -1993,6 +2065,11 @@ int qcow2_update_header(BlockDriverState *bs)
                 .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
                 .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
                 .name = "corrupt bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_COMPRESS_BITNR,
+                .name = "compress format bit",
             },
             {
                 .type = QCOW2_FEAT_TYPE_COMPATIBLE,
@@ -2333,6 +2410,13 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         abort();
     }
 
+    if (compress_format_name[0]) {
+        BDRVQcow2State *s = blk_bs(blk)->opaque;
+        memcpy(s->compress_format.name, compress_format_name,
+               strlen(compress_format_name));
+        s->compress_format.level = compress_level;
+    }
+
     /* Create a full header (including things like feature table) */
     ret = qcow2_update_header(blk_bs(blk));
     if (ret < 0) {
@@ -2389,17 +2473,6 @@ out:
         blk_unref(blk);
     }
     return ret;
-}
-
-static int qcow2_compress_format_from_name(char *fmt)
-{
-    if (!fmt || !fmt[0]) {
-        return QCOW2_COMPRESS_ZLIB_COMPAT;
-    } else if (g_str_equal(fmt, "zlib")) {
-        return QCOW2_COMPRESS_ZLIB;
-    } else {
-        return -EINVAL;
-    }
 }
 
 static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
@@ -2505,11 +2578,10 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         ret = -EINVAL;
         goto finish;
     }
-    if ((ret == QCOW2_COMPRESS_ZLIB && compress_level > 9) ||
-        compress_level > 0xff) {
+    ret = qcow2_compress_level_supported(ret, compress_level);
+    if (ret < 0) {
         error_setg(errp, "Compress level %" PRIu64 " is not supported for"
                    " format '%s'", compress_level, compress_format_name);
-        ret = -EINVAL;
         goto finish;
     }
 
