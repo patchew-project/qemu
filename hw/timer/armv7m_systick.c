@@ -54,6 +54,9 @@ static void systick_reload(SysTickState *s, int reset)
         s->tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
     s->tick += (s->reload + 1) * systick_scale(s);
+
+    /* system_clock_scale = 0 leads to a nasty deadlock, better aborting */
+    assert(systick_scale(s));
     timer_mod(s->timer, s->tick);
 }
 
