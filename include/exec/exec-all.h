@@ -310,6 +310,10 @@ static inline void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu,
 #define USE_DIRECT_JUMP
 #endif
 
+/**
+ * TranslationBlock:
+ * @trace_vcpu_dstate: Per-vCPU dynamic tracing state used to generate this TB.
+ */
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
@@ -323,6 +327,8 @@ struct TranslationBlock {
 #define CF_NOCACHE     0x10000 /* To be freed after execution */
 #define CF_USE_ICOUNT  0x20000
 #define CF_IGNORE_ICOUNT 0x40000 /* Do not generate icount code */
+
+    uint32_t trace_vcpu_dstate;
 
     uint16_t invalid;
 
