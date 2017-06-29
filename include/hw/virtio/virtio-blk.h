@@ -33,7 +33,7 @@ struct virtio_blk_inhdr
 struct VirtIOBlkConf
 {
     BlockConf conf;
-    IOThread *iothread;
+    Object *iothread;
     char *serial;
     uint32_t scsi;
     uint32_t config_wce;

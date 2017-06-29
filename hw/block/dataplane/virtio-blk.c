@@ -116,7 +116,7 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     s->conf = conf;
 
     if (conf->iothread) {
-        s->iothread = conf->iothread;
+        s->iothread = IOTHREAD(conf->iothread);
         object_ref(OBJECT(s->iothread));
         s->ctx = iothread_get_aio_context(s->iothread);
     } else {
