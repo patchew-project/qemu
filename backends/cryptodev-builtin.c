@@ -70,7 +70,7 @@ static void cryptodev_builtin_init(
 
     if (queues != 1) {
         error_setg(errp,
-                  "Only support one queue in cryptdov-builtin backend");
+                  "Only support one queue in cryptodev-builtin backend");
         return;
     }
 
@@ -314,7 +314,7 @@ static int cryptodev_builtin_sym_operation(
 
     if (op_info->op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
         error_setg(errp,
-               "Algorithm chain is unsupported for cryptdoev-builtin");
+               "Algorithm chain is unsupported for cryptodev-builtin backend");
         return -VIRTIO_CRYPTO_NOTSUPP;
     }
 
