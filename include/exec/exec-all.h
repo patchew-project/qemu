@@ -373,14 +373,7 @@ TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
 
 #if defined(USE_DIRECT_JUMP)
 
-#if defined(CONFIG_TCG_INTERPRETER)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
-{
-    /* patch the branch destination */
-    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
-    /* no need to flush icache explicitly */
-}
-#elif defined(_ARCH_PPC)
+#if defined(_ARCH_PPC)
 void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
@@ -450,13 +443,8 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 }
 
 /* GETPC is the true target of the return instruction that we'll execute.  */
-#if defined(CONFIG_TCG_INTERPRETER)
-extern uintptr_t tci_tb_ptr;
-# define GETPC() tci_tb_ptr
-#else
-# define GETPC() \
+#define GETPC() \
     ((uintptr_t)__builtin_extract_return_addr(__builtin_return_address(0)))
-#endif
 
 /* The true return address will often point to a host insn that is part of
    the next translated guest insn.  Adjust the address backward to point to

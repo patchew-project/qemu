@@ -27,10 +27,6 @@
 #include "exec/cpu-common.h"
 #include "tcg/tcg.h"
 
-#if defined(CONFIG_TCG_INTERPRETER)
-uintptr_t tci_tb_ptr;
-#endif
-
 TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) \
          { #s, oargs, iargs, cargs, iargs + oargs + cargs, flags },

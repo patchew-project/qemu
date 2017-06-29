@@ -765,8 +765,7 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
     flags = info->flags;
     sizemask = info->sizemask;
 
-#if defined(__sparc__) && !defined(__arch64__) \
-    && !defined(CONFIG_TCG_INTERPRETER)
+#if defined(__sparc__) && !defined(__arch64__)
     /* We have 64-bit values in one register, but need to pass as two
        separate parameters.  Split them.  */
     int orig_sizemask = sizemask;
@@ -813,8 +812,7 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
 
     pi_first = pi = s->gen_next_parm_idx;
     if (ret != TCG_CALL_DUMMY_ARG) {
-#if defined(__sparc__) && !defined(__arch64__) \
-    && !defined(CONFIG_TCG_INTERPRETER)
+#if defined(__sparc__) && !defined(__arch64__)
         if (orig_sizemask & 1) {
             /* The 32-bit ABI is going to return the 64-bit value in
                the %o0/%o1 register pair.  Prepare for this by using

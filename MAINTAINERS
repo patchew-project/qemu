@@ -1650,13 +1650,6 @@ S: Odd Fixes
 F: tcg/sparc/
 F: disas/sparc.c
 
-TCI target
-M: Stefan Weil <sw@weilnetz.de>
-S: Maintained
-F: tcg/tci/
-F: tcg/tci.c
-F: disas/tci.c
-
 Block drivers
 -------------
 VMDK
