@@ -120,6 +120,20 @@ class ELF(object):
         self.segments[0].p_filesz += ctypes.sizeof(note)
         self.segments[0].p_memsz += ctypes.sizeof(note)
 
+
+    def add_vmcoreinfo_note(self, vmcoreinfo):
+        """Adds a vmcoreinfo note to the ELF dump."""
+        chead = type(get_arch_note(self.endianness, 0, 0))
+        header = chead.from_buffer_copy(vmcoreinfo[0:ctypes.sizeof(chead)])
+        note = get_arch_note(self.endianness,
+                             header.n_namesz - 1, header.n_descsz)
+        ctypes.memmove(ctypes.pointer(note), vmcoreinfo, ctypes.sizeof(note))
+        header_size = ctypes.sizeof(note) - header.n_descsz
+
+        self.notes.append(note)
+        self.segments[0].p_filesz += ctypes.sizeof(note)
+        self.segments[0].p_memsz += ctypes.sizeof(note)
+
     def add_segment(self, p_type, p_paddr, p_size):
         """Adds a segment to the elf."""
 
@@ -505,6 +519,23 @@ shape and this command should mostly work."""
                 cur += chunk_size
                 left -= chunk_size
 
+    def add_vmcoreinfo(self):
+        qemu_core = gdb.inferiors()[0]
+
+        gdb.execute("call vmcoreinfo_gdb_update()")
+        avail = gdb.parse_and_eval("vmcoreinfo_gdb.available")
+        if not avail:
+            return;
+
+        addr = gdb.parse_and_eval("vmcoreinfo_gdb.paddr")
+        size = gdb.parse_and_eval("vmcoreinfo_gdb.size")
+        for block in self.guest_phys_blocks:
+            if block["target_start"] <= addr < block["target_end"]:
+                haddr = block["host_addr"] + (addr - block["target_start"])
+                vmcoreinfo = qemu_core.read_memory(haddr, size)
+                self.elf.add_vmcoreinfo_note(vmcoreinfo.tobytes())
+                return
+
     def invoke(self, args, from_tty):
         """Handles command invocation from gdb."""
 
@@ -518,6 +549,7 @@ shape and this command should mostly work."""
 
         self.elf = ELF(argv[1])
         self.guest_phys_blocks = get_guest_phys_blocks()
+        self.add_vmcoreinfo()
 
         with open(argv[0], "wb") as vmcore:
             self.dump_init(vmcore)

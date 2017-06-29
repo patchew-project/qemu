@@ -145,6 +145,22 @@ bool vmcoreinfo_get(VmcoreinfoState *vis,
     return true;
 }
 
+struct vmcoreinfo_gdb {
+    bool available;
+    uint64_t paddr;
+    uint64_t size;
+} vmcoreinfo_gdb;
+
+void vmcoreinfo_gdb_update(void)
+{
+    Object *vmci = find_vmcoreinfo_dev();
+
+    vmcoreinfo_gdb.available = vmci ?
+        vmcoreinfo_get(VMCOREINFO(vmci),
+                       &vmcoreinfo_gdb.paddr, &vmcoreinfo_gdb.size, NULL)
+        : false;
+}
+
 static const VMStateDescription vmstate_vmcoreinfo = {
     .name = "vmcoreinfo",
     .version_id = 1,

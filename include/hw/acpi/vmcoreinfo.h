@@ -32,5 +32,6 @@ void vmcoreinfo_build_acpi(VmcoreinfoState *vis, GArray *table_data,
 void vmcoreinfo_add_fw_cfg(VmcoreinfoState *vis, FWCfgState *s, GArray *vmci);
 bool vmcoreinfo_get(VmcoreinfoState *vis, uint64_t *paddr, uint64_t *size,
                     Error **errp);
+void vmcoreinfo_gdb_update(void);
 
 #endif
