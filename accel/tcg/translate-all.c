@@ -1260,7 +1260,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb_page_addr_t phys_pc, phys_page2;
     target_ulong virt_page2;
     tcg_insn_unit *gen_code_buf;
-    int gen_code_size, search_size;
+    int search_size;
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
@@ -1327,11 +1327,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
        the tcg optimization currently hidden inside tcg_gen_code.  All
        that should be required is to flush the TBs, allocate a new TB,
        re-initialize it per above, and re-do the actual code generation.  */
-    gen_code_size = tcg_gen_code(&tcg_ctx, tb);
-    if (unlikely(gen_code_size < 0)) {
+    tb->out_size = tcg_gen_code(&tcg_ctx, tb);
+    if (unlikely(tb->out_size < 0)) {
         goto buffer_overflow;
     }
-    search_size = encode_search(tb, (void *)gen_code_buf + gen_code_size);
+    search_size = encode_search(tb, (void *)gen_code_buf + tb->out_size);
     if (unlikely(search_size < 0)) {
         goto buffer_overflow;
     }
@@ -1339,7 +1339,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #ifdef CONFIG_PROFILER
     tcg_ctx.code_time += profile_getclock();
     tcg_ctx.code_in_len += tb->size;
-    tcg_ctx.code_out_len += gen_code_size;
+    tcg_ctx.code_out_len += tb->out_size;
     tcg_ctx.search_out_len += search_size;
 #endif
 
@@ -1347,8 +1347,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM) &&
         qemu_log_in_addr_range(tb->pc)) {
         qemu_log_lock();
-        qemu_log("OUT: [size=%d]\n", gen_code_size);
-        log_disas(tb->tc_ptr, gen_code_size);
+        qemu_log("OUT: [size=%d]\n", tb->out_size);
+        log_disas(tb->tc_ptr, tb->out_size);
         qemu_log("\n");
         qemu_log_flush();
         qemu_log_unlock();
@@ -1356,7 +1356,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #endif
 
     tcg_ctx.code_gen_ptr = (void *)
-        ROUND_UP((uintptr_t)gen_code_buf + gen_code_size + search_size,
+        ROUND_UP((uintptr_t)gen_code_buf + tb->out_size + search_size,
                  CODE_GEN_ALIGN);
 
     /* init jump list */

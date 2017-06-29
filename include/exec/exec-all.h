@@ -363,6 +363,7 @@ struct TranslationBlock {
      */
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_list_first;
+    int32_t out_size; /* size of host code for this block */
 };
 
 void tb_free(TranslationBlock *tb);
