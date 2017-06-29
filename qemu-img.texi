@@ -621,6 +621,27 @@ file which is COW and has data blocks already, it couldn't be changed to NOCOW
 by setting @code{nocow=on}. One can issue @code{lsattr filename} to check if
 the NOCOW flag is set or not (Capital 'C' is NOCOW flag).
 
+@item compress.format
+Defines which compression algorithm is should be used for compressed clusters.
+The following options are available if support for the respective libraries
+has been enabled at compile time:
+
+   zlib            Uses standard zlib compression
+
+The compression algorithm can only be defined at image create time and cannot
+be changed later.
+
+Note: defining a compression format will result in the compression format
+      extension being written to the Qcow2 image. Older versions of QEMU will
+      not be able to open images with this extension.
+
+@item compress.level
+Defines which compression level is used for the selected compression format.
+The default of @code{compress.level=0} will use the default compression level
+for the format. Alternate values range from 1 for fastest compression to
+x for the best compression (x max vary between compression formats). This is
+always a trade in of compression speed against compressed size.
+
 @end table
 
 @item Other
