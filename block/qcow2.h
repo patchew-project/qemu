@@ -171,6 +171,15 @@ typedef struct Qcow2UnknownHeaderExtension {
 } Qcow2UnknownHeaderExtension;
 
 enum {
+    /* QCOW2_COMPRESS_ZLIB_COMPAT specifies to use the old standard
+     * zlib compression with a smaller window size that is compatible with
+     * old QEMU versions. This compression is used if no compression format
+     * is specified at create time */
+    QCOW2_COMPRESS_ZLIB_COMPAT = 0,
+    QCOW2_COMPRESS_ZLIB        = 1,
+};
+
+enum {
     QCOW2_FEAT_TYPE_INCOMPATIBLE    = 0,
     QCOW2_FEAT_TYPE_COMPATIBLE      = 1,
     QCOW2_FEAT_TYPE_AUTOCLEAR       = 2,

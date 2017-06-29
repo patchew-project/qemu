@@ -2144,7 +2144,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
                          QemuOpts *opts, int version, int refcount_order,
-                         Error **errp)
+                         const char *compress_format_name,
+                         uint8_t compress_level, Error **errp)
 {
     int cluster_bits;
     QDict *options;
@@ -2390,11 +2391,24 @@ out:
     return ret;
 }
 
+static int qcow2_compress_format_from_name(char *fmt)
+{
+    if (!fmt || !fmt[0]) {
+        return QCOW2_COMPRESS_ZLIB_COMPAT;
+    } else if (g_str_equal(fmt, "zlib")) {
+        return QCOW2_COMPRESS_ZLIB;
+    } else {
+        return -EINVAL;
+    }
+}
+
 static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     char *backing_file = NULL;
     char *backing_fmt = NULL;
     char *buf = NULL;
+    char *compress_format_name = NULL;
+    uint64_t compress_level = 0;
     uint64_t size = 0;
     int flags = 0;
     size_t cluster_size = DEFAULT_CLUSTER_SIZE;
@@ -2475,15 +2489,40 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 
     refcount_order = ctz32(refcount_bits);
 
+    compress_format_name = qemu_opt_get_del(opts,
+                                            BLOCK_OPT_COMPRESS_FORMAT);
+    ret = qcow2_compress_format_from_name(compress_format_name);
+    if (ret < 0) {
+        error_setg(errp, "Compress format '%s' is not supported",
+                   compress_format_name);
+        goto finish;
+    }
+    compress_level = qemu_opt_get_number_del(opts, BLOCK_OPT_COMPRESS_LEVEL,
+                                             compress_level);
+    if (ret == QCOW2_COMPRESS_ZLIB_COMPAT && compress_level > 0) {
+        error_setg(errp, "Compress level can only be defined in conjunction"
+                   " with compress format");
+        ret = -EINVAL;
+        goto finish;
+    }
+    if ((ret == QCOW2_COMPRESS_ZLIB && compress_level > 9) ||
+        compress_level > 0xff) {
+        error_setg(errp, "Compress level %" PRIu64 " is not supported for"
+                   " format '%s'", compress_level, compress_format_name);
+        ret = -EINVAL;
+        goto finish;
+    }
+
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, refcount_order,
-                        &local_err);
+                        compress_format_name, compress_level, &local_err);
     error_propagate(errp, local_err);
 
 finish:
     g_free(backing_file);
     g_free(backing_fmt);
     g_free(buf);
+    g_free(compress_format_name);
     return ret;
 }
 
@@ -3457,6 +3496,19 @@ static QemuOptsList qcow2_create_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Width of a reference count entry in bits",
             .def_value_str = "16"
+        },
+        {
+            .name = BLOCK_OPT_COMPRESS_FORMAT,
+            .type = QEMU_OPT_STRING,
+            .help = "Compress format used for compressed clusters (zlib)",
+            .def_value_str = ""
+        },
+        {
+            .name = BLOCK_OPT_COMPRESS_LEVEL,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Compress level used for compressed clusters (0 = default,"
+                    " 1=fastest, x=best; x varies depending on compress.format)",
+            .def_value_str = "0"
         },
         { /* end of list */ }
     }
