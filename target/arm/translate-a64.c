@@ -36,11 +36,11 @@
 
 #include "trace-tcg.h"
 
-static TCGv_i64 cpu_X[32];
-static TCGv_i64 cpu_pc;
+static TCG_THREAD TCGv_i64 cpu_X[32];
+static TCG_THREAD TCGv_i64 cpu_pc;
 
 /* Load/store exclusive handling */
-static TCGv_i64 cpu_exclusive_high;
+static TCG_THREAD TCGv_i64 cpu_exclusive_high;
 static TCGv_i64 cpu_reg(DisasContext *s, int reg);
 
 static const char *regnames[] = {

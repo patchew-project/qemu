@@ -727,7 +727,13 @@ struct TCGContext {
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
 };
 
-extern TCGContext tcg_ctx;
+#ifdef CONFIG_SOFTMMU
+#define TCG_THREAD __thread
+#else
+#define TCG_THREAD
+#endif
+
+extern TCG_THREAD TCGContext tcg_ctx;
 extern bool parallel_cpus;
 
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
@@ -887,7 +893,7 @@ typedef struct TCGOpDef {
 #endif
 } TCGOpDef;
 
-extern TCGOpDef tcg_op_defs[];
+extern TCG_THREAD TCGOpDef tcg_op_defs[];
 extern const size_t tcg_op_defs_max;
 
 typedef struct TCGTargetOpDef {

@@ -117,8 +117,8 @@ static bool tcg_out_tb_finalize(TCGContext *s);
 
 
 
-static TCGRegSet tcg_target_available_regs[2];
-static TCGRegSet tcg_target_call_clobber_regs;
+static TCG_THREAD TCGRegSet tcg_target_available_regs[2];
+static TCG_THREAD TCGRegSet tcg_target_call_clobber_regs;
 
 #if TCG_TARGET_INSN_UNIT_SIZE == 1
 static __attribute__((unused)) inline void tcg_out8(TCGContext *s, uint8_t v)
@@ -320,7 +320,7 @@ static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
 };
 
-static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
+static TCG_THREAD int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
 
 void tcg_context_init(TCGContext *s)

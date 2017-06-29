@@ -58,17 +58,17 @@
 #define IS_USER(s) (s->user)
 #endif
 
-TCGv_env cpu_env;
+TCG_THREAD TCGv_env cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
-static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
-static TCGv_i32 cpu_R[16];
-TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
-TCGv_i64 cpu_exclusive_addr;
-TCGv_i64 cpu_exclusive_val;
+static TCG_THREAD TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
+static TCG_THREAD TCGv_i32 cpu_R[16];
+TCG_THREAD TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
+TCG_THREAD TCGv_i64 cpu_exclusive_addr;
+TCG_THREAD TCGv_i64 cpu_exclusive_val;
 
 /* FIXME:  These should be removed.  */
-static TCGv_i32 cpu_F0s, cpu_F1s;
-static TCGv_i64 cpu_F0d, cpu_F1d;
+static TCG_THREAD TCGv_i32 cpu_F0s, cpu_F1s;
+static TCG_THREAD TCGv_i64 cpu_F0d, cpu_F1d;
 
 #include "exec/gen-icount.h"
 

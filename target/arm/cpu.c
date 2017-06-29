@@ -469,7 +469,7 @@ static void arm_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(obj);
-    static bool inited;
+    static bool inited __attribute__((unused));
 
     cs->env_ptr = &cpu->env;
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
@@ -511,10 +511,12 @@ static void arm_cpu_initfn(Object *obj)
 
     if (tcg_enabled()) {
         cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
+#ifndef CONFIG_SOFTMMU
         if (!inited) {
             inited = true;
             arm_translate_init();
         }
+#endif
     }
 }
 

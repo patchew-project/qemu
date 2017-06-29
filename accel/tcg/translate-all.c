@@ -58,6 +58,7 @@
 #include "qemu/main-loop.h"
 #include "exec/log.h"
 #include "sysemu/cpus.h"
+#include "sysemu/sysemu.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -132,9 +133,12 @@ static int v_l2_levels;
 static void *l1_map[V_L1_MAX_SIZE];
 
 /* code generation context */
-TCGContext tcg_ctx;
+TCG_THREAD TCGContext tcg_ctx;
 TBContext tb_ctx;
 bool parallel_cpus;
+#ifdef CONFIG_SOFTMMU
+static TCGContext *tcg_common_ctx;
+#endif
 
 /* translation block context */
 __thread int have_tb_lock;
@@ -186,10 +190,35 @@ void tb_lock_reset(void)
 
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
-void cpu_gen_init(void)
+#ifdef CONFIG_SOFTMMU
+
+/* XXX, see below */
+void arm_translate_init(void);
+
+void cpu_gen_init(int cpu_index)
 {
-    tcg_context_init(&tcg_ctx); 
+    uintptr_t addr;
+    size_t size;
+
+    tcg_context_init(&tcg_ctx);
+    size = tcg_common_ctx->code_gen_buffer_size / smp_cpus;
+    assert(!(tcg_common_ctx->code_gen_buffer_size % smp_cpus));
+    addr = (uintptr_t)tcg_common_ctx->code_gen_buffer;
+    addr += size * cpu_index;
+    tcg_ctx.code_gen_buffer = (void *)addr;
+    tcg_ctx.code_gen_buffer_size = size;
+    tcg_prologue_init(&tcg_ctx);
+    /*
+     * XXX find a proper place to init the TCG globals. This should be trivial
+     * once when the "generic translation loop" work is finished.
+     *
+     * Note that initialising the TCG globals (that are __thread variables
+     * in full-system mode) from a *_cpu_initfn is not a viable option, since
+     * this function is called before the vCPU threads are created.
+     */
+    arm_translate_init();
 }
+#endif
 
 /* Encode VAL as a signed leb128 sequence at P.
    Return P incremented past the encoded value.  */
@@ -561,6 +590,18 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
     if (tb_size > MAX_CODE_GEN_BUFFER_SIZE) {
         tb_size = MAX_CODE_GEN_BUFFER_SIZE;
     }
+#ifdef CONFIG_SOFTMMU
+    {
+        size_t per_cpu = tb_size / smp_cpus;
+
+        if (per_cpu < MIN_CODE_GEN_BUFFER_SIZE) {
+            tb_size = MIN_CODE_GEN_BUFFER_SIZE * smp_cpus;
+            per_cpu = MIN_CODE_GEN_BUFFER_SIZE;
+        }
+        /* make sure tb_size divides smp_cpus evenly */
+        tb_size = per_cpu * smp_cpus;
+    }
+#endif
     return tb_size;
 }
 
@@ -810,20 +851,21 @@ static void tb_htable_init(void)
    size. */
 void tcg_exec_init(unsigned long tb_size)
 {
-    cpu_gen_init();
     page_init();
     tb_htable_init();
     code_gen_alloc(tb_size);
 #if defined(CONFIG_SOFTMMU)
-    /* There's no guest base to take into account, so go ahead and
-       initialize the prologue now.  */
-    tcg_prologue_init(&tcg_ctx);
+    tcg_common_ctx = &tcg_ctx;
 #endif
 }
 
 bool tcg_enabled(void)
 {
+#ifdef CONFIG_SOFTMMU
+    return tcg_common_ctx->code_gen_buffer != NULL;
+#else
     return tcg_ctx.code_gen_buffer != NULL;
+#endif
 }
 
 /*
