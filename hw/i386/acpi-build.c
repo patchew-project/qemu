@@ -43,6 +43,7 @@
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "hw/acpi/vmgenid.h"
+#include "hw/acpi/vmcoreinfo.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
 #include "sysemu/numa.h"
@@ -2641,6 +2642,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
     Object *vmgenid_dev;
+    Object *vmcoreinfo_dev;
 
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
@@ -2689,6 +2691,12 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         acpi_add_table(table_offsets, tables_blob);
         vmgenid_build_acpi(VMGENID(vmgenid_dev), tables_blob,
                            tables->vmgenid, tables->linker);
+    }
+    vmcoreinfo_dev = find_vmcoreinfo_dev();
+    if (vmcoreinfo_dev) {
+        acpi_add_table(table_offsets, tables_blob);
+        vmcoreinfo_build_acpi(VMCOREINFO(vmcoreinfo_dev), tables_blob,
+                              tables->vmcoreinfo, tables->linker);
     }
 
     if (misc.has_hpet) {
@@ -2866,6 +2874,7 @@ void acpi_setup(void)
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
     Object *vmgenid_dev;
+    Object *vmcoreinfo_dev;
 
     if (!pcms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
@@ -2906,6 +2915,11 @@ void acpi_setup(void)
     if (vmgenid_dev) {
         vmgenid_add_fw_cfg(VMGENID(vmgenid_dev), pcms->fw_cfg,
                            tables.vmgenid);
+    }
+    vmcoreinfo_dev = find_vmcoreinfo_dev();
+    if (vmcoreinfo_dev) {
+        vmcoreinfo_add_fw_cfg(VMCOREINFO(vmcoreinfo_dev), pcms->fw_cfg,
+                              tables.vmcoreinfo);
     }
 
     if (!pcmc->rsdp_in_ram) {
