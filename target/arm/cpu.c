@@ -201,6 +201,20 @@ static void arm_cpu_reset(CPUState *s)
 
         /* Load the initial SP and PC from the vector table at address 0 */
         rom = rom_ptr(0);
+
+        if (!rom) {
+            /* Sometimes address 0x00000000 is an alias to a flash which
+             * actually have a ROM.
+             */
+            MemoryRegionSection section;
+            hwaddr offset = 0;
+
+            section = memory_region_find(s->as->root, 0, 8);
+            offset = memory_region_get_offset_within_address_space(section.mr);
+            memory_region_unref(section.mr);
+            rom = rom_ptr(offset);
+        }
+
         if (rom) {
             /* Address zero is covered by ROM which hasn't yet been
              * copied into physical memory.
