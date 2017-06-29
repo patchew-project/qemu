@@ -56,7 +56,7 @@ struct VirtIOSCSIConf {
 #endif
     CharBackend chardev;
     uint32_t boot_tpgt;
-    IOThread *iothread;
+    Object *iothread;
 };
 
 struct VirtIOSCSI;
