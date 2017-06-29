@@ -83,9 +83,11 @@ static bool msix_vector_masked(PCIDevice *dev, unsigned int vector, bool fmask)
 {
     unsigned offset = vector * PCI_MSIX_ENTRY_SIZE;
     uint8_t *data = &dev->msix_table[offset + PCI_MSIX_ENTRY_DATA];
+    uint8_t *addr_lo = &dev->msix_table[offset + PCI_MSIX_ENTRY_LOWER_ADDR];
     /* MSIs on Xen can be remapped into pirqs. In those cases, masking
      * and unmasking go through the PV evtchn path. */
-    if (xen_enabled() && xen_is_pirq_msi(pci_get_long(data))) {
+    if (xen_enabled() && xen_is_pirq_msi(pci_get_long(addr_lo),
+                                         pci_get_long(data))) {
         return false;
     }
     return fmask || dev->msix_table[offset + PCI_MSIX_ENTRY_VECTOR_CTRL] &

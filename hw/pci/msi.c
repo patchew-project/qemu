@@ -289,7 +289,7 @@ void msi_reset(PCIDevice *dev)
 static bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
-    uint32_t mask, data;
+    uint32_t mask, data, addr_lo;
     bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
     assert(vector < PCI_MSI_VECTORS_MAX);
 
@@ -298,7 +298,8 @@ static bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
     }
 
     data = pci_get_word(dev->config + msi_data_off(dev, msi64bit));
-    if (xen_is_pirq_msi(data)) {
+    addr_lo = pci_get_long(dev->config + msi_address_lo_off(dev));
+    if (xen_is_pirq_msi(addr_lo, data)) {
         return false;
     }
 
