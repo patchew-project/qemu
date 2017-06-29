@@ -177,6 +177,7 @@ enum {
      * is specified at create time */
     QCOW2_COMPRESS_ZLIB_COMPAT = 0,
     QCOW2_COMPRESS_ZLIB        = 1,
+    QCOW2_COMPRESS_LZO         = 2,
 };
 
 enum {
