@@ -2282,6 +2282,43 @@
             'mode':  'Qcow2OverlapCheckMode' } }
 
 ##
+# @Qcow2CompressFormat:
+# @zlib: standard zlib deflate compression
+#
+# Since: 2.10
+##
+{ 'enum': 'Qcow2CompressFormat',
+  'data': [ 'zlib' ] }
+
+##
+# @Qcow2CompressZLib:
+#
+# Since: 2.10
+##
+{ 'struct': 'Qcow2CompressZLib',
+  'data': { } }
+
+##
+# @Qcow2Compress:
+#
+# Specifies the compression format and compression level that should
+# be used for compressed Qcow2 clusters.
+#
+# @format: specifies the compression format to use. (defaults to zlib)
+#
+# @level: specifies the compression level. 0 = default compression,
+#         1 = fastest compression, x = highest compresion (x may very between
+#         different compression formats)
+#
+# Since: 2.10
+##
+{ 'union': 'Qcow2Compress',
+  'base': { 'format': 'Qcow2CompressFormat',
+            'level': 'uint8' },
+  'discriminator': 'format',
+  'data': { 'zlib': 'Qcow2CompressZLib' } }
+
+##
 # @BlockdevOptionsQcow2:
 #
 # Driver specific block device options for qcow2.
@@ -2316,6 +2353,10 @@
 #                         caches. The interval is in seconds. The default value
 #                         is 0 and it disables this feature (since 2.5)
 #
+# @compress:              which format and compression level to use for
+#                         compressed clusters. Defaults to zlib with default
+#                         compression level (since 2.10)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsQcow2',
@@ -2328,7 +2369,8 @@
             '*cache-size': 'int',
             '*l2-cache-size': 'int',
             '*refcount-cache-size': 'int',
-            '*cache-clean-interval': 'int' } }
+            '*cache-clean-interval': 'int',
+            '*compress': 'Qcow2Compress' } }
 
 
 ##
