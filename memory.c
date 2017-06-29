@@ -598,11 +598,18 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     return r;
 }
 
-static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
+static AddressSpace *memory_region_to_address_space(MemoryRegion *mr,
+                                                    hwaddr *offset)
 {
     AddressSpace *as;
 
+    if (offset) {
+        *offset = 0;
+    }
     while (mr->container) {
+        if (offset) {
+            *offset += mr->addr;
+        }
         mr = mr->container;
     }
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
@@ -611,6 +618,17 @@ static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
         }
     }
     return NULL;
+}
+
+hwaddr memory_region_get_offset_within_address_space(MemoryRegion *mr)
+{
+    hwaddr offset;
+    AddressSpace *as;
+
+    as = memory_region_to_address_space(mr, &offset);
+    assert(as);
+
+    return offset;
 }
 
 /* Render a memory region into the global view.  Ranges in @view obscure
@@ -2251,7 +2269,7 @@ static MemoryRegionSection memory_region_find_rcu(MemoryRegion *mr,
         addr += root->addr;
     }
 
-    as = memory_region_to_address_space(root);
+    as = memory_region_to_address_space(root, NULL);
     if (!as) {
         return ret;
     }

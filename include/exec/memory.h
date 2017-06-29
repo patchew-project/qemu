@@ -1270,6 +1270,16 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size);
 void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
+/*
+ * memory_region_get_offset_within_address_space: get the offset of a region
+ *
+ * Returns the offset of a region within its address space. @mr must be mapped
+ * to an #AddressSpace.
+ *
+ * @mr: the #MemoryRegion to check.
+ */
+hwaddr memory_region_get_offset_within_address_space(MemoryRegion *mr);
+
 /**
  * memory_region_present: checks if an address relative to a @container
  * translates into #MemoryRegion within @container
