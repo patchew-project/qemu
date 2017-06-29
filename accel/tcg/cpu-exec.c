@@ -351,6 +351,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
              * single threaded the locks are NOPs.
              */
             mmap_lock();
+#ifdef CONFIG_USER_ONLY
             tb_lock();
             have_tb_lock = true;
 
@@ -362,7 +363,12 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
                 /* if no translated code available, then translate it now */
                 tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
             }
-
+#else
+            /* tb_gen_code will acquire tb_lock.
+             * Just for the diff: note that have_tb_lock is local to tb_find! */
+            have_tb_lock = true;
+            tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
+#endif
             mmap_unlock();
         }
 
