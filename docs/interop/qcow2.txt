@@ -85,7 +85,12 @@ in the description of a field.
                                 be written to (unless for regaining
                                 consistency).
 
-                    Bits 2-63:  Reserved (set to 0)
+                    Bit 2:      Compress format bit.  If and only if this bit
+                                is set then the compress format extension
+                                MUST be present and MUST be parsed and checked
+                                for compatibility.
+
+                    Bits 3-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -135,6 +140,7 @@ be stored. Each extension has a structure like the following:
                         0xE2792ACA - Backing file format name
                         0x6803f857 - Feature name table
                         0x23852875 - Bitmaps extension
+                        0xC03183A3 - Compress format extension
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -206,6 +212,41 @@ The fields of the bitmaps extension are:
          16 - 23:  bitmap_directory_offset
                    Offset into the image file at which the bitmap directory
                    starts. Must be aligned to a cluster boundary.
+
+
+== Compress format extension ==
+
+The compress format extension is an optional header extension. It provides
+the ability to specify the compress algorithm and compress parameters
+that are used for compressed clusters. This new header MUST be present if
+the incompatible-feature bit "compress format bit" is set and MUST be absent
+otherwise.
+
+The fields of the compress format extension are:
+
+    Byte  0 - 15:  compress_format_name (padded with zeros, but not
+                   necessarily null terminated if it has full length)
+
+              16:  compress_level (uint8_t)
+                   0 = default compress level
+                   1 = lowest compress level
+                   x = highest compress level (the highest compress
+                       level may vary for different compress formats)
+
+         17 - 19:  Reserved for future use, must be zero.
+
+         20 - 23:  extra_data_size
+                   Size of compress format specific extra data.
+                   For now, as no format specifies extra data,
+                   extra_data_size is reserved and should be zero.
+
+        variable:  extra_data
+                   Extra data with additional parameters for the compress
+                   format, occupying extra_data_size bytes.
+
+        variable:  Padding to round up the size of compress format extension
+                   to the next multiple of 8. All bytes of the padding must be
+                   zero.
 
 
 == Host cluster management ==
