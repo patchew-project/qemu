@@ -179,17 +179,28 @@ static void print_loc(void)
 
 bool enable_timestamp_msg;
 /*
- * Print an error message to current monitor if we have one, else to stderr.
+ * Print a message to current monitor if we have one, else to stderr.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
  * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
-void error_vreport(const char *fmt, va_list ap)
+void vreport(report_types type, const char *fmt, va_list ap)
 {
     GTimeVal tv;
     gchar *timestr;
 
+    switch (type) {
+    case ERROR:
+        /* To maintin compatibility we don't add anything here */
+        break;
+    case WARN:
+        error_printf("warning: ");
+        break;
+    case INFO:
+        error_printf("info: ");
+        break;
+    }
     if (enable_timestamp_msg && !cur_mon) {
         g_get_current_time(&tv);
         timestr = g_time_val_to_iso8601(&tv);
@@ -200,6 +211,22 @@ void error_vreport(const char *fmt, va_list ap)
     print_loc();
     error_vprintf(fmt, ap);
     error_printf("\n");
+}
+
+/*
+ * Print a message to current monitor if we have one, else to stderr.
+ * Format arguments like sprintf().  The resulting message should be a
+ * single phrase, with no newline or trailing punctuation.
+ * Prepend the current location and append a newline.
+ * It's wrong to call this in a QMP monitor.  Use error_setg() there.
+ */
+void report(report_types type, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vreport(type, fmt, ap);
+    va_end(ap);
 }
 
 /*
@@ -214,6 +241,6 @@ void error_report(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    error_vreport(fmt, ap);
+    vreport(ERROR, fmt, ap);
     va_end(ap);
 }

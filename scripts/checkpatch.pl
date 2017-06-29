@@ -2530,7 +2530,8 @@ sub process {
 				error_set|
 				error_prepend|
 				error_reportf_err|
-				error_vreport|
+				vreport|
+				report|
 				error_report}x;
 
 	if ($rawline =~ /\b(?:$qemu_error_funcs)\s*\(.*\".*\\n/) {
