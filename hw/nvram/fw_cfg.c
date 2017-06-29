@@ -907,6 +907,17 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
+static int fw_cfg_unattached_foreach(Object *obj, void *opaque)
+{
+    return (object_dynamic_cast(obj, TYPE_FW_CFG) != NULL);
+}
+
+static int fw_cfg_unattached_at_realize(void)
+{
+    Object *obj = container_get(qdev_get_machine(), "/unattached");
+
+    return object_child_foreach(obj, fw_cfg_unattached_foreach, NULL);
+}
 
 
 static void fw_cfg_init1(DeviceState *dev)
@@ -920,6 +931,8 @@ static void fw_cfg_init1(DeviceState *dev)
     object_property_add_child(OBJECT(machine), FW_CFG_NAME, OBJECT(s), NULL);
 
     qdev_init_nofail(dev);
+
+    assert(!fw_cfg_unattached_at_realize());
 
     fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
     fw_cfg_add_bytes(s, FW_CFG_UUID, &qemu_uuid, 16);
