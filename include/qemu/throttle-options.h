@@ -10,6 +10,8 @@
 #ifndef THROTTLE_OPTIONS_H
 #define THROTTLE_OPTIONS_H
 
+#include "qmp-commands.h"
+
 #define THROTTLE_OPTS \
           { \
             .name = "throttling.iops-total",\
@@ -90,5 +92,7 @@
         }
 
 void throttle_parse_options(ThrottleConfig *, QemuOpts *);
+
+void throttle_set_io_limits(ThrottleConfig *, IOThrottle *);
 
 #endif
