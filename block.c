@@ -1165,6 +1165,9 @@ BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
 
     ret = bdrv_open_driver(bs, drv, node_name, bs->options, flags, errp);
     if (ret < 0) {
+        if (bs->file != NULL) {
+            bdrv_unref_child(bs, bs->file);
+        }
         QDECREF(bs->explicit_options);
         QDECREF(bs->options);
         bdrv_unref(bs);
