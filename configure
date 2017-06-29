@@ -6225,7 +6225,11 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
   if test "$mttcg" = "yes" ; then
-    echo "TARGET_SUPPORTS_MTTCG=y" >> $config_target_mak
+    if test "$tcg_interpreter" = "yes" ; then
+        echo "TCI enabled, disabling MTTCG"
+    else
+        echo "TARGET_SUPPORTS_MTTCG=y" >> $config_target_mak
+    fi
   fi
 fi
 if test "$target_user_only" = "yes" ; then
