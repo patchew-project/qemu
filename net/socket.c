@@ -494,22 +494,21 @@ static void net_socket_accept(void *opaque)
 static int net_socket_listen_init(NetClientState *peer,
                                   const char *model,
                                   const char *name,
-                                  const char *host_str)
+                                  const char *host_str,
+                                  Error **errp)
 {
     NetClientState *nc;
     NetSocketState *s;
     struct sockaddr_in saddr;
     int fd, ret;
-    Error *err = NULL;
 
-    if (parse_host_port(&saddr, host_str, &err) < 0) {
-        error_report_err(err);
+    if (parse_host_port(&saddr, host_str, errp) < 0) {
         return -1;
     }
 
     fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
-        perror("socket");
+        error_setg_errno(errp, errno, "failed to create stream socket");
         return -1;
     }
     qemu_set_nonblock(fd);
@@ -518,13 +517,14 @@ static int net_socket_listen_init(NetClientState *peer,
 
     ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
     if (ret < 0) {
-        perror("bind");
+        error_setg_errno(errp, errno, "bind ip=%s to socket failed",
+                         inet_ntoa(saddr.sin_addr));
         closesocket(fd);
         return -1;
     }
     ret = listen(fd, 0);
     if (ret < 0) {
-        perror("listen");
+        error_setg_errno(errp, errno, "listen socket failed");
         closesocket(fd);
         return -1;
     }
@@ -543,21 +543,20 @@ static int net_socket_listen_init(NetClientState *peer,
 static int net_socket_connect_init(NetClientState *peer,
                                    const char *model,
                                    const char *name,
-                                   const char *host_str)
+                                   const char *host_str,
+                                   Error **errp)
 {
     NetSocketState *s;
     int fd, connected, ret;
     struct sockaddr_in saddr;
-    Error *err = NULL;
 
-    if (parse_host_port(&saddr, host_str, &err) < 0) {
-        error_report_err(err);
+    if (parse_host_port(&saddr, host_str, errp) < 0) {
         return -1;
     }
 
     fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
-        perror("socket");
+        error_setg_errno(errp, errno, "failed to create stream socket");
         return -1;
     }
     qemu_set_nonblock(fd);
@@ -573,7 +572,7 @@ static int net_socket_connect_init(NetClientState *peer,
                        errno == EINVAL) {
                 break;
             } else {
-                perror("connect");
+                error_setg_errno(errp, errno, "connection failed");
                 closesocket(fd);
                 return -1;
             }
@@ -582,9 +581,8 @@ static int net_socket_connect_init(NetClientState *peer,
             break;
         }
     }
-    s = net_socket_fd_init(peer, model, name, fd, connected, &err);
+    s = net_socket_fd_init(peer, model, name, fd, connected, errp);
     if (!s) {
-        error_report_err(err);
         return -1;
     }
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
@@ -597,36 +595,36 @@ static int net_socket_mcast_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
                                  const char *host_str,
-                                 const char *localaddr_str)
+                                 const char *localaddr_str,
+                                 Error **errp)
 {
     NetSocketState *s;
     int fd;
     struct sockaddr_in saddr;
     struct in_addr localaddr, *param_localaddr;
-    Error *err = NULL;
 
-    if (parse_host_port(&saddr, host_str, &err) < 0) {
-        error_report_err(err);
+    if (parse_host_port(&saddr, host_str, errp) < 0) {
         return -1;
     }
 
     if (localaddr_str != NULL) {
-        if (inet_aton(localaddr_str, &localaddr) == 0)
+        if (inet_aton(localaddr_str, &localaddr) == 0) {
+            error_setg(errp, "localaddr '%s' is not a valid IPv4 address",
+                       localaddr_str);
             return -1;
+        }
         param_localaddr = &localaddr;
     } else {
         param_localaddr = NULL;
     }
 
-    fd = net_socket_mcast_create(&saddr, param_localaddr, &err);
+    fd = net_socket_mcast_create(&saddr, param_localaddr, errp);
     if (fd < 0) {
-        error_report_err(err);
         return -1;
     }
 
-    s = net_socket_fd_init(peer, model, name, fd, 0, &err);
+    s = net_socket_fd_init(peer, model, name, fd, 0, errp);
     if (!s) {
-        error_report_err(err);
         return -1;
     }
 
@@ -643,45 +641,45 @@ static int net_socket_udp_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
                                  const char *rhost,
-                                 const char *lhost)
+                                 const char *lhost,
+                                 Error **errp)
 {
     NetSocketState *s;
     int fd, ret;
     struct sockaddr_in laddr, raddr;
-    Error *err = NULL;
 
-    if (parse_host_port(&laddr, lhost, &err) < 0) {
-        error_report_err(err);
+    if (parse_host_port(&laddr, lhost, errp) < 0) {
         return -1;
     }
 
-    if (parse_host_port(&raddr, rhost, &err) < 0) {
-        error_report_err(err);
+    if (parse_host_port(&raddr, rhost, errp) < 0) {
         return -1;
     }
 
     fd = qemu_socket(PF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        perror("socket(PF_INET, SOCK_DGRAM)");
+        error_setg_errno(errp, errno, "failed to create datagram socket");
         return -1;
     }
 
     ret = socket_set_fast_reuse(fd);
     if (ret < 0) {
+        error_setg_errno(errp, errno, "set the socket 'SO_REUSEADDR'"
+                         " attribute failed");
         closesocket(fd);
         return -1;
     }
     ret = bind(fd, (struct sockaddr *)&laddr, sizeof(laddr));
     if (ret < 0) {
-        perror("bind");
+        error_setg_errno(errp, errno, "bind ip=%s to socket failed",
+                         inet_ntoa(laddr.sin_addr));
         closesocket(fd);
         return -1;
     }
     qemu_set_nonblock(fd);
 
-    s = net_socket_fd_init(peer, model, name, fd, 0, &err);
+    s = net_socket_fd_init(peer, model, name, fd, 0, errp);
     if (!s) {
-        error_report_err(err);
         return -1;
     }
 
@@ -696,8 +694,6 @@ static int net_socket_udp_init(NetClientState *peer,
 int net_init_socket(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp)
 {
-    /* FIXME error_setg(errp, ...) on failure */
-    Error *err = NULL;
     const NetdevSocketOptions *sock;
 
     assert(netdev->type == NET_CLIENT_DRIVER_SOCKET);
@@ -705,22 +701,21 @@ int net_init_socket(const Netdev *netdev, const char *name,
 
     if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
         sock->has_udp != 1) {
-        error_report("exactly one of fd=, listen=, connect=, mcast= or udp="
-                     " is required");
+        error_setg(errp, "exactly one of fd=, listen=, connect=, mcast= or udp="
+                   " is required");
         return -1;
     }
 
     if (sock->has_localaddr && !sock->has_mcast && !sock->has_udp) {
-        error_report("localaddr= is only valid with mcast= or udp=");
+        error_setg(errp, "localaddr= is only valid with mcast= or udp=");
         return -1;
     }
 
     if (sock->has_fd) {
         int fd;
 
-        fd = monitor_fd_param(cur_mon, sock->fd, &err);
+        fd = monitor_fd_param(cur_mon, sock->fd, errp);
         if (fd == -1) {
-            error_report_err(err);
             return -1;
         }
         qemu_set_nonblock(fd);
@@ -731,15 +726,16 @@ int net_init_socket(const Netdev *netdev, const char *name,
     }
 
     if (sock->has_listen) {
-        if (net_socket_listen_init(peer, "socket", name, sock->listen) == -1) {
+        if (net_socket_listen_init(peer, "socket", name,
+            sock->listen, errp) == -1) {
             return -1;
         }
         return 0;
     }
 
     if (sock->has_connect) {
-        if (net_socket_connect_init(peer, "socket", name, sock->connect) ==
-            -1) {
+        if (net_socket_connect_init(peer, "socket", name,
+            sock->connect, errp) == -1) {
             return -1;
         }
         return 0;
@@ -748,8 +744,8 @@ int net_init_socket(const Netdev *netdev, const char *name,
     if (sock->has_mcast) {
         /* if sock->localaddr is missing, it has been initialized to "all bits
          * zero" */
-        if (net_socket_mcast_init(peer, "socket", name, sock->mcast,
-            sock->localaddr) == -1) {
+        if (net_socket_mcast_init(peer, "socket", name,
+            sock->mcast, sock->localaddr, errp) == -1) {
             return -1;
         }
         return 0;
@@ -757,11 +753,11 @@ int net_init_socket(const Netdev *netdev, const char *name,
 
     assert(sock->has_udp);
     if (!sock->has_localaddr) {
-        error_report("localaddr= is mandatory with udp=");
+        error_setg(errp, "localaddr= is mandatory with udp=");
         return -1;
     }
-    if (net_socket_udp_init(peer, "socket", name, sock->udp, sock->localaddr) ==
-        -1) {
+    if (net_socket_udp_init(peer, "socket", name,
+        sock->udp, sock->localaddr, errp) == -1) {
         return -1;
     }
     return 0;
