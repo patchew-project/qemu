@@ -371,6 +371,7 @@ static struct vhost_log *vhost_log_get(uint64_t size, bool share)
 static void vhost_log_put(struct vhost_dev *dev, bool sync)
 {
     struct vhost_log *log = dev->log;
+    uint64_t log_size = dev->log_size;
 
     if (!log) {
         return;
@@ -381,8 +382,8 @@ static void vhost_log_put(struct vhost_dev *dev, bool sync)
     --log->refcnt;
     if (log->refcnt == 0) {
         /* Sync only the range covered by the old log */
-        if (dev->log_size && sync) {
-            vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
+        if (log_size && sync) {
+            vhost_log_sync_range(dev, 0, log_size * VHOST_LOG_CHUNK - 1);
         }
 
         if (vhost_log == log) {
