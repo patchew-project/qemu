@@ -283,14 +283,43 @@ void s390_cpu_list(FILE *f, fprintf_function print)
     }
 }
 
+static S390CPUModel *get_max_cpu_model(Error **errp);
+
 #ifndef CONFIG_USER_ONLY
+static void list_add_feat(const char *name, void *opaque);
+
+static void check_unavailable_features(const S390CPUModel *max_model,
+                                       const S390CPUModel *model,
+                                       strList **unavailable)
+{
+    S390FeatBitmap missing;
+
+    /* detect missing features if any to properly report them */
+    bitmap_andnot(missing, model->features, max_model->features,
+                  S390_FEAT_MAX);
+    if (!bitmap_empty(missing, S390_FEAT_MAX)) {
+        s390_feat_bitmap_to_ascii(missing,
+                                  unavailable,
+                                  list_add_feat);
+    }
+}
+
+struct CpuDefinitionInfoListData {
+    CpuDefinitionInfoList *list;
+    Error **errp;
+};
+
 static void create_cpu_model_list(ObjectClass *klass, void *opaque)
 {
-    CpuDefinitionInfoList **cpu_list = opaque;
+    struct CpuDefinitionInfoListData *cpu_list_data = opaque;
+    CpuDefinitionInfoList **cpu_list = &cpu_list_data->list;
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
     char *name = g_strdup(object_class_get_name(klass));
     S390CPUClass *scc = S390_CPU_CLASS(klass);
+    Object *obj;
+    S390CPU *sc;
+    S390CPUModel *scm;
 
     /* strip off the -s390-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
@@ -300,21 +329,33 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
     info->migration_safe = scc->is_migration_safe;
     info->q_static = scc->is_static;
     info->q_typename = g_strdup(object_class_get_name(klass));
-
+    /* check for unavailable features */
+    obj = object_new(object_class_get_name(klass));
+    sc = S390_CPU(obj);
+    scm = get_max_cpu_model(cpu_list_data->errp);
+    if (scm && sc->model) {
+        info->has_unavailable_features = true;
+        check_unavailable_features(scm, sc->model, &info->unavailable_features);
+    }
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
     entry->next = *cpu_list;
     *cpu_list = entry;
+    object_unref(obj);
 }
 
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
-    CpuDefinitionInfoList *list = NULL;
+    struct CpuDefinitionInfoListData list_data = {
+        .list = NULL,
+        .errp = errp,
+    };
 
-    object_class_foreach(create_cpu_model_list, TYPE_S390_CPU, false, &list);
+    object_class_foreach(create_cpu_model_list, TYPE_S390_CPU, false,
+                         &list_data);
 
-    return list;
+    return list_data.list;
 }
 
 static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
