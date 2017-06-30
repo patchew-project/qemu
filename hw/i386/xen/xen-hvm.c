@@ -305,6 +305,7 @@ static hwaddr xen_phys_offset_to_gaddr(hwaddr start_addr,
     return start_addr;
 }
 
+#ifdef XEN_COMPAT_PHYSMAP
 static int xen_save_physmap(XenIOState *state, XenPhysmap *physmap)
 {
     char path[80], value[17];
@@ -334,6 +335,12 @@ static int xen_save_physmap(XenIOState *state, XenPhysmap *physmap)
     }
     return 0;
 }
+#else
+static int xen_save_physmap(XenIOState *state, XenPhysmap *physmap)
+{
+    return 0;
+}
+#endif
 
 static int xen_add_to_physmap(XenIOState *state,
                               hwaddr start_addr,
@@ -368,6 +375,26 @@ go_physmap:
     DPRINTF("mapping vram to %"HWADDR_PRIx" - %"HWADDR_PRIx"\n",
             start_addr, start_addr + size);
 
+    mr_name = memory_region_name(mr);
+
+    physmap = g_malloc(sizeof (XenPhysmap));
+
+    physmap->start_addr = start_addr;
+    physmap->size = size;
+    physmap->name = mr_name;
+    physmap->phys_offset = phys_offset;
+
+    QLIST_INSERT_HEAD(&state->physmap, physmap, list);
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        /* Now when we have a physmap entry we can remap a dummy mapping and change
+         * it to a real one of guest foreign memory. */
+        uint8_t *p = xen_remap_cache_entry(phys_offset, size);
+        assert(p && p == memory_region_get_ram_ptr(mr));
+
+        return 0;
+    }
+
     pfn = phys_offset >> TARGET_PAGE_BITS;
     start_gpfn = start_addr >> TARGET_PAGE_BITS;
     for (i = 0; i < size >> TARGET_PAGE_BITS; i++) {
@@ -382,21 +409,11 @@ go_physmap:
         }
     }
 
-    mr_name = memory_region_name(mr);
-
-    physmap = g_malloc(sizeof (XenPhysmap));
-
-    physmap->start_addr = start_addr;
-    physmap->size = size;
-    physmap->name = mr_name;
-    physmap->phys_offset = phys_offset;
-
-    QLIST_INSERT_HEAD(&state->physmap, physmap, list);
-
     xc_domain_pin_memory_cacheattr(xen_xc, xen_domid,
                                    start_addr >> TARGET_PAGE_BITS,
                                    (start_addr + size - 1) >> TARGET_PAGE_BITS,
                                    XEN_DOMCTL_MEM_CACHEATTR_WB);
+
     return xen_save_physmap(state, physmap);
 }
 
@@ -1158,6 +1175,7 @@ static void xen_exit_notifier(Notifier *n, void *data)
     xs_daemon_close(state->xenstore);
 }
 
+#ifdef XEN_COMPAT_PHYSMAP
 static void xen_read_physmap(XenIOState *state)
 {
     XenPhysmap *physmap = NULL;
@@ -1205,6 +1223,11 @@ static void xen_read_physmap(XenIOState *state)
     }
     free(entries);
 }
+#else
+static void xen_read_physmap(XenIOState *state)
+{
+}
+#endif
 
 static void xen_wakeup_notifier(Notifier *notifier, void *data)
 {
