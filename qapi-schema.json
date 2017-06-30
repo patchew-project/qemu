@@ -4328,6 +4328,34 @@
             '*unavailable-features': [ 'str' ], 'typename': 'str' } }
 
 ##
+# @MemoryInfo:
+#
+# Actual memory information in bytes.
+#
+# @base-memory: size of unremovable memory which is specified
+#               with '-m size' CLI option.
+#
+# @hotpluggable-memory: size of hot-plugged memory.
+#
+# @balloon-actual-memory: amount of guest memory available after ballooning.
+#
+# Since: 2.10.0
+##
+{ 'struct': 'MemoryInfo',
+  'data'  : { 'base-memory': 'int', '*hotpluggable-memory': 'int',
+              '*balloon-actual-memory': 'int' } }
+
+##
+# @query-memory-size-summary:
+#
+# Return the amount of initially allocated, hot-plugged (if enabled)
+# and ballooned (if enabled) memory in bytes.
+#
+# Since: 2.10.0
+##
+{ 'command': 'query-memory-size-summary', 'returns': 'MemoryInfo' }
+
+##
 # @query-cpu-definitions:
 #
 # Return a list of supported virtual CPU definitions

@@ -712,3 +712,34 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
 
     return head;
 }
+
+MemoryInfo *qmp_query_memory_size_summary(Error **errp)
+{
+    MemoryInfo *mem_info = g_malloc0(sizeof(MemoryInfo));
+    BalloonInfo *balloon_info;
+    uint64_t hotpluggable_memory = 0;
+    Error *local_err = NULL;
+
+    mem_info->base_memory = ram_size;
+
+    mem_info->has_hotpluggable_memory =
+        get_exiting_hotpluggable_memory_size(&hotpluggable_memory,
+                                             &error_abort);
+    if (mem_info->has_hotpluggable_memory) {
+        mem_info->hotpluggable_memory = hotpluggable_memory;
+    }
+
+    /* In case if it is not possible to get balloon info, just ignore it. */
+    balloon_info = qmp_query_balloon(&local_err);
+    if (local_err) {
+        mem_info->has_balloon_actual_memory = false;
+        error_free(local_err);
+    } else {
+        mem_info->has_balloon_actual_memory = true;
+        mem_info->balloon_actual_memory = balloon_info->actual;
+    }
+
+    qapi_free_BalloonInfo(balloon_info);
+
+    return mem_info;
+}

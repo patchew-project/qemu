@@ -830,6 +830,23 @@ ETEXI
     },
 
 STEXI
+@item info memory-size-summary
+@findex memory-size-summary
+Display the amount of initially allocated, hot-plugged (if enabled)
+and ballooned (if enabled) memory in bytes.
+ETEXI
+
+    {
+        .name       = "memory-size-summary",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the amount of initially allocated, "
+                      "hot-plugged (if enabled) and ballooned (if enabled) "
+                      "memory in bytes.",
+        .cmd        = hmp_info_memory_size_summary,
+    },
+
+STEXI
 @end table
 ETEXI
 

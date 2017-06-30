@@ -6,3 +6,8 @@ int qmp_pc_dimm_device_list(Object *obj, void *opaque)
 {
    return 0;
 }
+
+bool get_exiting_hotpluggable_memory_size(uint64_t *mem_size, Error **errp)
+{
+    return false;
+}

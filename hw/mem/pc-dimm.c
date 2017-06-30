@@ -159,6 +159,12 @@ uint64_t pc_existing_dimms_capacity(Error **errp)
     return cap.size;
 }
 
+bool get_exiting_hotpluggable_memory_size(uint64_t *mem_size, Error **errp)
+{
+    *mem_size = pc_existing_dimms_capacity(errp);
+    return true;
+}
+
 int qmp_pc_dimm_device_list(Object *obj, void *opaque)
 {
     MemoryDeviceInfoList ***prev = opaque;
