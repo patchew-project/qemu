@@ -141,6 +141,25 @@ given, the total number of CPUs @var{n} can be omitted. @var{maxcpus}
 specifies the maximum number of hotpluggable CPUs.
 ETEXI
 
+DEF("vcpupin", HAS_ARG, QEMU_OPTION_vcpupin,
+    "-vcpupin [pcpu_id_list]\n"
+    "                use the host's physical or logical processor(pcpu) id\n"
+    "                to made a pcpu id list to set cpu affinity.\n"
+    "                here use ',' to seperate the single id or id sequence,\n"
+    "                use '-' as a id sequence's connector,\n"
+    "                eg.  qemu ... -smp 8 -vcpupin 0,2,4,6-10 ... \n"
+    "                this means qemu will pin 8 vcpus one by one and 1:1 to\n"
+    "                pcpu 0,2,4,6,7,8,9,10\n"
+    "                if pcpu_id_list=\"auto\", it means the pcpu id list is\n"
+    "                0,1,...,[smp_cpu_num-1]\n", QEMU_ARCH_ALL)
+STEXI
+@item -vcpupin @var{pcpu_id_list}
+@findex -vcpupin
+Pin the vcpus to pcpus(set CPU affinity). Use pcpus' id 0,1,2,3...etc. to
+make a valid pcpu id list, the vcpus will sequentially pin to the pcpus of
+this list 1:1 , this means we should use the @option{-smp} to allocate vcpus.
+ETEXI
+
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
     "-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
     "-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
