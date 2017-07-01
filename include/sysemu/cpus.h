@@ -7,6 +7,8 @@
 bool qemu_in_vcpu_thread(void);
 void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);
+int  get_pcpu_num(bool pin_default, int *pcpu_id_array);
+void pin_all_vcpus(int smp_cpu_num, const int *pcpu_id_array, Error **errp);
 void pause_all_vcpus(void);
 void cpu_stop_current(void);
 void cpu_ticks_init(void);

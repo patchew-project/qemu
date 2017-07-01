@@ -1648,6 +1648,132 @@ void cpu_remove(CPUState *cpu)
     qemu_cpu_kick(cpu);
 }
 
+int get_pcpu_num(bool pin_auto, int *pcpu_id_array)
+{
+    int pcpu_num = 0;
+#ifdef _GNU_SOURCE
+    int pcpu_range = 1024;
+    int pcpu_id = 0;
+    int ret;
+    cpu_set_t *pcpu_set;
+    size_t setsize;
+
+    pcpu_set = CPU_ALLOC(pcpu_range);
+    if (pcpu_set == NULL) {
+        pcpu_num = -1;
+        return pcpu_num;
+    }
+
+    setsize = CPU_ALLOC_SIZE(pcpu_range);
+
+    for ( ; ; ) {
+        CPU_ZERO_S(setsize, pcpu_set);
+        ret = sched_getaffinity(0, setsize, pcpu_set);
+        if (ret < 0 && errno == EINVAL && pcpu_range < 131072) {
+            CPU_FREE(pcpu_set);
+            pcpu_range *= 2;
+            pcpu_set = CPU_ALLOC(pcpu_range);
+            if (pcpu_set == NULL) {
+                pcpu_num = -1;
+                return pcpu_num;
+            }
+            setsize = CPU_ALLOC_SIZE(pcpu_range);
+            continue;
+        }
+
+        if (ret == 0) {
+            for ( ; pcpu_id < 131072; pcpu_id++) {
+                if (CPU_ISSET_S(pcpu_id, setsize, pcpu_set)) {
+                    pcpu_num++;
+                    if (pin_auto == true) {
+                        pcpu_id_array[0] = pcpu_num;
+                        pcpu_id_array[pcpu_num] = pcpu_id;
+                    }
+                }
+            }
+            CPU_FREE(pcpu_set);
+            return pcpu_num;
+        }
+        CPU_FREE(pcpu_set);
+    }
+#else
+    pcpu_num = -2;
+    return pcpu_num;
+#endif
+}
+
+void cpu_pin(CPUState *cpu, int pcpu_id)
+{
+    cpu_set_t *pcpu_id_mask;
+    size_t masksize;
+    pid_t vcpu_pid;
+    int num_cpus;
+
+    if (pcpu_id == 0) {
+        num_cpus = pcpu_id + 1;
+    } else {
+        num_cpus = pcpu_id;
+    }
+
+    pcpu_id_mask = CPU_ALLOC(num_cpus);
+    if (pcpu_id_mask == NULL) {
+        error_report("warning: can not alloc cpu set! pcpu #%d",
+                      pcpu_id);
+        return ;
+    }
+    masksize = CPU_ALLOC_SIZE(num_cpus);
+    CPU_ZERO_S(masksize, pcpu_id_mask);
+    CPU_SET_S(pcpu_id, masksize, pcpu_id_mask);
+
+    vcpu_pid = cpu->thread_id;
+
+    if (sched_setaffinity(vcpu_pid, masksize, pcpu_id_mask) != 0) {
+        error_report("warning: set affinity failed! vcpu pid=%d, pcpu #%d",
+                      vcpu_pid, pcpu_id);
+        CPU_FREE(pcpu_id_mask);
+        return ;
+    }
+
+    if (sched_getaffinity(vcpu_pid, masksize, pcpu_id_mask) != 0) {
+        error_report("warning: get affinity failed! vcpu pid=%d, pcpu #%d",
+                      vcpu_pid, pcpu_id);
+        CPU_FREE(pcpu_id_mask);
+        return ;
+        }
+
+    CPU_FREE(pcpu_id_mask);
+}
+
+/* *
+ * pcpu_id_array: content the host processor's id array to pin
+ * pcpu_id_array[0]: the processor count
+ * pcpu_id_array[1...]: the processor id to pin
+ * */
+void pin_all_vcpus(int smp_cpus_num, const int *pcpu_id_array, Error **errp)
+{
+    int pcpu_id = 0;
+    int pcpu_num = pcpu_id_array[0];
+    int vcpu_id = 0;
+    CPUState *cpu;
+
+    if (pcpu_num <= 0) {
+        return;
+    }
+
+    if (smp_cpus_num > pcpu_num) {
+        error_setg(errp,
+                "pcpu id list only has %d pcpu(s), less than smp_cpus_num %d",
+                 pcpu_num, smp_cpus_num);
+        return;
+    }
+
+    CPU_FOREACH(cpu) {
+        pcpu_id = pcpu_id_array[vcpu_id + 1];
+        cpu_pin(cpu, pcpu_id);
+        vcpu_id++;
+    }
+}
+
 void cpu_remove_sync(CPUState *cpu)
 {
     cpu_remove(cpu);
