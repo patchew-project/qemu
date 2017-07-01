@@ -167,6 +167,7 @@ int smp_cpus = 1;
 int max_cpus = 1;
 int smp_cores = 1;
 int smp_threads = 1;
+int pcpu_id_array[131072 + 2] = {0}; /* 131072 = 1024 * 128 */
 int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
@@ -1267,6 +1268,106 @@ static void smp_parse(QemuOpts *opts)
         Error *blocker = NULL;
         error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
         replay_add_blocker(blocker);
+    }
+}
+
+static void vcpupin_parse(const char *pcpu_id_list, const int smp_cpus_num)
+{
+    long pcpu_id;
+    int pcpu_num = 0;
+    bool pin_auto = false;
+    bool id_is_range = false;
+    long id_range_left;
+    long id_range_right;
+    int host_cpu_num;
+    const char *tmp_id_list = pcpu_id_list;
+    int ret = 0;
+
+    if (!pcpu_id_list) {
+        return;
+    }
+
+    if (strcmp(pcpu_id_list, "auto") == 0) {
+        pin_auto = true;
+    }
+
+    host_cpu_num = get_pcpu_num(pin_auto, pcpu_id_array);
+    if (host_cpu_num <= 0) {
+        error_report("cannot determine host cpu number");
+        exit(1);
+    }
+
+    if (smp_cpus_num > host_cpu_num) {
+        error_report("host can serve only %d cpus, less than smp_cpus_num %d",
+                      host_cpu_num, smp_cpus_num);
+        exit(1);
+    }
+
+    if (pin_auto == true) {
+        return;
+    }
+
+    if (isdigit(tmp_id_list[0]) == 0) {
+        error_report("invalid pcpu id list %s", pcpu_id_list);
+        error_report("pcpu id list should be \"auto\" or begin by digit");
+        exit(1);
+    }
+
+    while (tmp_id_list[0] != '\0') {
+        if (isdigit(tmp_id_list[0]) == 0 && tmp_id_list[0] != ',' &&
+            tmp_id_list[0] != '-') {
+            error_report("invalid pcpu id list %s", pcpu_id_list);
+            error_report("pcpu id list only accept digit or ',' or '-'");
+            exit(1);
+        }
+        tmp_id_list++;
+    }
+    tmp_id_list = pcpu_id_list;
+
+    while (tmp_id_list) {
+        ret = qemu_strtol(tmp_id_list, &tmp_id_list, 10, &pcpu_id);
+        if (ret == ERANGE || pcpu_id < 0 || pcpu_id >= host_cpu_num) {
+            error_report("pcpu id %ld is out of range", pcpu_id);
+            exit(1);
+        }
+
+        if (id_is_range == true) {
+            id_range_right = pcpu_id;
+            if (id_range_right <= id_range_left) {
+                error_report("invalid pcpu id list [%ld-%ld]",
+                              id_range_left, id_range_right);
+                exit(1);
+            }
+            for (; id_range_left <= id_range_right; id_range_left++) {
+                pcpu_id_array[0] = pcpu_num;
+                pcpu_id_array[pcpu_num] = id_range_left;
+                pcpu_num++;
+            }
+            pcpu_num--;
+        } else {
+            pcpu_num++;
+            pcpu_id_array[0] = pcpu_num;
+            pcpu_id_array[pcpu_num] = pcpu_id;
+        }
+
+        if (tmp_id_list[0] == '\0') {
+            break;
+        } else if (tmp_id_list[0] == '-') {
+            id_is_range = true;
+            id_range_left = pcpu_id;
+        } else {
+            id_is_range = false;
+        }
+        tmp_id_list++;
+
+        if (tmp_id_list[0] == '\0') {
+            error_report("invalid pcpu id list %s", pcpu_id_list);
+            error_report("pcpu id list should be end by digit");
+            exit(1);
+        } else if (isdigit(tmp_id_list[0]) == 0) {
+            error_report("invalid pcpu id list %s", pcpu_id_list);
+            exit(1);
+        }
     }
 }
 
@@ -3024,6 +3125,9 @@ int main(int argc, char **argv, char **envp)
     Error *main_loop_err = NULL;
     Error *err = NULL;
     bool list_data_dirs = false;
+
+    const char *pcpu_id_list = NULL;
+
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -3810,6 +3914,9 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+            case QEMU_OPTION_vcpupin:
+                pcpu_id_list = optarg;
+                break;
             case QEMU_OPTION_vnc:
                 vnc_parse(optarg, &error_fatal);
                 break;
@@ -4222,6 +4329,8 @@ int main(int argc, char **argv, char **envp)
 
     smp_parse(qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
 
+    vcpupin_parse(pcpu_id_list, smp_cpus);
+
     machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
     if (max_cpus > machine_class->max_cpus) {
         error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
@@ -4620,6 +4729,12 @@ int main(int argc, char **argv, char **envp)
     current_machine->cpu_model = cpu_model;
 
     machine_run_board_init(current_machine);
+
+    pin_all_vcpus(smp_cpus, pcpu_id_array, &err);
+    if (err) {
+        error_report_err(err);
+        exit(1);
+    }
 
     realtime_init();
 
