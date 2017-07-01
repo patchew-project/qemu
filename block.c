@@ -1091,6 +1091,7 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
 {
     Error *local_err = NULL;
     int ret;
+    bool open_failed;
 
     bdrv_assign_node_name(bs, node_name, &local_err);
     if (local_err) {
@@ -1111,7 +1112,9 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         ret = 0;
     }
 
-    if (ret < 0) {
+    open_failed = ret < 0;
+
+    if (open_failed) {
         if (local_err) {
             error_propagate(errp, local_err);
         } else if (bs->filename[0]) {
@@ -1142,10 +1145,15 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     return 0;
 
 free_and_fail:
-    /* FIXME Close bs first if already opened*/
-    g_free(bs->opaque);
-    bs->opaque = NULL;
-    bs->drv = NULL;
+    if (open_failed) {
+        g_free(bs->opaque);
+        bs->opaque = NULL;
+        bs->drv = NULL;
+    }
+    if (bs->file != NULL) {
+        bdrv_unref_child(bs, bs->file);
+        bs->file = NULL;
+    }
     return ret;
 }
 
@@ -2607,9 +2615,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
 fail:
     blk_unref(file);
-    if (bs->file != NULL) {
-        bdrv_unref_child(bs, bs->file);
-    }
     QDECREF(snapshot_options);
     QDECREF(bs->explicit_options);
     QDECREF(bs->options);
