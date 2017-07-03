@@ -2683,9 +2683,16 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
     info->kernel_release = g_strdup(kinfo.release);
     info->machine_hardware = g_strdup(kinfo.machine);
 
-    GKeyFile *osrelease = ga_parse_osrelease("/etc/os-release");
-    if (osrelease == NULL) {
-        osrelease = ga_parse_osrelease("/usr/lib/os-release");
+    GKeyFile *osrelease = NULL;
+
+    const char *qga_os_release = g_getenv("QGA_OS_RELEASE");
+    if (qga_os_release != NULL) {
+        osrelease = ga_parse_osrelease(qga_os_release);
+    } else {
+        osrelease = ga_parse_osrelease("/etc/os-release");
+        if (osrelease == NULL) {
+            osrelease = ga_parse_osrelease("/usr/lib/os-release");
+        }
     }
 
     if (osrelease != NULL) {
