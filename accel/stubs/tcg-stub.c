@@ -20,6 +20,14 @@
 #include "exec/cpu-all.h"
 
 
+void tb_lock(void)
+{
+}
+
+void tb_unlock(void)
+{
+}
+
 void tb_flush(CPUState *cpu)
 {
 }
