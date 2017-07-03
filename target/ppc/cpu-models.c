@@ -1144,8 +1144,10 @@
     POWERPC_DEF("970_v2.2",      CPU_POWERPC_970_v22,                970,
                 "PowerPC 970 v2.2")
 
-    POWERPC_DEF("POWER9_v1.0",   CPU_POWERPC_POWER9_BASE,            POWER9,
+    POWERPC_DEF("POWER9_v1.0",   CPU_POWERPC_POWER9_DD1,             POWER9,
                 "POWER9 v1.0")
+    POWERPC_DEF("POWER9_v2.0",   CPU_POWERPC_POWER9_DD2,             POWER9,
+                "POWER9 v2.0")
 
     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970,
                 "PowerPC 970FX v1.0 (G5)")
@@ -1391,7 +1393,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "POWER8E", "POWER8E_v2.1" },
     { "POWER8", "POWER8_v2.0" },
     { "POWER8NVL", "POWER8NVL_v1.0" },
-    { "POWER9", "POWER9_v1.0" },
+    { "POWER9", "POWER9_v2.0" },
     { "970", "970_v2.2" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
