@@ -85,6 +85,14 @@ Enables or disables NVDIMM support. The default is off.
 @item s390-squash-mcss=on|off
 Enables or disables squashing subchannels into the default css.
 The default is off.
+@item enforce-config-section=on|off
+Decides whether we will send the configuration section when doing
+migration. By default, it is turned on. We can set this to off to
+explicitly disable it. Note: this parameter will be obsolete soon,
+please use "-global migration.send-configuration=on|off" instead.
+"enforce-config-section" cannot be used together with "-global
+migration.send-configuration". If it happens, the behavior is
+undefined.
 @end table
 ETEXI
 
