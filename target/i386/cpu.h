@@ -52,7 +52,9 @@
 
 #include "exec/cpu-defs.h"
 
+#ifdef CONFIG_TCG
 #include "fpu/softfloat.h"
+#endif
 
 #define R_EAX 0
 #define R_ECX 1
