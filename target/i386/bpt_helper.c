@@ -216,7 +216,9 @@ void breakpoint_handler(CPUState *cs)
         if (cs->watchpoint_hit->flags & BP_CPU) {
             cs->watchpoint_hit = NULL;
             if (check_hw_breakpoints(env, false)) {
-                raise_exception(env, EXCP01_DB);
+                if (tcg_enabled()) {
+                    raise_exception(env, EXCP01_DB);
+                }
             } else {
                 cpu_loop_exit_noexc(cs);
             }
@@ -226,7 +228,9 @@ void breakpoint_handler(CPUState *cs)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, true);
-                    raise_exception(env, EXCP01_DB);
+                    if (tcg_enabled()) {
+                        raise_exception(env, EXCP01_DB);
+                    }
                 }
                 break;
             }
@@ -241,7 +245,9 @@ void helper_single_step(CPUX86State *env)
     check_hw_breakpoints(env, true);
     env->dr[6] |= DR6_BS;
 #endif
-    raise_exception(env, EXCP01_DB);
+    if (tcg_enabled()) {
+        raise_exception(env, EXCP01_DB);
+    }
 }
 
 void helper_rechecking_single_step(CPUX86State *env)
@@ -282,7 +288,9 @@ void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
         cpu_x86_update_dr7(env, t0);
         return;
     }
-    raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+    if (tcg_enabled()) {
+        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+    }
 #endif
 }
 
@@ -304,7 +312,11 @@ target_ulong helper_get_dr(CPUX86State *env, int reg)
             return env->dr[7];
         }
     }
-    raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+    if (tcg_enabled()) {
+        raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
+    } else {
+        return 0;
+    }
 }
 
 /* Check if Port I/O is trapped by a breakpoint.  */
@@ -329,7 +341,9 @@ void helper_bpt_io(CPUX86State *env, uint32_t port,
     if (hit) {
         env->dr[6] = (env->dr[6] & ~0xf) | hit;
         env->eip = next_eip;
-        raise_exception(env, EXCP01_DB);
+        if (tcg_enabled()) {
+            raise_exception(env, EXCP01_DB);
+        }
     }
 #endif
 }
