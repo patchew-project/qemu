@@ -31,6 +31,8 @@
 #include "hw/qdev-properties.h"
 #include "trace-root.h"
 
+CPUInterruptHandler cpu_interrupt_handler;
+
 bool cpu_exists(int64_t id)
 {
     CPUState *cpu;
