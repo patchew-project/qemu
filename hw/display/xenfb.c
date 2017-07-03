@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/hw.h"
+#include "ui/input.h"
 #include "ui/console.h"
 #include "hw/xen/xen_backend.h"
 
@@ -54,7 +55,14 @@ struct XenInput {
     int abs_pointer_wanted; /* Whether guest supports absolute pointer */
     int button_state;       /* Last seen pointer button state */
     int extended;
-    QEMUPutMouseEntry *qmouse;
+    /* kbd */
+    QemuInputHandler hkbd;
+    QemuInputHandlerState *qkbd;
+    /* mouse */
+    QemuInputHandler hmouse;
+    QemuInputHandlerState *qmouse;
+    int axis[INPUT_AXIS__MAX];
+    int buttons;
 };
 
 #define UP_QUEUE 8
@@ -293,6 +301,21 @@ static void xenfb_key_event(void *opaque, int scancode)
     xenfb_send_key(xenfb, down, scancode2linux[scancode]);
 }
 
+static void xenfb_legacy_key_event(DeviceState *dev, QemuConsole *src,
+                                   InputEvent *evt)
+{
+    struct XenInput *in = (struct XenInput *)dev;
+    int scancodes[3], i, count;
+    InputKeyEvent *key = evt->u.key.data;
+
+    count = qemu_input_key_value_to_scancode(key->key,
+                                             key->down,
+                                             scancodes);
+    for (i = 0; i < count; ++i) {
+        xenfb_key_event(in, scancodes[i]);
+    }
+}
+
 /*
  * Send a mouse event from the client to the guest OS
  *
@@ -333,6 +356,70 @@ static void xenfb_mouse_event(void *opaque,
     xenfb->button_state = button_state;
 }
 
+static void xenfb_legacy_mouse_event(DeviceState *dev, QemuConsole *src,
+                                     InputEvent *evt)
+{
+    static const int bmap[INPUT_BUTTON__MAX] = {
+        [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,
+        [INPUT_BUTTON_MIDDLE] = MOUSE_EVENT_MBUTTON,
+        [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
+    };
+    struct XenInput *in = (struct XenInput *)dev;
+    InputBtnEvent *btn;
+    InputMoveEvent *move;
+
+    switch (evt->type) {
+    case INPUT_EVENT_KIND_BTN:
+        btn = evt->u.btn.data;
+        if (btn->down) {
+            in->buttons |= bmap[btn->button];
+        } else {
+            in->buttons &= ~bmap[btn->button];
+        }
+        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_UP) {
+            xenfb_mouse_event(in,
+                              in->axis[INPUT_AXIS_X],
+                              in->axis[INPUT_AXIS_Y],
+                              -1,
+                              in->buttons);
+        }
+        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            xenfb_mouse_event(in,
+                              in->axis[INPUT_AXIS_X],
+                              in->axis[INPUT_AXIS_Y],
+                              1,
+                              in->buttons);
+        }
+        break;
+    case INPUT_EVENT_KIND_ABS:
+        move = evt->u.abs.data;
+        in->axis[move->axis] = move->value;
+        break;
+    case INPUT_EVENT_KIND_REL:
+        move = evt->u.rel.data;
+        in->axis[move->axis] += move->value;
+        break;
+    default:
+        break;
+    }
+}
+
+static void xenfb_legacy_mouse_sync(DeviceState *dev)
+{
+    struct XenInput *in = (struct XenInput *)dev;
+
+    xenfb_mouse_event(in,
+                      in->axis[INPUT_AXIS_X],
+                      in->axis[INPUT_AXIS_Y],
+                      0,
+                      in->buttons);
+
+    if (!in->abs_pointer_wanted) {
+        in->axis[INPUT_AXIS_X] = 0;
+        in->axis[INPUT_AXIS_Y] = 0;
+    }
+}
+
 static int input_init(struct XenDevice *xendev)
 {
     xenstore_write_be_int(xendev, "feature-abs-pointer", 1);
@@ -353,7 +440,6 @@ static int input_initialise(struct XenDevice *xendev)
     if (rc != 0)
 	return rc;
 
-    qemu_add_kbd_event_handler(xenfb_key_event, in);
     return 0;
 }
 
@@ -366,24 +452,43 @@ static void input_connected(struct XenDevice *xendev)
         in->abs_pointer_wanted = 0;
     }
 
+    if (in->qkbd) {
+        qemu_input_handler_unregister(in->qkbd);
+    }
     if (in->qmouse) {
-        qemu_remove_mouse_event_handler(in->qmouse);
+        qemu_input_handler_unregister(in->qmouse);
     }
     trace_xenfb_input_connected(xendev, in->abs_pointer_wanted);
-    in->qmouse = qemu_add_mouse_event_handler(xenfb_mouse_event, in,
-					      in->abs_pointer_wanted,
-					      "Xen PVFB Mouse");
+
+    in->hkbd.name = "legacy-kbd";
+    in->hkbd.mask = INPUT_EVENT_MASK_KEY;
+    in->hkbd.event = xenfb_legacy_key_event;
+    in->qkbd = qemu_input_handler_register((DeviceState *)in,
+                                           &in->hkbd);
+    qemu_input_handler_activate(in->qkbd);
+
+    in->hmouse.name = "Xen PVFB Mouse";
+    in->hmouse.mask = INPUT_EVENT_MASK_BTN |
+        (in->abs_pointer_wanted ? INPUT_EVENT_MASK_ABS : INPUT_EVENT_MASK_REL);
+    in->hmouse.event = xenfb_legacy_mouse_event;
+    in->hmouse.sync = xenfb_legacy_mouse_sync;
+    in->qmouse = qemu_input_handler_register((DeviceState *)in,
+                                             &in->hmouse);
+    qemu_input_handler_activate(in->qmouse);
 }
 
 static void input_disconnect(struct XenDevice *xendev)
 {
     struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
 
+    if (in->qkbd) {
+        qemu_input_handler_unregister(in->qkbd);
+        in->qkbd = NULL;
+    }
     if (in->qmouse) {
-	qemu_remove_mouse_event_handler(in->qmouse);
+        qemu_input_handler_unregister(in->qmouse);
 	in->qmouse = NULL;
     }
-    qemu_add_kbd_event_handler(NULL, NULL);
     common_unbind(&in->c);
 }
 
