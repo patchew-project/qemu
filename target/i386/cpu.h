@@ -1643,8 +1643,22 @@ static inline int32_t x86_get_a20_mask(CPUX86State *env)
 }
 
 /* fpu_helper.c */
-void cpu_set_mxcsr(CPUX86State *env, uint32_t val);
-void cpu_set_fpuc(CPUX86State *env, uint16_t val);
+void tcg_update_mxcsr(CPUX86State *env);
+static inline void cpu_set_mxcsr(CPUX86State *env, uint32_t mxcsr)
+{
+    env->mxcsr = mxcsr;
+    if (tcg_enabled()) {
+        tcg_update_mxcsr(env);
+    }
+}
+
+static inline void cpu_set_fpuc(CPUX86State *env, uint16_t fpuc)
+{
+     env->fpuc = fpuc;
+     if (tcg_enabled()) {
+        update_fp_status(env);
+     }
+}
 
 /* mem_helper.c */
 void helper_lock_init(void);
