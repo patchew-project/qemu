@@ -943,6 +943,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
 
+    if (has_msr_bndcfgs) {
+        c = cpuid_find_entry(&cpuid_data.cpuid, 7, 0);
+        has_msr_bndcfgs = c && (c->ebx & CPUID_7_0_EBX_MPX);
+    }
+
     if (!env->user_tsc_khz) {
         if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
             invtsc_mig_blocker == NULL) {
