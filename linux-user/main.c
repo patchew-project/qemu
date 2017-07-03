@@ -38,7 +38,7 @@
 #include "glib-compat.h"
 
 char *exec_path;
-
+bool tcg_allowed = true;
 int singlestep;
 static const char *filename;
 static const char *argv0;
