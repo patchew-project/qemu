@@ -2126,7 +2126,7 @@ static void ppc_spapr_init(MachineState *machine)
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
-    PCIHostState *phb;
+    PCIHostState *phb = NULL;
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -2317,7 +2317,9 @@ static void ppc_spapr_init(MachineState *machine)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    phb = spapr_create_phb(spapr, 0);
+    if (spapr->create_default_phb) {
+        phb = spapr_create_phb(spapr, 0);
+    }
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -2328,7 +2330,7 @@ static void ppc_spapr_init(MachineState *machine)
 
         if (strcmp(nd->model, "ibmveth") == 0) {
             spapr_vlan_create(spapr->vio_bus, nd);
-        } else {
+        } else if (phb) {
             pci_nic_init_nofail(&nd_table[i], phb->bus, nd->model, NULL);
         }
     }
@@ -2337,24 +2339,26 @@ static void ppc_spapr_init(MachineState *machine)
         spapr_vscsi_create(spapr->vio_bus);
     }
 
-    /* Graphics */
-    if (spapr_vga_init(phb->bus, &error_fatal)) {
-        spapr->has_graphics = true;
-        machine->usb |= defaults_enabled() && !machine->usb_disabled;
-    }
-
-    if (machine->usb) {
-        if (smc->use_ohci_by_default) {
-            pci_create_simple(phb->bus, -1, "pci-ohci");
-        } else {
-            pci_create_simple(phb->bus, -1, "nec-usb-xhci");
+    if (phb) {
+        /* Graphics */
+        if (spapr_vga_init(phb->bus, &error_fatal)) {
+            spapr->has_graphics = true;
+            machine->usb |= defaults_enabled() && !machine->usb_disabled;
         }
 
-        if (spapr->has_graphics) {
-            USBBus *usb_bus = usb_bus_find(-1);
+        if (machine->usb) {
+            if (smc->use_ohci_by_default) {
+                pci_create_simple(phb->bus, -1, "pci-ohci");
+            } else {
+                pci_create_simple(phb->bus, -1, "nec-usb-xhci");
+            }
 
-            usb_create_simple(usb_bus, "usb-kbd");
-            usb_create_simple(usb_bus, "usb-mouse");
+            if (spapr->has_graphics) {
+                USBBus *usb_bus = usb_bus_find(-1);
+
+                usb_create_simple(usb_bus, "usb-kbd");
+                usb_create_simple(usb_bus, "usb-mouse");
+            }
         }
     }
 
@@ -2567,12 +2571,27 @@ static void spapr_set_modern_hotplug_events(Object *obj, bool value,
     spapr->use_hotplug_event_source = value;
 }
 
+static bool spapr_get_create_default_phb(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->create_default_phb;
+}
+
+static void spapr_set_create_default_phb(Object *obj, bool value, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->create_default_phb = value;
+}
+
 static void spapr_machine_initfn(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
 
     spapr->htab_fd = -1;
     spapr->use_hotplug_event_source = true;
+    spapr->create_default_phb = true;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
     object_property_set_description(obj, "kvm-type",
@@ -2591,6 +2610,14 @@ static void spapr_machine_initfn(Object *obj)
     ppc_compat_add_property(obj, "max-cpu-compat", &spapr->max_compat_pvr,
                             "Maximum permitted CPU compatibility mode",
                             &error_fatal);
+
+    object_property_add_bool(obj, "create-default-phb",
+                            spapr_get_create_default_phb,
+                            spapr_set_create_default_phb,
+                            NULL);
+    object_property_set_description(obj, "create-default-phb",
+                                    "Create a default PCI Host Bridge",
+                                    NULL);
 }
 
 static void spapr_machine_finalizefn(Object *obj)

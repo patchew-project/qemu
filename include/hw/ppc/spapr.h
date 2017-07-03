@@ -93,6 +93,8 @@ struct sPAPRMachineState {
     bool use_hotplug_event_source;
     sPAPREventSource *event_sources;
 
+    bool create_default_phb;
+
     /* ibm,client-architecture-support option negotiation */
     bool cas_reboot;
     bool cas_legacy_guest_workaround;
