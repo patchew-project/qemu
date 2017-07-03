@@ -52,7 +52,9 @@
 
 #include "exec/cpu-defs.h"
 
+#ifdef CONFIG_TCG
 #include "fpu/softfloat.h"
+#endif
 
 #define R_EAX 0
 #define R_ECX 1
@@ -1598,7 +1600,11 @@ void update_fp_status(CPUX86State *env);
 
 static inline uint32_t cpu_compute_eflags(CPUX86State *env)
 {
-    return env->eflags | cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
+    uint32_t eflags = env->eflags;
+    if (tcg_enabled()) {
+        eflags |= cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
+    }
+    return eflags;
 }
 
 /* NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
