@@ -53,6 +53,7 @@ struct common {
 struct XenInput {
     struct common c;
     int abs_pointer_wanted; /* Whether guest supports absolute pointer */
+    int raw_pointer_wanted; /* Whether guest supports unscaled pointer */
     int button_state;       /* Last seen pointer button state */
     int extended;
     /* kbd */
@@ -329,18 +330,22 @@ static void xenfb_mouse_event(void *opaque,
 			      int dx, int dy, int dz, int button_state)
 {
     struct XenInput *xenfb = opaque;
-    DisplaySurface *surface = qemu_console_surface(xenfb->c.con);
-    int dw = surface_width(surface);
-    int dh = surface_height(surface);
-    int i;
+    int i, x, y;
+    if (xenfb->c.con && xenfb->raw_pointer_wanted != 1) {
+        DisplaySurface *surface = qemu_console_surface(xenfb->c.con);
+        int dw = surface_width(surface);
+        int dh = surface_height(surface);
+        x = dx * (dw - 1) / 0x7fff;
+        y = dy * (dh - 1) / 0x7fff;
+    } else {
+        x = dx;
+        y = dy;
+    }
 
     trace_xenfb_mouse_event(opaque, dx, dy, dz, button_state,
                             xenfb->abs_pointer_wanted);
     if (xenfb->abs_pointer_wanted)
-	xenfb_send_position(xenfb,
-			    dx * (dw - 1) / 0x7fff,
-			    dy * (dh - 1) / 0x7fff,
-			    dz);
+        xenfb_send_position(xenfb, x, y, dz);
     else
 	xenfb_send_motion(xenfb, dx, dy, dz);
 
@@ -423,6 +428,7 @@ static void xenfb_legacy_mouse_sync(DeviceState *dev)
 static int input_init(struct XenDevice *xendev)
 {
     xenstore_write_be_int(xendev, "feature-abs-pointer", 1);
+    xenstore_write_be_int(xendev, "feature-raw-pointer", 1);
     return 0;
 }
 
@@ -432,8 +438,14 @@ static int input_initialise(struct XenDevice *xendev)
     int rc;
 
     if (!in->c.con) {
-        xen_pv_printf(xendev, 1, "ds not set (yet)\n");
-        return -1;
+        char *vfb = xenstore_read_str(NULL, "device/vfb");
+        if (vfb == NULL) {
+            /* there is no vfb, run vkbd on its own */
+        } else {
+            free(vfb);
+            xen_pv_printf(xendev, 1, "ds not set (yet)\n");
+            return -1;
+        }
     }
 
     rc = common_bind(&in->c);
@@ -450,6 +462,10 @@ static void input_connected(struct XenDevice *xendev)
     if (xenstore_read_fe_int(xendev, "request-abs-pointer",
                              &in->abs_pointer_wanted) == -1) {
         in->abs_pointer_wanted = 0;
+    }
+    if (xenstore_read_fe_int(xendev, "request-raw-pointer",
+                             &in->raw_pointer_wanted) == -1) {
+        in->raw_pointer_wanted = 0;
     }
 
     if (in->qkbd) {
