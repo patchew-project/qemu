@@ -1287,7 +1287,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
         break;
     case POWERPC_MMU_VER_3_00:
         if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
-            /* TODO - Unsupported */
+            ppc_radix64_dump(f, cpu_fprintf, ppc_env_get_cpu(env));
         } else {
             dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
             break;

@@ -296,3 +296,52 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
 
     return raddr & TARGET_PAGE_MASK;
 }
+
+static void ppc_radix64_dump_level(FILE *f, fprintf_function cpu_fprintf,
+                                   PowerPCCPU *cpu, uint64_t eaddr,
+                                   uint64_t base_addr, uint64_t nls,
+                                   uint64_t psize, int *num)
+{
+    CPUState *cs = CPU(cpu);
+    uint64_t i, pte;
+
+    for (i = 0; i < (1 << nls); i++) {
+        eaddr &= ~((1ULL << psize) - 1); /* Clear the low bits */
+        eaddr |= (i << (psize - nls));
+
+        pte = ldq_phys(cs->as, base_addr + (i * sizeof(pte)));
+        if (!(pte & R_PTE_VALID)) { /* Invalid Entry */
+            continue;
+        }
+
+        if (pte & R_PTE_LEAF) {
+            uint64_t mask = (1ULL << (psize - nls)) - 1;
+            cpu_fprintf(f, "%d\t0x%.16" PRIx64 " -> 0x%.16" PRIx64
+                           " pte: 0x%.16" PRIx64 "\n", (*num)++,
+                           eaddr, pte & R_PTE_RPN & ~mask, pte);
+        } else {
+            ppc_radix64_dump_level(f, cpu_fprintf, cpu, eaddr, pte & R_PDE_NLB,
+                                   pte & R_PDE_NLS, psize - nls, num);
+        }
+    }
+}
+
+void ppc_radix64_dump(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    PPCVirtualHypervisorClass *vhc =
+        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+    uint64_t patbe, prtbe0;
+    int num = 0;
+
+    /* Get Process Table */
+    patbe = vhc->get_patbe(cpu->vhyp);
+
+    /* Load the first entry -> Guest kernel mappings (all we dump for now) */
+    prtbe0 = ldq_phys(cs->as, patbe & PATBE1_R_PRTB);
+
+    cpu_fprintf(f, "\tEADDR\t\t      RADDR\n");
+    ppc_radix64_dump_level(f, cpu_fprintf, cpu, 0ULL, prtbe0 & PRTBE_R_RPDB,
+                           prtbe0 & PRTBE_R_RPDS, PRTBE_R_GET_RTS(prtbe0),
+                           &num);
+}
