@@ -291,8 +291,11 @@ static const char *spapr_core_models[] = {
     /* POWER8NVL */
     "POWER8NVL_v1.0",
 
-    /* POWER9 */
+    /* POWER9 DD1 */
     "POWER9_v1.0",
+
+    /* POWER9 DD2 */
+    "POWER9_v2.0",
 };
 
 static Property spapr_cpu_core_properties[] = {
