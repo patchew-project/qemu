@@ -2220,6 +2220,9 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
         .addr = sch,
         .len = 8,
     };
+    if (!kvm_enabled()) {
+        return 0;
+    }
     if (!kvm_check_extension(kvm_state, KVM_CAP_IOEVENTFD)) {
         return -ENOSYS;
     }
