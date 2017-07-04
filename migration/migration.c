@@ -355,6 +355,7 @@ static void process_incoming_migration_co(void *opaque)
                           MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
         migrate_decompress_threads_join();
+        qemu_fclose(mis->from_src_file);
         exit(EXIT_FAILURE);
     }
 
