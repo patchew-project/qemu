@@ -716,7 +716,8 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return ret;
 }
 
-static int vdi_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+vdi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     uint64_t bytes = 0;
