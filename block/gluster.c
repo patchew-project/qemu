@@ -965,7 +965,8 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
 }
 #endif
 
-static int qemu_gluster_create(const char *filename,
+static int coroutine_fn
+qemu_gluster_create(const char *filename,
                                QemuOpts *opts, Error **errp)
 {
     BlockdevOptionsGluster *gconf;
