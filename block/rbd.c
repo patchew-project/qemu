@@ -348,7 +348,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     int64_t bytes = 0;
@@ -861,7 +862,8 @@ failed:
     return NULL;
 }
 
-static BlockAIOCB *qemu_rbd_aio_readv(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+qemu_rbd_aio_readv(BlockDriverState *bs,
                                       int64_t sector_num,
                                       QEMUIOVector *qiov,
                                       int nb_sectors,
@@ -873,7 +875,8 @@ static BlockAIOCB *qemu_rbd_aio_readv(BlockDriverState *bs,
                          RBD_AIO_READ);
 }
 
-static BlockAIOCB *qemu_rbd_aio_writev(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+qemu_rbd_aio_writev(BlockDriverState *bs,
                                        int64_t sector_num,
                                        QEMUIOVector *qiov,
                                        int nb_sectors,
@@ -886,7 +889,8 @@ static BlockAIOCB *qemu_rbd_aio_writev(BlockDriverState *bs,
 }
 
 #ifdef LIBRBD_SUPPORTS_AIO_FLUSH
-static BlockAIOCB *qemu_rbd_aio_flush(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+qemu_rbd_aio_flush(BlockDriverState *bs,
                                       BlockCompletionFunc *cb,
                                       void *opaque)
 {
@@ -1063,7 +1067,8 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
 }
 
 #ifdef LIBRBD_SUPPORTS_DISCARD
-static BlockAIOCB *qemu_rbd_aio_pdiscard(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+qemu_rbd_aio_pdiscard(BlockDriverState *bs,
                                          int64_t offset,
                                          int bytes,
                                          BlockCompletionFunc *cb,
