@@ -817,14 +817,14 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         AddressSpace *as;
 
         if (!cpu->secure_memory) {
-            cpu->secure_memory = cs->memory;
+            cpu->secure_memory = MEMORY_REGION(cs->memory);
         }
-        as = address_space_init_shareable(cpu->secure_memory,
+        as = address_space_init_shareable(MEMORY_REGION(cpu->secure_memory),
                                           "cpu-secure-memory");
         cpu_address_space_init(cs, as, ARMASIdx_S);
     }
     cpu_address_space_init(cs,
-                           address_space_init_shareable(cs->memory,
+                           address_space_init_shareable(MEMORY_REGION(cs->memory),
                                                         "cpu-memory"),
                            ARMASIdx_NS);
 #endif

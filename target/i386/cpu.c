@@ -3615,8 +3615,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
     if (tcg_enabled()) {
-        AddressSpace *as_normal = address_space_init_shareable(cs->memory,
-                                                               "cpu-memory");
+        AddressSpace *as_normal =
+            address_space_init_shareable(MEMORY_REGION(cs->memory),
+                                         "cpu-memory");
         AddressSpace *as_smm = g_new(AddressSpace, 1);
 
         cpu->cpu_as_mem = g_new(MemoryRegion, 1);
