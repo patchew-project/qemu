@@ -38,7 +38,8 @@ do { \
 
 
 typedef struct VirtIOCryptoConf {
-    CryptoDevBackend *cryptodev;
+    /* CryptoDevBackend pointer to be filled by link property */
+    Object *cryptodev;
 
     /* Supported service mask */
     uint32_t crypto_services;

@@ -753,22 +753,18 @@ static void virtio_crypto_reset(VirtIODevice *vdev)
 static void virtio_crypto_init_config(VirtIODevice *vdev)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
+    CryptoDevBackend *cryptodev = CRYPTODEV_BACKEND(vcrypto->conf.cryptodev);
 
-    vcrypto->conf.crypto_services =
-                     vcrypto->conf.cryptodev->conf.crypto_services;
-    vcrypto->conf.cipher_algo_l =
-                     vcrypto->conf.cryptodev->conf.cipher_algo_l;
-    vcrypto->conf.cipher_algo_h =
-                     vcrypto->conf.cryptodev->conf.cipher_algo_h;
-    vcrypto->conf.hash_algo = vcrypto->conf.cryptodev->conf.hash_algo;
-    vcrypto->conf.mac_algo_l = vcrypto->conf.cryptodev->conf.mac_algo_l;
-    vcrypto->conf.mac_algo_h = vcrypto->conf.cryptodev->conf.mac_algo_h;
-    vcrypto->conf.aead_algo = vcrypto->conf.cryptodev->conf.aead_algo;
-    vcrypto->conf.max_cipher_key_len =
-                  vcrypto->conf.cryptodev->conf.max_cipher_key_len;
-    vcrypto->conf.max_auth_key_len =
-                  vcrypto->conf.cryptodev->conf.max_auth_key_len;
-    vcrypto->conf.max_size = vcrypto->conf.cryptodev->conf.max_size;
+    vcrypto->conf.crypto_services = cryptodev->conf.crypto_services;
+    vcrypto->conf.cipher_algo_l = cryptodev->conf.cipher_algo_l;
+    vcrypto->conf.cipher_algo_h = cryptodev->conf.cipher_algo_h;
+    vcrypto->conf.hash_algo = cryptodev->conf.hash_algo;
+    vcrypto->conf.mac_algo_l = cryptodev->conf.mac_algo_l;
+    vcrypto->conf.mac_algo_h = cryptodev->conf.mac_algo_h;
+    vcrypto->conf.aead_algo = cryptodev->conf.aead_algo;
+    vcrypto->conf.max_cipher_key_len = cryptodev->conf.max_cipher_key_len;
+    vcrypto->conf.max_auth_key_len = cryptodev->conf.max_auth_key_len;
+    vcrypto->conf.max_size = cryptodev->conf.max_size;
 }
 
 static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
@@ -776,10 +772,14 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(dev);
     int i;
-
-    vcrypto->cryptodev = vcrypto->conf.cryptodev;
+    vcrypto->cryptodev = CRYPTODEV_BACKEND(vcrypto->conf.cryptodev);
     if (vcrypto->cryptodev == NULL) {
         error_setg(errp, "'cryptodev' parameter expects a valid object");
+        return;
+    } else if (cryptodev_backend_is_used(vcrypto->cryptodev)) {
+        char *path = object_get_canonical_path_component(vcrypto->conf.cryptodev);
+        error_setg(errp, "can't use already used cryptodev backend: %s", path);
+        g_free(path);
         return;
     }
 
@@ -845,6 +845,8 @@ static const VMStateDescription vmstate_virtio_crypto = {
 };
 
 static Property virtio_crypto_properties[] = {
+    DEFINE_PROP_LINK("cryptodev", VirtIOCrypto, conf.cryptodev,
+                     TYPE_CRYPTODEV_BACKEND),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -888,20 +890,6 @@ static void virtio_crypto_class_init(ObjectClass *klass, void *data)
     vdc->reset = virtio_crypto_reset;
 }
 
-static void
-virtio_crypto_check_cryptodev_is_used(const Object *obj, const char *name,
-                                      Object *val, Error **errp)
-{
-    if (cryptodev_backend_is_used(CRYPTODEV_BACKEND(val))) {
-        char *path = object_get_canonical_path_component(val);
-        error_setg(errp,
-            "can't use already used cryptodev backend: %s", path);
-        g_free(path);
-    } else {
-        qdev_prop_allow_set_link_before_realize(obj, name, val, errp);
-    }
-}
-
 static void virtio_crypto_instance_init(Object *obj)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(obj);
@@ -911,12 +899,6 @@ static void virtio_crypto_instance_init(Object *obj)
      * Can be overriden with virtio_crypto_set_config_size.
      */
     vcrypto->config_size = sizeof(struct virtio_crypto_config);
-
-    object_property_add_link(obj, "cryptodev",
-                             TYPE_CRYPTODEV_BACKEND,
-                             (Object **)&vcrypto->conf.cryptodev,
-                             virtio_crypto_check_cryptodev_is_used,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
 }
 
 static const TypeInfo virtio_crypto_info = {
