@@ -111,7 +111,8 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     s->read_reply_co = NULL;
 }
 
-static int nbd_co_send_request(BlockDriverState *bs,
+static int coroutine_fn
+nbd_co_send_request(BlockDriverState *bs,
                                NBDRequest *request,
                                QEMUIOVector *qiov)
 {
@@ -158,7 +159,8 @@ static int nbd_co_send_request(BlockDriverState *bs,
     return rc;
 }
 
-static void nbd_co_receive_reply(NBDClientSession *s,
+static void coroutine_fn
+nbd_co_receive_reply(NBDClientSession *s,
                                  NBDRequest *request,
                                  NBDReply *reply,
                                  QEMUIOVector *qiov)
@@ -185,7 +187,8 @@ static void nbd_co_receive_reply(NBDClientSession *s,
     }
 }
 
-static void nbd_coroutine_end(BlockDriverState *bs,
+static void coroutine_fn
+nbd_coroutine_end(BlockDriverState *bs,
                               NBDRequest *request)
 {
     NBDClientSession *s = nbd_get_client_session(bs);
@@ -204,7 +207,8 @@ static void nbd_coroutine_end(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->send_mutex);
 }
 
-int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
+int coroutine_fn
+nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                          uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -229,7 +233,8 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     return -reply.error;
 }
 
-int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
+int coroutine_fn
+nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -258,7 +263,8 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
     return -reply.error;
 }
 
-int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+int coroutine_fn
+nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
                                 int bytes, BdrvRequestFlags flags)
 {
     ssize_t ret;
@@ -292,7 +298,8 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     return -reply.error;
 }
 
-int nbd_client_co_flush(BlockDriverState *bs)
+int coroutine_fn
+nbd_client_co_flush(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = { .type = NBD_CMD_FLUSH };
@@ -316,7 +323,8 @@ int nbd_client_co_flush(BlockDriverState *bs)
     return -reply.error;
 }
 
-int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+int coroutine_fn
+nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = {

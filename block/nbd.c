@@ -465,7 +465,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 }
 
-static int nbd_co_flush(BlockDriverState *bs)
+static int coroutine_fn
+nbd_co_flush(BlockDriverState *bs)
 {
     return nbd_client_co_flush(bs);
 }
