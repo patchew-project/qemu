@@ -27,12 +27,12 @@ typedef struct CowRequest {
     CoQueue wait_queue; /* coroutines blocked on this request */
 } CowRequest;
 
-void backup_wait_for_overlapping_requests(BlockJob *job, int64_t sector_num,
+void coroutine_fn backup_wait_for_overlapping_requests(BlockJob *job, int64_t sector_num,
                                           int nb_sectors);
 void backup_cow_request_begin(CowRequest *req, BlockJob *job,
                               int64_t sector_num,
                               int nb_sectors);
-void backup_cow_request_end(CowRequest *req);
+void coroutine_fn backup_cow_request_end(CowRequest *req);
 
 void backup_do_checkpoint(BlockJob *job, Error **errp);
 

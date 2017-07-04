@@ -84,7 +84,8 @@ static void cow_request_begin(CowRequest *req, BackupBlockJob *job,
 }
 
 /* Forget about a completed request */
-static void cow_request_end(CowRequest *req)
+static void coroutine_fn
+cow_request_end(CowRequest *req)
 {
     QLIST_REMOVE(req, list);
     qemu_co_queue_restart_all(&req->wait_queue);
@@ -275,7 +276,8 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
     bitmap_zero(backup_job->done_bitmap, len);
 }
 
-void backup_wait_for_overlapping_requests(BlockJob *job, int64_t sector_num,
+void coroutine_fn
+backup_wait_for_overlapping_requests(BlockJob *job, int64_t sector_num,
                                           int nb_sectors)
 {
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
@@ -304,7 +306,8 @@ void backup_cow_request_begin(CowRequest *req, BlockJob *job,
     cow_request_begin(req, backup_job, start, end);
 }
 
-void backup_cow_request_end(CowRequest *req)
+void coroutine_fn
+backup_cow_request_end(CowRequest *req)
 {
     cow_request_end(req);
 }
