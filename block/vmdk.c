@@ -1334,7 +1334,8 @@ static int64_t coroutine_fn vmdk_co_get_block_status(BlockDriverState *bs,
     return ret;
 }
 
-static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
+static int coroutine_fn
+vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
                             int64_t offset_in_cluster, QEMUIOVector *qiov,
                             uint64_t qiov_offset, uint64_t n_bytes,
                             uint64_t offset)
@@ -1406,7 +1407,8 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
     return ret;
 }
 
-static int vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
+static int coroutine_fn
+vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
                             int64_t offset_in_cluster, QEMUIOVector *qiov,
                             int bytes)
 {
@@ -1551,7 +1553,8 @@ fail:
  *
  * Returns: error code with 0 for success.
  */
-static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
+static int coroutine_fn
+vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                        uint64_t bytes, QEMUIOVector *qiov,
                        bool zeroed, bool zero_dry_run)
 {
@@ -1857,7 +1860,8 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
     return VMDK_OK;
 }
 
-static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int idx = 0;
     BlockBackend *new_blk = NULL;
