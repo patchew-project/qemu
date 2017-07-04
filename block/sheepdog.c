@@ -481,7 +481,8 @@ static inline AIOReq *alloc_aio_req(BDRVSheepdogState *s, SheepdogAIOCB *acb,
     return aio_req;
 }
 
-static void wait_for_overlapping_aiocb(BDRVSheepdogState *s, SheepdogAIOCB *acb)
+static void coroutine_fn
+wait_for_overlapping_aiocb(BDRVSheepdogState *s, SheepdogAIOCB *acb)
 {
     SheepdogAIOCB *cb;
 
@@ -494,7 +495,8 @@ retry:
     }
 }
 
-static void sd_aio_setup(SheepdogAIOCB *acb, BDRVSheepdogState *s,
+static void coroutine_fn
+sd_aio_setup(SheepdogAIOCB *acb, BDRVSheepdogState *s,
                          QEMUIOVector *qiov, int64_t sector_num, int nb_sectors,
                          int type)
 {
@@ -1954,7 +1956,8 @@ static int parse_block_size_shift(BDRVSheepdogState *s, QemuOpts *opt)
     return 0;
 }
 
-static int sd_create(const char *filename, QemuOpts *opts,
+static int coroutine_fn
+sd_create(const char *filename, QemuOpts *opts,
                      Error **errp)
 {
     Error *err = NULL;
@@ -2431,7 +2434,8 @@ static void coroutine_fn sd_co_rw_vector(SheepdogAIOCB *acb)
     }
 }
 
-static void sd_aio_complete(SheepdogAIOCB *acb)
+static void coroutine_fn
+sd_aio_complete(SheepdogAIOCB *acb)
 {
     if (acb->aiocb_type == AIOCB_FLUSH_CACHE) {
         return;
@@ -2905,7 +2909,8 @@ cleanup:
     return ret;
 }
 
-static int sd_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+static int coroutine_fn
+sd_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                            int64_t pos)
 {
     BDRVSheepdogState *s = bs->opaque;
@@ -2920,7 +2925,8 @@ static int sd_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
     return ret;
 }
 
-static int sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+static int coroutine_fn
+sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                            int64_t pos)
 {
     BDRVSheepdogState *s = bs->opaque;
