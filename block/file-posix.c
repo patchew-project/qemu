@@ -1483,7 +1483,8 @@ static int aio_worker(void *arg)
     return ret;
 }
 
-static int paio_submit_co(BlockDriverState *bs, int fd,
+static int coroutine_fn
+paio_submit_co(BlockDriverState *bs, int fd,
                           int64_t offset, QEMUIOVector *qiov,
                           int bytes, int type)
 {
@@ -1599,7 +1600,8 @@ static void raw_aio_unplug(BlockDriverState *bs)
 #endif
 }
 
-static BlockAIOCB *raw_aio_flush(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+raw_aio_flush(BlockDriverState *bs,
         BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
@@ -1835,7 +1837,8 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
     return (int64_t)st.st_blocks * 512;
 }
 
-static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+raw_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int fd;
     int result = 0;
@@ -2526,7 +2529,8 @@ hdev_open_Mac_error:
 
 #if defined(__linux__)
 
-static BlockAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+hdev_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque)
 {
@@ -2592,7 +2596,8 @@ static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
-static int hdev_create(const char *filename, QemuOpts *opts,
+static int coroutine_fn
+hdev_create(const char *filename, QemuOpts *opts,
                        Error **errp)
 {
     int fd;
