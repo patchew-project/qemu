@@ -61,6 +61,6 @@ Coroutine *qemu_coroutine_new(void);
 void qemu_coroutine_delete(Coroutine *co);
 CoroutineAction qemu_coroutine_switch(Coroutine *from, Coroutine *to,
                                       CoroutineAction action);
-void coroutine_fn qemu_co_queue_run_restart(Coroutine *co);
+void qemu_co_queue_run_restart(Coroutine *co);
 
 #endif
