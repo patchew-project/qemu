@@ -121,7 +121,7 @@ void coroutine_fn qemu_coroutine_yield(void);
 /**
  * Get the currently executing coroutine
  */
-Coroutine *coroutine_fn qemu_coroutine_self(void);
+Coroutine *qemu_coroutine_self(void);
 
 /**
  * Return whether or not currently inside a coroutine
