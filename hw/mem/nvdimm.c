@@ -80,7 +80,8 @@ static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm)
 
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 {
-    MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem, errp);
+    MemoryRegion *mr = host_memory_backend_get_memory(MEMORY_BACKEND(dimm->hostmem),
+                                                      errp);
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
     uint64_t align, pmem_size, size = memory_region_size(mr);
 
@@ -91,7 +92,7 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     pmem_size = QEMU_ALIGN_DOWN(pmem_size, align);
 
     if (size <= nvdimm->label_size || !pmem_size) {
-        HostMemoryBackend *hostmem = dimm->hostmem;
+        HostMemoryBackend *hostmem = MEMORY_BACKEND(dimm->hostmem);
         char *path = object_get_canonical_path_component(OBJECT(hostmem));
 
         error_setg(errp, "the size of memdev %s (0x%" PRIx64 ") is too "
@@ -136,14 +137,16 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
     memcpy(nvdimm->label_data + offset, buf, size);
 
-    mr = host_memory_backend_get_memory(dimm->hostmem, &error_abort);
+    mr = host_memory_backend_get_memory(MEMORY_BACKEND(dimm->hostmem),
+                                        &error_abort);
     backend_offset = memory_region_size(mr) - nvdimm->label_size + offset;
     memory_region_set_dirty(mr, backend_offset, size);
 }
 
 static MemoryRegion *nvdimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
 {
-    return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
+    return host_memory_backend_get_memory(MEMORY_BACKEND(dimm->hostmem),
+                                          &error_abort);
 }
 
 static void nvdimm_class_init(ObjectClass *oc, void *data)

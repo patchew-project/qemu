@@ -53,7 +53,8 @@ typedef struct PCDIMMDevice {
     uint64_t addr;
     uint32_t node;
     int32_t slot;
-    HostMemoryBackend *hostmem;
+    /* HostMemoryBackend pointer to be filled by link property */
+    Object *hostmem;
 } PCDIMMDevice;
 
 /**
