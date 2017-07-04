@@ -443,7 +443,9 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
+        co_role_acquire(_coroutine_fn);
         bdrv_create_co_entry(&cco);
+        co_role_release(_coroutine_fn);
     } else {
         co = qemu_coroutine_create(bdrv_create_co_entry, &cco);
         qemu_coroutine_enter(co);

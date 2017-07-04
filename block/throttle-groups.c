@@ -304,9 +304,15 @@ static void schedule_next_request(BlockBackend *blk, bool is_write)
 
     /* If it doesn't have to wait, queue it for immediate execution */
     if (!must_wait) {
+        bool handled = false;
+
+        if (qemu_in_coroutine()) {
+            co_role_acquire(_coroutine_fn);
+            handled = throttle_group_co_restart_queue(blk, is_write);
+            co_role_release(_coroutine_fn);
+        }
         /* Give preference to requests from the current blk */
-        if (qemu_in_coroutine() &&
-            throttle_group_co_restart_queue(blk, is_write)) {
+        if (handled) {
             token = blk;
         } else {
             ThrottleTimers *tt = &blk_get_public(token)->throttle_timers;

@@ -726,7 +726,9 @@ static int do_req(int sockfd, BlockDriverState *bs, SheepdogReq *hdr,
     };
 
     if (qemu_in_coroutine()) {
+        co_role_acquire(_coroutine_fn);
         do_co_req(&srco);
+        co_role_release(_coroutine_fn);
     } else {
         co = qemu_coroutine_create(do_co_req, &srco);
         if (bs) {

@@ -1072,7 +1072,9 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
+        co_role_acquire(_coroutine_fn);
         co_entry(&rwco);
+        co_role_release(_coroutine_fn);
     } else {
         Coroutine *co = qemu_coroutine_create(co_entry, &rwco);
         bdrv_coroutine_enter(blk_bs(blk), co);

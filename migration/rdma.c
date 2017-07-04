@@ -1518,7 +1518,9 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
          * so don't yield unless we know we're running inside of a coroutine.
          */
         if (rdma->migration_started_on_destination) {
+            co_role_acquire(_coroutine_fn);
             yield_until_fd_readable(rdma->comp_channel->fd);
+            co_role_release(_coroutine_fn);
         }
 
         if (ibv_get_cq_event(rdma->comp_channel, &cq, &cq_ctx)) {

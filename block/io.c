@@ -229,7 +229,9 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
 void bdrv_drained_begin(BlockDriverState *bs)
 {
     if (qemu_in_coroutine()) {
+        co_role_acquire(_coroutine_fn);
         bdrv_co_yield_to_drain(bs);
+        co_role_release(_coroutine_fn);
         return;
     }
 
@@ -616,7 +618,9 @@ static int bdrv_prwv_co(BdrvChild *child, int64_t offset,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
+        co_role_acquire(_coroutine_fn);
         bdrv_rw_co_entry(&rwco);
+        co_role_release(_coroutine_fn);
     } else {
         co = qemu_coroutine_create(bdrv_rw_co_entry, &rwco);
         bdrv_coroutine_enter(child->bs, co);
@@ -1901,7 +1905,9 @@ int64_t bdrv_get_block_status_above(BlockDriverState *bs,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
+        co_role_acquire(_coroutine_fn);
         bdrv_get_block_status_above_co_entry(&data);
+        co_role_release(_coroutine_fn);
     } else {
         co = qemu_coroutine_create(bdrv_get_block_status_above_co_entry,
                                    &data);
@@ -2027,7 +2033,11 @@ bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                 bool is_read)
 {
     if (qemu_in_coroutine()) {
-        return bdrv_co_rw_vmstate(bs, qiov, pos, is_read);
+        int ret;
+        co_role_acquire(_coroutine_fn);
+        ret = bdrv_co_rw_vmstate(bs, qiov, pos, is_read);
+        co_role_release(_coroutine_fn);
+        return ret;
     } else {
         BdrvVmstateCo data = {
             .bs         = bs,
@@ -2259,7 +2269,9 @@ int bdrv_flush(BlockDriverState *bs)
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
+        co_role_acquire(_coroutine_fn);
         bdrv_flush_co_entry(&flush_co);
+        co_role_release(_coroutine_fn);
     } else {
         co = qemu_coroutine_create(bdrv_flush_co_entry, &flush_co);
         bdrv_coroutine_enter(bs, co);
@@ -2406,7 +2418,9 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
+        co_role_acquire(_coroutine_fn);
         bdrv_pdiscard_co_entry(&rwco);
+        co_role_release(_coroutine_fn);
     } else {
         co = qemu_coroutine_create(bdrv_pdiscard_co_entry, &rwco);
         bdrv_coroutine_enter(bs, co);
