@@ -75,7 +75,8 @@ typedef struct XlnxZynqMPState {
 
     MemoryRegion ocm_ram[XLNX_ZYNQMP_NUM_OCM_BANKS];
 
-    MemoryRegion *ddr_ram;
+    /* A MemoryRegion pointer to be filled by link property */
+    Object *ddr_ram;
     MemoryRegion ddr_ram_low, ddr_ram_high;
 
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];

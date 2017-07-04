@@ -140,11 +140,6 @@ static void xlnx_zynqmp_init(Object *obj)
                                   &error_abort);
     }
 
-    object_property_add_link(obj, "ddr-ram", TYPE_MEMORY_REGION,
-                             (Object **)&s->ddr_ram,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
-
     object_initialize(&s->gic, sizeof(s->gic), gic_class_name());
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
@@ -192,7 +187,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     qemu_irq gic_spi[GIC_NUM_SPI_INTR];
     Error *err = NULL;
 
-    ram_size = memory_region_size(s->ddr_ram);
+    ram_size = memory_region_size(MEMORY_REGION(s->ddr_ram));
 
     /* Create the DDR Memory Regions. User friendly checks should happen at
      * the board level
@@ -206,7 +201,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         ddr_high_size = ram_size - XLNX_ZYNQMP_MAX_LOW_RAM_SIZE;
 
         memory_region_init_alias(&s->ddr_ram_high, NULL,
-                                 "ddr-ram-high", s->ddr_ram,
+                                 "ddr-ram-high", MEMORY_REGION(s->ddr_ram),
                                   ddr_low_size, ddr_high_size);
         memory_region_add_subregion(get_system_memory(),
                                     XLNX_ZYNQMP_HIGH_RAM_START,
@@ -218,7 +213,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     memory_region_init_alias(&s->ddr_ram_low, NULL,
-                             "ddr-ram-low", s->ddr_ram,
+                             "ddr-ram-low", MEMORY_REGION(s->ddr_ram),
                               0, ddr_low_size);
     memory_region_add_subregion(get_system_memory(), 0, &s->ddr_ram_low);
 
@@ -434,6 +429,7 @@ static Property xlnx_zynqmp_props[] = {
     DEFINE_PROP_STRING("boot-cpu", XlnxZynqMPState, boot_cpu),
     DEFINE_PROP_BOOL("secure", XlnxZynqMPState, secure, false),
     DEFINE_PROP_BOOL("has_rpu", XlnxZynqMPState, has_rpu, false),
+    DEFINE_PROP_LINK("ddr-ram", XlnxZynqMPState, ddr_ram, TYPE_MEMORY_REGION),
     DEFINE_PROP_END_OF_LIST()
 };
 
