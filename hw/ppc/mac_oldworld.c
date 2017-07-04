@@ -141,9 +141,8 @@ static void ppc_heathrow_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_heathrow.bios", BIOS_SIZE,
-                           &error_fatal);
-    vmstate_register_ram_global(bios);
+    memory_region_allocate_aux_memory(bios, NULL, "ppc_heathrow.bios",
+                                      BIOS_SIZE);
 
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;

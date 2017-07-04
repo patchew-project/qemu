@@ -256,14 +256,12 @@ static int milkymist_softusb_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->regs_region);
 
     /* register pmem and dmem */
-    memory_region_init_ram(&s->pmem, OBJECT(s), "milkymist-softusb.pmem",
-                           s->pmem_size, &error_fatal);
-    vmstate_register_ram_global(&s->pmem);
+    memory_region_allocate_aux_memory(&s->pmem, OBJECT(s),
+                                      "milkymist-softusb.pmem", s->pmem_size);
     s->pmem_ptr = memory_region_get_ram_ptr(&s->pmem);
     sysbus_init_mmio(dev, &s->pmem);
-    memory_region_init_ram(&s->dmem, OBJECT(s), "milkymist-softusb.dmem",
-                           s->dmem_size, &error_fatal);
-    vmstate_register_ram_global(&s->dmem);
+    memory_region_allocate_aux_memory(&s->dmem, OBJECT(s),
+                                      "milkymist-softusb.dmem", s->dmem_size);
     s->dmem_ptr = memory_region_get_ram_ptr(&s->dmem);
     sysbus_init_mmio(dev, &s->dmem);
 

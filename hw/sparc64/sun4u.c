@@ -334,9 +334,8 @@ static void prom_init1(Object *obj)
     PROMState *s = OPENPROM(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_ram(&s->prom, obj, "sun4u.prom", PROM_SIZE_MAX,
-                           &error_fatal);
-    vmstate_register_ram_global(&s->prom);
+    memory_region_allocate_aux_memory(&s->prom, obj, "sun4u.prom",
+                                      PROM_SIZE_MAX);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);
 }
@@ -377,9 +376,8 @@ static void ram_realize(DeviceState *dev, Error **errp)
     RamDevice *d = SUN4U_RAM(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_ram(&d->ram, OBJECT(d), "sun4u.ram", d->size,
-                           &error_fatal);
-    vmstate_register_ram_global(&d->ram);
+    memory_region_allocate_aux_memory(&d->ram, OBJECT(d), "sun4u.ram",
+                                      d->size);
     sysbus_init_mmio(sbd, &d->ram);
 }
 

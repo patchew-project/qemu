@@ -304,8 +304,7 @@ static void raven_realize(PCIDevice *d, Error **errp)
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x34] = 0x00; // capabilities_pointer
 
-    memory_region_init_ram(&s->bios, OBJECT(s), "bios", BIOS_SIZE,
-                           &error_fatal);
+    memory_region_allocate_aux_memory(&s->bios, OBJECT(s), "bios", BIOS_SIZE);
     memory_region_set_readonly(&s->bios, true);
     memory_region_add_subregion(get_system_memory(), (uint32_t)(-BIOS_SIZE),
                                 &s->bios);
@@ -334,8 +333,6 @@ static void raven_realize(PCIDevice *d, Error **errp)
             return;
         }
     }
-
-    vmstate_register_ram_global(&s->bios);
 }
 
 static const VMStateDescription vmstate_raven = {
