@@ -145,7 +145,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
  * Put the job to sleep (assuming that it wasn't canceled) for @ns
  * nanoseconds.  Canceling the job will interrupt the wait immediately.
  */
-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
+void coroutine_fn block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 
 /**
  * block_job_yield:
@@ -153,7 +153,7 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
  *
  * Yield the block job coroutine.
  */
-void block_job_yield(BlockJob *job);
+void coroutine_fn block_job_yield(BlockJob *job);
 
 /**
  * block_job_pause_all:

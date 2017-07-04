@@ -788,7 +788,8 @@ bool block_job_is_cancelled(BlockJob *job)
     return job->cancelled;
 }
 
-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
+void coroutine_fn
+block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
 {
     assert(job->busy);
 
@@ -806,7 +807,8 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
     block_job_pause_point(job);
 }
 
-void block_job_yield(BlockJob *job)
+void coroutine_fn
+block_job_yield(BlockJob *job)
 {
     assert(job->busy);
 
