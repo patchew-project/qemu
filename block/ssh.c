@@ -813,7 +813,8 @@ static QemuOptsList ssh_create_opts = {
     }
 };
 
-static int ssh_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+ssh_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int r, ret;
     int64_t total_size = 0;
@@ -1029,7 +1030,8 @@ static coroutine_fn int ssh_co_readv(BlockDriverState *bs,
     return ret;
 }
 
-static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
+static int coroutine_fn
+ssh_write(BDRVSSHState *s, BlockDriverState *bs,
                      int64_t offset, size_t size,
                      QEMUIOVector *qiov)
 {
