@@ -56,7 +56,8 @@ struct VirtIOSCSIConf {
 #endif
     CharBackend chardev;
     uint32_t boot_tpgt;
-    IOThread *iothread;
+    /* IOThread pointer to be filled by link property */
+    Object *iothread;
 };
 
 struct VirtIOSCSI;

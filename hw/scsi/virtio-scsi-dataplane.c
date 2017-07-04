@@ -40,7 +40,7 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
             error_setg(errp, "ioeventfd is required for iothread");
             return;
         }
-        s->ctx = iothread_get_aio_context(vs->conf.iothread);
+        s->ctx = iothread_get_aio_context(IOTHREAD(vs->conf.iothread));
     } else {
         if (!virtio_device_ioeventfd_enabled(vdev)) {
             return;
