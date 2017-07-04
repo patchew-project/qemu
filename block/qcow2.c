@@ -2079,7 +2079,8 @@ static int qcow2_change_backing_file(BlockDriverState *bs,
     return qcow2_update_header(bs);
 }
 
-static int preallocate(BlockDriverState *bs)
+static int coroutine_fn
+preallocate(BlockDriverState *bs)
 {
     uint64_t bytes;
     uint64_t offset;
@@ -2140,7 +2141,8 @@ static int preallocate(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_create2(const char *filename, int64_t total_size,
+static int coroutine_fn
+qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
                          QemuOpts *opts, int version, int refcount_order,
@@ -2390,7 +2392,8 @@ out:
     return ret;
 }
 
-static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     char *backing_file = NULL;
     char *backing_fmt = NULL;
@@ -3011,7 +3014,8 @@ static void dump_refcounts(BlockDriverState *bs)
 }
 #endif
 
-static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+static int coroutine_fn
+qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -3021,7 +3025,8 @@ static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                                     qiov->size, qiov, 0);
 }
 
-static int qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+static int coroutine_fn
+qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)
 {
     BDRVQcow2State *s = bs->opaque;
