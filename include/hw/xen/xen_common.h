@@ -78,6 +78,13 @@ static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
 
 extern xenforeignmemory_handle *xen_fmem;
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41000
+
+#define xenforeignmemory_map2(h, d, a, p, f, ps, ar, e) \
+    xenforeignmemory_map(h, d, p, ps, ar, e)
+
+#endif
+
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40900
 
 typedef xc_interface xendevicemodel_handle;
