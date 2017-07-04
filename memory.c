@@ -32,6 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/misc/mmio_interface.h"
 #include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -2815,6 +2816,13 @@ void mtree_info(fprintf_function mon_printf, void *f, bool flatview)
     QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
         g_free(ml);
     }
+}
+
+void memory_region_allocate_aux_memory(MemoryRegion *mr, Object *owner,
+                                       const char *name, uint64_t ram_size)
+{
+    memory_region_init_ram(mr, owner, name, ram_size, &error_fatal);
+    vmstate_register_ram_global(mr);
 }
 
 static const TypeInfo memory_region_info = {

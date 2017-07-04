@@ -412,6 +412,12 @@ void memory_region_init_io(MemoryRegion *mr,
  *        must be unique within any device
  * @size: size of the region.
  * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that it is the caller's responsibility to ensure that the contents
+ * of the RAM are migrated (by calling vmstate_register_ram_global(), or
+ * otherwise). The utility function memory_region_allocate_aux_memory()
+ * may be used to combine the "initialize MR" and "register contents for
+ * migration" steps.
  */
 void memory_region_init_ram(MemoryRegion *mr,
                             struct Object *owner,
@@ -629,6 +635,23 @@ void memory_region_init_iommu(MemoryRegion *mr,
                               const MemoryRegionIOMMUOps *ops,
                               const char *name,
                               uint64_t size);
+
+/**
+ * memory_region_allocate_aux_memory - Allocate auxiliary (non-main) memory
+ * @mr: the #MemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count
+ * @name: name of the memory region
+ * @ram_size: size of the region in bytes
+ *
+ * This function allocates RAM for a board model or device, and
+ * arranges for it to be migrated (by calling vmstate_register_ram_global()).
+ * Board models should call memory_region_allocate_system_memory()
+ * exactly once to allocate the memory for the primary or largest RAM
+ * area on the board, and then can use this function for smaller
+ * pieces of memory such as display RAM or static RAMs.
+ */
+void memory_region_allocate_aux_memory(MemoryRegion *mr, Object *owner,
+                                       const char *name, uint64_t ram_size);
 
 /**
  * memory_region_owner: get a memory region's owner.
