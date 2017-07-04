@@ -483,7 +483,8 @@ out:
     return ret;
 }
 
-static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
+static int coroutine_fn
+rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
 {
     BDRVBlkdebugState *s = bs->opaque;
     BlkdebugRule *rule = NULL;
@@ -563,7 +564,8 @@ blkdebug_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 }
 
-static int blkdebug_co_flush(BlockDriverState *bs)
+static int coroutine_fn
+blkdebug_co_flush(BlockDriverState *bs)
 {
     int err = rule_check(bs, 0, 0);
 
@@ -656,7 +658,8 @@ static void blkdebug_close(BlockDriverState *bs)
     g_free(s->config_file);
 }
 
-static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
+static void coroutine_fn
+suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
 {
     BDRVBlkdebugState *s = bs->opaque;
     BlkdebugSuspendedReq r;
@@ -681,7 +684,8 @@ static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
     g_free(r.tag);
 }
 
-static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
+static bool coroutine_fn
+process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
     bool injected)
 {
     BDRVBlkdebugState *s = bs->opaque;
@@ -712,7 +716,8 @@ static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
     return injected;
 }
 
-static void blkdebug_debug_event(BlockDriverState *bs, BlkdebugEvent event)
+static void coroutine_fn
+blkdebug_debug_event(BlockDriverState *bs, BlkdebugEvent event)
 {
     BDRVBlkdebugState *s = bs->opaque;
     struct BlkdebugRule *rule, *next;

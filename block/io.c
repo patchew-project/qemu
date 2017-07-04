@@ -366,7 +366,8 @@ void bdrv_drain_all(void)
  *
  * This function should be called when a tracked request is completing.
  */
-static void tracked_request_end(BdrvTrackedRequest *req)
+static void coroutine_fn
+tracked_request_end(BdrvTrackedRequest *req)
 {
     if (req->serialising) {
         atomic_dec(&req->bs->serialising_in_flight);
@@ -381,7 +382,8 @@ static void tracked_request_end(BdrvTrackedRequest *req)
 /**
  * Add an active request to the tracked requests list
  */
-static void tracked_request_begin(BdrvTrackedRequest *req,
+static void coroutine_fn
+tracked_request_begin(BdrvTrackedRequest *req,
                                   BlockDriverState *bs,
                                   int64_t offset,
                                   unsigned int bytes,
@@ -2430,7 +2432,8 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     return rwco.ret;
 }
 
-int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
+int coroutine_fn
+bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;
     CoroutineIOCompletion co = {
