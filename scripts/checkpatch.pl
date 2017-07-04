@@ -2593,6 +2593,15 @@ sub process {
 			$line =~ /\b(?:$non_exit_glib_asserts)\(/) {
 			ERROR("Use g_assert or g_assert_not_reached\n". $herecurr);
 		}
+
+# signal(2) can only portably be used for SIG_IGN or SIG_DFL.  For
+# everything else, sigaction should be used instead.
+                if ($line =~ /\bsignal\([^,]+, ([^,\)]+)/ &&
+                    $1 !~ /^SIG_(IGN|DFL)$/) {
+                    ERROR("Use sigaction instead of signal, ".
+                          "except when setting the handler to ".
+                          "SIG_IGN or SIG_DFL\n" . $herecurr);
+                }
 	}
 
 	# If we have no input at all, then there is nothing to report on
