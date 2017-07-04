@@ -23,7 +23,8 @@
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_RNG)
 
 struct VirtIORNGConf {
-    RngBackend *rng;
+    /* RngBackend pointer to be filled by link property */
+    Object *rng;
     uint64_t max_bytes;
     uint32_t period_ms;
     RngRandom *default_backend;
