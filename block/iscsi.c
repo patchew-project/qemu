@@ -1005,7 +1005,8 @@ static void iscsi_ioctl_handle_emulated(IscsiAIOCB *acb, int req, void *buf)
     qemu_bh_schedule(acb->bh);
 }
 
-static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
+static BlockAIOCB * coroutine_fn
+iscsi_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque)
 {
@@ -2107,7 +2108,8 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
     return 0;
 }
 
-static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
