@@ -76,8 +76,9 @@ struct MIPSGCRState {
     int32_t num_vps;
     hwaddr gcr_base;
     MemoryRegion iomem;
-    MemoryRegion *cpc_mr;
-    MemoryRegion *gic_mr;
+    /* MemoryRegion pointers for cpc and gic, to be filled by link property */
+    Object *cpc_mr;
+    Object *gic_mr;
 
     uint64_t cpc_base;
     uint64_t gic_base;
