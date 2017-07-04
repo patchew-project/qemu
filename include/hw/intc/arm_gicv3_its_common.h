@@ -42,7 +42,8 @@ struct GICv3ITSState {
     MemoryRegion iomem_its_cntrl;
     MemoryRegion iomem_its_translation;
 
-    GICv3State *gicv3;
+    /* GICv3State pointer to be filled by link property */
+    Object *gicv3;
 
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
     uint64_t gits_translater_gpa;
