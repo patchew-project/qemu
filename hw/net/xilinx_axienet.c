@@ -341,8 +341,10 @@ struct XilinxAXIEnet {
     SysBusDevice busdev;
     MemoryRegion iomem;
     qemu_irq irq;
-    StreamSlave *tx_data_dev;
-    StreamSlave *tx_control_dev;
+    /* StreamSlave pointers for data and control tx devices, to be filled by
+     * link property. */
+    Object *tx_data_dev;
+    Object *tx_control_dev;
     XilinxAXIEnetStreamSlave rx_data_dev;
     XilinxAXIEnetStreamSlave rx_control_dev;
     NICState *nic;
@@ -688,17 +690,18 @@ static void axienet_eth_rx_notify(void *opaque)
 {
     XilinxAXIEnet *s = XILINX_AXI_ENET(opaque);
 
-    while (s->rxappsize && stream_can_push(s->tx_control_dev,
+    while (s->rxappsize && stream_can_push(STREAM_SLAVE(s->tx_control_dev),
                                            axienet_eth_rx_notify, s)) {
-        size_t ret = stream_push(s->tx_control_dev,
+        size_t ret = stream_push(STREAM_SLAVE(s->tx_control_dev),
                                  (void *)s->rxapp + CONTROL_PAYLOAD_SIZE
                                  - s->rxappsize, s->rxappsize);
         s->rxappsize -= ret;
     }
 
-    while (s->rxsize && stream_can_push(s->tx_data_dev,
+    while (s->rxsize && stream_can_push(STREAM_SLAVE(s->tx_data_dev),
                                         axienet_eth_rx_notify, s)) {
-        size_t ret = stream_push(s->tx_data_dev, (void *)s->rxmem + s->rxpos,
+        size_t ret = stream_push(STREAM_SLAVE(s->tx_data_dev),
+                                 (void *)s->rxmem + s->rxpos,
                                  s->rxsize);
         s->rxsize -= ret;
         s->rxpos += ret;
@@ -991,18 +994,6 @@ static void xilinx_enet_init(Object *obj)
     XilinxAXIEnet *s = XILINX_AXI_ENET(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_data_dev,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-    object_property_add_link(obj, "axistream-control-connected",
-                             TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_control_dev,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-
     object_initialize(&s->rx_data_dev, sizeof(s->rx_data_dev),
                       TYPE_XILINX_AXI_ENET_DATA_STREAM);
     object_initialize(&s->rx_control_dev, sizeof(s->rx_control_dev),
@@ -1023,6 +1014,10 @@ static Property xilinx_enet_properties[] = {
     DEFINE_PROP_UINT32("rxmem", XilinxAXIEnet, c_rxmem, 0x1000),
     DEFINE_PROP_UINT32("txmem", XilinxAXIEnet, c_txmem, 0x1000),
     DEFINE_NIC_PROPERTIES(XilinxAXIEnet, conf),
+    DEFINE_PROP_LINK("axistream-connected", XilinxAXIEnet,
+                     tx_data_dev, TYPE_STREAM_SLAVE),
+    DEFINE_PROP_LINK("axistream-control-connected", XilinxAXIEnet,
+                     tx_control_dev, TYPE_STREAM_SLAVE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
