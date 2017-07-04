@@ -124,8 +124,11 @@ struct XilinxAXIDMA {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t freqhz;
-    StreamSlave *tx_data_dev;
-    StreamSlave *tx_control_dev;
+
+    /* StreamSlave pointers to be fille by link property */
+    Object *tx_data_dev;
+    Object *tx_control_dev;
+
     XilinxAXIDMAStreamSlave rx_data_dev;
     XilinxAXIDMAStreamSlave rx_control_dev;
 
@@ -491,7 +494,8 @@ static void axidma_write(void *opaque, hwaddr addr,
             s->regs[addr] = value;
             s->regs[R_DMASR] &= ~DMASR_IDLE; /* Not idle.  */
             if (!sid) {
-                stream_process_mem2s(s, d->tx_data_dev, d->tx_control_dev);
+                stream_process_mem2s(s, STREAM_SLAVE(d->tx_data_dev),
+                                     STREAM_SLAVE(d->tx_control_dev));
             }
             break;
         default:
@@ -564,18 +568,6 @@ static void xilinx_axidma_init(Object *obj)
     XilinxAXIDMA *s = XILINX_AXI_DMA(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **)&s->tx_data_dev,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-    object_property_add_link(obj, "axistream-control-connected",
-                             TYPE_STREAM_SLAVE,
-                             (Object **)&s->tx_control_dev,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-
     object_initialize(&s->rx_data_dev, sizeof(s->rx_data_dev),
                       TYPE_XILINX_AXI_DMA_DATA_STREAM);
     object_initialize(&s->rx_control_dev, sizeof(s->rx_control_dev),
@@ -595,6 +587,10 @@ static void xilinx_axidma_init(Object *obj)
 
 static Property axidma_properties[] = {
     DEFINE_PROP_UINT32("freqhz", XilinxAXIDMA, freqhz, 50000000),
+    DEFINE_PROP_LINK("axistream-connected", XilinxAXIDMA,
+                     tx_data_dev, TYPE_STREAM_SLAVE),
+    DEFINE_PROP_LINK("axistream-control-connected", XilinxAXIDMA,
+                     tx_control_dev, TYPE_STREAM_SLAVE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
