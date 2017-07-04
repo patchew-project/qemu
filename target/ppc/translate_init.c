@@ -8811,6 +8811,8 @@ static struct ppc_radix_page_info POWER9_radix_page_info = {
 
 static void init_proc_POWER9(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     /* Common Registers */
     init_proc_book3s_common(env);
     gen_spr_book3s_207_dbg(env);
@@ -8848,7 +8850,18 @@ static void init_proc_POWER9(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER8(env);
-    ppcPOWER7_irq_init(ppc_env_get_cpu(env));
+    ppcPOWER7_irq_init(cpu);
+
+    if ((pcc->pvr & 0xffffff00) == CPU_POWERPC_POWER9_DD1) {
+        /*
+         * POWER9 DD1 has some bugs which make it not really ISA 3.00
+         * compliant.  More importantly, advertising ISA 3.00
+         * architected mode may prevent guests from activating
+         * necessary DD1 workarounds.
+         */
+        pcc->pcr_supported &= ~(PCR_COMPAT_3_00 | PCR_COMPAT_2_07
+                                | PCR_COMPAT_2_06 | PCR_COMPAT_2_05);
+    }
 }
 
 static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
