@@ -98,7 +98,9 @@ static void coroutine_bootstrap(CoroutineSigAltStack *self, Coroutine *co)
     }
 
     while (true) {
+        co_role_acquire(_coroutine_fn);
         co->entry(co->entry_arg);
+        co_role_release(_coroutine_fn);
         qemu_coroutine_switch(co, co->caller, COROUTINE_TERMINATE);
     }
 }

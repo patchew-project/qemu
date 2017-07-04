@@ -25,6 +25,8 @@ enum {
     POOL_BATCH_SIZE = 64,
 };
 
+coroutine_role _coroutine_fn;
+
 /** Free list to speed up creation */
 static QSLIST_HEAD(, Coroutine) release_pool = QSLIST_HEAD_INITIALIZER(pool);
 static unsigned int release_pool_size;

@@ -28,6 +28,34 @@
  * These functions are re-entrant and may be used outside the global mutex.
  */
 
+/* clang thread-safety attributes, used for static analysis of the CFG */
+#if defined(__clang__) && (!defined(SWIG))
+#define THREAD_ANNOTATION_ATTRIBUTE__(x)   __attribute__((x))
+#else
+#define THREAD_ANNOTATION_ATTRIBUTE__(x)
+#endif
+
+#define TAA_ROLE                                        \
+    THREAD_ANNOTATION_ATTRIBUTE__(capability("role"))
+
+#define TAA_REQUIRES(...)                                               \
+    THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
+
+#define TAA_ACQUIRE(R)                                          \
+    THREAD_ANNOTATION_ATTRIBUTE__(acquire_capability(R))
+
+#define TAA_RELEASE(R)                                          \
+    THREAD_ANNOTATION_ATTRIBUTE__(release_capability(R))
+
+#define TAA_NO_ANALYSYS                                         \
+    THREAD_ANNOTATION_ATTRIBUTE__(no_thread_safety_analysis)
+
+typedef int TAA_ROLE coroutine_role;
+extern coroutine_role _coroutine_fn;
+
+static inline void co_role_acquire(coroutine_role R) TAA_ACQUIRE(R) TAA_NO_ANALYSYS {}
+static inline void co_role_release(coroutine_role R) TAA_RELEASE(R) TAA_NO_ANALYSYS {}
+
 /**
  * Mark a function that executes in coroutine context
  *
@@ -42,7 +70,8 @@
  *       ....
  *   }
  */
-#define coroutine_fn
+
+#define coroutine_fn TAA_REQUIRES(_coroutine_fn)
 
 typedef struct Coroutine Coroutine;
 

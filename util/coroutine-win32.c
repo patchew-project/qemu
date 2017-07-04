@@ -64,7 +64,9 @@ static void CALLBACK coroutine_trampoline(void *co_)
     Coroutine *co = co_;
 
     while (true) {
+        co_role_acquire(_coroutine_fn);
         co->entry(co->entry_arg);
+        co_role_release(_coroutine_fn);
         qemu_coroutine_switch(co, co->caller, COROUTINE_TERMINATE);
     }
 }
