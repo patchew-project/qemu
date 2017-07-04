@@ -1032,7 +1032,8 @@ typedef struct BlkRwCo {
     BdrvRequestFlags flags;
 } BlkRwCo;
 
-static void blk_read_entry(void *opaque)
+static void coroutine_fn
+blk_read_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
 
@@ -1040,7 +1041,8 @@ static void blk_read_entry(void *opaque)
                               rwco->qiov, rwco->flags);
 }
 
-static void blk_write_entry(void *opaque)
+static void coroutine_fn
+blk_write_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
 
@@ -1195,7 +1197,8 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     return &acb->common;
 }
 
-static void blk_aio_read_entry(void *opaque)
+static void coroutine_fn
+blk_aio_read_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
@@ -1206,7 +1209,8 @@ static void blk_aio_read_entry(void *opaque)
     blk_aio_complete(acb);
 }
 
-static void blk_aio_write_entry(void *opaque)
+static void coroutine_fn
+blk_aio_write_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
@@ -1288,7 +1292,8 @@ BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
                         blk_aio_write_entry, flags, cb, opaque);
 }
 
-static void blk_aio_flush_entry(void *opaque)
+static void coroutine_fn
+blk_aio_flush_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
@@ -1303,7 +1308,8 @@ BlockAIOCB *blk_aio_flush(BlockBackend *blk,
     return blk_aio_prwv(blk, 0, 0, NULL, blk_aio_flush_entry, 0, cb, opaque);
 }
 
-static void blk_aio_pdiscard_entry(void *opaque)
+static void coroutine_fn
+blk_aio_pdiscard_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
@@ -1339,7 +1345,8 @@ int blk_co_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
     return bdrv_co_ioctl(blk_bs(blk), req, buf);
 }
 
-static void blk_ioctl_entry(void *opaque)
+static void coroutine_fn
+blk_ioctl_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
     rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset,
@@ -1351,7 +1358,8 @@ int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
     return blk_prw(blk, req, buf, 0, blk_ioctl_entry, 0);
 }
 
-static void blk_aio_ioctl_entry(void *opaque)
+static void coroutine_fn
+blk_aio_ioctl_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
@@ -1376,7 +1384,8 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
     return blk_aio_prwv(blk, req, 0, &qiov, blk_aio_ioctl_entry, 0, cb, opaque);
 }
 
-int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
+int coroutine_fn
+blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
 {
     int ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
@@ -1386,7 +1395,8 @@ int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
     return bdrv_co_pdiscard(blk_bs(blk), offset, bytes);
 }
 
-int blk_co_flush(BlockBackend *blk)
+int coroutine_fn
+blk_co_flush(BlockBackend *blk)
 {
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
@@ -1395,7 +1405,8 @@ int blk_co_flush(BlockBackend *blk)
     return bdrv_co_flush(blk_bs(blk));
 }
 
-static void blk_flush_entry(void *opaque)
+static void coroutine_fn
+blk_flush_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
     rwco->ret = blk_co_flush(rwco->blk);
@@ -1785,7 +1796,8 @@ int blk_truncate(BlockBackend *blk, int64_t offset, Error **errp)
     return bdrv_truncate(blk->root, offset, errp);
 }
 
-static void blk_pdiscard_entry(void *opaque)
+static void coroutine_fn
+blk_pdiscard_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
     rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, rwco->qiov->size);
