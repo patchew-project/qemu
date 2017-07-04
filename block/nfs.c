@@ -679,7 +679,8 @@ static QemuOptsList nfs_create_opts = {
     }
 };
 
-static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
