@@ -224,7 +224,8 @@ static int mirror_cow_align(MirrorBlockJob *s,
     return ret;
 }
 
-static inline void mirror_wait_for_io(MirrorBlockJob *s)
+static inline void coroutine_fn
+mirror_wait_for_io(MirrorBlockJob *s)
 {
     assert(!s->waiting_for_io);
     s->waiting_for_io = true;
@@ -239,7 +240,8 @@ static inline void mirror_wait_for_io(MirrorBlockJob *s)
  *          (new_end - sector_num) if tail is rounded up or down due to
  *          alignment or buffer limit.
  */
-static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
+static int coroutine_fn
+mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
                           int nb_sectors)
 {
     BlockBackend *source = s->common.blk;
@@ -490,7 +492,8 @@ static void mirror_free_init(MirrorBlockJob *s)
  * mirror_resume() because mirror_run() will begin iterating again
  * when the job is resumed.
  */
-static void mirror_wait_for_all_io(MirrorBlockJob *s)
+static void coroutine_fn
+mirror_wait_for_all_io(MirrorBlockJob *s)
 {
     while (s->in_flight > 0) {
         mirror_wait_for_io(s);
@@ -605,7 +608,8 @@ static void mirror_exit(BlockJob *job, void *opaque)
     bdrv_unref(src);
 }
 
-static void mirror_throttle(MirrorBlockJob *s)
+static void coroutine_fn
+mirror_throttle(MirrorBlockJob *s)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
@@ -984,7 +988,8 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_enter(&s->common);
 }
 
-static void mirror_pause(BlockJob *job)
+static void coroutine_fn
+mirror_pause(BlockJob *job)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
