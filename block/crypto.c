@@ -568,7 +568,8 @@ static int block_crypto_open_luks(BlockDriverState *bs,
                                      bs, options, flags, errp);
 }
 
-static int block_crypto_create_luks(const char *filename,
+static int coroutine_fn
+block_crypto_create_luks(const char *filename,
                                     QemuOpts *opts,
                                     Error **errp)
 {
