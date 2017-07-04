@@ -872,7 +872,8 @@ static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
     return ret;
 }
 
-static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn
+vpc_create(const char *filename, QemuOpts *opts, Error **errp)
 {
     uint8_t buf[1024];
     VHDFooter *footer = (VHDFooter *) buf;
