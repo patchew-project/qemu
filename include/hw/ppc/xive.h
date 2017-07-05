@@ -33,6 +33,9 @@ typedef struct XiveICSState XiveICSState;
 struct XiveICSState {
     ICSState parent_obj;
 
+    uint32_t     esb_shift;
+    MemoryRegion esb_iomem;
+
     XIVE         *xive;
 };
 
