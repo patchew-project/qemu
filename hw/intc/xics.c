@@ -40,18 +40,26 @@
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
+    ICPStateClass *k = ICP_GET_CLASS(icp);
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
         return;
     }
-    monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
-                   cpu_index, icp->xirr, icp->xirr_owner,
-                   icp->pending_priority, icp->mfrr);
+
+    monitor_printf(mon, "CPU %d ", cpu_index);
+    if (k->print_info) {
+        k->print_info(icp, mon);
+    } else {
+        monitor_printf(mon, "XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                       icp->xirr, icp->xirr_owner,
+                       icp->pending_priority, icp->mfrr);
+    }
 }
 
 void ics_pic_print_info(ICSState *ics, Monitor *mon)
 {
+    ICSStateClass *k = ICS_BASE_GET_CLASS(ics);
     uint32_t i;
 
     monitor_printf(mon, "ICS %4x..%4x %p\n",
@@ -61,17 +69,21 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
         return;
     }
 
-    for (i = 0; i < ics->nr_irqs; i++) {
-        ICSIRQState *irq = ics->irqs + i;
+    if (k->print_info) {
+        k->print_info(ics, mon);
+    } else {
+        for (i = 0; i < ics->nr_irqs; i++) {
+            ICSIRQState *irq = ics->irqs + i;
 
-        if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
-            continue;
+            if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+                continue;
+            }
+            monitor_printf(mon, "  %4x %s %02x %02x\n",
+                           ics->offset + i,
+                           (irq->flags & XICS_FLAGS_IRQ_LSI) ?
+                           "LSI" : "MSI",
+                           irq->priority, irq->status);
         }
-        monitor_printf(mon, "  %4x %s %02x %02x\n",
-                       ics->offset + i,
-                       (irq->flags & XICS_FLAGS_IRQ_LSI) ?
-                       "LSI" : "MSI",
-                       irq->priority, irq->status);
     }
 }
 
