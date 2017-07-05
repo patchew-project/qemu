@@ -1056,6 +1056,20 @@ static void nvme_aio_unplug(BlockDriverState *bs)
     }
 }
 
+static void nvme_dma_map(BlockDriverState *bs, void *host, size_t size)
+{
+    BDRVNVMeState *s = bs->opaque;
+
+    nvme_vfio_dma_map(s->vfio, host, size, false, NULL);
+}
+
+static void nvme_dma_unmap(BlockDriverState *bs, void *host)
+{
+    BDRVNVMeState *s = bs->opaque;
+
+    nvme_vfio_dma_unmap(s->vfio, host);
+}
+
 static BlockDriver bdrv_nvme = {
     .format_name              = "nvme",
     .protocol_name            = "nvme",
@@ -1081,6 +1095,9 @@ static BlockDriver bdrv_nvme = {
 
     .bdrv_io_plug             = nvme_aio_plug,
     .bdrv_io_unplug           = nvme_aio_unplug,
+
+    .bdrv_dma_map             = nvme_dma_map,
+    .bdrv_dma_unmap           = nvme_dma_unmap,
 };
 
 static void bdrv_nvme_init(void)
