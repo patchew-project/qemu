@@ -3385,6 +3385,10 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
         icp_pic_print_info(ICP(cpu->intc), mon);
     }
 
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        xive_ics_pic_print_info(spapr->xive, mon);
+    }
+
     ics_pic_print_info(spapr->ics, mon);
 }
 

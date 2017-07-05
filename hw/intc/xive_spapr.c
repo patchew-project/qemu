@@ -36,6 +36,11 @@ ICSState *xive_ics_get(XIVE *x, uint32_t lisn)
     return ics_valid_irq(ics, lisn) ? ics : NULL;
 }
 
+void xive_ics_pic_print_info(XIVE *x, Monitor *mon)
+{
+    ics_pic_print_info(ICS_BASE(&x->ipi_xs), mon);
+}
+
 static XiveICSState *xive_ics_find(sPAPRMachineState *spapr, uint32_t lisn)
 {
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(spapr);
