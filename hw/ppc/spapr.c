@@ -54,6 +54,7 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/xive.h"
 #include "hw/pci/msi.h"
 
 #include "hw/pci/pci.h"
@@ -202,6 +203,38 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
             pre_2_10_vmstate_register_dummy_icp(i);
         }
     }
+}
+
+static XIVE *spapr_xive_create(sPAPRMachineState *spapr, int nr_servers,
+                               Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    /* TODO: We don't have KVM support yet so check irqchip=off here */
+    if (kvm_enabled() && machine_kernel_irqchip_required(MACHINE(spapr))) {
+        error_prepend(errp, "kernel_irqchip requested but unavailable");
+        return NULL;
+    }
+
+    obj = object_new(TYPE_XIVE);
+    object_property_add_child(OBJECT(spapr), "xive", obj, &error_abort);
+    object_property_set_int(obj, nr_servers, "nr-targets", &local_err);
+    if (local_err) {
+        goto error;
+    }
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    /* Install hcalls */
+    xive_spapr_init(spapr);
+
+    return XIVE(obj);
+error:
+    error_propagate(errp, local_err);
+    return NULL;
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
@@ -2191,6 +2224,14 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* Set up Interrupt Controller before we create the VCPUs */
     xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
+
+    /* Set up XIVE. CAS will choose whether the guest runs in XICS
+     * (legacy mode) or XIVE Exploitation mode
+     *
+     * TODO: if XIVE creation fails, force the use of XICS legacy
+     */
+    spapr->xive = spapr_xive_create(spapr, xics_max_server_number(),
+                                    &error_fatal);
 
     /* Set up containers for ibm,client-set-architecture negotiated options */
     spapr->ov5 = spapr_ovec_new();
