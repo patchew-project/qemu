@@ -69,6 +69,7 @@ void xive_spapr_init(sPAPRMachineState *spapr);
 void xive_spapr_populate(XIVE *x, void *fdt);
 
 void xive_mmio_map(XIVE *x);
+uint32_t xive_alloc_hw_irqs(XIVE *x, uint32_t count, uint32_t align);
 
 void xive_ics_create(XiveICSState *xs, XIVE *x, uint32_t offset,
                      uint32_t nr_irqs, uint32_t shift, uint32_t flags,

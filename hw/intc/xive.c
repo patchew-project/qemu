@@ -748,6 +748,59 @@ void xive_ics_create(XiveICSState *xs, XIVE *x, uint32_t offset,
 }
 
 /*
+ * IRQ number allocators
+ */
+uint32_t xive_alloc_hw_irqs(XIVE *x, uint32_t count, uint32_t align)
+{
+    uint32_t base;
+    int i;
+
+    base = x->int_hw_bot - count;
+    base &= ~(align - 1);
+    if (base < x->int_ipi_top) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "XIVE: HW alloc request for %d interrupts "
+                      "aligned to %d failed\n",
+                      count, align);
+        return -1;
+    }
+
+    x->int_hw_bot = base;
+
+    for (i = 0; i < count; i++) {
+        XiveIVE *ive = xive_get_ive(x, base + i);
+
+        ive->w = IVE_VALID | IVE_MASKED;
+    }
+    return base;
+}
+
+static uint32_t xive_alloc_ipi_irqs(XIVE *x, uint32_t count, uint32_t align)
+{
+    uint32_t base;
+    int i;
+
+    base = x->int_ipi_top + (align - 1);
+    base &= ~(align - 1);
+    if (base >= x->int_hw_bot) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "IPI alloc request for %d interrupts aligned to %d "
+                      "failed\n",
+                      count, align);
+                return -1;
+    }
+
+    x->int_ipi_top = base + count;
+
+    for (i = 0; i < count; i++) {
+        XiveIVE *ive = xive_get_ive(x, base + i);
+
+        ive->w = IVE_VALID | IVE_MASKED;
+    }
+    return base;
+}
+
+/*
  * Main XIVE object
  */
 
