@@ -266,6 +266,7 @@ dummy := $(call unnest-vars,, \
                 chardev-obj-y \
                 util-obj-y \
                 qga-obj-y \
+                qga-serial-listener-obj-y \
                 ivshmem-client-obj-y \
                 ivshmem-server-obj-y \
                 libvhost-user-obj-y \
@@ -390,6 +391,9 @@ qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 
+qga-serial-listener$(EXESUF): LIBS = $(LIBS_QGA)
+qga-serial-listener$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
+
 gen-out-type = $(subst .,-,$(suffix $@))
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
@@ -448,6 +452,11 @@ $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 qemu-ga$(EXESUF): $(qga-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
 
+$(qga-serial-listener-obj-y) qga-serial-listener.o: $(QGALIB_GEN)
+
+qga-serial-listener$(EXESUF): $(qga-serial-listener-obj-y) $(COMMON_LDADDS)
+	$(call LINK, $^)
+
 ifdef QEMU_GA_MSI_ENABLED
 QEMU_GA_MSI=qemu-ga-$(ARCH).msi
 
@@ -467,7 +476,7 @@ endif
 
 ifneq ($(EXESUF),)
 .PHONY: qemu-ga
-qemu-ga: qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
+qemu-ga: qga-serial-listener$(EXESUF) qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
 endif
 
 ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) $(COMMON_LDADDS)

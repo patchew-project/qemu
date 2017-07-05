@@ -28,6 +28,9 @@ typedef struct GAService {
 int ga_install_service(const char *path, const char *logfile,
                        const char *state_dir);
 int ga_uninstall_service(void);
+int ga_install_serial_listener_service(const char *path, const char *logfile,
+    const char *state_dir);
+int ga_uninstall_serial_listener_service(void);
 int start_service(const char *service_name);
 int stop_service(const char *service_name);
 

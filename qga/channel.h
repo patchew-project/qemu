@@ -12,6 +12,15 @@
 #ifndef QGA_CHANNEL_H
 #define QGA_CHANNEL_H
 
+#ifndef _WIN32
+#define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
+#define QGA_STATE_RELATIVE_DIR  "run"
+#define QGA_SERIAL_PATH_DEFAULT "/dev/ttyS0"
+#else
+#define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
+#define QGA_STATE_RELATIVE_DIR  "qemu-ga"
+#define QGA_SERIAL_PATH_DEFAULT "COM1"
+#endif
 
 typedef struct GAChannel GAChannel;
 

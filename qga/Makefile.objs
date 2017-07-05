@@ -5,4 +5,6 @@ qga-obj-$(CONFIG_WIN32) += vss-win32.o
 qga-obj-y += qapi-generated/qga-qapi-types.o qapi-generated/qga-qapi-visit.o
 qga-obj-y += qapi-generated/qga-qmp-marshal.o
 
+qga-serial-listener-obj-$(CONFIG_WIN32) = service-win32.o serial-listener-service-win32.o
+
 qga-vss-dll-obj-$(CONFIG_QGA_VSS) += vss-win32/

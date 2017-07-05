@@ -40,15 +40,6 @@
 #endif
 #endif
 
-#ifndef _WIN32
-#define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
-#define QGA_STATE_RELATIVE_DIR  "run"
-#define QGA_SERIAL_PATH_DEFAULT "/dev/ttyS0"
-#else
-#define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
-#define QGA_STATE_RELATIVE_DIR  "qemu-ga"
-#define QGA_SERIAL_PATH_DEFAULT "COM1"
-#endif
 #ifdef CONFIG_FSFREEZE
 #define QGA_FSFREEZE_HOOK_DEFAULT CONFIG_QEMU_CONFDIR "/fsfreeze-hook"
 #endif
@@ -1162,6 +1153,10 @@ static void config_parse(GAConfig *config, int argc, char **argv)
                 if (ga_install_vss_provider()) {
                     exit(EXIT_FAILURE);
                 }
+                if (ga_install_serial_listener_service(config->channel_path,
+                    config->log_filepath, config->state_dir)) {
+                    exit(EXIT_FAILURE);
+                }
                 if (ga_install_service(config->channel_path,
                                        config->log_filepath, config->state_dir)) {
                     exit(EXIT_FAILURE);
@@ -1169,6 +1164,7 @@ static void config_parse(GAConfig *config, int argc, char **argv)
                 exit(EXIT_SUCCESS);
             } else if (strcmp(config->service, "uninstall") == 0) {
                 ga_uninstall_vss_provider();
+                ga_uninstall_serial_listener_service();
                 exit(ga_uninstall_service());
             } else if (strcmp(config->service, "vss-install") == 0) {
                 if (ga_install_vss_provider()) {
@@ -1177,6 +1173,15 @@ static void config_parse(GAConfig *config, int argc, char **argv)
                 exit(EXIT_SUCCESS);
             } else if (strcmp(config->service, "vss-uninstall") == 0) {
                 ga_uninstall_vss_provider();
+                exit(EXIT_SUCCESS);
+            } else if (strcmp(config->service, "sl-install") == 0) {
+                if (ga_install_serial_listener_service(config->channel_path,
+                    config->log_filepath, config->state_dir)) {
+                    exit(EXIT_FAILURE);
+                }
+                exit(EXIT_SUCCESS);
+            } else if (strcmp(config->service, "sl-uninstall") == 0) {
+                ga_uninstall_serial_listener_service();
                 exit(EXIT_SUCCESS);
             } else {
                 printf("Unknown service command.\n");

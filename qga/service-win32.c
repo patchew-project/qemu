@@ -12,7 +12,9 @@
  */
 #include "qemu/osdep.h"
 #include <windows.h>
+#include "shlwapi.h"
 #include "qga/service-win32.h"
+#include "qga/serial-listener-service-win32.h"
 
 static int printf_win_error(const char *text)
 {
@@ -108,6 +110,7 @@ static int get_service(const char *service_name, SC_HANDLE* service)
     *service = OpenService(manager, service_name, SERVICE_ALL_ACCESS);
     if (service == NULL) {
         printf_win_error("Failed to open service");
+        CloseServiceHandle(manager);
         return EXIT_FAILURE;
     }
 
@@ -115,27 +118,23 @@ static int get_service(const char *service_name, SC_HANDLE* service)
     return EXIT_SUCCESS;
 }
 
-int ga_install_service(const char *path, const char *logfile,
-                       const char *state_dir)
+static int install_service(const char *path, const char *logfile,
+    const char *state_dir, TCHAR *binary_path, LPCTSTR service_name,
+    LPCTSTR service_display_name, SERVICE_DESCRIPTION service_desc,
+    bool start_service)
 {
     int ret = EXIT_FAILURE;
     SC_HANDLE manager;
     SC_HANDLE service;
-    TCHAR module_fname[MAX_PATH];
     GString *esc;
     GString *cmdline;
-    SERVICE_DESCRIPTION desc = { (char *)QGA_SERVICE_DESCRIPTION };
 
-    if (GetModuleFileName(NULL, module_fname, MAX_PATH) == 0) {
-        printf_win_error("No full path to service's executable");
-        return EXIT_FAILURE;
-    }
 
     esc     = g_string_new("");
     cmdline = g_string_new("");
 
     g_string_append_printf(cmdline, "%s -d",
-                           win_escape_arg(module_fname, esc));
+                           win_escape_arg(binary_path, esc));
 
     if (path) {
         g_string_append_printf(cmdline, " -p %s", win_escape_arg(path, esc));
@@ -157,7 +156,7 @@ int ga_install_service(const char *path, const char *logfile,
         goto out_strings;
     }
 
-    service = CreateService(manager, QGA_SERVICE_NAME, QGA_SERVICE_DISPLAY_NAME,
+    service = CreateService(manager, service_name, service_display_name,
         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
         SERVICE_ERROR_NORMAL, cmdline->str, NULL, NULL, NULL, NULL, NULL);
     if (service == NULL) {
@@ -165,8 +164,12 @@ int ga_install_service(const char *path, const char *logfile,
         goto out_manager;
     }
 
-    ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION, &desc);
+    ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION, &service_desc);
     fprintf(stderr, "Service was installed successfully.\n");
+
+    if (start_service && StartService(service, 0, NULL)) {
+        fprintf(stderr, "Service was started successfully.\n");
+    }
     ret = EXIT_SUCCESS;
     CloseServiceHandle(service);
 
@@ -179,7 +182,21 @@ out_strings:
     return ret;
 }
 
-int ga_uninstall_service(void)
+int ga_install_service(const char *path, const char *logfile,
+                       const char *state_dir)
+{
+    TCHAR module_fname[MAX_PATH];
+
+    if (GetModuleFileName(NULL, module_fname, MAX_PATH) == 0) {
+        printf_win_error("No full path to service's executable");
+        return EXIT_FAILURE;
+    }
+    SERVICE_DESCRIPTION service_desc = { (char *)QGA_SERVICE_DESCRIPTION };
+    return install_service(path, logfile, state_dir, module_fname,
+        QGA_SERVICE_NAME, QGA_SERVICE_DISPLAY_NAME, service_desc, true);
+}
+
+static int uninstall_service(LPCTSTR service_name)
 {
     SC_HANDLE manager;
     SC_HANDLE service;
@@ -190,7 +207,7 @@ int ga_uninstall_service(void)
         return EXIT_FAILURE;
     }
 
-    service = OpenService(manager, QGA_SERVICE_NAME, DELETE);
+    service = OpenService(manager, service_name, DELETE);
     if (service == NULL) {
         printf_win_error("No handle to service");
         CloseServiceHandle(manager);
@@ -207,6 +224,42 @@ int ga_uninstall_service(void)
     CloseServiceHandle(manager);
 
     return EXIT_SUCCESS;
+}
+
+int ga_uninstall_service(void)
+{
+    return uninstall_service(QGA_SERVICE_NAME);
+}
+
+int ga_install_serial_listener_service(const char *path, const char *logfile,
+    const char *state_dir)
+{
+    TCHAR module_fname[MAX_PATH];
+    TCHAR binary_path[MAX_PATH];
+
+    if (GetModuleFileName(NULL, module_fname, MAX_PATH) == 0) {
+        printf_win_error("No full path to service's executable");
+        return EXIT_FAILURE;
+    }
+    fprintf(stderr, "ga_install_serial_listener_service: module name: %s\n",
+        module_fname);
+    PathRemoveFileSpec(module_fname);
+    if (SearchPath(module_fname, QGA_SERIAL_LISTENER_BINARY_NAME, NULL,
+        MAX_PATH, binary_path, NULL) == 0) {
+        printf_win_error("No full path to service's executable");
+        return EXIT_FAILURE;
+    }
+
+    SERVICE_DESCRIPTION service_desc = {
+        (char *)QGA_SERIAL_LISTENER_SERVICE_DESCRIPTION };
+    return install_service(path, logfile, state_dir, binary_path,
+        QGA_SERIAL_LISTENER_SERVICE_NAME,
+        QGA_SERIAL_LISTENER_SERVICE_DISPLAY_NAME, service_desc, true);
+}
+
+int ga_uninstall_serial_listener_service(void)
+{
+    return uninstall_service(QGA_SERIAL_LISTENER_SERVICE_NAME);
 }
 
 int start_service(const char *service_name)
