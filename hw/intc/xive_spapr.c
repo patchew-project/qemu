@@ -743,3 +743,39 @@ void xive_spapr_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_INT_SYNC, h_int_sync);
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
 }
+
+void xive_spapr_populate(XIVE *x, void *fdt)
+{
+    int node;
+    uint64_t timas[2 * 2];
+    uint32_t lisn_ranges[] = {
+        cpu_to_be32(x->int_ipi_top - x->int_base - x->nr_targets),  /* start */
+        cpu_to_be32(x->nr_targets),  /* count */
+    };
+    uint32_t eq_sizes[] = {
+        cpu_to_be32(12), /* 4K */
+        cpu_to_be32(16), /* 64K */
+        cpu_to_be32(21), /* 2M */
+        cpu_to_be32(24), /* 16M */
+    };
+    int i;
+
+    /* Thread Interrupt Management Areas : User and OS */
+    for (i = 0; i < 2; i++) {
+        timas[i * 2] = cpu_to_be64(x->tm_base + i * (1 << x->tm_shift));
+        timas[i * 2 + 1] = cpu_to_be64(1 << x->tm_shift);
+    }
+
+    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
+
+    _FDT(fdt_setprop_string(fdt, node, "name", "interrupt-controller"));
+    _FDT(fdt_setprop_string(fdt, node, "device_type", "power-ivpe"));
+    _FDT(fdt_setprop(fdt, node, "reg", timas, sizeof(timas)));
+
+    _FDT(fdt_setprop_string(fdt, node, "compatible", "ibm,power-ivpe"));
+    _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
+    _FDT(fdt_setprop(fdt, node, "ibm,xive-eq-sizes", eq_sizes,
+                     sizeof(eq_sizes)));
+    _FDT(fdt_setprop(fdt, node, "ibm,xive-lisn-ranges", lisn_ranges,
+                     sizeof(lisn_ranges)));
+}

@@ -66,5 +66,6 @@ struct XiveICPState {
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 void xive_spapr_init(sPAPRMachineState *spapr);
+void xive_spapr_populate(XIVE *x, void *fdt);
 
 #endif /* PPC_XIVE_H */
