@@ -30,9 +30,18 @@ typedef struct XiveICSState XiveICSState;
 #define TYPE_ICS_XIVE "xive-source"
 #define ICS_XIVE(obj) OBJECT_CHECK(XiveICSState, (obj), TYPE_ICS_XIVE)
 
+/*
+ * XIVE Interrupt source flags
+ */
+#define XIVE_SRC_H_INT_ESB     (1ull << (63 - 60))
+#define XIVE_SRC_LSI           (1ull << (63 - 61))
+#define XIVE_SRC_TRIGGER       (1ull << (63 - 62))
+#define XIVE_SRC_STORE_EOI     (1ull << (63 - 63))
+
 struct XiveICSState {
     ICSState parent_obj;
 
+    uint64_t     flags;
     uint32_t     esb_shift;
     MemoryRegion esb_iomem;
 

@@ -345,6 +345,7 @@ static Property xive_ics_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
     DEFINE_PROP_UINT32("irq-base", ICSState, offset, 0),
     DEFINE_PROP_UINT32("shift", XiveICSState, esb_shift, 0),
+    DEFINE_PROP_UINT64("flags", XiveICSState, flags, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
