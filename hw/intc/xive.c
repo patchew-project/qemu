@@ -53,6 +53,21 @@ static uint64_t xive_icp_accept(XiveICPState *xicp)
     return (nsr << 8) | xicp->tima_os[TM_CPPR];
 }
 
+static uint8_t ipb_to_pipr(uint8_t ibp)
+{
+    return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
+}
+
+static void xive_icp_notify(XiveICPState *xicp)
+{
+    xicp->tima_os[TM_PIPR] = ipb_to_pipr(xicp->tima_os[TM_IPB]);
+
+    if (xicp->tima_os[TM_PIPR] < xicp->tima_os[TM_CPPR]) {
+        xicp->tima_os[TM_NSR] |= TM_QW1_NSR_EO;
+        qemu_irq_raise(ICP(xicp)->output);
+    }
+}
+
 static void xive_icp_set_cppr(XiveICPState *xicp, uint8_t cppr)
 {
     if (cppr > XIVE_PRIORITY_MAX) {
@@ -60,6 +75,10 @@ static void xive_icp_set_cppr(XiveICPState *xicp, uint8_t cppr)
     }
 
     xicp->tima_os[TM_CPPR] = cppr;
+
+    /* CPPR has changed, inform the ICP which might raise an
+     * exception */
+    xive_icp_notify(xicp);
 }
 
 /*
@@ -339,6 +358,8 @@ static void xive_icp_irq(XiveICSState *xs, int lisn)
     } else {
         qemu_log_mask(LOG_UNIMP, "XIVE: w7 format1 not implemented\n");
     }
+
+    xive_icp_notify(xicp);
 }
 
 /*
