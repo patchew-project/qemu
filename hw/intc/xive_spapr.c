@@ -26,6 +26,16 @@
 
 #include "xive-internal.h"
 
+/*
+ * Used by the XICSFabric ics_get handler in sPAPR
+ */
+ICSState *xive_ics_get(XIVE *x, uint32_t lisn)
+{
+    ICSState *ics = ICS_BASE(&x->ipi_xs);
+
+    return ics_valid_irq(ics, lisn) ? ics : NULL;
+}
+
 static XiveICSState *xive_ics_find(sPAPRMachineState *spapr, uint32_t lisn)
 {
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(spapr);

@@ -3347,7 +3347,16 @@ static ICSState *spapr_ics_get(XICSFabric *dev, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(dev);
 
-    return ics_valid_irq(spapr->ics, irq) ? spapr->ics : NULL;
+    if (ics_valid_irq(spapr->ics, irq)) {
+        return spapr->ics;
+    }
+
+    /* If needed, check the XIVE IPI source also */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        return xive_ics_get(spapr->xive, irq);
+    }
+
+    return NULL;
 }
 
 static void spapr_ics_resend(XICSFabric *dev)
