@@ -70,4 +70,8 @@ void xive_spapr_populate(XIVE *x, void *fdt);
 
 void xive_mmio_map(XIVE *x);
 
+void xive_ics_create(XiveICSState *xs, XIVE *x, uint32_t offset,
+                     uint32_t nr_irqs, uint32_t shift, uint32_t flags,
+                     Error **errp);
+
 #endif /* PPC_XIVE_H */

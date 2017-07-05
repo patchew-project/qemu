@@ -726,6 +726,27 @@ static const TypeInfo xive_ics_info = {
     .class_init = xive_ics_class_init,
 };
 
+void xive_ics_create(XiveICSState *xs, XIVE *x, uint32_t offset,
+                     uint32_t nr_irqs, uint32_t shift,
+                     uint32_t flags, Error **errp)
+{
+    Error *error = NULL;
+
+    object_property_add_const_link(OBJECT(xs), "xive", OBJECT(x),
+                                   &error_fatal);
+    object_property_add_const_link(OBJECT(xs), "xics",
+                                   OBJECT(qdev_get_machine()), &error_fatal);
+    object_property_set_int(OBJECT(xs), shift, "shift", &error_fatal);
+    object_property_set_int(OBJECT(xs), flags, "flags", &error_fatal);
+    object_property_set_int(OBJECT(xs), offset, "irq-base", &error_fatal);
+    object_property_set_int(OBJECT(xs), nr_irqs, "nr-irqs", &error_fatal);
+    object_property_set_bool(OBJECT(xs), true, "realized", &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+}
+
 /*
  * Main XIVE object
  */
