@@ -63,4 +63,8 @@ struct XiveICPState {
     uint8_t *tima_os;
 };
 
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+void xive_spapr_init(sPAPRMachineState *spapr);
+
 #endif /* PPC_XIVE_H */
