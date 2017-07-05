@@ -179,16 +179,28 @@ static void print_loc(void)
 
 bool enable_timestamp_msg;
 /*
- * Print an error message to current monitor if we have one, else to stderr.
+ * Print a message to current monitor if we have one, else to stderr.
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
  * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
-void error_vreport(const char *fmt, va_list ap)
+void qmsg_vreport(report_type type, const char *fmt, va_list ap)
 {
     GTimeVal tv;
     gchar *timestr;
+
+    switch (type) {
+    case REPORT_TYPE_ERROR:
+        /* To maintain compatibility we don't add anything here */
+        break;
+    case REPORT_TYPE_WARNING:
+        error_printf("warning: ");
+        break;
+    case REPORT_TYPE_INFO:
+        error_printf("info: ");
+        break;
+    }
 
     if (enable_timestamp_msg && !cur_mon) {
         g_get_current_time(&tv);
@@ -204,16 +216,78 @@ void error_vreport(const char *fmt, va_list ap)
 
 /*
  * Print an error message to current monitor if we have one, else to stderr.
+ */
+void error_vreport(const char *fmt, va_list ap)
+{
+    qmsg_vreport(REPORT_TYPE_ERROR, fmt, ap);
+}
+
+/*
+ * Print a warning message to current monitor if we have one, else to stderr.
+ */
+void warn_vreport(const char *fmt, va_list ap)
+{
+    qmsg_vreport(REPORT_TYPE_WARNING, fmt, ap);
+}
+
+/*
+ * Print an information message to current monitor if we have one, else to
+ * stderr.
+ */
+void info_vreport(const char *fmt, va_list ap)
+{
+    qmsg_vreport(REPORT_TYPE_INFO, fmt, ap);
+}
+
+/*
+ * Print a message to current monitor if we have one, else to stderr.
  * Format arguments like sprintf().  The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
  * It's wrong to call this in a QMP monitor.  Use error_setg() there.
+ */
+void qmsg_report(report_type type, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmsg_vreport(type, fmt, ap);
+    va_end(ap);
+}
+
+/*
+ * Print an error message to current monitor if we have one, else to stderr.
  */
 void error_report(const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    error_vreport(fmt, ap);
+    qmsg_vreport(REPORT_TYPE_ERROR, fmt, ap);
+    va_end(ap);
+}
+
+/*
+ * Print a warning message to current monitor if we have one, else to stderr.
+ */
+void warn_report(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmsg_vreport(REPORT_TYPE_WARNING, fmt, ap);
+    va_end(ap);
+}
+
+/*
+ * Print an information message to current monitor if we have one, else to
+ * stderr.
+ */
+void info_report(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmsg_vreport(REPORT_TYPE_INFO, fmt, ap);
     va_end(ap);
 }

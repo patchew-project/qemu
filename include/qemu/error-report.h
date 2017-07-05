@@ -21,6 +21,12 @@ typedef struct Location {
     struct Location *prev;
 } Location;
 
+typedef enum {
+    REPORT_TYPE_ERROR,
+    REPORT_TYPE_WARNING,
+    REPORT_TYPE_INFO,
+} report_type;
+
 Location *loc_push_restore(Location *loc);
 Location *loc_push_none(Location *loc);
 Location *loc_pop(Location *loc);
@@ -30,13 +36,23 @@ void loc_set_none(void);
 void loc_set_cmdline(char **argv, int idx, int cnt);
 void loc_set_file(const char *fname, int lno);
 
+void qmsg_vreport(report_type type, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
+void qmsg_report(report_type type, const char *fmt, ...)  GCC_FMT_ATTR(2, 3);
+
 void error_vprintf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 void error_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void error_vprintf_unless_qmp(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 void error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void error_set_progname(const char *argv0);
+
 void error_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+void warn_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+void info_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+
 void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void warn_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void info_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+
 const char *error_get_progname(void);
 extern bool enable_timestamp_msg;
 
