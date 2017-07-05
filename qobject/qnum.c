@@ -18,6 +18,8 @@
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
+#include <math.h>
+
 /**
  * qnum_from_int(): Create a new QNum from an int64_t
  *
@@ -210,6 +212,77 @@ QNum *qobject_to_qnum(const QObject *obj)
         return NULL;
     }
     return container_of(obj, QNum, base);
+}
+
+/**
+ * qnum_is_equal(): Test whether the two QNums are equal
+ *
+ * Negative integers are never considered equal to unsigned integers.
+ * Doubles are only considered equal to integers if their fractional
+ * part is zero and their integral part is exactly equal to the
+ * integer.  Because doubles have limited precision, there are
+ * therefore integers which do not have an equal double (e.g.
+ * INT64_MAX).
+ */
+bool qnum_is_equal(const QObject *x, const QObject *y)
+{
+    QNum *num_x = qobject_to_qnum(x);
+    QNum *num_y = qobject_to_qnum(y);
+    double integral_part; /* Needed for the modf() calls below */
+
+    switch (num_x->kind) {
+    case QNUM_I64:
+        switch (num_y->kind) {
+        case QNUM_I64:
+            /* Comparison in native int64_t type */
+            return num_x->u.i64 == num_y->u.i64;
+        case QNUM_U64:
+            /* Implicit conversion of x to uin64_t, so we have to
+             * check its sign before */
+            return num_x->u.i64 >= 0 && num_x->u.i64 == num_y->u.u64;
+        case QNUM_DOUBLE:
+            /* Comparing x to y in double (which the implicit
+             * conversion would do) is not exact.  So after having
+             * checked that y is an integer in the int64_t range
+             * (i.e. that it is within bounds and its fractional part
+             * is zero), compare both as integers. */
+            return num_y->u.dbl >= -0x1p63 && num_y->u.dbl < 0x1p63 &&
+                modf(num_y->u.dbl, &integral_part) == 0.0 &&
+                num_x->u.i64 == (int64_t)num_y->u.dbl;
+        }
+        abort();
+    case QNUM_U64:
+        switch (num_y->kind) {
+        case QNUM_I64:
+            return qnum_is_equal(y, x);
+        case QNUM_U64:
+            /* Comparison in native uint64_t type */
+            return num_x->u.u64 == num_y->u.u64;
+        case QNUM_DOUBLE:
+            /* Comparing x to y in double (which the implicit
+             * conversion would do) is not exact.  So after having
+             * checked that y is an integer in the uint64_t range
+             * (i.e. that it is within bounds and its fractional part
+             * is zero), compare both as integers. */
+            return num_y->u.dbl >= 0 && num_y->u.dbl < 0x1p64 &&
+                modf(num_y->u.dbl, &integral_part) == 0.0 &&
+                num_x->u.u64 == (uint64_t)num_y->u.dbl;
+        }
+        abort();
+    case QNUM_DOUBLE:
+        switch (num_y->kind) {
+        case QNUM_I64:
+            return qnum_is_equal(y, x);
+        case QNUM_U64:
+            return qnum_is_equal(y, x);
+        case QNUM_DOUBLE:
+            /* Comparison in native double type */
+            return num_x->u.dbl == num_y->u.dbl;
+        }
+        abort();
+    }
+
+    abort();
 }
 
 /**
