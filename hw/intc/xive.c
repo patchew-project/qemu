@@ -290,6 +290,25 @@ static void xive_ics_set_irq(void *opaque, int srcno, int val)
     }
 }
 
+static void xive_ics_print_info(ICSState *ics, Monitor *mon)
+{
+    XiveICSState *xs = ICS_XIVE(ics);
+    int i;
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        ICSIRQState *irq = ics->irqs + i;
+
+        if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+            continue;
+        }
+        monitor_printf(mon, "  %4x %s pq=%02x status=%02x\n",
+                       ics->offset + i,
+                       (irq->flags & XICS_FLAGS_IRQ_LSI) ? "LSI" : "MSI",
+                       xive_pq_get(xs->xive, ics->offset + i),
+                       irq->status);
+    }
+}
+
 static void xive_ics_reset(void *dev)
 {
     ICSState *ics = ICS_BASE(dev);
@@ -364,6 +383,7 @@ static void xive_ics_class_init(ObjectClass *klass, void *data)
     ICSStateClass *isc = ICS_BASE_CLASS(klass);
 
     isc->realize = xive_ics_realize;
+    isc->print_info = xive_ics_print_info;
 
     dc->props = xive_ics_properties;
 }
