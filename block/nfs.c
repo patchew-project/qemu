@@ -679,7 +679,8 @@ static QemuOptsList nfs_create_opts = {
     }
 };
 
-static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
+static int coroutine_fn nfs_file_co_create(const char *url, QemuOpts *opts,
+                                           Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
@@ -886,7 +887,7 @@ static BlockDriver bdrv_nfs = {
 
     .bdrv_file_open                 = nfs_file_open,
     .bdrv_close                     = nfs_file_close,
-    .bdrv_create                    = nfs_file_create,
+    .bdrv_co_create                 = nfs_file_co_create,
     .bdrv_reopen_prepare            = nfs_reopen_prepare,
 
     .bdrv_co_preadv                 = nfs_co_preadv,
