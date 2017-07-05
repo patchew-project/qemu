@@ -237,6 +237,38 @@ error:
     return NULL;
 }
 
+static XiveICSState *spapr_xive_ics_create(XIVE *x, int nr_irqs, Error **errp)
+{
+    Error *local_err = NULL;
+    int irq_base;
+    Object *obj;
+
+    /*
+     * TODO: use an XICS_IRQ_BASE alignment to be in sync with XICS
+     * irq numbers. we should probably simplify the XIVE model or use
+     * a common allocator. a bitmap maybe ?
+     */
+    irq_base = xive_alloc_hw_irqs(x, nr_irqs, XICS_IRQ_BASE);
+    if (irq_base < 0) {
+        error_setg(errp, "Failed to allocate %d irqs", nr_irqs);
+        return NULL;
+    }
+
+    obj = object_new(TYPE_ICS_XIVE);
+    object_property_add_child(OBJECT(x), "hw", obj, NULL);
+
+    xive_ics_create(ICS_XIVE(obj), x, irq_base, nr_irqs, 16 /* 64KB page */,
+                    XIVE_SRC_TRIGGER, &local_err);
+    if (local_err) {
+        goto error;
+    }
+    return ICS_XIVE(obj);
+
+error:
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
                                   int smt_threads)
 {
@@ -814,6 +846,11 @@ static int spapr_dt_cas_updates(sPAPRMachineState *spapr, void *fdt,
     /* /interrupt controller */
     if (!spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)) {
         spapr_dt_xics(xics_max_server_number(), fdt, PHANDLE_XICP);
+    } else {
+        xive_spapr_populate(spapr->xive, fdt);
+
+        /* Install XIVE MMIOs */
+        xive_mmio_map(spapr->xive);
     }
 
     offset = fdt_path_offset(fdt, "/chosen");
@@ -963,6 +1000,13 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         } else {
             val[3] = 0x00; /* Hash */
         }
+
+        /* TODO: introduce a kvmppc_has_cap_xive() ? Works with
+         * irqchip=off for now
+         */
+        if (first_ppc_cpu->env.excp_model & POWERPC_EXCP_POWER9) {
+            val[1] = 0x01;
+        }
     } else {
         if (first_ppc_cpu->env.mmu_model & POWERPC_MMU_V3) {
             /* V3 MMU supports both hash and radix (with dynamic switching) */
@@ -970,6 +1014,9 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         } else {
             /* Otherwise we can only do hash */
             val[3] = 0x00;
+        }
+        if (first_ppc_cpu->env.excp_model & POWERPC_EXCP_POWER9) {
+            val[1] = 0x01;
         }
     }
     _FDT(fdt_setprop(fdt, chosen, "ibm,arch-vec-5-platform-support",
@@ -2236,6 +2283,21 @@ static void ppc_spapr_init(MachineState *machine)
     /* Set up containers for ibm,client-set-architecture negotiated options */
     spapr->ov5 = spapr_ovec_new();
     spapr->ov5_cas = spapr_ovec_new();
+
+    /* TODO: force XIVE mode by default on POWER9.
+     *
+     * Switching from XICS to XIVE is badly broken. The ICP type is
+     * incorrect and the ICS is needed before the CAS negotiation to
+     * allocate irq numbers ...
+     */
+    if (strstr(machine->cpu_model, "POWER9") ||
+        !strcmp(machine->cpu_model, "host")) {
+        spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
+
+        spapr->icp_type = TYPE_XIVE_ICP;
+        spapr->ics = ICS_BASE(
+            spapr_xive_ics_create(spapr->xive, XICS_IRQS_SPAPR, &error_fatal));
+    }
 
     if (smc->dr_lmb_enabled) {
         spapr_ovec_set(spapr->ov5, OV5_DRCONF_MEMORY);
