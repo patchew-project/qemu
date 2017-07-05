@@ -200,6 +200,10 @@ struct XIVE {
     /* ESB and TIMA memory location */
     hwaddr       vc_base;
     MemoryRegion esb_iomem;
+
+    uint32_t     tm_shift;
+    hwaddr       tm_base;
+    MemoryRegion tm_iomem;
 };
 
 void xive_reset(void *dev);

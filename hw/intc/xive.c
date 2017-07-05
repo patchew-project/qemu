@@ -26,6 +26,180 @@
 
 #include "xive-internal.h"
 
+static uint8_t priority_to_ipb(uint8_t priority)
+{
+    return priority < XIVE_EQ_PRIORITY_COUNT ? 1 << (7 - priority) : 0;
+}
+
+static uint64_t xive_icp_accept(XiveICPState *xicp)
+{
+    ICPState *icp = ICP(xicp);
+    uint8_t nsr = xicp->tima_os[TM_NSR];
+
+    qemu_irq_lower(icp->output);
+
+    if (xicp->tima_os[TM_NSR] & TM_QW1_NSR_EO) {
+        uint8_t cppr = xicp->tima_os[TM_PIPR];
+
+        xicp->tima_os[TM_CPPR] = cppr;
+
+        /* Reset the pending buffer bit */
+        xicp->tima_os[TM_IPB] &= ~priority_to_ipb(cppr);
+
+        /* Drop Exception bit for OS */
+        xicp->tima_os[TM_NSR] &= ~TM_QW1_NSR_EO;
+    }
+
+    return (nsr << 8) | xicp->tima_os[TM_CPPR];
+}
+
+static void xive_icp_set_cppr(XiveICPState *xicp, uint8_t cppr)
+{
+    if (cppr > XIVE_PRIORITY_MAX) {
+        cppr = 0xff;
+    }
+
+    xicp->tima_os[TM_CPPR] = cppr;
+}
+
+/*
+ * Thread Interrupt Management Area MMIO
+ */
+static uint64_t xive_tm_read_special(XiveICPState *icp, hwaddr offset,
+                                     unsigned size)
+{
+    uint64_t ret = -1;
+
+    if (offset == TM_SPC_ACK_OS_REG && size == 2) {
+        ret = xive_icp_accept(icp);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA read @%"
+                      HWADDR_PRIx" size %d\n", offset, size);
+    }
+
+    return ret;
+}
+
+static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    XiveICPState *icp = XIVE_ICP(cpu->intc);
+    uint64_t ret = -1;
+    int i;
+
+    if (offset >= TM_SPC_ACK_EBB) {
+        return xive_tm_read_special(icp, offset, size);
+    }
+
+    if (offset & TM_QW1_OS) {
+        switch (size) {
+        case 1:
+        case 2:
+        case 4:
+        case 8:
+            if (QEMU_IS_ALIGNED(offset, size)) {
+                ret = 0;
+                for (i = 0; i < size; i++) {
+                    ret |= icp->tima[offset + i] << (8 * i);
+                }
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "XIVE: invalid TIMA read alignment @%"
+                              HWADDR_PRIx" size %d\n", offset, size);
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: does handle non-OS TIMA ring @%"
+                      HWADDR_PRIx"\n", offset);
+    }
+
+    return ret;
+}
+
+static bool xive_tm_is_readonly(uint8_t index)
+{
+    /* Let's be optimistic and prepare ground for HV mode support */
+    switch (index) {
+    case TM_QW1_OS + TM_CPPR:
+        return false;
+    default:
+        return true;
+    }
+}
+
+static void xive_tm_write_special(XiveICPState *xicp, hwaddr offset,
+                                  uint64_t value, unsigned size)
+{
+    if (offset == TM_SPC_SET_OS_PENDING && size == 1) {
+        xicp->tima_os[TM_IPB] |= priority_to_ipb(value & 0xff);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                      HWADDR_PRIx" size %d\n", offset, size);
+    }
+
+    /* TODO: support TM_SPC_ACK_OS_EL */
+}
+
+static void xive_tm_write(void *opaque, hwaddr offset,
+                           uint64_t value, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    XiveICPState *icp = XIVE_ICP(cpu->intc);
+    int i;
+
+    if (offset >= TM_SPC_ACK_EBB) {
+        xive_tm_write_special(icp, offset, value, size);
+        return;
+    }
+
+    if (offset & TM_QW1_OS) {
+        switch (size) {
+        case 1:
+            if (offset == TM_QW1_OS + TM_CPPR) {
+                xive_icp_set_cppr(icp, value & 0xff);
+            }
+            break;
+        case 4:
+        case 8:
+            if (QEMU_IS_ALIGNED(offset, size)) {
+                for (i = 0; i < size; i++) {
+                    if (!xive_tm_is_readonly(offset + i)) {
+                        icp->tima[offset + i] = (value >> (8 * i)) & 0xff;
+                    }
+                }
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                              HWADDR_PRIx" size %d\n", offset, size);
+            }
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                          HWADDR_PRIx" size %d\n", offset, size);
+        }
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: does handle non-OS TIMA ring @%"
+                      HWADDR_PRIx"\n", offset);
+    }
+}
+
+
+static const MemoryRegionOps xive_tm_ops = {
+    .read = xive_tm_read,
+    .write = xive_tm_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
 static void xive_icp_reset(ICPState *icp)
 {
     XiveICPState *xicp = XIVE_ICP(icp);
@@ -453,6 +627,11 @@ static const TypeInfo xive_ics_info = {
 #define P9_MMIO_BASE     0x006000000000000ull
 #define P9_CHIP_BASE(id) (P9_MMIO_BASE | (0x40000000000ull * (uint64_t) (id)))
 
+/* Thread Interrupt Management Area MMIO */
+#define TM_BAR_DEFAULT   0x30203180000ull
+#define TM_SHIFT         16
+#define TM_BAR_SIZE      (XIVE_TM_RING_COUNT * (1 << TM_SHIFT))
+
 static uint64_t xive_esb_default_read(void *p, hwaddr offset, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
@@ -540,6 +719,14 @@ static void xive_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&x->esb_iomem, NULL, &xive_esb_default_ops,
                           NULL, "xive.esb", VC_BAR_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &x->esb_iomem);
+
+    /* TM BAR. Same address for each chip */
+    x->tm_base = (P9_MMIO_BASE | TM_BAR_DEFAULT);
+    x->tm_shift = TM_SHIFT;
+
+    memory_region_init_io(&x->tm_iomem, OBJECT(x), &xive_tm_ops, x,
+                          "xive.tm", TM_BAR_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &x->tm_iomem);
 
     qemu_register_reset(xive_reset, dev);
 }
