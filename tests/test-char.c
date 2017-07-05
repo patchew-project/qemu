@@ -182,6 +182,7 @@ static void char_mux_test(void)
                              fe_can_read,
                              fe_read,
                              fe_event,
+                             NULL,
                              &h1,
                              NULL, true);
 
@@ -190,6 +191,7 @@ static void char_mux_test(void)
                              fe_can_read,
                              fe_read,
                              fe_event,
+                             NULL,
                              &h2,
                              NULL, true);
     qemu_chr_fe_take_focus(&chr_be2);
@@ -213,7 +215,8 @@ static void char_mux_test(void)
     h1.read_count = 0;
 
     /* remove first handler */
-    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL, NULL, true);
+    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL,
+                             NULL, NULL, true);
     qemu_chr_be_write(base, (void *)"hello", 6);
     g_assert_cmpint(h1.read_count, ==, 0);
     g_assert_cmpint(h2.read_count, ==, 0);
@@ -311,13 +314,13 @@ static void char_socket_test(void)
 
     qemu_chr_fe_init(&be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&be, socket_can_read, socket_read,
-                             NULL, &d, NULL, true);
+                             NULL, NULL, &d, NULL, true);
 
     chr_client = qemu_chr_new("client", tmp);
     qemu_chr_fe_init(&client_be, chr_client, &error_abort);
     qemu_chr_fe_set_handlers(&client_be, socket_can_read_hello,
                              socket_read_hello,
-                             NULL, &d, NULL, true);
+                             NULL, NULL, &d, NULL, true);
     g_free(tmp);
 
     d.conn_expected = true;
@@ -387,6 +390,7 @@ static void char_pipe_test(void)
                              fe_can_read,
                              fe_read,
                              fe_event,
+                             NULL,
                              &fe,
                              NULL, true);
 
@@ -435,7 +439,7 @@ static void char_udp_test(void)
     d.chr = chr;
     qemu_chr_fe_init(&be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&be, socket_can_read_hello, socket_read_hello,
-                             NULL, &d, NULL, true);
+                             NULL, NULL, &d, NULL, true);
     ret = qemu_chr_write_all(chr, (uint8_t *)"hello", 5);
     g_assert_cmpint(ret, ==, 5);
 
@@ -527,6 +531,7 @@ static void char_file_test(void)
                                  fe_can_read,
                                  fe_read,
                                  fe_event,
+                                 NULL,
                                  &fe, NULL, true);
 
         g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
@@ -587,6 +592,7 @@ static void char_null_test(void)
                              fe_can_read,
                              fe_read,
                              fe_event,
+                             NULL,
                              NULL, NULL, true);
 
     ret = qemu_chr_fe_write(&be, (void *)"buf", 4);
