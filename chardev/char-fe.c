@@ -193,6 +193,11 @@ bool qemu_chr_fe_backend_connected(CharBackend *be)
     return !!be->chr;
 }
 
+bool qemu_chr_fe_backend_open(CharBackend *be)
+{
+    return be->chr && be->chr->be_open;
+}
+
 bool qemu_chr_fe_connect(CharBackend *b, Chardev *s, Error **errp)
 {
     int tag = 0;
