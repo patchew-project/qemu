@@ -23,6 +23,7 @@
 
 typedef struct XIVE XIVE;
 typedef struct XiveICSState XiveICSState;
+typedef struct XiveICPState XiveICPState;
 
 #define TYPE_XIVE "xive"
 #define XIVE(obj) OBJECT_CHECK(XIVE, (obj), TYPE_XIVE)
@@ -38,6 +39,9 @@ typedef struct XiveICSState XiveICSState;
 #define XIVE_SRC_TRIGGER       (1ull << (63 - 62))
 #define XIVE_SRC_STORE_EOI     (1ull << (63 - 63))
 
+#define TYPE_XIVE_ICP "xive-icp"
+#define XIVE_ICP(obj) OBJECT_CHECK(XiveICPState, (obj), TYPE_XIVE_ICP)
+
 struct XiveICSState {
     ICSState parent_obj;
 
@@ -47,6 +51,16 @@ struct XiveICSState {
     MemoryRegion esb_iomem;
 
     XIVE         *xive;
+};
+
+/* Number of Thread Management Interrupt Areas */
+#define XIVE_TM_RING_COUNT 4
+
+struct XiveICPState {
+    ICPState parent_obj;
+
+    uint8_t tima[XIVE_TM_RING_COUNT * 0x10];
+    uint8_t *tima_os;
 };
 
 #endif /* PPC_XIVE_H */

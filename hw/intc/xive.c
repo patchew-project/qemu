@@ -26,6 +26,48 @@
 
 #include "xive-internal.h"
 
+static void xive_icp_reset(ICPState *icp)
+{
+    XiveICPState *xicp = XIVE_ICP(icp);
+
+    memset(xicp->tima, 0, sizeof(xicp->tima));
+}
+
+static void xive_icp_print_info(ICPState *icp, Monitor *mon)
+{
+    XiveICPState *xicp = XIVE_ICP(icp);
+
+    monitor_printf(mon, " CPPR=%02x IPB=%02x PIPR=%02x NSR=%02x\n",
+                   xicp->tima_os[TM_CPPR], xicp->tima_os[TM_IPB],
+                   xicp->tima_os[TM_PIPR], xicp->tima_os[TM_NSR]);
+}
+
+static void xive_icp_init(Object *obj)
+{
+    XiveICPState *xicp = XIVE_ICP(obj);
+
+    xicp->tima_os = &xicp->tima[TM_QW1_OS];
+}
+
+static void xive_icp_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ICPStateClass *icpc = ICP_CLASS(klass);
+
+    dc->desc = "PowerNV Xive ICP";
+    icpc->reset = xive_icp_reset;
+    icpc->print_info = xive_icp_print_info;
+}
+
+static const TypeInfo xive_icp_info = {
+    .name          = TYPE_XIVE_ICP,
+    .parent        = TYPE_ICP,
+    .instance_size = sizeof(XiveICPState),
+    .instance_init = xive_icp_init,
+    .class_init    = xive_icp_class_init,
+    .class_size    = sizeof(ICPStateClass),
+};
+
 static void xive_icp_irq(XiveICSState *xs, int lisn)
 {
 
@@ -529,6 +571,7 @@ static void xive_register_types(void)
 {
     type_register_static(&xive_info);
     type_register_static(&xive_ics_info);
+    type_register_static(&xive_icp_info);
 }
 
 type_init(xive_register_types)
