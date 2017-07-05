@@ -242,9 +242,103 @@ static const TypeInfo xive_icp_info = {
     .class_size    = sizeof(ICPStateClass),
 };
 
+static XiveICPState *xive_icp_get(XICSFabric *xi, int server)
+{
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+    ICPState *icp = xic->icp_get(xi, server);
+
+    return XIVE_ICP(icp);
+}
+
+static void xive_eq_push(XiveEQ *eq, uint32_t data)
+{
+    uint64_t qaddr_base = (((uint64_t)(eq->w2 & 0x0fffffff)) << 32) | eq->w3;
+    uint32_t qsize = GETFIELD(EQ_W0_QSIZE, eq->w0);
+    uint32_t qindex = GETFIELD(EQ_W1_PAGE_OFF, eq->w1);
+    uint32_t qgen = GETFIELD(EQ_W1_GENERATION, eq->w1);
+
+    uint64_t qaddr = qaddr_base + (qindex << 2);
+    uint32_t qdata = cpu_to_be32((qgen << 31) | (data & 0x7fffffff));
+    uint32_t qentries = 1 << (qsize + 10);
+
+    if (dma_memory_write(&address_space_memory, qaddr, &qdata, sizeof(qdata))) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to write EQ data @0x%"
+                      HWADDR_PRIx "\n", __func__, qaddr);
+        return;
+    }
+
+    qindex = (qindex + 1) % qentries;
+    if (qindex == 0) {
+        qgen ^= 1;
+        eq->w1 = SETFIELD(EQ_W1_GENERATION, eq->w1, qgen);
+    }
+    eq->w1 = SETFIELD(EQ_W1_PAGE_OFF, eq->w1, qindex);
+}
+
 static void xive_icp_irq(XiveICSState *xs, int lisn)
 {
+    XIVE *x = xs->xive;
+    XiveICPState *xicp;
+    XiveIVE *ive;
+    XiveEQ *eq;
+    uint32_t eq_idx;
+    uint32_t priority;
+    uint32_t target;
 
+    ive = xive_get_ive(x, lisn);
+    if (!ive || !(ive->w & IVE_VALID)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid LISN %d\n", lisn);
+        return;
+    }
+
+    if (ive->w & IVE_MASKED) {
+        return;
+    }
+
+    /* Find our XiveEQ */
+    eq_idx = GETFIELD(IVE_EQ_INDEX, ive->w);
+    eq = xive_get_eq(x, eq_idx);
+    if (!eq) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No EQ for LISN %d\n", lisn);
+        return;
+    }
+
+    if (eq->w0 & EQ_W0_ENQUEUE) {
+        xive_eq_push(eq, GETFIELD(IVE_EQ_DATA, ive->w));
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: !ENQUEUE not implemented\n");
+    }
+
+    if (!(eq->w0 & EQ_W0_UCOND_NOTIFY)) {
+        qemu_log_mask(LOG_UNIMP, "XIVE: !UCOND_NOTIFY not implemented\n");
+    }
+
+    target = GETFIELD(EQ_W6_NVT_INDEX, eq->w6);
+
+    /* use the XICSFabric (machine) to get the ICP */
+    xicp = xive_icp_get(ICS_BASE(xs)->xics, target);
+    if (!xicp) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No ICP for target %d\n", target);
+        return;
+    }
+
+    if (GETFIELD(EQ_W6_FORMAT_BIT, eq->w6) == 0) {
+        priority = GETFIELD(EQ_W7_F0_PRIORITY, eq->w7);
+
+        /* The EQ is masked. Can this happen ?  */
+        if (priority == 0xff) {
+            return;
+        }
+
+        /* Update the IPB (Interrupt Pending Buffer) with the priority
+         * of the new notification and inform the ICP, which will
+         * decide to raise the exception, or not, depending on its
+         * current CPPR value.
+         */
+        xicp->tima_os[TM_IPB] |= priority_to_ipb(priority);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "XIVE: w7 format1 not implemented\n");
+    }
 }
 
 /*
