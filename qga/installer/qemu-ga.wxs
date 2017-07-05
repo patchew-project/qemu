@@ -83,6 +83,9 @@
             </ServiceInstall>
             <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="QEMU-GA" Wait="no" />
           </Component>
+          <Component Id="qga_serial_listener" Guid="{1B7B5172-4097-46E1-8A76-CCF2D31AE450}">
+            <File Id="qga_serial_listener.exe" Name="qga-serial-listener.exe" Source="$(env.BUILD_DIR)/qga-serial-listener.exe" KeyPath="yes" DiskId="1"/>
+          </Component>
           <?ifdef var.InstallVss?>
           <Component Id="qga_vss_dll" Guid="{CB19C453-FABB-4BB1-ABAB-6B74F687BFBB}">
             <File Id="qga_vss.dll" Name="qga-vss.dll" Source="$(env.BUILD_DIR)/qga/vss-win32/qga-vss.dll" KeyPath="yes" DiskId="1"/>
@@ -139,6 +142,24 @@
     <Property Id="cmd" Value="cmd.exe"/>
     <Property Id="REINSTALLMODE" Value="amus"/>
 
+
+    <CustomAction Id="RegisterSerialListener"
+	      ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s sl-install'
+              Execute="deferred"
+              Property="cmd"
+              Impersonate="no"
+              Return="check"
+              >
+    </CustomAction>
+    <CustomAction Id="UnRegisterSerialListener"
+	      ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s sl-uninstall'
+              Execute="deferred"
+              Property="cmd"
+              Impersonate="no"
+              Return="check"
+              >
+    </CustomAction>
+
     <?ifdef var.InstallVss?>
     <CustomAction Id="RegisterCom"
               ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-install'
@@ -160,6 +181,7 @@
 
     <Feature Id="QEMUFeature" Title="QEMU Guest Agent" Level="1">
       <ComponentRef Id="qemu_ga" />
+      <ComponentRef Id="qga_serial_listener" />
       <?ifdef var.InstallVss?>
       <ComponentRef Id="qga_vss_dll" />
       <ComponentRef Id="qga_vss_tlb" />
@@ -176,6 +198,8 @@
     </Feature>
 
     <InstallExecuteSequence>
+      <Custom Action="UnRegisterSerialListener" After="StopServices">Installed</Custom>
+      <Custom Action="RegisterSerialListener" Before="InstallFinalize">NOT REMOVE</Custom>
       <?ifdef var.InstallVss?>
       <Custom Action="UnRegisterCom" After="StopServices">Installed</Custom>
       <Custom Action="RegisterCom" After="InstallServices">NOT REMOVE</Custom>
