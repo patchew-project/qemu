@@ -43,6 +43,7 @@ struct XiveICSState {
 
     uint64_t     flags;
     uint32_t     esb_shift;
+    hwaddr       esb_base;
     MemoryRegion esb_iomem;
 
     XIVE         *xive;

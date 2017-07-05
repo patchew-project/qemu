@@ -344,6 +344,9 @@ static void xive_ics_realize(ICSState *ics, Error **errp)
                                 ICS_BASE(xs)->offset * (1 << xs->esb_shift),
                                 &xs->esb_iomem);
 
+    /* Record base address which is needed by the hcalls */
+    xs->esb_base = x->vc_base + ICS_BASE(xs)->offset * (1 << xs->esb_shift);
+
     qemu_register_reset(xive_ics_reset, xs);
 }
 
