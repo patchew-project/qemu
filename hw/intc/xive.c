@@ -312,6 +312,7 @@ static void xive_ics_realize(ICSState *ics, Error **errp)
     XiveICSState *xs = ICS_XIVE(ics);
     Object *obj;
     Error *err = NULL;
+    XIVE *x;
 
     obj = object_property_get_link(OBJECT(xs), "xive", &err);
     if (!obj) {
@@ -319,7 +320,7 @@ static void xive_ics_realize(ICSState *ics, Error **errp)
                    __func__, error_get_pretty(err));
         return;
     }
-    xs->xive = XIVE(obj);
+    x = xs->xive = XIVE(obj);
 
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
@@ -337,6 +338,11 @@ static void xive_ics_realize(ICSState *ics, Error **errp)
     memory_region_init_io(&xs->esb_iomem, OBJECT(xs), &xive_esb_ops, xs,
                           "xive.esb",
                           (1ull << xs->esb_shift) * ICS_BASE(xs)->nr_irqs);
+
+    /* Install the ESB memory region in the overall one */
+    memory_region_add_subregion(&x->esb_iomem,
+                                ICS_BASE(xs)->offset * (1 << xs->esb_shift),
+                                &xs->esb_iomem);
 
     qemu_register_reset(xive_ics_reset, xs);
 }
@@ -375,6 +381,32 @@ static const TypeInfo xive_ics_info = {
  */
 #define MAX_HW_IRQS_ENTRIES (8 * 1024)
 
+/* VC BAR contains set translations for the ESBs and the EQs. */
+#define VC_BAR_DEFAULT   0x10000000000ull
+#define VC_BAR_SIZE      0x08000000000ull
+
+#define P9_MMIO_BASE     0x006000000000000ull
+#define P9_CHIP_BASE(id) (P9_MMIO_BASE | (0x40000000000ull * (uint64_t) (id)))
+
+static uint64_t xive_esb_default_read(void *p, hwaddr offset, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
+                  __func__, offset, size);
+    return 0;
+}
+
+static void xive_esb_default_write(void *opaque, hwaddr offset, uint64_t value,
+                unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
+                  __func__, offset, value, size);
+}
+
+static const MemoryRegionOps xive_esb_default_ops = {
+    .read = xive_esb_default_read,
+    .write = xive_esb_default_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
 
 void xive_reset(void *dev)
 {
@@ -435,10 +467,20 @@ static void xive_realize(DeviceState *dev, Error **errp)
     x->eqdt = g_malloc0(x->nr_targets * XIVE_EQ_PRIORITY_COUNT *
                         sizeof(XiveEQ));
 
+    /* VC BAR. That's the full window but we will only map the
+     * subregions in use. */
+    x->vc_base = (hwaddr)(P9_CHIP_BASE(x->chip_id) | VC_BAR_DEFAULT);
+
+    /* install default memory region handlers to log bogus access */
+    memory_region_init_io(&x->esb_iomem, NULL, &xive_esb_default_ops,
+                          NULL, "xive.esb", VC_BAR_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &x->esb_iomem);
+
     qemu_register_reset(xive_reset, dev);
 }
 
 static Property xive_properties[] = {
+    DEFINE_PROP_UINT32("chip-id", XIVE, chip_id, 0),
     DEFINE_PROP_UINT32("nr-targets", XIVE, nr_targets, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -98,6 +98,7 @@ struct XIVE {
     SysBusDevice parent;
 
     /* Properties */
+    uint32_t     chip_id;
     uint32_t     nr_targets;
 
     /* IRQ number allocator */
@@ -111,6 +112,10 @@ struct XIVE {
     void         *sbe;
     XiveIVE      *ivt;
     XiveEQ       *eqdt;
+
+    /* ESB and TIMA memory location */
+    hwaddr       vc_base;
+    MemoryRegion esb_iomem;
 };
 
 void xive_reset(void *dev);
