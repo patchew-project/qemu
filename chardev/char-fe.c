@@ -33,24 +33,28 @@
 
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    int ret = 0;
 
-    if (!s) {
-        return 0;
+    qemu_mutex_lock(&be->chr_lock);
+    if (be->chr) {
+        ret = qemu_chr_write(be->chr, buf, len, false);
     }
+    qemu_mutex_unlock(&be->chr_lock);
 
-    return qemu_chr_write(s, buf, len, false);
+    return ret;
 }
 
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    int ret = 0;
 
-    if (!s) {
-        return 0;
+    qemu_mutex_lock(&be->chr_lock);
+    if (be->chr) {
+        ret = qemu_chr_write(be->chr, buf, len, true);
     }
+    qemu_mutex_unlock(&be->chr_lock);
 
-    return qemu_chr_write(s, buf, len, true);
+    return ret;
 }
 
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
@@ -182,7 +186,7 @@ Chardev *qemu_chr_fe_get_driver(CharBackend *be)
     return be->chr;
 }
 
-bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+bool qemu_chr_fe_connect(CharBackend *b, Chardev *s, Error **errp)
 {
     int tag = 0;
 
@@ -211,6 +215,16 @@ unavailable:
     return false;
 }
 
+bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+{
+    if (!qemu_chr_fe_connect(b, s, errp)) {
+        return false;
+    }
+
+    qemu_mutex_init(&b->chr_lock);
+    return true;
+}
+
 void qemu_chr_fe_deinit(CharBackend *b, bool del)
 {
     assert(b);
@@ -228,6 +242,7 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del)
             object_unparent(OBJECT(b->chr));
         }
         b->chr = NULL;
+        qemu_mutex_destroy(&b->chr_lock);
     }
 }
 

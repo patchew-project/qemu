@@ -10,6 +10,12 @@ typedef int BackendChangeHandler(void *opaque);
  * Chardev */
 struct CharBackend {
     Chardev *chr;
+    /* chr_lock is used to ensure thread-safety of operations with
+     * the associated Chardev.
+     * There is no guarantee otherwise, generally, that *chr won't become
+     * invalid.
+     */
+    QemuMutex chr_lock;
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
     IOReadHandler *chr_read;
@@ -40,6 +46,17 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
  * Safe to call without associated Chardev.
  */
 void qemu_chr_fe_deinit(CharBackend *b, bool del);
+
+/**
+ * @qemu_chr_fe_connect:
+ *
+ * Connects the already initialized front end with a given Chardev.
+ * Call qemu_chr_fe_deinit() to remove the association and
+ * release the driver.
+ *
+ * Returns: false on error.
+ */
+bool qemu_chr_fe_connect(CharBackend *b, Chardev *s, Error **errp);
 
 /**
  * @qemu_chr_fe_get_driver:
