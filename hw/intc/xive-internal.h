@@ -204,6 +204,8 @@ struct XIVE {
     uint32_t     tm_shift;
     hwaddr       tm_base;
     MemoryRegion tm_iomem;
+
+    XiveICSState ipi_xs;
 };
 
 void xive_reset(void *dev);

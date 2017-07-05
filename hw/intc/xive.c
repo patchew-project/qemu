@@ -821,6 +821,9 @@ static uint32_t xive_alloc_ipi_irqs(XIVE *x, uint32_t count, uint32_t align)
 #define TM_SHIFT         16
 #define TM_BAR_SIZE      (XIVE_TM_RING_COUNT * (1 << TM_SHIFT))
 
+/* One 64k page. OPAL has two */
+#define IPI_ESB_SHIFT    (16)
+
 static uint64_t xive_esb_default_read(void *p, hwaddr offset, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
@@ -863,12 +866,18 @@ void xive_reset(void *dev)
 
 static void xive_init(Object *obj)
 {
-    ;
+    XIVE *x = XIVE(obj);
+
+    object_initialize(&x->ipi_xs, sizeof(x->ipi_xs), TYPE_ICS_XIVE);
+    object_property_add_child(obj, "ipis", OBJECT(&x->ipi_xs), NULL);
 }
 
 static void xive_realize(DeviceState *dev, Error **errp)
 {
+    Error *error = NULL;
     XIVE *x = XIVE(dev);
+    uint32_t ipi_base;
+    int i;
 
     if (!x->nr_targets) {
         error_setg(errp, "Number of interrupt targets needs to be greater 0");
@@ -917,6 +926,19 @@ static void xive_realize(DeviceState *dev, Error **errp)
                           "xive.tm", TM_BAR_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &x->tm_iomem);
 
+    /* IPI source */
+    ipi_base = xive_alloc_ipi_irqs(x, x->nr_targets, 1);
+
+    xive_ics_create(&x->ipi_xs, x, ipi_base, x->nr_targets,
+                    IPI_ESB_SHIFT, XIVE_SRC_TRIGGER, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    for (i = 0; i < ICS_BASE(&x->ipi_xs)->nr_irqs; i++) {
+        ics_set_irq_type(ICS_BASE(&x->ipi_xs), i, false);
+    }
     qemu_register_reset(xive_reset, dev);
 }
 
