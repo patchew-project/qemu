@@ -381,6 +381,10 @@ struct BlockDriver {
                              uint64_t parent_perm, uint64_t parent_shared,
                              uint64_t *nperm, uint64_t *nshared);
 
+    /* Map and unmap a buffer for I/O, as a performance hint to the
+     * driver. */
+    void (*bdrv_dma_map)(BlockDriverState *bs, void *host, size_t size);
+    void (*bdrv_dma_unmap)(BlockDriverState *bs, void *host);
     QLIST_ENTRY(BlockDriver) list;
 };
 

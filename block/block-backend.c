@@ -1974,3 +1974,13 @@ static void blk_root_drained_end(BdrvChild *child)
         }
     }
 }
+
+void blk_dma_map(BlockBackend *blk, void *host, size_t size)
+{
+    bdrv_dma_map(blk_bs(blk), host, size);
+}
+
+void blk_dma_unmap(BlockBackend *blk, void *host)
+{
+    bdrv_dma_unmap(blk_bs(blk), host);
+}
