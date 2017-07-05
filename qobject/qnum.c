@@ -217,12 +217,16 @@ QNum *qobject_to_qnum(const QObject *obj)
 /**
  * qnum_is_equal(): Test whether the two QNums are equal
  *
- * Negative integers are never considered equal to unsigned integers.
- * Doubles are only considered equal to integers if their fractional
- * part is zero and their integral part is exactly equal to the
- * integer.  Because doubles have limited precision, there are
- * therefore integers which do not have an equal double (e.g.
- * INT64_MAX).
+ * This comparison is done independently of the internal
+ * representation.  Any two numbers are considered equal if they are
+ * mathmatically equal, that means:
+ * - Negative integers are never considered equal to unsigned
+ *   integers.
+ * - Floating point values are only considered equal to integers if
+ *   their fractional part is zero and their integral part is exactly
+ *   equal to the integer.  Because doubles have limited precision,
+ *   there are therefore integers which do not have an equal floating
+ *   point value (e.g. INT64_MAX).
  */
 bool qnum_is_equal(const QObject *x, const QObject *y)
 {
