@@ -2140,11 +2140,12 @@ static int preallocate(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_create2(const char *filename, int64_t total_size,
-                         const char *backing_file, const char *backing_format,
-                         int flags, size_t cluster_size, PreallocMode prealloc,
-                         QemuOpts *opts, int version, int refcount_order,
-                         Error **errp)
+static int coroutine_fn
+qcow2_co_create2(const char *filename, int64_t total_size,
+                 const char *backing_file, const char *backing_format,
+                 int flags, size_t cluster_size, PreallocMode prealloc,
+                 QemuOpts *opts, int version, int refcount_order,
+                 Error **errp)
 {
     int cluster_bits;
     QDict *options;
@@ -2476,9 +2477,9 @@ static int coroutine_fn qcow2_co_create(const char *filename, QemuOpts *opts,
 
     refcount_order = ctz32(refcount_bits);
 
-    ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
-                        cluster_size, prealloc, opts, version, refcount_order,
-                        &local_err);
+    ret = qcow2_co_create2(filename, size, backing_file, backing_fmt, flags,
+                           cluster_size, prealloc, opts, version,
+                           refcount_order, &local_err);
     error_propagate(errp, local_err);
 
 finish:
