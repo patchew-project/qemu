@@ -95,6 +95,26 @@ static const char *win_escape_arg(const char *to_escape, GString *buffer)
     return buffer->str;
 }
 
+
+static int get_service(const char *service_name, SC_HANDLE* service)
+{
+    SC_HANDLE manager = NULL;
+    manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (manager == NULL) {
+        printf_win_error("No handle to service control manager");
+        return EXIT_FAILURE;
+    }
+
+    *service = OpenService(manager, service_name, SERVICE_ALL_ACCESS);
+    if (service == NULL) {
+        printf_win_error("Failed to open service");
+        return EXIT_FAILURE;
+    }
+
+    CloseServiceHandle(manager);
+    return EXIT_SUCCESS;
+}
+
 int ga_install_service(const char *path, const char *logfile,
                        const char *state_dir)
 {
@@ -187,4 +207,36 @@ int ga_uninstall_service(void)
     CloseServiceHandle(manager);
 
     return EXIT_SUCCESS;
+}
+
+int start_service(const char *service_name)
+{
+    int ret = EXIT_FAILURE;
+    SC_HANDLE service = NULL;
+    ret = get_service(service_name, &service);
+    if (ret != EXIT_SUCCESS) {
+        return ret;
+    }
+    ret = StartService(service, 0 , NULL) ? EXIT_SUCCESS : GetLastError();
+
+    CloseServiceHandle(service);
+    return ret;
+}
+
+int stop_service(const char *service_name)
+{
+    int ret = EXIT_FAILURE;
+    SC_HANDLE service = NULL;
+
+    SERVICE_STATUS service_status;
+    ret = get_service(service_name, &service);
+
+    if (ret != EXIT_SUCCESS) {
+        return ret;
+    }
+    ret = ControlService(service, SERVICE_CONTROL_STOP, &service_status) ?
+        EXIT_SUCCESS : GetLastError();
+
+    CloseServiceHandle(service);
+    return ret;
 }
