@@ -915,3 +915,14 @@ bool xive_eq_for_target(XIVE *x, uint32_t target, uint8_t priority,
 
     return true;
 }
+
+void xive_mmio_map(XIVE *x)
+{
+    /* ESBs */
+    sysbus_mmio_map(SYS_BUS_DEVICE(x), 0, x->vc_base);
+
+    /* Thread Management Interrupt Areas */
+    /* TODO: Only map the OS TIMA for the moment. Mapping the whole
+     * region needs some rework in the handlers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(x), 1, x->tm_base + (1 << x->tm_shift));
+}

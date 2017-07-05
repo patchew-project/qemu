@@ -68,4 +68,6 @@ typedef struct sPAPRMachineState sPAPRMachineState;
 void xive_spapr_init(sPAPRMachineState *spapr);
 void xive_spapr_populate(XIVE *x, void *fdt);
 
+void xive_mmio_map(XIVE *x);
+
 #endif /* PPC_XIVE_H */
