@@ -19,9 +19,21 @@
 #ifndef PPC_XIVE_H
 #define PPC_XIVE_H
 
+#include "hw/ppc/xics.h"
+
 typedef struct XIVE XIVE;
+typedef struct XiveICSState XiveICSState;
 
 #define TYPE_XIVE "xive"
 #define XIVE(obj) OBJECT_CHECK(XIVE, (obj), TYPE_XIVE)
+
+#define TYPE_ICS_XIVE "xive-source"
+#define ICS_XIVE(obj) OBJECT_CHECK(XiveICSState, (obj), TYPE_ICS_XIVE)
+
+struct XiveICSState {
+    ICSState parent_obj;
+
+    XIVE         *xive;
+};
 
 #endif /* PPC_XIVE_H */

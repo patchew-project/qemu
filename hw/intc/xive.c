@@ -26,6 +26,115 @@
 
 #include "xive-internal.h"
 
+static void xive_icp_irq(XiveICSState *xs, int lisn)
+{
+
+}
+
+/*
+ * XIVE Interrupt Source
+ */
+static void xive_ics_set_irq_msi(XiveICSState *xs, int srcno, int val)
+{
+    if (val) {
+        xive_icp_irq(xs, srcno + ICS_BASE(xs)->offset);
+    }
+}
+
+static void xive_ics_set_irq_lsi(XiveICSState *xs, int srcno, int val)
+{
+    ICSIRQState *irq = &ICS_BASE(xs)->irqs[srcno];
+
+    if (val) {
+        irq->status |= XICS_STATUS_ASSERTED;
+    } else {
+        irq->status &= ~XICS_STATUS_ASSERTED;
+    }
+
+    if (irq->status & XICS_STATUS_ASSERTED
+        && !(irq->status & XICS_STATUS_SENT)) {
+        irq->status |= XICS_STATUS_SENT;
+        xive_icp_irq(xs, srcno + ICS_BASE(xs)->offset);
+    }
+}
+
+static void xive_ics_set_irq(void *opaque, int srcno, int val)
+{
+    XiveICSState *xs = ICS_XIVE(opaque);
+    ICSIRQState *irq = &ICS_BASE(xs)->irqs[srcno];
+
+    if (irq->flags & XICS_FLAGS_IRQ_LSI) {
+        xive_ics_set_irq_lsi(xs, srcno, val);
+    } else {
+        xive_ics_set_irq_msi(xs, srcno, val);
+    }
+}
+
+static void xive_ics_reset(void *dev)
+{
+    ICSState *ics = ICS_BASE(dev);
+    int i;
+    uint8_t flags[ics->nr_irqs];
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        flags[i] = ics->irqs[i].flags;
+    }
+
+    memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        ics->irqs[i].flags = flags[i];
+    }
+}
+
+static void xive_ics_realize(ICSState *ics, Error **errp)
+{
+    XiveICSState *xs = ICS_XIVE(ics);
+    Object *obj;
+    Error *err = NULL;
+
+    obj = object_property_get_link(OBJECT(xs), "xive", &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'xive' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+    xs->xive = XIVE(obj);
+
+    if (!ics->nr_irqs) {
+        error_setg(errp, "Number of interrupts needs to be greater 0");
+        return;
+    }
+
+    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
+    ics->qirqs = qemu_allocate_irqs(xive_ics_set_irq, xs, ics->nr_irqs);
+
+    qemu_register_reset(xive_ics_reset, xs);
+}
+
+static Property xive_ics_properties[] = {
+    DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
+    DEFINE_PROP_UINT32("irq-base", ICSState, offset, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xive_ics_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ICSStateClass *isc = ICS_BASE_CLASS(klass);
+
+    isc->realize = xive_ics_realize;
+
+    dc->props = xive_ics_properties;
+}
+
+static const TypeInfo xive_ics_info = {
+    .name = TYPE_ICS_XIVE,
+    .parent = TYPE_ICS_BASE,
+    .instance_size = sizeof(XiveICSState),
+    .class_init = xive_ics_class_init,
+};
+
 /*
  * Main XIVE object
  */
@@ -123,6 +232,7 @@ static const TypeInfo xive_info = {
 static void xive_register_types(void)
 {
     type_register_static(&xive_info);
+    type_register_static(&xive_ics_info);
 }
 
 type_init(xive_register_types)
