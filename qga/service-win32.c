@@ -198,20 +198,12 @@ int ga_install_service(const char *path, const char *logfile,
 
 static int uninstall_service(LPCTSTR service_name)
 {
-    SC_HANDLE manager;
-    SC_HANDLE service;
+    int ret = EXIT_FAILURE;
+    SC_HANDLE service = NULL;
+    ret = get_service(service_name, &service);
 
-    manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    if (manager == NULL) {
-        printf_win_error("No handle to service control manager");
-        return EXIT_FAILURE;
-    }
-
-    service = OpenService(manager, service_name, DELETE);
-    if (service == NULL) {
-        printf_win_error("No handle to service");
-        CloseServiceHandle(manager);
-        return EXIT_FAILURE;
+    if (ret != EXIT_SUCCESS) {
+        return ret;
     }
 
     if (DeleteService(service) == FALSE) {
@@ -221,7 +213,6 @@ static int uninstall_service(LPCTSTR service_name)
     }
 
     CloseServiceHandle(service);
-    CloseServiceHandle(manager);
 
     return EXIT_SUCCESS;
 }
