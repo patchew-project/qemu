@@ -37,18 +37,22 @@ static void write_threshold_disable(BlockDriverState *bs)
     }
 }
 
+static uint64_t exceeded_amount(const BdrvTrackedRequest *req,
+                                uint64_t thres)
+{
+    if (thres > 0 && req->offset + req->bytes > thres) {
+        return req->offset + req->bytes - thres;
+    } else {
+        return 0;
+    }
+}
+
 uint64_t bdrv_write_threshold_exceeded(const BlockDriverState *bs,
                                        const BdrvTrackedRequest *req)
 {
-    if (bdrv_write_threshold_is_set(bs)) {
-        if (req->offset > bs->write_threshold_offset) {
-            return (req->offset - bs->write_threshold_offset) + req->bytes;
-        }
-        if ((req->offset + req->bytes) > bs->write_threshold_offset) {
-            return (req->offset + req->bytes) - bs->write_threshold_offset;
-        }
-    }
-    return 0;
+    uint64_t thres = bdrv_write_threshold_get(bs);
+
+    return exceeded_amount(req, thres);
 }
 
 static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
@@ -56,14 +60,14 @@ static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
 {
     BdrvTrackedRequest *req = opaque;
     BlockDriverState *bs = req->bs;
-    uint64_t amount = 0;
+    uint64_t thres = bdrv_write_threshold_get(bs);
+    uint64_t amount = exceeded_amount(req, thres);
 
-    amount = bdrv_write_threshold_exceeded(bs, req);
     if (amount > 0) {
         qapi_event_send_block_write_threshold(
             bs->node_name,
             amount,
-            bs->write_threshold_offset,
+            thres,
             &error_abort);
 
         /* autodisable to avoid flooding the monitor */
