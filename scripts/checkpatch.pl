@@ -2534,8 +2534,13 @@ sub process {
 				error_set|
 				error_prepend|
 				error_reportf_err|
+				vreport|
 				error_vreport|
-				error_report}x;
+				warn_vreport|
+				info_vreport|
+				error_report|
+				warn_report|
+				info_report}x;
 
 	if ($rawline =~ /\b(?:$qemu_error_funcs)\s*\(.*\".*\\n/) {
 		ERROR("Error messages should not contain newlines\n" . $herecurr);
