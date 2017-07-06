@@ -2051,7 +2051,6 @@ int save_snapshot(const char *name, Error **errp)
     uint64_t vm_state_size;
     qemu_timeval tv;
     struct tm tm;
-    AioContext *aio_context;
 
     if (!bdrv_all_can_snapshot(&bs)) {
         error_setg(errp, "Device '%s' is writable but does not support "
@@ -2074,7 +2073,6 @@ int save_snapshot(const char *name, Error **errp)
         error_setg(errp, "No block device can accept snapshots");
         return ret;
     }
-    aio_context = bdrv_get_aio_context(bs);
 
     saved_vm_running = runstate_is_running();
 
@@ -2086,8 +2084,6 @@ int save_snapshot(const char *name, Error **errp)
     vm_stop(RUN_STATE_SAVE_VM);
 
     bdrv_drain_all_begin();
-
-    aio_context_acquire(aio_context);
 
     memset(sn, 0, sizeof(*sn));
 
@@ -2124,14 +2120,6 @@ int save_snapshot(const char *name, Error **errp)
         goto the_end;
     }
 
-    /* The bdrv_all_create_snapshot() call that follows acquires the AioContext
-     * for itself.  BDRV_POLL_WHILE() does not support nested locking because
-     * it only releases the lock once.  Therefore synchronous I/O will deadlock
-     * unless we release the AioContext before bdrv_all_create_snapshot().
-     */
-    aio_context_release(aio_context);
-    aio_context = NULL;
-
     ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, &bs);
     if (ret < 0) {
         error_setg(errp, "Error while creating snapshot on '%s'",
@@ -2142,10 +2130,6 @@ int save_snapshot(const char *name, Error **errp)
     ret = 0;
 
  the_end:
-    if (aio_context) {
-        aio_context_release(aio_context);
-    }
-
     bdrv_drain_all_end();
 
     if (saved_vm_running) {
@@ -2219,7 +2203,6 @@ int load_snapshot(const char *name, Error **errp)
     QEMUSnapshotInfo sn;
     QEMUFile *f;
     int ret;
-    AioContext *aio_context;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!bdrv_all_can_snapshot(&bs)) {
@@ -2241,12 +2224,9 @@ int load_snapshot(const char *name, Error **errp)
         error_setg(errp, "No block device supports snapshots");
         return -ENOTSUP;
     }
-    aio_context = bdrv_get_aio_context(bs_vm_state);
 
     /* Don't even try to load empty VM states */
-    aio_context_acquire(aio_context);
     ret = bdrv_snapshot_find(bs_vm_state, &sn, name);
-    aio_context_release(aio_context);
     if (ret < 0) {
         return ret;
     } else if (sn.vm_state_size == 0) {
@@ -2276,10 +2256,8 @@ int load_snapshot(const char *name, Error **errp)
     qemu_system_reset(SHUTDOWN_CAUSE_NONE);
     mis->from_src_file = f;
 
-    aio_context_acquire(aio_context);
     ret = qemu_loadvm_state(f);
     migration_incoming_state_destroy();
-    aio_context_release(aio_context);
 
     bdrv_drain_all_end();
 

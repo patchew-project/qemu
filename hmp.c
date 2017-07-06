@@ -1324,7 +1324,6 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     int nb_sns, i;
     int total;
     int *global_snapshots;
-    AioContext *aio_context;
 
     typedef struct SnapshotEntry {
         QEMUSnapshotInfo sn;
@@ -1348,11 +1347,8 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "No available block device supports snapshots\n");
         return;
     }
-    aio_context = bdrv_get_aio_context(bs);
 
-    aio_context_acquire(aio_context);
     nb_sns = bdrv_snapshot_list(bs, &sn_tab);
-    aio_context_release(aio_context);
 
     if (nb_sns < 0) {
         monitor_printf(mon, "bdrv_snapshot_list: error %d\n", nb_sns);
@@ -1363,9 +1359,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
         int bs1_nb_sns = 0;
         ImageEntry *ie;
         SnapshotEntry *se;
-        AioContext *ctx = bdrv_get_aio_context(bs1);
 
-        aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs1)) {
             sn = NULL;
             bs1_nb_sns = bdrv_snapshot_list(bs1, &sn);
@@ -1383,7 +1377,6 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
             }
             g_free(sn);
         }
-        aio_context_release(ctx);
     }
 
     if (no_snapshot) {

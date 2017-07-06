@@ -384,9 +384,7 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
 }
 
 
-/* Group operations. All block drivers are involved.
- * These functions will properly handle dataplane (take aio_context_acquire
- * when appropriate for appropriate block drivers) */
+/* Group operations. All block drivers are involved.  */
 
 bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
 {
@@ -395,13 +393,9 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(ctx);
         if (bdrv_is_inserted(bs) && !bdrv_is_read_only(bs)) {
             ok = bdrv_can_snapshot(bs);
         }
-        aio_context_release(ctx);
         if (!ok) {
             goto fail;
         }
@@ -421,14 +415,10 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
     QEMUSnapshotInfo sn1, *snapshot = &sn1;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs) &&
                 bdrv_snapshot_find(bs, snapshot, name) >= 0) {
             ret = bdrv_snapshot_delete_by_id_or_name(bs, name, err);
         }
-        aio_context_release(ctx);
         if (ret < 0) {
             goto fail;
         }
@@ -447,13 +437,9 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs)) {
             err = bdrv_snapshot_goto(bs, name);
         }
-        aio_context_release(ctx);
         if (err < 0) {
             goto fail;
         }
@@ -472,13 +458,9 @@ int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs)) {
             err = bdrv_snapshot_find(bs, &sn, name);
         }
-        aio_context_release(ctx);
         if (err < 0) {
             goto fail;
         }
@@ -499,9 +481,6 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-
-        aio_context_acquire(ctx);
         if (bs == vm_state_bs) {
             sn->vm_state_size = vm_state_size;
             err = bdrv_snapshot_create(bs, sn);
@@ -509,7 +488,6 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
             sn->vm_state_size = 0;
             err = bdrv_snapshot_create(bs, sn);
         }
-        aio_context_release(ctx);
         if (err < 0) {
             goto fail;
         }
@@ -526,13 +504,9 @@ BlockDriverState *bdrv_all_find_vmstate_bs(void)
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
         bool found;
 
-        aio_context_acquire(ctx);
         found = bdrv_can_snapshot(bs);
-        aio_context_release(ctx);
-
         if (found) {
             break;
         }

@@ -217,6 +217,11 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_co_pwritev_compressed)(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov);
 
+    /*
+     * Snapshots are only created/destroyed/loaded under the BQL, while no
+     * other I/O is happening.  snapshots/nb_snapshots is read while other
+     * I/O is happening, but also under the BQL.
+     */
     int (*bdrv_snapshot_create)(BlockDriverState *bs,
                                 QEMUSnapshotInfo *sn_info);
     int (*bdrv_snapshot_goto)(BlockDriverState *bs,

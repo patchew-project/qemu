@@ -1280,7 +1280,6 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
                                                          Error **errp)
 {
     BlockDriverState *bs;
-    AioContext *aio_context;
     QEMUSnapshotInfo sn;
     Error *local_err = NULL;
     SnapshotInfo *info = NULL;
@@ -1290,8 +1289,6 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     if (!bs) {
         return NULL;
     }
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
 
     if (!has_id) {
         id = NULL;
@@ -1303,33 +1300,31 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
 
     if (!id && !name) {
         error_setg(errp, "Name or id must be provided");
-        goto out_aio_context;
+        return NULL;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE, errp)) {
-        goto out_aio_context;
+        return NULL;
     }
 
     ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out_aio_context;
+        return NULL;
     }
     if (!ret) {
         error_setg(errp,
                    "Snapshot with id '%s' and name '%s' does not exist on "
                    "device '%s'",
                    STR_OR_NULL(id), STR_OR_NULL(name), device);
-        goto out_aio_context;
+        return NULL;
     }
 
     bdrv_snapshot_delete(bs, id, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out_aio_context;
+        return NULL;
     }
-
-    aio_context_release(aio_context);
 
     info = g_new0(SnapshotInfo, 1);
     info->id = g_strdup(sn.id_str);
@@ -1341,10 +1336,6 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     info->vm_clock_sec = sn.vm_clock_nsec / 1000000000;
 
     return info;
-
-out_aio_context:
-    aio_context_release(aio_context);
-    return NULL;
 }
 
 /**
@@ -1446,7 +1437,6 @@ struct BlkActionState {
 typedef struct InternalSnapshotState {
     BlkActionState common;
     BlockDriverState *bs;
-    AioContext *aio_context;
     QEMUSnapshotInfo sn;
     bool created;
 } InternalSnapshotState;
@@ -1497,10 +1487,6 @@ static void internal_snapshot_prepare(BlkActionState *common,
     if (!bs) {
         return;
     }
-
-    /* AioContext is released in .clean() */
-    state->aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(state->aio_context);
 
     state->bs = bs;
     bdrv_drained_begin(bs);
@@ -1585,11 +1571,8 @@ static void internal_snapshot_clean(BlkActionState *common)
     InternalSnapshotState *state = DO_UPCAST(InternalSnapshotState,
                                              common, common);
 
-    if (state->aio_context) {
-        if (state->bs) {
-            bdrv_drained_end(state->bs);
-        }
-        aio_context_release(state->aio_context);
+    if (state->bs) {
+        bdrv_drained_end(state->bs);
     }
 }
 
@@ -1598,7 +1581,6 @@ typedef struct ExternalSnapshotState {
     BlkActionState common;
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
-    AioContext *aio_context;
     bool overlay_appended;
 } ExternalSnapshotState;
 
@@ -1654,9 +1636,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         return;
     }
 
-    /* Acquire AioContext now so any threads operating on old_bs stop */
-    state->aio_context = bdrv_get_aio_context(state->old_bs);
-    aio_context_acquire(state->aio_context);
+    /* Make any threads operating on old_bs stop */
     bdrv_drained_begin(state->old_bs);
 
     if (!bdrv_is_inserted(state->old_bs)) {
@@ -1756,7 +1736,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         return;
     }
 
-    bdrv_set_aio_context(state->new_bs, state->aio_context);
+    bdrv_set_aio_context(state->new_bs, bdrv_get_aio_context(state->old_bs));
 
     /* This removes our old bs and adds the new bs. This is an operation that
      * can fail, so we need to do it in .prepare; undoing it for abort is
@@ -1774,6 +1754,8 @@ static void external_snapshot_commit(BlkActionState *common)
 {
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
+
+    bdrv_set_aio_context(state->new_bs, bdrv_get_aio_context(state->old_bs));
 
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
@@ -1803,9 +1785,8 @@ static void external_snapshot_clean(BlkActionState *common)
 {
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
-    if (state->aio_context) {
+    if (state->old_bs) {
         bdrv_drained_end(state->old_bs);
-        aio_context_release(state->aio_context);
         bdrv_unref(state->new_bs);
     }
 }
