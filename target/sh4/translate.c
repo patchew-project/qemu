@@ -398,7 +398,6 @@ static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 #define FREG(x)    ctx->fregs[x]
 #define XHACK(x)   ((((x) & 1 ) << 4) | ((x) & 0xe))
 #define XREG(x)    FREG(XHACK(x))
-#define DREG(x)    (x)
 
 #define CHECK_NOT_DELAY_SLOT \
     if (ctx->envflags & DELAY_SLOT_MASK) {                           \
@@ -1128,8 +1127,8 @@ static void _decode_opc(DisasContext * ctx)
 		    break; /* illegal instruction */
 		fp0 = tcg_temp_new_i64();
 		fp1 = tcg_temp_new_i64();
-		gen_load_fpr64(ctx, fp0, DREG(B11_8));
-		gen_load_fpr64(ctx, fp1, DREG(B7_4));
+		gen_load_fpr64(ctx, fp0, B11_8);
+		gen_load_fpr64(ctx, fp1, B7_4);
                 switch (ctx->opcode & 0xf00f) {
                 case 0xf000:		/* fadd Rm,Rn */
                     gen_helper_fadd_DT(fp0, cpu_env, fp0, fp1);
@@ -1150,7 +1149,7 @@ static void _decode_opc(DisasContext * ctx)
                     gen_helper_fcmp_gt_DT(cpu_env, fp0, fp1);
                     return;
                 }
-		gen_store_fpr64(ctx, fp0, DREG(B11_8));
+		gen_store_fpr64(ctx, fp0, B11_8);
                 tcg_temp_free_i64(fp0);
                 tcg_temp_free_i64(fp1);
 	    } else {
@@ -1740,7 +1739,7 @@ static void _decode_opc(DisasContext * ctx)
 		break; /* illegal instruction */
 	    fp = tcg_temp_new_i64();
             gen_helper_float_DT(fp, cpu_env, cpu_fpul);
-	    gen_store_fpr64(ctx, fp, DREG(B11_8));
+	    gen_store_fpr64(ctx, fp, B11_8);
 	    tcg_temp_free_i64(fp);
 	}
 	else {
@@ -1754,7 +1753,7 @@ static void _decode_opc(DisasContext * ctx)
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    fp = tcg_temp_new_i64();
-	    gen_load_fpr64(ctx, fp, DREG(B11_8));
+	    gen_load_fpr64(ctx, fp, B11_8);
             gen_helper_ftrc_DT(cpu_fpul, cpu_env, fp);
 	    tcg_temp_free_i64(fp);
 	}
@@ -1774,9 +1773,9 @@ static void _decode_opc(DisasContext * ctx)
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    TCGv_i64 fp = tcg_temp_new_i64();
-	    gen_load_fpr64(ctx, fp, DREG(B11_8));
+	    gen_load_fpr64(ctx, fp, B11_8);
 	    gen_helper_fabs_DT(fp, fp);
-	    gen_store_fpr64(ctx, fp, DREG(B11_8));
+	    gen_store_fpr64(ctx, fp, B11_8);
 	    tcg_temp_free_i64(fp);
 	} else {
 	    gen_helper_fabs_FT(FREG(B11_8), FREG(B11_8));
@@ -1788,9 +1787,9 @@ static void _decode_opc(DisasContext * ctx)
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    TCGv_i64 fp = tcg_temp_new_i64();
-	    gen_load_fpr64(ctx, fp, DREG(B11_8));
+	    gen_load_fpr64(ctx, fp, B11_8);
             gen_helper_fsqrt_DT(fp, cpu_env, fp);
-	    gen_store_fpr64(ctx, fp, DREG(B11_8));
+	    gen_store_fpr64(ctx, fp, B11_8);
 	    tcg_temp_free_i64(fp);
 	} else {
             gen_helper_fsqrt_FT(FREG(B11_8), cpu_env, FREG(B11_8));
@@ -1816,7 +1815,7 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    TCGv_i64 fp = tcg_temp_new_i64();
             gen_helper_fcnvsd_FT_DT(fp, cpu_env, cpu_fpul);
-	    gen_store_fpr64(ctx, fp, DREG(B11_8));
+	    gen_store_fpr64(ctx, fp, B11_8);
 	    tcg_temp_free_i64(fp);
 	}
 	return;
@@ -1824,7 +1823,7 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_FPU_ENABLED
 	{
 	    TCGv_i64 fp = tcg_temp_new_i64();
-	    gen_load_fpr64(ctx, fp, DREG(B11_8));
+	    gen_load_fpr64(ctx, fp, B11_8);
             gen_helper_fcnvds_DT_FT(cpu_fpul, cpu_env, fp);
 	    tcg_temp_free_i64(fp);
 	}
