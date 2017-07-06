@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/notify.h"
+#include "qemu/rcu_queue.h"
 
 void notifier_list_init(NotifierList *list)
 {
@@ -24,19 +25,19 @@ void notifier_list_init(NotifierList *list)
 
 void notifier_list_add(NotifierList *list, Notifier *notifier)
 {
-    QLIST_INSERT_HEAD(&list->notifiers, notifier, node);
+    QLIST_INSERT_HEAD_RCU(&list->notifiers, notifier, node);
 }
 
 void notifier_remove(Notifier *notifier)
 {
-    QLIST_REMOVE(notifier, node);
+    QLIST_REMOVE_RCU(notifier, node);
 }
 
 void notifier_list_notify(NotifierList *list, void *data)
 {
     Notifier *notifier, *next;
 
-    QLIST_FOREACH_SAFE(notifier, &list->notifiers, node, next) {
+    QLIST_FOREACH_SAFE_RCU(notifier, &list->notifiers, node, next) {
         notifier->notify(notifier, data);
     }
 }
@@ -49,12 +50,12 @@ void notifier_with_return_list_init(NotifierWithReturnList *list)
 void notifier_with_return_list_add(NotifierWithReturnList *list,
                                    NotifierWithReturn *notifier)
 {
-    QLIST_INSERT_HEAD(&list->notifiers, notifier, node);
+    QLIST_INSERT_HEAD_RCU(&list->notifiers, notifier, node);
 }
 
 void notifier_with_return_remove(NotifierWithReturn *notifier)
 {
-    QLIST_REMOVE(notifier, node);
+    QLIST_REMOVE_RCU(notifier, node);
 }
 
 int notifier_with_return_list_notify(NotifierWithReturnList *list, void *data)
@@ -62,7 +63,7 @@ int notifier_with_return_list_notify(NotifierWithReturnList *list, void *data)
     NotifierWithReturn *notifier, *next;
     int ret = 0;
 
-    QLIST_FOREACH_SAFE(notifier, &list->notifiers, node, next) {
+    QLIST_FOREACH_SAFE_RCU(notifier, &list->notifiers, node, next) {
         ret = notifier->notify(notifier, data);
         if (ret != 0) {
             break;
