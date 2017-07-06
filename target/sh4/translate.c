@@ -225,7 +225,7 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
     if (ctx->delayed_pc != (uint32_t) -1) {
         tcg_gen_movi_i32(cpu_delayed_pc, ctx->delayed_pc);
     }
-    if ((ctx->tbflags & DELAY_SLOT_MASK) != ctx->envflags) {
+    if ((ctx->tbflags & TB_FLAG_ENVFLAGS_MASK) != ctx->envflags) {
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
     }
 }
@@ -239,7 +239,7 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 #ifndef CONFIG_USER_ONLY
     return (ctx->tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
 #else
-    return true;
+    return (ctx->tbflags & GUSA_EXCLUSIVE) == 0;
 #endif
 }
 
@@ -260,16 +260,17 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 
 static void gen_jump(DisasContext * ctx)
 {
-    if (ctx->delayed_pc == (uint32_t) - 1) {
-	/* Target is not statically known, it comes necessarily from a
-	   delayed jump as immediate jump are conditinal jumps */
-	tcg_gen_mov_i32(cpu_pc, cpu_delayed_pc);
+    if (ctx->delayed_pc == -1) {
+        /* Target is not statically known, it comes necessarily from a
+           delayed jump as immediate jump are conditinal jumps */
+        tcg_gen_mov_i32(cpu_pc, cpu_delayed_pc);
         tcg_gen_discard_i32(cpu_delayed_pc);
-	if (ctx->singlestep_enabled)
+        if (ctx->singlestep_enabled) {
             gen_helper_debug(cpu_env);
-	tcg_gen_exit_tb(0);
+        }
+        tcg_gen_exit_tb(0);
     } else {
-	gen_goto_tb(ctx, 0, ctx->delayed_pc);
+        gen_goto_tb(ctx, 0, ctx->delayed_pc);
     }
 }
 
@@ -278,6 +279,30 @@ static void gen_conditional_jump(DisasContext * ctx,
 				 target_ulong ift, target_ulong ifnott)
 {
     TCGLabel *l1 = gen_new_label();
+
+#ifdef CONFIG_USER_ONLY
+    if (ctx->tbflags & GUSA_EXCLUSIVE) {
+        /* When in an exclusive region, we must continue to the end.
+           Therefore, exit the region on a taken branch, but otherwise
+           fall through to the next instruction.  */
+        uint32_t taken;
+        TCGCond cond;
+
+        if (ift == ctx->pc + 2) {
+            taken = ifnott;
+            cond = TCG_COND_NE;
+        } else {
+            taken = ift;
+            cond = TCG_COND_EQ;
+        }
+        tcg_gen_brcondi_i32(cond, cpu_sr_t, 0, l1);
+        tcg_gen_movi_i32(cpu_flags, ctx->envflags & ~GUSA_MASK);
+        gen_goto_tb(ctx, 0, taken);
+        gen_set_label(l1);
+        return;
+    }
+#endif
+
     gen_save_cpu_state(ctx, false);
     tcg_gen_brcondi_i32(TCG_COND_NE, cpu_sr_t, 0, l1);
     gen_goto_tb(ctx, 0, ifnott);
@@ -289,13 +314,28 @@ static void gen_conditional_jump(DisasContext * ctx,
 /* Delayed conditional jump (bt or bf) */
 static void gen_delayed_conditional_jump(DisasContext * ctx)
 {
-    TCGLabel *l1;
-    TCGv ds;
+    TCGLabel *l1 = gen_new_label();
+    TCGv ds = tcg_temp_new();
 
-    l1 = gen_new_label();
-    ds = tcg_temp_new();
     tcg_gen_mov_i32(ds, cpu_delayed_cond);
     tcg_gen_discard_i32(cpu_delayed_cond);
+
+#ifdef CONFIG_USER_ONLY
+    if (ctx->tbflags & GUSA_EXCLUSIVE) {
+        /* When in an exclusive region, we must continue to the end.
+           Therefore, exit the region on a taken branch, but otherwise
+           fall through to the next instruction.  */
+        tcg_gen_brcondi_i32(TCG_COND_EQ, ds, 0, l1);
+
+        /* Leave the gUSA region.  */
+        tcg_gen_movi_i32(cpu_flags, ctx->envflags & ~GUSA_MASK);
+        gen_jump(ctx);
+
+        gen_set_label(l1);
+        return;
+    }
+#endif
+
     tcg_gen_brcondi_i32(TCG_COND_NE, ds, 0, l1);
     gen_goto_tb(ctx, 1, ctx->pc + 2);
     gen_set_label(l1);
@@ -480,6 +520,15 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xe000:		/* mov #imm,Rn */
+#ifdef CONFIG_USER_ONLY
+        /* Detect the start of a gUSA region.  If so, update envflags
+           and end the TB.  This will allow us to see the end of the
+           region (stored in R0) in the next TB.  */
+        if (B11_8 == 15 && B7_0s < 0) {
+            ctx->envflags = deposit32(ctx->envflags, GUSA_SHIFT, 8, B7_0s);
+            ctx->bstate = BS_STOP;
+        }
+#endif
 	tcg_gen_movi_i32(REG(B11_8), B7_0s);
 	return;
     case 0x9000:		/* mov.w @(disp,PC),Rn */
@@ -1822,6 +1871,20 @@ static void decode_opc(DisasContext * ctx)
     if (old_flags & DELAY_SLOT_MASK) {
         /* go out of the delay slot */
         ctx->envflags &= ~DELAY_SLOT_MASK;
+
+#ifdef CONFIG_USER_ONLY
+        /* When in an exclusive region, we must continue to the end
+           for conditional branches.  */
+        if (ctx->tbflags & GUSA_EXCLUSIVE
+            && old_flags & DELAY_SLOT_CONDITIONAL) {
+            gen_delayed_conditional_jump(ctx);
+            return;
+        }
+        /* Otherwise this is probably an invalid gUSA region.
+           Drop the GUSA bits so the next TB doesn't see them.  */
+        ctx->envflags &= ~GUSA_MASK;
+#endif
+
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
         ctx->bstate = BS_BRANCH;
         if (old_flags & DELAY_SLOT_CONDITIONAL) {
@@ -1829,9 +1892,34 @@ static void decode_opc(DisasContext * ctx)
         } else {
             gen_jump(ctx);
 	}
-
     }
 }
+
+#ifdef CONFIG_USER_ONLY
+static int decode_gusa(DisasContext *ctx)
+{
+    uint32_t pc = ctx->pc;
+    uint32_t pc_end = ctx->tb->cs_base;
+
+    qemu_log_mask(LOG_UNIMP, "Unrecognized gUSA sequence %08x-%08x\n",
+                  pc, pc_end);
+
+    /* Restart with the EXCLUSIVE bit set, within a TB run via
+       cpu_exec_step_atomic holding the exclusive lock.  */
+    tcg_gen_insn_start(pc, ctx->envflags);
+    ctx->envflags |= GUSA_EXCLUSIVE;
+    gen_save_cpu_state(ctx, false);
+    gen_helper_exclusive(cpu_env);
+    ctx->bstate = BS_EXCP;
+
+    /* We're not executing an instruction, but we must report one for the
+       purposes of accounting within the TB.  At which point we might as
+       well report the entire region so that it's immediately available
+       in the disassembly dump.  */
+    ctx->pc = pc_end;
+    return 1;
+}
+#endif
 
 void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
 {
@@ -1845,7 +1933,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.tbflags = (uint32_t)tb->flags;
-    ctx.envflags = tb->flags & DELAY_SLOT_MASK;
+    ctx.envflags = tb->flags & TB_FLAG_ENVFLAGS_MASK;
     ctx.bstate = BS_NONE;
     ctx.memidx = (ctx.tbflags & (1u << SR_MD)) == 0 ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
@@ -1877,6 +1965,17 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     gen_tb_start(tb);
     num_insns = 0;
 
+#ifdef CONFIG_USER_ONLY
+    if (ctx.tbflags & GUSA_EXCLUSIVE) {
+        /* Regardless of single-stepping or the end of the page,
+           we must complete execution of the gUSA region while
+           holding the exclusive lock.  */
+        max_insns = (tb->cs_base - ctx.pc) / 2;
+    } else if (ctx.tbflags & GUSA_MASK) {
+        num_insns = decode_gusa(&ctx);
+    }
+#endif
+
     while (ctx.bstate == BS_NONE
            && num_insns < max_insns
            && !tcg_op_buf_full()) {
@@ -1907,6 +2006,14 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
     }
+
+#ifdef CONFIG_USER_ONLY
+    if ((ctx.tbflags & GUSA_EXCLUSIVE) && ctx.bstate == BS_NONE) {
+        /* Ending the region of exclusivity.  Clear the bits.  */
+        ctx.envflags &= ~GUSA_MASK;
+    }
+#endif
+
     if (cs->singlestep_enabled) {
         gen_save_cpu_state(&ctx, true);
         gen_helper_debug(cpu_env);
