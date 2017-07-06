@@ -2253,7 +2253,6 @@ void qmp_block_passwd(bool has_device, const char *device,
 {
     Error *local_err = NULL;
     BlockDriverState *bs;
-    AioContext *aio_context;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -2263,12 +2262,9 @@ void qmp_block_passwd(bool has_device, const char *device,
         return;
     }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
+    bdrv_drained_begin(bs);
     bdrv_add_key(bs, password, errp);
-
-    aio_context_release(aio_context);
+    bdrv_drained_end(bs);
 }
 
 /*
