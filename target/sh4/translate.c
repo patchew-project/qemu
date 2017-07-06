@@ -68,7 +68,8 @@ static TCGv cpu_gregs[24];
 static TCGv cpu_sr, cpu_sr_m, cpu_sr_q, cpu_sr_t;
 static TCGv cpu_pc, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
-static TCGv cpu_pr, cpu_fpscr, cpu_fpul, cpu_ldst;
+static TCGv cpu_pr, cpu_fpscr, cpu_fpul;
+static TCGv cpu_lock_addr, cpu_lock_value;
 static TCGv cpu_fregs[32];
 
 /* internal register indexes */
@@ -151,8 +152,12 @@ void sh4_translate_init(void)
                                               offsetof(CPUSH4State,
                                                        delayed_cond),
                                               "_delayed_cond_");
-    cpu_ldst = tcg_global_mem_new_i32(cpu_env,
-				      offsetof(CPUSH4State, ldst), "_ldst_");
+    cpu_lock_addr = tcg_global_mem_new_i32(cpu_env,
+				           offsetof(CPUSH4State, lock_addr),
+                                           "_lock_addr_");
+    cpu_lock_value = tcg_global_mem_new_i32(cpu_env,
+				            offsetof(CPUSH4State, lock_value),
+                                            "_lock_value_");
 
     for (i = 0; i < 32; i++)
         cpu_fregs[i] = tcg_global_mem_new_i32(cpu_env,
@@ -1526,20 +1531,32 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x0073:
         /* MOVCO.L
-	       LDST -> T
+               LDST -> T
                If (T == 1) R0 -> (Rn)
                0 -> LDST
         */
         if (ctx->features & SH_FEATURE_SH4A) {
-            TCGLabel *label = gen_new_label();
-            tcg_gen_mov_i32(cpu_sr_t, cpu_ldst);
-	    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_ldst, 0, label);
-            tcg_gen_qemu_st_i32(REG(0), REG(B11_8), ctx->memidx, MO_TEUL);
-	    gen_set_label(label);
-	    tcg_gen_movi_i32(cpu_ldst, 0);
-	    return;
-	} else
-	    break;
+            TCGLabel *fail = gen_new_label();
+            TCGLabel *done = gen_new_label();
+            TCGv tmp;
+
+            tcg_gen_brcond_i32(TCG_COND_NE, REG(B11_8), cpu_lock_addr, fail);
+
+            tmp = tcg_temp_new();
+            tcg_gen_atomic_cmpxchg_i32(tmp, REG(B11_8), cpu_lock_value,
+                                       REG(0), ctx->memidx, MO_TEUL);
+            tcg_gen_setcond_i32(TCG_COND_EQ, cpu_sr_t, tmp, cpu_lock_value);
+            tcg_temp_free(tmp);
+            tcg_gen_br(done);
+
+            gen_set_label(fail);
+            tcg_gen_movi_i32(cpu_sr_t, 0);
+
+            gen_set_label(done);
+            return;
+        } else {
+            break;
+        }
     case 0x0063:
         /* MOVLI.L @Rm,R0
                1 -> LDST
@@ -1547,13 +1564,14 @@ static void _decode_opc(DisasContext * ctx)
                When interrupt/exception
                occurred 0 -> LDST
         */
-	if (ctx->features & SH_FEATURE_SH4A) {
-	    tcg_gen_movi_i32(cpu_ldst, 0);
+        if (ctx->features & SH_FEATURE_SH4A) {
             tcg_gen_qemu_ld_i32(REG(0), REG(B11_8), ctx->memidx, MO_TESL);
-	    tcg_gen_movi_i32(cpu_ldst, 1);
-	    return;
-	} else
-	    break;
+            tcg_gen_mov_i32(cpu_lock_addr, REG(B11_8));
+            tcg_gen_mov_i32(cpu_lock_value, REG(0));
+            return;
+        } else {
+            break;
+        }
     case 0x0093:		/* ocbi @Rn */
 	{
             gen_helper_ocbi(cpu_env, REG(B11_8));
