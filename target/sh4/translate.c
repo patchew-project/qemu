@@ -35,6 +35,8 @@
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
+    TCGv *gregs;         /* active bank */
+    TCGv *altregs;       /* inactive, alternate, bank */
     target_ulong pc;
     uint16_t opcode;
     uint32_t tbflags;    /* should stay unmodified during the TB translation */
@@ -64,7 +66,7 @@ enum {
 
 /* global register indexes */
 static TCGv_env cpu_env;
-static TCGv cpu_gregs[24];
+static TCGv cpu_gregs[2][16];
 static TCGv cpu_sr, cpu_sr_m, cpu_sr_q, cpu_sr_t;
 static TCGv cpu_pc, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
@@ -99,16 +101,31 @@ void sh4_translate_init(void)
         "FPR12_BANK1", "FPR13_BANK1", "FPR14_BANK1", "FPR15_BANK1",
     };
 
-    if (done_init)
+    if (done_init) {
         return;
+    }
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
 
-    for (i = 0; i < 24; i++)
-        cpu_gregs[i] = tcg_global_mem_new_i32(cpu_env,
-                                              offsetof(CPUSH4State, gregs[i]),
-                                              gregnames[i]);
+    for (i = 0; i < 8; i++) {
+        cpu_gregs[0][i]
+            = tcg_global_mem_new_i32(cpu_env,
+                                     offsetof(CPUSH4State, gregs[i]),
+                                     gregnames[i]);
+    }
+    for (i = 8; i < 16; i++) {
+        cpu_gregs[0][i] = cpu_gregs[1][i]
+            = tcg_global_mem_new_i32(cpu_env,
+                                     offsetof(CPUSH4State, gregs[i]),
+                                     gregnames[i]);
+    }
+    for (i = 16; i < 24; i++) {
+        cpu_gregs[1][i - 16]
+            = tcg_global_mem_new_i32(cpu_env,
+                                     offsetof(CPUSH4State, gregs[i]),
+                                     gregnames[i]);
+    }
 
     cpu_pc = tcg_global_mem_new_i32(cpu_env,
                                     offsetof(CPUSH4State, pc), "PC");
@@ -362,13 +379,8 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define B11_8 ((ctx->opcode >> 8) & 0xf)
 #define B15_12 ((ctx->opcode >> 12) & 0xf)
 
-#define REG(x) ((x) < 8 && (ctx->tbflags & (1u << SR_MD))\
-                        && (ctx->tbflags & (1u << SR_RB))\
-                ? (cpu_gregs[x + 16]) : (cpu_gregs[x]))
-
-#define ALTREG(x) ((x) < 8 && (!(ctx->tbflags & (1u << SR_MD))\
-                               || !(ctx->tbflags & (1u << SR_RB)))\
-		? (cpu_gregs[x + 16]) : (cpu_gregs[x]))
+#define REG(x)     ctx->gregs[x]
+#define ALTREG(x)  ctx->altregs[x]
 
 #define FREG(x) (ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x))
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
@@ -2214,6 +2226,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     target_ulong pc_start;
     int num_insns;
     int max_insns;
+    int bank;
 
     pc_start = tb->pc;
     ctx.pc = pc_start;
@@ -2228,6 +2241,10 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.features = env->features;
     ctx.has_movcal = (ctx.tbflags & TB_FLAG_PENDING_MOVCA);
+
+    bank = (ctx.tbflags & (1 << SR_MD)) && (ctx.tbflags & (1 << SR_RB));
+    ctx.gregs = cpu_gregs[bank];
+    ctx.altregs = cpu_gregs[bank ^ 1];
 
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
