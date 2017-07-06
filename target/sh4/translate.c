@@ -1856,7 +1856,6 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     ctx.features = env->features;
     ctx.has_movcal = (ctx.tbflags & TB_FLAG_PENDING_MOVCA);
 
-    num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
@@ -1864,9 +1863,23 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     if (max_insns > TCG_MAX_INSNS) {
         max_insns = TCG_MAX_INSNS;
     }
+    /* Since the ISA is fixed-width, we can bound by the number
+       of instructions remaining on the page.  */
+    num_insns = (TARGET_PAGE_SIZE - (ctx.pc & (TARGET_PAGE_SIZE - 1))) / 2;
+    if (max_insns > num_insns) {
+        max_insns = num_insns;
+    }
+    /* Single stepping means just that.  */
+    if (ctx.singlestep_enabled || singlestep) {
+        max_insns = 1;
+    }
 
     gen_tb_start(tb);
-    while (ctx.bstate == BS_NONE && !tcg_op_buf_full()) {
+    num_insns = 0;
+
+    while (ctx.bstate == BS_NONE
+           && num_insns < max_insns
+           && !tcg_op_buf_full()) {
         tcg_gen_insn_start(ctx.pc, ctx.envflags);
         num_insns++;
 
@@ -1890,18 +1903,10 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
 	decode_opc(&ctx);
 	ctx.pc += 2;
-	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
-	    break;
-        if (cs->singlestep_enabled) {
-	    break;
-        }
-        if (num_insns >= max_insns)
-            break;
-        if (singlestep)
-            break;
     }
-    if (tb->cflags & CF_LAST_IO)
+    if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
+    }
     if (cs->singlestep_enabled) {
         gen_save_cpu_state(&ctx, true);
         gen_helper_debug(cpu_env);
