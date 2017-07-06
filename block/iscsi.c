@@ -1761,7 +1761,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
      * filename encoded options */
     filename = qdict_get_try_str(options, "filename");
     if (filename) {
-        error_report("Warning: 'filename' option specified. "
+        warn_report('filename' option specified. "
                       "This is an unsupported option, and may be deprecated "
                       "in the future");
         iscsi_parse_filename(filename, options, &local_err);

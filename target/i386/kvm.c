@@ -600,10 +600,10 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
                        kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :
                        -ENOTSUP;
         if (cur_freq <= 0 || cur_freq != env->tsc_khz) {
-            error_report("warning: TSC frequency mismatch between "
-                         "VM (%" PRId64 " kHz) and host (%d kHz), "
-                         "and TSC scaling unavailable",
-                         env->tsc_khz, cur_freq);
+            warn_report("TSC frequency mismatch between "
+                        "VM (%" PRId64 " kHz) and host (%d kHz), "
+                        "and TSC scaling unavailable",
+                        env->tsc_khz, cur_freq);
             return r;
         }
     }
@@ -919,7 +919,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 error_report("kvm: LMCE not supported");
                 return -ENOTSUP;
             }
-            error_report("warning: Unsupported MCG_CAP bits: 0x%" PRIx64,
+            warn_report(" Unsupported MCG_CAP bits: 0x%" PRIx64,
                          unsupported_caps);
         }
 
