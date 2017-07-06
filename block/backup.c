@@ -45,6 +45,7 @@ typedef struct BackupBlockJob {
     bool compress;
     NotifierWithReturn before_write;
     QLIST_HEAD(, CowRequest) inflight_reqs;
+    CoMutex reqs_lock;
 } BackupBlockJob;
 
 /* Size of a cluster in sectors, instead of bytes. */
@@ -61,16 +62,18 @@ static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
     CowRequest *req;
     bool retry;
 
+    qemu_co_mutex_lock(&job->reqs_lock);
     do {
         retry = false;
         QLIST_FOREACH(req, &job->inflight_reqs, list) {
             if (end > req->start && start < req->end) {
-                qemu_co_queue_wait(&req->wait_queue, NULL);
+                qemu_co_queue_wait(&req->wait_queue, &job->reqs_lock);
                 retry = true;
                 break;
             }
         }
     } while (retry);
+    qemu_co_mutex_unlock(&job->reqs_lock);
 }
 
 /* Keep track of an in-flight request */
@@ -80,14 +83,18 @@ static void cow_request_begin(CowRequest *req, BackupBlockJob *job,
     req->start = start;
     req->end = end;
     qemu_co_queue_init(&req->wait_queue);
+    qemu_co_mutex_lock(&job->reqs_lock);
     QLIST_INSERT_HEAD(&job->inflight_reqs, req, list);
+    qemu_co_mutex_unlock(&job->reqs_lock);
 }
 
 /* Forget about a completed request */
-static void cow_request_end(CowRequest *req)
+static void cow_request_end(CowRequest *req, BackupBlockJob *job)
 {
+    qemu_co_mutex_lock(&job->reqs_lock);
     QLIST_REMOVE(req, list);
     qemu_co_queue_restart_all(&req->wait_queue);
+    qemu_co_mutex_unlock(&job->reqs_lock);
 }
 
 static int coroutine_fn backup_do_cow(BackupBlockJob *job,
@@ -175,7 +182,7 @@ out:
         qemu_vfree(bounce_buffer);
     }
 
-    cow_request_end(&cow_request);
+    cow_request_end(&cow_request, job);
 
     trace_backup_do_cow_return(job, sector_num, nb_sectors, ret);
 
@@ -311,9 +318,11 @@ void backup_cow_request_begin(CowRequest *req, BlockJob *job,
     cow_request_begin(req, backup_job, start, end);
 }
 
-void backup_cow_request_end(CowRequest *req)
+void backup_cow_request_end(CowRequest *req, BlockJob *job)
 {
-    cow_request_end(req);
+    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
+
+    cow_request_end(req, backup_job);
 }
 
 static void backup_drain(BlockJob *job)
@@ -653,6 +662,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
+    qemu_co_mutex_init(&job->reqs_lock);
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
     job->sync_mode = sync_mode;

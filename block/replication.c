@@ -240,7 +240,7 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
                                  remaining_sectors);
         ret = bdrv_co_readv(bs->file, sector_num, remaining_sectors,
                             qiov);
-        backup_cow_request_end(&req);
+        backup_cow_request_end(&req, child->bs->job);
         goto out;
     }
 
