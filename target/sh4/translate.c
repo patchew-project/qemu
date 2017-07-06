@@ -359,14 +359,18 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
     gen_jump(ctx);
 }
 
-static inline void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
+/* Assumes lsb of (x) is always 0.  */
+/* ??? Should the translator should signal an invalid opc?
+   In the meantime, using OR instead of PLUS to form the index of the
+   low register means we can't crash the translator for REG==15.  */
+static void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
-    tcg_gen_concat_i32_i64(t, cpu_fregs[reg + 1], cpu_fregs[reg]);
+    tcg_gen_concat_i32_i64(t, cpu_fregs[reg | 1], cpu_fregs[reg]);
 }
 
-static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
+static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
-    tcg_gen_extr_i64_i32(cpu_fregs[reg + 1], cpu_fregs[reg], t);
+    tcg_gen_extr_i64_i32(cpu_fregs[reg | 1], cpu_fregs[reg], t);
 }
 
 #define B3_0 (ctx->opcode & 0xf)
@@ -385,7 +389,6 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 #define FREG(x) cpu_fregs[ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x)]
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
 #define XREG(x) FREG(XHACK(x))
-/* Assumes lsb of (x) is always 0 */
 #define DREG(x) (ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x))
 
 #define CHECK_NOT_DELAY_SLOT \
