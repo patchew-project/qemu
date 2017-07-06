@@ -1888,17 +1888,12 @@ int blk_commit_all(void)
     BlockBackend *blk = NULL;
 
     while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *aio_context = blk_get_aio_context(blk);
-
-        aio_context_acquire(aio_context);
         if (blk_is_inserted(blk) && blk->root->bs->backing) {
             int ret = bdrv_commit(blk->root->bs);
             if (ret < 0) {
-                aio_context_release(aio_context);
                 return ret;
             }
         }
-        aio_context_release(aio_context);
     }
     return 0;
 }
