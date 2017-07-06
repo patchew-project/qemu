@@ -1,0 +1,138 @@
+VIRTUAL MACHINE COREINFO DEVICE
+===============================
+
+Copyright (C) 2017 Red Hat, Inc.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+
+===
+
+The VM coreinfo (vmcoreinfo) device is an emulated device which
+exposes a 4k memory range to the guest to store various informations
+useful to debug the guest OS.
+
+QEMU Implementation
+-------------------
+
+The vmcoreinfo device is put in its own ACPI descriptor table, in a
+Secondary System Description Table, or SSDT.
+
+The following is a dump of the contents from a running system:
+
+# iasl -p ./SSDT -d /sys/firmware/acpi/tables/SSDT
+/*
+ * Intel ACPI Component Architecture
+ * AML/ASL+ Disassembler version 20160831-64
+ * Copyright (c) 2000 - 2016 Intel Corporation
+ *
+ * Disassembling to symbolic ASL+ operators
+ *
+ * Disassembly of /sys/firmware/acpi/tables/SSDT, Mon Apr 24 15:59:53 2017
+ *
+ * Original Table Header:
+ *     Signature        "SSDT"
+ *     Length           0x00000086 (134)
+ *     Revision         0x01
+ *     Checksum         0x5C
+ *     OEM ID           "BOCHS "
+ *     OEM Table ID     "VMCOREIN"
+ *     OEM Revision     0x00000001 (1)
+ *     Compiler ID      "BXPC"
+ *     Compiler Version 0x00000001 (1)
+ */
+DefinitionBlock ("", "SSDT", 1, "BOCHS ", "VMCOREIN", 0x00000001)
+{
+    Name (VCIA, 0x3FFFF000)
+    Scope (\_SB)
+    {
+        Device (VMCI)
+        {
+            Name (_HID, "QEMUVMCI")  // _HID: Hardware ID
+            Method (_STA, 0, NotSerialized)  // _STA: Status
+            {
+                Local0 = 0x0F
+                If (VCIA == Zero)
+                {
+                    Local0 = Zero
+                }
+
+                Return (Local0)
+            }
+
+            Method (ADDR, 0, NotSerialized)
+            {
+                Local0 = Package (0x02) {}
+                Local0 [Zero] = (VCIA + 0x28)
+                Local0 [One] = Zero
+                Return (Local0)
+            }
+        }
+    }
+}
+
+
+Design Details:
+---------------
+
+QEMU must be able to read the contents of the device memory,
+specifically when starting a memory dump.  In order to do this, QEMU
+must know the address that has been allocated.
+
+The mechanism chosen for this memory sharing is writeable fw_cfg blobs.
+These are data object that are visible to both QEMU and guests, and are
+addressable as sequential files.
+
+More information about fw_cfg can be found in "docs/specs/fw_cfg.txt"
+
+Two fw_cfg blobs are used in this case:
+
+/etc/vmcoreinfo      - used to allocate memory range, read-only to the guest
+/etc/vmcoreinfo-addr - contains the address of the allocated range
+                     - writeable by the guest
+
+
+QEMU sends the following commands to the guest at startup:
+
+1. Allocate memory for vmcoreinfo fw_cfg blob.
+2. Write the address of vmcoreinfo into the SSDT (VCIA ACPI variable as
+   shown above in the iasl dump).  Note that this change is not propagated
+   back to QEMU.
+3. Write the address of vmcoreinfo back to QEMU's copy of vmcoreinfo-addr
+   via the fw_cfg DMA interface.
+
+After step 3, QEMU is able to read the contents of vmcoreinfo.
+
+The value of VCIA is persisted via the VMState mechanism.
+
+
+Storage Format:
+---------------
+
+The content is expected to use little-endian format.
+
+In order to implement an OVMF "SDT Header Probe Suppressor", the contents of
+the vmcoreinfo blob has 40 bytes of padding:
+
++-----------------------------------+
+| SSDT with OEM Table ID = VMCOREIN |
++-----------------------------------+
+| ...                               |       TOP OF PAGE
+| VCIA dword object ----------------|-----> +---------------------------+
+| ...                               |       | fw-allocated array for    |
+| _STA method referring to VCIA     |       | "etc/vmcoreinfo"          |
+| ...                               |       +---------------------------+
+| ADDR method referring to VCIA     |       |  0: OVMF SDT Header probe |
+| ...                               |       |     suppressor            |
++-----------------------------------+       | 40: uint32 version field  |
+                                            | 44: info contents         |
+                                            |     ....                  |
+                                            +---------------------------+
+                                            END OF PAGE
+
+Version 0 content:
+
+ uint64 paddr:
+  Physical address of the Linux vmcoreinfo ELF note.
+ uint32 size:
+  Size of the vmcoreinfo ELF note.
