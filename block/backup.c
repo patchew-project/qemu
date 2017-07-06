@@ -246,6 +246,13 @@ static void backup_abort(BlockJob *job)
 static void backup_clean(BlockJob *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+
+    /* Ensure that no I/O is using the notifier anymore before freeing
+     * the bitmap and the job.
+     */
+    blk_drain(job->blk);
+    g_free(s->done_bitmap);
+
     assert(s->target);
     blk_unref(s->target);
     s->target = NULL;
@@ -526,12 +533,14 @@ static void coroutine_fn backup_run(void *opaque)
         }
     }
 
-    notifier_with_return_remove(&job->before_write);
-
-    /* wait until pending backup_do_cow() calls have completed */
+    /* At this point, all future invocations of the write notifier will
+     * find a 1 in the done_bitmap, but we still have to wait for pending
+     * backup_do_cow() calls to complete.
+     */
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
     qemu_co_rwlock_unlock(&job->flush_rwlock);
-    g_free(job->done_bitmap);
+
+    bdrv_remove_before_write_notifier(bs, &job->before_write);
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;

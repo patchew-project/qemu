@@ -32,7 +32,7 @@ bool bdrv_write_threshold_is_set(const BlockDriverState *bs)
 static void write_threshold_disable(BlockDriverState *bs)
 {
     if (bdrv_write_threshold_is_set(bs)) {
-        notifier_with_return_remove(&bs->write_threshold_notifier);
+        bdrv_remove_before_write_notifier(bs, &bs->write_threshold_notifier);
         bs->write_threshold_offset = 0;
     }
 }

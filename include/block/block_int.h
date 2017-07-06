@@ -707,12 +707,28 @@ void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
 
 /**
  * bdrv_add_before_write_notifier:
+ * @bs: The #BlockDriverState for which to register the notifier
+ * @notifier: The notifier to add
  *
  * Register a callback that is invoked before write requests are processed but
  * after any throttling or waiting for overlapping requests.
  */
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
                                     NotifierWithReturn *notifier);
+
+/**
+ * bdrv_remove_before_write_notifier:
+ * @bs: The #BlockDriverState for which to register the notifier
+ * @notifier: The notifier to add
+ *
+ * Unregister a callback that is invoked before write requests are processed but
+ * after any throttling or waiting for overlapping requests.
+ *
+ * Note that more I/O could be pending on @bs.  You need to wait for
+ * it to finish, for example with bdrv_drain(), before freeing @notifier.
+ */
+void bdrv_remove_before_write_notifier(BlockDriverState *bs,
+                                       NotifierWithReturn *notifier);
 
 /**
  * bdrv_detach_aio_context:
