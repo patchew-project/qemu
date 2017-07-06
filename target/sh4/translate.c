@@ -37,6 +37,7 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     TCGv *gregs;         /* active bank */
     TCGv *altregs;       /* inactive, alternate, bank */
+    TCGv *fregs;         /* active bank */
     target_ulong pc;
     uint16_t opcode;
     uint32_t tbflags;    /* should stay unmodified during the TB translation */
@@ -72,7 +73,7 @@ static TCGv cpu_pc, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
 static TCGv cpu_pr, cpu_fpscr, cpu_fpul;
 static TCGv cpu_lock_addr, cpu_lock_value;
-static TCGv cpu_fregs[32];
+static TCGv cpu_fregs[2][16];
 
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
@@ -176,10 +177,18 @@ void sh4_translate_init(void)
 				            offsetof(CPUSH4State, lock_value),
                                             "_lock_value_");
 
-    for (i = 0; i < 32; i++)
-        cpu_fregs[i] = tcg_global_mem_new_i32(cpu_env,
-                                              offsetof(CPUSH4State, fregs[i]),
-                                              fregnames[i]);
+    for (i = 0; i < 16; i++) {
+        cpu_fregs[0][i]
+            = tcg_global_mem_new_i32(cpu_env,
+                                     offsetof(CPUSH4State, fregs[i]),
+                                     fregnames[i]);
+    }
+    for (i = 16; i < 32; i++) {
+        cpu_fregs[1][i - 16]
+            = tcg_global_mem_new_i32(cpu_env,
+                                     offsetof(CPUSH4State, fregs[i]),
+                                     fregnames[i]);
+    }
 
     done_init = 1;
 }
@@ -365,12 +374,12 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
    low register means we can't crash the translator for REG==15.  */
 static void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
-    tcg_gen_concat_i32_i64(t, cpu_fregs[reg | 1], cpu_fregs[reg]);
+    tcg_gen_concat_i32_i64(t, ctx->fregs[reg | 1], ctx->fregs[reg]);
 }
 
 static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
-    tcg_gen_extr_i64_i32(cpu_fregs[reg | 1], cpu_fregs[reg], t);
+    tcg_gen_extr_i64_i32(ctx->fregs[reg | 1], ctx->fregs[reg], t);
 }
 
 #define B3_0 (ctx->opcode & 0xf)
@@ -386,10 +395,10 @@ static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 #define REG(x)     ctx->gregs[x]
 #define ALTREG(x)  ctx->altregs[x]
 
-#define FREG(x) cpu_fregs[ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x)]
-#define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
-#define XREG(x) FREG(XHACK(x))
-#define DREG(x) (ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x))
+#define FREG(x)    ctx->fregs[x]
+#define XHACK(x)   ((((x) & 1 ) << 4) | ((x) & 0xe))
+#define XREG(x)    FREG(XHACK(x))
+#define DREG(x)    (x)
 
 #define CHECK_NOT_DELAY_SLOT \
     if (ctx->envflags & DELAY_SLOT_MASK) {                           \
@@ -2229,6 +2238,9 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     bank = (ctx.tbflags & (1 << SR_MD)) && (ctx.tbflags & (1 << SR_RB));
     ctx.gregs = cpu_gregs[bank];
     ctx.altregs = cpu_gregs[bank ^ 1];
+
+    bank = (ctx.tbflags & FPSCR_FR) != 0;
+    ctx.fregs = cpu_fregs[bank];
 
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
