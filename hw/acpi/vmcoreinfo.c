@@ -163,6 +163,8 @@ static void vmcoreinfo_handle_reset(void *opaque)
     memset(vis->vmcoreinfo_addr_le, 0, ARRAY_SIZE(vis->vmcoreinfo_addr_le));
 }
 
+static VMCoreInfoState *vmcoreinfo_gdb_helper;
+
 static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
 {
     if (!bios_linker_loader_can_write_pointer()) {
@@ -181,6 +183,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    vmcoreinfo_gdb_helper = VMCOREINFO(dev);
     qemu_register_reset(vmcoreinfo_handle_reset, dev);
 }
 
