@@ -254,12 +254,25 @@ class HTABSection(object):
 
 
 class ConfigurationSection(object):
+    QEMU_VM_SUBSECTION    = 0x05
+
     def __init__(self, file):
         self.file = file
 
     def read(self):
         name_len = self.file.read32()
         name = self.file.readstr(len = name_len)
+        oldpos = self.file.tell()
+        if self.file.read8() == self.QEMU_VM_SUBSECTION:
+            name = self.file.readstr()
+            version_id = self.file.read32()
+            if name == "configuration/target-page-bits":
+                target_page_size = self.file.read32()
+            else:
+                raise Exception("Unknown config subsection: %s" % name)
+        else:
+            # No subsection following, forget that we ever read anything
+            self.file.seek(oldpos)
 
 class VMSDFieldGeneric(object):
     def __init__(self, desc, file):
