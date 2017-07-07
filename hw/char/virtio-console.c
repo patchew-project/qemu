@@ -163,6 +163,26 @@ static void chr_event(void *opaque, int event)
     }
 }
 
+static void virtconsole_enable_backend(VirtIOSerialPort *port, bool enable)
+{
+    VirtConsole *vcon = VIRTIO_CONSOLE(port);
+
+    if (!qemu_chr_fe_get_driver(&vcon->chr)) {
+        return;
+    }
+
+    if (enable) {
+        VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+
+        qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
+                                 k->is_console ? NULL : chr_event,
+                                 vcon, NULL, false);
+    } else {
+        qemu_chr_fe_set_handlers(&vcon->chr, NULL, NULL,
+                                 NULL, NULL, NULL, false);
+    }
+}
+
 static void virtconsole_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
@@ -233,6 +253,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     k->unrealize = virtconsole_unrealize;
     k->have_data = flush_buf;
     k->set_guest_connected = set_guest_connected;
+    k->enable_backend = virtconsole_enable_backend;
     k->guest_writable = guest_writable;
     dc->props = virtserialport_properties;
 }
