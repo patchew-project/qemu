@@ -61,6 +61,7 @@ enum {
     OPTION_FLUSH_INTERVAL = 261,
     OPTION_NO_DRAIN = 262,
     OPTION_TARGET_IMAGE_OPTS = 263,
+    OPTION_SHRINK = 264,
 };
 
 typedef enum OutputFormat {
@@ -3458,6 +3459,7 @@ static int img_resize(int argc, char **argv)
         },
     };
     bool image_opts = false;
+    bool shrink = false;
 
     /* Remove size from argv manually so that negative numbers are not treated
      * as options by getopt. */
@@ -3475,6 +3477,7 @@ static int img_resize(int argc, char **argv)
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"shrink", no_argument, 0, OPTION_SHRINK},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":f:hq",
@@ -3508,6 +3511,9 @@ static int img_resize(int argc, char **argv)
         }   break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
+            break;
+        case OPTION_SHRINK:
+            shrink = true;
             break;
         }
     }
@@ -3566,6 +3572,23 @@ static int img_resize(int argc, char **argv)
         error_report("New image size must be positive");
         ret = -1;
         goto out;
+    }
+
+    if (total_size < blk_getlength(blk) && !shrink) {
+        error_report("Warning: Shrinking an image will delete all data beyond"
+                     "the shrunken image's end. Before performing such an"
+                     "operation, make sure there is no important data there.");
+
+        if (g_strcmp0(bdrv_get_format_name(blk_bs(blk)), "raw") != 0) {
+            error_report(
+              "Use the --shrink option to perform a shrink operation.");
+            ret = -1;
+            goto out;
+        } else {
+            error_report("Using the --shrink option will suppress this message."
+                         "Note that future versions of qemu-img may refuse to "
+                         "shrink images without this option!");
+        }
     }
 
     ret = blk_truncate(blk, total_size, &err);
