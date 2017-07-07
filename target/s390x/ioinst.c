@@ -599,6 +599,24 @@ static int chsc_sei_nt0_have_event(void)
     return 0;
 }
 
+static int chsc_sei_nt2_get_event(void *res)
+{
+#ifdef CONFIG_PCI
+    return pci_chsc_sei_nt2_get_event(res);
+#else
+    return 1;
+#endif
+}
+
+static int chsc_sei_nt2_have_event(void)
+{
+#ifdef CONFIG_PCI
+    return pci_chsc_sei_nt2_have_event();
+#else
+    return 0;
+#endif
+}
+
 #define CHSC_SEI_NT0    (1ULL << 63)
 #define CHSC_SEI_NT2    (1ULL << 61)
 static void ioinst_handle_chsc_sei(ChscReq *req, ChscResp *res)
