@@ -114,7 +114,6 @@ static void ccw_init(MachineState *machine)
 {
     int ret;
     VirtualCssBus *css_bus;
-    DeviceState *dev;
 
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
@@ -126,12 +125,14 @@ static void ccw_init(MachineState *machine)
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
-
-    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+#ifdef CONFIG_PCI
+    {
+    DeviceState *dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
                               OBJECT(dev), NULL);
     qdev_init_nofail(dev);
-
+    }
+#endif
     /* register hypercalls */
     virtio_ccw_register_hcalls();
 
