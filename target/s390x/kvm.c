@@ -1160,6 +1160,9 @@ static int kvm_clp_service_call(S390CPU *cpu, struct kvm_run *run)
 {
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     return clp_service_call(cpu, r2);
 }
 
@@ -1168,6 +1171,9 @@ static int kvm_pcilg_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     return pcilg_service_call(cpu, r1, r2);
 }
 
@@ -1176,6 +1182,9 @@ static int kvm_pcistg_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     return pcistg_service_call(cpu, r1, r2);
 }
 
@@ -1188,11 +1197,17 @@ static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
     cpu_synchronize_state(CPU(cpu));
     fiba = get_base_disp_rxy(cpu, run, &ar);
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     return stpcifc_service_call(cpu, r1, fiba, ar);
 }
 
 static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
 {
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     /* NOOP */
     return 0;
 }
@@ -1202,6 +1217,9 @@ static int kvm_rpcit_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     return rpcit_service_call(cpu, r1, r2);
 }
 
@@ -1212,6 +1230,9 @@ static int kvm_pcistb_service_call(S390CPU *cpu, struct kvm_run *run)
     uint64_t gaddr;
     uint8_t ar;
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     cpu_synchronize_state(CPU(cpu));
     gaddr = get_base_disp_rsy(cpu, run, &ar);
 
@@ -1224,6 +1245,9 @@ static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
     uint64_t fiba;
     uint8_t ar;
 
+#ifndef CONFIG_PCI
+    return -1;
+#endif
     cpu_synchronize_state(CPU(cpu));
     fiba = get_base_disp_rxy(cpu, run, &ar);
 
