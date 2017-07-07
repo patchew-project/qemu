@@ -1540,7 +1540,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 #else
     if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
         tcg_out_ext32u(s, base, addr_regl);
-        addr_regl = base;
+        tcg_out_mov(s, TCG_TYPE_PTR, addr_regl, base);
     }
     if (guest_base == 0 && data_regl != addr_regl) {
         base = addr_regl;
