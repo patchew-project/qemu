@@ -2351,6 +2351,7 @@ int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
+#ifdef CONFIG_PCI
     S390PCIBusDevice *pbdev;
     uint32_t idx = data >> ZPCI_MSI_VEC_BITS;
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
@@ -2371,6 +2372,9 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     route->u.adapter.ind_offset = pbdev->routes.adapter.ind_offset;
     route->u.adapter.adapter_id = pbdev->routes.adapter.adapter_id;
     return 0;
+#else
+    return -ENODEV;
+#endif
 }
 
 int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
