@@ -320,14 +320,25 @@ struct TranslationBlock {
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint16_t icount;
-    uint32_t cflags;    /* compile flags */
+    /*
+     * @tc_size must be kept right after @tc_ptr to facilitate TB lookups in a
+     * binary search tree -- see struct ptr_size.
+     * We use an anonymous struct here to avoid updating all calling code,
+     * which would be quite a lot of churn.
+     * The only reason to bring @cflags into the anonymous struct is to
+     * avoid inducing a hole in TranslationBlock.
+     */
+    struct {
+        void *tc_ptr;    /* pointer to the translated code */
+        uint32_t tc_size; /* size of translated code for this block */
+
+        uint32_t cflags;    /* compile flags */
 #define CF_COUNT_MASK  0x7fff
 #define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 #define CF_NOCACHE     0x10000 /* To be freed after execution */
 #define CF_USE_ICOUNT  0x20000
 #define CF_IGNORE_ICOUNT 0x40000 /* Do not generate icount code */
-
-    void *tc_ptr;    /* pointer to the translated code */
+    };
     uint8_t *tc_search;  /* pointer to search data */
     /* original tb when cflags has CF_NOCACHE */
     struct TranslationBlock *orig_tb;
