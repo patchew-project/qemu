@@ -1362,7 +1362,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     memset(op, 0, sizeof(*op));
 
 #ifdef CONFIG_PROFILER
-    s->del_op_count++;
+    atomic_set(&s->prof.del_op_count, s->prof.del_op_count + 1);
 #endif
 }
 
@@ -2533,15 +2533,77 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
 
 #ifdef CONFIG_PROFILER
 
-static int64_t tcg_table_op_count[NB_OPS];
+/* avoid copy/paste errors */
+#define PROF_ADD(to, from, field)                       \
+    (to)->field += atomic_read(&((from)->field))
+
+#define PROF_ADD_MAX(to, from, field)                                   \
+    do {                                                                \
+        typeof((from)->field) val__ = atomic_read(&((from)->field));    \
+        if (val__ > (to)->field) {                                      \
+            (to)->field = val__;                                        \
+        }                                                               \
+    } while (0)
+
+/* Pass in a zero'ed @prof */
+static inline
+void tcg_profile_snapshot(TCGProfile *prof, bool counters, bool table)
+{
+    const TCGContext *s;
+
+    QSIMPLEQ_FOREACH(s, &ctx_list, entry) {
+        const TCGProfile *orig = &s->prof;
+
+        if (counters) {
+            PROF_ADD(prof, orig, tb_count1);
+            PROF_ADD(prof, orig, tb_count);
+            PROF_ADD(prof, orig, op_count);
+            PROF_ADD_MAX(prof, orig, op_count_max);
+            PROF_ADD(prof, orig, temp_count);
+            PROF_ADD_MAX(prof, orig, temp_count_max);
+            PROF_ADD(prof, orig, del_op_count);
+            PROF_ADD(prof, orig, code_in_len);
+            PROF_ADD(prof, orig, code_out_len);
+            PROF_ADD(prof, orig, search_out_len);
+            PROF_ADD(prof, orig, interm_time);
+            PROF_ADD(prof, orig, code_time);
+            PROF_ADD(prof, orig, la_time);
+            PROF_ADD(prof, orig, opt_time);
+            PROF_ADD(prof, orig, restore_count);
+            PROF_ADD(prof, orig, restore_time);
+        }
+        if (table) {
+            int i;
+
+            for (i = 0; i < NB_OPS; i++) {
+                PROF_ADD(prof, orig, table_op_count[i]);
+            }
+        }
+    }
+}
+
+#undef PROF_ADD
+#undef PROF_ADD_MAX
+
+static void tcg_profile_snapshot_counters(TCGProfile *prof)
+{
+    tcg_profile_snapshot(prof, true, false);
+}
+
+static void tcg_profile_snapshot_table(TCGProfile *prof)
+{
+    tcg_profile_snapshot(prof, false, true);
+}
 
 void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
 {
+    TCGProfile prof = {};
     int i;
 
+    tcg_profile_snapshot_table(&prof);
     for (i = 0; i < NB_OPS; i++) {
         cpu_fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name,
-                    tcg_table_op_count[i]);
+                    prof.table_op_count[i]);
     }
 }
 #else
@@ -2554,6 +2616,9 @@ void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
 
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 {
+#ifdef CONFIG_PROFILER
+    TCGProfile *prof = &s->prof;
+#endif
     int i, oi, oi_next, num_insns;
 
 #ifdef CONFIG_PROFILER
@@ -2561,15 +2626,15 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         int n;
 
         n = s->gen_op_buf[0].prev + 1;
-        s->op_count += n;
-        if (n > s->op_count_max) {
-            s->op_count_max = n;
+        atomic_set(&prof->op_count, prof->op_count + n);
+        if (n > prof->op_count_max) {
+            atomic_set(&prof->op_count_max, n);
         }
 
         n = s->nb_temps;
-        s->temp_count += n;
-        if (n > s->temp_count_max) {
-            s->temp_count_max = n;
+        atomic_set(&prof->temp_count, prof->temp_count + n);
+        if (n > prof->temp_count_max) {
+            atomic_set(&prof->temp_count_max, n);
         }
     }
 #endif
@@ -2586,7 +2651,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #endif
 
 #ifdef CONFIG_PROFILER
-    s->opt_time -= profile_getclock();
+    atomic_set(&prof->opt_time, prof->opt_time - profile_getclock());
 #endif
 
 #ifdef USE_TCG_OPTIMIZATIONS
@@ -2594,8 +2659,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #endif
 
 #ifdef CONFIG_PROFILER
-    s->opt_time += profile_getclock();
-    s->la_time -= profile_getclock();
+    atomic_set(&prof->opt_time, prof->opt_time + profile_getclock());
+    atomic_set(&prof->la_time, prof->la_time - profile_getclock());
 #endif
 
     {
@@ -2623,7 +2688,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     }
 
 #ifdef CONFIG_PROFILER
-    s->la_time += profile_getclock();
+    atomic_set(&prof->la_time, prof->la_time + profile_getclock());
 #endif
 
 #ifdef DEBUG_DISAS
@@ -2654,7 +2719,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
         oi_next = op->next;
 #ifdef CONFIG_PROFILER
-        tcg_table_op_count[opc]++;
+        atomic_set(&prof->table_op_count[opc], prof->table_op_count[opc] + 1);
 #endif
 
         switch (opc) {
@@ -2730,10 +2795,17 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef CONFIG_PROFILER
 void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
 {
-    TCGContext *s = &tcg_ctx;
-    int64_t tb_count = s->tb_count;
-    int64_t tb_div_count = tb_count ? tb_count : 1;
-    int64_t tot = s->interm_time + s->code_time;
+    TCGProfile prof = {};
+    const TCGProfile *s;
+    int64_t tb_count;
+    int64_t tb_div_count;
+    int64_t tot;
+
+    tcg_profile_snapshot_counters(&prof);
+    s = &prof;
+    tb_count = s->tb_count;
+    tb_div_count = tb_count ? tb_count : 1;
+    tot = s->interm_time + s->code_time;
 
     cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
                 tot, tot / 2.4e9);
