@@ -1020,6 +1020,7 @@ static void create_pcie(const VirtMachineState *vms, qemu_irq *pic)
     char *nodename;
     int i;
     PCIHostState *pci;
+    GPEXHost *s;
 
     dev = qdev_create(NULL, TYPE_GPEX_HOST);
     qdev_init_nofail(dev);
@@ -1055,8 +1056,11 @@ static void create_pcie(const VirtMachineState *vms, qemu_irq *pic)
     /* Map IO port space */
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
 
+    s = GPEX_HOST(dev);
+
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+        gpex_set_irq_num(s, i, irq + i);
     }
 
     pci = PCI_HOST_BRIDGE(dev);
