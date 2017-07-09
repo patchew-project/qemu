@@ -130,6 +130,7 @@ static void *l1_map[V_L1_MAX_SIZE];
 
 /* code generation context */
 TCGContext tcg_ctx;
+TBContext tb_ctx;
 bool parallel_cpus;
 
 /* translation block context */
@@ -161,7 +162,7 @@ static void page_table_config_init(void)
 void tb_lock(void)
 {
     assert_tb_unlocked();
-    qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
+    qemu_mutex_lock(&tb_ctx.tb_lock);
     have_tb_lock++;
 }
 
@@ -169,13 +170,13 @@ void tb_unlock(void)
 {
     assert_tb_locked();
     have_tb_lock--;
-    qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+    qemu_mutex_unlock(&tb_ctx.tb_lock);
 }
 
 void tb_lock_reset(void)
 {
     if (have_tb_lock) {
-        qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+        qemu_mutex_unlock(&tb_ctx.tb_lock);
         have_tb_lock = 0;
     }
 }
@@ -801,15 +802,15 @@ static inline void code_gen_alloc(size_t tb_size)
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
-    tcg_ctx.tb_ctx.tb_tree = g_tree_new(tc_ptr_cmp);
-    qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
+    tb_ctx.tb_tree = g_tree_new(tc_ptr_cmp);
+    qemu_mutex_init(&tb_ctx.tb_lock);
 }
 
 static void tb_htable_init(void)
 {
     unsigned int mode = QHT_MODE_AUTO_RESIZE;
 
-    qht_init(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
+    qht_init(&tb_ctx.htable, CODE_GEN_HTABLE_SIZE, mode);
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -853,7 +854,7 @@ void tb_free(TranslationBlock *tb)
 {
     assert_tb_locked();
 
-    g_tree_remove(tcg_ctx.tb_ctx.tb_tree, &tb->tc_ptr);
+    g_tree_remove(tb_ctx.tb_tree, &tb->tc_ptr);
 }
 
 static inline void invalidate_page_bitmap(PageDesc *p)
@@ -919,13 +920,13 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     /* If it is already been done on request of another CPU,
      * just retry.
      */
-    if (tcg_ctx.tb_ctx.tb_flush_count != tb_flush_count.host_int) {
+    if (tb_ctx.tb_flush_count != tb_flush_count.host_int) {
         goto done;
     }
 
 #if defined(DEBUG_TB_FLUSH)
-    g_tree_foreach(tcg_ctx.tb_ctx.tb_tree, tb_host_size_iter, &host_size);
-    nb_tbs = g_tree_nnodes(tcg_ctx.tb_ctx.tb_tree);
+    g_tree_foreach(tb_ctx.tb_tree, tb_host_size_iter, &host_size);
+    nb_tbs = g_tree_nnodes(tb_ctx.tb_tree);
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%zu\n",
            (unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer),
            nb_tbs, nb_tbs > 0 ? host_size / nb_tbs : 0);
@@ -940,17 +941,16 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     }
 
     /* Increment the refcount first so that destroy acts as a reset */
-    g_tree_ref(tcg_ctx.tb_ctx.tb_tree);
-    g_tree_destroy(tcg_ctx.tb_ctx.tb_tree);
+    g_tree_ref(tb_ctx.tb_tree);
+    g_tree_destroy(tb_ctx.tb_tree);
 
-    qht_reset_size(&tcg_ctx.tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
+    qht_reset_size(&tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
     page_flush_tb();
 
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
     /* XXX: flush processor icache at this point if cache flush is
        expensive */
-    atomic_mb_set(&tcg_ctx.tb_ctx.tb_flush_count,
-                  tcg_ctx.tb_ctx.tb_flush_count + 1);
+    atomic_mb_set(&tb_ctx.tb_flush_count, tb_ctx.tb_flush_count + 1);
 
 done:
     tb_unlock();
@@ -959,7 +959,7 @@ done:
 void tb_flush(CPUState *cpu)
 {
     if (tcg_enabled()) {
-        unsigned tb_flush_count = atomic_mb_read(&tcg_ctx.tb_ctx.tb_flush_count);
+        unsigned tb_flush_count = atomic_mb_read(&tb_ctx.tb_flush_count);
         async_safe_run_on_cpu(cpu, do_tb_flush,
                               RUN_ON_CPU_HOST_INT(tb_flush_count));
     }
@@ -986,7 +986,7 @@ do_tb_invalidate_check(struct qht *ht, void *p, uint32_t hash, void *userp)
 static void tb_invalidate_check(target_ulong address)
 {
     address &= TARGET_PAGE_MASK;
-    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_invalidate_check, &address);
+    qht_iter(&tb_ctx.htable, do_tb_invalidate_check, &address);
 }
 
 static void
@@ -1006,7 +1006,7 @@ do_tb_page_check(struct qht *ht, void *p, uint32_t hash, void *userp)
 /* verify that all the pages have correct rights for code */
 static void tb_page_check(void)
 {
-    qht_iter(&tcg_ctx.tb_ctx.htable, do_tb_page_check, NULL);
+    qht_iter(&tb_ctx.htable, do_tb_page_check, NULL);
 }
 
 #endif
@@ -1105,7 +1105,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    qht_remove(&tcg_ctx.tb_ctx.htable, tb, h);
+    qht_remove(&tb_ctx.htable, tb, h);
 
     /* remove the TB from the page list */
     if (tb->page_addr[0] != page_addr) {
@@ -1134,7 +1134,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* suppress any remaining jumps to this TB */
     tb_jmp_unlink(tb);
 
-    tcg_ctx.tb_ctx.tb_phys_invalidate_count++;
+    tb_ctx.tb_phys_invalidate_count++;
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -1250,7 +1250,7 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 
     /* add in the hash table */
     h = tb_hash_func(phys_pc, tb->pc, tb->flags);
-    qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
+    qht_insert(&tb_ctx.htable, tb, h);
 
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
@@ -1393,7 +1393,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * through the physical hash table and physical page list.
      */
     tb_link_page(tb, phys_pc, phys_page2);
-    g_tree_insert(tcg_ctx.tb_ctx.tb_tree, &tb->tc_ptr, tb);
+    g_tree_insert(tb_ctx.tb_tree, &tb->tc_ptr, tb);
     return tb;
 }
 
@@ -1671,7 +1671,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
 {
     struct ptr_size s = { .ptr = (void *)tc_ptr };
 
-    return g_tree_lookup(tcg_ctx.tb_ctx.tb_tree, &s);
+    return g_tree_lookup(tb_ctx.tb_tree, &s);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1895,8 +1895,8 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
 
     tb_lock();
 
-    nb_tbs = g_tree_nnodes(tcg_ctx.tb_ctx.tb_tree);
-    g_tree_foreach(tcg_ctx.tb_ctx.tb_tree, tb_tree_stats_iter, &tst);
+    nb_tbs = g_tree_nnodes(tb_ctx.tb_tree);
+    g_tree_foreach(tb_ctx.tb_tree, tb_tree_stats_iter, &tst);
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
     /*
@@ -1922,15 +1922,14 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
                 tst.direct_jmp2_count,
                 nb_tbs ? (tst.direct_jmp2_count * 100) / nb_tbs : 0);
 
-    qht_statistics_init(&tcg_ctx.tb_ctx.htable, &hst);
+    qht_statistics_init(&tb_ctx.htable, &hst);
     print_qht_statistics(f, cpu_fprintf, hst);
     qht_statistics_destroy(&hst);
 
     cpu_fprintf(f, "\nStatistics:\n");
     cpu_fprintf(f, "TB flush count      %u\n",
-            atomic_read(&tcg_ctx.tb_ctx.tb_flush_count));
-    cpu_fprintf(f, "TB invalidate count %d\n",
-            tcg_ctx.tb_ctx.tb_phys_invalidate_count);
+                atomic_read(&tb_ctx.tb_flush_count));
+    cpu_fprintf(f, "TB invalidate count %d\n", tb_ctx.tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %zu\n", tlb_flush_count());
     tcg_dump_info(f, cpu_fprintf);
 

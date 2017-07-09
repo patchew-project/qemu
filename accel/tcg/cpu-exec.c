@@ -323,7 +323,7 @@ TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
     phys_pc = get_page_addr_code(desc.env, pc);
     desc.phys_page1 = phys_pc & TARGET_PAGE_MASK;
     h = tb_hash_func(phys_pc, pc, flags);
-    return qht_lookup(&tcg_ctx.tb_ctx.htable, tb_cmp, &desc, h);
+    return qht_lookup(&tb_ctx.htable, tb_cmp, &desc, h);
 }
 
 static inline TranslationBlock *tb_find(CPUState *cpu,
