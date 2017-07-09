@@ -55,7 +55,7 @@ typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong);
 #endif
 
-static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
+static TCG_THREAD tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
 
 static tcg_target_ulong tci_read_reg(TCGReg index)
 {

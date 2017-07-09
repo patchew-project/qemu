@@ -40,8 +40,8 @@ struct tcg_temp_info {
     tcg_target_ulong mask;
 };
 
-static struct tcg_temp_info temps[TCG_MAX_TEMPS];
-static TCGTempSet temps_used;
+static TCG_THREAD struct tcg_temp_info temps[TCG_MAX_TEMPS];
+static TCG_THREAD TCGTempSet temps_used;
 
 static inline bool temp_is_const(TCGArg arg)
 {

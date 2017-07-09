@@ -131,7 +131,7 @@ static int v_l2_levels;
 static void *l1_map[V_L1_MAX_SIZE];
 
 /* code generation context */
-TCGContext tcg_ctx;
+TCG_THREAD TCGContext tcg_ctx;
 TBContext tb_ctx;
 bool parallel_cpus;
 
@@ -185,10 +185,6 @@ void tb_lock_reset(void)
 
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
-void cpu_gen_init(void)
-{
-    tcg_context_init(&tcg_ctx); 
-}
 
 /* Encode VAL as a signed leb128 sequence at P.
    Return P incremented past the encoded value.  */
@@ -812,6 +808,17 @@ static inline void code_gen_alloc(size_t tb_size)
 
 #ifdef CONFIG_SOFTMMU
 /*
+ * Threads calling this function must be the TCG threads, i.e. they
+ * have their own tcg_ctx.
+ */
+void cpu_thread_tcg_init(void)
+{
+    tcg_context_clone(&tcg_ctx);
+    tcg_register_thread();
+    tcg_region_init(&tcg_ctx);
+}
+
+/*
  * It is likely that some vCPUs will translate more code than others, so we
  * first try to set more regions than smp_cpus, with those regions being
  * larger than the minimum code_gen_buffer size. If that's not possible we
@@ -858,7 +865,7 @@ static void tb_htable_init(void)
 void tcg_exec_init(unsigned long tb_size)
 {
     tcg_allowed = true;
-    cpu_gen_init();
+    tcg_context_init(&tcg_ctx);
     page_init();
     tb_htable_init();
     code_gen_alloc(tb_size);
@@ -867,7 +874,6 @@ void tcg_exec_init(unsigned long tb_size)
        initialize the prologue now.  */
     tcg_prologue_init(&tcg_ctx);
     code_gen_set_region_size(&tcg_ctx);
-    tcg_region_init(&tcg_ctx);
 #endif
 }
 

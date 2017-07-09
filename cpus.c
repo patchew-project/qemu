@@ -1307,6 +1307,8 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
     CPUState *cpu = arg;
 
     rcu_register_thread();
+    /* For single-threaded TCG we just need to initialize one tcg_ctx */
+    cpu_thread_tcg_init();
 
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
@@ -1454,6 +1456,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     g_assert(!use_icount);
 
     rcu_register_thread();
+    cpu_thread_tcg_init();
 
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);

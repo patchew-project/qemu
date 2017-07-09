@@ -532,6 +532,11 @@ void tcg_region_reset_all(void)
     region.n_full = 0;
 
     QSIMPLEQ_FOREACH(s, &ctx_list, entry) {
+#ifdef CONFIG_SOFTMMU
+        if (s == tcg_init_ctx) {
+            continue;
+        }
+#endif
         if (unlikely(!tcg_region_alloc__locked(s))) {
             tcg_abort();
         }
@@ -556,6 +561,11 @@ size_t tcg_code_size(void)
     QSIMPLEQ_FOREACH(s, &ctx_list, entry) {
         size_t size;
 
+#ifdef CONFIG_SOFTMMU
+        if (s == tcg_init_ctx) {
+            continue;
+        }
+#endif
         size = atomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
         if (unlikely(size > s->code_gen_buffer_size)) {
             tcg_abort();
