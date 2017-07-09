@@ -117,6 +117,7 @@ static bool tcg_out_tb_finalize(TCGContext *s);
 
 #define TCG_HIGHWATER 1024
 
+static const TCGContext *tcg_init_ctx;
 static QemuMutex tcg_lock;
 
 /*
@@ -353,6 +354,7 @@ void tcg_context_init(TCGContext *s)
     TCGArgConstraint *args_ct;
     int *sorted_args;
 
+    tcg_init_ctx = s;
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
 
@@ -406,6 +408,18 @@ void tcg_context_init(TCGContext *s)
 
     qemu_mutex_init(&tcg_lock);
     tcg_register_thread();
+}
+
+/*
+ * Clone the initial TCGContext. Used by TCG threads to copy the TCGContext
+ * set up by their parent thread via tcg_context_init().
+ */
+void tcg_context_clone(TCGContext *s)
+{
+    if (unlikely(tcg_init_ctx == NULL || tcg_init_ctx == s)) {
+        tcg_abort();
+    }
+    memcpy(s, tcg_init_ctx, sizeof(*s));
 }
 
 /*

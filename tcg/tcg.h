@@ -778,6 +778,7 @@ static inline void *tcg_malloc(int size)
 }
 
 void tcg_context_init(TCGContext *s);
+void tcg_context_clone(TCGContext *s);
 void tcg_prologue_init(TCGContext *s);
 void tcg_register_thread(void);
 void tcg_func_start(TCGContext *s);
