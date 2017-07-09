@@ -115,7 +115,16 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 static void tcg_out_tb_init(TCGContext *s);
 static bool tcg_out_tb_finalize(TCGContext *s);
 
+static QemuMutex tcg_lock;
 
+/*
+ * List of TCGContext's in the system. Protected by tcg_lock.
+ * Once vcpu threads have been inited, there will be no further modifications
+ * to the list (vcpu threads never return) so we can safely traverse the list
+ * without synchronization.
+ */
+static QSIMPLEQ_HEAD(, TCGContext) ctx_list =
+    QSIMPLEQ_HEAD_INITIALIZER(ctx_list);
 
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
@@ -324,6 +333,17 @@ static GHashTable *helper_table;
 static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
 
+/*
+ * Child TCG threads, i.e. the ones that do not call tcg_context_init, must call
+ * this function before initiating translation.
+ */
+void tcg_register_thread(void)
+{
+    qemu_mutex_lock(&tcg_lock);
+    QSIMPLEQ_INSERT_TAIL(&ctx_list, &tcg_ctx, entry);
+    qemu_mutex_unlock(&tcg_lock);
+}
+
 void tcg_context_init(TCGContext *s)
 {
     int op, total_args, n, i;
@@ -381,6 +401,9 @@ void tcg_context_init(TCGContext *s)
     for (; i < ARRAY_SIZE(tcg_target_reg_alloc_order); ++i) {
         indirect_reg_alloc_order[i] = tcg_target_reg_alloc_order[i];
     }
+
+    qemu_mutex_init(&tcg_lock);
+    tcg_register_thread();
 }
 
 /*

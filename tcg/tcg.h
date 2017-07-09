@@ -725,6 +725,8 @@ struct TCGContext {
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
+
+    QSIMPLEQ_ENTRY(TCGContext) entry;
 };
 
 extern TCGContext tcg_ctx;
@@ -773,6 +775,7 @@ static inline void *tcg_malloc(int size)
 
 void tcg_context_init(TCGContext *s);
 void tcg_prologue_init(TCGContext *s);
+void tcg_register_thread(void);
 void tcg_func_start(TCGContext *s);
 
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb);
