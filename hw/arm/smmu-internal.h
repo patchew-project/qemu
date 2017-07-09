@@ -86,12 +86,4 @@ uint64_t iova_level_offset(uint64_t iova, int level, int granule_sz)
             ((1ULL << (granule_sz - 3)) - 1);
 }
 
-/* TODO: check this for stage 2 and table concatenation */
-static inline int initial_lookup_level(int tnsz, int granule_sz)
-{
-    return 4 - (64 - tnsz - 4) / (granule_sz - 3);
-}
-
-
-
 #endif
