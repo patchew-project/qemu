@@ -887,7 +887,9 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
+#ifdef CONFIG_USER_ONLY
     assert_tb_locked();
+#endif
 
     tb = tcg_tb_alloc(&tcg_ctx);
     if (unlikely(tb == NULL)) {
@@ -1314,7 +1316,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     TCGProfile *prof = &tcg_ctx.prof;
     int64_t ti;
 #endif
+#ifdef CONFIG_USER_ONLY
     assert_memory_lock();
+#endif
 
     phys_pc = get_page_addr_code(env, pc);
     if (use_icount && !(cflags & CF_IGNORE_ICOUNT)) {
@@ -1429,6 +1433,24 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     phys_page2 = -1;
     if ((pc & TARGET_PAGE_MASK) != virt_page2) {
         phys_page2 = get_page_addr_code(env, virt_page2);
+    }
+    if (!have_tb_lock) {
+        TranslationBlock *t;
+
+        tb_lock();
+        /*
+         * There's a chance that our desired tb has been translated while
+         * we were translating it.
+         */
+        t = tb_htable_lookup(cpu, pc, cs_base, flags);
+        if (unlikely(t)) {
+            /* discard what we just translated */
+            uintptr_t orig_aligned = (uintptr_t)gen_code_buf;
+
+            orig_aligned -= ROUND_UP(sizeof(*tb), qemu_icache_linesize);
+            atomic_set(&tcg_ctx.code_gen_ptr, orig_aligned);
+            return t;
+        }
     }
     /* As long as consistency of the TB stuff is provided by tb_lock in user
      * mode and is implicit in single-threaded softmmu emulation, no explicit
