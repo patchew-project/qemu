@@ -761,6 +761,14 @@ void *tcg_malloc_internal(TCGContext *s, int size);
 void tcg_pool_reset(TCGContext *s);
 TranslationBlock *tcg_tb_alloc(TCGContext *s);
 
+void tcg_region_init(TCGContext *s);
+bool tcg_region_alloc(TCGContext *s);
+void tcg_region_set_size(size_t size);
+void tcg_region_reset_all(void);
+
+size_t tcg_code_size(void);
+size_t tcg_code_capacity(void);
+
 /* Called with tb_lock held.  */
 static inline void *tcg_malloc(int size)
 {

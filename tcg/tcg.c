@@ -129,6 +129,23 @@ static QemuMutex tcg_lock;
 static QSIMPLEQ_HEAD(, TCGContext) ctx_list =
     QSIMPLEQ_HEAD_INITIALIZER(ctx_list);
 
+/*
+ * We divide code_gen_buffer into equally-sized "regions" that TCG threads
+ * dynamically allocate from as demand dictates. Given appropriate region
+ * sizing, this minimizes flushes even when some TCG threads generate a lot
+ * more code than others.
+ */
+struct tcg_region_state {
+    void *buf;
+    size_t n;
+    size_t current;
+    size_t n_full;
+    size_t size; /* size of one region */
+};
+
+/* protected by tcg_lock */
+static struct tcg_region_state region;
+
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
@@ -410,6 +427,156 @@ void tcg_context_init(TCGContext *s)
     tcg_register_thread();
 }
 
+static void tcg_region_set_size__locked(size_t size)
+{
+    if (!size) {
+        region.size = tcg_init_ctx->code_gen_buffer_size;
+        region.n = 1;
+    } else {
+        region.size = size;
+        region.n = tcg_init_ctx->code_gen_buffer_size / size;
+    }
+    if (unlikely(region.size < TCG_HIGHWATER)) {
+        tcg_abort();
+    }
+}
+
+/*
+ * Call this function at init time (i.e. only once). Calling this function is
+ * optional: if no region size is set, a single region will be used.
+ *
+ * Note: calling this function *after* calling tcg_region_init() is a bug.
+ */
+void tcg_region_set_size(size_t size)
+{
+    tcg_debug_assert(!region.size);
+
+    qemu_mutex_lock(&tcg_lock);
+    tcg_region_set_size__locked(size);
+    qemu_mutex_unlock(&tcg_lock);
+}
+
+static void tcg_region_assign__locked(TCGContext *s)
+{
+    void *buf = region.buf + region.size * region.current;
+
+    s->code_gen_buffer = buf;
+    s->code_gen_ptr = buf;
+    s->code_gen_buffer_size = region.size;
+    s->code_gen_highwater = buf + region.size - TCG_HIGHWATER;
+}
+
+static bool tcg_region_alloc__locked(TCGContext *s)
+{
+    if (region.current == region.n) {
+        return false;
+    }
+    tcg_region_assign__locked(s);
+    region.current++;
+    return true;
+}
+
+/*
+ * Request a new region once the one in use has filled up.
+ * Note: upon initializing a TCG thread, allocate a new region with
+ * tcg_region_init() instead.
+ * Returns true on success.
+ * */
+bool tcg_region_alloc(TCGContext *s)
+{
+    bool success;
+
+    qemu_mutex_lock(&tcg_lock);
+    success = tcg_region_alloc__locked(s);
+    if (success) {
+        region.n_full++;
+    }
+    qemu_mutex_unlock(&tcg_lock);
+    return success;
+}
+
+/*
+ * Allocate an initial region.
+ * All TCG threads must have called this function before any of them initiates
+ * translation.
+ *
+ * The region size might have previously been set by tcg_region_set_size();
+ * otherwise a single region will be used on the entire code_gen_buffer.
+ *
+ * Note: allocate subsequent regions with tcg_region_alloc().
+ */
+void tcg_region_init(TCGContext *s)
+{
+    qemu_mutex_lock(&tcg_lock);
+    if (region.buf == NULL) {
+        region.buf = tcg_init_ctx->code_gen_buffer;
+    }
+    if (!region.size) {
+        tcg_region_set_size__locked(0);
+    }
+    /* if we cannot allocate on init, then we did something wrong */
+    if (!tcg_region_alloc__locked(s)) {
+        tcg_abort();
+    }
+    qemu_mutex_unlock(&tcg_lock);
+
+}
+
+/* Call from a safe-work context */
+void tcg_region_reset_all(void)
+{
+    TCGContext *s;
+
+    qemu_mutex_lock(&tcg_lock);
+    region.current = 0;
+    region.n_full = 0;
+
+    QSIMPLEQ_FOREACH(s, &ctx_list, entry) {
+        if (unlikely(!tcg_region_alloc__locked(s))) {
+            tcg_abort();
+        }
+    }
+    qemu_mutex_unlock(&tcg_lock);
+}
+
+/*
+ * Returns the size (in bytes) of all translated code (i.e. from all regions)
+ * currently in the cache.
+ * See also: tcg_code_capacity()
+ * Do not confuse with tcg_current_code_size(); that one applies to a single
+ * TCG context.
+ */
+size_t tcg_code_size(void)
+{
+    const TCGContext *s;
+    size_t total;
+
+    qemu_mutex_lock(&tcg_lock);
+    total = region.n_full * (region.size - TCG_HIGHWATER);
+    QSIMPLEQ_FOREACH(s, &ctx_list, entry) {
+        size_t size;
+
+        size = atomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
+        if (unlikely(size > s->code_gen_buffer_size)) {
+            tcg_abort();
+        }
+        total += size;
+    }
+    qemu_mutex_unlock(&tcg_lock);
+    return total;
+}
+
+/*
+ * Returns the code capacity (in bytes) of the entire cache, i.e. including all
+ * regions.
+ * See also: tcg_code_size()
+ */
+size_t tcg_code_capacity(void)
+{
+    /* no need for synchronization; these variables are set at init time */
+    return region.n * (region.size - TCG_HIGHWATER);
+}
+
 /*
  * Clone the initial TCGContext. Used by TCG threads to copy the TCGContext
  * set up by their parent thread via tcg_context_init().
@@ -432,13 +599,17 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
     TranslationBlock *tb;
     void *next;
 
+ retry:
     tb = (void *)ROUND_UP((uintptr_t)s->code_gen_ptr, align);
     next = (void *)ROUND_UP((uintptr_t)(tb + 1), align);
 
     if (unlikely(next > s->code_gen_highwater)) {
-        return NULL;
+        if (!tcg_region_alloc(s)) {
+            return NULL;
+        }
+        goto retry;
     }
-    s->code_gen_ptr = next;
+    atomic_set(&s->code_gen_ptr, next);
     return tb;
 }
 

@@ -53,11 +53,13 @@
 #include "exec/cputlb.h"
 #include "exec/tb-hash.h"
 #include "translate-all.h"
+#include "qemu/error-report.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "exec/log.h"
 #include "sysemu/cpus.h"
+#include "sysemu/sysemu.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -808,6 +810,41 @@ static inline void code_gen_alloc(size_t tb_size)
     qemu_mutex_init(&tb_ctx.tb_lock);
 }
 
+#ifdef CONFIG_SOFTMMU
+/*
+ * It is likely that some vCPUs will translate more code than others, so we
+ * first try to set more regions than smp_cpus, with those regions being
+ * larger than the minimum code_gen_buffer size. If that's not possible we
+ * make do by evenly dividing the code_gen_buffer among the vCPUs.
+ */
+static void code_gen_set_region_size(TCGContext *s)
+{
+    size_t per_cpu = s->code_gen_buffer_size / smp_cpus;
+    size_t div;
+
+    assert(per_cpu);
+    /*
+     * Use a single region if all we have is one vCPU.
+     * We could also use a single region with !mttcg, but at this time we have
+     * not yet processed the thread=single|multi flag.
+     */
+    if (smp_cpus == 1) {
+        tcg_region_set_size(0);
+        return;
+    }
+
+    for (div = 8; div > 0; div--) {
+        size_t region_size = per_cpu / div;
+
+        if (region_size >= 2 * MIN_CODE_GEN_BUFFER_SIZE) {
+            tcg_region_set_size(region_size);
+            return;
+        }
+    }
+    tcg_region_set_size(per_cpu);
+}
+#endif
+
 static void tb_htable_init(void)
 {
     unsigned int mode = QHT_MODE_AUTO_RESIZE;
@@ -829,6 +866,8 @@ void tcg_exec_init(unsigned long tb_size)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
     tcg_prologue_init(&tcg_ctx);
+    code_gen_set_region_size(&tcg_ctx);
+    tcg_region_init(&tcg_ctx);
 #endif
 }
 
@@ -929,14 +968,9 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 #if defined(DEBUG_TB_FLUSH)
     g_tree_foreach(tb_ctx.tb_tree, tb_host_size_iter, &host_size);
     nb_tbs = g_tree_nnodes(tb_ctx.tb_tree);
-    printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%zu\n",
-           (unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer),
-           nb_tbs, nb_tbs > 0 ? host_size / nb_tbs : 0);
+    fprintf(stderr, "qemu: flush code_size=%zu nb_tbs=%d avg_tb_size=%zu\n",
+           tcg_code_size(), nb_tbs, nb_tbs > 0 ? host_size / nb_tbs : 0);
 #endif
-    if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
-        > tcg_ctx.code_gen_buffer_size) {
-        cpu_abort(cpu, "Internal error: code buffer overflow\n");
-    }
 
     CPU_FOREACH(cpu) {
         cpu_tb_jmp_cache_clear(cpu);
@@ -949,7 +983,7 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     qht_reset_size(&tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
     page_flush_tb();
 
-    tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
+    tcg_region_reset_all();
     /* XXX: flush processor icache at this point if cache flush is
        expensive */
     atomic_mb_set(&tb_ctx.tb_flush_count, tb_ctx.tb_flush_count + 1);
@@ -1281,9 +1315,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         cflags |= CF_USE_ICOUNT;
     }
 
+ buffer_overflow:
     tb = tb_alloc(pc);
     if (unlikely(!tb)) {
- buffer_overflow:
         /* flush must be done */
         tb_flush(cpu);
         mmap_unlock();
@@ -1366,9 +1400,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 #endif
 
-    tcg_ctx.code_gen_ptr = (void *)
+    atomic_set(&tcg_ctx.code_gen_ptr, (void *)
         ROUND_UP((uintptr_t)gen_code_buf + gen_code_size + search_size,
-                 CODE_GEN_ALIGN);
+                 CODE_GEN_ALIGN));
 
     /* init jump list */
     assert(((uintptr_t)tb & 3) == 0);
@@ -1907,9 +1941,8 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
      * otherwise users might think "-tb-size" is not honoured.
      * For avg host size we use the precise numbers from tb_tree_stats though.
      */
-    cpu_fprintf(f, "gen code size       %td/%zd\n",
-                tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer,
-                tcg_ctx.code_gen_highwater - tcg_ctx.code_gen_buffer);
+    cpu_fprintf(f, "gen code size       %zu/%zd\n",
+                tcg_code_size(), tcg_code_capacity());
     cpu_fprintf(f, "TB count            %d\n", nb_tbs);
     cpu_fprintf(f, "TB avg target size  %zu max=%zu bytes\n",
                 nb_tbs ? tst.target_size / nb_tbs : 0,
