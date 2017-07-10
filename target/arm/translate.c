@@ -1201,6 +1201,15 @@ static inline void gen_lookup_tb(DisasContext *s)
     s->is_jmp = DISAS_EXIT;
 }
 
+/* End the current block and force a TB lookup. We may chain to the
+ * next TB but exit_req will be immediately checked so we will exit to
+ * the main loop if we need to */
+static inline void gen_jump_tb(DisasContext *s)
+{
+    tcg_gen_movi_i32(cpu_R[15], s->pc & ~1);
+    s->is_jmp = DISAS_JUMP;
+}
+
 static inline void gen_hlt(DisasContext *s, int imm)
 {
     /* HLT. This has two purposes.
@@ -8165,7 +8174,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                  * self-modifying code correctly and also to take
                  * any pending interrupts immediately.
                  */
-                gen_lookup_tb(s);
+                gen_jump_tb(s);
                 return;
             default:
                 goto illegal_op;
@@ -10558,7 +10567,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                              * and also to take any pending interrupts
                              * immediately.
                              */
-                            gen_lookup_tb(s);
+                            gen_jump_tb(s);
                             break;
                         default:
                             goto illegal_op;
