@@ -206,6 +206,7 @@ static uint8_t *xen_map_cache_unlocked(hwaddr phys_addr, hwaddr size,
                                        uint8_t lock, bool dma)
 {
     MapCacheEntry *entry, *pentry = NULL;
+    MapCacheEntry *avl_entry = NULL, *avl_entry_prev = NULL;
     hwaddr address_index;
     hwaddr address_offset;
     hwaddr cache_size = size;
@@ -251,14 +252,36 @@ tryagain:
 
     entry = &mapcache->entry[address_index % mapcache->nr_buckets];
 
-    while (entry && entry->lock && entry->vaddr_base &&
-            (entry->paddr_index != address_index || entry->size != cache_size ||
-             !test_bits(address_offset >> XC_PAGE_SHIFT,
-                 test_bit_size >> XC_PAGE_SHIFT,
-                 entry->valid_mapping))) {
+    /* find a remappable entry. An existing locked entry which can be reused
+     * has a priority over all other entries (with lock=0, etc).
+     * Normally there will be just few entries for a given address_index
+     * bucket, typically 1-2 entries only
+     */
+    while (entry) {
+        if (entry->lock &&
+            entry->paddr_index == address_index &&
+            entry->size == cache_size &&
+            test_bits(address_offset >> XC_PAGE_SHIFT,
+                 test_bit_size >> XC_PAGE_SHIFT, entry->valid_mapping)) {
+            break;
+        }
+        else if (!entry->lock || !entry->vaddr_base) {
+            avl_entry = entry;
+            avl_entry_prev = pentry;
+        }
+
         pentry = entry;
         entry = entry->next;
     }
+
+    /* if the reuseable entry was not found, use any available.
+     * Otherwise, a new entry will be created
+     */
+    if (avl_entry && !entry) {
+        pentry = avl_entry_prev;
+        entry = avl_entry;
+    }
+
     if (!entry) {
         entry = g_malloc0(sizeof (MapCacheEntry));
         pentry->next = entry;
