@@ -1393,6 +1393,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
          * a self-modified code correctly and also to take
          * any pending interrupts immediately.
          */
+        gen_a64_set_pc_im(s->pc);
         s->is_jmp = DISAS_UPDATE;
         return;
     default:
@@ -1593,12 +1594,14 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     if ((s->tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
         /* I/O operations must end the TB here (whether read or write) */
         gen_io_end();
+        gen_a64_set_pc_im(s->pc);
         s->is_jmp = DISAS_UPDATE;
     } else if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
         /* We default to ending the TB on a coprocessor register write,
          * but allow this to be suppressed by the register definition
          * (usually only necessary to work around guest bugs).
          */
+        gen_a64_set_pc_im(s->pc);
         s->is_jmp = DISAS_UPDATE;
     }
 }
@@ -11364,15 +11367,8 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
         case DISAS_NEXT:
             gen_goto_tb(dc, 1, dc->pc);
             break;
-        default:
-        case DISAS_UPDATE:
-            gen_a64_set_pc_im(dc->pc);
-            /* fall through */
         case DISAS_JUMP:
             tcg_gen_lookup_and_goto_ptr(cpu_pc);
-            break;
-        case DISAS_EXIT:
-            tcg_gen_exit_tb(0);
             break;
         case DISAS_TB_JUMP:
         case DISAS_EXC:
@@ -11395,6 +11391,11 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
             /* The helper doesn't necessarily throw an exception, but we
              * must go back to the main loop to check for interrupts anyway.
              */
+            tcg_gen_exit_tb(0);
+            break;
+        case DISAS_UPDATE:
+        case DISAS_EXIT:
+        default:
             tcg_gen_exit_tb(0);
             break;
         }
