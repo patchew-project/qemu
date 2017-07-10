@@ -4430,6 +4430,7 @@ static void gen_msr_banked(DisasContext *s, int r, int sysm, int rn)
     tcg_temp_free_i32(tcg_tgtmode);
     tcg_temp_free_i32(tcg_regno);
     tcg_temp_free_i32(tcg_reg);
+    gen_set_pc_im(s, s->pc);
     s->is_jmp = DISAS_UPDATE;
 }
 
@@ -4452,6 +4453,7 @@ static void gen_mrs_banked(DisasContext *s, int r, int sysm, int rn)
     tcg_temp_free_i32(tcg_tgtmode);
     tcg_temp_free_i32(tcg_regno);
     store_reg(s, rn, tcg_reg);
+    gen_set_pc_im(s, s->pc);
     s->is_jmp = DISAS_UPDATE;
 }
 
@@ -8058,6 +8060,7 @@ static void gen_srs(DisasContext *s,
         tcg_temp_free_i32(tmp);
     }
     tcg_temp_free_i32(addr);
+    gen_set_pc_im(s, s->pc);
     s->is_jmp = DISAS_UPDATE;
 }
 
@@ -8146,6 +8149,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             /* setend */
             if (((insn >> 9) & 1) != !!(s->be_data == MO_BE)) {
                 gen_helper_setend(cpu_env);
+                gen_set_pc_im(s, s->pc);
                 s->is_jmp = DISAS_UPDATE;
             }
             return;
@@ -11619,6 +11623,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 ARCH(6);
                 if (((insn >> 3) & 1) != !!(s->be_data == MO_BE)) {
                     gen_helper_setend(cpu_env);
+                    gen_set_pc_im(s, s->pc);
                     s->is_jmp = DISAS_UPDATE;
                 }
                 break;
@@ -12076,7 +12081,6 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             break;
         case DISAS_NEXT:
         case DISAS_UPDATE:
-            gen_set_pc_im(dc, dc->pc);
             /* fall through */
         default:
             /* FIXME: Single stepping a WFI insn will not halt the CPU. */
@@ -12095,12 +12099,11 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
         case DISAS_NEXT:
             gen_goto_tb(dc, 1, dc->pc);
             break;
-        case DISAS_UPDATE:
-            gen_set_pc_im(dc, dc->pc);
-            /* fall through */
         case DISAS_JUMP:
             gen_goto_ptr();
             break;
+        case DISAS_UPDATE:
+            /* fall through */
         default:
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(0);
