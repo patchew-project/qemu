@@ -1539,16 +1539,18 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
                         s->code_ptr, label_ptr);
 #else
     if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
-        tcg_out_ext32u(s, base, addr_regl);
-        addr_regl = base;
+        tcg_out_ext32u(s, TCG_TMP0, addr_regl);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_TMP0, addr_regl);
     }
+
     if (guest_base == 0 && data_regl != addr_regl) {
         base = addr_regl;
     } else if (guest_base == (int16_t)guest_base) {
-        tcg_out_opc_imm(s, ALIAS_PADDI, base, addr_regl, guest_base);
+        tcg_out_opc_imm(s, ALIAS_PADDI, base, TCG_TMP0, guest_base);
     } else {
         tcg_out_movi(s, TCG_TYPE_PTR, base, guest_base);
-        tcg_out_opc_reg(s, ALIAS_PADD, base, base, addr_regl);
+        tcg_out_opc_reg(s, ALIAS_PADD, base, base, TCG_TMP0);
     }
     tcg_out_qemu_ld_direct(s, data_regl, data_regh, base, opc, is_64);
 #endif
