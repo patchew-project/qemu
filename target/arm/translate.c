@@ -1194,11 +1194,13 @@ static void gen_exception_insn(DisasContext *s, int offset, int excp,
     s->is_jmp = DISAS_EXC;
 }
 
-/* Force a TB lookup after an instruction that changes the CPU state.  */
+/* Force a TB lookup after an instruction that changes the CPU state.
+ * (other than just the PC)
+ */
 static inline void gen_lookup_tb(DisasContext *s)
 {
     tcg_gen_movi_i32(cpu_R[15], s->pc & ~1);
-    s->is_jmp = DISAS_EXIT;
+    s->is_jmp = DISAS_UPDATE;
 }
 
 static inline void gen_hlt(DisasContext *s, int imm)

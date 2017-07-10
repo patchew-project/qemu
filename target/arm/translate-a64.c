@@ -1425,7 +1425,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         tcg_temp_free_i32(tcg_op);
         /* For DAIFClear, exit the cpu loop to re-evaluate pending IRQs.  */
         gen_a64_set_pc_im(s->pc);
-        s->is_jmp = (op == 0x1f ? DISAS_EXIT : DISAS_JUMP);
+        s->is_jmp = (op == 0x1f ? DISAS_UPDATE : DISAS_JUMP);
         break;
     }
     default:
@@ -11394,7 +11394,6 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
             tcg_gen_exit_tb(0);
             break;
         case DISAS_UPDATE:
-        case DISAS_EXIT:
         default:
             tcg_gen_exit_tb(0);
             break;
