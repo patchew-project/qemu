@@ -1,7 +1,7 @@
 
 SLOF_DIR := $(SRC_PATH)/roms/SLOF
 
-NETOBJS := start.o sclp.o virtio.o virtio-net.o netmain.o sbrk.o libc.a
+NETOBJS := start.o sclp.o virtio.o virtio-net.o netmain.o sbrk.o libnet.a libc.a
 
 LIBC_INC := -I$(SLOF_DIR)/lib/libc/include
 LIBNET_INC := -I$(SLOF_DIR)/lib/libnet
@@ -39,3 +39,13 @@ libc.a: $(LIBCOBJS)
 
 sbrk.o: $(SLOF_DIR)/slof/sbrk.c
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(LIBC_INC) -c -o $@ $<,"CC","$(TARGET_DIR)$@")
+
+LIBNETOBJS := args.o dhcp.o dns.o icmpv6.o ipv6.o tcp.o udp.o bootp.o \
+	      dhcpv6.o ethernet.o ipv4.o ndp.o tftp.o
+LIBNETCFLAGS :=  $(QEMU_CFLAGS) $(LIBC_INC) $(LIBNET_INC)
+
+%.o : $(SLOF_DIR)/lib/libnet/%.c
+	$(call quiet-command,$(CC) $(LIBNETCFLAGS) -c -o $@ $<,"CC","$(TARGET_DIR)$@")
+
+libnet.a: $(LIBNETOBJS)
+	$(call quiet-command,$(AR) -rc $@ $^,"AR","$(TARGET_DIR)$@")
