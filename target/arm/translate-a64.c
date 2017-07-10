@@ -1394,7 +1394,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
          * any pending interrupts immediately.
          */
         gen_a64_set_pc_im(s->pc);
-        s->is_jmp = DISAS_UPDATE;
+        s->is_jmp = DISAS_JUMP;
         return;
     default:
         unallocated_encoding(s);
