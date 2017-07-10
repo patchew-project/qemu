@@ -266,9 +266,10 @@ uint64_t virtio_get_blocks(void)
 void virtio_blk_setup_device(SubChannelId schid)
 {
     VDev *vdev = virtio_get_device();
+    uint32_t guestfeats[2] = { 0, 0 };
 
     vdev->schid = schid;
-    virtio_setup_ccw(vdev);
+    virtio_setup_ccw(vdev, guestfeats);
 
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_BLOCK:

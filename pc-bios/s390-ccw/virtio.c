@@ -12,6 +12,7 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "virtio-scsi.h"
+#include "bswap.h"
 
 #define VRING_WAIT_REPLY_TIMEOUT 3
 
@@ -247,10 +248,14 @@ int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd)
     return 0;
 }
 
-void virtio_setup_ccw(VDev *vdev)
+void virtio_setup_ccw(VDev *vdev, uint32_t guestfeats[2])
 {
-    int i, cfg_size = 0;
+    int i, rc, cfg_size = 0;
     unsigned char status = VIRTIO_CONFIG_S_DRIVER_OK;
+    struct VirtioFeatureDesc {
+        uint32_t features;
+        uint8_t index;
+    } __attribute__((packed)) feats;
 
     IPL_assert(virtio_is_supported(vdev->schid), "PE");
     /* device ID has been established now */
@@ -277,11 +282,17 @@ void virtio_setup_ccw(VDev *vdev)
     IPL_assert(run_ccw(vdev, CCW_CMD_READ_CONF, &vdev->config, cfg_size) == 0,
                "Could not get block device configuration");
 
-    /*
-     * Skipping CCW_CMD_READ_FEAT. We're not doing anything fancy, and
-     * we'll just stop dead anyway if anything does not work like we
-     * expect it.
-     */
+    /* Feature negotiation */
+    for (i = 0; i < ARRAY_SIZE(guestfeats); i++) {
+        feats.features = 0;
+        feats.index = i;
+        rc = run_ccw(vdev, CCW_CMD_READ_FEAT, &feats, sizeof(feats));
+        IPL_assert(rc == 0, "Could not get features bits");
+        guestfeats[i] &= bswap32(feats.features);
+        feats.features = bswap32(guestfeats[i]);
+        rc = run_ccw(vdev, CCW_CMD_WRITE_FEAT, &feats, sizeof(feats));
+        IPL_assert(rc == 0, "Could not set features bits");
+    }
 
     for (i = 0; i < vdev->nr_vqs; i++) {
         VqInfo info = {
