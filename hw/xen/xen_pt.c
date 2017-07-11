@@ -58,7 +58,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
-#include "hw/i386/pc.h"
+#include "hw/i386/pc.h" /* TODO check !x86 */
 #include "hw/xen/xen_backend.h"
 #include "xen_pt.h"
 #include "qemu/range.h"
@@ -687,7 +687,7 @@ static const MemoryListener xen_pt_io_listener = {
     .priority = 10,
 };
 
-static void
+static void /* TODO check !x86 */
 xen_igd_passthrough_isa_bridge_create(XenPCIPassthroughState *s,
                                       XenHostPCIDevice *dev)
 {
