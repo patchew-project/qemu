@@ -865,7 +865,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
     return ret;
 }
 
-static void sch_handle_start_func_virtual(SubchDev *sch, ORB *orb)
+static void sch_handle_start_func_virtual(SubchDev *sch)
 {
 
     PMCW *p = &sch->curr_status.pmcw;
@@ -879,10 +879,10 @@ static void sch_handle_start_func_virtual(SubchDev *sch, ORB *orb)
 
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
         /* Start Function triggered via ssch, i.e. we have an ORB */
+        ORB *orb = &sch->orb;
         s->cstat = 0;
         s->dstat = 0;
         /* Look at the orb and try to execute the channel program. */
-        assert(orb != NULL); /* resume does not pass an orb */
         p->intparm = orb->intparm;
         if (!(orb->lpm & path)) {
             /* Generate a deferred cc 3 condition. */
@@ -896,8 +896,7 @@ static void sch_handle_start_func_virtual(SubchDev *sch, ORB *orb)
         sch->ccw_no_data_cnt = 0;
         suspend_allowed = !!(orb->ctrl0 & ORB_CTRL0_MASK_SPND);
     } else {
-        /* Start Function resumed via rsch, i.e. we don't have an
-         * ORB */
+        /* Start Function resumed via rsch */
         s->ctrl &= ~(SCSW_ACTL_SUSP | SCSW_ACTL_RESUME_PEND);
         /* The channel program had been suspended before. */
         suspend_allowed = true;
@@ -967,13 +966,14 @@ static void sch_handle_start_func_virtual(SubchDev *sch, ORB *orb)
 
 }
 
-static int sch_handle_start_func_passthrough(SubchDev *sch, ORB *orb)
+static int sch_handle_start_func_passthrough(SubchDev *sch)
 {
 
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
     int ret;
 
+    ORB *orb = &sch->orb;
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
         assert(orb != NULL);
         p->intparm = orb->intparm;
@@ -1018,7 +1018,7 @@ static int sch_handle_start_func_passthrough(SubchDev *sch, ORB *orb)
  * read/writes) asynchronous later on if we start supporting more than
  * our current very simple devices.
  */
-int do_subchannel_work_virtual(SubchDev *sch, ORB *orb)
+int do_subchannel_work_virtual(SubchDev *sch)
 {
 
     SCSW *s = &sch->curr_status.scsw;
@@ -1029,7 +1029,7 @@ int do_subchannel_work_virtual(SubchDev *sch, ORB *orb)
         sch_handle_halt_func(sch);
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
         /* Triggered by both ssch and rsch. */
-        sch_handle_start_func_virtual(sch, orb);
+        sch_handle_start_func_virtual(sch);
     } else {
         /* Cannot happen. */
         return 0;
@@ -1038,7 +1038,7 @@ int do_subchannel_work_virtual(SubchDev *sch, ORB *orb)
     return 0;
 }
 
-int do_subchannel_work_passthrough(SubchDev *sch, ORB *orb)
+int do_subchannel_work_passthrough(SubchDev *sch)
 {
     int ret;
     SCSW *s = &sch->curr_status.scsw;
@@ -1052,7 +1052,7 @@ int do_subchannel_work_passthrough(SubchDev *sch, ORB *orb)
         sch_handle_halt_func(sch);
         ret = 0;
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
-        ret = sch_handle_start_func_passthrough(sch, orb);
+        ret = sch_handle_start_func_passthrough(sch);
     } else {
         /* Cannot happen. */
         return -ENODEV;
@@ -1061,10 +1061,10 @@ int do_subchannel_work_passthrough(SubchDev *sch, ORB *orb)
     return ret;
 }
 
-static int do_subchannel_work(SubchDev *sch, ORB *orb)
+static int do_subchannel_work(SubchDev *sch)
 {
     if (sch->do_subchannel_work) {
-        return sch->do_subchannel_work(sch, orb);
+        return sch->do_subchannel_work(sch);
     } else {
         return -EINVAL;
     }
@@ -1271,7 +1271,7 @@ int css_do_csch(SubchDev *sch)
     s->ctrl &= ~(SCSW_CTRL_MASK_FCTL | SCSW_CTRL_MASK_ACTL);
     s->ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_ACTL_CLEAR_PEND;
 
-    do_subchannel_work(sch, NULL);
+    do_subchannel_work(sch);
     ret = 0;
 
 out:
@@ -1312,7 +1312,7 @@ int css_do_hsch(SubchDev *sch)
     }
     s->ctrl |= SCSW_ACTL_HALT_PEND;
 
-    do_subchannel_work(sch, NULL);
+    do_subchannel_work(sch);
     ret = 0;
 
 out:
@@ -1387,7 +1387,7 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     s->ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
-    ret = do_subchannel_work(sch, orb);
+    ret = do_subchannel_work(sch);
 
 out:
     return ret;
@@ -1666,7 +1666,7 @@ int css_do_rsch(SubchDev *sch)
     }
 
     s->ctrl |= SCSW_ACTL_RESUME_PEND;
-    do_subchannel_work(sch, NULL);
+    do_subchannel_work(sch);
     ret = 0;
 
 out:
