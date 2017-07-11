@@ -383,8 +383,8 @@ ISADevice *pc_find_fdc0(void)
     if (state.multiple) {
         warn_report("multiple floppy disk controllers with "
                     "iobase=0x3f0 have been found");
-        error_printf("the one being picked for CMOS setup might not reflect "
-                     "your intent\n");
+        warn_report("the one being picked for CMOS setup might not reflect "
+                    "your intent");
     }
 
     return state.floppy;
@@ -2087,9 +2087,8 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
     }
 
     if (value < (1ULL << 20)) {
-        warn_report("small max_ram_below_4g(%"PRIu64
-                    ") less than 1M.  BIOS may not work..",
-                    value);
+        warn_report("max_ram_below_4g (%" PRIu64 ") is less than 1M; "
+                    "BIOS may not work.", value);
     }
 
     pcms->max_ram_below_4g = value;
