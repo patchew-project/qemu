@@ -2344,8 +2344,15 @@ EOF
 fi
 
 if test "$xen_pci_passthrough" != "no"; then
-  if test "$xen" = "yes" && test "$linux" = "yes"; then
-    xen_pci_passthrough=yes
+  if test "$xen" = "yes"; then
+    case "$cpu" in
+    i386|x32|x86_64)
+        if test "$linux" = "yes"; then
+            xen_pci_passthrough=yes
+        fi ;;
+    *)  echo "Disabling Xen PCI Passthrough (not implemented on $cpu)"
+        xen_pci_passthrough=no ;;
+    esac
   else
     if test "$xen_pci_passthrough" = "yes"; then
       error_exit "User requested feature Xen PCI Passthrough" \
