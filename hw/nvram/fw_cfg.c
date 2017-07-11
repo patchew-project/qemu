@@ -1017,7 +1017,12 @@ FWCfgState *fw_cfg_init_mem(hwaddr ctl_addr, hwaddr data_addr)
 
 FWCfgState *fw_cfg_find(void)
 {
-    return FW_CFG(object_resolve_path(FW_CFG_PATH, NULL));
+    /* Returns FWCfgState if only one fw_cfg device type exists. If zero or
+       more than one fw_cfg device are found then NULL is returned as per the
+       object_resolve_path_type() documentation. This behaviour is correct as
+       it ensures that we detect both missing fw_cfg devices and multiple
+       fw_cfg devices which could result in unpredictable behaviour. */
+    return FW_CFG(object_resolve_path_type("", TYPE_FW_CFG, NULL));
 }
 
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
