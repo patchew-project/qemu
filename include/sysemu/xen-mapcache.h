@@ -12,7 +12,9 @@
 typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr start_addr,
                                                      ram_addr_t size,
                                                      void *opaque);
-#ifdef CONFIG_XEN
+/* FIXME ARM supported since Xen 4.3? */
+#if defined(CONFIG_XEN) /* XXX supported_xen_target() wrong? */ && \
+    !defined(HOST_ARM) && !defined(HOST_AARCH64)
 
 void xen_map_cache_init(phys_offset_to_gaddr_t f,
                         void *opaque);
