@@ -148,6 +148,16 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
     return offset;
 }
 
+int qemu_chr_null_be_can_read(Chardev *s)
+{
+    CharBackend *be = s->be;
+
+    if (!be || !be->chr_can_read) {
+        return 1;
+    }
+    return 0;
+}
+
 int qemu_chr_be_can_write(Chardev *s)
 {
     CharBackend *be = s->be;

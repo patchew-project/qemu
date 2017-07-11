@@ -139,6 +139,9 @@ static int tcp_chr_read_poll(void *opaque)
         return 0;
     }
     s->max_size = qemu_chr_be_can_write(chr);
+    if (qemu_chr_null_be_can_read(chr)) {
+        return 1;
+    }
     return s->max_size;
 }
 
@@ -421,6 +424,14 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     SocketChardev *s = SOCKET_CHARDEV(opaque);
     uint8_t buf[CHR_READ_BUF_LEN];
     int len, size;
+
+    if (qemu_chr_null_be_can_read(chr)) {
+        size = tcp_chr_recv(chr, (void *)buf, CHR_READ_BUF_LEN);
+        if (size == 0 || size == -1) {
+            tcp_chr_disconnect(chr);
+        }
+        return TRUE;
+    }
 
     if (!s->connected || s->max_size <= 0) {
         return TRUE;

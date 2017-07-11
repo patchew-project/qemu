@@ -114,6 +114,15 @@ void qemu_chr_cleanup(void);
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename);
 
 /**
+ * @qemu_chr_null_be_can_read:
+ *
+ * Check if Chardev's chr_can_read is registered.
+ *
+ * Returns: 1 if Chardev's chr_can_read is null.
+ */
+int qemu_chr_null_be_can_read(Chardev *s);
+
+/**
  * @qemu_chr_be_can_write:
  *
  * Determine how much data the front end can currently accept.  This function
