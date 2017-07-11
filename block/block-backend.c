@@ -1168,8 +1168,13 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
 {
     BlkAioEmAIOCB *acb;
     Coroutine *co;
+    BlockDriverState *bs = blk_bs(blk);
 
-    bdrv_inc_in_flight(blk_bs(blk));
+    if (!bs) {
+        return NULL;
+    }
+
+    bdrv_inc_in_flight(bs);
     acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
@@ -1182,7 +1187,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     acb->has_returned = false;
 
     co = qemu_coroutine_create(co_entry, acb);
-    bdrv_coroutine_enter(blk_bs(blk), co);
+    bdrv_coroutine_enter(bs, co);
 
     acb->has_returned = true;
     if (acb->rwco.ret != NOT_DONE) {
