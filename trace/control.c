@@ -171,7 +171,7 @@ static void do_trace_enable_events(const char *line_buf)
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         if (!trace_event_get_state_static(ev)) {
             if (!is_pattern) {
-                error_report("WARNING: trace event '%s' is not traceable",
+                warn_report("trace event '%s' is not traceable",
                              line_ptr);
                 return;
             }
@@ -186,7 +186,7 @@ static void do_trace_enable_events(const char *line_buf)
     }
 
     if (!is_pattern) {
-        error_report("WARNING: trace event '%s' does not exist",
+        warn_report("trace event '%s' does not exist",
                      line_ptr);
     }
 }
