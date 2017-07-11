@@ -1,6 +1,11 @@
 language: c
 git:
    submodules: false
+branches:
+  only:
+    - master
+    - staging
+    - shippable*
 env:
   global:
     - LC_ALL=C
