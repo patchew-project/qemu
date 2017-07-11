@@ -14,6 +14,7 @@ the COPYING file in the top-level directory.
 """
 
 import ctypes
+import struct
 
 UINTPTR_T = gdb.lookup_type("uintptr_t")
 
@@ -115,6 +116,22 @@ class ELF(object):
         # automatically aligned but we need the memmove to copy the
         # string into it.
         ctypes.memmove(note.n_desc, n_desc.encode(), len(n_desc))
+
+        self.notes.append(note)
+        self.segments[0].p_filesz += ctypes.sizeof(note)
+        self.segments[0].p_memsz += ctypes.sizeof(note)
+
+
+    def add_vmcoreinfo_note(self, vmcoreinfo):
+        """Adds a vmcoreinfo note to the ELF dump."""
+        # compute the header size, and copy that many bytes from the note
+        header = get_arch_note(self.endianness, 0, 0)
+        ctypes.memmove(ctypes.pointer(header),
+                       vmcoreinfo, ctypes.sizeof(header))
+        # now get the full note
+        note = get_arch_note(self.endianness,
+                             header.n_namesz - 1, header.n_descsz)
+        ctypes.memmove(ctypes.pointer(note), vmcoreinfo, ctypes.sizeof(note))
 
         self.notes.append(note)
         self.segments[0].p_filesz += ctypes.sizeof(note)
@@ -505,6 +522,34 @@ shape and this command should mostly work."""
                 cur += chunk_size
                 left -= chunk_size
 
+    def phys_memory_read(self, addr, size):
+        qemu_core = gdb.inferiors()[0]
+        for block in self.guest_phys_blocks:
+            if block["target_start"] <= addr < block["target_end"] \
+               and addr + size < block["target_end"]:
+                haddr = block["host_addr"] + (addr - block["target_start"])
+                return qemu_core.read_memory(haddr, size)
+        return None
+
+    def add_vmcoreinfo(self):
+        if not gdb.parse_and_eval("vmcoreinfo_gdb_helper"):
+            return
+
+        addr = gdb.parse_and_eval("vmcoreinfo_gdb_helper.vmcoreinfo_addr_le")
+        addr = bytes([addr[i] for i in range(4)])
+        addr = struct.unpack("<I", addr)[0]
+
+        mem = self.phys_memory_read(addr, 16)
+        if not mem:
+            return
+        (version, addr, size) = struct.unpack("<IQI", mem)
+        if version != 0:
+            return
+
+        vmcoreinfo = self.phys_memory_read(addr, size)
+        if vmcoreinfo:
+            self.elf.add_vmcoreinfo_note(vmcoreinfo.tobytes())
+
     def invoke(self, args, from_tty):
         """Handles command invocation from gdb."""
 
@@ -518,6 +563,7 @@ shape and this command should mostly work."""
 
         self.elf = ELF(argv[1])
         self.guest_phys_blocks = get_guest_phys_blocks()
+        self.add_vmcoreinfo()
 
         with open(argv[0], "wb") as vmcore:
             self.dump_init(vmcore)

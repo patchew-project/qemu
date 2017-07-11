@@ -20,6 +20,8 @@
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 
+VMCoreInfoState *vmcoreinfo_gdb_helper;
+
 void vmcoreinfo_build_acpi(VMCoreInfoState *vis, GArray *table_data,
                            GArray *vmci, BIOSLinker *linker)
 {
@@ -181,6 +183,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    vmcoreinfo_gdb_helper = VMCOREINFO(dev);
     qemu_register_reset(vmcoreinfo_handle_reset, dev);
 }
 
