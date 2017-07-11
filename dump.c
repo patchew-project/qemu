@@ -26,6 +26,8 @@
 #include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 #include "qapi-event.h"
+#include "qemu/error-report.h"
+#include "hw/acpi/vmcoreinfo.h"
 
 #include <zlib.h>
 #ifdef CONFIG_LZO
@@ -37,6 +39,13 @@
 #ifndef ELF_MACHINE_UNAME
 #define ELF_MACHINE_UNAME "Unknown"
 #endif
+
+#define MAX_VMCOREINFO_SIZE (1 << 20) /* 1MB should be enough */
+
+#define ELF_NOTE_SIZE(hdr_size, name_size, desc_size)   \
+    ((DIV_ROUND_UP((hdr_size), 4) +                     \
+      DIV_ROUND_UP((name_size), 4) +                    \
+      DIV_ROUND_UP((desc_size), 4)) * 4)
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val)
 {
@@ -76,6 +85,8 @@ static int dump_cleanup(DumpState *s)
     guest_phys_blocks_free(&s->guest_phys_blocks);
     memory_mapping_list_free(&s->list);
     close(s->fd);
+    g_free(s->vmcoreinfo);
+    s->vmcoreinfo = NULL;
     if (s->resume) {
         if (s->detached) {
             qemu_mutex_lock_iothread();
@@ -235,6 +246,19 @@ static inline int cpu_index(CPUState *cpu)
     return cpu->cpu_index + 1;
 }
 
+static void write_vmcoreinfo_note(WriteCoreDumpFunction f, DumpState *s,
+                                  Error **errp)
+{
+    int ret;
+
+    if (s->vmcoreinfo) {
+        ret = f(s->vmcoreinfo, s->vmcoreinfo_size, s);
+        if (ret < 0) {
+            error_setg(errp, "dump: failed to write vmcoreinfo");
+        }
+    }
+}
+
 static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
                               Error **errp)
 {
@@ -258,6 +282,8 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
             return;
         }
     }
+
+    write_vmcoreinfo_note(f, s, errp);
 }
 
 static void write_elf32_note(DumpState *s, Error **errp)
@@ -303,6 +329,8 @@ static void write_elf32_notes(WriteCoreDumpFunction f, DumpState *s,
             return;
         }
     }
+
+    write_vmcoreinfo_note(f, s, errp);
 }
 
 static void write_elf_section(DumpState *s, int type, Error **errp)
@@ -712,6 +740,44 @@ static int buf_write_note(const void *buf, size_t size, void *opaque)
     s->note_buf_offset += size;
 
     return 0;
+}
+
+/*
+ * This function retrieves various sizes from an elf header.
+ *
+ * @note has to be a valid ELF note. The return sizes are unmodified
+ * (not padded or rounded up to be multiple of 4).
+ */
+static void get_note_sizes(DumpState *s, const void *note,
+                           uint64_t *note_head_size,
+                           uint64_t *name_size,
+                           uint64_t *desc_size)
+{
+    uint64_t note_head_sz;
+    uint64_t name_sz;
+    uint64_t desc_sz;
+
+    if (s->dump_info.d_class == ELFCLASS64) {
+        const Elf64_Nhdr *hdr = note;
+        note_head_sz = sizeof(Elf64_Nhdr);
+        name_sz = tswap64(hdr->n_namesz);
+        desc_sz = tswap64(hdr->n_descsz);
+    } else {
+        const Elf32_Nhdr *hdr = note;
+        note_head_sz = sizeof(Elf32_Nhdr);
+        name_sz = tswap32(hdr->n_namesz);
+        desc_sz = tswap32(hdr->n_descsz);
+    }
+
+    if (note_head_size) {
+        *note_head_size = note_head_sz;
+    }
+    if (name_size) {
+        *name_size = name_sz;
+    }
+    if (desc_size) {
+        *desc_size = desc_sz;
+    }
 }
 
 /* write common header, sub header and elf note to vmcore */
@@ -1488,10 +1554,40 @@ static int64_t dump_calculate_size(DumpState *s)
     return total;
 }
 
+static void vmcoreinfo_update_phys_base(DumpState *s)
+{
+    uint64_t size, note_head_size, name_size, phys_base;
+    char **lines;
+    uint8_t *vmci;
+    size_t i;
+
+    get_note_sizes(s, s->vmcoreinfo, &note_head_size, &name_size, &size);
+    note_head_size = ROUND_UP(note_head_size, 4);
+    name_size = ROUND_UP(name_size, 4);
+    vmci = s->vmcoreinfo + note_head_size + name_size;
+    *(vmci + size) = '\0';
+
+    lines = g_strsplit((char *)vmci, "\n", -1);
+    for (i = 0; lines[i]; i++) {
+        if (g_str_has_prefix(lines[i], "NUMBER(phys_base)=")) {
+            if (qemu_strtou64(lines[i] + 18, NULL, 16,
+                              &phys_base) < 0) {
+                error_report("warning: Failed to read NUMBER(phys_base)=");
+            } else {
+                s->dump_info.phys_base = phys_base;
+            }
+            break;
+        }
+    }
+
+    g_strfreev(lines);
+}
+
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
 {
+    Object *vmcoreinfo_dev = find_vmcoreinfo_dev();
     CPUState *cpu;
     int nr_cpus;
     Error *err = NULL;
@@ -1561,6 +1657,44 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     if (s->note_size < 0) {
         error_setg(errp, QERR_UNSUPPORTED);
         goto cleanup;
+    }
+
+    /*
+     * the goal of this block is to (a) update the previously guessed
+     * phys_base, (b) copy the vmcoreinfo note out of the guest. And
+     * that failure to do so is not fatal for dumping.
+     */
+    if (vmcoreinfo_dev) {
+        uint64_t addr, note_head_size, name_size, desc_size;
+        uint32_t size;
+
+        note_head_size = s->dump_info.d_class == ELFCLASS32 ?
+            sizeof(Elf32_Nhdr) : sizeof(Elf64_Nhdr);
+
+        if (!vmcoreinfo_get(VMCOREINFO(vmcoreinfo_dev),
+                            &addr, &size, &err)) {
+            error_report_err(err);
+            err = NULL;
+        } else if (size < note_head_size || size > MAX_VMCOREINFO_SIZE) {
+            error_report("warning: vmcoreinfo size is invalid: %" PRIu32, size);
+        } else {
+            s->vmcoreinfo = g_malloc(size + 1); /* +1 for adding \0 */
+            cpu_physical_memory_read(addr, s->vmcoreinfo, size);
+
+            get_note_sizes(s, s->vmcoreinfo, NULL, &name_size, &desc_size);
+            s->vmcoreinfo_size = ELF_NOTE_SIZE(note_head_size, name_size,
+                                               desc_size);
+            if (name_size > MAX_VMCOREINFO_SIZE ||
+                desc_size > MAX_VMCOREINFO_SIZE ||
+                s->vmcoreinfo_size > size) {
+                error_report("warning: Invalid vmcoreinfo header");
+                g_free(s->vmcoreinfo);
+                s->vmcoreinfo = NULL;
+            } else {
+                vmcoreinfo_update_phys_base(s);
+                s->note_size += s->vmcoreinfo_size;
+            }
+        }
     }
 
     /* get memory mapping */
