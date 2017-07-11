@@ -427,7 +427,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
-    PCIDevice *ebus;
+    PCIDevice *ebus, *pci_dev;
     ISABus *isa_bus;
     SysBusDevice *s;
     qemu_irq *ivec_irqs, *pbm_irqs;
@@ -464,8 +464,10 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
-    for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
+    pci_dev = pci_create(pci_bus, -1, "ne2k_pci");
+    dev = &pci_dev->qdev;
+    qdev_set_nic_properties(dev, &nd_table[0]);
+    qdev_init_nofail(dev);
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
