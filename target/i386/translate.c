@@ -219,6 +219,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_SHLB ... CC_OP_SHLQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_SARB ... CC_OP_SARQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_BMILGB ... CC_OP_BMILGQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_TBMADDB ... CC_OP_TBMADDQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_ADCX] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
@@ -782,6 +783,12 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
         size = s->cc_op - CC_OP_BMILGB;
         t0 = gen_ext_tl(reg, cpu_cc_src, size, false);
         return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0, .mask = -1 };
+
+    case CC_OP_TBMADDB ... CC_OP_TBMADDQ:
+        size = s->cc_op - CC_OP_TBMADDB;
+        t0 = gen_ext_tl(reg, cpu_cc_src, size, true);
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0,
+                             .mask = -1, .imm = -1 };
 
     case CC_OP_ADCX:
     case CC_OP_ADCOX:
@@ -8291,9 +8298,119 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_sse(env, s, b, pc_start, rex_r);
         break;
 
-    case 0x800 ... 0x8ff: /* XOP opcode map 8 */
-    case 0x900 ... 0x9ff: /* XOP opcode map 9 */
-    case 0xa00 ... 0xaff: /* XOP opcode map 10 */
+    case 0x901:
+    case 0x902: /* most tbm insns */
+        if (!(s->cpuid_ext3_features & CPUID_EXT3_TBM)
+            || s->vex_l != 0) {
+            goto illegal_op;
+        }
+        modrm = cpu_ldub_code(env, s->pc++);
+        mod = (modrm >> 6) & 3;
+        rm = (modrm & 7) | REX_B(s);
+        ot = rex_w > 0 ? MO_64 : MO_32;
+        if (mod != 3) {
+            gen_lea_modrm(env, s, modrm);
+            gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+        } else {
+            gen_op_mov_v_reg(ot, cpu_T0, rm);
+        }
+
+        tcg_gen_mov_tl(cpu_cc_src, cpu_T0);
+        switch ((b & 2) * 4 + ((modrm >> 3) & 7)) {
+        case 1: /* blcfill */
+            op = CC_OP_TBMADDB;
+            tcg_gen_addi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_and_tl(cpu_T0, cpu_T0, cpu_T1);
+            break;
+        case 2: /* blsfill */
+            op = CC_OP_BMILGB;
+            tcg_gen_subi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_T1);
+            break;
+        case 3: /* blcs */
+            op = CC_OP_TBMADDB;
+            tcg_gen_addi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_or_tl(cpu_T0, cpu_T0, cpu_T1);
+            break;
+        case 4: /* tzmsk */
+            op = CC_OP_BMILGB;
+            tcg_gen_subi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_andc_tl(cpu_T0, cpu_T1, cpu_T0);
+            break;
+        case 5: /* blcic */
+            op = CC_OP_TBMADDB;
+            tcg_gen_addi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_andc_tl(cpu_T0, cpu_T1, cpu_T0);
+            break;
+        case 6: /* blsic */
+            op = CC_OP_BMILGB;
+            tcg_gen_subi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_orc_tl(cpu_T0, cpu_T1, cpu_T0);
+            break;
+        case 7: /* t1mskc */
+            op = CC_OP_TBMADDB;
+            tcg_gen_addi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_orc_tl(cpu_T0, cpu_T1, cpu_T0);
+            break;
+        case 8 + 1: /* blcmsk */
+            op = CC_OP_TBMADDB;
+            tcg_gen_addi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_xor_tl(cpu_T0, cpu_T0, cpu_T1);
+            break;
+        case 8 + 6: /* blci */
+            op = CC_OP_TBMADDB;
+            tcg_gen_addi_tl(cpu_T1, cpu_T0, 1);
+            tcg_gen_orc_tl(cpu_T0, cpu_T0, cpu_T1);
+            break;
+        default:
+            goto illegal_op;
+        }
+        gen_op_mov_reg_v(ot, s->vex_v, cpu_T0);
+        tcg_gen_mov_tl(cpu_cc_src, cpu_T0);
+        set_cc_op(s, op + ot);
+        break;
+
+    case 0xa10: /* bextr Gy, Ey, imm4 */
+        {
+            int ofs, len, max;
+
+            if (!(s->cpuid_ext3_features & CPUID_EXT3_TBM)
+                || s->vex_l != 0) {
+                goto illegal_op;
+            }
+
+            s->rip_offset = 4;
+            modrm = cpu_ldub_code(env, s->pc++);
+            reg = ((modrm >> 3) & 7) | rex_r;
+            mod = (modrm >> 6) & 3;
+            rm = (modrm & 7) | REX_B(s);
+            ot = rex_w > 0 ? MO_64 : MO_32;
+            if (mod != 3) {
+                gen_lea_modrm(env, s, modrm);
+                gen_op_ld_v(s, ot, cpu_T0, cpu_A0);
+            } else {
+                gen_op_mov_v_reg(ot, cpu_T0, rm);
+            }
+            val = cpu_ldl_code(env, s->pc);
+            s->pc += 4;
+
+            ofs = extract32(val, 0, 8);
+            len = extract32(val, 8, 8);
+            max = 8 << ot;
+            if (len == 0 || ofs >= max) {
+                tcg_gen_movi_tl(cpu_T0, 0);
+            } else {
+                len = MIN(len, max - ofs);
+                tcg_gen_extract_tl(cpu_T0, cpu_T0, ofs, len);
+            }
+            tcg_gen_mov_tl(cpu_regs[reg], cpu_T0);
+            gen_op_update1_cc();
+            /* Z is set as per result, C/O = 0, S/A/P = undefined.
+               Which is less strict than LOGIC, but accurate.  */
+            set_cc_op(s, CC_OP_LOGICB + ot);
+        }
+        break;
+
     default:
         goto unknown_op;
     }

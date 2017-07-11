@@ -98,9 +98,6 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
                                    target_ulong src2, int op)
 {
     switch (op) {
-    default: /* should never happen */
-        return 0;
-
     case CC_OP_EFLAGS:
         return src1;
     case CC_OP_CLR:
@@ -185,6 +182,13 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
     case CC_OP_BMILGL:
         return compute_all_bmilgl(dst, src1);
 
+    case CC_OP_TBMADDB:
+        return compute_all_tbmaddb(dst, src1);
+    case CC_OP_TBMADDW:
+        return compute_all_tbmaddw(dst, src1);
+    case CC_OP_TBMADDL:
+        return compute_all_tbmaddl(dst, src1);
+
     case CC_OP_ADCX:
         return compute_all_adcx(dst, src1, src2);
     case CC_OP_ADOX:
@@ -215,7 +219,12 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
         return compute_all_sarq(dst, src1);
     case CC_OP_BMILGQ:
         return compute_all_bmilgq(dst, src1);
+    case CC_OP_TBMADDQ:
+        return compute_all_tbmaddq(dst, src1);
 #endif
+
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -228,7 +237,6 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
                                  target_ulong src2, int op)
 {
     switch (op) {
-    default: /* should never happen */
     case CC_OP_LOGICB:
     case CC_OP_LOGICW:
     case CC_OP_LOGICL:
@@ -307,6 +315,13 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     case CC_OP_BMILGL:
         return compute_c_bmilgl(dst, src1);
 
+    case CC_OP_TBMADDB:
+        return compute_c_tbmaddb(dst, src1);
+    case CC_OP_TBMADDW:
+        return compute_c_tbmaddw(dst, src1);
+    case CC_OP_TBMADDL:
+        return compute_c_tbmaddl(dst, src1);
+
 #ifdef TARGET_X86_64
     case CC_OP_ADDQ:
         return compute_c_addq(dst, src1);
@@ -320,7 +335,12 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
         return compute_c_shlq(dst, src1);
     case CC_OP_BMILGQ:
         return compute_c_bmilgq(dst, src1);
+    case CC_OP_TBMADDQ:
+        return compute_c_tbmaddq(dst, src1);
 #endif
+
+    default:
+        g_assert_not_reached();
     }
 }
 
