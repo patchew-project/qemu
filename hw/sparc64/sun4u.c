@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci-host/apb.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
@@ -42,6 +43,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"
+#include "hw/ide/pci.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "qemu/cutils.h"
@@ -448,10 +450,17 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
                            &pci_busB, &pbm_irqs);
-    pci_vga_init(pci_bus);
 
-    /* XXX Should be pci_busA */
-    ebus = pci_create_simple(pci_bus, -1, "ebus");
+    /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
+       reserved (leaving no slots free after on-board devices) leaving slots
+       0-3 are free on busB 4*/
+    pci_bus->slot_reserved_mask = 0xfffffffc;
+    pci_busA->slot_reserved_mask = 0xfffffff1;
+    pci_busB->slot_reserved_mask = 0xfffffff0;
+
+    ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, "ebus");
+    qdev_init_nofail(DEVICE(ebus));
+
     isa_bus = pci_ebus_init(ebus, pbm_irqs);
 
     i = 0;
@@ -464,14 +473,20 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
-    pci_dev = pci_create(pci_bus, -1, "ne2k_pci");
+    pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+
+    pci_dev = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 1), true,
+                                       "ne2k_pci");
     dev = &pci_dev->qdev;
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
-    pci_cmd646_ide_init(pci_bus, hd, 1);
+    pci_dev = pci_create(pci_busA, PCI_DEVFN(3, 0), "cmd646-ide");
+    qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
+    qdev_init_nofail(&pci_dev->qdev);
+    pci_ide_create_devs(pci_dev, hd);
 
     isa_create_simple(isa_bus, "i8042");
 
