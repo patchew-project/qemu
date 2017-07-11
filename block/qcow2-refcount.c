@@ -29,6 +29,7 @@
 #include "block/qcow2.h"
 #include "qemu/range.h"
 #include "qemu/bswap.h"
+#include "qemu/cutils.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
@@ -2943,5 +2944,114 @@ done:
     }
 
     qemu_vfree(new_refblock);
+    return ret;
+}
+
+int qcow2_shrink_reftable(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t *reftable_tmp =
+        g_try_malloc(sizeof(uint64_t) * s->refcount_table_size);
+    int i, ret;
+
+    if (s->refcount_table_size && reftable_tmp == NULL) {
+        return -ENOMEM;
+    }
+
+    for (i = 0; i < s->refcount_table_size; i++) {
+        int64_t refblock_offs = s->refcount_table[i] & REFT_OFFSET_MASK;
+        void *refblock;
+        bool unused_block;
+
+        if (refblock_offs == 0) {
+            reftable_tmp[i] = 0;
+            continue;
+        }
+        ret = qcow2_cache_get(bs, s->refcount_block_cache, refblock_offs,
+                              &refblock);
+        if (ret < 0) {
+            goto out;
+        }
+
+        /* the refblock has own reference */
+        if (i == offset_to_reftable_index(s, refblock_offs)) {
+            uint64_t block_index = (refblock_offs >> s->cluster_bits) &
+                                   (s->refcount_block_size - 1);
+            uint64_t refcount = s->get_refcount(refblock, block_index);
+
+            s->set_refcount(refblock, block_index, 0);
+
+            unused_block = buffer_is_zero(refblock, s->cluster_size);
+
+            s->set_refcount(refblock, block_index, refcount);
+        } else {
+            unused_block = buffer_is_zero(refblock, s->cluster_size);
+        }
+        qcow2_cache_put(bs, s->refcount_block_cache, &refblock);
+
+        reftable_tmp[i] = unused_block ? 0 : cpu_to_be64(s->refcount_table[i]);
+    }
+
+    ret = bdrv_pwrite_sync(bs->file, s->refcount_table_offset, reftable_tmp,
+                           sizeof(uint64_t) * s->refcount_table_size);
+    if (ret < 0) {
+        goto out;
+    }
+
+    for (i = 0; i < s->refcount_table_size; i++) {
+        if (s->refcount_table[i] && !reftable_tmp[i]) {
+            uint64_t discard_offs = s->refcount_table[i] & REFT_OFFSET_MASK;
+            uint64_t refblock_offs = get_refblock_offset(s, discard_offs);
+            uint64_t cluster_index = discard_offs >> s->cluster_bits;
+            uint32_t block_index = cluster_index & (s->refcount_block_size - 1);
+            void *refblock;
+
+            assert(discard_offs != 0);
+
+            ret = qcow2_cache_get(bs, s->refcount_block_cache, refblock_offs,
+                                  &refblock);
+            if (ret < 0) {
+                goto out;
+            }
+
+            if (s->get_refcount(refblock, block_index) != 1) {
+                qcow2_signal_corruption(bs, true, -1, -1, "Invalid refcount:"
+                                        " refblock offset %#" PRIx64
+                                        ", reftable index %d"
+                                        ", block offset %#" PRIx64
+                                        ", refcount %#" PRIx64,
+                                        refblock_offs, i, discard_offs,
+                                        s->get_refcount(refblock, block_index));
+                qcow2_cache_put(bs, s->refcount_block_cache, &refblock);
+                ret = -EINVAL;
+                goto out;
+            }
+            s->set_refcount(refblock, block_index, 0);
+
+            qcow2_cache_entry_mark_dirty(bs, s->refcount_block_cache, refblock);
+
+            qcow2_cache_put(bs, s->refcount_block_cache, &refblock);
+
+            if (cluster_index < s->free_cluster_index) {
+                s->free_cluster_index = cluster_index;
+            }
+
+            refblock = qcow2_cache_is_table_offset(bs, s->refcount_block_cache,
+                                                   discard_offs);
+            if (refblock) {
+                /* discard refblock from the cache if refblock is cached */
+                qcow2_cache_discard(bs, s->refcount_block_cache, refblock);
+            }
+            update_refcount_discard(bs, discard_offs, s->cluster_size);
+            s->refcount_table[i] = 0;
+        }
+    }
+
+    if (!s->cache_discards) {
+        qcow2_process_discards(bs, ret);
+    }
+
+out:
+    g_free(reftable_tmp);
     return ret;
 }
