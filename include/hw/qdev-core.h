@@ -226,6 +226,7 @@ struct Property {
     PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
+    bool         set_default;
     union {
         int64_t i;
         uint64_t u;
