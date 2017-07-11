@@ -1148,8 +1148,7 @@ int qdev_prop_check_globals(void)
     return ret;
 }
 
-static void qdev_prop_set_globals_for_type(DeviceState *dev,
-                                           const char *typename)
+void qdev_prop_set_globals(DeviceState *dev)
 {
     GList *l;
 
@@ -1157,7 +1156,7 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
         GlobalProperty *prop = l->data;
         Error *err = NULL;
 
-        if (strcmp(typename, prop->driver) != 0) {
+        if (object_dynamic_cast(OBJECT(dev), prop->driver) == NULL) {
             continue;
         }
         prop->used = true;
@@ -1173,16 +1172,6 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
             }
         }
     }
-}
-
-void qdev_prop_set_globals(DeviceState *dev)
-{
-    ObjectClass *class = object_get_class(OBJECT(dev));
-
-    do {
-        qdev_prop_set_globals_for_type(dev, object_class_get_name(class));
-        class = object_class_get_parent(class);
-    } while (class);
 }
 
 /* --- 64bit unsigned int 'size' type --- */
