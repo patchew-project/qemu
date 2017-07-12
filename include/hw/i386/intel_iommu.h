@@ -98,9 +98,11 @@ struct VTDBus {
 
 struct VTDIOTLBEntry {
     uint64_t gfn;
-    uint16_t domain_id;
     uint64_t slpte;
     uint64_t mask;
+    uint64_t key;
+    QTAILQ_ENTRY(VTDIOTLBEntry) link;
+    uint16_t domain_id;
     uint8_t access_flags;
 };
 
@@ -288,6 +290,8 @@ struct IntelIOMMUState {
     uint32_t context_cache_gen;     /* Should be in [1,MAX] */
     GHashTable *iotlb;              /* IOTLB */
     uint16_t iotlb_size;            /* IOTLB max cache entries */
+    /* Head of IOTLB MRU list */
+    QTAILQ_HEAD(VTDIOTLBEntryHead, VTDIOTLBEntry) iotlb_head;
 
     MemoryRegionIOMMUOps iommu_ops;
     GHashTable *vtd_as_by_busptr;   /* VTDBus objects indexed by PCIBus* reference */

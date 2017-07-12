@@ -372,14 +372,6 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI 0xffeULL
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO 0xffff0000ffe0fff8
 
-/* Information about page-selective IOTLB invalidate */
-struct VTDIOTLBPageInvInfo {
-    uint16_t domain_id;
-    uint64_t addr;
-    uint8_t mask;
-};
-typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
-
 /* Pagesize of VTD paging structures, including root and context tables */
 #define VTD_PAGE_SHIFT              12
 #define VTD_PAGE_SIZE               (1ULL << VTD_PAGE_SHIFT)

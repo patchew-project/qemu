@@ -37,6 +37,9 @@
 #include "kvm_i386.h"
 #include "trace.h"
 
+#define FOREACH_IOTLB_SAFE(entry, s, entry_n) \
+    QTAILQ_FOREACH_SAFE(entry, &(s)->iotlb_head, link, entry_n)
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -139,14 +142,6 @@ static guint vtd_uint64_hash(gconstpointer v)
     return (guint)*(const uint64_t *)v;
 }
 
-static gboolean vtd_hash_remove_by_domain(gpointer key, gpointer value,
-                                          gpointer user_data)
-{
-    VTDIOTLBEntry *entry = (VTDIOTLBEntry *)value;
-    uint16_t domain_id = *(uint16_t *)user_data;
-    return entry->domain_id == domain_id;
-}
-
 /* The shift of an addr for a certain level of paging structure */
 static inline uint32_t vtd_slpt_level_shift(uint32_t level)
 {
@@ -157,18 +152,6 @@ static inline uint32_t vtd_slpt_level_shift(uint32_t level)
 static inline uint64_t vtd_slpt_level_page_mask(uint32_t level)
 {
     return ~((1ULL << vtd_slpt_level_shift(level)) - 1);
-}
-
-static gboolean vtd_hash_remove_by_page(gpointer key, gpointer value,
-                                        gpointer user_data)
-{
-    VTDIOTLBEntry *entry = (VTDIOTLBEntry *)value;
-    VTDIOTLBPageInvInfo *info = (VTDIOTLBPageInvInfo *)user_data;
-    uint64_t gfn = (info->addr >> VTD_PAGE_SHIFT_4K) & info->mask;
-    uint64_t gfn_tlb = (info->addr & entry->mask) >> VTD_PAGE_SHIFT_4K;
-    return (entry->domain_id == info->domain_id) &&
-            (((entry->gfn & info->mask) == gfn) ||
-             (entry->gfn == gfn_tlb));
 }
 
 /* Reset all the gen of VTDAddressSpace to zero and set the gen of
@@ -201,6 +184,7 @@ static void vtd_reset_iotlb(IntelIOMMUState *s)
 {
     assert(s->iotlb);
     g_hash_table_remove_all(s->iotlb);
+    QTAILQ_INIT(&s->iotlb_head);
 }
 
 static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint16_t source_id,
@@ -231,6 +215,9 @@ static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
                                 source_id, level);
         entry = g_hash_table_lookup(s->iotlb, &key);
         if (entry) {
+            /* Move the entry to the head of MRU list */
+            QTAILQ_REMOVE(&s->iotlb_head, entry, link);
+            QTAILQ_INSERT_HEAD(&s->iotlb_head, entry, link);
             goto out;
         }
     }
@@ -239,11 +226,23 @@ out:
     return entry;
 }
 
+static void vtd_iotlb_remove_entry(IntelIOMMUState *s, VTDIOTLBEntry *entry)
+{
+    uint64_t key = entry->key;
+
+    /*
+     * To remove an entry, we need to both remove it from the MRU
+     * list, and also from the hash table.
+     */
+    QTAILQ_REMOVE(&s->iotlb_head, entry, link);
+    g_hash_table_remove(s->iotlb, &key);
+}
+
 static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
                              uint16_t domain_id, hwaddr addr, uint64_t slpte,
                              uint8_t access_flags, uint32_t level)
 {
-    VTDIOTLBEntry *entry = g_malloc(sizeof(*entry));
+    VTDIOTLBEntry *entry = g_new0(VTDIOTLBEntry, 1), *last;
     uint64_t *key = g_malloc(sizeof(*key));
     uint64_t gfn = vtd_get_iotlb_gfn(addr, level);
 
@@ -253,8 +252,9 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
 
     trace_vtd_iotlb_page_update(source_id, addr, slpte, domain_id);
     if (g_hash_table_size(s->iotlb) >= s->iotlb_size) {
-        trace_vtd_iotlb_reset("iotlb exceeds size limit");
-        vtd_reset_iotlb(s);
+        /* Remove the Least Recently Used cache */
+        last = QTAILQ_LAST(&s->iotlb_head, VTDIOTLBEntryHead);
+        vtd_iotlb_remove_entry(s, last);
     }
 
     entry->gfn = gfn;
@@ -263,7 +263,11 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     entry->access_flags = access_flags;
     entry->mask = vtd_slpt_level_page_mask(level);
     *key = vtd_get_iotlb_key(gfn, source_id, level);
+    entry->key = *key;
     g_hash_table_replace(s->iotlb, key, entry);
+
+    /* Update MRU list */
+    QTAILQ_INSERT_HEAD(&s->iotlb_head, entry, link);
 }
 
 /* Given the reg addr of both the message data and address, generate an
@@ -1354,11 +1358,15 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
     IntelIOMMUNotifierNode *node;
     VTDContextEntry ce;
     VTDAddressSpace *vtd_as;
+    VTDIOTLBEntry *entry, *entry_n;
 
     trace_vtd_inv_desc_iotlb_domain(domain_id);
 
-    g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_domain,
-                                &domain_id);
+    FOREACH_IOTLB_SAFE(entry, s, entry_n) {
+        if (entry->domain_id == domain_id) {
+            vtd_iotlb_remove_entry(s, entry);
+        }
+    }
 
     QLIST_FOREACH(node, &s->notifiers_list, next) {
         vtd_as = node->vtd_as;
@@ -1400,15 +1408,22 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
 static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
                                       hwaddr addr, uint8_t am)
 {
-    VTDIOTLBPageInvInfo info;
+    VTDIOTLBEntry *entry, *entry_n;
+    uint64_t gfn, mask;
 
     trace_vtd_inv_desc_iotlb_pages(domain_id, addr, am);
 
     assert(am <= VTD_MAMV);
-    info.domain_id = domain_id;
-    info.addr = addr;
-    info.mask = ~((1 << am) - 1);
-    g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
+
+    mask = ~((1 << am) - 1);
+    gfn = (addr >> VTD_PAGE_SHIFT) & mask;
+
+    FOREACH_IOTLB_SAFE(entry, s, entry_n) {
+        if (entry->domain_id == domain_id && (entry->gfn & mask) == gfn) {
+            vtd_iotlb_remove_entry(s, entry);
+        }
+    }
+
     vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am);
 }
 
