@@ -217,6 +217,7 @@ struct VuDev {
     uint64_t features;
     uint64_t protocol_features;
     bool broken;
+    bool quit;
 
     /* @set_watch: add or update the given fd to the watch set,
      * call cb when condition is met */

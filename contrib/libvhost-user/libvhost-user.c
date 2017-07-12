@@ -161,7 +161,10 @@ vu_message_read(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
         rc = recvmsg(conn_fd, &msg, 0);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
 
-    if (rc <= 0) {
+    if (rc == 0 && (errno == ENOENT)) {
+        vmsg->size = 0;
+        dev->quit = true;
+    } else if (rc < 0) {
         vu_panic(dev, "Error while recvmsg: %s", strerror(errno));
         return false;
     }
@@ -755,6 +758,10 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
     DPRINT("Flags:   0x%x\n", vmsg->flags);
     DPRINT("Size:    %d\n", vmsg->size);
 
+    if (dev->quit) {
+        return true;
+    }
+
     if (vmsg->fd_num) {
         int i;
         DPRINT("Fds:");
@@ -822,6 +829,9 @@ vu_dispatch(VuDev *dev)
     bool success = false;
 
     if (!vu_message_read(dev, dev->sock, &vmsg)) {
+        if (vmsg.size == 0) {
+            success = true;
+        }
         goto end;
     }
 
