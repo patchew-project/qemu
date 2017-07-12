@@ -707,6 +707,7 @@ static void pc_i440fx_1_2_machine_options(MachineClass *m)
 {
     pc_i440fx_1_3_machine_options(m);
     m->hw_version = "1.2.0";
+    m->deprecation_msg = "Please use a newer machine type instead.";
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_2);
 }
 

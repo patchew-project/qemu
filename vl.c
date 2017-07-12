@@ -4115,6 +4115,10 @@ int main(int argc, char **argv, char **envp)
     replay_configure(icount_opts);
 
     machine_class = select_machine();
+    if (machine_class->deprecation_msg) {
+        error_report("Machine type '%s' is deprecated. %s",
+                     machine_class->name, machine_class->deprecation_msg);
+    }
 
     set_memory_options(&ram_slots, &maxram_size, machine_class);
 

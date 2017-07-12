@@ -112,6 +112,7 @@ struct MachineClass {
     char *name;
     const char *alias;
     const char *desc;
+    const char *deprecation_msg;
 
     void (*init)(MachineState *state);
     void (*reset)(void);
