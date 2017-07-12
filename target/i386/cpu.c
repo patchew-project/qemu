@@ -1876,43 +1876,6 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
     }
 }
 
-static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
-{
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
-    char *value;
-    int i;
-
-    value = g_malloc(48 + 1);
-    for (i = 0; i < 48; i++) {
-        value[i] = env->cpuid_model[i >> 2] >> (8 * (i & 3));
-    }
-    value[48] = '\0';
-    return value;
-}
-
-static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
-                                   Error **errp)
-{
-    X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
-    int c, len, i;
-
-    if (model_id == NULL) {
-        model_id = "";
-    }
-    len = strlen(model_id);
-    memset(env->cpuid_model, 0, 48);
-    for (i = 0; i < 48; i++) {
-        if (i >= len) {
-            c = '\0';
-        } else {
-            c = (uint8_t)model_id[i];
-        }
-        env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
-    }
-}
-
 static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -2974,10 +2937,23 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x80000002:
     case 0x80000003:
     case 0x80000004:
-        *eax = env->cpuid_model[(index - 0x80000002) * 4 + 0];
-        *ebx = env->cpuid_model[(index - 0x80000002) * 4 + 1];
-        *ecx = env->cpuid_model[(index - 0x80000002) * 4 + 2];
-        *edx = env->cpuid_model[(index - 0x80000002) * 4 + 3];
+        {
+            int i;
+            int len = strlen(env->model_id);
+            uint32_t model[4] = { 0, 0, 0, 0 };
+
+            for (i = 0; i < 16; i++) {
+                int p = (index - 0x80000002) * 16 + i;
+                if (p >= len) {
+                    continue;
+                }
+                model[i >> 2] |= ((uint8_t)env->model_id[p]) << (8 * (i & 3));
+            }
+            *eax = model[0];
+            *ebx = model[1];
+            *ecx = model[2];
+            *edx = model[3];
+        }
         break;
     case 0x80000005:
         /* cache info (L1 cache) */
@@ -3943,9 +3919,6 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_str(obj, "vendor",
                             x86_cpuid_get_vendor,
                             x86_cpuid_set_vendor, NULL);
-    object_property_add_str(obj, "model-id",
-                            x86_cpuid_get_model_id,
-                            x86_cpuid_set_model_id, NULL);
     object_property_add(obj, "tsc-frequency", "int",
                         x86_cpuid_get_tsc_freq,
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
@@ -4079,6 +4052,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 0),
     DEFINE_PROP_BOOL("host-phys-bits", X86CPU, host_phys_bits, false),
     DEFINE_PROP_BOOL("fill-mtrr-mask", X86CPU, fill_mtrr_mask, true),
+    DEFINE_PROP_STRING("model-id", X86CPU, env.model_id),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, UINT32_MAX),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, UINT32_MAX),
     DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, UINT32_MAX),

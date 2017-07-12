@@ -1151,7 +1151,7 @@ typedef struct CPUX86State {
     FeatureWordArray features;
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
-    uint32_t cpuid_model[12];
+    char *model_id;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
