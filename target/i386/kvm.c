@@ -2417,7 +2417,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
     events.nmi.pad = 0;
 
-    events.sipi_vector = env->sipi_vector;
     events.flags = 0;
 
     if (has_msr_smbase) {
@@ -2505,8 +2504,6 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
             cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_INIT);
         }
     }
-
-    env->sipi_vector = events.sipi_vector;
 
     return 0;
 }
