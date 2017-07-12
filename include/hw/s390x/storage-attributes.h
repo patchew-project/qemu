@@ -13,6 +13,7 @@
 #define S390_STORAGE_ATTRIBUTES_H
 
 #include <hw/qdev.h>
+#include "monitor/monitor.h"
 
 #define TYPE_S390_STATTRIB "s390-storage_attributes"
 #define TYPE_QEMU_S390_STATTRIB "s390-storage_attributes-qemu"
@@ -64,5 +65,8 @@ typedef struct KVMS390StAttribState {
 } KVMS390StAttribState;
 
 void s390_stattrib_init(void);
+
+void hmp_info_cmma(Monitor *mon, const QDict *qdict);
+void hmp_migrationmode(Monitor *mon, const QDict *qdict);
 
 #endif /* S390_STORAGE_ATTRIBUTES_H */
