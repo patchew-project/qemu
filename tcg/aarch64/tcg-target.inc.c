@@ -886,12 +886,16 @@ void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
         i1 = I3206_B | ((offset >> 2) & 0x3ffffff);
         i2 = NOP;
     } else {
-        offset = (addr >> 12) - (jmp_addr >> 12);
+        if (offset == sextract64(offset, 0, 21)) {
+            i1 = I3406_ADR;
+            i2 = NOP;
+        } else {
+            offset = (addr >> 12) - (jmp_addr >> 12);
 
-        /* patch ADRP */
-        i1 = I3406_ADRP | (offset & 3) << 29 | (offset & 0x1ffffc) << (5 - 2) | rd;
-        /* patch ADDI */
-        i2 = I3401_ADDI | rt << 31 | (addr & 0xfff) << 10 | rd << 5 | rd;
+            i1 = I3406_ADRP;
+            i2 = I3401_ADDI | rt << 31 | (addr & 0xfff) << 10 | rd << 5 | rd;
+        }
+        i1 |= (offset & 3) << 29 | (offset & 0x1ffffc) << (5 - 2) | rd;
     }
     pair = (uint64_t)i2 << 32 | i1;
     atomic_set((uint64_t *)jmp_addr, pair);
