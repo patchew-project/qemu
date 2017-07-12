@@ -288,6 +288,7 @@ struct IntelIOMMUState {
 
     uint32_t context_cache_gen;     /* Should be in [1,MAX] */
     GHashTable *iotlb;              /* IOTLB */
+    uint16_t iotlb_size;            /* IOTLB max cache entries */
 
     MemoryRegionIOMMUOps iommu_ops;
     GHashTable *vtd_as_by_busptr;   /* VTDBus objects indexed by PCIBus* reference */

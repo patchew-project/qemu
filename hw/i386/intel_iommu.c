@@ -222,6 +222,10 @@ static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
     uint64_t key;
     int level;
 
+    if (s->iotlb_size == 0) {
+        return NULL;
+    }
+
     for (level = VTD_SL_PT_LEVEL; level < VTD_SL_PML4_LEVEL; level++) {
         key = vtd_get_iotlb_key(vtd_get_iotlb_gfn(addr, level),
                                 source_id, level);
@@ -244,8 +248,12 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     uint64_t *key = g_malloc(sizeof(*key));
     uint64_t gfn = vtd_get_iotlb_gfn(addr, level);
 
+    if (s->iotlb_size == 0) {
+        return;
+    }
+
     trace_vtd_iotlb_page_update(source_id, addr, slpte, domain_id);
-    if (g_hash_table_size(s->iotlb) >= VTD_IOTLB_MAX_SIZE) {
+    if (g_hash_table_size(s->iotlb) >= s->iotlb_size) {
         trace_vtd_iotlb_reset("iotlb exceeds size limit");
         vtd_reset_iotlb(s);
     }
@@ -2397,6 +2405,7 @@ static Property vtd_properties[] = {
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("x-buggy-eim", IntelIOMMUState, buggy_eim, false),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
+    DEFINE_PROP_UINT16("x-iotlb-size", IntelIOMMUState, iotlb_size, 1024),
     DEFINE_PROP_END_OF_LIST(),
 };
 
