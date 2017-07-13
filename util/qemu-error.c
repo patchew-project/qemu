@@ -181,11 +181,13 @@ bool enable_timestamp_msg;
 /*
  * Print an error message to current monitor if we have one, else to stderr.
  * Format arguments like vsprintf().  The resulting message should be
- * a single phrase, with no newline or trailing punctuation.
- * Prepend the current location and append a newline.
+ * a single phrase, with no trailing punctuation.  The no-LF version allows
+ * additional text to be appended with error_printf() or error_vprintf().
+ * Make sure to always close with a newline after all text is printed.
+ * Prepends the current location.
  * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
-void error_vreport(const char *fmt, va_list ap)
+void error_vreport_nolf(const char *fmt, va_list ap)
 {
     GTimeVal tv;
     gchar *timestr;
@@ -199,14 +201,31 @@ void error_vreport(const char *fmt, va_list ap)
 
     error_print_loc();
     error_vprintf(fmt, ap);
-    error_printf("\n");
+}
+
+/*
+ * Print an error message to current monitor if we have one, else to stderr.
+ * Format arguments like sprintf().  The resulting message should be a
+ * single phrase, with no trailing punctuation.  The no-LF version allows
+ * additional text to be appended with error_printf() or error_vprintf().
+ * Make sure to always close with a newline after all text is printed.
+ * Prepends the current location.
+ * It's wrong to call this in a QMP monitor.  Use error_setg() there.
+ */
+void error_report_nolf(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vreport_nolf(fmt, ap);
+    va_end(ap);
 }
 
 /*
  * Print an error message to current monitor if we have one, else to stderr.
  * Format arguments like sprintf().  The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
- * Prepend the current location and append a newline.
+ * Prepends the current location and appends a newline.
  * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void error_report(const char *fmt, ...)
@@ -214,6 +233,7 @@ void error_report(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    error_vreport(fmt, ap);
+    error_vreport_nolf(fmt, ap);
     va_end(ap);
+    error_printf("\n");
 }
