@@ -45,7 +45,7 @@ notifications:
     on_failure: always
 env:
   global:
-    - TEST_CMD="make check"
+    - TEST_CMD="scripts/aliveness.sh 69 make check"
   matrix:
     - CONFIG=""
     - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
