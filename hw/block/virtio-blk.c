@@ -490,20 +490,20 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
-        virtio_error(vdev, "virtio-blk missing headers");
+        virtqueue_error(req->vq, "virtio-blk missing headers");
         return -1;
     }
 
     if (unlikely(iov_to_buf(iov, out_num, 0, &req->out,
                             sizeof(req->out)) != sizeof(req->out))) {
-        virtio_error(vdev, "virtio-blk request outhdr too short");
+        virtqueue_error(req->vq, "virtio-blk request outhdr too short");
         return -1;
     }
 
     iov_discard_front(&iov, &out_num, sizeof(req->out));
 
     if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
-        virtio_error(vdev, "virtio-blk request inhdr too short");
+        virtqueue_error(req->vq, "virtio-blk request inhdr too short");
         return -1;
     }
 
