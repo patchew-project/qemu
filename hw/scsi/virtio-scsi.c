@@ -84,7 +84,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
 
 static void virtio_scsi_bad_req(VirtIOSCSIReq *req)
 {
-    virtio_error(VIRTIO_DEVICE(req->dev), "wrong size for virtio-scsi headers");
+    virtqueue_error(req->vq, "wrong size for virtio-scsi headers");
     virtqueue_detach_element(req->vq, &req->elem, 0);
     virtio_scsi_free_req(req);
 }
