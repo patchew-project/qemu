@@ -2444,8 +2444,12 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     }
 
     if (level >= KVM_PUT_RESET_STATE) {
-        events.flags |=
-            KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR;
+        if (env->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
+            events.flags |=
+                KVM_VCPUEVENT_VALID_NMI_PENDING | KVM_VCPUEVENT_VALID_SIPI_VECTOR;
+        } else {
+            events.flags |= KVM_VCPUEVENT_VALID_NMI_PENDING;
+        }
     }
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_VCPU_EVENTS, &events);
@@ -2633,6 +2637,10 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     if (ret < 0) {
         return ret;
     }
+    ret = kvm_put_vcpu_events(x86_cpu, level);
+    if (ret < 0) {
+        return ret;
+    }
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_mp_state(x86_cpu);
         if (ret < 0) {
@@ -2641,11 +2649,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     }
 
     ret = kvm_put_tscdeadline_msr(x86_cpu);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         return ret;
     }
@@ -2688,15 +2691,15 @@ int kvm_arch_get_registers(CPUState *cs)
     if (ret < 0) {
         goto out;
     }
+    ret = kvm_get_vcpu_events(cpu);
+    if (ret < 0) {
+        goto out;
+    }
     ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
         goto out;
     }
     ret = kvm_get_apic(cpu);
-    if (ret < 0) {
-        goto out;
-    }
-    ret = kvm_get_vcpu_events(cpu);
     if (ret < 0) {
         goto out;
     }
