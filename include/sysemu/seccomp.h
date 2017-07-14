@@ -16,6 +16,7 @@
 #define QEMU_SECCOMP_H
 
 #define OBSOLETE    0x0001
+#define PRIVILEGED  0x0010
 
 #include <seccomp.h>
 
