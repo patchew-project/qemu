@@ -353,7 +353,13 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
 
 void qemu_chr_fe_disconnect(CharBackend *be)
 {
-    Chardev *chr = be->chr;
+    Chardev *chr = NULL;
+
+    if (be) {
+        chr = be->chr;
+    } else {
+        return ;
+    }
 
     if (chr && CHARDEV_GET_CLASS(chr)->chr_disconnect) {
         CHARDEV_GET_CLASS(chr)->chr_disconnect(chr);
