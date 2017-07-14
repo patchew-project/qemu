@@ -24,6 +24,9 @@
 
 #include "qemu/osdep.h"
 #include <zlib.h>
+#ifdef CONFIG_LZO
+#include <lzo/lzo1x.h>
+#endif
 
 #include "qapi/error.h"
 #include "qemu-common.h"
@@ -1504,6 +1507,18 @@ static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
         inflateEnd(&z_strm);
         break;
     }
+#ifdef CONFIG_LZO
+    case QCOW2_COMPRESS_FORMAT_LZO:
+        out_len = out_buf_size;
+        ret = lzo1x_decompress_safe(buf, buf_size, out_buf,
+                                    (lzo_uint *) &out_len, NULL);
+        if (ret == LZO_E_INPUT_NOT_CONSUMED) {
+            /* We always read up to the next sector boundary. Thus
+             * buf_size may be larger than the original compressed size. */
+            ret = 0;
+        }
+        break;
+#endif
     default:
         abort(); /* should never reach this point */
     }

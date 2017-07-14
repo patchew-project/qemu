@@ -26,6 +26,9 @@
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include <zlib.h>
+#ifdef CONFIG_LZO
+#include <lzo/lzo1x.h>
+#endif
 #include "block/qcow2.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
@@ -165,10 +168,18 @@ static ssize_t qcow2_crypto_hdr_write_func(QCryptoBlock *block, size_t offset,
 }
 
 
-static void qcow2_compress_level_supported(int format, uint8_t level,
+static void qcow2_compress_settings_supported(int format, uint8_t level,
                                            Error **errp)
 {
-    if (format == QCOW2_COMPRESS_FORMAT_ZLIB && level > 9) {
+#ifndef CONFIG_LZO
+    if (format == QCOW2_COMPRESS_FORMAT_LZO) {
+        error_setg(errp, "ERROR: compress format '%s' is not supported",
+                         Qcow2CompressFormat_lookup[format]);
+        return;
+    }
+#endif
+    if ((format == QCOW2_COMPRESS_FORMAT_ZLIB && level > 9) ||
+        (format == QCOW2_COMPRESS_FORMAT_LZO && level > 0)) {
         error_setg(errp, "ERROR: compress level %" PRIu8 " is not"
                          " supported for format '%s'", level,
                          Qcow2CompressFormat_lookup[format]);
@@ -280,13 +291,21 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 return 4;
             }
 
-            qcow2_compress_level_supported(s->compress_format,
-                                           compress_ext.level, &local_err);
+            qcow2_compress_settings_supported(s->compress_format,
+                                              compress_ext.level, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
                 return 5;
             }
             s->compress_level = compress_ext.level;
+
+#ifdef CONFIG_LZO
+            if (s->compress_format == QCOW2_COMPRESS_FORMAT_LZO &&
+                lzo_init() != LZO_E_OK) {
+                error_setg(errp, "ERROR: internal error - lzo_init() failed");
+                return 6;
+            }
+#endif
 
 #ifdef DEBUG_EXT
             printf("Qcow2: Got compress format %s with compress level %"
@@ -3078,8 +3097,8 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         visit_free(v);
         QDECREF(compressopts);
         QDECREF(options);
-        qcow2_compress_level_supported(compress.format, compress.level,
-                                       &local_err);
+        qcow2_compress_settings_supported(compress.format, compress.level,
+                                          &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             goto finish;
@@ -3394,7 +3413,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     z_stream z_strm = {};
     int z_windowBits = -15, z_level = Z_DEFAULT_COMPRESSION;
     int ret, out_len = 0;
-    uint8_t *buf, *out_buf = NULL, *local_buf = NULL;
+    uint8_t *buf, *out_buf = NULL, *local_buf = NULL, *work_buf = NULL;
     uint64_t cluster_offset;
 
     if (bytes == 0) {
@@ -3446,6 +3465,14 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
         ret = ret != Z_STREAM_END;
         break;
+#ifdef CONFIG_LZO
+    case QCOW2_COMPRESS_FORMAT_LZO:
+        out_buf = g_malloc(s->cluster_size + s->cluster_size / 16 + 64 + 3);
+        work_buf = g_malloc(LZO1X_1_MEM_COMPRESS);
+        ret = lzo1x_1_compress(buf, s->cluster_size, out_buf,
+                               (lzo_uint *) &out_len, work_buf);
+        break;
+#endif
     default:
         abort(); /* should never reach this point */
     }
@@ -3491,6 +3518,7 @@ success:
 fail:
     qemu_vfree(local_buf);
     g_free(out_buf);
+    g_free(work_buf);
     return ret;
 }
 
