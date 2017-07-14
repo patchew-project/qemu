@@ -165,6 +165,8 @@ static void vmcoreinfo_handle_reset(void *opaque)
 
 static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
 {
+    static volatile VMCoreInfoState *vmcoreinfo_gdb_helper G_GNUC_UNUSED;
+
     if (!bios_linker_loader_can_write_pointer()) {
         error_setg(errp, "%s requires DMA write support in fw_cfg, "
                    "which this machine type does not provide",
@@ -181,6 +183,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    vmcoreinfo_gdb_helper = VMCOREINFO(dev);
     qemu_register_reset(vmcoreinfo_handle_reset, dev);
 }
 
