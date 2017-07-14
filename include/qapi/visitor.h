@@ -183,19 +183,25 @@
  *
  * It is also possible to use the visitors to do a virtual walk, where
  * no actual QAPI struct is present.  In this situation, decisions
- * about what needs to be walked are made by the calling code, and
- * structured visits are split between pairs of start and end methods
- * (where the end method must be called if the start function
- * succeeded, even if an intermediate visit encounters an error).
- * Thus, a virtual walk corresponding to '{ "list": [1, 2] }' looks
- * like:
+ * about what needs to be walked are made by the calling code (that
+ * is, there is no use for QAPI alternate types in a virtual walk,
+ * because the code can just directly visit the appropriate type
+ * within the alternate), and structured visits are split between
+ * pairs of start and end methods (where the end method must be called
+ * if the start function succeeded, even if an intermediate visit
+ * encounters an error).  Thus, a virtual output walk of an object
+ * containing a list of alternates between an integer or nested
+ * object, corresponding to '{ "list": [1, { "value": "2" } ] }',
+ * would look like:
  *
  * <example>
  *  Visitor *v;
  *  Error *err = NULL;
- *  int value;
+ *  int i = 1;
+ *  const char *s = "2";
+ *  FOO output;
  *
- *  v = FOO_visitor_new(...);
+ *  v = FOO_visitor_new(..., &output);
  *  visit_start_struct(v, NULL, NULL, 0, &err);
  *  if (err) {
  *      goto out;
@@ -204,16 +210,21 @@
  *  if (err) {
  *      goto outobj;
  *  }
- *  value = 1;
- *  visit_type_int(v, NULL, &value, &err);
+ *  visit_type_int(v, NULL, &i, &err);
  *  if (err) {
  *      goto outlist;
  *  }
- *  value = 2;
- *  visit_type_int(v, NULL, &value, &err);
+ *  visit_type_start(v, NULL, NULL, 0, &err);
  *  if (err) {
- *      goto outlist;
+ *      goto outnest;
  *  }
+ *  visit_type_str(v, "value", (char **)&s, &err);
+ *  if (err) {
+ *      goto outnest;
+ *  }
+ *  visit_check_struct(v, &err);
+ * outnest:
+ *  visit_end_struct(v, NULL);
  * outlist:
  *  visit_end_list(v, NULL);
  *  if (!err) {
@@ -221,6 +232,10 @@
  *  }
  * outobj:
  *  visit_end_struct(v, NULL);
+ *  if (!err) {
+ *      visit_complete(v, &output);
+ *      ...use output...
+ *  }
  * out:
  *  error_propagate(errp, err);
  *  visit_free(v);
