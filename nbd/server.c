@@ -283,7 +283,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
                                             Error **errp)
 {
     char name[NBD_MAX_NAME_SIZE + 1];
-    char buf[8 + 4 + 124] = "";
+    char buf[8 + 2 + 124] = "";
     size_t len;
     int ret;
 
@@ -800,7 +800,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
  */
 static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
 {
-    char buf[8 + 8 + 8 + 128];
+    char buf[8 + 8 + 8 + 2 + 2 + 124];
     int ret;
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
