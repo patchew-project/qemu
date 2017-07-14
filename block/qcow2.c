@@ -3391,9 +3391,10 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     BDRVQcow2State *s = bs->opaque;
     QEMUIOVector hd_qiov;
     struct iovec iov;
-    z_stream strm;
-    int ret, out_len;
-    uint8_t *buf, *out_buf, *local_buf = NULL;
+    z_stream z_strm = {};
+    int z_windowBits = -15, z_level = Z_DEFAULT_COMPRESSION;
+    int ret, out_len = 0;
+    uint8_t *buf, *out_buf = NULL, *local_buf = NULL;
     uint64_t cluster_offset;
 
     if (bytes == 0) {
@@ -3418,34 +3419,38 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         buf = qiov->iov[0].iov_base;
     }
 
-    out_buf = g_malloc(s->cluster_size);
+    switch (s->compress_format) {
+    case -1:
+        z_windowBits = -12;
+    case QCOW2_COMPRESS_FORMAT_ZLIB:
+        out_buf = g_malloc(s->cluster_size);
+        if (s->compress_level > 0) {
+            z_level = s->compress_level;
+        }
 
-    /* best compression, small window, no zlib header */
-    memset(&strm, 0, sizeof(strm));
-    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION,
-                       Z_DEFLATED, -12,
-                       9, Z_DEFAULT_STRATEGY);
-    if (ret != 0) {
-        ret = -EINVAL;
-        goto fail;
+        ret = deflateInit2(&z_strm, z_level, Z_DEFLATED, z_windowBits, 9,
+                           Z_DEFAULT_STRATEGY);
+        if (ret != Z_OK) {
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        z_strm.avail_in = s->cluster_size;
+        z_strm.next_in = (uint8_t *)buf;
+        z_strm.avail_out = s->cluster_size;
+        z_strm.next_out = out_buf;
+
+        ret = deflate(&z_strm, Z_FINISH);
+        out_len = z_strm.next_out - out_buf;
+        deflateEnd(&z_strm);
+
+        ret = ret != Z_STREAM_END;
+        break;
+    default:
+        abort(); /* should never reach this point */
     }
 
-    strm.avail_in = s->cluster_size;
-    strm.next_in = (uint8_t *)buf;
-    strm.avail_out = s->cluster_size;
-    strm.next_out = out_buf;
-
-    ret = deflate(&strm, Z_FINISH);
-    if (ret != Z_STREAM_END && ret != Z_OK) {
-        deflateEnd(&strm);
-        ret = -EINVAL;
-        goto fail;
-    }
-    out_len = strm.next_out - out_buf;
-
-    deflateEnd(&strm);
-
-    if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
+    if (ret || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
         ret = qcow2_co_pwritev(bs, offset, bytes, qiov, 0);
         if (ret < 0) {
