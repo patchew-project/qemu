@@ -1,7 +1,7 @@
 /*
  * QObject Output Visitor unit-tests.
  *
- * Copyright (C) 2011-2016 Red Hat Inc.
+ * Copyright (C) 2011-2017 Red Hat Inc.
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
@@ -248,6 +248,48 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
         error_free_or_abort(&err);
         visitor_reset(data);
     }
+}
+
+
+static void test_visitor_out_partial_visit(TestOutputVisitorData *data,
+                                           const void *unused)
+{
+    /* Various checks that a mid-visit abort doesn't leak or double-free. */
+    const char *str = "hi";
+    Error *err = NULL;
+    UserDefAlternate uda = {
+        .type = QTYPE_QDICT,
+        .u.udfu = { .integer = 1,
+                    .string = (char *) "bye",
+                    .enum1 = -1 } /* intentionally bad */
+    };
+    UserDefAlternate *obj = &uda;
+
+    /* Abort within a nested object with no data members */
+    visit_start_struct(data->ov, NULL, NULL, 0, &error_abort);
+    visit_start_struct(data->ov, "nested", NULL, 0, &error_abort);
+    visitor_reset(data);
+
+    /* Abort in the middle of a list of strings */
+    visit_start_list(data->ov, "list", NULL, 0, &error_abort);
+    visit_type_str(data->ov, NULL, (char **)&str, &error_abort);
+    visit_type_str(data->ov, NULL, (char **)&str, &error_abort);
+    visitor_reset(data);
+
+    /*
+     * Abort in the middle of an alternate. Alternates can't be
+     * virtually visited, so we get to inline the first half of
+     * visit_type_UserDefAlternate().
+     */
+    visit_start_alternate(data->ov, NULL, (GenericAlternate **)&obj,
+                          sizeof(uda), &error_abort);
+    visit_start_struct(data->ov, NULL, NULL, 0, &error_abort);
+    visit_type_UserDefUnionBase_members(data->ov,
+                                        (UserDefUnionBase *)&uda.u.udfu,
+                                        &err);
+    /* error expected because of bad "enum1" discriminator value */
+    error_free_or_abort(&err);
+    visitor_reset(data);
 }
 
 
@@ -815,6 +857,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_struct_nested);
     output_visitor_test_add("/visitor/output/struct-errors",
                             &out_visitor_data, test_visitor_out_struct_errors);
+    output_visitor_test_add("/visitor/output/partial-visit",
+                            &out_visitor_data, test_visitor_out_partial_visit);
     output_visitor_test_add("/visitor/output/list",
                             &out_visitor_data, test_visitor_out_list);
     output_visitor_test_add("/visitor/output/any",
