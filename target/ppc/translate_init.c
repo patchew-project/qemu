@@ -8536,7 +8536,8 @@ static bool cpu_has_work_POWER7(CPUState *cs)
         }
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
             (env->spr[SPR_LPCR] & LPCR_P7_PECE1)) {
-            return true;
+            /* Return true only when MSR_EE is enabled */
+            return msr_ee;
         }
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK)) &&
             (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
@@ -8693,7 +8694,8 @@ static bool cpu_has_work_POWER8(CPUState *cs)
         }
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE3)) {
-            return true;
+            /* Return true only when MSR_EE is enabled */
+            return msr_ee;
         }
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK)) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
@@ -8876,7 +8878,8 @@ static bool cpu_has_work_POWER9(CPUState *cs)
         /* Decrementer Exception */
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
             (env->spr[SPR_LPCR] & LPCR_DEE)) {
-            return true;
+            /* Return true only when MSR_EE is enabled */
+            return msr_ee;
         }
         /* Machine Check or Hypervisor Maintenance Exception */
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK |
