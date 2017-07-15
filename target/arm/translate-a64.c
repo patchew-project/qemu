@@ -11285,6 +11285,7 @@ void gen_intermediate_code_a64(CPUState *cs, TranslationBlock *tb)
                         dc->is_jmp = DISAS_UPDATE;
                     } else {
                         gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
+                        dc->is_jmp = DISAS_NORETURN;
                         /* The address covered by the breakpoint must be
                            included in [tb->pc, tb->pc + tb->size) in order
                            to for it to be properly cleared -- thus we

@@ -11942,6 +11942,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
                         dc->is_jmp = DISAS_UPDATE;
                     } else {
                         gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
+                        dc->is_jmp = DISAS_NORETURN;
                         /* The address covered by the breakpoint must be
                            included in [tb->pc, tb->pc + tb->size) in order
                            to for it to be properly cleared -- thus we
@@ -11986,7 +11987,8 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             assert(num_insns == 1);
             gen_exception(EXCP_UDEF, syn_swstep(dc->ss_same_el, 0, 0),
                           default_exception_el(dc));
-            goto done_generating;
+            dc->is_jmp = DISAS_NORETURN;
+            break;
         }
 
         if (dc->thumb) {
