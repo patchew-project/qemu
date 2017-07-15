@@ -580,6 +580,25 @@ Master message types
       This request should be send only when VIRTIO_F_IOMMU_PLATFORM feature
       has been successfully negotiated.
 
+ * VHOST_USER_CREATE_CRYPTO_SESSION
+
+      Id: 23
+      Equivalent ioctl: N/A
+      Master payload: crypto session description
+      Slave payload: crypto session description
+
+      Create a session for crypto operation. The server side must return the
+      session id, 0 or positive for success, negative for failure.
+
+ * VHOST_USER_CLOSE_CRYPTO_SESSION
+
+      Id: 24
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      Close a session for crypto operation which was previously
+      created by VHOST_USER_CREATE_CRYPTO_SESSION.
+
 Slave message types
 -------------------
 
