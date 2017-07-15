@@ -2811,6 +2811,10 @@ static bool object_create_initial(const char *type)
         return false;
     }
 
+    if (g_str_equal(type, "cryptodev-vhost-user")) {
+        return false;
+    }
+
     /*
      * return false for concrete netfilters since
      * they depend on netdevs already existing
