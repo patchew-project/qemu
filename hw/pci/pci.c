@@ -480,7 +480,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
 
     memory_region_set_enabled(&s->bus_master_enable_region,
                               pci_get_word(s->config + PCI_COMMAND)
-                              & PCI_COMMAND_MASTER);
+                              & (PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY));
 
     g_free(config);
     return 0;
@@ -1356,7 +1356,7 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
         pci_update_irq_disabled(d, was_irq_disabled);
         memory_region_set_enabled(&d->bus_master_enable_region,
                                   pci_get_word(d->config + PCI_COMMAND)
-                                    & PCI_COMMAND_MASTER);
+                                  & (PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY));
     }
 
     msi_write_config(d, addr, val_in, l);
