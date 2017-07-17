@@ -358,14 +358,11 @@ static void process_incoming_migration_co(void *opaque)
 
 static void migration_incoming_setup(QEMUFile *f)
 {
-    MigrationIncomingState *mis = migration_incoming_get_current();
-
     if (multifd_load_setup() != 0) {
         /* We haven't been able to create multifd threads
            nothing better to do */
         exit(EXIT_FAILURE);
     }
-    mis->from_src_file = f;
     qemu_file_set_blocking(f, false);
 }
 
@@ -384,18 +381,26 @@ void migration_fd_process_incoming(QEMUFile *f)
 gboolean migration_ioc_process_incoming(QIOChannel *ioc)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
+    gboolean result = FALSE;
 
     if (!mis->from_src_file) {
         QEMUFile *f = qemu_fopen_channel_input(ioc);
         mis->from_src_file = f;
-        migration_fd_process_incoming(f);
-        if (!migrate_use_multifd()) {
-            return FALSE;
-        } else {
-            return TRUE;
+        migration_incoming_setup(f);
+        if (migrate_use_multifd()) {
+            result = TRUE;
         }
+    } else {
+        /* we can only arrive here if multifd is on
+           and this is a new channel */
+        result = multifd_new_channel(ioc);
     }
-    return multifd_new_channel(ioc);
+    if (result == FALSE) {
+        /* called when !multifd and for last multifd channel */
+        migration_incoming_process();
+    }
+
+    return result;
 }
 
 /*
