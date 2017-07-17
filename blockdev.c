@@ -3884,35 +3884,30 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
     BlockDriverState *bs;
     QObject *obj;
-    Visitor *v = qobject_output_visitor_new(&obj);
     QDict *qdict;
     Error *local_err = NULL;
 
-    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+    obj = QAPI_TO_QOBJECT(BlockdevOptions, options, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto fail;
+        return;
     }
 
-    visit_complete(v, &obj);
     qdict = qobject_to_qdict(obj);
 
     qdict_flatten(qdict);
 
     if (!qdict_get_try_str(qdict, "node-name")) {
         error_setg(errp, "'node-name' must be specified for the root node");
-        goto fail;
+        return;
     }
 
     bs = bds_tree_init(qdict, errp);
     if (!bs) {
-        goto fail;
+        return;
     }
 
     QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
-
-fail:
-    visit_free(v);
 }
 
 void qmp_blockdev_del(const char *node_name, Error **errp)
