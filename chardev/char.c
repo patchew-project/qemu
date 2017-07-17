@@ -604,6 +604,23 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
     return backend;
 }
 
+bool qemu_chr_help(QemuOpts *opts)
+{
+    const char *name = qemu_opt_get(opts, "backend");
+
+    if (name && is_help_option(name)) {
+        GString *str = g_string_new("");
+
+        chardev_name_foreach(help_string_append, str);
+
+        error_report("Available chardev backend types: %s", str->str);
+        g_string_free(str, true);
+        return true;
+    }
+
+    return false;
+}
+
 Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
 {
     const ChardevClass *cc;
@@ -613,14 +630,8 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
     const char *id = qemu_opts_id(opts);
     char *bid = NULL;
 
-    if (name && is_help_option(name)) {
-        GString *str = g_string_new("");
-
-        chardev_name_foreach(help_string_append, str);
-
-        error_report("Available chardev backend types: %s", str->str);
-        g_string_free(str, true);
-        exit(0);
+    if (qemu_chr_help(opts)) {
+        return NULL;
     }
 
     if (id == NULL) {

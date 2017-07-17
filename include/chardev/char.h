@@ -59,6 +59,15 @@ struct Chardev {
 };
 
 /**
+ * @qemu_chr_help:
+ *
+ * Print available chardevice backends if 'asked for help' in @opts
+ *
+ * Returns: true if there was a help option
+ */
+bool qemu_chr_help(QemuOpts *opts);
+
+/**
  * @qemu_chr_new_from_opts:
  *
  * Create a new character backend from a QemuOpts list.

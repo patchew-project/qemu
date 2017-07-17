@@ -2344,6 +2344,10 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
 
+    if (qemu_chr_help(opts)) {
+        exit(0);
+    }
+
     qemu_chr_new_from_opts(opts, &local_err);
     if (local_err) {
         error_report_err(local_err);
