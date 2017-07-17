@@ -299,17 +299,15 @@ static void process_incoming_migration_bh(void *opaque)
 
 static void process_incoming_migration_co(void *opaque)
 {
-    QEMUFile *f = opaque;
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
 
-    mis->from_src_file = f;
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_ACTIVE);
-    ret = qemu_loadvm_state(f);
+    ret = qemu_loadvm_state(mis->from_src_file);
 
     ps = postcopy_state_get();
     trace_process_incoming_migration_co_end(ret, ps);
@@ -360,6 +358,18 @@ void migration_fd_process_incoming(QEMUFile *f)
 
     qemu_file_set_blocking(f, false);
     qemu_coroutine_enter(co);
+}
+
+gboolean migration_ioc_process_incoming(QIOChannel *ioc)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (!mis->from_src_file) {
+        QEMUFile *f = qemu_fopen_channel_input(ioc);
+        mis->from_src_file = f;
+        migration_fd_process_incoming(f);
+    }
+    return FALSE; /* unregister */
 }
 
 /*
