@@ -972,7 +972,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
         if (iov_size(elem->in_sg, elem->in_num) < sizeof(status) ||
             iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
-            virtio_error(vdev, "virtio-net ctrl missing headers");
+            virtqueue_error(vq, "virtio-net ctrl missing headers");
             virtqueue_detach_element(vq, elem, 0);
             g_free(elem);
             break;
@@ -1206,20 +1206,20 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
         elem = virtqueue_pop(q->rx_vq, sizeof(VirtQueueElement));
         if (!elem) {
             if (i) {
-                virtio_error(vdev, "virtio-net unexpected empty queue: "
-                             "i %zd mergeable %d offset %zd, size %zd, "
-                             "guest hdr len %zd, host hdr len %zd "
-                             "guest features 0x%" PRIx64,
-                             i, n->mergeable_rx_bufs, offset, size,
-                             n->guest_hdr_len, n->host_hdr_len,
-                             vdev->guest_features);
+                virtqueue_error(q->rx_vq, "virtio-net unexpected empty queue: "
+                                "i %zd mergeable %d offset %zd, size %zd, "
+                                "guest hdr len %zd, host hdr len %zd "
+                                "guest features 0x%" PRIx64,
+                                i, n->mergeable_rx_bufs, offset, size,
+                                n->guest_hdr_len, n->host_hdr_len,
+                                vdev->guest_features);
             }
             return -1;
         }
 
         if (elem->in_num < 1) {
-            virtio_error(vdev,
-                         "virtio-net receive queue contains no in buffers");
+            virtqueue_error(q->rx_vq,
+                            "virtio-net receive queue contains no in buffers");
             virtqueue_detach_element(q->rx_vq, elem, 0);
             g_free(elem);
             return -1;
@@ -1335,7 +1335,7 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         out_num = elem->out_num;
         out_sg = elem->out_sg;
         if (out_num < 1) {
-            virtio_error(vdev, "virtio-net header not in first element");
+            virtqueue_error(q->tx_vq, "virtio-net header not in first element");
             virtqueue_detach_element(q->tx_vq, elem, 0);
             g_free(elem);
             return -EINVAL;
@@ -1344,7 +1344,7 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         if (n->has_vnet_hdr) {
             if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
                 n->guest_hdr_len) {
-                virtio_error(vdev, "virtio-net header incorrect");
+                virtqueue_error(q->tx_vq, "virtio-net header incorrect");
                 virtqueue_detach_element(q->tx_vq, elem, 0);
                 g_free(elem);
                 return -EINVAL;
