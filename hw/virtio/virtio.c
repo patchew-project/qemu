@@ -31,6 +31,11 @@
  */
 #define VIRTIO_PCI_VRING_ALIGN         4096
 
+/*
+ * Name of the property linking proxy objects to virtio backend objects.
+ */
+#define VIRTIO_PROP_BACKEND            "virtio-backend"
+
 typedef struct VRingDesc
 {
     uint64_t addr;
@@ -2223,7 +2228,8 @@ void virtio_instance_init_common(Object *proxy_obj, void *data,
     DeviceState *vdev = data;
 
     object_initialize(vdev, vdev_size, vdev_name);
-    object_property_add_child(proxy_obj, "virtio-backend", OBJECT(vdev), NULL);
+    object_property_add_child(proxy_obj, VIRTIO_PROP_BACKEND, OBJECT(vdev),
+                              NULL);
     object_unref(OBJECT(vdev));
     qdev_alias_all_properties(vdev, proxy_obj);
 }
@@ -2443,13 +2449,33 @@ void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
     vdev->bus_name = g_strdup(bus_name);
 }
 
+static const char *virtio_get_device_id(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    while (qdev) {
+        /* Find the proxy object corresponding to the vdev backend */
+        Object *prop = object_property_get_link(OBJECT(qdev),
+                                                VIRTIO_PROP_BACKEND, NULL);
+        if (prop == OBJECT(vdev)) {
+            return qdev->id ? qdev->id : "";
+        }
+        qdev = qdev->parent_bus->parent;
+    }
+    g_assert_not_reached();
+    return "";
+}
+
 void GCC_FMT_ATTR(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
 {
     va_list ap;
+    char *msg;
 
     va_start(ap, fmt);
-    error_vreport(fmt, ap);
+    msg = g_strdup_vprintf(fmt, ap);
     va_end(ap);
+
+    error_report("%s (id=%s): %s", vdev->name, virtio_get_device_id(vdev), msg);
+    g_free(msg);
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         virtio_set_status(vdev, vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET);
