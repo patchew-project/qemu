@@ -2109,6 +2109,39 @@ static void migration_instance_init(Object *obj)
     ms->parameters.tls_hostname = g_strdup("");
 }
 
+static void migration_instance_post_init(Object *obj)
+{
+    MigrationState *ms = (MigrationState *)obj;
+    Error *err = NULL;
+    MigrationParameters params = {
+        .has_compress_level = true,
+        .compress_level = ms->parameters.compress_level,
+        .has_compress_threads = true,
+        .compress_threads = ms->parameters.compress_threads,
+        .has_decompress_threads = true,
+        .decompress_threads = ms->parameters.decompress_threads,
+        .has_cpu_throttle_initial = true,
+        .cpu_throttle_initial = ms->parameters.cpu_throttle_initial,
+        .has_cpu_throttle_increment = true,
+        .cpu_throttle_increment = ms->parameters.cpu_throttle_increment,
+        .has_max_bandwidth = true,
+        .max_bandwidth = ms->parameters.max_bandwidth,
+        .has_downtime_limit = true,
+        .downtime_limit = ms->parameters.downtime_limit,
+        .has_x_checkpoint_delay = true,
+        .x_checkpoint_delay = ms->parameters.x_checkpoint_delay,
+        .has_block_incremental = true,
+        .block_incremental = ms->parameters.block_incremental,
+    };
+
+    /* We have applied all the migration properties... */
+
+    if (!migrate_params_check(&params, &err)) {
+        error_report_err(err);
+        exit(1);
+    }
+}
+
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
     /*
@@ -2124,6 +2157,7 @@ static const TypeInfo migration_type = {
     .class_size = sizeof(MigrationClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
+    .instance_post_init = migration_instance_post_init,
 };
 
 static void register_migration_types(void)
