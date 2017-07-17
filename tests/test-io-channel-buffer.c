@@ -22,8 +22,7 @@
 #include "io/channel-buffer.h"
 #include "io-channel-helpers.h"
 
-
-static void test_io_channel_buf(void)
+static void test_io_channel_buf1(void)
 {
     QIOChannelBuffer *buf;
     QIOChannelTest *test;
@@ -39,6 +38,53 @@ static void test_io_channel_buf(void)
     object_unref(OBJECT(buf));
 }
 
+static void test_io_channel_buf2(void)
+{
+    QIOChannelBuffer *buf;
+    QIOChannelTest *test;
+
+    buf = qio_channel_buffer_new(0);
+
+    test = qio_channel_test_new();
+    qio_channel_test_run_writer_all(test, QIO_CHANNEL(buf));
+    buf->offset = 0;
+    qio_channel_test_run_reader(test, QIO_CHANNEL(buf));
+    qio_channel_test_validate(test);
+
+    object_unref(OBJECT(buf));
+}
+
+static void test_io_channel_buf3(void)
+{
+    QIOChannelBuffer *buf;
+    QIOChannelTest *test;
+
+    buf = qio_channel_buffer_new(0);
+
+    test = qio_channel_test_new();
+    qio_channel_test_run_writer(test, QIO_CHANNEL(buf));
+    buf->offset = 0;
+    qio_channel_test_run_reader_all(test, QIO_CHANNEL(buf));
+    qio_channel_test_validate(test);
+
+    object_unref(OBJECT(buf));
+}
+
+static void test_io_channel_buf4(void)
+{
+    QIOChannelBuffer *buf;
+    QIOChannelTest *test;
+
+    buf = qio_channel_buffer_new(0);
+
+    test = qio_channel_test_new();
+    qio_channel_test_run_writer_all(test, QIO_CHANNEL(buf));
+    buf->offset = 0;
+    qio_channel_test_run_reader_all(test, QIO_CHANNEL(buf));
+    qio_channel_test_validate(test);
+
+    object_unref(OBJECT(buf));
+}
 
 int main(int argc, char **argv)
 {
@@ -46,6 +92,9 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_func("/io/channel/buf", test_io_channel_buf);
+    g_test_add_func("/io/channel/buf1", test_io_channel_buf1);
+    g_test_add_func("/io/channel/buf2", test_io_channel_buf2);
+    g_test_add_func("/io/channel/buf3", test_io_channel_buf3);
+    g_test_add_func("/io/channel/buf4", test_io_channel_buf4);
     return g_test_run();
 }

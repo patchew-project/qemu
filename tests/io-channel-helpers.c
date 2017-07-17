@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "io-channel-helpers.h"
 #include "qapi/error.h"
+#include "qemu/iov.h"
 
 struct QIOChannelTest {
     QIOChannel *src;
@@ -153,6 +154,45 @@ static gpointer test_io_thread_reader(gpointer opaque)
     return NULL;
 }
 
+static gpointer test_io_thread_writer_all(gpointer opaque)
+{
+    QIOChannelTest *data = opaque;
+    size_t niov = data->niov;
+    ssize_t ret;
+
+    qio_channel_set_blocking(data->src, data->blocking, NULL);
+
+    ret = qio_channel_writev_all(data->src,
+                                 data->inputv,
+                                 niov,
+                                 &data->writeerr);
+    if (ret != iov_size(data->inputv, data->niov)) {
+        error_setg(&data->writeerr, "Unexpected I/O error");
+    }
+
+    return NULL;
+}
+
+/* This thread receives all data using iovecs */
+static gpointer test_io_thread_reader_all(gpointer opaque)
+{
+    QIOChannelTest *data = opaque;
+    size_t niov = data->niov;
+    ssize_t ret;
+
+    qio_channel_set_blocking(data->dst, data->blocking, NULL);
+
+    ret = qio_channel_readv_all(data->dst,
+                                data->outputv,
+                                niov,
+                                &data->readerr);
+
+    if (ret != iov_size(data->inputv, data->niov)) {
+        error_setg(&data->readerr, "Unexpected I/O error");
+    }
+
+    return NULL;
+}
 
 QIOChannelTest *qio_channel_test_new(void)
 {
@@ -231,6 +271,21 @@ void qio_channel_test_run_reader(QIOChannelTest *test,
     test->dst = NULL;
 }
 
+void qio_channel_test_run_writer_all(QIOChannelTest *test,
+                                     QIOChannel *src)
+{
+    test->src = src;
+    test_io_thread_writer_all(test);
+    test->src = NULL;
+}
+
+void qio_channel_test_run_reader_all(QIOChannelTest *test,
+                                     QIOChannel *dst)
+{
+    test->dst = dst;
+    test_io_thread_reader_all(test);
+    test->dst = NULL;
+}
 
 void qio_channel_test_validate(QIOChannelTest *test)
 {

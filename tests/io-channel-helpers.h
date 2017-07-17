@@ -36,6 +36,10 @@ void qio_channel_test_run_writer(QIOChannelTest *test,
                                  QIOChannel *src);
 void qio_channel_test_run_reader(QIOChannelTest *test,
                                  QIOChannel *dst);
+void qio_channel_test_run_writer_all(QIOChannelTest *test,
+                                     QIOChannel *src);
+void qio_channel_test_run_reader_all(QIOChannelTest *test,
+                                     QIOChannel *dst);
 
 void qio_channel_test_validate(QIOChannelTest *test);
 
