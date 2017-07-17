@@ -519,7 +519,6 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     BDRVNBDState *s = bs->opaque;
     QDict *opts = qdict_new();
     QObject *saddr_qdict;
-    Visitor *ov;
     const char *host = NULL, *port = NULL, *path = NULL;
 
     if (s->saddr->type == SOCKET_ADDRESS_TYPE_INET) {
@@ -548,10 +547,9 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
                  "nbd://%s:%s", host, port);
     }
 
-    ov = qobject_output_visitor_new(&saddr_qdict);
-    visit_type_SocketAddress(ov, NULL, &s->saddr, &error_abort);
-    visit_complete(ov, &saddr_qdict);
-    visit_free(ov);
+    saddr_qdict = QAPI_TO_QOBJECT(SocketAddress, s->saddr, &error_abort);
+    assert(qobject_type(saddr_qdict) == QTYPE_QDICT);
+
     qdict_put_obj(opts, "server", saddr_qdict);
 
     if (s->export) {
