@@ -2142,6 +2142,9 @@ static void migration_instance_post_init(Object *obj)
 {
     MigrationState *ms = (MigrationState *)obj;
     Error *err = NULL;
+    MigrationCapabilityStatusList *head = NULL;
+    /* Assuming all off */
+    bool cap_list[MIGRATION_CAPABILITY__MAX] = { 0 };
     MigrationParameters params = {
         .has_compress_level = true,
         .compress_level = ms->parameters.compress_level,
@@ -2162,13 +2165,35 @@ static void migration_instance_post_init(Object *obj)
         .has_block_incremental = true,
         .block_incremental = ms->parameters.block_incremental,
     };
+    int i;
 
     /* We have applied all the migration properties... */
 
     if (!migrate_params_check(&params, &err)) {
-        error_report_err(err);
-        exit(1);
+        goto error;
     }
+
+    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+        if (ms->enabled_capabilities[i]) {
+            head = migrate_cap_add(head, i, true);
+        }
+    }
+
+    if (!migrate_caps_check(cap_list, head, &err)) {
+        goto error;
+    }
+
+    qapi_free_MigrationCapabilityStatusList(head);
+    return;
+
+error:
+    if (head) {
+        qapi_free_MigrationCapabilityStatusList(head);
+    }
+    if (err) {
+        error_report_err(err);
+    }
+    exit(1);
 }
 
 static const TypeInfo migration_type = {
