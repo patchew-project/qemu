@@ -819,7 +819,6 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
     NFSClient *client = bs->opaque;
     QDict *opts = qdict_new();
     QObject *server_qdict;
-    Visitor *ov;
 
     qdict_put_str(opts, "driver", "nfs");
 
@@ -840,9 +839,9 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
                  "nfs://%s%s", client->server->host, client->path);
     }
 
-    ov = qobject_output_visitor_new(&server_qdict);
-    visit_type_NFSServer(ov, NULL, &client->server, &error_abort);
-    visit_complete(ov, &server_qdict);
+    server_qdict = QAPI_TO_QOBJECT(NFSServer, client->server, &error_abort);
+    assert(qobject_type(server_qdict) == QTYPE_QDICT);
+
     qdict_put_obj(opts, "server", server_qdict);
     qdict_put_str(opts, "path", client->path);
 
@@ -865,7 +864,6 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
         qdict_put_int(opts, "debug", client->debug);
     }
 
-    visit_free(ov);
     qdict_flatten(opts);
     bs->full_open_options = opts;
 }
