@@ -2465,6 +2465,16 @@ static const char *virtio_get_device_id(VirtIODevice *vdev)
     return "";
 }
 
+static void virtio_device_set_broken(VirtIODevice *vdev)
+{
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        virtio_set_status(vdev, vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET);
+        virtio_notify_config(vdev);
+    }
+
+    vdev->broken = true;
+}
+
 void GCC_FMT_ATTR(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
 {
     va_list ap;
@@ -2477,12 +2487,24 @@ void GCC_FMT_ATTR(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
     error_report("%s (id=%s): %s", vdev->name, virtio_get_device_id(vdev), msg);
     g_free(msg);
 
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
-        virtio_set_status(vdev, vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET);
-        virtio_notify_config(vdev);
-    }
+    virtio_device_set_broken(vdev);
+}
 
-    vdev->broken = true;
+void GCC_FMT_ATTR(2, 3) virtqueue_error(VirtQueue *vq, const char *fmt, ...)
+{
+    VirtIODevice *vdev = vq->vdev;
+    va_list ap;
+    char *msg;
+
+    va_start(ap, fmt);
+    msg = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+
+    error_report("%s (id=%s) queue %d: %s", vdev->name,
+                 virtio_get_device_id(vdev), vq->queue_index, msg);
+    g_free(msg);
+
+    virtio_device_set_broken(vdev);
 }
 
 static void virtio_memory_listener_commit(MemoryListener *listener)
