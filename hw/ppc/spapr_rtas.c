@@ -174,6 +174,14 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
         kvm_cpu_synchronize_state(cs);
 
         env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
+
+        /* Enable DECR interrupt */
+        if (env->mmu_model == POWERPC_MMU_3_00) {
+            env->spr[SPR_LPCR] |= LPCR_DEE;
+        } else {
+            /* P7 and P8 both have same bit for DECR */
+            env->spr[SPR_LPCR] |= LPCR_P8_PECE3;
+        }
         env->nip = start;
         env->gpr[3] = r3;
         cs->halted = 0;

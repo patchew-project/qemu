@@ -87,6 +87,15 @@ static void spapr_cpu_reset(void *opaque)
 
     env->spr[SPR_HIOR] = 0;
 
+    /* Disable DECR for secondary cpus */
+    if (cs != first_cpu) {
+        if (env->mmu_model == POWERPC_MMU_3_00) {
+            env->spr[SPR_LPCR] &= ~LPCR_DEE;
+        } else {
+            /* P7 and P8 both have same bit for DECR */
+            env->spr[SPR_LPCR] &= ~LPCR_P8_PECE3;
+        }
+    }
     /*
      * This is a hack for the benefit of KVM PR - it abuses the SDR1
      * slot in kvm_sregs to communicate the userspace address of the
