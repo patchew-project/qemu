@@ -16,6 +16,8 @@
 
 #include "qapi/visitor.h"
 #include "qapi/qmp/qobject.h"
+#include "qapi/error.h"
+#include "qapi-visit.h"
 
 typedef struct QObjectOutputVisitor QObjectOutputVisitor;
 
@@ -53,5 +55,22 @@ typedef struct QObjectOutputVisitor QObjectOutputVisitor;
  * visit_free().
  */
 Visitor *qobject_output_visitor_new(QObject **result);
+
+QObject *qapi_to_qobject(const void *src,
+                         void (*visit_type)(Visitor *, const char *,
+                                            void **, Error **),
+                         Error **errp);
+
+/*
+ * Create a QObject from a QAPI object @src of the given @type.
+ *
+ * Not usable on QAPI scalars (integers, strings, enums), nor on a
+ * QAPI object that references the 'any' type.  @src must not be NULL.
+ */
+#define QAPI_TO_QOBJECT(type, src, err)                                 \
+    (qapi_to_qobject(1 ? (src) : (type *)NULL,                          \
+                     (void (*)(Visitor *, const char *, void**,         \
+                               Error **))visit_type_ ## type,           \
+                     err))
 
 #endif
