@@ -19,7 +19,7 @@
 #include "qapi/error.h"
 #include "io/channel-tls.h"
 
-void migration_channel_process_incoming(QIOChannel *ioc)
+gboolean migration_channel_process_incoming(QIOChannel *ioc)
 {
     MigrationState *s = migrate_get_current();
 
@@ -39,6 +39,7 @@ void migration_channel_process_incoming(QIOChannel *ioc)
         QEMUFile *f = qemu_fopen_channel_input(ioc);
         migration_fd_process_incoming(f);
     }
+    return FALSE; /* unregister */
 }
 
 

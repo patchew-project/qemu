@@ -47,9 +47,11 @@ static gboolean exec_accept_incoming_migration(QIOChannel *ioc,
                                                GIOCondition condition,
                                                gpointer opaque)
 {
-    migration_channel_process_incoming(ioc);
+    gboolean result;
+
+    result = migration_channel_process_incoming(ioc);
     object_unref(OBJECT(ioc));
-    return FALSE; /* unregister */
+    return result;
 }
 
 void exec_start_incoming_migration(const char *command, Error **errp)
