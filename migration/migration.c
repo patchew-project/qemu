@@ -389,8 +389,13 @@ gboolean migration_ioc_process_incoming(QIOChannel *ioc)
         QEMUFile *f = qemu_fopen_channel_input(ioc);
         mis->from_src_file = f;
         migration_fd_process_incoming(f);
+        if (!migrate_use_multifd()) {
+            return FALSE;
+        } else {
+            return TRUE;
+        }
     }
-    return FALSE; /* unregister */
+    return multifd_new_channel(ioc);
 }
 
 /*
