@@ -148,7 +148,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->desc, vdev->dma_as,
                                    addr, size, false);
     if (len < size) {
-        virtio_error(vdev, "Cannot map desc");
+        virtqueue_error(vq, "Cannot map desc");
         goto err_desc;
     }
 
@@ -156,7 +156,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->used, vdev->dma_as,
                                    vq->vring.used, size, true);
     if (len < size) {
-        virtio_error(vdev, "Cannot map used");
+        virtqueue_error(vq, "Cannot map used");
         goto err_used;
     }
 
@@ -164,7 +164,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->avail, vdev->dma_as,
                                    vq->vring.avail, size, false);
     if (len < size) {
-        virtio_error(vdev, "Cannot map avail");
+        virtqueue_error(vq, "Cannot map avail");
         goto err_avail;
     }
 
@@ -522,7 +522,7 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
-        virtio_error(vq->vdev, "Guest moved used index from %u to %u",
+        virtqueue_error(vq, "Guest moved used index from %u to %u",
                      idx, vq->shadow_avail_idx);
         return -EINVAL;
     }
@@ -545,7 +545,7 @@ static bool virtqueue_get_head(VirtQueue *vq, unsigned int idx,
 
     /* If their number is silly, that's a fatal mistake. */
     if (*head >= vq->vring.num) {
-        virtio_error(vq->vdev, "Guest says index %u is available", *head);
+        virtqueue_error(vq, "Guest says index %u is available", *head);
         return false;
     }
 
@@ -558,7 +558,7 @@ enum {
     VIRTQUEUE_READ_DESC_MORE = 1,   /* more buffers in chain */
 };
 
-static int virtqueue_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
+static int virtqueue_read_next_desc(VirtQueue *vq, VRingDesc *desc,
                                     MemoryRegionCache *desc_cache, unsigned int max,
                                     unsigned int *next)
 {
@@ -573,11 +573,11 @@ static int virtqueue_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
     smp_wmb();
 
     if (*next >= max) {
-        virtio_error(vdev, "Desc next is %u", *next);
+        virtqueue_error(vq, "Desc next is %u", *next);
         return VIRTQUEUE_READ_DESC_ERROR;
     }
 
-    vring_desc_read(vdev, desc, desc_cache, *next);
+    vring_desc_read(vq->vdev, desc, desc_cache, *next);
     return VIRTQUEUE_READ_DESC_MORE;
 }
 
@@ -610,7 +610,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
     max = vq->vring.num;
     caches = vring_get_region_caches(vq);
     if (caches->desc.len < max * sizeof(VRingDesc)) {
-        virtio_error(vdev, "Cannot map descriptor ring");
+        virtqueue_error(vq, "Cannot map descriptor ring");
         goto err;
     }
 
@@ -630,13 +630,13 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
             if (desc.len % sizeof(VRingDesc)) {
-                virtio_error(vdev, "Invalid size for indirect buffer table");
+                virtqueue_error(vq, "Invalid size for indirect buffer table");
                 goto err;
             }
 
             /* If we've got too many, that implies a descriptor loop. */
             if (num_bufs >= max) {
-                virtio_error(vdev, "Looped descriptor");
+                virtqueue_error(vq, "Looped descriptor");
                 goto err;
             }
 
@@ -646,7 +646,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
                                            desc.addr, desc.len, false);
             desc_cache = &indirect_desc_cache;
             if (len < desc.len) {
-                virtio_error(vdev, "Cannot map indirect buffer");
+                virtqueue_error(vq, "Cannot map indirect buffer");
                 goto err;
             }
 
@@ -658,7 +658,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
         do {
             /* If we've got too many, that implies a descriptor loop. */
             if (++num_bufs > max) {
-                virtio_error(vdev, "Looped descriptor");
+                virtqueue_error(vq, "Looped descriptor");
                 goto err;
             }
 
@@ -671,7 +671,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
                 goto done;
             }
 
-            rc = virtqueue_read_next_desc(vdev, &desc, desc_cache, max, &i);
+            rc = virtqueue_read_next_desc(vq, &desc, desc_cache, max, &i);
         } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
         if (rc == VIRTQUEUE_READ_DESC_ERROR) {
@@ -715,7 +715,7 @@ int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
     return in_bytes <= in_total && out_bytes <= out_total;
 }
 
-static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
+static bool virtqueue_map_desc(VirtQueue *vq, unsigned int *p_num_sg,
                                hwaddr *addr, struct iovec *iov,
                                unsigned int max_num_sg, bool is_write,
                                hwaddr pa, size_t sz)
@@ -725,7 +725,7 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
     assert(num_sg <= max_num_sg);
 
     if (!sz) {
-        virtio_error(vdev, "virtio: zero sized buffers are not allowed");
+        virtqueue_error(vq, "Zero sized buffers are not allowed");
         goto out;
     }
 
@@ -733,17 +733,16 @@ static bool virtqueue_map_desc(VirtIODevice *vdev, unsigned int *p_num_sg,
         hwaddr len = sz;
 
         if (num_sg == max_num_sg) {
-            virtio_error(vdev, "virtio: too many write descriptors in "
-                               "indirect table");
+            virtqueue_error(vq, "Too many write descriptors in indirect table");
             goto out;
         }
 
-        iov[num_sg].iov_base = dma_memory_map(vdev->dma_as, pa, &len,
+        iov[num_sg].iov_base = dma_memory_map(vq->vdev->dma_as, pa, &len,
                                               is_write ?
                                               DMA_DIRECTION_FROM_DEVICE :
                                               DMA_DIRECTION_TO_DEVICE);
         if (!iov[num_sg].iov_base) {
-            virtio_error(vdev, "virtio: bogus descriptor or out of resources");
+            virtqueue_error(vq, "Bogus descriptor or out of resources");
             goto out;
         }
 
@@ -862,7 +861,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     max = vq->vring.num;
 
     if (vq->inuse >= vq->vring.num) {
-        virtio_error(vdev, "Virtqueue size exceeded");
+        virtqueue_error(vq, "Virtqueue size exceeded");
         goto done;
     }
 
@@ -878,7 +877,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
 
     caches = vring_get_region_caches(vq);
     if (caches->desc.len < max * sizeof(VRingDesc)) {
-        virtio_error(vdev, "Cannot map descriptor ring");
+        virtqueue_error(vq, "Cannot map descriptor ring");
         goto done;
     }
 
@@ -886,7 +885,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     vring_desc_read(vdev, &desc, desc_cache, i);
     if (desc.flags & VRING_DESC_F_INDIRECT) {
         if (desc.len % sizeof(VRingDesc)) {
-            virtio_error(vdev, "Invalid size for indirect buffer table");
+            virtqueue_error(vq, "Invalid size for indirect buffer table");
             goto done;
         }
 
@@ -895,7 +894,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
                                        desc.addr, desc.len, false);
         desc_cache = &indirect_desc_cache;
         if (len < desc.len) {
-            virtio_error(vdev, "Cannot map indirect buffer");
+            virtqueue_error(vq, "Cannot map indirect buffer");
             goto done;
         }
 
@@ -909,16 +908,16 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
         bool map_ok;
 
         if (desc.flags & VRING_DESC_F_WRITE) {
-            map_ok = virtqueue_map_desc(vdev, &in_num, addr + out_num,
+            map_ok = virtqueue_map_desc(vq, &in_num, addr + out_num,
                                         iov + out_num,
                                         VIRTQUEUE_MAX_SIZE - out_num, true,
                                         desc.addr, desc.len);
         } else {
             if (in_num) {
-                virtio_error(vdev, "Incorrect order for descriptors");
+                virtqueue_error(vq, "Incorrect order for descriptors");
                 goto err_undo_map;
             }
-            map_ok = virtqueue_map_desc(vdev, &out_num, addr, iov,
+            map_ok = virtqueue_map_desc(vq, &out_num, addr, iov,
                                         VIRTQUEUE_MAX_SIZE, false,
                                         desc.addr, desc.len);
         }
@@ -928,11 +927,11 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
 
         /* If we've got too many, that implies a descriptor loop. */
         if ((in_num + out_num) > max) {
-            virtio_error(vdev, "Looped descriptor");
+            virtqueue_error(vq, "Looped descriptor");
             goto err_undo_map;
         }
 
-        rc = virtqueue_read_next_desc(vdev, &desc, desc_cache, max, &i);
+        rc = virtqueue_read_next_desc(vq, &desc, desc_cache, max, &i);
     } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
     if (rc == VIRTQUEUE_READ_DESC_ERROR) {
