@@ -335,6 +335,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_BLOCK_INCREMENTAL],
                        params->block_incremental ? "on" : "off");
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            MigrationParameter_lookup[MIGRATION_PARAMETER_X_MULTIFD_THREADS],
+            params->x_multifd_threads);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1573,6 +1576,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                     goto cleanup;
                 }
                 p.block_incremental = valuebool;
+            case MIGRATION_PARAMETER_X_MULTIFD_THREADS:
+                p.has_x_multifd_threads = true;
+                use_int_value = true;
                 break;
             }
 
@@ -1590,6 +1596,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 p.cpu_throttle_increment = valueint;
                 p.downtime_limit = valueint;
                 p.x_checkpoint_delay = valueint;
+                p.x_multifd_threads = valueint;
             }
 
             qmp_migrate_set_parameters(&p, &err);
