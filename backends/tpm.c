@@ -71,15 +71,6 @@ bool tpm_backend_had_startup_error(TPMBackend *s)
     return k->ops->had_startup_error(s);
 }
 
-size_t tpm_backend_realloc_buffer(TPMBackend *s, TPMSizedBuffer *sb)
-{
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
-
-    assert(k->ops->realloc_buffer);
-
-    return k->ops->realloc_buffer(sb);
-}
-
 void tpm_backend_deliver_request(TPMBackend *s)
 {
     g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_PROCESS_CMD,
