@@ -59,6 +59,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     int rnsize, rnmax;
     int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
     IplParameterBlock *ipib = s390_ipl_get_iplb();
+    uint64_t sclp_facilities = SCLP_HAS_CPU_INFO;
 
     CPU_FOREACH(cpu) {
         cpu_count++;
@@ -79,8 +80,10 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
 
     prepare_cpu_entries(sclp, read_info->entries, cpu_count);
 
-    read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
-                                        SCLP_HAS_PCI_RECONFIG);
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        sclp_facilities |= SCLP_HAS_PCI_RECONFIG;
+    }
+    read_info->facilities = cpu_to_be64(sclp_facilities);
 
     /* Memory Hotplug is only supported for the ccw machine type */
     if (mhd) {
@@ -385,10 +388,18 @@ static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
         sclp_c->unassign_storage(sclp, sccb);
         break;
     case SCLP_CMDW_CONFIGURE_PCI:
-        s390_pci_sclp_configure(sccb);
+        if (s390_has_feat(S390_FEAT_ZPCI)) {
+            s390_pci_sclp_configure(sccb);
+        } else {
+            sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        }
         break;
     case SCLP_CMDW_DECONFIGURE_PCI:
-        s390_pci_sclp_deconfigure(sccb);
+        if (s390_has_feat(S390_FEAT_ZPCI)) {
+            s390_pci_sclp_deconfigure(sccb);
+        } else {
+            sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        }
         break;
     default:
         efc->command_handler(ef, sccb, code);
