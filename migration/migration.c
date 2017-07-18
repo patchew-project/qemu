@@ -644,7 +644,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     }
 }
 
-void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
+void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
@@ -704,7 +704,11 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
                     "is invalid, it should be positive");
     }
 
-    /* TODO use QAPI_CLONE() instead of duplicating it inline */
+    /*
+     * TODO if we fuse MigrateSetParameters back into
+     * MigrationParameters, use QAPI_CLONE() instead of duplicating it
+     * inline
+     */
     if (params->has_compress_level) {
         s->parameters.compress_level = params->compress_level;
     }
@@ -1165,7 +1169,7 @@ int64_t qmp_query_migrate_cache_size(Error **errp)
 
 void qmp_migrate_set_speed(int64_t value, Error **errp)
 {
-    MigrationParameters p = {
+    MigrateSetParameters p = {
         .has_max_bandwidth = true,
         .max_bandwidth = value,
     };
@@ -1185,7 +1189,7 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     value *= 1000; /* Convert to milliseconds */
     value = MAX(0, MIN(INT64_MAX, value));
 
-    MigrationParameters p = {
+    MigrateSetParameters p = {
         .has_downtime_limit = true,
         .downtime_limit = value,
     };
