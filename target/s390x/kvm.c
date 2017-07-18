@@ -2685,8 +2685,10 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     }
 
     /* set zpci and aen facilities */
+#ifdef CONFIG_PCI
     set_bit(S390_FEAT_ZPCI, model->features);
     set_bit(S390_FEAT_ADAPTER_EVENT_NOTIFICATION, model->features);
+#endif
 
     if (s390_known_cpu_type(cpu_type)) {
         /* we want the exact model, even if some features are missing */
