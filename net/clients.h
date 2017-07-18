@@ -49,6 +49,14 @@ int net_init_bridge(const Netdev *netdev, const char *name,
 
 int net_init_l2tpv3(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp);
+
+int net_init_raw(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp);
+
+int net_init_gre(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp);
+int net_init_vxlan(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp);
 #ifdef CONFIG_VDE
 int net_init_vde(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp);

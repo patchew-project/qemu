@@ -959,8 +959,11 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #ifdef CONFIG_VHOST_NET_USED
         [NET_CLIENT_DRIVER_VHOST_USER] = net_init_vhost_user,
 #endif
-#ifdef CONFIG_L2TPV3
-        [NET_CLIENT_DRIVER_L2TPV3]    = net_init_l2tpv3,
+#ifdef CONFIG_UNIFIED
+        [NET_CLIENT_DRIVER_RAW]    = net_init_raw,
+        [NET_CLIENT_DRIVER_GRE]    = net_init_gre,
+        [NET_CLIENT_DRIVER_VXLAN]  = net_init_vxlan,
+        [NET_CLIENT_DRIVER_L2TPV3] = net_init_l2tpv3,
 #endif
 };
 
@@ -1007,6 +1010,18 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         case NET_LEGACY_OPTIONS_TYPE_TAP:
             legacy.type = NET_CLIENT_DRIVER_TAP;
             legacy.u.tap = opts->u.tap;
+            break;
+        case NET_LEGACY_OPTIONS_TYPE_RAW:
+            legacy.type = NET_CLIENT_DRIVER_RAW;
+            legacy.u.raw = opts->u.raw;
+            break;
+        case NET_LEGACY_OPTIONS_TYPE_GRE:
+            legacy.type = NET_CLIENT_DRIVER_GRE;
+            legacy.u.gre = opts->u.gre;
+            break;
+        case NET_LEGACY_OPTIONS_TYPE_VXLAN:
+            legacy.type = NET_CLIENT_DRIVER_VXLAN;
+            legacy.u.vxlan = opts->u.vxlan;
             break;
         case NET_LEGACY_OPTIONS_TYPE_L2TPV3:
             legacy.type = NET_CLIENT_DRIVER_L2TPV3;

@@ -25,6 +25,7 @@
 #include "net/queue.h"
 #include "qemu/queue.h"
 #include "net/net.h"
+#include "packet.h"
 
 /* The delivery handler may only return zero if it will call
  * qemu_net_queue_flush() when it determines that it is once again able
@@ -39,26 +40,6 @@
  * If a sent callback isn't provided, we just drop the packet to avoid
  * unbounded queueing.
  */
-
-struct NetPacket {
-    QTAILQ_ENTRY(NetPacket) entry;
-    NetClientState *sender;
-    unsigned flags;
-    int size;
-    NetPacketSent *sent_cb;
-    uint8_t data[0];
-};
-
-struct NetQueue {
-    void *opaque;
-    uint32_t nq_maxlen;
-    uint32_t nq_count;
-    NetQueueDeliverFunc *deliver;
-
-    QTAILQ_HEAD(packets, NetPacket) packets;
-
-    unsigned delivering : 1;
-};
 
 NetQueue *qemu_new_net_queue(NetQueueDeliverFunc *deliver, void *opaque)
 {

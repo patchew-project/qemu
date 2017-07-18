@@ -2785,6 +2785,57 @@
 ##
 { 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
 
+
+##
+# @NetdevRawOptions:
+#
+# Connect the VLAN to an network interface using raw sockets
+#
+# @ifname: network interface name
+#
+
+# Since 2.9
+##
+{ 'struct': 'NetdevRawOptions',
+  'data': {
+    'ifname':          'str'
+} }
+
+##
+# @NetdevGREOptions:
+#
+# Connect the VLAN to Ethernet over Ethernet over GRE (GRETAP) tunnel
+#
+# @src: source address
+#
+# @dst: destination address
+#
+# @ipv6: force the use of ipv6
+#
+# @sequence: have sequence counter
+#
+# @pinsequence: pin sequence counter to zero -
+#              workaround for buggy implementations or
+#              networks with packet reorder
+#
+# @txkey: 32 bit transmit key
+#
+# @rxkey: 32 bit receive key
+#
+# Note - gre checksums are not supported at present
+#
+#
+# Since 2.9
+##
+{ 'struct': 'NetdevGREOptions',
+  'data': {
+    'src':          'str',
+    'dst':          'str',
+    '*ipv6':        'bool',
+    '*sequence':     'bool',
+    '*pinsequence':  'bool',
+    '*txkey':    'uint32',
+    '*rxkey':    'uint32' } }
 ##
 # @migrate-set-cache-size:
 #
@@ -3849,6 +3900,33 @@
     '*offset':      'uint32' } }
 
 ##
+# @NetdevVXLANOptions:
+#
+# Connect the VLAN to a VXLAN Static Tunnel
+#
+# @src: source address
+#
+# @dst: destination address
+#
+# @vnid: Virtual Network Identifier
+#
+# @srcport: source port
+#
+# @dstport: destination port
+#
+# @ipv6: force the use of ipv6
+##
+# Since 2.9
+{ 'struct': 'NetdevVXLANOptions',
+  'data': {
+    'src':          'str',
+    'dst':          'str',
+    '*srcport':     'str',
+    '*dstport':     'str',
+    '*ipv6':        'bool',
+    'vnid':         'uint32' } }
+
+##
 # @NetdevVdeOptions:
 #
 # Connect the VLAN to a vde switch running on the host.
@@ -3965,7 +4043,8 @@
 # Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
-  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
+  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'raw', 'gre',
+            'vxlan', 'socket', 'vde', 'dump',
             'bridge', 'hubport', 'netmap', 'vhost-user' ] }
 
 ##
@@ -3980,6 +4059,8 @@
 # Since: 1.2
 #
 # 'l2tpv3' - since 2.1
+# 'gre' - since 2.9
+# 'raw' - since 2.9
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -3990,6 +4071,9 @@
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
     'l2tpv3':   'NetdevL2TPv3Options',
+    'raw':      'NetdevRawOptions',
+    'gre':      'NetdevGREOptions',
+    'vxlan':    'NetdevVXLANOptions',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
     'dump':     'NetdevDumpOptions',
@@ -4027,7 +4111,7 @@
 ##
 { 'enum': 'NetLegacyOptionsType',
   'data': ['none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-           'dump', 'bridge', 'netmap', 'vhost-user'] }
+           'raw', 'gre', 'vxlan', 'dump', 'bridge', 'netmap', 'vhost-user'] }
 
 ##
 # @NetLegacyOptions:
@@ -4045,6 +4129,9 @@
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
     'l2tpv3':   'NetdevL2TPv3Options',
+    'raw':      'NetdevRawOptions',
+    'gre':      'NetdevGREOptions',
+    'vxlan':    'NetdevVXLANOptions',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
     'dump':     'NetdevDumpOptions',
