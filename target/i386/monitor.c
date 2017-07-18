@@ -632,8 +632,14 @@ const MonitorDef *target_monitor_defs(void)
 
 void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
 {
-    CPUState *cs = mon_get_cpu();
+    CPUState *cs;
 
+    if (qdict_haskey(qdict, "vcpu")) {
+        int index = qdict_get_try_int(qdict, "vcpu", 0);
+        cs = qemu_get_cpu(index);
+    } else {
+        cs = mon_get_cpu();
+    }
     if (!cs) {
         monitor_printf(mon, "No CPU available\n");
         return;

@@ -115,9 +115,9 @@ ETEXI
 #if defined(TARGET_I386)
     {
         .name       = "lapic",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show local apic state",
+        .args_type  = "vcpu:i?",
+        .params     = "[vcpu]",
+        .help       = "show local apic state (vcpu: vCPU to read, default is 0)",
         .cmd        = hmp_info_local_apic,
     },
 #endif
