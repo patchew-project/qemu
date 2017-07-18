@@ -2682,6 +2682,8 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 {
     GuestOSInfo *info = NULL;
     struct utsname kinfo = {0};
+    GKeyFile *osrelease = NULL;
+
 
     info = g_new0(GuestOSInfo, 1);
 
@@ -2696,9 +2698,14 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
         info->machine = g_strdup(kinfo.machine);
     }
 
-    GKeyFile *osrelease = ga_parse_osrelease("/etc/os-release");
-    if (osrelease == NULL) {
-        osrelease = ga_parse_osrelease("/usr/lib/os-release");
+    const char *qga_os_release = g_getenv("QGA_OS_RELEASE");
+    if (qga_os_release != NULL) {
+        osrelease = ga_parse_osrelease(qga_os_release);
+    } else {
+        osrelease = ga_parse_osrelease("/etc/os-release");
+        if (osrelease == NULL) {
+            osrelease = ga_parse_osrelease("/usr/lib/os-release");
+        }
     }
 
     if (osrelease != NULL) {
