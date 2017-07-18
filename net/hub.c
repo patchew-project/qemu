@@ -322,7 +322,9 @@ void net_hub_check_clients(void)
             case NET_CLIENT_DRIVER_TAP:
             case NET_CLIENT_DRIVER_SOCKET:
             case NET_CLIENT_DRIVER_VDE:
+#ifdef CONFIG_VHOST_USER
             case NET_CLIENT_DRIVER_VHOST_USER:
+#endif
                 has_host_dev = 1;
                 break;
             default:

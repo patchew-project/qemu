@@ -306,6 +306,7 @@ tcg="yes"
 vhost_net="no"
 vhost_scsi="no"
 vhost_vsock="no"
+vhost_user=""
 kvm="no"
 hax="no"
 rdma=""
@@ -1283,6 +1284,10 @@ for opt do
   ;;
   --enable-vxhs) vxhs="yes"
   ;;
+  --disable-vhost-user) vhost_user="no"
+  ;;
+  --enable-vhost-user) vhost_user="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1290,6 +1295,14 @@ for opt do
   ;;
   esac
 done
+
+if test "$vhost_user" = ""; then
+    if test "$mingw32" = "yes" ; then
+        vhost_user="no"
+    else
+        vhost_user="yes"
+    fi
+fi
 
 case "$cpu" in
     ppc)
@@ -1518,6 +1531,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-image tools
   vxhs            Veritas HyperScale vDisk backend support
+  vhost-user      vhost-user support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5293,6 +5307,7 @@ echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "vhost-scsi support $vhost_scsi"
 echo "vhost-vsock support $vhost_vsock"
+echo "vhost-user support $vhost_user"
 echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
@@ -5710,6 +5725,9 @@ if test "$vhost_net" = "yes" ; then
 fi
 if test "$vhost_vsock" = "yes" ; then
   echo "CONFIG_VHOST_VSOCK=y" >> $config_host_mak
+fi
+if test "$vhost_user" = "yes" ; then
+  echo "CONFIG_VHOST_USER=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak
@@ -6298,7 +6316,9 @@ if supported_kvm_target $target; then
     echo "CONFIG_KVM=y" >> $config_target_mak
     if test "$vhost_net" = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
-        echo "CONFIG_VHOST_NET_TEST_$target_name=y" >> $config_host_mak
+        if test "$vhost_user" = "yes" ; then
+            echo "CONFIG_VHOST_USER_NET_TEST_$target_name=y" >> $config_host_mak
+        fi
     fi
 fi
 if supported_hax_target $target; then

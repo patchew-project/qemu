@@ -957,7 +957,7 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
         [NET_CLIENT_DRIVER_BRIDGE]    = net_init_bridge,
 #endif
         [NET_CLIENT_DRIVER_HUBPORT]   = net_init_hubport,
-#ifdef CONFIG_VHOST_NET_USED
+#if defined(CONFIG_VHOST_NET_USED) && defined(CONFIG_VHOST_USER)
         [NET_CLIENT_DRIVER_VHOST_USER] = net_init_vhost_user,
 #endif
 #ifdef CONFIG_L2TPV3
@@ -1033,10 +1033,12 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
             legacy.type = NET_CLIENT_DRIVER_NETMAP;
             legacy.u.netmap = opts->u.netmap;
             break;
+#ifdef CONFIG_VHOST_USER
         case NET_LEGACY_OPTIONS_TYPE_VHOST_USER:
             legacy.type = NET_CLIENT_DRIVER_VHOST_USER;
             legacy.u.vhost_user = opts->u.vhost_user;
             break;
+#endif
         default:
             abort();
         }
