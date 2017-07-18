@@ -116,6 +116,13 @@
 { 'command': 'qmp_capabilities' }
 
 ##
+# @StrOrNull:
+##
+{ 'alternate': 'StrOrNull',
+  'data': { 's': 'str',
+            'n': 'null' } }
+
+##
 # @LostTickPolicy:
 #
 # Policy for handling lost ticks in timer devices.
@@ -1098,8 +1105,8 @@
             '*decompress-threads': 'int',
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
-            '*tls-creds': 'str',
-            '*tls-hostname': 'str',
+            '*tls-creds': 'StrOrNull',
+            '*tls-hostname': 'StrOrNull',
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
