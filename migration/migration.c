@@ -427,6 +427,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     MigrationParameters *params;
     MigrationState *s = migrate_get_current();
 
+    /* TODO use QAPI_CLONE() instead of duplicating it inline */
     params = g_malloc0(sizeof(*params));
     params->has_compress_level = true;
     params->compress_level = s->parameters.compress_level;
@@ -703,6 +704,7 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
                     "is invalid, it should be positive");
     }
 
+    /* TODO use QAPI_CLONE() instead of duplicating it inline */
     if (params->has_compress_level) {
         s->parameters.compress_level = params->compress_level;
     }
