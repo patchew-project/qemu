@@ -8,9 +8,45 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "hw/s390x/ioinst.h"
+
+/* Ensure to exit the TB after this call! */
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    cs->exception_index = EXCP_PGM;
+    env->int_pgm_code = code;
+    env->int_pgm_ilen = ilen;
+}
+
+void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
+                  env->psw.addr);
+
+    if (kvm_enabled()) {
+#ifdef CONFIG_KVM
+        struct kvm_s390_irq irq = {
+            .type = KVM_S390_PROGRAM_INT,
+            .u.pgm.code = code,
+        };
+
+        kvm_s390_vcpu_interrupt(cpu, &irq);
+#endif
+    } else {
+        trigger_pgm_exception(env, code, ilen);
+#ifdef CONFIG_TCG
+        cpu_loop_exit(CPU(cpu));
+#endif
+    }
+}
 
 #if !defined(CONFIG_USER_ONLY)
 void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
