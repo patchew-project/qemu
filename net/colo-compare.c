@@ -40,6 +40,9 @@
 /* TODO: Should be configurable */
 #define REGULAR_PACKET_CHECK_MS 3000
 
+/* TODO: Should be configurable */
+#define CHECKPOINT_MIN_TIME 3000
+
 /*
   + CompareState ++
   |               |
@@ -74,6 +77,9 @@ typedef struct CompareState {
     SocketReadState pri_rs;
     SocketReadState sec_rs;
     bool vnet_hdr;
+
+    /* Record the last checkpoint time */
+    int64_t checkpoint_time_ms;
 
     /* connection list: the connections belonged to this NIC could be found
      * in this list.
@@ -507,7 +513,19 @@ static void colo_compare_connection(void *opaque, void *user_data)
              */
             trace_colo_compare_main("packet different");
             g_queue_push_tail(&conn->primary_list, pkt);
-            /* TODO: colo_notify_checkpoint();*/
+
+            if (pkt->creation_ms - s->checkpoint_time_ms >
+                CHECKPOINT_MIN_TIME) {
+                /*
+                 * TODO: Notify colo frame to do checkpoint.
+                 * colo_compare_inconsistent_notify();
+                 *
+                 * TODO: Reset s->checkpoint_time_ms after finish
+                 * checkpoint(when colo-compare get notify from colo-frame,
+                 * in another independent patch).
+                 */
+                s->checkpoint_time_ms = pkt->creation_ms;
+            }
             break;
         }
     }
@@ -803,6 +821,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
                        colo_compare_thread, s,
                        QEMU_THREAD_JOINABLE);
     compare_id++;
+    s->checkpoint_time_ms = 0;
 
     return;
 }
