@@ -1815,10 +1815,9 @@ static void decode_opc(DisasContext * ctx)
     }
 }
 
-void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 {
-    SuperHCPU *cpu = sh_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUSH4State *env = cs->env_ptr;
     DisasContext ctx;
     target_ulong pc_start;
     int num_insns;
