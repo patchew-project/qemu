@@ -2853,8 +2853,9 @@ static sPAPRDIMMState *spapr_pending_dimm_unplugs_find(sPAPRMachineState *s,
 static void spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
                                            sPAPRDIMMState *dimm_state)
 {
-    g_assert(!spapr_pending_dimm_unplugs_find(spapr, dimm_state->dimm));
-    QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, dimm_state, next);
+    if (!spapr_pending_dimm_unplugs_find(spapr, dimm_state->dimm)) {
+        QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, dimm_state, next);
+    }
 }
 
 static void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
