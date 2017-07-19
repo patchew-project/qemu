@@ -4248,6 +4248,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     int bcond_compute = 0;
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
+    int32_t seg_mask = 0xF0000000;      /* 256 MB-aligned region */
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
 #ifdef MIPS_DEBUG_DISAS
@@ -4303,9 +4304,15 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         break;
     case OPC_J:
     case OPC_JAL:
+        /* microMIPS J32, JAL32 & JALS32 offsets are in 128 MB region not 256 */
+        if ((ctx->hflags & MIPS_HFLAG_M16) &&
+            (ctx->insn_flags & ASE_MICROMIPS)) {
+            seg_mask = 0xF8000000;      /* 128 MB-aligned region */
+        }
+        /* fall through */
     case OPC_JALX:
         /* Jump to immediate */
-        btgt = ((ctx->pc + insn_bytes) & (int32_t)0xF0000000) | (uint32_t)offset;
+        btgt = ((ctx->pc + insn_bytes) & seg_mask) | (uint32_t)offset;
         break;
     case OPC_JR:
     case OPC_JALR:
