@@ -324,6 +324,11 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     BlockDriverState *bs = blk_bs(blk);
     char *qdev;
 
+    /* Skip automatically inserted nodes that the user isn't aware of */
+    while (bs && bs->drv && bs->implicit) {
+        bs = backing_bs(bs);
+    }
+
     info->device = g_strdup(blk_name(blk));
     info->type = g_strdup("unknown");
     info->locked = blk_dev_is_medium_locked(blk);
@@ -518,12 +523,18 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
         }
     } else {
         for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+            BlockDriverState *bs = blk_bs(blk);
             BlockStatsList *info = g_malloc0(sizeof(*info));
             AioContext *ctx = blk_get_aio_context(blk);
             BlockStats *s;
 
+            /* Skip automatically inserted nodes that the user isn't aware of */
+            while (bs && bs->drv && bs->implicit) {
+                bs = backing_bs(bs);
+            }
+
             aio_context_acquire(ctx);
-            s = bdrv_query_bds_stats(blk_bs(blk), true);
+            s = bdrv_query_bds_stats(bs, true);
             s->has_device = true;
             s->device = g_strdup(blk_name(blk));
             bdrv_query_blk_stats(s->stats, blk);
