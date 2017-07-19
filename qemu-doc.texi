@@ -38,6 +38,7 @@
 * QEMU Guest Agent::
 * QEMU User space emulator::
 * Implementation notes::
+* Support lifetime::
 * License::
 * Index::
 @end menu
@@ -3127,6 +3128,42 @@ Run the emulation in single step mode.
 
 
 @include qemu-tech.texi
+
+@node Support lifetime
+@appendix Support lifetime
+
+In general features are intended to be supported indefinitely once
+introduced into QEMU.
+
+In the event that a feature needs to be removed, it will be listed
+in the ``Deprecated features'' appendix of this document. The feature
+will remain functional for 2 releases prior to actual removal.
+
+Deprecated features may also generate warnings on the console when
+QEMU starts up, or if activated via a monitor command, however,
+this is not a mandatory requirement.
+
+Certain features have an inherently finite lifetime, and thus
+will be removed on a fixed schedule, without following the normal
+deprecation process. Such features are listed in the sections
+that follow.
+
+@node Machine types
+@section Machine types
+
+For architectures which aim to support live migration compatibility
+across releases, each release will introduce a new versioned machine
+type. For example, the 2.8.0 release introduced machine types
+``pc-i440fx-2.8'' and ``pc-q35-2.8'' for the x86_64/i686 architectures.
+
+To allow live migration of a guest running on a 2.8.0 release to a
+2.9.0, the QEMU 2.9.0 version must support the ``pc-i440fx-2.8'' and
+``pc-q35-2.8''. To allow users live migrating VMs to skip multiple
+intermediate releases when upgrading, new releases of QEMU will
+support machine types from many previous versions.
+
+The supported lifetime for versioned machine types is 12 releases,
+which is equivalent to 4 years worth of previous QEMU releases.
 
 @node License
 @appendix License
