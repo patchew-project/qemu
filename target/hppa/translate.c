@@ -487,7 +487,7 @@ static ExitStatus gen_illegal(DisasContext *ctx)
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((ctx->tb->cflags & CF_LAST_IO) || ctx->singlestep_enabled) {
+    if ((tb_cflags(ctx->tb) & CF_LAST_IO) || ctx->singlestep_enabled) {
         return false;
     }
     return true;
@@ -3762,7 +3762,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
     /* Compute the maximum number of insns to execute, as bounded by
        (1) icount, (2) single-stepping, (3) branch delay slots, or
        (4) the number of insns remaining on the current page.  */
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -3792,7 +3792,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
             ret = gen_excp(&ctx, EXCP_DEBUG);
             break;
         }
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -3868,7 +3868,7 @@ void gen_intermediate_code(CPUHPPAState *env, struct TranslationBlock *tb)
         }
     } while (ret == NO_EXIT);
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 

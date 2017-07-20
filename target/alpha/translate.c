@@ -484,9 +484,9 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 
 static bool use_exit_tb(DisasContext *ctx)
 {
-    return ((ctx->tb->cflags & CF_LAST_IO)
+    return (tb_cflags(ctx->tb) & CF_LAST_IO)
             || ctx->singlestep_enabled
-            || singlestep);
+            || singlestep;
 }
 
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
@@ -2430,7 +2430,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0xC000:
             /* RPCC */
             va = dest_gpr(ctx, ra);
-            if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
                 gen_io_start();
                 gen_helper_load_pcc(va, cpu_env);
                 gen_io_end();
@@ -2998,7 +2998,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     TCGV_UNUSED_I64(ctx.lit);
 
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -3028,7 +3028,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
             ctx.pc += 4;
             break;
         }
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
         insn = cpu_ldl_code(env, ctx.pc);
@@ -3053,7 +3053,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         }
     } while (ret == NO_EXIT);
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 
