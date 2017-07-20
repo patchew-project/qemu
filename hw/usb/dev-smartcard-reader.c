@@ -826,6 +826,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     p->b.hdr.bSeq = seq;
     p->b.bStatus = ccid_calc_status(s);
     p->b.bError = s->bError;
+    p->bChainParameter = 0;
     if (p->b.bError) {
         DPRINTF(s, D_VERBOSE, "error %d\n", p->b.bError);
     }
@@ -1027,6 +1028,10 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     len = le32_to_cpu(recv->hdr.dwLength);
     DPRINTF(s, 1, "%s: seq %d, len %d\n", __func__,
                 recv->hdr.bSeq, len);
+    if (le16_to_cpu(recv->wLevelParameter)) {
+        DPRINTF(s, D_WARN, "Unsupported non-zero level Parameter %x\n",
+                le16_to_cpu(recv->wLevelParameter));
+    }
     ccid_add_pending_answer(s, (CCID_Header *)recv);
     if (s->card && len <= BULK_OUT_DATA_SIZE) {
         ccid_card_apdu_from_guest(s->card, recv->abData, len);
