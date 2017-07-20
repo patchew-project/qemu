@@ -54,9 +54,25 @@ do { \
 #define D_INFO 2
 #define D_MORE_INFO 3
 #define D_VERBOSE 4
+#define D_TRACE 5
+#define D_REMOTEIO 10
 
 #define CCID_DEV_NAME "usb-ccid"
 #define USB_CCID_DEV(obj) OBJECT_CHECK(USBCCIDState, (obj), CCID_DEV_NAME)
+
+static void usb_packet_dump(int lvl, const char *dir, uint8_t *buf, size_t len)
+{
+    int i;
+    if (lvl < D_TRACE) {
+        return;
+    }
+    printf("usb-ccid: usb packet(%s/%zd):", dir, len);
+    for (i = 0; i < len; ++i) {
+        printf(" %02x", buf[i]);
+    }
+    printf("\n");
+}
+
 /*
  * The two options for variable sized buffers:
  * make them constant size, for large enough constant,
@@ -1007,6 +1023,8 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         goto err;
     }
     usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
+    usb_packet_dump(s->debug, "out", s->bulk_out_data + s->bulk_out_pos,
+                    p->iov.size);
     s->bulk_out_pos += p->iov.size;
     if (s->bulk_out_pos < 10) {
         DPRINTF(s, 1, "%s: header incomplete\n", __func__);
@@ -1102,6 +1120,9 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
                   p->iov.size);
         usb_packet_copy(p, s->current_bulk_in->data +
                         s->current_bulk_in->pos, len);
+        usb_packet_dump(s->debug, " in",
+                        s->current_bulk_in->data + s->current_bulk_in->pos,
+                        len);
         s->current_bulk_in->pos += len;
         if (s->current_bulk_in->pos == s->current_bulk_in->len) {
             ccid_bulk_in_release(s);
@@ -1116,7 +1137,7 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
                 __func__, p->iov.size, len);
     }
     if (len < p->iov.size) {
-        DPRINTF(s, 1,
+        DPRINTF(s, D_REMOTEIO,
                 "%s: returning short (EREMOTEIO) %d < %zd\n",
                 __func__, len, p->iov.size);
     }
@@ -1143,6 +1164,7 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
                 buf[0] = CCID_MESSAGE_TYPE_RDR_to_PC_NotifySlotChange;
                 buf[1] = s->bmSlotICCState;
                 usb_packet_copy(p, buf, 2);
+                usb_packet_dump(s->debug, "irq", buf, 2);
                 s->notify_slot_change = false;
                 s->bmSlotICCState &= ~SLOT_0_CHANGED_MASK;
                 DPRINTF(s, D_INFO,
