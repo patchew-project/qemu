@@ -312,6 +312,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     uint8_t *p = tb->tc.search;
     int i, j, num_insns = tb->icount;
 #ifdef CONFIG_PROFILER
+    TCGProfile *prof = &tcg_ctx->prof;
     int64_t ti = profile_getclock();
 #endif
 
@@ -346,8 +347,9 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     restore_state_to_opc(env, tb, data);
 
 #ifdef CONFIG_PROFILER
-    tcg_ctx->restore_time += profile_getclock() - ti;
-    tcg_ctx->restore_count++;
+    atomic_set(&prof->restore_time,
+                prof->restore_time + profile_getclock() - ti);
+    atomic_set(&prof->restore_count, prof->restore_count + 1);
 #endif
     return 0;
 }
@@ -1302,6 +1304,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size;
 #ifdef CONFIG_PROFILER
+    TCGProfile *prof = &tcg_ctx->prof;
     int64_t ti;
 #endif
     assert_memory_lock();
@@ -1332,8 +1335,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_ctx->cf_parallel = !!(cflags & CF_PARALLEL);
 
 #ifdef CONFIG_PROFILER
-    tcg_ctx->tb_count1++; /* includes aborted translations because of
-                       exceptions */
+    /* includes aborted translations because of exceptions */
+    atomic_set(&prof->tb_count1, prof->tb_count1 + 1);
     ti = profile_getclock();
 #endif
 
@@ -1358,8 +1361,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #endif
 
 #ifdef CONFIG_PROFILER
-    tcg_ctx->tb_count++;
-    tcg_ctx->interm_time += profile_getclock() - ti;
+    atomic_set(&prof->tb_count, prof->tb_count + 1);
+    atomic_set(&prof->interm_time, prof->interm_time + profile_getclock() - ti);
     ti = profile_getclock();
 #endif
 
@@ -1379,10 +1382,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->tc.size = gen_code_size;
 
 #ifdef CONFIG_PROFILER
-    tcg_ctx->code_time += profile_getclock() - ti;
-    tcg_ctx->code_in_len += tb->size;
-    tcg_ctx->code_out_len += gen_code_size;
-    tcg_ctx->search_out_len += search_size;
+    atomic_set(&prof->code_time, prof->code_time + profile_getclock() - ti);
+    atomic_set(&prof->code_in_len, prof->code_in_len + tb->size);
+    atomic_set(&prof->code_out_len, prof->code_out_len + gen_code_size);
+    atomic_set(&prof->search_out_len, prof->search_out_len + search_size);
 #endif
 
 #ifdef DEBUG_DISAS
