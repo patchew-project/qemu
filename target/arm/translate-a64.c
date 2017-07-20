@@ -379,7 +379,7 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
         } else if (s->singlestep_enabled) {
             gen_exception_internal(EXCP_DEBUG);
         } else {
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            tcg_gen_lookup_and_goto_ptr();
             s->is_jmp = DISAS_TB_JUMP;
         }
     }
@@ -11366,7 +11366,7 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
             gen_goto_tb(dc, 1, dc->pc);
             break;
         case DISAS_JUMP:
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            tcg_gen_lookup_and_goto_ptr();
             break;
         case DISAS_TB_JUMP:
         case DISAS_EXC:

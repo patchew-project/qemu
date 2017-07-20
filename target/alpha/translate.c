@@ -3073,7 +3073,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         /* FALLTHRU */
     case EXIT_PC_UPDATED:
         if (!use_exit_tb(&ctx)) {
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            tcg_gen_lookup_and_goto_ptr();
             break;
         }
         /* FALLTHRU */
