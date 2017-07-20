@@ -18,6 +18,7 @@ import os
 import sys
 import subprocess
 import qmp.qmp
+import traceback
 
 
 class QEMUMachine(object):
@@ -129,17 +130,30 @@ class QEMUMachine(object):
         '''Launch the VM and establish a QMP connection'''
         devnull = open('/dev/null', 'rb')
         qemulog = open(self._qemu_log_path, 'wb')
+        args = self._wrapper + [self._binary] + self._base_args() + self.args
         try:
             self._pre_launch()
-            args = self._wrapper + [self._binary] + self._base_args() + self._args
             self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
                                            stderr=subprocess.STDOUT, shell=False)
             self._post_launch()
         except:
+            self._load_io_log()
             if self.is_running():
                 self._popen.kill()
                 self._popen.wait()
-            self._load_io_log()
+            else:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                msg = ('Error launching VM.\n'
+                       'Original Exception: \n%s'
+                       'Command:\n%s\n'
+                       'Output:\n%s\n' %
+                       (''.join(traceback.format_exception(exc_type,
+                                                           exc_value,
+                                                           exc_traceback)),
+                        ' '.join(args),
+                        self._iolog))
+                self._post_shutdown()
+                raise RuntimeError(msg)
             self._post_shutdown()
             raise
 
