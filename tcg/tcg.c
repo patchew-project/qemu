@@ -2616,8 +2616,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
     tcg_reg_alloc_start(s);
 
-    s->code_buf = tb->tc_ptr;
-    s->code_ptr = tb->tc_ptr;
+    s->code_buf = tb->tc.ptr;
+    s->code_ptr = tb->tc.ptr;
 
     tcg_out_tb_init(s);
 

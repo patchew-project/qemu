@@ -143,11 +143,11 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     uintptr_t ret;
     TranslationBlock *last_tb;
     int tb_exit;
-    uint8_t *tb_ptr = itb->tc_ptr;
+    uint8_t *tb_ptr = itb->tc.ptr;
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
                            "Trace %p [%d: " TARGET_FMT_lx "] %s\n",
-                           itb->tc_ptr, cpu->cpu_index, itb->pc,
+                           itb->tc.ptr, cpu->cpu_index, itb->pc,
                            lookup_symbol(itb->pc));
 
 #if defined(DEBUG_DISAS)
@@ -179,7 +179,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
         qemu_log_mask_and_addr(CPU_LOG_EXEC, last_tb->pc,
                                "Stopped execution of TB chain before %p ["
                                TARGET_FMT_lx "] %s\n",
-                               last_tb->tc_ptr, last_tb->pc,
+                               last_tb->tc.ptr, last_tb->pc,
                                lookup_symbol(last_tb->pc));
         if (cc->synchronize_from_tb) {
             cc->synchronize_from_tb(cpu, last_tb);

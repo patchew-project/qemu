@@ -341,6 +341,14 @@ static inline void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 #define USE_DIRECT_JUMP
 #endif
 
+/*
+ * Translation Cache-related fields of a TB.
+ */
+struct tb_tc {
+    void *ptr;    /* pointer to the translated code */
+    uint8_t *search;  /* pointer to search data */
+};
+
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
@@ -362,8 +370,8 @@ struct TranslationBlock {
     /* Per-vCPU dynamic tracing state used to generate this TB */
     uint32_t trace_vcpu_dstate;
 
-    void *tc_ptr;    /* pointer to the translated code */
-    uint8_t *tc_search;  /* pointer to search data */
+    struct tb_tc tc;
+
     /* original tb when cflags has CF_NOCACHE */
     struct TranslationBlock *orig_tb;
     /* first and second physical page containing code. The lower bit
@@ -462,7 +470,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
                                      int n, uintptr_t addr)
 {
     uint16_t offset = tb->jmp_insn_offset[n];
-    tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
+    tb_set_jmp_target1((uintptr_t)(tb->tc.ptr + offset), addr);
 }
 
 #else
@@ -489,11 +497,11 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
                            "Linking TBs %p [" TARGET_FMT_lx
                            "] index %d -> %p [" TARGET_FMT_lx "]\n",
-                           tb->tc_ptr, tb->pc, n,
-                           tb_next->tc_ptr, tb_next->pc);
+                           tb->tc.ptr, tb->pc, n,
+                           tb_next->tc.ptr, tb_next->pc);
 
     /* patch the native jump address */
-    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
+    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc.ptr);
 
     /* add in TB jmp circular list */
     tb->jmp_list_next[n] = tb_next->jmp_list_first;
