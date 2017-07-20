@@ -638,6 +638,22 @@ Reset the system.
 ETEXI
 
     {
+        .name       = "system_sleep",
+        .args_type  = "",
+        .params     = "",
+        .help       = "send ACPI sleep event",
+        .cmd = hmp_system_sleep,
+    },
+
+STEXI
+@item system_sleep
+@findex system_sleep
+
+Push the virtual sleep button; if supported the system will enter
+an ACPI sleep state.
+ETEXI
+
+    {
         .name       = "system_powerdown",
         .args_type  = "",
         .params     = "",

@@ -2314,6 +2314,18 @@
 { 'command': 'system_reset' }
 
 ##
+# @system_sleep:
+#
+# Requests that a guest perform a ACPI sleep transition by pushing a virtual
+# sleep button.
+#
+# Notes: A guest may or may not respond to this command.  This command
+#        returning does not indicate that a guest has accepted the request or
+#        that it has gone to sleep.
+##
+{ 'command': 'system_sleep' }
+
+##
 # @system_powerdown:
 #
 # Requests that a guest perform a powerdown operation.

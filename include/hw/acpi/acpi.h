@@ -78,6 +78,7 @@
 #define ACPI_BITMASK_PM1_COMMON_ENABLED         ( \
         ACPI_BITMASK_RT_CLOCK_ENABLE        | \
         ACPI_BITMASK_POWER_BUTTON_ENABLE    | \
+        ACPI_BITMASK_SLEEP_BUTTON_ENABLE    | \
         ACPI_BITMASK_GLOBAL_LOCK_ENABLE     | \
         ACPI_BITMASK_TIMER_ENABLE)
 
@@ -148,6 +149,7 @@ void acpi_pm_tmr_reset(ACPIREGS *ar);
 /* PM1a_EVT: piix and ich9 don't implement PM1b. */
 uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar);
 void acpi_pm1_evt_power_down(ACPIREGS *ar);
+void acpi_pm1_evt_sleep(ACPIREGS *ar);
 void acpi_pm1_evt_reset(ACPIREGS *ar);
 void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
                        MemoryRegion *parent);

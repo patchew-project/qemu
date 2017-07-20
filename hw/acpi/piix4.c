@@ -79,6 +79,7 @@ typedef struct PIIX4PMState {
     int smm_enabled;
     Notifier machine_ready;
     Notifier powerdown_notifier;
+    Notifier sleep_notifier;
 
     AcpiPciHpState acpi_pci_hotplug;
     bool use_acpi_pci_hotplug;
@@ -371,6 +372,15 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&s->ar);
 }
 
+static void piix4_pm_sleep_req(Notifier *n, void *opaque)
+{
+    PIIX4PMState *s = container_of(n, PIIX4PMState, sleep_notifier);
+
+    assert(s != NULL);
+    acpi_pm1_evt_sleep(&s->ar);
+}
+
+
 static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
                                  DeviceState *dev, Error **errp)
 {
@@ -535,6 +545,8 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
     s->powerdown_notifier.notify = piix4_pm_powerdown_req;
     qemu_register_powerdown_notifier(&s->powerdown_notifier);
+    s->sleep_notifier.notify = piix4_pm_sleep_req;
+    qemu_register_sleep_notifier(&s->sleep_notifier);
 
     s->machine_ready.notify = piix4_pm_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);

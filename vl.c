@@ -1608,6 +1608,7 @@ static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
 static int shutdown_signal;
 static pid_t shutdown_pid;
+static int sleep_requested;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
@@ -1618,6 +1619,8 @@ static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
     NOTIFIER_LIST_INITIALIZER(wakeup_notifiers);
+static NotifierList sleep_notifiers =
+    NOTIFIER_LIST_INITIALIZER(sleep_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 
 ShutdownCause qemu_shutdown_requested_get(void)
@@ -1838,6 +1841,24 @@ static void qemu_system_powerdown(void)
     notifier_list_notify(&powerdown_notifiers, NULL);
 }
 
+static void qemu_system_sleep(void)
+{
+    notifier_list_notify(&sleep_notifiers, NULL);
+}
+
+static int qemu_sleep_requested(void)
+{
+    int r = sleep_requested;
+    sleep_requested = 0;
+    return r;
+}
+
+void qemu_system_sleep_request(void)
+{
+    sleep_requested = 1;
+    qemu_notify_event();
+}
+
 void qemu_system_powerdown_request(void)
 {
     trace_qemu_system_powerdown_request();
@@ -1848,6 +1869,11 @@ void qemu_system_powerdown_request(void)
 void qemu_register_powerdown_notifier(Notifier *notifier)
 {
     notifier_list_add(&powerdown_notifiers, notifier);
+}
+
+void qemu_register_sleep_notifier(Notifier *notifier)
+{
+    notifier_list_add(&sleep_notifiers, notifier);
 }
 
 void qemu_system_debug_request(void)
@@ -1898,6 +1924,9 @@ static bool main_loop_should_exit(void)
     }
     if (qemu_powerdown_requested()) {
         qemu_system_powerdown();
+    }
+    if (qemu_sleep_requested()) {
+        qemu_system_sleep();
     }
     if (qemu_vmstop_requested(&r)) {
         vm_stop(r);

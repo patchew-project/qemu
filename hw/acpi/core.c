@@ -422,6 +422,14 @@ void acpi_pm1_evt_power_down(ACPIREGS *ar)
     }
 }
 
+void acpi_pm1_evt_sleep(ACPIREGS *ar)
+{
+    if (ar->pm1.evt.en & ACPI_BITMASK_SLEEP_BUTTON_ENABLE) {
+        ar->pm1.evt.sts |= ACPI_BITMASK_SLEEP_BUTTON_STATUS;
+        ar->tmr.update_sci(ar);
+    }
+}
+
 void acpi_pm1_evt_reset(ACPIREGS *ar)
 {
     ar->pm1.evt.sts = 0;

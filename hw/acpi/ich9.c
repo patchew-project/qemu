@@ -260,6 +260,14 @@ static void pm_reset(void *opaque)
     acpi_update_sci(&pm->acpi_regs, pm->irq);
 }
 
+static void pm_sleep_req(Notifier *n, void *opaque)
+{
+    ICH9LPCPMRegs *pm = container_of(n, ICH9LPCPMRegs, sleep_notifier);
+
+    acpi_pm1_evt_sleep(&pm->acpi_regs);
+}
+
+
 static void pm_powerdown_req(Notifier *n, void *opaque)
 {
     ICH9LPCPMRegs *pm = container_of(n, ICH9LPCPMRegs, powerdown_notifier);
@@ -299,6 +307,8 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
     qemu_register_reset(pm_reset, pm);
     pm->powerdown_notifier.notify = pm_powerdown_req;
     qemu_register_powerdown_notifier(&pm->powerdown_notifier);
+    pm->sleep_notifier.notify = pm_sleep_req;
+    qemu_register_sleep_notifier(&pm->sleep_notifier);
 
     legacy_acpi_cpu_hotplug_init(pci_address_space_io(lpc_pci),
         OBJECT(lpc_pci), &pm->gpe_cpu, ICH9_CPU_HOTPLUG_IO_BASE);

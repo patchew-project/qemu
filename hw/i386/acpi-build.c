@@ -294,7 +294,6 @@ static void fadt_setup(AcpiFadtDescriptorRev3 *fadt, AcpiPmInfo *pm)
     fadt->plvl3_lat = cpu_to_le16(0xfff); /* C3 state not supported */
     fadt->flags = cpu_to_le32((1 << ACPI_FADT_F_WBINVD) |
                               (1 << ACPI_FADT_F_PROC_C1) |
-                              (1 << ACPI_FADT_F_SLP_BUTTON) |
                               (1 << ACPI_FADT_F_RTC_S4));
     fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_USE_PLATFORM_CLOCK);
     /* APIC destination mode ("Flat Logical") has an upper limit of 8 CPUs
