@@ -375,7 +375,7 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
         if (tb->cflags & CF_NOCACHE) {
             /* one-shot translation, invalidate it immediately */
             tb_phys_invalidate(tb, -1);
-            tb_free(tb);
+            tb_remove(tb);
         }
         r = true;
     }
@@ -874,7 +874,7 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 }
 
 /* Called with tb_lock held.  */
-void tb_free(TranslationBlock *tb)
+void tb_remove(TranslationBlock *tb)
 {
     assert_tb_locked();
 
@@ -1809,7 +1809,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
              * cpu_exec_nocache() */
             tb_phys_invalidate(tb->orig_tb, -1);
         }
-        tb_free(tb);
+        tb_remove(tb);
     }
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
