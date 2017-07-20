@@ -2456,11 +2456,12 @@
 ##
 # @Qcow2CompressFormat:
 # @zlib: standard zlib deflate compression
+# @lzo: lzo1x compression
 #
 # Since: 2.10
 ##
 { 'enum': 'Qcow2CompressFormat',
-  'data': [ 'zlib' ] }
+  'data': [ 'zlib', 'lzo' ] }
 
 ##
 # @Qcow2CompressZLib:
@@ -2468,6 +2469,14 @@
 # Since: 2.10
 ##
 { 'struct': 'Qcow2CompressZLib',
+  'data': { } }
+
+##
+# @Qcow2CompressLZO:
+#
+# Since: 2.10
+##
+{ 'struct': 'Qcow2CompressLZO',
   'data': { } }
 
 ##
@@ -2488,7 +2497,8 @@
   'base': { 'format': 'Qcow2CompressFormat',
             '*level': 'uint8' },
   'discriminator': 'format',
-  'data': { 'zlib': 'Qcow2CompressZLib' } }
+  'data': { 'zlib': 'Qcow2CompressZLib',
+            'lzo': 'Qcow2CompressLZO' } }
 
 
 ##
