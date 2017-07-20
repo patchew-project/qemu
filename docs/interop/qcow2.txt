@@ -86,7 +86,12 @@ in the description of a field.
                                 be written to (unless for regaining
                                 consistency).
 
-                    Bits 2-63:  Reserved (set to 0)
+                    Bit 2:      Compress format bit.  If and only if this bit
+                                is set then the compress format extension
+                                MUST be present and MUST be parsed and checked
+                                for compatibility.
+
+                    Bits 3-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -137,6 +142,7 @@ be stored. Each extension has a structure like the following:
                         0x6803f857 - Feature name table
                         0x23852875 - Bitmaps extension
                         0x0537be77 - Full disk encryption header pointer
+                        0xC03183A3 - Compress format extension
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -310,6 +316,41 @@ The algorithms used for encryption vary depending on the method
    Initialization vectors generated using the method specified
    in the LUKS header, with the physical disk sector as the
    input tweak.
+
+
+== Compress format extension ==
+
+The compress format extension is an optional header extension. It provides
+the ability to specify the compress algorithm and compress parameters
+that are used for compressed clusters. This new header MUST be present if
+the incompatible-feature bit "compress format bit" is set and MUST be absent
+otherwise.
+
+Note: Ommitting the incompatible "Compress format bit" results in the usage
+of zlib compression with default compression level (default before QEMU 2.10).
+However, this old default has a smaller compression window size which results in
+lower compression ratio and slightly worse compression speed compared to
+explicity specifying zlib compression with default compression level in the
+compress format extension.
+
+The fields of the compress format extension are:
+
+    Byte  0 - 14:  compress_format_name (padded with zeros, but not
+                   necessarily null terminated if it has full length).
+                   Valid compression format names currently are:
+
+                   zlib: Standard zlib deflate compression
+
+              15:  compress_level (uint8_t)
+
+                   0 = default compress level (valid for all formats, default)
+
+                   Additional valid compression levels for zlib compression:
+
+                   All values between 1 and 9. 1 gives best speed, 9 gives best
+                   compression. The default compression level is defined by zlib
+                   and currently defaults to 6.
+
 
 == Host cluster management ==
 
