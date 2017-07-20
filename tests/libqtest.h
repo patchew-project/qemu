@@ -50,7 +50,8 @@ void qtest_quit(QTestState *s);
 /**
  * qtest_qmp_discard_response:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu; formats arguments through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Sends a QMP message to QEMU and consumes the response.
  */
@@ -59,7 +60,8 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 /**
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu; formats arguments through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Sends a QMP message to QEMU and returns the response.
  */
@@ -68,7 +70,8 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
 /**
  * qtest_async_qmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu; formats arguments through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
@@ -134,7 +137,7 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
 /**
  * qtest_hmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: HMP command to send to QEMU
+ * @fmt...: HMP command to send to QEMU, formats arguments like vsprintf().
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
  * QMP events are discarded.
@@ -535,7 +538,8 @@ static inline void qtest_end(void)
 
 /**
  * qmp:
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu; formats arguments through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Sends a QMP message to QEMU and returns the response.
  */
@@ -543,7 +547,8 @@ QDict *qmp(const char *fmt, ...);
 
 /**
  * qmp_async:
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu; formats arguments through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
@@ -551,7 +556,8 @@ void qmp_async(const char *fmt, ...);
 
 /**
  * qmp_discard_response:
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu; formats arguments through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Sends a QMP message to QEMU and consumes the response.
  */
@@ -592,7 +598,7 @@ static inline QDict *qmp_eventwait_ref(const char *event)
 
 /**
  * hmp:
- * @fmt...: HMP command to send to QEMU
+ * @fmt...: HMP command to send to QEMU, formats arguments like vsprintf().
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
  *
