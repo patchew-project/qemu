@@ -609,10 +609,6 @@ QemuCocoaView *cocoaView;
                 }
             }
 
-            // release Mouse grab when pressing ctrl+alt
-            if (([event modifierFlags] & NSEventModifierFlagControl) && ([event modifierFlags] & NSEventModifierFlagOption)) {
-                [self ungrabMouse];
-            }
             break;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
@@ -625,13 +621,25 @@ QemuCocoaView *cocoaView;
 
             // default
 
-            // handle control + alt Key Combos (ctrl+alt is reserved for QEMU)
+            // handle control + alt Key Combos (ctrl+alt+[1..9,g] is reserved for QEMU)
             if (([event modifierFlags] & NSEventModifierFlagControl) && ([event modifierFlags] & NSEventModifierFlagOption)) {
                 switch (keycode) {
 
                     // enable graphic console
                     case Q_KEY_CODE_1 ... Q_KEY_CODE_9: // '1' to '9' keys
                         console_select(keycode - 11);
+                        break;
+
+                    // release the mouse grab
+                    case Q_KEY_CODE_G:
+                        [self ungrabMouse];
+                        break;
+
+                    // send to the guest
+                    default:
+                        qemu_input_event_send_key_qcode(dcl->con, Q_KEY_CODE_CTRL, true);
+                        qemu_input_event_send_key_qcode(dcl->con, Q_KEY_CODE_ALT, true);
+                        qemu_input_event_send_key_qcode(dcl->con, keycode, true);
                         break;
                 }
 
@@ -806,9 +814,9 @@ QemuCocoaView *cocoaView;
 
     if (!isFullscreen) {
         if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt to release Mouse)", qemu_name]];
+            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
         else
-            [normalWindow setTitle:@"QEMU - (Press ctrl + alt to release Mouse)"];
+            [normalWindow setTitle:@"QEMU - (Press ctrl + alt + g to release Mouse)"];
     }
     [self hideCursor];
     if (!isAbsoluteEnabled) {
