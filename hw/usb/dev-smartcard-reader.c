@@ -82,7 +82,7 @@ static void usb_packet_dump(int lvl, const char *dir, uint8_t *buf, size_t len)
 #define BULK_OUT_DATA_SIZE 65536
 #define PENDING_ANSWERS_NUM 128
 
-#define BULK_IN_BUF_SIZE 384
+#define BULK_IN_BUF_SIZE 1024
 #define BULK_IN_PENDING_NUM 8
 
 #define CCID_MAX_PACKET_SIZE                64
