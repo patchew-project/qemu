@@ -146,8 +146,7 @@ static void ccid_card_vscard_handle_init(
 
 static int check_atr(PassthruState *card, uint8_t *data, int len)
 {
-    int historical_length, opt_bytes;
-    int td_count = 0;
+    int historical_length, opt_bytes, tck = 0;
     int td;
 
     if (len < 2) {
@@ -160,10 +159,8 @@ static int check_atr(PassthruState *card, uint8_t *data, int len)
                 data[0]);
         return 0;
     }
-    td_count = 0;
     td = data[1] >> 4;
-    while (td && td_count < 2 && opt_bytes + historical_length + 2 < len) {
-        td_count++;
+    while (td && opt_bytes + historical_length + 2 < len) {
         if (td & 0x1) {
             opt_bytes++;
         }
@@ -175,16 +172,37 @@ static int check_atr(PassthruState *card, uint8_t *data, int len)
         }
         if (td & 0x8) {
             opt_bytes++;
-            td = data[opt_bytes + 2] >> 4;
+            if (opt_bytes + 1 >= len) {
+                break;
+            }
+            /* Checksum byte must be present if T!=0 */
+            if (data[opt_bytes + 1] & 0xf) {
+                tck = 1;
+            }
+            td = data[opt_bytes + 1] >> 4;
+        } else {
+            td = 0;
         }
     }
-    if (len < 2 + historical_length + opt_bytes) {
+    if (len < 2 + historical_length + opt_bytes + tck) {
         DPRINTF(card, D_WARN,
             "atr too short: len %d, but historical_len %d, T1 0x%X\n",
             len, historical_length, data[1]);
         return 0;
     }
-    if (len > 2 + historical_length + opt_bytes) {
+    if (tck) {
+        int i;
+        uint8_t cksum = 0;
+        for (i = 1; i < 2 + historical_length + opt_bytes; ++i) {
+            cksum ^= data[i];
+        }
+        if (cksum != data[i]) {
+            DPRINTF(card, D_WARN, "atr has bad checksum: "
+                "real=0x%x should be 0x%x (FIXED)\n", cksum, data[i]);
+            data[i] = cksum;
+        }
+    }
+    if (len > 2 + historical_length + opt_bytes + tck) {
         DPRINTF(card, D_WARN,
             "atr too long: len %d, but hist/opt %d/%d, T1 0x%X\n",
             len, historical_length, opt_bytes, data[1]);
