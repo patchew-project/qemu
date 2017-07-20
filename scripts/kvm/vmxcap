@@ -69,7 +69,7 @@ class Control(object):
                 s = 'forced'
             elif one and zero:
                 s = 'yes'
-            print('  %-40s %s' % (self.bits[bit], s))
+            print('  %-50s %s' % (self.bits[bit], s))
 
 class Misc(object):
     def __init__(self, name, bits, msr):
@@ -94,7 +94,7 @@ class Misc(object):
                 def fmt(x):
                     return { True: 'yes', False: 'no' }[x]
             v = (value >> lo) & ((1 << (hi - lo + 1)) - 1)
-            print('  %-40s %s' % (self.bits[bits], fmt(v)))
+            print('  %-50s %s' % (self.bits[bits], fmt(v)))
 
 controls = [
     Misc(
