@@ -147,6 +147,32 @@ out:
     return ret;
 }
 
+static void ramblock_recv_map_init(void)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH(rb) {
+        assert(!rb->receivedmap);
+        rb->receivedmap = bitmap_new(rb->max_length >> TARGET_PAGE_BITS);
+    }
+}
+
+int ramblock_recv_bitmap_test(void *host_addr, RAMBlock *rb)
+{
+    return test_bit(ramblock_recv_bitmap_offset(host_addr, rb),
+                    rb->receivedmap);
+}
+
+void ramblock_recv_bitmap_set(void *host_addr, RAMBlock *rb)
+{
+    set_bit_atomic(ramblock_recv_bitmap_offset(host_addr, rb), rb->receivedmap);
+}
+
+void ramblock_recv_bitmap_clear(void *host_addr, RAMBlock *rb)
+{
+    clear_bit(ramblock_recv_bitmap_offset(host_addr, rb), rb->receivedmap);
+}
+
 /*
  * An outstanding page request, on the source, having been received
  * and queued
@@ -1793,6 +1819,8 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
         goto err;
     }
 
+    bitmap_clear(rb->receivedmap, start >> TARGET_PAGE_BITS,
+                 length >> TARGET_PAGE_BITS);
     ret = ram_block_discard_range(rb, start, length);
 
 err:
@@ -2324,13 +2352,20 @@ static int ram_load_setup(QEMUFile *f, void *opaque)
 {
     xbzrle_load_setup();
     compress_threads_load_setup();
+    ramblock_recv_map_init();
     return 0;
 }
 
 static int ram_load_cleanup(void *opaque)
 {
+    RAMBlock *rb;
     xbzrle_load_cleanup();
     compress_threads_load_cleanup();
+
+    RAMBLOCK_FOREACH(rb) {
+        g_free(rb->receivedmap);
+        rb->receivedmap = NULL;
+    }
     return 0;
 }
 
@@ -2545,6 +2580,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
+            ramblock_recv_bitmap_set(host, block);
             trace_ram_load_loop(block->idstr, (uint64_t)addr, flags, host);
         }
 
