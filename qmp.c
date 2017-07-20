@@ -37,6 +37,8 @@
 #include "qom/object_interfaces.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "migration/migration.h"
+#include "migration/savevm.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -200,6 +202,14 @@ void qmp_cont(Error **errp)
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         autostart = 1;
     } else {
+        /*
+         * Delay the cleanup to reduce the downtime of migration.
+         * The resource has been allocated by migration will be reused
+         * in COLO process, so don't release them.
+         */
+        if (runstate_check(RUN_STATE_POSTMIGRATE) && !migrate_colo_enabled()) {
+            qemu_savevm_state_cleanup();
+        }
         vm_start();
     }
 }

@@ -1951,6 +1951,15 @@ static void *migration_thread(void *opaque)
         if (qemu_file_get_error(s->to_dst_file)) {
             migrate_set_state(&s->state, current_active_state,
                               MIGRATION_STATUS_FAILED);
+            /*
+             * The resource has been allocated by migration will be reused in
+             * COLO process, so don't release them.
+             */
+            if (!enable_colo) {
+                qemu_mutex_lock_iothread();
+                qemu_savevm_state_cleanup();
+                qemu_mutex_unlock_iothread();
+            }
             trace_migration_thread_file_err();
             break;
         }
@@ -1990,13 +1999,6 @@ static void *migration_thread(void *opaque)
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_mutex_lock_iothread();
-    /*
-     * The resource has been allocated by migration will be reused in COLO
-     * process, so don't release them.
-     */
-    if (!enable_colo) {
-        qemu_savevm_state_cleanup();
-    }
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         uint64_t transferred_bytes = qemu_ftell(s->to_dst_file);
         s->total_time = end_time - s->total_time;
