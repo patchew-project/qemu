@@ -1124,7 +1124,13 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
                         s->current_bulk_in->data + s->current_bulk_in->pos,
                         len);
         s->current_bulk_in->pos += len;
-        if (s->current_bulk_in->pos == s->current_bulk_in->len) {
+        /*
+         * The caller assumes that the packet continues if we fill the
+         * entire iov and the iov length matches the max packet size.
+         * Add an empty USB packet in this case.
+         */
+        if (s->current_bulk_in->pos == s->current_bulk_in->len
+            && (len < p->iov.size || p->iov.size < CCID_MAX_PACKET_SIZE)) {
             ccid_bulk_in_release(s);
         }
     } else {
