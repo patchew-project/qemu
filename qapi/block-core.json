@@ -2454,6 +2454,44 @@
             '*encrypt': 'BlockdevQcow2Encryption' } }
 
 ##
+# @Qcow2CompressFormat:
+# @zlib: standard zlib deflate compression
+#
+# Since: 2.10
+##
+{ 'enum': 'Qcow2CompressFormat',
+  'data': [ 'zlib' ] }
+
+##
+# @Qcow2CompressZLib:
+#
+# Since: 2.10
+##
+{ 'struct': 'Qcow2CompressZLib',
+  'data': { } }
+
+##
+# @Qcow2Compress:
+#
+# Specifies the compression format and compression level that should
+# be used for compressed Qcow2 clusters.
+#
+# @format: specifies the compression format to use. (defaults to zlib)
+#
+# @level: specifies the compression level. 0 = default compression,
+#         1 = fastest compression, x = highest compresion (x may very between
+#         different compression formats)
+#
+# Since: 2.10
+##
+{ 'union': 'Qcow2Compress',
+  'base': { 'format': 'Qcow2CompressFormat',
+            '*level': 'uint8' },
+  'discriminator': 'format',
+  'data': { 'zlib': 'Qcow2CompressZLib' } }
+
+
+##
 # @BlockdevOptionsSsh:
 #
 # @server:              host address
