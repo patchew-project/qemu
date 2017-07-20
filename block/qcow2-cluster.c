@@ -1479,30 +1479,39 @@ again:
 }
 
 static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
-                             const uint8_t *buf, int buf_size)
+                             const uint8_t *buf, int buf_size,
+                             int compress_format)
 {
-    z_stream strm1, *strm = &strm1;
-    int ret, out_len;
+    int ret = 0, out_len;
 
-    memset(strm, 0, sizeof(*strm));
+    switch (compress_format) {
+    case QCOW2_COMPRESS_FORMAT_ZLIB:
+    case -1: {
+        z_stream z_strm = {};
 
-    strm->next_in = (uint8_t *)buf;
-    strm->avail_in = buf_size;
-    strm->next_out = out_buf;
-    strm->avail_out = out_buf_size;
+        z_strm.next_in = (uint8_t *)buf;
+        z_strm.avail_in = buf_size;
+        z_strm.next_out = out_buf;
+        z_strm.avail_out = out_buf_size;
 
-    ret = inflateInit2(strm, -12);
-    if (ret != Z_OK)
-        return -1;
-    ret = inflate(strm, Z_FINISH);
-    out_len = strm->next_out - out_buf;
-    if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) ||
-        out_len != out_buf_size) {
-        inflateEnd(strm);
-        return -1;
+        ret = inflateInit2(&z_strm, -15);
+        if (ret != Z_OK) {
+            return -1;
+        }
+        ret = inflate(&z_strm, Z_FINISH);
+        out_len = z_strm.next_out - out_buf;
+        ret = -(ret != Z_STREAM_END);
+        inflateEnd(&z_strm);
+        break;
     }
-    inflateEnd(strm);
-    return 0;
+    default:
+        abort(); /* should never reach this point */
+    }
+
+    if (out_len != out_buf_size) {
+        ret = -1;
+    }
+    return ret;
 }
 
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
@@ -1523,7 +1532,8 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
             return ret;
         }
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
-                              s->cluster_data + sector_offset, csize) < 0) {
+                              s->cluster_data + sector_offset, csize,
+                              s->compress_format) < 0) {
             return -EIO;
         }
         s->cluster_cache_offset = coffset;
