@@ -115,6 +115,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 static void tcg_out_tb_init(TCGContext *s);
 static bool tcg_out_tb_finalize(TCGContext *s);
 
+#define TCG_HIGHWATER 1024
+
 static TCGContext **tcg_ctxs;
 static unsigned int n_tcg_ctxs;
 
@@ -435,7 +437,7 @@ void tcg_prologue_init(TCGContext *s)
     /* Compute a high-water mark, at which we voluntarily flush the buffer
        and start over.  The size here is arbitrary, significantly larger
        than we expect the code generation for any one opcode to require.  */
-    s->code_gen_highwater = s->code_gen_buffer + (total_size - 1024);
+    s->code_gen_highwater = s->code_gen_buffer + (total_size - TCG_HIGHWATER);
 
     tcg_register_jit(s->code_gen_buffer, total_size);
 
