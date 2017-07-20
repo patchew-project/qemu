@@ -801,7 +801,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
         return;
     }
     h->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_Parameters;
-    h->b.hdr.dwLength = 0;
+    h->b.hdr.dwLength = (s->bProtocolNum == 1) ? 7 : 5;
     h->b.hdr.bSlot = recv->bSlot;
     h->b.hdr.bSeq = recv->bSeq;
     h->b.bStatus = ccid_calc_status(s);
@@ -871,6 +871,49 @@ static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
     return atr[i] & 0x0f;
 }
 
+/*
+ * Get a specific interface byte TX_y (X='A'..'D' y=1..3)
+ * See ISO/IEC 7816-3:2006 Chapter 8 for details.
+ */
+static uint8_t atr_get_TXY(const uint8_t *atr, uint32_t len, char x, int y)
+{
+    int pos;
+    uint8_t t0, ti, i;
+
+    if (x < 'A' || x > 'D') {
+        return 0;
+    }
+    x -= 'A';
+
+    if (len < 2) {
+        return 0;
+    }
+    t0 = atr[1] >> 4;
+    pos = 2;
+    ti = 1;
+    /* Skip TA_i..TD_i if present while not at requested index y */
+    while (ti < y) {
+        pos += !!(t0 & 0x01) + !!(t0 & 0x02) + !!(t0 & 0x04);
+        if (pos >= len || !(t0 & 0x08)) {
+            return 0;
+        }
+        t0 = atr[pos++] >> 4;
+        ti++;
+    }
+    if (!(t0 & 0x01 << x)) {
+        return 0;
+    }
+    for (i = 0; i < x; ++i) {
+        if (t0 & (1 << i)) {
+            pos++;
+        }
+    }
+    if (pos >= len) {
+        return 0;
+    }
+    return atr[pos];
+}
+
 static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
 {
     const uint8_t *atr = NULL;
@@ -890,21 +933,20 @@ static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
                                              : s->bProtocolNum);
     switch (atr_protocol_num) {
     case 0:
-        /* TODO: unimplemented ATR T0 parameters */
-        t0->bmFindexDindex = 0;
-        t0->bmTCCKST0 = 0;
+        t0->bmFindexDindex = atr_get_TXY(atr, len, 'A', 1);
+        t0->bmTCCKST0 = 0;      /* T0 */
         t0->bGuardTimeT0 = 0;
-        t0->bWaitingIntegerT0 = 0;
+        t0->bWaitingIntegerT0 = atr_get_TXY(atr, len, 'C', 2);
         t0->bClockStop = 0;
         break;
     case 1:
-        /* TODO: unimplemented ATR T1 parameters */
-        t1->bmFindexDindex = 0;
-        t1->bmTCCKST1 = 0;
-        t1->bGuardTimeT1 = 0;
-        t1->bWaitingIntegerT1 = 0;
-        t1->bClockStop = 0;
-        t1->bIFSC = 0;
+        /* NOTE: If present TD2 should specify protocl T=1 */
+        t1->bmFindexDindex = atr_get_TXY(atr, len, 'A', 1);
+        t1->bmTCCKST1 = 0x10;   /* T1 */
+        t1->bGuardTimeT1 = atr_get_TXY(atr, len, 'C', 1);
+        t1->bWaitingIntegerT1 = atr_get_TXY(atr, len, 'B', 3);
+        t1->bClockStop = 0x00;
+        t1->bIFSC = atr_get_TXY(atr, len, 'A', 3);
         t1->bNadValue = 0;
         break;
     default:
