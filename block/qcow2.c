@@ -3942,6 +3942,15 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
         spec_info->u.qcow2.data->encrypt = qencrypt;
     }
 
+    if (s->compress_format != -1) {
+        Qcow2Compress *qcompress = g_new0(Qcow2Compress, 1);
+        qcompress->format = s->compress_format;
+        qcompress->level = s->compress_level;
+        qcompress->has_level = true;
+        spec_info->u.qcow2.data->compress = qcompress;
+        spec_info->u.qcow2.data->has_compress = true;
+    }
+
     return spec_info;
 }
 
