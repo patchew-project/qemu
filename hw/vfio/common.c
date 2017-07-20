@@ -454,6 +454,16 @@ static void vfio_listener_region_add(MemoryListener *listener,
             goto fail;
         }
 
+#ifdef CONFIG_KVM
+        if (kvm_enabled()) {
+            VFIOGroup *group;
+
+            QLIST_FOREACH(group, &container->group_list, container_next) {
+                vfio_spapr_notify_kvm(vfio_kvm_device_fd, group->fd,
+                                      IOMMU_MEMORY_REGION(section->mr));
+            }
+        }
+#endif
         vfio_host_win_add(container, section->offset_within_address_space,
                           section->offset_within_address_space +
                           int128_get64(section->size) - 1, pgsize);

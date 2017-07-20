@@ -591,6 +591,7 @@ void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr);
 #define RTAS_EVENT_SCAN_RATE    1
 
 typedef struct sPAPRTCETable sPAPRTCETable;
+typedef struct sPAPRIOMMUMemoryRegionClass sPAPRIOMMUMemoryRegionClass;
 
 #define TYPE_SPAPR_TCE_TABLE "spapr-tce-table"
 #define SPAPR_TCE_TABLE(obj) \
@@ -599,6 +600,12 @@ typedef struct sPAPRTCETable sPAPRTCETable;
 #define TYPE_SPAPR_IOMMU_MEMORY_REGION "spapr-iommu-memory-region"
 #define SPAPR_IOMMU_MEMORY_REGION(obj) \
         OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_SPAPR_IOMMU_MEMORY_REGION)
+#define SPAPR_IOMMU_MEMORY_REGION_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRIOMMUMemoryRegionClass, obj, \
+                         TYPE_SPAPR_IOMMU_MEMORY_REGION)
+#define SPAPR_IOMMU_MEMORY_REGION_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRIOMMUMemoryRegionClass, klass, \
+                           TYPE_SPAPR_IOMMU_MEMORY_REGION)
 
 struct sPAPRTCETable {
     DeviceState parent;
@@ -616,6 +623,14 @@ struct sPAPRTCETable {
     IOMMUMemoryRegion iommu;
     struct VIOsPAPRDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(sPAPRTCETable) list;
+};
+
+struct sPAPRIOMMUMemoryRegionClass {
+    /* private */
+    IOMMUMemoryRegionClass parent_class;
+
+    /* public */
+    int (*get_fd)(IOMMUMemoryRegion *iommu_mr);
 };
 
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);

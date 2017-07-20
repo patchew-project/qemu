@@ -171,6 +171,13 @@ static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
     }
 }
 
+static int spapr_tce_get_fd(IOMMUMemoryRegion *iommu_mr)
+{
+    sPAPRTCETable *tcet = container_of(iommu_mr, sPAPRTCETable, iommu);
+
+    return tcet->fd;
+}
+
 static int spapr_tce_table_post_load(void *opaque, int version_id)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
@@ -631,16 +638,19 @@ static TypeInfo spapr_tce_table_info = {
 static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+    sPAPRIOMMUMemoryRegionClass *simrc = SPAPR_IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = spapr_tce_translate_iommu;
     imrc->get_min_page_size = spapr_tce_get_min_page_size;
     imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
+    simrc->get_fd = spapr_tce_get_fd;
 }
 
 static const TypeInfo spapr_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
     .class_init = spapr_iommu_memory_region_class_init,
+    .class_size = sizeof(sPAPRIOMMUMemoryRegionClass),
 };
 
 static void register_types(void)

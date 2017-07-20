@@ -177,6 +177,8 @@ extern const MemoryListener vfio_prereg_listener;
 int vfio_spapr_create_window(VFIOContainer *container,
                              MemoryRegionSection *section,
                              hwaddr *pgsize);
+int vfio_spapr_notify_kvm(int vfio_kvm_device_fd, int groupfd,
+                          IOMMUMemoryRegion *iommumr);
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 

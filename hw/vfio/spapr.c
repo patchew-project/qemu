@@ -15,8 +15,12 @@
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/hw.h"
+#include "hw/ppc/spapr.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#ifdef CONFIG_KVM
+#include "linux/kvm.h"
+#endif
 
 static bool vfio_prereg_listener_skipped_section(MemoryRegionSection *section)
 {
@@ -185,6 +189,41 @@ int vfio_spapr_create_window(VFIOContainer *container,
                                    create.start_addr);
     *pgsize = pagesize;
 
+    return 0;
+}
+
+int vfio_spapr_notify_kvm(int vfio_kvm_device_fd, int groupfd,
+                          IOMMUMemoryRegion *iommu_mr)
+{
+#ifdef CONFIG_KVM
+    struct kvm_vfio_spapr_tce param = {
+        .groupfd = groupfd,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_VFIO_GROUP,
+        .attr = KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE,
+        .addr = (uint64_t)(unsigned long)&param,
+    };
+    IOMMUMemoryRegion *spapr_iommu_mr = SPAPR_IOMMU_MEMORY_REGION(iommu_mr);
+    sPAPRIOMMUMemoryRegionClass *simrc =
+            SPAPR_IOMMU_MEMORY_REGION_GET_CLASS(spapr_iommu_mr);
+
+    if (!simrc->get_fd) {
+        error_report("vfio: No get_fd defined for IOMMU MR");
+        return -EFAULT;
+    }
+
+    param.tablefd = simrc->get_fd(spapr_iommu_mr);
+
+    if (param.tablefd != -1) {
+        if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
+            error_report("vfio: failed to setup fd %d for a group with fd %d: %s",
+                         param.tablefd, param.groupfd, strerror(errno));
+            return -errno;
+        }
+    }
+    trace_vfio_spapr_notify_kvm(groupfd, param.tablefd);
+#endif
     return 0;
 }
 
