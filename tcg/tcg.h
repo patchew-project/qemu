@@ -730,7 +730,6 @@ struct TCGContext {
 };
 
 extern TCGContext tcg_ctx;
-extern bool parallel_cpus;
 
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
