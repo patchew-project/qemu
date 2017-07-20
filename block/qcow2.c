@@ -31,6 +31,8 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/util.h"
+#include "qapi-visit.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/types.h"
 #include "qapi-event.h"
 #include "trace.h"
@@ -2706,7 +2708,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
                          QemuOpts *opts, int version, int refcount_order,
-                         const char *encryptfmt, Error **errp)
+                         const char *encryptfmt, Qcow2Compress *compress,
+                         Error **errp)
 {
     QDict *options;
 
@@ -2898,6 +2901,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     char *backing_file = NULL;
     char *backing_fmt = NULL;
     char *buf = NULL;
+    Qcow2Compress compress, *compress_ptr = NULL;
     uint64_t size = 0;
     int flags = 0;
     size_t cluster_size = DEFAULT_CLUSTER_SIZE;
@@ -2975,9 +2979,43 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 
     refcount_order = ctz32(refcount_bits);
 
+    if (qemu_opt_get(opts, BLOCK_OPT_COMPRESS_FORMAT) ||
+        qemu_opt_get(opts, BLOCK_OPT_COMPRESS_LEVEL)) {
+        QDict *options, *compressopts = NULL;
+        Visitor *v;
+        options = qemu_opts_to_qdict(opts, NULL);
+        qdict_extract_subqdict(options, &compressopts, "compress.");
+        v = qobject_input_visitor_new_keyval(QOBJECT(compressopts));
+        visit_start_struct(v, NULL, NULL, 0, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+            goto finish;
+        }
+        visit_type_Qcow2Compress_members(v, &compress, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+            goto finish;
+        }
+        visit_end_struct(v, NULL);
+        visit_free(v);
+        QDECREF(compressopts);
+        QDECREF(options);
+        if (compress.format == QCOW2_COMPRESS_FORMAT_ZLIB &&
+            compress.level > 9) {
+            error_setg(errp, "Compress level %" PRIu8 " is not supported for"
+                       " format '%s'", compress.level,
+                       Qcow2CompressFormat_lookup[compress.format]);
+            ret = -EINVAL;
+            goto finish;
+        }
+        compress_ptr = &compress;
+    }
+
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, refcount_order,
-                        encryptfmt, &local_err);
+                        encryptfmt, compress_ptr, &local_err);
     error_propagate(errp, local_err);
 
 finish:
@@ -4286,6 +4324,17 @@ static QemuOptsList qcow2_create_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Width of a reference count entry in bits",
             .def_value_str = "16"
+        },
+        {
+            .name = BLOCK_OPT_COMPRESS_FORMAT,
+            .type = QEMU_OPT_STRING,
+            .help = "Compress format used for compressed clusters (zlib)",
+        },
+        {
+            .name = BLOCK_OPT_COMPRESS_LEVEL,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Compress level used for compressed clusters (0 = default,"
+                    " 1=fastest, x=best; x varies depending on compress.format)",
         },
         { /* end of list */ }
     }
