@@ -1030,13 +1030,16 @@ static int bt_parse(const char *opt)
 
 static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 {
-    /* FIXME: change this to true for 1.3 */
     if (qemu_opt_get_bool(opts, "enable", false)) {
 #ifdef CONFIG_SECCOMP
         if (seccomp_start() < 0) {
             error_report("failed to install seccomp syscall filter "
                          "in the kernel");
             return -1;
+        } else {
+            error_report("warning: -sandbox on has been converted to blacklist "
+                         "approach. Refer to the manual for new sandbox "
+                         "options in order to increase security.");
         }
 #else
         error_report("seccomp support is disabled");
