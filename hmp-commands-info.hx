@@ -115,9 +115,9 @@ ETEXI
 #if defined(TARGET_I386)
     {
         .name       = "lapic",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show local apic state",
+        .args_type  = "apic-id:i?",
+        .params     = "[apic-id]",
+        .help       = "show local apic state (apic-id: local apic to read, default is 0)",
         .cmd        = hmp_info_local_apic,
     },
 #endif

@@ -398,6 +398,22 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
     }
     cpu_fprintf(f, " PPR 0x%02x\n", apic_get_ppr(s));
 }
+
+CPUState *x86_get_cpu_by_apic(int id)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        X86CPU *cpu = X86_CPU(cs);
+        APICCommonState *s = APIC_COMMON(cpu->apic_state);
+        if (id == s->id) {
+            return cs;
+        }
+    }
+
+    return NULL;
+}
+
 #else
 void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
                                    fprintf_function cpu_fprintf, int flags)

@@ -632,7 +632,14 @@ const MonitorDef *target_monitor_defs(void)
 
 void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
 {
-    CPUState *cs = mon_get_cpu();
+    CPUState *cs;
+
+    if (qdict_haskey(qdict, "apic-id")) {
+        int id = qdict_get_try_int(qdict, "apic-id", 0);
+        cs = x86_get_cpu_by_apic(id);
+    } else {
+        cs = mon_get_cpu();
+    }
 
     if (!cs) {
         monitor_printf(mon, "No CPU available\n");

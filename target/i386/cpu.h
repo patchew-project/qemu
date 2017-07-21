@@ -1712,6 +1712,16 @@ void enable_compat_apic_id_mode(void);
 #define APIC_DEFAULT_ADDRESS 0xfee00000
 #define APIC_SPACE_SIZE      0x100000
 
+/**
+ * x86_get_cpu_by_apic:
+ * @id: The apic-id of the specified CPU to obtain.
+ *
+ * Gets a CPU on which @id given of apic.
+ *
+ * Returns: The CPU or %NULL if there is no matching CPU.
+ */
+CPUState *x86_get_cpu_by_apic(int id);
+
 void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
                                    fprintf_function cpu_fprintf, int flags);
 
