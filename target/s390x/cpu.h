@@ -805,6 +805,8 @@ static inline void setcc(S390CPU *cpu, uint64_t cc)
     env->cc_op = cc;
 }
 
+#ifndef CONFIG_USER_ONLY
+
 typedef struct LowCore
 {
     /* prefix area: defined by architecture */
@@ -921,6 +923,11 @@ typedef struct LowCore
 
     uint8_t         pad18[0x2000-0x1400];      /* 0x1400 */
 } QEMU_PACKED LowCore;
+
+LowCore *cpu_map_lowcore(CPUS390XState *env);
+void cpu_unmap_lowcore(LowCore *lowcore);
+
+#endif
 
 /* STSI */
 #define STSI_LEVEL_MASK         0x00000000f0000000ULL
@@ -1098,6 +1105,7 @@ struct sysib_322 {
 #define SIGP_ORDER_MASK 0x000000ff
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
+uint64_t get_psw_mask(CPUS390XState *env);
 target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc);
