@@ -38,13 +38,8 @@ extern int madvise(caddr_t, size_t, int);
 #include "qemu/error-report.h"
 #include "monitor/monitor.h"
 
-#ifdef F_OFD_SETLK
-#define QEMU_SETLK F_OFD_SETLK
-#define QEMU_GETLK F_OFD_GETLK
-#else
-#define QEMU_SETLK F_SETLK
-#define QEMU_GETLK F_GETLK
-#endif
+static int fcntl_op_setlk = -1;
+static int fcntl_op_getlk = -1;
 
 static bool fips_enabled = false;
 
@@ -149,6 +144,63 @@ static int qemu_parse_fdset(const char *param)
     return qemu_parse_fd(param);
 }
 
+static void qemu_probe_lock_ops(void)
+{
+    if (fcntl_op_setlk == -1) {
+#ifdef F_OFD_SETLK
+        int fd;
+        int ret;
+        const char *tmpdir;
+        char *filename;
+        struct flock fl = {
+            .l_whence = SEEK_SET,
+            .l_start  = 0,
+            .l_len    = 0,
+            .l_type   = F_WRLCK,
+        };
+
+        tmpdir = getenv("TMPDIR");
+        if (!tmpdir) {
+            tmpdir = "/var/tmp";
+        }
+        filename = g_strdup_printf("%s/qemu_lock_probe.XXXXXX", tmpdir);
+        fd = mkstemp(filename);
+        if (fd < 0) {
+            fprintf(stderr, "Failed to create temporary file '%s': %s\n",
+                    filename, strerror(errno));
+            fcntl_op_setlk = F_SETLK;
+            fcntl_op_getlk = F_GETLK;
+            goto out;
+        }
+        ret = fcntl(fd, F_OFD_SETLK, &fl);
+        close(fd);
+        unlink(filename);
+        if (!ret) {
+            fcntl_op_setlk = F_OFD_SETLK;
+            fcntl_op_getlk = F_OFD_GETLK;
+        } else {
+            fcntl_op_setlk = F_SETLK;
+            fcntl_op_getlk = F_GETLK;
+        }
+out:
+        g_free(filename);
+#else
+        fcntl_op_setlk = F_SETLK;
+        fcntl_op_getlk = F_GETLK;
+#endif
+    }
+}
+
+bool qemu_has_ofd_lock(void)
+{
+    qemu_probe_lock_ops();
+#ifdef F_OFD_SETLK
+    return fcntl_op_setlk == F_OFD_SETLK;
+#else
+    return false;
+#endif
+}
+
 static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)
 {
     int ret;
@@ -158,7 +210,8 @@ static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)
         .l_len    = len,
         .l_type   = fl_type,
     };
-    ret = fcntl(fd, QEMU_SETLK, &fl);
+    qemu_probe_lock_ops();
+    ret = fcntl(fd, fcntl_op_setlk, &fl);
     return ret == -1 ? -errno : 0;
 }
 
@@ -181,7 +234,8 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
         .l_len    = len,
         .l_type   = exclusive ? F_WRLCK : F_RDLCK,
     };
-    ret = fcntl(fd, QEMU_GETLK, &fl);
+    qemu_probe_lock_ops();
+    ret = fcntl(fd, fcntl_op_getlk, &fl);
     if (ret == -1) {
         return -errno;
     } else {
