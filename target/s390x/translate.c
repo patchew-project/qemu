@@ -3953,6 +3953,7 @@ static ExitStatus op_stap(DisasContext *s, DisasOps *o)
        version of this stored more than the required half-word, so it
        is unlikely this has ever been tested.  */
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, cpu_num));
+    tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), MO_TEUW | MO_ALIGN);
     return NO_EXIT;
 }
 
@@ -3989,6 +3990,7 @@ static ExitStatus op_stcke(DisasContext *s, DisasOps *o)
 static ExitStatus op_sckc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
+    tcg_gen_qemu_ld_i64(o->in2, o->in2, get_mem_index(s), MO_TEQ | MO_ALIGN);
     gen_helper_sckc(cpu_env, o->in2);
     return NO_EXIT;
 }
@@ -3997,6 +3999,7 @@ static ExitStatus op_stckc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_stckc(o->out, cpu_env);
+    tcg_gen_qemu_st_i64(o->out, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
     return NO_EXIT;
 }
 
@@ -4033,6 +4036,7 @@ static ExitStatus op_stidp(DisasContext *s, DisasOps *o)
 static ExitStatus op_spt(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
+    tcg_gen_qemu_ld_i64(o->in2, o->in2, get_mem_index(s), MO_TEQ | MO_ALIGN);
     gen_helper_spt(cpu_env, o->in2);
     return NO_EXIT;
 }
@@ -4048,6 +4052,7 @@ static ExitStatus op_stpt(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_stpt(o->out, cpu_env);
+    tcg_gen_qemu_st_i64(o->out, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
     return NO_EXIT;
 }
 
@@ -4063,6 +4068,7 @@ static ExitStatus op_stsi(DisasContext *s, DisasOps *o)
 static ExitStatus op_spx(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
+    tcg_gen_qemu_ld_tl(o->in2, o->in2, get_mem_index(s), MO_TEUL | MO_ALIGN);
     gen_helper_spx(cpu_env, o->in2);
     return NO_EXIT;
 }
@@ -4162,6 +4168,7 @@ static ExitStatus op_stpx(DisasContext *s, DisasOps *o)
     check_privileged(s);
     tcg_gen_ld_i64(o->out, cpu_env, offsetof(CPUS390XState, psa));
     tcg_gen_andi_i64(o->out, o->out, 0x7fffe000);
+    tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), MO_TEUL | MO_ALIGN);
     return NO_EXIT;
 }
 

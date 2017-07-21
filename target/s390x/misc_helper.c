@@ -391,7 +391,9 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
     sel1 = r0 & STSI_R0_SEL1_MASK;
     sel2 = r1 & STSI_R1_SEL2_MASK;
 
-    /* XXX: spec exception if sysib is not 4k-aligned */
+    if (a0 & 0xfff) {
+        program_interrupt(env, PGM_SPECIFICATION, 4);
+    }
 
     switch (r0 & STSI_LEVEL_MASK) {
     case STSI_LEVEL_1:
@@ -727,6 +729,10 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     unsigned count_m1 = env->regs[0] & 0xff;
     unsigned max_m1 = do_stfle(env, words);
     unsigned i;
+
+    if (addr & 0x7) {
+        program_interrupt(env, PGM_SPECIFICATION, 4);
+    }
 
     for (i = 0; i <= count_m1; ++i) {
         cpu_stq_data(env, addr + 8 * i, words[i]);
