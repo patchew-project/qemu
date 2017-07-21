@@ -4004,13 +4004,14 @@ Old param mode (ARM only).
 ETEXI
 
 DEF("sandbox", HAS_ARG, QEMU_OPTION_sandbox, \
-    "-sandbox on[,obsolete=allow][,elevateprivileges=allow|deny|children][,spawn=deny]  Enable seccomp mode 2 system call filter (default 'off').\n" \
+    "-sandbox on[,obsolete=allow][,elevateprivileges=allow|deny|children][,spawn=deny][,resourcecontrol=deny]  Enable seccomp mode 2 system call filter (default 'off').\n" \
     "                obsolete: Allow obsolete system calls\n"
     "                elevateprivileges: allows or denies Qemu process to elevate its privileges by blacklisting all set*uid|gid system calls. 'children' will deny set*uid|gid system calls for main Qemu process but will allow forks and execves to run unprivileged\n"
-    "                spawn: avoids Qemu to spawn new threads or processes by blacklisting *fork and execve\n",
+    "                spawn: avoids Qemu to spawn new threads or processes by blacklisting *fork and execve\n"
+    "                resourcecontrol: disable process affinity and schedular priority\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -sandbox @var{arg}[,obsolete=@var{string}][,elevateprivileges=@var{string}][,spawn=@var{string}]
+@item -sandbox @var{arg}[,obsolete=@var{string}][,elevateprivileges=@var{string}][,spawn=@var{string}][,resourcecontrol=@var{string}]
 @findex -sandbox
 Enable Seccomp mode 2 system call filter. 'on' will enable syscall filtering and 'off' will
 disable it.  The default is 'off'.
@@ -4021,6 +4022,8 @@ Enable Obsolete system calls
 Disable set*uid|gid systema calls
 @item spawn=@var{string}
 Disable *fork and execve
+@item resourcecontrol=@var{string}
+Disable process affinity and schedular priority
 @end table
 ETEXI
 
