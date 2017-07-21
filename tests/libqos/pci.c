@@ -14,6 +14,7 @@
 #include "libqos/pci.h"
 
 #include "hw/pci/pci_regs.h"
+#include "qapi/qmp/qjson.h"
 #include "qemu/host-utils.h"
 
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
@@ -392,23 +393,25 @@ QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr)
 }
 
 void qpci_plug_device_test(const char *driver, const char *id,
-                           uint8_t slot, const char *opts)
+                           uint8_t slot, QDict *extra_args)
 {
-    QDict *response;
-    char *cmd;
+    char addr[8];
+    QDict *args, *response;
 
-    cmd = g_strdup_printf("{'execute': 'device_add',"
-                          " 'arguments': {"
-                          "   'driver': '%s',"
-                          "   'addr': '%d',"
-                          "   %s%s"
-                          "   'id': '%s'"
-                          "}}", driver, slot,
-                          opts ? opts : "", opts ? "," : "",
-                          id);
-    response = qmp(cmd);
-    g_free(cmd);
+    sprintf(addr, "%d", slot);
+    args = qobject_to_qdict(
+        qobject_from_jsonf("{ 'driver': %s, 'addr': %s, 'id': %s}",
+                           driver, addr, id));
+
+    if (extra_args) {
+        qdict_join(args, extra_args, true);
+        QDECREF(extra_args);
+    }
+
+    response = qmp("{'execute': 'device_add', 'arguments': %p }", args);
+
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
+    QDECREF(args);
     QDECREF(response);
 }
