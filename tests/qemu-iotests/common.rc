@@ -470,6 +470,13 @@ _require_command()
     [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
 }
 
+# tests whether a given configure time feature is enabled
+#
+_require_feature()
+{
+    $BUILDCONF -c -n $1 || _notrun "feature not enabled: $1"
+}
+
 _full_imgfmt_details()
 {
     if [ -n "$IMGOPTS" ]; then

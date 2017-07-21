@@ -60,6 +60,8 @@ fi
 
 build_root="$build_iotests/../.."
 
+export BUILDCONF="$build_root/scripts/buildconf.py"
+
 if [ -x "$build_iotests/socket_scm_helper" ]
 then
     export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
