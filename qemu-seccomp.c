@@ -31,6 +31,19 @@ struct QemuSeccompSyscall {
     uint8_t priority;
 };
 
+static const struct QemuSeccompSyscall privileged_syscalls[] = {
+    { SCMP_SYS(setuid), 255 },
+    { SCMP_SYS(setgid), 255 },
+    { SCMP_SYS(setpgid), 255 },
+    { SCMP_SYS(setsid), 255 },
+    { SCMP_SYS(setreuid), 255 },
+    { SCMP_SYS(setregid), 255 },
+    { SCMP_SYS(setresuid), 255 },
+    { SCMP_SYS(setresgid), 255 },
+    { SCMP_SYS(setfsuid), 255 },
+    { SCMP_SYS(setfsgid), 255 },
+};
+
 static const struct QemuSeccompSyscall obsolete[] = {
     { SCMP_SYS(readdir), 255 },
     { SCMP_SYS(_sysctl), 255 },
@@ -109,6 +122,22 @@ int seccomp_start(uint8_t seccomp_opts)
             goto seccomp_return;
         }
     }
+
+    if (seccomp_opts & PRIVILEGED) {
+        for (i = 0; i < ARRAY_SIZE(privileged_syscalls); i++) {
+            rc = seccomp_rule_add(ctx, SCMP_ACT_KILL,
+                                  privileged_syscalls[i].num, 0);
+            if (rc < 0) {
+                goto seccomp_return;
+            }
+            rc = seccomp_syscall_priority(ctx, privileged_syscalls[i].num,
+                    privileged_syscalls[i].priority);
+            if (rc < 0) {
+                goto seccomp_return;
+            }
+        }
+    }
+
 
     rc = seccomp_load(ctx);
 
