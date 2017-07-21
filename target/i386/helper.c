@@ -408,6 +408,19 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
 #define DUMP_CODE_BYTES_TOTAL    50
 #define DUMP_CODE_BYTES_BACKWARD 20
 
+void x86_cpu_dump_ids(CPUState *cs, FILE *f, fprintf_function cpu_fprintf)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    APICCommonState *s = APIC_COMMON(cpu->apic_state);
+    if (!s) {
+        cpu_fprintf(f, "local apic state not available\n");
+        return;
+    }
+
+    cpu_fprintf(f, "(socket-id:%d core-id:%d thread-id:%d apic-id:%d)\n",
+            cpu->socket_id, cpu->core_id, cpu->thread_id, s->id);
+}
+
 void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                         int flags)
 {

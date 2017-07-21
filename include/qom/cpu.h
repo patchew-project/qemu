@@ -92,6 +92,7 @@ struct TranslationBlock;
  * CPUs can use the default implementation of this method. This method should
  * not be used by any callers other than the pre-1.0 virtio devices.
  * @memory_rw_debug: Callback for GDB memory access.
+ * @dump_ids: Callback for dumping ids.
  * @dump_state: Callback for dumping state.
  * @dump_statistics: Callback for dumping statistics.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
@@ -156,6 +157,7 @@ typedef struct CPUClass {
     bool (*virtio_is_big_endian)(CPUState *cpu);
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, int len, bool is_write);
+    void (*dump_ids)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf);
     void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                        int flags);
     GuestPanicInformation* (*get_crash_info)(CPUState *cpu);
@@ -516,6 +518,16 @@ enum CPUDumpFlags {
     CPU_DUMP_FPU  = 0x00020000,
     CPU_DUMP_CCOP = 0x00040000,
 };
+
+/**
+ * cpu_dump_ids:
+ * @cpu: The CPU whose state is to be dumped.
+ * @f: File to dump to.
+ * @cpu_fprintf: Function to dump with.
+ *
+ * Dumps CPU socket-id, core-id, thread-id and apic-id.
+ */
+void cpu_dump_ids(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf);
 
 /**
  * cpu_dump_state:

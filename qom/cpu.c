@@ -242,6 +242,16 @@ GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
     return res;
 }
 
+void cpu_dump_ids(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->dump_ids) {
+        cpu_synchronize_state(cpu);
+        cc->dump_ids(cpu, f, cpu_fprintf);
+    }
+}
+
 void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {

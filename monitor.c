@@ -1085,6 +1085,7 @@ static void hmp_info_registers(Monitor *mon, const QDict *qdict)
     if (all_cpus) {
         CPU_FOREACH(cs) {
             monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
+            cpu_dump_ids(cs, (FILE *)mon, monitor_fprintf);
             cpu_dump_state(cs, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
         }
     } else {
