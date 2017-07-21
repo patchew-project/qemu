@@ -280,6 +280,10 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "elevateprivileges",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "spawn",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1062,6 +1066,13 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
                 /* calling prctl directly because we're
                  * not sure if host has CAP_SYS_ADMIN set*/
                 prctl(PR_SET_NO_NEW_PRIVS, 1);
+            }
+        }
+
+        value = qemu_opt_get(opts, "spawn");
+        if (value) {
+            if (strcmp(value, "deny") == 0) {
+                seccomp_opts |= SPAWN;
             }
         }
 
