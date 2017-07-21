@@ -3239,6 +3239,27 @@ for i in $glib_modules; do
     fi
 done
 
+# Sanity check that we can parse PRId64 and friends in json-lexer.c
+# (Sadly, the "easiest" way to do this is to grep the compiled binary)
+cat > $TMPC <<EOF
+#include <inttypes.h>
+int main(void) {
+    static const char findme[] = "UnLiKeLyToClAsH_" PRId64;
+    return !findme[0];
+}
+EOF
+if ! compile_prog "$CFLAGS" "$LIBS" ; then
+    error_exit "can't determine value of PRId64"
+fi
+nl='
+'
+case $(strings $TMPE | grep ^UnLiKeLyToClAsH) in
+    '' | *"$nl"* ) error_exit "can't determine value of PRId64" ;;
+    *_ld | *_lld | *_I64d | *_qd) ;;
+    *) error_exit "unexepected value of PRId64, please add %$(strings $TMPE |
+       sed -n s/^UnLiKeLyToClAsH_//p) support to json-lexer.c" ;;
+esac
+
 # Sanity check that the current size_t matches the
 # size that glib thinks it should be. This catches
 # problems on multi-arch where people try to build

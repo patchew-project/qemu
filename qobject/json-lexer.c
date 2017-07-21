@@ -31,7 +31,7 @@
  *
  * Extension for vararg handling in JSON construction:
  *
- * %((l|ll|I64)?d|[ipsf])
+ * %(PRI[du]64|(l|ll)?[ud]|[ipsf])
  *
  */
 
@@ -63,7 +63,6 @@ enum json_lexer_state {
     IN_ESCAPE_LL,
     IN_ESCAPE_I,
     IN_ESCAPE_I6,
-    IN_ESCAPE_I64,
     IN_WHITESPACE,
     IN_START,
 };
@@ -236,13 +235,8 @@ static const uint8_t json_lexer[][256] =  {
         ['u'] = JSON_ESCAPE,
     },
 
-    [IN_ESCAPE_I64] = {
-        ['d'] = JSON_ESCAPE,
-        ['u'] = JSON_ESCAPE,
-    },
-
     [IN_ESCAPE_I6] = {
-        ['4'] = IN_ESCAPE_I64,
+        ['4'] = IN_ESCAPE_LL,
     },
 
     [IN_ESCAPE_I] = {
@@ -257,6 +251,7 @@ static const uint8_t json_lexer[][256] =  {
         ['u'] = JSON_ESCAPE,
         ['f'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_L,
+        ['q'] = IN_ESCAPE_LL,
         ['I'] = IN_ESCAPE_I,
     },
 
