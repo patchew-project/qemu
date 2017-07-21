@@ -1152,6 +1152,42 @@ out:
 }
 #endif
 
+static DWORD get_interface_index(const char *guid)
+{
+    ULONG index;
+    DWORD status;
+    wchar_t wbuf[512];
+    snwprintf(wbuf, sizeof(wbuf), L"\\device\\tcpip_%s", guid);
+    wbuf[sizeof(wbuf) - 1] = 0;
+    status = GetAdapterIndex (wbuf, &index);
+    if (status != NO_ERROR) {
+        return (DWORD)~0;
+    } else {
+        return index;
+    }
+}
+static int guest_get_network_stats(const char *name,
+                       GuestNetworkInterfaceStat *stats)
+{
+    DWORD IfIndex = 0;
+    MIB_IFROW aMib_ifrow;
+    memset(&aMib_ifrow, 0, sizeof(aMib_ifrow));
+    IfIndex = get_interface_index(name);
+    aMib_ifrow.dwIndex = IfIndex;
+    if (NO_ERROR == GetIfEntry(&aMib_ifrow)) {
+        stats->rx_bytes = aMib_ifrow.dwInOctets;
+        stats->rx_packets = aMib_ifrow.dwInUcastPkts;
+        stats->rx_errs = aMib_ifrow.dwInErrors;
+        stats->rx_dropped = aMib_ifrow.dwInDiscards;
+        stats->tx_bytes = aMib_ifrow.dwOutOctets;
+        stats->tx_packets = aMib_ifrow.dwOutUcastPkts;
+        stats->tx_errs = aMib_ifrow.dwOutErrors;
+        stats->tx_dropped = aMib_ifrow.dwOutDiscards;
+        return 0;
+    }
+    return -1;
+}
+
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
     IP_ADAPTER_ADDRESSES *adptr_addrs, *addr;
@@ -1237,6 +1273,17 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
         if (head_addr) {
             info->value->has_ip_addresses = true;
             info->value->ip_addresses = head_addr;
+        }
+        if (!info->value->has_statistics) {
+            interface_stat = g_malloc0(sizeof(*interface_stat));
+            if (guest_get_network_stats(add->AdapterName,
+                interface_stat) == -1) {
+                info->value->has_statistics = false;
+                g_free(interface_stat);
+            } else {
+                info->value->statistics = interface_stat;
+                info->value->has_statistics = true;
+            }
         }
     }
     WSACleanup();
