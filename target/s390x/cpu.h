@@ -474,10 +474,6 @@ static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
     }
 }
 
-#ifndef CONFIG_USER_ONLY
-void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
-#endif
-
 S390CPU *cpu_s390x_init(const char *cpu_model);
 S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp);
 S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp);
@@ -538,6 +534,7 @@ int s390_virtio_hypercall(CPUS390XState *env);
 
 #ifdef CONFIG_KVM
 void kvm_s390_service_interrupt(uint32_t parm);
+void kvm_s390_program_interrupt(S390CPU *cpu, uint16_t code);
 void kvm_s390_vcpu_interrupt(S390CPU *cpu, struct kvm_s390_irq *irq);
 void kvm_s390_floating_interrupt(struct kvm_s390_irq *irq);
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
@@ -548,6 +545,9 @@ int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_clock);
 int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_clock);
 #else
 static inline void kvm_s390_service_interrupt(uint32_t parm)
+{
+}
+static inline void kvm_s390_program_interrupt(S390CPU *cpu, uint16_t code)
 {
 }
 static inline int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
@@ -1146,6 +1146,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
 /* automatically detect the instruction length */
 #define ILEN_AUTO                   0xff
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);
 
