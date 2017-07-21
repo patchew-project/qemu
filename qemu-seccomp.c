@@ -31,6 +31,20 @@ struct QemuSeccompSyscall {
     uint8_t priority;
 };
 
+static const struct QemuSeccompSyscall obsolete[] = {
+    { SCMP_SYS(readdir), 255 },
+    { SCMP_SYS(_sysctl), 255 },
+    { SCMP_SYS(bdflush), 255 },
+    { SCMP_SYS(create_module), 255 },
+    { SCMP_SYS(get_kernel_syms), 255 },
+    { SCMP_SYS(query_module), 255 },
+    { SCMP_SYS(sgetmask), 255 },
+    { SCMP_SYS(ssetmask), 255 },
+    { SCMP_SYS(sysfs), 255 },
+    { SCMP_SYS(uselib), 255 },
+    { SCMP_SYS(ustat), 255 },
+};
+
 static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(reboot), 255 },
     { SCMP_SYS(swapon), 255 },
@@ -56,7 +70,20 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(vserver), 255 },
 };
 
-int seccomp_start(void)
+static int is_obsolete(int syscall)
+{
+    unsigned int i = 0;
+
+    for (i = 0; i < ARRAY_SIZE(obsolete); i++) {
+        if (syscall == obsolete[i].num) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int seccomp_start(uint8_t seccomp_opts)
 {
     int rc = 0;
     unsigned int i = 0;
@@ -69,6 +96,9 @@ int seccomp_start(void)
     }
 
     for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
+        if ((seccomp_opts & OBSOLETE) && is_obsolete(blacklist[i].num)) {
+            continue;
+        }
         rc = seccomp_rule_add(ctx, SCMP_ACT_KILL, blacklist[i].num, 0);
         if (rc < 0) {
             goto seccomp_return;
