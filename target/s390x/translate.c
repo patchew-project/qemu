@@ -3854,6 +3854,22 @@ static ExitStatus op_srnm(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_spm(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 cc = tcg_temp_new_i32();
+
+    tcg_gen_extrl_i64_i32(cc, o->in1);
+    tcg_gen_shri_i32(cc, cc, 28);
+    tcg_gen_andi_i32(cc, cc, 0x3ul);
+    tcg_gen_mov_i32(cc_op, cc);
+    tcg_temp_free_i32(cc);
+    set_cc_static(s);
+
+    tcg_gen_shri_i64(o->in1, o->in1, 24);
+    tcg_gen_deposit_i64(psw_mask, psw_mask, o->in1, PSW_SHIFT_MASK_PM, 4);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_spka(DisasContext *s, DisasOps *o)
 {
