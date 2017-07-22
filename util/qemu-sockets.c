@@ -210,7 +210,9 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     char port[33];
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
-    int slisten, rc, port_min, port_max, p;
+    int rc, port_min, port_max, p;
+    int slisten = 0;
+    int saved_errno = 0;
     Error *err = NULL;
 
     memset(&ai,0, sizeof(ai));
@@ -277,27 +279,50 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
             inet_setport(e, p);
-            if (try_bind(slisten, saddr, e) >= 0) {
-                goto listen;
-            }
-            if (p == port_max) {
-                if (!e->ai_next) {
+            rc = try_bind(slisten, saddr, e);
+            if (rc) {
+                if (errno == EADDRINUSE) {
+                    continue;
+                } else {
                     error_setg_errno(errp, errno, "Failed to bind socket");
+                    goto listen_failed;
                 }
             }
+            rc = listen(slisten, 1);
+            if (!rc) {
+                goto listen_ok;
+            } else if (errno == EADDRINUSE) {
+                /* Someone else managed to bind to the same port and beat us
+                 * to listen on it! Socket semantics does not allow us to
+                 * recover from this situation, so we need to recreate the
+                 * socket to allow bind attempts for subsequent ports:
+                 */
+                closesocket(slisten);
+                slisten = create_fast_reuse_socket(e, errp);
+                if (slisten >= 0) {
+                    continue;
+                }
+            }
+            error_setg_errno(errp, errno, "Failed to listen on socket");
+            goto listen_failed;
         }
+    }
+    if (err) {
+        error_propagate(errp, err);
+    } else {
+        error_setg_errno(errp, errno, "Failed to find an available port");
+    }
+
+listen_failed:
+    saved_errno = errno;
+    if (slisten >= 0) {
         closesocket(slisten);
     }
     freeaddrinfo(res);
+    errno = saved_errno;
     return -1;
 
-listen:
-    if (listen(slisten,1) != 0) {
-        error_setg_errno(errp, errno, "Failed to listen on socket");
-        closesocket(slisten);
-        freeaddrinfo(res);
-        return -1;
-    }
+listen_ok:
     if (update_addr) {
         g_free(saddr->host);
         saddr->host = g_strdup(uaddr);
