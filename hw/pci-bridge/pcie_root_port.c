@@ -137,6 +137,7 @@ static void rp_exit(PCIDevice *d)
 static Property rp_props[] = {
     DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
                     QEMU_PCIE_SLTCAP_PCP_BITNR, true),
+    DEFINE_PROP_UINT8("bus_reserve", PCIEPort, bus_reserve, 1),
     DEFINE_PROP_END_OF_LIST()
 };
 
