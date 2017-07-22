@@ -106,6 +106,11 @@ static void rp_realize(PCIDevice *d, Error **errp)
     pcie_aer_root_init(d);
     rp_aer_vector_update(d);
 
+    rc = pci_bridge_help_cap_init(d, 0, p->bus_reserve, 0, 0, 0, errp);
+    if (rc < 0) {
+        goto err;
+    }
+
     return;
 
 err:
