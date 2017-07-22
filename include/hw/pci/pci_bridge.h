@@ -67,4 +67,22 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
 #define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
 #define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
 
+typedef struct PCIBridgeQemuCap {
+    uint8_t id;     /* Standard PCI capability header field */
+    uint8_t next;   /* Standard PCI capability header field */
+    uint8_t len;    /* Standard PCI vendor-specific capability header field */
+    uint8_t bus_res;
+    uint32_t pref_lim_upper;
+    uint16_t pref_lim;
+    uint16_t mem_lim;
+    uint16_t io_lim_upper;
+    uint8_t io_lim;
+    uint8_t padding;
+} PCIBridgeQemuCap;
+
+int pci_bridge_help_cap_init(PCIDevice *dev, int cap_offset,
+                              uint8_t bus_reserve, uint32_t io_limit,
+                              uint16_t mem_limit, uint64_t pref_limit,
+                              Error **errp);
+
 #endif /* QEMU_PCI_BRIDGE_H */
