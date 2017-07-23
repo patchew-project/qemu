@@ -2681,6 +2681,11 @@ static void qemu_run_exit_notifiers(void)
 
 static bool machine_init_done;
 
+bool qemu_is_machine_init_done(void)
+{
+    return machine_init_done;
+}
+
 void qemu_add_machine_init_done_notifier(Notifier *notify)
 {
     notifier_list_add(&machine_init_done_notifiers, notify);

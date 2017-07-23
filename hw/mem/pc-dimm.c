@@ -101,7 +101,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
         goto out;
     }
 
-    if (!vhost_has_free_slot()) {
+    if (!vhost_has_free_slot() && qemu_is_machine_init_done()) {
         error_setg(&local_err, "a used vhost backend has no free"
                                " memory slots left");
         goto out;
