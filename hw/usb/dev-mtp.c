@@ -1117,7 +1117,7 @@ static MTPData *usb_mtp_get_object_prop_value(MTPState *s, MTPControl *c,
 static void usb_mtp_command(MTPState *s, MTPControl *c)
 {
     MTPData *data_in = NULL;
-    MTPObject *o;
+    MTPObject *o = NULL;
     uint32_t nres = 0, res0 = 0;
 
     /* sanity checks */
