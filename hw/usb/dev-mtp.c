@@ -1209,7 +1209,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         }
         break;
     case CMD_GET_OBJECT_INFO:
-        o = usb_mtp_object_lookup(s, c->argv[0]);
+        if (c->argc > 0) {
+            o = usb_mtp_object_lookup(s, c->argv[0]);
+        }
         if (o == NULL) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE,
                                  c->trans, 0, 0, 0);
@@ -1218,7 +1220,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         data_in = usb_mtp_get_object_info(s, c, o);
         break;
     case CMD_GET_OBJECT:
-        o = usb_mtp_object_lookup(s, c->argv[0]);
+        if (c->argc > 0) {
+            o = usb_mtp_object_lookup(s, c->argv[0]);
+        }
         if (o == NULL) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE,
                                  c->trans, 0, 0, 0);
@@ -1237,7 +1241,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         }
         break;
     case CMD_GET_PARTIAL_OBJECT:
-        o = usb_mtp_object_lookup(s, c->argv[0]);
+        if (c->argc > 0) {
+            o = usb_mtp_object_lookup(s, c->argv[0]);
+        }
         if (o == NULL) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE,
                                  c->trans, 0, 0, 0);
@@ -1281,7 +1287,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         }
         break;
     case CMD_GET_OBJECT_PROP_VALUE:
-        o = usb_mtp_object_lookup(s, c->argv[0]);
+        if (c->argc > 0) {
+            o = usb_mtp_object_lookup(s, c->argv[0]);
+        }
         if (o == NULL) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE,
                                  c->trans, 0, 0, 0);
