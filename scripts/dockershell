@@ -1,0 +1,30 @@
+#! /bin/sh
+
+# This script starts a docker shell with QEMU directory mounted
+#
+# Copyright (C) 2017 Philippe Mathieu-Daudé. GPLv2+.
+#
+# Usage:
+# ./scripts/dockershell qemu:debian-bleeding-dev
+
+if [ $# -lt 1 ]; then
+    echo
+    echo "error: missing image name"
+    echo
+    docker images qemu --no-trunc --format="- {{.Repository}}:{{.Tag}}"
+    exit 1
+fi
+
+SDIR=$(cd "$(dirname "$0")/.." && pwd -P)
+CDIR=$(pwd -P)
+
+VOLS="-v /tmp:/tmp"
+if [ "${SDIR}" = "${CDIR}" ]; then
+    VOLS="${VOLS} -v ${SDIR}:${SDIR} -w ${SDIR}"
+else
+    VOLS="${VOLS} -v ${SDIR}:${SDIR}:ro -v ${CDIR}:${CDIR} -w ${CDIR}"
+fi
+
+docker run --rm -it ${VOLS} \
+    -u $(id -u) \
+    $1
