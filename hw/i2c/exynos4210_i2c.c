@@ -111,10 +111,12 @@ static void exynos4210_i2c_data_receive(void *opaque)
     s->i2cstat &= ~I2CSTAT_LAST_BIT;
     s->scl_free = false;
     ret = i2c_recv(s->bus);
-    if (ret < 0 && (s->i2ccon & I2CCON_ACK_GEN)) {
-        s->i2cstat |= I2CSTAT_LAST_BIT;  /* Data is not acknowledged */
-    } else {
+    if (ret >= 0) {
         s->i2cds = ret;
+    } else {
+        if (s->i2ccon & I2CCON_ACK_GEN) {
+            s->i2cstat |= I2CSTAT_LAST_BIT;  /* Data is not acknowledged */
+        }
     }
     exynos4210_i2c_raise_interrupt(s);
 }
