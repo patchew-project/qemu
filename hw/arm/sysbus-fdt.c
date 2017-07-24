@@ -315,15 +315,14 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
     node_path = qemu_fdt_node_path(host_fdt, dt_name, vdev->compat,
                                    &error_fatal);
     if (!node_path || !node_path[0]) {
-        error_setg(&error_fatal, "%s unable to retrieve node path for %s/%s",
+        error_report("%s unable to retrieve node path for %s/%s",
                    __func__, dt_name, vdev->compat);
-    }
-
-    if (node_path[1]) {
-        error_setg(&error_fatal, "%s more than one node matching %s/%s!",
+        exit(1);
+    } else if (node_path[1]) {
+        error_report("%s more than one node matching %s/%s!",
                    __func__, dt_name, vdev->compat);
+        exit(1);
     }
-
     g_free(dt_name);
 
     if (vbasedev->num_regions != 5) {
