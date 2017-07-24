@@ -553,8 +553,6 @@ static void vexpress_common_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *flashalias = g_new(MemoryRegion, 1);
-    MemoryRegion *flash0mem;
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
@@ -657,6 +655,9 @@ static void vexpress_common_init(MachineState *machine)
     }
 
     if (map[VE_NORFLASHALIAS] != -1) {
+        MemoryRegion *flashalias = g_new(MemoryRegion, 1);
+        MemoryRegion *flash0mem;
+
         /* Map flash 0 as an alias into low memory */
         flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
         memory_region_init_alias(flashalias, NULL, "vexpress.flashalias",
