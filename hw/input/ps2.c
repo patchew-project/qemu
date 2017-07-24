@@ -607,6 +607,13 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     assert(evt->type == INPUT_EVENT_KIND_KEY);
     qcode = qemu_input_key_value_to_qcode(key->key);
 
+    if (qcode == 0 &&
+        key->key->type == KEY_VALUE_KIND_NUMBER &&
+        key->key->u.number.data == 0x61) {
+        ps2_put_keycode(s, 0xe1);
+        return;
+    }
+
     if (s->scancode_set == 1) {
         if (qcode == Q_KEY_CODE_PAUSE) {
             if (key->down) {
