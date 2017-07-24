@@ -1527,10 +1527,15 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     /*
-     * Assume we have no GMS memory, but allow it to be overrided by device
-     * option (experimental).  The spec doesn't actually allow zero GMS when
-     * when IVD (IGD VGA Disable) is clear, but the claim is that it's unused,
-     * so let's not waste VM memory for it.
+     * There is a claim that GMS memory is unused and we want to waste for it
+     * as less VM memory as possible, however Intel Windows 10 drivers starting
+     * from V.4534 (10/7/2016) allocate extra ~4G memory when GMS size set to 0.
+     * The spec as well doesn't actually allow zero GMS when IVD
+     * (IGD VGA Disable) is clear.
+     *
+     * Therefore we set GMS memory size to minimal by default via device
+     * option x-igd-gms (experimental) and allow further tweaking of this
+     * parameter.
      */
     gmch &= ~((gen < 8 ? 0x1f : 0xff) << (gen < 8 ? 3 : 8));
 
