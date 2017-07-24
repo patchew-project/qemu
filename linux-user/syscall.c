@@ -8336,9 +8336,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_dup:
-        ret = get_errno(dup(arg1));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, ret);
+        if (arg1 < 0) {
+            ret = -TARGET_EBADFD;
+        } else {
+            ret = get_errno(dup(arg1));
+            if (ret >= 0) {
+                fd_trans_dup(arg1, ret);
+            }
         }
         break;
 #ifdef TARGET_NR_pipe
@@ -8436,17 +8440,27 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_dup2
     case TARGET_NR_dup2:
-        ret = get_errno(dup2(arg1, arg2));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, arg2);
+        if (arg1 < 0 || arg2 < 0) {
+            ret = -TARGET_EBADFD;
+        } else {
+            ret = get_errno(dup2(arg1, arg2));
+            if (ret >= 0) {
+                fd_trans_dup(arg1, arg2);
+            }
         }
         break;
 #endif
 #if defined(CONFIG_DUP3) && defined(TARGET_NR_dup3)
     case TARGET_NR_dup3:
-        ret = get_errno(dup3(arg1, arg2, arg3));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, arg2);
+        if (arg1 < 0 || arg2 < 0) {
+            ret = -TARGET_EBADFD;
+        } else if (arg1 == arg2) {
+            ret = -TARGET_EINVAL;
+        } else {
+            ret = get_errno(dup3(arg1, arg2, arg3));
+            if (ret >= 0) {
+                fd_trans_dup(arg1, arg2);
+            }
         }
         break;
 #endif
