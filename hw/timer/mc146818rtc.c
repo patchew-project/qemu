@@ -457,6 +457,8 @@ static void rtc_update_timer(void *opaque)
     if ((new_irqs & s->cmos_data[RTC_REG_B]) != 0) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
         qemu_irq_raise(s->irq);
+    } else if ((s->cmos_data[RTC_REG_B] & REG_B_UIE) == 0) {
+        s->cmos_data[RTC_REG_C] &= ~REG_C_UF;
     }
     check_update_timer(s);
 }
@@ -559,7 +561,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
                 s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
                 qemu_irq_raise(s->irq);
             } else {
-                s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
+                s->cmos_data[RTC_REG_C] &= ~(REG_C_UF | REG_C_IRQF);
                 qemu_irq_lower(s->irq);
             }
             s->cmos_data[RTC_REG_B] = data;
