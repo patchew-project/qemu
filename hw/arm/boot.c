@@ -170,7 +170,7 @@ static void write_bootloader(const char *name, hwaddr addr,
 static void default_write_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
-    uint32_t fixupcontext[FIXUP_MAX];
+    uint32_t fixupcontext[FIXUP_MAX] = {};
 
     fixupcontext[FIXUP_GIC_CPU_IF] = info->gic_cpu_if_addr;
     fixupcontext[FIXUP_BOOTREG] = info->smp_bootreg_addr;
