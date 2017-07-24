@@ -544,6 +544,7 @@ static void fd_trans_register(int fd, TargetFdTrans *trans)
 {
     unsigned int oldmax;
 
+    assert(fd >= 0);
     if (fd >= target_fd_max) {
         oldmax = target_fd_max;
         target_fd_max = ((fd >> 6) + 1) << 6; /* by slice of 64 entries */
