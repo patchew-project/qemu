@@ -139,7 +139,7 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
     if (s->tm4[n].control & (1 << 7))
         counter = n;
     else
-        counter = counters[n];
+        counter = counters[n & 7];
 
     if (!s->tm4[counter].freq) {
         timer_del(s->tm4[n].tm.qtimer);
