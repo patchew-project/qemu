@@ -1,0 +1,94 @@
+#
+# Docker x86_64 bleeding image
+#
+# This docker target builds on the debian unstable base image. Further
+# libraries which are not widely available are installed by hand.
+#
+FROM debian:unstable
+
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+RUN echo 'Acquire::ForceIPv4 "true";' >> /etc/apt/apt.conf.d/01network
+
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
+
+# Install common build utilities
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yy eatmydata
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        bison \
+        build-essential \
+        ca-certificates \
+        ccache \
+        flex \
+        git \
+        less \
+        pkg-config \
+        psmisc \
+        python \
+        texinfo \
+        $(apt-get -s build-dep qemu | egrep ^Inst | fgrep '[all]' | cut -d\  -f2)
+
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        binutils-multiarch \
+        gdb-multiarch \
+        libnewlib-dev \
+        musl-dev \
+        uclibc-source
+
+############################################################################
+# GCC 7
+
+RUN echo deb http://httpredir.debian.org/debian experimental main >> \
+    /etc/apt/sources.list.d/experimental.list && apt-get update
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        gcc-7 \
+        gcc-7-cross-base-ports \
+        gcc-7-multilib \
+        g++-7
+
+############################################################################
+# Clang 5
+
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        curl gnupg
+RUN curl http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
+    echo 'deb http://apt.llvm.org/unstable/ llvm-toolchain main' \
+        > /etc/apt/sources.list.d/llvm.list && \
+    apt-get update
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        clang-5.0 \
+        lldb-5.0 \
+        llvm-5.0 && \
+    test -x /usr/bin/clang || ln -s clang-5.0 /usr/bin/clang
+
+############################################################################
+# QEMU specific starts here
+
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get build-dep -yy qemu
+
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        libbz2-dev \
+        liblzo2-dev \
+        librdmacm-dev \
+        libsnappy-dev \
+        libvte-dev
+
+# virgl
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        libegl1-mesa-dev \
+        libepoxy-dev \
+        libgbm-dev
+RUN git clone git://anongit.freedesktop.org/virglrenderer /usr/src/virglrenderer
+RUN cd /usr/src/virglrenderer && ./autogen.sh && ./configure --with-glx --disable-tests && make install
+
+ENV QEMU_CONFIGURE_OPTS --host-cc=clang-5.0 --cc=clang-5.0 --cxx=clang++-5.0
