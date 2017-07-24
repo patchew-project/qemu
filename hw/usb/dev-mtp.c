@@ -1134,7 +1134,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
                                  c->trans, 1, s->session, 0);
             return;
         }
-        if (c->argv[0] == 0) {
+        if (c->argc == 0 || c->argv[0] == 0) {
             usb_mtp_queue_result(s, RES_INVALID_PARAMETER,
                                  c->trans, 0, 0, 0);
             return;
@@ -1162,8 +1162,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         data_in = usb_mtp_get_storage_ids(s, c);
         break;
     case CMD_GET_STORAGE_INFO:
-        if (c->argv[0] != QEMU_STORAGE_ID &&
-            c->argv[0] != 0xffffffff) {
+        if (c->argc == 0 ||
+           (c->argv[0] != QEMU_STORAGE_ID &&
+            c->argv[0] != 0xffffffff)) {
             usb_mtp_queue_result(s, RES_INVALID_STORAGE_ID,
                                  c->trans, 0, 0, 0);
             return;
@@ -1172,22 +1173,25 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         break;
     case CMD_GET_NUM_OBJECTS:
     case CMD_GET_OBJECT_HANDLES:
-        if (c->argv[0] != QEMU_STORAGE_ID &&
-            c->argv[0] != 0xffffffff) {
+        if (c->argc == 0 ||
+           (c->argv[0] != QEMU_STORAGE_ID &&
+            c->argv[0] != 0xffffffff)) {
             usb_mtp_queue_result(s, RES_INVALID_STORAGE_ID,
                                  c->trans, 0, 0, 0);
             return;
         }
-        if (c->argv[1] != 0x00000000) {
+        if (c->argc > 1 && c->argv[1] != 0x00000000) {
             usb_mtp_queue_result(s, RES_SPEC_BY_FORMAT_UNSUPPORTED,
                                  c->trans, 0, 0, 0);
             return;
         }
-        if (c->argv[2] == 0x00000000 ||
-            c->argv[2] == 0xffffffff) {
-            o = QTAILQ_FIRST(&s->objects);
-        } else {
-            o = usb_mtp_object_lookup(s, c->argv[2]);
+        if (c->argc > 2) {
+            if (c->argv[2] == 0x00000000 ||
+                c->argv[2] == 0xffffffff) {
+                o = QTAILQ_FIRST(&s->objects);
+            } else {
+                o = usb_mtp_object_lookup(s, c->argv[2]);
+            }
         }
         if (o == NULL) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE,
@@ -1264,8 +1268,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         res0 = data_in->length;
         break;
     case CMD_GET_OBJECT_PROPS_SUPPORTED:
-        if (c->argv[0] != FMT_UNDEFINED_OBJECT &&
-            c->argv[0] != FMT_ASSOCIATION) {
+        if (c->argc == 0 ||
+           (c->argv[0] != FMT_UNDEFINED_OBJECT &&
+            c->argv[0] != FMT_ASSOCIATION)) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_FORMAT_CODE,
                                  c->trans, 0, 0, 0);
             return;
@@ -1273,8 +1278,9 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         data_in = usb_mtp_get_object_props_supported(s, c);
         break;
     case CMD_GET_OBJECT_PROP_DESC:
-        if (c->argv[1] != FMT_UNDEFINED_OBJECT &&
-            c->argv[1] != FMT_ASSOCIATION) {
+        if (c->argc > 1 &&
+           (c->argv[1] != FMT_UNDEFINED_OBJECT &&
+            c->argv[1] != FMT_ASSOCIATION)) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECT_FORMAT_CODE,
                                  c->trans, 0, 0, 0);
             return;
