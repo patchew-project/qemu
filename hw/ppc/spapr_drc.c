@@ -488,7 +488,7 @@ static void realize(DeviceState *d, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
-    char link_name[256];
+    gchar *link_name;
     gchar *child_name;
     Error *err = NULL;
 
@@ -501,11 +501,12 @@ static void realize(DeviceState *d, Error **errp)
      * existing in the composition tree
      */
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
-    snprintf(link_name, sizeof(link_name), "%x", spapr_drc_index(drc));
+    link_name = g_strdup_printf("%x", spapr_drc_index(drc));
     child_name = object_get_canonical_path_component(OBJECT(drc));
     trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name, &err);
+    g_free(link_name);
     if (err) {
         error_report_err(err);
         object_unref(OBJECT(drc));
@@ -521,13 +522,14 @@ static void unrealize(DeviceState *d, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
-    char name[256];
+    gchar *name;
     Error *err = NULL;
 
     trace_spapr_drc_unrealize(spapr_drc_index(drc));
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
-    snprintf(name, sizeof(name), "%x", spapr_drc_index(drc));
+    name = g_strdup_printf("%x", spapr_drc_index(drc));
     object_property_del(root_container, name, &err);
+    g_free(name);
     if (err) {
         error_report_err(err);
         object_unref(OBJECT(drc));
@@ -729,10 +731,11 @@ static const TypeInfo spapr_drc_lmb_info = {
 sPAPRDRConnector *spapr_drc_by_index(uint32_t index)
 {
     Object *obj;
-    char name[256];
+    gchar *name;
 
-    snprintf(name, sizeof(name), "%s/%x", DRC_CONTAINER_PATH, index);
+    name = g_strdup_printf("%s/%x", DRC_CONTAINER_PATH, index);
     obj = object_resolve_path(name, NULL);
+    g_free(name);
 
     return !obj ? NULL : SPAPR_DR_CONNECTOR(obj);
 }
