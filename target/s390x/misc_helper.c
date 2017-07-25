@@ -388,7 +388,8 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
     if ((r0 & STSI_LEVEL_MASK) <= STSI_LEVEL_3 &&
         ((r0 & STSI_R0_RESERVED_MASK) || (r1 & STSI_R1_RESERVED_MASK))) {
         /* valid function code, invalid reserved bits */
-        program_interrupt(env, PGM_SPECIFICATION, 2);
+        cpu_restore_state(ENV_GET_CPU(env), GETPC());
+        program_interrupt(env, PGM_SPECIFICATION, ILEN_UNWIND);
     }
 
     sel1 = r0 & STSI_R0_SEL1_MASK;
