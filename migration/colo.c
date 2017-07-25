@@ -442,7 +442,13 @@ static void colo_process_checkpoint(MigrationState *s)
             goto out;
         }
 
-        qemu_sem_wait(&s->colo_checkpoint_sem);
+        qemu_mutex_lock(&s->colo_checkpoint_mutex);
+        while (!s->colo_checkpoint_is_signaled) {
+            qemu_cond_wait(&s->colo_checkpoint_cond,
+                          &s->colo_checkpoint_mutex);
+        }
+        s->colo_checkpoint_is_signaled = false;
+        qemu_mutex_unlock(&s->colo_checkpoint_mutex);
 
         ret = colo_do_checkpoint_transaction(s, bioc, fb);
         if (ret < 0) {
@@ -465,6 +471,8 @@ out:
     /* Hope this not to be too long to wait here */
     qemu_sem_wait(&s->colo_exit_sem);
     qemu_sem_destroy(&s->colo_exit_sem);
+    qemu_cond_destroy(&s->colo_checkpoint_cond);
+    qemu_mutex_destroy(&s->colo_checkpoint_mutex);
     /*
      * Must be called after failover BH is completed,
      * Or the failover BH may shutdown the wrong fd that
@@ -480,7 +488,10 @@ void colo_checkpoint_notify(void *opaque)
     MigrationState *s = opaque;
     int64_t next_notify_time;
 
-    qemu_sem_post(&s->colo_checkpoint_sem);
+    qemu_mutex_lock(&s->colo_checkpoint_mutex);
+    s->colo_checkpoint_is_signaled = true;
+    qemu_cond_signal(&s->colo_checkpoint_cond);
+    qemu_mutex_unlock(&s->colo_checkpoint_mutex);
     s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     next_notify_time = s->colo_checkpoint_time +
                     s->parameters.x_checkpoint_delay;
@@ -490,10 +501,12 @@ void colo_checkpoint_notify(void *opaque)
 void migrate_start_colo_process(MigrationState *s)
 {
     qemu_mutex_unlock_iothread();
-    qemu_sem_init(&s->colo_checkpoint_sem, 0);
     s->colo_delay_timer =  timer_new_ms(QEMU_CLOCK_HOST,
                                 colo_checkpoint_notify, s);
 
+    qemu_cond_init(&s->colo_checkpoint_cond);
+    qemu_mutex_init(&s->colo_checkpoint_mutex);
+    s->colo_checkpoint_is_signaled = false;
     qemu_sem_init(&s->colo_exit_sem, 0);
     migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);

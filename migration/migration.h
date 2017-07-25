@@ -123,8 +123,11 @@ struct MigrationState
     /* The semaphore is used to notify COLO thread that failover is finished */
     QemuSemaphore colo_exit_sem;
 
-    /* The semaphore is used to notify COLO thread to do checkpoint */
-    QemuSemaphore colo_checkpoint_sem;
+    /* The Condtion Variable is used to notify COLO thread to do checkpoint */
+    QemuMutex colo_checkpoint_mutex;
+    QemuCond colo_checkpoint_cond;
+    bool colo_checkpoint_is_signaled;
+
     int64_t colo_checkpoint_time;
     QEMUTimer *colo_delay_timer;
 
