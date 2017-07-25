@@ -131,7 +131,8 @@ class QEMUMachine(object):
 
     def launch(self):
         '''
-        Try to launch the VM and make sure we cleanup on exception.
+        Try to launch the VM and make sure we cleanup and expose the
+        command line/output in case of exception.
         '''
         if self.is_running():
             return
@@ -142,18 +143,24 @@ class QEMUMachine(object):
             self.shutdown()
 
         try:
-            self._launch()
+            args = None
+            args = self._wrapper + [self._binary] + self._base_args() + self._args
+            self._launch(args)
             self._shutdown_pending = True
         except:
             self.shutdown()
+            sys.stderr.write('Error launching VM.\n%s%s' %
+                             ('Command:\n%s\n' %
+                              ' '.join(args) if args else '',
+                              'Output:\n%s\n' %
+                              ''.join(self._iolog) if self._iolog else ''))
             raise
 
-    def _launch(self):
+    def _launch(self, args):
         '''Launch the VM and establish a QMP connection.'''
         devnull = open('/dev/null', 'rb')
         qemulog = open(self._qemu_log_path, 'wb')
         self._pre_launch()
-        args = self._wrapper + [self._binary] + self._base_args() + self._args
         self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
                                        stderr=subprocess.STDOUT, shell=False)
         self._post_launch()
