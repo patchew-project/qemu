@@ -39,6 +39,7 @@ class QEMUMachine(object):
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+        self._shutdown_pending = False
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -135,8 +136,14 @@ class QEMUMachine(object):
         if self.is_running():
             return
 
+        if self._shutdown_pending:
+            sys.stderr.write('shutdown() was not called after previous '
+                             'launch(). Calling now.\n')
+            self.shutdown()
+
         try:
             self._launch()
+            self._shutdown_pending = True
         except:
             self.shutdown()
             raise
@@ -166,6 +173,7 @@ class QEMUMachine(object):
 
         self._load_io_log()
         self._post_shutdown()
+        self._shutdown_pending = False
 
     underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, conv_keys=True, **args):
