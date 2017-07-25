@@ -2160,6 +2160,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     sPAPRTCETable *tcet;
     PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
     sPAPRFDT s_fdt;
+    sPAPRDRConnector *drc;
 
     /* Start populating the FDT */
     snprintf(nodename, FDT_NAME_MAX, "pci@%" PRIx64, phb->buid);
@@ -2228,6 +2229,14 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
                  tcet->liobn, tcet->bus_offset,
                  tcet->nb_table << tcet->page_shift);
+
+    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PHB, phb->drc_id);
+    if (drc) {
+        uint32_t drc_index = cpu_to_be32(spapr_drc_index(drc));
+
+        _FDT(fdt_setprop(fdt, bus_off, "ibm,my-drc-index", &drc_index,
+                         sizeof(drc_index)));
+    }
 
     /* Walk the bridges and program the bus numbers*/
     spapr_phb_pci_enumerate(phb);
