@@ -68,11 +68,7 @@ static void test_usb_storage_hotplug(void)
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("");
-    g_assert(response);
-    g_assert(qdict_haskey(response, "event"));
-    g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
-    QDECREF(response);
+    qmp_eventwait("DEVICE_DELETED");
 }
 
 int main(int argc, char **argv)
