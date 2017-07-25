@@ -2382,6 +2382,8 @@ static void ppc_spapr_init(MachineState *machine)
     /* We always have at least the nvram device on VIO */
     spapr_create_nvram(spapr);
 
+    spapr->dr_phb_enabled = smc->dr_phb_enabled;
+
     /* Set up PCI */
     spapr_pci_rtas_init();
 
@@ -3482,6 +3484,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      * in which LMBs are represented and hot-added
      */
     mc->numa_mem_align_shift = 28;
+    smc->dr_phb_enabled = true;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -3558,8 +3561,11 @@ static void spapr_machine_2_10_instance_options(MachineState *machine)
 
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_11_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_10);
+    smc->dr_phb_enabled = false;
 }
 
 DEFINE_SPAPR_MACHINE(2_10, "2.10", false);

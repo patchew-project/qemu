@@ -59,6 +59,7 @@ struct sPAPRMachineClass {
 
     /*< public >*/
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
+    bool dr_phb_enabled;       /* enable dynamic-reconfig/hotplug of PHBs */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
     const char *tcg_default_cpu; /* which (TCG) CPU to simulate by default */
     bool pre_2_10_has_unused_icps;
@@ -121,6 +122,8 @@ struct sPAPRMachineState {
      * unplug starts. It can be regenerated if a migration
      * occurs during the unplug process. */
     QTAILQ_HEAD(, sPAPRDIMMState) pending_dimm_unplugs;
+
+    bool dr_phb_enabled; /* hotplug / dynamic-reconfiguration of PHBs */
 
     /*< public >*/
     char *kvm_type;
