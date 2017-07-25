@@ -335,6 +335,8 @@ The fields of the compress format extension are:
                    deflate: Standard zlib deflate compression without
                             compression header
 
+                   lzo:     LZO1X compression without additional header
+
               14:  compress_level (uint8_t)
 
                    0 = default compress level (valid for all formats, default)

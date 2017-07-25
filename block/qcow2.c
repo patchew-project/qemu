@@ -26,6 +26,9 @@
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include <zlib.h>
+#ifdef CONFIG_LZO
+#include <lzo/lzo1x.h>
+#endif
 #include "block/qcow2.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
@@ -310,6 +313,14 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 return 5;
             }
 
+#ifdef CONFIG_LZO
+            if (s->compress.format == QCOW2_COMPRESS_FORMAT_LZO &&
+                lzo_init() != LZO_E_OK) {
+                error_setg(errp, "ERROR: internal error - lzo_init() failed");
+                return 6;
+            }
+#endif
+
 #ifdef DEBUG_EXT
             if (s->compress.format == QCOW2_COMPRESS_FORMAT_DEFLATE) {
                 printf("Qcow2: Got compress format %s with level %" PRIu8
@@ -317,6 +328,9 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                        Qcow2CompressFormat_lookup[s->compress.format],
                        s->compress.u.deflate.level,
                        s->compress.u.deflate.window_size);
+            } else {
+                printf("Qcow2: Got compress format %s\n",
+                       Qcow2CompressFormat_lookup[s->compress.format]);
             }
 #endif
             break;
@@ -3428,7 +3442,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     struct iovec iov;
     z_stream z_strm = {};
     int ret, out_len = 0;
-    uint8_t *buf, *out_buf = NULL, *local_buf = NULL;
+    uint8_t *buf, *out_buf = NULL, *local_buf = NULL, *work_buf = NULL;
     uint64_t cluster_offset;
 
     if (bytes == 0) {
@@ -3477,6 +3491,14 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
         ret = ret != Z_STREAM_END;
         break;
+#ifdef CONFIG_LZO
+    case QCOW2_COMPRESS_FORMAT_LZO:
+        out_buf = g_malloc(s->cluster_size + s->cluster_size / 16 + 64 + 3);
+        work_buf = g_malloc(LZO1X_1_MEM_COMPRESS);
+        ret = lzo1x_1_compress(buf, s->cluster_size, out_buf,
+                               (lzo_uint *) &out_len, work_buf);
+        break;
+#endif
     default:
         abort(); /* should never reach this point */
     }
@@ -3522,6 +3544,7 @@ success:
 fail:
     qemu_vfree(local_buf);
     g_free(out_buf);
+    g_free(work_buf);
     return ret;
 }
 

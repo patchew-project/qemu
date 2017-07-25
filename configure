@@ -1958,7 +1958,7 @@ if test "$lzo" != "no" ; then
 int main(void) { lzo_version(); return 0; }
 EOF
     if compile_prog "" "-llzo2" ; then
-        libs_softmmu="$libs_softmmu -llzo2"
+        LIBS="$LIBS -llzo2"
         lzo="yes"
     else
         if test "$lzo" = "yes"; then

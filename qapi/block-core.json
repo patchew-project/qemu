@@ -2458,11 +2458,12 @@
 # @Qcow2CompressFormat:
 #
 # @deflate: standard zlib deflate compression
+# @lzo: lzo1x compression
 #
 # Since: 2.11
 ##
 { 'enum': 'Qcow2CompressFormat',
-  'data': [ 'deflate' ] }
+  'data': [ 'deflate', 'lzo' ] }
 
 ##
 # @Qcow2CompressDeflate:
@@ -2479,6 +2480,14 @@
             '*window-size': 'uint8' } }
 
 ##
+# @Qcow2CompressLZO:
+#
+# Since: 2.10
+##
+{ 'struct': 'Qcow2CompressLZO',
+  'data': { } }
+
+##
 # @Qcow2Compress:
 #
 # Specifies the compression format and compression level that should
@@ -2491,8 +2500,8 @@
 { 'union': 'Qcow2Compress',
   'base': { 'format': 'Qcow2CompressFormat' },
   'discriminator': 'format',
-  'data': { 'deflate': 'Qcow2CompressDeflate' } }
-
+  'data': { 'deflate': 'Qcow2CompressDeflate',
+            'lzo': 'Qcow2CompressLZO' } }
 
 ##
 # @BlockdevOptionsSsh:

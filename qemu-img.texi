@@ -682,6 +682,7 @@ The following options are available if support for the respective libraries
 has been enabled at compile time:
 
    deflate        Uses standard zlib defalte compression
+   lzo            Uses LZO1X compression
 
 The compression algorithm can only be defined at image create time and cannot
 be changed later.
