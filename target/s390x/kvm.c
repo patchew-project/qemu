@@ -2424,6 +2424,11 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     uint32_t idx = data >> ZPCI_MSI_VEC_BITS;
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
 
+    if (!s390_has_feat(S390_FEAT_ZPCI)) {
+        DPRINTF("fixup_msi_route on non-pci machine?!\n");
+        return -ENODEV;
+    }
+
     pbdev = s390_pci_find_dev_by_idx(s390_get_phb(), idx);
     if (!pbdev) {
         DPRINTF("add_msi_route no dev\n");
