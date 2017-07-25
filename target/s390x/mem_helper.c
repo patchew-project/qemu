@@ -43,7 +43,18 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 {
     int ret = s390_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (unlikely(ret != 0)) {
-        cpu_loop_exit_restore(cs, retaddr);
+        cpu_restore_state(cs, retaddr);
+
+        /* Note that handle_mmu_fault sets ilen to either 2 (for code)
+           or AUTO (for data).  We can resolve AUTO now, as if it was
+           set to UNWIND -- that will have been done via assignment
+           in cpu_restore_state.  Otherwise re-examine access_type.  */
+        if (access_type == MMU_INST_FETCH) {
+            CPUS390XState *env = cs->env_ptr;
+            env->int_pgm_ilen = 2;
+        }
+
+        cpu_loop_exit(cs);
     }
 }
 
