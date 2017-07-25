@@ -319,6 +319,13 @@ static void pci_host_bus_register(DeviceState *host)
     QLIST_INSERT_HEAD(&pci_host_bridges, host_bridge, next);
 }
 
+static void pci_host_bus_unregister(DeviceState *host)
+{
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(host);
+
+    QLIST_REMOVE(host_bridge, next);
+}
+
 PCIBus *pci_find_primary_bus(void)
 {
     PCIBus *primary_bus = NULL;
@@ -380,6 +387,11 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     pci_host_bus_register(parent);
 }
 
+static void pci_bus_uninit(PCIBus *bus)
+{
+    pci_host_bus_unregister(BUS(bus)->parent);
+}
+
 bool pci_bus_is_express(PCIBus *bus)
 {
     return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
@@ -412,6 +424,12 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
     return bus;
 }
 
+void pci_bus_cleanup(PCIBus *bus)
+{
+    pci_bus_uninit(bus);
+    object_unparent(OBJECT(bus));
+}
+
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq)
 {
@@ -420,6 +438,15 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
     bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
+}
+
+void pci_bus_irqs_cleanup(PCIBus *bus)
+{
+    bus->set_irq = NULL;
+    bus->map_irq = NULL;
+    bus->irq_opaque = NULL;
+    bus->nirq = 0;
+    g_free(bus->irq_count);
 }
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
@@ -435,6 +462,12 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                       address_space_io, devfn_min, typename);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
     return bus;
+}
+
+void pci_unregister_bus(PCIBus *bus)
+{
+    pci_bus_irqs_cleanup(bus);
+    pci_bus_cleanup(bus);
 }
 
 int pci_bus_num(PCIBus *s)
