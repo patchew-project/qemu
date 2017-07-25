@@ -98,6 +98,9 @@
 
 #define PHANDLE_XICP            0x00001111
 
+/* maximum number of hotpluggable PHBs */
+#define SPAPR_DRC_MAX_PHB       256
+
 static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
                                   const char *type_ics,
                                   int nr_irqs, Error **errp)
@@ -2383,6 +2386,18 @@ static void ppc_spapr_init(MachineState *machine)
     spapr_create_nvram(spapr);
 
     spapr->dr_phb_enabled = smc->dr_phb_enabled;
+
+    /* Setup hotplug / dynamic-reconfiguration connectors. top-level
+     * connectors (described in root DT node's "ibm,drc-types" property)
+     * are pre-initialized here. additional child connectors (such as
+     * connectors for a PHBs PCI slots) are added as needed during their
+     * parent's realization.
+     */
+    if (spapr->dr_phb_enabled) {
+        for (i = 0; i < SPAPR_DRC_MAX_PHB; i++) {
+            spapr_dr_connector_new(OBJECT(machine), TYPE_SPAPR_DRC_PHB, i);
+        }
+    }
 
     /* Set up PCI */
     spapr_pci_rtas_init();
