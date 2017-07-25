@@ -61,6 +61,8 @@ struct DisasContext {
     uint64_t pc, next_pc;
     uint32_t ilen;
     enum cc_op cc_op;
+    /* TCG op index of the current insn_start.  */
+    int insn_start_idx;
     bool singlestep_enabled;
 };
 
@@ -5656,6 +5658,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     }
     s->next_pc = s->pc + ilen;
     s->ilen = ilen;
+    tcg_set_insn_param(s->insn_start_idx, 2, ilen);
 
     /* We can't actually determine the insn format until we've looked up
        the full insn opcode.  Which we can't do without locating the
@@ -5890,7 +5893,10 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     gen_tb_start(tb);
 
     do {
-        tcg_gen_insn_start(dc.pc, dc.cc_op);
+        /* ??? Alternately, delay emitting insn_start until after we
+           have computed the insn length in extract_insn.  */
+        dc.insn_start_idx = tcg_op_buf_count();
+        tcg_gen_insn_start(dc.pc, dc.cc_op, 0);
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
@@ -5984,4 +5990,5 @@ void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb,
     if ((cc_op != CC_OP_DYNAMIC) && (cc_op != CC_OP_STATIC)) {
         env->cc_op = cc_op;
     }
+    env->int_pgm_ilen = data[2];
 }

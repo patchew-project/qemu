@@ -43,7 +43,7 @@
 #include "fpu/softfloat.h"
 
 #define NB_MMU_MODES 3
-#define TARGET_INSN_START_EXTRA_WORDS 1
+#define TARGET_INSN_START_EXTRA_WORDS 2
 
 #define MMU_MODE0_SUFFIX _primary
 #define MMU_MODE1_SUFFIX _secondary
@@ -475,7 +475,7 @@ static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
 }
 
 #ifndef CONFIG_USER_ONLY
-void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, int ilen);
 #endif
 
 S390CPU *cpu_s390x_init(const char *cpu_model);
@@ -1143,8 +1143,11 @@ uint32_t set_cc_nz_f128(float128 v);
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3);
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
 #endif
-/* automatically detect the instruction length */
+/* Instruction length has been set by unwind info.  */
+#define ILEN_UNWIND                 0
+/* Automatically detect the instruction length */
 #define ILEN_AUTO                   0xff
+
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);

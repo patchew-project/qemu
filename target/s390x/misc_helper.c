@@ -95,7 +95,10 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
         CPUState *cs = CPU(cpu);
 
         env->int_pgm_code = code;
-        env->int_pgm_ilen = ilen;
+        /* If ILEN_UNWIND, int_pgm_ilen already has the correct value.  */
+        if (ilen != ILEN_UNWIND) {
+            env->int_pgm_ilen = ilen;
+        }
         cs->exception_index = EXCP_PGM;
         cpu_loop_exit(cs);
     }
