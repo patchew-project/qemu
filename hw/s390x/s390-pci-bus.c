@@ -566,11 +566,11 @@ static int s390_pcihost_init(SysBusDevice *dev)
     pci_setup_iommu(b, s390_pci_dma_iommu, s);
 
     bus = BUS(b);
-    qbus_set_hotplug_handler(bus, DEVICE(dev), NULL);
+    qbus_set_hotplug_handler(bus, OBJECT(dev), NULL);
     phb->bus = b;
 
     s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, DEVICE(s), NULL));
-    qbus_set_hotplug_handler(BUS(s->bus), DEVICE(s), NULL);
+    qbus_set_hotplug_handler(BUS(s->bus), OBJECT(s), NULL);
 
     s->iommu_table = g_hash_table_new_full(g_int64_hash, g_int64_equal,
                                            NULL, g_free);
@@ -678,7 +678,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, s);
 
         bus = BUS(&pb->sec_bus);
-        qbus_set_hotplug_handler(bus, DEVICE(s), errp);
+        qbus_set_hotplug_handler(bus, OBJECT(s), errp);
 
         if (dev->hotplugged) {
             pci_default_write_config(pdev, PCI_PRIMARY_BUS, s->bus_no, 1);

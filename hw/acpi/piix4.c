@@ -447,7 +447,7 @@ static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)
 
     /* pci_bus cannot outlive PIIX4PMState, because /machine keeps it alive
      * and it's not hot-unpluggable */
-    qbus_set_hotplug_handler(BUS(pci_bus), DEVICE(s), &error_abort);
+    qbus_set_hotplug_handler(BUS(pci_bus), OBJECT(s), &error_abort);
 }
 
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
