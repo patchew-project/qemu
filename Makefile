@@ -814,6 +814,11 @@ endif
 # Dependencies in Makefile.objs files come from our recursive subdir rules
 -include $(wildcard *.d tests/*.d)
 
+.PHONY: subdir-all-user subdir-all-linux-user subdir-all-softmmu
+subdir-all-user: $(patsubst %,subdir-%,$(filter %-user,$(TARGET_DIRS)))
+subdir-all-linux-user: $(patsubst %,subdir-%,$(filter %-linux-user,$(TARGET_DIRS)))
+subdir-all-softmmu: $(patsubst %,subdir-%,$(filter %-softmmu,$(TARGET_DIRS)))
+
 include $(SRC_PATH)/tests/docker/Makefile.include
 
 .PHONY: help
@@ -827,7 +832,7 @@ help:
 	@echo  ''
 	@$(if $(TARGET_DIRS), \
 		echo 'Architecture specific targets:'; \
-		$(foreach t, $(TARGET_DIRS), \
+		$(foreach t, $(TARGET_DIRS) all-user all-linux-user all-softmmu, \
 		printf "  %-30s - Build for %s\\n" $(patsubst %,subdir-%,$(t)) $(t);) \
 		echo '')
 	@echo  'Cleaning targets:'
