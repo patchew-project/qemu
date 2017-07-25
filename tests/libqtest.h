@@ -68,6 +68,17 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
 
 /**
+ * qtest_qmp_cmd:
+ * @s: #QTestState instance to operate on.
+ * @cmd: Command name to send
+ * @args: Arguments to transfer to the command, or NULL.
+ *
+ * Sends a QMP message to QEMU and returns the response. Calling this will
+ * reduce the reference count of @args.
+ */
+QDict *qtest_qmp_cmd(QTestState *s, const char *cmd, QObject *args);
+
+/**
  * qtest_async_qmp:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu; formats arguments through
@@ -550,6 +561,16 @@ static inline void qtest_end(void)
 QDict *qmp(const char *fmt, ...);
 
 /**
+ * qmp_cmd:
+ * @cmd: Command name to send
+ * @args: Arguments to transfer to the command, or NULL.
+ *
+ * Sends a QMP message to QEMU and returns the response. Calling this will
+ * reduce the reference count of @args.
+ */
+QDict *qmp_cmd(const char *cmd, QObject *args);
+
+/**
  * qmp_async:
  * @fmt...: QMP message to send to qemu; formats arguments through
  * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf])').
@@ -566,6 +587,16 @@ void qmp_async(const char *fmt, ...);
  * Sends a QMP message to QEMU and consumes the response.
  */
 void qmp_discard_response(const char *fmt, ...);
+
+/**
+ * qmp_cmd_discard_response:
+ * @cmd: Command name to send
+ * @args: Arguments to transfer to the command, or NULL.
+ *
+ * Sends a QMP message to QEMU and consumes the response. Calling this will
+ * reduce the reference count of @args.
+ */
+void qmp_cmd_discard_response(const char *cmd, QObject *args);
 
 /**
  * qmp_receive:

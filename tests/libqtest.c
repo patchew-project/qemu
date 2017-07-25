@@ -540,6 +540,17 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
     return response;
 }
 
+QDict *qtest_qmp_cmd(QTestState *s, const char *cmd, QObject *args)
+{
+    QDict *dict = qdict_new();
+
+    qdict_put_str(dict, "execute", cmd);
+    if (args) {
+        qdict_put_obj(dict, "arguments", args);
+    }
+    return qtest_qmp(s, "%p", QOBJECT(dict));
+}
+
 void qtest_async_qmp(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
@@ -925,6 +936,11 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
+QDict *qmp_cmd(const char *cmd, QObject *args)
+{
+    return qtest_qmp_cmd(global_qtest, cmd, args);
+}
+
 void qmp_async(const char *fmt, ...)
 {
     va_list ap;
@@ -942,6 +958,15 @@ void qmp_discard_response(const char *fmt, ...)
     qtest_qmpv_discard_response(global_qtest, fmt, ap);
     va_end(ap);
 }
+
+void qmp_cmd_discard_response(const char *cmd, QObject *args)
+{
+    QDict *response;
+
+    response = qmp_cmd(cmd, args);
+    QDECREF(response);
+}
+
 char *hmp(const char *fmt, ...)
 {
     va_list ap;
