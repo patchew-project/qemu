@@ -1878,6 +1878,7 @@ static Property spapr_phb_properties[] = {
                      pre_2_8_migration, false),
     DEFINE_PROP_BOOL("pcie-extended-configuration-space", sPAPRPHBState,
                      pcie_ecs, true),
+    DEFINE_PROP_UINT32("drc_id", sPAPRPHBState, drc_id, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

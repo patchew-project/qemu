@@ -82,6 +82,8 @@ struct sPAPRPHBState {
 
     bool pcie_ecs; /* Allow access to PCIe extended config space? */
 
+    uint32_t drc_id;
+
     /* Fields for migration compatibility hacks */
     bool pre_2_8_migration;
     uint32_t mig_liobn;
