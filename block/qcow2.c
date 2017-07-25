@@ -3968,6 +3968,13 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
         spec_info->u.qcow2.data->encrypt = qencrypt;
     }
 
+    if (s->incompatible_features & QCOW2_INCOMPAT_COMPRESS) {
+        spec_info->u.qcow2.data->compress = g_new0(Qcow2Compress, 1);
+        memcpy(spec_info->u.qcow2.data->compress, &s->compress,
+               sizeof(Qcow2Compress));
+        spec_info->u.qcow2.data->has_compress = true;
+    }
+
     return spec_info;
 }
 
