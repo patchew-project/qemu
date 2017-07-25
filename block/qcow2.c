@@ -70,6 +70,7 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
 #define  QCOW2_EXT_MAGIC_CRYPTO_HEADER 0x0537be77
 #define  QCOW2_EXT_MAGIC_BITMAPS 0x23852875
+#define  QCOW2_EXT_MAGIC_COMPRESS_FORMAT 0xC03183A3
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -269,6 +270,57 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #endif
             break;
 
+        case QCOW2_EXT_MAGIC_COMPRESS_FORMAT:
+        {
+            Qcow2CompressFormatExt compress_ext;
+            Error *local_err = NULL;
+            if (ext.len != sizeof(compress_ext)) {
+                error_setg(errp, "ERROR: ext_compress_format: len=%"
+                           PRIu32 " invalid (!=%zu)", ext.len,
+                           sizeof(compress_ext));
+                return 2;
+            }
+            ret = bdrv_pread(bs->file, offset, &compress_ext,
+                             ext.len);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "ERROR: ext_compress_fromat:"
+                                 " Could not read extension");
+                return 3;
+            }
+
+            s->compress.format =
+                qapi_enum_parse(Qcow2CompressFormat_lookup,
+                                compress_ext.name, QCOW2_COMPRESS_FORMAT__MAX,
+                                -1, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return 4;
+            }
+
+            if (s->compress.format == QCOW2_COMPRESS_FORMAT_DEFLATE) {
+                s->compress.u.deflate.has_level = true;
+                s->compress.u.deflate.level = compress_ext.level;
+                s->compress.u.deflate.has_window_size = true;
+                s->compress.u.deflate.window_size = compress_ext.window_size;
+            }
+
+            qcow2_check_compress_settings(&s->compress, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return 5;
+            }
+
+#ifdef DEBUG_EXT
+            if (s->compress.format == QCOW2_COMPRESS_FORMAT_DEFLATE) {
+                printf("Qcow2: Got compress format %s with level %" PRIu8
+                       " window_size %" PRIu8 "\n",
+                       Qcow2CompressFormat_lookup[s->compress.format],
+                       s->compress.u.deflate.level,
+                       s->compress.u.deflate.window_size);
+            }
+#endif
+            break;
+        }
         case QCOW2_EXT_MAGIC_FEATURE_TABLE:
             if (p_feature_table != NULL) {
                 void* feature_table = g_malloc0(ext.len + 2 * sizeof(Qcow2Feature));
@@ -1403,6 +1455,12 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     s->cluster_cache_offset = -1;
     s->flags = flags;
 
+    s->compress.format = QCOW2_COMPRESS_FORMAT_DEFLATE;
+    s->compress.u.deflate.has_level = true;
+    s->compress.u.deflate.level = 0;
+    s->compress.u.deflate.has_window_size = true;
+    s->compress.u.deflate.window_size = 12;
+
     ret = qcow2_refcount_init(bs);
     if (ret != 0) {
         error_setg_errno(errp, -ret, "Could not initialize refcount handling");
@@ -2320,6 +2378,30 @@ int qcow2_update_header(BlockDriverState *bs)
         buflen -= ret;
     }
 
+    /* Compress Format header extension */
+    if (s->compress.format != QCOW2_COMPRESS_FORMAT_DEFLATE ||
+        s->compress.u.deflate.level != 0 ||
+        s->compress.u.deflate.window_size != 12) {
+        Qcow2CompressFormatExt ext = {};
+        assert(s->compress.format < QCOW2_COMPRESS_FORMAT__MAX);
+        strncpy((char *) &ext.name,
+                Qcow2CompressFormat_lookup[s->compress.format],
+                sizeof(ext.name));
+        if (s->compress.format == QCOW2_COMPRESS_FORMAT_DEFLATE) {
+            ext.level = s->compress.u.deflate.level;
+            ext.window_size = s->compress.u.deflate.window_size;
+        }
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_COMPRESS_FORMAT,
+                             &ext, sizeof(ext),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
+        header->incompatible_features |= cpu_to_be64(QCOW2_INCOMPAT_COMPRESS);
+    }
+
     /* Feature table */
     if (s->qcow_version >= 3) {
         Qcow2Feature features[] = {
@@ -2332,6 +2414,11 @@ int qcow2_update_header(BlockDriverState *bs)
                 .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
                 .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
                 .name = "corrupt bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_COMPRESS_BITNR,
+                .name = "compress format bit",
             },
             {
                 .type = QCOW2_FEAT_TYPE_COMPATIBLE,
@@ -2853,6 +2940,11 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     } else if (ret != 0) {
         error_report("Huh, first cluster in empty image is already in use?");
         abort();
+    }
+
+    if (compress) {
+        BDRVQcow2State *s = blk_bs(blk)->opaque;
+        memcpy(&s->compress, compress, sizeof(Qcow2Compress));
     }
 
     /* Create a full header (including things like feature table) */
