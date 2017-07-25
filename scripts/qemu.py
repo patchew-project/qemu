@@ -154,7 +154,8 @@ class QEMUMachine(object):
 
             exitcode = self._popen.wait()
             if exitcode < 0:
-                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self.args)))
+                sys.stderr.write('qemu received signal %i\n' % -exitcode)
+
             self._load_io_log()
             self._post_shutdown()
 
