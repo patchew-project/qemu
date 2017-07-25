@@ -125,6 +125,8 @@ struct sPAPRMachineState {
 
     bool dr_phb_enabled; /* hotplug / dynamic-reconfiguration of PHBs */
 
+    uint32_t xics_phandle;
+
     /*< public >*/
     char *kvm_type;
     MemoryHotplugState hotplug_memory;
@@ -402,7 +404,9 @@ struct sPAPRMachineState {
 #define KVMPPC_H_LOGICAL_MEMOP  (KVMPPC_HCALL_BASE + 0x1)
 /* Client Architecture support */
 #define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
-#define KVMPPC_HCALL_MAX        KVMPPC_H_CAS
+#define KVMPPC_H_RTAS_UPDATE    (KVMPPC_HCALL_BASE + 0x3)
+#define KVMPPC_H_UPDATE_PHANDLE (KVMPPC_HCALL_BASE + 0x4)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_UPDATE_PHANDLE
 
 typedef struct sPAPRDeviceTreeUpdateHeader {
     uint32_t version_id;
@@ -706,5 +710,10 @@ int spapr_rng_populate_dt(void *fdt);
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
+
+/* Boot time value of the "phandle" property of the "interrupt-controller"
+ * node.
+ */
+#define PHANDLE_XICP            0x00001111
 
 #endif /* HW_SPAPR_H */

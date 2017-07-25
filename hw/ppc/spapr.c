@@ -96,8 +96,6 @@
 
 #define MIN_RMA_SLOF            128UL
 
-#define PHANDLE_XICP            0x00001111
-
 /* maximum number of hotpluggable PHBs */
 #define SPAPR_DRC_MAX_PHB       256
 
@@ -1454,6 +1452,7 @@ static void ppc_spapr_reset(void)
     first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
     spapr->cas_reboot = false;
+    spapr->xics_phandle = UINT32_MAX;
 }
 
 static void spapr_create_nvram(sPAPRMachineState *spapr)
@@ -1652,6 +1651,26 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static bool spapr_xics_phandle_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(MACHINE(spapr));
+
+    /* Don't break older machine types that don't support PHB hotplug. */
+    return smc->dr_phb_enabled && spapr->xics_phandle != UINT32_MAX;
+}
+
+static const VMStateDescription vmstate_spapr_xics_phandle = {
+    .name = "spapr_xics_phandle",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_xics_phandle_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(xics_phandle, sPAPRMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1671,6 +1690,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
         &vmstate_spapr_pending_events,
+        &vmstate_spapr_xics_phandle,
         NULL
     }
 };
@@ -2702,6 +2722,7 @@ static void spapr_machine_initfn(Object *obj)
 
     spapr->htab_fd = -1;
     spapr->use_hotplug_event_source = true;
+    spapr->xics_phandle = UINT32_MAX;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
     object_property_set_description(obj, "kvm-type",

@@ -1623,6 +1623,25 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static target_ulong h_update_phandle(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                     target_ulong opcode, target_ulong *args)
+{
+    target_ulong old_phandle = args[0];
+    target_ulong new_phandle = args[1];
+
+    if (new_phandle >= UINT32_MAX) {
+        return H_PARAMETER;
+    }
+
+    /* We only have a "phandle" property in the XICS node at the moment. */
+    if (old_phandle != (uint32_t) PHANDLE_XICP) {
+        return H_PARAMETER;
+    }
+
+    spapr->xics_phandle = (uint32_t) new_phandle;
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -1717,6 +1736,7 @@ static void hypercall_register_types(void)
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
+    spapr_register_hypercall(KVMPPC_H_UPDATE_PHANDLE, h_update_phandle);
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
