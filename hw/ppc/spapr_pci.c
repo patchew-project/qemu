@@ -2109,7 +2109,8 @@ static void spapr_phb_pci_enumerate(sPAPRPHBState *phb)
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
-                          void *fdt)
+                          void *fdt,
+                          int *node_offset)
 {
     int bus_off, i, j, ret;
     char nodename[FDT_NAME_MAX];
@@ -2165,6 +2166,9 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     bus_off = fdt_add_subnode(fdt, 0, nodename);
     if (bus_off < 0) {
         return bus_off;
+    }
+    if (node_offset) {
+        *node_offset = bus_off;
     }
 
     /* Write PHB properties */
