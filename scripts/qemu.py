@@ -99,8 +99,11 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
-        with open(self._qemu_log_path, "r") as fh:
-            self._iolog = fh.read()
+        try:
+            with open(self._qemu_log_path, "r") as fh:
+                self._iolog = fh.read()
+        except IOError:
+            pass
 
     def _base_args(self):
         if isinstance(self._monitor_address, tuple):
@@ -126,22 +129,27 @@ class QEMUMachine(object):
         self._remove_if_exists(self._qemu_log_path)
 
     def launch(self):
-        '''Launch the VM and establish a QMP connection'''
+        '''
+        Try to launch the VM and make sure we cleanup on exception.
+        '''
+        if self.is_running():
+            return
+
+        try:
+            self._launch()
+        except:
+            self.shutdown()
+            raise
+
+    def _launch(self):
+        '''Launch the VM and establish a QMP connection.'''
         devnull = open('/dev/null', 'rb')
         qemulog = open(self._qemu_log_path, 'wb')
-        try:
-            self._pre_launch()
-            args = self._wrapper + [self._binary] + self._base_args() + self.args
-            self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
-                                           stderr=subprocess.STDOUT, shell=False)
-            self._post_launch()
-        except:
-            if self.is_running():
-                self._popen.kill()
-                self._popen.wait()
-            self._load_io_log()
-            self._post_shutdown()
-            raise
+        self._pre_launch()
+        args = self._wrapper + [self._binary] + self._base_args() + self._args
+        self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
+                                       stderr=subprocess.STDOUT, shell=False)
+        self._post_launch()
 
     def shutdown(self):
         '''Terminate the VM and clean up'''
@@ -156,8 +164,8 @@ class QEMUMachine(object):
             if exitcode < 0:
                 sys.stderr.write('qemu received signal %i\n' % -exitcode)
 
-            self._load_io_log()
-            self._post_shutdown()
+        self._load_io_log()
+        self._post_shutdown()
 
     underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, conv_keys=True, **args):
