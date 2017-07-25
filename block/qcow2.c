@@ -3428,7 +3428,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     struct iovec iov;
     z_stream strm;
     int ret, out_len;
-    uint8_t *buf, *out_buf;
+    uint8_t *buf, *out_buf, *local_buf = NULL;
     uint64_t cluster_offset;
 
     if (bytes == 0) {
@@ -3438,8 +3438,8 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
     }
 
-    buf = qemu_blockalign(bs, s->cluster_size);
-    if (bytes != s->cluster_size) {
+    if (bytes != s->cluster_size || qiov->niov != 1) {
+        buf = local_buf = qemu_blockalign(bs, s->cluster_size);
         if (bytes > s->cluster_size ||
             offset + bytes != bs->total_sectors << BDRV_SECTOR_BITS)
         {
@@ -3448,8 +3448,10 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         }
         /* Zero-pad last write if image size is not cluster aligned */
         memset(buf + bytes, 0, s->cluster_size - bytes);
+        qemu_iovec_to_buf(qiov, 0, buf, bytes);
+    } else {
+        buf = qiov->iov[0].iov_base;
     }
-    qemu_iovec_to_buf(qiov, 0, buf, bytes);
 
     out_buf = g_malloc(s->cluster_size);
 
@@ -3517,7 +3519,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 success:
     ret = 0;
 fail:
-    qemu_vfree(buf);
+    qemu_vfree(local_buf);
     g_free(out_buf);
     return ret;
 }
