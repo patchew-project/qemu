@@ -1530,6 +1530,50 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     }
 }
 
+static void spapr_phb_finalizefn(Object *obj)
+{
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(obj);
+
+    g_free(sphb->dtbusname);
+    sphb->dtbusname = NULL;
+}
+
+static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(phb);
+    sPAPRTCETable *tcet;
+    int i;
+    const unsigned windows_supported =
+        sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
+
+    g_hash_table_unref(sphb->msi);
+
+    /* remove IO/MMIO subregions and aliases, rest should get cleaned
+     * via PHB's unrealize->object_finalize
+     */
+    for (i = windows_supported - 1; i >= 0; i--) {
+        tcet = spapr_tce_find_by_liobn(sphb->dma_liobn[i]);
+        g_assert(tcet);
+        memory_region_del_subregion(&sphb->iommu_root,
+                                    spapr_tce_get_iommu(tcet));
+    }
+
+    QLIST_REMOVE(sphb, list);
+
+    memory_region_del_subregion(&sphb->iommu_root, &sphb->msiwindow);
+
+    address_space_destroy(&sphb->iommu_as);
+
+    qbus_set_hotplug_handler(BUS(phb->bus), NULL, &error_abort);
+    pci_unregister_bus(phb->bus);
+
+    memory_region_del_subregion(get_system_memory(), &sphb->iowindow);
+    memory_region_del_subregion(get_system_memory(), &sphb->mem64window);
+    memory_region_del_subregion(get_system_memory(), &sphb->mem32window);
+}
+
 static void spapr_phb_realize(DeviceState *dev, Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
@@ -1961,6 +2005,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 
     hc->root_bus_path = spapr_phb_root_bus_path;
     dc->realize = spapr_phb_realize;
+    dc->unrealize = spapr_phb_unrealize;
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
     dc->vmsd = &vmstate_spapr_pci;
@@ -1975,6 +2020,7 @@ static const TypeInfo spapr_phb_info = {
     .name          = TYPE_SPAPR_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBState),
+    .instance_finalize = spapr_phb_finalizefn,
     .class_init    = spapr_phb_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
