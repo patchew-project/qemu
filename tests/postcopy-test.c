@@ -19,6 +19,7 @@
 #include "chardev/char.h"
 #include "sysemu/sysemu.h"
 #include "hw/nvram/chrp_nvram.h"
+#include "qapi/qmp/qjson.h"
 
 #define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
 
@@ -252,7 +253,7 @@ static uint64_t get_migration_pass(void)
     QDict *rsp, *rsp_return, *rsp_ram;
     uint64_t result;
 
-    rsp = return_or_event(qmp("{ 'execute': 'query-migrate' }"));
+    rsp = return_or_event(qmp_cmd("query-migrate", NULL));
     rsp_return = qdict_get_qdict(rsp, "return");
     if (!qdict_haskey(rsp_return, "ram")) {
         /* Still in setup */
@@ -273,7 +274,7 @@ static void wait_for_migration_complete(void)
     do {
         const char *status;
 
-        rsp = return_or_event(qmp("{ 'execute': 'query-migrate' }"));
+        rsp = return_or_event(qmp_cmd("query-migrate", NULL));
         rsp_return = qdict_get_qdict(rsp, "return");
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
@@ -445,13 +446,13 @@ static void test_migrate(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    rsp = qmp("{ 'execute': 'migrate', 'arguments': { 'uri': %s } }", uri);
+    rsp = qmp_cmd("migrate", qobject_from_jsonf("{ 'uri': %s }", uri));
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
     wait_for_migration_pass();
 
-    rsp = return_or_event(qmp("{ 'execute': 'migrate-start-postcopy' }"));
+    rsp = return_or_event(qmp_cmd("migrate-start-postcopy", NULL));
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 

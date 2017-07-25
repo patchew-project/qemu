@@ -4,6 +4,7 @@
 #include "libqtest.h"
 #include "libqos/libqos.h"
 #include "libqos/pci.h"
+#include "qapi/qmp/qjson.h"
 
 /*** Test Setup & Teardown ***/
 
@@ -86,7 +87,7 @@ void set_context(QOSState *s)
 
 static QDict *qmp_execute(const char *command)
 {
-    return qmp("{ 'execute': %s }", command);
+    return qmp_cmd(command, NULL);
 }
 
 void migrate(QOSState *from, QOSState *to, const char *uri)
@@ -106,7 +107,7 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
     QDECREF(rsp);
 
     /* Issue the migrate command. */
-    rsp = qmp("{ 'execute': 'migrate', 'arguments': { 'uri': %s } }", uri);
+    rsp = qmp_cmd("migrate", qobject_from_jsonf("{ 'uri': %s }", uri));
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 

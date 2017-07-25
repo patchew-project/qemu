@@ -17,6 +17,7 @@
 #include "hw/pci/pci_regs.h"
 
 #include "qemu-common.h"
+#include "qapi/qmp/qjson.h"
 
 
 #define ACPI_PCIHP_ADDR         0xae00
@@ -160,8 +161,7 @@ void qpci_unplug_acpi_device_test(const char *id, uint8_t slot)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'device_del', 'arguments': {'id': %s}}",
-                   id);
+    response = qmp_cmd("device_del", qobject_from_jsonf("{'id': %s}", id));
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);

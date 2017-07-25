@@ -15,6 +15,7 @@
 #include "libqtest.h"
 #include "hw/usb/uhci-regs.h"
 #include "libqos/usb.h"
+#include "qapi/qmp/qjson.h"
 
 void qusb_pci_init_one(QPCIBus *pcibus, struct qhc *hc, uint32_t devfn, int bar)
 {
@@ -46,13 +47,13 @@ void usb_test_hotplug(const char *hcd_id, const int port,
 
     sprintf(id, "usbdev%d", port);
     bus = g_strdup_printf("%s.0", hcd_id);
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'usb-tablet',"
-                   "   'port': %s,"
-                   "   'bus': %s,"
-                   "   'id': %s"
-                   " }}", id + 6, bus, id);
+    response = qmp_cmd("device_add",
+                       qobject_from_jsonf("{"
+                                          "   'driver': 'usb-tablet',"
+                                          "   'port': %s,"
+                                          "   'bus': %s,"
+                                          "   'id': %s"
+                                          "}", id + 6, bus, id));
     g_free(bus);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
@@ -62,8 +63,7 @@ void usb_test_hotplug(const char *hcd_id, const int port,
         port_check();
     }
 
-    response = qmp("{'execute': 'device_del', 'arguments': { 'id': %s }}",
-                   id);
+    response = qmp_cmd("device_del", qobject_from_jsonf("{ 'id': %s }", id));
     g_assert(response);
     g_assert(qdict_haskey(response, "event"));
     g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));

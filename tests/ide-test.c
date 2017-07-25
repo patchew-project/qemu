@@ -651,7 +651,7 @@ static void test_retry_flush(const char *machine)
     qmp_eventwait("STOP");
 
     /* Complete the command */
-    qmp_discard_response("{'execute':'cont' }");
+    qmp_cmd_discard_response("cont", NULL);
 
     /* Check registers */
     data = qpci_io_readb(dev, ide_bar, reg_device);

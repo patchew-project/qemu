@@ -9,6 +9,10 @@
  */
 
 #include "qemu/osdep.h"
+#include <linux/vhost.h>
+#include <linux/virtio_ids.h>
+#include <linux/virtio_net.h>
+#include <sys/vfs.h>
 
 #include "libqtest.h"
 #include "qapi/error.h"
@@ -22,14 +26,10 @@
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qjson.h"
 
 #include "libqos/malloc-pc.h"
 #include "hw/virtio/virtio-net.h"
-
-#include <linux/vhost.h>
-#include <linux/virtio_ids.h>
-#include <linux/virtio_net.h>
-#include <sys/vfs.h>
 
 /* GLIB version compatibility flags */
 #if !GLIB_CHECK_VERSION(2, 26, 0)
@@ -662,7 +662,7 @@ static void test_migrate(void)
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
-    rsp = qmp("{ 'execute': 'migrate', 'arguments': { 'uri': %s } }", uri);
+    rsp = qmp_cmd("migrate", qobject_from_jsonf("{ 'uri': %s }", uri));
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 

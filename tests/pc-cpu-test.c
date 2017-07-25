@@ -12,6 +12,7 @@
 #include "qemu-common.h"
 #include "libqtest.h"
 #include "qapi/qmp/types.h"
+#include "qapi/qmp/qjson.h"
 
 struct PCTestData {
     char *machine;
@@ -37,8 +38,7 @@ static void test_pc_with_cpu_add(gconstpointer data)
     qtest_start(args);
 
     for (i = s->sockets * s->cores * s->threads; i < s->maxcpus; i++) {
-        response = qmp("{ 'execute': 'cpu-add',"
-                       "  'arguments': { 'id': %d } }", i);
+        response = qmp_cmd("cpu-add", qobject_from_jsonf("{'id':%u}", i));
         g_assert(response);
         g_assert(!qdict_haskey(response, "error"));
         QDECREF(response);
@@ -60,9 +60,9 @@ static void test_pc_without_cpu_add(gconstpointer data)
                            s->sockets, s->cores, s->threads, s->maxcpus);
     qtest_start(args);
 
-    response = qmp("{ 'execute': 'cpu-add',"
-                   "  'arguments': { 'id': %d } }",
-                   s->sockets * s->cores * s->threads);
+    response = qmp_cmd("cpu-add",
+                       qobject_from_jsonf("{'id':%u}",
+                                          s->sockets * s->cores * s->threads));
     g_assert(response);
     g_assert(qdict_haskey(response, "error"));
     QDECREF(response);
