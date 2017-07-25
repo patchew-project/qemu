@@ -34,6 +34,11 @@
         }                                                         \
     } while (0)
 
+void pci_enable_zpci_feature(S390CPUModel *model)
+{
+    set_bit(S390_FEAT_ZPCI, model->features);
+}
+
 S390pciState *s390_get_phb(void)
 {
     static S390pciState *phb;

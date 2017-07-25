@@ -72,3 +72,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_idx(S390pciState *s, uint32_t idx)
 {
     return NULL;
 }
+
+void pci_enable_zpci_feature(S390CPUModel *model)
+{
+}
