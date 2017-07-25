@@ -23,6 +23,7 @@
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "qmp-commands.h"
 #include "hw/pci/msi.h"
 
@@ -37,4 +38,15 @@ PciInfoList *qmp_query_pci(Error **errp)
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "PCI devices not supported\n");
+}
+
+/* kvm-all wants this */
+MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
+{
+    assert(false);
+}
+
+uint16_t pci_requester_id(PCIDevice *dev)
+{
+    assert(false);
 }
