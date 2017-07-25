@@ -676,6 +676,32 @@ file which is COW and has data blocks already, it couldn't be changed to NOCOW
 by setting @code{nocow=on}. One can issue @code{lsattr filename} to check if
 the NOCOW flag is set or not (Capital 'C' is NOCOW flag).
 
+@item compress.format
+Defines which compression algorithm is should be used for compressed clusters.
+The following options are available if support for the respective libraries
+has been enabled at compile time:
+
+   deflate        Uses standard zlib defalte compression
+
+The compression algorithm can only be defined at image create time and cannot
+be changed later.
+
+Note: defining compression format settings which are different from the old
+      default (format=deflate, level=0, window-size=12) will result in the
+      compression format extension being written to the Qcow2 image. Versions
+      of QEMU before 2.11 will not be able to open images with this extension.
+
+@item compress.level
+Valid for compress.format=deflate defines the compression level to use for
+selected compression format. The default of @code{compress.level=0} will use
+the default compression level for the format. Alternate values range from 1 for
+fastest compression to 9 for the best compression.
+
+@item compress.window-size
+Valid for compress.format=deflate defines the compression window size used
+during compression. Valid window sizes for deflate compression range from 8 to
+15 inclusively. The default is @code{compress.window-size=15}.
+
 @end table
 
 @item Other
