@@ -24,6 +24,9 @@
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
+/* CCWs are doubleword aligned and addressable by 31 bit */
+#define CCW1_ADDR_MASK 0x80000007
+
 typedef struct CrwContainer {
     CRW crw;
     QTAILQ_ENTRY(CrwContainer) sibling;
@@ -885,6 +888,10 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
             ret = -EINVAL;
             break;
         }
+        if (ccw.cda & CCW1_ADDR_MASK) {
+            ret = -EINVAL;
+            break;
+        }
         sch->channel_prog = ccw.cda;
         ret = -EAGAIN;
         break;
@@ -946,6 +953,17 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
         suspend_allowed = true;
     }
     sch->last_cmd_valid = false;
+    if (sch->channel_prog & (CCW1_ADDR_MASK |
+                             sch->ccw_fmt_1 ? 0 : 0xff000000)) {
+            /* generate channel program check */
+            s->ctrl &= ~SCSW_ACTL_START_PEND;
+            s->cstat = SCSW_CSTAT_PROG_CHECK;
+            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+                    SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
+            return;
+    }
     do {
         ret = css_interpret_ccw(sch, sch->channel_prog, suspend_allowed);
         switch (ret) {
