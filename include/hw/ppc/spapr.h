@@ -673,6 +673,7 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 /* CPU and LMB DRC release callbacks. */
 void spapr_core_release(DeviceState *dev);
 void spapr_lmb_release(DeviceState *dev);
+void spapr_phb_release(DeviceState *dev);
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);

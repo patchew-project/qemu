@@ -1833,7 +1833,7 @@ void spapr_phb_dma_reset(sPAPRPHBState *sphb)
                            sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT);
 }
 
-static void spapr_phb_reset(DeviceState *qdev)
+void spapr_phb_reset(DeviceState *qdev)
 {
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(qdev);
 

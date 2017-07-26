@@ -120,6 +120,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
 
 void spapr_pci_rtas_init(void);
 
+void spapr_phb_reset(DeviceState *qdev);
+
 sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid);
 PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
                               uint32_t config_addr);
