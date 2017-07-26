@@ -50,6 +50,7 @@ struct common {
 struct XenInput {
     struct common c;
     int abs_pointer_wanted; /* Whether guest supports absolute pointer */
+    int raw_pointer_wanted; /* Whether guest supports raw (unscaled) pointer */
     QemuInputHandlerState *qkbd;
     QemuInputHandlerState *qmou;
     int mouse_axes[INPUT_AXIS__MAX];
@@ -380,21 +381,23 @@ static void xenfb_mouse_sync(DeviceState *dev)
                             in->abs_pointer_wanted);
 
     if (in->abs_pointer_wanted) {
-        QemuConsole *con = qemu_console_lookup_by_index(0);
-        DisplaySurface *surface;
-        int dw, dh;
+        if (!in->raw_pointer_wanted) {
+            QemuConsole *con = qemu_console_lookup_by_index(0);
+            DisplaySurface *surface;
+            int dw, dh;
 
-        if (!con) {
-            xen_pv_printf(&in->c.xendev, 0, "No QEMU console available");
-            return;
+            if (!con) {
+                xen_pv_printf(&in->c.xendev, 0, "No QEMU console available");
+                return;
+            }
+
+            surface = qemu_console_surface(con);
+            dw = surface_width(surface);
+            dh = surface_height(surface);
+
+            dx = dx * (dw - 1) / 0x7fff;
+            dy = dy * (dh - 1) / 0x7fff;
         }
-
-        surface = qemu_console_surface(con);
-        dw = surface_width(surface);
-        dh = surface_height(surface);
-
-        dx = dx * (dw - 1) / 0x7fff;
-        dy = dy * (dh - 1) / 0x7fff;
 
         xenfb_send_position(in, dx, dy, dz);
     } else {
@@ -428,6 +431,7 @@ static QemuInputHandler xenfb_rel_mouse = {
 static int input_init(struct XenDevice *xendev)
 {
     xenstore_write_be_int(xendev, "feature-abs-pointer", 1);
+    xenstore_write_be_int(xendev, "feature-raw-pointer", 1);
     return 0;
 }
 
@@ -450,6 +454,13 @@ static void input_connected(struct XenDevice *xendev)
     if (xenstore_read_fe_int(xendev, "request-abs-pointer",
                              &in->abs_pointer_wanted) == -1) {
         in->abs_pointer_wanted = 0;
+    }
+    if (xenstore_read_fe_int(xendev, "request-raw-pointer",
+                             &in->raw_pointer_wanted) == -1) {
+        in->raw_pointer_wanted = 0;
+    }
+    if (in->raw_pointer_wanted && !in->abs_pointer_wanted) {
+        xen_pv_printf(xendev, 0, "raw pointer set without absolute pointer.");
     }
 
     if (in->qkbd) {
