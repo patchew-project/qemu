@@ -3571,15 +3571,29 @@ EOF
     fdt=yes
   elif test -d ${source_path}/dtc/libfdt ; then
     # have submodule DTC - use it
-    fdt=yes
     dtc_internal="yes"
     mkdir -p dtc
     if [ "$pwd_is_source_path" != "y" ] ; then
-       symlink "$source_path/dtc/Makefile" "dtc/Makefile"
-       symlink "$source_path/dtc/scripts" "dtc/scripts"
+      for f in $(cd $source_path/dtc && ls Makefile* *.?); do
+        symlink "$source_path/dtc/$f" "dtc/$f"
+      done
+      for d in scripts libfdt tests; do
+        symlink "$source_path/dtc/$d" "dtc/$d"
+      done
+      SRC_PATH=$source_path
     fi
-    fdt_cflags="-I\$(SRC_PATH)/dtc/libfdt"
-    fdt_libs="-L\$(BUILD_DIR)/dtc/libfdt $fdt_libs"
+    make -C dtc 1>/dev/null
+
+    fdt_cflags="-I${source_path}/dtc/libfdt"
+    fdt_libs="-L$(pwd)/dtc/libfdt $fdt_libs"
+    if compile_prog "$fdt_cflags" "$fdt_libs" ; then
+      fdt=yes
+    else
+      error_exit "Your DTC submodule is outdated. Your options:" \
+        "  (1) Preferred: Install the DTC (libfdt) devel package" \
+        "  (2) Update the DTC submodule, using: $git_submodule_path_info" \
+        "      git submodule update --init dtc"
+    fi
   elif test "$fdt" = "yes" ; then
     # have neither and want - prompt for system/submodule install
     error_exit "DTC (libfdt) version >= 1.4.2 not present. Your options:" \
