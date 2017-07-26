@@ -51,8 +51,8 @@ void blkconf_blocksizes(BlockConf *conf)
     }
 }
 
-void blkconf_apply_backend_options(BlockConf *conf, bool readonly,
-                                   bool resizable, Error **errp)
+int blkconf_apply_backend_options(BlockConf *conf, bool readonly,
+                                  bool resizable, Error **errp)
 {
     BlockBackend *blk = conf->blk;
     BlockdevOnError rerror, werror;
@@ -76,7 +76,7 @@ void blkconf_apply_backend_options(BlockConf *conf, bool readonly,
 
     ret = blk_set_perm(blk, perm, shared_perm, errp);
     if (ret < 0) {
-        return;
+        return -1;
     }
 
     switch (conf->wce) {
@@ -99,11 +99,13 @@ void blkconf_apply_backend_options(BlockConf *conf, bool readonly,
 
     blk_set_enable_write_cache(blk, wce);
     blk_set_on_error(blk, rerror, werror);
+
+    return 0;
 }
 
-void blkconf_geometry(BlockConf *conf, int *ptrans,
-                      unsigned cyls_max, unsigned heads_max, unsigned secs_max,
-                      Error **errp)
+int blkconf_geometry(BlockConf *conf, int *ptrans,
+                     unsigned cyls_max, unsigned heads_max, unsigned secs_max,
+                     Error **errp)
 {
     DriveInfo *dinfo;
 
@@ -129,15 +131,16 @@ void blkconf_geometry(BlockConf *conf, int *ptrans,
     if (conf->cyls || conf->heads || conf->secs) {
         if (conf->cyls < 1 || conf->cyls > cyls_max) {
             error_setg(errp, "cyls must be between 1 and %u", cyls_max);
-            return;
+            return -1;
         }
         if (conf->heads < 1 || conf->heads > heads_max) {
             error_setg(errp, "heads must be between 1 and %u", heads_max);
-            return;
+            return -1;
         }
         if (conf->secs < 1 || conf->secs > secs_max) {
             error_setg(errp, "secs must be between 1 and %u", secs_max);
-            return;
+            return -1;
         }
     }
+    return 0;
 }

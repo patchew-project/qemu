@@ -76,9 +76,9 @@ static void notify_guest_bh(void *opaque)
 }
 
 /* Context: QEMU global mutex held */
-void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
-                                  VirtIOBlockDataPlane **dataplane,
-                                  Error **errp)
+int virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
+                                 VirtIOBlockDataPlane **dataplane,
+                                 Error **errp)
 {
     VirtIOBlockDataPlane *s;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
@@ -91,11 +91,11 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
             error_setg(errp,
                        "device is incompatible with iothread "
                        "(transport does not support notifiers)");
-            return;
+            return -1;
         }
         if (!virtio_device_ioeventfd_enabled(vdev)) {
             error_setg(errp, "ioeventfd is required for iothread");
-            return;
+            return -1;
         }
 
         /* If dataplane is (re-)enabled while the guest is running there could
@@ -103,12 +103,12 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
          */
         if (blk_op_is_blocked(conf->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
             error_prepend(errp, "cannot start virtio-blk dataplane: ");
-            return;
+            return -1;
         }
     }
     /* Don't try if transport does not support notifiers. */
     if (!virtio_device_ioeventfd_enabled(vdev)) {
-        return;
+        return -1;
     }
 
     s = g_new0(VirtIOBlockDataPlane, 1);
@@ -126,6 +126,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     s->batch_notify_vqs = bitmap_new(conf->num_queues);
 
     *dataplane = s;
+
+    return 0;
 }
 
 /* Context: QEMU global mutex held */
