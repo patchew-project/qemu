@@ -1,0 +1,225 @@
+= Hypertrace channel =
+
+Copyright (C) 2016-2017 Lluís Vilanova <vilanova@ac.upc.edu>
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+
+
+The hypertrace channel allows guest code to emit events in QEMU (the host) using
+its tracing infrastructure (see "docs/trace.txt"). This works in both 'system'
+and 'user' modes. Therefore, hypertrace is to tracing what hypercalls are to
+system calls.
+
+The hypertrace channel can be used for various purposes:
+
+* Using guest code semantics to guide which QEMU events to trace at each point
+  in time. The example "Quick guide" below shows how to use this to identify
+  "regions of interest" in your guest code. It then uses these regions to trace
+  QEMU's behaviour during their execution, without paying the price of tracing
+  events outside the interest regions.
+
+* Mark "progress points" in guest code (e.g., processed client requests,
+  scheduled processes, etc), so that they can be easily traced and correlated
+  between QEMU's various tracing events and the guest's own tracing
+  infrastructure (e.g., Linux's tracepoints).
+
+* You can also use regions of interest and progress points on the guest code to
+  time the performance of new TCG optimizations. Each hypertrace event comes
+  with a host timestamp, making it easy to compare the host execution times of
+  interesting guest code.
+
+Hypertrace features:
+
+* Works with 'system' and 'user' mode.
+
+* Minimal setup for the guest; QEMU provides support guest code libraries that
+  work out of the box.
+
+* Independent of guest architecture; the guest code uses accesses to special
+  memory regions, as opposed to redefining instruction semantics.
+
+* Negligible guest overhead; emitting a hypertrace event requires a single guest
+  memory access, making it as unobtrusive as possible.
+
+Warning: The hypertrace channel in 'system' mode only works in systems with
+support for PCI. You can get the list of guests with PCI support with 'grep
+pci.mak default-configs/*'.
+
+
+== Quick guide ==
+
+This shows an example of using the hypertrace channel to trace the guest memory
+accesses only in a specific guest code region, which is identified by calls to
+the hypertrace channel.
+
+We are going to trace memory accesses to disk using QEMU's "log" backend, and
+will use QEMU's "dtrace" backend (SystemTap) to ensure memory accesses are only
+traced in the guest code region of interest. The first time the guest code
+invokes the hypertrace channel, we will start tracing the
+"guest_mem_before_exec" event using dtrace, and then will disable it the second
+time around.
+
+Tracing is done with "log" because it is more efficient than using "dtrace" in
+high-volume events like memory accesses.
+
+1. Set the tracing backends and number of arguments for the hypertrace events:
+
+    mkdir /tmp/qemu-build
+    cd /tmp/qemu-build
+    /path/to/qemu-source/configure              \
+        --enable-trace-backends=dtrace,log      \
+        --with-hypertrace-args=4                \
+        --prefix=/tmp/qemu-install
+    make -j install
+
+2. Compile QEMU:
+
+    make -C /tmp/qemu-build install -j
+
+3. Compile the guest support code:
+
+    make -C /tmp/qemu-build/x86_64-linux-user/hypertrace/guest
+    make -C /tmp/qemu-build/x86_64-softmmu/hypertrace/guest
+
+   If you need to cross-compile the guest library, set the 'CC' variable:
+
+    make -C /tmp/qemu-build/mipsel-linux-user/hypertrace/guest CC=mipsel-gnu-linux-gcc
+
+4. Create a guest application that interacts with the hypertrace channel:
+
+    cat > /tmp/my-hypertrace.c <<\EOF
+    #include <stdio.h>
+    #include <errno.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <qemu-hypertrace.h>
+    
+    
+    int main(int argc, char **argv)
+    {
+        char *base = NULL;
+        if (argc > 1) {
+            base = argv[1];
+        }
+    
+        /* In 'user' mode this path must be the same we will use to start QEMU. */
+        if (qemu_hypertrace_init(base) != 0) {
+            perror("error: qemu_hypertrace_init");
+            abort();
+        }
+    
+        /* Set additional event arguments (unused in this example) */
+        uint64_t client  = 0;
+        uint64_t *data = qemu_hypertrace_data(client);
+        data[0] = 0xcafe;
+        data[1] = 0xdead;
+        data[2] = 0xbeef;
+    
+        /* Emit event to start tracing */
+        qemu_hypertrace(client, 1);
+
+        /* Computation in between that we want to trace */
+        printf("Some computation...\n");
+
+        /* Emit event to stop tracing */
+        qemu_hypertrace(client, 0);
+    }
+    EOF
+
+    gcc -o /tmp/my-hypertrace-user /tmp/my-hypertrace.c                                 \
+        /tmp/qemu-build/x86_64-linux-user/hypertrace/guest/libqemu-hypertrace-guest.a   \
+        -I/tmp/qemu-install/include -lpthread
+
+    gcc -o /tmp/my-hypertrace-softmmu /tmp/my-hypertrace.c                              \
+        /tmp/qemu-build/x86_64-softmmu/hypertrace/guest/libqemu-hypertrace-guest.a      \
+        -I/tmp/qemu-install/include -lpthread
+
+5. Create a SystemTap script to control event tracing:
+
+    cat > /tmp/my-hypertrace-script.stp <<\EOF
+    #!/usr/bin/env stap
+    
+    %{
+    #include <linux/delay.h>
+    %}
+    
+    function enable_mem:long()
+    %{
+        /* Tell QEMU's monitor to enable tracing */
+        char *argv[4] = {"/bin/sh", "-c", "echo 'trace-event guest_mem_before_exec on' | telnet localhost 1234", NULL};
+        printk(KERN_ERR "enable\n");
+        call_usermodehelper(argv[0], argv, NULL, UMH_WAIT_EXEC);
+        /* Wait for changes to apply */
+        msleep(1000);
+        printk(KERN_ERR "enabled\n");
+        STAP_RETURN(0);
+    %}
+    
+    function disable_mem:long()
+    %{
+        char *argv[4] = {"/bin/sh", "-c", "echo 'trace-event guest_mem_before_exec off' | telnet localhost 1234", NULL};
+        printk(KERN_ERR "disable\n");
+        call_usermodehelper(argv[0], argv, NULL, UMH_WAIT_EXEC);
+        msleep(1000);
+        printk(KERN_ERR "disabled\n");
+        STAP_RETURN(0);
+    %}
+    
+    probe process("/tmp/qemu-install/bin/qemu-*").mark("guest_hypertrace")
+    {
+        if ($arg1 == 1) {
+            enable_mem()
+        } else if ($arg1 == 0) {
+            disable_mem()
+        }
+    }
+    EOF
+
+6. Run a guest system with access to QEMU's hypertrace:
+
+    stap -g /tmp/my-hypertrace-script.stp -c            \
+    '/tmp/qemu-install/bin/qemu-system-x86_64           \
+      -device hypertrace                                \
+      -monitor tcp:localhost:1234,server,nowait         \
+      -trace enable=guest_hypertrace -D /dev/stdout     \
+      ...'
+
+   And inside the VM:
+
+    sudo /tmp/my-hypertrace-softmmu
+
+   The result will be something like this:
+
+    VNC server running on ::1:5900
+    23071@1473096085.744211:guest_hypertrace cpu=0x5602e1f49c10  arg1=1 arg2=0x000000000000cafe arg3=0x000000000000dead arg4=0x000000000000beef
+    23071@1473096085.745763:guest_mem_before_trans cpu=0x5602e1f49c10 info=19
+    23071@1473096085.745907:guest_mem_before_trans cpu=0x5602e1f49c10 info=3
+    23071@1473096085.752368:guest_mem_before_trans cpu=0x5602e1f49c10 info=3
+    23071@1473096085.752384:guest_mem_before_trans cpu=0x5602e1f49c10 info=19
+    23071@1473096086.756117:guest_hypertrace cpu=0x5602e1f49c10  arg1=0 arg2=0x000000000000cafe arg3=0x000000000000dead arg4=0x000000000000beef
+
+   To instead run a guest in 'user' mode with hypertrace (standalone guest
+   applications):
+
+    /tmp/qemu-install/bin/qemu-x86_64          \
+      -hypertrace /tmp/hypertrace              \
+      -trace enable=guest* -D /dev/stdout      \
+      /tmp/my-hypertrace-user /tmp/hypertrace
+
+
+== Details ==
+
+To make it more efficient in terms of guest and host time, hypertrace provides
+two different memory areas (channels).
+
+The control channel is used by the guest to tell QEMU that new data is ready to
+be processed in the data channel. Writes to the control channel are intercepted
+by QEMU, which emits the "hypertrace" tracing event.
+
+The data channel is a regular memory buffer used by the guest to write
+additional event arguments before raising the event through the control channel.
+
+Both channels accept different "per-client offsets" to enable multiple guest
+threads or CPUs to use the hypertrace channel without having to synchronize
+(i.e., similar to what virtual devices achieve in SR-IOV).
