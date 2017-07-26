@@ -3561,7 +3561,10 @@ if test "$fdt" != "no" ; then
   cat > $TMPC << EOF
 #include <libfdt.h>
 #include <libfdt_env.h>
-int main(void) { fdt_first_subnode(0, 0); return 0; }
+int main(void) {
+    fdt_setprop_inplace_namelen_partial(0, 0, 0, 0, 0, 0, 0);
+    return 0;
+}
 EOF
   if compile_prog "" "$fdt_libs" ; then
     # system DTC is good - use it
