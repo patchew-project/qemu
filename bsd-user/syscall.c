@@ -26,6 +26,7 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
+#include "hypertrace/user.h"
 
 //#define DEBUG
 
@@ -332,6 +333,7 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         /* XXX: should free thread stack and CPU env */
         _exit(arg1);
         ret = 0; /* avoid warning */
@@ -369,10 +371,12 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg1, 0);
         break;
     case TARGET_FREEBSD_NR_mmap:
-        ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
-                                    arg5,
-                                    arg6));
+        ret = get_errno(target_mmap_cpu(
+                            arg1, arg2, arg3,
+                            target_to_host_bitmask(arg4, mmap_flags_tbl),
+                            arg5,
+                            arg6,
+                            cpu));
         break;
     case TARGET_FREEBSD_NR_mprotect:
         ret = get_errno(target_mprotect(arg1, arg2, arg3));
@@ -430,6 +434,7 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         /* XXX: should free thread stack and CPU env */
         _exit(arg1);
         ret = 0; /* avoid warning */
@@ -455,10 +460,12 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg1, 0);
         break;
     case TARGET_NETBSD_NR_mmap:
-        ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
-                                    arg5,
-                                    arg6));
+        ret = get_errno(target_mmap_cpu(
+                            arg1, arg2, arg3,
+                            target_to_host_bitmask(arg4, mmap_flags_tbl),
+                            arg5,
+                            arg6,
+                            cpu));
         break;
     case TARGET_NETBSD_NR_mprotect:
         ret = get_errno(target_mprotect(arg1, arg2, arg3));
@@ -505,6 +512,7 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         /* XXX: should free thread stack and CPU env */
         _exit(arg1);
         ret = 0; /* avoid warning */
@@ -530,10 +538,12 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         unlock_user(p, arg1, 0);
         break;
     case TARGET_OPENBSD_NR_mmap:
-        ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
-                                    arg5,
-                                    arg6));
+        ret = get_errno(target_mmap_cpu(
+                            arg1, arg2, arg3,
+                            target_to_host_bitmask(arg4, mmap_flags_tbl),
+                            arg5,
+                            arg6,
+                            cpu));
         break;
     case TARGET_OPENBSD_NR_mprotect:
         ret = get_errno(target_mprotect(arg1, arg2, arg3));

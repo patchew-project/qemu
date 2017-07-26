@@ -23,6 +23,7 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
+#include "hypertrace/user.h"
 #include "target_signal.h"
 #include "trace.h"
 
@@ -813,7 +814,16 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             } else {
                 act1.sa_sigaction = host_signal_handler;
             }
-            ret = sigaction(host_sig, &act1, NULL);
+
+            if (host_sig == SIGINT) {
+                memcpy(&sigint_user, &act1, sizeof(act1));
+                sigint_user_set = true;
+            } else if (host_sig == SIGABRT) {
+                memcpy(&sigabrt_user, &act1, sizeof(act1));
+                sigabrt_user_set = true;
+            } else {
+                ret = sigaction(host_sig, &act1, NULL);
+            }
         }
     }
     return ret;

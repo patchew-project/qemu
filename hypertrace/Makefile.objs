@@ -1,0 +1,19 @@
+# -*- mode: makefile -*-
+
+target-obj-$(CONFIG_USER_ONLY) += user.o
+target-obj-y += common.o
+
+$(obj)/user.o: $(obj)/emit.c
+$(obj)/common.o: $(obj)/emit.c
+
+$(obj)/emit.c: $(obj)/emit.c-timestamp $(BUILD_DIR)/config-host.mak
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/emit.c-timestamp: $(BUILD_DIR)/config-host.mak
+	@echo "static void do_hypertrace_emit(CPUState *cpu, uint64_t arg1, uint64_t *data)" >$@
+	@echo "{" >>$@
+	@echo -n "    trace_guest_hypertrace(cpu, arg1" >>$@
+	@for i in `seq $$(( $(CONFIG_HYPERTRACE_ARGS) - 1 ))`; do \
+	    echo -n ", data[$$i-1]" >>$@; \
+	done
+	@echo ");" >>$@
+	@echo "}" >>$@

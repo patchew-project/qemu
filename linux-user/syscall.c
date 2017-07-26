@@ -115,6 +115,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include "uname.h"
 
 #include "qemu.h"
+#include "hypertrace/user.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -7765,6 +7766,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         _exit(arg1);
         ret = 0; /* avoid warning */
         break;
@@ -9231,15 +9233,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             v5 = tswapal(v[4]);
             v6 = tswapal(v[5]);
             unlock_user(v, arg1, 0);
-            ret = get_errno(target_mmap(v1, v2, v3,
-                                        target_to_host_bitmask(v4, mmap_flags_tbl),
-                                        v5, v6));
+            ret = get_errno(target_mmap_cpu(
+                                v1, v2, v3,
+                                target_to_host_bitmask(v4, mmap_flags_tbl),
+                                v5, v6,
+                                cpu));
         }
 #else
-        ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
-                                    arg5,
-                                    arg6));
+        ret = get_errno(target_mmap_cpu(
+                            arg1, arg2, arg3,
+                            target_to_host_bitmask(arg4, mmap_flags_tbl),
+                            arg5,
+                            arg6,
+                            cpu));
 #endif
         break;
 #endif
@@ -9248,10 +9254,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifndef MMAP_SHIFT
 #define MMAP_SHIFT 12
 #endif
-        ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
-                                    arg5,
-                                    arg6 << MMAP_SHIFT));
+        ret = get_errno(target_mmap_cpu(
+                            arg1, arg2, arg3,
+                            target_to_host_bitmask(arg4, mmap_flags_tbl),
+                            arg5,
+                            arg6 << MMAP_SHIFT,
+                            cpu));
         break;
 #endif
     case TARGET_NR_munmap:
@@ -9821,6 +9829,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        hypertrace_fini();
         ret = get_errno(exit_group(arg1));
         break;
 #endif
