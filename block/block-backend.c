@@ -1685,17 +1685,15 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
     BlockDriverState *bs = blk_bs(blk);
-    ThrottleTimers *tt;
+    ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
 
     if (bs) {
-        if (blk->public.throttle_group_member.throttle_state) {
-            tt = &blk->public.throttle_group_member.throttle_timers;
-            throttle_timers_detach_aio_context(tt);
+        if (tgm->throttle_state) {
+            throttle_group_detach_aio_context(tgm);
         }
         bdrv_set_aio_context(bs, new_context);
-        if (blk->public.throttle_group_member.throttle_state) {
-            tt = &blk->public.throttle_group_member.throttle_timers;
-            throttle_timers_attach_aio_context(tt, new_context);
+        if (tgm->throttle_state) {
+            throttle_group_attach_aio_context(tgm, new_context);
         }
     }
 }
@@ -1929,7 +1927,7 @@ void blk_io_limits_disable(BlockBackend *blk)
 void blk_io_limits_enable(BlockBackend *blk, const char *group)
 {
     assert(!blk->public.throttle_group_member.throttle_state);
-    throttle_group_register_tgm(&blk->public.throttle_group_member, group);
+    throttle_group_register_tgm(&blk->public.throttle_group_member, group, blk_get_aio_context(blk));
 }
 
 void blk_io_limits_update_group(BlockBackend *blk, const char *group)
