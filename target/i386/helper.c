@@ -416,6 +416,14 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     int eflags, i, nb;
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
+    APICCommonState *s = APIC_COMMON(cpu->apic_state);
+
+    if (!s) {
+        cpu_fprintf(f, "local apic state not available\n");
+        return;
+    }
+    cpu_fprintf(f, "(socket-id:%d core-id:%d thread-id:%d apic-id:%d)\n",
+            cpu->socket_id, cpu->core_id, cpu->thread_id, s->id);
 
     eflags = cpu_compute_eflags(env);
 #ifdef TARGET_X86_64
