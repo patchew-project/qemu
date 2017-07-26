@@ -2306,7 +2306,6 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
 static void scsi_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-    Error *err = NULL;
 
     if (!s->qdev.conf.blk) {
         error_setg(errp, "drive property not set");
@@ -2322,17 +2321,13 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
     blkconf_serial(&s->qdev.conf, &s->serial);
     blkconf_blocksizes(&s->qdev.conf);
     if (dev->type == TYPE_DISK) {
-        blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, errp) < 0) {
             return;
         }
     }
-    blkconf_apply_backend_options(&dev->conf,
-                                  blk_is_read_only(s->qdev.conf.blk),
-                                  dev->type == TYPE_DISK, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (blkconf_apply_backend_options(&dev->conf,
+                                      blk_is_read_only(s->qdev.conf.blk),
+                                      dev->type == TYPE_DISK, errp) < 0) {
         return;
     }
 
