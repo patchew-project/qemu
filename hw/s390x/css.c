@@ -1745,10 +1745,10 @@ int css_do_rchp(uint8_t cssid, uint8_t chpid)
     }
 
     /* We don't really use a channel path, so we're done here. */
-    css_queue_crw(CRW_RSC_CHP, CRW_ERC_INIT,
+    css_queue_crw(CRW_RSC_CHP, CRW_ERC_INIT, 1,
                   channel_subsys.max_cssid > 0 ? 1 : 0, chpid);
     if (channel_subsys.max_cssid > 0) {
-        css_queue_crw(CRW_RSC_CHP, CRW_ERC_INIT, 0, real_cssid << 8);
+        css_queue_crw(CRW_RSC_CHP, CRW_ERC_INIT, 1, 0, real_cssid << 8);
     }
     return 0;
 }
@@ -2028,7 +2028,7 @@ void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
     }
 }
 
-void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid)
+void css_queue_crw(uint8_t rsc, uint8_t erc, int s, int chain, uint16_t rsid)
 {
     CrwContainer *crw_cont;
 
@@ -2040,6 +2040,9 @@ void css_queue_crw(uint8_t rsc, uint8_t erc, int chain, uint16_t rsid)
         return;
     }
     crw_cont->crw.flags = (rsc << 8) | erc;
+    if (s) {
+        crw_cont->crw.flags |= CRW_FLAGS_MASK_S;
+    }
     if (chain) {
         crw_cont->crw.flags |= CRW_FLAGS_MASK_C;
     }
@@ -2086,9 +2089,9 @@ void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
     }
     chain_crw = (channel_subsys.max_ssid > 0) ||
             (channel_subsys.max_cssid > 0);
-    css_queue_crw(CRW_RSC_SUBCH, CRW_ERC_IPI, chain_crw ? 1 : 0, schid);
+    css_queue_crw(CRW_RSC_SUBCH, CRW_ERC_IPI, 0, chain_crw ? 1 : 0, schid);
     if (chain_crw) {
-        css_queue_crw(CRW_RSC_SUBCH, CRW_ERC_IPI, 0,
+        css_queue_crw(CRW_RSC_SUBCH, CRW_ERC_IPI, 0, 0,
                       (guest_cssid << 8) | (ssid << 4));
     }
     /* RW_ERC_IPI --> clear pending interrupts */
@@ -2103,7 +2106,7 @@ void css_generate_chp_crws(uint8_t cssid, uint8_t chpid)
 void css_generate_css_crws(uint8_t cssid)
 {
     if (!channel_subsys.sei_pending) {
-        css_queue_crw(CRW_RSC_CSS, CRW_ERC_EVENT, 0, cssid);
+        css_queue_crw(CRW_RSC_CSS, CRW_ERC_EVENT, 0, 0, cssid);
     }
     channel_subsys.sei_pending = true;
 }
