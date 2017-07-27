@@ -1022,3 +1022,33 @@ void qdict_join(QDict *dest, QDict *src, bool overwrite)
         entry = next;
     }
 }
+
+char *qdict_to_string(QDict *dict, int indent)
+{
+    const QDictEntry *entry;
+    GString *str = g_string_new(NULL);
+
+    for (entry = qdict_first(dict); entry; entry = qdict_next(dict, entry)) {
+        QType type = qobject_type(entry->value);
+        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
+        char *key = g_malloc(strlen(entry->key) + 1);
+        char *val = qobject_to_string_indent(entry->value, indent + 1);
+        int i;
+
+        /* replace dashes with spaces in key (variable) names */
+        for (i = 0; entry->key[i]; i++) {
+            key[i] = entry->key[i] == '-' ? ' ' : entry->key[i];
+        }
+        key[i] = 0;
+        g_string_append_printf(str, "%*s%s:", indent * 4, "", key);
+        g_string_append_c(str, composite ? '\n' : ' ');
+        g_string_append(str, val);
+        if (!composite) {
+            g_string_append_c(str, '\n');
+        }
+        g_free(val);
+        g_free(key);
+    }
+
+    return g_string_free(str, false);
+}

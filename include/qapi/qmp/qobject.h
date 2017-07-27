@@ -105,4 +105,11 @@ static inline QNull *qnull(void)
     return &qnull_;
 }
 
+char *qobject_to_string_indent(QObject *obj, int indent);
+
+static inline char *qobject_to_string(QObject *obj)
+{
+    return qobject_to_string_indent(obj, 0);
+}
+
 #endif /* QOBJECT_H */

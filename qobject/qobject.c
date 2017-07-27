@@ -27,3 +27,24 @@ void qobject_destroy(QObject *obj)
     assert(QTYPE_QNULL < obj->type && obj->type < QTYPE__MAX);
     qdestroy[obj->type](obj);
 }
+
+char *qobject_to_string_indent(QObject *obj, int indent)
+{
+    switch (qobject_type(obj)) {
+    case QTYPE_QNULL:
+        return g_strdup("null");
+    case QTYPE_QNUM:
+        return qnum_to_string(qobject_to_qnum(obj));
+    case QTYPE_QSTRING:
+        return g_strdup(qstring_get_str(qobject_to_qstring(obj)));
+    case QTYPE_QDICT:
+        return qdict_to_string(qobject_to_qdict(obj), indent);
+    case QTYPE_QLIST:
+        return qlist_to_string(qobject_to_qlist(obj), indent);
+    case QTYPE_QBOOL:
+        return g_strdup(qbool_get_bool(qobject_to_qbool(obj)) ?
+                        "true" : "false");
+    default:
+        abort();
+    }
+}

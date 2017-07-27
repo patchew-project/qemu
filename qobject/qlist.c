@@ -158,3 +158,26 @@ void qlist_destroy_obj(QObject *obj)
 
     g_free(qlist);
 }
+
+char *qlist_to_string(QList *list, int indent)
+{
+    GString *str = g_string_new(NULL);
+    const QListEntry *entry;
+    int i = 0;
+
+    for (entry = qlist_first(list); entry; entry = qlist_next(entry), i++) {
+        QType type = qobject_type(entry->value);
+        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
+        char *val = qobject_to_string_indent(entry->value, indent + 1);
+
+        g_string_append_printf(str, "%*s[%i]:", indent * 4, "", i);
+        g_string_append_c(str, composite ? '\n' : ' ');
+        g_string_append(str, val);
+        if (!composite) {
+            g_string_append_c(str, '\n');
+        }
+        g_free(val);
+    }
+
+    return g_string_free(str, false);
+}

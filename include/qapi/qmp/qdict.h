@@ -86,4 +86,6 @@ QObject *qdict_crumple(const QDict *src, Error **errp);
 
 void qdict_join(QDict *dest, QDict *src, bool overwrite);
 
+char *qdict_to_string(QDict *dict, int indent);
+
 #endif /* QDICT_H */
