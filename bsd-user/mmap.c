@@ -21,6 +21,7 @@
 #include "qemu.h"
 #include "qemu-common.h"
 #include "bsd-mman.h"
+#include "hypertrace/user.h"
 
 //#define DEBUG_MMAP
 
@@ -240,9 +241,16 @@ static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
     return addr;
 }
 
-/* NOTE: all the constants are the HOST ones */
 abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, abi_ulong offset)
+{
+    return target_mmap_cpu(start, len, prot, flags, fd, offset, NULL);
+}
+
+/* NOTE: all the constants are the HOST ones */
+abi_long target_mmap_cpu(abi_ulong start, abi_ulong len, int prot,
+                         int flags, int fd, abi_ulong offset,
+                         CPUState *cpu)
 {
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
     unsigned long host_start;
@@ -284,6 +292,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     if (len == 0)
         goto the_end;
     real_start = start & qemu_host_page_mask;
+
+    if (!hypertrace_guest_mmap_check(fd, len, offset)) {
+        goto fail;
+    }
 
     if (!(flags & MAP_FIXED)) {
         abi_ulong mmap_start;
@@ -396,6 +408,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
  the_end1:
+    hypertrace_guest_mmap_apply(fd, g2h(start), cpu);
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
 #ifdef DEBUG_MMAP

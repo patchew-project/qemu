@@ -30,9 +30,12 @@
 #include "tcg.h"
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
+#include "qemu/error-report.h"
 #include "exec/log.h"
 #include "trace/control.h"
 #include "glib-compat.h"
+#include "hypertrace/user.h"
+
 
 int singlestep;
 unsigned long mmap_min_addr;
@@ -676,6 +679,8 @@ static void usage(void)
            "-strace           log system calls\n"
            "-trace            [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
            "                  specify tracing options\n"
+           "-hypertrace       [[base=]<path>][,max-clients=<uint>]\n"
+           "                  specify hypertrace options\n"
            "\n"
            "Environment variables:\n"
            "QEMU_STRACE       Print system calls and arguments similar to the\n"
@@ -736,6 +741,8 @@ int main(int argc, char **argv)
     envlist_t *envlist = NULL;
     char *trace_file = NULL;
     bsd_type = target_openbsd;
+    char *hypertrace_base = NULL;
+    unsigned int hypertrace_max_clients = 0;
 
     if (argc <= 1)
         usage();
@@ -754,6 +761,7 @@ int main(int argc, char **argv)
     cpu_model = NULL;
 
     qemu_add_opts(&qemu_trace_opts);
+    qemu_add_opts(&qemu_hypertrace_opts);
 
     optind = 1;
     for (;;) {
@@ -841,6 +849,10 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "trace")) {
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
+        } else if (!strcmp(r, "hypertrace")) {
+            g_free(hypertrace_base);
+            hypertrace_opt_parse(optarg, &hypertrace_base,
+                                 &hypertrace_max_clients);
         } else {
             usage();
         }
@@ -975,6 +987,11 @@ int main(int argc, char **argv)
     target_set_brk(info->brk);
     syscall_init();
     signal_init();
+    if (atexit(hypertrace_fini) != 0) {
+        error_report("error: atexit: %s\n", strerror(errno));
+        abort();
+    }
+    hypertrace_init(hypertrace_base, hypertrace_size);
 
     /* Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
        generating the prologue until now so that the prologue can take
