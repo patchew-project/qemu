@@ -2357,8 +2357,14 @@ void memory_global_dirty_log_sync(void)
     }
 }
 
+static VMChangeStateEntry *vmstate_change;
+
 void memory_global_dirty_log_start(void)
 {
+    if (vmstate_change) {
+        qemu_del_vm_change_state_handler(vmstate_change);
+    }
+
     global_dirty_log = true;
 
     MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
@@ -2369,7 +2375,7 @@ void memory_global_dirty_log_start(void)
     memory_region_transaction_commit();
 }
 
-void memory_global_dirty_log_stop(void)
+static void memory_global_dirty_log_do_stop(void)
 {
     global_dirty_log = false;
 
@@ -2379,6 +2385,25 @@ void memory_global_dirty_log_stop(void)
     memory_region_transaction_commit();
 
     MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
+}
+
+static void memory_vm_change_state_handler(void *opaque, int running,
+                                           RunState state)
+{
+    if (running) {
+        memory_global_dirty_log_do_stop();
+    }
+}
+
+void memory_global_dirty_log_stop(void)
+{
+    if (!runstate_is_running()) {
+        vmstate_change = qemu_add_vm_change_state_handler(
+                                memory_vm_change_state_handler, NULL);
+        return;
+    }
+
+    memory_global_dirty_log_do_stop();
 }
 
 static void listener_add_address_space(MemoryListener *listener,
