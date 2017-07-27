@@ -88,6 +88,17 @@ vcpu guest_cpu_exit(void)
 # Targets: all
 vcpu guest_cpu_reset(void)
 
+# @argX: Hypertrace arguments.
+#
+# Event explicitly triggered by guest code. The event definition is
+# auto-generated from the "--with-hypertrace-args" configuration argument (see
+# "docs/hypertrace.txt"):
+#
+#   vcpu guest_hypertrace(uint64_t arg0, ..., uint64_t argN-1)
+#
+# Mode: all
+# Targets: all
+
 # @vaddr: Access' virtual address.
 # @info : Access' information (see below).
 #
