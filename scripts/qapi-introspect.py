@@ -12,31 +12,34 @@
 from qapi import *
 
 
-# Caveman's json.dumps() replacement (we're stuck at Python 2.4)
-# TODO try to use json.dumps() once we get unstuck
-def to_json(obj, level=0):
+def to_qlit(obj, level=0, first_indent=True):
+    def indent(level):
+        return level * 4 * ' '
+    ret = ''
+    if first_indent:
+        ret += indent(level)
     if obj is None:
-        ret = 'null'
+        ret += 'QLIT_QNULL'
     elif isinstance(obj, str):
-        ret = '"' + obj.replace('"', r'\"') + '"'
+        ret += 'QLIT_QSTR(' + '"' + obj.replace('"', r'\"') + '"' + ')'
     elif isinstance(obj, list):
-        elts = [to_json(elt, level + 1)
+        elts = [to_qlit(elt, level + 1)
                 for elt in obj]
-        ret = '[' + ', '.join(elts) + ']'
+        elts.append(indent(level + 1) + "{ }")
+        ret += 'QLIT_QLIST(((QLitObject[]) {\n'
+        ret += ',\n'.join(elts) + '\n'
+        ret += indent(level) + '}))'
     elif isinstance(obj, dict):
-        elts = ['"%s": %s' % (key.replace('"', r'\"'),
-                              to_json(obj[key], level + 1))
-                for key in sorted(obj.keys())]
-        ret = '{' + ', '.join(elts) + '}'
+        elts = [ indent(level + 1) + '{ "%s", %s }' %
+                 (key.replace('"', r'\"'), to_qlit(obj[key], level + 1, False))
+                 for key in sorted(obj.keys())]
+        elts.append(indent(level + 1) + '{ }')
+        ret += 'QLIT_QDICT(((QLitDictEntry[]) {\n'
+        ret += ',\n'.join(elts) + '\n'
+        ret += indent(level) + '}))'
     else:
         assert False                # not implemented
-    if level == 1:
-        ret = '\n' + ret
     return ret
-
-
-def to_c_string(string):
-    return '"' + string.replace('\\', r'\\').replace('"', r'\"') + '"'
 
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
@@ -45,39 +48,38 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
         self.defn = None
         self.decl = None
         self._schema = None
-        self._jsons = None
+        self._qlits = None
         self._used_types = None
         self._name_map = None
 
     def visit_begin(self, schema):
         self._schema = schema
-        self._jsons = []
+        self._qlits = []
         self._used_types = []
         self._name_map = {}
 
     def visit_end(self):
         # visit the types that are actually used
-        jsons = self._jsons
-        self._jsons = []
+        qlits = self._qlits
+        self._qlits = []
         for typ in self._used_types:
             typ.visit(self)
         # generate C
         # TODO can generate awfully long lines
-        jsons.extend(self._jsons)
-        name = c_name(prefix, protect=False) + 'qmp_schema_json'
+        qlits.extend(self._qlits)
+        name = c_name(prefix, protect=False) + 'qmp_schema_qlit'
         self.decl = mcgen('''
-extern const char %(c_name)s[];
+extern const QLitObject %(c_name)s;
 ''',
                           c_name=c_name(name))
-        lines = to_json(jsons).split('\n')
-        c_string = '\n    '.join([to_c_string(line) for line in lines])
+        c_string = to_qlit(qlits)
         self.defn = mcgen('''
-const char %(c_name)s[] = %(c_string)s;
+const QLitObject %(c_name)s = %(c_string)s;
 ''',
                           c_name=c_name(name),
                           c_string=c_string)
         self._schema = None
-        self._jsons = None
+        self._qlits = None
         self._used_types = None
         self._name_map = None
 
@@ -111,12 +113,12 @@ const char %(c_name)s[] = %(c_string)s;
             return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
-    def _gen_json(self, name, mtype, obj):
+    def _gen_qlit(self, name, mtype, obj):
         if mtype not in ('command', 'event', 'builtin', 'array'):
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
-        self._jsons.append(obj)
+        self._qlits.append(obj)
 
     def _gen_member(self, member):
         ret = {'name': member.name, 'type': self._use_type(member.type)}
@@ -132,24 +134,24 @@ const char %(c_name)s[] = %(c_string)s;
         return {'case': variant.name, 'type': self._use_type(variant.type)}
 
     def visit_builtin_type(self, name, info, json_type):
-        self._gen_json(name, 'builtin', {'json-type': json_type})
+        self._gen_qlit(name, 'builtin', {'json-type': json_type})
 
     def visit_enum_type(self, name, info, values, prefix):
-        self._gen_json(name, 'enum', {'values': values})
+        self._gen_qlit(name, 'enum', {'values': values})
 
     def visit_array_type(self, name, info, element_type):
         element = self._use_type(element_type)
-        self._gen_json('[' + element + ']', 'array', {'element-type': element})
+        self._gen_qlit('[' + element + ']', 'array', {'element-type': element})
 
     def visit_object_type_flat(self, name, info, members, variants):
         obj = {'members': [self._gen_member(m) for m in members]}
         if variants:
             obj.update(self._gen_variants(variants.tag_member.name,
                                           variants.variants))
-        self._gen_json(name, 'object', obj)
+        self._gen_qlit(name, 'object', obj)
 
     def visit_alternate_type(self, name, info, variants):
-        self._gen_json(name, 'alternate',
+        self._gen_qlit(name, 'alternate',
                        {'members': [{'type': self._use_type(m.type)}
                                     for m in variants.variants]})
 
@@ -157,13 +159,13 @@ const char %(c_name)s[] = %(c_string)s;
                       gen, success_response, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
-        self._gen_json(name, 'command',
+        self._gen_qlit(name, 'command',
                        {'arg-type': self._use_type(arg_type),
                         'ret-type': self._use_type(ret_type)})
 
     def visit_event(self, name, info, arg_type, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type
-        self._gen_json(name, 'event', {'arg-type': self._use_type(arg_type)})
+        self._gen_qlit(name, 'event', {'arg-type': self._use_type(arg_type)})
 
 # Debugging aid: unmask QAPI schema's type names
 # We normally mask them, because they're not QMP wire ABI
@@ -205,10 +207,17 @@ h_comment = '''
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"
+#include "qapi/qmp/qlit.h"
 #include "%(prefix)sqmp-introspect.h"
 
 ''',
                  prefix=prefix))
+
+fdecl.write(mcgen('''
+#include "qemu/osdep.h"
+#include "qapi/qmp/qlit.h"
+
+'''))
 
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenIntrospectVisitor(opt_unmask)
