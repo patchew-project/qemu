@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-if-invalid.json:2: Member 'bar' of 'data' for struct 'TestIfStruct' should be a type name

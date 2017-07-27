@@ -31,7 +31,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print '    base %s' % base.name
         for m in members:
             print '    member %s: %s optional=%s' % \
-                (m.name, m.type.name, m.optional)
+                (m.name, m.type.name, m.optional) + \
+                (' if=%s' % m.ifcond if m.ifcond else '')
         self._print_variants(variants)
         self._print_if(ifcond)
 

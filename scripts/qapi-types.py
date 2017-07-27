@@ -41,6 +41,7 @@ struct %(c_name)s {
 def gen_struct_members(members):
     ret = ''
     for memb in members:
+        ret += gen_if(memb.ifcond)
         if memb.optional:
             ret += mcgen('''
     bool has_%(c_name)s;
@@ -50,6 +51,7 @@ def gen_struct_members(members):
     %(c_type)s %(c_name)s;
 ''',
                      c_type=memb.type.c_type(), c_name=c_name(memb.name))
+        ret += gen_endif(memb.ifcond)
     return ret
 
 
