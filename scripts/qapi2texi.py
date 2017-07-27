@@ -137,10 +137,11 @@ def texi_enum_value(value):
 def texi_member(member, suffix=''):
     """Format a table of members item for an object type member"""
     typ = member.type.doc_type()
-    return '@item @code{%s%s}%s%s\n' % (
+    return '@item @code{%s%s}%s%s%s\n' % (
         member.name,
         ': %s' % typ if typ else '',
         ' (optional)' if member.optional else '',
+        '\n@b{If:} @code{%s}\n' % member.ifcond if member.ifcond else '',
         suffix)
 
 
