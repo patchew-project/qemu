@@ -6461,7 +6461,8 @@
 #                 { "version": 3, "emulated": false, "kernel": true } ] }
 #
 ##
-{ 'command': 'query-gic-capabilities', 'returns': ['GICCapability'] }
+{ 'command': 'query-gic-capabilities', 'returns': ['GICCapability'],
+  'if': ['defined(NEED_CPU_H)', 'defined(TARGET_ARM)']}
 
 ##
 # @CpuInstanceProperties:
