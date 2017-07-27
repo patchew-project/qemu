@@ -4535,7 +4535,9 @@
 { 'command': 'query-cpu-model-expansion',
   'data': { 'type': 'CpuModelExpansionType',
             'model': 'CpuModelInfo' },
-  'returns': 'CpuModelExpansionInfo' }
+  'returns': 'CpuModelExpansionInfo',
+  'if': ['defined(NEED_CPU_H)',
+         'defined(TARGET_S390X) || defined(TARGET_I386)']}
 
 ##
 # @CpuModelCompareResult:
