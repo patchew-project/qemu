@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlit.h"
 #include "qemu-common.h"
 
 static void escaped_string(void)
@@ -1059,39 +1060,14 @@ static void keyword_literal(void)
     QDECREF(null);
 }
 
-typedef struct LiteralQDictEntry LiteralQDictEntry;
-typedef struct LiteralQObject LiteralQObject;
-
-struct LiteralQObject
-{
-    int type;
-    union {
-        int64_t qnum;
-        const char *qstr;
-        LiteralQDictEntry *qdict;
-        LiteralQObject *qlist;
-    } value;
-};
-
-struct LiteralQDictEntry
-{
-    const char *key;
-    LiteralQObject value;
-};
-
-#define QLIT_QNUM(val) (LiteralQObject){.type = QTYPE_QNUM, .value.qnum = (val)}
-#define QLIT_QSTR(val) (LiteralQObject){.type = QTYPE_QSTRING, .value.qstr = (val)}
-#define QLIT_QDICT(val) (LiteralQObject){.type = QTYPE_QDICT, .value.qdict = (val)}
-#define QLIT_QLIST(val) (LiteralQObject){.type = QTYPE_QLIST, .value.qlist = (val)}
-
 typedef struct QListCompareHelper
 {
     int index;
-    LiteralQObject *objs;
+    QLitObject *objs;
     int result;
 } QListCompareHelper;
 
-static int compare_litqobj_to_qobj(LiteralQObject *lhs, QObject *rhs);
+static int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs);
 
 static void compare_helper(QObject *obj, void *opaque)
 {
@@ -1109,7 +1085,7 @@ static void compare_helper(QObject *obj, void *opaque)
     helper->result = compare_litqobj_to_qobj(&helper->objs[helper->index++], obj);
 }
 
-static int compare_litqobj_to_qobj(LiteralQObject *lhs, QObject *rhs)
+static int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs)
 {
     int64_t val;
 
@@ -1159,23 +1135,23 @@ static void simple_dict(void)
     int i;
     struct {
         const char *encoded;
-        LiteralQObject decoded;
+        QLitObject decoded;
     } test_cases[] = {
         {
             .encoded = "{\"foo\": 42, \"bar\": \"hello world\"}",
-            .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QDICT(((QLitDictEntry[]){
                         { "foo", QLIT_QNUM(42) },
                         { "bar", QLIT_QSTR("hello world") },
                         { }
                     })),
         }, {
             .encoded = "{}",
-            .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QDICT(((QLitDictEntry[]){
                         { }
                     })),
         }, {
             .encoded = "{\"foo\": 43}",
-            .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QDICT(((QLitDictEntry[]){
                         { "foo", QLIT_QNUM(43) },
                         { }
                     })),
@@ -1257,11 +1233,11 @@ static void simple_list(void)
     int i;
     struct {
         const char *encoded;
-        LiteralQObject decoded;
+        QLitObject decoded;
     } test_cases[] = {
         {
             .encoded = "[43,42]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         QLIT_QNUM(42),
                         { }
@@ -1269,21 +1245,21 @@ static void simple_list(void)
         },
         {
             .encoded = "[43]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         { }
                     })),
         },
         {
             .encoded = "[]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         { }
                     })),
         },
         {
             .encoded = "[{}]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
-                        QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
+                        QLIT_QDICT(((QLitDictEntry[]){
                                     {},
                                         })),
                         {},
@@ -1314,11 +1290,11 @@ static void simple_whitespace(void)
     int i;
     struct {
         const char *encoded;
-        LiteralQObject decoded;
+        QLitObject decoded;
     } test_cases[] = {
         {
             .encoded = " [ 43 , 42 ]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         QLIT_QNUM(42),
                         { }
@@ -1326,12 +1302,12 @@ static void simple_whitespace(void)
         },
         {
             .encoded = " [ 43 , { 'h' : 'b' }, [ ], 42 ]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
-                        QLIT_QDICT(((LiteralQDictEntry[]){
+                        QLIT_QDICT(((QLitDictEntry[]){
                                     { "h", QLIT_QSTR("b") },
                                     { }})),
-                        QLIT_QLIST(((LiteralQObject[]){
+                        QLIT_QLIST(((QLitObject[]){
                                     { }})),
                         QLIT_QNUM(42),
                         { }
@@ -1339,13 +1315,13 @@ static void simple_whitespace(void)
         },
         {
             .encoded = " [ 43 , { 'h' : 'b' , 'a' : 32 }, [ ], 42 ]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
-                        QLIT_QDICT(((LiteralQDictEntry[]){
+                        QLIT_QDICT(((QLitDictEntry[]){
                                     { "h", QLIT_QSTR("b") },
                                     { "a", QLIT_QNUM(32) },
                                     { }})),
-                        QLIT_QLIST(((LiteralQObject[]){
+                        QLIT_QLIST(((QLitObject[]){
                                     { }})),
                         QLIT_QNUM(42),
                         { }
@@ -1393,10 +1369,10 @@ static void simple_varargs(void)
 {
     QObject *embedded_obj;
     QObject *obj;
-    LiteralQObject decoded = QLIT_QLIST(((LiteralQObject[]){
+    QLitObject decoded = QLIT_QLIST(((QLitObject[]){
             QLIT_QNUM(1),
             QLIT_QNUM(2),
-            QLIT_QLIST(((LiteralQObject[]){
+            QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(32),
                         QLIT_QNUM(42),
                         {}})),

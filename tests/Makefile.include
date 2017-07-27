@@ -12,6 +12,8 @@ check-unit-y += tests/test-char$(EXESUF)
 gcov-files-check-qdict-y = chardev/char.c
 check-unit-y += tests/check-qnum$(EXESUF)
 gcov-files-check-qnum-y = qobject/qnum.c
+check-unit-y += tests/check-qlit$(EXESUF)
+gcov-files-check-qlit-y = qobject/qlit.c
 check-unit-y += tests/check-qstring$(EXESUF)
 gcov-files-check-qstring-y = qobject/qstring.c
 check-unit-y += tests/check-qlist$(EXESUF)
@@ -523,7 +525,7 @@ test-obj-y = tests/check-qnum.o tests/check-qstring.o tests/check-qdict.o \
 	tests/rcutorture.o tests/test-rcu-list.o \
 	tests/test-qdist.o tests/test-shift128.o \
 	tests/test-qht.o tests/qht-bench.o tests/test-qht-par.o \
-	tests/atomic_add-bench.o
+	tests/atomic_add-bench.o tests/check-qlit.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
@@ -541,6 +543,7 @@ test-io-obj-y = $(io-obj-y) $(test-crypto-obj-y)
 test-block-obj-y = $(block-obj-y) $(test-io-obj-y) tests/iothread.o
 
 tests/check-qnum$(EXESUF): tests/check-qnum.o $(test-util-obj-y)
+tests/check-qlit$(EXESUF): tests/check-qlit.o $(test-util-obj-y)
 tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)
 tests/check-qdict$(EXESUF): tests/check-qdict.o $(test-util-obj-y)
 tests/check-qlist$(EXESUF): tests/check-qlist.o $(test-util-obj-y)
