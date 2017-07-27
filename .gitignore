@@ -51,6 +51,7 @@
 /module_block.h
 /vscclient
 /vhost-user-scsi
+/vhost-user-blk
 /fsdev/virtfs-proxy-helper
 *.[1-9]
 *.a
