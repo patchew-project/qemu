@@ -59,7 +59,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         if variants:
             print '    tag %s' % variants.tag_member.name
             for v in variants.variants:
-                print '    case %s: %s' % (v.name, v.type.name)
+                print '    case %s: %s' % (v.name, v.type.name) + \
+                    (' if=%s' % v.ifcond if v.ifcond else '')
 
     @staticmethod
     def _print_if(ifcond):
