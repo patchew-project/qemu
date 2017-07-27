@@ -207,7 +207,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
     def visit_begin(self, schema):
         self.out = ''
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, values, prefix, ifcond):
         doc = self.cur_doc
         if self.out:
             self.out += '\n'
@@ -216,7 +216,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
                              body=texi_entity(doc, 'Values',
                                               member_func=texi_enum_value))
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, base, members, variants, ifcond):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None
@@ -226,7 +226,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
                              name=doc.symbol,
                              body=texi_entity(doc, 'Members', base, variants))
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, variants, ifcond):
         doc = self.cur_doc
         if self.out:
             self.out += '\n'
@@ -235,7 +235,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
                              body=texi_entity(doc, 'Members'))
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, ifcond):
         doc = self.cur_doc
         if self.out:
             self.out += '\n'
@@ -249,7 +249,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
                             name=doc.symbol,
                             body=body)
 
-    def visit_event(self, name, info, arg_type, boxed):
+    def visit_event(self, name, info, arg_type, boxed, ifcond):
         doc = self.cur_doc
         if self.out:
             self.out += '\n'

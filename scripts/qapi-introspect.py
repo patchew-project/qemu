@@ -12,7 +12,7 @@
 from qapi import *
 
 
-def to_qlit(obj, level=0, first_indent=True):
+def to_qlit(obj, level=0, first_indent=True, suffix=''):
     def indent(level):
         return level * 4 * ' '
     ret = ''
@@ -20,14 +20,20 @@ def to_qlit(obj, level=0, first_indent=True):
         ret += indent(level)
     if obj is None:
         ret += 'QLIT_QNULL'
+    elif isinstance(obj, tuple):
+        obj, ifcond =  obj
+        ret += gen_if(ifcond)
+        ret += to_qlit(obj, level, False) + suffix
+        ret += gen_endif(ifcond)
+        suffix = ''
     elif isinstance(obj, str):
         ret += 'QLIT_QSTR(' + '"' + obj.replace('"', r'\"') + '"' + ')'
     elif isinstance(obj, list):
-        elts = [to_qlit(elt, level + 1)
+        elts = [to_qlit(elt, level + 1, True, ",")
                 for elt in obj]
         elts.append(indent(level + 1) + "{ }")
         ret += 'QLIT_QLIST(((QLitObject[]) {\n'
-        ret += ',\n'.join(elts) + '\n'
+        ret += '\n'.join(elts) + '\n'
         ret += indent(level) + '}))'
     elif isinstance(obj, dict):
         elts = [ indent(level + 1) + '{ "%s", %s }' %
@@ -39,7 +45,7 @@ def to_qlit(obj, level=0, first_indent=True):
         ret += indent(level) + '}))'
     else:
         assert False                # not implemented
-    return ret
+    return ret + suffix
 
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
@@ -113,12 +119,12 @@ const QLitObject %(c_name)s = %(c_string)s;
             return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
-    def _gen_qlit(self, name, mtype, obj):
+    def _gen_qlit(self, name, mtype, obj, ifcond):
         if mtype not in ('command', 'event', 'builtin', 'array'):
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
-        self._qlits.append(obj)
+        self._qlits.append((obj, ifcond))
 
     def _gen_member(self, member):
         ret = {'name': member.name, 'type': self._use_type(member.type)}
@@ -134,38 +140,40 @@ const QLitObject %(c_name)s = %(c_string)s;
         return {'case': variant.name, 'type': self._use_type(variant.type)}
 
     def visit_builtin_type(self, name, info, json_type):
-        self._gen_qlit(name, 'builtin', {'json-type': json_type})
+        self._gen_qlit(name, 'builtin', {'json-type': json_type}, None)
 
-    def visit_enum_type(self, name, info, values, prefix):
-        self._gen_qlit(name, 'enum', {'values': values})
+    def visit_enum_type(self, name, info, values, prefix, ifcond):
+        self._gen_qlit(name, 'enum', {'values': values}, ifcond)
 
-    def visit_array_type(self, name, info, element_type):
+    def visit_array_type(self, name, info, element_type, ifcond):
         element = self._use_type(element_type)
-        self._gen_qlit('[' + element + ']', 'array', {'element-type': element})
+        self._gen_qlit('[' + element + ']', 'array', {'element-type': element},
+                       ifcond)
 
-    def visit_object_type_flat(self, name, info, members, variants):
+    def visit_object_type_flat(self, name, info, members, variants, ifcond):
         obj = {'members': [self._gen_member(m) for m in members]}
         if variants:
             obj.update(self._gen_variants(variants.tag_member.name,
                                           variants.variants))
-        self._gen_qlit(name, 'object', obj)
+        self._gen_qlit(name, 'object', obj, ifcond)
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, variants, ifcond):
         self._gen_qlit(name, 'alternate',
                        {'members': [{'type': self._use_type(m.type)}
-                                    for m in variants.variants]})
+                                    for m in variants.variants]}, ifcond)
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, ifcond):
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         self._gen_qlit(name, 'command',
                        {'arg-type': self._use_type(arg_type),
-                        'ret-type': self._use_type(ret_type)})
+                        'ret-type': self._use_type(ret_type)}, ifcond)
 
-    def visit_event(self, name, info, arg_type, boxed):
+    def visit_event(self, name, info, arg_type, boxed, ifcond):
         arg_type = arg_type or self._schema.the_empty_object_type
-        self._gen_qlit(name, 'event', {'arg-type': self._use_type(arg_type)})
+        self._gen_qlit(name, 'event', {'arg-type': self._use_type(arg_type)},
+                       ifcond)
 
 # Debugging aid: unmask QAPI schema's type names
 # We normally mask them, because they're not QMP wire ABI
