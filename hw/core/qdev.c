@@ -1067,7 +1067,6 @@ static void device_finalize(Object *obj)
     NamedGPIOList *ngl, *next;
 
     DeviceState *dev = DEVICE(obj);
-    qemu_opts_del(dev->opts);
 
     QLIST_FOREACH_SAFE(ngl, &dev->gpios, node, next) {
         QLIST_REMOVE(ngl, node);
@@ -1078,6 +1077,18 @@ static void device_finalize(Object *obj)
          * here
          */
     }
+
+    /* Only send event if the device had been completely realized */
+    if (dev->pending_deleted_event) {
+        g_assert(dev->canonical_path);
+
+        qapi_event_send_device_deleted(!!dev->id, dev->id, dev->canonical_path,
+                                       &error_abort);
+        g_free(dev->canonical_path);
+        dev->canonical_path = NULL;
+    }
+
+    qemu_opts_del(dev->opts);
 }
 
 static void device_class_base_init(ObjectClass *class, void *data)
@@ -1106,16 +1117,6 @@ static void device_unparent(Object *obj)
         bus_remove_child(dev->parent_bus, dev);
         object_unref(OBJECT(dev->parent_bus));
         dev->parent_bus = NULL;
-    }
-
-    /* Only send event if the device had been completely realized */
-    if (dev->pending_deleted_event) {
-        g_assert(dev->canonical_path);
-
-        qapi_event_send_device_deleted(!!dev->id, dev->id, dev->canonical_path,
-                                       &error_abort);
-        g_free(dev->canonical_path);
-        dev->canonical_path = NULL;
     }
 }
 
