@@ -333,14 +333,13 @@ void visit_type_null(Visitor *v, const char *name, QNull **obj,
 }
 
 static void output_type_enum(Visitor *v, const char *name, int *obj,
-                             const char *const strings[], Error **errp)
+                             const char *const strings[],
+                             int nstrings, Error **errp)
 {
-    int i = 0;
     int value = *obj;
     char *enum_str;
 
-    while (strings[i++] != NULL);
-    if (value < 0 || value >= i - 1) {
+    if (value < 0 || value >= nstrings) {
         error_setg(errp, QERR_INVALID_PARAMETER, name ? name : "null");
         return;
     }
@@ -350,7 +349,8 @@ static void output_type_enum(Visitor *v, const char *name, int *obj,
 }
 
 static void input_type_enum(Visitor *v, const char *name, int *obj,
-                            const char *const strings[], Error **errp)
+                            const char *const strings[],
+                            int nstrings, Error **errp)
 {
     Error *local_err = NULL;
     int64_t value = 0;
@@ -362,14 +362,14 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
         return;
     }
 
-    while (strings[value] != NULL) {
-        if (strcmp(strings[value], enum_str) == 0) {
+    while (value < nstrings) {
+        if (strings[value] && strcmp(strings[value], enum_str) == 0) {
             break;
         }
         value++;
     }
 
-    if (strings[value] == NULL) {
+    if (value >= nstrings || strings[value] == NULL) {
         error_setg(errp, QERR_INVALID_PARAMETER, enum_str);
         g_free(enum_str);
         return;
@@ -380,16 +380,17 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
 }
 
 void visit_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], Error **errp)
+                     const char *const strings[], int nstrings,
+                     Error **errp)
 {
     assert(obj && strings);
     trace_visit_type_enum(v, name, obj);
     switch (v->type) {
     case VISITOR_INPUT:
-        input_type_enum(v, name, obj, strings, errp);
+        input_type_enum(v, name, obj, strings, nstrings, errp);
         break;
     case VISITOR_OUTPUT:
-        output_type_enum(v, name, obj, strings, errp);
+        output_type_enum(v, name, obj, strings, nstrings, errp);
         break;
     case VISITOR_CLONE:
         /* nothing further to do, scalar value was already copied by

@@ -234,6 +234,7 @@ qcrypto_tls_creds_class_init(ObjectClass *oc, void *data)
     object_class_property_add_enum(oc, "endpoint",
                                    "QCryptoTLSCredsEndpoint",
                                    QCryptoTLSCredsEndpoint_lookup,
+                                   QCRYPTO_TLS_CREDS_ENDPOINT__MAX,
                                    qcrypto_tls_creds_prop_get_endpoint,
                                    qcrypto_tls_creds_prop_set_endpoint,
                                    NULL);

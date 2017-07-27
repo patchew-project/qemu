@@ -250,6 +250,7 @@ struct PropertyInfo {
     const char *name;
     const char *description;
     const char * const *enum_table;
+    int enum_table_size;
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     void (*set_default_value)(Object *obj, const Property *prop);
     void (*create)(Object *obj, Property *prop, Error **errp);

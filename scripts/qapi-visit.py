@@ -147,17 +147,17 @@ out:
                  c_name=c_name(name), c_elt_type=element_type.c_name())
 
 
-def gen_visit_enum(name):
+def gen_visit_enum(name, prefix):
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error **errp)
 {
     int value = *obj;
-    visit_type_enum(v, name, &value, %(c_name)s_lookup, errp);
+    visit_type_enum(v, name, &value, %(c_name)s_lookup, %(c_max)s, errp);
     *obj = value;
 }
 ''',
-                 c_name=c_name(name))
+                 c_name=c_name(name), c_max=c_enum_const(name, '_MAX', prefix))
 
 
 def gen_visit_alternate(name, variants):
@@ -288,10 +288,10 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         if not info:
             self._btin += gen_visit_decl(name, scalar=True)
             if do_builtins:
-                self.defn += gen_visit_enum(name)
+                self.defn += gen_visit_enum(name, prefix)
         else:
             self.decl += gen_visit_decl(name, scalar=True)
-            self.defn += gen_visit_enum(name)
+            self.defn += gen_visit_enum(name, prefix)
 
     def visit_array_type(self, name, info, element_type):
         decl = gen_visit_decl(name)

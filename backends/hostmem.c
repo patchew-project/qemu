@@ -396,6 +396,7 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         NULL, NULL, &error_abort);
     object_class_property_add_enum(oc, "policy", "HostMemPolicy",
         HostMemPolicy_lookup,
+        HOST_MEM_POLICY__MAX,
         host_memory_backend_get_policy,
         host_memory_backend_set_policy, &error_abort);
     object_class_property_add_str(oc, "id", get_id, set_id, &error_abort);

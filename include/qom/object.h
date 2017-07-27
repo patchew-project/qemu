@@ -1406,6 +1406,8 @@ void object_class_property_add_bool(ObjectClass *klass, const char *name,
  * @obj: the object to add a property to
  * @name: the name of the property
  * @typename: the name of the enum data type
+ * @strings: an array of strings for the enum
+ * @nstrings: the size of @strings
  * @get: the getter or %NULL if the property is write-only.
  * @set: the setter or %NULL if the property is read-only
  * @errp: if an error occurs, a pointer to an area to store the error
@@ -1416,6 +1418,7 @@ void object_class_property_add_bool(ObjectClass *klass, const char *name,
 void object_property_add_enum(Object *obj, const char *name,
                               const char *typename,
                               const char * const *strings,
+                              int nstrings,
                               int (*get)(Object *, Error **),
                               void (*set)(Object *, int, Error **),
                               Error **errp);
@@ -1423,6 +1426,7 @@ void object_property_add_enum(Object *obj, const char *name,
 void object_class_property_add_enum(ObjectClass *klass, const char *name,
                                     const char *typename,
                                     const char * const *strings,
+                                    int nstrings,
                                     int (*get)(Object *, Error **),
                                     void (*set)(Object *, int, Error **),
                                     Error **errp);

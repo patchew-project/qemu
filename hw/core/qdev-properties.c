@@ -52,7 +52,8 @@ static void get_enum(Object *obj, Visitor *v, const char *name, void *opaque,
     Property *prop = opaque;
     int *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
+    visit_type_enum(v, prop->name, ptr, prop->info->enum_table,
+                    prop->info->enum_table_size, errp);
 }
 
 static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -67,7 +68,8 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
+    visit_type_enum(v, prop->name, ptr, prop->info->enum_table,
+                    prop->info->enum_table_size, errp);
 }
 
 static void set_default_value_enum(Object *obj, const Property *prop)
@@ -586,6 +588,7 @@ const PropertyInfo qdev_prop_on_off_auto = {
     .name = "OnOffAuto",
     .description = "on/off/auto",
     .enum_table = OnOffAuto_lookup,
+    .enum_table_size = ON_OFF_AUTO__MAX,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -598,6 +601,7 @@ QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 const PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
     .enum_table  = LostTickPolicy_lookup,
+    .enum_table_size = LOST_TICK_POLICY__MAX,
     .get   = get_enum,
     .set   = set_enum,
     .set_default_value = set_default_value_enum,
@@ -612,6 +616,7 @@ const PropertyInfo qdev_prop_blockdev_on_error = {
     .description = "Error handling policy, "
                    "report/ignore/enospc/stop/auto",
     .enum_table = BlockdevOnError_lookup,
+    .enum_table_size = BLOCKDEV_ON_ERROR__MAX,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -626,6 +631,7 @@ const PropertyInfo qdev_prop_bios_chs_trans = {
     .description = "Logical CHS translation algorithm, "
                    "auto/none/lba/large/rechs",
     .enum_table = BiosAtaTranslation_lookup,
+    .enum_table_size = BIOS_ATA_TRANSLATION__MAX,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -638,6 +644,7 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
     .description = "FDC drive type, "
                    "144/288/120/none/auto",
     .enum_table = FloppyDriveType_lookup,
+    .enum_table_size = FLOPPY_DRIVE_TYPE__MAX,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,

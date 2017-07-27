@@ -379,6 +379,7 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
     object_class_property_add_enum(oc, "format",
                                    "QCryptoSecretFormat",
                                    QCryptoSecretFormat_lookup,
+                                   QCRYPTO_SECRET_FORMAT__MAX,
                                    qcrypto_secret_prop_get_format,
                                    qcrypto_secret_prop_set_format,
                                    NULL);

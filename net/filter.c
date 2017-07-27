@@ -180,6 +180,7 @@ static void netfilter_init(Object *obj)
                             NULL);
     object_property_add_enum(obj, "queue", "NetFilterDirection",
                              NetFilterDirection_lookup,
+                             NET_FILTER_DIRECTION__MAX,
                              netfilter_get_direction, netfilter_set_direction,
                              NULL);
     object_property_add_str(obj, "status",

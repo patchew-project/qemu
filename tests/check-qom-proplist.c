@@ -143,6 +143,7 @@ static void dummy_class_init(ObjectClass *cls, void *data)
     object_class_property_add_enum(cls, "av",
                                    "DummyAnimal",
                                    dummy_animal_map,
+                                   DUMMY_LAST,
                                    dummy_get_av,
                                    dummy_set_av,
                                    NULL);
