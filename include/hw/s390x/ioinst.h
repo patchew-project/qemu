@@ -201,8 +201,9 @@ typedef struct CRW {
 #define CRW_FLAGS_MASK_A 0x0080
 #define CRW_FLAGS_MASK_ERC 0x003f
 
-#define CRW_ERC_INIT 0x02
-#define CRW_ERC_IPI  0x04
+#define CRW_ERC_EVENT  0x00
+#define CRW_ERC_INIT   0x02
+#define CRW_ERC_IPI    0x04
 
 #define CRW_RSC_SUBCH 0x3
 #define CRW_RSC_CHP   0x4
