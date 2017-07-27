@@ -783,7 +783,8 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     ccw_dev->sch = sch;
     dev->indicators = NULL;
     dev->revision = -1;
-    css_sch_build_virtual_schib(sch, 0, VIRTIO_CCW_CHPID_TYPE);
+    css_sch_build_virtual_schib(sch, 0, VIRTIO_CCW_CHPID_TYPE,
+                                parent->hotplugged);
 
     trace_virtio_ccw_new_device(
         sch->cssid, sch->ssid, sch->schid, sch->devno,

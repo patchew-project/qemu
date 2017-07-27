@@ -1745,11 +1745,8 @@ int css_do_rchp(uint8_t cssid, uint8_t chpid)
     }
 
     /* We don't really use a channel path, so we're done here. */
-    css_queue_crw(CRW_RSC_CHP, CRW_ERC_INIT, 1,
-                  channel_subsys.max_cssid > 0 ? 1 : 0, chpid);
-    if (channel_subsys.max_cssid > 0) {
-        css_queue_crw(CRW_RSC_CHP, CRW_ERC_INIT, 1, 0, real_cssid << 8);
-    }
+    css_generate_chp_crws(cssid, chpid, 0, 1, 1);
+
     return 0;
 }
 
@@ -1791,7 +1788,7 @@ unsigned int css_find_free_chpid(uint8_t cssid)
 }
 
 static int css_add_chpid(uint8_t cssid, uint8_t chpid, uint8_t type,
-                         bool is_virt)
+                         bool is_virt, int hotplugged)
 {
     CssImage *css;
 
@@ -1807,12 +1804,13 @@ static int css_add_chpid(uint8_t cssid, uint8_t chpid, uint8_t type,
     css->chpids[chpid].type = type;
     css->chpids[chpid].is_virtual = is_virt;
 
-    css_generate_chp_crws(cssid, chpid);
+    css_generate_chp_crws(cssid, chpid, hotplugged, 1, 0);
 
     return 0;
 }
 
-void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type)
+void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type,
+                                 int hotplugged)
 {
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
@@ -1829,7 +1827,7 @@ void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type)
     p->pam = 0x80;
     p->chpid[0] = chpid;
     if (!css->chpids[chpid].in_use) {
-        css_add_chpid(sch->cssid, chpid, type, true);
+        css_add_chpid(sch->cssid, chpid, type, true, hotplugged);
     }
 
     memset(s, 0, sizeof(SCSW));
@@ -2098,9 +2096,40 @@ void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
     css_clear_io_interrupt(css_do_build_subchannel_id(cssid, ssid), schid);
 }
 
-void css_generate_chp_crws(uint8_t cssid, uint8_t chpid)
+void css_generate_chp_crws(uint8_t cssid, uint8_t chpid,
+                           int hotplugged, int add, int s)
 {
-    /* TODO */
+    uint8_t guest_cssid;
+    bool chain_crw;
+    int erc;
+
+    if (add && !s && !hotplugged) {
+        return;
+    }
+    if (channel_subsys.max_cssid == 0) {
+        /* Default cssid shows up as 0. */
+        guest_cssid = (cssid == channel_subsys.default_cssid) ? 0 : cssid;
+    } else {
+        /* Show real cssid to the guest. */
+        guest_cssid = cssid;
+    }
+    /*
+     * Only notify for higher subchannel sets/channel subsystems if the
+     * guest has enabled it.
+     */
+    if ((guest_cssid > channel_subsys.max_cssid) ||
+        ((channel_subsys.max_cssid == 0) &&
+         (cssid != channel_subsys.default_cssid))) {
+        return;
+    }
+
+    erc = add ? CRW_ERC_INIT : CRW_ERC_PERRN;
+    chain_crw = channel_subsys.max_cssid > 0;
+
+    css_queue_crw(CRW_RSC_CHP, erc, s, chain_crw ? 1 : 0, chpid);
+    if (chain_crw) {
+        css_queue_crw(CRW_RSC_CHP, erc, s, 0, cssid << 8);
+    }
 }
 
 void css_generate_css_crws(uint8_t cssid)
@@ -2433,7 +2462,7 @@ static int css_sch_get_chpid_type(uint8_t chpid, uint32_t *type,
  * guest subchannel information block without considering the migration feature.
  * We need to revisit this problem when we want to add migration support.
  */
-int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id)
+int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id, int hotplugged)
 {
     CssImage *css = channel_subsys.css[sch->cssid];
     PMCW *p = &sch->curr_status.pmcw;
@@ -2466,7 +2495,7 @@ int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id)
             if (ret) {
                 return ret;
             }
-            css_add_chpid(sch->cssid, p->chpid[i], type, false);
+            css_add_chpid(sch->cssid, p->chpid[i], type, false, hotplugged);
         }
     }
 

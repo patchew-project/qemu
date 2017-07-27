@@ -86,7 +86,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     sch->do_subchannel_work = do_subchannel_work_passthrough;
 
     ccw_dev->sch = sch;
-    ret = css_sch_build_schib(sch, &cdev->hostid);
+    ret = css_sch_build_schib(sch, &cdev->hostid, parent->hotplugged);
     if (ret) {
         error_setg_errno(&err, -ret, "%s: Failed to build initial schib",
                          __func__);

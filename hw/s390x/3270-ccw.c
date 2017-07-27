@@ -125,7 +125,8 @@ static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
     sch->id.reserved = 0xff;
     sch->id.cu_type = EMULATED_CCW_3270_CU_TYPE;
     css_sch_build_virtual_schib(sch, (uint8_t)chpid,
-                                EMULATED_CCW_3270_CHPID_TYPE);
+                                EMULATED_CCW_3270_CHPID_TYPE,
+                                parent->hotplugged);
     sch->do_subchannel_work = do_subchannel_work_virtual;
     sch->ccw_cb = emulated_ccw_3270_cb;
 

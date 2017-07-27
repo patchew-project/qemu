@@ -142,8 +142,9 @@ int css_create_css_image(uint8_t cssid, bool default_image);
 bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno);
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,
                       uint16_t devno, SubchDev *sch);
-void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type);
-int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id);
+void css_sch_build_virtual_schib(SubchDev *sch, uint8_t chpid, uint8_t type,
+                                 int hotplugged);
+int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id, int hotplugged);
 unsigned int css_find_free_chpid(uint8_t cssid);
 uint16_t css_build_subchannel_id(SubchDev *sch);
 void copy_scsw_to_guest(SCSW *dest, const SCSW *src);
@@ -153,7 +154,8 @@ void css_reset_sch(SubchDev *sch);
 void css_queue_crw(uint8_t rsc, uint8_t erc, int s, int chain, uint16_t rsid);
 void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
                            int hotplugged, int add);
-void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
+void css_generate_chp_crws(uint8_t cssid, uint8_t chpid,
+                           int hotplugged, int add, int s);
 void css_generate_css_crws(uint8_t cssid);
 void css_clear_sei_pending(void);
 int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data);
