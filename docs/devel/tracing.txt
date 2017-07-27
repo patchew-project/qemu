@@ -5,6 +5,9 @@
 This document describes the tracing infrastructure in QEMU and how to use it
 for debugging, profiling, and observing execution.
 
+See "docs/hypertrace.txt" to correlate guest tracing events with those in the
+QEMU host.
+
 == Quickstart ==
 
 1. Build with the 'simple' trace backend:
