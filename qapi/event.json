@@ -344,7 +344,8 @@
 ##
 { 'event': 'SPICE_CONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
-            'client': 'SpiceBasicInfo' } }
+            'client': 'SpiceBasicInfo' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_INITIALIZED:
@@ -372,7 +373,8 @@
 ##
 { 'event': 'SPICE_INITIALIZED',
   'data': { 'server': 'SpiceServerInfo',
-            'client': 'SpiceChannel' } }
+            'client': 'SpiceChannel' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_DISCONNECTED:
@@ -397,7 +399,8 @@
 ##
 { 'event': 'SPICE_DISCONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
-            'client': 'SpiceBasicInfo' } }
+            'client': 'SpiceBasicInfo' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_MIGRATE_COMPLETED:
@@ -412,7 +415,8 @@
 #      "event": "SPICE_MIGRATE_COMPLETED" }
 #
 ##
-{ 'event': 'SPICE_MIGRATE_COMPLETED' }
+{ 'event': 'SPICE_MIGRATE_COMPLETED',
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @MIGRATION:
