@@ -559,7 +559,7 @@ static void list_add_feat(const char *name, void *opaque)
     *last = entry;
 }
 
-CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
+CpuModelCompareInfo *qmp_query_cpu_model_comparison(CpuModelInfo *infoa,
                                                      CpuModelInfo *infob,
                                                      Error **errp)
 {
@@ -632,7 +632,7 @@ CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
     return compare_info;
 }
 
-CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelInfo *infoa,
+CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
                                                     CpuModelInfo *infob,
                                                     Error **errp)
 {
