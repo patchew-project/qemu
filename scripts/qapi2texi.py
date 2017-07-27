@@ -130,7 +130,9 @@ def texi_body(doc):
 
 def texi_enum_value(value):
     """Format a table of members item for an enumeration value"""
-    return '@item @code{%s}\n' % value.name
+    return '@item @code{%s}%s\n' % (
+        value.name,
+        '\n@b{If:} @code{%s}\n' % value.ifcond if value.ifcond else '')
 
 def texi_member(member, suffix=''):
     """Format a table of members item for an object type member"""
