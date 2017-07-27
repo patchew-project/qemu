@@ -18,7 +18,9 @@ import sys
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):
     def visit_enum_type(self, name, info, values, prefix, ifcond):
-        print 'enum %s %s' % (name, values)
+        values = ', '.join(["'%s'" % v[0] if not v[1] else str(v)
+                            for v in values])
+        print 'enum %s [%s]' % (name, values)
         if prefix:
             print '    prefix %s' % prefix
         self._print_if(ifcond)

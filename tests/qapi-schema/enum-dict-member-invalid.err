@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-dict-member-invalid.json:2: Dictionary member of enum 'MyEnum' must have a 'name' key
