@@ -277,6 +277,7 @@ S: Maintained
 F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
+F: default-configs/tricore-softmmu.mak
 
 Guest CPU Cores (KVM):
 ----------------------
