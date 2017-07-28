@@ -271,6 +271,7 @@ S: Maintained
 F: target/xtensa/
 F: hw/xtensa/
 F: tests/tcg/xtensa/
+F: default-configs/xtensa*-softmmu.mak
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
