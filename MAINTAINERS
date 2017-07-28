@@ -1642,6 +1642,13 @@ F: bt-*.c
 F: hw/bt/
 F: include/hw/bt.h
 
+TPM:
+S: Orphan
+F: tpm.c
+F: hw/tpm/
+F: include/sysemu/tpm*.h
+F: backends/tpm.c
+
 Usermode Emulation
 ------------------
 Overall
