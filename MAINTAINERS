@@ -1067,6 +1067,7 @@ S: Supported
 F: hw/block/virtio-blk.c
 F: hw/block/dataplane/*
 F: tests/virtio-blk-test.c
+F: include/standard-headers/linux/virtio_blk.h
 T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
