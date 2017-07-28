@@ -8,15 +8,15 @@
  * the WTFPL will do.
  *
  * To simulate it:
- *     spin -p docs/aio_notify.promela
+ *     spin -p docs/spin/aio_notify.promela
  *
  * To verify it:
- *     spin -a docs/aio_notify.promela
+ *     spin -a docs/spin/aio_notify.promela
  *     gcc -O2 pan.c
  *     ./a.out -a
  *
  * To verify it (with a bug planted in the model):
- *     spin -a -DBUG docs/aio_notify.promela
+ *     spin -a -DBUG docs/spin/aio_notify.promela
  *     gcc -O2 pan.c
  *     ./a.out -a
  */

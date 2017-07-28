@@ -104,7 +104,7 @@ struct AioContext {
      *
      * Note that event_notifier_set *cannot* be optimized the same way.  For
      * more information on the problem that would result, see "#ifdef BUG2"
-     * in the docs/aio_notify_accept.promela formal model.
+     * in the docs/spin/aio_notify_accept.promela formal model.
      */
     bool notified;
     EventNotifier notifier;
