@@ -165,6 +165,7 @@ S: Maintained
 F: target/microblaze/
 F: hw/microblaze/
 F: disas/microblaze.c
+F: default-configs/microblaze*-softmmu.mak
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
