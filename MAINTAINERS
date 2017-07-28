@@ -1886,6 +1886,9 @@ W: http://patchew.org/QEMU/
 
 Documentation
 -------------
+Overall
+F: docs/
+
 Build system architecture
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
