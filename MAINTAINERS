@@ -1029,6 +1029,7 @@ S: Supported
 F: hw/vfio/ccw.c
 F: hw/s390x/s390-ccw.c
 F: include/hw/s390x/s390-ccw.h
+F: linux-headers/linux/vfio_ccw.h
 T: git git://github.com/cohuck/qemu.git s390-next
 
 vhost
