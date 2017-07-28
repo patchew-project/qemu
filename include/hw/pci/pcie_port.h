@@ -63,6 +63,8 @@ void pcie_chassis_del_slot(PCIESlot *s);
 #define PCIE_ROOT_PORT_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PCIERootPortClass, (obj), TYPE_PCIE_ROOT_PORT)
 
+void rp_realize(PCIDevice *d, Error **errp);
+
 typedef struct PCIERootPortClass {
     PCIDeviceClass parent_class;
 

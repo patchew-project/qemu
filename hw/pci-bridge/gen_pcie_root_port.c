@@ -16,6 +16,8 @@
 #include "hw/pci/pcie_port.h"
 
 #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
+#define GEN_PCIE_ROOT_PORT(obj) \
+        OBJECT_CHECK(GenPCIERootPort, (obj), TYPE_GEN_PCIE_ROOT_PORT)
 
 #define GEN_PCIE_ROOT_PORT_AER_OFFSET           0x100
 #define GEN_PCIE_ROOT_PORT_MSIX_NR_VECTOR       1
@@ -26,6 +28,9 @@ typedef struct GenPCIERootPort {
     /*< public >*/
 
     bool migrate_msix;
+
+    /* additional buses to reserve on firmware init */
+    uint8_t bus_reserve;
 } GenPCIERootPort;
 
 static uint8_t gen_rp_aer_vector(const PCIDevice *d)
@@ -60,6 +65,21 @@ static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
     return rp->migrate_msix;
 }
 
+static void gen_rp_realize(PCIDevice *d, Error **errp)
+{
+    rp_realize(d, errp);
+    PCIESlot *s = PCIE_SLOT(d);
+    GenPCIERootPort *grp = GEN_PCIE_ROOT_PORT(d);
+
+    int rc = pci_bridge_qemu_cap_init(d, 0, grp->bus_reserve, 0, 0, 0, errp);
+    if (rc < 0) {
+        pcie_chassis_del_slot(s);
+        pcie_cap_exit(d);
+        gen_rp_interrupts_uninit(d);
+        pci_bridge_exitfn(d);
+    }
+}
+
 static const VMStateDescription vmstate_rp_dev = {
     .name = "pcie-root-port",
     .version_id = 1,
@@ -78,6 +98,7 @@ static const VMStateDescription vmstate_rp_dev = {
 
 static Property gen_rp_props[] = {
     DEFINE_PROP_BOOL("x-migrate-msix", GenPCIERootPort, migrate_msix, true),
+    DEFINE_PROP_UINT8("bus-reserve", GenPCIERootPort, bus_reserve, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -89,6 +110,8 @@ static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
 
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PCIE_RP;
+    k->realize = gen_rp_realize;
+
     dc->desc = "PCI Express Root Port";
     dc->vmsd = &vmstate_rp_dev;
     dc->props = gen_rp_props;

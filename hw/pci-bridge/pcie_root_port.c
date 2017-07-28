@@ -52,7 +52,7 @@ static void rp_reset(DeviceState *qdev)
     pci_bridge_disable_base_limit(d);
 }
 
-static void rp_realize(PCIDevice *d, Error **errp)
+void rp_realize(PCIDevice *d, Error **errp)
 {
     PCIEPort *p = PCIE_PORT(d);
     PCIESlot *s = PCIE_SLOT(d);
