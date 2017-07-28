@@ -1320,6 +1320,7 @@ L: qemu-devel@nongnu.org
 S: Odd Fixes
 F: gdbstub*
 F: gdb-xml/
+F: scripts/qemugdb/
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
