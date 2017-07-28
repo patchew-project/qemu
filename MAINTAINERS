@@ -263,6 +263,8 @@ S: Maintained
 F: target/i386/
 F: hw/i386/
 F: disas/i386.c
+F: default-configs/i386-softmmu.mak
+F: default-configs/x86_64-softmmu.mak
 
 Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
