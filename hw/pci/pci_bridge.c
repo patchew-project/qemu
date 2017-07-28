@@ -408,6 +408,43 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
     br->bus_name = bus_name;
 }
 
+
+int pci_bridge_qemu_cap_init(PCIDevice *dev, int cap_offset,
+                              uint8_t bus_reserve, uint32_t io_reserve,
+                              uint16_t non_pref_reserve, uint64_t pref_reserve,
+                              Error **errp)
+{
+    size_t cap_len = sizeof(PCIBridgeQemuCap);
+    PCIBridgeQemuCap cap = {
+            .len = cap_len,
+            .type = REDHAT_PCI_CAP_QEMU,
+            .bus_res = bus_reserve,
+            .non_pref_16 = non_pref_reserve
+    };
+
+    if ((uint8_t)io_reserve == io_reserve) {
+        cap.io_8 = io_reserve;
+    } else {
+        cap.io_32 = io_reserve;
+    }
+    if ((uint16_t)pref_reserve == pref_reserve) {
+        cap.pref_32 = pref_reserve;
+    } else {
+        cap.pref_64 = pref_reserve;
+    }
+
+    int offset = pci_add_capability(dev, PCI_CAP_ID_VNDR,
+                                    cap_offset, cap_len, errp);
+    if (offset < 0) {
+        return offset;
+    }
+
+    memcpy(dev->config + offset + PCI_CAP_FLAGS,
+            (char *)&cap + PCI_CAP_FLAGS,
+            cap_len - PCI_CAP_FLAGS);
+    return 0;
+}
+
 static const TypeInfo pci_bridge_type_info = {
     .name = TYPE_PCI_BRIDGE,
     .parent = TYPE_PCI_DEVICE,
