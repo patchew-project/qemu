@@ -42,6 +42,12 @@ typedef enum ReplayCheckpoint ReplayCheckpoint;
 
 typedef struct ReplayNetState ReplayNetState;
 
+typedef enum {
+    REPLAY_MODE_NONE,           /* replay / record disabled */
+    REPLAY_MODE_RECORD,         /* recording to replay log */
+    REPLAY_MODE_PLAY,           /* replaying log */
+} ReplayMode;
+
 extern ReplayMode replay_mode;
 
 /* Name of the initial VM snapshot */
