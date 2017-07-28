@@ -2,4 +2,4 @@
 
 # hw/mem/pc-dimm.c
 mhp_pc_dimm_assigned_slot(int slot) "%d"
-mhp_pc_dimm_assigned_address(uint64_t addr) "0x%"PRIx64
+mhp_pc_dimm_assigned_address(uint64_t addr) "%#"PRIx64
