@@ -38,3 +38,8 @@ def generate_h(event, group):
     out('    tracepoint(qemu, %(name)s%(tp_args)s);',
         name=event.name,
         tp_args=argnames)
+
+
+def generate_h_backend_dstate(event, group):
+    out('    tracepoint_enabled(qemu, %(name)s) || \\',
+        name=event.name)
