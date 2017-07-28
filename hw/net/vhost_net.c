@@ -193,6 +193,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         }
     }
 
+#ifdef CONFIG_VHOST_USER
     /* Set sane init value. Override when guest acks. */
     if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
         features = vhost_user_get_acked_features(net->nc);
@@ -203,6 +204,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             goto fail;
         }
     }
+#endif
 
     vhost_net_ack_features(net, features);
 
@@ -414,10 +416,12 @@ VHostNetState *get_vhost_net(NetClientState *nc)
     case NET_CLIENT_DRIVER_TAP:
         vhost_net = tap_get_vhost_net(nc);
         break;
+#ifdef CONFIG_VHOST_USER
     case NET_CLIENT_DRIVER_VHOST_USER:
         vhost_net = vhost_user_get_vhost_net(nc);
         assert(vhost_net);
         break;
+#endif
     default:
         break;
     }
