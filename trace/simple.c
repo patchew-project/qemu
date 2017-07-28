@@ -405,7 +405,7 @@ bool st_init(void)
 
     thread = trace_thread_create(writeout_thread);
     if (!thread) {
-        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+        warn_report("unable to initialize simple trace backend");
         return false;
     }
 
