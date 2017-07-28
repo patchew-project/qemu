@@ -9,7 +9,7 @@
  * the WTFPL will do.
  *
  * To verify it:
- *     spin -a docs/tcg-exclusive.promela
+ *     spin -a docs/spin/tcg-exclusive.promela
  *     gcc pan.c -O2
  *     ./a.out -a
  *

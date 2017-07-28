@@ -8,12 +8,12 @@
  * the WTFPL will do.
  *
  * To verify the buggy version:
- *     spin -a -DBUG docs/aio_notify_bug.promela
+ *     spin -a -DBUG docs/spin/aio_notify_bug.promela
  *     gcc -O2 pan.c
  *     ./a.out -a -f
  *
  * To verify the fixed version:
- *     spin -a docs/aio_notify_bug.promela
+ *     spin -a docs/spin/aio_notify_bug.promela
  *     gcc -O2 pan.c
  *     ./a.out -a -f
  *
