@@ -1046,6 +1046,7 @@ F: hw/virtio/Makefile.objs
 F: hw/virtio/trace-events
 F: net/vhost-user.c
 F: include/hw/virtio/
+F: include/standard-headers/linux/virtio_*
 F: tests/virtio-balloon-test.c
 
 virtio-9p
