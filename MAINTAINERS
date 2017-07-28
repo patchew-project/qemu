@@ -1630,6 +1630,12 @@ F: include/sysemu/replay.h
 F: docs/replay.txt
 F: stubs/replay.c
 
+I2C
+S: Orphan
+F: hw/i2c/core.c
+F: include/hw/i2c/i2c.h
+F: tests/libqos/i2c.?
+
 Usermode Emulation
 ------------------
 Overall
