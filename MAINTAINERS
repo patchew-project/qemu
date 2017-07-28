@@ -182,6 +182,7 @@ F: include/hw/intc/mips_gic.h
 F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
 F: disas/mips.c
+F: default-configs/mips*-softmmu.mak
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
