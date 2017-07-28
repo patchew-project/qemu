@@ -283,6 +283,10 @@ F: hw/tricore/
 F: include/hw/tricore/
 F: default-configs/tricore-softmmu.mak
 
+TILE-Gx
+S: Orphan
+F: target/tilegx/
+
 Guest CPU Cores (KVM):
 ----------------------
 
