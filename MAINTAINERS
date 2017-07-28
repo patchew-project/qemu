@@ -235,6 +235,7 @@ F: target/sh4/
 F: hw/sh4/
 F: disas/sh4.c
 F: include/hw/sh4/
+F: default-configs/sh4*-softmmu.mak
 
 SPARC
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
