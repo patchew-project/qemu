@@ -31,6 +31,12 @@ struct QemuSeccompSyscall {
     uint8_t priority;
 };
 
+static const struct QemuSeccompSyscall spawn_syscalls[] = {
+    { SCMP_SYS(fork), 255 },
+    { SCMP_SYS(vfork), 255 },
+    { SCMP_SYS(execve), 255 },
+};
+
 static const struct QemuSeccompSyscall privileged_syscalls[] = {
     { SCMP_SYS(setuid), 255 },
     { SCMP_SYS(setgid), 255 },
@@ -138,6 +144,19 @@ int seccomp_start(uint8_t seccomp_opts)
         }
     }
 
+    if (seccomp_opts & SPAWN) {
+        for (i = 0; i < ARRAY_SIZE(spawn_syscalls); i++) {
+            rc = seccomp_rule_add(ctx, SCMP_ACT_KILL, spawn_syscalls[i].num, 0);
+            if (rc < 0) {
+                goto seccomp_return;
+            }
+            rc = seccomp_syscall_priority(ctx, spawn_syscalls[i].num,
+                                          spawn_syscalls[i].priority);
+            if (rc < 0) {
+                goto seccomp_return;
+            }
+        }
+    }
 
     rc = seccomp_load(ctx);
 
