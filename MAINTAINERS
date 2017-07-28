@@ -207,6 +207,7 @@ S: Odd Fixes
 F: target/openrisc/
 F: hw/openrisc/
 F: tests/tcg/openrisc/
+F: default-configs/or1k-softmmu.mak
 
 PowerPC
 M: David Gibson <david@gibson.dropbear.id.au>
