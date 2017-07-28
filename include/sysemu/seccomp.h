@@ -18,6 +18,7 @@
 #define OBSOLETE    0x0001
 #define PRIVILEGED  0x0010
 #define SPAWN       0x0100
+#define RESOURCECTL 0x1000
 
 #include <seccomp.h>
 

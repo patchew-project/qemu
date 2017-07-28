@@ -31,6 +31,19 @@ struct QemuSeccompSyscall {
     uint8_t priority;
 };
 
+static const struct QemuSeccompSyscall resourcecontrol_syscalls[] = {
+    { SCMP_SYS(getpriority), 255 },
+    { SCMP_SYS(setpriority), 255 },
+    { SCMP_SYS(sched_setparam), 255 },
+    { SCMP_SYS(sched_getparam), 255 },
+    { SCMP_SYS(sched_setscheduler), 255 },
+    { SCMP_SYS(sched_getscheduler), 255 },
+    { SCMP_SYS(sched_setaffinity), 255 },
+    { SCMP_SYS(sched_getaffinity), 255 },
+    { SCMP_SYS(sched_get_priority_max), 255 },
+    { SCMP_SYS(sched_get_priority_min), 255 },
+};
+
 static const struct QemuSeccompSyscall spawn_syscalls[] = {
     { SCMP_SYS(fork), 255 },
     { SCMP_SYS(vfork), 255 },
@@ -152,6 +165,21 @@ int seccomp_start(uint8_t seccomp_opts)
             }
             rc = seccomp_syscall_priority(ctx, spawn_syscalls[i].num,
                                           spawn_syscalls[i].priority);
+            if (rc < 0) {
+                goto seccomp_return;
+            }
+        }
+    }
+
+    if (seccomp_opts & RESOURCECTL) {
+        for (i = 0; i < ARRAY_SIZE(resourcecontrol_syscalls); i++) {
+            rc = seccomp_rule_add(ctx, SCMP_ACT_KILL,
+                                          resourcecontrol_syscalls[i].num, 0);
+            if (rc < 0) {
+                goto seccomp_return;
+            }
+            rc = seccomp_syscall_priority(ctx, resourcecontrol_syscalls[i].num,
+                                          resourcecontrol_syscalls[i].priority);
             if (rc < 0) {
                 goto seccomp_return;
             }
