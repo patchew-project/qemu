@@ -1111,6 +1111,7 @@ S: Supported
 F: hw/virtio/virtio-crypto.c
 F: hw/virtio/virtio-crypto-pci.c
 F: include/hw/virtio/virtio-crypto.h
+F: include/standard-headers/linux/virtio_crypto.h
 
 nvme
 M: Keith Busch <keith.busch@intel.com>
