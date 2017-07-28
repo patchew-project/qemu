@@ -26,6 +26,12 @@ void migration_incoming_exit_colo(void);
 void *colo_process_incoming_thread(void *opaque);
 bool migration_incoming_in_colo_state(void);
 
+typedef enum {
+    COLO_MODE_UNKNOWN,
+    COLO_MODE_PRIMARY,
+    COLO_MODE_SECONDARY,
+} COLOMode;
+
 COLOMode get_colo_mode(void);
 
 /* failover */
