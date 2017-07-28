@@ -1056,6 +1056,7 @@ S: Supported
 F: hw/9pfs/
 F: fsdev/
 F: tests/virtio-9p-test.c
+F: include/standard-headers/linux/virtio_9p.h
 T: git git://github.com/kvaneesh/QEMU.git
 T: git git://github.com/gkurz/qemu.git 9p-next
 
