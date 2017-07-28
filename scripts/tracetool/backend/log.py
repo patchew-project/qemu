@@ -33,7 +33,8 @@ def generate_h(event, group):
         # already checked on the generic format code
         cond = "true"
     else:
-        cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
+        cond = "trace_event_get_state_qemu(%s)" % \
+               ("TRACE_" + event.name.upper())
 
     out('    if (%(cond)s) {',
         '        struct timeval _now;',

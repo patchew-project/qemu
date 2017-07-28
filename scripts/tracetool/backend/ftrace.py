@@ -33,7 +33,7 @@ def generate_h(event, group):
         '        char ftrace_buf[MAX_TRACE_STRLEN];',
         '        int unused __attribute__ ((unused));',
         '        int trlen;',
-        '        if (trace_event_get_state(%(event_id)s)) {',
+        '        if (trace_event_get_state_qemu(%(event_id)s)) {',
         '            trlen = snprintf(ftrace_buf, MAX_TRACE_STRLEN,',
         '                             "%(name)s " %(fmt)s "\\n" %(argnames)s);',
         '            trlen = MIN(trlen, MAX_TRACE_STRLEN - 1);',

@@ -73,7 +73,7 @@ def generate_c(event, group):
         # already checked on the generic format code
         cond = "true"
     else:
-        cond = "trace_event_get_state(%s)" % event_id
+        cond = "trace_event_get_state_qemu(%s)" % event_id
 
     out('',
         '    if (!%(cond)s) {',
