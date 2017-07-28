@@ -245,6 +245,7 @@ F: target/sparc/
 F: hw/sparc/
 F: hw/sparc64/
 F: disas/sparc.c
+F: default-configs/sparc*-softmmu.mak
 
 UniCore32
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
