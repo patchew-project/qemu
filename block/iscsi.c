@@ -1013,6 +1013,7 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     struct iscsi_context *iscsi = iscsilun->iscsi;
     struct iscsi_data data;
     IscsiAIOCB *acb;
+    int xfer_dir;
 
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
@@ -1034,31 +1035,30 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         return NULL;
     }
 
-    acb->task = malloc(sizeof(struct scsi_task));
+    switch (acb->ioh->dxfer_direction) {
+    case SG_DXFER_TO_DEV:
+        xfer_dir = SCSI_XFER_WRITE;
+        break;
+    case SG_DXFER_FROM_DEV:
+        xfer_dir = SCSI_XFER_READ;
+        break;
+    default:
+        xfer_dir = SCSI_XFER_NONE;
+        break;
+    }
+
+    acb->task = scsi_create_task(acb->ioh->cmd_len, acb->ioh->cmdp,
+                                 xfer_dir, acb->ioh->dxfer_len);
     if (acb->task == NULL) {
         error_report("iSCSI: Failed to allocate task for scsi command. %s",
                      iscsi_get_error(iscsi));
         qemu_aio_unref(acb);
         return NULL;
     }
-    memset(acb->task, 0, sizeof(struct scsi_task));
 
-    switch (acb->ioh->dxfer_direction) {
-    case SG_DXFER_TO_DEV:
-        acb->task->xfer_dir = SCSI_XFER_WRITE;
-        break;
-    case SG_DXFER_FROM_DEV:
-        acb->task->xfer_dir = SCSI_XFER_READ;
-        break;
-    default:
-        acb->task->xfer_dir = SCSI_XFER_NONE;
-        break;
-    }
-
-    acb->task->cdb_size = acb->ioh->cmd_len;
-    memcpy(&acb->task->cdb[0], acb->ioh->cmdp, acb->ioh->cmd_len);
-    acb->task->expxferlen = acb->ioh->dxfer_len;
-
+#if LIBISCSI_API_VERSION < 20150510
+    acb->task->cdb_size = acb->ioh->cmd_len; /* fixed in libiscsi 1.13.0 */
+#endif
     data.size = 0;
     qemu_mutex_lock(&iscsilun->mutex);
     if (acb->task->xfer_dir == SCSI_XFER_WRITE) {
