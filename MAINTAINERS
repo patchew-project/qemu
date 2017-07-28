@@ -1103,6 +1103,7 @@ F: include/hw/virtio/virtio-rng.h
 F: include/sysemu/rng*.h
 F: backends/rng*.c
 F: tests/virtio-rng-test.c
+F: include/standard-headers/linux/virtio_rng.h
 
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>
