@@ -1636,6 +1636,12 @@ F: hw/i2c/core.c
 F: include/hw/i2c/i2c.h
 F: tests/libqos/i2c.?
 
+Bluetooth
+S: Orphan
+F: bt-*.c
+F: hw/bt/
+F: include/hw/bt.h
+
 Usermode Emulation
 ------------------
 Overall
