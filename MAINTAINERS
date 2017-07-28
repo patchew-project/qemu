@@ -131,6 +131,7 @@ F: hw/cris/
 F: include/hw/cris/
 F: tests/tcg/cris/
 F: disas/cris.c
+F: default-configs/cris-softmmu.mak
 
 HPPA (PA-RISC)
 M: Richard Henderson <rth@twiddle.net>
