@@ -1633,6 +1633,7 @@ Common code
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/
+F: disas.c
 
 AArch64 target
 M: Claudio Fontana <claudio.fontana@huawei.com>
