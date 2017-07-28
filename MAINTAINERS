@@ -1084,6 +1084,7 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/input/virtio-input*.c
 F: include/hw/virtio/virtio-input.h
+F: include/standard-headers/linux/virtio_input.h
 
 virtio-serial
 M: Amit Shah <amit@kernel.org>
