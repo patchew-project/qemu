@@ -253,6 +253,7 @@ S: Maintained
 F: target/unicore32/
 F: hw/unicore32/
 F: include/hw/unicore32/
+F: default-configs/unicore32-softmmu.mak
 
 X86
 M: Paolo Bonzini <pbonzini@redhat.com>
