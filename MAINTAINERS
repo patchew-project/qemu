@@ -278,6 +278,7 @@ S: Supported
 F: */kvm.*
 F: accel/kvm/
 F: include/sysemu/kvm*.h
+F: linux-headers/asm-*/kvm*.h
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
