@@ -218,6 +218,7 @@ F: target/ppc/
 F: hw/ppc/
 F: include/hw/ppc/
 F: disas/ppc.c
+F: default-configs/ppc*-softmmu.mak
 
 S390
 M: Richard Henderson <rth@twiddle.net>
