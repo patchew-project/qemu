@@ -1537,6 +1537,12 @@ Checkpatch
 S: Odd Fixes
 F: scripts/checkpatch.pl
 
+Coccinelle scripts
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Orphan
+F: scripts/cocci-macro-file.h
+F: scripts/coccinelle/
+
 Migration
 M: Juan Quintela <quintela@redhat.com>
 M: Dr. David Alan Gilbert <dgilbert@redhat.com>
@@ -1970,4 +1976,3 @@ Build system architecture
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: docs/devel/build-system.txt
-
