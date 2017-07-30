@@ -170,9 +170,11 @@ trace-events-subdirs += accel/kvm
 trace-events-subdirs += nbd
 
 trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
+trace-events-files += $(BUILD_DIR)/hypertrace/trace-events
 
 trace-obj-y = trace-root.o
 trace-obj-y += $(trace-events-subdirs:%=%/trace.o)
 trace-obj-$(CONFIG_TRACE_UST) += trace-ust-all.o
 trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace-root.o
 trace-obj-$(CONFIG_TRACE_DTRACE) += $(trace-events-subdirs:%=%/trace-dtrace.o)
+trace-obj-y += $(BUILD_DIR)/hypertrace/trace.o

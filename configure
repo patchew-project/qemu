@@ -351,6 +351,7 @@ pie=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
+hypertrace="1"
 spice=""
 rbd=""
 smartcard=""
@@ -890,6 +891,8 @@ for opt do
   ;;
   --with-trace-file=*) trace_file="$optarg"
   ;;
+  --with-hypertrace-args=*) hypertrace="$optarg"
+  ;;
   --enable-gprof) gprof="yes"
   ;;
   --enable-gcov) gcov="yes"
@@ -1424,6 +1427,8 @@ Advanced options (experts only):
                            Available backends: $trace_backend_list
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
+  --with-hypertrace-args=NUMBER
+                           number of hypertrace arguments (default: $hypertrace)
   --disable-slirp          disable SLIRP userspace network connectivity
   --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)
   --oss-lib                path to OSS library
@@ -4434,6 +4439,16 @@ if test "$?" -ne 0 ; then
 fi
 
 ##########################################
+# check hypertrace arguments
+case "$hypertrace" in
+    ''|*[!0-9]*) error_exit "invalid number of hypertrace arguments" ;;
+    *) ;;
+esac
+if test $hypertrace = 0; then
+    error_exit "hypertrace arguments must be greater than zero"
+fi
+
+##########################################
 # For 'ust' backend, test if ust headers are present
 if have_backend "ust"; then
   cat > $TMPC << EOF
@@ -5352,6 +5367,7 @@ echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
 fi
+echo "Hypertrace arguments  $hypertrace"
 echo "spice support     $spice $(echo_version $spice $spice_protocol_version/$spice_server_version)"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
@@ -6067,6 +6083,24 @@ else
   QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/\$(ARCH) $QEMU_INCLUDES"
 fi
 QEMU_INCLUDES="-I\$(SRC_PATH)/tcg $QEMU_INCLUDES"
+
+# hypertrace
+echo "CONFIG_HYPERTRACE_ARGS=$hypertrace" >> $config_host_mak
+hypertrace_events=hypertrace/trace-events
+mkdir -p $(dirname $hypertrace_events)
+echo "# See docs/trace-events.txt for syntax documentation." >$hypertrace_events
+echo -n 'vcpu guest_hypertrace(' >>$hypertrace_events
+for i in `seq $hypertrace`; do
+    if test $i != 1; then
+        echo -n ", " >>$hypertrace_events
+    fi
+    echo -n "uint64_t arg$i" >>$hypertrace_events
+done
+echo -n ') ' >>$hypertrace_events
+for i in `seq $hypertrace`; do
+    echo -n "\" arg$i=0x%016\"PRIx64" >>$hypertrace_events
+done
+echo >>$hypertrace_events
 
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
