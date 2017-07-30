@@ -1,10 +1,14 @@
 # -*- mode: makefile -*-
 
 target-obj-$(CONFIG_USER_ONLY) += user.o
+ifdef CONFIG_PCI
+target-obj-$(CONFIG_SOFTMMU) += softmmu.o
+endif
 target-obj-y += common.o
 
 $(obj)/user.o: $(obj)/emit.c
 $(obj)/common.o: $(obj)/emit.c
+$(obj)/softmmu.o: $(obj)/emit.c
 
 $(obj)/emit.c: $(obj)/emit.c-timestamp $(BUILD_DIR)/config-host.mak
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
