@@ -205,6 +205,9 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 int target_mprotect(abi_ulong start, abi_ulong len, int prot);
 abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, abi_ulong offset);
+abi_long target_mmap_cpu(abi_ulong start, abi_ulong len, int prot,
+                         int flags, int fd, abi_ulong offset,
+                         CPUState *cpu);
 int target_munmap(abi_ulong start, abi_ulong len);
 abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_size, unsigned long flags,
