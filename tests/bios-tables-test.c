@@ -243,13 +243,13 @@ static void test_acpi_dsdt_table(test_data *data)
 /* Load all tables and add to test list directly RSDT referenced tables */
 static void fetch_rsdt_referenced_tables(test_data *data)
 {
-    int tables_nr = data->rsdt_tables_nr - 1; /* fadt is first */
+    int tables_nr = data->rsdt_tables_nr;
     int i;
 
     for (i = 0; i < tables_nr; i++) {
         AcpiSdtTable ssdt_table;
 
-        uint32_t addr = data->rsdt_tables_addr[i + 1]; /* fadt is first */
+        uint32_t addr = data->rsdt_tables_addr[i];
         fetch_table(&ssdt_table, addr);
 
         /* Add table to ASL test tables list */
