@@ -1,0 +1,146 @@
+#!/bin/env bash
+#
+# Test qcow2 BDRV_REQ_ALLOCATE requests
+#
+# Copyright (c) 2017 Parallels International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+function do_io()
+{
+    $QEMU_IO "$@" | _filter_qemu_io |\
+        sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
+}
+
+CLUSTER_SIZE=64k
+size=128M
+
+_make_test_img 1G
+
+echo
+echo "== Test discarded cluster reuse =="
+
+# allocate first two clusters
+do_io -c "writev -P 1 0x8000 0x10000" "$TEST_IMG"
+len=$(stat -c "%s" $TEST_IMG)
+
+# discard the 1st cluster on qcow2 level only
+do_io -c "open -o pass-discard-request=off $TEST_IMG" -c "discard 0 0x10000"
+
+# new write will reuse the dirty host cluster and has to overwrite that
+#  with zeroes
+do_io -c "writev -P 2 0x24000 0x8000" "$TEST_IMG"
+if [ $len -ne $(stat -c "%s" $TEST_IMG) ] ; then
+    >&2 echo "Failed to reuse cluster"
+    exit 1
+fi
+
+echo
+echo "== Test preallocation =="
+
+function io_commands()
+{
+    echo "open -o prealloc-size=$((1024*1024)) blkdebug::$TEST_IMG"
+
+    # Verify that intersections of a running preallocation and new requests
+    #  is handled properly.
+    #
+    # 1. send a write #1 which triggers preallocation, suspend it in action
+    # 2. send a write #2 which intersects with the area being preallocated
+    # 3. using break/wait_break/resume, wait until write #2 is at least
+    #    at WRITE_AIO tracepoint.
+    #    Then it is supposed to enter pwrite(bs->child) and start waiting
+    #    for #1 to finish
+    # 4. resume #1
+
+cat <<EOF
+break pwritev_zero A
+aio_write -P 3 0x30000 0x1000
+wait_break A
+
+break write_aio B
+aio_write -P 4 0x40000 0x1000
+wait_break B
+resume B
+
+resume A
+aio_flush
+EOF
+
+    # Verify that new cluster in the preallocated area triggers
+    #  neither new preallocation nor COW read
+    #
+    # TODO: this test will not fail but hang. Better ideas?
+    #       wait and kill by timeout?
+
+cat <<EOF
+break pwritev_zero A
+break cow_read B
+writev -P 5 0x51000 0x1000
+EOF
+}
+
+io_commands | do_io
+
+echo
+echo "== Verify image content =="
+
+function verify_io()
+{
+cat <<EOF
+read -P 0 0 0x10000
+read -P 1 0x10000 0x8000
+read -P 0 0x18000 0xc000
+read -P 2 0x24000 0x8000
+read -P 0 0x2c000 0x4000
+
+read -P 3 0x30000 0x1000
+read -P 0 0x31000 0xf000
+read -P 4 0x40000 0x1000
+read -P 0 0x41000 0xf000
+
+read -P 0 0x50000 0x1000
+read -P 5 0x51000 0x1000
+read -P 0 0x52000 0xe000
+EOF
+}
+
+verify_io | do_io $TEST_IMG
+
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
