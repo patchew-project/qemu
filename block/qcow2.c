@@ -2037,13 +2037,25 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
     QCowL2Meta *m;
 
     for (m = l2meta; m != NULL; m = m->next) {
-        if (s->prealloc_size && handle_prealloc(bs, m)) {
-            if (check_zero_cow(bs, m)) {
-                trace_qcow2_skip_cow(qemu_coroutine_self(), m->offset,
-                                     m->nb_clusters);
-                m->zero_cow = true;
+        bool preallocated_zeroes = s->prealloc_size && handle_prealloc(bs, m);
+
+        if (!check_zero_cow(bs, m)) {
+            continue;
+        }
+
+        if (!preallocated_zeroes &&
+            (m->cow_start.nb_bytes != 0 || m->cow_end.nb_bytes != 0))
+        {
+            if (bdrv_co_pwrite_zeroes(bs->file, m->alloc_offset,
+                                      m->nb_clusters * s->cluster_size,
+                                      BDRV_REQ_ALLOCATE) != 0)
+            {
+                continue;
             }
         }
+
+        trace_qcow2_skip_cow(qemu_coroutine_self(), m->offset, m->nb_clusters);
+        m->zero_cow = true;
     }
 }
 

@@ -114,7 +114,8 @@ qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps 
 blkdebug: Suspended request '0'
 write failed: Input/output error
 blkdebug: Resuming request '0'
-aio_write failed: No medium found
+wrote 1024/1024 bytes at offset 0
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing unallocated image header ===
 
