@@ -758,6 +758,10 @@ occasions where a cluster gets freed (on/off; default: off)
 Which overlap checks to perform for writes to the image
 (none/constant/cached/all; default: cached). For details or finer
 granularity control refer to the QAPI documentation of @code{blockdev-add}.
+
+@item prealloc-size
+The number of bytes that will be preallocated ahead at qcow2 file expansion
+(allocating a new cluster beyond the end of file).
 @end table
 
 Example 1:

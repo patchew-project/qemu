@@ -674,6 +674,11 @@ static QemuOptsList qcow2_runtime_opts = {
         },
         BLOCK_CRYPTO_OPT_DEF_KEY_SECRET("encrypt.",
             "ID of secret providing qcow2 AES key or LUKS passphrase"),
+        {
+            .name = QCOW2_OPT_PREALLOC_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Preallocation amount at image expand",
+        },
         { /* end of list */ }
     },
 };
@@ -1014,6 +1019,15 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     if (s->crypt_method_header != QCOW_CRYPT_NONE && !r->crypto_opts) {
         ret = -EINVAL;
         goto fail;
+    }
+
+    s->prealloc_size =
+        ROUND_UP(qemu_opt_get_size_del(opts, QCOW2_OPT_PREALLOC_SIZE, 0),
+                 s->cluster_size);
+    if (s->prealloc_size &&
+        !(bs->file->bs->supported_zero_flags & BDRV_REQ_ALLOCATE))
+    {
+        s->prealloc_size = 0;
     }
 
     ret = 0;
@@ -1895,6 +1909,43 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
     return false;
 }
 
+/*
+ * If the specified area is beyond EOF, allocates it + prealloc_size
+ * bytes ahead.
+ */
+static void coroutine_fn handle_prealloc(BlockDriverState *bs,
+                                         const QCowL2Meta *m)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t start = m->alloc_offset;
+    uint64_t end = start + m->nb_clusters * s->cluster_size;
+    int64_t flen = bdrv_getlength(bs->file->bs);
+
+    if (flen < 0) {
+        return;
+    }
+
+    if (end > flen) {
+        /* try to alloc host space in one chunk for better locality */
+        bdrv_co_pwrite_zeroes(bs->file, flen,
+                              QEMU_ALIGN_UP(end + s->prealloc_size - flen,
+                                            s->cluster_size),
+                              BDRV_REQ_ALLOCATE);
+    }
+}
+
+static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QCowL2Meta *m;
+
+    for (m = l2meta; m != NULL; m = m->next) {
+        if (s->prealloc_size) {
+            handle_prealloc(bs, m);
+        }
+    }
+}
+
 static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -1979,23 +2030,30 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
             goto fail;
         }
 
+        qemu_co_mutex_unlock(&s->lock);
+
+        if (bs->file->bs->supported_zero_flags & BDRV_REQ_ALLOCATE) {
+            handle_alloc_space(bs, l2meta);
+        }
+
         /* If we need to do COW, check if it's possible to merge the
          * writing of the guest data together with that of the COW regions.
          * If it's not possible (or not necessary) then write the
          * guest data now. */
         if (!merge_cow(offset, cur_bytes, &hd_qiov, l2meta)) {
-            qemu_co_mutex_unlock(&s->lock);
             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
             trace_qcow2_writev_data(qemu_coroutine_self(),
                                     cluster_offset + offset_in_cluster);
             ret = bdrv_co_pwritev(bs->file,
                                   cluster_offset + offset_in_cluster,
                                   cur_bytes, &hd_qiov, 0);
-            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
+                qemu_co_mutex_lock(&s->lock);
                 goto fail;
             }
         }
+
+        qemu_co_mutex_lock(&s->lock);
 
         while (l2meta != NULL) {
             QCowL2Meta *next;
