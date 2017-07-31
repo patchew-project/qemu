@@ -1918,6 +1918,11 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
             continue;
         }
 
+        /* If both COW regions are zeroes already, skip this too */
+        if (m->zero_cow) {
+            continue;
+        }
+
         /* The data (middle) region must be immediately after the
          * start region */
         if (l2meta_cow_start(m) + m->cow_start.nb_bytes != offset) {
@@ -1965,26 +1970,65 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
 /*
  * If the specified area is beyond EOF, allocates it + prealloc_size
  * bytes ahead.
+ *
+ * Returns
+ *   true if the space is allocated and contains zeroes
  */
-static void coroutine_fn handle_prealloc(BlockDriverState *bs,
+static bool coroutine_fn handle_prealloc(BlockDriverState *bs,
                                          const QCowL2Meta *m)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start = m->alloc_offset;
     uint64_t end = start + m->nb_clusters * s->cluster_size;
+    int ret;
     int64_t flen = bdrv_getlength(bs->file->bs);
 
     if (flen < 0) {
-        return;
+        return false;
     }
 
     if (end > flen) {
         /* try to alloc host space in one chunk for better locality */
-        bdrv_co_pwrite_zeroes(bs->file, flen,
-                              QEMU_ALIGN_UP(end + s->prealloc_size - flen,
-                                            s->cluster_size),
-                              BDRV_REQ_ALLOCATE);
+        ret = bdrv_co_pwrite_zeroes(bs->file, flen,
+                                    QEMU_ALIGN_UP(end + s->prealloc_size - flen,
+                                                  s->cluster_size),
+                                    BDRV_REQ_ALLOCATE);
+        if (ret < 0) {
+            return false;
+        }
     }
+
+    /* We're safe to assume that the area is zeroes if the area
+     * was allocated at the end of data (s->data_end).
+     * In this case, the only way for file length to be bigger is that
+     * the area was preallocated by this or another request.
+     */
+    return m->clusters_are_trailing;
+}
+
+static bool check_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
+{
+    if (bs->encrypted) {
+        return false;
+    }
+
+    if (m->cow_start.nb_bytes != 0 &&
+        !is_zero_sectors(bs,
+                         (m->offset + m->cow_start.offset) >> BDRV_SECTOR_BITS,
+                         m->cow_start.nb_bytes >> BDRV_SECTOR_BITS))
+    {
+        return false;
+    }
+
+    if (m->cow_end.nb_bytes != 0 &&
+        !is_zero_sectors(bs,
+                         (m->offset + m->cow_end.offset) >> BDRV_SECTOR_BITS,
+                         m->cow_end.nb_bytes >> BDRV_SECTOR_BITS))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
@@ -1993,8 +2037,12 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
     QCowL2Meta *m;
 
     for (m = l2meta; m != NULL; m = m->next) {
-        if (s->prealloc_size) {
-            handle_prealloc(bs, m);
+        if (s->prealloc_size && handle_prealloc(bs, m)) {
+            if (check_zero_cow(bs, m)) {
+                trace_qcow2_skip_cow(qemu_coroutine_self(), m->offset,
+                                     m->nb_clusters);
+                m->zero_cow = true;
+            }
         }
     }
 }
