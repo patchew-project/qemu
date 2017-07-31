@@ -527,7 +527,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->has_discard = true;
     s->has_write_zeroes = true;
-    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP;
     if ((bs->open_flags & BDRV_O_NOCACHE) != 0) {
         s->needs_alignment = true;
     }
@@ -576,6 +575,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         s->is_xfs = true;
     }
 #endif
+
+    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP;
+    if (s->has_write_zeroes || s->has_fallocate) {
+        bs->supported_zero_flags |= BDRV_REQ_ALLOCATE;
+    }
 
     ret = 0;
 fail:
@@ -1390,6 +1394,9 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
     }
 #endif
 
+    if (!s->has_fallocate) {
+        aiocb->bs->supported_zero_flags &= ~BDRV_REQ_ALLOCATE;
+    }
     return -ENOTSUP;
 }
 
