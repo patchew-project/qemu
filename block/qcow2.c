@@ -1943,6 +1943,25 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
     return false;
 }
 
+static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
+                            uint32_t count)
+{
+    int nr;
+    BlockDriverState *file;
+    int64_t res;
+
+    if (start + count > bs->total_sectors) {
+        count = bs->total_sectors - start;
+    }
+
+    if (!count) {
+        return true;
+    }
+    res = bdrv_get_block_status_above(bs, NULL, start, count,
+                                      &nr, &file);
+    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == count;
+}
+
 /*
  * If the specified area is beyond EOF, allocates it + prealloc_size
  * bytes ahead.
@@ -3084,26 +3103,6 @@ finish:
     g_free(encryptfmt);
     g_free(buf);
     return ret;
-}
-
-
-static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
-                            uint32_t count)
-{
-    int nr;
-    BlockDriverState *file;
-    int64_t res;
-
-    if (start + count > bs->total_sectors) {
-        count = bs->total_sectors - start;
-    }
-
-    if (!count) {
-        return true;
-    }
-    res = bdrv_get_block_status_above(bs, NULL, start, count,
-                                      &nr, &file);
-    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == count;
 }
 
 static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
