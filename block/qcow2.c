@@ -1498,6 +1498,8 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    s->data_end = bdrv_getlength(bs->file->bs);
+
 #ifdef DEBUG_ALLOC
     {
         BdrvCheckResult result = {0};
@@ -2135,6 +2137,11 @@ static int qcow2_inactivate(BlockDriverState *bs)
 
     if (result == 0) {
         qcow2_mark_clean(bs);
+
+        /* truncate preallocated space */
+        if (!bs->read_only && s->data_end < bdrv_getlength(bs->file->bs)) {
+            bdrv_truncate(bs->file, s->data_end, PREALLOC_MODE_OFF, NULL);
+        }
         s->flags |= BDRV_O_INACTIVE;
     }
 

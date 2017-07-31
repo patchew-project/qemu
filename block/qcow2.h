@@ -330,6 +330,7 @@ typedef struct BDRVQcow2State {
     char *image_backing_format;
 
     uint64_t prealloc_size;
+    uint64_t data_end;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -668,5 +669,7 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
 void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                           const char *name,
                                           Error **errp);
+
+void qcow2_update_data_end(BlockDriverState *bs, uint64_t off);
 
 #endif

@@ -833,6 +833,9 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
             ret = alloc_refcount_block(bs, cluster_index, &refcount_block);
             if (ret < 0) {
                 goto fail;
+            } else {
+                qcow2_update_data_end(bs, s->refcount_table_offset +
+                        s->refcount_table_size * sizeof(uint64_t));
             }
         }
         old_table_index = table_index;
@@ -954,6 +957,8 @@ retry:
         s->free_cluster_index - 1 > (INT64_MAX >> s->cluster_bits))
     {
         return -EFBIG;
+    } else {
+        qcow2_update_data_end(bs, s->free_cluster_index << s->cluster_bits);
     }
 
 #ifdef DEBUG_ALLOC2
@@ -1018,6 +1023,8 @@ int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
 
     if (ret < 0) {
         return ret;
+    } else {
+        qcow2_update_data_end(bs, offset + (nb_clusters << s->cluster_bits));
     }
 
     return i;
