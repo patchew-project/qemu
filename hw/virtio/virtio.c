@@ -2653,6 +2653,17 @@ static void virtio_device_class_init(ObjectClass *klass, void *data)
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
     dc->props = virtio_properties;
+    /*
+     * Reason:
+     * - TYPE_VIRTIO_DEVICE devices are not visible to guests
+     *   unless they are created and controlled by transport-specific
+     *   devices (virtio-pci, virtio-mmio, and virtio-ccw).
+     * - A TYPE_VIRTIO_BUS bus is never available for plugging
+     *   using -device/device_add, as virtio-bus buses are
+     *   created on the fly and immediately populated by the
+     *   transport-specific devices' realize methods.
+     */
+    dc->user_creatable = false;
     vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
     vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
 
