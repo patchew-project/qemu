@@ -154,6 +154,10 @@ struct MemoryRegionOps {
      * @offset is the location of the pointer inside @mr.
      *
      * Returns a pointer to a location which contains guest code.
+     *
+     * Warning: This breaks migration if used before or during migration
+     *          because mmio-interface device will be migrated and because
+     *          RAMBlock list _must_ be static during migration.
      */
     void *(*request_ptr)(void *opaque, hwaddr addr, unsigned *size,
                          unsigned *offset);
