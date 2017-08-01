@@ -28,8 +28,14 @@ virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %
 
 # hw/virtio/virtio-iommu.c
 #
-virtio_iommu_attach(uint32_t as, uint32_t dev, uint32_t flags) "as=%d dev=%d flags=%d"
-virtio_iommu_detach(uint32_t dev, uint32_t flags) "dev=%d flags=%d"
+virtio_iommu_attach(uint32_t as, uint32_t dev) "as=%d dev=%d"
+virtio_iommu_detach(uint32_t dev) "dev=%d"
 virtio_iommu_map(uint32_t as, uint64_t phys_addr, uint64_t virt_addr, uint64_t size, uint32_t flags) "as= %d phys_addr=0x%"PRIx64" virt_addr=0x%"PRIx64" size=0x%"PRIx64" flags=%d"
 virtio_iommu_unmap(uint32_t as, uint64_t virt_addr, uint64_t size, uint32_t reserved) "as= %d virt_addr=0x%"PRIx64" size=0x%"PRIx64" reserved=%d"
 virtio_iommu_translate(const char *name, uint32_t rid, uint64_t iova, int flag) "mr=%s rid=%d addr=0x%"PRIx64" flag=%d"
+virtio_iommu_new_asid(uint32_t asid) "Allocate a new asid=%d"
+virtio_iommu_new_devid(uint32_t devid) "Allocate a new devid=%d"
+virtio_iommu_unmap_left_interval(uint64_t low, uint64_t high, uint64_t next_low, uint64_t next_high) "Unmap left [0x%"PRIx64",0x%"PRIx64"], new interval=[0x%"PRIx64",0x%"PRIx64"]"
+virtio_iommu_unmap_right_interval(uint64_t low, uint64_t high, uint64_t next_low, uint64_t next_high) "Unmap right [0x%"PRIx64",0x%"PRIx64"], new interval=[0x%"PRIx64",0x%"PRIx64"]"
+virtio_iommu_unmap_inc_interval(uint64_t low, uint64_t high) "Unmap inc [0x%"PRIx64",0x%"PRIx64"]"
+virtio_iommu_translate_result(uint64_t virt_addr, uint64_t phys_addr, uint32_t sid) "0x%"PRIx64" -> 0x%"PRIx64 " for sid=%d"
