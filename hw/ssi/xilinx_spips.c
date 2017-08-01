@@ -31,6 +31,8 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "hw/ssi/xilinx_spips.h"
+#include "qapi/error.h"
+#include "migration/blocker.h"
 
 #ifndef XILINX_SPIPS_ERR_DEBUG
 #define XILINX_SPIPS_ERR_DEBUG 0
@@ -139,6 +141,7 @@ typedef struct {
 
     uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
+    Error *migration_blocker;
 } XilinxQSPIPS;
 
 typedef struct XilinxSPIPSClass {
@@ -602,6 +605,14 @@ static void *lqspi_request_mmio_ptr(void *opaque, hwaddr addr, unsigned *size,
 {
     XilinxQSPIPS *q = opaque;
     hwaddr offset_within_the_region = addr & ~(LQSPI_CACHE_SIZE - 1);
+
+    /* mmio_execution breaks migration better aborting than having strange
+     * bugs.
+     */
+    if (!q->migration_blocker) {
+        error_setg(&q->migration_blocker, "booting from SPI breaks migration");
+        migrate_add_blocker(q->migration_blocker, &error_fatal);
+    }
 
     lqspi_load_cache(opaque, offset_within_the_region);
     *size = LQSPI_CACHE_SIZE;
