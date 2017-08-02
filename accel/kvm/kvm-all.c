@@ -1483,6 +1483,21 @@ void kvm_irqchip_set_qemuirq_gsi(KVMState *s, qemu_irq irq, int gsi)
     g_hash_table_insert(s->gsimap, irq, GINT_TO_POINTER(gsi));
 }
 
+static void kvm_vrtc_create(KVMState *s)
+{
+    int ret;
+    if (kvm_check_extension(s, KVM_CAP_VRTC)) {
+        return;
+    }
+
+    ret = kvm_vm_ioctl(s, KVM_CREATE_VRTC);
+
+    if (ret < 0) {
+        fprintf(stderr, "Create kernel vrtc failed: %s\n", strerror(-ret));
+        exit(1);
+    }
+}
+
 static void kvm_irqchip_create(MachineState *machine, KVMState *s)
 {
     int ret;
@@ -1750,6 +1765,8 @@ static int kvm_init(MachineState *ms)
     if (machine_kernel_irqchip_allowed(ms)) {
         kvm_irqchip_create(ms, s);
     }
+
+    kvm_vrtc_create(s);
 
     if (kvm_eventfds_allowed) {
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
