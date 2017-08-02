@@ -429,9 +429,11 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
         };                                                           \
         uint64_t args_tmp[] = { __VA_ARGS__ };                       \
         int i;                                                       \
-        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
+        if (sizeof(args_tmp)) {                                      \
+            for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&             \
                      i < ARRAY_SIZE(cap.args); i++) {                \
-            cap.args[i] = args_tmp[i];                               \
+                cap.args[i] = args_tmp[i];                           \
+            }                                                        \
         }                                                            \
         kvm_vm_ioctl(s, KVM_ENABLE_CAP, &cap);                       \
     })
@@ -444,9 +446,11 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
         };                                                           \
         uint64_t args_tmp[] = { __VA_ARGS__ };                       \
         int i;                                                       \
-        for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&                 \
+        if (sizeof(args_tmp)) {                                      \
+            for (i = 0; i < (int)ARRAY_SIZE(args_tmp) &&             \
                      i < ARRAY_SIZE(cap.args); i++) {                \
-            cap.args[i] = args_tmp[i];                               \
+                cap.args[i] = args_tmp[i];                           \
+            }                                                        \
         }                                                            \
         kvm_vcpu_ioctl(cpu, KVM_ENABLE_CAP, &cap);                   \
     })
