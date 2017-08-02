@@ -98,7 +98,7 @@ static const union float80u smallest_positive_norm = {
     .ieee.mantissa = 0,
 };
 
-static void fninit()
+static void fninit(void)
 {
     asm volatile ("fninit\n");
 }
