@@ -3,6 +3,7 @@
 #include "util/cutils.c"
 #include "util/hexdump.c"
 #include "util/iov.c"
+#include "util/bufferiszero.c"
 #include "util/path.c"
 #include "util/qemu-timer-common.c"
 #include <stdarg.h>
