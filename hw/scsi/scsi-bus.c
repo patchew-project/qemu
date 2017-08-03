@@ -10,6 +10,7 @@
 #include "trace.h"
 #include "sysemu/dma.h"
 #include "qemu/cutils.h"
+#include "qemu/crc32c.h"
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
@@ -533,6 +534,22 @@ static bool scsi_target_emulate_receive_diagnostic(SCSITargetReq *r)
         enc_desc[0] = 0x09;
         enc_desc[2] = 1;
         enc_desc[3] = 0x24;
+        if (qemu_uuid_set) {
+            uint32_t crc;
+
+            /*
+             * Make this a NAA IEEE Registered identifier
+             * using Qumranet OUI (0x001A4A) and the
+             * crc32 from the system UUID.
+             */
+            enc_desc[4] = 0x50;
+            enc_desc[5] = 0x01;
+            enc_desc[6] = 0xa4;
+            enc_desc[7] = 0xa0;
+            crc = crc32c(0xffffffff, qemu_uuid.data, 16);
+            cpu_to_le32s(&crc);
+            memcpy(&enc_desc[8], &crc, 4);
+        }
         memcpy(&enc_desc[12], "QEMU    ", 8);
         memcpy(&enc_desc[20], "QEMU TARGET     ", 16);
         pstrcpy((char *)&enc_desc[36], 4, qemu_hw_version());
