@@ -31,8 +31,9 @@ typedef struct NBDClientSession {
         Coroutine *co;
         NBDRequest *request;
         QEMUIOVector *qiov;
+        int ret;
     } requests[MAX_NBD_REQUESTS];
-    NBDReply reply;
+    bool eio_to_all;
 } NBDClientSession;
 
 NBDClientSession *nbd_get_client_session(BlockDriverState *bs);

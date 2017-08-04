@@ -72,10 +72,10 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     uint64_t i;
     int ret;
     Error *local_err = NULL;
+    NBDReply reply;
 
     for (;;) {
-        assert(s->reply.handle == 0);
-        ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
+        ret = nbd_receive_reply(s->ioc, &reply, &local_err);
         if (ret < 0) {
             error_report_err(local_err);
         }
@@ -87,16 +87,14 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
          * handler acts as a synchronization point and ensures that only
          * one coroutine is called until the reply finishes.
          */
-        i = HANDLE_TO_INDEX(s, s->reply.handle);
+        i = HANDLE_TO_INDEX(s, reply.handle);
         if (i >= MAX_NBD_REQUESTS || !s->requests[i].co ||
-            s->reply.handle != s->requests[i].request->handle)
+            reply.handle != s->requests[i].request->handle)
         {
             break;
         }
 
-        if (s->reply.error == 0 &&
-            s->requests[i].request->type == NBD_CMD_READ)
-        {
+        if (reply.error == 0 && s->requests[i].request->type == NBD_CMD_READ) {
             assert(s->requests[i].qiov != NULL);
             ret = nbd_rwv(s->ioc, s->requests[i].qiov->iov,
                           s->requests[i].qiov->niov,
@@ -105,6 +103,8 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
                 break;
             }
         }
+
+        s->requests[i].ret = -reply.error;
 
         /* We're woken up by the receiving coroutine itself.  Note that there
          * is no race between yielding and reentering read_reply_co.  This
@@ -121,7 +121,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         qemu_coroutine_yield();
     }
 
-    s->reply.handle = 0;
+    s->eio_to_all = true;
     nbd_recv_coroutines_wake_all(s);
     s->read_reply_co = NULL;
 }
@@ -180,19 +180,14 @@ static int nbd_co_request(BlockDriverState *bs,
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     qemu_coroutine_yield();
-    if (!s->ioc || s->reply.handle == 0) {
+    if (!s->ioc || s->eio_to_all) {
         rc = -EIO;
         goto out;
     }
 
-    assert(s->reply.handle == request->handle);
-
-    rc = -s->reply.error;
+    rc = s->requests[i].ret;
 
 out:
-    /* Tell the read handler to read another header.  */
-    s->reply.handle = 0;
-
     s->requests[i].co = NULL;
 
     /* Kick the read_reply_co to get the next reply.  */
