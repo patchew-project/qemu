@@ -16,6 +16,7 @@
 #include "libqos/virtio-pci.h"
 #include "libqos/virtio-mmio.h"
 #include "libqos/malloc-generic.h"
+#include "qapi/qmp/qjson.h"
 #include "qemu/bswap.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_config.h"
@@ -656,12 +657,13 @@ static void pci_hotplug(void)
     QVirtioPCIDevice *dev;
     QOSState *qs;
     const char *arch = qtest_get_arch();
+    QObject *extra_args = qobject_from_jsonf("{ 'drive': 'drive1' }");
 
     qs = pci_test_start();
 
     /* plug secondary disk */
     qpci_plug_device_test("virtio-blk-pci", "drv1", PCI_SLOT_HP,
-                          "'drive': 'drive1'");
+                          qobject_to_qdict(extra_args));
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT_HP);
     g_assert(dev);
@@ -672,6 +674,7 @@ static void pci_hotplug(void)
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qpci_unplug_acpi_device_test("drv1", PCI_SLOT_HP);
     }
+
     qtest_shutdown(qs);
 }
 
