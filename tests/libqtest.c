@@ -450,6 +450,9 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
 {
     va_list ap_copy;
     QObject *qobj;
+    int log = getenv("QTEST_LOG") != NULL;
+    QString *qstr;
+    const char *str;
 
     /* qobject_from_jsonv() silently eats leading 0xff as invalid
      * JSON, but we want to test sending them over the wire to force
@@ -458,6 +461,7 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
         socket_send(fd, fmt, 1);
         fmt++;
     }
+    assert(*fmt);
 
     /* Going through qobject ensures we escape strings properly.
      * This seemingly unnecessary copy is required in case va_list
@@ -466,29 +470,23 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     va_copy(ap_copy, ap);
     qobj = qobject_from_jsonv(fmt, &ap_copy, &error_abort);
     va_end(ap_copy);
+    qstr = qobject_to_json(qobj);
 
-    /* No need to send anything for an empty QObject.  */
-    if (qobj) {
-        int log = getenv("QTEST_LOG") != NULL;
-        QString *qstr = qobject_to_json(qobj);
-        const char *str;
+    /*
+     * BUG: QMP doesn't react to input until it sees a newline, an
+     * object, or an array.  Work-around: give it a newline.
+     */
+    qstring_append_chr(qstr, '\n');
+    str = qstring_get_str(qstr);
 
-        /*
-         * BUG: QMP doesn't react to input until it sees a newline, an
-         * object, or an array.  Work-around: give it a newline.
-         */
-        qstring_append_chr(qstr, '\n');
-        str = qstring_get_str(qstr);
-
-        if (log) {
-            fprintf(stderr, "%s", str);
-        }
-        /* Send QMP request */
-        socket_send(fd, str, qstring_get_length(qstr));
-
-        QDECREF(qstr);
-        qobject_decref(qobj);
+    if (log) {
+        fprintf(stderr, "%s", str);
     }
+    /* Send QMP request */
+    socket_send(fd, str, qstring_get_length(qstr));
+
+    QDECREF(qstr);
+    qobject_decref(qobj);
 }
 
 void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
