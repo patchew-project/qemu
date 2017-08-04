@@ -493,15 +493,64 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
     if (r->req.lun != 0) {
         r->buf[0] = TYPE_NO_LUN;
     } else {
-        r->buf[0] = TYPE_NOT_PRESENT | TYPE_INACTIVE;
+        r->buf[0] = TYPE_ENCLOSURE;
         r->buf[2] = 5; /* Version */
         r->buf[3] = 2 | 0x10; /* HiSup, response data format */
         r->buf[4] = r->len - 5; /* Additional Length = (Len - 1) - 4 */
+        r->buf[6] = 0x40; /* Enclosure service */
         r->buf[7] = 0x10 | (r->req.bus->info->tcq ? 0x02 : 0); /* Sync, TCQ.  */
         memcpy(&r->buf[8], "QEMU    ", 8);
         memcpy(&r->buf[16], "QEMU TARGET     ", 16);
         pstrcpy((char *) &r->buf[32], 4, qemu_hw_version());
     }
+    return true;
+}
+
+static bool scsi_target_emulate_receive_diagnostic(SCSITargetReq *r)
+{
+    uint8_t page_code = r->req.cmd.buf[2];
+    unsigned char *enc_desc, *type_desc;
+
+    assert(r->req.dev->lun != r->req.lun);
+
+    scsi_target_alloc_buf(&r->req, 0x38);
+
+    switch (page_code) {
+    case 0x00:
+        r->buf[r->len++] = page_code ; /* this page */
+        r->buf[r->len++] = 0x00;
+        r->buf[r->len++] = 0x00;
+        r->buf[r->len++] = 0x03;
+        r->buf[r->len++] = 0x00;
+        r->buf[r->len++] = 0x01;
+        r->buf[r->len++] = 0x08;
+        break;
+    case 0x01:
+        memset(r->buf, 0, 0x38);
+        r->buf[0] = page_code;
+        r->buf[3] = 0x30;
+        enc_desc = &r->buf[8];
+        enc_desc[0] = 0x09;
+        enc_desc[2] = 1;
+        enc_desc[3] = 0x24;
+        memcpy(&enc_desc[12], "QEMU    ", 8);
+        memcpy(&enc_desc[20], "QEMU TARGET     ", 16);
+        pstrcpy((char *)&enc_desc[36], 4, qemu_hw_version());
+        type_desc = &r->buf[48];
+        type_desc[1] = 1;
+        r->len = 0x38;
+        break;
+    case 0x08:
+        r->buf[0] = page_code;
+        r->buf[1] = 0x00;
+        r->buf[2] = 0x00;
+        r->buf[3] = 0x00;
+        r->len = 4;
+        break;
+    default:
+        return false;
+    }
+    r->len = MIN(r->req.cmd.xfer, r->len);
     return true;
 }
 
@@ -525,6 +574,11 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
         break;
     case INQUIRY:
         if (!scsi_target_emulate_inquiry(r)) {
+            goto illegal_request;
+        }
+        break;
+    case RECEIVE_DIAGNOSTIC:
+        if (!scsi_target_emulate_receive_diagnostic(r)) {
             goto illegal_request;
         }
         break;
