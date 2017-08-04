@@ -118,7 +118,6 @@ static int nbd_co_request(BlockDriverState *bs,
 {
     NBDClientSession *s = nbd_get_client_session(bs);
     int rc, ret, i;
-    NBDReply reply;
 
     qemu_co_mutex_lock(&s->send_mutex);
     while (s->in_flight == MAX_NBD_REQUESTS) {
@@ -171,20 +170,20 @@ static int nbd_co_request(BlockDriverState *bs,
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     qemu_coroutine_yield();
-    reply = s->reply;
-    if (reply.handle != request->handle ||
-        !s->ioc) {
-        reply.error = EIO;
-    } else {
-        if (qiov && reply.error == 0) {
-            ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true,
-                          NULL);
-            if (ret != request->len) {
-                reply.error = EIO;
-            }
+    if (s->reply.handle != request->handle || !s->ioc) {
+        rc = -EIO;
+        goto out;
+    }
+
+    if (qiov && s->reply.error == 0) {
+        ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true, NULL);
+        if (ret != request->len) {
+            rc = -EIO;
+            goto out;
         }
     }
-    rc = -reply.error;
+
+    rc = -s->reply.error;
 
 out:
     /* Tell the read handler to read another header.  */
