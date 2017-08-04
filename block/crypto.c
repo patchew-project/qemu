@@ -379,7 +379,7 @@ static void block_crypto_close(BlockDriverState *bs)
 }
 
 
-#define BLOCK_CRYPTO_MAX_SECTORS 32
+#define BLOCK_CRYPTO_MAX_SECTORS 2048
 
 static coroutine_fn int
 block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
@@ -396,9 +396,8 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
-    /* Bounce buffer so we have a linear mem region for
-     * entire sector. XXX optimize so we avoid bounce
-     * buffer in case that qiov->niov == 1
+    /* Bounce buffer because we're not permitted to touch
+     * contents of qiov - it points to guest memory.
      */
     cipher_data =
         qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * 512,
@@ -464,9 +463,8 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
-    /* Bounce buffer so we have a linear mem region for
-     * entire sector. XXX optimize so we avoid bounce
-     * buffer in case that qiov->niov == 1
+    /* Bounce buffer because we're not permitted to touch
+     * contents of qiov - it points to guest memory.
      */
     cipher_data =
         qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * 512,
