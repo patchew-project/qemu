@@ -550,6 +550,14 @@ static inline void qtest_end(void)
 QDict *qmp(const char *fmt, ...);
 
 /**
+ * qmp_raw:
+ * @msg: Raw QMP message to send to qemu.
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+QDict *qmp_raw(const char *msg);
+
+/**
  * qmp_async:
  * @fmt...: QMP message to send to qemu; formats arguments through
  * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').

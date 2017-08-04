@@ -451,7 +451,7 @@ static void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     QString *qstr;
     const char *str;
 
-    assert(*fmt);
+    assert(strstr(fmt, "execute"));
 
     /*
      * A round trip through QObject is only needed if % interpolation
@@ -496,11 +496,6 @@ void qmp_fd_send(int fd, const char *msg)
     }
     /* Send QMP request */
     socket_send(fd, msg, strlen(msg));
-    /*
-     * BUG: QMP doesn't react to input until it sees a newline, an
-     * object, or an array.  Work-around: give it a newline.
-     */
-    socket_send(fd, "\n", 1);
 }
 
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
@@ -897,6 +892,12 @@ QDict *qmp(const char *fmt, ...)
     response = qtest_qmpv(global_qtest, fmt, ap);
     va_end(ap);
     return response;
+}
+
+QDict *qmp_raw(const char *msg)
+{
+    qmp_fd_send(global_qtest->qmp_fd, msg);
+    return qtest_qmp_receive(global_qtest);
 }
 
 void qmp_async(const char *fmt, ...)
