@@ -13,7 +13,7 @@
 
 static void qmp_check_no_event(void)
 {
-    QDict *resp = qmp("{'execute':'query-status'}");
+    QDict *resp = qmp_cmd("query-status");
     g_assert(qdict_haskey(resp, "return"));
     QDECREF(resp);
 }

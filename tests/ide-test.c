@@ -651,7 +651,7 @@ static void test_retry_flush(const char *machine)
     qmp_eventwait("STOP");
 
     /* Complete the command */
-    qmp_async("{'execute':'cont' }");
+    qmp_cmd_async("cont");
     qmp_discard_response();
 
     /* Check registers */

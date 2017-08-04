@@ -483,6 +483,22 @@ QDict *qmp_raw(const char *msg);
 void qmp_async(const char *fmt, ...);
 
 /**
+ * qmp_cmd:
+ * @cmd: QMP command, with no arguments.
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+QDict *qmp_cmd(const char *cmd);
+
+/**
+ * qmp_cmd_async:
+ * @cmd: QMP command, with no arguments.
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qmp_cmd_async(const char *cmd);
+
+/**
  * qmp_discard_response:
  *
  * Read and discard a QMP response, typically after qmp_async().

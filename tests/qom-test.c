@@ -98,7 +98,7 @@ static void test_machine(gconstpointer data)
 
     test_properties("/machine", true);
 
-    response = qmp("{ 'execute': 'quit' }");
+    response = qmp_cmd("quit");
     g_assert(qdict_haskey(response, "return"));
     QDECREF(response);
 

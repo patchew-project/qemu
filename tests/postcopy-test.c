@@ -252,7 +252,7 @@ static uint64_t get_migration_pass(void)
     QDict *rsp, *rsp_return, *rsp_ram;
     uint64_t result;
 
-    rsp = return_or_event(qmp("{ 'execute': 'query-migrate' }"));
+    rsp = return_or_event(qmp_cmd("query-migrate"));
     rsp_return = qdict_get_qdict(rsp, "return");
     if (!qdict_haskey(rsp_return, "ram")) {
         /* Still in setup */
@@ -273,7 +273,7 @@ static void wait_for_migration_complete(void)
     do {
         const char *status;
 
-        rsp = return_or_event(qmp("{ 'execute': 'query-migrate' }"));
+        rsp = return_or_event(qmp_cmd("query-migrate"));
         rsp_return = qdict_get_qdict(rsp, "return");
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
@@ -455,7 +455,7 @@ static void test_migrate(void)
 
     wait_for_migration_pass();
 
-    rsp = return_or_event(qmp("{ 'execute': 'migrate-start-postcopy' }"));
+    rsp = return_or_event(qmp_cmd("migrate-start-postcopy"));
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
@@ -482,7 +482,7 @@ static void test_migrate(void)
         usleep(10 * 1000);
     } while (dest_byte_a == dest_byte_b);
 
-    qmp_async("{ 'execute' : 'stop'}");
+    qmp_cmd_async("stop");
     qmp_discard_response();
     /* With it stopped, check nothing changes */
     qtest_memread(to, start_address, &dest_byte_c, 1);

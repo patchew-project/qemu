@@ -105,7 +105,7 @@ static void test_smram_lock(void)
     g_assert(smram_test_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN) == false);
 
     /* reset */
-    response = qmp("{'execute': 'system_reset', 'arguments': {} }");
+    response = qmp_cmd("system_reset");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);

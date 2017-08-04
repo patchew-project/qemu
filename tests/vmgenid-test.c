@@ -118,7 +118,7 @@ static void read_guid_from_monitor(QemuUUID *guid)
     QDict *rsp, *rsp_ret;
     const char *guid_str;
 
-    rsp = qmp("{ 'execute': 'query-vm-generation-id' }");
+    rsp = qmp_cmd("query-vm-generation-id");
     if (qdict_haskey(rsp, "return")) {
         rsp_ret = qdict_get_qdict(rsp, "return");
         g_assert(qdict_haskey(rsp_ret, "guid"));
