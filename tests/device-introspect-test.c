@@ -105,9 +105,7 @@ static void test_one_device(const char *type)
     QDict *resp;
     char *help, *qom_tree;
 
-    resp = qmp("{'execute': 'device-list-properties',"
-               " 'arguments': {'typename': %s}}",
-               type);
+    resp = qmp_args("device-list-properties", "{'typename': %s}", type);
     QDECREF(resp);
 
     help = hmp("device_add \"%s,help\"", type);

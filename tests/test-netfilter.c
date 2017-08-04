@@ -16,24 +16,20 @@ static void add_one_netfilter(void)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'object-add',"
-                   " 'arguments': {"
-                   "   'qom-type': 'filter-buffer',"
-                   "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+    response = qmp_args("object-add",
+                        "{ 'qom-type': 'filter-buffer',"
+                        "  'id': 'qtest-f0',"
+                        "  'props': {"
+                        "     'netdev': 'qtest-bn0',"
+                        "     'queue': 'rx',"
+                        "     'interval': 1000"
+                        "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'object-del',"
-                   " 'arguments': {"
-                   "   'id': 'qtest-f0'"
-                   "}}");
+    response = qmp_args("object-del", "{'id': 'qtest-f0'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
@@ -44,34 +40,26 @@ static void remove_netdev_with_one_netfilter(void)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'object-add',"
-                   " 'arguments': {"
-                   "   'qom-type': 'filter-buffer',"
-                   "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+    response = qmp_args("object-add",
+                        "{ 'qom-type': 'filter-buffer',"
+                        "  'id': 'qtest-f0',"
+                        "  'props': {"
+                        "     'netdev': 'qtest-bn0',"
+                        "     'queue': 'rx',"
+                        "     'interval': 1000"
+                        "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'netdev_del',"
-                   " 'arguments': {"
-                   "   'id': 'qtest-bn0'"
-                   "}}");
+    response = qmp_args("netdev_del", "{'id': 'qtest-bn0'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
     /* add back the netdev */
-    response = qmp("{'execute': 'netdev_add',"
-                   " 'arguments': {"
-                   "   'type': 'user',"
-                   "   'id': 'qtest-bn0'"
-                   "}}");
+    response = qmp_args("netdev_add", "{'type': 'user', 'id': 'qtest-bn0'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
@@ -82,46 +70,38 @@ static void add_multi_netfilter(void)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'object-add',"
-                   " 'arguments': {"
-                   "   'qom-type': 'filter-buffer',"
-                   "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+    response = qmp_args("object-add",
+                        "{ 'qom-type': 'filter-buffer',"
+                        "  'id': 'qtest-f0',"
+                        "  'props': {"
+                        "     'netdev': 'qtest-bn0',"
+                        "     'queue': 'rx',"
+                        "     'interval': 1000"
+                        "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'object-add',"
-                   " 'arguments': {"
-                   "   'qom-type': 'filter-buffer',"
-                   "   'id': 'qtest-f1',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+    response = qmp_args("object-add",
+                        "{ 'qom-type': 'filter-buffer',"
+                        "  'id': 'qtest-f1',"
+                        "  'props': {"
+                        "     'netdev': 'qtest-bn0',"
+                        "     'queue': 'rx',"
+                        "     'interval': 1000"
+                        "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'object-del',"
-                   " 'arguments': {"
-                   "   'id': 'qtest-f0'"
-                   "}}");
+    response = qmp_args("object-del", "{'id': 'qtest-f0'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'object-del',"
-                   " 'arguments': {"
-                   "   'id': 'qtest-f1'"
-                   "}}");
+    response = qmp_args("object-del", "{'id': 'qtest-f1'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
@@ -132,48 +112,39 @@ static void remove_netdev_with_multi_netfilter(void)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'object-add',"
-                   " 'arguments': {"
-                   "   'qom-type': 'filter-buffer',"
-                   "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+    response = qmp_args("object-add",
+                        "{ 'qom-type': 'filter-buffer',"
+                        "  'id': 'qtest-f0',"
+                        "  'props': {"
+                        "     'netdev': 'qtest-bn0',"
+                        "     'queue': 'rx',"
+                        "     'interval': 1000"
+                        "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'object-add',"
-                   " 'arguments': {"
-                   "   'qom-type': 'filter-buffer',"
-                   "   'id': 'qtest-f1',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+    response = qmp_args("object-add",
+                        "{ 'qom-type': 'filter-buffer',"
+                        "  'id': 'qtest-f1',"
+                        "  'props': {"
+                        "     'netdev': 'qtest-bn0',"
+                        "     'queue': 'rx',"
+                        "     'interval': 1000"
+                        "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'netdev_del',"
-                   " 'arguments': {"
-                   "   'id': 'qtest-bn0'"
-                   "}}");
+    response = qmp_args("netdev_del", "{'id': 'qtest-bn0'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
     /* add back the netdev */
-    response = qmp("{'execute': 'netdev_add',"
-                   " 'arguments': {"
-                   "   'type': 'user',"
-                   "   'id': 'qtest-bn0'"
-                   "}}");
+    response = qmp_args("netdev_add", "{'type': 'user', 'id': 'qtest-bn0'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);

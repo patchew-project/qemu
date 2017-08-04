@@ -87,7 +87,6 @@ void set_context(QOSState *s)
 void migrate(QOSState *from, QOSState *to, const char *uri)
 {
     const char *st;
-    char *s;
     QDict *rsp, *sub;
     bool running;
 
@@ -102,11 +101,7 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
     QDECREF(rsp);
 
     /* Issue the migrate command. */
-    s = g_strdup_printf("{ 'execute': 'migrate',"
-                        "'arguments': { 'uri': '%s' } }",
-                        uri);
-    rsp = qmp(s);
-    g_free(s);
+    rsp = qmp_args("migrate", "{'uri': %s}", uri);
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 

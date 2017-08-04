@@ -37,8 +37,7 @@ static void test_pc_with_cpu_add(gconstpointer data)
     qtest_start(args);
 
     for (i = s->sockets * s->cores * s->threads; i < s->maxcpus; i++) {
-        response = qmp("{ 'execute': 'cpu-add',"
-                       "  'arguments': { 'id': %d } }", i);
+        response = qmp_args("cpu-add", "{ 'id': %d }", i);
         g_assert(response);
         g_assert(!qdict_haskey(response, "error"));
         QDECREF(response);
@@ -60,9 +59,8 @@ static void test_pc_without_cpu_add(gconstpointer data)
                            s->sockets, s->cores, s->threads, s->maxcpus);
     qtest_start(args);
 
-    response = qmp("{ 'execute': 'cpu-add',"
-                   "  'arguments': { 'id': %d } }",
-                   s->sockets * s->cores * s->threads);
+    response = qmp_args("cpu-add", "{ 'id': %d }",
+                        s->sockets * s->cores * s->threads);
     g_assert(response);
     g_assert(qdict_haskey(response, "error"));
     QDECREF(response);

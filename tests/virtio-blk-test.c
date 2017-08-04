@@ -409,9 +409,7 @@ static void pci_config(void)
 
     qvirtio_set_driver_ok(&dev->vdev);
 
-    qmp_async("{ 'execute': 'block_resize', "
-              " 'arguments': { 'device': 'drive0', "
-              " 'size': %d } }", n_size);
+    qmp_args_async("block_resize", "{'device': 'drive0', 'size': %d}", n_size);
     qmp_discard_response();
     qvirtio_wait_config_isr(&dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
 
@@ -460,9 +458,7 @@ static void pci_msix(void)
 
     qvirtio_set_driver_ok(&dev->vdev);
 
-    qmp_async("{ 'execute': 'block_resize', "
-              " 'arguments': { 'device': 'drive0', "
-              " 'size': %d } }", n_size);
+    qmp_args_async("block_resize", "{'device': 'drive0', 'size': %d}", n_size);
     qmp_discard_response();
 
     qvirtio_wait_config_isr(&dev->vdev, QVIRTIO_BLK_TIMEOUT_US);
@@ -702,9 +698,7 @@ static void mmio_basic(void)
 
     test_basic(&dev->vdev, alloc, vq);
 
-    qmp_async("{ 'execute': 'block_resize', "
-              " 'arguments': { 'device': 'drive0', "
-              " 'size': %d } }", n_size);
+    qmp_args_async("block_resize", "{'device': 'drive0', 'size': %d}", n_size);
     qmp_discard_response();
 
     qvirtio_wait_queue_isr(&dev->vdev, vq, QVIRTIO_BLK_TIMEOUT_US);

@@ -657,16 +657,11 @@ static void test_migrate(void)
 
     /* slow down migration to have time to fiddle with log */
     /* TODO: qtest could learn to break on some places */
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 10 } }");
+    rsp = qmp_args("migrate_set_speed", "{ 'value': 10 }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
-    rsp = qmp(cmd);
-    g_free(cmd);
+    rsp = qmp_args("migrate", "{'uri':%s}", uri);
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
@@ -681,8 +676,7 @@ static void test_migrate(void)
     munmap(log, size);
 
     /* speed things up */
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 0 } }");
+    rsp = qmp_args("migrate_set_speed", "{ 'value': 0 }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 

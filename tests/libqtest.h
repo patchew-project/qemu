@@ -499,6 +499,26 @@ QDict *qmp_cmd(const char *cmd);
 void qmp_cmd_async(const char *cmd);
 
 /**
+ * qmp_args:
+ * @cmd: QMP command to send to QEMU.
+ * @fmt...: Arguments for the command; formats arguments through
+ * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+QDict *qmp_args(const char *cmd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+
+/**
+ * qmp_args_async:
+ * @cmd: QMP command to send to QEMU.
+ * @fmt...: Arguments for the command; formats arguments through
+ * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qmp_args_async(const char *cmd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+
+/**
  * qmp_discard_response:
  *
  * Read and discard a QMP response, typically after qmp_async().

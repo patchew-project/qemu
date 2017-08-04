@@ -19,20 +19,14 @@ static void hotplug(void)
 {
     QDict *response;
 
-    response = qmp("{\"execute\": \"device_add\","
-                   " \"arguments\": {"
-                   "   \"driver\": \"virtserialport\","
-                   "   \"id\": \"hp-port\""
-                   "}}");
+    response = qmp_args("device_add",
+                        "{'driver':'virtserialport', 'id':'hp-port'}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{\"execute\": \"device_del\","
-                   " \"arguments\": {"
-                   "   \"id\": \"hp-port\""
-                   "}}");
+    response = qmp_args("device_del", "{'id':'hp-port'}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));

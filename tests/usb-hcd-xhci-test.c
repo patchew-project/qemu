@@ -25,21 +25,14 @@ static void test_usb_uas_hotplug(void)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'usb-uas',"
-                   "   'id': 'uas'"
-                   "}}");
+    response = qmp_args("device_add", "{'driver': 'usb-uas', 'id': 'uas'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'scsi-hd',"
-                   "   'drive': 'drive0',"
-                   "   'id': 'scsi-hd'"
-                   "}}");
+    response = qmp_args("device_add",
+                        "{'driver': 'scsi-hd', 'drive': 'drive0',"
+                        "  'id': 'scsi-hd'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
@@ -49,20 +42,14 @@ static void test_usb_uas_hotplug(void)
         added disk is visible after BUS rescan
     */
 
-    response = qmp("{'execute': 'device_del',"
-                           " 'arguments': {"
-                           "   'id': 'scsi-hd'"
-                           "}}");
+    response = qmp_args("device_del", "{'id': 'scsi-hd'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
     qmp_eventwait("DEVICE_DELETED");
 
-    response = qmp("{'execute': 'device_del',"
-                           " 'arguments': {"
-                           "   'id': 'uas'"
-                           "}}");
+    response = qmp_args("device_del", "{'id': 'uas'}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);

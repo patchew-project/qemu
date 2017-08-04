@@ -69,8 +69,8 @@ static int qmp_tmp105_get_temperature(const char *id)
     QDict *response;
     int ret;
 
-    response = qmp("{ 'execute': 'qom-get', 'arguments': { 'path': %s, "
-                   "'property': 'temperature' } }", id);
+    response = qmp_args("qom-get", "{ 'path': %s, 'property': 'temperature' }",
+                        id);
     g_assert(qdict_haskey(response, "return"));
     ret = qdict_get_int(response, "return");
     QDECREF(response);
@@ -81,8 +81,9 @@ static void qmp_tmp105_set_temperature(const char *id, int value)
 {
     QDict *response;
 
-    response = qmp("{ 'execute': 'qom-set', 'arguments': { 'path': %s, "
-                   "'property': 'temperature', 'value': %d } }", id, value);
+    response = qmp_args("qom-set",
+                        "{'path':%s, 'property':'temperature', 'value':%d}",
+                        id, value);
     g_assert(qdict_haskey(response, "return"));
     QDECREF(response);
 }

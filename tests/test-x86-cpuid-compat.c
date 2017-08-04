@@ -25,10 +25,8 @@ static char *get_cpu0_qom_path(void)
 
 static QObject *qom_get(const char *path, const char *prop)
 {
-    QDict *resp = qmp("{ 'execute': 'qom-get',"
-                      "  'arguments': { 'path': %s,"
-                      "                 'property': %s } }",
-                      path, prop);
+    QDict *resp = qmp_args("qom-get", "{ 'path': %s, 'property': %s }",
+                           path, prop);
     QObject *ret = qdict_get(resp, "return");
     qobject_incref(ret);
     QDECREF(resp);

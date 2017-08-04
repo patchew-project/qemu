@@ -869,6 +869,35 @@ void qmp_cmd_async(const char *cmd)
     qtest_qmp_send(global_qtest, "{'execute':%s}", cmd);
 }
 
+static void qmp_args_dict_async(const char *cmd, QDict *args)
+{
+    assert(args);
+    qtest_qmp_send(global_qtest, "{'execute':%s, 'arguments':%p}", cmd, args);
+}
+
+QDict *qmp_args(const char *cmd, const char *fmt, ...)
+{
+    va_list ap;
+    QObject *obj;
+
+    va_start(ap, fmt);
+    obj = qobject_from_jsonv(fmt, ap);
+    va_end(ap);
+    qmp_args_dict_async(cmd, qobject_to_qdict(obj));
+    return qtest_qmp_receive(global_qtest);
+}
+
+void qmp_args_async(const char *cmd, const char *fmt, ...)
+{
+    va_list ap;
+    QObject *obj;
+
+    va_start(ap, fmt);
+    obj = qobject_from_jsonv(fmt, ap);
+    va_end(ap);
+    qmp_args_dict_async(cmd, qobject_to_qdict(obj));
+}
+
 void qmp_discard_response(void)
 {
     QDict *response = qtest_qmp_receive(global_qtest);

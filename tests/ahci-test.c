@@ -1588,14 +1588,12 @@ static void test_atapi_tray(void)
     atapi_wait_tray(false);
 
     /* Remove media */
-    qmp_async("{'execute': 'blockdev-open-tray', "
-               "'arguments': {'device': 'drive0'}}");
+    qmp_args_async("blockdev-open-tray", "{'device': 'drive0'}");
     atapi_wait_tray(true);
     rsp = qmp_receive();
     QDECREF(rsp);
 
-    qmp_async("{'execute': 'x-blockdev-remove-medium', "
-              "'arguments': {'device': 'drive0'}}");
+    qmp_args_async("x-blockdev-remove-medium", "{'device': 'drive0'}");
     qmp_discard_response();
 
     /* Test the tray without a medium */
@@ -1606,17 +1604,16 @@ static void test_atapi_tray(void)
     atapi_wait_tray(true);
 
     /* Re-insert media */
-    qmp_async("{'execute': 'blockdev-add', 'arguments': {"
-              "  'node-name': 'node0', 'driver': 'raw', "
-              "  'file': { 'driver': 'file', 'filename': %s }}}", iso);
+    qmp_args_async("blockdev-add", "{'node-name': 'node0', "
+                   "'driver': 'raw', "
+                   "'file': { 'driver': 'file', 'filename': %s }}", iso);
     qmp_discard_response();
-    qmp_async("{'execute': 'x-blockdev-insert-medium',"
-              "'arguments': { 'device': 'drive0', 'node-name': 'node0' }}");
+    qmp_args_async("x-blockdev-insert-medium",
+                   "{ 'device': 'drive0', 'node-name': 'node0' }");
     qmp_discard_response();
 
     /* Again, the event shows up first */
-    qmp_async("{'execute': 'blockdev-close-tray', "
-               "'arguments': {'device': 'drive0'}}");
+    qmp_args_async("blockdev-close-tray", "{'device': 'drive0'}");
     atapi_wait_tray(false);
     rsp = qmp_receive();
     QDECREF(rsp);

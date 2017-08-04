@@ -197,21 +197,14 @@ static void hotplug(void)
 
     qs = qvirtio_scsi_start(
             "-drive id=drv1,if=none,file=null-co://,format=raw");
-    response = qmp("{\"execute\": \"device_add\","
-                   " \"arguments\": {"
-                   "   \"driver\": \"scsi-hd\","
-                   "   \"id\": \"scsi-hd\","
-                   "   \"drive\": \"drv1\""
-                   "}}");
+    response = qmp_args("device_add",
+                        "{'driver':'scsi-hd', 'id':'scsi-hd', 'drive':'drv1'}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    response = qmp("{\"execute\": \"device_del\","
-                   " \"arguments\": {"
-                   "   \"id\": \"scsi-hd\""
-                   "}}");
+    response = qmp_args("device_del", "{'id':'scsi-hd'}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));

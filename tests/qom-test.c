@@ -51,8 +51,7 @@ static void test_properties(const char *path, bool recurse)
     QListEntry *entry;
 
     g_test_message("Obtaining properties of %s", path);
-    response = qmp("{ 'execute': 'qom-list',"
-                   "  'arguments': { 'path': %s } }", path);
+    response = qmp_args("qom-list", "{ 'path': %s }", path);
     g_assert(response);
 
     if (!recurse) {
@@ -75,10 +74,8 @@ static void test_properties(const char *path, bool recurse)
         } else {
             const char *prop = qdict_get_str(tuple, "name");
             g_test_message("Testing property %s.%s", path, prop);
-            tmp = qmp("{ 'execute': 'qom-get',"
-                      "  'arguments': { 'path': %s,"
-                      "                 'property': %s } }",
-                      path, prop);
+            tmp = qmp_args("qom-get", "{ 'path': %s, 'property': %s }",
+                           path, prop);
             /* qom-get may fail but should not, e.g., segfault. */
             g_assert(tmp);
             QDECREF(tmp);
