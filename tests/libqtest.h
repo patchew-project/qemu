@@ -499,6 +499,15 @@ QDict *qmp_cmd(const char *cmd);
 void qmp_cmd_async(const char *cmd);
 
 /**
+ * qmp_args_dict:
+ * @cmd: QMP command to send to QEMU.
+ * @args: Arguments for the command; will have reference count reduced.
+ *
+ * Sends a QMP message to QEMU and returns the response.
+ */
+QDict *qmp_args_dict(const char *cmd, QDict *args);
+
+/**
  * qmp_args:
  * @cmd: QMP command to send to QEMU.
  * @fmt...: Arguments for the command; formats arguments through

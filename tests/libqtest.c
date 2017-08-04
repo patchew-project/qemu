@@ -875,6 +875,12 @@ static void qmp_args_dict_async(const char *cmd, QDict *args)
     qtest_qmp_send(global_qtest, "{'execute':%s, 'arguments':%p}", cmd, args);
 }
 
+QDict *qmp_args_dict(const char *cmd, QDict *args)
+{
+    qmp_args_dict_async(cmd, args);
+    return qtest_qmp_receive(global_qtest);
+}
+
 QDict *qmp_args(const char *cmd, const char *fmt, ...)
 {
     va_list ap;

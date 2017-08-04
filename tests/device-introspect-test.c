@@ -36,8 +36,7 @@ static QList *qom_list_types(const char *implements, bool abstract)
     if (implements) {
         qdict_put_str(args, "implements", implements);
     }
-    resp = qmp("{'execute': 'qom-list-types',"
-               " 'arguments': %p }", args);
+    resp = qmp_args_dict("qom-list-types", args);
     g_assert(qdict_haskey(resp, "return"));
     ret = qdict_get_qlist(resp, "return");
     QINCREF(ret);
