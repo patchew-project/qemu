@@ -448,7 +448,7 @@ QDict *qtest_qmp_receive(QTestState *s)
  */
 void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
 {
-    QObject *qobj;
+    QObject *qobj = NULL;
     int log = getenv("QTEST_LOG") != NULL;
     QString *qstr;
     const char *str;
@@ -462,9 +462,17 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     }
     assert(*fmt);
 
-    /* Going through qobject ensures we escape strings properly. */
-    qobj = qobject_from_jsonv(fmt, ap);
-    qstr = qobject_to_json(qobj);
+    /*
+     * A round trip through QObject is only needed if % interpolation
+     * is used.  We interpolate through QObject rather than sprintf in
+     * order to escape strings properly.
+     */
+    if (strchr(fmt, '%')) {
+        qobj = qobject_from_jsonv(fmt, ap);
+        qstr = qobject_to_json(qobj);
+    } else {
+        qstr = qstring_from_str(fmt);
+    }
 
     /*
      * BUG: QMP doesn't react to input until it sees a newline, an
