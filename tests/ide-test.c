@@ -624,7 +624,6 @@ static void test_retry_flush(const char *machine)
     QPCIDevice *dev;
     QPCIBar bmdma_bar, ide_bar;
     uint8_t data;
-    const char *s;
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
 
@@ -652,8 +651,8 @@ static void test_retry_flush(const char *machine)
     qmp_eventwait("STOP");
 
     /* Complete the command */
-    s = "{'execute':'cont' }";
-    qmp_discard_response(s);
+    qmp_async("{'execute':'cont' }");
+    qmp_discard_response();
 
     /* Check registers */
     data = qpci_io_readb(dev, ide_bar, reg_device);
