@@ -45,13 +45,11 @@ static void visitor_input_teardown(TestInputVisitorData *data,
    function so that the JSON string used by the tests are kept in the test
    functions (and not in main()). */
 static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
-                                                 bool keyval,
-                                                 const char *json_string,
-                                                 va_list *ap)
+                                                 bool keyval, QObject *obj)
 {
     visitor_input_teardown(data, NULL);
 
-    data->obj = qobject_from_jsonv(json_string, ap, &error_abort);
+    data->obj = obj;
     g_assert(data->obj);
 
     if (keyval) {
@@ -69,10 +67,12 @@ Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
                                       const char *json_string, ...)
 {
     Visitor *v;
+    QObject *obj;
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, keyval, json_string, &ap);
+    obj = qobject_from_jsonv(json_string, ap);
+    v = visitor_input_test_init_internal(data, keyval, obj);
     va_end(ap);
     return v;
 }
@@ -82,10 +82,12 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
                                  const char *json_string, ...)
 {
     Visitor *v;
+    QObject *obj;
     va_list ap;
 
     va_start(ap, json_string);
-    v = visitor_input_test_init_internal(data, false, json_string, &ap);
+    obj = qobject_from_jsonv(json_string, ap);
+    v = visitor_input_test_init_internal(data, false, obj);
     va_end(ap);
     return v;
 }
@@ -100,7 +102,9 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    return visitor_input_test_init_internal(data, false, json_string, NULL);
+    QObject *obj = qobject_from_json(json_string, &error_abort);
+
+    return visitor_input_test_init_internal(data, false, obj);
 }
 
 static void test_visitor_in_int(TestInputVisitorData *data,

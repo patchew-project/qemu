@@ -35,7 +35,8 @@ static void parse_json(JSONMessageParser *parser, GQueue *tokens)
     s->result = json_parser_parse_err(tokens, s->ap, &s->err);
 }
 
-QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
+static QObject *qobject_from_json_internal(const char *string, va_list *ap,
+                                           Error **errp)
 {
     JSONParsingState state = {};
 
@@ -50,12 +51,31 @@ QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
     return state.result;
 }
 
+/*
+ * Parses JSON input without interpolation.
+ *
+ * Returns a QObject matching the input on success, or NULL with
+ * an error set if the input is not valid JSON.
+ */
 QObject *qobject_from_json(const char *string, Error **errp)
 {
-    return qobject_from_jsonv(string, NULL, errp);
+    return qobject_from_json_internal(string, NULL, errp);
 }
 
 /*
+ * Parses JSON input with interpolation of % sequences.
+ *
+ * The set of sequences recognized is compatible with gcc's -Wformat
+ * warnings, although not all printf sequences are valid.  All use of
+ * % must occur outside JSON strings.
+ *
+ * %i - treat corresponding integer value as JSON bool
+ * %[l[l]]d, %PRId64 - treat sized integer value as signed JSON number
+ * %[l[l]]u, %PRIu64 - treat sized integer value as unsigned JSON number
+ * %f - treat double as JSON number (undefined for inf, NaN)
+ * %s - convert char * into JSON string (adds escapes, outer quotes)
+ * %p - embed QObject, transferring the reference to the returned object
+ *
  * IMPORTANT: This function aborts on error, thus it must not
  * be used with untrusted arguments.
  */
@@ -65,8 +85,31 @@ QObject *qobject_from_jsonf(const char *string, ...)
     va_list ap;
 
     va_start(ap, string);
-    obj = qobject_from_jsonv(string, &ap, &error_abort);
+    obj = qobject_from_json_internal(string, &ap, &error_abort);
     va_end(ap);
+
+    assert(obj != NULL);
+    return obj;
+}
+
+/*
+ * va_list form of qobject_from_jsonf().
+ *
+ * IMPORTANT: This function aborts on error, thus it must not
+ * be used with untrusted arguments.
+ */
+QObject *qobject_from_jsonv(const char *string, va_list ap)
+{
+    QObject *obj;
+    va_list ap_copy;
+
+    /*
+     * This seemingly unnecessary copy is required in case va_list
+     * is an array type.
+     */
+    va_copy(ap_copy, ap);
+    obj = qobject_from_json_internal(string, &ap_copy, &error_abort);
+    va_end(ap_copy);
 
     assert(obj != NULL);
     return obj;

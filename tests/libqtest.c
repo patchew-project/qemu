@@ -448,7 +448,6 @@ QDict *qtest_qmp_receive(QTestState *s)
  */
 void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
 {
-    va_list ap_copy;
     QObject *qobj;
     int log = getenv("QTEST_LOG") != NULL;
     QString *qstr;
@@ -463,13 +462,8 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     }
     assert(*fmt);
 
-    /* Going through qobject ensures we escape strings properly.
-     * This seemingly unnecessary copy is required in case va_list
-     * is an array type.
-     */
-    va_copy(ap_copy, ap);
-    qobj = qobject_from_jsonv(fmt, &ap_copy, &error_abort);
-    va_end(ap_copy);
+    /* Going through qobject ensures we escape strings properly. */
+    qobj = qobject_from_jsonv(fmt, ap);
     qstr = qobject_to_json(qobj);
 
     /*
