@@ -183,13 +183,13 @@ static int nbd_co_request(BlockDriverState *bs,
                 reply.error = EIO;
             }
         }
-
-        /* Tell the read handler to read another header.  */
-        s->reply.handle = 0;
     }
     rc = -reply.error;
 
 out:
+    /* Tell the read handler to read another header.  */
+    s->reply.handle = 0;
+
     s->recv_coroutine[i] = NULL;
 
     /* Kick the read_reply_co to get the next reply.  */
