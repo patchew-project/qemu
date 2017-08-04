@@ -39,8 +39,8 @@ static void nbd_recv_coroutines_wake_all(NBDClientSession *s)
     int i;
 
     for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        if (s->recv_coroutine[i]) {
-            aio_co_wake(s->recv_coroutine[i]);
+        if (s->requests[i].co) {
+            aio_co_wake(s->requests[i].co);
         }
     }
 }
@@ -88,22 +88,22 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
          * one coroutine is called until the reply finishes.
          */
         i = HANDLE_TO_INDEX(s, s->reply.handle);
-        if (i >= MAX_NBD_REQUESTS || !s->recv_coroutine[i]) {
+        if (i >= MAX_NBD_REQUESTS || !s->requests[i].co) {
             break;
         }
 
-        /* We're woken up by the recv_coroutine itself.  Note that there
+        /* We're woken up by the receiving coroutine itself.  Note that there
          * is no race between yielding and reentering read_reply_co.  This
          * is because:
          *
-         * - if recv_coroutine[i] runs on the same AioContext, it is only
+         * - if requests[i].co runs on the same AioContext, it is only
          *   entered after we yield
          *
-         * - if recv_coroutine[i] runs on a different AioContext, reentering
+         * - if requests[i].co runs on a different AioContext, reentering
          *   read_reply_co happens through a bottom half, which can only
          *   run after we yield.
          */
-        aio_co_wake(s->recv_coroutine[i]);
+        aio_co_wake(s->requests[i].co);
         qemu_coroutine_yield();
     }
 
@@ -126,8 +126,8 @@ static int nbd_co_request(BlockDriverState *bs,
     s->in_flight++;
 
     for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        if (s->recv_coroutine[i] == NULL) {
-            s->recv_coroutine[i] = qemu_coroutine_self();
+        if (s->requests[i].co == NULL) {
+            s->requests[i].co = qemu_coroutine_self();
             break;
         }
     }
@@ -189,7 +189,7 @@ out:
     /* Tell the read handler to read another header.  */
     s->reply.handle = 0;
 
-    s->recv_coroutine[i] = NULL;
+    s->requests[i].co = NULL;
 
     /* Kick the read_reply_co to get the next reply.  */
     if (s->read_reply_co) {

@@ -27,7 +27,9 @@ typedef struct NBDClientSession {
     Coroutine *read_reply_co;
     int in_flight;
 
-    Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
+    struct {
+        Coroutine *co;
+    } requests[MAX_NBD_REQUESTS];
     NBDReply reply;
 } NBDClientSession;
 
