@@ -93,7 +93,7 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
     set_context(from);
 
     /* Is the machine currently running? */
-    rsp = qmp_cmd("query-status");
+    rsp = qmp("query-status");
     g_assert(qdict_haskey(rsp, "return"));
     sub = qdict_get_qdict(rsp, "return");
     g_assert(qdict_haskey(sub, "running"));
@@ -120,7 +120,7 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
 
     /* Otherwise, we need to wait: poll until migration is completed. */
     while (1) {
-        rsp = qmp_cmd("query-migrate");
+        rsp = qmp("query-migrate");
         g_assert(qdict_haskey(rsp, "return"));
         sub = qdict_get_qdict(rsp, "return");
         g_assert(qdict_haskey(sub, "status"));

@@ -834,13 +834,13 @@ QDict *qmp_raw(const char *msg)
     return qtest_qmp_receive(global_qtest);
 }
 
-QDict *qmp_cmd(const char *cmd)
+QDict *qmp(const char *cmd)
 {
-    qmp_cmd_async(cmd);
+    qmp_async(cmd);
     return qtest_qmp_receive(global_qtest);
 }
 
-void qmp_cmd_async(const char *cmd)
+void qmp_async(const char *cmd)
 {
     qtest_qmp_send(global_qtest, "{'execute':%s}", cmd);
 }
@@ -912,7 +912,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     const char *mname;
 
     qtest_start("-machine none");
-    response = qmp_cmd("query-machines");
+    response = qmp("query-machines");
     g_assert(response);
     list = qdict_get_qlist(response, "return");
     g_assert(list);

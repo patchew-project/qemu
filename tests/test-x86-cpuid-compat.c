@@ -13,7 +13,7 @@ static char *get_cpu0_qom_path(void)
     QDict *cpu0;
     char *path;
 
-    resp = qmp_cmd("query-cpus");
+    resp = qmp("query-cpus");
     g_assert(qdict_haskey(resp, "return"));
     ret = qdict_get_qlist(resp, "return");
 

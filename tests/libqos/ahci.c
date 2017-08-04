@@ -668,7 +668,7 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
         g_assert_cmpint(rc, ==, 0);
     }
     if (opts->error) {
-        qmp_cmd_async("cont");
+        qmp_async("cont");
         qmp_eventwait("RESUME");
     }
 
@@ -706,7 +706,7 @@ AHCICommand *ahci_guest_io_halt(AHCIQState *ahci, uint8_t port,
 void ahci_guest_io_resume(AHCIQState *ahci, AHCICommand *cmd)
 {
     /* Complete the command */
-    qmp_cmd_async("cont");
+    qmp_async("cont");
     qmp_eventwait("RESUME");
     ahci_command_wait(ahci, cmd);
     ahci_command_verify(ahci, cmd);

@@ -92,7 +92,7 @@ static void test_qmp_protocol(void)
     QDECREF(resp);
 
     /* Test valid command before handshake */
-    resp = qmp_cmd("query-version");
+    resp = qmp("query-version");
     g_assert_cmpstr(get_error_class(resp), ==, "CommandNotFound");
     QDECREF(resp);
 
@@ -100,18 +100,18 @@ static void test_qmp_protocol(void)
     test_malformed();
 
     /* Test handshake */
-    resp = qmp_cmd("qmp_capabilities");
+    resp = qmp("qmp_capabilities");
     ret = qdict_get_qdict(resp, "return");
     g_assert(ret && !qdict_size(ret));
     QDECREF(resp);
 
     /* Test repeated handshake */
-    resp = qmp_cmd("qmp_capabilities");
+    resp = qmp("qmp_capabilities");
     g_assert_cmpstr(get_error_class(resp), ==, "CommandNotFound");
     QDECREF(resp);
 
     /* Test valid command */
-    resp = qmp_cmd("query-version");
+    resp = qmp("query-version");
     test_version(qdict_get(resp, "return"));
     QDECREF(resp);
 

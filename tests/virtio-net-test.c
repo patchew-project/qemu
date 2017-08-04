@@ -167,7 +167,7 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
     qvirtqueue_kick(dev, vq, free_head);
 
-    qmp_cmd_async("stop");
+    qmp_async("stop");
     qmp_discard_response();
 
     ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
@@ -176,9 +176,9 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     /* We could check the status, but this command is more importantly to
      * ensure the packet data gets queued in QEMU, before we do 'cont'.
      */
-    qmp_cmd_async("query-status");
+    qmp_async("query-status");
     qmp_discard_response();
-    qmp_cmd_async("cont");
+    qmp_async("cont");
     qmp_discard_response();
 
     qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_NET_TIMEOUT_US);

@@ -1385,7 +1385,7 @@ static void test_flush_migrate(void)
     ahci_migrate(src, dst, uri);
 
     /* Complete the command */
-    qmp_cmd_async("cont");
+    qmp_async("cont");
     qmp_eventwait("RESUME");
     ahci_command_wait(dst, cmd);
     ahci_command_verify(dst, cmd);
