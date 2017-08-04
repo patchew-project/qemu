@@ -923,11 +923,23 @@ static inline int64_t clock_set(int64_t val)
     return qtest_clock_set(global_qtest, val);
 }
 
+/**
+ * qmp_fd_receive:
+ * @fd: Socket to read from.
+ *
+ * Read from input until a complete JSON object has been parsed,
+ * returning NULL on errors.
+ */
 QDict *qmp_fd_receive(int fd);
-void qmp_fd_sendv(int fd, const char *fmt, va_list ap);
-void qmp_fd_send(int fd, const char *fmt, ...);
-QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
-QDict *qmp_fd(int fd, const char *fmt, ...);
+
+/**
+ * qmp_fd_send:
+ * @fd: Socket to write to.
+ * @msg: Fixed string to send.
+ *
+ * Send a message to the destination, without waiting for a reply.
+ */
+void qmp_fd_send(int fd, const char *msg);
 
 /**
  * qtest_cb_for_every_machine:

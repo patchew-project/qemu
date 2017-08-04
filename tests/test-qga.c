@@ -122,9 +122,7 @@ static void GCC_FMT_ATTR(3, 0) qga_sendv(const TestFixture *fixture,
     QString *qstr = qobject_to_json(obj);
     const char *str;
 
-    qstring_append_chr(qstr, '\n');
     str = qstring_get_str(qstr);
-    assert(!strchr(str, '%'));
     qmp_fd_send(fixture->fd, str);
     QDECREF(qstr);
     qobject_decref(obj);

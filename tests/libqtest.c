@@ -441,26 +441,16 @@ QDict *qtest_qmp_receive(QTestState *s)
     return qmp_fd_receive(s->qmp_fd);
 }
 
-/**
- * Allow users to send a message without waiting for the reply,
- * in the case that they choose to discard all replies up until
- * a particular EVENT is received.
+/*
+ * Internal code that converts from interpolated JSON into a message
+ * to send over the wire, without waiting for a reply.
  */
-void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
+static void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
 {
     QObject *qobj = NULL;
-    int log = getenv("QTEST_LOG") != NULL;
     QString *qstr;
     const char *str;
 
-    /* qobject_from_jsonv() silently eats leading 0xff as invalid
-     * JSON, but we want to test sending them over the wire to force
-     * resyncs */
-    if (*fmt == '\377') {
-        socket_send(fd, fmt, 1);
-        assert(!fmt[1]);
-        return;
-    }
     assert(*fmt);
 
     /*
@@ -468,25 +458,17 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
      * is used.  We interpolate through QObject rather than sprintf in
      * order to escape strings properly.
      */
-    if (strchr(fmt, '%')) {
-        qobj = qobject_from_jsonv(fmt, ap);
-        qstr = qobject_to_json(qobj);
-    } else {
-        qstr = qstring_from_str(fmt);
+    if (!strchr(fmt, '%')) {
+        qmp_fd_send(fd, fmt);
+        return;
     }
 
-    /*
-     * BUG: QMP doesn't react to input until it sees a newline, an
-     * object, or an array.  Work-around: give it a newline.
-     */
-    qstring_append_chr(qstr, '\n');
+    qobj = qobject_from_jsonv(fmt, ap);
+    qstr = qobject_to_json(qobj);
     str = qstring_get_str(qstr);
 
-    if (log) {
-        fprintf(stderr, "%s", str);
-    }
     /* Send QMP request */
-    socket_send(fd, str, qstring_get_length(qstr));
+    qmp_fd_send(fd, str);
 
     QDECREF(qstr);
     qobject_decref(qobj);
@@ -497,13 +479,6 @@ void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
     qmp_fd_sendv(s->qmp_fd, fmt, ap);
 }
 
-QDict *qmp_fdv(int fd, const char *fmt, va_list ap)
-{
-    qmp_fd_sendv(fd, fmt, ap);
-
-    return qmp_fd_receive(fd);
-}
-
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
     qtest_async_qmpv(s, fmt, ap);
@@ -512,24 +487,20 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
     return qtest_qmp_receive(s);
 }
 
-QDict *qmp_fd(int fd, const char *fmt, ...)
+void qmp_fd_send(int fd, const char *msg)
 {
-    va_list ap;
-    QDict *response;
+    int log = getenv("QTEST_LOG") != NULL;
 
-    va_start(ap, fmt);
-    response = qmp_fdv(fd, fmt, ap);
-    va_end(ap);
-    return response;
-}
-
-void qmp_fd_send(int fd, const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qmp_fd_sendv(fd, fmt, ap);
-    va_end(ap);
+    if (log) {
+        fprintf(stderr, "%s\n", msg);
+    }
+    /* Send QMP request */
+    socket_send(fd, msg, strlen(msg));
+    /*
+     * BUG: QMP doesn't react to input until it sees a newline, an
+     * object, or an array.  Work-around: give it a newline.
+     */
+    socket_send(fd, "\n", 1);
 }
 
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
