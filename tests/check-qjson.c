@@ -1408,6 +1408,55 @@ static void empty_input(void)
     g_assert(obj == NULL);
 }
 
+static void percent_and_vararg(void)
+{
+    QObject *obj;
+    QString *str;
+    QList *list;
+    Error *err = NULL;
+
+    /* Use of % escapes requires vararg form */
+    obj = qobject_from_json("%d", &err);
+    error_free_or_abort(&err);
+    g_assert(!obj);
+
+    /* In normal form, % in strings is literal */
+    obj = qobject_from_json("'%% %s \\u0025d'", &error_abort);
+    str = qobject_to_qstring(obj);
+    g_assert_cmpstr(qstring_get_str(str), ==, "%% %s %d");
+    qobject_decref(obj);
+
+    /*
+     * In vararg form, % in strings must be escaped (via the normal
+     * printf-escaping, or via a \u escape).  The returned value now
+     * owns references to any %p counterpart.
+     */
+    obj = qobject_from_jsonf("[ %p, '%% \\u0025s', %p ]",
+                             qstring_from_str("one"),
+                             qstring_from_str("three"));
+    list = qobject_to_qlist(obj);
+    str = qobject_to_qstring(qlist_pop(list));
+    g_assert_cmpstr(qstring_get_str(str), ==, "one");
+    QDECREF(str);
+    str = qobject_to_qstring(qlist_pop(list));
+    g_assert_cmpstr(qstring_get_str(str), ==, "% %s");
+    QDECREF(str);
+    str = qobject_to_qstring(qlist_pop(list));
+    g_assert_cmpstr(qstring_get_str(str), ==, "three");
+    QDECREF(str);
+    g_assert(qlist_empty(list));
+    qobject_decref(obj);
+
+    /* The following intentionally cause assertion failures */
+
+    /* In vararg form, %% must occur in strings */
+    /* qobject_from_jsonf("%%"); */
+    /* qobject_from_jsonf("{%%}"); */
+
+    /* In vararg form, strings must not use % except for %% */
+    /* qobject_from_jsonf("'%s'", "unpaired"); */
+}
+
 static void unterminated_string(void)
 {
     Error *err = NULL;
@@ -1540,6 +1589,7 @@ int main(int argc, char **argv)
     g_test_add_func("/varargs/simple_varargs", simple_varargs);
 
     g_test_add_func("/errors/empty_input", empty_input);
+    g_test_add_func("/errors/percent_and_vararg", percent_and_vararg);
     g_test_add_func("/errors/unterminated/string", unterminated_string);
     g_test_add_func("/errors/unterminated/escape", unterminated_escape);
     g_test_add_func("/errors/unterminated/sq_string", unterminated_sq_string);

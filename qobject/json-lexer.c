@@ -32,9 +32,11 @@
  * Extension for vararg handling in JSON construction, when using
  * qobject_from_jsonf() instead of qobject_from_json() (this lexer
  * actually accepts multiple forms of PRId64, but parse_escape() later
- * filters to only parse the current platform's spelling):
+ * filters to only parse the current platform's spelling; meanwhile,
+ * JSON only allows % inside strings, where the parser handles %%, so
+ * we do not need to lex it here):
  *
- * %(PRI[du]64|(l|ll)?[ud]|[ipsf])
+ * %(PRI[du]64|(l|ll)?[ud]|[ipsf%])
  *
  */
 

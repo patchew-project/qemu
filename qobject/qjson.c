@@ -66,8 +66,7 @@ QObject *qobject_from_json(const char *string, Error **errp)
  * Parses JSON input with interpolation of % sequences.
  *
  * The set of sequences recognized is compatible with gcc's -Wformat
- * warnings, although not all printf sequences are valid.  All use of
- * % must occur outside JSON strings.
+ * warnings, although not all printf sequences are valid.
  *
  * %i - treat corresponding integer value as JSON bool
  * %[l[l]]d, %PRId64 - treat sized integer value as signed JSON number
@@ -75,6 +74,7 @@ QObject *qobject_from_json(const char *string, Error **errp)
  * %f - treat double as JSON number (undefined for inf, NaN)
  * %s - convert char * into JSON string (adds escapes, outer quotes)
  * %p - embed QObject, transferring the reference to the returned object
+ * %% - literal %, usable only within JSON string
  *
  * IMPORTANT: This function aborts on error, thus it must not
  * be used with untrusted arguments.

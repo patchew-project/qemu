@@ -120,25 +120,21 @@ static int hex2decimal(char ch)
  *      \n
  *      \r
  *      \t
- *      \u four-hex-digits 
+ *      \u four-hex-digits
+ *
+ * Additionally, if @percent is true, all % in @token must be doubled,
+ * replaced by a single % will be in the result; this allows -Wformat
+ * processing of qobject_from_jsonf().
  */
 static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
-                                         JSONToken *token)
+                                         JSONToken *token, bool percent)
 {
     const char *ptr = token->str;
     QString *str;
-    int double_quote = 1;
-
-    if (*ptr == '"') {
-        double_quote = 1;
-    } else {
-        double_quote = 0;
-    }
-    ptr++;
+    bool double_quote = *ptr++ == '"';
 
     str = qstring_new();
-    while (*ptr && 
-           ((double_quote && *ptr != '"') || (!double_quote && *ptr != '\''))) {
+    while (*ptr && *ptr != "'\""[double_quote]) {
         if (*ptr == '\\') {
             ptr++;
 
@@ -205,12 +201,13 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
                 goto out;
             }
         } else {
-            char dummy[2];
-
-            dummy[0] = *ptr++;
-            dummy[1] = 0;
-
-            qstring_append(str, dummy);
+            if (*ptr == '%' && percent) {
+                if (*++ptr != '%') {
+                    parse_error(ctxt, token, "invalid %% sequence in string");
+                    goto out;
+                }
+            }
+            qstring_append_chr(str, *ptr++);
         }
     }
 
@@ -455,12 +452,14 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
 {
     JSONToken *token;
 
-    if (ap == NULL) {
-        return NULL;
-    }
-
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_ESCAPE);
+
+    if (ap == NULL) {
+        parse_error(ctxt, token, "escape parsing for '%s' not requested",
+                    token->str);
+        return NULL;
+    }
 
     if (!strcmp(token->str, "%p")) {
         return va_arg(*ap, QObject *);
@@ -490,7 +489,7 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     return NULL;
 }
 
-static QObject *parse_literal(JSONParserContext *ctxt)
+static QObject *parse_literal(JSONParserContext *ctxt, bool percent)
 {
     JSONToken *token;
 
@@ -499,7 +498,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
 
     switch (token->type) {
     case JSON_STRING:
-        return QOBJECT(qstring_from_escaped_str(ctxt, token));
+        return QOBJECT(qstring_from_escaped_str(ctxt, token, percent));
     case JSON_INTEGER: {
         /*
          * Represent JSON_INTEGER as QNUM_I64 if possible, else as
@@ -562,7 +561,7 @@ static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
     case JSON_INTEGER:
     case JSON_FLOAT:
     case JSON_STRING:
-        return parse_literal(ctxt);
+        return parse_literal(ctxt, ap);
     case JSON_KEYWORD:
         return parse_keyword(ctxt);
     default:
