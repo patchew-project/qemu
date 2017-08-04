@@ -88,7 +88,9 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
          * one coroutine is called until the reply finishes.
          */
         i = HANDLE_TO_INDEX(s, s->reply.handle);
-        if (i >= MAX_NBD_REQUESTS || !s->requests[i].co) {
+        if (i >= MAX_NBD_REQUESTS || !s->requests[i].co ||
+            s->reply.handle != s->requests[i].request->handle)
+        {
             break;
         }
 
@@ -135,6 +137,7 @@ static int nbd_co_request(BlockDriverState *bs,
     g_assert(qemu_in_coroutine());
     assert(i < MAX_NBD_REQUESTS);
     request->handle = INDEX_TO_HANDLE(s, i);
+    s->requests[i].request = request;
 
     if (!s->ioc) {
         qemu_co_mutex_unlock(&s->send_mutex);
@@ -170,10 +173,12 @@ static int nbd_co_request(BlockDriverState *bs,
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     qemu_coroutine_yield();
-    if (s->reply.handle != request->handle || !s->ioc) {
+    if (!s->ioc || s->reply.handle == 0) {
         rc = -EIO;
         goto out;
     }
+
+    assert(s->reply.handle == request->handle);
 
     if (qiov && s->reply.error == 0) {
         ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true, NULL);
