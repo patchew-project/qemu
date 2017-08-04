@@ -112,9 +112,6 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     s->read_reply_co = NULL;
 }
 
-static void nbd_coroutine_end(BlockDriverState *bs,
-                              NBDRequest *request);
-
 static int nbd_co_request(BlockDriverState *bs,
                           NBDRequest *request,
                           QEMUIOVector *qiov)
@@ -193,16 +190,6 @@ static int nbd_co_request(BlockDriverState *bs,
     rc = -reply.error;
 
 out:
-    nbd_coroutine_end(bs, request);
-    return rc;
-}
-
-static void nbd_coroutine_end(BlockDriverState *bs,
-                              NBDRequest *request)
-{
-    NBDClientSession *s = nbd_get_client_session(bs);
-    int i = HANDLE_TO_INDEX(s, request->handle);
-
     s->recv_coroutine[i] = NULL;
 
     /* Kick the read_reply_co to get the next reply.  */
@@ -214,6 +201,7 @@ static void nbd_coroutine_end(BlockDriverState *bs,
     s->in_flight--;
     qemu_co_queue_next(&s->free_sema);
     qemu_co_mutex_unlock(&s->send_mutex);
+    return rc;
 }
 
 int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
