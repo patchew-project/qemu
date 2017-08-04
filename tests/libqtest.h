@@ -21,6 +21,11 @@
 
 typedef struct QTestState QTestState;
 
+/*
+ * The various qmp_*() commands operate on global_qtest.  Tests can
+ * alternate between two parallel connections by switching which state
+ * is current before issuing commands.
+ */
 extern QTestState *global_qtest;
 
 /**
@@ -48,49 +53,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
 void qtest_quit(QTestState *s);
 
 /**
- * qtest_qmp:
- * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu; formats arguments through
- * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').
- *
- * Sends a QMP message to QEMU and returns the response.
- */
-QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
-
-/**
- * qtest_async_qmp:
- * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu; formats arguments through
- * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').
- *
- * Sends a QMP message to QEMU and leaves the response in the stream.
- */
-void qtest_async_qmp(QTestState *s, const char *fmt, ...);
-
-/**
- * qtest_qmpv:
- * @s: #QTestState instance to operate on.
- * @fmt: QMP message to send to QEMU; formats arguments through
- * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').
- * @ap: QMP message arguments
- *
- * Sends a QMP message to QEMU and returns the response.
- */
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
-
-/**
- * qtest_async_qmpv:
- * @s: #QTestState instance to operate on.
- * @fmt: QMP message to send to QEMU; formats arguments through
- * json-lexer.c (only understands '%(PRI[ud]64|(l|ll)?[du]|[ipsf%])').
- * @ap: QMP message arguments
- *
- * Sends a QMP message to QEMU and leaves the response in the stream.
- */
-void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap);
-
-/**
- * qtest_receive:
+ * qtest_qmp_receive:
  * @s: #QTestState instance to operate on.
  *
  * Reads a QMP message from QEMU and returns the response.
@@ -115,32 +78,6 @@ void qtest_qmp_eventwait(QTestState *s, const char *event);
  * Returns a copy of the event for further investigation.
  */
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
-
-/**
- * qtest_hmp:
- * @s: #QTestState instance to operate on.
- * @fmt...: HMP command to send to QEMU, formats arguments like sprintf().
- *
- * Send HMP command to QEMU via QMP's human-monitor-command.
- * QMP events are discarded.
- *
- * Returns: the command's output.  The caller should g_free() it.
- */
-char *qtest_hmp(QTestState *s, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
-
-/**
- * qtest_hmpv:
- * @s: #QTestState instance to operate on.
- * @fmt: HMP command to send to QEMU, formats arguments like vsprintf().
- * @ap: HMP command arguments
- *
- * Send HMP command to QEMU via QMP's human-monitor-command.
- * QMP events are discarded.
- *
- * Returns: the command's output.  The caller should g_free() it.
- */
-char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
-    GCC_FMT_ATTR(2, 0);
 
 /**
  * qtest_get_irq:

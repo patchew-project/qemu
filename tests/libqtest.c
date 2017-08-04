@@ -233,9 +233,10 @@ QTestState *qtest_init(const char *extra_args)
     QDict *greeting;
 
     /* Read the QMP greeting and then do the handshake */
-    greeting = qtest_qmp_receive(s);
+    greeting = qmp_fd_receive(s->qmp_fd);
     QDECREF(greeting);
-    greeting = qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }");
+    qmp_fd_send(s->qmp_fd, "{ 'execute': 'qmp_capabilities' }");
+    greeting = qmp_fd_receive(s->qmp_fd);
     QDECREF(greeting);
 
     return s;
@@ -446,7 +447,7 @@ QDict *qtest_qmp_receive(QTestState *s)
  * Internal code that converts from interpolated JSON into a message
  * to send over the wire, without waiting for a reply.
  */
-static void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
+static void qtest_qmp_sendv(QTestState *s, const char *fmt, va_list ap)
 {
     QObject *qobj = NULL;
     QString *qstr;
@@ -460,7 +461,7 @@ static void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
      * order to escape strings properly.
      */
     if (!strchr(fmt, '%')) {
-        qmp_fd_send(fd, fmt);
+        qmp_fd_send(s->qmp_fd, fmt);
         return;
     }
 
@@ -469,23 +470,19 @@ static void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     str = qstring_get_str(qstr);
 
     /* Send QMP request */
-    qmp_fd_send(fd, str);
+    qmp_fd_send(s->qmp_fd, str);
 
     QDECREF(qstr);
     qobject_decref(qobj);
 }
 
-void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
+static void qtest_qmp_send(QTestState *s, const char *fmt, ...)
 {
-    qmp_fd_sendv(s->qmp_fd, fmt, ap);
-}
+    va_list ap;
 
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
-{
-    qtest_async_qmpv(s, fmt, ap);
-
-    /* Receive reply */
-    return qtest_qmp_receive(s);
+    va_start(ap, fmt);
+    qtest_qmp_sendv(s, fmt, ap);
+    va_end(ap);
 }
 
 void qmp_fd_send(int fd, const char *msg)
@@ -497,26 +494,6 @@ void qmp_fd_send(int fd, const char *msg)
     }
     /* Send QMP request */
     socket_send(fd, msg, strlen(msg));
-}
-
-QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
-    va_end(ap);
-    return response;
-}
-
-void qtest_async_qmp(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qtest_async_qmpv(s, fmt, ap);
-    va_end(ap);
 }
 
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
@@ -541,16 +518,16 @@ void qtest_qmp_eventwait(QTestState *s, const char *event)
     QDECREF(response);
 }
 
-char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
+static char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
 {
     char *cmd;
     QDict *resp;
     char *ret;
 
     cmd = g_strdup_vprintf(fmt, ap);
-    resp = qtest_qmp(s, "{'execute': 'human-monitor-command',"
-                     " 'arguments': {'command-line': %s}}",
-                     cmd);
+    qtest_qmp_send(s, "{'execute': 'human-monitor-command',"
+                   " 'arguments': {'command-line': %s}}", cmd);
+    resp = qtest_qmp_receive(s);
     ret = g_strdup(qdict_get_try_str(resp, "return"));
     while (ret == NULL && qdict_get_try_str(resp, "event")) {
         /* Ignore asynchronous QMP events */
@@ -561,17 +538,6 @@ char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
     g_assert(ret);
     QDECREF(resp);
     g_free(cmd);
-    return ret;
-}
-
-char *qtest_hmp(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-    char *ret;
-
-    va_start(ap, fmt);
-    ret = qtest_hmpv(s, fmt, ap);
-    va_end(ap);
     return ret;
 }
 
@@ -870,12 +836,11 @@ void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
 QDict *qmp(const char *fmt, ...)
 {
     va_list ap;
-    QDict *response;
 
     va_start(ap, fmt);
-    response = qtest_qmpv(global_qtest, fmt, ap);
+    qtest_qmp_sendv(global_qtest, fmt, ap);
     va_end(ap);
-    return response;
+    return qtest_qmp_receive(global_qtest);
 }
 
 QDict *qmp_raw(const char *msg)
@@ -889,7 +854,7 @@ void qmp_async(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_async_qmpv(global_qtest, fmt, ap);
+    qtest_qmp_sendv(global_qtest, fmt, ap);
     va_end(ap);
 }
 

@@ -236,7 +236,7 @@ static QDict *return_or_event(QDict *response)
         got_stop = true;
     }
     QDECREF(response);
-    return return_or_event(qtest_qmp_receive(global_qtest));
+    return return_or_event(qmp_receive());
 }
 
 
