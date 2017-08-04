@@ -453,17 +453,12 @@ static void qtest_qmp_sendv(QTestState *s, const char *fmt, va_list ap)
     QString *qstr;
     const char *str;
 
-    assert(strstr(fmt, "execute"));
-
     /*
-     * A round trip through QObject is only needed if % interpolation
-     * is used.  We interpolate through QObject rather than sprintf in
-     * order to escape strings properly.
+     * A round trip through QObject (and not sprintf) is needed
+     * because % interpolation is used, and we must escape strings
+     * properly.
      */
-    if (!strchr(fmt, '%')) {
-        qmp_fd_send(s->qmp_fd, fmt);
-        return;
-    }
+    assert(strchr(fmt, '%'));
 
     qobj = qobject_from_jsonv(fmt, ap);
     qstr = qobject_to_json(qobj);
@@ -833,29 +828,10 @@ void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
     qtest_rsp(s, 0);
 }
 
-QDict *qmp(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qtest_qmp_sendv(global_qtest, fmt, ap);
-    va_end(ap);
-    return qtest_qmp_receive(global_qtest);
-}
-
 QDict *qmp_raw(const char *msg)
 {
     qmp_fd_send(global_qtest->qmp_fd, msg);
     return qtest_qmp_receive(global_qtest);
-}
-
-void qmp_async(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qtest_qmp_sendv(global_qtest, fmt, ap);
-    va_end(ap);
 }
 
 QDict *qmp_cmd(const char *cmd)
