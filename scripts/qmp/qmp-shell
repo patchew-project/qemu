@@ -73,6 +73,7 @@ import sys
 import os
 import errno
 import atexit
+import argparse
 
 class QMPCompleter(list):
     def complete(self, text, state):
@@ -393,61 +394,39 @@ def die(msg):
     sys.stderr.write('ERROR: %s\n' % msg)
     sys.exit(1)
 
-def fail_cmdline(option=None):
-    if option:
-        sys.stderr.write('ERROR: bad command-line option \'%s\'\n' % option)
-    sys.stderr.write('qmp-shell [ -v ] [ -p ] [ -H ] [ -N ] < UNIX socket path> | < TCP address:port >\n')
-    sys.stderr.write('    -v     Verbose (echo command sent and received)\n')
-    sys.stderr.write('    -p     Pretty-print JSON\n')
-    sys.stderr.write('    -H     Use HMP interface\n')
-    sys.stderr.write('    -N     Skip negotiate (for qemu-ga)\n')
-    sys.exit(1)
-
 def main():
-    addr = ''
-    qemu = None
-    hmp = False
-    pretty = False
-    verbose = False
-    negotiate = True
+    parser = argparse.ArgumentParser(description='QMP shell utility')
+    parser.add_argument('-v', action='store_true', dest='verbose',
+        help='Verbose (echo command sent and received)')
+    parser.add_argument('-p', action='store_true', dest='pretty',
+        help='Pretty-print JSON')
+    parser.add_argument('-H', action='store_true', dest='hmp',
+        help='Use HMP interface')
+    parser.add_argument('-N', action='store_false', dest='negotiate',
+        default=True, help='Skip negotiate (for qemu-ga)')
+    parser.add_argument('addr', metavar='ADDRESS',
+        help='QMP socket address (Unix socket path or TCP address:port)')
+    args = parser.parse_args()
 
     try:
-        for arg in sys.argv[1:]:
-            if arg == "-H":
-                if qemu is not None:
-                    fail_cmdline(arg)
-                hmp = True
-            elif arg == "-p":
-                pretty = True
-            elif arg == "-N":
-                negotiate = False
-            elif arg == "-v":
-                verbose = True
-            else:
-                if qemu is not None:
-                    fail_cmdline(arg)
-                if hmp:
-                    qemu = HMPShell(arg)
-                else:
-                    qemu = QMPShell(arg, pretty)
-                addr = arg
-
-        if qemu is None:
-            fail_cmdline()
+        if args.hmp:
+            qemu = HMPShell(args.addr)
+        else:
+            qemu = QMPShell(args.addr, args.pretty)
     except QMPShellBadPort:
         die('bad port number in command-line')
 
     try:
-        qemu.connect(negotiate)
+        qemu.connect(args.negotiate)
     except qmp.QMPConnectError:
         die('Didn\'t get QMP greeting message')
     except qmp.QMPCapabilitiesError:
         die('Could not negotiate capabilities')
     except qemu.error:
-        die('Could not connect to %s' % addr)
+        die('Could not connect to %s' % args.addr)
 
     qemu.show_banner()
-    qemu.set_verbosity(verbose)
+    qemu.set_verbosity(args.verbose)
     while qemu.read_exec_command(qemu.get_prompt()):
         pass
     qemu.close()
