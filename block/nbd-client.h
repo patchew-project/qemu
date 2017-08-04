@@ -30,6 +30,7 @@ typedef struct NBDClientSession {
     struct {
         Coroutine *co;
         NBDRequest *request;
+        QEMUIOVector *qiov;
     } requests[MAX_NBD_REQUESTS];
     NBDReply reply;
 } NBDClientSession;

@@ -94,6 +94,18 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
             break;
         }
 
+        if (s->reply.error == 0 &&
+            s->requests[i].request->type == NBD_CMD_READ)
+        {
+            assert(s->requests[i].qiov != NULL);
+            ret = nbd_rwv(s->ioc, s->requests[i].qiov->iov,
+                          s->requests[i].qiov->niov,
+                          s->requests[i].request->len, true, NULL);
+            if (ret != s->requests[i].request->len) {
+                break;
+            }
+        }
+
         /* We're woken up by the receiving coroutine itself.  Note that there
          * is no race between yielding and reentering read_reply_co.  This
          * is because:
@@ -138,6 +150,7 @@ static int nbd_co_request(BlockDriverState *bs,
     assert(i < MAX_NBD_REQUESTS);
     request->handle = INDEX_TO_HANDLE(s, i);
     s->requests[i].request = request;
+    s->requests[i].qiov = qiov;
 
     if (!s->ioc) {
         qemu_co_mutex_unlock(&s->send_mutex);
@@ -165,12 +178,6 @@ static int nbd_co_request(BlockDriverState *bs,
         goto out;
     }
 
-    if (request->type == NBD_CMD_READ) {
-        assert(qiov != NULL);
-    } else {
-        qiov = NULL;
-    }
-
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     qemu_coroutine_yield();
     if (!s->ioc || s->reply.handle == 0) {
@@ -179,14 +186,6 @@ static int nbd_co_request(BlockDriverState *bs,
     }
 
     assert(s->reply.handle == request->handle);
-
-    if (qiov && s->reply.error == 0) {
-        ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true, NULL);
-        if (ret != request->len) {
-            rc = -EIO;
-            goto out;
-        }
-    }
 
     rc = -s->reply.error;
 
