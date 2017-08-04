@@ -458,7 +458,8 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
      * resyncs */
     if (*fmt == '\377') {
         socket_send(fd, fmt, 1);
-        fmt++;
+        assert(!fmt[1]);
+        return;
     }
     assert(*fmt);
 
