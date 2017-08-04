@@ -112,10 +112,6 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     s->read_reply_co = NULL;
 }
 
-static void nbd_co_receive_reply(NBDClientSession *s,
-                                 NBDRequest *request,
-                                 NBDReply *reply,
-                                 QEMUIOVector *qiov);
 static void nbd_coroutine_end(BlockDriverState *bs,
                               NBDRequest *request);
 
@@ -175,39 +171,30 @@ static int nbd_co_request(BlockDriverState *bs,
     } else {
         qiov = NULL;
     }
-    nbd_co_receive_reply(s, request, &reply, qiov);
-    rc = -reply.error;
-
-out:
-    nbd_coroutine_end(bs, request);
-    return rc;
-}
-
-static void nbd_co_receive_reply(NBDClientSession *s,
-                                 NBDRequest *request,
-                                 NBDReply *reply,
-                                 QEMUIOVector *qiov)
-{
-    int ret;
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     qemu_coroutine_yield();
-    *reply = s->reply;
-    if (reply->handle != request->handle ||
+    reply = s->reply;
+    if (reply.handle != request->handle ||
         !s->ioc) {
-        reply->error = EIO;
+        reply.error = EIO;
     } else {
-        if (qiov && reply->error == 0) {
+        if (qiov && reply.error == 0) {
             ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true,
                           NULL);
             if (ret != request->len) {
-                reply->error = EIO;
+                reply.error = EIO;
             }
         }
 
         /* Tell the read handler to read another header.  */
         s->reply.handle = 0;
     }
+    rc = -reply.error;
+
+out:
+    nbd_coroutine_end(bs, request);
+    return rc;
 }
 
 static void nbd_coroutine_end(BlockDriverState *bs,
