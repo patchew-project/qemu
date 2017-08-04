@@ -212,15 +212,13 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                     raise QMPShellError('Cannot set "%s" multiple times' % key)
             parent[optpath[-1]] = value
 
-    def __build_cmd(self, cmdline):
+    def __build_cmd(self, cmdargs):
         """
         Build a QMP input object from a user provided command-line in the
         following format:
 
             < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
         """
-        cmdargs = cmdline.split()
-
         # Transactional CLI entry/exit:
         if cmdargs[0] == 'transaction(':
             self._transmode = True
@@ -247,7 +245,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 finalize = True
             self.__cli_expr(cmdargs[1:], action['data'])
             self._actions.append(action)
-            return self.__build_cmd(')') if finalize else None
+            return self.__build_cmd([')']) if finalize else None
 
         # Standard command: parse and return it to be executed.
         qmpcmd = { 'execute': cmdargs[0], 'arguments': {} }
@@ -262,8 +260,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         print str(jsobj)
 
     def _execute_cmd(self, cmdline):
+        cmdargs = cmdline.split()
         try:
-            qmpcmd = self.__build_cmd(cmdline)
+            qmpcmd = self.__build_cmd(cmdargs)
         except Exception as e:
             print 'Error while parsing command line: %s' % e
             print 'command format: <command-name> ',
