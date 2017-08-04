@@ -22,6 +22,7 @@ static Property scsi_props[] = {
     DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
     DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
     DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
+    DEFINE_PROP_BOOL("enclosure", SCSIDevice, enclosure, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -494,11 +495,14 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
     if (r->req.lun != 0) {
         r->buf[0] = TYPE_NO_LUN;
     } else {
-        r->buf[0] = TYPE_ENCLOSURE;
+        r->buf[0] = r->req.dev->enclosure ?
+            TYPE_ENCLOSURE : TYPE_NOT_PRESENT | TYPE_INACTIVE;
         r->buf[2] = 5; /* Version */
         r->buf[3] = 2 | 0x10; /* HiSup, response data format */
         r->buf[4] = r->len - 5; /* Additional Length = (Len - 1) - 4 */
-        r->buf[6] = 0x40; /* Enclosure service */
+        if (r->req.dev->enclosure) {
+            r->buf[6] = 0x40; /* Enclosure service */
+        }
         r->buf[7] = 0x10 | (r->req.bus->info->tcq ? 0x02 : 0); /* Sync, TCQ.  */
         memcpy(&r->buf[8], "QEMU    ", 8);
         memcpy(&r->buf[16], "QEMU TARGET     ", 16);
@@ -600,7 +604,8 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
         }
         break;
     case RECEIVE_DIAGNOSTIC:
-        if (!scsi_target_emulate_receive_diagnostic(r)) {
+        if (!r->req.dev->enclosure ||
+            !scsi_target_emulate_receive_diagnostic(r)) {
             goto illegal_request;
         }
         break;

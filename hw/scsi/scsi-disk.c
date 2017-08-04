@@ -792,7 +792,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                the additional length is not adjusted */
         outbuf[4] = 36 - 5;
     }
-
+    if (s->qdev.lun == 0 && s->qdev.enclosure) {
+            outbuf[6] = 0x40; /* Enclosure service */
+    }
     /* Sync data transfer and TCQ.  */
     outbuf[7] = 0x10 | (req->bus->info->tcq ? 0x02 : 0);
     return buflen;
