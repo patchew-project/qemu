@@ -49,6 +49,8 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
 
+    client->eio_to_all = true;
+
     if (!client->ioc) { /* Already closed */
         return;
     }
@@ -75,11 +77,15 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     NBDReply reply;
 
     for (;;) {
+        if (s->eio_to_all) {
+            break;
+        }
+
         ret = nbd_receive_reply(s->ioc, &reply, &local_err);
         if (ret < 0) {
             error_report_err(local_err);
         }
-        if (ret <= 0) {
+        if (ret <= 0 || s->eio_to_all) {
             break;
         }
 
@@ -99,7 +105,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
             ret = nbd_rwv(s->ioc, s->requests[i].qiov->iov,
                           s->requests[i].qiov->niov,
                           s->requests[i].request->len, true, NULL);
-            if (ret != s->requests[i].request->len) {
+            if (ret != s->requests[i].request->len || s->eio_to_all) {
                 break;
             }
         }
@@ -133,6 +139,10 @@ static int nbd_co_request(BlockDriverState *bs,
     NBDClientSession *s = nbd_get_client_session(bs);
     int rc, ret, i;
 
+    if (s->eio_to_all) {
+        return -EIO;
+    }
+
     qemu_co_mutex_lock(&s->send_mutex);
     while (s->in_flight == MAX_NBD_REQUESTS) {
         qemu_co_queue_wait(&s->free_sema, &s->send_mutex);
@@ -152,16 +162,16 @@ static int nbd_co_request(BlockDriverState *bs,
     s->requests[i].request = request;
     s->requests[i].qiov = qiov;
 
-    if (!s->ioc) {
+    if (s->eio_to_all) {
         qemu_co_mutex_unlock(&s->send_mutex);
-        return -EPIPE;
+        return -EIO;
     }
 
     if (request->type == NBD_CMD_WRITE) {
         assert(qiov != NULL);
         qio_channel_set_cork(s->ioc, true);
         rc = nbd_send_request(s->ioc, request);
-        if (rc >= 0) {
+        if (rc == 0 && !s->eio_to_all) {
             ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, false,
                           NULL);
             if (ret != request->len) {
@@ -174,13 +184,16 @@ static int nbd_co_request(BlockDriverState *bs,
     }
     qemu_co_mutex_unlock(&s->send_mutex);
 
+    if (s->eio_to_all) {
+        rc = -EIO;
+    }
     if (rc < 0) {
         goto out;
     }
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     qemu_coroutine_yield();
-    if (!s->ioc || s->eio_to_all) {
+    if (s->eio_to_all) {
         rc = -EIO;
         goto out;
     }
@@ -335,6 +348,7 @@ int nbd_client_init(BlockDriverState *bs,
     logout("session init %s\n", export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
+    client->eio_to_all = false;
     client->info.request_sizes = true;
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 tlscreds, hostname,
