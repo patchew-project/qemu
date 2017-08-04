@@ -107,6 +107,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         qemu_coroutine_yield();
     }
 
+    s->reply.handle = 0;
     nbd_recv_coroutines_enter_all(s);
     s->read_reply_co = NULL;
 }
