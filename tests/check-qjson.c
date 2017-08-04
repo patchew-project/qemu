@@ -990,8 +990,10 @@ static void vararg_number(void)
     QNum *qnum;
     int value = 0x2342;
     long long value_ll = 0x2342342343LL;
+    uint64_t value_u64 = 0x2342342343ULL;
     double valuef = 2.323423423;
     int64_t val;
+    uint64_t uval;
 
     qnum = qobject_to_qnum(qobject_from_jsonf("%d", value));
     g_assert(qnum_get_try_int(qnum, &val));
@@ -1001,6 +1003,11 @@ static void vararg_number(void)
     qnum = qobject_to_qnum(qobject_from_jsonf("%lld", value_ll));
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, value_ll);
+    QDECREF(qnum);
+
+    qnum = qobject_to_qnum(qobject_from_jsonf("%" PRIu64, value_u64));
+    g_assert(qnum_get_try_uint(qnum, &uval));
+    g_assert_cmpint(uval, ==, value_u64);
     QDECREF(qnum);
 
     qnum = qobject_to_qnum(qobject_from_jsonf("%f", valuef));

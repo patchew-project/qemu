@@ -29,9 +29,12 @@
  *
  * '([^\\']|\\[\"'\\/bfnrt]|\\u[0-9a-fA-F]{4})*'
  *
- * Extension for vararg handling in JSON construction:
+ * Extension for vararg handling in JSON construction, when using
+ * qobject_from_jsonf() instead of qobject_from_json() (this lexer
+ * actually accepts multiple forms of PRId64, but parse_escape() later
+ * filters to only parse the current platform's spelling):
  *
- * %((l|ll|I64)?d|[ipsf])
+ * %(PRI[du]64|(l|ll)?[ud]|[ipsf])
  *
  */
 
@@ -60,10 +63,9 @@ enum json_lexer_state {
     IN_KEYWORD,
     IN_ESCAPE,
     IN_ESCAPE_L,
-    IN_ESCAPE_LL,
+    IN_ESCAPE_64,
     IN_ESCAPE_I,
     IN_ESCAPE_I6,
-    IN_ESCAPE_I64,
     IN_WHITESPACE,
     IN_START,
 };
@@ -225,24 +227,19 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     /* escape */
-    [IN_ESCAPE_LL] = {
+    [IN_ESCAPE_64] = {
         ['d'] = JSON_ESCAPE,
         ['u'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_L] = {
         ['d'] = JSON_ESCAPE,
-        ['l'] = IN_ESCAPE_LL,
-        ['u'] = JSON_ESCAPE,
-    },
-
-    [IN_ESCAPE_I64] = {
-        ['d'] = JSON_ESCAPE,
+        ['l'] = IN_ESCAPE_64,
         ['u'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_I6] = {
-        ['4'] = IN_ESCAPE_I64,
+        ['4'] = IN_ESCAPE_64,
     },
 
     [IN_ESCAPE_I] = {
@@ -257,6 +254,7 @@ static const uint8_t json_lexer[][256] =  {
         ['u'] = JSON_ESCAPE,
         ['f'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_L,
+        ['q'] = IN_ESCAPE_64,
         ['I'] = IN_ESCAPE_I,
     },
 
