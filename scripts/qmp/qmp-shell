@@ -410,6 +410,10 @@ def main():
         default=True, help='Skip negotiate (for qemu-ga)')
     parser.add_argument('addr', metavar='ADDRESS',
         help='QMP socket address (Unix socket path or TCP address:port)')
+    parser.add_argument('cmd', metavar='COMMAND', nargs='?',
+        help='QMP command to be exeucted')
+    parser.add_argument('cmdargs', metavar='ARG=VALUE', nargs='*',
+        help='Argument to QMP command')
     args = parser.parse_args()
 
     try:
@@ -429,10 +433,13 @@ def main():
     except qemu.error:
         die('Could not connect to %s' % args.addr)
 
-    qemu.show_banner()
     qemu.set_verbosity(args.verbose)
-    while qemu.read_exec_command(qemu.get_prompt()):
-        pass
+    if args.cmd:
+        qemu.execute_cmdargs([args.cmd] + args.cmdargs)
+    else:
+        qemu.show_banner()
+        while qemu.read_exec_command(qemu.get_prompt()):
+            pass
     qemu.close()
 
 if __name__ == '__main__':
