@@ -67,4 +67,25 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
 #define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
 #define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
 
+typedef struct PCIBridgeQemuCap {
+    uint8_t id;     /* Standard PCI capability header field */
+    uint8_t next;   /* Standard PCI capability header field */
+    uint8_t len;    /* Standard PCI vendor-specific capability header field */
+    uint8_t type;   /* Red Hat vendor-specific capability type.
+                       Types are defined with REDHAT_PCI_CAP_ prefix */
+
+    uint32_t bus_res;   /* Minimum number of buses to reserve */
+    uint64_t io;        /* IO space to reserve */
+    uint64_t mem;       /* Non-prefetchable memory to reserve */
+    uint64_t mem_pref;  /* Prefetchable memory to reserve */
+} PCIBridgeQemuCap;
+
+#define REDHAT_PCI_CAP_QEMU_RESERVE     1
+
+int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
+                              uint32_t bus_reserve, uint64_t io_reserve,
+                              uint64_t non_pref_mem_reserve,
+                              uint64_t pref_mem_reserve,
+                              Error **errp);
+
 #endif /* QEMU_PCI_BRIDGE_H */
