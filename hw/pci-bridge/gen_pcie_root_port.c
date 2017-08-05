@@ -16,6 +16,8 @@
 #include "hw/pci/pcie_port.h"
 
 #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
+#define GEN_PCIE_ROOT_PORT(obj) \
+        OBJECT_CHECK(GenPCIERootPort, (obj), TYPE_GEN_PCIE_ROOT_PORT)
 
 #define GEN_PCIE_ROOT_PORT_AER_OFFSET           0x100
 #define GEN_PCIE_ROOT_PORT_MSIX_NR_VECTOR       1
@@ -26,6 +28,12 @@ typedef struct GenPCIERootPort {
     /*< public >*/
 
     bool migrate_msix;
+
+    /* additional buses to reserve on firmware init */
+    uint32_t bus_reserve;
+    uint64_t io_reserve;
+    uint64_t mem_reserve;
+    uint64_t pref_reserve;
 } GenPCIERootPort;
 
 static uint8_t gen_rp_aer_vector(const PCIDevice *d)
@@ -60,6 +68,23 @@ static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
     return rp->migrate_msix;
 }
 
+static void gen_rp_realize(DeviceState *dev, Error **errp)
+{
+    PCIDevice *d = PCI_DEVICE(dev);
+    GenPCIERootPort *grp = GEN_PCIE_ROOT_PORT(d);
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
+
+    rpc->parent_realize(dev, errp);
+
+    int rc = pci_bridge_qemu_reserve_cap_init(d, 0, grp->bus_reserve,
+            grp->io_reserve, grp->mem_reserve, grp->pref_reserve, errp);
+
+    if (rc < 0) {
+        rpc->parent_class.exit(d);
+        return;
+    }
+}
+
 static const VMStateDescription vmstate_rp_dev = {
     .name = "pcie-root-port",
     .version_id = 1,
@@ -78,6 +103,10 @@ static const VMStateDescription vmstate_rp_dev = {
 
 static Property gen_rp_props[] = {
     DEFINE_PROP_BOOL("x-migrate-msix", GenPCIERootPort, migrate_msix, true),
+    DEFINE_PROP_UINT32("bus-reserve", GenPCIERootPort, bus_reserve, -1),
+    DEFINE_PROP_UINT64("io-reserve", GenPCIERootPort, io_reserve, -1),
+    DEFINE_PROP_UINT64("mem-reserve", GenPCIERootPort, mem_reserve, -1),
+    DEFINE_PROP_UINT64("pref-reserve", GenPCIERootPort, pref_reserve, -1),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -92,6 +121,10 @@ static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
     dc->desc = "PCI Express Root Port";
     dc->vmsd = &vmstate_rp_dev;
     dc->props = gen_rp_props;
+
+    rpc->parent_realize = dc->realize;
+    dc->realize = gen_rp_realize;
+
     rpc->aer_vector = gen_rp_aer_vector;
     rpc->interrupts_init = gen_rp_interrupts_init;
     rpc->interrupts_uninit = gen_rp_interrupts_uninit;
