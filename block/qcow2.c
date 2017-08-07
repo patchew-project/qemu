@@ -2613,13 +2613,13 @@ int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
  * Returns: Total number of bytes required for the fully allocated image
  * (including metadata).
  */
-static int64_t qcow2_calc_prealloc_size(int64_t total_size,
-                                        size_t cluster_size,
-                                        int refcount_order)
+static uint64_t qcow2_calc_prealloc_size(uint64_t total_size,
+                                         size_t cluster_size,
+                                         int refcount_order)
 {
-    int64_t meta_size = 0;
+    uint64_t meta_size = 0;
     uint64_t nl1e, nl2e;
-    int64_t aligned_total_size = align_offset(total_size, cluster_size);
+    uint64_t aligned_total_size = align_offset(total_size, cluster_size);
 
     /* header: 1 cluster */
     meta_size += cluster_size;
@@ -2729,7 +2729,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     int ret;
 
     if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
-        int64_t prealloc_size =
+        uint64_t prealloc_size =
             qcow2_calc_prealloc_size(total_size, cluster_size, refcount_order);
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, prealloc_size, &error_abort);
         qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_lookup[prealloc],
