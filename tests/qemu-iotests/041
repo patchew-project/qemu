@@ -701,24 +701,6 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         self.wait_ready_and_cancel()
 
-    def test_set_speed_invalid(self):
-        self.assert_no_active_block_jobs()
-
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img, speed=-1)
-        self.assert_qmp(result, 'error/class', 'GenericError')
-
-        self.assert_no_active_block_jobs()
-
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
-        self.assert_qmp(result, 'return', {})
-
-        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/class', 'GenericError')
-
-        self.wait_ready_and_cancel()
-
 class TestUnbackedSource(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 

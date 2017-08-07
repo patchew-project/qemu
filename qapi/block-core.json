@@ -1146,7 +1146,7 @@
 { 'struct': 'DriveBackup',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', 'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*bitmap': 'str', '*compress': 'bool',
+            '*speed': 'size', '*bitmap': 'str', '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
@@ -1187,7 +1187,7 @@
 { 'struct': 'BlockdevBackup',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             'sync': 'MirrorSyncMode',
-            '*speed': 'int',
+            '*speed': 'size',
             '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
@@ -1358,7 +1358,7 @@
 ##
 { 'command': 'block-commit',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str', '*top': 'str',
-            '*backing-file': 'str', '*speed': 'int',
+            '*backing-file': 'str', '*speed': 'size',
             '*filter-node-name': 'str' } }
 
 ##
@@ -1562,7 +1562,7 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*granularity': 'size',
+            '*speed': 'size', '*granularity': 'size',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
             '*unmap': 'bool' } }
@@ -1761,7 +1761,7 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*replaces': 'str',
             'sync': 'MirrorSyncMode',
-            '*speed': 'int', '*granularity': 'size',
+            '*speed': 'size', '*granularity': 'size',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
             '*filter-node-name': 'str' } }
@@ -1978,7 +1978,7 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
+            '*base-node': 'str', '*backing-file': 'str', '*speed': 'size',
             '*on-error': 'BlockdevOnError' } }
 
 ##
@@ -2003,7 +2003,7 @@
 # Since: 1.1
 ##
 { 'command': 'block-job-set-speed',
-  'data': { 'device': 'str', 'speed': 'int' } }
+  'data': { 'device': 'str', 'speed': 'size' } }
 
 ##
 # @block-job-cancel:

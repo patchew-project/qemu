@@ -220,32 +220,6 @@ class TestSetSpeed(iotests.QMPTestCase):
     def test_set_speed_blockdev_backup(self):
         self.do_test_set_speed('blockdev-backup', 'drive1')
 
-    def do_test_set_speed_invalid(self, cmd, target):
-        self.assert_no_active_block_jobs()
-
-        result = self.vm.qmp(cmd, device='drive0',
-                             target=target, sync='full', speed=-1)
-        self.assert_qmp(result, 'error/class', 'GenericError')
-
-        self.assert_no_active_block_jobs()
-
-        self.vm.pause_drive('drive0')
-        result = self.vm.qmp(cmd, device='drive0',
-                             target=target, sync='full')
-        self.assert_qmp(result, 'return', {})
-
-        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/class', 'GenericError')
-
-        event = self.cancel_and_wait(resume=True)
-        self.assert_qmp(event, 'data/type', 'backup')
-
-    def test_set_speed_invalid_drive_backup(self):
-        self.do_test_set_speed_invalid('drive-backup', target_img)
-
-    def test_set_speed_invalid_blockdev_backup(self):
-        self.do_test_set_speed_invalid('blockdev-backup',  'drive1')
-
 class TestSingleTransaction(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))

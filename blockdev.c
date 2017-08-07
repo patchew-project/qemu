@@ -2970,7 +2970,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_base_node, const char *base_node,
                       bool has_backing_file, const char *backing_file,
-                      bool has_speed, int64_t speed,
+                      bool has_speed, uint64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
                       Error **errp)
 {
@@ -2986,12 +2986,6 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
 
     bs = bdrv_lookup_bs(device, device, errp);
     if (!bs) {
-        return;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return;
     }
 
@@ -3063,7 +3057,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_top, const char *top,
                       bool has_backing_file, const char *backing_file,
-                      bool has_speed, int64_t speed,
+                      bool has_speed, uint64_t speed,
                       bool has_filter_node_name, const char *filter_node_name,
                       Error **errp)
 {
@@ -3100,12 +3094,6 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             error_propagate(errp, local_err);
         }
         return;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
-        goto out;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -3219,12 +3207,6 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
 
     bs = qmp_get_root_bs(backup->device, errp);
     if (!bs) {
-        return NULL;
-    }
-
-    if (backup->speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return NULL;
     }
 
@@ -3371,12 +3353,6 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
         return NULL;
     }
 
-    if (backup->speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
-        return NULL;
-    }
-
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
@@ -3506,12 +3482,6 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     bs = qmp_get_root_bs(arg->device, errp);
     if (!bs) {
-        return;
-    }
-
-    if (arg->speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return;
     }
 
@@ -3647,7 +3617,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          const char *device, const char *target,
                          bool has_replaces, const char *replaces,
                          MirrorSyncMode sync,
-                         bool has_speed, int64_t speed,
+                         bool has_speed, uint64_t speed,
                          bool has_granularity, uint64_t granularity,
                          bool has_buf_size, int64_t buf_size,
                          bool has_on_source_error,
@@ -3671,12 +3641,6 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
 
     target_bs = bdrv_lookup_bs(target, target, errp);
     if (!target_bs) {
-        return;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return;
     }
 
@@ -3724,18 +3688,12 @@ static BlockJob *find_block_job(const char *id, AioContext **aio_context,
     return job;
 }
 
-void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
+void qmp_block_job_set_speed(const char *device, uint64_t speed, Error **errp)
 {
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
     if (!job) {
-        return;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return;
     }
 
