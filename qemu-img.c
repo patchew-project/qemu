@@ -2838,6 +2838,10 @@ static int img_map(int argc, char **argv)
     }
 
     length = blk_getlength(blk);
+    if (length < 0) {
+        error_report("Couldn't get length of image '%s': %s",
+                     filename, strerror(-length));
+    }
     while (curr.start + curr.length < length) {
         int64_t nsectors_left;
         int64_t sector_num;
