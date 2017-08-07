@@ -366,7 +366,7 @@
             '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
             '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
             '*iops_size': 'int', '*group': 'str', 'cache': 'BlockdevCacheInfo',
-            'write_threshold': 'int' } }
+            'write_threshold': 'size' } }
 
 ##
 # @BlockDeviceIoStatus:
@@ -3777,8 +3777,8 @@
 ##
 { 'event': 'BLOCK_WRITE_THRESHOLD',
   'data': { 'node-name': 'str',
-            'amount-exceeded': 'uint64',
-            'write-threshold': 'uint64' } }
+            'amount-exceeded': 'size',
+            'write-threshold': 'size' } }
 
 ##
 # @block-set-write-threshold:
@@ -3808,7 +3808,7 @@
 #
 ##
 { 'command': 'block-set-write-threshold',
-  'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }
+  'data': { 'node-name': 'str', 'write-threshold': 'size' } }
 
 ##
 # @x-blockdev-change:

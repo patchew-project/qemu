@@ -56,7 +56,7 @@ static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
 {
     BdrvTrackedRequest *req = opaque;
     BlockDriverState *bs = req->bs;
-    uint64_t amount = 0;
+    uint64_t amount;
 
     amount = bdrv_write_threshold_exceeded(bs, req);
     if (amount > 0) {
