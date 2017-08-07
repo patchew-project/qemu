@@ -106,7 +106,7 @@ struct MigrationState
     int64_t downtime;
     int64_t expected_downtime;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
-    int64_t xbzrle_cache_size;
+    size_t xbzrle_cache_size;
     int64_t setup_time;
 
     /* Flag set once the migration has been asked to enter postcopy */
@@ -172,7 +172,7 @@ bool migrate_zero_blocks(void);
 bool migrate_auto_converge(void);
 
 int migrate_use_xbzrle(void);
-int64_t migrate_xbzrle_cache_size(void);
+size_t migrate_xbzrle_cache_size(void);
 bool migrate_colo_enabled(void);
 
 bool migrate_use_block(void);

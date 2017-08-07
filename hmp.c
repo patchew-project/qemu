@@ -344,7 +344,7 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 
 void hmp_info_migrate_cache_size(Monitor *mon, const QDict *qdict)
 {
-    monitor_printf(mon, "xbzrel cache size: %" PRId64 " kbytes\n",
+    monitor_printf(mon, "xbzrel cache size: %" PRIu64 " kbytes\n",
                    qmp_query_migrate_cache_size(NULL) >> 10);
 }
 
@@ -1504,7 +1504,7 @@ void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 
 void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
 {
-    int64_t value = qdict_get_int(qdict, "value");
+    uint64_t value = qdict_get_uint(qdict, "value");
     Error *err = NULL;
 
     qmp_migrate_set_cache_size(value, &err);

@@ -1279,13 +1279,13 @@ void qmp_migrate_cancel(Error **errp)
     migrate_fd_cancel(migrate_get_current());
 }
 
-void qmp_migrate_set_cache_size(int64_t value, Error **errp)
+void qmp_migrate_set_cache_size(uint64_t value, Error **errp)
 {
     MigrationState *s = migrate_get_current();
-    int64_t new_size;
+    ssize_t new_size;
 
     /* Check for truncation */
-    if (value != (size_t)value) {
+    if (value != (ssize_t)value) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
                    "exceeding address space");
         return;
@@ -1306,7 +1306,7 @@ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
     s->xbzrle_cache_size = new_size;
 }
 
-int64_t qmp_query_migrate_cache_size(Error **errp)
+uint64_t qmp_query_migrate_cache_size(Error **errp)
 {
     return migrate_xbzrle_cache_size();
 }
@@ -1431,7 +1431,7 @@ int migrate_use_xbzrle(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
-int64_t migrate_xbzrle_cache_size(void)
+size_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s;
 

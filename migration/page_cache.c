@@ -40,18 +40,17 @@ struct CacheItem {
 struct PageCache {
     CacheItem *page_cache;
     unsigned int page_size;
-    int64_t max_num_items;
+    uint64_t max_num_items;
     uint64_t max_item_age;
-    int64_t num_items;
+    uint64_t num_items;
 };
 
-PageCache *cache_init(int64_t num_pages, unsigned int page_size)
+PageCache *cache_init(uint64_t num_pages, unsigned page_size)
 {
-    int64_t i;
-
+    uint64_t i;
     PageCache *cache;
 
-    if (num_pages <= 0) {
+    if (!num_pages) {
         DPRINTF("invalid number of pages\n");
         return NULL;
     }
@@ -65,18 +64,17 @@ PageCache *cache_init(int64_t num_pages, unsigned int page_size)
     /* round down to the nearest power of 2 */
     if (!is_power_of_2(num_pages)) {
         num_pages = pow2floor(num_pages);
-        DPRINTF("rounding down to %" PRId64 "\n", num_pages);
+        DPRINTF("rounding down to %zd\n", num_pages);
     }
     cache->page_size = page_size;
     cache->num_items = 0;
     cache->max_item_age = 0;
     cache->max_num_items = num_pages;
 
-    DPRINTF("Setting cache buckets to %" PRId64 "\n", cache->max_num_items);
+    DPRINTF("Setting cache buckets to %zd\n", cache->max_num_items);
 
     /* We prefer not to abort if there is no memory */
-    cache->page_cache = g_try_malloc((cache->max_num_items) *
-                                     sizeof(*cache->page_cache));
+    cache->page_cache = g_try_new(CacheItem, cache->max_num_items);
     if (!cache->page_cache) {
         DPRINTF("Failed to allocate cache->page_cache\n");
         g_free(cache);
@@ -94,7 +92,7 @@ PageCache *cache_init(int64_t num_pages, unsigned int page_size)
 
 void cache_fini(PageCache *cache)
 {
-    int64_t i;
+    uint64_t i;
 
     g_assert(cache);
     g_assert(cache->page_cache);
