@@ -781,7 +781,7 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "balloon: actual=%" PRIu64 "\n", info->actual >> 20);
+    monitor_printf(mon, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
 
     qapi_free_BalloonInfo(info);
 }
@@ -1178,7 +1178,7 @@ void hmp_block_passwd(Monitor *mon, const QDict *qdict)
 
 void hmp_balloon(Monitor *mon, const QDict *qdict)
 {
-    int64_t value = qdict_get_int(qdict, "value");
+    uint64_t value = qdict_get_uint(qdict, "value");
     Error *err = NULL;
 
     qmp_balloon(value, &err);
