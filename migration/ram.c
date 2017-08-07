@@ -461,7 +461,8 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
                             ram_addr_t current_addr, RAMBlock *block,
                             ram_addr_t offset, bool last_stage)
 {
-    int encoded_len = 0, bytes_xbzrle;
+    int encoded_len;
+    size_t bytes_xbzrle;
     uint8_t *prev_cached_page;
 
     if (!cache_is_cached(XBZRLE.cache, current_addr,
