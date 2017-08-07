@@ -577,8 +577,8 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
         }
 
         monitor_printf(mon, "%s:", stats->value->device);
-        monitor_printf(mon, " rd_bytes=%" PRId64
-                       " wr_bytes=%" PRId64
+        monitor_printf(mon, " rd_bytes=%" PRIu64
+                       " wr_bytes=%" PRIu64
                        " rd_operations=%" PRId64
                        " wr_operations=%" PRId64
                        " flush_operations=%" PRId64
