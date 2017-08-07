@@ -40,6 +40,107 @@ def bump_taint():
     if taint < 255:
         taint = taint + 1
 
+# Sections gain/lose new fields with time.
+# These are not name changes thats handled by another list.
+# These will be 'missing' or 'not found' in different versions of qemu
+
+
+def check_updated_properties(src_desc, field):
+    src_desc = str(src_desc)
+    field = str(field)
+    updated_property = {
+      'ICH9LPC': ['ICH9LPC/smi_feat'],
+      'ide_bus/error': ['retry_sector_num', 'retry_nsector', 'retry_unit'],
+      'e1000': ['e1000/full_mac_state'],
+      'ich9_pm': ['ich9_pm/tco', 'ich9_pm/cpuhp']
+    }
+
+    if src_desc in updated_property and field in updated_property[src_desc]:
+        return True
+
+    return False
+
+
+# A lot of errors are generated due to differences in sizes some of which are false positives. This list
+# is used to save those common changes
+def check_updated_sizes(field, old_size, new_size):
+    new_sizes_list = {
+            'tally_counters.TxOk': [8, 64],
+            'intel-iommu': [0, 1],
+            'iommu-intel': [0, 1]
+            }
+
+    if field not in new_sizes_list:
+        return False
+
+    if (old_size in new_sizes_list[field] and new_size in new_sizes_list[field]):
+        return True
+
+    return False
+
+
+# With time new sections/hardwares supported and old ones are depreciated on
+# chipsets.
+# There is no separate list for new or dead sections as it's relative to which
+# qemu version you compare too.
+# Update this list with such sections.
+# some items in this list might overlap with changed sections names.
+def check_new_sections(sec):
+    new_sections_list = [
+            'virtio-balloon-device',
+            'virtio-rng-device',
+            'virtio-scsi-device',
+            'virtio-blk-device',
+            'virtio-serial-device',
+            'virtio-net-device',
+            'vhost-vsock-device',
+            'virtio-input-host-device',
+            'virtio-input-hid-device',
+            'virtio-mouse-device',
+            'virtio-keyboard-device',
+            'virtio-vga',
+            'virtio-input-device',
+            'virtio-gpu-device',
+            'virtio-tablet-device',
+            'isa-pcspk',
+            'qemu-xhci',
+            'base-xhci',
+            'vmgenid',
+            'intel-iommu',
+            'i8257',
+            'i82801b11-bridge',
+            'ivshmem',
+            'ivshmem-doorbell',
+            'ivshmem-plain',
+            'usb-storage-device',
+            'usb-storage-dev',
+            'pci-qxl',
+            'pci-uhci-usb',
+            'pci-piix3',
+            'pci-vga',
+            'pci-bridge-seat',
+            'pcie-root-port',
+            'fw_cfg_io',
+            'fw_cfg_mem',
+            'exynos4210-ehci-usb',
+            'sysbus-ehci-usb',
+            'tegra2-ehci-usb',
+            'kvm-apic',
+            'fusbh200-ehci-usb',
+            'apic',
+            'apic-common',
+            'xlnx,ps7-usb',
+            'e1000e',
+            'e1000-82544gc',
+            'e1000-82545em']
+
+    if sec in new_sections_list:
+        return True
+
+    return False
+
+# Fields might change name with time across qemu versions.
+
 
 def check_fields_match(name, s_field, d_field):
     if s_field == d_field:
@@ -286,12 +387,22 @@ def check_fields(src_fields, dest_fields, desc, sec):
                     unused_count = s_item["size"] - d_item["size"]
                     continue
 
-            print('Section "' + sec + '", '
-                  'Description "' + desc + '": '
-                  'expected field "' + s_item["field"] + '", '
-                  'got "' + d_item["field"] + '"; skipping rest')
-            bump_taint()
-            break
+            # commit 20daa90a20d, extra field 'config' was added in newer releases
+            # there will be a mismatch in the number of fields of irq_state and config
+            # it's a known false positive so skip it
+            if (desc in ["PCIDevice", "PCIEDevice"]):
+                if((s_item["field"] in ["irq_state", "config"]) and
+                   (d_item["field"] in ["irq_state", "config"])):
+                    break
+
+            # some fields are new some dead, but are not errors.
+            if not check_fields_match(desc, s_item["field"], d_item["field"]):
+                print('Section "' + sec + '", '
+                      'Description "' + desc + '": '
+                      'expected field "' + s_item["field"] + '", '
+                      'got "' + d_item["field"] + '"; skipping rest')
+                bump_taint()
+                break
 
         check_version(s_item, d_item, sec, desc)
 
@@ -312,7 +423,8 @@ def check_subsections(src_sub, dest_sub, desc, sec):
             found = True
             check_descriptions(s_item, d_item, sec)
 
-        if not found:
+        # check the updated properties list before throwing error
+        if not found and (not check_updated_properties(desc, s_item["name"])):
             print('Section "' + sec + '", '
                   'Description "' + desc + '": '
                   'Subsection "' + s_item["name"] + '" not found')
@@ -343,51 +455,59 @@ def check_descriptions(src_desc, dest_desc, sec):
         bump_taint()
         return
 
-    for f in src_desc:
-        if not f in dest_desc:
-            print('Section "' + sec + '" '
-                  'Description "' + src_desc["name"] + '": '
-                  'Entry "' + field + '" missing')
+    for field in src_desc:
+        if field not in dest_desc:
+            # check the updated list of changed properties before throwing error
+            if check_updated_properties(src_desc["name"], field):
+                continue
+            else:
+                print('Section "' + sec + '" '
+                      'Description "' + src_desc["name"] + '": '
+                      'Entry "' + field + '" missing')
+                bump_taint()
+                continue
+
+        if field == 'Fields':
+            check_fields(src_desc[field], dest_desc[field], src_desc["name"], sec)
+
+        if field == 'Subsections':
+            check_subsections(src_desc[field], dest_desc[field], src_desc["name"], sec)
+
+
+def check_version(src_ver, dest_ver, sec, desc=None):
+    if src_ver["version_id"] > dest_ver["version_id"]:
+        if not check_updated_sizes(sec, src_ver["version_id"], dest_ver["version_id"]):
+            print ('Section "' + sec + '"'),
+            if desc:
+                print ('Description "' + desc + '":'),
+            print ('version error: ' + str(src_ver["version_id"]) + ' > ' + str(dest_ver["version_id"]))
             bump_taint()
-            continue
-
-        if f == 'Fields':
-            check_fields(src_desc[f], dest_desc[f], src_desc["name"], sec)
-
-        if f == 'Subsections':
-            check_subsections(src_desc[f], dest_desc[f], src_desc["name"], sec)
-
-
-def check_version(s, d, sec, desc=None):
-    if s["version_id"] > d["version_id"]:
-        print "Section \"" + sec + "\"",
-        if desc:
-            print "Description \"" + desc + "\":",
-        print "version error:", s["version_id"], ">", d["version_id"]
-        bump_taint()
 
     if "minimum_version_id" not in dest_ver:
         return
 
-    if s["version_id"] < d["minimum_version_id"]:
-        print "Section \"" + sec + "\"",
-        if desc:
-            print('Description "' + desc + '": ' +
-                  'minimum version error: ' + str(src_ver["version_id"]) + ' < ' +
-                  str(dest_ver["minimum_version_id"]))
+    if src_ver["version_id"] < dest_ver["minimum_version_id"]:
+        if not check_updated_sizes(sec, src_ver["version_id"], dest_ver["minimum_version_id"]):
+            print ('Section "' + sec + '"'),
+            if desc:
+                print('Description "' + desc + '": ' +
+                      'minimum version error: ' + str(src_ver["version_id"]) + ' < ' +
+                      str(dest_ver["minimum_version_id"]))
+                bump_taint()
+
+
+def check_size(src, dest, sec, desc=None, field=None):
+    if src["size"] != dest["size"]:
+        # check updated sizes list before throwing error
+
+        if not check_updated_sizes(field, src["size"], dest["size"]):
+            print ('Section "' + sec + '"'),
+            if desc:
+                print ('Description "' + desc + '"'),
+            if field:
+                print ('Field "' + field + '"'),
+            print ('size mismatch: ' + str(src["size"]) + ' , ' + str(dest["size"]))
             bump_taint()
-
-
-def check_size(s, d, sec, desc=None, field=None):
-    if s["size"] != d["size"]:
-        print "Section \"" + sec + "\"",
-        if desc:
-            print "Description \"" + desc + "\"",
-        if field:
-            print "Field \"" + field + "\"",
-        print "size mismatch:", s["size"], ",", d["size"]
-        bump_taint()
-
 
 
 def check_machine_type(src, dest):
@@ -428,13 +548,27 @@ def main():
     for sec in src_data:
         dest_sec = sec
         if dest_sec not in dest_data:
-            # Either the section name got changed, or the section
-            # doesn't exist in dest.
+            # Either the section name got changed, or
+            # the section doesn't exist in dest or
+            # section was newly supported.
             dest_sec = get_changed_sec_name(sec)
-            if dest_sec not in dest_data:
-                print('Section "' + sec + '" does not exist in dest')
-                bump_taint()
+            if dest_sec == "":
+                if not check_new_sections(sec):
+                    # section not in newly supported list and not in dest
+                    print('Section "' + sec + '" does not exist in dest')
+                    bump_taint()
                 continue
+            else:
+                # section name changed
+                if dest_sec not in dest_data:
+                    # new name not found in dest.
+                    if check_new_sections(dest_sec):
+                        continue
+                    else:
+                        # new name not in dest and not newly supported
+                        print('Section "' + sec + '" does not exist in dest')
+                        bump_taint()
+                        continue
 
         s = src_data[sec]
         d = dest_data[dest_sec]
