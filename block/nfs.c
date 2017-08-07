@@ -58,7 +58,8 @@ typedef struct NFSClient {
     bool cache_used;
     NFSServer *server;
     char *path;
-    int64_t uid, gid, tcp_syncnt, readahead, pagecache, debug;
+    int64_t uid, gid, tcp_syncnt, debug;
+    uint64_t readahead, pagecache;
 } NFSClient;
 
 typedef struct NFSRPC {
@@ -861,10 +862,10 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
         qdict_put_int(opts, "tcp-syn-cnt", client->tcp_syncnt);
     }
     if (client->readahead) {
-        qdict_put_int(opts, "readahead-size", client->readahead);
+        qdict_put_uint(opts, "readahead-size", client->readahead);
     }
     if (client->pagecache) {
-        qdict_put_int(opts, "page-cache-size", client->pagecache);
+        qdict_put_uint(opts, "page-cache-size", client->pagecache);
     }
     if (client->debug) {
         qdict_put_int(opts, "debug", client->debug);
