@@ -1307,7 +1307,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
 
 void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockDriverState *base, int creation_flags,
-                         int64_t speed, BlockdevOnError on_error,
+                         uint64_t speed, BlockdevOnError on_error,
                          const char *filter_node_name,
                          BlockCompletionFunc *cb, void *opaque,
                          bool auto_complete, Error **errp)
@@ -1316,12 +1316,6 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
     Error *local_err = NULL;
 
     orig_base_flags = bdrv_get_flags(base);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
-        return;
-    }
 
     if (bdrv_reopen(base, bs->open_flags, errp)) {
         return;

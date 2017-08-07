@@ -839,7 +839,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
  *
  */
 void commit_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *base, BlockDriverState *top, int64_t speed,
+                  BlockDriverState *base, BlockDriverState *top,
+                  uint64_t speed,
                   BlockdevOnError on_error, const char *backing_file_str,
                   const char *filter_node_name, Error **errp);
 /**
@@ -863,7 +864,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
  */
 void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockDriverState *base, int creation_flags,
-                         int64_t speed, BlockdevOnError on_error,
+                         uint64_t speed, BlockdevOnError on_error,
                          const char *filter_node_name,
                          BlockCompletionFunc *cb, void *opaque,
                          bool auto_complete, Error **errp);

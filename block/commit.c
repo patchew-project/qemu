@@ -282,7 +282,8 @@ static BlockDriver bdrv_commit_top = {
 };
 
 void commit_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *base, BlockDriverState *top, int64_t speed,
+                  BlockDriverState *base, BlockDriverState *top,
+                  uint64_t speed,
                   BlockdevOnError on_error, const char *backing_file_str,
                   const char *filter_node_name, Error **errp)
 {
@@ -306,12 +307,6 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     if (overlay_bs == NULL) {
         error_setg(errp, "Could not find overlay image for %s:", top->filename);
-        return;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return;
     }
 
