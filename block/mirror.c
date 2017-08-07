@@ -928,14 +928,10 @@ immediate_exit:
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 
-static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
+static void mirror_set_speed(BlockJob *job, uint64_t speed, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
     ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
 }
 

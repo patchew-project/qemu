@@ -220,14 +220,10 @@ out:
     block_job_defer_to_main_loop(&s->common, commit_complete, data);
 }
 
-static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
+static void commit_set_speed(BlockJob *job, uint64_t speed, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common);
 
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
     ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
 }
 

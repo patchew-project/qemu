@@ -110,7 +110,7 @@ typedef struct BlockJob {
     int64_t len;
 
     /** Speed that was set with @block_job_set_speed.  */
-    int64_t speed;
+    uint64_t speed;
 
     /** The completion function that will be called when the job completes.  */
     BlockCompletionFunc *cb;

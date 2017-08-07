@@ -460,6 +460,13 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_UNSUPPORTED);
         return;
     }
+
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
+        return;
+    }
+
     job->driver->set_speed(job, speed, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
