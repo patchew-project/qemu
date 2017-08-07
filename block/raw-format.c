@@ -316,14 +316,16 @@ static BlockMeasureInfo *raw_measure(QemuOpts *opts, BlockDriverState *in_bs,
                                      Error **errp)
 {
     BlockMeasureInfo *info;
-    int64_t required;
+    int64_t size;
+    uint64_t required;
 
     if (in_bs) {
-        required = bdrv_getlength(in_bs);
-        if (required < 0) {
-            error_setg_errno(errp, -required, "Unable to get image size");
+        size = bdrv_getlength(in_bs);
+        if (size < 0) {
+            error_setg_errno(errp, -size, "Unable to get image size");
             return NULL;
         }
+        required = size;
     } else {
         required = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
                             BDRV_SECTOR_SIZE);

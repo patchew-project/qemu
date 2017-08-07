@@ -514,7 +514,7 @@
 # Since: 2.10
 ##
 { 'struct': 'BlockMeasureInfo',
-  'data': {'required': 'int', 'fully-allocated': 'int'} }
+  'data': {'required': 'size', 'fully-allocated': 'size'} }
 
 ##
 # @query-block:
