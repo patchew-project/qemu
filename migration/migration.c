@@ -1298,10 +1298,8 @@ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
         return;
     }
 
-    new_size = xbzrle_cache_resize(value);
+    new_size = xbzrle_cache_resize(value, errp);
     if (new_size < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "is smaller than page size");
         return;
     }
 

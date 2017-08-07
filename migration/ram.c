@@ -29,6 +29,7 @@
 #include "cpu.h"
 #include <zlib.h>
 #include "qapi-event.h"
+#include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
@@ -110,15 +111,19 @@ static void XBZRLE_cache_unlock(void)
  * hence changes to the cache are protected by XBZRLE.lock().
  *
  * Returns the new_size or negative in case of error.
+ * Returns the the new cache size on success, -1 on error.
  *
  * @new_size: new cache size
+ * @errp: return location for an Error
  */
-int64_t xbzrle_cache_resize(int64_t new_size)
+int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
 {
     PageCache *new_cache;
     int64_t ret;
 
     if (new_size < TARGET_PAGE_SIZE) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "is smaller than page size");
         return -1;
     }
 
@@ -131,7 +136,7 @@ int64_t xbzrle_cache_resize(int64_t new_size)
         new_cache = cache_init(new_size / TARGET_PAGE_SIZE,
                                         TARGET_PAGE_SIZE);
         if (!new_cache) {
-            error_report("Error creating cache");
+            error_setg(errp, "Error creating cache");
             ret = -1;
             goto out;
         }
