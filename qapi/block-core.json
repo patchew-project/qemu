@@ -984,8 +984,8 @@
 # Since: 1.1
 ##
 { 'struct': 'BlockJobInfo',
-  'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'busy': 'bool', 'paused': 'bool',
+  'data': {'type': 'str', 'device': 'str', 'len': 'size',
+           'offset': 'size', 'busy': 'bool', 'paused': 'bool',
            'speed': 'size',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
 
@@ -3635,8 +3635,8 @@
 { 'event': 'BLOCK_JOB_COMPLETED',
   'data': { 'type'  : 'BlockJobType',
             'device': 'str',
-            'len'   : 'int',
-            'offset': 'int',
+            'len'   : 'size',
+            'offset': 'size',
             'speed' : 'size',
             '*error': 'str' } }
 
@@ -3671,8 +3671,8 @@
 { 'event': 'BLOCK_JOB_CANCELLED',
   'data': { 'type'  : 'BlockJobType',
             'device': 'str',
-            'len'   : 'int',
-            'offset': 'int',
+            'len'   : 'size',
+            'offset': 'size',
             'speed' : 'size' } }
 
 ##
@@ -3736,8 +3736,8 @@
 { 'event': 'BLOCK_JOB_READY',
   'data': { 'type'  : 'BlockJobType',
             'device': 'str',
-            'len'   : 'int',
-            'offset': 'int',
+            'len'   : 'size',
+            'offset': 'size',
             'speed' : 'size' } }
 
 ##
