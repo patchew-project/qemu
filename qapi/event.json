@@ -488,7 +488,7 @@
 #
 ##
 { 'event': 'BALLOON_CHANGE',
-  'data': { 'actual': 'int' } }
+  'data': { 'actual': 'size' } }
 
 ##
 # @GUEST_PANICKED:

@@ -102,7 +102,7 @@ BalloonInfo *qmp_query_balloon(Error **errp)
     return info;
 }
 
-void qmp_balloon(int64_t target, Error **errp)
+void qmp_balloon(uint64_t target, Error **errp)
 {
     if (!have_balloon(errp)) {
         return;

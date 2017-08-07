@@ -781,7 +781,7 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
+    monitor_printf(mon, "balloon: actual=%" PRIu64 "\n", info->actual >> 20);
 
     qapi_free_BalloonInfo(info);
 }
