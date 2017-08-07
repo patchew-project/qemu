@@ -356,16 +356,16 @@
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
             'detect_zeroes': 'BlockdevDetectZeroesOptions',
-            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
+            'bps': 'size', 'bps_rd': 'size', 'bps_wr': 'size',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             'image': 'ImageInfo',
-            '*bps_max': 'int', '*bps_rd_max': 'int',
-            '*bps_wr_max': 'int', '*iops_max': 'int',
+            '*bps_max': 'size', '*bps_rd_max': 'size',
+            '*bps_wr_max': 'size', '*iops_max': 'int',
             '*iops_rd_max': 'int', '*iops_wr_max': 'int',
             '*bps_max_length': 'int', '*bps_rd_max_length': 'int',
             '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
             '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
-            '*iops_size': 'int', '*group': 'str', 'cache': 'BlockdevCacheInfo',
+            '*iops_size': 'size', '*group': 'str', 'cache': 'BlockdevCacheInfo',
             'write_threshold': 'size' } }
 
 ##
@@ -1895,15 +1895,15 @@
 # Since: 1.1
 ##
 { 'struct': 'BlockIOThrottle',
-  'data': { '*device': 'str', '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
-            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
-            '*bps_max': 'int', '*bps_rd_max': 'int',
-            '*bps_wr_max': 'int', '*iops_max': 'int',
-            '*iops_rd_max': 'int', '*iops_wr_max': 'int',
+  'data': { '*device': 'str', '*id': 'str',
+            'bps': 'size', 'bps_rd': 'size', 'bps_wr': 'size',
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+            '*bps_max': 'size', '*bps_rd_max': 'size', '*bps_wr_max': 'size',
+            '*iops_max': 'int', '*iops_rd_max': 'int', '*iops_wr_max': 'int',
             '*bps_max_length': 'int', '*bps_rd_max_length': 'int',
             '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
             '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
-            '*iops_size': 'int', '*group': 'str' } }
+            '*iops_size': 'size', '*group': 'str' } }
 
 ##
 # @block-stream:

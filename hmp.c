@@ -468,17 +468,17 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     if (inserted->bps  || inserted->bps_rd  || inserted->bps_wr  ||
         inserted->iops || inserted->iops_rd || inserted->iops_wr)
     {
-        monitor_printf(mon, "    I/O throttling:   bps=%" PRId64
-                        " bps_rd=%" PRId64  " bps_wr=%" PRId64
-                        " bps_max=%" PRId64
-                        " bps_rd_max=%" PRId64
-                        " bps_wr_max=%" PRId64
+        monitor_printf(mon, "    I/O throttling:   bps=%" PRIu64
+                        " bps_rd=%" PRIu64  " bps_wr=%" PRIu64
+                        " bps_max=%" PRIu64
+                        " bps_rd_max=%" PRIu64
+                        " bps_wr_max=%" PRIu64
                         " iops=%" PRId64 " iops_rd=%" PRId64
                         " iops_wr=%" PRId64
                         " iops_max=%" PRId64
                         " iops_rd_max=%" PRId64
                         " iops_wr_max=%" PRId64
-                        " iops_size=%" PRId64
+                        " iops_size=%" PRIu64
                         " group=%s\n",
                         inserted->bps,
                         inserted->bps_rd,
