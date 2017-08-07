@@ -414,6 +414,10 @@ qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
                $(SRC_PATH)/qapi/crypto.json $(SRC_PATH)/qapi/rocker.json \
                $(SRC_PATH)/qapi/trace.json
 
+ifdef CONFIG_VIRTFS
+qapi-modules += $(SRC_PATH)/qapi/fsdev.json
+endif
+
 qapi-types.c qapi-types.h :\
 $(qapi-modules) $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
