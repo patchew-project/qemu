@@ -1668,7 +1668,7 @@ ETEXI
 
     {
         .name       = "block_set_io_throttle",
-        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
+        .args_type  = "device:B,bps:o,bps_rd:o,bps_wr:o,iops:l,iops_rd:l,iops_wr:l",
         .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
         .help       = "change I/O throttle limits for a block drive",
         .cmd        = hmp_block_set_io_throttle,

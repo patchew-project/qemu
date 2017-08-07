@@ -1764,9 +1764,9 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
     BlockIOThrottle throttle = {
         .has_device = true,
         .device = (char *) qdict_get_str(qdict, "device"),
-        .bps = qdict_get_int(qdict, "bps"),
-        .bps_rd = qdict_get_int(qdict, "bps_rd"),
-        .bps_wr = qdict_get_int(qdict, "bps_wr"),
+        .bps = qdict_get_uint(qdict, "bps"),
+        .bps_rd = qdict_get_uint(qdict, "bps_rd"),
+        .bps_wr = qdict_get_uint(qdict, "bps_wr"),
         .iops = qdict_get_int(qdict, "iops"),
         .iops_rd = qdict_get_int(qdict, "iops_rd"),
         .iops_wr = qdict_get_int(qdict, "iops_wr"),
