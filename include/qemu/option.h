@@ -92,7 +92,7 @@ void qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
                   Error **errp);
 void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
                        Error **errp);
-void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
+void qemu_opt_set_number(QemuOpts *opts, const char *name, uint64_t val,
                          Error **errp);
 typedef int (*qemu_opt_loopfunc)(void *opaque,
                                  const char *name, const char *value,

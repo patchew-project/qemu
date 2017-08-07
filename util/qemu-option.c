@@ -579,7 +579,7 @@ void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
     QTAILQ_INSERT_TAIL(&opts->head, opt, next);
 }
 
-void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
+void qemu_opt_set_number(QemuOpts *opts, const char *name, uint64_t val,
                          Error **errp)
 {
     QemuOpt *opt;
