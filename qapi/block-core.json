@@ -28,7 +28,7 @@
 #
 ##
 { 'struct': 'SnapshotInfo',
-  'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
+  'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'size',
             'date-sec': 'int', 'date-nsec': 'int',
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
 
