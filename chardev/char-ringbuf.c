@@ -65,10 +65,10 @@ static int ringbuf_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static int ringbuf_chr_read(Chardev *chr, uint8_t *buf, int len)
+static int ringbuf_chr_read(Chardev *chr, uint8_t *buf, size_t len)
 {
     RingBufChardev *d = RINGBUF_CHARDEV(chr);
-    int i;
+    size_t i;
 
     qemu_mutex_lock(&chr->chr_write_lock);
     for (i = 0; i < len && d->cons != d->prod; i++) {
@@ -151,7 +151,7 @@ void qmp_ringbuf_write(const char *device, const char *data,
     }
 }
 
-char *qmp_ringbuf_read(const char *device, int64_t size,
+char *qmp_ringbuf_read(const char *device, uint64_t size,
                        bool has_format, enum DataFormat format,
                        Error **errp)
 {
@@ -168,11 +168,6 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
 
     if (!CHARDEV_IS_RINGBUF(chr)) {
         error_setg(errp, "%s is not a ringbuf device", device);
-        return NULL;
-    }
-
-    if (size <= 0) {
-        error_setg(errp, "size must be greater than zero");
         return NULL;
     }
 

@@ -543,7 +543,7 @@
 #
 ##
 { 'command': 'ringbuf-read',
-  'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
+  'data': {'device': 'str', 'size': 'size', '*format': 'DataFormat'},
   'returns': 'str' }
 
 ##
