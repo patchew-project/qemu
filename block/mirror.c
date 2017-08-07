@@ -1119,7 +1119,7 @@ static BlockDriver bdrv_mirror_top = {
 
 static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              int creation_flags, BlockDriverState *target,
-                             const char *replaces, int64_t speed,
+                             const char *replaces, uint64_t speed,
                              uint64_t granularity, int64_t buf_size,
                              BlockMirrorBackingMode backing_mode,
                              BlockdevOnError on_source_error,
@@ -1138,12 +1138,6 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     bool target_is_backing;
     Error *local_err = NULL;
     int ret;
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
-        return;
-    }
 
     if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
@@ -1298,6 +1292,11 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     bool is_none_mode;
     BlockDriverState *base;
 
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
+        return;
+    }
     if (mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         error_setg(errp, "Sync mode 'incremental' not supported");
         return;
@@ -1322,6 +1321,12 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
     Error *local_err = NULL;
 
     orig_base_flags = bdrv_get_flags(base);
+
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
+        return;
+    }
 
     if (bdrv_reopen(base, bs->open_flags, errp)) {
         return;
