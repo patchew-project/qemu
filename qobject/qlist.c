@@ -52,7 +52,7 @@ QList *qlist_copy(QList *src)
 /**
  * qlist_append_obj(): Append an QObject into QList
  *
- * NOTE: ownership of 'value' is transferred to the QList
+ * NOTE: ownership of @value is transferred to the QList
  */
 void qlist_append_obj(QList *qlist, QObject *value)
 {

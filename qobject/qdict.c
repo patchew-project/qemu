@@ -116,13 +116,13 @@ static QDictEntry *qdict_find(const QDict *qdict,
 /**
  * qdict_put_obj(): Put a new QObject into the dictionary
  *
- * Insert the pair 'key:value' into 'qdict', if 'key' already exists
- * its 'value' will be replaced.
+ * Insert the pair @key:@value into @qdict, if @key already exists
+ * its value will be replaced.
  *
  * This is done by freeing the reference to the stored QObject and
  * storing the new one in the same entry.
  *
- * NOTE: ownership of 'value' is transferred to the QDict
+ * NOTE: ownership of @value is transferred to the QDict
  */
 void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
 {
@@ -144,10 +144,10 @@ void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
 }
 
 /**
- * qdict_get(): Lookup for a given 'key'
+ * qdict_get(): Lookup for a given @key
  *
- * Return a weak reference to the QObject associated with 'key' if
- * 'key' is present in the dictionary, NULL otherwise.
+ * Return a weak reference to the QObject associated with @key if
+ * @key is present in the dictionary, NULL otherwise.
  */
 QObject *qdict_get(const QDict *qdict, const char *key)
 {
@@ -158,9 +158,9 @@ QObject *qdict_get(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_haskey(): Check if 'key' exists
+ * qdict_haskey(): Check if @key exists
  *
- * Return 1 if 'key' exists in the dict, 0 otherwise
+ * Return 1 if @key exists in the dict, 0 otherwise
  */
 int qdict_haskey(const QDict *qdict, const char *key)
 {
@@ -177,11 +177,11 @@ size_t qdict_size(const QDict *qdict)
 }
 
 /**
- * qdict_get_double(): Get an number mapped by 'key'
+ * qdict_get_double(): Get an number mapped by @key
  *
- * This function assumes that 'key' exists and it stores a QNum.
+ * This function assumes that @key exists and it stores a QNum.
  *
- * Return number mapped by 'key'.
+ * Return number mapped by @key.
  */
 double qdict_get_double(const QDict *qdict, const char *key)
 {
@@ -189,12 +189,12 @@ double qdict_get_double(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_get_int(): Get an integer mapped by 'key'
+ * qdict_get_int(): Get an integer mapped by @key
  *
- * This function assumes that 'key' exists and it stores a
+ * This function assumes that @key exists and it stores a
  * QNum representable as int.
  *
- * Return integer mapped by 'key'.
+ * Return integer mapped by @key.
  */
 int64_t qdict_get_int(const QDict *qdict, const char *key)
 {
@@ -202,12 +202,12 @@ int64_t qdict_get_int(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_get_bool(): Get a bool mapped by 'key'
+ * qdict_get_bool(): Get a bool mapped by @key
  *
- * This function assumes that 'key' exists and it stores a
+ * This function assumes that @key exists and it stores a
  * QBool object.
  *
- * Return bool mapped by 'key'.
+ * Return bool mapped by @key.
  */
 bool qdict_get_bool(const QDict *qdict, const char *key)
 {
@@ -232,12 +232,12 @@ QDict *qdict_get_qdict(const QDict *qdict, const char *key)
 
 /**
  * qdict_get_str(): Get a pointer to the stored string mapped
- * by 'key'
+ * by @key
  *
- * This function assumes that 'key' exists and it stores a
+ * This function assumes that @key exists and it stores a
  * QString object.
  *
- * Return pointer to the string mapped by 'key'.
+ * Return pointer to the string mapped by @key.
  */
 const char *qdict_get_str(const QDict *qdict, const char *key)
 {
@@ -245,11 +245,11 @@ const char *qdict_get_str(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_get_try_int(): Try to get integer mapped by 'key'
+ * qdict_get_try_int(): Try to get integer mapped by @key
  *
- * Return integer mapped by 'key', if it is not present in the
+ * Return integer mapped by @key, if it is not present in the
  * dictionary or if the stored object is not a QNum representing an
- * integer, 'def_value' will be returned.
+ * integer, @def_value will be returned.
  */
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value)
@@ -265,11 +265,11 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
 }
 
 /**
- * qdict_get_try_bool(): Try to get a bool mapped by 'key'
+ * qdict_get_try_bool(): Try to get a bool mapped by @key
  *
- * Return bool mapped by 'key', if it is not present in the
+ * Return bool mapped by @key, if it is not present in the
  * dictionary or if the stored object is not of QBool type
- * 'def_value' will be returned.
+ * @def_value will be returned.
  */
 bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value)
 {
@@ -280,9 +280,9 @@ bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value)
 
 /**
  * qdict_get_try_str(): Try to get a pointer to the stored string
- * mapped by 'key'
+ * mapped by @key
  *
- * Return a pointer to the string mapped by 'key', if it is not present
+ * Return a pointer to the string mapped by @key, if it is not present
  * in the dictionary or if the stored object is not of QString type
  * NULL will be returned.
  */
@@ -427,8 +427,8 @@ void qdict_destroy_obj(QObject *obj)
 }
 
 /**
- * qdict_copy_default(): If no entry mapped by 'key' exists in 'dst' yet, the
- * value of 'key' in 'src' is copied there (and the refcount increased
+ * qdict_copy_default(): If no entry mapped by @key exists in @dst yet, the
+ * value of @key in @src is copied there (and the refcount increased
  * accordingly).
  */
 void qdict_copy_default(QDict *dst, QDict *src, const char *key)
@@ -447,8 +447,8 @@ void qdict_copy_default(QDict *dst, QDict *src, const char *key)
 }
 
 /**
- * qdict_set_default_str(): If no entry mapped by 'key' exists in 'dst' yet, a
- * new QString initialised by 'val' is put there.
+ * qdict_set_default_str(): If no entry mapped by @key exists in @dst yet, a
+ * new QString initialised by @val is put there.
  */
 void qdict_set_default_str(QDict *dst, const char *key, const char *val)
 {
@@ -667,8 +667,8 @@ void qdict_array_split(QDict *src, QList **dst)
  *    'foo.0.bar' -> prefix='foo' and suffix='0.bar'
  *    'foo..0.bar' -> prefix='foo.0' and suffix='bar'
  *
- * The '..' sequence will be unescaped in the returned 'prefix'
- * string. The 'suffix' string will be left in escaped format, so it
+ * The '..' sequence will be unescaped in the returned @prefix
+ * string. The @suffix string will be left in escaped format, so it
  * can be fed back into the qdict_split_flat_key() key as the input
  * later.
  *
