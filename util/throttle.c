@@ -111,7 +111,7 @@ int64_t throttle_compute_wait(LeakyBucket *bkt)
     if (bkt->burst_length > 1) {
         /* We use 1/10 of the max value to smooth the throttling.
          * See throttle_fix_bucket() for more details. */
-        extra = bkt->burst_level - bkt->max / 10;
+        extra = bkt->burst_level - (double) bkt->max / 10;
         if (extra > 0) {
             return throttle_do_compute_wait(bkt->max, extra);
         }
@@ -361,8 +361,6 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
 /* fix bucket parameters */
 static void throttle_fix_bucket(LeakyBucket *bkt)
 {
-    double min;
-
     /* zero bucket level */
     bkt->level = bkt->burst_level = 0;
 
@@ -374,9 +372,8 @@ static void throttle_fix_bucket(LeakyBucket *bkt)
      * Having a max burst value of 100ms of the average will help smooth the
      * throttling
      */
-    min = bkt->avg / 10;
     if (bkt->avg && !bkt->max) {
-        bkt->max = min;
+        bkt->max = (bkt->avg + 5) / 10;
     }
 }
 
