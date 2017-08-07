@@ -4315,7 +4315,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
     QemuOptsList *create_opts = NULL;
     QemuOpts *opts = NULL;
     const char *backing_fmt, *backing_file;
-    int64_t size;
+    uint64_t size;
+    int64_t backing_size;
     BlockDriver *drv, *proto_drv;
     Error *local_err = NULL;
     int ret = 0;
@@ -4420,7 +4421,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
         bs = bdrv_open(full_backing, NULL, backing_options, back_flags,
                        &local_err);
         g_free(full_backing);
-        if (!bs && size != -1) {
+        if (!bs && size != UINT64_MAX) {
             /* Couldn't open BS, but we have a size, so it's nonfatal */
             warn_reportf_err(local_err,
                             "Could not verify backing image. "
@@ -4432,22 +4433,24 @@ void bdrv_img_create(const char *filename, const char *fmt,
                               "Could not open backing image to determine size.\n");
             goto out;
         } else {
-            if (size == -1) {
+            if (size == UINT64_MAX) {
                 /* Opened BS, have no size */
-                size = bdrv_getlength(bs);
-                if (size < 0) {
-                    error_setg_errno(errp, -size, "Could not get size of '%s'",
+                backing_size = bdrv_getlength(bs);
+                if (backing_size < 0) {
+                    error_setg_errno(errp, -backing_size,
+                                     "Could not get size of '%s'",
                                      backing_file);
                     bdrv_unref(bs);
                     goto out;
                 }
+                size = backing_size;
                 qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
             }
             bdrv_unref(bs);
         }
     } /* (backing_file && !(flags & BDRV_O_NO_BACKING)) */
 
-    if (size == -1) {
+    if (size == UINT64_MAX) {
         error_setg(errp, "Image creation needs a size parameter");
         goto out;
     }
