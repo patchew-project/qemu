@@ -1038,7 +1038,7 @@
 ##
 { 'command': 'block_resize', 'data': { '*device': 'str',
                                        '*node-name': 'str',
-                                       'size': 'int' }}
+                                       'size': 'size' }}
 
 ##
 # @NewImageMode:

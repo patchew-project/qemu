@@ -2916,7 +2916,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
 void qmp_block_resize(bool has_device, const char *device,
                       bool has_node_name, const char *node_name,
-                      int64_t size, Error **errp)
+                      uint64_t size, Error **errp)
 {
     Error *local_err = NULL;
     BlockBackend *blk = NULL;
@@ -2940,8 +2940,9 @@ void qmp_block_resize(bool has_device, const char *device,
         goto out;
     }
 
-    if (size < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
+    if (size > INT64_MAX) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size",
+                   "a size less than 8EiB");
         goto out;
     }
 
