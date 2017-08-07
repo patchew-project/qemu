@@ -6073,8 +6073,8 @@
 ##
 { 'struct': 'PCDIMMDeviceInfo',
   'data': { '*id': 'str',
-            'addr': 'int',
-            'size': 'int',
+            'addr': 'size',
+            'size': 'size',
             'slot': 'int',
             'node': 'int',
             'memdev': 'str',
