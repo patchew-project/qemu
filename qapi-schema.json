@@ -620,11 +620,11 @@
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationStats',
-  'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
+  'data': {'transferred': 'size', 'remaining': 'size', 'total': 'size' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
-           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
+           'normal-bytes': 'size', 'dirty-pages-rate' : 'int',
            'mbps' : 'number', 'dirty-sync-count' : 'int',
-           'postcopy-requests' : 'int', 'page-size' : 'int' } }
+           'postcopy-requests' : 'int', 'page-size' : 'size' } }
 
 ##
 # @XBZRLECacheStats:
