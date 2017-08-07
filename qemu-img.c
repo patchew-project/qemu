@@ -2655,14 +2655,14 @@ static void dump_map_entry(OutputFormat output_format, MapEntry *e,
         }
         break;
     case OFORMAT_JSON:
-        printf("%s{ \"start\": %"PRId64", \"length\": %"PRId64","
+        printf("%s{ \"start\": %" PRIu64 ", \"length\": %" PRIu64 ","
                " \"depth\": %"PRId64", \"zero\": %s, \"data\": %s",
                (e->start == 0 ? "[" : ",\n"),
                e->start, e->length, e->depth,
                e->zero ? "true" : "false",
                e->data ? "true" : "false");
         if (e->has_offset) {
-            printf(", \"offset\": %"PRId64"", e->offset);
+            printf(", \"offset\": %" PRIu64, e->offset);
         }
         putchar('}');
 

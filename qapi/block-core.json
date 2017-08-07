@@ -236,8 +236,8 @@
 #
 ##
 { 'struct': 'MapEntry',
-  'data': {'start': 'int', 'length': 'int', 'data': 'bool',
-           'zero': 'bool', 'depth': 'int', '*offset': 'int',
+  'data': {'start': 'size', 'length': 'size', 'data': 'bool',
+           'zero': 'bool', 'depth': 'int', '*offset': 'size',
            '*filename': 'str' } }
 
 ##
