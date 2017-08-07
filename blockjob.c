@@ -452,16 +452,10 @@ static void block_job_completed_txn_success(BlockJob *job)
     }
 }
 
-void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
+void block_job_set_speed(BlockJob *job, uint64_t speed, Error **errp)
 {
     if (!job->driver->set_speed) {
         error_setg(errp, QERR_UNSUPPORTED);
-        return;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
         return;
     }
 
@@ -645,6 +639,12 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
             error_setg(errp, "Job ID '%s' already in use", job_id);
             return NULL;
         }
+    }
+
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
+        return NULL;
     }
 
     blk = blk_new(perm, shared_perm);

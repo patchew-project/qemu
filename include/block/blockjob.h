@@ -198,7 +198,7 @@ void block_job_remove_all_bdrv(BlockJob *job);
  * Set a rate-limiting parameter for the job; the actual meaning may
  * vary depending on the job type.
  */
-void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
+void block_job_set_speed(BlockJob *job, uint64_t speed, Error **errp);
 
 /**
  * block_job_start:
