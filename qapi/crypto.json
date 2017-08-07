@@ -266,7 +266,7 @@
   'data': {'active': 'bool',
            '*iters': 'int',
            '*stripes': 'int',
-           'key-offset': 'int' } }
+           'key-offset': 'size' } }
 
 
 ##
@@ -292,7 +292,7 @@
            'ivgen-alg': 'QCryptoIVGenAlgorithm',
            '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
            'hash-alg': 'QCryptoHashAlgorithm',
-           'payload-offset': 'int',
+           'payload-offset': 'size',
            'master-key-iters': 'int',
            'uuid': 'str',
            'slots': [ 'QCryptoBlockInfoLUKSSlot' ] }}
