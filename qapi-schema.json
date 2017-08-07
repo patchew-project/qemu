@@ -2078,7 +2078,7 @@
 # Since: 0.14.0
 ##
 { 'struct': 'PciMemoryRegion',
-  'data': {'bar': 'int', 'type': 'str', 'address': 'int', 'size': 'int',
+  'data': {'bar': 'int', 'type': 'str', 'address': 'size', 'size': 'size',
            '*prefetch': 'bool', '*mem_type_64': 'bool' } }
 
 ##
