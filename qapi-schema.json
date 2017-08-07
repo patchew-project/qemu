@@ -3455,7 +3455,7 @@
 ##
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
-            '*begin': 'int', '*length': 'int',
+            '*begin': 'size', '*length': 'size',
             '*format': 'DumpGuestMemoryFormat'} }
 
 ##
@@ -3491,8 +3491,8 @@
 ##
 { 'struct': 'DumpQueryResult',
   'data': { 'status': 'DumpStatus',
-            'completed': 'int',
-            'total': 'int' } }
+            'completed': 'size',
+            'total': 'size' } }
 
 ##
 # @query-dump:

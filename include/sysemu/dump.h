@@ -165,8 +165,8 @@ typedef struct DumpState {
     GuestPhysBlock *next_block;
     ram_addr_t start;
     bool has_filter;
-    int64_t begin;
-    int64_t length;
+    uint64_t begin;
+    uint64_t length;
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
@@ -184,11 +184,11 @@ typedef struct DumpState {
     DumpGuestMemoryFormat format; /* valid only if has_format == true */
     QemuThread dump_thread;       /* thread for detached dump */
 
-    int64_t total_size;          /* total memory size (in bytes) to
+    uint64_t total_size;         /* total memory size (in bytes) to
                                   * be dumped. When filter is
                                   * enabled, this will only count
                                   * those to be written. */
-    int64_t written_size;        /* written memory size (in bytes),
+    uint64_t written_size;       /* written memory size (in bytes),
                                   * this could be used to calculate
                                   * how much work we have
                                   * finished. */

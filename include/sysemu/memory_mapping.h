@@ -79,7 +79,7 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
 void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list,
                                   const GuestPhysBlockList *guest_phys_blocks);
 
-void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
-                           int64_t length);
+void memory_mapping_filter(MemoryMappingList *list, uint64_t begin,
+                           uint64_t length);
 
 #endif

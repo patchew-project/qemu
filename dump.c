@@ -331,7 +331,7 @@ static void write_elf_section(DumpState *s, int type, Error **errp)
     }
 }
 
-static void write_data(DumpState *s, void *buf, int length, Error **errp)
+static void write_data(DumpState *s, void *buf, size_t length, Error **errp)
 {
     int ret;
 
@@ -345,9 +345,9 @@ static void write_data(DumpState *s, void *buf, int length, Error **errp)
 
 /* write the memory to vmcore. 1 page per I/O. */
 static void write_memory(DumpState *s, GuestPhysBlock *block, ram_addr_t start,
-                         int64_t size, Error **errp)
+                         uint64_t size, Error **errp)
 {
-    int64_t i;
+    uint64_t i;
     Error *local_err = NULL;
 
     for (i = 0; i < size / s->dump_info.page_size; i++) {
@@ -378,7 +378,7 @@ static void get_offset_range(hwaddr phys_addr,
 {
     GuestPhysBlock *block;
     hwaddr offset = s->memory_offset;
-    int64_t size_in_block, start;
+    uint64_t size_in_block, start;
 
     /* When the memory is not stored into vmcore, offset will be -1 */
     *p_offset = -1;
@@ -602,7 +602,7 @@ static int get_next_block(DumpState *s, GuestPhysBlock *block)
 static void dump_iterate(DumpState *s, Error **errp)
 {
     GuestPhysBlock *block;
-    int64_t size;
+    uint64_t size;
     Error *local_err = NULL;
 
     do {
@@ -1466,10 +1466,10 @@ bool dump_in_progress(void)
 
 /* calculate total size of memory to be dumped (taking filter into
  * acoount.) */
-static int64_t dump_calculate_size(DumpState *s)
+static uint64_t dump_calculate_size(DumpState *s)
 {
     GuestPhysBlock *block;
-    int64_t size = 0, total = 0, left = 0, right = 0;
+    uint64_t total = 0, size, left, right;
 
     QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
         if (s->has_filter) {
@@ -1490,7 +1490,7 @@ static int64_t dump_calculate_size(DumpState *s)
 
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
-                      int64_t begin, int64_t length, Error **errp)
+                      uint64_t begin, uint64_t length, Error **errp)
 {
     CPUState *cpu;
     int nr_cpus;
@@ -1532,9 +1532,6 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     guest_phys_blocks_init(&s->guest_phys_blocks);
     guest_phys_blocks_append(&s->guest_phys_blocks);
     s->total_size = dump_calculate_size(s);
-#ifdef DEBUG_DUMP_GUEST_MEMORY
-    fprintf(stderr, "DUMP: total memory to dump: %lu\n", s->total_size);
-#endif
 
     s->start = get_start_block(s);
     if (s->start == -1) {
@@ -1667,7 +1664,7 @@ cleanup:
 static void dump_process(DumpState *s, Error **errp)
 {
     Error *local_err = NULL;
-    DumpQueryResult *result = NULL;
+    DumpQueryResult *result;
 
     if (s->has_format && s->format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
         create_kdump_vmcore(s, &local_err);
@@ -1706,6 +1703,7 @@ DumpQueryResult *qmp_query_dump(Error **errp)
 {
     DumpQueryResult *result = g_new(DumpQueryResult, 1);
     DumpState *state = &dump_state_global;
+
     result->status = atomic_read(&state->status);
     /* make sure we are reading status and written_size in order */
     smp_rmb();
@@ -1716,8 +1714,8 @@ DumpQueryResult *qmp_query_dump(Error **errp)
 
 void qmp_dump_guest_memory(bool paging, const char *file,
                            bool has_detach, bool detach,
-                           bool has_begin, int64_t begin, bool has_length,
-                           int64_t length, bool has_format,
+                           bool has_begin, uint64_t begin, bool has_length,
+                           uint64_t length, bool has_format,
                            DumpGuestMemoryFormat format, Error **errp)
 {
     const char *p;
