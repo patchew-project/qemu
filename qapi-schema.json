@@ -5122,7 +5122,7 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevRingbuf', 'data': { '*size'  : 'int' },
+{ 'struct': 'ChardevRingbuf', 'data': { '*size'  : 'size' },
   'base': 'ChardevCommon' }
 
 ##
