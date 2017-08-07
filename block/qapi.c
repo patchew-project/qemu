@@ -566,10 +566,11 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
 
 #define NB_SUFFIXES 4
 
-static char *get_human_readable_size(char *buf, int buf_size, int64_t size)
+static char *get_human_readable_size(char *buf, size_t buf_size,
+                                     uint64_t size)
 {
     static const char suffixes[NB_SUFFIXES] = {'K', 'M', 'G', 'T'};
-    int64_t base;
+    uint64_t base;
     int i;
 
     if (size <= 999) {
