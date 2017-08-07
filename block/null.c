@@ -20,7 +20,7 @@
 #define NULL_OPT_ZEROES  "read-zeroes"
 
 typedef struct {
-    int64_t length;
+    uint64_t length;
     int64_t latency_ns;
     bool read_zeroes;
 } BDRVNullState;

@@ -2218,7 +2218,7 @@
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNull',
-  'data': { '*size': 'int', '*latency-ns': 'uint64' } }
+  'data': { '*size': 'size', '*latency-ns': 'uint64' } }
 
 ##
 # @BlockdevOptionsVVFAT:
@@ -2450,9 +2450,9 @@
             '*pass-discard-snapshot': 'bool',
             '*pass-discard-other': 'bool',
             '*overlap-check': 'Qcow2OverlapChecks',
-            '*cache-size': 'int',
-            '*l2-cache-size': 'int',
-            '*refcount-cache-size': 'int',
+            '*cache-size': 'size',
+            '*l2-cache-size': 'size',
+            '*refcount-cache-size': 'size',
             '*cache-clean-interval': 'int',
             '*encrypt': 'BlockdevQcow2Encryption' } }
 
@@ -2597,9 +2597,9 @@
 { 'struct': 'BlockdevOptionsBlkdebug',
   'data': { 'image': 'BlockdevRef',
             '*config': 'str',
-            '*align': 'int', '*max-transfer': 'int32',
-            '*opt-write-zero': 'int32', '*max-write-zero': 'int32',
-            '*opt-discard': 'int32', '*max-discard': 'int32',
+            '*align': 'size', '*max-transfer': 'size',
+            '*opt-write-zero': 'size', '*max-write-zero': 'size',
+            '*opt-discard': 'size', '*max-discard': 'size',
             '*inject-error': ['BlkdebugInjectErrorOptions'],
             '*set-state': ['BlkdebugSetStateOptions'] } }
 
@@ -2891,8 +2891,8 @@
             '*user': 'int',
             '*group': 'int',
             '*tcp-syn-count': 'int',
-            '*readahead-size': 'int',
-            '*page-cache-size': 'int',
+            '*readahead-size': 'size',
+            '*page-cache-size': 'size',
             '*debug': 'int' } }
 
 ##
@@ -2922,7 +2922,7 @@
 ##
 { 'struct': 'BlockdevOptionsCurlBase',
   'data': { 'url': 'str',
-            '*readahead': 'int',
+            '*readahead': 'size',
             '*timeout': 'int',
             '*username': 'str',
             '*password-secret': 'str',
@@ -3030,7 +3030,7 @@
 ##
 { 'struct': 'BlockdevOptionsRaw',
   'base': 'BlockdevOptionsGenericFormat',
-  'data': { '*offset': 'int', '*size': 'int' } }
+  'data': { '*offset': 'size', '*size': 'size' } }
 
 ##
 # @BlockdevOptionsVxHS:
