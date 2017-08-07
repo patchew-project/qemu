@@ -3419,7 +3419,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
                                    BlockMirrorBackingMode backing_mode,
-                                   bool has_speed, int64_t speed,
+                                   bool has_speed, uint64_t speed,
                                    bool has_granularity, uint64_t granularity,
                                    bool has_buf_size, int64_t buf_size,
                                    bool has_on_source_error,
@@ -3454,11 +3454,6 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         filter_node_name = NULL;
     }
 
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
-                   "a non-negative rate limit");
-        return;
-    }
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
                    "a value in range [512B, 64MB]");
@@ -3505,6 +3500,12 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     bs = qmp_get_root_bs(arg->device, errp);
     if (!bs) {
+        return;
+    }
+
+    if (arg->speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
         return;
     }
 
@@ -3664,6 +3665,12 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
 
     target_bs = bdrv_lookup_bs(target, target, errp);
     if (!target_bs) {
+        return;
+    }
+
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
         return;
     }
 
