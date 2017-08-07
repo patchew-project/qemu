@@ -235,7 +235,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            ImageInfo **p_info,
                            Error **errp)
 {
-    int64_t size;
+    int64_t size, allocated_size;
     const char *backing_filename;
     BlockDriverInfo bdi;
     int ret;
@@ -251,12 +251,16 @@ void bdrv_query_image_info(BlockDriverState *bs,
         goto out;
     }
 
+    allocated_size = bdrv_get_allocated_file_size(bs);
+
     info = g_new0(ImageInfo, 1);
     info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
     info->virtual_size    = size;
-    info->actual_size     = bdrv_get_allocated_file_size(bs);
-    info->has_actual_size = info->actual_size >= 0;
+    if (allocated_size >= 0) {
+        info->actual_size = allocated_size;
+        info->has_actual_size = true;
+    }
     if (bdrv_is_encrypted(bs)) {
         info->encrypted = true;
         info->has_encrypted = true;
@@ -727,6 +731,7 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
                           ImageInfo *info)
 {
     char size_buf[128], dsize_buf[128];
+
     if (!info->has_actual_size) {
         snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
     } else {
@@ -737,7 +742,7 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
     func_fprintf(f,
                  "image: %s\n"
                  "file format: %s\n"
-                 "virtual size: %s (%" PRId64 " bytes)\n"
+                 "virtual size: %s (%" PRIu64 " bytes)\n"
                  "disk size: %s\n",
                  info->filename, info->format, size_buf,
                  info->virtual_size,
@@ -748,7 +753,7 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
     }
 
     if (info->has_cluster_size) {
-        func_fprintf(f, "cluster_size: %" PRId64 "\n",
+        func_fprintf(f, "cluster_size: %" PRIu64 "\n",
                        info->cluster_size);
     }
 
