@@ -85,37 +85,56 @@
 #endif
 
 /*
- * Supported types:
+ * Command handlers (mon_cmd_t member @cmd) receive actual arguments
+ * in a QDict, which is built by the HMP core according to mon_cmd_t
+ * member @args_type.  It's a list of NAME:TYPE separated by comma.
  *
- * 'F'          filename
- * 'B'          block device name
- * 's'          string (accept optional quote)
- * 'S'          it just appends the rest of the string (accept optional quote)
- * 'O'          option string of the form NAME=VALUE,...
- *              parsed according to QemuOptsList given by its name
- *              Example: 'device:O' uses qemu_device_opts.
- *              Restriction: only lists with empty desc are supported
- *              TODO lift the restriction
- * 'i'          32 bit integer
- * 'l'          target long (32 or 64 bit)
- * 'M'          Non-negative target long (32 or 64 bit), in user mode the
- *              value is multiplied by 2^20 (think Mebibyte)
- * 'o'          octets (aka bytes)
- *              user mode accepts an optional E, e, P, p, T, t, G, g, M, m,
- *              K, k suffix, which multiplies the value by 2^60 for suffixes E
- *              and e, 2^50 for suffixes P and p, 2^40 for suffixes T and t,
- *              2^30 for suffixes G and g, 2^20 for M and m, 2^10 for K and k
- * 'T'          double
- *              user mode accepts an optional ms, us, ns suffix,
- *              which divides the value by 1e3, 1e6, 1e9, respectively
- * '/'          optional gdb-like print format (like "/10x")
+ * TYPEs that put a string value with key NAME into the QDict:
+ * 's'    Argument is enclosed in '"' or delimited by whitespace.  In
+ *        the former case, escapes \n \r \\ \' and \" are recognized.
+ * 'F'    File name, like 's' except for completion.
+ * 'B'    BlockBackend name, like 's' except for completion.
+ * 'S'    Argument is the remainder of the line, less leading
+ *        whitespace.
+
  *
- * '?'          optional type (for all types, except '/')
- * '.'          other form of optional type (for 'i' and 'l')
- * 'b'          boolean
- *              user mode accepts "on" or "off"
- * '-'          optional parameter (eg. '-f')
+ * TYPEs that put an int64_t value with key NAME:
+ * 'l'    Argument is an expression (QEMU pocket calculator).
+ * 'i'    Like 'l' except value must fit into 32 bit unsigned.
+ * 'M'    Like 'l' except value must not be negative and is multiplied
+ *        by 2^20 (think "mebibyte").
  *
+ * TYPEs that put an uint64_t value with key NAME:
+ * 'o'    Argument is a size (think "octets").  Without suffix the
+ *        value is multiplied by 2^20 (mebibytes), with suffix E or e
+ *        by 2^60 (exbibytes), with P or p by 2^50 (pebibytes), with T
+ *        or t by 2^40 (tebibytes), with G or g by 2^30 (gibibytes),
+ *        with M or m by 2^10 (mebibytes), with K or k by 2^10
+ *        (kibibytes).
+ *
+ * TYPEs that put a double value with key NAME:
+ * 'T'    Argument is a time in seconds.  With optional ms, us, ns
+ *        suffix, the value divided by 1e3, 1e6, 1e9 respectively.
+ *
+ * TYPEs that put a bool value with key NAME:
+ * 'b'    Argument is either "on" (true) or "off" (false).
+ * '-' CHAR
+ *        Argument is either "-CHAR" (true) or absent (false).
+ *
+ * TYPEs that put multiple values:
+ * 'O'    Option string of the form NAME=VALUE,... parsed according to
+ *        the QemuOptsList given by its name.
+ *        Example: 'device:O' uses qemu_device_opts.
+ *        Restriction: only lists with empty desc are supported.
+ *        Puts all the NAME=VALUE.
+ * '/'    Gdb-like print format (like "/10x"), always optional.
+ *        Puts keys "count", "format", "size", all int.
+ *
+ * Modifier character following the type string:
+ * '?'    Argument is optional, nothing is put when it is absent
+ *        (all types except 'O', '/', 'b').
+ * '.'    Argument is optional, must be preceded by '.' if present
+ *        (only types 'i', 'l', 'M')
  */
 
 typedef struct mon_cmd_t {
