@@ -322,7 +322,7 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
             params->tls_hostname);
         assert(params->has_max_bandwidth);
-        monitor_printf(mon, "%s: %" PRId64 " bytes/second\n",
+        monitor_printf(mon, "%s: %" PRIu64 " bytes/second\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_MAX_BANDWIDTH],
             params->max_bandwidth);
         assert(params->has_downtime_limit);

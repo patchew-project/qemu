@@ -716,8 +716,7 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
-    if (params->has_max_bandwidth &&
-        (params->max_bandwidth < 0 || params->max_bandwidth > SIZE_MAX)) {
+    if (params->has_max_bandwidth && params->max_bandwidth > SIZE_MAX) {
         error_setg(errp, "Parameter 'max_bandwidth' expects an integer in the"
                          " range of 0 to %zu bytes/second", SIZE_MAX);
         return false;
@@ -1311,7 +1310,7 @@ uint64_t qmp_query_migrate_cache_size(Error **errp)
     return migrate_xbzrle_cache_size();
 }
 
-void qmp_migrate_set_speed(int64_t value, Error **errp)
+void qmp_migrate_set_speed(uint64_t value, Error **errp)
 {
     MigrateSetParameters p = {
         .has_max_bandwidth = true,
@@ -2179,8 +2178,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_INT64("x-cpu-throttle-increment", MigrationState,
                       parameters.cpu_throttle_increment,
                       DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT),
-    DEFINE_PROP_INT64("x-max-bandwidth", MigrationState,
-                      parameters.max_bandwidth, MAX_THROTTLE),
+    DEFINE_PROP_UINT64("x-max-bandwidth", MigrationState,
+                       parameters.max_bandwidth, MAX_THROTTLE),
     DEFINE_PROP_INT64("x-downtime-limit", MigrationState,
                       parameters.downtime_limit,
                       DEFAULT_MIGRATE_SET_DOWNTIME),

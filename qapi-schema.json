@@ -1116,7 +1116,7 @@
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'StrOrNull',
             '*tls-hostname': 'StrOrNull',
-            '*max-bandwidth': 'int',
+            '*max-bandwidth': 'size',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool' } }
@@ -1200,7 +1200,7 @@
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
-            '*max-bandwidth': 'int',
+            '*max-bandwidth': 'size',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool' } }
@@ -2868,7 +2868,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
+{ 'command': 'migrate_set_speed', 'data': {'value': 'size'} }
 
 ##
 # @migrate-set-cache-size:
