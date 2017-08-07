@@ -19,12 +19,18 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, see <http://www.gnu.org/licenses/>.
 
+#
+# 2017 Deepak Verma <dverma@redhat.com>
+# Added few functions and fields for whitelisting
+#
+
 import argparse
 import json
 import sys
 
 # Count the number of errors found
 taint = 0
+
 
 def bump_taint():
     global taint
@@ -92,13 +98,14 @@ def check_fields_match(name, s_field, d_field):
                       'io_win_size', 'mig_io_win_size'],
     }
 
-    if not name in changed_names:
+    if name not in changed_names:
         return False
 
     if s_field in changed_names[name] and d_field in changed_names[name]:
         return True
 
     return False
+
 
 def get_changed_sec_name(sec):
     # Section names can change -- see commit 292b1634 for an example.
@@ -114,16 +121,17 @@ def get_changed_sec_name(sec):
             return item
     return ""
 
+
 def exists_in_substruct(fields, item):
     # Some QEMU versions moved a few fields inside a substruct.  This
     # kept the on-wire format the same.  This function checks if
     # something got shifted inside a substruct.  For example, the
     # change in commit 1f42d22233b4f3d1a2933ff30e8d6a6d9ee2d08f
 
-    if not "Description" in fields:
+    if "Description" not in fields:
         return False
 
-    if not "Fields" in fields["Description"]:
+    if "Fields" not in fields["Description"]:
         return False
 
     substruct_fields = fields["Description"]["Fields"]
@@ -176,10 +184,10 @@ def check_fields(src_fields, dest_fields, desc, sec):
             except StopIteration:
                 if d_iter_list == []:
                     # We were not in a substruct
-                    print "Section \"" + sec + "\",",
-                    print "Description " + "\"" + desc + "\":",
-                    print "expected field \"" + s_item["field"] + "\",",
-                    print "while dest has no further fields"
+                    print('Section "' + sec + '", '
+                          'Description "' + desc + '": '
+                          'expected field "' + s_item["field"] + '", '
+                          'while dest has no further fields')
                     bump_taint()
                     break
 
@@ -191,30 +199,28 @@ def check_fields(src_fields, dest_fields, desc, sec):
                 advance_dest = True
 
         if unused_count != 0:
-            if advance_dest == False:
+            if not advance_dest:
                 unused_count = unused_count - s_item["size"]
                 if unused_count == 0:
                     advance_dest = True
                     continue
                 if unused_count < 0:
-                    print "Section \"" + sec + "\",",
-                    print "Description \"" + desc + "\":",
-                    print "unused size mismatch near \"",
-                    print s_item["field"] + "\""
+                    print('Section "' + sec + '", '
+                          'Description "' + desc + '": '
+                          'unused size mismatch near "' + s_item["field"] + '"')
                     bump_taint()
                     break
                 continue
 
-            if advance_src == False:
+            if not advance_src:
                 unused_count = unused_count - d_item["size"]
                 if unused_count == 0:
                     advance_src = True
                     continue
                 if unused_count < 0:
-                    print "Section \"" + sec + "\",",
-                    print "Description \"" + desc + "\":",
-                    print "unused size mismatch near \"",
-                    print d_item["field"] + "\""
+                    print('Section "' + sec + '", '
+                          'Description "' + desc + '": '
+                          'unused size mismatch near "' + d_item["field"] + '"')
                     bump_taint()
                     break
                 continue
@@ -262,16 +268,16 @@ def check_fields(src_fields, dest_fields, desc, sec):
                     unused_count = s_item["size"] - d_item["size"]
                     continue
 
-            print "Section \"" + sec + "\",",
-            print "Description \"" + desc + "\":",
-            print "expected field \"" + s_item["field"] + "\",",
-            print "got \"" + d_item["field"] + "\"; skipping rest"
+            print('Section "' + sec + '", '
+                  'Description "' + desc + '": '
+                  'expected field "' + s_item["field"] + '", '
+                  'got "' + d_item["field"] + '"; skipping rest')
             bump_taint()
             break
 
         check_version(s_item, d_item, sec, desc)
 
-        if not "Description" in s_item:
+        if "Description" not in s_item:
             # Check size of this field only if it's not a VMSTRUCT entry
             check_size(s_item, d_item, sec, desc, s_item["field"])
 
@@ -289,18 +295,20 @@ def check_subsections(src_sub, dest_sub, desc, sec):
             check_descriptions(s_item, d_item, sec)
 
         if not found:
-            print "Section \"" + sec + "\", Description \"" + desc + "\":",
-            print "Subsection \"" + s_item["name"] + "\" not found"
+            print('Section "' + sec + '", '
+                  'Description "' + desc + '": '
+                  'Subsection "' + s_item["name"] + '" not found')
             bump_taint()
 
 
 def check_description_in_list(s_item, d_item, sec, desc):
-    if not "Description" in s_item:
+    if "Description" not in s_item:
         return
 
-    if not "Description" in d_item:
-        print "Section \"" + sec + "\", Description \"" + desc + "\",",
-        print "Field \"" + s_item["field"] + "\": missing description"
+    if "Description" not in d_item:
+        print('Section "' + sec + '", '
+              'Description "' + desc + '", '
+              'Field "' + s_item["field"] + '": missing description')
         bump_taint()
         return
 
@@ -311,17 +319,17 @@ def check_descriptions(src_desc, dest_desc, sec):
     check_version(src_desc, dest_desc, sec, src_desc["name"])
 
     if not check_fields_match(sec, src_desc["name"], dest_desc["name"]):
-        print "Section \"" + sec + "\":",
-        print "Description \"" + src_desc["name"] + "\"",
-        print "missing, got \"" + dest_desc["name"] + "\" instead; skipping"
+        print('Section "' + sec + '": '
+              'Description "' + src_desc["name"] + '" '
+              'missing, got "' + dest_desc["name"] + '" instead; skipping')
         bump_taint()
         return
 
     for f in src_desc:
         if not f in dest_desc:
-            print "Section \"" + sec + "\"",
-            print "Description \"" + src_desc["name"] + "\":",
-            print "Entry \"" + f + "\" missing"
+            print('Section "' + sec + '" '
+                  'Description "' + src_desc["name"] + '": '
+                  'Entry "' + field + '" missing')
             bump_taint()
             continue
 
@@ -340,15 +348,15 @@ def check_version(s, d, sec, desc=None):
         print "version error:", s["version_id"], ">", d["version_id"]
         bump_taint()
 
-    if not "minimum_version_id" in d:
+    if "minimum_version_id" not in dest_ver:
         return
 
     if s["version_id"] < d["minimum_version_id"]:
         print "Section \"" + sec + "\"",
         if desc:
-            print "Description \"" + desc + "\":",
-            print "minimum version error:", s["version_id"], "<",
-            print d["minimum_version_id"]
+            print('Description "' + desc + '": ' +
+                  'minimum version error: ' + str(src_ver["version_id"]) + ' < ' +
+                  str(dest_ver["minimum_version_id"]))
             bump_taint()
 
 
@@ -363,15 +371,21 @@ def check_size(s, d, sec, desc=None, field=None):
         bump_taint()
 
 
-def check_machine_type(s, d):
-    if s["Name"] != d["Name"]:
-        print "Warning: checking incompatible machine types:",
-        print "\"" + s["Name"] + "\", \"" + d["Name"] + "\""
+
+def check_machine_type(src, dest):
+    if src["Name"] != dest["Name"]:
+        print('Warning: checking incompatible machine types: '
+              '"' + src["Name"] + '", "' + dest["Name"] + '"')
     return
 
 
 def main():
-    help_text = "Parse JSON-formatted vmstate dumps from QEMU in files SRC and DEST.  Checks whether migration from SRC to DEST QEMU versions would break based on the VMSTATE information contained within the JSON outputs.  The JSON output is created from a QEMU invocation with the -dump-vmstate parameter and a filename argument to it.  Other parameters to QEMU do not matter, except the -M (machine type) parameter."
+    help_text = ("Parse JSON-formatted vmstate dumps from QEMU in files "
+    "SRC and DEST.  Checks whether migration from SRC to DEST QEMU versions "
+    "would break based on the VMSTATE information contained within the JSON "
+    "outputs. The JSON output is created from a QEMU invocation with the "
+    "-dump-vmstate parameter and a filename argument to it. Other parameters to "
+    "QEMU do not matter, except the -M (machine type) parameter.")
 
     parser = argparse.ArgumentParser(description=help_text)
     parser.add_argument('-s', '--src', type=file, required=True,
@@ -395,12 +409,12 @@ def main():
 
     for sec in src_data:
         dest_sec = sec
-        if not dest_sec in dest_data:
+        if dest_sec not in dest_data:
             # Either the section name got changed, or the section
             # doesn't exist in dest.
             dest_sec = get_changed_sec_name(sec)
-            if not dest_sec in dest_data:
-                print "Section \"" + sec + "\" does not exist in dest"
+            if dest_sec not in dest_data:
+                print('Section "' + sec + '" does not exist in dest')
                 bump_taint()
                 continue
 
@@ -414,9 +428,8 @@ def main():
         check_version(s, d, sec)
 
         for entry in s:
-            if not entry in d:
-                print "Section \"" + sec + "\": Entry \"" + entry + "\"",
-                print "missing"
+            if entry not in d:
+                print('Section "' + sec + '": Entry "' + entry + '" missing')
                 bump_taint()
                 continue
 
