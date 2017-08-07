@@ -70,7 +70,8 @@ static void hbitmap_test_check(TestHBitmapData *data,
     }
 
     if (first == 0) {
-        g_assert_cmpint(count << data->granularity, ==, hbitmap_count(data->hb));
+        g_assert_cmpuint(count << data->granularity,
+                         ==, hbitmap_count(data->hb));
     }
 }
 
@@ -222,7 +223,7 @@ static void hbitmap_test_check_get(TestHBitmapData *data)
         count += hbitmap_get(data->hb, i);
         g_assert_cmpint(hbitmap_get(data->hb, i), ==, val != 0);
     }
-    g_assert_cmpint(count, ==, hbitmap_count(data->hb));
+    g_assert_cmpuint(count, ==, hbitmap_count(data->hb));
 }
 
 static void test_hbitmap_zero(TestHBitmapData *data,
@@ -416,15 +417,15 @@ static void test_hbitmap_granularity(TestHBitmapData *data,
     /* Note that hbitmap_test_check has to be invoked manually in this test.  */
     hbitmap_test_init(data, L1, 1);
     hbitmap_test_set(data, 0, 1);
-    g_assert_cmpint(hbitmap_count(data->hb), ==, 2);
+    g_assert_cmpuint(hbitmap_count(data->hb), ==, 2);
     hbitmap_test_check(data, 0);
     hbitmap_test_set(data, 2, 1);
-    g_assert_cmpint(hbitmap_count(data->hb), ==, 4);
+    g_assert_cmpuint(hbitmap_count(data->hb), ==, 4);
     hbitmap_test_check(data, 0);
     hbitmap_test_set(data, 0, 3);
-    g_assert_cmpint(hbitmap_count(data->hb), ==, 4);
+    g_assert_cmpuint(hbitmap_count(data->hb), ==, 4);
     hbitmap_test_reset(data, 0, 1);
-    g_assert_cmpint(hbitmap_count(data->hb), ==, 2);
+    g_assert_cmpuint(hbitmap_count(data->hb), ==, 2);
 }
 
 static void test_hbitmap_iter_granularity(TestHBitmapData *data,
@@ -494,7 +495,8 @@ static void hbitmap_test_check_boundary_bits(TestHBitmapData *data)
          */
         g_assert(hbitmap_get(data->hb, 0));
         g_assert(hbitmap_get(data->hb, size - 1));
-        g_assert_cmpint(2 << data->granularity, ==, hbitmap_count(data->hb));
+        g_assert_cmpuint(2ull << data->granularity,
+                         ==, hbitmap_count(data->hb));
     }
 }
 

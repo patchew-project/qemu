@@ -656,10 +656,10 @@ static int flush_blks(QEMUFile *f)
 
 /* Called with iothread lock taken.  */
 
-static int64_t get_remaining_dirty(void)
+static uint64_t get_remaining_dirty(void)
 {
     BlkMigDevState *bmds;
-    int64_t dirty = 0;
+    uint64_t dirty = 0;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         aio_context_acquire(blk_get_aio_context(bmds->blk));

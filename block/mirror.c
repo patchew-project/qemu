@@ -798,8 +798,8 @@ static void coroutine_fn mirror_run(void *opaque)
     assert(!s->dbi);
     s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap, 0);
     for (;;) {
-        uint64_t delay_ns = 0;
-        int64_t cnt, delta;
+        uint64_t cnt, delay_ns = 0;
+        int64_t delta;
         bool should_complete;
 
         if (s->ret < 0) {

@@ -681,12 +681,12 @@ void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *iter, int64_t sector_num)
     hbitmap_iter_init(&iter->hbi, iter->hbi.hb, sector_num);
 }
 
-int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap)
+uint64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->bitmap);
 }
 
-int64_t bdrv_get_meta_dirty_count(BdrvDirtyBitmap *bitmap)
+uint64_t bdrv_get_meta_dirty_count(BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->meta);
 }
