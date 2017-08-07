@@ -3454,6 +3454,11 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         filter_node_name = NULL;
     }
 
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
+        return;
+    }
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
                    "a value in range [512B, 64MB]");
