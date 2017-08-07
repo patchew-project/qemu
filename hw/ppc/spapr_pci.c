@@ -1731,9 +1731,16 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 
     /* allocate connectors for child PCI devices */
     if (sphb->dr_enabled) {
+        Error *local_err = NULL;
+
         for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
             spapr_dr_connector_new(OBJECT(phb), TYPE_SPAPR_DRC_PCI,
-                                   (sphb->index << 16) | i, NULL);
+                                   (sphb->index << 16) | i, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                error_prepend(errp, "Failed to create DRC: ");
+                return;
+            }
         }
     }
 
