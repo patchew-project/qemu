@@ -248,7 +248,7 @@ uint32_t spapr_drc_index(sPAPRDRConnector *drc);
 sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc);
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
-                                         uint32_t id);
+                                         uint32_t id, Error **errp);
 sPAPRDRConnector *spapr_drc_by_index(uint32_t index);
 sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id);
 int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,

@@ -1733,7 +1733,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     if (sphb->dr_enabled) {
         for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
             spapr_dr_connector_new(OBJECT(phb), TYPE_SPAPR_DRC_PCI,
-                                   (sphb->index << 16) | i);
+                                   (sphb->index << 16) | i, NULL);
         }
     }
 

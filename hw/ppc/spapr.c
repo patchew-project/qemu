@@ -2023,7 +2023,7 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
 
         addr = i * lmb_size + spapr->hotplug_memory.base;
         spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_LMB,
-                               addr / lmb_size);
+                               addr / lmb_size, NULL);
     }
 }
 
@@ -2118,7 +2118,7 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
 
         if (mc->has_hotpluggable_cpus) {
             spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_CPU,
-                                   (core_id / smp_threads) * smt);
+                                   (core_id / smp_threads) * smt, NULL);
         }
 
         if (i < boot_cores_nr) {

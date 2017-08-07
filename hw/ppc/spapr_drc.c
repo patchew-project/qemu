@@ -532,7 +532,7 @@ static void unrealize(DeviceState *d, Error **errp)
 }
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
-                                         uint32_t id)
+                                         uint32_t id, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(object_new(type));
     char *prop_name;
@@ -542,7 +542,7 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
                                 spapr_drc_index(drc));
     object_property_add_child(owner, prop_name, OBJECT(drc), &error_abort);
-    object_property_set_bool(OBJECT(drc), true, "realized", NULL);
+    object_property_set_bool(OBJECT(drc), true, "realized", errp);
     g_free(prop_name);
 
     return drc;
