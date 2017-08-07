@@ -820,7 +820,7 @@ int is_windows_drive(const char *filename);
  */
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int64_t speed, BlockdevOnError on_error, Error **errp);
+                  uint64_t speed, BlockdevOnError on_error, Error **errp);
 
 /**
  * commit_start:
