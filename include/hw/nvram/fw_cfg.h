@@ -183,6 +183,7 @@ void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
  * @s: fw_cfg device being modified
  * @filename: name of new fw_cfg file item
  * @select_cb: callback function when selecting
+ * @write_cb: callback function when write reached EOF
  * @callback_opaque: argument to be passed into callback function
  * @data: pointer to start of item data
  * @len: size of item data
@@ -202,6 +203,7 @@ void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
  */
 void fw_cfg_add_file_callback(FWCfgState *s, const char *filename,
                               FWCfgCallback select_cb,
+                              FWCfgCallback write_cb,
                               void *callback_opaque,
                               void *data, size_t len, bool read_only);
 

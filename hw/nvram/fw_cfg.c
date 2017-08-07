@@ -56,6 +56,7 @@ struct FWCfgEntry {
     uint8_t *data;
     void *callback_opaque;
     FWCfgCallback select_cb;
+    FWCfgCallback write_cb;
 };
 
 #define JPG_FILE 0
@@ -384,6 +385,12 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
     stl_be_dma(s->dma_as, dma_addr + offsetof(FWCfgDmaAccess, control),
                 dma.control);
 
+    if (write &&
+        !(dma.control & FW_CFG_DMA_CTL_ERROR) &&
+        s->cur_offset == e->len) {
+        e->write_cb(e->callback_opaque);
+    }
+
     trace_fw_cfg_read(s, 0);
 }
 
@@ -570,6 +577,7 @@ static const VMStateDescription vmstate_fw_cfg = {
 
 static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
                                       FWCfgCallback select_cb,
+                                      FWCfgCallback write_cb,
                                       void *callback_opaque,
                                       void *data, size_t len,
                                       bool read_only)
@@ -584,6 +592,7 @@ static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = (uint32_t)len;
     s->entries[arch][key].select_cb = select_cb;
+    s->entries[arch][key].write_cb = write_cb;
     s->entries[arch][key].callback_opaque = callback_opaque;
     s->entries[arch][key].allow_write = !read_only;
 }
@@ -610,7 +619,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
-    fw_cfg_add_bytes_callback(s, key, NULL, NULL, data, len, true);
+    fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
 }
 
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
@@ -737,6 +746,7 @@ static int get_fw_cfg_order(FWCfgState *s, const char *name)
 
 void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
                               FWCfgCallback select_cb,
+                              FWCfgCallback write_cb,
                               void *callback_opaque,
                               void *data, size_t len, bool read_only)
 {
@@ -800,7 +810,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
     }
 
     fw_cfg_add_bytes_callback(s, FW_CFG_FILE_FIRST + index,
-                              select_cb,
+                              select_cb, write_cb,
                               callback_opaque, data, len,
                               read_only);
 
@@ -815,7 +825,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
 void fw_cfg_add_file(FWCfgState *s,  const char *filename,
                      void *data, size_t len)
 {
-    fw_cfg_add_file_callback(s, filename, NULL, NULL, data, len, true);
+    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
 }
 
 void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
@@ -838,7 +848,7 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
         }
     }
     /* add new one */
-    fw_cfg_add_file_callback(s, filename, NULL, NULL, data, len, true);
+    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
     return NULL;
 }
 
