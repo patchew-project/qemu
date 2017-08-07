@@ -928,7 +928,7 @@ immediate_exit:
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 
-static void mirror_set_speed(BlockJob *job, uint64_t speed, Error **errp)
+static void mirror_set_speed(BlockJob *job, uint64_t speed)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 

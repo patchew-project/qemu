@@ -188,7 +188,7 @@ static int coroutine_fn backup_before_write_notify(
     return backup_do_cow(job, req->offset, req->bytes, NULL, true);
 }
 
-static void backup_set_speed(BlockJob *job, uint64_t speed, Error **errp)
+static void backup_set_speed(BlockJob *job, uint64_t speed)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
 

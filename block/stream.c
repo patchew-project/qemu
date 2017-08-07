@@ -207,7 +207,7 @@ out:
     block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }
 
-static void stream_set_speed(BlockJob *job, uint64_t speed, Error **errp)
+static void stream_set_speed(BlockJob *job, uint64_t speed)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common);
 

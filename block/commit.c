@@ -220,7 +220,7 @@ out:
     block_job_defer_to_main_loop(&s->common, commit_complete, data);
 }
 
-static void commit_set_speed(BlockJob *job, uint64_t speed, Error **errp)
+static void commit_set_speed(BlockJob *job, uint64_t speed)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common);
 

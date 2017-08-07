@@ -454,8 +454,6 @@ static void block_job_completed_txn_success(BlockJob *job)
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (!job->driver->set_speed) {
         error_setg(errp, QERR_UNSUPPORTED);
         return;
@@ -467,12 +465,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
         return;
     }
 
-    job->driver->set_speed(job, speed, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
+    job->driver->set_speed(job, speed);
     job->speed = speed;
 }
 
