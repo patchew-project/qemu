@@ -3549,8 +3549,8 @@
   'data': { 'device'     : 'str',
             '*node-name' : 'str',
             'msg'        : 'str',
-            '*offset'    : 'int',
-            '*size'      : 'int',
+            '*offset'    : 'size',
+            '*size'      : 'size',
             'fatal'      : 'bool' } }
 
 ##
