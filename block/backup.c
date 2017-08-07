@@ -577,6 +577,11 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
+        return NULL;
+    }
+
     if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "

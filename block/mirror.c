@@ -1139,6 +1139,12 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     Error *local_err = NULL;
     int ret;
 
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "speed",
+                   "a non-negative rate limit");
+        return;
+    }
+
     if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
     }
