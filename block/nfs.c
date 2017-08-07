@@ -394,12 +394,12 @@ static QemuOptsList runtime_opts = {
         },
         {
             .name = "readahead-size",
-            .type = QEMU_OPT_NUMBER,
+            .type = QEMU_OPT_SIZE,
             .help = "Set the readahead size in bytes",
         },
         {
             .name = "page-cache-size",
-            .type = QEMU_OPT_NUMBER,
+            .type = QEMU_OPT_SIZE,
             .help = "Set the pagecache size in bytes",
         },
         {
@@ -562,7 +562,7 @@ static int64_t nfs_client_open(NFSClient *client, QDict *options,
                              "if cache.direct = on");
             goto fail;
         }
-        client->readahead = qemu_opt_get_number(opts, "readahead-size", 0);
+        client->readahead = qemu_opt_get_size(opts, "readahead-size", 0);
         if (client->readahead > QEMU_NFS_MAX_READAHEAD_SIZE) {
             warn_report("Truncating NFS readahead size to %d",
                         QEMU_NFS_MAX_READAHEAD_SIZE);
@@ -583,7 +583,7 @@ static int64_t nfs_client_open(NFSClient *client, QDict *options,
                              "if cache.direct = on");
             goto fail;
         }
-        client->pagecache = qemu_opt_get_number(opts, "page-cache-size", 0);
+        client->pagecache = qemu_opt_get_size(opts, "page-cache-size", 0);
         if (client->pagecache > QEMU_NFS_MAX_PAGECACHE_SIZE) {
             warn_report("Truncating NFS pagecache size to %d pages",
                         QEMU_NFS_MAX_PAGECACHE_SIZE);
