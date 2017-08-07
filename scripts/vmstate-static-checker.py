@@ -49,7 +49,6 @@ def check_fields_match(name, s_field, d_field):
     # is used to whitelist such changes in each section / description.
     changed_names = {
         'apic': ['timer', 'timer_expiry'],
-        'e1000': ['dev', 'parent_obj'],
         'ehci': ['dev', 'pcidev'],
         'I440FX': ['dev', 'parent_obj'],
         'ich9_ahci': ['card', 'parent_obj'],
@@ -73,7 +72,6 @@ def check_fields_match(name, s_field, d_field):
                      'tmr.timer', 'ar.tmr.timer',
                      'tmr.overflow_time', 'ar.tmr.overflow_time',
                      'gpe', 'ar.gpe'],
-        'rtl8139': ['dev', 'parent_obj'],
         'qxl': ['num_surfaces', 'ssd.num_surfaces'],
         'usb-ccid': ['abProtocolDataStructure', 'abProtocolDataStructure.data'],
         'usb-host': ['dev', 'parent_obj'],
@@ -96,6 +94,26 @@ def check_fields_match(name, s_field, d_field):
                       'mem_win_size', 'mig_mem_win_size',
                       'io_win_addr', 'mig_io_win_addr',
                       'io_win_size', 'mig_io_win_size'],
+        'rtl8139': ['dev', 'parent_obj'],
+        'e1000e': ['PCIDevice', 'PCIEDevice', 'intr_state', 'redhat_7_3_intr_state'],
+        'nec-usb-xhci': ['PCIDevice', 'PCIEDevice'],
+        'xhci-intr': ['er_full_unused', 'er_full'],
+        'e1000': ['dev', 'parent_obj',
+                  'tx.ipcss', 'tx.props.ipcss',
+                  'tx.ipcso', 'tx.props.ipcso',
+                  'tx.ipcse', 'tx.props.ipcse',
+                  'tx.tucss', 'tx.props.tucss',
+                  'tx.tucso', 'tx.props.tucso',
+                  'tx.tucse', 'tx.props.tucse',
+                  'tx.paylen', 'tx.props.paylen',
+                  'tx.hdr_len', 'tx.props.hdr_len',
+                  'tx.mss', 'tx.props.mss',
+                  'tx.sum_needed', 'tx.props.sum_needed',
+                  'tx.ip', 'tx.props.ip',
+                  'tx.tcp', 'tx.props.tcp',
+                  'tx.ipcss', 'tx.props.ipcss',
+                  'tx.ipcss', 'tx.props.ipcss',
+                  ]
     }
 
     if name not in changed_names:
