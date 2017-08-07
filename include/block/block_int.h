@@ -391,7 +391,7 @@ struct BlockDriver {
     int (*bdrv_reopen_bitmaps_rw)(BlockDriverState *bs, Error **errp);
     bool (*bdrv_can_store_new_dirty_bitmap)(BlockDriverState *bs,
                                             const char *name,
-                                            uint32_t granularity,
+                                            uint64_t granularity,
                                             Error **errp);
     void (*bdrv_remove_persistent_dirty_bitmap)(BlockDriverState *bs,
                                                 const char *name,
@@ -895,7 +895,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
  */
 void mirror_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, const char *replaces,
-                  int64_t speed, uint32_t granularity, int64_t buf_size,
+                  int64_t speed, uint64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,

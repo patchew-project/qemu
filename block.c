@@ -4928,7 +4928,7 @@ void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
 }
 
 bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
-                                     uint32_t granularity, Error **errp)
+                                     uint64_t granularity, Error **errp)
 {
     BlockDriver *drv = bs->drv;
 

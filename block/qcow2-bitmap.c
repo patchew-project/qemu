@@ -147,11 +147,11 @@ static int check_table_entry(uint64_t entry, int cluster_size)
 
 static int check_constraints_on_bitmap(BlockDriverState *bs,
                                        const char *name,
-                                       uint32_t granularity,
+                                       uint64_t granularity,
                                        Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
-    int granularity_bits = ctz32(granularity);
+    int granularity_bits = ctz64(granularity);
     int64_t len = bdrv_getlength(bs);
 
     assert(granularity > 0);
@@ -274,10 +274,10 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 static uint64_t sectors_covered_by_bitmap_cluster(const BDRVQcow2State *s,
                                                   const BdrvDirtyBitmap *bitmap)
 {
-    uint32_t sector_granularity =
+    uint64_t sector_granularity =
             bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
 
-    return (uint64_t)sector_granularity * (s->cluster_size << 3);
+    return sector_granularity * (s->cluster_size << 3);
 }
 
 /* load_bitmap_data
@@ -342,7 +342,7 @@ static BdrvDirtyBitmap *load_bitmap(BlockDriverState *bs,
 {
     int ret;
     uint64_t *bitmap_table = NULL;
-    uint32_t granularity;
+    uint64_t granularity;
     BdrvDirtyBitmap *bitmap = NULL;
 
     if (bm->flags & BME_FLAG_IN_USE) {
@@ -358,7 +358,7 @@ static BdrvDirtyBitmap *load_bitmap(BlockDriverState *bs,
         goto fail;
     }
 
-    granularity = 1U << bm->granularity_bits;
+    granularity = 1ULL << bm->granularity_bits;
     bitmap = bdrv_create_dirty_bitmap(bs, granularity, bm->name, errp);
     if (bitmap == NULL) {
         goto fail;
@@ -1321,7 +1321,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
          bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
     {
         const char *name = bdrv_dirty_bitmap_name(bitmap);
-        uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
+        uint64_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
         Qcow2Bitmap *bm;
 
         if (!bdrv_dirty_bitmap_get_persistance(bitmap) ||
@@ -1364,7 +1364,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
             QSIMPLEQ_INSERT_TAIL(&drop_tables, tb, entry);
         }
         bm->flags = bdrv_dirty_bitmap_get_autoload(bitmap) ? BME_FLAG_AUTO : 0;
-        bm->granularity_bits = ctz32(bdrv_dirty_bitmap_granularity(bitmap));
+        bm->granularity_bits = ctz64(bdrv_dirty_bitmap_granularity(bitmap));
         bm->dirty_bitmap = bitmap;
     }
 
@@ -1436,7 +1436,7 @@ int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
 
 bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
                                       const char *name,
-                                      uint32_t granularity,
+                                      uint64_t granularity,
                                       Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;

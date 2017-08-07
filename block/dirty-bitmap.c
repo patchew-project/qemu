@@ -109,13 +109,13 @@ void bdrv_dirty_bitmap_make_anon(BdrvDirtyBitmap *bitmap)
 
 /* Called with BQL taken.  */
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
-                                          uint32_t granularity,
+                                          uint64_t granularity,
                                           const char *name,
                                           Error **errp)
 {
     int64_t bitmap_size;
     BdrvDirtyBitmap *bitmap;
-    uint32_t sector_granularity;
+    uint64_t sector_granularity;
 
     assert((granularity & (granularity - 1)) == 0);
 
@@ -133,7 +133,7 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
     }
     bitmap = g_new0(BdrvDirtyBitmap, 1);
     bitmap->mutex = &bs->dirty_bitmap_mutex;
-    bitmap->bitmap = hbitmap_alloc(bitmap_size, ctz32(sector_granularity));
+    bitmap->bitmap = hbitmap_alloc(bitmap_size, ctz64(sector_granularity));
     bitmap->size = bitmap_size;
     bitmap->name = g_strdup(name);
     bitmap->disabled = false;
@@ -178,7 +178,7 @@ int bdrv_dirty_bitmap_get_meta_locked(BlockDriverState *bs,
                                       int nb_sectors)
 {
     uint64_t i;
-    int sectors_per_bit = 1 << hbitmap_granularity(bitmap->meta);
+    uint64_t sectors_per_bit = 1ull << hbitmap_granularity(bitmap->meta);
 
     /* To optimize: we can make hbitmap to internally check the range in a
      * coarse level, or at least do it word by word. */
@@ -491,10 +491,10 @@ int bdrv_get_dirty_locked(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
  * but clamped between [4K, 64K]. Defaults to 64K in the case that there
  * is no cluster size information available.
  */
-uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs)
+uint64_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;
-    uint32_t granularity;
+    uint64_t granularity;
 
     if (bdrv_get_info(bs, &bdi) >= 0 && bdi.cluster_size > 0) {
         granularity = MAX(4096, bdi.cluster_size);
@@ -506,14 +506,9 @@ uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs)
     return granularity;
 }
 
-uint32_t bdrv_dirty_bitmap_granularity(const BdrvDirtyBitmap *bitmap)
+uint64_t bdrv_dirty_bitmap_granularity(const BdrvDirtyBitmap *bitmap)
 {
     return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->bitmap);
-}
-
-uint32_t bdrv_dirty_bitmap_meta_granularity(BdrvDirtyBitmap *bitmap)
-{
-    return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->meta);
 }
 
 BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap,

@@ -53,7 +53,7 @@ typedef struct MirrorBlockJob {
     BlockdevOnError on_source_error, on_target_error;
     bool synced;
     bool should_complete;
-    int64_t granularity;
+    uint64_t granularity;
     size_t buf_size;
     int64_t bdev_length;
     unsigned long *cow_bitmap;
@@ -1124,7 +1124,7 @@ static BlockDriver bdrv_mirror_top = {
 static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, int64_t speed,
-                             uint32_t granularity, int64_t buf_size,
+                             uint64_t granularity, int64_t buf_size,
                              BlockMirrorBackingMode backing_mode,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
@@ -1287,7 +1287,7 @@ fail:
 
 void mirror_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, const char *replaces,
-                  int64_t speed, uint32_t granularity, int64_t buf_size,
+                  int64_t speed, uint64_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,

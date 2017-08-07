@@ -363,7 +363,7 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
     bool error_is_read;
     int ret = 0;
     int clusters_per_iter;
-    uint32_t granularity;
+    uint64_t granularity;
     int64_t offset;
     int64_t cluster;
     int64_t end;

@@ -447,7 +447,7 @@
 # Since: 1.3
 ##
 { 'struct': 'BlockDirtyInfo',
-  'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
+  'data': {'*name': 'str', 'count': 'int', 'granularity': 'size',
            'status': 'DirtyBitmapStatus'} }
 
 ##
@@ -1561,7 +1561,7 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*granularity': 'uint32',
+            '*speed': 'int', '*granularity': 'size',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
             '*unmap': 'bool' } }
@@ -1600,7 +1600,7 @@
 # Since: 2.4
 ##
 { 'struct': 'BlockDirtyBitmapAdd',
-  'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32',
+  'data': { 'node': 'str', 'name': 'str', '*granularity': 'size',
             '*persistent': 'bool', '*autoload': 'bool' } }
 
 ##
@@ -1760,7 +1760,7 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*replaces': 'str',
             'sync': 'MirrorSyncMode',
-            '*speed': 'int', '*granularity': 'uint32',
+            '*speed': 'int', '*granularity': 'size',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
             '*filter-node-name': 'str' } }

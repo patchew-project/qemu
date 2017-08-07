@@ -5,7 +5,7 @@
 #include "qemu/hbitmap.h"
 
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
-                                          uint32_t granularity,
+                                          uint64_t granularity,
                                           const char *name,
                                           Error **errp);
 void bdrv_create_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap,
@@ -32,9 +32,8 @@ void bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 void bdrv_enable_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs);
-uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs);
-uint32_t bdrv_dirty_bitmap_granularity(const BdrvDirtyBitmap *bitmap);
-uint32_t bdrv_dirty_bitmap_meta_granularity(BdrvDirtyBitmap *bitmap);
+uint64_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs);
+uint64_t bdrv_dirty_bitmap_granularity(const BdrvDirtyBitmap *bitmap);
 bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap);
 bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap);
 const char *bdrv_dirty_bitmap_name(const BdrvDirtyBitmap *bitmap);
