@@ -1947,14 +1947,14 @@ CpuInfoList *qmp_query_cpus(Error **errp)
     return head;
 }
 
-void qmp_memsave(int64_t addr, int64_t size, const char *filename,
+void qmp_memsave(uint64_t addr, uint64_t size, const char *filename,
                  bool has_cpu, int64_t cpu_index, Error **errp)
 {
     FILE *f;
     uint32_t l;
     CPUState *cpu;
     uint8_t buf[1024];
-    int64_t orig_addr = addr, orig_size = size;
+    uint64_t orig_addr = addr, orig_size = size;
 
     if (!has_cpu) {
         cpu_index = 0;
@@ -1994,7 +1994,7 @@ exit:
     fclose(f);
 }
 
-void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
+void qmp_pmemsave(uint64_t addr, uint64_t size, const char *filename,
                   Error **errp)
 {
     FILE *f;

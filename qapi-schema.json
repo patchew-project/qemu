@@ -2476,7 +2476,8 @@
 #
 ##
 { 'command': 'memsave',
-  'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
+  'data': {'val': 'size', 'size': 'size', 'filename': 'str',
+           '*cpu-index': 'int'} }
 
 ##
 # @pmemsave:
@@ -2505,7 +2506,7 @@
 #
 ##
 { 'command': 'pmemsave',
-  'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
+  'data': {'val': 'size', 'size': 'size', 'filename': 'str'} }
 
 ##
 # @cont:
