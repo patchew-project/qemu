@@ -922,7 +922,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * until the job is cancelled or manually completed.
  */
 BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
-                            BlockDriverState *target, int64_t speed,
+                            BlockDriverState *target, uint64_t speed,
                             MirrorSyncMode sync_mode,
                             BdrvDirtyBitmap *sync_bitmap,
                             bool compress,

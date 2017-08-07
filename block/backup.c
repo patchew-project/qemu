@@ -529,7 +529,7 @@ static const BlockJobDriver backup_job_driver = {
 };
 
 BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *target, int64_t speed,
+                  BlockDriverState *target, uint64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   bool compress,
                   BlockdevOnError on_source_error,
@@ -574,11 +574,6 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     }
 
     if (bdrv_op_is_blocked(target, BLOCK_OP_TYPE_BACKUP_TARGET, errp)) {
-        return NULL;
-    }
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return NULL;
     }
 
