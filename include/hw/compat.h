@@ -18,6 +18,14 @@
         .driver   = "pcie-root-port",\
         .property = "x-migrate-msix",\
         .value    = "false",\
+    },{\
+        .driver   = "fw_cfg_mem",\
+        .property = "vmcoreinfo",\
+        .value    = "off",\
+    },{\
+        .driver   = "fw_cfg_io",\
+        .property = "vmcoreinfo",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_8 \

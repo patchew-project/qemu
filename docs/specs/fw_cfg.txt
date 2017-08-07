@@ -136,6 +136,22 @@ struct FWCfgFile {		/* an individual file entry, 64 bytes total */
     char name[56];		/* fw_cfg item name, NUL-terminated ascii */
 };
 
+=== etc/vmcoreinfo ===
+
+A guest may use this entry to add information details to qemu
+dumps. The entry gives location and size of an ELF note that is
+appended in qemu dumps.
+
+The entry is of 12 bytes with this format:
+
+struct FWCfgVMCoreInfo {
+    uint64_t paddr;             /* physical address of ELF note, LE */
+    uint32_t size;              /* size of ELF note region, LE */
+};
+
+The note format/class must be of the target bitness and the size must
+be less than 1Mb.
+
 === All Other Data Items ===
 
 Please consult the QEMU source for the most up-to-date and authoritative list

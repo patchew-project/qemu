@@ -504,6 +504,7 @@ static void fw_cfg_reset(DeviceState *d)
 
     /* we never register a read callback for FW_CFG_SIGNATURE */
     fw_cfg_select(s, FW_CFG_SIGNATURE);
+    s->has_vmcoreinfo = false;
 }
 
 /* Save restore 32 bit int as uint16_t
@@ -869,7 +870,12 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
+static void fw_cfg_vmci_written(void *dev)
+{
+    FWCfgState *s = FW_CFG(dev);
 
+    s->has_vmcoreinfo = true;
+}
 
 static void fw_cfg_common_realize(DeviceState *dev, Error **errp)
 {
@@ -894,6 +900,16 @@ static void fw_cfg_common_realize(DeviceState *dev, Error **errp)
     }
 
     fw_cfg_add_i32(s, FW_CFG_ID, version);
+
+    if (s->vmcoreinfo_enabled) {
+        if (!s->dma_enabled) {
+            error_setg(errp, "vmcoreinfo requires dma_enabled");
+            return;
+        }
+        fw_cfg_add_file_callback(s, "etc/vmcoreinfo",
+                                 NULL, fw_cfg_vmci_written, s,
+                                 &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
+    }
 
     s->machine_ready.notify = fw_cfg_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
@@ -1031,6 +1047,8 @@ static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
 static Property fw_cfg_io_properties[] = {
     DEFINE_PROP_BOOL("dma_enabled", FWCfgIoState, parent_obj.dma_enabled,
                      true),
+    DEFINE_PROP_BOOL("vmcoreinfo", FWCfgIoState, parent_obj.vmcoreinfo_enabled,
+                     true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgIoState, parent_obj.file_slots,
                        FW_CFG_FILE_SLOTS_DFLT),
     DEFINE_PROP_END_OF_LIST(),
@@ -1081,6 +1099,8 @@ static const TypeInfo fw_cfg_io_info = {
 static Property fw_cfg_mem_properties[] = {
     DEFINE_PROP_UINT32("data_width", FWCfgMemState, data_width, -1),
     DEFINE_PROP_BOOL("dma_enabled", FWCfgMemState, parent_obj.dma_enabled,
+                     true),
+    DEFINE_PROP_BOOL("vmcoreinfo", FWCfgMemState, parent_obj.vmcoreinfo_enabled,
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgMemState, parent_obj.file_slots,
                        FW_CFG_FILE_SLOTS_DFLT),

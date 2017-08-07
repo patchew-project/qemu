@@ -30,6 +30,11 @@ typedef struct FWCfgFile {
 void fw_cfg_set_order_override(FWCfgState *fw_cfg, int order);
 void fw_cfg_reset_order_override(FWCfgState *fw_cfg);
 
+typedef struct FWCfgVMCoreInfo {
+    uint64_t paddr;
+    uint32_t size;
+} QEMU_PACKED FWCfgVMCoreInfo;
+
 typedef struct FWCfgFiles {
     uint32_t  count;
     FWCfgFile f[];
@@ -65,6 +70,10 @@ struct FWCfgState {
     dma_addr_t dma_addr;
     AddressSpace *dma_as;
     MemoryRegion dma_iomem;
+
+    bool vmcoreinfo_enabled;
+    bool has_vmcoreinfo;
+    FWCfgVMCoreInfo vmcoreinfo;
 };
 
 struct FWCfgIoState {
