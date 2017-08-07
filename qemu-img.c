@@ -604,7 +604,7 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
 
     if (check->image_end_offset) {
         qprintf(quiet,
-                "Image end offset: %" PRId64 "\n", check->image_end_offset);
+                "Image end offset: %" PRIu64 "\n", check->image_end_offset);
     }
 }
 
