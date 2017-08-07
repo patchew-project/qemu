@@ -56,6 +56,8 @@ void qdict_destroy_obj(QObject *obj);
 /* Helpers for int, bool, and string */
 #define qdict_put_int(qdict, key, value) \
         qdict_put(qdict, key, qnum_from_int(value))
+#define qdict_put_uint(qdict, key, value) \
+        qdict_put(qdict, key, qnum_from_uint(value))
 #define qdict_put_bool(qdict, key, value) \
         qdict_put(qdict, key, qbool_from_bool(value))
 #define qdict_put_str(qdict, key, value) \
@@ -64,12 +66,15 @@ void qdict_destroy_obj(QObject *obj);
 /* High level helpers */
 double qdict_get_double(const QDict *qdict, const char *key);
 int64_t qdict_get_int(const QDict *qdict, const char *key);
+uint64_t qdict_get_uint(const QDict *qdict, const char *key);
 bool qdict_get_bool(const QDict *qdict, const char *key);
 QList *qdict_get_qlist(const QDict *qdict, const char *key);
 QDict *qdict_get_qdict(const QDict *qdict, const char *key);
 const char *qdict_get_str(const QDict *qdict, const char *key);
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value);
+uint64_t qdict_get_try_uint(const QDict *qdict, const char *key,
+                            uint64_t def_value);
 bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
 

@@ -189,16 +189,27 @@ double qdict_get_double(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_get_int(): Get an integer mapped by @key
+ * qdict_get_int(): Get a signed integer mapped by @key
  *
- * This function assumes that @key exists and it stores a
- * QNum representable as int.
+ * @qdict must map @key to an integer QNum that fits into int64_t.
  *
  * Return integer mapped by @key.
  */
 int64_t qdict_get_int(const QDict *qdict, const char *key)
 {
     return qnum_get_int(qobject_to_qnum(qdict_get(qdict, key)));
+}
+
+/**
+ * qdict_get_uint(): Get an unsigned integer mapped by 'key'
+ *
+ * @qdict must map @key to an integer QNum that fits into uint64_t.
+ *
+ * Return integer mapped by 'key'.
+ */
+uint64_t qdict_get_uint(const QDict *qdict, const char *key)
+{
+    return qnum_get_uint(qobject_to_qnum(qdict_get(qdict, key)));
 }
 
 /**
@@ -245,11 +256,10 @@ const char *qdict_get_str(const QDict *qdict, const char *key)
 }
 
 /**
- * qdict_get_try_int(): Try to get integer mapped by @key
+ * qdict_get_try_int(): Try to get signed integer mapped by @key
  *
- * Return integer mapped by @key, if it is not present in the
- * dictionary or if the stored object is not a QNum representing an
- * integer, @def_value will be returned.
+ * If @qdict maps @key to an integer QNum that fits into int64_t,
+ * return it.  Else return @def_value.
  */
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value)
@@ -258,6 +268,25 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
     int64_t val;
 
     if (!qnum || !qnum_get_try_int(qnum, &val)) {
+        return def_value;
+    }
+
+    return val;
+}
+
+/**
+ * qdict_get_try_uint(): Try to get unsigned integer mapped by 'key'
+ *
+ * If @qdict maps @key to an integer QNum that fits into uint64_t,
+ * return it.  Else return @def_value.
+ */
+uint64_t qdict_get_try_uint(const QDict *qdict, const char *key,
+                            uint64_t def_value)
+{
+    QNum *qnum = qobject_to_qnum(qdict_get(qdict, key));
+    uint64_t val;
+
+    if (!qnum || !qnum_get_try_uint(qnum, &val)) {
         return def_value;
     }
 
