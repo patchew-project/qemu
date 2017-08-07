@@ -101,8 +101,6 @@
  * TYPEs that put an int64_t value with key NAME:
  * 'l'    Argument is an expression (QEMU pocket calculator).
  * 'i'    Like 'l' except value must fit into 32 bit unsigned.
- * 'M'    Like 'l' except value must not be negative and is multiplied
- *        by 2^20 (think "mebibyte").
  *
  * TYPEs that put an uint64_t value with key NAME:
  * 'o'    Argument is a size (think "octets").  Without suffix the
@@ -134,7 +132,7 @@
  * '?'    Argument is optional, nothing is put when it is absent
  *        (all types except 'O', '/', 'b').
  * '.'    Argument is optional, must be preceded by '.' if present
- *        (only types 'i', 'l', 'M')
+ *        (only types 'i', 'l')
  */
 
 typedef struct mon_cmd_t {
@@ -2913,7 +2911,6 @@ static QDict *monitor_parse_arguments(Monitor *mon,
             break;
         case 'i':
         case 'l':
-        case 'M':
             {
                 int64_t val;
 
@@ -2944,12 +2941,6 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                     monitor_printf(mon, "\'%s\' has failed: ", cmd->name);
                     monitor_printf(mon, "integer is for 32-bit values\n");
                     goto fail;
-                } else if (c == 'M') {
-                    if (val < 0) {
-                        monitor_printf(mon, "enter a positive value\n");
-                        goto fail;
-                    }
-                    val <<= 20;
                 }
                 qdict_put_int(qdict, key, val);
             }
