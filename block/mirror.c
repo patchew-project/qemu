@@ -333,7 +333,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     int nb_chunks = 1;
     int sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     bool write_zeroes_ok = bdrv_can_write_zeroes_with_unmap(blk_bs(s->target));
-    int max_io_bytes = MAX(s->buf_size / MAX_IN_FLIGHT, MAX_IO_BYTES);
+    unsigned max_io_bytes = MAX(s->buf_size / MAX_IN_FLIGHT, MAX_IO_BYTES);
 
     bdrv_dirty_bitmap_lock(s->dirty_bitmap);
     offset = bdrv_dirty_iter_next(s->dbi) * BDRV_SECTOR_SIZE;
@@ -1120,7 +1120,7 @@ static BlockDriver bdrv_mirror_top = {
 static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, uint64_t speed,
-                             uint64_t granularity, int64_t buf_size,
+                             uint64_t granularity, size_t buf_size,
                              BlockMirrorBackingMode backing_mode,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
@@ -1146,11 +1146,6 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     assert ((granularity & (granularity - 1)) == 0);
     /* Granularity must be large enough for sector-based dirty bitmap */
     assert(granularity >= BDRV_SECTOR_SIZE);
-
-    if (buf_size < 0) {
-        error_setg(errp, "Invalid parameter 'buf-size'");
-        return;
-    }
 
     if (buf_size == 0) {
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
@@ -1283,7 +1278,7 @@ fail:
 
 void mirror_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, const char *replaces,
-                  uint64_t speed, uint64_t granularity, int64_t buf_size,
+                  uint64_t speed, uint64_t granularity, size_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,

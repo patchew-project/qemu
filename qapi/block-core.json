@@ -1563,7 +1563,7 @@
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
             '*speed': 'size', '*granularity': 'size',
-            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
+            '*buf-size': 'size', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
             '*unmap': 'bool' } }
 
@@ -1762,7 +1762,7 @@
             '*replaces': 'str',
             'sync': 'MirrorSyncMode',
             '*speed': 'size', '*granularity': 'size',
-            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
+            '*buf-size': 'size', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
             '*filter-node-name': 'str' } }
 

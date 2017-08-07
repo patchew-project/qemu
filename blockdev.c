@@ -3403,7 +3403,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    BlockMirrorBackingMode backing_mode,
                                    bool has_speed, uint64_t speed,
                                    bool has_granularity, uint64_t granularity,
-                                   bool has_buf_size, int64_t buf_size,
+                                   bool has_buf_size, uint64_t buf_size,
                                    bool has_on_source_error,
                                    BlockdevOnError on_source_error,
                                    bool has_on_target_error,
@@ -3444,6 +3444,11 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     if (granularity & (granularity - 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
                    "power of 2");
+        return;
+    }
+
+    if (buf_size > SIZE_MAX) {
+        error_setg(errp, "Parameter 'buf-size' is too large");
         return;
     }
 
@@ -3619,7 +3624,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          MirrorSyncMode sync,
                          bool has_speed, uint64_t speed,
                          bool has_granularity, uint64_t granularity,
-                         bool has_buf_size, int64_t buf_size,
+                         bool has_buf_size, uint64_t buf_size,
                          bool has_on_source_error,
                          BlockdevOnError on_source_error,
                          bool has_on_target_error,
