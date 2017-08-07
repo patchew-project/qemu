@@ -967,7 +967,7 @@ void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
     while (list) {
         if (strcmp(list->value->type, "stream") == 0) {
             monitor_printf(mon, "Streaming device %s: Completed %" PRId64
-                           " of %" PRId64 " bytes, speed limit %" PRId64
+                           " of %" PRId64 " bytes, speed limit %" PRIu64
                            " bytes/s\n",
                            list->value->device,
                            list->value->offset,
@@ -975,7 +975,7 @@ void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
                            list->value->speed);
         } else {
             monitor_printf(mon, "Type %s, device %s: Completed %" PRId64
-                           " of %" PRId64 " bytes, speed limit %" PRId64
+                           " of %" PRId64 " bytes, speed limit %" PRIu64
                            " bytes/s\n",
                            list->value->type,
                            list->value->device,

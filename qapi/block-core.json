@@ -985,7 +985,8 @@
 ##
 { 'struct': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
+           'offset': 'int', 'busy': 'bool', 'paused': 'bool',
+           'speed': 'size',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
 
 ##
@@ -3636,7 +3637,7 @@
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
-            'speed' : 'int',
+            'speed' : 'size',
             '*error': 'str' } }
 
 ##
@@ -3672,7 +3673,7 @@
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
-            'speed' : 'int' } }
+            'speed' : 'size' } }
 
 ##
 # @BLOCK_JOB_ERROR:
@@ -3737,7 +3738,7 @@
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
-            'speed' : 'int' } }
+            'speed' : 'size' } }
 
 ##
 # @PreallocMode:
