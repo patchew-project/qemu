@@ -479,8 +479,26 @@ static void *multifd_send_thread(void *opaque)
             break;
         }
         if (p->pages.num) {
+            int i;
+            int num;
+
+            num = p->pages.num;
             p->pages.num = 0;
             qemu_mutex_unlock(&p->mutex);
+
+            for (i = 0; i < num; i++) {
+                if (qio_channel_write(p->c,
+                                      (const char *)&p->pages.iov[i].iov_base,
+                                      sizeof(uint8_t *), &error_abort)
+                    != sizeof(uint8_t *)) {
+                    MigrationState *s = migrate_get_current();
+
+                    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                                      MIGRATION_STATUS_FAILED);
+                    terminate_multifd_send_threads();
+                    return NULL;
+                }
+            }
             qemu_mutex_lock(&multifd_send_state->mutex);
             p->done = true;
             qemu_mutex_unlock(&multifd_send_state->mutex);
@@ -640,6 +658,7 @@ void multifd_load_cleanup(void)
 static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *p = opaque;
+    uint8_t *recv_address;
 
     qemu_sem_post(&p->ready);
     while (true) {
@@ -649,7 +668,38 @@ static void *multifd_recv_thread(void *opaque)
             break;
         }
         if (p->pages.num) {
+            int i;
+            int num;
+
+            num = p->pages.num;
             p->pages.num = 0;
+
+            for (i = 0; i < num; i++) {
+                if (qio_channel_read(p->c,
+                                     (char *)&recv_address,
+                                     sizeof(uint8_t *), &error_abort)
+                    != sizeof(uint8_t *)) {
+                    MigrationState *s = migrate_get_current();
+
+                    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                                      MIGRATION_STATUS_FAILED);
+                    terminate_multifd_recv_threads();
+                    return NULL;
+                }
+                if (recv_address != p->pages.iov[i].iov_base) {
+                    MigrationState *s = migrate_get_current();
+
+                    printf("We received %p what we were expecting %p (%d)\n",
+                           recv_address,
+                           p->pages.iov[i].iov_base, i);
+
+                    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                                      MIGRATION_STATUS_FAILED);
+                    terminate_multifd_recv_threads();
+                    return NULL;
+                }
+            }
+
             p->done = true;
             qemu_mutex_unlock(&p->mutex);
             qemu_sem_post(&p->ready);
