@@ -49,6 +49,8 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
 
+    client->eio_to_all = true;
+
     if (!client->ioc) { /* Already closed */
         return;
     }
@@ -74,12 +76,16 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     Error *local_err = NULL;
 
     for (;;) {
+        if (s->eio_to_all) {
+            break;
+        }
+
         assert(s->reply.handle == 0);
         ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
         if (ret < 0) {
             error_report_err(local_err);
         }
-        if (ret <= 0) {
+        if (ret <= 0 || s->eio_to_all) {
             break;
         }
 
@@ -107,6 +113,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         qemu_coroutine_yield();
     }
 
+    s->eio_to_all = true;
     nbd_recv_coroutines_enter_all(s);
     s->read_reply_co = NULL;
 }
@@ -117,6 +124,10 @@ static int nbd_co_send_request(BlockDriverState *bs,
 {
     NBDClientSession *s = nbd_get_client_session(bs);
     int rc, ret, i;
+
+    if (s->eio_to_all) {
+        return -EIO;
+    }
 
     qemu_co_mutex_lock(&s->send_mutex);
     while (s->in_flight == MAX_NBD_REQUESTS) {
@@ -135,15 +146,15 @@ static int nbd_co_send_request(BlockDriverState *bs,
     assert(i < MAX_NBD_REQUESTS);
     request->handle = INDEX_TO_HANDLE(s, i);
 
-    if (!s->ioc) {
+    if (s->eio_to_all) {
         qemu_co_mutex_unlock(&s->send_mutex);
-        return -EPIPE;
+        return -EIO;
     }
 
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
         rc = nbd_send_request(s->ioc, request);
-        if (rc >= 0) {
+        if (rc >= 0 && !s->eio_to_all) {
             ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, false,
                           NULL);
             if (ret != request->len) {
@@ -155,7 +166,13 @@ static int nbd_co_send_request(BlockDriverState *bs,
         rc = nbd_send_request(s->ioc, request);
     }
     qemu_co_mutex_unlock(&s->send_mutex);
-    return rc;
+
+    if (rc < 0 || s->eio_to_all) {
+        s->eio_to_all = true;
+        return -EIO;
+    }
+
+    return 0;
 }
 
 static void nbd_co_receive_reply(NBDClientSession *s,
@@ -169,14 +186,16 @@ static void nbd_co_receive_reply(NBDClientSession *s,
     qemu_coroutine_yield();
     *reply = s->reply;
     if (reply->handle != request->handle ||
-        !s->ioc) {
+        !s->ioc || s->eio_to_all) {
         reply->error = EIO;
+        s->eio_to_all = true;
     } else {
         if (qiov && reply->error == 0) {
             ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true,
                           NULL);
-            if (ret != request->len) {
+            if (ret != request->len || s->eio_to_all) {
                 reply->error = EIO;
+                s->eio_to_all = true;
             }
         }
 
@@ -225,8 +244,10 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     } else {
         nbd_co_receive_reply(client, &request, &reply, qiov);
     }
-    nbd_coroutine_end(bs, &request);
-    return -reply.error;
+    if (request.handle != 0) {
+        nbd_coroutine_end(bs, &request);
+    }
+    return client->eio_to_all ? -EIO : -reply.error;
 }
 
 int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
@@ -254,8 +275,10 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
     } else {
         nbd_co_receive_reply(client, &request, &reply, NULL);
     }
-    nbd_coroutine_end(bs, &request);
-    return -reply.error;
+    if (request.handle != 0) {
+        nbd_coroutine_end(bs, &request);
+    }
+    return client->eio_to_all ? -EIO : -reply.error;
 }
 
 int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
@@ -288,8 +311,10 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     } else {
         nbd_co_receive_reply(client, &request, &reply, NULL);
     }
-    nbd_coroutine_end(bs, &request);
-    return -reply.error;
+    if (request.handle != 0) {
+        nbd_coroutine_end(bs, &request);
+    }
+    return client->eio_to_all ? -EIO : -reply.error;
 }
 
 int nbd_client_co_flush(BlockDriverState *bs)
@@ -312,8 +337,10 @@ int nbd_client_co_flush(BlockDriverState *bs)
     } else {
         nbd_co_receive_reply(client, &request, &reply, NULL);
     }
-    nbd_coroutine_end(bs, &request);
-    return -reply.error;
+    if (request.handle != 0) {
+        nbd_coroutine_end(bs, &request);
+    }
+    return client->eio_to_all ? -EIO : -reply.error;
 }
 
 int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
@@ -337,9 +364,10 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     } else {
         nbd_co_receive_reply(client, &request, &reply, NULL);
     }
-    nbd_coroutine_end(bs, &request);
-    return -reply.error;
-
+    if (request.handle != 0) {
+        nbd_coroutine_end(bs, &request);
+    }
+    return client->eio_to_all ? -EIO : -reply.error;
 }
 
 void nbd_client_detach_aio_context(BlockDriverState *bs)
@@ -384,6 +412,7 @@ int nbd_client_init(BlockDriverState *bs,
     logout("session init %s\n", export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
+    client->eio_to_all = false;
     client->info.request_sizes = true;
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 tlscreds, hostname,
