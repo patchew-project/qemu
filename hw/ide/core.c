@@ -1053,17 +1053,21 @@ static void ide_flush_cb(void *opaque, int ret)
     ide_set_irq(s->bus);
 }
 
-static void ide_flush_cache(IDEState *s)
+static bool ide_flush_cache(IDEState *s)
 {
     if (s->blk == NULL) {
         ide_flush_cb(s, 0);
-        return;
+        return false;
+    } else if (!blk_bs(s->blk)) {
+        /* Nothing to flush */
+        return true;
     }
 
     s->status |= BUSY_STAT;
     ide_set_retry(s);
     block_acct_start(blk_get_stats(s->blk), &s->acct, 0, BLOCK_ACCT_FLUSH);
     s->pio_aiocb = blk_aio_flush(s->blk, ide_flush_cb, s);
+    return false;
 }
 
 static void ide_cfata_metadata_inquiry(IDEState *s)
@@ -1508,8 +1512,7 @@ static bool cmd_write_dma(IDEState *s, uint8_t cmd)
 
 static bool cmd_flush_cache(IDEState *s, uint8_t cmd)
 {
-    ide_flush_cache(s);
-    return false;
+    return ide_flush_cache(s);
 }
 
 static bool cmd_seek(IDEState *s, uint8_t cmd)
