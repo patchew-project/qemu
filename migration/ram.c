@@ -479,25 +479,21 @@ static void *multifd_send_thread(void *opaque)
             break;
         }
         if (p->pages.num) {
-            int i;
             int num;
 
             num = p->pages.num;
             p->pages.num = 0;
             qemu_mutex_unlock(&p->mutex);
 
-            for (i = 0; i < num; i++) {
-                if (qio_channel_write(p->c,
-                                      (const char *)&p->pages.iov[i].iov_base,
-                                      sizeof(uint8_t *), &error_abort)
-                    != sizeof(uint8_t *)) {
-                    MigrationState *s = migrate_get_current();
+            if (qio_channel_writev_all(p->c, p->pages.iov,
+                                       num, &error_abort)
+                != num * TARGET_PAGE_SIZE) {
+                MigrationState *s = migrate_get_current();
 
-                    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                                      MIGRATION_STATUS_FAILED);
-                    terminate_multifd_send_threads();
-                    return NULL;
-                }
+                migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                                  MIGRATION_STATUS_FAILED);
+                terminate_multifd_send_threads();
+                return NULL;
             }
             qemu_mutex_lock(&multifd_send_state->mutex);
             p->done = true;
@@ -658,7 +654,6 @@ void multifd_load_cleanup(void)
 static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *p = opaque;
-    uint8_t *recv_address;
 
     qemu_sem_post(&p->ready);
     while (true) {
@@ -668,38 +663,21 @@ static void *multifd_recv_thread(void *opaque)
             break;
         }
         if (p->pages.num) {
-            int i;
             int num;
 
             num = p->pages.num;
             p->pages.num = 0;
 
-            for (i = 0; i < num; i++) {
-                if (qio_channel_read(p->c,
-                                     (char *)&recv_address,
-                                     sizeof(uint8_t *), &error_abort)
-                    != sizeof(uint8_t *)) {
-                    MigrationState *s = migrate_get_current();
+            if (qio_channel_readv_all(p->c, p->pages.iov,
+                                      num, &error_abort)
+                != num * TARGET_PAGE_SIZE) {
+                MigrationState *s = migrate_get_current();
 
-                    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                                      MIGRATION_STATUS_FAILED);
-                    terminate_multifd_recv_threads();
-                    return NULL;
-                }
-                if (recv_address != p->pages.iov[i].iov_base) {
-                    MigrationState *s = migrate_get_current();
-
-                    printf("We received %p what we were expecting %p (%d)\n",
-                           recv_address,
-                           p->pages.iov[i].iov_base, i);
-
-                    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                                      MIGRATION_STATUS_FAILED);
-                    terminate_multifd_recv_threads();
-                    return NULL;
-                }
+                migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                                  MIGRATION_STATUS_FAILED);
+                terminate_multifd_recv_threads();
+                return NULL;
             }
-
             p->done = true;
             qemu_mutex_unlock(&p->mutex);
             qemu_sem_post(&p->ready);
@@ -1259,8 +1237,10 @@ static int ram_multifd_page(RAMState *rs, PageSearchStatus *pss,
                              offset | RAM_SAVE_FLAG_MULTIFD_PAGE);
         fd_num = multifd_send_page(p, rs->migration_dirty_pages == 1);
         qemu_put_be16(rs->f, fd_num);
+        if (fd_num != MULTIFD_CONTINUE) {
+            qemu_fflush(rs->f);
+        }
         ram_counters.transferred += 2; /* size of fd_num */
-        qemu_put_buffer(rs->f, p, TARGET_PAGE_SIZE);
         ram_counters.transferred += TARGET_PAGE_SIZE;
         pages = 1;
         ram_counters.normal++;
@@ -3123,7 +3103,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         case RAM_SAVE_FLAG_MULTIFD_PAGE:
             fd_num = qemu_get_be16(f);
             multifd_recv_page(host, fd_num);
-            qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
 
         case RAM_SAVE_FLAG_EOS:
