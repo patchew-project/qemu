@@ -400,7 +400,7 @@ def die(msg):
 
 def main():
     parser = optparse.OptionParser(description='QMP shell utility')
-    parser.set_usage("%prog [options] <UNIX socket path> | <TCP address:port>")
+    parser.set_usage("%prog [options] <UNIX socket path> | <TCP address:port> [COMMAND [ARG=VALUE]...]")
     parser.add_option('-v', action='store_true', dest='verbose',
         help='Verbose (echo command sent and received)')
     parser.add_option('-p', action='store_true', dest='pretty',
@@ -411,10 +411,11 @@ def main():
         default=True, help='Skip negotiate (for qemu-ga)')
     opts,args = parser.parse_args()
 
-    if len(args) != 1:
+    if len(args) < 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
     addr = args[0]
+    cmdargs = args[1:]
 
     try:
         if opts.hmp:
@@ -433,10 +434,13 @@ def main():
     except qemu.error:
         die('Could not connect to %s' % addr)
 
-    qemu.show_banner()
     qemu.set_verbosity(opts.verbose)
-    while qemu.read_exec_command(qemu.get_prompt()):
-        pass
+    if len(cmdargs):
+        qemu.execute_cmdargs(cmdargs)
+    else:
+        qemu.show_banner()
+        while qemu.read_exec_command(qemu.get_prompt()):
+            pass
     qemu.close()
 
 if __name__ == '__main__':
