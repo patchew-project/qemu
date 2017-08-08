@@ -68,6 +68,9 @@ struct BlockBackend {
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
 
     int quiesce_counter;
+
+    /* Number of in-flight requests. Accessed with atomic ops. */
+    unsigned int in_flight;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -1109,6 +1112,16 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
     return bdrv_make_zero(blk->root, flags);
 }
 
+static void blk_inc_in_flight(BlockBackend *blk)
+{
+    atomic_inc(&blk->in_flight);
+}
+
+static void blk_dec_in_flight(BlockBackend *blk)
+{
+    atomic_dec(&blk->in_flight);
+}
+
 static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
@@ -1147,7 +1160,7 @@ static const AIOCBInfo blk_aio_em_aiocb_info = {
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
 {
     if (acb->has_returned) {
-        bdrv_dec_in_flight(acb->common.bs);
+        blk_dec_in_flight(acb->rwco.blk);
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
         qemu_aio_unref(acb);
     }
@@ -1168,7 +1181,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     BlkAioEmAIOCB *acb;
     Coroutine *co;
 
-    bdrv_inc_in_flight(blk_bs(blk));
+    blk_inc_in_flight(blk);
     acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
@@ -1405,14 +1418,28 @@ int blk_flush(BlockBackend *blk)
 
 void blk_drain(BlockBackend *blk)
 {
-    if (blk_bs(blk)) {
-        bdrv_drain(blk_bs(blk));
+    AioContext *ctx = blk_get_aio_context(blk);
+
+    while (atomic_read(&blk->in_flight)) {
+        aio_context_acquire(ctx);
+        aio_poll(ctx, false);
+        aio_context_release(ctx);
+
+        if (blk_bs(blk)) {
+            bdrv_drain(blk_bs(blk));
+        }
     }
 }
 
 void blk_drain_all(void)
 {
-    bdrv_drain_all();
+    BlockBackend *blk = NULL;
+
+    bdrv_drain_all_begin();
+    while ((blk = blk_all_next(blk)) != NULL) {
+        blk_drain(blk);
+    }
+    bdrv_drain_all_end();
 }
 
 void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
@@ -1453,10 +1480,11 @@ static void send_qmp_error_event(BlockBackend *blk,
                                  bool is_read, int error)
 {
     IoOperationType optype;
+    BlockDriverState *bs = blk_bs(blk);
 
     optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
     qapi_event_send_block_io_error(blk_name(blk),
-                                   bdrv_get_node_name(blk_bs(blk)), optype,
+                                   bs ? bdrv_get_node_name(bs) : "", optype,
                                    action, blk_iostatus_is_enabled(blk),
                                    error == ENOSPC, strerror(error),
                                    &error_abort);
