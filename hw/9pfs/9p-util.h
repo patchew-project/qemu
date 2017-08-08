@@ -43,9 +43,13 @@ static inline int openat_file(int dirfd, const char *name, int flags,
     }
 
     serrno = errno;
-    /* O_NONBLOCK was only needed to open the file. Let's drop it. */
-    ret = fcntl(fd, F_SETFL, flags);
-    assert(!ret);
+    /* O_NONBLOCK was only needed to open the file. Let's drop it. We don't
+     * do that with O_PATH since it ignores O_NONBLOCK.
+     */
+    if (!(flags & O_PATH)) {
+        ret = fcntl(fd, F_SETFL, flags);
+        assert(!ret);
+    }
     errno = serrno;
     return fd;
 }

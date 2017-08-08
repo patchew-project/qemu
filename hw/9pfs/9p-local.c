@@ -333,30 +333,42 @@ update_map_file:
 
 static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
 {
+    struct stat stbuf;
     int fd, ret;
+    char *proc_path;
 
     /* FIXME: this should be handled with fchmodat(AT_SYMLINK_NOFOLLOW).
-     * Unfortunately, the linux kernel doesn't implement it yet. As an
-     * alternative, let's open the file and use fchmod() instead. This
-     * may fail depending on the permissions of the file, but it is the
-     * best we can do to avoid TOCTTOU. We first try to open read-only
-     * in case name points to a directory. If that fails, we try write-only
-     * in case name doesn't point to a directory.
+     * Unfortunately, the linux kernel doesn't implement it yet.
      */
-    fd = openat_file(dirfd, name, O_RDONLY, 0);
-    if (fd == -1) {
-        /* In case the file is writable-only and isn't a directory. */
-        if (errno == EACCES) {
-            fd = openat_file(dirfd, name, O_WRONLY, 0);
-        }
-        if (fd == -1 && errno == EISDIR) {
-            errno = EACCES;
-        }
+    if (fstatat(dirfd, name, &stbuf, AT_SYMLINK_NOFOLLOW)) {
+        return -1;
     }
+
+    if (S_ISLNK(stbuf.st_mode)) {
+        errno = ELOOP;
+        return -1;
+    }
+
+    fd = openat_file(dirfd, name, O_RDONLY | O_PATH, 0);
     if (fd == -1) {
         return -1;
     }
-    ret = fchmod(fd, mode);
+
+    ret = fstat(fd, &stbuf);
+    if (ret) {
+        goto out;
+    }
+
+    if (S_ISLNK(stbuf.st_mode)) {
+        errno = ELOOP;
+        ret = -1;
+        goto out;
+    }
+
+    proc_path = g_strdup_printf("/proc/self/fd/%d", fd);
+    ret = chmod(proc_path, mode);
+    g_free(proc_path);
+out:
     close_preserve_errno(fd);
     return ret;
 }
