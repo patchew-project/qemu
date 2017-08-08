@@ -2000,8 +2000,7 @@
 #                "host": "127.0.0.1",
 #                "channel-id": 0,
 #                "tls": false
-#             },
-#             [ ... more channels follow ... ]
+#             }
 #          ]
 #       }
 #    }
@@ -2039,7 +2038,7 @@
 #
 # -> { "execute": "query-balloon" }
 # <- { "return": {
-#          "actual": 1073741824,
+#          "actual": 1073741824
 #       }
 #    }
 #
@@ -3536,7 +3535,7 @@
 #
 # -> { "execute": "query-dump-guest-memory-capability" }
 # <- { "return": { "formats":
-#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
+#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] } }
 #
 ##
 { 'command': 'query-dump-guest-memory-capability',
@@ -6500,7 +6499,7 @@
 #        "vcpus-count": 1 },
 #      { "props": { "core": 0 }, "type": "POWER8-spapr-cpu-core",
 #        "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
-#    ]}'
+#    ]}
 #
 # For pc machine type started with -smp 1,maxcpus=2:
 #
