@@ -260,7 +260,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         print str(jsobj)
 
     def _execute_cmd(self, cmdline):
-        cmdargs = cmdline.split()
+        return self.execute_cmdargs(cmdline.split())
+
+    def execute_cmdargs(self, cmdargs):
         try:
             qmpcmd = self.__build_cmd(cmdargs)
         except Exception as e:
@@ -385,6 +387,9 @@ class HMPShell(QMPShell):
             # Error
             print '%s: %s' % (resp['error']['class'], resp['error']['desc'])
         return True
+
+    def execute_cmdargs(self, cmdargs):
+        return self._execute_cmd(' '.join(cmdargs))
 
     def show_banner(self):
         QMPShell.show_banner(self, msg='Welcome to the HMP shell!')
