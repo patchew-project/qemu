@@ -413,6 +413,11 @@ void migration_ioc_process_incoming(QIOChannel *ioc)
  */
 bool migration_has_all_channels(void)
 {
+    if (migrate_use_multifd()) {
+        int thread_count = migrate_multifd_threads();
+
+        return thread_count == multifd_created_threads();
+    }
     return true;
 }
 

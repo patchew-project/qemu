@@ -36,6 +36,7 @@
 #include "xbzrle.h"
 #include "ram.h"
 #include "migration.h"
+#include "socket.h"
 #include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
@@ -46,6 +47,8 @@
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
+#include "sysemu/sysemu.h"
+#include "qemu/uuid.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -361,6 +364,7 @@ static void compress_threads_save_setup(void)
 struct MultiFDSendParams {
     uint8_t id;
     QemuThread thread;
+    QIOChannel *c;
     QemuSemaphore sem;
     QemuMutex mutex;
     bool quit;
@@ -401,6 +405,7 @@ void multifd_save_cleanup(void)
         qemu_thread_join(&p->thread);
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
+        socket_send_channel_destroy(p->c);
     }
     g_free(multifd_send_state->params);
     multifd_send_state->params = NULL;
@@ -408,9 +413,26 @@ void multifd_save_cleanup(void)
     multifd_send_state = NULL;
 }
 
+/* Default uuid for multifd when qemu is not started with uuid */
+static char multifd_uuid[] = "5c49fd7e-af88-4a07-b6e8-091fd696ad40";
+/* strlen(multifd) + '-' + <channel id> + '-' +  UUID_FMT + '\0' */
+#define MULTIFD_UUID_MSG (7 + 1 + 3 + 1 + UUID_FMT_LEN + 1)
+
 static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
+    char *string;
+    char *string_uuid;
+
+    if (qemu_uuid_set) {
+        string_uuid = qemu_uuid_unparse_strdup(&qemu_uuid);
+    } else {
+        string_uuid = g_strdup(multifd_uuid);
+    }
+    string = g_strdup_printf("%s multifd %03d", string_uuid, p->id);
+    g_free(string_uuid);
+    qio_channel_write(p->c, string, MULTIFD_UUID_MSG, &error_abort);
+    g_free(string);
 
     while (true) {
         qemu_mutex_lock(&p->mutex);
@@ -445,6 +467,12 @@ int multifd_save_setup(void)
         qemu_sem_init(&p->sem, 0);
         p->quit = false;
         p->id = i;
+        p->c = socket_send_channel_create();
+        if (!p->c) {
+            error_report("Error creating a send channel");
+            multifd_save_cleanup();
+            return -1;
+        }
         snprintf(thread_name, sizeof(thread_name), "multifdsend_%d", i);
         qemu_thread_create(&p->thread, thread_name, multifd_send_thread, p,
                            QEMU_THREAD_JOINABLE);
@@ -456,6 +484,7 @@ int multifd_save_setup(void)
 struct MultiFDRecvParams {
     uint8_t id;
     QemuThread thread;
+    QIOChannel *c;
     QemuSemaphore sem;
     QemuMutex mutex;
     bool quit;
@@ -466,11 +495,15 @@ struct {
     MultiFDRecvParams **params;
     /* number of created threads */
     int count;
+    /* Should we finish */
+    bool quit;
 } *multifd_recv_state;
 
 static void terminate_multifd_recv_threads(void)
 {
     int i;
+
+    multifd_recv_state->quit = true;
 
     for (i = 0; i < multifd_recv_state->count; i++) {
         MultiFDRecvParams *p = multifd_recv_state->params[i];
@@ -496,6 +529,7 @@ void multifd_load_cleanup(void)
         qemu_thread_join(&p->thread);
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
+        socket_recv_channel_destroy(p->c);
         g_free(p);
         multifd_recv_state->params[i] = NULL;
     }
@@ -522,10 +556,54 @@ static void *multifd_recv_thread(void *opaque)
     return NULL;
 }
 
+void multifd_new_channel(QIOChannel *ioc)
+{
+    MultiFDRecvParams *p = g_new0(MultiFDRecvParams, 1);
+    MigrationState *s = migrate_get_current();
+    char string[MULTIFD_UUID_MSG];
+    char string_uuid[UUID_FMT_LEN];
+    char *uuid;
+    int id;
+
+    qio_channel_read(ioc, string, sizeof(string), &error_abort);
+    sscanf(string, "%s multifd %03d", string_uuid, &id);
+
+    if (qemu_uuid_set) {
+        uuid = qemu_uuid_unparse_strdup(&qemu_uuid);
+    } else {
+        uuid = g_strdup(multifd_uuid);
+    }
+    if (strcmp(string_uuid, uuid)) {
+        error_report("multifd: received uuid '%s' and expected uuid '%s'"
+                     " for channel %d", string_uuid, uuid, id);
+        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_FAILED);
+        terminate_multifd_recv_threads();
+        return;
+    }
+    g_free(uuid);
+
+    if (multifd_recv_state->params[id] != NULL) {
+        error_report("multifd: received id '%d' is already setup'", id);
+        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_FAILED);
+        terminate_multifd_recv_threads();
+        return;
+    }
+    qemu_mutex_init(&p->mutex);
+    qemu_sem_init(&p->sem, 0);
+    p->quit = false;
+    p->id = id;
+    p->c = ioc;
+    atomic_set(&multifd_recv_state->params[id], p);
+    multifd_recv_state->count++;
+    qemu_thread_create(&p->thread, "multifd_recv", multifd_recv_thread, p,
+                       QEMU_THREAD_JOINABLE);
+}
+
 int multifd_load_setup(void)
 {
     int thread_count;
-    uint8_t i;
 
     if (!migrate_use_multifd()) {
         return 0;
@@ -534,20 +612,13 @@ int multifd_load_setup(void)
     multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
     multifd_recv_state->params = g_new0(MultiFDRecvParams *, thread_count);
     multifd_recv_state->count = 0;
-    for (i = 0; i < thread_count; i++) {
-        char thread_name[16];
-        MultiFDRecvParams *p = multifd_recv_state->params[i];
-
-        qemu_mutex_init(&p->mutex);
-        qemu_sem_init(&p->sem, 0);
-        p->quit = false;
-        p->id = i;
-        snprintf(thread_name, sizeof(thread_name), "multifdrecv_%d", i);
-        qemu_thread_create(&p->thread, thread_name, multifd_recv_thread, p,
-                           QEMU_THREAD_JOINABLE);
-        multifd_recv_state->count++;
-    }
+    multifd_recv_state->quit = false;
     return 0;
+}
+
+int multifd_created_threads(void)
+{
+    return multifd_recv_state->count;
 }
 
 /**
