@@ -196,6 +196,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
     InputKeyEvent *key;
     InputMoveEvent *move;
     InputBtnEvent *btn;
+    unsigned int map;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
@@ -215,9 +216,15 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
-        if (keymap_button[btn->button]) {
+        map = keymap_button[btn->button];
+        if (map == BTN_GEAR_DOWN || map == BTN_GEAR_UP) {
+            event.type  = cpu_to_le16(EV_REL);
+            event.code  = cpu_to_le16(REL_WHEEL);
+            event.value = cpu_to_le32(map == BTN_GEAR_DOWN ? -1 : 1);
+            virtio_input_send(vinput, &event);
+        } else if (map) {
             event.type  = cpu_to_le16(EV_KEY);
-            event.code  = cpu_to_le16(keymap_button[btn->button]);
+            event.code  = cpu_to_le16(map);
             event.value = cpu_to_le32(btn->down ? 1 : 0);
             virtio_input_send(vinput, &event);
         } else {
@@ -424,9 +431,9 @@ static struct virtio_input_config virtio_mouse_config[] = {
     },{
         .select    = VIRTIO_INPUT_CFG_EV_BITS,
         .subsel    = EV_REL,
-        .size      = 1,
+        .size      = 2,
         .u.bitmap  = {
-            (1 << REL_X) | (1 << REL_Y),
+            (1 << REL_X) | (1 << REL_Y),  (1 << (REL_WHEEL - 8))
         },
     },
     { /* end of list */ },
