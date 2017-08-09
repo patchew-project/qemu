@@ -117,6 +117,18 @@ matrix:
       compiler: gcc
     - env: CONFIG=""
       os: osx
+      # older available: OS X 10.10
+      osx_image: xcode6.4
+      compiler: clang
+    - env: CONFIG=""
+      os: osx
+      # default: OS X 10.11.6
+      osx_image: xcode7.3
+      compiler: clang
+    - env: CONFIG=""
+      os: osx
+      # newer stable available, OS X 10.12
+      osx_image: xcode8.3
       compiler: clang
     # Plain Trusty System Build
     - env: CONFIG="--disable-linux-user"
