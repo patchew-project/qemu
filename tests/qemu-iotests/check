@@ -65,8 +65,7 @@ then
     export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
 fi
 
-# if ./qemu exists, it should be prioritized and will be chosen by common.config
-if [[ -z "$QEMU_PROG" && ! -x './qemu' ]]
+if [[ -z "$QEMU_PROG" ]]
 then
     arch=$(uname -m 2> /dev/null)
 
@@ -123,12 +122,6 @@ fi
 # we need common
 . "$source_iotests/common"
 
-#if [ `id -u` -ne 0 ]
-#then
-#    echo "check: QA must be run as root"
-#    exit 1
-#fi
-
 TIMESTAMP_FILE=check.time-$IMGPROTO-$IMGFMT
 
 tmp="${TEST_DIR}"/$$
@@ -146,12 +139,6 @@ _timestamp()
 
 _wrapup()
 {
-    # for hangcheck ...
-    # remove files that were used by hangcheck
-    #
-    [ -f "${TEST_DIR}"/check.pid ] && rm -rf "${TEST_DIR}"/check.pid
-    [ -f "${TEST_DIR}"/check.sts ] && rm -rf "${TEST_DIR}"/check.sts
-
     if $showme
     then
         :
@@ -206,24 +193,6 @@ END        { if (NR > 0) {
 }
 
 trap "_wrapup; exit \$status" 0 1 2 3 15
-
-# for hangcheck ...
-# Save pid of check in a well known place, so that hangcheck can be sure it
-# has the right pid (getting the pid from ps output is not reliable enough).
-#
-rm -rf "${TEST_DIR}"/check.pid
-echo $$ > "${TEST_DIR}"/check.pid
-
-# for hangcheck ...
-# Save the status of check in a well known place, so that hangcheck can be
-# sure to know where check is up to (getting test number from ps output is
-# not reliable enough since the trace stuff has been introduced).
-#
-rm -rf "${TEST_DIR}"/check.sts
-echo "preamble" > "${TEST_DIR}"/check.sts
-
-# don't leave old full output behind on a clean run
-rm -f check.full
 
 [ -f $TIMESTAMP_FILE ] || touch $TIMESTAMP_FILE
 
@@ -286,9 +255,6 @@ do
                 printf "        "        # prettier output with timestamps.
         fi
         rm -f core $seq.notrun
-
-        # for hangcheck ...
-        echo "$seq" > "${TEST_DIR}"/check.sts
 
         start=`_wallclock`
         $timestamp && printf %s "        [$(date "+%T")]"
