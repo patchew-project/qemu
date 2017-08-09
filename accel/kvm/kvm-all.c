@@ -218,34 +218,6 @@ static hwaddr kvm_align_section(MemoryRegionSection *section,
     return size;
 }
 
-/*
- * Find overlapping slot with lowest start address
- */
-static KVMSlot *kvm_lookup_overlapping_slot(KVMMemoryListener *kml,
-                                            hwaddr start_addr,
-                                            hwaddr end_addr)
-{
-    KVMState *s = kvm_state;
-    KVMSlot *found = NULL;
-    int i;
-
-    for (i = 0; i < s->nr_slots; i++) {
-        KVMSlot *mem = &kml->slots[i];
-
-        if (mem->memory_size == 0 ||
-            (found && found->start_addr < mem->start_addr)) {
-            continue;
-        }
-
-        if (end_addr > mem->start_addr &&
-            start_addr < mem->start_addr + mem->memory_size) {
-            found = mem;
-        }
-    }
-
-    return found;
-}
-
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
                                        hwaddr *phys_addr)
 {
@@ -489,55 +461,48 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
                                           MemoryRegionSection *section)
 {
     KVMState *s = kvm_state;
-    unsigned long size, allocated_size = 0;
     struct kvm_dirty_log d = {};
     KVMSlot *mem;
-    int ret = 0;
-    hwaddr start_addr = section->offset_within_address_space;
-    hwaddr end_addr = start_addr + int128_get64(section->size);
+    hwaddr start_addr, size;
 
-    d.dirty_bitmap = NULL;
-    while (start_addr < end_addr) {
-        mem = kvm_lookup_overlapping_slot(kml, start_addr, end_addr);
-        if (mem == NULL) {
-            break;
-        }
-
-        /* XXX bad kernel interface alert
-         * For dirty bitmap, kernel allocates array of size aligned to
-         * bits-per-long.  But for case when the kernel is 64bits and
-         * the userspace is 32bits, userspace can't align to the same
-         * bits-per-long, since sizeof(long) is different between kernel
-         * and user space.  This way, userspace will provide buffer which
-         * may be 4 bytes less than the kernel will use, resulting in
-         * userspace memory corruption (which is not detectable by valgrind
-         * too, in most cases).
-         * So for now, let's align to 64 instead of HOST_LONG_BITS here, in
-         * a hope that sizeof(long) won't become >8 any time soon.
-         */
-        size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS),
-                     /*HOST_LONG_BITS*/ 64) / 8;
-        if (!d.dirty_bitmap) {
-            d.dirty_bitmap = g_malloc(size);
-        } else if (size > allocated_size) {
-            d.dirty_bitmap = g_realloc(d.dirty_bitmap, size);
-        }
-        allocated_size = size;
-        memset(d.dirty_bitmap, 0, allocated_size);
-
-        d.slot = mem->slot | (kml->as_id << 16);
-        if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
-            DPRINTF("ioctl failed %d\n", errno);
-            ret = -1;
-            break;
-        }
-
-        kvm_get_dirty_pages_log_range(section, d.dirty_bitmap);
-        start_addr = mem->start_addr + mem->memory_size;
+    size = kvm_align_section(section, &start_addr);
+    if (!size) {
+        return 0;
     }
+
+    mem = kvm_lookup_matching_slot(kml, start_addr, size);
+    if (!mem) {
+        fprintf(stderr, "%s: error finding slot\n", __func__);
+        abort();
+    }
+
+    /* XXX bad kernel interface alert
+     * For dirty bitmap, kernel allocates array of size aligned to
+     * bits-per-long.  But for case when the kernel is 64bits and
+     * the userspace is 32bits, userspace can't align to the same
+     * bits-per-long, since sizeof(long) is different between kernel
+     * and user space.  This way, userspace will provide buffer which
+     * may be 4 bytes less than the kernel will use, resulting in
+     * userspace memory corruption (which is not detectable by valgrind
+     * too, in most cases).
+     * So for now, let's align to 64 instead of HOST_LONG_BITS here, in
+     * a hope that sizeof(long) won't become >8 any time soon.
+     */
+    size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS),
+                 /*HOST_LONG_BITS*/ 64) / 8;
+    d.dirty_bitmap = g_malloc0(size);
+
+    d.slot = mem->slot | (kml->as_id << 16);
+    if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
+        DPRINTF("ioctl failed %d\n", errno);
+        g_free(d.dirty_bitmap);
+        return -1;
+    }
+
+    kvm_get_dirty_pages_log_range(section, d.dirty_bitmap);
     g_free(d.dirty_bitmap);
 
-    return ret;
+    return 0;
 }
 
 static void kvm_coalesce_mmio_region(MemoryListener *listener,
