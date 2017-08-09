@@ -6,6 +6,7 @@ compiler:
   - gcc
 cache:
   ccache: true
+  timeout: 1200 # https://docs.travis-ci.com/user/caching#setting-the-timeout
 addons:
   apt:
     packages:
