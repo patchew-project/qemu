@@ -79,7 +79,7 @@ before_install:
   - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
   - travis_retry git submodule update --init --recursive
 before_script:
-  - ./configure ${CONFIG}
+  - ./configure ${CONFIG} || (cat config.log; exit 1)
 script:
   - make ${MAKEFLAGS} && ${TEST_CMD}
 matrix:
@@ -155,8 +155,6 @@ matrix:
         - sudo apt-get build-dep -qq qemu
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - travis_retry git submodule update --init --recursive
-      before_script:
-        - ./configure ${CONFIG} || cat config.log
     # Trusty Linux User build with latest stable clang
     - sudo: required
       addons:
@@ -175,8 +173,6 @@ matrix:
         - sudo apt-get build-dep -qq qemu
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - travis_retry git submodule update --init --recursive
-      before_script:
-        - ./configure ${CONFIG} || cat config.log
     # Using newer GCC with sanitizers
     - addons:
         apt:
@@ -232,4 +228,4 @@ matrix:
         - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user"
         - TEST_CMD=""
       before_script:
-        - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
+        - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || (cat config.log; exit 1)
