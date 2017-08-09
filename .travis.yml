@@ -130,6 +130,11 @@ matrix:
       # newer stable available, OS X 10.12
       osx_image: xcode8.3
       compiler: clang
+    - env: CONFIG=""
+      os: osx
+      # unstable
+      osx_image: xcode9
+      compiler: clang
     # Plain Trusty System Build
     - env: CONFIG="--disable-linux-user"
       sudo: required
