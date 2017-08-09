@@ -86,17 +86,17 @@ then
     fi
 fi
 
-if [[ -z $QEMU_IMG_PROG && -x "$build_root/qemu-img" && ! -x './qemu-img' ]]
+if [[ -z $QEMU_IMG_PROG && -x "$build_root/qemu-img" ]]
 then
     export QEMU_IMG_PROG="$build_root/qemu-img"
 fi
 
-if [[ -z $QEMU_IO_PROG && -x "$build_root/qemu-io" && ! -x './qemu-io' ]]
+if [[ -z $QEMU_IO_PROG && -x "$build_root/qemu-io" ]]
 then
     export QEMU_IO_PROG="$build_root/qemu-io"
 fi
 
-if [[ -z $QEMU_NBD_PROG && -x "$build_root/qemu-nbd" && ! -x './qemu-nbd' ]]
+if [[ -z $QEMU_NBD_PROG && -x "$build_root/qemu-nbd" ]]
 then
     export QEMU_NBD_PROG="$build_root/qemu-nbd"
 fi
