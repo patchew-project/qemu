@@ -70,6 +70,7 @@ env:
     - CONFIG="--with-coroutine=sigaltstack"
     - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
 git:
+  depth: 3
   # we want to do this ourselves
   submodules: false
 before_install:
