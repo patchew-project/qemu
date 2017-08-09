@@ -64,11 +64,11 @@ env:
     - MAKEFLAGS="-j3"
   matrix:
     - CONFIG=""
-    - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
     - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb"
     - CONFIG="--enable-modules"
     - CONFIG="--with-coroutine=ucontext"
     - CONFIG="--with-coroutine=sigaltstack"
+    - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
 git:
   # we want to do this ourselves
   submodules: false
@@ -83,15 +83,14 @@ script:
   - make ${MAKEFLAGS} && ${TEST_CMD}
 matrix:
   include:
-    # Test with CLang for compile portability
-    - env: CONFIG=""
-      compiler: clang
-    # gprof/gcov are GCC features
-    - env: CONFIG="--enable-gprof --disable-pie"
+    # We manually include builds which we disable "make check" for, they also
+    # are the faster jobs (no testing).
+    - env: CONFIG="--disable-tcg"
+           TEST_CMD=""
       compiler: gcc
-    - env: CONFIG="--enable-gcov --disable-pie"
+    - env: CONFIG="--enable-trace-backends=ust"
+           TEST_CMD=""
       compiler: gcc
-    # We manually include builds which we disable "make check" for
     - env: CONFIG="--enable-debug --enable-tcg-interpreter"
            TEST_CMD=""
       compiler: gcc
@@ -101,11 +100,14 @@ matrix:
     - env: CONFIG="--enable-trace-backends=ftrace"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG="--enable-trace-backends=ust"
-           TEST_CMD=""
+    # Test with CLang for compile portability
+    - env: CONFIG=""
+      compiler: clang
+
+    # gprof/gcov are GCC features
+    - env: CONFIG="--enable-gprof --disable-pie"
       compiler: gcc
-    - env: CONFIG="--disable-tcg"
-           TEST_CMD=""
+    - env: CONFIG="--enable-gcov --disable-pie"
       compiler: gcc
     - env: CONFIG=""
       os: osx
