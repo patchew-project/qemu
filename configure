@@ -2108,13 +2108,15 @@ EOF
     elif
         cat > $TMPC <<EOF &&
 #undef XC_WANT_COMPAT_MAP_FOREIGN_API
+#include <xenctrl.h>
 #include <xenforeignmemory.h>
 int main(void) {
+  xc_interface *xc = NULL;
   xenforeignmemory_handle *xfmem;
 
   xfmem = xenforeignmemory_open(0, 0);
   xenforeignmemory_map2(xfmem, 0, 0, 0, 0, 0, 0, 0);
-
+  xc_domain_update_msi_irq_remapping(xc, 0, 0, 0, 0, 0, 0);
   return 0;
 }
 EOF

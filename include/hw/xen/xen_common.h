@@ -680,4 +680,29 @@ static inline int xengnttab_grant_copy(xengnttab_handle *xgt, uint32_t count,
 }
 #endif
 
+/* Xen before 4.10 */
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41000
+
+static inline int xc_domain_update_msi_irq_remapping(xc_interface *xc,
+                                                     uint32_t domid,
+                                                     uint32_t pirq,
+                                                     uint32_t source_id,
+                                                     uint32_t data,
+                                                     uint64_t addr,
+                                                     uint64_t gtable)
+{
+    return -ENOSYS;
+}
+
+static inline int xc_domain_unbind_msi_irq_remapping(xc_interface *xc,
+                                                     uint32_t domid,
+                                                     uint32_t pirq,
+                                                     uint32_t source_id,
+                                                     uint32_t data,
+                                                     uint64_t addr)
+{
+    return -ENOSYS;
+}
+#endif
+
 #endif /* QEMU_HW_XEN_COMMON_H */
