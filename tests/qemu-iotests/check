@@ -55,6 +55,18 @@ else
     build_iotests=$PWD
 fi
 
+# we need common.env
+if ! . "$build_iotests/common.env"
+then
+    _init_error "failed to source common.env (make sure the qemu-iotests are run from tests/qemu-iotests in the build tree)"
+fi
+
+# we need common.config
+if ! . "$source_iotests/common.config"
+then
+    _init_error "failed to source common.config"
+fi
+
 build_root="$build_iotests/../.."
 
 if [ -x "$build_iotests/socket_scm_helper" ]
@@ -96,18 +108,6 @@ fi
 if [[ -z $QEMU_NBD_PROG && -x "$build_root/qemu-nbd" ]]
 then
     export QEMU_NBD_PROG="$build_root/qemu-nbd"
-fi
-
-# we need common.env
-if ! . "$build_iotests/common.env"
-then
-    _init_error "failed to source common.env (make sure the qemu-iotests are run from tests/qemu-iotests in the build tree)"
-fi
-
-# we need common.config
-if ! . "$source_iotests/common.config"
-then
-    _init_error "failed to source common.config"
 fi
 
 # we need common
