@@ -61,6 +61,14 @@ if [ -z "$QEMU_VXHS_PROG" ]; then
   export QEMU_VXHS_PROG="`set_prog_path qnio_server`"
 fi
 
+if [ -z "$TEST_DIR" ]; then
+        TEST_DIR=`pwd`/scratch
+fi
+
+if [ ! -e "$TEST_DIR" ]; then
+        mkdir "$TEST_DIR"
+fi
+
 diff="diff -u"
 verbose=false
 debug=false
@@ -86,6 +94,15 @@ export QEMU_OPTIONS="-nodefaults -machine accel=qtest"
 export VALGRIND_QEMU=
 export IMGKEYSECRET=
 export IMGOPTSSYNTAX=false
+
+default_machine=$($QEMU_PROG -machine help | sed -n '/(default)/ s/ .*//p')
+default_alias_machine=$($QEMU_PROG -machine help | \
+   sed -n "/(alias of $default_machine)/ { s/ .*//p; q; }")
+if [[ "$default_alias_machine" ]]; then
+    default_machine="$default_alias_machine"
+fi
+
+export QEMU_DEFAULT_MACHINE="$default_machine"
 
 for r
 do
@@ -452,6 +469,13 @@ fi
 if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null); then
     IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
 fi
+
+if [ -z "$SAMPLE_IMG_DIR" ]; then
+        SAMPLE_IMG_DIR="$source_iotests/sample_images"
+fi
+
+export TEST_DIR
+export SAMPLE_IMG_DIR
 
 if [ -s $tmp.list ]
 then
