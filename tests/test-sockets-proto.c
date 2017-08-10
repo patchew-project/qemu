@@ -18,7 +18,7 @@ typedef struct {
     const char *name;
     const char *args;
     int ipv4; /* 0 -> disabled, 1 -> enabled */
-    int ipv6; /* 0 -> disabled, 1 -> enabled, -1 -> check getaddrinfo() order */
+    int ipv6; /* 0 -> disabled, 1 -> enabled */
     bool error;
 } QSocketsData;
 
@@ -189,8 +189,7 @@ static QSocketsData test_data[] = {
 
 
     /* Chardev with "" address */
-    /* XXX multilistener bug - should be .ipv6 = 1 */
-    { .ipv4 = 1, .ipv6 = -1, .error = false,
+    { .ipv4 = 1, .ipv6 = 1, .error = false,
       .name = "/sockets/chardev/wildcard/all",
       .args = "-chardev socket,id=cdev0,host=,port=9000,server,nowait" },
     { .ipv4 = 1, .ipv6 = 0, .error = false,
@@ -911,9 +910,6 @@ int main(int argc, char **argv)
 
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
         QSocketsData *data = &test_data[i];
-        if (data->ipv6 == -1) {
-            data->ipv6 = ipv6_first ? 1 : 0;
-        }
         g_test_add_data_func(data->name, data, test_listen);
     }
 
