@@ -70,8 +70,7 @@ typedef struct {
 static QSocketsData test_data[] = {
     /* Migrate with "" address */
     /* XXX all settings with =off are disabled due to inet_parse() bug */
-    /* XXX multilistener bug - should be .ipv6 = 1 */
-    { .ipv4 = 1, .ipv6 = -1, .error = false,
+    { .ipv4 = 1, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/wildcard/all",
       .args = "-incoming tcp::9000" },
     { .ipv4 = 1, .ipv6 = 0, .error = false,
