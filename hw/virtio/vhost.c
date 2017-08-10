@@ -1353,6 +1353,9 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
+    if (hdev->config_ops) {
+        event_notifier_cleanup(&hdev->config_notifier);
+    }
     if (hdev->mem) {
         /* those are only safe after successful init */
         memory_listener_unregister(&hdev->memory_listener);
@@ -1494,6 +1497,66 @@ void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
         }
         bit++;
     }
+}
+
+int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
+                         size_t config_len)
+{
+    assert(hdev->vhost_ops);
+
+    if (hdev->vhost_ops->vhost_get_config) {
+        return hdev->vhost_ops->vhost_get_config(hdev, config, config_len);
+    }
+
+    return 0;
+}
+
+int vhost_dev_set_config(struct vhost_dev *hdev, const uint8_t *config,
+                         size_t config_len)
+{
+    assert(hdev->vhost_ops);
+
+    if (hdev->vhost_ops->vhost_set_config) {
+        return hdev->vhost_ops->vhost_set_config(hdev, config, config_len);
+    }
+
+    return 0;
+}
+
+static void vhost_dev_config_notifier_read(EventNotifier *n)
+{
+    struct vhost_dev *hdev = container_of(n, struct vhost_dev,
+                                         config_notifier);
+
+    if (event_notifier_test_and_clear(n)) {
+        if (hdev->config_ops) {
+            hdev->config_ops->vhost_dev_config_notifier(hdev);
+        }
+    }
+}
+
+int vhost_dev_set_config_notifier(struct vhost_dev *hdev,
+                                  const VhostDevConfigOps *ops)
+{
+    int r, fd;
+
+    assert(hdev->vhost_ops);
+
+    r = event_notifier_init(&hdev->config_notifier, 0);
+    if (r < 0) {
+        return r;
+    }
+
+    hdev->config_ops = ops;
+    event_notifier_set_handler(&hdev->config_notifier,
+                               vhost_dev_config_notifier_read);
+
+    if (hdev->vhost_ops->vhost_set_config_fd) {
+        fd  = event_notifier_get_fd(&hdev->config_notifier);
+        return hdev->vhost_ops->vhost_set_config_fd(hdev, fd);
+    }
+
+    return 0;
 }
 
 /* Host notifiers must be enabled at this point. */

@@ -46,6 +46,12 @@ struct vhost_iommu {
     QLIST_ENTRY(vhost_iommu) iommu_next;
 };
 
+typedef struct VhostDevConfigOps {
+    /* Vhost device config space changed callback
+     */
+    void (*vhost_dev_config_notifier)(struct vhost_dev *dev);
+} VhostDevConfigOps;
+
 struct vhost_memory;
 struct vhost_dev {
     VirtIODevice *vdev;
@@ -76,6 +82,8 @@ struct vhost_dev {
     QLIST_ENTRY(vhost_dev) entry;
     QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
+    EventNotifier config_notifier;
+    const VhostDevConfigOps *config_ops;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
@@ -106,4 +114,12 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
+int vhost_dev_get_config(struct vhost_dev *dev, uint8_t *config,
+                         size_t config_len);
+int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *config,
+                         size_t config_len);
+/* notifier callback in case vhost device config space changed
+ */
+int vhost_dev_set_config_notifier(struct vhost_dev *dev,
+                                  const VhostDevConfigOps *ops);
 #endif
