@@ -31,6 +31,8 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "hw/ssi/xilinx_spips.h"
+#include "qapi/error.h"
+#include "migration/blocker.h"
 
 #ifndef XILINX_SPIPS_ERR_DEBUG
 #define XILINX_SPIPS_ERR_DEBUG 0
@@ -139,6 +141,8 @@ typedef struct {
 
     uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
+    Error *migration_blocker;
+    bool mmio_execution_enabled;
 } XilinxQSPIPS;
 
 typedef struct XilinxSPIPSClass {
@@ -500,12 +504,13 @@ static void xilinx_qspips_invalidate_mmio_ptr(XilinxQSPIPS *q)
 {
     XilinxSPIPS *s = &q->parent_obj;
 
-    if (q->lqspi_cached_addr != ~0ULL) {
+    if ((q->mmio_execution_enabled) && (q->lqspi_cached_addr != ~0ULL)) {
         /* Invalidate the current mapped mmio */
         memory_region_invalidate_mmio_ptr(&s->mmlqspi, q->lqspi_cached_addr,
                                           LQSPI_CACHE_SIZE);
-        q->lqspi_cached_addr = ~0ULL;
     }
+
+    q->lqspi_cached_addr = ~0ULL;
 }
 
 static void xilinx_qspips_write(void *opaque, hwaddr addr,
@@ -601,12 +606,17 @@ static void *lqspi_request_mmio_ptr(void *opaque, hwaddr addr, unsigned *size,
                                     unsigned *offset)
 {
     XilinxQSPIPS *q = opaque;
-    hwaddr offset_within_the_region = addr & ~(LQSPI_CACHE_SIZE - 1);
+    hwaddr offset_within_the_region;
 
-    lqspi_load_cache(opaque, offset_within_the_region);
-    *size = LQSPI_CACHE_SIZE;
-    *offset = offset_within_the_region;
-    return q->lqspi_buf;
+    if (q->mmio_execution_enabled) {
+        offset_within_the_region = addr & ~(LQSPI_CACHE_SIZE - 1);
+        lqspi_load_cache(opaque, offset_within_the_region);
+        *size = LQSPI_CACHE_SIZE;
+        *offset = offset_within_the_region;
+        return q->lqspi_buf;
+    } else {
+        return NULL;
+    }
 }
 
 static uint64_t
@@ -693,6 +703,15 @@ static void xilinx_qspips_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->mmlqspi);
 
     q->lqspi_cached_addr = ~0ULL;
+
+    /* mmio_execution breaks migration better aborting than having strange
+     * bugs.
+     */
+    if (q->mmio_execution_enabled) {
+        error_setg(&q->migration_blocker,
+                   "enabling mmio_execution breaks migration");
+        migrate_add_blocker(q->migration_blocker, &error_fatal);
+    }
 }
 
 static int xilinx_spips_post_load(void *opaque, int version_id)
@@ -716,6 +735,11 @@ static const VMStateDescription vmstate_xilinx_spips = {
     }
 };
 
+static Property xilinx_qspips_properties[] = {
+    DEFINE_PROP_BOOL("mmio-exec", XilinxQSPIPS, mmio_execution_enabled, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static Property xilinx_spips_properties[] = {
     DEFINE_PROP_UINT8("num-busses", XilinxSPIPS, num_busses, 1),
     DEFINE_PROP_UINT8("num-ss-bits", XilinxSPIPS, num_cs, 4),
@@ -729,6 +753,7 @@ static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xilinx_qspips_realize;
+    dc->props = xilinx_qspips_properties;
     xsc->reg_ops = &qspips_ops;
     xsc->rx_fifo_size = RXFF_A_Q;
     xsc->tx_fifo_size = TXFF_A_Q;
