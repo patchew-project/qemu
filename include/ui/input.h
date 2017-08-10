@@ -86,6 +86,9 @@ extern const guint16 qemu_input_map_qcode2linux[];
 extern const guint qemu_input_map_qcode2qnum_len;
 extern const guint16 qemu_input_map_qcode2qnum[];
 
+extern const guint qemu_input_map_qcode2sun_len;
+extern const guint16 qemu_input_map_qcode2sun[];
+
 extern const guint qemu_input_map_qnum2qcode_len;
 extern const guint16 qemu_input_map_qnum2qcode[];
 

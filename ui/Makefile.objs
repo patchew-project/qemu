@@ -61,6 +61,7 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-qcode2atset3.c \
 		 ui/input-keymap-qcode2linux.c \
 		 ui/input-keymap-qcode2qnum.c \
+		 ui/input-keymap-qcode2sun.c \
 		 ui/input-keymap-qnum2qcode.c \
 		 $(NULL)
 

@@ -12,6 +12,7 @@
 #include "ui/input-keymap-qcode2atset3.c"
 #include "ui/input-keymap-qcode2linux.c"
 #include "ui/input-keymap-qcode2qnum.c"
+#include "ui/input-keymap-qcode2sun.c"
 #include "ui/input-keymap-qnum2qcode.c"
 
 int qemu_input_linux_to_qcode(unsigned int lnx)
