@@ -64,6 +64,7 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-qcode2qnum.c \
 		 ui/input-keymap-qcode2sun.c \
 		 ui/input-keymap-qnum2qcode.c \
+		 ui/input-keymap-usb2qcode.c \
 		 $(NULL)
 
 GENERATED_FILES += $(KEYCODEMAP_FILES)
