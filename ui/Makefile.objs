@@ -11,11 +11,12 @@ common-obj-y += keymaps.o console.o cursor.o qemu-pixman.o
 common-obj-y += input.o input-keymap.o input-legacy.o
 common-obj-$(CONFIG_LINUX) += input-linux.o
 common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o
-common-obj-$(CONFIG_SDL) += sdl.mo x_keymap.o
+common-obj-$(CONFIG_SDL) += sdl.mo
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
-common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
+common-obj-$(CONFIG_GTK) += gtk.o
+common-obj-$(if $(CONFIG_WIN32),n,$(if $(CONFIG_SDL),y,$(CONFIG_GTK))) += x_keymap.o
 
 ifeq ($(CONFIG_SDLABI),1.2)
 sdl.mo-objs := sdl.o sdl_zoom.o
@@ -54,6 +55,7 @@ KEYCODEMAP_GEN = ui/keycodemapdb/tools/keymap-gen
 KEYCODEMAP_CSV = ui/keycodemapdb/data/keymaps.csv
 
 KEYCODEMAP_FILES = \
+		 ui/input-keymap-atset12qcode.c \
 		 ui/input-keymap-linux2qcode.c \
 		 ui/input-keymap-osx2qcode.c \
 		 ui/input-keymap-qcode2adb.c \
@@ -65,6 +67,12 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-qcode2sun.c \
 		 ui/input-keymap-qnum2qcode.c \
 		 ui/input-keymap-usb2qcode.c \
+		 ui/input-keymap-win322qcode.c \
+		 ui/input-keymap-x112qcode.c \
+		 ui/input-keymap-xorgevdev2qcode.c \
+		 ui/input-keymap-xorgkbd2qcode.c \
+		 ui/input-keymap-xorgxquartz2qcode.c \
+		 ui/input-keymap-xorgxwin2qcode.c \
 		 $(NULL)
 
 GENERATED_FILES += $(KEYCODEMAP_FILES)
