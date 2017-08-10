@@ -69,7 +69,6 @@ typedef struct {
  */
 static QSocketsData test_data[] = {
     /* Migrate with "" address */
-    /* XXX all settings with =off are disabled due to inet_parse() bug */
     { .ipv4 = 1, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/wildcard/all",
       .args = "-incoming tcp::9000" },
@@ -85,7 +84,6 @@ static QSocketsData test_data[] = {
     { .ipv4 = 0, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/wildcard/ipv6on",
       .args = "-incoming tcp::9000,ipv6=on" },
-    /*
     { .ipv4 = 0, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/wildcard/ipv4off",
       .args = "-incoming tcp::9000,ipv4=off" },
@@ -98,15 +96,12 @@ static QSocketsData test_data[] = {
     { .ipv4 = 0, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/wildcard/ipv4offipv6on",
       .args = "-incoming tcp::9000,ipv4=off,ipv6=on" },
-    */
     { .ipv4 = 1, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/wildcard/ipv4onipv6on",
       .args = "-incoming tcp::9000,ipv4=on,ipv6=on" },
-    /*
     { .ipv4 = 0, .ipv6 = 0, .error = true,
       .name = "/sockets/migrate/wildcard/ipv4offipv6off",
       .args = "-incoming tcp::9000,ipv4=off,ipv6=off" },
-    */
 
     /* Migrate with 0.0.0.0 address */
     { .ipv4 = 1, .ipv6 = 0, .error = false,
@@ -124,7 +119,6 @@ static QSocketsData test_data[] = {
     { .ipv4 = 0, .ipv6 = 0, .error = true,
       .name = "/sockets/migrate/0.0.0.0/ipv6on",
       .args = "-incoming tcp:0.0.0.0:9000,ipv6=on" },
-    /*
     { .ipv4 = 0, .ipv6 = 0, .error = true,
       .name = "/sockets/migrate/0.0.0.0/ipv4off",
       .args = "-incoming tcp:0.0.0.0:9000,ipv4=off" },
@@ -137,15 +131,12 @@ static QSocketsData test_data[] = {
     { .ipv4 = 0, .ipv6 = 0, .error = true,
       .name = "/sockets/migrate/0.0.0.0/ipv4offipv6on",
       .args = "-incoming tcp:0.0.0.0:9000,ipv4=off,ipv6=on" },
-    */
     { .ipv4 = 1, .ipv6 = 0, .error = false,
       .name = "/sockets/migrate/0.0.0.0/ipv4onipv6on",
       .args = "-incoming tcp:0.0.0.0:9000,ipv4=on,ipv6=on" },
-    /*
     { .ipv4 = 0, .ipv6 = 0, .error = true,
       .name = "/sockets/migrate/0.0.0.0/ipv4offipv6off",
       .args = "-incoming tcp:0.0.0.0:9000,ipv4=off,ipv6=off" },
-    */
 
     /* Migrate with :: address */
     { .ipv4 = 1, .ipv6 = 1, .error = false,
@@ -163,7 +154,6 @@ static QSocketsData test_data[] = {
     { .ipv4 = 0, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/::/ipv6on",
       .args = "-incoming tcp:[::]:9000,ipv6=on" },
-    /*
     { .ipv4 = 0, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/::/ipv4off",
       .args = "-incoming tcp:[::]:9000,ipv4=off" },
@@ -176,15 +166,12 @@ static QSocketsData test_data[] = {
     { .ipv4 = 0, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/::/ipv4offipv6on",
       .args = "-incoming tcp:[::]:9000,ipv4=off,ipv6=on" },
-    */
     { .ipv4 = 1, .ipv6 = 1, .error = false,
       .name = "/sockets/migrate/::/ipv4onipv6on",
       .args = "-incoming tcp:[::]:9000,ipv4=on,ipv6=on" },
-    /*
     { .ipv4 = 0, .ipv6 = 0, .error = true,
       .name = "/sockets/migrate/::/ipv4offipv6off",
       .args = "-incoming tcp:[::]:9000,ipv4=off,ipv6=off" },
-    */
 
 
 
