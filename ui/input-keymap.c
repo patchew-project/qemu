@@ -6,6 +6,9 @@
 #include "standard-headers/linux/input.h"
 
 #include "ui/input-keymap-linux2qcode.c"
+#include "ui/input-keymap-qcode2atset1.c"
+#include "ui/input-keymap-qcode2atset2.c"
+#include "ui/input-keymap-qcode2atset3.c"
 #include "ui/input-keymap-qcode2linux.c"
 #include "ui/input-keymap-qcode2qnum.c"
 #include "ui/input-keymap-qnum2qcode.c"
