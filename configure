@@ -305,6 +305,7 @@ tcg="yes"
 
 vhost_net="no"
 vhost_scsi="no"
+vhost_user_blk="no"
 vhost_vsock="no"
 vhost_user=""
 kvm="no"
@@ -779,6 +780,7 @@ Linux)
   kvm="yes"
   vhost_net="yes"
   vhost_scsi="yes"
+  vhost_user_blk="yes"
   vhost_vsock="yes"
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
   supported_os="yes"
@@ -1135,6 +1137,10 @@ for opt do
   --disable-vhost-scsi) vhost_scsi="no"
   ;;
   --enable-vhost-scsi) vhost_scsi="yes"
+  ;;
+  --disable-vhost-user-blk) vhost_user_blk="no"
+  ;;
+  --enable-vhost-user-blk) vhost_user_blk="yes"
   ;;
   --disable-vhost-vsock) vhost_vsock="no"
   ;;
@@ -1506,6 +1512,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   cap-ng          libcap-ng support
   attr            attr and xattr support
   vhost-net       vhost-net acceleration support
+  vhost-user-blk  VM virtio-blk acceleration in user space
   spice           spice
   rbd             rados block device (rbd)
   libiscsi        iscsi support
@@ -5365,6 +5372,7 @@ echo "posix_madvise     $posix_madvise"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "vhost-scsi support $vhost_scsi"
+echo "vhost-user-blk support $vhost_user_blk"
 echo "vhost-vsock support $vhost_vsock"
 echo "vhost-user support $vhost_user"
 echo "Trace backends    $trace_backends"
@@ -5775,6 +5783,9 @@ if test "$virtfs" = "yes" ; then
 fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
+fi
+if test "$vhost_user_blk" = "yes" ; then
+  echo "CONFIG_VHOST_USER_BLK=y" >> $config_host_mak
 fi
 if test "$vhost_net" = "yes" -a "$vhost_user" = "yes"; then
   echo "CONFIG_VHOST_NET_USED=y" >> $config_host_mak
