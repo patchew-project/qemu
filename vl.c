@@ -2845,7 +2845,6 @@ static bool object_create_initial(const char *type)
     return true;
 }
 
-
 /*
  * The remainder of object creation happens after the
  * creation of chardev, fsdev, net clients and device data types.
@@ -2855,6 +2854,14 @@ static bool object_create_delayed(const char *type)
     return !object_create_initial(type);
 }
 
+static void object_create(bool (*type_predicate)(const char *))
+{
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          user_creatable_add_opts_foreach,
+                          type_predicate, NULL)) {
+        exit(1);
+    }
+}
 
 static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                                MachineClass *mc)
@@ -4391,11 +4398,7 @@ int main(int argc, char **argv, char **envp)
     page_size_init();
     socket_init();
 
-    if (qemu_opts_foreach(qemu_find_opts("object"),
-                          user_creatable_add_opts_foreach,
-                          object_create_initial, NULL)) {
-        exit(1);
-    }
+    object_create(object_create_initial);
 
     if (qemu_opts_foreach(qemu_find_opts("chardev"),
                           chardev_init_func, NULL, NULL)) {
@@ -4520,11 +4523,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("object"),
-                          user_creatable_add_opts_foreach,
-                          object_create_delayed, NULL)) {
-        exit(1);
-    }
+    object_create(object_create_delayed);
 
 #ifdef CONFIG_TPM
     if (tpm_init() < 0) {
