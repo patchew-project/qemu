@@ -24,14 +24,6 @@
 #include "ui/input-keymap-xorgxquartz2qcode.c"
 #include "ui/input-keymap-xorgxwin2qcode.c"
 
-int qemu_input_linux_to_qcode(unsigned int lnx)
-{
-    if (lnx >= qemu_input_map_linux2qcode_len) {
-        return 0;
-    }
-    return qemu_input_map_linux2qcode[lnx];
-}
-
 int qemu_input_key_number_to_qcode(unsigned int nr)
 {
     if (nr >= qemu_input_map_qnum2qcode_len) {

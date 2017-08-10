@@ -128,8 +128,8 @@ static void input_linux_handle_keyboard(InputLinux *il,
         }
 
         /* send event to guest when grab is active */
-        if (il->grab_active) {
-            int qcode = qemu_input_linux_to_qcode(event->code);
+        if (il->grab_active && event->code < qemu_input_map_linux2qcode_len) {
+            int qcode = qemu_input_map_linux2qcode[event->code];
             qemu_input_event_send_key_qcode(NULL, qcode, event->value);
         }
 
