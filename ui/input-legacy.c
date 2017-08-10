@@ -72,18 +72,12 @@ int index_from_key(const char *key, size_t key_length)
     return i;
 }
 
-static KeyValue *copy_key_value(KeyValue *src)
-{
-    KeyValue *dst = g_new(KeyValue, 1);
-    memcpy(dst, src, sizeof(*src));
-    return dst;
-}
 
 void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                   Error **errp)
 {
     KeyValueList *p;
-    KeyValue **up = NULL;
+    QKeyCode *up = NULL;
     int count = 0;
 
     if (!has_hold_time) {
@@ -91,15 +85,26 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
     }
 
     for (p = keys; p != NULL; p = p->next) {
-        qemu_input_event_send_key(NULL, copy_key_value(p->value), true);
+        QKeyCode qcode;
+        switch (p->value->type) {
+        case KEY_VALUE_KIND_NUMBER:
+            qcode = qemu_input_key_number_to_qcode(p->value->u.number.data);
+            break;
+        case KEY_VALUE_KIND_QCODE:
+            qcode = p->value->u.qcode.data;
+            break;
+        default:
+            continue;
+        }
+        qemu_input_event_send_key_qcode(NULL, qcode, true);
         qemu_input_event_send_key_delay(hold_time);
         up = g_realloc(up, sizeof(*up) * (count+1));
-        up[count] = copy_key_value(p->value);
+        up[count] = qcode;
         count++;
     }
     while (count) {
         count--;
-        qemu_input_event_send_key(NULL, up[count], false);
+        qemu_input_event_send_key_qcode(NULL, up[count], false);
         qemu_input_event_send_key_delay(hold_time);
     }
     g_free(up);
@@ -115,9 +120,9 @@ static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
     if (!entry || !entry->put_kbd) {
         return;
     }
-    count = qemu_input_key_value_to_scancode(key->key,
-                                             key->down,
-                                             scancodes);
+    count = qemu_input_qcode_to_scancode(key->key,
+                                         key->down,
+                                         scancodes);
     for (i = 0; i < count; i++) {
         entry->put_kbd(entry->opaque, scancodes[i]);
     }

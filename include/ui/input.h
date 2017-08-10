@@ -38,15 +38,12 @@ void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt);
 void qemu_input_event_sync(void);
 void qemu_input_event_sync_impl(void);
 
-void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down);
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down);
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down);
 void qemu_input_event_send_key_delay(uint32_t delay_ms);
 int qemu_input_key_number_to_qcode(unsigned int nr);
-int qemu_input_key_value_to_number(const KeyValue *value);
-int qemu_input_key_value_to_qcode(const KeyValue *value);
-int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,
-                                     int *codes);
+int qemu_input_qcode_to_number(QKeyCode qcode);
+int qemu_input_qcode_to_scancode(QKeyCode qcode, bool down, int *codes);
 int qemu_input_linux_to_qcode(unsigned int lnx);
 
 InputEvent *qemu_input_event_new_btn(InputButton btn, bool down);

@@ -599,7 +599,7 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     assert(evt->type == INPUT_EVENT_KIND_KEY);
-    qcode = qemu_input_key_value_to_qcode(key->key);
+    qcode = key->key;
 
     if (s->scancode_set == 1) {
         if (qcode == Q_KEY_CODE_PAUSE) {

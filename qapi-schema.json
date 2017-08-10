@@ -5747,7 +5747,7 @@
 # Since: 2.0
 ##
 { 'struct'  : 'InputKeyEvent',
-  'data'  : { 'key'     : 'KeyValue',
+  'data'  : { 'key'     : 'QKeyCode',
               'down'    : 'bool' } }
 
 ##

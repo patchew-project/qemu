@@ -199,7 +199,7 @@ static void qemu_input_transform_abs_rotate(InputEvent *evt)
 static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
 {
     const char *name;
-    int qcode, idx = -1;
+    int idx = -1;
     InputKeyEvent *key;
     InputBtnEvent *btn;
     InputMoveEvent *move;
@@ -210,21 +210,8 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
         key = evt->u.key.data;
-        switch (key->key->type) {
-        case KEY_VALUE_KIND_NUMBER:
-            qcode = qemu_input_key_number_to_qcode(key->key->u.number.data);
-            name = QKeyCode_lookup[qcode];
-            trace_input_event_key_number(idx, key->key->u.number.data,
-                                         name, key->down);
-            break;
-        case KEY_VALUE_KIND_QCODE:
-            name = QKeyCode_lookup[key->key->u.qcode.data];
-            trace_input_event_key_qcode(idx, name, key->down);
-            break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
-        }
+        name = QKeyCode_lookup[key->key];
+        trace_input_event_key_qcode(idx, name, key->down);
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
@@ -374,28 +361,14 @@ void qemu_input_event_sync(void)
     replay_input_sync_event();
 }
 
-static InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
+static InputEvent *qemu_input_event_new_key(QKeyCode qcode, bool down)
 {
     InputEvent *evt = g_new0(InputEvent, 1);
     evt->u.key.data = g_new0(InputKeyEvent, 1);
     evt->type = INPUT_EVENT_KIND_KEY;
-    evt->u.key.data->key = key;
+    evt->u.key.data->key = qcode;
     evt->u.key.data->down = down;
     return evt;
-}
-
-void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
-{
-    InputEvent *evt;
-    evt = qemu_input_event_new_key(key, down);
-    if (QTAILQ_EMPTY(&kbd_queue)) {
-        qemu_input_event_send(src, evt);
-        qemu_input_event_sync();
-        qapi_free_InputEvent(evt);
-    } else if (queue_count < queue_limit) {
-        qemu_input_queue_event(&kbd_queue, src, evt);
-        qemu_input_queue_sync(&kbd_queue);
-    }
 }
 
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
@@ -404,12 +377,18 @@ void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
     qemu_input_event_send_key_qcode(src, code, down);
 }
 
-void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
+void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode qcode, bool down)
 {
-    KeyValue *key = g_new0(KeyValue, 1);
-    key->type = KEY_VALUE_KIND_QCODE;
-    key->u.qcode.data = q;
-    qemu_input_event_send_key(src, key, down);
+    InputEvent *evt;
+    evt = qemu_input_event_new_key(qcode, down);
+    if (QTAILQ_EMPTY(&kbd_queue)) {
+        qemu_input_event_send(src, evt);
+        qemu_input_event_sync();
+        qapi_free_InputEvent(evt);
+    } else if (queue_count < queue_limit) {
+        qemu_input_queue_event(&kbd_queue, src, evt);
+        qemu_input_queue_sync(&kbd_queue);
+    }
 }
 
 void qemu_input_event_send_key_delay(uint32_t delay_ms)

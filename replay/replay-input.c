@@ -28,21 +28,8 @@ void replay_save_input_event(InputEvent *evt)
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
         key = evt->u.key.data;
-        replay_put_dword(key->key->type);
-
-        switch (key->key->type) {
-        case KEY_VALUE_KIND_NUMBER:
-            replay_put_qword(key->key->u.number.data);
-            replay_put_byte(key->down);
-            break;
-        case KEY_VALUE_KIND_QCODE:
-            replay_put_dword(key->key->u.qcode.data);
-            replay_put_byte(key->down);
-            break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
-        }
+        replay_put_dword(key->key);
+        replay_put_byte(key->down);
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
@@ -68,9 +55,7 @@ void replay_save_input_event(InputEvent *evt)
 InputEvent *replay_read_input_event(void)
 {
     InputEvent evt;
-    KeyValue keyValue;
     InputKeyEvent key;
-    key.key = &keyValue;
     InputBtnEvent btn;
     InputMoveEvent rel;
     InputMoveEvent abs;
@@ -79,21 +64,8 @@ InputEvent *replay_read_input_event(void)
     switch (evt.type) {
     case INPUT_EVENT_KIND_KEY:
         evt.u.key.data = &key;
-        evt.u.key.data->key->type = replay_get_dword();
-
-        switch (evt.u.key.data->key->type) {
-        case KEY_VALUE_KIND_NUMBER:
-            evt.u.key.data->key->u.number.data = replay_get_qword();
-            evt.u.key.data->down = replay_get_byte();
-            break;
-        case KEY_VALUE_KIND_QCODE:
-            evt.u.key.data->key->u.qcode.data = (QKeyCode)replay_get_dword();
-            evt.u.key.data->down = replay_get_byte();
-            break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
-        }
+        evt.u.key.data->key = (QKeyCode)replay_get_dword();
+        evt.u.key.data->down = replay_get_byte();
         break;
     case INPUT_EVENT_KIND_BTN:
         evt.u.btn.data = &btn;

@@ -200,7 +200,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
         key = evt->u.key.data;
-        qcode = qemu_input_key_value_to_qcode(key->key);
+        qcode = key->key;
         if (qcode && keymap_qcode[qcode]) {
             event.type  = cpu_to_le16(EV_KEY);
             event.code  = cpu_to_le16(keymap_qcode[qcode]);

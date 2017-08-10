@@ -17,17 +17,12 @@ int qemu_input_linux_to_qcode(unsigned int lnx)
     return qemu_input_map_linux2qcode[lnx];
 }
 
-int qemu_input_key_value_to_number(const KeyValue *value)
+int qemu_input_qcode_to_number(QKeyCode qcode)
 {
-    if (value->type == KEY_VALUE_KIND_QCODE) {
-        if (value->u.qcode.data >= qemu_input_map_qcode2qnum_len) {
-            return 0;
-        }
-        return qemu_input_map_qcode2qnum[value->u.qcode.data];
-    } else {
-        assert(value->type == KEY_VALUE_KIND_NUMBER);
-        return value->u.number.data;
+    if (qcode >= qemu_input_map_qcode2qnum_len) {
+        return 0;
     }
+    return qemu_input_map_qcode2qnum[qcode];
 }
 
 int qemu_input_key_number_to_qcode(unsigned int nr)
@@ -38,24 +33,13 @@ int qemu_input_key_number_to_qcode(unsigned int nr)
     return qemu_input_map_qnum2qcode[nr];
 }
 
-int qemu_input_key_value_to_qcode(const KeyValue *value)
+int qemu_input_qcode_to_scancode(QKeyCode qcode, bool down,
+                                 int *codes)
 {
-    if (value->type == KEY_VALUE_KIND_QCODE) {
-        return value->u.qcode.data;
-    } else {
-        assert(value->type == KEY_VALUE_KIND_NUMBER);
-        return qemu_input_key_number_to_qcode(value->u.number.data);
-    }
-}
-
-int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,
-                                     int *codes)
-{
-    int keycode = qemu_input_key_value_to_number(value);
+    int keycode = qemu_input_qcode_to_number(qcode);
     int count = 0;
 
-    if (value->type == KEY_VALUE_KIND_QCODE &&
-        value->u.qcode.data == Q_KEY_CODE_PAUSE) {
+    if (qcode == Q_KEY_CODE_PAUSE) {
         /* specific case */
         int v = down ? 0 : 0x80;
         codes[count++] = 0xe1;
