@@ -2703,6 +2703,17 @@ static int hdev_create(const char *filename, QemuOpts *opts,
         ret = -ENOSPC;
     }
 
+    if (total_size) {
+        int64_t zero_size = MIN(BDRV_SECTOR_SIZE, total_size);
+        uint8_t *buf;
+        if (lseek(fd, 0, SEEK_SET) == -1) {
+            ret = -errno;
+        } else {
+            buf = g_malloc0(zero_size);
+            ret = qemu_write_full(fd, buf, zero_size);
+            g_free(buf);
+        }
+    }
     qemu_close(fd);
     return ret;
 }
