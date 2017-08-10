@@ -78,6 +78,7 @@ test-qobject-output-visitor
 test-rcu-list
 test-replication
 test-shift128
+test-sockets-proto
 test-string-input-visitor
 test-string-output-visitor
 test-thread-pool
