@@ -68,6 +68,9 @@ void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
 extern const guint qemu_input_map_linux2qcode_len;
 extern const guint16 qemu_input_map_linux2qcode[];
 
+extern const guint qemu_input_map_qcode2adb_len;
+extern const guint16 qemu_input_map_qcode2adb[];
+
 extern const guint qemu_input_map_qcode2atset1_len;
 extern const guint16 qemu_input_map_qcode2atset1[];
 
