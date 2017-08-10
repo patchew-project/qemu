@@ -35,6 +35,10 @@ void qcow2_free_snapshots(BlockDriverState *bs)
     BDRVQcow2State *s = bs->opaque;
     int i;
 
+    if (NULL == s->snapshots) {
+        return;
+    }
+
     for(i = 0; i < s->nb_snapshots; i++) {
         g_free(s->snapshots[i].name);
         g_free(s->snapshots[i].id_str);
