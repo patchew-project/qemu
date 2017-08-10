@@ -3618,15 +3618,23 @@
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
 ##
-# @object-add:
+# @ObjectOptions:
 #
-# Create a QOM object.
+# Options for creating an object.
 #
 # @qom-type: the class name for the object to be created
 #
 # @id: the name of the new object
 #
 # @props: a dictionary of properties to be passed to the backend
+##
+{ 'struct': 'ObjectOptions',
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'} }
+
+##
+# @object-add:
+#
+# Create a QOM object.
 #
 # Returns: Nothing on success
 #          Error if @qom-type is not a valid class name
@@ -3642,7 +3650,7 @@
 #
 ##
 { 'command': 'object-add',
-  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'} }
+  'data': 'ObjectOptions' }
 
 ##
 # @object-del:
