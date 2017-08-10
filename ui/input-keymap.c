@@ -32,14 +32,6 @@ int qemu_input_linux_to_qcode(unsigned int lnx)
     return qemu_input_map_linux2qcode[lnx];
 }
 
-int qemu_input_qcode_to_number(QKeyCode qcode)
-{
-    if (qcode >= qemu_input_map_qcode2qnum_len) {
-        return 0;
-    }
-    return qemu_input_map_qcode2qnum[qcode];
-}
-
 int qemu_input_key_number_to_qcode(unsigned int nr)
 {
     if (nr >= qemu_input_map_qnum2qcode_len) {
@@ -51,8 +43,14 @@ int qemu_input_key_number_to_qcode(unsigned int nr)
 int qemu_input_qcode_to_scancode(QKeyCode qcode, bool down,
                                  int *codes)
 {
-    int keycode = qemu_input_qcode_to_number(qcode);
+    int keycode;
     int count = 0;
+
+    if (qcode >= qemu_input_map_qcode2qnum_len) {
+        keycode = 0;
+    } else {
+        keycode = qemu_input_map_qcode2qnum[qcode];
+    }
 
     if (qcode == Q_KEY_CODE_PAUSE) {
         /* specific case */
