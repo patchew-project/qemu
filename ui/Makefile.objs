@@ -49,3 +49,21 @@ gtk-egl.o-libs += $(OPENGL_LIBS)
 shader.o-libs += $(OPENGL_LIBS)
 console-gl.o-libs += $(OPENGL_LIBS)
 egl-helpers.o-libs += $(OPENGL_LIBS)
+
+KEYCODEMAP_GEN = ui/keycodemapdb/tools/keymap-gen
+KEYCODEMAP_CSV = ui/keycodemapdb/data/keymaps.csv
+
+KEYCODEMAP_FILES = \
+		 $(NULL)
+
+GENERATED_FILES += $(KEYCODEMAP_FILES)
+
+ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) ui/Makefile.objs
+	$(call quiet-command,\
+	    $(PYTHON) $(KEYCODEMAP_GEN) \
+	          --lang glib2 \
+	          --varname qemu_input_map_$$(echo $@ | sed -e "s,^ui/input-keymap-,," -e "s,\.c$$,,") \
+	          code-map $(KEYCODEMAP_CSV) \
+	          $$(echo $@ | sed -E -e "s,^ui/input-keymap-([a-zA-Z0-9]+)2([a-zA-Z0-9]+)\.c$$,\1,") \
+	          $$(echo $@ | sed -E -e "s,^ui/input-keymap-([a-zA-Z0-9]+)2([a-zA-Z0-9]+)\.c$$,\2,") \
+	        > $@ || rm $@, "GEN", "$@")
