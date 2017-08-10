@@ -55,6 +55,7 @@ KEYCODEMAP_CSV = ui/keycodemapdb/data/keymaps.csv
 
 KEYCODEMAP_FILES = \
 		 ui/input-keymap-linux2qcode.c \
+		 ui/input-keymap-osx2qcode.c \
 		 ui/input-keymap-qcode2adb.c \
 		 ui/input-keymap-qcode2atset1.c \
 		 ui/input-keymap-qcode2atset2.c \
