@@ -1894,10 +1894,11 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
      * }
      * env->exclusive_addr = -1;
      */
+    TCGMemOp memop = size | MO_ALIGN | s->be_data;
     TCGLabel *fail_label = gen_new_label();
     TCGLabel *done_label = gen_new_label();
     TCGv_i64 addr = tcg_temp_local_new_i64();
-    TCGv_i64 tmp;
+    TCGv_i64 tmp, val;
 
     /* Copy input into a local temp so it is not trashed when the
      * basic block ends at the branch insn.
@@ -1907,15 +1908,15 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
 
     tmp = tcg_temp_new_i64();
     if (is_pair) {
+        val = tcg_temp_new_i64();
         if (size == 2) {
-            TCGv_i64 val = tcg_temp_new_i64();
             tcg_gen_concat32_i64(tmp, cpu_reg(s, rt), cpu_reg(s, rt2));
             tcg_gen_concat32_i64(val, cpu_exclusive_val, cpu_exclusive_high);
             tcg_gen_atomic_cmpxchg_i64(tmp, addr, val, tmp,
                                        get_mem_index(s),
-                                       size | MO_ALIGN | s->be_data);
-            tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, val);
-            tcg_temp_free_i64(val);
+                                       memop);
+            tcg_gen_ext_i64(val, val, memop);
+            tcg_gen_brcond_i64(TCG_COND_NE, tmp, val, fail_label);
         } else if (s->be_data == MO_LE) {
             gen_helper_paired_cmpxchg64_le(tmp, cpu_env, addr, cpu_reg(s, rt),
                                            cpu_reg(s, rt2));
@@ -1924,22 +1925,23 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
                                            cpu_reg(s, rt2));
         }
     } else {
-        TCGv_i64 val = cpu_reg(s, rt);
+        val = cpu_reg(s, rt);
         tcg_gen_atomic_cmpxchg_i64(tmp, addr, cpu_exclusive_val, val,
                                    get_mem_index(s),
-                                   size | MO_ALIGN | s->be_data);
-        tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, cpu_exclusive_val);
+                                   memop);
+        tcg_gen_brcond_i64(TCG_COND_NE, tmp, cpu_exclusive_val, fail_label);
     }
 
     tcg_temp_free_i64(addr);
 
-    tcg_gen_mov_i64(cpu_reg(s, rd), tmp);
-    tcg_temp_free_i64(tmp);
+    tcg_gen_movi_i64(cpu_reg(s, rd), 0);
     tcg_gen_br(done_label);
 
     gen_set_label(fail_label);
     tcg_gen_movi_i64(cpu_reg(s, rd), 1);
     gen_set_label(done_label);
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(val);
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
 
