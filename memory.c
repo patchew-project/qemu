@@ -338,15 +338,6 @@ static void flatview_simplify(FlatView *view)
     }
 }
 
-static bool memory_region_big_endian(MemoryRegion *mr)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    return mr->ops->endianness != DEVICE_LITTLE_ENDIAN;
-#else
-    return mr->ops->endianness == DEVICE_BIG_ENDIAN;
-#endif
-}
-
 static bool memory_region_wrong_endianness(MemoryRegion *mr)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -572,7 +563,8 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
 {
     uint64_t access_mask;
     unsigned access_size;
-    unsigned i;
+    hwaddr access_addr;
+    unsigned offset;
     MemTxResult r = MEMTX_OK;
 
     if (!access_size_min) {
@@ -585,17 +577,17 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     /* FIXME: support unaligned access? */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     access_mask = -1ULL >> (64 - access_size * 8);
-    if (memory_region_big_endian(mr)) {
-        for (i = 0; i < size; i += access_size) {
-            r |= access(mr, addr + i, value, access_size,
-                        (size - access_size - i) * 8, access_mask, attrs);
+    access_addr = addr & ~(access_size - 1);
+    if (access_size < size) {
+        for (offset = 0; offset < size; offset += access_size) {
+            r |= access(mr, access_addr + offset, value, access_size,
+                        offset * 8, access_mask, attrs);
         }
     } else {
-        for (i = 0; i < size; i += access_size) {
-            r |= access(mr, addr + i, value, access_size, i * 8,
-                        access_mask, attrs);
-        }
+        r = access(mr, access_addr, value, access_size,
+                    0, access_mask, attrs);
     }
+
     return r;
 }
 
