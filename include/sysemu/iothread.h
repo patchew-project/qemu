@@ -24,6 +24,7 @@ typedef struct {
 
     QemuThread thread;
     AioContext *ctx;
+    GMainLoop *loop;
     QemuMutex init_done_lock;
     QemuCond init_done_cond;    /* is thread initialization done? */
     bool stopping;

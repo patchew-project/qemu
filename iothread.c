@@ -46,6 +46,7 @@ AioContext *qemu_get_current_aio_context(void)
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
+    GMainContext *context;
 
     rcu_register_thread();
 
@@ -57,6 +58,15 @@ static void *iothread_run(void *opaque)
 
     while (!atomic_read(&iothread->stopping)) {
         aio_poll(iothread->ctx, true);
+
+        context = iothread->ctx->source.context;
+        if (context) {
+            iothread->loop = g_main_loop_new(context, TRUE);
+            g_main_loop_run(iothread->loop);
+
+            g_main_loop_unref(iothread->loop);
+            g_main_context_unref(context);
+        }
     }
 
     rcu_unregister_thread();
@@ -72,6 +82,9 @@ static int iothread_stop(Object *object, void *opaque)
         return 0;
     }
     iothread->stopping = true;
+    if (iothread->loop) {
+        g_main_loop_quit(iothread->loop);
+    }
     aio_notify(iothread->ctx);
     qemu_thread_join(&iothread->thread);
     return 0;
