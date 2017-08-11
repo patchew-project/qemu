@@ -68,7 +68,8 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 
 static coroutine_fn void nbd_read_reply_entry(void *opaque)
 {
-    NBDClientSession *s = opaque;
+    BlockDriverState *bs = opaque;
+    NBDClientSession *s = nbd_get_client_session(bs);
     uint64_t i;
     int ret;
     Error *local_err = NULL;
@@ -107,8 +108,12 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         qemu_coroutine_yield();
     }
 
+    s->reply.handle = 0;
     nbd_recv_coroutines_enter_all(s);
     s->read_reply_co = NULL;
+    if (ret < 0) {
+        nbd_teardown_connection(bs);
+    }
 }
 
 static int nbd_co_send_request(BlockDriverState *bs,
@@ -416,7 +421,7 @@ int nbd_client_init(BlockDriverState *bs,
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    client->read_reply_co = qemu_coroutine_create(nbd_read_reply_entry, client);
+    client->read_reply_co = qemu_coroutine_create(nbd_read_reply_entry, bs);
     nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
