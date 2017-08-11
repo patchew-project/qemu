@@ -1026,8 +1026,9 @@ static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
 
     sdev = sbus->pbdev[devfn];
     if (!sdev) {
-        char *name = g_strdup_printf("%s-%d-%d", TYPE_SMMU_V3_DEV,
-                                      pci_bus_num(bus), devfn);
+        char *name = g_strdup_printf("%s-%d-%d",
+                                     TYPE_SMMUV3_IOMMU_MEMORY_REGION,
+                                     pci_bus_num(bus), devfn);
         sdev = sbus->pbdev[devfn] = g_malloc0(sizeof(SMMUDevice));
 
         sdev->smmu = s;

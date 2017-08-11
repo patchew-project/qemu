@@ -22,7 +22,7 @@
 
 #include "hw/arm/smmu-common.h"
 
-#define TYPE_SMMUV3_IOMMU_MEMORY_REGION "smmuv3-iommu-iommu-memory-region"
+#define TYPE_SMMUV3_IOMMU_MEMORY_REGION "smmuv3-iommu-memory-region"
 
 #define SMMU_NREGS            0x200
 
