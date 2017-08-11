@@ -2871,6 +2871,8 @@ void acpi_setup(void)
     AcpiBuildState *build_state;
     Object *vmgenid_dev;
 
+    acpi_set_pci_info();
+
     if (!pcms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
@@ -2887,8 +2889,6 @@ void acpi_setup(void)
     }
 
     build_state = g_malloc0(sizeof *build_state);
-
-    acpi_set_pci_info();
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(pcms));
