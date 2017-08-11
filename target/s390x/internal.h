@@ -491,6 +491,19 @@ void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
 int kvm_s390_get_ri(void);
 int kvm_s390_get_gs(void);
+int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
+int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_clock);
+int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_clock);
+void kvm_s390_enable_css_support(S390CPU *cpu);
+int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
+                                    int vq, bool assign);
+int kvm_s390_cpu_restart(S390CPU *cpu);
+int kvm_s390_get_memslot_count(KVMState *s);
+int kvm_s390_cmma_active(void);
+void kvm_s390_cmma_reset(void);
+void kvm_s390_reset_vcpu(S390CPU *cpu);
+int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
+void kvm_s390_crypto_reset(void);
 #else
 static inline void kvm_s390_service_interrupt(uint32_t parm)
 {
@@ -534,6 +547,45 @@ static inline int kvm_s390_get_ri(void)
 static inline int kvm_s390_get_gs(void)
 {
     return 0;
+}
+static inline int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
+static inline int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
+static inline void kvm_s390_enable_css_support(S390CPU *cpu)
+{
+}
+static inline int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier,
+                                                  uint32_t sch, int vq,
+                                                  bool assign)
+{
+    return -ENOSYS;
+}
+static inline int kvm_s390_cpu_restart(S390CPU *cpu)
+{
+    return -ENOSYS;
+}
+static inline void kvm_s390_cmma_reset(void)
+{
+}
+static inline int kvm_s390_get_memslot_count(KVMState *s)
+{
+  return MAX_AVAIL_SLOTS;
+}
+static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
+{
+}
+static inline int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit,
+                                         uint64_t *hw_limit)
+{
+    return 0;
+}
+static inline void kvm_s390_crypto_reset(void)
+{
 }
 #endif /* CONFIG_KVM */
 

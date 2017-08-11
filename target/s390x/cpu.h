@@ -406,22 +406,6 @@ int cpu_s390x_signal_handler(int host_signum, void *pinfo,
 
 void s390_enable_css_support(S390CPU *cpu);
 int s390_virtio_hypercall(CPUS390XState *env);
-
-#ifdef CONFIG_KVM
-int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
-int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_clock);
-int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_clock);
-#else
-static inline int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
-{
-    return -ENOSYS;
-}
-static inline int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
-{
-    return -ENOSYS;
-}
-#endif
-
 int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
 int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low);
 
@@ -687,52 +671,6 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 /* automatically detect the instruction length */
 #define ILEN_AUTO                   0xff
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
-
-#ifdef CONFIG_KVM
-void kvm_s390_enable_css_support(S390CPU *cpu);
-int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
-                                    int vq, bool assign);
-int kvm_s390_cpu_restart(S390CPU *cpu);
-int kvm_s390_get_memslot_count(KVMState *s);
-int kvm_s390_cmma_active(void);
-void kvm_s390_cmma_reset(void);
-void kvm_s390_reset_vcpu(S390CPU *cpu);
-int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
-void kvm_s390_crypto_reset(void);
-#else
-
-static inline void kvm_s390_enable_css_support(S390CPU *cpu)
-{
-}
-static inline int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier,
-                                                  uint32_t sch, int vq,
-                                                  bool assign)
-{
-    return -ENOSYS;
-}
-static inline int kvm_s390_cpu_restart(S390CPU *cpu)
-{
-    return -ENOSYS;
-}
-static inline void kvm_s390_cmma_reset(void)
-{
-}
-static inline int kvm_s390_get_memslot_count(KVMState *s)
-{
-  return MAX_AVAIL_SLOTS;
-}
-static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
-{
-}
-static inline int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit,
-                                         uint64_t *hw_limit)
-{
-    return 0;
-}
-static inline void kvm_s390_crypto_reset(void)
-{
-}
-#endif
 
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit);
 void s390_cmma_reset(void);
