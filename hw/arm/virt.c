@@ -1034,6 +1034,7 @@ static void create_smmu(const VirtMachineState *vms, qemu_irq *pic)
     qemu_fdt_setprop_cell(vms->fdt, smmu, "clocks", vms->clock_phandle);
     qemu_fdt_setprop_string(vms->fdt, smmu, "clock-names", "apb_pclk");
     qemu_fdt_setprop(vms->fdt, smmu, "dma-coherent", NULL, 0);
+    qemu_fdt_setprop(vms->fdt, smmu, "tlbi-on-map", NULL, 0);
 
     qemu_fdt_setprop_cell(vms->fdt, smmu, "#iommu-cells", 1);
 
