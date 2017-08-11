@@ -919,6 +919,17 @@ static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
 
+    static int debug;
+    static int count;
+    if (!count++) {
+        const char *str = getenv("NBD_SERVER_DEBUG");
+        if (str) {
+            debug = atoi(str);
+        }
+    }
+    if (debug && !(count % debug)) {
+        buf[0] = 0;
+    }
     return nbd_write(ioc, buf, sizeof(buf), errp);
 }
 
