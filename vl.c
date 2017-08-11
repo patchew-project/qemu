@@ -2855,8 +2855,36 @@ static bool object_create_delayed(const char *type)
     return !object_create_initial(type);
 }
 
+typedef struct ObjectOptionsQueueEntry {
+    ObjectOptions *oo;
+    Location loc;
+    QSIMPLEQ_ENTRY(ObjectOptionsQueueEntry) entry;
+} ObjectOptionsQueueEntry;
+
+typedef QSIMPLEQ_HEAD(ObjectOptionsQueue, ObjectOptionsQueueEntry)
+    ObjectOptionsQueue;
+
+ObjectOptionsQueue oo_queue = QSIMPLEQ_HEAD_INITIALIZER(oo_queue);
+
+
 static void object_create(bool (*type_predicate)(const char *))
 {
+    ObjectOptionsQueueEntry *e, *next;
+
+    QSIMPLEQ_FOREACH_SAFE(e, &oo_queue, entry, next) {
+        if (!type_predicate(e->oo->qom_type)) {
+            continue;
+        }
+
+        loc_push_restore(&e->loc);
+        qmp_object_add(e->oo->qom_type, e->oo->id,
+                       e->oo->has_props, e->oo->props, &error_fatal);
+        loc_pop(&e->loc);
+
+        QSIMPLEQ_REMOVE(&oo_queue, e, ObjectOptionsQueueEntry, entry);
+        qapi_free_ObjectOptions(e->oo);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           user_creatable_add_opts_foreach,
                           type_predicate, NULL)) {
@@ -4079,6 +4107,29 @@ int main(int argc, char **argv, char **envp)
 #endif
                 break;
             case QEMU_OPTION_object:
+                /*
+                 * TODO Use qobject_input_visitor_new_str() instead of
+                 * QemuOpts, not in addition to.  Not done now because
+                 * keyval_parse() isn't wart-compatible with QemuOpts.
+                 */
+                if (optarg[0] == '{') {
+                    Visitor *v;
+                    ObjectOptionsQueueEntry *e;
+
+                    v = qobject_input_visitor_new_str(optarg, "qom-type",
+                                                      &err);
+                    if (!v) {
+                        error_report_err(err);
+                        exit(1);
+                    }
+
+                    e = g_new(ObjectOptionsQueueEntry, 1);
+                    visit_type_ObjectOptions(v, NULL, &e->oo, &error_fatal);
+                    visit_free(v);
+                    loc_save(&e->loc);
+                    QSIMPLEQ_INSERT_TAIL(&oo_queue, e, entry);
+                    break;
+                }
                 opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
                                                optarg, true);
                 if (!opts) {
