@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "exec/target_page.h"
 
 #include "hw/arm/smmuv3.h"
 #include "smmuv3-internal.h"
@@ -143,6 +144,71 @@ static MemTxResult smmu_read_cmdq(SMMUV3State *s, Cmd *cmd)
     return ret;
 }
 
+static void smmuv3_replay_all(SMMUState *s)
+{
+    SMMUNotifierNode *node;
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        trace_smmuv3_replay_all(node->sdev->iommu.parent_obj.name);
+        memory_region_iommu_replay_all(&node->sdev->iommu);
+    }
+}
+
+/* Replay the mappings for a given streamid */
+static void smmuv3_context_device_invalidate(SMMUState *s, uint16_t sid)
+{
+    uint8_t bus_n, devfn;
+    SMMUPciBus *smmu_bus;
+    SMMUDevice *smmu;
+
+    trace_smmuv3_context_device_invalidate(sid);
+    bus_n = PCI_BUS_NUM(sid);
+    smmu_bus = smmu_find_as_from_bus_num(s, bus_n);
+    if (smmu_bus) {
+        devfn = PCI_FUNC(sid);
+        smmu = smmu_bus->pbdev[devfn];
+        if (smmu) {
+            memory_region_iommu_replay_all(&smmu->iommu);
+        }
+    }
+}
+
+static void smmuv3_replay_single(IOMMUMemoryRegion *mr, IOMMUNotifier *n,
+                                 uint64_t iova);
+
+static void smmuv3_replay_range(IOMMUMemoryRegion *mr, IOMMUNotifier *n,
+                                 uint64_t iova, size_t nb_pages);
+
+static void smmuv3_notify_single(SMMUState *s, uint64_t iova)
+{
+    SMMUNotifierNode *node;
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        IOMMUMemoryRegion *mr = &node->sdev->iommu;
+        IOMMUNotifier *n;
+
+        trace_smmuv3_notify_all(node->sdev->iommu.parent_obj.name, iova);
+        IOMMU_NOTIFIER_FOREACH(n, mr) {
+            smmuv3_replay_single(mr, n, iova);
+        }
+    }
+}
+
+static void smmuv3_notify_range(SMMUState *s, uint64_t iova, size_t size)
+{
+    SMMUNotifierNode *node;
+
+    QLIST_FOREACH(node, &s->notifiers_list, next) {
+        IOMMUMemoryRegion *mr = &node->sdev->iommu;
+        IOMMUNotifier *n;
+
+        trace_smmuv3_notify_all(node->sdev->iommu.parent_obj.name, iova);
+        IOMMU_NOTIFIER_FOREACH(n, mr) {
+            smmuv3_replay_range(mr, n, iova, size);
+        }
+    }
+}
+
 static int smmu_cmdq_consume(SMMUV3State *s)
 {
     uint32_t error = SMMU_CMD_ERR_NONE;
@@ -178,28 +244,38 @@ static int smmu_cmdq_consume(SMMUV3State *s)
             break;
         case SMMU_CMD_PREFETCH_CONFIG:
         case SMMU_CMD_PREFETCH_ADDR:
+            break;
         case SMMU_CMD_CFGI_STE:
         {
              uint32_t streamid = cmd.word[1];
 
              trace_smmuv3_cmdq_cfgi_ste(streamid);
-            break;
+             smmuv3_context_device_invalidate(&s->smmu_state, streamid);
+             break;
         }
         case SMMU_CMD_CFGI_STE_RANGE: /* same as SMMU_CMD_CFGI_ALL */
         {
-            uint32_t start = cmd.word[1], range, end;
+            uint32_t start = cmd.word[1], range, end, i;
 
             range = extract32(cmd.word[2], 0, 5);
             end = start + (1 << (range + 1)) - 1;
             trace_smmuv3_cmdq_cfgi_ste_range(start, end);
+            for (i = start; i <= end; i++) {
+                smmuv3_context_device_invalidate(&s->smmu_state, i);
+            }
             break;
         }
         case SMMU_CMD_CFGI_CD:
         case SMMU_CMD_CFGI_CD_ALL:
+        {
+             uint32_t streamid = cmd.word[1];
+
+            smmuv3_context_device_invalidate(&s->smmu_state, streamid);
             break;
+        }
         case SMMU_CMD_TLBI_NH_ALL:
         case SMMU_CMD_TLBI_NH_ASID:
-            printf("%s TLBI* replay\n", __func__);
+            smmuv3_replay_all(&s->smmu_state);
             break;
         case SMMU_CMD_TLBI_NH_VA:
         {
@@ -210,6 +286,20 @@ static int smmu_cmdq_consume(SMMUV3State *s)
             uint64_t addr = high << 32 | (low << 12);
 
             trace_smmuv3_cmdq_tlbi_nh_va(asid, vmid, addr);
+            smmuv3_notify_single(&s->smmu_state, addr);
+            break;
+        }
+        case SMMU_CMD_TLBI_NH_VA_AM:
+        {
+            int asid = extract32(cmd.word[1], 16, 16);
+            int am = extract32(cmd.word[1], 0, 16);
+            uint64_t low = extract32(cmd.word[2], 12, 20);
+            uint64_t high = cmd.word[3];
+            uint64_t addr = high << 32 | (low << 12);
+            size_t size = am << 12;
+
+            trace_smmuv3_cmdq_tlbi_nh_va_am(asid, am, addr, size);
+            smmuv3_notify_range(&s->smmu_state, addr, size);
             break;
         }
         case SMMU_CMD_TLBI_NH_VAA:
@@ -222,6 +312,7 @@ static int smmu_cmdq_consume(SMMUV3State *s)
         case SMMU_CMD_TLBI_S12_VMALL:
         case SMMU_CMD_TLBI_S2_IPA:
         case SMMU_CMD_TLBI_NSNH_ALL:
+            smmuv3_replay_all(&s->smmu_state);
             break;
         case SMMU_CMD_ATC_INV:
         case SMMU_CMD_PRI_RESP:
@@ -804,6 +895,172 @@ out:
     return entry;
 }
 
+static int smmuv3_replay_hook(IOMMUTLBEntry *entry, void *private)
+{
+    trace_smmuv3_replay_hook(entry->iova, entry->translated_addr,
+                             entry->addr_mask, entry->perm);
+    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    return 0;
+}
+
+static int smmuv3_map_hook(IOMMUTLBEntry *entry, void *private)
+{
+    trace_smmuv3_map_hook(entry->iova, entry->translated_addr,
+                          entry->addr_mask, entry->perm);
+    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    return 0;
+}
+
+/* Unmap the whole range in the notifier's scope. */
+static void smmuv3_unmap_notifier(SMMUDevice *sdev, IOMMUNotifier *n)
+{
+    IOMMUTLBEntry entry;
+    hwaddr size;
+    hwaddr start = n->start;
+    hwaddr end = n->end;
+
+    size = end - start + 1;
+
+    entry.target_as = &address_space_memory;
+    /* Adjust iova for the size */
+    entry.iova = n->start & ~(size - 1);
+    /* This field is meaningless for unmap */
+    entry.translated_addr = 0;
+    entry.perm = IOMMU_NONE;
+    entry.addr_mask = size - 1;
+
+    /* TODO: check start/end/size/mask */
+
+    trace_smmuv3_unmap_notifier(pci_bus_num(sdev->bus),
+                                PCI_SLOT(sdev->devfn),
+                                PCI_FUNC(sdev->devfn),
+                                entry.iova, size);
+
+    memory_region_notify_one(n, &entry);
+}
+
+static void smmuv3_replay(IOMMUMemoryRegion *mr, IOMMUNotifier *n)
+{
+    SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
+    SMMUV3State *s = sdev->smmu;
+    SMMUBaseClass *sbc = SMMU_DEVICE_GET_CLASS(s);
+    SMMUTransCfg cfg = {};
+    int ret;
+
+    smmuv3_unmap_notifier(sdev, n);
+
+    ret = smmuv3_decode_config(mr, &cfg);
+    if (ret) {
+        error_report("%s error decoding the configuration for iommu mr=%s",
+                     __func__, mr->parent_obj.name);
+    }
+
+    if (cfg.disabled || cfg.bypassed) {
+        return;
+    }
+    /* is the smmu enabled */
+    sbc->page_walk_64(&cfg, 0, (1ULL << (64 - cfg.tsz)) - 1, false,
+                      smmuv3_replay_hook, n);
+}
+static void smmuv3_replay_range(IOMMUMemoryRegion *mr, IOMMUNotifier *n,
+                                 uint64_t iova, size_t size)
+{
+    SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
+    SMMUV3State *s = sdev->smmu;
+    SMMUBaseClass *sbc = SMMU_DEVICE_GET_CLASS(s);
+    SMMUTransCfg cfg = {};
+    IOMMUTLBEntry entry;
+    int ret;
+
+    trace_smmuv3_replay_range(mr->parent_obj.name, iova, size, n);
+    ret = smmuv3_decode_config(mr, &cfg);
+    if (ret) {
+        error_report("%s error decoding the configuration for iommu mr=%s",
+                     __func__, mr->parent_obj.name);
+    }
+
+    if (cfg.disabled || cfg.bypassed) {
+        return;
+    }
+
+    /* first unmap */
+    entry.target_as = &address_space_memory;
+    entry.iova = iova & ~(size - 1);
+    entry.addr_mask = size - 1;
+    entry.perm = IOMMU_NONE;
+
+    memory_region_notify_one(n, &entry);
+
+    /* then figure out if a new mapping needs to be applied */
+    sbc->page_walk_64(&cfg, iova, iova + entry.addr_mask , false,
+                      smmuv3_map_hook, n);
+}
+
+static void smmuv3_replay_single(IOMMUMemoryRegion *mr, IOMMUNotifier *n,
+                                 uint64_t iova)
+{
+    SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
+    SMMUV3State *s = sdev->smmu;
+    size_t target_page_size = qemu_target_page_size();
+    SMMUBaseClass *sbc = SMMU_DEVICE_GET_CLASS(s);
+    SMMUTransCfg cfg = {};
+    IOMMUTLBEntry entry;
+    int ret;
+
+    trace_smmuv3_replay_single(mr->parent_obj.name, iova, n);
+    ret = smmuv3_decode_config(mr, &cfg);
+    if (ret) {
+        error_report("%s error decoding the configuration for iommu mr=%s",
+                     __func__, mr->parent_obj.name);
+    }
+
+    if (cfg.disabled || cfg.bypassed) {
+        return;
+    }
+
+    /* first unmap */
+    entry.target_as = &address_space_memory;
+    entry.iova = iova & ~(target_page_size - 1);
+    entry.addr_mask = target_page_size - 1;
+    entry.perm = IOMMU_NONE;
+
+    memory_region_notify_one(n, &entry);
+
+    /* then figure out if a new mapping needs to be applied */
+    sbc->page_walk_64(&cfg, iova, iova + 1, false,
+                      smmuv3_map_hook, n);
+}
+
+static void smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
+                                       IOMMUNotifierFlag old,
+                                       IOMMUNotifierFlag new)
+{
+    SMMUDevice *sdev = container_of(iommu, SMMUDevice, iommu);
+    SMMUV3State *s3 = sdev->smmu;
+    SMMUState *s = &(s3->smmu_state);
+    SMMUNotifierNode *node = NULL;
+    SMMUNotifierNode *next_node = NULL;
+
+    if (old == IOMMU_NOTIFIER_NONE) {
+        trace_smmuv3_notify_flag_add(iommu->parent_obj.name);
+        node = g_malloc0(sizeof(*node));
+        node->sdev = sdev;
+        QLIST_INSERT_HEAD(&s->notifiers_list, node, next);
+        return;
+    }
+
+    /* update notifier node with new flags */
+    QLIST_FOREACH_SAFE(node, &s->notifiers_list, next, next_node) {
+        if (node->sdev == sdev) {
+            if (new == IOMMU_NOTIFIER_NONE) {
+                trace_smmuv3_notify_flag_del(iommu->parent_obj.name);
+                QLIST_REMOVE(node, next);
+                g_free(node);
+            }
+            return;
+        }
+    }
+}
 
 static inline void smmu_update_base_reg(SMMUV3State *s, uint64_t *base,
                                         uint64_t val)
@@ -1125,6 +1382,8 @@ static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = smmuv3_translate;
+    imrc->notify_flag_changed = smmuv3_notify_flag_changed;
+    imrc->replay = smmuv3_replay;
 }
 
 static const TypeInfo smmuv3_type_info = {
