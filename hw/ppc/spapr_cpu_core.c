@@ -175,10 +175,17 @@ static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
 static void spapr_cpu_core_realize_child(Object *child, Error **errp)
 {
     Error *local_err = NULL;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    sPAPRMachineState *spapr;
     CPUState *cs = CPU(child);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     Object *obj;
+
+    spapr = (sPAPRMachineState *)object_dynamic_cast(qdev_get_machine(),
+                                                     TYPE_SPAPR_MACHINE);
+    if (!spapr) {
+        error_setg(errp, "spapr-cpu-core needs a pseries machine");
+        return;
+    }
 
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {
