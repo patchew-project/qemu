@@ -68,6 +68,7 @@ typedef struct RTCState {
     ISADevice parent_obj;
 
     MemoryRegion io;
+    MemoryRegion io_mm;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
     int32_t base_year;
@@ -985,6 +986,11 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 2);
     isa_register_ioport(isadev, &s->io, base);
+    memory_region_set_flush_coalesced(&s->io);
+
+    memory_region_init_io(&s->io_mm, OBJECT(s), &cmos_ops, s, "rtc1", 1);
+    isa_register_ioport(isadev, &s->io_mm, base);
+    memory_region_add_coalescing(&s->io_mm, 0, 1);
 
     qdev_set_legacy_instance_id(dev, base, 3);
     qemu_register_reset(rtc_reset, s);
