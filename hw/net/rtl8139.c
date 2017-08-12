@@ -3131,39 +3131,6 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
 }
 
 /* */
-
-static void rtl8139_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    rtl8139_io_writeb(opaque, addr & 0xFF, val);
-}
-
-static void rtl8139_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-    rtl8139_io_writew(opaque, addr & 0xFF, val);
-}
-
-static void rtl8139_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    rtl8139_io_writel(opaque, addr & 0xFF, val);
-}
-
-static uint32_t rtl8139_mmio_readb(void *opaque, hwaddr addr)
-{
-    return rtl8139_io_readb(opaque, addr & 0xFF);
-}
-
-static uint32_t rtl8139_mmio_readw(void *opaque, hwaddr addr)
-{
-    uint32_t val = rtl8139_io_readw(opaque, addr & 0xFF);
-    return val;
-}
-
-static uint32_t rtl8139_mmio_readl(void *opaque, hwaddr addr)
-{
-    uint32_t val = rtl8139_io_readl(opaque, addr & 0xFF);
-    return val;
-}
-
 static int rtl8139_post_load(void *opaque, int version_id)
 {
     RTL8139State* s = opaque;
@@ -3344,18 +3311,23 @@ static const MemoryRegionOps rtl8139_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t rtl8139_mmio_read(void *opaque, hwaddr addr, unsigned size)
+{
+   return rtl8139_ioport_read(opaque, addr & 0xFF, size);
+}
+
+static void rtl8139_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                               unsigned size)
+{
+    return rtl8139_ioport_write(opaque, addr & 0xFF, val, size);
+}
+
 static const MemoryRegionOps rtl8139_mmio_ops = {
-    .old_mmio = {
-        .read = {
-            rtl8139_mmio_readb,
-            rtl8139_mmio_readw,
-            rtl8139_mmio_readl,
-        },
-        .write = {
-            rtl8139_mmio_writeb,
-            rtl8139_mmio_writew,
-            rtl8139_mmio_writel,
-        },
+    .read = rtl8139_mmio_read,
+    .write = rtl8139_mmio_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
     },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
