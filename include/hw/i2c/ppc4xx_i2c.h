@@ -2,6 +2,8 @@
  * PPC4xx I2C controller emulation
  *
  * Copyright (c) 2007 Jocelyn Mayer
+ * Copyright (c) 2012 François Revol
+ * Copyright (c) 2016 BALATON Zoltan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +30,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/sysbus.h"
+#include "hw/i2c/i2c.h"
 
 #define TYPE_PPC4xx_I2C "ppc4xx-i2c"
 #define PPC4xx_I2C(obj) OBJECT_CHECK(PPC4xxI2CState, (obj), TYPE_PPC4xx_I2C)
@@ -37,6 +40,7 @@ typedef struct PPC4xxI2CState {
     SysBusDevice parent_obj;
 
     /*< public >*/
+    I2CBus *bus;
     qemu_irq irq;
     MemoryRegion iomem;
     uint8_t mdata;
@@ -54,6 +58,7 @@ typedef struct PPC4xxI2CState {
     uint8_t xfrcnt;
     uint8_t xtcntlss;
     uint8_t directcntl;
+    uint8_t intr;
 } PPC4xxI2CState;
 
 #endif /* PPC4XX_I2C_H */
