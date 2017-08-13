@@ -46,6 +46,7 @@ extern bool kvm_readonly_mem_allowed;
 extern bool kvm_direct_msi_allowed;
 extern bool kvm_ioeventfd_any_length_allowed;
 extern bool kvm_msi_use_devid;
+extern bool kvm_coalesced_pio_allowed;
 
 #define kvm_enabled()           (kvm_allowed)
 /**
@@ -168,6 +169,12 @@ extern bool kvm_msi_use_devid;
  */
 #define kvm_msi_devid_required() (kvm_msi_use_devid)
 
+/**
+ * kvm_coalesced_pio_enabled:
+ * Returns: true if KVM allow coalesced pio
+ */
+#define kvm_coalesced_pio_enabled() (kvm_coalesced_pio_allowed)
+
 #else
 
 #define kvm_enabled()           (0)
@@ -185,6 +192,7 @@ extern bool kvm_msi_use_devid;
 #define kvm_direct_msi_enabled() (false)
 #define kvm_ioeventfd_any_length_enabled() (false)
 #define kvm_msi_devid_required() (false)
+#define kvm_coalesced_pio_enabled() (false)
 
 #endif  /* CONFIG_KVM_IS_POSSIBLE */
 

@@ -2023,6 +2023,11 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr)
     }
 }
 
+bool memory_allow_coalesced_pio(void)
+{
+    return kvm_enabled() && kvm_coalesced_pio_enabled();
+}
+
 void memory_region_set_global_locking(MemoryRegion *mr)
 {
     mr->global_locking = true;

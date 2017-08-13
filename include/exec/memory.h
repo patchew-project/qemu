@@ -1254,6 +1254,12 @@ void memory_region_set_flush_coalesced(MemoryRegion *mr);
 void memory_region_clear_flush_coalesced(MemoryRegion *mr);
 
 /**
+ * memory_allow_coalesced_pio: Check whether coalesced pio allowed.
+ *
+ */
+bool memory_allow_coalesced_pio(void);
+
+/**
  * memory_region_set_global_locking: Declares the access processing requires
  *                                   QEMU's global lock.
  *
