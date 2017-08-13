@@ -27,42 +27,19 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
-#include "exec/address-spaces.h"
-#include "hw/ppc/ppc.h"
-#include "ppc405.h"
+#include "hw/i2c/ppc4xx_i2c.h"
 
 /*#define DEBUG_I2C*/
 
-typedef struct ppc4xx_i2c_t ppc4xx_i2c_t;
-struct ppc4xx_i2c_t {
-    qemu_irq irq;
-    MemoryRegion iomem;
-    uint8_t mdata;
-    uint8_t lmadr;
-    uint8_t hmadr;
-    uint8_t cntl;
-    uint8_t mdcntl;
-    uint8_t sts;
-    uint8_t extsts;
-    uint8_t sdata;
-    uint8_t lsadr;
-    uint8_t hsadr;
-    uint8_t clkdiv;
-    uint8_t intrmsk;
-    uint8_t xfrcnt;
-    uint8_t xtcntlss;
-    uint8_t directcntl;
-};
+#define PPC4xx_I2C_MEM_SIZE 0x11
 
-static uint32_t ppc4xx_i2c_readb(void *opaque, hwaddr addr)
+static uint8_t ppc4xx_i2c_readb(PPC4xxI2CState *i2c, hwaddr addr)
 {
-    ppc4xx_i2c_t *i2c;
-    uint32_t ret;
+    uint8_t ret;
 
 #ifdef DEBUG_I2C
     printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
-    i2c = opaque;
     switch (addr) {
     case 0x00:
         /*i2c_readbyte(&i2c->mdata);*/
@@ -121,16 +98,12 @@ static uint32_t ppc4xx_i2c_readb(void *opaque, hwaddr addr)
     return ret;
 }
 
-static void ppc4xx_i2c_writeb(void *opaque,
-                              hwaddr addr, uint32_t value)
+static void ppc4xx_i2c_writeb(PPC4xxI2CState *i2c, hwaddr addr, uint8_t value)
 {
-    ppc4xx_i2c_t *i2c;
-
 #ifdef DEBUG_I2C
-    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
-           value);
+    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n",
+           __func__, addr, value);
 #endif
-    i2c = opaque;
     switch (addr) {
     case 0x00:
         i2c->mdata = value;
@@ -181,71 +154,44 @@ static void ppc4xx_i2c_writeb(void *opaque,
     }
 }
 
-static uint32_t ppc4xx_i2c_readw(void *opaque, hwaddr addr)
+static uint64_t ppc4xx_i2c_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    uint32_t ret;
+    PPC4xxI2CState *s = PPC4xx_I2C(opaque);
+    int i;
+    uint64_t ret = 0;
 
-#ifdef DEBUG_I2C
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-    ret = ppc4xx_i2c_readb(opaque, addr) << 8;
-    ret |= ppc4xx_i2c_readb(opaque, addr + 1);
+    for (i = 0; i < size; i++) {
+        ret <<= 8;
+        ret |= ppc4xx_i2c_readb(s, addr + i);
+    }
 
     return ret;
 }
 
-static void ppc4xx_i2c_writew(void *opaque,
-                              hwaddr addr, uint32_t value)
+static void ppc4xx_i2c_write(void *opaque, hwaddr addr, uint64_t value,
+                             unsigned int size)
 {
-#ifdef DEBUG_I2C
-    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
-           value);
-#endif
-    ppc4xx_i2c_writeb(opaque, addr, value >> 8);
-    ppc4xx_i2c_writeb(opaque, addr + 1, value);
+    PPC4xxI2CState *s = PPC4xx_I2C(opaque);
+    int i;
+
+    for (i = 0; i < size; i++) {
+        ppc4xx_i2c_writeb(s, addr + i, value & 0xff);
+        value >>= 8;
+    }
 }
 
-static uint32_t ppc4xx_i2c_readl(void *opaque, hwaddr addr)
-{
-    uint32_t ret;
-
-#ifdef DEBUG_I2C
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-    ret = ppc4xx_i2c_readb(opaque, addr) << 24;
-    ret |= ppc4xx_i2c_readb(opaque, addr + 1) << 16;
-    ret |= ppc4xx_i2c_readb(opaque, addr + 2) << 8;
-    ret |= ppc4xx_i2c_readb(opaque, addr + 3);
-
-    return ret;
-}
-
-static void ppc4xx_i2c_writel(void *opaque,
-                              hwaddr addr, uint32_t value)
-{
-#ifdef DEBUG_I2C
-    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
-           value);
-#endif
-    ppc4xx_i2c_writeb(opaque, addr, value >> 24);
-    ppc4xx_i2c_writeb(opaque, addr + 1, value >> 16);
-    ppc4xx_i2c_writeb(opaque, addr + 2, value >> 8);
-    ppc4xx_i2c_writeb(opaque, addr + 3, value);
-}
-
-static const MemoryRegionOps i2c_ops = {
-    .old_mmio = {
-        .read = { ppc4xx_i2c_readb, ppc4xx_i2c_readw, ppc4xx_i2c_readl, },
-        .write = { ppc4xx_i2c_writeb, ppc4xx_i2c_writew, ppc4xx_i2c_writel, },
-    },
+static const MemoryRegionOps ppc4xx_i2c_ops = {
+    .read = ppc4xx_i2c_read,
+    .write = ppc4xx_i2c_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void ppc4xx_i2c_reset(void *opaque)
+static void ppc4xx_i2c_reset(DeviceState *s)
 {
-    ppc4xx_i2c_t *i2c;
+    PPC4xxI2CState *i2c = PPC4xx_I2C(s);
 
-    i2c = opaque;
     i2c->mdata = 0x00;
     i2c->sdata = 0x00;
     i2c->cntl = 0x00;
@@ -257,16 +203,35 @@ static void ppc4xx_i2c_reset(void *opaque)
     i2c->directcntl = 0x0F;
 }
 
-void ppc405_i2c_init(hwaddr base, qemu_irq irq)
+static void ppc4xx_i2c_init(Object *o)
 {
-    ppc4xx_i2c_t *i2c;
+    PPC4xxI2CState *s = PPC4xx_I2C(o);
 
-    i2c = g_malloc0(sizeof(ppc4xx_i2c_t));
-    i2c->irq = irq;
-#ifdef DEBUG_I2C
-    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
-#endif
-    memory_region_init_io(&i2c->iomem, NULL, &i2c_ops, i2c, "i2c", 0x011);
-    memory_region_add_subregion(get_system_memory(), base, &i2c->iomem);
-    qemu_register_reset(ppc4xx_i2c_reset, i2c);
+    memory_region_init_io(&s->iomem, OBJECT(s), &ppc4xx_i2c_ops, s,
+                          TYPE_PPC4xx_I2C, PPC4xx_I2C_MEM_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
+    s->bus = i2c_init_bus(DEVICE(s), "i2c");
 }
+
+static void ppc4xx_i2c_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->reset = ppc4xx_i2c_reset;
+}
+
+static const TypeInfo ppc4xx_i2c_type_info = {
+    .name = TYPE_PPC4xx_I2C,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PPC4xxI2CState),
+    .instance_init = ppc4xx_i2c_init,
+    .class_init = ppc4xx_i2c_class_init,
+};
+
+static void ppc4xx_i2c_register_types(void)
+{
+    type_register_static(&ppc4xx_i2c_type_info);
+}
+
+type_init(ppc4xx_i2c_register_types)
