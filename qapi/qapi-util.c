@@ -13,6 +13,9 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/util.h"
 
 int qapi_enum_parse(const char * const lookup[], const char *buf,
@@ -79,4 +82,67 @@ int parse_qapi_name(const char *str, bool complete)
         return -1;
     }
     return p - str;
+}
+
+static int qnum_compare(QNum *a, QNum *b)
+{
+    int64_t ia, ib;
+    bool va = qnum_get_try_int(a, &ia);
+    bool vb = qnum_get_try_int(b, &ib);
+
+    if (va && vb) {
+        return (ia < ib) ? -1 : (ia > ib) ? 1 : 0;
+    }
+
+    /*TODO: uint, double */
+    return -1;
+}
+
+static int qlist_compare(QList *a, QList *b)
+{
+    const QListEntry *ea, *eb;
+
+    for (ea = qlist_first(a), eb = qlist_first(b);
+         ea && eb;
+         ea = qlist_next(ea), eb = qlist_next(eb)) {
+        QObject *va = qlist_entry_obj(ea);
+        QObject *vb = qlist_entry_obj(eb);
+        int c = qobject_compare(va, vb);
+        if (c) {
+            return c;
+        }
+    }
+
+    if (eb) {
+        return -1;
+    } else if (ea) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int qobject_compare(QObject *a, QObject *b)
+{
+    QType ta = qobject_type(a);
+    QType tb = qobject_type(b);
+
+    if (ta != tb) {
+        return -1;
+    }
+
+    switch (ta) {
+    case QTYPE_QNULL:
+        return true;
+    case QTYPE_QNUM:
+        return qnum_compare(qobject_to_qnum(a), qobject_to_qnum(b));
+    case QTYPE_QSTRING:
+        return strcmp(qstring_get_str(qobject_to_qstring(a)), qstring_get_str(qobject_to_qstring(b)));
+    case QTYPE_QBOOL:
+        return (int)qbool_get_bool(qobject_to_qbool(a)) - (int)qbool_get_bool(qobject_to_qbool(b));
+    case QTYPE_QLIST:
+        return qlist_compare(qobject_to_qlist(a), qobject_to_qlist(b));
+    default:
+        return -1;
+    }
 }
