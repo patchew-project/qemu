@@ -464,6 +464,10 @@ void parse_numa_opts(MachineState *ms)
         if (i == nb_numa_nodes) {
             assert(mc->numa_auto_assign_ram);
             mc->numa_auto_assign_ram(mc, numa_info, nb_numa_nodes, ram_size);
+        } else if (i != 0) {
+            error_report("The first NUMA node must have some memory"
+                          " for building ACPI SART");
+            exit(1);
         }
 
         numa_total = 0;
