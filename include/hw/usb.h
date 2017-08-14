@@ -509,14 +509,16 @@ void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);
 #define TYPE_USB_BUS "usb-bus"
 #define USB_BUS(obj) OBJECT_CHECK(USBBus, (obj), TYPE_USB_BUS)
 
+typedef QTAILQ_HEAD(, USBPort) USBPortList;
+
 struct USBBus {
     BusState qbus;
     USBBusOps *ops;
     int busnr;
     int nfree;
     int nused;
-    QTAILQ_HEAD(, USBPort) free;
-    QTAILQ_HEAD(, USBPort) used;
+    USBPortList free;
+    USBPortList used;
     QTAILQ_ENTRY(USBBus) next;
 };
 

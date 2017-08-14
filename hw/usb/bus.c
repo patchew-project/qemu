@@ -2,6 +2,7 @@
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/qdev.h"
+#include "hw/qdev-slotinfo.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
@@ -25,6 +26,40 @@ static Property usb_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+static void usb_bus_enumerate_slot_list(DeviceSlotInfoList **r, USBBus *bus, USBPortList *l)
+{
+    USBPort *port;
+
+    QTAILQ_FOREACH(port, l, next) {
+        DeviceSlotInfo *slot = make_slot(BUS(bus));
+        /*
+         * TODO: should the "bus" option be included, or is
+         * "port" enough to identify the USB bus + port?
+         */
+        slot_add_opt_str(slot, "port", port->path);
+        slot->opts_complete = slot;
+        if (port->dev) {
+            slot->has_device = true;
+            slot->device = object_get_canonical_path(OBJECT(port->dev));
+            slot->available = false;
+        }
+        slot->has_count = 1;
+        slot->count = 1;
+
+        slot_list_add_slot(r, slot);
+    }
+}
+
+static DeviceSlotInfoList *usb_bus_enumerate_slots(BusState *bus)
+{
+    USBBus *ub = USB_BUS(bus);
+    DeviceSlotInfoList *r = NULL;
+
+    usb_bus_enumerate_slot_list(&r, ub, &ub->free);
+    usb_bus_enumerate_slot_list(&r, ub, &ub->used);
+    return r;
+}
+
 static void usb_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -34,6 +69,7 @@ static void usb_bus_class_init(ObjectClass *klass, void *data)
     k->get_dev_path = usb_get_dev_path;
     k->get_fw_dev_path = usb_get_fw_dev_path;
     k->device_type = TYPE_USB_DEVICE;
+    k->enumerate_slots = usb_bus_enumerate_slots;
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 
