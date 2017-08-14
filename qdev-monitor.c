@@ -673,7 +673,8 @@ DeviceSlotInfoList *qmp_query_device_slots(Error **errp)
     SlotListState s = { .next = &s.result };
 
     object_child_foreach_recursive(qdev_get_machine(), enumerate_bus, &s);
-    return s.result;
+
+    return slot_list_collapse(s.result);
 }
 
 
