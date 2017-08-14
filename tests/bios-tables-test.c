@@ -363,7 +363,6 @@ static GString *normalize_asl(gchar *asl_code)
     /* strip def block name (it has file path in it) */
     if (g_str_has_prefix(asl->str, DEF_BLOCK)) {
         block_name = g_strstr_len(asl->str, asl->len, BLOCK_NAME_END);
-        g_assert(block_name);
         asl = g_string_erase(asl, 0,
                              block_name + sizeof(BLOCK_NAME_END) - asl->str);
     }
