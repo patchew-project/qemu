@@ -77,6 +77,13 @@ static void system_bus_class_init(ObjectClass *klass, void *data)
     k->print_dev = sysbus_dev_print;
     k->get_fw_dev_path = sysbus_get_fw_dev_path;
     k->device_type = TYPE_SYS_BUS_DEVICE;
+    /*
+     * We won't return sysbus devices on query-device-slots by now.
+     *
+     * TODO: return user-creatable whitelisted sybus devices
+     * if the machine supports dynamic sysbus devices.
+     */
+    k->enumerate_slots = NULL;
 }
 
 static const TypeInfo system_bus_info = {

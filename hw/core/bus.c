@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/qdev.h"
+#include "hw/qdev-slotinfo.h"
 #include "qapi/error.h"
 
 static void qbus_set_hotplug_handler_internal(BusState *bus, Object *handler,
@@ -208,12 +209,53 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(object_get_typename(OBJECT(dev)));
 }
 
+static void class_check_user_creatable(ObjectClass *oc, void *opaque)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    bool *r = opaque;
+
+    if (dc->user_creatable) {
+        *r = true;
+    }
+}
+
+static bool bus_class_is_user_pluggable(BusClass *bc)
+{
+    bool r = false;
+
+    object_class_foreach(class_check_user_creatable,
+                         bc->device_type, false, &r);
+    return r;
+}
+
+static DeviceSlotInfoList *bus_generic_enumerate_slots(BusState *bus)
+{
+    DeviceSlotInfoList *r = NULL;
+    BusChild *kid = NULL;
+
+    if (!bus_class_is_user_pluggable(BUS_GET_CLASS(bus))) {
+        return NULL;
+    }
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceSlotInfo *slot = make_slot(bus);
+        slot->available = false;
+        slot->has_device = true;
+        slot->device = object_get_canonical_path(OBJECT(kid->child));
+        slot_list_add_slot(&r, slot);
+    }
+
+    slot_list_add_slot(&r, make_slot(bus));
+    return r;
+}
+
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
 
     class->unparent = bus_unparent;
     bc->get_fw_dev_path = default_bus_get_fw_dev_path;
+    bc->enumerate_slots = bus_generic_enumerate_slots;
 }
 
 static void qbus_finalize(Object *obj)
