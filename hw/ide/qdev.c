@@ -25,6 +25,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
+#include "hw/qdev-slotinfo.h"
 #include "sysemu/sysemu.h"
 #include "qapi/visitor.h"
 
@@ -38,6 +39,30 @@ static Property ide_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static DeviceSlotInfoList *ide_bus_enumerate_slots(BusState *bus)
+{
+    int unit;
+    DeviceSlotInfoList *r = NULL;
+    IDEBus *ib = IDE_BUS(bus);
+
+    for (unit = 0; unit < 2; unit++) {
+        DeviceSlotInfo *s = make_slot(bus);
+        IDEDevice *dev = (unit ? ib->master : ib->slave);
+        slot_add_opt_int(s, "unit", unit);
+        s->opts_complete = true;
+        s->has_count = true;
+        s->count = 1;
+        if (dev) {
+            s->available = false;
+            s->has_device = true;
+            s->device = object_get_canonical_path(OBJECT(dev));
+        }
+        slot_list_add_slot(&r, s);
+    }
+
+    return r;
+}
+
 static void ide_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -45,6 +70,7 @@ static void ide_bus_class_init(ObjectClass *klass, void *data)
     k->get_fw_dev_path = idebus_get_fw_dev_path;
     k->unrealize = idebus_unrealize;
     k->device_type = TYPE_IDE_DEVICE;
+    k->enumerate_slots = ide_bus_enumerate_slots;
 }
 
 static void idebus_unrealize(BusState *bus, Error **errp)
