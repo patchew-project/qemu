@@ -32,6 +32,8 @@
 #include "migration/misc.h"
 #include "qapi/qobject-output-visitor.h"
 #include "hw/boards.h"
+#include "hw/qdev-slotinfo.h"
+#include "qapi-visit.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -668,11 +670,79 @@ static int enumerate_bus(Object *obj, void *opaque)
     return 0;
 }
 
+static void add_option(const char *key, QObject *obj, void *opaque)
+{
+    DeviceSlotInfo *slot = opaque;
+
+    qobject_incref(obj);
+    slot_add_opt(slot, key, obj);
+}
+
+/* Add all key/values in @d to as options to @slot */
+static void qdict_to_slot_props(QDict *d, DeviceSlotInfo *slot)
+{
+    qdict_iter(d, add_option, slot);
+}
+
+static QDict *cpu_instance_props_to_qdict(CpuInstanceProperties *src)
+{
+    QObject *qobj = NULL;
+    Visitor *v = qobject_output_visitor_new(&qobj);
+
+    visit_type_CpuInstanceProperties(v, "unused", &src, &error_abort);
+    visit_complete(v, &qobj);
+    visit_free(v);
+    return qobject_to_qdict(qobj);
+}
+
+static void enumerate_cpu_slots(SlotListState *s)
+{
+    DeviceSlotInfoList *r = NULL;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    HotpluggableCPUList *hcl;
+    HotpluggableCPUList *i;
+
+    if (!mc->has_hotpluggable_cpus) {
+        return;
+    }
+
+    hcl = machine_query_hotpluggable_cpus(ms);
+    for (i = hcl; i; i = i->next) {
+        DeviceSlotInfo *slot = g_new0(DeviceSlotInfo, 1);
+        HotpluggableCPU *hc = i->value;
+        QDict *props;
+
+        slot->device_types = g_new0(strList, 1);
+        slot->device_types->value = g_strdup(hc->type);
+        slot->available = !hc->has_qom_path;
+        if (hc->has_qom_path) {
+            slot->has_device = true;
+            slot->device = g_strdup(hc->qom_path);
+        }
+        slot->has_count = true;
+        slot->count = 1;
+        slot->opts_complete = true;
+        /*TODO: should 'hotpluggable' be always true? */
+        slot->hotpluggable = true;
+
+        props = cpu_instance_props_to_qdict(hc->props);
+        qdict_to_slot_props(props, slot);
+        QDECREF(props);
+
+        slot_list_add_slot(&r, slot);
+    }
+    qapi_free_HotpluggableCPUList(hcl);
+
+    append_slots(s, r);
+}
+
 DeviceSlotInfoList *qmp_query_device_slots(Error **errp)
 {
     SlotListState s = { .next = &s.result };
 
     object_child_foreach_recursive(qdev_get_machine(), enumerate_bus, &s);
+    enumerate_cpu_slots(&s);
 
     return slot_list_collapse(s.result);
 }
