@@ -35,6 +35,7 @@ $(DOCKER_SRC_COPY):
 	$(call make-archive-maybe, $(SRC_PATH), $@/qemu.tgz)
 	$(call make-archive-maybe, $(SRC_PATH)/dtc, $@/dtc.tgz)
 	$(call make-archive-maybe, $(SRC_PATH)/pixman, $@/pixman.tgz)
+	$(call make-archive-maybe, $(SRC_PATH)/ui/keycodemapdb, $@/keycodemapdb.tgz)
 	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
 		"COPY","RUNNER")
 
