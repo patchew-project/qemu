@@ -30,6 +30,8 @@
 #include "qemu/help_option.h"
 #include "sysemu/block-backend.h"
 #include "migration/misc.h"
+#include "qapi/qobject-output-visitor.h"
+#include "hw/boards.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -636,6 +638,42 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         return NULL;
     }
     return dev;
+}
+
+typedef struct SlotListState {
+    DeviceSlotInfoList *result;
+    DeviceSlotInfoList **next;
+} SlotListState;
+
+static void append_slots(SlotListState *s, DeviceSlotInfoList *l)
+{
+    *s->next = l;
+    for (; l; l = l->next) {
+        s->next = &l->next;
+    }
+}
+
+static int enumerate_bus(Object *obj, void *opaque)
+{
+    SlotListState *s = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_BUS)) {
+        BusState *bus = BUS(obj);
+        BusClass *bc = BUS_GET_CLASS(bus);
+
+        if (bc->enumerate_slots) {
+            append_slots(s, bc->enumerate_slots(bus));
+        }
+    }
+    return 0;
+}
+
+DeviceSlotInfoList *qmp_query_device_slots(Error **errp)
+{
+    SlotListState s = { .next = &s.result };
+
+    object_child_foreach_recursive(qdev_get_machine(), enumerate_bus, &s);
+    return s.result;
 }
 
 

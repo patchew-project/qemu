@@ -191,6 +191,8 @@ struct BusClass {
     void (*reset)(BusState *bus);
     BusRealize realize;
     BusUnrealize unrealize;
+    /*TODO: write doc */
+    DeviceSlotInfoList *(*enumerate_slots)(BusState *bus);
 
     /* maximum devices allowed on the bus, 0: no limit. */
     int max_dev;

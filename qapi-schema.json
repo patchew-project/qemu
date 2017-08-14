@@ -4325,6 +4325,95 @@
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
+
+##
+# @SlotOption:
+#
+# A option to be used when plugging a device to a slot.
+#
+# @option: Option name.
+#
+# @values: Set of valid option values.
+#
+# @values follow a compact format to represent a set of values:
+# - If @values is a string, bool, or number, it representes a
+#   single-element set containing that value.  In other words,
+#   @values is the only valid value for the option.
+# - If @values is a list, each element E on the list represents
+#   one or more possible values for the option:
+#   - If E is a string, bool, or number, it indicates that E
+#     is a valid value for the option.
+#   - If E is a one-element list [V], it means V is a valid value
+#     for the option.
+#   - If E is a two-element list [A, B] where A and B are
+#     numbers, it means any number X, A <= X <= B is a valid
+#     value for the option.
+#
+# TODO: @values could be represented by nested 'alternate' types,
+#      for more consistent documentation and automatic
+#      validation/parsing, but the following limitations on
+#      alternates prevent that today:
+#      - alternate branches can't be lists
+#      - alternate string members conflict with scalar values
+#      - alternate types should have 2 or more branches
+##
+{ 'struct': 'SlotOption',
+  'data': { 'option': 'str', 'values': 'any' } }
+
+##
+# @DeviceSlotInfo:
+#
+# Information on a set of slots where devices can be plugged.
+#
+# @device-types: List of device types accepted by the slots.
+#                Any device plugged to the slot should implement
+#                one of the accepted device types.
+#
+# @device: QOM path of device plugged to the slot, if any.
+#
+# @available: If false, the slot is not available for plugging any device.
+#             This value can change at runtime if condition changes.
+#
+# @hotpluggable: If true, the slot accepts hotplugged devices.  If false,
+#                device_add won't work on the slot even if @available=true.
+#
+# @count: Number of slots represented by this slot set.
+#
+# @opts-complete: If true, all options required to plug devices
+#                 to slots in this set are present in @opts.  If
+#                 false, slot information is incomplete in this
+#                 QEMU version and additional options may be
+#                 required to plug devices on those slots.
+#
+# @opts: Information on the arguments that should be provided to
+#        @device_add if plugging a device to this slot.
+#
+# Incomplete Slot Sets
+# --------------------
+#
+# Slot sets with @opts-complete=false represent a bus that
+# doesn't support slot enumeration yet. Slots of this type should
+# be replaced by more detailed slot sets in future QEMU versions.
+#
+# If @count is omitted, the entry may or may not represent more
+# than one slots.  Future QEMU versions should include additional
+# code to set @count on those entries.
+##
+{ 'struct': 'DeviceSlotInfo',
+  'data': { 'device-types': [ 'str' ], '*device': 'str',
+            'available': 'bool', 'hotpluggable': 'bool',
+            '*count': 'int', 'opts-complete': 'bool',
+            'opts': [ 'SlotOption' ] } }
+
+##
+# @query-device-slots:
+#
+# Return the list of possible slots for plugging devices using
+# @device_add.
+##
+{ 'command': 'query-device-slots',
+  'returns': [ 'DeviceSlotInfo' ] }
+
 ##
 # @MachineInfo:
 #
