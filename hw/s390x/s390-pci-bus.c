@@ -888,10 +888,17 @@ static const TypeInfo s390_pcihost_info = {
     }
 };
 
+static void s390_pcibus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_S390_PCI_DEVICE;
+}
+
 static const TypeInfo s390_pcibus_info = {
     .name = TYPE_S390_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(S390PCIBus),
+    .class_init = s390_pcibus_class_init,
 };
 
 static uint16_t s390_pci_generate_uid(S390pciState *s)

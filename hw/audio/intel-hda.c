@@ -36,9 +36,16 @@ static Property hda_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+static void hda_codec_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_HDA_CODEC_DEVICE;
+}
+
 static const TypeInfo hda_codec_bus_info = {
     .name = TYPE_HDA_BUS,
     .parent = TYPE_BUS,
+    .class_init = hda_codec_bus_class_init,
     .instance_size = sizeof(HDACodecBus),
 };
 

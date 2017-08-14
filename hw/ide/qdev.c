@@ -44,6 +44,7 @@ static void ide_bus_class_init(ObjectClass *klass, void *data)
 
     k->get_fw_dev_path = idebus_get_fw_dev_path;
     k->unrealize = idebus_unrealize;
+    k->device_type = TYPE_IDE_DEVICE;
 }
 
 static void idebus_unrealize(BusState *bus, Error **errp)

@@ -316,6 +316,7 @@ static void virtio_bus_class_init(ObjectClass *klass, void *data)
     BusClass *bus_class = BUS_CLASS(klass);
     bus_class->get_dev_path = virtio_bus_get_dev_path;
     bus_class->get_fw_dev_path = virtio_bus_get_fw_dev_path;
+    bus_class->device_type = TYPE_VIRTIO_DEVICE;
 }
 
 static const TypeInfo virtio_bus_info = {

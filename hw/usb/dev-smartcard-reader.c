@@ -1195,10 +1195,17 @@ static Property ccid_props[] = {
 #define TYPE_CCID_BUS "ccid-bus"
 #define CCID_BUS(obj) OBJECT_CHECK(CCIDBus, (obj), TYPE_CCID_BUS)
 
+static void ccid_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_CCID_CARD;
+}
+
 static const TypeInfo ccid_bus_info = {
     .name = TYPE_CCID_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(CCIDBus),
+    .class_init = ccid_bus_class_init,
 };
 
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,

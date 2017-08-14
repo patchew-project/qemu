@@ -158,11 +158,18 @@ void sdbus_reparent_card(SDBus *from, SDBus *to)
     sdbus_set_readonly(to, readonly);
 }
 
+static void sd_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_SD_CARD;
+}
+
 static const TypeInfo sd_bus_info = {
     .name = TYPE_SD_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(SDBus),
     .class_size = sizeof(SDBusClass),
+    .class_init = sd_bus_class_init,
 };
 
 static void sd_bus_register_types(void)

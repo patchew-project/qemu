@@ -35,9 +35,16 @@ static Property i2c_props[] = {
 #define TYPE_I2C_BUS "i2c-bus"
 #define I2C_BUS(obj) OBJECT_CHECK(I2CBus, (obj), TYPE_I2C_BUS)
 
+static void i2c_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_I2C_SLAVE;
+}
+
 static const TypeInfo i2c_bus_info = {
     .name = TYPE_I2C_BUS,
     .parent = TYPE_BUS,
+    .class_init = i2c_bus_class_init,
     .instance_size = sizeof(I2CBus),
 };
 

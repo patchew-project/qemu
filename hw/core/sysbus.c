@@ -76,6 +76,7 @@ static void system_bus_class_init(ObjectClass *klass, void *data)
 
     k->print_dev = sysbus_dev_print;
     k->get_fw_dev_path = sysbus_get_fw_dev_path;
+    k->device_type = TYPE_SYS_BUS_DEVICE;
 }
 
 static const TypeInfo system_bus_info = {

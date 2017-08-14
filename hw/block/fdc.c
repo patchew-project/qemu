@@ -60,6 +60,10 @@
 #define TYPE_FLOPPY_BUS "floppy-bus"
 #define FLOPPY_BUS(obj) OBJECT_CHECK(FloppyBus, (obj), TYPE_FLOPPY_BUS)
 
+#define TYPE_FLOPPY_DRIVE "floppy"
+#define FLOPPY_DRIVE(obj) \
+     OBJECT_CHECK(FloppyDrive, (obj), TYPE_FLOPPY_DRIVE)
+
 typedef struct FDCtrl FDCtrl;
 typedef struct FDrive FDrive;
 static FDrive *get_drv(FDCtrl *fdctrl, int unit);
@@ -69,9 +73,16 @@ typedef struct FloppyBus {
     FDCtrl *fdc;
 } FloppyBus;
 
+static void floppy_bus_class_init(ObjectClass *oc, void *opaque)
+{
+    BusClass *bc = BUS_CLASS(oc);
+    bc->device_type = TYPE_FLOPPY_DRIVE;
+}
+
 static const TypeInfo floppy_bus_info = {
     .name = TYPE_FLOPPY_BUS,
     .parent = TYPE_BUS,
+    .class_init = floppy_bus_class_init,
     .instance_size = sizeof(FloppyBus),
 };
 
@@ -496,10 +507,6 @@ static const BlockDevOps fd_block_ops = {
     .change_media_cb = fd_change_cb,
 };
 
-
-#define TYPE_FLOPPY_DRIVE "floppy"
-#define FLOPPY_DRIVE(obj) \
-     OBJECT_CHECK(FloppyDrive, (obj), TYPE_FLOPPY_DRIVE)
 
 typedef struct FloppyDrive {
     DeviceState     qdev;

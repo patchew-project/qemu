@@ -307,6 +307,7 @@ static void sclp_events_bus_class_init(ObjectClass *klass, void *data)
     BusClass *bc = BUS_CLASS(klass);
 
     bc->realize = sclp_events_bus_realize;
+    bc->device_type = TYPE_SCLP_EVENT;
 }
 
 static const TypeInfo sclp_events_bus_info = {

@@ -154,6 +154,7 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->realize = pci_bus_realize;
     k->unrealize = pci_bus_unrealize;
     k->reset = pcibus_reset;
+    k->device_type = TYPE_PCI_DEVICE;
 
     pbc->is_root = pcibus_is_root;
     pbc->bus_num = pcibus_num;
