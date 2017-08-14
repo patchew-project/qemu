@@ -27,6 +27,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
+#include "hw/qdev-slotinfo.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
@@ -144,6 +145,54 @@ static uint16_t pcibus_numa_node(PCIBus *bus)
     return NUMA_NODE_UNASSIGNED;
 }
 
+
+static bool pci_bus_has_pcie_upstream_port(PCIBus *bus);
+
+static DeviceSlotInfoList *pci_bus_enumerate_slots(BusState *bus)
+{
+    PCIBus *pb = PCI_BUS(bus);
+    int devnr, devnrs;
+    DeviceSlotInfoList *r = NULL;
+
+    if (pci_bus_has_pcie_upstream_port(pb)) {
+        devnrs = 1;
+    } else {
+        devnrs = PCI_SLOT_MAX;
+    }
+
+    /* Each PCI devfn (device number + function) is a separate slot,
+     * because we implement multi-function PCI devices as separate
+     * device objects.
+     */
+    for(devnr = PCI_SLOT(pb->devfn_min); devnr < devnrs; devnr++) {
+        PCIDevice *dev0 = pb->devices[PCI_DEVFN(devnr, 0)];
+        int func;
+
+        for (func = 0; func < PCI_FUNC_MAX; func++) {
+            /*TODO: add info about accepting only bridges on extra PCI root buses */
+            PCIDevice *dev = pb->devices[PCI_DEVFN(devnr, func)];
+            DeviceSlotInfo *s = make_slot(bus);
+            slot_add_opt_int(s, "device-number", devnr);
+            slot_add_opt_int(s, "function", func);
+            s->opts_complete = true;
+            s->has_count = true;
+            s->count = 1;
+            /* Conditions that make a devnr unavailable:
+             * - function already occupied
+             * - function 0 already occupied by a device
+             */
+            s->available &= !dev0 && !dev;
+            if (dev) {
+                s->has_device = true;
+                s->device = object_get_canonical_path(OBJECT(dev));
+            }
+            slot_list_add_slot(&r, s);
+        }
+    }
+
+    return r;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -156,6 +205,7 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->unrealize = pci_bus_unrealize;
     k->reset = pcibus_reset;
     k->device_type = TYPE_PCI_DEVICE;
+    k->enumerate_slots = pci_bus_enumerate_slots;
 
     pbc->is_root = pcibus_is_root;
     pbc->bus_num = pcibus_num;
