@@ -2591,9 +2591,9 @@ void pci_bus_get_w64_range(PCIBus *bus, Range *range)
     pci_for_each_device_under_bus(bus, pci_dev_get_w64, range);
 }
 
-static bool pcie_has_upstream_port(PCIDevice *dev)
+static bool pci_bus_has_pcie_upstream_port(PCIBus *bus)
 {
-    PCIDevice *parent_dev = pci_bridge_get_device(dev->bus);
+    PCIDevice *parent_dev = pci_bridge_get_device(bus);
 
     /* Device associated with an upstream port.
      * As there are several types of these, it's easier to check the
@@ -2609,7 +2609,7 @@ static bool pcie_has_upstream_port(PCIDevice *dev)
 
 PCIDevice *pci_get_function_0(PCIDevice *pci_dev)
 {
-    if(pcie_has_upstream_port(pci_dev)) {
+    if(pci_bus_has_pcie_upstream_port(pci_dev->bus)) {
         /* With an upstream PCIe port, we only support 1 device at slot 0 */
         return pci_dev->bus->devices[0];
     } else {
