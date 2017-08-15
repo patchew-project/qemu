@@ -25,9 +25,10 @@ static void test_pxe_one(const char *params, bool ipv6)
 {
     char *args;
 
-    args = g_strdup_printf("-machine accel=kvm:tcg -nodefaults -boot order=n "
+    args = g_strdup_printf("-machine accel=%s -nodefaults -boot order=n "
                            "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,"
-                           "ipv4=%s,ipv6=%s %s", disk, ipv6 ? "off" : "on",
+                           "ipv4=%s,ipv6=%s %s", qtest_accel("kvm:tcg"),
+                           disk, ipv6 ? "off" : "on",
                            ipv6 ? "on" : "off", params);
 
     qtest_start(args);

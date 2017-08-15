@@ -78,10 +78,11 @@ static void test_machine(const void *data)
     fd = mkstemp(tmpname);
     g_assert(fd != -1);
 
-    args = g_strdup_printf("-M %s,accel=kvm:tcg "
+    args = g_strdup_printf("-M %s,accel=%s "
                            "-chardev file,id=serial0,path=%s "
                            "-no-shutdown -serial chardev:serial0 %s",
-                           test->machine, tmpname, test->extra);
+                           test->machine, qtest_accel("kvm:tcg"),
+                           tmpname, test->extra);
 
     qtest_start(args);
     unlink(tmpname);

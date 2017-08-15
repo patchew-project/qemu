@@ -627,7 +627,7 @@ static void test_acpi_one(const char *params, test_data *data)
                            "-net none -display none %s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
-                           data->machine, "kvm:tcg",
+                           data->machine, qtest_accel("kvm:tcg"),
                            params ? params : "", disk);
 
     qtest_start(args);

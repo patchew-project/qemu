@@ -132,11 +132,11 @@ static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
 
 static char *guid_cmd_strdup(const char *guid)
 {
-    return g_strdup_printf("-machine accel=kvm:tcg "
+    return g_strdup_printf("-machine accel=%s "
                            "-device vmgenid,id=testvgid,guid=%s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
-                           guid, disk);
+                           qtest_accel("kvm:tcg"), guid, disk);
 }
 
 
