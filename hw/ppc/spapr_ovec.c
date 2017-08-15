@@ -134,6 +134,13 @@ bool spapr_ovec_test(sPAPROptionVector *ov, long bitnr)
     return test_bit(bitnr, ov->bitmap) ? true : false;
 }
 
+bool spapr_ovec_is_unset(sPAPROptionVector *ov)
+{
+    unsigned long lastbit;
+    lastbit = find_last_bit(ov->bitmap, OV_MAXBITS);
+    return (lastbit == OV_MAXBITS);
+}
+
 static void guest_byte_to_bitmap(uint8_t entry, unsigned long *bitmap,
                                  long bitmap_offset)
 {

@@ -2803,6 +2803,19 @@ out:
     error_propagate(errp, local_err);
 }
 
+/*
+ * 'h_client_architecture_support' will set at least OV5_FORM1_AFFINITY
+ * in ov5_cas when intersecting it with spapr->ov5 and ov5_guest. It's safe
+ * then to assume that CAS ov5_cas will have something set after CAS.
+ */
+static bool spapr_cas_completed(sPAPRMachineState *spapr)
+{
+    if (spapr->ov5_cas == NULL) {
+        return false;
+    }
+    return !spapr_ovec_is_unset(spapr->ov5_cas);
+}
+
 static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
@@ -3256,6 +3269,19 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
 static void spapr_machine_device_pre_plug(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    sPAPRMachineState *spapr;
+    Error *local_err = NULL;
+
+    if (dev->hotplugged && !runstate_check(RUN_STATE_INMIGRATE)) {
+        spapr = SPAPR_MACHINE(hotplug_dev);
+        if (!spapr_cas_completed(spapr)) {
+            error_setg(&local_err,
+                       "CPU/memory hotplug not supported at early boot");
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         spapr_memory_pre_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {

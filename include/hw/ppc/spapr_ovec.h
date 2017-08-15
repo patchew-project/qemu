@@ -71,6 +71,7 @@ void spapr_ovec_cleanup(sPAPROptionVector *ov);
 void spapr_ovec_set(sPAPROptionVector *ov, long bitnr);
 void spapr_ovec_clear(sPAPROptionVector *ov, long bitnr);
 bool spapr_ovec_test(sPAPROptionVector *ov, long bitnr);
+bool spapr_ovec_is_unset(sPAPROptionVector *ov);
 sPAPROptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector);
 int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
                            sPAPROptionVector *ov, const char *name);
