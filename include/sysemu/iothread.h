@@ -20,10 +20,19 @@
 #define TYPE_IOTHREAD "iothread"
 
 typedef struct {
+    GMainContext *worker_context;
+    GMainLoop *main_loop;
+    GOnce once;
+
+    QEMUBH *bh;
+} GMainOnce;
+
+typedef struct {
     Object parent_obj;
 
     QemuThread thread;
     AioContext *ctx;
+    GMainOnce thread_gonce;
     QemuMutex init_done_lock;
     QemuCond init_done_cond;    /* is thread initialization done? */
     bool stopping;
@@ -41,5 +50,6 @@ typedef struct {
 char *iothread_get_id(IOThread *iothread);
 AioContext *iothread_get_aio_context(IOThread *iothread);
 void iothread_stop_all(void);
+GMainContext *iothread_get_g_main_context(IOThread *iothread);
 
 #endif /* IOTHREAD_H */

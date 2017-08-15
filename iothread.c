@@ -72,6 +72,9 @@ static int iothread_stop(Object *object, void *opaque)
         return 0;
     }
     iothread->stopping = true;
+    if (iothread->thread_gonce.main_loop) {
+        g_main_loop_quit(iothread->thread_gonce.main_loop);
+    }
     aio_notify(iothread->ctx);
     qemu_thread_join(&iothread->thread);
     return 0;
@@ -125,6 +128,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
 
     qemu_mutex_init(&iothread->init_done_lock);
     qemu_cond_init(&iothread->init_done_cond);
+    iothread->thread_gonce.once = (GOnce) G_ONCE_INIT;
 
     /* This assumes we are called from a thread with useful CPU affinity for us
      * to inherit.
@@ -308,4 +312,54 @@ void iothread_stop_all(void)
     }
 
     object_child_foreach(container, iothread_stop, NULL);
+}
+
+static void iothread_g_main_context_bh(void *opaque)
+{
+    GMainOnce *g = opaque;
+
+    qemu_bh_delete(g->bh);
+    g->bh = NULL;
+
+    g_main_context_push_thread_default(g->worker_context);
+
+    g->main_loop = g_main_loop_new(g->worker_context, TRUE);
+    g_main_loop_run(g->main_loop);
+
+    g_main_loop_unref(g->main_loop);
+    g->main_loop = NULL;
+
+    g_main_context_pop_thread_default(g->worker_context);
+    g_main_context_unref(g->worker_context);
+    g->worker_context = NULL;
+}
+
+static gpointer iothread_g_main_context_init(gpointer g_data)
+{
+    AioContext *ctx;
+    IOThread *iothread = (IOThread *)g_data;
+    GMainOnce *g = &iothread->thread_gonce;
+    GSource *source;
+
+    g->worker_context = g_main_context_new();
+
+    ctx = iothread_get_aio_context(iothread);
+    source = aio_get_g_source(ctx);
+    g_source_attach(source, g->worker_context);
+    g_source_unref(source);
+
+    g->bh = aio_bh_new(ctx,
+                       iothread_g_main_context_bh, g);
+    qemu_bh_schedule(g->bh);
+
+    return (gpointer) g->worker_context;
+}
+
+GMainContext *iothread_get_g_main_context(IOThread *iothread)
+{
+    GMainOnce *g = &iothread->thread_gonce;
+
+    g_once(&g->once, iothread_g_main_context_init, iothread);
+
+    return (GMainContext *) g->once.retval;
 }
