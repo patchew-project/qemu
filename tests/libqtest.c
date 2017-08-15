@@ -987,3 +987,21 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     qtest_end();
     QDECREF(response);
 }
+
+const char *qtest_accel(const char *accel)
+{
+    static bool kvm_accessible = true;
+
+    if (strlen(accel) <= 4 || strncmp(accel, "kvm:", 4)) {
+        return accel; /* no match */
+    }
+
+    if (!kvm_accessible || !access("/dev/kvm", W_OK)) {
+        accel += 4; /* skip "kvm:" */
+        if (kvm_accessible) {
+            kvm_accessible = false; /* warn once */
+            g_printerr("kvm not accessible, using %s\n", accel);
+        }
+    }
+    return accel;
+}

@@ -927,4 +927,12 @@ QDict *qmp_fd(int fd, const char *fmt, ...);
  */
 void qtest_cb_for_every_machine(void (*cb)(const char *machine));
 
+/**
+ * qtest_accel:
+ * @accel: List of accelerators
+ *
+ *  Filter accelerators accessible on the host.
+ */
+const char *qtest_accel(const char *accel);
+
 #endif
