@@ -5258,6 +5258,8 @@ echo_version() {
     fi
 }
 
+(cd $source_path && git submodule update --init ui/keycodemapdb)
+
 # prepend pixman and ftd flags after all config tests are done
 QEMU_CFLAGS="$pixman_cflags $fdt_cflags $QEMU_CFLAGS"
 libs_softmmu="$pixman_libs $libs_softmmu"

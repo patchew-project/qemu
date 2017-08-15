@@ -18,21 +18,24 @@ TESTS ?= %
 IMAGES ?= %
 
 # Make archive from git repo $1 to tar.gz $2
-make-archive-maybe = $(if $(wildcard $1/*), \
-	$(call quiet-command, \
+make-archive = $(call quiet-command, \
 		(cd $1; if git diff-index --quiet HEAD -- &>/dev/null; then \
 			git archive -1 HEAD --format=tar.gz; \
 		else \
 			git archive -1 $$(git stash create) --format=tar.gz; \
 		fi) > $2, \
-		"ARCHIVE","$(notdir $2)"))
+		"ARCHIVE","$(notdir $2)")
+make-archive-maybe = $(if $(wildcard $1/*), \
+	$(call make-archive, $1, $2))
 
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
 DOCKER_SRC_COPY := docker-src.$(CUR_TIME)
 
 $(DOCKER_SRC_COPY):
 	@mkdir $@
-	$(call make-archive-maybe, $(SRC_PATH), $@/qemu.tgz)
+	$(call quiet-command, git submodule update --init $(SRC_PATH)/ui/keycodemapdb, "GIT", "ui/keycodemapdb")
+	$(call make-archive, $(SRC_PATH), $@/qemu.tgz)
+	$(call make-archive, $(SRC_PATH)/ui/keycodemapdb, $@/keycodemapdb.tgz)
 	$(call make-archive-maybe, $(SRC_PATH)/dtc, $@/dtc.tgz)
 	$(call make-archive-maybe, $(SRC_PATH)/pixman, $@/pixman.tgz)
 	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
