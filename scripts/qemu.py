@@ -23,8 +23,22 @@ import qmp.qmp
 class QEMUMachine(object):
     '''A QEMU VM'''
 
-    def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
-                 monitor_address=None, socket_scm_helper=None, debug=False):
+    def __init__(self, binary, args=[], wrapper=[], name=None,
+                 test_dir="/var/tmp", monitor_address=None,
+                 socket_scm_helper=None, debug=False):
+        '''
+        Create a QEMUMachine object
+
+        @param binary: path to the qemu binary (str)
+        @param args: initial list of extra arguments
+        @param wrapper: list of arguments used as prefix to qemu binary
+        @param name: name of this object (used for log/monitor/... file names)
+        @param test_dir: base location to put log/monitor/... files in
+        @param monitor_address: custom address for QMP monitor
+        @param socket_scm_helper: path to scm_helper binary (to forward fds)
+        @param debug: enable debug mode (forwarded to QMP helper and such)
+        @note: Qemu process is not started until launch() is used.
+        '''
         if name is None:
             name = "qemu-%d" % os.getpid()
         if monitor_address is None:
@@ -33,12 +47,13 @@ class QEMUMachine(object):
         self._qemu_log_path = os.path.join(test_dir, name + ".log")
         self._popen = None
         self._binary = binary
-        self._args = list(args) # Force copy args in case we modify them
+        self._args = list(args)     # Force copy args in case we modify them
         self._wrapper = wrapper
         self._events = []
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+        self._qmp = None
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -64,16 +79,16 @@ class QEMUMachine(object):
         if self._socket_scm_helper is None:
             print >>sys.stderr, "No path to socket_scm_helper set"
             return -1
-        if os.path.exists(self._socket_scm_helper) == False:
+        if not os.path.exists(self._socket_scm_helper):
             print >>sys.stderr, "%s does not exist" % self._socket_scm_helper
             return -1
         fd_param = ["%s" % self._socket_scm_helper,
                     "%d" % self._qmp.get_sock_fd(),
                     "%s" % fd_file_path]
         devnull = open('/dev/null', 'rb')
-        p = subprocess.Popen(fd_param, stdin=devnull, stdout=sys.stdout,
-                             stderr=sys.stderr)
-        return p.wait()
+        proc = subprocess.Popen(fd_param, stdin=devnull, stdout=sys.stdout,
+                                stderr=sys.stderr)
+        return proc.wait()
 
     @staticmethod
     def _remove_if_exists(path):
@@ -99,8 +114,8 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
-        with open(self._qemu_log_path, "r") as fh:
-            self._iolog = fh.read()
+        with open(self._qemu_log_path, "r") as iolog:
+            self._iolog = iolog.read()
 
     def _base_args(self):
         if isinstance(self._monitor_address, tuple):
@@ -114,8 +129,8 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
 
     def _pre_launch(self):
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address, server=True,
-                                                debug=self._debug)
+        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address,
+                                                server=True, debug=self._debug)
 
     def _post_launch(self):
         self._qmp.accept()
@@ -131,9 +146,11 @@ class QEMUMachine(object):
         qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._pre_launch()
-            args = self._wrapper + [self._binary] + self._base_args() + self._args
+            args = (self._wrapper + [self._binary] + self._base_args() +
+                    self._args)
             self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
-                                           stderr=subprocess.STDOUT, shell=False)
+                                           stderr=subprocess.STDOUT,
+                                           shell=False)
             self._post_launch()
         except:
             if self.is_running():
@@ -149,28 +166,34 @@ class QEMUMachine(object):
             try:
                 self._qmp.cmd('quit')
                 self._qmp.close()
-            except:
+            except:     # kill VM on any failure pylint: disable=W0702
                 self._popen.kill()
 
             exitcode = self._popen.wait()
             if exitcode < 0:
-                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
+                sys.stderr.write('qemu received signal %i: %s\n'
+                                 % (-exitcode, ' '.join(self._args)))
             self._load_io_log()
             self._post_shutdown()
 
     underscore_to_dash = string.maketrans('_', '-')
+
     def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the result dict'''
         qmp_args = dict()
-        for k in args.keys():
+        for key in args.keys():
             if conv_keys:
-                qmp_args[k.translate(self.underscore_to_dash)] = args[k]
+                qmp_args[key.translate(self.underscore_to_dash)] = args[key]
             else:
-                qmp_args[k] = args[k]
+                qmp_args[key] = args[key]
 
         return self._qmp.cmd(cmd, args=qmp_args)
 
     def command(self, cmd, conv_keys=True, **args):
+        '''
+        Invoke a QMP command and on success return result dict or on failure
+        raise exception with details.
+        '''
         reply = self.qmp(cmd, conv_keys, **args)
         if reply is None:
             raise Exception("Monitor is closed")
@@ -193,15 +216,18 @@ class QEMUMachine(object):
         return events
 
     def event_wait(self, name, timeout=60.0, match=None):
-        # Test if 'match' is a recursive subset of 'event'
-        def event_match(event, match=None):
+        '''Wait for event in QMP, optionally filter results by match.'''
+        # Test if 'match' is a recursive subset of 'event'; skips branch
+        # processing on match's value `None`
+        #    {"foo": {"bar": 1} matches {"foo": None}
+        def _event_match(event, match=None):
             if match is None:
                 return True
 
             for key in match:
                 if key in event:
                     if isinstance(event[key], dict):
-                        if not event_match(event[key], match[key]):
+                        if not _event_match(event[key], match[key]):
                             return False
                     elif event[key] != match[key]:
                         return False
@@ -212,18 +238,22 @@ class QEMUMachine(object):
 
         # Search cached events
         for event in self._events:
-            if (event['event'] == name) and event_match(event, match):
+            if (event['event'] == name) and _event_match(event, match):
                 self._events.remove(event)
                 return event
 
         # Poll for new events
         while True:
             event = self._qmp.pull_event(wait=timeout)
-            if (event['event'] == name) and event_match(event, match):
+            if (event['event'] == name) and _event_match(event, match):
                 return event
             self._events.append(event)
 
         return None
 
     def get_log(self):
+        '''
+        After self.shutdown or failed qemu execution this returns the output
+        of the qemu process.
+        '''
         return self._iolog
