@@ -927,4 +927,23 @@ QDict *qmp_fd(int fd, const char *fmt, ...);
  */
 void qtest_cb_for_every_machine(void (*cb)(const char *machine));
 
+/**
+ * qtest_hot_plug_device:
+ * @driver: Name of the device that should be added
+ * @id: Identification string
+ * @fmt: printf-like format string for further options to device_add
+ *
+ * Generic hot-plugging test via the device_add QMP command.
+ */
+void qtest_hot_plug_device(const char *driver, const char *id,
+                           const char *fmt, ...) GCC_FMT_ATTR(3, 4);
+
+/**
+ * qtest_hot_unplug_device:
+ * @id: Identification string
+ *
+ * Generic hot-unplugging test via the device_del QMP command.
+ */
+void qtest_hot_unplug_device(const char *id);
+
 #endif

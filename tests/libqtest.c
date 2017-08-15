@@ -987,3 +987,63 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     qtest_end();
     QDECREF(response);
 }
+
+/**
+ * Generic hot-plugging test via the device_add QMP command
+ */
+void qtest_hot_plug_device(const char *driver, const char *id,
+                           const char *fmt, ...)
+{
+    QDict *response;
+    char *cmd, *opts = NULL;
+    va_list va;
+
+    if (fmt) {
+        va_start(va, fmt);
+        opts = g_strdup_vprintf(fmt, va);
+        va_end(va);
+    }
+
+    cmd = g_strdup_printf("{'execute': 'device_add',"
+                          " 'arguments': { 'driver': '%s', 'id': '%s'%s%s }}",
+                          driver, id, opts ? ", " : "", opts ? opts : "");
+    g_free(opts);
+
+    response = qmp(cmd);
+    g_free(cmd);
+    g_assert(response);
+    while (qdict_haskey(response, "event")) {
+        /* We can get DEVICE_DELETED events in case something went wrong */
+        g_assert_cmpstr(qdict_get_str(response, "event"), !=, "DEVICE_DELETED");
+        QDECREF(response);
+        response = qmp("");
+        g_assert(response);
+    }
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+}
+
+/**
+ * Generic hot-unplugging test via the device_del QMP command
+ */
+void qtest_hot_unplug_device(const char *id)
+{
+    QDict *response;
+    char *cmd;
+
+    cmd = g_strdup_printf("{'execute': 'device_del',"
+                          " 'arguments': { 'id': '%s' }}", id);
+
+    response = qmp(cmd);
+    g_free(cmd);
+    g_assert(response);
+    while (qdict_haskey(response, "event")) {
+        /* We should get DEVICE_DELETED event first */
+        g_assert_cmpstr(qdict_get_str(response, "event"), ==, "DEVICE_DELETED");
+        QDECREF(response);
+        response = qmp("");
+        g_assert(response);
+    }
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+}
