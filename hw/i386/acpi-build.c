@@ -46,6 +46,7 @@
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
 #include "sysemu/numa.h"
+#include "hw/xen/xen.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -518,8 +519,13 @@ static void acpi_set_pci_info(void)
     unsigned bsel_alloc = ACPI_PCIHP_BSEL_DEFAULT;
 
     if (bus) {
-        /* Scan all PCI buses. Set property to enable acpi based hotplug. */
-        pci_for_each_bus_depth_first(bus, acpi_set_bsel, NULL, &bsel_alloc);
+        if (xen_enabled()) {
+            /* Assign BSEL property to root bus only. */
+            acpi_set_bsel(bus, &bsel_alloc);
+        } else {
+            /* Scan all PCI buses. Set property to enable acpi based hotplug. */
+            pci_for_each_bus_depth_first(bus, acpi_set_bsel, NULL, &bsel_alloc);
+        }
     }
 }
 
@@ -2871,6 +2877,14 @@ void acpi_setup(void)
     AcpiBuildState *build_state;
     Object *vmgenid_dev;
 
+    if (!acpi_enabled) {
+        ACPI_BUILD_DPRINTF("ACPI disabled. Bailing out.\n");
+        return;
+    }
+
+    /* Assign BSEL property on hotpluggable PCI buses. */
+    acpi_set_pci_info();
+
     if (!pcms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
@@ -2881,14 +2895,7 @@ void acpi_setup(void)
         return;
     }
 
-    if (!acpi_enabled) {
-        ACPI_BUILD_DPRINTF("ACPI disabled. Bailing out.\n");
-        return;
-    }
-
     build_state = g_malloc0(sizeof *build_state);
-
-    acpi_set_pci_info();
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(pcms));
