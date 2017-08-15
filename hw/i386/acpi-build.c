@@ -2318,15 +2318,43 @@ build_tpm2(GArray *table_data, BIOSLinker *linker)
                  (void *)tpm2_ptr, "TPM2", sizeof(*tpm2_ptr), 4, NULL, NULL);
 }
 
+static uint64_t
+build_srat_node_entry(GArray *table_data, PCMachineState *pcms,
+                                int i, uint64_t mem_base, uint64_t mem_len)
+{
+    AcpiSratMemoryAffinity *numamem;
+    uint64_t next_base;
+
+    next_base = mem_base + mem_len;
+
+    /* Cut out the ACPI_PCI hole */
+    if (mem_base <= pcms->below_4g_mem_size &&
+        next_base > pcms->below_4g_mem_size) {
+        mem_len -= next_base - pcms->below_4g_mem_size;
+        if (mem_len > 0) {
+            numamem = acpi_data_push(table_data, sizeof *numamem);
+            build_srat_memory(numamem, mem_base, mem_len, i,
+                              MEM_AFFINITY_ENABLED);
+        }
+        mem_base = 1ULL << 32;
+        mem_len = next_base - pcms->below_4g_mem_size;
+        next_base += (1ULL << 32) - pcms->below_4g_mem_size;
+    }
+    numamem = acpi_data_push(table_data, sizeof *numamem);
+    build_srat_memory(numamem, mem_base, mem_len, i,
+                      MEM_AFFINITY_ENABLED);
+    return next_base;
+}
+
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratMemoryAffinity *numamem;
 
-    int i;
+    int i, node;
     int srat_start, numa_start, slots;
-    uint64_t mem_len, mem_base, next_base;
+    uint64_t mem_len, mem_base;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
     PCMachineState *pcms = PC_MACHINE(machine);
@@ -2370,36 +2398,28 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     /* the memory map is a bit tricky, it contains at least one hole
      * from 640k-1M and possibly another one from 3.5G-4G.
      */
-    next_base = 0;
+
     numa_start = table_data->len;
 
+    /* get the first node which has memory and  map the hole from 640K-1M */
+    for (node = 0;
+            node < pcms->numa_nodes && pcms->node_mem[node] == 0;
+            node++);
     numamem = acpi_data_push(table_data, sizeof *numamem);
-    build_srat_memory(numamem, 0, 640 * 1024, 0, MEM_AFFINITY_ENABLED);
-    next_base = 1024 * 1024;
-    for (i = 1; i < pcms->numa_nodes + 1; ++i) {
-        mem_base = next_base;
-        mem_len = pcms->node_mem[i - 1];
-        if (i == 1) {
-            mem_len -= 1024 * 1024;
-        }
-        next_base = mem_base + mem_len;
+    build_srat_memory(numamem, 0, 640 * 1024, node, MEM_AFFINITY_ENABLED);
 
-        /* Cut out the ACPI_PCI hole */
-        if (mem_base <= pcms->below_4g_mem_size &&
-            next_base > pcms->below_4g_mem_size) {
-            mem_len -= next_base - pcms->below_4g_mem_size;
-            if (mem_len > 0) {
-                numamem = acpi_data_push(table_data, sizeof *numamem);
-                build_srat_memory(numamem, mem_base, mem_len, i - 1,
-                                  MEM_AFFINITY_ENABLED);
-            }
-            mem_base = 1ULL << 32;
-            mem_len = next_base - pcms->below_4g_mem_size;
-            next_base += (1ULL << 32) - pcms->below_4g_mem_size;
+    /* map the rest of memory from 1M */
+    mem_base = 1024 * 1024;
+    mem_len = pcms->node_mem[node] - mem_base;
+    mem_base = build_srat_node_entry(table_data, pcms, node,
+                                            mem_base, mem_len);
+
+    for (i = 0; i < pcms->numa_nodes; i++) {
+        if (i == node) {
+            continue;
         }
-        numamem = acpi_data_push(table_data, sizeof *numamem);
-        build_srat_memory(numamem, mem_base, mem_len, i - 1,
-                          MEM_AFFINITY_ENABLED);
+        mem_base = build_srat_node_entry(table_data, pcms, i,
+                                            mem_base, pcms->node_mem[i]);
     }
     slots = (table_data->len - numa_start) / sizeof *numamem;
     for (; slots < pcms->numa_nodes + 2; slots++) {
