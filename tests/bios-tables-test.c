@@ -365,7 +365,7 @@ static GString *normalize_asl(gchar *asl_code)
         block_name = g_strstr_len(asl->str, asl->len, BLOCK_NAME_END);
         g_assert(block_name);
         asl = g_string_erase(asl, 0,
-                             block_name + sizeof(BLOCK_NAME_END) - asl->str);
+                             block_name + strlen(BLOCK_NAME_END) - asl->str);
     }
 
     return asl;
