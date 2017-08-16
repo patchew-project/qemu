@@ -446,8 +446,17 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
         drc->state = drck->empty_state;
     }
 
-    drc->ccs_offset = -1;
-    drc->ccs_depth = -1;
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB) {
+        /*
+         * Ensure that we are able to send the FDT fragment of the
+         * LMB again via configure-connector call if guest requests.
+         */
+        drc->ccs_offset = drc->fdt_start_offset;
+        drc->ccs_depth = 0;
+    } else {
+        drc->ccs_offset = -1;
+        drc->ccs_depth = -1;
+    }
 }
 
 static void drc_reset(void *opaque)
@@ -1071,8 +1080,14 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     }
 
     if ((drc->state != SPAPR_DRC_STATE_LOGICAL_UNISOLATE)
-        && (drc->state != SPAPR_DRC_STATE_PHYSICAL_UNISOLATE)) {
-        /* Need to unisolate the device before configuring */
+        && (drc->state != SPAPR_DRC_STATE_PHYSICAL_UNISOLATE) &&
+        (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_LMB)) {
+        /*
+         * Need to unisolate the device before configuring, however
+         * LMB DRCs are exempted from this check as guest can issue
+         * configure-connector calls for an already configured
+         * LMB DRC.
+         */
         rc = SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE;
         goto out;
     }
@@ -1108,8 +1123,18 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
                 /* done sending the device tree, move to configured state */
                 trace_spapr_drc_set_configured(drc_index);
                 drc->state = drck->ready_state;
-                drc->ccs_offset = -1;
-                drc->ccs_depth = -1;
+                if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB) {
+                    /*
+                     * Ensure that we are able to send the FDT fragment of the
+                     * LMB again via configure-connector call if guest requests.
+                     */
+                    drc->ccs_offset = drc->fdt_start_offset;
+                    drc->ccs_depth = 0;
+                    fdt_offset_next = drc->fdt_start_offset;
+                } else {
+                    drc->ccs_offset = -1;
+                    drc->ccs_depth = -1;
+                }
                 resp = SPAPR_DR_CC_RESPONSE_SUCCESS;
             } else {
                 resp = SPAPR_DR_CC_RESPONSE_PREV_PARENT;
