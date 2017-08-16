@@ -1782,6 +1782,11 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = 0;
         break;
 
+    case KVM_EXIT_NMI:
+        DPRINTF("handle NMI exception\n");
+        ret = kvm_handle_nmi(cpu);
+        break;
+
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
@@ -2702,6 +2707,87 @@ int kvm_arch_release_virq_post(int virq)
 int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     return data & 0xffff;
+}
+
+int kvm_handle_nmi(PowerPCCPU *cpu)
+{
+    struct RtasMCELog mc_log;
+    CPUPPCState *env = &cpu->env;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    target_ulong msr = 0;
+
+    cpu_synchronize_state(CPU(cpu));
+
+    /*
+     * Properly set bits in MSR before we invoke the handler.
+     * SRR0/1, DAR and DSISR are properly set by KVM
+     */
+    if (!(*pcc->interrupts_big_endian)(cpu)) {
+        msr |= (1ULL << MSR_LE);
+    }
+
+    if (env->msr && (1ULL << MSR_SF)) {
+        msr |= (1ULL << MSR_SF);
+    }
+
+    msr |= (1ULL << MSR_ME);
+    env->msr = msr;
+
+    if (!spapr->guest_machine_check_addr) {
+        /*
+         * If OS has not registered with "ibm,nmi-register"
+         * jump to 0x200
+         */
+        env->nip = 0x200;
+        return 0;
+    }
+
+    while (spapr->mc_in_progress) {
+        /*
+         * Check whether the same CPU got machine check error
+         * while still handling the mc error (i.e., before
+         * that CPU called "ibm,nmi-interlock"
+         */
+        if (spapr->mc_cpu == cpu->cpu_dt_id) {
+            qemu_system_guest_panicked(NULL);
+        }
+        qemu_cond_wait_iothread(&spapr->mc_delivery_cond);
+    }
+    spapr->mc_in_progress = true;
+    spapr->mc_cpu = cpu->cpu_dt_id;
+
+    /* Set error log fields */
+    mc_log.r3 = env->gpr[3];
+    mc_log.err_log.byte0 = 0;
+    mc_log.err_log.byte1 =
+        (RTAS_SEVERITY_ERROR_SYNC << RTAS_ELOG_SEVERITY_SHIFT);
+    mc_log.err_log.byte1 |=
+        (RTAS_DISP_NOT_RECOVERED << RTAS_ELOG_DISPOSITION_SHIFT);
+    mc_log.err_log.byte2 =
+        (RTAS_INITIATOR_MEMORY << RTAS_ELOG_INITIATOR_SHIFT);
+    mc_log.err_log.byte2 |= RTAS_TARGET_MEMORY;
+
+    if (env->spr[SPR_DSISR] & P7_DSISR_MC_UE) {
+        mc_log.err_log.byte3 = RTAS_TYPE_ECC_UNCORR;
+    } else {
+        mc_log.err_log.byte3 = 0;
+    }
+
+    /* Handle all Host/Guest LE/BE combinations */
+    if (env->msr & (1ULL << MSR_LE)) {
+        mc_log.r3 = cpu_to_le64(mc_log.r3);
+    } else {
+        mc_log.r3 = cpu_to_be64(mc_log.r3);
+    }
+
+    cpu_physical_memory_write(spapr->rtas_addr + RTAS_ERRLOG_OFFSET,
+                              &mc_log, sizeof(mc_log));
+
+    env->nip = spapr->guest_machine_check_addr;
+    env->gpr[3] = spapr->rtas_addr + RTAS_ERRLOG_OFFSET;
+
+    return 0;
 }
 
 int kvmppc_enable_hwrng(void)
