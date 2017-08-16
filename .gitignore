@@ -52,6 +52,8 @@
 /vscclient
 /vhost-user-scsi
 /fsdev/virtfs-proxy-helper
+/tests/vm/*.img
+/tests/vm/*.tmp
 *.[1-9]
 *.a
 *.aux
