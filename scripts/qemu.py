@@ -144,6 +144,11 @@ class QEMUMachine(object):
             self._post_shutdown()
             raise
 
+    def wait(self):
+        self._popen.wait()
+        self._qmp.close()
+        self._post_shutdown()
+
     def shutdown(self):
         '''Terminate the VM and clean up'''
         if self.is_running():
