@@ -90,6 +90,7 @@ struct sPAPRMachineState {
 
     hwaddr rma_size;
     int vrma_adjust;
+    hwaddr rtas_addr;
     ssize_t rtas_size;
     void *rtas_blob;
     long kernel_size;
@@ -399,7 +400,8 @@ struct sPAPRMachineState {
 #define KVMPPC_H_LOGICAL_MEMOP  (KVMPPC_HCALL_BASE + 0x1)
 /* Client Architecture support */
 #define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
-#define KVMPPC_HCALL_MAX        KVMPPC_H_CAS
+#define KVMPPC_H_RTAS_UPDATE    (KVMPPC_HCALL_BASE + 0x3)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_RTAS_UPDATE
 
 typedef struct sPAPRDeviceTreeUpdateHeader {
     uint32_t version_id;
