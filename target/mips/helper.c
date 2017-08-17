@@ -1093,3 +1093,49 @@ void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
 
     cpu_loop_exit_restore(cs, pc);
 }
+
+/* Sort alphabetically by type name, except for "any". */
+static gint mips_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    ObjectClass *class_a = (ObjectClass *)a;
+    ObjectClass *class_b = (ObjectClass *)b;
+    const char *name_a, *name_b;
+
+    name_a = object_class_get_name(class_a);
+    name_b = object_class_get_name(class_b);
+    if (strcmp(name_a, "any-" TYPE_MIPS_CPU) == 0) {
+        return 1;
+    } else if (strcmp(name_b, "any-" TYPE_MIPS_CPU) == 0) {
+        return -1;
+    } else {
+        return strcmp(name_a, name_b);
+    }
+}
+
+static void mips_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    CPUListState *s = user_data;
+    const char *typename;
+    char *name;
+
+    typename = object_class_get_name(oc);
+    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_MIPS_CPU));
+    (*s->cpu_fprintf)(s->file, "  %s\n", name);
+    g_free(name);
+}
+
+void mips_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+{
+    CPUListState s = {
+        .file = f,
+        .cpu_fprintf = cpu_fprintf,
+    };
+    GSList *list;
+
+    list = object_class_get_list(TYPE_MIPS_CPU, false);
+    list = g_slist_sort(list, mips_cpu_list_compare);
+    (*cpu_fprintf)(f, "Available CPUs:\n");
+    g_slist_foreach(list, mips_cpu_list_entry, &s);
+    g_slist_free(list);
+}
