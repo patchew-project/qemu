@@ -39,6 +39,7 @@ class QEMUMachine(object):
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+        self._vga = "none"
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -111,7 +112,7 @@ class QEMUMachine(object):
             moncdev = 'socket,id=mon,path=%s' % self._monitor_address
         return ['-chardev', moncdev,
                 '-mon', 'chardev=mon,mode=control',
-                '-display', 'none', '-vga', 'none']
+                '-display', 'none', '-vga', self._vga]
 
     def _pre_launch(self):
         self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address, server=True,
