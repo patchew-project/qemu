@@ -36,8 +36,10 @@
 
 #include "trace-tcg.h"
 
+/* Global registers */
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
+static TCGv_vec cpu_V[32];
 
 /* Load/store exclusive handling */
 static TCGv_i64 cpu_exclusive_high;
@@ -48,6 +50,13 @@ static const char *x_regnames[] = {
     "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
     "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
     "x24", "x25", "x26", "x27", "x28", "x29", "lr", "sp"
+};
+
+static const char *v_regnames[] = {
+    "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+    "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+    "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+    "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
 };
 
 enum a64_shift_type {
@@ -91,10 +100,18 @@ void a64_translate_init(void)
     cpu_pc = tcg_global_mem_new_i64(cpu_env,
                                     offsetof(CPUARMState, pc),
                                     "pc");
-    for (i = 0; i < 32; i++) {
+
+    for (i = 0; i < ARRAY_SIZE(cpu_X); i++) {
         cpu_X[i] = tcg_global_mem_new_i64(cpu_env,
                                           offsetof(CPUARMState, xregs[i]),
-                                          regnames[i]);
+                                          x_regnames[i]);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(cpu_V); i++) {
+        cpu_V[i] = tcg_global_mem_new_vec(cpu_env,
+                                          offsetof(CPUARMState,
+                                                   vfp.regs[i * 2]),
+                                          v_regnames[i]);
     }
 
     cpu_exclusive_high = tcg_global_mem_new_i64(cpu_env,
