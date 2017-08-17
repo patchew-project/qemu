@@ -349,6 +349,8 @@ void qvirtio_plug_device_test(const char *driver, const char *id,
     if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64") ||
         g_str_equal(arch, "ppc64")) {
         qpci_plug_device_test(driver, id, addr, opts);
+    } else if (g_str_equal(arch, "s390x")) {
+        qtest_hot_plug_device(driver, id, opts ? "%s" : NULL,  opts);
     } else {
         g_assert_not_reached();
     }
@@ -360,7 +362,7 @@ void qvirtio_unplug_device_test(const char *id, uint8_t addr)
 
     if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
         qpci_unplug_acpi_device_test(id, addr);
-    } else if (g_str_equal(arch, "ppc64")) {
+    } else if (g_str_equal(arch, "ppc64") || g_str_equal(arch, "s390x")) {
         qtest_hot_unplug_device(id);
     } else {
         g_assert_not_reached();

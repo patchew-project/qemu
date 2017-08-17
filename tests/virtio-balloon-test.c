@@ -11,7 +11,7 @@
 #include "libqtest.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
-static void pci_nop(void)
+static void balloon_nop(void)
 {
 }
 
@@ -20,9 +20,9 @@ int main(int argc, char **argv)
     int ret;
 
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/virtio/balloon/pci/nop", pci_nop);
+    qtest_add_func("/virtio/balloon/nop", balloon_nop);
 
-    qtest_start("-device virtio-balloon-pci");
+    qtest_start("-device virtio-balloon");
     ret = g_test_run();
 
     qtest_end();

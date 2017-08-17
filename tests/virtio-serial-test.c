@@ -11,7 +11,7 @@
 #include "libqtest.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
-static void pci_nop(void)
+static void virtioserial_nop(void)
 {
 }
 
@@ -27,10 +27,10 @@ int main(int argc, char **argv)
     int ret;
 
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/virtio/serial/pci/nop", pci_nop);
-    qtest_add_func("/virtio/serial/pci/hotplug", hotplug);
+    qtest_add_func("/virtio/serial/nop", virtioserial_nop);
+    qtest_add_func("/virtio/serial/hotplug", hotplug);
 
-    qtest_start("-device virtio-serial-pci");
+    qtest_start("-device virtio-serial");
     ret = g_test_run();
 
     qtest_end();
