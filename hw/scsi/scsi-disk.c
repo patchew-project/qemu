@@ -106,7 +106,8 @@ typedef struct SCSIDiskState
     bool tray_locked;
 } SCSIDiskState;
 
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed);
+static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int status,
+                                bool update_sense, bool acct_failed);
 
 static void scsi_free_request(SCSIRequest *req)
 {
@@ -179,21 +180,23 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
 
 static bool scsi_disk_req_check_error(SCSIDiskReq *r, int ret, bool acct_failed)
 {
+    int status = r->status ? *r->status : 0;
+
     if (r->req.io_canceled) {
         scsi_req_cancel_complete(&r->req);
         return true;
     }
 
-    if (ret < 0) {
-        return scsi_handle_rw_error(r, -ret, acct_failed);
+    if (ret < 0 || status) {
+        return scsi_handle_rw_error(r, -ret, status, !r->status, acct_failed);
     }
 
-    if (r->status && *r->status) {
+    if (status) {
         if (acct_failed) {
             SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
             block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
         }
-        scsi_req_complete(&r->req, *r->status);
+        scsi_req_complete(&r->req, status);
         return true;
     }
 
@@ -421,6 +424,22 @@ static void scsi_read_data(SCSIRequest *req)
     }
 }
 
+static bool scsi_sense_matches(SCSIDiskReq *r, SCSISense sense)
+{
+    SCSIRequest *req = &r->req;
+    if (req->sense[0] == 0x70) {
+        return (req->sense[2] & 0xF) == sense.key &&
+               req->sense[12] == sense.asc &&
+               req->sense[13] == sense.ascq;
+    } else if (req->sense[0] == 0x72) {
+        return (req->sense[1] & 0xF) == sense.key &&
+               req->sense[2] == sense.asc &&
+               req->sense[3] == sense.ascq;
+    } else {
+        return false;
+    }
+}
+
 /*
  * scsi_handle_rw_error has two return values.  0 means that the error
  * must be ignored, 1 means that the error has been processed and the
@@ -428,7 +447,8 @@ static void scsi_read_data(SCSIRequest *req)
  * scsi_handle_rw_error always manages its reference counts, independent
  * of the return value.
  */
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
+static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int status,
+                                bool update_sense, bool acct_failed)
 {
     bool is_read = (r->req.cmd.mode == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -439,22 +459,38 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
         if (acct_failed) {
             block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
         }
-        switch (error) {
-        case ENOMEDIUM:
-            scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
-            break;
-        case ENOMEM:
-            scsi_check_condition(r, SENSE_CODE(TARGET_FAILURE));
-            break;
-        case EINVAL:
-            scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
-            break;
-        case ENOSPC:
-            scsi_check_condition(r, SENSE_CODE(SPACE_ALLOC_FAILED));
-            break;
-        default:
-            scsi_check_condition(r, SENSE_CODE(IO_ERROR));
-            break;
+        if (update_sense) {
+            switch (error) {
+            case ENOMEDIUM:
+                scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
+                break;
+            case ENOMEM:
+                scsi_check_condition(r, SENSE_CODE(TARGET_FAILURE));
+                break;
+            case EINVAL:
+                scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
+                break;
+            case ENOSPC:
+                scsi_check_condition(r, SENSE_CODE(SPACE_ALLOC_FAILED));
+                break;
+            default:
+                scsi_check_condition(r, SENSE_CODE(IO_ERROR));
+                break;
+            }
+        }
+    }
+    if (!error) {
+        assert(status);
+        if (scsi_sense_matches(r, SENSE_CODE(NO_MEDIUM))) {
+            error = ENOMEDIUM;
+        } else if (scsi_sense_matches(r, SENSE_CODE(TARGET_FAILURE))) {
+            error = ENOMEM;
+        } else if (scsi_sense_matches(r, SENSE_CODE(INVALID_FIELD))) {
+            error = EINVAL;
+        } else if (scsi_sense_matches(r, SENSE_CODE(SPACE_ALLOC_FAILED))) {
+            error = ENOSPC;
+        } else {
+            error = EIO;
         }
     }
     blk_error_action(s->qdev.conf.blk, action, is_read, error);
@@ -2972,6 +3008,7 @@ static const TypeInfo scsi_cd_info = {
 
 #ifdef __linux__
 static Property scsi_block_properties[] = {
+    DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),         \
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_PROP_END_OF_LIST(),
 };
