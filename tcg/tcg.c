@@ -2034,7 +2034,21 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
         break;
     case TEMP_VAL_MEM:
         reg = tcg_reg_alloc(s, desired_regs, allocated_regs, ts->indirect_base);
-        tcg_out_ld(s, ts->type, reg, ts->mem_base->reg, ts->mem_offset);
+        if (ts->type == TCG_TYPE_VECTOR) {
+            /* Vector registers are ptr's to the memory representation */
+            TCGArg args[TCG_MAX_OP_ARGS];
+            int const_args[TCG_MAX_OP_ARGS];
+            args[0] = reg;
+            args[1] = ts->mem_base->reg;
+            args[2] = ts->mem_offset;
+            const_args[0] = 0;
+            const_args[1] = 0;
+            const_args[2] = 1;
+            /* FIXME: needs to by host_ptr centric */
+            tcg_out_op(s, INDEX_op_add_i64, args, const_args);
+        } else {
+            tcg_out_ld(s, ts->type, reg, ts->mem_base->reg, ts->mem_offset);
+        }
         ts->mem_coherent = 1;
         break;
     case TEMP_VAL_DEAD:
@@ -2195,6 +2209,10 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
                 tcg_regset_set_reg(allocated_regs, ts->reg);
                 ots->reg = tcg_reg_alloc(s, tcg_target_available_regs[otype],
                                          allocated_regs, ots->indirect_base);
+            }
+            /* For the purposes of moving stuff about it is a host ptr */
+            if (otype == TCG_TYPE_VECTOR) {
+                otype = TCG_TYPE_PTR;
             }
             tcg_out_mov(s, otype, ots->reg, ts->reg);
         }
@@ -2440,7 +2458,11 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
 
             if (ts->val_type == TEMP_VAL_REG) {
                 if (ts->reg != reg) {
-                    tcg_out_mov(s, ts->type, reg, ts->reg);
+                    if (ts->type == TCG_TYPE_VECTOR) {
+                        tcg_out_mov(s, TCG_TYPE_PTR, reg, ts->reg);
+                    } else {
+                        tcg_out_mov(s, ts->type, reg, ts->reg);
+                    }
                 }
             } else {
                 TCGRegSet arg_set;
