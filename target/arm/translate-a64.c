@@ -10466,6 +10466,74 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
+typedef void AdvSIMDGenTwoPlusOneVectorFn(TCGv_vec, TCGv_vec, TCGv_i32, TCGv_i32);
+
+/* Handle [U/S]ML[S/A]L instructions
+ *
+ * This splits off from bellow only to aid experimentation.
+ */
+static bool handle_vec_simd_mul_addsub(DisasContext *s, uint32_t insn, int opcode, int size, bool is_q, bool u, int rn, int rm, int rd)
+{
+    /* fprintf(stderr, "%s: %#04x op:%x sz:%d rn:%d rm:%d rd:%d\n", __func__, */
+    /*         insn, opcode, size, rn, rm, rd); */
+
+    if (size == 1) {
+        AdvSIMDGenTwoPlusOneVectorFn *fn = NULL;
+        uint32_t simd_info = 0;
+
+        switch (opcode) {
+        case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
+            break;
+        case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
+            break;
+        case 0xa: /* SMULL, SMULL2, UMULL, UMULL2 */
+            if (!u)
+            {
+                /* helper assumes no aliasing */
+                if (rd == rn) {
+                    return false;
+                }
+
+                fn = gen_helper_advsimd_smull_idx_s32;
+                simd_info = deposit32(simd_info,
+                                      ADVSIMD_OPR_ELT_SHIFT, ADVSIMD_OPR_ELT_BITS, 4);
+
+                if (is_q) {
+                    simd_info = deposit32(simd_info,
+                                          ADVSIMD_DOFF_ELT_SHIFT, ADVSIMD_DOFF_ELT_BITS, 4);
+                }
+            };
+            break;
+        default:
+            break;
+        }
+
+        /* assert(fn); */
+
+        if (fn) {
+            TCGv_i32 tcg_idx = tcg_temp_new_i32();
+            TCGv_i32 tcg_simd_info = tcg_const_i32(simd_info);
+            int h = extract32(insn, 11, 1);
+            int lm = extract32(insn, 20, 2);
+            int index = h << 2 | lm;
+
+            if (!fp_access_check(s)) {
+                return false;
+            }
+
+            read_vec_element_i32(s, tcg_idx, rm, index, size);
+
+            fn(cpu_V[rd], cpu_V[rn], tcg_idx, tcg_simd_info);
+
+            tcg_temp_free_i32(tcg_simd_info);
+            tcg_temp_free_i32(tcg_idx);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /* C3.6.13 AdvSIMD scalar x indexed element
  *  31 30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
  * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
@@ -10516,6 +10584,10 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0xa: /* SMULL, SMULL2, UMULL, UMULL2 */
         if (is_scalar) {
             unallocated_encoding(s);
+            return;
+        }
+        /* Shortcut if we have a vectorised helper */
+        if (handle_vec_simd_mul_addsub(s, insn, opcode, size, is_q, u, rn, rm, rd)) {
             return;
         }
         is_long = true;

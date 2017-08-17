@@ -538,3 +538,20 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
 
     return !success;
 }
+
+/* Multiply Long (vector, by element) */
+void HELPER(advsimd_smull_idx_s32)(void *d, void *n, uint32_t m,
+                                   uint32_t simd_data)
+{
+    int opr_elt = GET_SIMD_DATA(OPR_ELT, simd_data);
+    int doff_elt = GET_SIMD_DATA(DOFF_ELT, simd_data);
+    int32_t *rd = (int32_t *) d;
+    int16_t *rn = (int16_t *) n;
+    int16_t rm = (int16_t) m;
+    int i;
+
+    #pragma GCC ivdep
+    for (i = 0; i < opr_elt; ++i) {
+        rd[i] = rn[i + doff_elt] * rm;
+    }
+}
