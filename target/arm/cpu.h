@@ -457,8 +457,8 @@ typedef struct CPUARMState {
          * the two execution states, and means we do not need to explicitly
          * map these registers when changing states.
          */
-        float64 regs[64];
-
+        float64 regs[64] __attribute__((aligned(16)));
+        /* VFP system registers */
         uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
         int vec_len;
