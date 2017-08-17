@@ -2808,10 +2808,17 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
-    MemoryRegion *mr = ddc->get_memory_region(dimm);
-    uint64_t size = memory_region_size(mr);
+    MemoryRegion *mr;
+    uint64_t size;
     char *mem_dev;
 
+    if (!dimm->hostmem) {
+        error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property must be set");
+        return;
+    }
+
+    mr = ddc->get_memory_region(dimm);
+    size = memory_region_size(mr);
     if (size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(errp, "Hotplugged memory size must be a multiple of "
                       "%lld MB", SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
