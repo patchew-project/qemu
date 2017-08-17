@@ -219,7 +219,7 @@ static const TypeInfo mips_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(MIPSCPU),
     .instance_init = mips_cpu_initfn,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(MIPSCPUClass),
     .class_init = mips_cpu_class_init,
 };
