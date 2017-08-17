@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "libqos/virtio.h"
+#include "libqos/pci.h"
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 
@@ -338,4 +339,30 @@ void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx)
 
     /* vq->avail->used_event */
     writew(vq->avail + 4 + (2 * vq->size), idx);
+}
+
+void qvirtio_plug_device_test(const char *driver, const char *id,
+                              uint8_t addr, const char *opts)
+{
+    const char *arch = qtest_get_arch();
+
+    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64") ||
+        g_str_equal(arch, "ppc64")) {
+        qpci_plug_device_test(driver, id, addr, opts);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+void qvirtio_unplug_device_test(const char *id, uint8_t addr)
+{
+    const char *arch = qtest_get_arch();
+
+    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
+        qpci_unplug_acpi_device_test(id, addr);
+    } else if (g_str_equal(arch, "ppc64")) {
+        qtest_hot_unplug_device(id);
+    } else {
+        g_assert_not_reached();
+    }
 }

@@ -241,15 +241,11 @@ static void pci_basic(gconstpointer data)
 
 static void hotplug(void)
 {
-    const char *arch = qtest_get_arch();
-
     qtest_start("-device virtio-net-pci");
 
-    qpci_plug_device_test("virtio-net-pci", "net1", PCI_SLOT_HP, NULL);
+    qvirtio_plug_device_test("virtio-net", "net1", PCI_SLOT_HP, NULL);
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qpci_unplug_acpi_device_test("net1", PCI_SLOT_HP);
-    }
+    qvirtio_unplug_device_test("net1", PCI_SLOT_HP);
 
     test_end();
 }

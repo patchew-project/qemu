@@ -143,4 +143,9 @@ void qvirtqueue_kick(QVirtioDevice *d, QVirtQueue *vq, uint32_t free_head);
 bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx);
 
 void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx);
+
+void qvirtio_plug_device_test(const char *driver, const char *id,
+                              uint8_t addr, const char *opts);
+void qvirtio_unplug_device_test(const char *id, uint8_t addr);
+
 #endif
