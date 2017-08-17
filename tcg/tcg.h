@@ -256,6 +256,7 @@ typedef struct TCGPool {
 typedef enum TCGType {
     TCG_TYPE_I32,
     TCG_TYPE_I64,
+    TCG_TYPE_VECTOR,
     TCG_TYPE_COUNT, /* number of different types */
 
     /* An alias for the size of the host register.  */
@@ -431,6 +432,7 @@ typedef tcg_target_ulong TCGArg;
 typedef struct TCGv_i32_d *TCGv_i32;
 typedef struct TCGv_i64_d *TCGv_i64;
 typedef struct TCGv_ptr_d *TCGv_ptr;
+typedef struct TCGv_vec_d *TCGv_vec;
 typedef TCGv_ptr TCGv_env;
 #if TARGET_LONG_BITS == 32
 #define TCGv TCGv_i32
@@ -450,6 +452,11 @@ static inline TCGv_i64 QEMU_ARTIFICIAL MAKE_TCGV_I64(intptr_t i)
     return (TCGv_i64)i;
 }
 
+static inline TCGv_vec QEMU_ARTIFICIAL MAKE_TCGV_VEC(intptr_t i)
+{
+    return (TCGv_vec)i;
+}
+
 static inline TCGv_ptr QEMU_ARTIFICIAL MAKE_TCGV_PTR(intptr_t i)
 {
     return (TCGv_ptr)i;
@@ -461,6 +468,11 @@ static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_I32(TCGv_i32 t)
 }
 
 static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_I64(TCGv_i64 t)
+{
+    return (intptr_t)t;
+}
+
+static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_VEC(TCGv_vec t)
 {
     return (intptr_t)t;
 }
@@ -788,6 +800,7 @@ int tcg_global_mem_new_internal(TCGType, TCGv_ptr, intptr_t, const char *);
 
 TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name);
 TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name);
+TCGv_vec tcg_global_reg_new_vec(TCGReg reg, const char *name);
 
 TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
 TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
@@ -827,6 +840,13 @@ static inline TCGv_i64 tcg_temp_new_i64(void)
 static inline TCGv_i64 tcg_temp_local_new_i64(void)
 {
     return tcg_temp_new_internal_i64(1);
+}
+
+static inline TCGv_vec tcg_global_mem_new_vec(TCGv_ptr reg, intptr_t offset,
+                                              const char *name)
+{
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_VECTOR, reg, offset, name);
+    return MAKE_TCGV_VEC(idx);
 }
 
 #if defined(CONFIG_DEBUG_TCG)

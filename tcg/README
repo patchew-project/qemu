@@ -57,6 +57,7 @@ typed. A number of types are supported:
 
   TCGv_i32 - 32 bit integer
   TCGv_i64 - 64 bit integer
+  TCGv_vec - an arbitrary sized vector register
   TCGv     - target pointer (aliased to 32 or 64 bit integer)
   TCGv_ptr - host pointer (used for direct access to host structures)
 
