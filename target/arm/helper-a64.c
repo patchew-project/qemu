@@ -30,6 +30,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "qemu/int128.h"
+#include "advsimd_helper_flags.h"
 #include "tcg.h"
 #include <zlib.h> /* For crc32 */
 

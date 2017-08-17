@@ -34,6 +34,8 @@
 #include "exec/helper-gen.h"
 #include "exec/log.h"
 
+#include "advsimd_helper_flags.h"
+
 #include "trace-tcg.h"
 
 /* Global registers */
