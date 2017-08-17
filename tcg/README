@@ -53,9 +53,12 @@ an "undefined result".
 
 TCG instructions operate on variables which are temporaries, local
 temporaries or globals. TCG instructions and variables are strongly
-typed. Two types are supported: 32 bit integers and 64 bit
-integers. Pointers are defined as an alias to 32 bit or 64 bit
-integers depending on the TCG target word size.
+typed. A number of types are supported:
+
+  TCGv_i32 - 32 bit integer
+  TCGv_i64 - 64 bit integer
+  TCGv     - target pointer (aliased to 32 or 64 bit integer)
+  TCGv_ptr - host pointer (used for direct access to host structures)
 
 Each instruction has a fixed number of output variable operands, input
 variable operands and always constant operands.
