@@ -1038,4 +1038,6 @@ extern const struct VMStateDescription vmstate_cpu_common;
 
 #define UNASSIGNED_CPU_INDEX -1
 
+void cpu_legacy_parse_featurestr(const char *typename, char *features,
+                                 Error **errp);
 #endif
