@@ -426,9 +426,9 @@ QDict *qmp_fd_receive(int fd)
     return qmp.response;
 }
 
-QDict *qtest_qmp_receive(QTestState *s)
+QDict *qmp_receive(void)
 {
-    return qmp_fd_receive(s->qmp_fd);
+    return qmp_fd_receive(global_qtest->qmp_fd);
 }
 
 /**
@@ -498,7 +498,7 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
     qtest_async_qmpv(s, fmt, ap);
 
     /* Receive reply */
-    return qtest_qmp_receive(s);
+    return qmp_fd_receive(s->qmp_fd);
 }
 
 QDict *qmp_fd(int fd, const char *fmt, ...)
@@ -541,12 +541,12 @@ void qtest_async_qmp(QTestState *s, const char *fmt, ...)
     va_end(ap);
 }
 
-QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
+QDict *qmp_eventwait_ref(const char *event)
 {
     QDict *response;
 
     for (;;) {
-        response = qtest_qmp_receive(s);
+        response = qmp_receive();
         if ((qdict_haskey(response, "event")) &&
             (strcmp(qdict_get_str(response, "event"), event) == 0)) {
             return response;
@@ -555,11 +555,11 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
     }
 }
 
-void qtest_qmp_eventwait(QTestState *s, const char *event)
+void qmp_eventwait(const char *event)
 {
     QDict *response;
 
-    response = qtest_qmp_eventwait_ref(s, event);
+    response = qmp_eventwait_ref(event);
     QDECREF(response);
 }
 
@@ -577,7 +577,7 @@ char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
     while (ret == NULL && qdict_get_try_str(resp, "event")) {
         /* Ignore asynchronous QMP events */
         QDECREF(resp);
-        resp = qtest_qmp_receive(s);
+        resp = qmp_fd_receive(s->qmp_fd);
         ret = g_strdup(qdict_get_try_str(resp, "return"));
     }
     g_assert(ret);
@@ -606,83 +606,83 @@ const char *qtest_get_arch(void)
     return end + strlen("/qemu-system-");
 }
 
-bool qtest_get_irq(QTestState *s, int num)
+bool get_irq(int num)
 {
     /* dummy operation in order to make sure irq is up to date */
-    qtest_inb(s, 0);
+    inb(0);
 
-    return s->irq_level[num];
+    return global_qtest->irq_level[num];
 }
 
-static int64_t qtest_clock_rsp(QTestState *s)
+static int64_t qtest_clock_rsp(void)
 {
     gchar **words;
     int64_t clock;
-    words = qtest_rsp(s, 2);
+    words = qtest_rsp(global_qtest, 2);
     clock = g_ascii_strtoll(words[1], NULL, 0);
     g_strfreev(words);
     return clock;
 }
 
-int64_t qtest_clock_step_next(QTestState *s)
+int64_t clock_step_next(void)
 {
-    qtest_sendf(s, "clock_step\n");
-    return qtest_clock_rsp(s);
+    qtest_sendf(global_qtest, "clock_step\n");
+    return qtest_clock_rsp();
 }
 
-int64_t qtest_clock_step(QTestState *s, int64_t step)
+int64_t clock_step(int64_t step)
 {
-    qtest_sendf(s, "clock_step %"PRIi64"\n", step);
-    return qtest_clock_rsp(s);
+    qtest_sendf(global_qtest, "clock_step %"PRIi64"\n", step);
+    return qtest_clock_rsp();
 }
 
-int64_t qtest_clock_set(QTestState *s, int64_t val)
+int64_t clock_set(int64_t val)
 {
-    qtest_sendf(s, "clock_set %"PRIi64"\n", val);
-    return qtest_clock_rsp(s);
+    qtest_sendf(global_qtest, "clock_set %"PRIi64"\n", val);
+    return qtest_clock_rsp();
 }
 
-void qtest_irq_intercept_out(QTestState *s, const char *qom_path)
+void irq_intercept_out(const char *qom_path)
 {
-    qtest_sendf(s, "irq_intercept_out %s\n", qom_path);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "irq_intercept_out %s\n", qom_path);
+    qtest_rsp(global_qtest, 0);
 }
 
-void qtest_irq_intercept_in(QTestState *s, const char *qom_path)
+void irq_intercept_in(const char *qom_path)
 {
-    qtest_sendf(s, "irq_intercept_in %s\n", qom_path);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "irq_intercept_in %s\n", qom_path);
+    qtest_rsp(global_qtest, 0);
 }
 
-static void qtest_out(QTestState *s, const char *cmd, uint16_t addr, uint32_t value)
+static void out(const char *cmd, uint16_t addr, uint32_t value)
 {
-    qtest_sendf(s, "%s 0x%x 0x%x\n", cmd, addr, value);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "%s 0x%x 0x%x\n", cmd, addr, value);
+    qtest_rsp(global_qtest, 0);
 }
 
-void qtest_outb(QTestState *s, uint16_t addr, uint8_t value)
+void outb(uint16_t addr, uint8_t value)
 {
-    qtest_out(s, "outb", addr, value);
+    out("outb", addr, value);
 }
 
-void qtest_outw(QTestState *s, uint16_t addr, uint16_t value)
+void outw(uint16_t addr, uint16_t value)
 {
-    qtest_out(s, "outw", addr, value);
+    out("outw", addr, value);
 }
 
-void qtest_outl(QTestState *s, uint16_t addr, uint32_t value)
+void outl(uint16_t addr, uint32_t value)
 {
-    qtest_out(s, "outl", addr, value);
+    out("outl", addr, value);
 }
 
-static uint32_t qtest_in(QTestState *s, const char *cmd, uint16_t addr)
+static uint32_t in(const char *cmd, uint16_t addr)
 {
     gchar **args;
     int ret;
     unsigned long value;
 
-    qtest_sendf(s, "%s 0x%x\n", cmd, addr);
-    args = qtest_rsp(s, 2);
+    qtest_sendf(global_qtest, "%s 0x%x\n", cmd, addr);
+    args = qtest_rsp(global_qtest, 2);
     ret = qemu_strtoul(args[1], NULL, 0, &value);
     g_assert(!ret && value <= UINT32_MAX);
     g_strfreev(args);
@@ -690,56 +690,57 @@ static uint32_t qtest_in(QTestState *s, const char *cmd, uint16_t addr)
     return value;
 }
 
-uint8_t qtest_inb(QTestState *s, uint16_t addr)
+uint8_t inb(uint16_t addr)
 {
-    return qtest_in(s, "inb", addr);
+    return in("inb", addr);
 }
 
-uint16_t qtest_inw(QTestState *s, uint16_t addr)
+uint16_t inw(uint16_t addr)
 {
-    return qtest_in(s, "inw", addr);
+    return in("inw", addr);
 }
 
-uint32_t qtest_inl(QTestState *s, uint16_t addr)
+uint32_t inl(uint16_t addr)
 {
-    return qtest_in(s, "inl", addr);
+    return in("inl", addr);
 }
 
-static void qtest_write(QTestState *s, const char *cmd, uint64_t addr,
+static void qtest_write(const char *cmd, uint64_t addr,
                         uint64_t value)
 {
-    qtest_sendf(s, "%s 0x%" PRIx64 " 0x%" PRIx64 "\n", cmd, addr, value);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "%s 0x%" PRIx64 " 0x%" PRIx64 "\n", cmd, addr,
+                value);
+    qtest_rsp(global_qtest, 0);
 }
 
-void qtest_writeb(QTestState *s, uint64_t addr, uint8_t value)
+void writeb(uint64_t addr, uint8_t value)
 {
-    qtest_write(s, "writeb", addr, value);
+    qtest_write("writeb", addr, value);
 }
 
-void qtest_writew(QTestState *s, uint64_t addr, uint16_t value)
+void writew(uint64_t addr, uint16_t value)
 {
-    qtest_write(s, "writew", addr, value);
+    qtest_write("writew", addr, value);
 }
 
-void qtest_writel(QTestState *s, uint64_t addr, uint32_t value)
+void writel(uint64_t addr, uint32_t value)
 {
-    qtest_write(s, "writel", addr, value);
+    qtest_write("writel", addr, value);
 }
 
-void qtest_writeq(QTestState *s, uint64_t addr, uint64_t value)
+void writeq(uint64_t addr, uint64_t value)
 {
-    qtest_write(s, "writeq", addr, value);
+    qtest_write("writeq", addr, value);
 }
 
-static uint64_t qtest_read(QTestState *s, const char *cmd, uint64_t addr)
+static uint64_t qtest_read(const char *cmd, uint64_t addr)
 {
     gchar **args;
     int ret;
     uint64_t value;
 
-    qtest_sendf(s, "%s 0x%" PRIx64 "\n", cmd, addr);
-    args = qtest_rsp(s, 2);
+    qtest_sendf(global_qtest, "%s 0x%" PRIx64 "\n", cmd, addr);
+    args = qtest_rsp(global_qtest, 2);
     ret = qemu_strtou64(args[1], NULL, 0, &value);
     g_assert(!ret);
     g_strfreev(args);
@@ -747,24 +748,24 @@ static uint64_t qtest_read(QTestState *s, const char *cmd, uint64_t addr)
     return value;
 }
 
-uint8_t qtest_readb(QTestState *s, uint64_t addr)
+uint8_t readb(uint64_t addr)
 {
-    return qtest_read(s, "readb", addr);
+    return qtest_read("readb", addr);
 }
 
-uint16_t qtest_readw(QTestState *s, uint64_t addr)
+uint16_t readw(uint64_t addr)
 {
-    return qtest_read(s, "readw", addr);
+    return qtest_read("readw", addr);
 }
 
-uint32_t qtest_readl(QTestState *s, uint64_t addr)
+uint32_t readl(uint64_t addr)
 {
-    return qtest_read(s, "readl", addr);
+    return qtest_read("readl", addr);
 }
 
-uint64_t qtest_readq(QTestState *s, uint64_t addr)
+uint64_t readq(uint64_t addr)
 {
-    return qtest_read(s, "readq", addr);
+    return qtest_read("readq", addr);
 }
 
 static int hex2nib(char ch)
@@ -780,7 +781,7 @@ static int hex2nib(char ch)
     }
 }
 
-void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
+void memread(uint64_t addr, void *data, size_t size)
 {
     uint8_t *ptr = data;
     gchar **args;
@@ -790,8 +791,8 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
         return;
     }
 
-    qtest_sendf(s, "read 0x%" PRIx64 " 0x%zx\n", addr, size);
-    args = qtest_rsp(s, 2);
+    qtest_sendf(global_qtest, "read 0x%" PRIx64 " 0x%zx\n", addr, size);
+    args = qtest_rsp(global_qtest, 2);
 
     for (i = 0; i < size; i++) {
         ptr[i] = hex2nib(args[1][2 + (i * 2)]) << 4;
@@ -834,25 +835,25 @@ void qtest_add_data_func(const char *str, const void *data,
     g_free(path);
 }
 
-void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
+void bufwrite(uint64_t addr, const void *data, size_t size)
 {
     gchar *bdata;
 
     bdata = g_base64_encode(data, size);
-    qtest_sendf(s, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
-    socket_send(s->fd, bdata, -1);
-    socket_send(s->fd, "\n", 1);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
+    socket_send(global_qtest->fd, bdata, -1);
+    socket_send(global_qtest->fd, "\n", 1);
+    qtest_rsp(global_qtest, 0);
     g_free(bdata);
 }
 
-void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size)
+void bufread(uint64_t addr, void *data, size_t size)
 {
     gchar **args;
     size_t len;
 
-    qtest_sendf(s, "b64read 0x%" PRIx64 " 0x%zx\n", addr, size);
-    args = qtest_rsp(s, 2);
+    qtest_sendf(global_qtest, "b64read 0x%" PRIx64 " 0x%zx\n", addr, size);
+    args = qtest_rsp(global_qtest, 2);
 
     g_base64_decode_inplace(args[1], &len);
     if (size != len) {
@@ -865,7 +866,7 @@ void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size)
     g_strfreev(args);
 }
 
-void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
+void memwrite(uint64_t addr, const void *data, size_t size)
 {
     const uint8_t *ptr = data;
     size_t i;
@@ -881,15 +882,17 @@ void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
         sprintf(&enc[i * 2], "%02x", ptr[i]);
     }
 
-    qtest_sendf(s, "write 0x%" PRIx64 " 0x%zx 0x%s\n", addr, size, enc);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "write 0x%" PRIx64 " 0x%zx 0x%s\n", addr, size,
+                enc);
+    qtest_rsp(global_qtest, 0);
     g_free(enc);
 }
 
-void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
+void qmemset(uint64_t addr, uint8_t pattern, size_t size)
 {
-    qtest_sendf(s, "memset 0x%" PRIx64 " 0x%zx 0x%02x\n", addr, size, pattern);
-    qtest_rsp(s, 0);
+    qtest_sendf(global_qtest, "memset 0x%" PRIx64 " 0x%zx 0x%02x\n", addr, size,
+                pattern);
+    qtest_rsp(global_qtest, 0);
 }
 
 QDict *qmp(const char *fmt, ...)
