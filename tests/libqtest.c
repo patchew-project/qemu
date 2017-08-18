@@ -49,7 +49,6 @@ static struct sigaction sigact_old;
     g_assert_cmpint(ret, !=, -1); \
 } while (0)
 
-static int qtest_query_target_endianness(QTestState *s);
 
 static int init_socket(const char *socket_path)
 {
@@ -126,130 +125,6 @@ static void setup_sigabrt_handler(void)
     };
     sigemptyset(&sigact.sa_mask);
     sigaction(SIGABRT, &sigact, &sigact_old);
-}
-
-static void cleanup_sigabrt_handler(void)
-{
-    sigaction(SIGABRT, &sigact_old, NULL);
-}
-
-void qtest_add_abrt_handler(GHookFunc fn, const void *data)
-{
-    GHook *hook;
-
-    /* Only install SIGABRT handler once */
-    if (!abrt_hooks.is_setup) {
-        g_hook_list_init(&abrt_hooks, sizeof(GHook));
-    }
-    setup_sigabrt_handler();
-
-    hook = g_hook_alloc(&abrt_hooks);
-    hook->func = fn;
-    hook->data = (void *)data;
-
-    g_hook_prepend(&abrt_hooks, hook);
-}
-
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
-{
-    QTestState *s;
-    int sock, qmpsock, i;
-    gchar *socket_path;
-    gchar *qmp_socket_path;
-    gchar *command;
-    const char *qemu_binary;
-
-    qemu_binary = getenv("QTEST_QEMU_BINARY");
-    if (!qemu_binary) {
-        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
-        exit(1);
-    }
-
-    s = g_malloc(sizeof(*s));
-
-    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
-    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
-
-    /* It's possible that if an earlier test run crashed it might
-     * have left a stale unix socket lying around. Delete any
-     * stale old socket to avoid spurious test failures with
-     * tests/libqtest.c:70:init_socket: assertion failed (ret != -1): (-1 != -1)
-     */
-    unlink(socket_path);
-    unlink(qmp_socket_path);
-
-    sock = init_socket(socket_path);
-    qmpsock = init_socket(qmp_socket_path);
-
-    qtest_add_abrt_handler(kill_qemu_hook_func, s);
-
-    s->qemu_pid = fork();
-    if (s->qemu_pid == 0) {
-        setenv("QEMU_AUDIO_DRV", "none", true);
-        command = g_strdup_printf("exec %s "
-                                  "-qtest unix:%s,nowait "
-                                  "-qtest-log %s "
-                                  "-qmp unix:%s,nowait "
-                                  "-machine accel=qtest "
-                                  "-display none "
-                                  "%s", qemu_binary, socket_path,
-                                  getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
-                                  qmp_socket_path,
-                                  extra_args ?: "");
-        execlp("/bin/sh", "sh", "-c", command, NULL);
-        exit(1);
-    }
-
-    s->fd = socket_accept(sock);
-    if (s->fd >= 0) {
-        s->qmp_fd = socket_accept(qmpsock);
-    }
-    unlink(socket_path);
-    unlink(qmp_socket_path);
-    g_free(socket_path);
-    g_free(qmp_socket_path);
-
-    g_assert(s->fd >= 0 && s->qmp_fd >= 0);
-
-    s->rx = g_string_new("");
-    for (i = 0; i < MAX_IRQ; i++) {
-        s->irq_level[i] = false;
-    }
-
-    if (getenv("QTEST_STOP")) {
-        kill(s->qemu_pid, SIGSTOP);
-    }
-
-    /* ask endianness of the target */
-
-    s->big_endian = qtest_query_target_endianness(s);
-
-    return s;
-}
-
-QTestState *qtest_init(const char *extra_args)
-{
-    QTestState *s = qtest_init_without_qmp_handshake(extra_args);
-
-    /* Read the QMP greeting and then do the handshake */
-    qtest_qmp_discard_response(s, "");
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
-
-    return s;
-}
-
-void qtest_quit(QTestState *s)
-{
-    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
-
-    /* Uninstall SIGABRT handler on last instance */
-    cleanup_sigabrt_handler();
-
-    kill_qemu(s);
-    close(s->fd);
-    close(s->qmp_fd);
-    g_string_free(s->rx, true);
-    g_free(s);
 }
 
 static void socket_send(int fd, const char *buf, ssize_t size)
@@ -381,6 +256,130 @@ static int qtest_query_target_endianness(QTestState *s)
     g_strfreev(args);
 
     return big_endian;
+}
+
+static void cleanup_sigabrt_handler(void)
+{
+    sigaction(SIGABRT, &sigact_old, NULL);
+}
+
+void qtest_add_abrt_handler(GHookFunc fn, const void *data)
+{
+    GHook *hook;
+
+    /* Only install SIGABRT handler once */
+    if (!abrt_hooks.is_setup) {
+        g_hook_list_init(&abrt_hooks, sizeof(GHook));
+    }
+    setup_sigabrt_handler();
+
+    hook = g_hook_alloc(&abrt_hooks);
+    hook->func = fn;
+    hook->data = (void *)data;
+
+    g_hook_prepend(&abrt_hooks, hook);
+}
+
+QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
+{
+    QTestState *s;
+    int sock, qmpsock, i;
+    gchar *socket_path;
+    gchar *qmp_socket_path;
+    gchar *command;
+    const char *qemu_binary;
+
+    qemu_binary = getenv("QTEST_QEMU_BINARY");
+    if (!qemu_binary) {
+        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
+        exit(1);
+    }
+
+    s = g_malloc(sizeof(*s));
+
+    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+
+    /* It's possible that if an earlier test run crashed it might
+     * have left a stale unix socket lying around. Delete any
+     * stale old socket to avoid spurious test failures with
+     * tests/libqtest.c:70:init_socket: assertion failed (ret != -1): (-1 != -1)
+     */
+    unlink(socket_path);
+    unlink(qmp_socket_path);
+
+    sock = init_socket(socket_path);
+    qmpsock = init_socket(qmp_socket_path);
+
+    qtest_add_abrt_handler(kill_qemu_hook_func, s);
+
+    s->qemu_pid = fork();
+    if (s->qemu_pid == 0) {
+        setenv("QEMU_AUDIO_DRV", "none", true);
+        command = g_strdup_printf("exec %s "
+                                  "-qtest unix:%s,nowait "
+                                  "-qtest-log %s "
+                                  "-qmp unix:%s,nowait "
+                                  "-machine accel=qtest "
+                                  "-display none "
+                                  "%s", qemu_binary, socket_path,
+                                  getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
+                                  qmp_socket_path,
+                                  extra_args ?: "");
+        execlp("/bin/sh", "sh", "-c", command, NULL);
+        exit(1);
+    }
+
+    s->fd = socket_accept(sock);
+    if (s->fd >= 0) {
+        s->qmp_fd = socket_accept(qmpsock);
+    }
+    unlink(socket_path);
+    unlink(qmp_socket_path);
+    g_free(socket_path);
+    g_free(qmp_socket_path);
+
+    g_assert(s->fd >= 0 && s->qmp_fd >= 0);
+
+    s->rx = g_string_new("");
+    for (i = 0; i < MAX_IRQ; i++) {
+        s->irq_level[i] = false;
+    }
+
+    if (getenv("QTEST_STOP")) {
+        kill(s->qemu_pid, SIGSTOP);
+    }
+
+    /* ask endianness of the target */
+
+    s->big_endian = qtest_query_target_endianness(s);
+
+    return s;
+}
+
+QTestState *qtest_init(const char *extra_args)
+{
+    QTestState *s = qtest_init_without_qmp_handshake(extra_args);
+
+    /* Read the QMP greeting and then do the handshake */
+    qtest_qmp_discard_response(s, "");
+    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+
+    return s;
+}
+
+void qtest_quit(QTestState *s)
+{
+    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
+
+    /* Uninstall SIGABRT handler on last instance */
+    cleanup_sigabrt_handler();
+
+    kill_qemu(s);
+    close(s->fd);
+    close(s->qmp_fd);
+    g_string_free(s->rx, true);
+    g_free(s);
 }
 
 typedef struct {
