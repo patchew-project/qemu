@@ -18,13 +18,11 @@
 int scsi_sense_to_errno(int key, int asc, int ascq)
 {
     switch (key) {
-    case 0x02: /* SCSI_SENSE_NOT_READY */
-        return EBUSY;
-    case 0x07: /* SCSI_SENSE_DATA_PROTECTION */
-        return EACCES;
     case 0x0b: /* SCSI_SENSE_COMMAND_ABORTED */
         return ECANCELED;
+    case 0x02: /* SCSI_SENSE_NOT_READY */
     case 0x05: /* SCSI_SENSE_ILLEGAL_REQUEST */
+    case 0x07: /* SCSI_SENSE_DATA_PROTECTION */
         /* Parse ASCQ */
         break;
     default:
@@ -37,6 +35,7 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
     case 0x2600: /* SCSI_SENSE_ASCQ_INVALID_FIELD_IN_PARAMETER_LIST */
         return EINVAL;
     case 0x2100: /* SCSI_SENSE_ASCQ_LBA_OUT_OF_RANGE */
+    case 0x2707: /* SCSI_SENSE_ASCQ_SPACE_ALLOC_FAILED */
         return ENOSPC;
     case 0x2500: /* SCSI_SENSE_ASCQ_LOGICAL_UNIT_NOT_SUPPORTED */
         return ENOTSUP;
