@@ -421,7 +421,7 @@ int main(int argc, char **argv)
           " -device isa-ipmi-bt,bmc=bmc0", emu_port);
     qtest_start(cmdline);
     g_free(cmdline);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
     qtest_add_func("/ipmi/extern/connect", test_connect);
     qtest_add_func("/ipmi/extern/bt_base", test_bt_base);
     qtest_add_func("/ipmi/extern/bt_enable_irq", test_enable_irq);

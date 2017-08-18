@@ -685,13 +685,12 @@ static void periodic_timer(void)
 
 int main(int argc, char **argv)
 {
-    QTestState *s = NULL;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-rtc clock=vm");
-    qtest_irq_intercept_in(s, "ioapic");
+    qtest_start("-rtc clock=vm");
+    irq_intercept_in("ioapic");
 
     qtest_add_func("/rtc/check-time/bcd", bcd_check_time);
     qtest_add_func("/rtc/check-time/dec", dec_check_time);
@@ -711,9 +710,7 @@ int main(int argc, char **argv)
 
     ret = g_test_run();
 
-    if (s) {
-        qtest_quit(s);
-    }
+    qtest_end();
 
     return ret;
 }

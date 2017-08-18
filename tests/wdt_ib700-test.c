@@ -36,7 +36,7 @@ static QDict *qmp_get_event(const char *name)
     return data;
 }
 
-static QDict *ib700_program_and_wait(QTestState *s)
+static QDict *ib700_program_and_wait(void)
 {
     clock_step(NANOSECONDS_PER_SECOND * 40);
     qmp_check_no_event();
@@ -68,9 +68,10 @@ static QDict *ib700_program_and_wait(QTestState *s)
 static void ib700_pause(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action pause -device ib700");
-    qtest_irq_intercept_in(s, "ioapic");
-    d = ib700_program_and_wait(s);
+
+    qtest_start("-watchdog-action pause -device ib700");
+    irq_intercept_in("ioapic");
+    d = ib700_program_and_wait();
     g_assert(!strcmp(qdict_get_str(d, "action"), "pause"));
     QDECREF(d);
     d = qmp_get_event("STOP");
@@ -81,9 +82,10 @@ static void ib700_pause(void)
 static void ib700_reset(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action reset -device ib700");
-    qtest_irq_intercept_in(s, "ioapic");
-    d = ib700_program_and_wait(s);
+
+    qtest_start("-watchdog-action reset -device ib700");
+    irq_intercept_in("ioapic");
+    d = ib700_program_and_wait();
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
     QDECREF(d);
     d = qmp_get_event("RESET");
@@ -94,9 +96,10 @@ static void ib700_reset(void)
 static void ib700_shutdown(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action reset -no-reboot -device ib700");
-    qtest_irq_intercept_in(s, "ioapic");
-    d = ib700_program_and_wait(s);
+
+    qtest_start("-watchdog-action reset -no-reboot -device ib700");
+    irq_intercept_in("ioapic");
+    d = ib700_program_and_wait();
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
     QDECREF(d);
     d = qmp_get_event("SHUTDOWN");
@@ -107,9 +110,10 @@ static void ib700_shutdown(void)
 static void ib700_none(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action none -device ib700");
-    qtest_irq_intercept_in(s, "ioapic");
-    d = ib700_program_and_wait(s);
+
+    qtest_start("-watchdog-action none -device ib700");
+    irq_intercept_in("ioapic");
+    d = ib700_program_and_wait();
     g_assert(!strcmp(qdict_get_str(d, "action"), "none"));
     QDECREF(d);
     qtest_end();

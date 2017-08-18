@@ -565,7 +565,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     qtest_start("-device floppy,id=floppy0");
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
     qtest_add_func("/fdc/cmos", test_cmos);
     qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);
     qtest_add_func("/fdc/read_without_media", test_read_without_media);

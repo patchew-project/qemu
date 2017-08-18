@@ -462,7 +462,7 @@ static void test_bmdma_setup(void)
         "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
         "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
 }
 
 static void test_bmdma_teardown(void)
@@ -584,7 +584,7 @@ static void test_flush(void)
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
 
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
 
     /* Dirty media so that CMD_FLUSH_CACHE will actually go to disk */
     make_dirty(0);
@@ -635,7 +635,7 @@ static void test_retry_flush(const char *machine)
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
 
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
 
     /* Dirty media so that CMD_FLUSH_CACHE will actually go to disk */
     make_dirty(0);
@@ -826,7 +826,7 @@ static void cdrom_pio_impl(int nblocks)
     ide_test_start("-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
                    "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
     dev = get_pci_device(&bmdma_bar, &ide_bar);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
 
     /* PACKET command on device 0 */
     qpci_io_writeb(dev, ide_bar, reg_device, 0);
@@ -909,7 +909,7 @@ static void test_cdrom_dma(void)
 
     ide_test_start("-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
                    "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
 
     guest_buf = guest_alloc(guest_malloc, len);
     prdt[0].addr = cpu_to_le32(guest_buf);

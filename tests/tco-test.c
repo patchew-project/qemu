@@ -54,14 +54,13 @@ static void test_end(TestData *d)
 
 static void test_init(TestData *d)
 {
-    QTestState *qs;
     char *s;
 
     s = g_strdup_printf("-machine q35 %s %s",
                         d->noreboot ? "" : "-global ICH9-LPC.noreboot=false",
                         !d->args ? "" : d->args);
-    qs = qtest_start(s);
-    qtest_irq_intercept_in(qs, "ioapic");
+    qtest_start(s);
+    irq_intercept_in("ioapic");
     g_free(s);
 
     d->bus = qpci_init_pc(NULL);

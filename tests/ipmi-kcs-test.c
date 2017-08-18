@@ -280,7 +280,7 @@ int main(int argc, char **argv)
                               " -device isa-ipmi-kcs,bmc=bmc0");
     qtest_start(cmdline);
     g_free(cmdline);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in("ioapic");
     qtest_add_func("/ipmi/local/kcs_base", test_kcs_base);
     qtest_add_func("/ipmi/local/kcs_abort", test_kcs_abort);
     qtest_add_func("/ipmi/local/kcs_enable_irq", test_enable_irq);
