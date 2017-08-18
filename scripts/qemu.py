@@ -170,6 +170,9 @@ class QEMUMachine(object):
         self._iolog = None
         self._qemu_full_args = None
         devnull = open(os.path.devnull, 'rb')
+        if self.is_running():
+            raise QEMULaunchError('VM already running')
+
         try:
             self._pre_launch()
             self._qemu_full_args = (self._wrapper + [self._binary] +
