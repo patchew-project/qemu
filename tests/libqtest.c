@@ -244,20 +244,6 @@ redo:
     return words;
 }
 
-static int qtest_query_target_endianness(QTestState *s)
-{
-    gchar **args;
-    int big_endian;
-
-    qtest_sendf(s, "endianness\n");
-    args = qtest_rsp(s, 1);
-    g_assert(strcmp(args[1], "big") == 0 || strcmp(args[1], "little") == 0);
-    big_endian = strcmp(args[1], "big") == 0;
-    g_strfreev(args);
-
-    return big_endian;
-}
-
 static void cleanup_sigabrt_handler(void)
 {
     sigaction(SIGABRT, &sigact_old, NULL);
@@ -288,6 +274,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     gchar *qmp_socket_path;
     gchar *command;
     const char *qemu_binary;
+    gchar **args;
 
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     if (!qemu_binary) {
@@ -351,8 +338,11 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     }
 
     /* ask endianness of the target */
-
-    s->big_endian = qtest_query_target_endianness(s);
+    qtest_sendf(s, "endianness\n");
+    args = qtest_rsp(s, 1);
+    g_assert(strcmp(args[1], "big") == 0 || strcmp(args[1], "little") == 0);
+    s->big_endian = strcmp(args[1], "big") == 0;
+    g_strfreev(args);
 
     return s;
 }
