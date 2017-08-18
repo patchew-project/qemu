@@ -235,6 +235,19 @@ enum arm_exception_class {
 #define ARM_EL_ISV_SHIFT 24
 #define ARM_EL_IL (1 << ARM_EL_IL_SHIFT)
 #define ARM_EL_ISV (1 << ARM_EL_ISV_SHIFT)
+#define ARM_EL_EC_MASK  ((0x3F) << ARM_EL_EC_SHIFT)
+#define ARM_EL_FSC_TYPE (0x3C)
+
+#define FSC_SEA         (0x10)
+#define FSC_SEA_TTW0    (0x14)
+#define FSC_SEA_TTW1    (0x15)
+#define FSC_SEA_TTW2    (0x16)
+#define FSC_SEA_TTW3    (0x17)
+#define FSC_SECC        (0x18)
+#define FSC_SECC_TTW0   (0x1c)
+#define FSC_SECC_TTW1   (0x1d)
+#define FSC_SECC_TTW2   (0x1e)
+#define FSC_SECC_TTW3   (0x1f)
 
 /* Utility functions for constructing various kinds of syndrome value.
  * Note that in general we follow the AArch64 syndrome values; in a

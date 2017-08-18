@@ -181,6 +181,11 @@ struct kvm_arch_memory_slot {
 #define KVM_REG_ARM64_SYSREG_OP2_MASK	0x0000000000000007
 #define KVM_REG_ARM64_SYSREG_OP2_SHIFT	0
 
+/* AArch64 fault registers */
+#define KVM_REG_ARM64_FAULT             (0x0014 << KVM_REG_ARM_COPROC_SHIFT)
+#define KVM_REG_ARM64_FAULT_ESR_EC      (0)
+#define KVM_REG_ARM64_FAULT_FAR         (1)
+
 #define ARM64_SYS_REG_SHIFT_MASK(x,n) \
 	(((x) << KVM_REG_ARM64_SYSREG_ ## n ## _SHIFT) & \
 	KVM_REG_ARM64_SYSREG_ ## n ## _MASK)

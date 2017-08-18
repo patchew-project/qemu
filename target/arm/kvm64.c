@@ -27,6 +27,8 @@
 #include "kvm_arm.h"
 #include "internals.h"
 #include "hw/arm/arm.h"
+#include "hw/acpi/acpi-defs.h"
+#include "hw/acpi/hest_ghes.h"
 
 static bool have_guest_debug;
 
@@ -590,6 +592,79 @@ int kvm_arm_cpreg_level(uint64_t regidx)
     return KVM_PUT_RUNTIME_STATE;
 }
 
+static int kvm_arm_cpreg_value(ARMCPU *cpu, ptrdiff_t fieldoffset)
+{
+    int i;
+
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        const ARMCPRegInfo *ri;
+        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+        if (!ri) {
+            continue;
+        }
+
+        if (ri->type & ARM_CP_NO_RAW) {
+            continue;
+        }
+
+        if (ri->fieldoffset == fieldoffset) {
+            cpu->cpreg_values[i] = read_raw_cp_reg(&cpu->env, ri);
+            return 0;
+        }
+    }
+    return -EINVAL;
+}
+
+/* Inject synchronous external abort */
+static int kvm_inject_arm_sea(CPUState *c)
+{
+    ARMCPU *cpu = ARM_CPU(c);
+    CPUARMState *env = &cpu->env;
+    unsigned long cpsr = pstate_read(env);
+    uint32_t esr = 0;
+    int ret;
+
+    c->exception_index = EXCP_DATA_ABORT;
+    /* Inject the exception to El1 */
+    env->exception.target_el = 1;
+    CPUClass *cc = CPU_GET_CLASS(c);
+
+    esr |= (EC_DATAABORT << ARM_EL_EC_SHIFT);
+    /* This exception syndrome includes {I,D}FSC in the bits [5:0]
+     */
+    esr |= (env->exception.syndrome & 0x3f);
+
+    /* This exception is EL0 or EL1 fault. */
+    if ((cpsr & 0xf) == PSTATE_MODE_EL0t) {
+        esr |= (EC_INSNABORT << ARM_EL_EC_SHIFT);
+    } else {
+        esr |= (EC_INSNABORT_SAME_EL << ARM_EL_EC_SHIFT);
+    }
+
+    /* In the aarch64, there is only 32-bit instruction*/
+    esr |= ARM_EL_IL;
+    env->exception.syndrome = esr;
+    cc->do_interrupt(c);
+
+    /* set ESR_EL1 */
+    ret = kvm_arm_cpreg_value(cpu, offsetof(CPUARMState, cp15.esr_el[1]));
+
+    if (ret) {
+        fprintf(stderr, "<%s> failed to set esr_el1\n", __func__);
+        abort();
+    }
+
+    /* set FAR_EL1 */
+    ret = kvm_arm_cpreg_value(cpu, offsetof(CPUARMState, cp15.far_el[1]));
+    if (ret) {
+        fprintf(stderr, "<%s> failed to set far_el1\n", __func__);
+        abort();
+    }
+
+    return 0;
+}
+
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
                  KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
 
@@ -598,6 +673,9 @@ int kvm_arm_cpreg_level(uint64_t regidx)
 
 #define AARCH64_SIMD_CTRL_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U32 | \
                  KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
+
+#define AARCH64_FAULT_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
+                 KVM_REG_ARM64_FAULT | (x))
 
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
@@ -873,6 +951,22 @@ int kvm_arch_get_registers(CPUState *cs)
     }
     vfp_set_fpcr(env, fpr);
 
+    if (is_a64(env)) {
+        reg.id = AARCH64_FAULT_REG(KVM_REG_ARM64_FAULT_ESR_EC);
+        reg.addr = (uintptr_t)(&env->exception.syndrome);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
+
+        reg.id = AARCH64_FAULT_REG(KVM_REG_ARM64_FAULT_FAR);
+        reg.addr = (uintptr_t)(&env->exception.vaddress);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
+    }
+
     if (!write_kvmstate_to_list(cpu)) {
         return EINVAL;
     }
@@ -885,6 +979,62 @@ int kvm_arch_get_registers(CPUState *cs)
 
     /* TODO: other registers */
     return ret;
+}
+
+static bool is_abort_sea(unsigned long syndrome)
+{
+    unsigned long fault_status;
+    uint8_t ec = ((syndrome & ARM_EL_EC_MASK) >> ARM_EL_EC_SHIFT);
+    if ((ec != EC_INSNABORT) && (ec != EC_DATAABORT)) {
+        return false;
+    }
+
+    fault_status = syndrome & ARM_EL_FSC_TYPE;
+    switch (fault_status) {
+    case FSC_SEA:
+    case FSC_SEA_TTW0:
+    case FSC_SEA_TTW1:
+    case FSC_SEA_TTW2:
+    case FSC_SEA_TTW3:
+    case FSC_SECC:
+    case FSC_SECC_TTW0:
+    case FSC_SECC_TTW1:
+    case FSC_SECC_TTW2:
+    case FSC_SECC_TTW3:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
+{
+    ram_addr_t ram_addr;
+    hwaddr paddr;
+
+    ARMCPU *cpu = ARM_CPU(c);
+    CPUARMState *env = &cpu->env;
+    assert(code == BUS_MCEERR_AR || code == BUS_MCEERR_AO);
+    if (addr) {
+        ram_addr = qemu_ram_addr_from_host(addr);
+        if (ram_addr != RAM_ADDR_INVALID &&
+            kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
+            kvm_cpu_synchronize_state(c);
+            kvm_hwpoison_page_add(ram_addr);
+            if (is_abort_sea(env->exception.syndrome)) {
+                ghes_update_guest(ACPI_HEST_NOTIFY_SEA, paddr);
+                kvm_inject_arm_sea(c);
+            }
+            return;
+        }
+        fprintf(stderr, "Hardware memory error for memory used by "
+                "QEMU itself instead of guest system!\n");
+    }
+
+    if (code == BUS_MCEERR_AR) {
+        fprintf(stderr, "Hardware memory error!\n");
+        exit(1);
+    }
 }
 
 /* C6.6.29 BRK instruction */
