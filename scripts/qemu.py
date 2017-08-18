@@ -155,11 +155,7 @@ class QEMUMachine(object):
                                            stderr=subprocess.STDOUT, shell=False)
             self._post_launch()
         except:
-            if self.is_running():
-                self._popen.kill()
-                self._popen.wait()
-            self._load_io_log()
-            self._post_shutdown()
+            self.shutdown()
             raise
 
     def shutdown(self):
