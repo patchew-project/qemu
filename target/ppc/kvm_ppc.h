@@ -70,6 +70,88 @@ void kvmppc_update_sdr1(target_ulong sdr1);
 
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
 
+int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
+
+/* Offset from rtas-base where error log is placed */
+#define RTAS_ERRLOG_OFFSET       0x200
+
+#define RTAS_ELOG_SEVERITY_SHIFT         0x5
+#define RTAS_ELOG_DISPOSITION_SHIFT      0x3
+#define RTAS_ELOG_INITIATOR_SHIFT        0x4
+
+/*
+ * Only required RTAS event severity, disposition, initiator
+ * target and type are copied from arch/powerpc/include/asm/rtas.h
+ */
+
+/* RTAS event severity */
+#define RTAS_SEVERITY_ERROR_SYNC    0x3
+
+/* RTAS event disposition */
+#define RTAS_DISP_FULLY_RECOVERED   0x0
+#define RTAS_DISP_NOT_RECOVERED     0x2
+
+/* RTAS event initiator */
+#define RTAS_INITIATOR_MEMORY       0x4
+
+/* RTAS event target */
+#define RTAS_TARGET_MEMORY          0x4
+
+/* RTAS event type */
+#define RTAS_TYPE_ECC_UNCORR        0x09
+
+/*
+ * Currently KVM only passes on the uncorrected machine
+ * check memory error to guest. Other machine check errors
+ * such as SLB multi-hit and TLB multi-hit are recovered
+ * in KVM and are not passed on to guest.
+ *
+ * DSISR Bit for uncorrected machine check error. Based
+ * on arch/powerpc/include/asm/mce.h
+ */
+#define PPC_BIT(bit)                (0x8000000000000000ULL >> bit)
+#define P7_DSISR_MC_UE              (PPC_BIT(48))  /* P8 too */
+
+/* Adopted from kernel source arch/powerpc/include/asm/rtas.h */
+struct rtas_error_log {
+    /* Byte 0 */
+    uint8_t     byte0;          /* Architectural version */
+
+    /* Byte 1 */
+    uint8_t     byte1;
+    /* XXXXXXXX
+     * XXX      3: Severity level of error
+     *    XX    2: Degree of recovery
+     *      X   1: Extended log present?
+     *       XX 2: Reserved
+     */
+
+    /* Byte 2 */
+    uint8_t     byte2;
+    /* XXXXXXXX
+     * XXXX     4: Initiator of event
+     *     XXXX 4: Target of failed operation
+     */
+    uint8_t     byte3;          /* General event or error*/
+    __be32      extended_log_length;    /* length in bytes */
+    unsigned char   buffer[1];      /* Start of extended log */
+                                /* Variable length.      */
+};
+
+/*
+ * Data format in RTAS-Blob
+ *
+ * This structure contains error information related to Machine
+ * Check exception. This is filled up and copied to rtas-blob
+ * upon machine check exception. The address of rtas-blob is
+ * passed on to OS registered machine check notification
+ * routines upon machine check exception
+ */
+struct RtasMCELog {
+    target_ulong r3;
+    struct rtas_error_log err_log;
+};
+
 #else
 
 static inline uint32_t kvmppc_get_tbfreq(void)
