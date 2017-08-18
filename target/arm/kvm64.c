@@ -616,6 +616,22 @@ static int kvm_arm_cpreg_value(ARMCPU *cpu, ptrdiff_t fieldoffset)
     return -EINVAL;
 }
 
+static int kvm_inject_arm_sei(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    unsigned long syndrome = env->exception.vaddress;
+    /* set virtual SError syndrome */
+    if (arm_feature(env, ARM_FEATURE_RAS_EXTENSION)) {
+        syndrome = syndrome & ARM_EL_ISS_MASK;
+    } else {
+        syndrome = 0;
+    }
+
+    return  kvm_vcpu_ioctl(CPU(cpu), KVM_ARM_SEI, &syndrome);
+}
+
 /* Inject synchronous external abort */
 static int kvm_inject_arm_sea(CPUState *c)
 {
@@ -1007,6 +1023,15 @@ static bool is_abort_sea(unsigned long syndrome)
     }
 }
 
+static bool is_abort_sei(unsigned long syndrome)
+{
+    uint8_t ec = ((syndrome & ARM_EL_EC_MASK) >> ARM_EL_EC_SHIFT);
+    if ((ec != EC_SERROR))
+        return false;
+    else
+        return true;
+}
+
 void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
 {
     ram_addr_t ram_addr;
@@ -1024,6 +1049,9 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
             if (is_abort_sea(env->exception.syndrome)) {
                 ghes_update_guest(ACPI_HEST_NOTIFY_SEA, paddr);
                 kvm_inject_arm_sea(c);
+            } else if (is_abort_sei(env->exception.syndrome)) {
+                ghes_update_guest(ACPI_HEST_NOTIFY_SEI, paddr);
+                kvm_inject_arm_sei(c);
             }
             return;
         }

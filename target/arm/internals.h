@@ -237,6 +237,7 @@ enum arm_exception_class {
 #define ARM_EL_ISV (1 << ARM_EL_ISV_SHIFT)
 #define ARM_EL_EC_MASK  ((0x3F) << ARM_EL_EC_SHIFT)
 #define ARM_EL_FSC_TYPE (0x3C)
+#define ARM_EL_ISS_MASK ((1 << ARM_EL_IL_SHIFT) - 1)
 
 #define FSC_SEA         (0x10)
 #define FSC_SEA_TTW0    (0x14)
