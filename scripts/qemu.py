@@ -49,6 +49,7 @@ class QEMUMachine(object):
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+        self._qemu_full_args = None
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -146,13 +147,18 @@ class QEMUMachine(object):
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
+        self._qemu_full_args = None
         devnull = open(os.path.devnull, 'rb')
         qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._pre_launch()
-            args = self._wrapper + [self._binary] + self._base_args() + self._args
-            self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
-                                           stderr=subprocess.STDOUT, shell=False)
+            self._qemu_full_args = (self._wrapper + [self._binary] +
+                                    self._base_args() + self._args)
+            self._popen = subprocess.Popen(self._qemu_full_args,
+                                           stdin=devnull,
+                                           stdout=qemulog,
+                                           stderr=subprocess.STDOUT,
+                                           shell=False)
             self._post_launch()
         except:
             self.shutdown()
@@ -166,11 +172,17 @@ class QEMUMachine(object):
                 self._qmp.close()
             except:
                 self._popen.kill()
+            self._popen.wait()
 
-            exitcode = self._popen.wait()
-            if exitcode < 0:
-                LOG.debug('qemu received signal %i: %s', -exitcode,
-                          ' '.join(self._args))
+        exitcode = self.exitcode()
+        if exitcode is not None and exitcode < 0:
+            msg = 'qemu received signal -%i: %s'
+            if self._qemu_full_args:
+                command = ' '.join(self._qemu_full_args)
+            else:
+                command = ''
+            LOG.debug(msg, exitcode, command)
+
         self._load_io_log()
         self._post_shutdown()
 
