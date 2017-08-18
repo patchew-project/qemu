@@ -1062,6 +1062,13 @@ static target_ulong h_rtas(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 
+static target_ulong h_rtas_update(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                  target_ulong opcode, target_ulong *args)
+{
+    spapr->rtas_addr = args[0];
+    return 0;
+}
+
 static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
@@ -1716,6 +1723,7 @@ static void hypercall_register_types(void)
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
+    spapr_register_hypercall(KVMPPC_H_RTAS_UPDATE, h_rtas_update);
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
