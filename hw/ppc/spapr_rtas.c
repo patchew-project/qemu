@@ -47,6 +47,8 @@
 #include "trace.h"
 #include "hw/ppc/fdt.h"
 
+extern int cap_fwnmi;
+
 static void rtas_display_character(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    uint32_t token, uint32_t nargs,
                                    target_ulong args,
@@ -354,7 +356,22 @@ static void rtas_ibm_nmi_register(PowerPCCPU *cpu,
                                   target_ulong args,
                                   uint32_t nret, target_ulong rets)
 {
+    int ret;
+    CPUState *cs = CPU(cpu);
+
+    if (!cap_fwnmi) {
+        rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
+        return;
+    }
+
     spapr->guest_machine_check_addr = rtas_ld(args, 1);
+
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_FWNMI, 0);
+    if (ret < 0) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
