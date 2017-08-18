@@ -98,12 +98,12 @@ class QEMUMachine(object):
             raise
 
     def is_running(self):
-        return self._popen is not None and self._popen.returncode is None
+        return self._popen is not None and self._popen.poll() is None
 
     def exitcode(self):
         if self._popen is None:
             return None
-        return self._popen.returncode
+        return self._popen.poll()
 
     def get_pid(self):
         if not self.is_running():
@@ -111,8 +111,15 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
-        with open(self._qemu_log_path, "r") as fh:
-            self._iolog = fh.read()
+        '''
+        Load the Qemu log file content (if available) into the proper
+        instance variable
+        '''
+        try:
+            with open(self._qemu_log_path, "r") as fh:
+                self._iolog = fh.read()
+        except IOError:
+            pass
 
     def _base_args(self):
         if isinstance(self._monitor_address, tuple):
@@ -168,8 +175,8 @@ class QEMUMachine(object):
             if exitcode < 0:
                 LOG.debug('qemu received signal %i: %s', -exitcode,
                           ' '.join(self._args))
-            self._load_io_log()
-            self._post_shutdown()
+        self._load_io_log()
+        self._post_shutdown()
 
     underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, conv_keys=True, **args):
