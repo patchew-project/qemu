@@ -266,7 +266,7 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     g_hook_prepend(&abrt_hooks, hook);
 }
 
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
+void qtest_start_without_qmp_handshake(const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, i;
@@ -282,7 +282,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
         exit(1);
     }
 
-    s = g_malloc(sizeof(*s));
+    global_qtest = s = g_malloc0(sizeof(*s));
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
@@ -338,24 +338,26 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     }
 
     /* ask endianness of the target */
-    qtest_sendf(s, "endianness\n");
-    args = qtest_rsp(s, 1);
+    qtest_sendf(global_qtest, "endianness\n");
+    args = qtest_rsp(global_qtest, 1);
     g_assert(strcmp(args[1], "big") == 0 || strcmp(args[1], "little") == 0);
     s->big_endian = strcmp(args[1], "big") == 0;
     g_strfreev(args);
-
-    return s;
 }
 
-QTestState *qtest_init(const char *extra_args)
+QTestState *qtest_start(const char *extra_args)
 {
-    QTestState *s = qtest_init_without_qmp_handshake(extra_args);
+    QDict *rsp;
+
+    qtest_start_without_qmp_handshake(extra_args);
 
     /* Read the QMP greeting and then do the handshake */
-    qtest_qmp_discard_response(s, "");
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+    rsp = qmp_fd_receive(global_qtest->qmp_fd);
+    QDECREF(rsp);
+    rsp = qmp("{ 'execute': 'qmp_capabilities' }");
+    QDECREF(rsp);
 
-    return s;
+    return global_qtest;
 }
 
 void qtest_quit(QTestState *s)
@@ -537,23 +539,6 @@ void qtest_async_qmp(QTestState *s, const char *fmt, ...)
     va_start(ap, fmt);
     qtest_async_qmpv(s, fmt, ap);
     va_end(ap);
-}
-
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
-{
-    QDict *response = qtest_qmpv(s, fmt, ap);
-    QDECREF(response);
-}
-
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
-    va_end(ap);
-    QDECREF(response);
 }
 
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
@@ -930,10 +915,12 @@ void qmp_async(const char *fmt, ...)
 void qmp_discard_response(const char *fmt, ...)
 {
     va_list ap;
+    QDict *response;
 
     va_start(ap, fmt);
-    qtest_qmpv_discard_response(global_qtest, fmt, ap);
+    response = qtest_qmpv(global_qtest, fmt, ap);
     va_end(ap);
+    QDECREF(response);
 }
 char *hmp(const char *fmt, ...)
 {

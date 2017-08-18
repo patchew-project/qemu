@@ -75,7 +75,7 @@ static void test_qmp_protocol(void)
     QDict *resp, *q, *ret;
     QList *capabilities;
 
-    global_qtest = qtest_init_without_qmp_handshake(common_args);
+    qtest_start_without_qmp_handshake(common_args);
 
     /* Test greeting */
     resp = qmp_receive();

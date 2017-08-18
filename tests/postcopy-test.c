@@ -404,7 +404,7 @@ static void test_migrate(void)
     from = qtest_start(cmd_src);
     g_free(cmd_src);
 
-    to = qtest_init(cmd_dst);
+    to = qtest_start(cmd_dst);
     g_free(cmd_dst);
 
     global_qtest = from;

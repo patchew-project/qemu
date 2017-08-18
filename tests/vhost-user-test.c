@@ -646,7 +646,8 @@ static void test_migrate(void)
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
 
     cmd = GET_QEMU_CMDE(dest, 2, "", " -incoming %s", uri);
-    to = qtest_init(cmd);
+    to = qtest_start(cmd);
+    global_qtest = from;
     g_free(cmd);
 
     source = g_source_new(&test_migrate_source_funcs,
