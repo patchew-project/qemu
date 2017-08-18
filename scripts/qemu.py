@@ -13,11 +13,21 @@
 #
 
 import errno
+import logging
 import string
 import os
 import sys
 import subprocess
 import qmp.qmp
+
+
+LOG = logging.getLogger(__name__)
+
+
+class QEMUMachineError(Exception):
+    """
+    Exception called when an error in QEMUMachine happens.
+    """
 
 
 class QEMUMachine(object):
@@ -62,18 +72,20 @@ class QEMUMachine(object):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
         if self._socket_scm_helper is None:
-            print >>sys.stderr, "No path to socket_scm_helper set"
-            return -1
+            raise QEMUMachineError("No path to socket_scm_helper set")
         if os.path.exists(self._socket_scm_helper) == False:
-            print >>sys.stderr, "%s does not exist" % self._socket_scm_helper
-            return -1
+            raise QEMUMachineError("%s does not exist" % self._socket_scm_helper)
         fd_param = ["%s" % self._socket_scm_helper,
                     "%d" % self._qmp.get_sock_fd(),
                     "%s" % fd_file_path]
         devnull = open('/dev/null', 'rb')
-        p = subprocess.Popen(fd_param, stdin=devnull, stdout=sys.stdout,
-                             stderr=sys.stderr)
-        return p.wait()
+        p = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        output = p.communicate()[0]
+        if output:
+            LOG.debug(output)
+
+        return p.returncode
 
     @staticmethod
     def _remove_if_exists(path):
@@ -154,7 +166,8 @@ class QEMUMachine(object):
 
             exitcode = self._popen.wait()
             if exitcode < 0:
-                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
+                LOG.debug('qemu received signal %i: %s', -exitcode,
+                          ' '.join(self._args))
             self._load_io_log()
             self._post_shutdown()
 
