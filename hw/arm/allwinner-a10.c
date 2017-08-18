@@ -109,8 +109,10 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, s->irq[56]);
 
     /* FIXME use a qdev chardev prop instead of serial_hds[] */
-    serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2, s->irq[1],
-                   115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
+    if (serial_hds[0]) {
+        serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2, s->irq[1],
+                       115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
+    }
 }
 
 static void aw_a10_class_init(ObjectClass *oc, void *data)
@@ -118,6 +120,8 @@ static void aw_a10_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = aw_a10_realize;
+    /* Reason: Needs to be wired up in code, see cubieboard_init() */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo aw_a10_type_info = {
