@@ -93,7 +93,7 @@ struct QVirtioBus {
 static inline bool qvirtio_is_big_endian(QVirtioDevice *d)
 {
     /* FIXME: virtio 1.0 is always little-endian */
-    return qtest_big_endian(global_qtest);
+    return big_endian();
 }
 
 static inline uint32_t qvring_size(uint32_t num, uint32_t align)

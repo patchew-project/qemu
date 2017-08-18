@@ -816,13 +816,12 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
     g_strfreev(args);
 }
 
-uint64_t qtest_rtas_call(QTestState *s, const char *name,
-                         uint32_t nargs, uint64_t args,
-                         uint32_t nret, uint64_t ret)
+uint64_t rtas_call(const char *name, uint32_t nargs, uint64_t args,
+                   uint32_t nret, uint64_t ret)
 {
-    qtest_sendf(s, "rtas %s %u 0x%"PRIx64" %u 0x%"PRIx64"\n",
+    qtest_sendf(global_qtest, "rtas %s %u 0x%"PRIx64" %u 0x%"PRIx64"\n",
                 name, nargs, args, nret, ret);
-    qtest_rsp(s, 0);
+    qtest_rsp(global_qtest, 0);
     return 0;
 }
 
@@ -947,9 +946,9 @@ char *hmp(const char *fmt, ...)
     return ret;
 }
 
-bool qtest_big_endian(QTestState *s)
+bool big_endian(void)
 {
-    return s->big_endian;
+    return global_qtest->big_endian;
 }
 
 void qtest_cb_for_every_machine(void (*cb)(const char *machine))

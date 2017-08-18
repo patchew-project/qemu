@@ -338,19 +338,17 @@ uint64_t qtest_readq(QTestState *s, uint64_t addr);
 void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size);
 
 /**
- * qtest_rtas_call:
- * @s: #QTestState instance to operate on.
+ * rtas_call:
  * @name: name of the command to call.
  * @nargs: Number of args.
  * @args: Guest address to read args from.
  * @nret: Number of return value.
  * @ret: Guest address to write return values to.
  *
- * Call an RTAS function
+ * Call an RTAS function, using #global_qtest
  */
-uint64_t qtest_rtas_call(QTestState *s, const char *name,
-                         uint32_t nargs, uint64_t args,
-                         uint32_t nret, uint64_t ret);
+uint64_t rtas_call(const char *name, uint32_t nargs, uint64_t args,
+                   uint32_t nret, uint64_t ret);
 
 /**
  * qtest_bufread:
@@ -430,12 +428,12 @@ int64_t qtest_clock_step(QTestState *s, int64_t step);
 int64_t qtest_clock_set(QTestState *s, int64_t val);
 
 /**
- * qtest_big_endian:
- * @s: QTestState instance to operate on.
+ * big_endian:
  *
- * Returns: True if the architecture under test has a big endian configuration.
+ * Returns: True if the architecture under test, via #global_qtest,
+ * has a big endian configuration.
  */
-bool qtest_big_endian(QTestState *s);
+bool big_endian(void);
 
 /**
  * qtest_get_arch:

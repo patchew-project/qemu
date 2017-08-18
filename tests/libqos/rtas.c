@@ -37,8 +37,7 @@ static uint64_t qrtas_call(QGuestAllocator *alloc, const char *name,
     target_ret = guest_alloc(alloc, nret * sizeof(uint32_t));
 
     qrtas_copy_args(target_args, nargs, args);
-    res = qtest_rtas_call(global_qtest, name,
-                          nargs, target_args, nret, target_ret);
+    res = rtas_call(name, nargs, target_args, nret, target_ret);
     qrtas_copy_ret(target_ret, nret, ret);
 
     guest_free(alloc, target_ret);
