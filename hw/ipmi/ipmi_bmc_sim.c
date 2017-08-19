@@ -1571,7 +1571,7 @@ static void set_sel_time(IPMIBmcSim *ibs,
     uint32_t val;
     struct ipmi_time now;
 
-    val = cmd[2] | (cmd[3] << 8) | (cmd[4] << 16) | (cmd[5] << 24);
+    val = cmd[0] | (cmd[1] << 8) | (cmd[2] << 16) | (cmd[3] << 24);
     ipmi_gettime(&now);
     ibs->sel.time_offset = now.tv_sec - ((long) val);
 }
@@ -1802,8 +1802,8 @@ static const IPMICmdHandler storage_cmds[] = {
     [IPMI_CMD_GET_SEL_ENTRY] = { get_sel_entry, 8 },
     [IPMI_CMD_ADD_SEL_ENTRY] = { add_sel_entry, 18 },
     [IPMI_CMD_CLEAR_SEL] = { clear_sel, 8 },
-    [IPMI_CMD_GET_SEL_TIME] = { get_sel_time, 6 },
-    [IPMI_CMD_SET_SEL_TIME] = { set_sel_time },
+    [IPMI_CMD_GET_SEL_TIME] = { get_sel_time },
+    [IPMI_CMD_SET_SEL_TIME] = { set_sel_time, 4 },
 };
 
 static const IPMINetfn storage_netfn = {
