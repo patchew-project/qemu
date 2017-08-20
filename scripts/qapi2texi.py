@@ -147,7 +147,7 @@ def texi_member(member, suffix=''):
 def texi_members(doc, what, base, variants, member_func):
     """Format the table of members"""
     items = ''
-    for section in doc.args.itervalues():
+    for section in doc.args.values():
         # TODO Drop fallbacks when undocumented members are outlawed
         if section.content:
             desc = texi_format(str(section))
@@ -285,15 +285,15 @@ def texi_schema(schema):
 def main(argv):
     """Takes schema argument, prints result to stdout"""
     if len(argv) != 2:
-        print >>sys.stderr, "%s: need exactly 1 argument: SCHEMA" % argv[0]
+        sys.stderr.write("%s: need exactly 1 argument: SCHEMA\n" % argv[0])
         sys.exit(1)
 
     schema = qapi.QAPISchema(argv[1])
     if not qapi.doc_required:
-        print >>sys.stderr, ("%s: need pragma 'doc-required' "
-                             "to generate documentation" % argv[0])
+        sys.stderr.write("%s: need pragma 'doc-required' "
+                         "to generate documentation\n" % argv[0])
         sys.exit(1)
-    print texi_schema(schema)
+    sys.stdout.write(texi_schema(schema) + "\n")
 
 
 if __name__ == '__main__':
