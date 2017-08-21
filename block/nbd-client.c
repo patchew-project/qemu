@@ -80,6 +80,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
             error_report_err(local_err);
         }
         if (ret <= 0) {
+            s->quit = true;
             break;
         }
 
@@ -107,9 +108,6 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         qemu_coroutine_yield();
     }
 
-    if (ret < 0) {
-        s->quit = true;
-    }
     nbd_recv_coroutines_enter_all(s);
     s->read_reply_co = NULL;
 }
