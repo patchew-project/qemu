@@ -44,7 +44,7 @@
   + CompareState ++
   |               |
   +---------------+   +---------------+         +---------------+
-  |conn list      +--->conn           +--------->conn           |
+  |   conn list   + - >      conn     + ------- >      conn     + -- > .......
   +---------------+   +---------------+         +---------------+
   |               |     |           |             |          |
   +---------------+ +---v----+  +---v----+    +---v----+ +---v----+
@@ -75,14 +75,14 @@ typedef struct CompareState {
     SocketReadState sec_rs;
     bool vnet_hdr;
 
-    /* connection list: the connections belonged to this NIC could be found
-     * in this list.
-     * element type: Connection
+    /*
+     * Record the connection that through the NIC
+     * Element type: Connection
      */
     GQueue conn_list;
-    /* hashtable to save connection */
+    /* Record the connection without repetition */
     GHashTable *connection_track_table;
-    /* compare thread, a thread for each NIC */
+    /* This thread just do packet compare job */
     QemuThread thread;
 
     GMainContext *worker_context;
@@ -445,8 +445,11 @@ static int colo_old_packet_check_one_conn(Connection *conn,
                                  (GCompareFunc)colo_old_packet_check_one);
 
     if (result) {
-        /* do checkpoint will flush old packet */
-        /* TODO: colo_notify_checkpoint();*/
+        /* Do checkpoint will flush old packet */
+        /*
+         * TODO: Notify colo frame to do checkpoint.
+         * colo_compare_inconsistent_notify();
+         */
         return 0;
     }
 
