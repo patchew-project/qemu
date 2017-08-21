@@ -534,6 +534,11 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
     ThrottleGroupMember *token;
     int i;
 
+    if (!ts) {
+        /* Discard uninitialized tgm */
+        return;
+    }
+
     assert(tgm->pending_reqs[0] == 0 && tgm->pending_reqs[1] == 0);
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[0]));
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[1]));

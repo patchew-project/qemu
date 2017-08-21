@@ -579,7 +579,7 @@ void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start)
     }
 }
 
-static int qdict_count_prefixed_entries(const QDict *src, const char *start)
+int qdict_count_prefixed_entries(const QDict *src, const char *start)
 {
     const QDictEntry *entry;
     int count = 0;

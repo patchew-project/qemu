@@ -80,6 +80,7 @@ QDict *qdict_clone_shallow(const QDict *src);
 void qdict_flatten(QDict *qdict);
 
 void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start);
+int qdict_count_prefixed_entries(const QDict *src, const char *start);
 void qdict_array_split(QDict *src, QList **dst);
 int qdict_array_entries(QDict *src, const char *subqdict);
 QObject *qdict_crumple(const QDict *src, Error **errp);
