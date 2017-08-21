@@ -25,9 +25,17 @@
 #include "qemu/osdep.h"
 #include "sysemu/block-backend.h"
 #include "block/throttle-groups.h"
+#include "qemu/throttle-options.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "sysemu/qtest.h"
+#include "qapi/error.h"
+#include "qapi-visit.h"
+#include "qom/object.h"
+#include "qom/object_interfaces.h"
+
+static void throttle_group_obj_init(Object *obj);
+static void throttle_group_obj_complete(UserCreatable *obj, Error **errp);
 
 /* The ThrottleGroup structure (with its ThrottleState) is shared
  * among different ThrottleGroupMembers and it's independent from
@@ -54,6 +62,10 @@
  * that ThrottleGroupMember has throttled requests in the queue.
  */
 typedef struct ThrottleGroup {
+    Object parent_obj;
+
+    /* refuse individual property change if initialization is complete */
+    bool is_initialized;
     char *name; /* This is constant during the lifetime of the group */
 
     QemuMutex lock; /* This lock protects the following four fields */
@@ -63,12 +75,11 @@ typedef struct ThrottleGroup {
     bool any_timer_armed[2];
     QEMUClockType clock_type;
 
-    /* These two are protected by the global throttle_groups_lock */
-    unsigned refcount;
+    /* This field is protected by the global QEMU mutex */
     QTAILQ_ENTRY(ThrottleGroup) list;
 } ThrottleGroup;
 
-static QemuMutex throttle_groups_lock;
+/* This is protected by the global QEMU mutex */
 static QTAILQ_HEAD(, ThrottleGroup) throttle_groups =
     QTAILQ_HEAD_INITIALIZER(throttle_groups);
 
@@ -77,7 +88,11 @@ static QTAILQ_HEAD(, ThrottleGroup) throttle_groups =
  * If no ThrottleGroup is found with the given name a new one is
  * created.
  *
- * @name: the name of the ThrottleGroup
+ * This function edits throttle_groups and must be called under the global
+ * mutex.
+ *
+ * @name: the name of the ThrottleGroup, NULL means a new anonymous group will
+ *        be created.
  * @ret:  the ThrottleState member of the ThrottleGroup
  */
 ThrottleState *throttle_group_incref(const char *name)
@@ -85,36 +100,25 @@ ThrottleState *throttle_group_incref(const char *name)
     ThrottleGroup *tg = NULL;
     ThrottleGroup *iter;
 
-    qemu_mutex_lock(&throttle_groups_lock);
-
-    /* Look for an existing group with that name */
-    QTAILQ_FOREACH(iter, &throttle_groups, list) {
-        if (!strcmp(name, iter->name)) {
-            tg = iter;
-            break;
+    if (name) {
+        /* Look for an existing group with that name */
+        QTAILQ_FOREACH(iter, &throttle_groups, list) {
+            if (!g_strcmp0(name, iter->name)) {
+                tg = iter;
+                break;
+            }
         }
     }
 
-    /* Create a new one if not found */
-    if (!tg) {
-        tg = g_new0(ThrottleGroup, 1);
+    if (tg) {
+        object_ref(OBJECT(tg));
+    } else {
+        /* Create a new one if not found */
+        /* new ThrottleGroup obj will have a refcnt = 1 */
+        tg = THROTTLE_GROUP(object_new(TYPE_THROTTLE_GROUP));
         tg->name = g_strdup(name);
-        tg->clock_type = QEMU_CLOCK_REALTIME;
-
-        if (qtest_enabled()) {
-            /* For testing block IO throttling only */
-            tg->clock_type = QEMU_CLOCK_VIRTUAL;
-        }
-        qemu_mutex_init(&tg->lock);
-        throttle_init(&tg->ts);
-        QLIST_INIT(&tg->head);
-
-        QTAILQ_INSERT_TAIL(&throttle_groups, tg, list);
+        throttle_group_obj_complete((UserCreatable *)tg, &error_abort);
     }
-
-    tg->refcount++;
-
-    qemu_mutex_unlock(&throttle_groups_lock);
 
     return &tg->ts;
 }
@@ -124,20 +128,15 @@ ThrottleState *throttle_group_incref(const char *name)
  * When the reference count reaches zero the ThrottleGroup is
  * destroyed.
  *
+ * This function edits throttle_groups and must be called under the global
+ * mutex.
+ *
  * @ts:  The ThrottleGroup to unref, given by its ThrottleState member
  */
 void throttle_group_unref(ThrottleState *ts)
 {
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
-
-    qemu_mutex_lock(&throttle_groups_lock);
-    if (--tg->refcount == 0) {
-        QTAILQ_REMOVE(&throttle_groups, tg, list);
-        qemu_mutex_destroy(&tg->lock);
-        g_free(tg->name);
-        g_free(tg);
-    }
-    qemu_mutex_unlock(&throttle_groups_lock);
+    object_unref(OBJECT(tg));
 }
 
 /* Get the name from a ThrottleGroupMember's group. The name (and the pointer)
@@ -477,8 +476,11 @@ static void write_timer_cb(void *opaque)
  * its timers and updating its throttle_state pointer to point to it. If a
  * throttling group with that name does not exist yet, it will be created.
  *
+ * This function edits throttle_groups and must be called under the global
+ * mutex.
+ *
  * @tgm:       the ThrottleGroupMember to insert
- * @groupname: the name of the group
+ * @groupname: the name of the group. If NULL, an anonymous group is created.
  * @ctx:       the AioContext to use
  */
 void throttle_group_register_tgm(ThrottleGroupMember *tgm,
@@ -572,9 +574,341 @@ void throttle_group_detach_aio_context(ThrottleGroupMember *tgm)
     tgm->aio_context = NULL;
 }
 
-static void throttle_groups_init(void)
+#undef THROTTLE_OPT_PREFIX
+#define THROTTLE_OPT_PREFIX "x-"
+#define DOUBLE 0
+#define UINT64 1
+#define UNSIGNED 2
+
+/* Helper struct and array for QOM property setter/getter */
+typedef struct {
+    const char *name;
+    BucketType type;
+    int data_type;
+    const ptrdiff_t offset; /* offset in LeakyBucket struct. */
+} ThrottleParamInfo;
+
+static ThrottleParamInfo properties[] = {
 {
-    qemu_mutex_init(&throttle_groups_lock);
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_TOTAL,
+    THROTTLE_OPS_TOTAL, DOUBLE, offsetof(LeakyBucket, avg),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_TOTAL_MAX,
+    THROTTLE_OPS_TOTAL, DOUBLE, offsetof(LeakyBucket, max),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_TOTAL_MAX_LENGTH,
+    THROTTLE_OPS_TOTAL, UNSIGNED, offsetof(LeakyBucket, burst_length),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_READ,
+    THROTTLE_OPS_READ, DOUBLE, offsetof(LeakyBucket, avg),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_READ_MAX,
+    THROTTLE_OPS_READ, DOUBLE, offsetof(LeakyBucket, max),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_READ_MAX_LENGTH,
+    THROTTLE_OPS_READ, UNSIGNED, offsetof(LeakyBucket, burst_length),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_WRITE,
+    THROTTLE_OPS_WRITE, DOUBLE, offsetof(LeakyBucket, avg),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_WRITE_MAX,
+    THROTTLE_OPS_WRITE, DOUBLE, offsetof(LeakyBucket, max),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_WRITE_MAX_LENGTH,
+    THROTTLE_OPS_WRITE, UNSIGNED, offsetof(LeakyBucket, burst_length),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_TOTAL,
+    THROTTLE_BPS_TOTAL, DOUBLE, offsetof(LeakyBucket, avg),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_TOTAL_MAX,
+    THROTTLE_BPS_TOTAL, DOUBLE, offsetof(LeakyBucket, max),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_TOTAL_MAX_LENGTH,
+    THROTTLE_BPS_TOTAL, UNSIGNED, offsetof(LeakyBucket, burst_length),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_READ,
+    THROTTLE_BPS_READ, DOUBLE, offsetof(LeakyBucket, avg),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_READ_MAX,
+    THROTTLE_BPS_READ, DOUBLE, offsetof(LeakyBucket, max),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_READ_MAX_LENGTH,
+    THROTTLE_BPS_READ, UNSIGNED, offsetof(LeakyBucket, burst_length),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_WRITE,
+    THROTTLE_BPS_WRITE, DOUBLE, offsetof(LeakyBucket, avg),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_WRITE_MAX,
+    THROTTLE_BPS_WRITE, DOUBLE, offsetof(LeakyBucket, max),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_BPS_WRITE_MAX_LENGTH,
+    THROTTLE_BPS_WRITE, UNSIGNED, offsetof(LeakyBucket, burst_length),
+},
+{
+    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_SIZE,
+    0, UINT64, offsetof(ThrottleConfig, op_size),
+}
+};
+
+/* This function edits throttle_groups and must be called under the global
+ * mutex */
+static void throttle_group_obj_init(Object *obj)
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj);
+
+    tg->clock_type = QEMU_CLOCK_REALTIME;
+    if (qtest_enabled()) {
+        /* For testing block IO throttling only */
+        tg->clock_type = QEMU_CLOCK_VIRTUAL;
+    }
+    tg->is_initialized = false;
+    QTAILQ_INSERT_TAIL(&throttle_groups, tg, list);
+    qemu_mutex_init(&tg->lock);
+    throttle_init(&tg->ts);
+    QLIST_INIT(&tg->head);
 }
 
-block_init(throttle_groups_init);
+/* This function edits throttle_groups and must be called under the global
+ * mutex */
+static void throttle_group_obj_complete(UserCreatable *obj, Error **errp)
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj), *iter;
+    ThrottleConfig cfg;
+
+    /* set group name to object id if it exists */
+    if (!tg->name && tg->parent_obj.parent) {
+        tg->name = object_get_canonical_path_component(OBJECT(obj));
+    }
+
+    if (tg->name) {
+        /* error if name is duplicate */
+        QTAILQ_FOREACH(iter, &throttle_groups, list) {
+            if (!g_strcmp0(tg->name, iter->name) && tg != iter) {
+                error_setg(errp, "A group with this name already exists");
+                return;
+            }
+        }
+    }
+
+    /* check validity */
+    throttle_get_config(&tg->ts, &cfg);
+    if (!throttle_is_valid(&cfg, errp)) {
+        return;
+    }
+    tg->is_initialized = true;
+}
+
+/* This function edits throttle_groups and must be called under the global
+ * mutex */
+static void throttle_group_obj_finalize(Object *obj)
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj);
+    QTAILQ_REMOVE(&throttle_groups, tg, list);
+    qemu_mutex_destroy(&tg->lock);
+    g_free(tg->name);
+}
+
+static void throttle_group_set(Object *obj, Visitor *v, const char * name,
+                               void *opaque, Error **errp)
+
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj);
+    ThrottleConfig cfg;
+    ThrottleParamInfo *info = opaque;
+    Error *local_err = NULL;
+    int64_t value;
+
+    /* If we have finished initialization, don't accept individual property
+     * changes through QOM. Throttle configuration limits must be set in one
+     * transaction, as certain combinations are invalid.
+     */
+    if (tg->is_initialized) {
+        error_setg(&local_err, "Property cannot be set after initialization");
+        goto ret;
+    }
+
+    visit_type_int64(v, name, &value, &local_err);
+    if (local_err) {
+        goto ret;
+    }
+    if (value < 0) {
+        error_setg(&local_err, "Property values cannot be negative");
+        goto ret;
+    }
+
+    cfg = tg->ts.cfg;
+    switch (info->data_type) {
+    case UINT64:
+        {
+            uint64_t *field = (void *)&cfg.buckets[info->type] + info->offset;
+            *field = value;
+        }
+        break;
+    case DOUBLE:
+        {
+            double *field = (void *)&cfg.buckets[info->type] + info->offset;
+            *field = value;
+        }
+        break;
+    case UNSIGNED:
+        {
+            if (value > UINT_MAX) {
+                error_setg(&local_err, "%s value must be in the"
+                                       "range [0, %u]", info->name, UINT_MAX);
+                goto ret;
+            }
+            unsigned *field = (void *)&cfg.buckets[info->type] + info->offset;
+            *field = value;
+        }
+    }
+
+    tg->ts.cfg = cfg;
+
+ret:
+    error_propagate(errp, local_err);
+    return;
+
+}
+
+static void throttle_group_get(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj);
+    ThrottleConfig cfg;
+    ThrottleParamInfo *info = opaque;
+    int64_t value;
+
+    throttle_get_config(&tg->ts, &cfg);
+    switch (info->data_type) {
+    case UINT64:
+        {
+            uint64_t *field = (void *)&cfg.buckets[info->type] + info->offset;
+            value = *field;
+        }
+        break;
+    case DOUBLE:
+        {
+            double *field = (void *)&cfg.buckets[info->type] + info->offset;
+            value = *field;
+        }
+        break;
+    case UNSIGNED:
+        {
+            unsigned *field = (void *)&cfg.buckets[info->type] + info->offset;
+            value = *field;
+        }
+    }
+
+    visit_type_int64(v, name, &value, errp);
+}
+
+static void throttle_group_set_limits(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj);
+    ThrottleConfig cfg;
+    ThrottleLimits arg = { 0 };
+    ThrottleLimits *argp = &arg;
+    Error *local_err = NULL;
+
+    visit_type_ThrottleLimits(v, name, &argp, &local_err);
+    if (local_err) {
+        goto ret;
+    }
+    qemu_mutex_lock(&tg->lock);
+    throttle_get_config(&tg->ts, &cfg);
+    throttle_limits_to_config(argp, &cfg, &local_err);
+    if (local_err) {
+        goto unlock;
+    }
+    throttle_config(&tg->ts, tg->clock_type, &cfg);
+
+unlock:
+    qemu_mutex_unlock(&tg->lock);
+ret:
+    error_propagate(errp, local_err);
+    return;
+}
+
+static void throttle_group_get_limits(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    ThrottleGroup *tg = THROTTLE_GROUP(obj);
+    ThrottleConfig cfg;
+    ThrottleLimits arg = { 0 };
+    ThrottleLimits *argp = &arg;
+
+    qemu_mutex_lock(&tg->lock);
+    throttle_get_config(&tg->ts, &cfg);
+    qemu_mutex_unlock(&tg->lock);
+
+    throttle_config_to_limits(&cfg, argp);
+
+    visit_type_ThrottleLimits(v, name, &argp, errp);
+}
+
+static void throttle_group_obj_class_init(ObjectClass *klass, void *class_data)
+{
+    size_t i = 0;
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);
+
+    ucc->complete = throttle_group_obj_complete;
+    /* individual properties */
+    for (i = 0; i < sizeof(properties) / sizeof(ThrottleParamInfo); i++) {
+        object_class_property_add(klass,
+                                  properties[i].name,
+                                  "int",
+                                  throttle_group_get,
+                                  throttle_group_set,
+                                  NULL, &properties[i],
+                                  &error_abort);
+    }
+
+    /* ThrottleLimits */
+    object_class_property_add(klass,
+                              "limits", "ThrottleLimits",
+                              throttle_group_get_limits,
+                              throttle_group_set_limits,
+                              NULL, NULL,
+                              &error_abort);
+}
+
+static const TypeInfo throttle_group_info = {
+   .name = TYPE_THROTTLE_GROUP,
+   .parent = TYPE_OBJECT,
+   .class_init = throttle_group_obj_class_init,
+   .instance_size = sizeof(ThrottleGroup),
+   .instance_init = throttle_group_obj_init,
+   .instance_finalize = throttle_group_obj_finalize,
+   .interfaces = (InterfaceInfo[]) {
+       { TYPE_USER_CREATABLE },
+       { }
+   },
+};
+
+static void throttle_groups_init(void)
+{
+    type_register_static(&throttle_group_info);
+}
+
+type_init(throttle_groups_init);
