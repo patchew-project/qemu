@@ -3259,7 +3259,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
+{ 'command': 'migrate-incoming', 'data': {'uri': 'str' },
+  'without-bql': 'true' }
 
 ##
 # @xen-save-devices-state:
