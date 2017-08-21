@@ -968,6 +968,7 @@ ETEXI
         .params     = "uri",
         .help       = "Continue an incoming migration from an -incoming defer",
         .cmd        = hmp_migrate_incoming,
+        .without_bql = true,
     },
 
 STEXI
