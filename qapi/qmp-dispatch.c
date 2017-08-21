@@ -107,6 +107,17 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         QINCREF(args);
     }
 
+    if (cmd->options & QCO_WITHOUT_BQL) {
+        /*
+         * If this command can live without BQL, then we don't take
+         * it.  One thing to mention: we may have already taken the
+         * BQL before reaching here.  If so, we just keep it.  So
+         * generally speaking we are trying our best on reducing the
+         * contention of BQL.
+         */
+        take_bql = false;
+    }
+
     if (take_bql) {
         qemu_mutex_lock_iothread();
     }
