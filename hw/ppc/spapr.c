@@ -605,6 +605,80 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                           pcc->radix_page_info->count *
                           sizeof(radix_AP_encodings[0]))));
     }
+
+    if (spapr->storage_keys) {
+        uint32_t val[2];
+
+        val[0] = cpu_to_be32(spapr->storage_keys);
+        val[1] = spapr->insn_keys ? val[0] : 0;
+
+        _FDT(fdt_setprop(fdt, offset, "ibm,processor-storage-keys",
+                         val, sizeof(val)));
+    }
+}
+
+#define SYSFS_PROT_KEYS_PATH "/sys/kernel/mm/protection_keys/"
+#define SYSFS_USABLE_STORAGE_KEYS SYSFS_PROT_KEYS_PATH "usable_keys"
+#define SYSFS_DISABLE_EXEC_KEYS SYSFS_PROT_KEYS_PATH "disable_execute_supported"
+
+static void setup_storage_keys(CPUPPCState *env, sPAPRMachineState *spapr)
+{
+    if (!(env->mmu_model & POWERPC_MMU_AMR))
+        return;
+
+    if (kvm_enabled()) {
+        char buf[sizeof("false\n")];
+        uint32_t keys;
+        FILE *fd;
+
+        /*
+         * With KVM, we allow the guest to use the keys which the kernel tells
+         * us are available.
+         */
+
+        fd = fopen(SYSFS_USABLE_STORAGE_KEYS, "r");
+        if (!fd) {
+            error_report("%s: open %s failed", __func__,
+                         SYSFS_USABLE_STORAGE_KEYS);
+            return;
+        }
+
+        if (fscanf(fd, "%u", &keys) != 1) {
+            error_report("%s: error reading %s", __func__,
+                         SYSFS_USABLE_STORAGE_KEYS);
+            fclose(fd);
+            return;
+        }
+
+        fclose(fd);
+
+        /* Now find out whether the keys can be used for instruction access. */
+
+        fd = fopen(SYSFS_DISABLE_EXEC_KEYS, "r");
+        if (!fd) {
+            error_report("%s: open %s failed", __func__,
+                         SYSFS_USABLE_STORAGE_KEYS);
+            return;
+        }
+
+        if (!fread(buf, 1, sizeof(buf), fd)) {
+            error_report("%s: error reading %s", __func__,
+                         SYSFS_DISABLE_EXEC_KEYS);
+            fclose(fd);
+            return;
+        }
+
+        fclose(fd);
+
+        spapr->storage_keys = keys;
+        spapr->insn_keys = !strncmp(buf, "true\n", sizeof(buf));
+    } else {
+        /* Without KVM, all keys provided by the architecture are available. */
+        spapr->storage_keys = 32;
+
+        /* POWER7 doesn't support instruction access keys. */
+        spapr->insn_keys = POWERPC_MMU_VER(env->mmu_model) != POWERPC_MMU_VER_2_06;
+    }
 }
 
 static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
@@ -618,6 +692,8 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
     _FDT(cpus_offset);
     _FDT((fdt_setprop_cell(fdt, cpus_offset, "#address-cells", 0x1)));
     _FDT((fdt_setprop_cell(fdt, cpus_offset, "#size-cells", 0x0)));
+
+    setup_storage_keys(&POWERPC_CPU(first_cpu)->env, spapr);
 
     /*
      * We walk the CPUs in reverse order to ensure that CPU DT nodes

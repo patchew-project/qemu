@@ -122,6 +122,12 @@ struct sPAPRMachineState {
      * occurs during the unplug process. */
     QTAILQ_HEAD(, sPAPRDIMMState) pending_dimm_unplugs;
 
+    /* Number of processor storage keys available to the guest. */
+    uint32_t storage_keys;
+
+    /* Whether storage keys can control instruction access. */
+    bool insn_keys;
+
     /*< public >*/
     char *kvm_type;
     MemoryHotplugState hotplug_memory;
