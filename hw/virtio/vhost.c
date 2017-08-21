@@ -1098,7 +1098,8 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 
     if (k->query_guest_notifiers &&
         k->query_guest_notifiers(qbus->parent) &&
-        virtio_queue_vector(vdev, idx) == VIRTIO_NO_VECTOR) {
+        virtio_queue_vector(vdev, idx) == VIRTIO_NO_VECTOR &&
+        vdev->use_guest_notifier_mask) {
         file.fd = -1;
         r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
         if (r) {
