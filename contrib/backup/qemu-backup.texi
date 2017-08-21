@@ -1,0 +1,134 @@
+\input texinfo
+@setfilename qemu-backup
+
+@documentlanguage en
+@documentencoding UTF-8
+
+@settitle QEMU Backup Tool
+@copying
+
+Copyright @copyright{} 2017 The QEMU Project developers
+@end copying
+@ifinfo
+@direntry
+* QEMU: (QEMU-backup).    Man page for QEMU Backup Tool.
+@end direntry
+@end ifinfo
+@iftex
+@titlepage
+@sp 7
+@center @titlefont{QEMU Backup Tool}
+@sp 1
+@sp 3
+@end titlepage
+@end iftex
+@ifnottex
+@node Top
+@top Short Sample
+
+@menu
+* Name::
+* Synopsis::
+* List of Commands::
+* Command Parameters::
+* Command Descriptions::
+* License::
+@end menu
+
+@end ifnottex
+
+@node Name
+@chapter Name
+
+QEMU disk backup tool.
+
+@node Synopsis
+@chapter Synopsis
+
+qemu-backup command [command options].
+
+@node  List of Commands
+@chapter  List of Commands
+@itemize
+@item qemu-backup guest add --guest guestname --qmp socketpath
+@item qemu-backup guest list
+@item qemu-backup drive add --id driveid --guest guestname --target target
+@item qemu-backup drive add --all --guest guestname --target target
+@item qemu-backup drive list --guest guestname
+@item qemu-backup backup [--inc] --guest guestname
+@item qemu-backup restore --guest guestname
+@item qemu-backup guest remove --guest guestname
+@item qemu-backup drive remove --guest guestname --id driveid
+@end itemize
+@node  Command Parameters
+@chapter  Command Parameters
+@itemize
+@item --all: Add all the drives present in a guest which are suitable for backup.
+@item --guest: Name of the guest.
+@item --id: id of guest or drive.
+@item --inc: (Optional) For incremental backup.
+@item --qmp: Path of qmp socket.
+@item --target: Destination path on which you want your backup to be made.
+@end itemize
+
+@node  Command Descriptions
+@chapter  Command Descriptions
+@itemize
+@item qemu-backup guest add --guest guestname --qmp socketpath
+This command adds a guest to the configuration file given its path to qmp socket.
+
+example:
+qemu-backup guest add --id=fedora --qmp=unix:/var/run/qemu/fedora.sock
+
+qemu-backup guest add --id=fedora --qmp=tcp:localhost:4444
+
+@item qemu-backup guest list
+This commands lists the names of guests which are added to configuration file.
+
+@item qemu-backup drive add --guest guestname --id driveid --target target
+This command adds different drives for backup in a particular guest by giving the name of drive to be backed up and target imagefile in which we want to store the drive backup.
+
+example: qemu-backup drive add --guest=fedora --id=root --target=/backup/root.img
+
+@item qemu-backup drive add --all --guest guestname --destination destination
+This command adds all the drives of the guest for backup other than CDROM drive and read-only drives. Here all the backup drives will have the same names as original drives and target will be the destination folder.
+
+example: qemu-backup drive add --all --guest fedora --destination =/backup/fedora/
+
+@item qemu-backup drive list --guest guestname
+This commands gives the names of the drive present in a guest which are added for backup.
+
+example: qemu-backup drive list --guest=fedora
+
+@item qemu-backup backup --guest guestname
+
+This command makes the backup of the drives, in their respective given destinations. The ids of drive and their destinations are taken from the configuration file.
+
+example: qemu-backup backup --guest=fedora
+
+@item qemu-backup restore --guest guestname
+This command is needed if we want to restore the backup. It will list the commands to be run for performing the same but will not perform any action.
+
+example: qemu-backup restore --guest=fedora
+
+@item qemu-backup guest remove --guest guestname
+This command removes the guest from the configuration file.
+
+example: qemu-backup guest remove --guest=fedora
+
+@item qemu-backup drive remove --guest guestname --id driveid
+This command helps remove a drive which is set for backup in configuration of given host.
+
+example: drive remove --guest=fedora --id=root
+
+
+@end itemize
+
+@node License
+@appendix License
+QEMU is a trademark of Fabrice Bellard.
+QEMU is released under the
+@url{https://www.gnu.org/licenses/gpl-2.0.txt,GNU General Public License},
+version 2. Parts of QEMU have specific licenses, see file
+@url{http://git.qemu.org/?p=qemu.git;a=blob_plain;f=LICENSE,LICENSE}.
+@bye
