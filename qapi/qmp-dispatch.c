@@ -19,6 +19,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/main-loop.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {
@@ -75,6 +76,11 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     QDict *args, *dict;
     QmpCommand *cmd;
     QObject *ret = NULL;
+    /*
+     * If we haven't take the BQL (when called by per-monitor
+     * threads), we need to take care of the BQL on our own.
+     */
+    bool take_bql = !qemu_mutex_iothread_locked();
 
     dict = qmp_dispatch_check_obj(request, errp);
     if (!dict) {
@@ -101,7 +107,16 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         QINCREF(args);
     }
 
+    if (take_bql) {
+        qemu_mutex_lock_iothread();
+    }
+
     cmd->fn(args, &ret, &local_err);
+
+    if (take_bql) {
+        qemu_mutex_unlock_iothread();
+    }
+
     if (local_err) {
         error_propagate(errp, local_err);
     } else if (cmd->options & QCO_NO_SUCCESS_RESP) {

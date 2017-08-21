@@ -36,6 +36,7 @@
 #include "net/net.h"
 #include "net/slirp.h"
 #include "chardev/char-fe.h"
+#include "chardev/char-mux.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/numa.h"
 #include "monitor/monitor.h"
@@ -190,6 +191,8 @@ struct Monitor {
     int flags;
     int suspend_cnt;
     bool skip_flush;
+    /* Whether the monitor wants to be polled in standalone thread */
+    bool use_thread;
 
     QemuMutex out_lock;
     QString *outbuf;
@@ -206,6 +209,11 @@ struct Monitor {
     mon_cmd_t *cmd_table;
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
+
+    /* Only used when "use_thread" is used */
+    QemuThread mon_thread;
+    GMainContext *mon_context;
+    GMainLoop *mon_loop;
 };
 
 /* QMP checker flags */
@@ -568,7 +576,7 @@ static void monitor_qapi_event_init(void)
 
 static void handle_hmp_command(Monitor *mon, const char *cmdline);
 
-static void monitor_data_init(Monitor *mon, bool skip_flush)
+static void monitor_data_init(Monitor *mon, bool skip_flush, bool use_thread)
 {
     memset(mon, 0, sizeof(Monitor));
     qemu_mutex_init(&mon->out_lock);
@@ -576,6 +584,16 @@ static void monitor_data_init(Monitor *mon, bool skip_flush)
     /* Use *mon_cmds by default. */
     mon->cmd_table = mon_cmds;
     mon->skip_flush = skip_flush;
+    mon->use_thread = use_thread;
+    if (use_thread) {
+        /*
+         * For monitors that use isolated threads, they'll need their
+         * own GMainContext and GMainLoop.  Otherwise, these pointers
+         * will be NULL, which means the default context will be used.
+         */
+        mon->mon_context = g_main_context_new();
+        mon->mon_loop = g_main_loop_new(mon->mon_context, TRUE);
+    }
 }
 
 static void monitor_data_destroy(Monitor *mon)
@@ -587,6 +605,13 @@ static void monitor_data_destroy(Monitor *mon)
     g_free(mon->rs);
     QDECREF(mon->outbuf);
     qemu_mutex_destroy(&mon->out_lock);
+    if (mon->use_thread) {
+        /* Notify the per-monitor thread to quit. */
+        g_main_loop_quit(mon->mon_loop);
+        qemu_thread_join(&mon->mon_thread);
+        g_main_loop_unref(mon->mon_loop);
+        g_main_context_unref(mon->mon_context);
+    }
 }
 
 char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
@@ -595,7 +620,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     char *output = NULL;
     Monitor *old_mon, hmp;
 
-    monitor_data_init(&hmp, true);
+    monitor_data_init(&hmp, true, false);
 
     old_mon = cur_mon;
     cur_mon = &hmp;
@@ -3101,6 +3126,11 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
+    /*
+     * If we haven't take the BQL (when called by per-monitor
+     * threads), we need to take care of the BQL on our own.
+     */
+    bool take_bql = !qemu_mutex_iothread_locked();
 
     trace_handle_hmp_command(mon, cmdline);
 
@@ -3116,7 +3146,16 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
         return;
     }
 
+    if (take_bql) {
+        qemu_mutex_lock_iothread();
+    }
+
     cmd->cmd(mon, qdict);
+
+    if (take_bql) {
+        qemu_mutex_unlock_iothread();
+    }
+
     QDECREF(qdict);
 }
 
@@ -4086,6 +4125,15 @@ static void __attribute__((constructor)) monitor_lock_init(void)
     qemu_mutex_init(&monitor_lock);
 }
 
+static void *monitor_thread(void *data)
+{
+    Monitor *mon = data;
+
+    g_main_loop_run(mon->mon_loop);
+
+    return NULL;
+}
+
 void monitor_init(Chardev *chr, int flags)
 {
     static int is_first_init = 1;
@@ -4098,7 +4146,9 @@ void monitor_init(Chardev *chr, int flags)
     }
 
     mon = g_malloc(sizeof(*mon));
-    monitor_data_init(mon, false);
+
+    /* For non-mux typed monitors, we create dedicated threads. */
+    monitor_data_init(mon, false, !CHARDEV_IS_MUX(chr));
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
@@ -4112,12 +4162,19 @@ void monitor_init(Chardev *chr, int flags)
 
     if (monitor_is_qmp(mon)) {
         qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_qmp_read,
-                                 monitor_qmp_event, NULL, mon, NULL, true);
+                                 monitor_qmp_event, NULL, mon,
+                                 mon->mon_context, true);
         qemu_chr_fe_set_echo(&mon->chr, true);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
     } else {
         qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
-                                 monitor_event, NULL, mon, NULL, true);
+                                 monitor_event, NULL, mon,
+                                 mon->mon_context, true);
+    }
+
+    if (mon->use_thread) {
+        qemu_thread_create(&mon->mon_thread, chr->label, monitor_thread,
+                           mon, QEMU_THREAD_JOINABLE);
     }
 
     qemu_mutex_lock(&monitor_lock);
