@@ -249,8 +249,8 @@ static void arm_cpu_reset(CPUState *s)
             }
         }
         env->pmsav7.rnr = 0;
-        env->pmsav8.mair0 = 0;
-        env->pmsav8.mair1 = 0;
+        memset(env->pmsav8.mair0, 0, sizeof(env->pmsav8.mair0));
+        memset(env->pmsav8.mair1, 0, sizeof(env->pmsav8.mair1));
     }
 
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
