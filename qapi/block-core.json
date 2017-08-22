@@ -2191,6 +2191,9 @@
 # Driver specific block device options for the file backend.
 #
 # @filename:    path to the image file
+# @pr-manager:  the if for the object that will handle persistent reservations
+#               for this device (default: forward the commands via SG_IO,
+#               since 2.11)
 # @aio:         AIO backend (default: threads) (since: 2.8)
 # @locking:     whether to enable file locking. If set to 'auto', only enable
 #               when Open File Descriptor (OFD) locking API is available
@@ -2200,6 +2203,7 @@
 ##
 { 'struct': 'BlockdevOptionsFile',
   'data': { 'filename': 'str',
+            '*pr-manager': 'str',
             '*locking': 'OnOffAuto',
             '*aio': 'BlockdevAioOptions' } }
 
