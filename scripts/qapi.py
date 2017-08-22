@@ -829,6 +829,8 @@ def check_alternate(expr, info):
         check_type(info, "Member '%s' of alternate '%s'" % (key, name),
                    value,
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
+        if isinstance(value, dict):
+            value = value['type']
         qtype = find_alternate_member_qtype(value)
         if not qtype:
             raise QAPISemError(info, "Alternate '%s' member '%s' cannot use "
@@ -1644,7 +1646,11 @@ class QAPISchema(object):
                                               None, ifcond))
 
     def _make_variant(self, case, typ):
-        return QAPISchemaObjectTypeVariant(case, typ)
+        ifcond = None
+        if isinstance(typ, dict):
+            ifcond = typ.get('if')
+            typ = typ['type']
+        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
 
     def _make_simple_variant(self, case, typ, info):
         ifcond = None
