@@ -729,6 +729,10 @@ def check_event(expr, info):
                allow_metas=meta)
 
 
+def enum_get_values(expr):
+    return [e if isinstance(e, str) else e['name'] for e in expr['data']]
+
+
 def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
@@ -788,7 +792,7 @@ def check_union(expr, info):
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
-            if key not in enum_define['data']:
+            if key not in enum_get_values(enum_define):
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
@@ -796,7 +800,7 @@ def check_union(expr, info):
 
     # If discriminator is user-defined, ensure all values are covered
     if enum_define:
-        for value in enum_define['data']:
+        for value in enum_get_values(enum_define):
             if value not in members.keys():
                 raise QAPISemError(info, "Union '%s' data missing '%s' branch"
                                    % (name, value))
@@ -827,7 +831,7 @@ def check_alternate(expr, info):
         if qtype == 'QTYPE_QSTRING':
             enum_expr = enum_types.get(value)
             if enum_expr:
-                for v in enum_expr['data']:
+                for v in enum_get_values(enum_expr):
                     if v in ['on', 'off']:
                         conflicting.add('QTYPE_QBOOL')
                     if re.match(r'[-+0-9.]', v): # lazy, could be tightened
@@ -857,6 +861,12 @@ def check_enum(expr, info):
         raise QAPISemError(info,
                            "Enum '%s' requires a string for 'prefix'" % name)
     for member in members:
+        if isinstance(member, dict):
+            if not 'name' in member:
+                raise QAPISemError(info, "Dictionary member of enum '%s' must "
+                                   "have a 'name' key" % name)
+            check_if(member, info)
+            member = member['name']
         check_name(info, "Member of enum '%s'" % name, member,
                    enum_member=True)
 
@@ -1145,12 +1155,15 @@ class QAPISchemaEnumType(QAPISchemaType):
     def member_names(self):
         return [v.name for v in self.values]
 
+    def members(self):
+        return [(v.name, v.ifcond) for v in self.values]
+
     def json_type(self):
         return 'string'
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info,
-                                self.member_names(), self.prefix, self.ifcond)
+                                self.members(), self.prefix, self.ifcond)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -1274,9 +1287,11 @@ class QAPISchemaObjectType(QAPISchemaType):
 class QAPISchemaMember(object):
     role = 'member'
 
-    def __init__(self, name):
+    def __init__(self, name, ifcond=None):
         assert isinstance(name, str)
+        assert ifcond is None or isinstance(ifcond, str)
         self.name = name
+        self.ifcond = ifcond
         self.owner = None
 
     def set_owner(self, name):
@@ -1554,7 +1569,9 @@ class QAPISchema(object):
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v) for v in values]
+        return [QAPISchemaMember(v['name'], v.get('if')) if isinstance(v, dict)
+                else QAPISchemaMember(v)
+                for v in values]
 
     def _make_implicit_enum_type(self, name, info, values, ifcond):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
@@ -1950,6 +1967,8 @@ static const char *const %(c_name)s_array[] = {
 ''',
                 c_name=c_name(name))
     for value in values:
+        if isinstance(value, tuple):
+            value, ifcond = value
         index = c_enum_const(name, value, prefix)
         ret += mcgen('''
     [%(index)s] = "%(value)s",
@@ -1980,6 +1999,8 @@ typedef enum %(c_name)s {
                 c_name=c_name(name))
 
     for value in enum_values:
+        if isinstance(value, tuple):
+            value, ifcond = value
         ret += mcgen('''
     %(c_enum)s,
 ''',

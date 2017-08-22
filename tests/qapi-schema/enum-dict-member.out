@@ -1,0 +1,4 @@
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+enum TestEnum ['foo', 'bar']
+object q_empty

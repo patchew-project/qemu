@@ -60,7 +60,7 @@ alternate TestIfAlternate
 command TestIfCmd q_obj_TestIfCmd-arg -> None
    gen=True success_response=True boxed=False
     if defined(TEST_IF_CMD) && defined(TEST_IF_STRUCT)
-enum TestIfEnum ['foo', 'bar']
+enum TestIfEnum ['foo', ('bar', 'defined(TEST_IF_ENUM_BAR)')]
     if defined(TEST_IF_ENUM)
 event TestIfEvent q_obj_TestIfEvent-arg
    boxed=False
@@ -197,6 +197,7 @@ object q_obj_EVENT_D-arg
     member enum3: EnumOne optional=True
 object q_obj_TestIfCmd-arg
     member foo: TestIfStruct optional=False
+    member bar: TestIfEnum optional=False
     if defined(TEST_IF_CMD) && defined(TEST_IF_STRUCT)
 object q_obj_TestIfEvent-arg
     member foo: TestIfStruct optional=False
