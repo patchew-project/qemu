@@ -113,6 +113,60 @@ ssize_t qio_channel_read(QIOChannel *ioc,
 }
 
 
+ssize_t qio_channel_read_all(QIOChannel *ioc,
+                             char *buf,
+                             size_t buflen,
+                             Error **errp)
+{
+    ssize_t total = 0;
+    while (buflen > 0) {
+        ssize_t n_read = qio_channel_read(ioc, buf, buflen, errp);
+
+        if (n_read == QIO_CHANNEL_ERR_BLOCK) {
+            assert(ioc->ctx);
+            qio_channel_yield(ioc, G_IO_IN);
+            continue;
+        }
+        if (n_read < 0) {
+            return n_read;
+        }
+
+        buf += n_read;
+        total += n_read;
+        buflen -= n_read;
+    }
+
+    return total;
+}
+
+
+ssize_t qio_channel_write_all(QIOChannel *ioc,
+                              const char *buf,
+                              size_t buflen,
+                              Error **errp)
+{
+    ssize_t total = 0;
+    while (buflen > 0) {
+        ssize_t n_written = qio_channel_write(ioc, buf, buflen, errp);
+
+        if (n_written == QIO_CHANNEL_ERR_BLOCK) {
+            assert(ioc->ctx);
+            qio_channel_yield(ioc, G_IO_OUT);
+            continue;
+        }
+        if (n_written < 0) {
+            return n_written;
+        }
+
+        buf += n_written;
+        total += n_written;
+        buflen -= n_written;
+    }
+
+    return total;
+}
+
+
 ssize_t qio_channel_write(QIOChannel *ioc,
                           const char *buf,
                           size_t buflen,

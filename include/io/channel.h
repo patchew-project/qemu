@@ -299,7 +299,7 @@ ssize_t qio_channel_writev(QIOChannel *ioc,
                            Error **errp);
 
 /**
- * qio_channel_readv:
+ * qio_channel_read:
  * @ioc: the channel object
  * @buf: the memory region to read data into
  * @buflen: the length of @buf
@@ -313,6 +313,23 @@ ssize_t qio_channel_read(QIOChannel *ioc,
                          char *buf,
                          size_t buflen,
                          Error **errp);
+
+/**
+ * qio_channel_read_all:
+ * @ioc: the channel object
+ * @buf: the memory region to read data into
+ * @buflen: the number of bytes to @buf
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Reads @buflen bytes into @buf, possibly blocking or (if the
+ * channel is non-blocking) yielding from the current coroutine
+ * multiple times until the entire content is read.  Otherwise
+ * behaves as qio_channel_read().
+ */
+ssize_t coroutine_fn qio_channel_read_all(QIOChannel *ioc,
+                                          char *buf,
+                                          size_t buflen,
+                                          Error **errp);
 
 /**
  * qio_channel_write:
@@ -329,6 +346,23 @@ ssize_t qio_channel_write(QIOChannel *ioc,
                           const char *buf,
                           size_t buflen,
                           Error **errp);
+
+/**
+ * qio_channel_write_all:
+ * @ioc: the channel object
+ * @buf: the memory region to write data into
+ * @buflen: the number of bytes to @buf
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Writes @buflen bytes from @buf, possibly blocking or (if the
+ * channel is non-blocking) yielding from the current coroutine
+ * multiple times until the entire content is written.  Otherwise
+ * behaves as qio_channel_write().
+ */
+ssize_t coroutine_fn qio_channel_write_all(QIOChannel *ioc,
+                                           const char *buf,
+                                           size_t buflen,
+                                           Error **errp);
 
 /**
  * qio_channel_set_blocking:
