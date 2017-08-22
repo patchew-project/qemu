@@ -101,6 +101,8 @@ static void digic_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = digic_realize;
+    /* Reason: Hangs QEMU when trying to device_add this directly */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo digic_type_info = {
