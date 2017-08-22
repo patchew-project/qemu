@@ -72,7 +72,6 @@ typedef enum ParallelsPreallocMode {
 static const char *prealloc_mode_array[] = {
     "falloc",
     "truncate",
-    NULL,
 };
 
 static QEnumLookup prealloc_mode_lookup = {

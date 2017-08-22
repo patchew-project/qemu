@@ -1863,7 +1863,6 @@ static const char *const %(c_name)s_array[] = {
 
     max_index = c_enum_const(name, '_MAX', prefix)
     ret += mcgen('''
-    [%(max_index)s] = NULL,
 };
 
 const QEnumLookup %(c_name)s_lookup = {
