@@ -3577,7 +3577,8 @@
 #
 ##
 { 'command': 'dump-skeys',
-  'data': { 'filename': 'str' } }
+  'data': { 'filename': 'str' },
+  'if': ['defined(NEED_CPU_H)', 'defined(TARGET_S390X)']}
 
 ##
 # @netdev_add:
@@ -4621,7 +4622,9 @@
 ##
 { 'command': 'query-cpu-model-comparison',
   'data': { 'modela': 'CpuModelInfo', 'modelb': 'CpuModelInfo' },
-  'returns': 'CpuModelCompareInfo' }
+  'returns': 'CpuModelCompareInfo',
+  'if': ['defined(NEED_CPU_H)', 'defined(TARGET_S390X)']}
+
 
 ##
 # @CpuModelBaselineInfo:
@@ -4673,7 +4676,8 @@
 { 'command': 'query-cpu-model-baseline',
   'data': { 'modela': 'CpuModelInfo',
             'modelb': 'CpuModelInfo' },
-  'returns': 'CpuModelBaselineInfo' }
+  'returns': 'CpuModelBaselineInfo',
+  'if': ['defined(NEED_CPU_H)', 'defined(TARGET_S390X)']}
 
 ##
 # @AddfdInfo:
