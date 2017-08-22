@@ -6294,7 +6294,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'rtc-reset-reinjection' }
+{ 'command': 'rtc-reset-reinjection',
+  'if': ['defined(NEED_CPU_H)', 'defined(TARGET_I386)'] }
 
 # Rocker ethernet network switch
 { 'include': 'qapi/rocker.json' }
