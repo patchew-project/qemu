@@ -682,6 +682,53 @@ Example: Red Hat, Inc. controls redhat.com, and may therefore add a
 downstream command __com.redhat_drive-mirror.
 
 
+=== Configuring the schema ===
+
+'struct', 'enum', 'union', 'alternate', 'command' and 'event'
+top-level QAPI expressions can take a 'if' keyword like:
+
+{ 'struct': 'IfStruct', 'data': { 'foo': 'int' },
+  'if': 'defined(IF_STRUCT) && defined(FOO)' }
+
+Members can be exploded as dictionnary with 'type' & 'if' keys:
+
+{ 'struct': 'IfStruct', 'data':
+  { 'foo': 'int',
+    'bar': { 'type': 'int', 'if': 'defined(IF_STRUCT_BAR)'} } }
+
+Enum values can be exploded as dictionnary with 'name' & 'if' keys:
+
+{ 'enum': 'IfEnum', 'data':
+  [ 'foo',
+    { 'name' : 'bar', 'if': 'defined(IF_ENUM_BAR)' } ] }
+
+The C code generators will wrap the corresponding lines with #if / #endif
+pre-processor conditions for a given 'if' value.
+
+Example for enum values:
+
+enum IfEnum {
+     IF_ENUM_FOO,
+#if defined(IF_ENUM_BAR)
+     IF_ENUM_BAR,
+#endif /* defined(IF_ENUM_BAR) */
+     IF_ENUM__MAX
+}
+
+Please note that you are responsbile to ensure that the C code will
+compile with an arbitrary combination of conditions, since the
+generators are unable to check it at this point.
+
+Poisoined symbols like TARGET_I386 can be wrapped around a preliminary
+NEED_CPU_H condition, using a list value, like so:
+
+{ ..., 'if': ['defined(NEED_CPU_H)', 'defined(TARGET_I386)'] }
+
+This will generate two consecutive #if lines to silence the C error
+when compiling common code. FIXME: split the schema in various units
+instead.
+
+
 == Client JSON Protocol introspection ==
 
 Clients of a Client JSON Protocol commonly need to figure out what
