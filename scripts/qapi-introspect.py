@@ -145,7 +145,8 @@ const QLitObject %(c_name)s = %(c_string)s;
                 'variants': [self._gen_variant(v) for v in variants]}
 
     def _gen_variant(self, variant):
-        return {'case': variant.name, 'type': self._use_type(variant.type)}
+        return ({'case': variant.name, 'type': self._use_type(variant.type)},
+                variant.ifcond)
 
     def visit_builtin_type(self, name, info, json_type):
         self._gen_qlit(name, 'builtin', {'json-type': json_type}, None)
