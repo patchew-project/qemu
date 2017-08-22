@@ -11,7 +11,7 @@
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
 #include "hw/block/block.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
