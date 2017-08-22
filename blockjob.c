@@ -209,7 +209,7 @@ static char *child_job_get_parent_desc(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
     return g_strdup_printf("%s job '%s'",
-                           qapi_enum_lookup(BlockJobType_lookup,
+                           qapi_enum_lookup(&BlockJobType_lookup,
                                             job->driver->job_type),
                            job->id);
 }
@@ -555,7 +555,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
         return NULL;
     }
     info = g_new0(BlockJobInfo, 1);
-    info->type      = g_strdup(qapi_enum_lookup(BlockJobType_lookup,
+    info->type      = g_strdup(qapi_enum_lookup(&BlockJobType_lookup,
                                                 job->driver->job_type));
     info->device    = g_strdup(job->id);
     info->len       = job->len;
@@ -669,7 +669,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->refcnt        = 1;
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
-               qapi_enum_lookup(BlockJobType_lookup, driver->job_type));
+               qapi_enum_lookup(&BlockJobType_lookup, driver->job_type));
     block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
     bs->job = job;
 

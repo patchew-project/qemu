@@ -438,9 +438,8 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
 
     if (detect_zeroes) {
         *detect_zeroes =
-            qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+            qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup,
                             qemu_opt_get(opts, "detect-zeroes"),
-                            BLOCKDEV_DETECT_ZEROES_OPTIONS__MAX,
                             BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
                             &local_error);
         if (local_error) {
@@ -1468,9 +1467,9 @@ static int action_check_completion_mode(BlkActionState *s, Error **errp)
         error_setg(errp,
                    "Action '%s' does not support Transaction property "
                    "completion-mode = %s",
-                   qapi_enum_lookup(TransactionActionKind_lookup,
+                   qapi_enum_lookup(&TransactionActionKind_lookup,
                                     s->action->type),
-                   qapi_enum_lookup(ActionCompletionMode_lookup,
+                   qapi_enum_lookup(&ActionCompletionMode_lookup,
                                     s->txn_props->completion_mode));
         return -1;
     }

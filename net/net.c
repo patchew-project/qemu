@@ -1065,7 +1065,7 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         /* FIXME drop when all init functions store an Error */
         if (errp && !*errp) {
             error_setg(errp, QERR_DEVICE_INIT_FAILED,
-                       qapi_enum_lookup(NetClientDriver_lookup, netdev->type));
+                       qapi_enum_lookup(&NetClientDriver_lookup, netdev->type));
         }
         return -1;
     }
@@ -1289,7 +1289,7 @@ void print_net_client(Monitor *mon, NetClientState *nc)
 
     monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
                    nc->queue_index,
-                   qapi_enum_lookup(NetClientDriver_lookup, nc->info->type),
+                   qapi_enum_lookup(&NetClientDriver_lookup, nc->info->type),
                    nc->info_str);
     if (!QTAILQ_EMPTY(&nc->filters)) {
         monitor_printf(mon, "filters:\n");

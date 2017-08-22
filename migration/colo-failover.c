@@ -35,7 +35,7 @@ static void colo_failover_bh(void *opaque)
                                    FAILOVER_STATUS_ACTIVE);
     if (old_state != FAILOVER_STATUS_REQUIRE) {
         error_report("Unknown error for failover, old_state = %s",
-                     qapi_enum_lookup(FailoverStatus_lookup, old_state));
+                     qapi_enum_lookup(&FailoverStatus_lookup, old_state));
         return;
     }
 
@@ -65,7 +65,7 @@ FailoverStatus failover_set_state(FailoverStatus old_state,
 
     old = atomic_cmpxchg(&failover_state, old_state, new_state);
     if (old == old_state) {
-        trace_colo_failover_set_state(qapi_enum_lookup(FailoverStatus_lookup,
+        trace_colo_failover_set_state(qapi_enum_lookup(&FailoverStatus_lookup,
                                                        new_state));
     }
     return old;

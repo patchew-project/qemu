@@ -849,7 +849,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
     assert(evt->type == INPUT_EVENT_KIND_KEY);
     key = evt->u.key.data;
     qcode = qemu_input_key_value_to_qcode(key->key);
-    trace_escc_sunkbd_event_in(qcode, qapi_enum_lookup(QKeyCode_lookup, qcode),
+    trace_escc_sunkbd_event_in(qcode, qapi_enum_lookup(&QKeyCode_lookup, qcode),
                                key->down);
 
     if (qcode == Q_KEY_CODE_CAPS_LOCK) {

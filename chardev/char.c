@@ -932,7 +932,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ChardevReturn *ret;
     Chardev *chr;
 
-    cc = char_get_class(qapi_enum_lookup(ChardevBackendKind_lookup,
+    cc = char_get_class(qapi_enum_lookup(&ChardevBackendKind_lookup,
                                          backend->type), errp);
     if (!cc) {
         return NULL;
@@ -991,7 +991,7 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    cc = char_get_class(qapi_enum_lookup(ChardevBackendKind_lookup,
+    cc = char_get_class(qapi_enum_lookup(&ChardevBackendKind_lookup,
                                          backend->type), errp);
     if (!cc) {
         return NULL;

@@ -170,7 +170,7 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
         error_setg(errp, "Missing event name for rule");
         return -1;
     }
-    event = qapi_enum_parse(BlkdebugEvent_lookup, event_name, BLKDBG__MAX, -1, errp);
+    event = qapi_enum_parse(&BlkdebugEvent_lookup, event_name, -1, errp);
     if (event < 0) {
         return -1;
     }
@@ -733,7 +733,7 @@ static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
     struct BlkdebugRule *rule;
     int blkdebug_event;
 
-    blkdebug_event = qapi_enum_parse(BlkdebugEvent_lookup, event, BLKDBG__MAX, -1, NULL);
+    blkdebug_event = qapi_enum_parse(&BlkdebugEvent_lookup, event, -1, NULL);
     if (blkdebug_event < 0) {
         return -ENOENT;
     }

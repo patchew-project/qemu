@@ -63,7 +63,7 @@ static bool tpm_model_is_registered(enum TpmModel model)
 
 const TPMDriverOps *tpm_get_backend_driver(const char *type)
 {
-    int i = qapi_enum_parse(TpmType_lookup, type, TPM_TYPE__MAX, -1, NULL);
+    int i = qapi_enum_parse(&TpmType_lookup, type, -1, NULL);
 
     return i >= 0 ? be_drivers[i] : NULL;
 }
@@ -92,7 +92,7 @@ static void tpm_display_backend_drivers(void)
             continue;
         }
         fprintf(stderr, "%12s   %s\n",
-                qapi_enum_lookup(TpmType_lookup, i),
+                qapi_enum_lookup(&TpmType_lookup, i),
                 be_drivers[i]->desc());
     }
     fprintf(stderr, "\n");

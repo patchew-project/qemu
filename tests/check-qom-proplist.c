@@ -53,6 +53,11 @@ static const char *const dummy_animal_map[DUMMY_LAST + 1] = {
     [DUMMY_LAST] = NULL,
 };
 
+const QEnumLookup dummy_animal_lookup = {
+    .array = dummy_animal_map,
+    .size = DUMMY_LAST
+};
+
 struct DummyObject {
     Object parent_obj;
 
@@ -142,7 +147,7 @@ static void dummy_class_init(ObjectClass *cls, void *data)
                                   NULL);
     object_class_property_add_enum(cls, "av",
                                    "DummyAnimal",
-                                   dummy_animal_map,
+                                   &dummy_animal_lookup,
                                    dummy_get_av,
                                    dummy_set_av,
                                    NULL);

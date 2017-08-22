@@ -911,9 +911,9 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     if (!qemu_opt_get(opts, QUORUM_OPT_READ_PATTERN)) {
         ret = QUORUM_READ_PATTERN_QUORUM;
     } else {
-        ret = qapi_enum_parse(QuorumReadPattern_lookup,
+        ret = qapi_enum_parse(&QuorumReadPattern_lookup,
                               qemu_opt_get(opts, QUORUM_OPT_READ_PATTERN),
-                              QUORUM_READ_PATTERN__MAX, -EINVAL, NULL);
+                              -EINVAL, NULL);
     }
     if (ret < 0) {
         error_setg(&local_err, "Please set read-pattern as fifo or quorum");

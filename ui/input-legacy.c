@@ -61,9 +61,9 @@ int index_from_key(const char *key, size_t key_length)
 {
     int i;
 
-    for (i = 0; QKeyCode_lookup[i] != NULL; i++) {
-        if (!strncmp(key, QKeyCode_lookup[i], key_length) &&
-            !QKeyCode_lookup[i][key_length]) {
+    for (i = 0; QKeyCode_lookup.array[i] != NULL; i++) {
+        if (!strncmp(key, QKeyCode_lookup.array[i], key_length) &&
+            !QKeyCode_lookup.array[i][key_length]) {
             break;
         }
     }

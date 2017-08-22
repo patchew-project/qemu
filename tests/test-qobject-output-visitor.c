@@ -135,7 +135,7 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
         qstr = qobject_to_qstring(visitor_get(data));
         g_assert(qstr);
         g_assert_cmpstr(qstring_get_str(qstr), ==,
-                        qapi_enum_lookup(EnumOne_lookup, i));
+                        qapi_enum_lookup(&EnumOne_lookup, i));
         visitor_reset(data);
     }
 }

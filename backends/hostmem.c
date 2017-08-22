@@ -305,7 +305,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
             return;
         } else if (maxnode == 0 && backend->policy != MPOL_DEFAULT) {
             error_setg(errp, "host-nodes must be set for policy %s",
-                qapi_enum_lookup(HostMemPolicy_lookup, backend->policy));
+                qapi_enum_lookup(&HostMemPolicy_lookup, backend->policy));
             return;
         }
 
@@ -396,7 +396,7 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         host_memory_backend_set_host_nodes,
         NULL, NULL, &error_abort);
     object_class_property_add_enum(oc, "policy", "HostMemPolicy",
-        HostMemPolicy_lookup,
+        &HostMemPolicy_lookup,
         host_memory_backend_get_policy,
         host_memory_backend_set_policy, &error_abort);
     object_class_property_add_str(oc, "id", get_id, set_id, &error_abort);

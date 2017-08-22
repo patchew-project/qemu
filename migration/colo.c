@@ -63,7 +63,7 @@ static void secondary_vm_do_failover(void)
         if (old_state != FAILOVER_STATUS_ACTIVE) {
             error_report("Unknown error while do failover for secondary VM,"
                          "old_state: %s",
-                         qapi_enum_lookup(FailoverStatus_lookup, old_state));
+                         qapi_enum_lookup(&FailoverStatus_lookup, old_state));
         }
         return;
     }
@@ -94,7 +94,7 @@ static void secondary_vm_do_failover(void)
     if (old_state != FAILOVER_STATUS_ACTIVE) {
         error_report("Incorrect state (%s) while doing failover for "
                      "secondary VM",
-                     qapi_enum_lookup(FailoverStatus_lookup, old_state));
+                     qapi_enum_lookup(&FailoverStatus_lookup, old_state));
         return;
     }
     /* Notify COLO incoming thread that failover work is finished */
@@ -129,7 +129,7 @@ static void primary_vm_do_failover(void)
                                    FAILOVER_STATUS_COMPLETED);
     if (old_state != FAILOVER_STATUS_ACTIVE) {
         error_report("Incorrect state (%s) while doing failover for Primary VM",
-                     qapi_enum_lookup(FailoverStatus_lookup, old_state));
+                     qapi_enum_lookup(&FailoverStatus_lookup, old_state));
         return;
     }
     /* Notify COLO thread that failover work is finished */
@@ -225,7 +225,7 @@ static void colo_send_message(QEMUFile *f, COLOMessage msg,
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Can't send COLO message");
     }
-    trace_colo_send_message(qapi_enum_lookup(COLOMessage_lookup, msg));
+    trace_colo_send_message(qapi_enum_lookup(&COLOMessage_lookup, msg));
 }
 
 static void colo_send_message_value(QEMUFile *f, COLOMessage msg,
@@ -245,7 +245,7 @@ static void colo_send_message_value(QEMUFile *f, COLOMessage msg,
     ret = qemu_file_get_error(f);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to send value for message:%s",
-                         qapi_enum_lookup(COLOMessage_lookup, msg));
+                         qapi_enum_lookup(&COLOMessage_lookup, msg));
     }
 }
 
@@ -264,7 +264,7 @@ static COLOMessage colo_receive_message(QEMUFile *f, Error **errp)
         error_setg(errp, "%s: Invalid message", __func__);
         return msg;
     }
-    trace_colo_receive_message(qapi_enum_lookup(COLOMessage_lookup, msg));
+    trace_colo_receive_message(qapi_enum_lookup(&COLOMessage_lookup, msg));
     return msg;
 }
 
@@ -302,7 +302,7 @@ static uint64_t colo_receive_message_value(QEMUFile *f, uint32_t expect_msg,
     ret = qemu_file_get_error(f);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to get value for COLO message: %s",
-                         qapi_enum_lookup(COLOMessage_lookup, expect_msg));
+                         qapi_enum_lookup(&COLOMessage_lookup, expect_msg));
     }
     return value;
 }

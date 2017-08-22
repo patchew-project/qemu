@@ -2717,7 +2717,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
             qcow2_calc_prealloc_size(total_size, cluster_size, refcount_order);
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, prealloc_size, &error_abort);
         qemu_opt_set(opts, BLOCK_OPT_PREALLOC,
-                     qapi_enum_lookup(PreallocMode_lookup, prealloc),
+                     qapi_enum_lookup(&PreallocMode_lookup, prealloc),
                      &error_abort);
     }
 
@@ -2917,9 +2917,8 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
         goto finish;
     }
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(PreallocMode_lookup, buf,
-                               PREALLOC_MODE__MAX, PREALLOC_MODE_OFF,
-                               &local_err);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
+                               PREALLOC_MODE_OFF, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -3083,7 +3082,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         prealloc != PREALLOC_MODE_FALLOC && prealloc != PREALLOC_MODE_FULL)
     {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   qapi_enum_lookup(PreallocMode_lookup, prealloc));
+                   qapi_enum_lookup(&PreallocMode_lookup, prealloc));
         return -ENOTSUP;
     }
 
@@ -3608,9 +3607,8 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     }
 
     optstr = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(PreallocMode_lookup, optstr,
-                               PREALLOC_MODE__MAX, PREALLOC_MODE_OFF,
-                               &local_err);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, optstr,
+                               PREALLOC_MODE_OFF, &local_err);
     g_free(optstr);
     if (local_err) {
         goto err;

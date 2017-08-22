@@ -179,6 +179,12 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.defn = ''
         self._fwdecl = ''
         self._btin = guardstart('QAPI_TYPES_BUILTIN')
+        self._btin += '''
+typedef struct QEnumLookup {
+    const char *const *array;
+    int size;
+} QEnumLookup;
+'''
 
     def visit_end(self):
         self.decl = self._fwdecl + self.decl

@@ -15,8 +15,8 @@
 #include "qemu-common.h"
 #include "qapi/util.h"
 
-int qapi_enum_parse(const char * const lookup[], const char *buf,
-                    int max, int def, Error **errp)
+int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
+                    int def, Error **errp)
 {
     int i;
 
@@ -24,8 +24,8 @@ int qapi_enum_parse(const char * const lookup[], const char *buf,
         return def;
     }
 
-    for (i = 0; i < max; i++) {
-        if (!strcmp(buf, lookup[i])) {
+    for (i = 0; i < lookup->size; i++) {
+        if (!g_strcmp0(buf, lookup->array[i])) {
             return i;
         }
     }
@@ -34,11 +34,12 @@ int qapi_enum_parse(const char * const lookup[], const char *buf,
     return def;
 }
 
-const char *qapi_enum_lookup(const char * const lookup[], int val)
+const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {
     assert(val >= 0);
+    assert(val < lookup->size);
 
-    return lookup[val];
+    return lookup->array[val];
 }
 
 /*

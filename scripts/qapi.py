@@ -1851,7 +1851,7 @@ def guardend(name):
 def gen_enum_lookup(name, values, prefix=None):
     ret = mcgen('''
 
-const char *const %(c_name)s_lookup[] = {
+static const char *const %(c_name)s_array[] = {
 ''',
                 c_name=c_name(name))
     for value in values:
@@ -1865,8 +1865,13 @@ const char *const %(c_name)s_lookup[] = {
     ret += mcgen('''
     [%(max_index)s] = NULL,
 };
+
+const QEnumLookup %(c_name)s_lookup = {
+    .array = %(c_name)s_array,
+    .size = %(max_index)s
+};
 ''',
-                 max_index=max_index)
+                 max_index=max_index, c_name=c_name(name))
     return ret
 
 
@@ -1896,7 +1901,7 @@ typedef enum %(c_name)s {
 
     ret += mcgen('''
 
-extern const char *const %(c_name)s_lookup[];
+extern const QEnumLookup %(c_name)s_lookup;
 ''',
                  c_name=c_name(name))
     return ret

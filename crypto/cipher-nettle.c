@@ -281,7 +281,7 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
         break;
     default:
         error_setg(errp, "Unsupported cipher mode %s",
-                   qapi_enum_lookup(QCryptoCipherMode_lookup, mode));
+                   qapi_enum_lookup(&QCryptoCipherMode_lookup, mode));
         return NULL;
     }
 
@@ -420,7 +420,7 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 
     default:
         error_setg(errp, "Unsupported cipher algorithm %s",
-                   qapi_enum_lookup(QCryptoCipherAlgorithm_lookup, alg));
+                   qapi_enum_lookup(&QCryptoCipherAlgorithm_lookup, alg));
         goto error;
     }
 
@@ -491,7 +491,7 @@ qcrypto_nettle_cipher_encrypt(QCryptoCipher *cipher,
 
     default:
         error_setg(errp, "Unsupported cipher mode %s",
-                   qapi_enum_lookup(QCryptoCipherMode_lookup, cipher->mode));
+                   qapi_enum_lookup(&QCryptoCipherMode_lookup, cipher->mode));
         return -1;
     }
     return 0;
@@ -537,7 +537,7 @@ qcrypto_nettle_cipher_decrypt(QCryptoCipher *cipher,
 
     default:
         error_setg(errp, "Unsupported cipher mode %s",
-                   qapi_enum_lookup(QCryptoCipherMode_lookup, cipher->mode));
+                   qapi_enum_lookup(&QCryptoCipherMode_lookup, cipher->mode));
         return -1;
     }
     return 0;

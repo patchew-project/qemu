@@ -258,47 +258,39 @@ qcrypto_block_luks_cipher_alg_lookup(QCryptoCipherAlgorithm alg,
     }
 
     error_setg(errp, "Algorithm '%s' not supported",
-               qapi_enum_lookup(QCryptoCipherAlgorithm_lookup, alg));
+               qapi_enum_lookup(&QCryptoCipherAlgorithm_lookup, alg));
     return NULL;
 }
 
-/* XXX replace with qapi_enum_parse() in future, when we can
+/* XXX replace with qapi_enum_parse(&) in future, when we can
  * make that function emit a more friendly error message */
 static int qcrypto_block_luks_name_lookup(const char *name,
-                                          const char *const *map,
-                                          size_t maplen,
+                                          const QEnumLookup *lookup,
                                           const char *type,
                                           Error **errp)
 {
-    size_t i;
-    for (i = 0; i < maplen; i++) {
-        if (g_str_equal(map[i], name)) {
-            return i;
-        }
+    int i = qapi_enum_parse(lookup, name, -1, NULL);
+    if (i < 0) {
+        error_setg(errp, "%s %s not supported", type, name);
     }
-
-    error_setg(errp, "%s %s not supported", type, name);
-    return 0;
+    return i;
 }
 
 #define qcrypto_block_luks_cipher_mode_lookup(name, errp)               \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoCipherMode_lookup,            \
-                                   QCRYPTO_CIPHER_MODE__MAX,            \
+                                   &QCryptoCipherMode_lookup,            \
                                    "Cipher mode",                       \
                                    errp)
 
 #define qcrypto_block_luks_hash_name_lookup(name, errp)                 \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoHashAlgorithm_lookup,         \
-                                   QCRYPTO_HASH_ALG__MAX,               \
+                                   &QCryptoHashAlgorithm_lookup,         \
                                    "Hash algorithm",                    \
                                    errp)
 
 #define qcrypto_block_luks_ivgen_name_lookup(name, errp)                \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoIVGenAlgorithm_lookup,        \
-                                   QCRYPTO_IVGEN_ALG__MAX,              \
+                                   &QCryptoIVGenAlgorithm_lookup,        \
                                    "IV generator",                      \
                                    errp)
 
@@ -399,7 +391,7 @@ qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgorithm cipher,
         break;
     default:
         error_setg(errp, "Cipher %s not supported with essiv",
-                   qapi_enum_lookup(QCryptoCipherAlgorithm_lookup, cipher));
+                   qapi_enum_lookup(&QCryptoCipherAlgorithm_lookup, cipher));
         return 0;
     }
 }
@@ -969,19 +961,19 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
-    cipher_mode = qapi_enum_lookup(QCryptoCipherMode_lookup,
+    cipher_mode = qapi_enum_lookup(&QCryptoCipherMode_lookup,
                                    luks_opts.cipher_mode);
-    ivgen_alg = qapi_enum_lookup(QCryptoIVGenAlgorithm_lookup,
+    ivgen_alg = qapi_enum_lookup(&QCryptoIVGenAlgorithm_lookup,
                                  luks_opts.ivgen_alg);
     if (luks_opts.has_ivgen_hash_alg) {
-        ivgen_hash_alg = qapi_enum_lookup(QCryptoHashAlgorithm_lookup,
+        ivgen_hash_alg = qapi_enum_lookup(&QCryptoHashAlgorithm_lookup,
                                           luks_opts.ivgen_hash_alg);
         cipher_mode_spec = g_strdup_printf("%s-%s:%s", cipher_mode, ivgen_alg,
                                            ivgen_hash_alg);
     } else {
         cipher_mode_spec = g_strdup_printf("%s-%s", cipher_mode, ivgen_alg);
     }
-    hash_alg = qapi_enum_lookup(QCryptoHashAlgorithm_lookup,
+    hash_alg = qapi_enum_lookup(&QCryptoHashAlgorithm_lookup,
                                 luks_opts.hash_alg);
 
 
