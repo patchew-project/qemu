@@ -678,7 +678,13 @@ def check_type(info, source, value, allow_array=False,
         return
 
     if not allow_dict:
-        raise QAPISemError(info, "%s should be a type name" % source)
+        if isinstance(value, dict) and 'type' in value:
+            check_type(info, source, value['type'], allow_array,
+                       allow_dict, allow_optional, allow_metas)
+            check_if(value, info)
+            return
+        else:
+            raise QAPISemError(info, "%s should be a type name" % source)
 
     if not isinstance(value, OrderedDict):
         raise QAPISemError(info,
@@ -1332,8 +1338,8 @@ class QAPISchemaMember(object):
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, typ, optional):
-        QAPISchemaMember.__init__(self, name)
+    def __init__(self, name, typ, optional, ifcond=None):
+        QAPISchemaMember.__init__(self, name, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
         self._type_name = typ
@@ -1612,13 +1618,17 @@ class QAPISchema(object):
 
     def _make_member(self, name, typ, info):
         optional = False
+        ifcond = None
         if name.startswith('*'):
             name = name[1:]
             optional = True
+        if isinstance(typ, dict):
+            ifcond = typ.get('if')
+            typ = typ['type']
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        return QAPISchemaObjectTypeMember(name, typ, optional)
+        return QAPISchemaObjectTypeMember(name, typ, optional, ifcond)
 
     def _make_members(self, data, info):
         return [self._make_member(key, value, info)
