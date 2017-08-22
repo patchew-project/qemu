@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "crypto/hmac.h"
 #include "hmacpriv.h"
 #include <nettle/hmac.h>
@@ -106,7 +107,7 @@ void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
 
     if (!qcrypto_hmac_supports(alg)) {
         error_setg(errp, "Unsupported hmac algorithm %s",
-                   QCryptoHashAlgorithm_lookup[alg]);
+                   qapi_enum_lookup(QCryptoHashAlgorithm_lookup, alg));
         return NULL;
     }
 

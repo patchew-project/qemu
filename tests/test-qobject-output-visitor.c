@@ -19,6 +19,7 @@
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/util.h"
 
 typedef struct TestOutputVisitorData {
     Visitor *ov;
@@ -133,7 +134,8 @@ static void test_visitor_out_enum(TestOutputVisitorData *data,
 
         qstr = qobject_to_qstring(visitor_get(data));
         g_assert(qstr);
-        g_assert_cmpstr(qstring_get_str(qstr), ==, EnumOne_lookup[i]);
+        g_assert_cmpstr(qstring_get_str(qstr), ==,
+                        qapi_enum_lookup(EnumOne_lookup, i));
         visitor_reset(data);
     }
 }

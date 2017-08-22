@@ -19,6 +19,7 @@
 #include "trace.h"
 #include "qed.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/util.h"
 #include "sysemu/block-backend.h"
 
 static int bdrv_qed_probe(const uint8_t *buf, int buf_size,
@@ -1399,7 +1400,7 @@ static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset,
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
+                   qapi_enum_lookup(PreallocMode_lookup, prealloc));
         return -ENOTSUP;
     }
 

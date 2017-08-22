@@ -19,6 +19,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
+#include "qapi/util.h"
 
 static QLIST_HEAD(, TPMBackend) tpm_backends =
     QLIST_HEAD_INITIALIZER(tpm_backends);
@@ -102,7 +103,8 @@ static void tpm_display_backend_drivers(void)
 
     for (i = 0; i < TPM_MAX_DRIVERS && be_drivers[i] != NULL; i++) {
         fprintf(stderr, "%12s   %s\n",
-                TpmType_lookup[be_drivers[i]->type], be_drivers[i]->desc());
+                qapi_enum_lookup(TpmType_lookup, be_drivers[i]->type),
+                be_drivers[i]->desc());
     }
     fprintf(stderr, "\n");
 }

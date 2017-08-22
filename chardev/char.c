@@ -30,6 +30,7 @@
 #include "chardev/char.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
+#include "qapi/util.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
 
@@ -931,7 +932,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ChardevReturn *ret;
     Chardev *chr;
 
-    cc = char_get_class(ChardevBackendKind_lookup[backend->type], errp);
+    cc = char_get_class(qapi_enum_lookup(ChardevBackendKind_lookup,
+                                         backend->type), errp);
     if (!cc) {
         return NULL;
     }
@@ -989,7 +991,8 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    cc = char_get_class(ChardevBackendKind_lookup[backend->type], errp);
+    cc = char_get_class(qapi_enum_lookup(ChardevBackendKind_lookup,
+                                         backend->type), errp);
     if (!cc) {
         return NULL;
     }

@@ -1468,8 +1468,10 @@ static int action_check_completion_mode(BlkActionState *s, Error **errp)
         error_setg(errp,
                    "Action '%s' does not support Transaction property "
                    "completion-mode = %s",
-                   TransactionActionKind_lookup[s->action->type],
-                   ActionCompletionMode_lookup[s->txn_props->completion_mode]);
+                   qapi_enum_lookup(TransactionActionKind_lookup,
+                                    s->action->type),
+                   qapi_enum_lookup(ActionCompletionMode_lookup,
+                                    s->txn_props->completion_mode));
         return -1;
     }
     return 0;

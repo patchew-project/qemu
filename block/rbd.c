@@ -21,6 +21,7 @@
 #include "qemu/cutils.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/util.h"
 
 /*
  * When specifying the image filename use:
@@ -944,7 +945,7 @@ static int qemu_rbd_truncate(BlockDriverState *bs, int64_t offset,
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
+                   qapi_enum_lookup(PreallocMode_lookup, prealloc));
         return -ENOTSUP;
     }
 

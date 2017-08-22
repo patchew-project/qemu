@@ -40,6 +40,7 @@
 #include "qapi-visit.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
+#include "qapi/util.h"
 #include <nfsc/libnfs.h>
 
 
@@ -772,7 +773,7 @@ static int nfs_file_truncate(BlockDriverState *bs, int64_t offset,
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
+                   qapi_enum_lookup(PreallocMode_lookup, prealloc));
         return -ENOTSUP;
     }
 

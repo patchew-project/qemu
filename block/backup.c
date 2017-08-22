@@ -19,6 +19,7 @@
 #include "block/blockjob_int.h"
 #include "block/block_backup.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
 #include "qemu/cutils.h"
@@ -596,7 +597,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         error_setg(errp,
                    "a sync_bitmap was provided to backup_run, "
                    "but received an incompatible sync_mode (%s)",
-                   MirrorSyncMode_lookup[sync_mode]);
+                   qapi_enum_lookup(MirrorSyncMode_lookup, sync_mode));
         return NULL;
     }
 

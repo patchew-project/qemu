@@ -52,7 +52,7 @@ qcrypto_afalg_cipher_format_name(QCryptoCipherAlgorithm alg,
         return NULL;
     }
 
-    mode_name = QCryptoCipherMode_lookup[mode];
+    mode_name = qapi_enum_lookup(QCryptoCipherMode_lookup, mode);
     name = g_strdup_printf("%s(%s)", mode_name, alg_name);
 
     return name;

@@ -99,6 +99,7 @@ int main(int argc, char **argv)
 #include "sysemu/hax.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-input-visitor.h"
+#include "qapi/util.h"
 #include "qapi-visit.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/option.h"
@@ -688,7 +689,7 @@ bool runstate_check(RunState state)
 
 bool runstate_store(char *str, size_t size)
 {
-    const char *state = RunState_lookup[current_run_state];
+    const char *state = qapi_enum_lookup(RunState_lookup, current_run_state);
     size_t len = strlen(state) + 1;
 
     if (len > size) {
@@ -721,8 +722,8 @@ void runstate_set(RunState new_state)
 
     if (!runstate_valid_transitions[current_run_state][new_state]) {
         error_report("invalid runstate transition: '%s' -> '%s'",
-                     RunState_lookup[current_run_state],
-                     RunState_lookup[new_state]);
+                     qapi_enum_lookup(RunState_lookup, current_run_state),
+                     qapi_enum_lookup(RunState_lookup, new_state));
         abort();
     }
     trace_runstate_set(new_state);

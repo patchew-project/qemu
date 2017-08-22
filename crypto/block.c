@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "crypto/blockpriv.h"
 #include "crypto/block-qcow.h"
 #include "crypto/block-luks.h"
@@ -61,7 +62,7 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
     if (options->format >= G_N_ELEMENTS(qcrypto_block_drivers) ||
         !qcrypto_block_drivers[options->format]) {
         error_setg(errp, "Unsupported block driver %s",
-                   QCryptoBlockFormat_lookup[options->format]);
+            qapi_enum_lookup(QCryptoBlockFormat_lookup, options->format));
         g_free(block);
         return NULL;
     }
@@ -92,7 +93,7 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
     if (options->format >= G_N_ELEMENTS(qcrypto_block_drivers) ||
         !qcrypto_block_drivers[options->format]) {
         error_setg(errp, "Unsupported block driver %s",
-                   QCryptoBlockFormat_lookup[options->format]);
+            qapi_enum_lookup(QCryptoBlockFormat_lookup, options->format));
         g_free(block);
         return NULL;
     }

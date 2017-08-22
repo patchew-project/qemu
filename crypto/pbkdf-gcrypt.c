@@ -22,6 +22,7 @@
 #include <gcrypt.h>
 #include "qapi/error.h"
 #include "crypto/pbkdf.h"
+#include "qapi/util.h"
 
 bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash)
 {
@@ -68,7 +69,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
         hash_map[hash] == GCRY_MD_NONE) {
         error_setg_errno(errp, ENOSYS,
                          "PBKDF does not support hash algorithm %s",
-                         QCryptoHashAlgorithm_lookup[hash]);
+                         qapi_enum_lookup(QCryptoHashAlgorithm_lookup, hash));
         return -1;
     }
 

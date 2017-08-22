@@ -2,6 +2,7 @@
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "hw/pci/pci.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -72,8 +73,9 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
 
 static void set_default_value_enum(Object *obj, const Property *prop)
 {
-    object_property_set_str(obj, prop->info->enum_table[prop->defval.i],
-                            prop->name, &error_abort);
+    object_property_set_str(obj,
+        qapi_enum_lookup(prop->info->enum_table, prop->defval.i),
+        prop->name, &error_abort);
 }
 
 /* Bit */
@@ -1095,7 +1097,8 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
     Property *prop;
 
     prop = qdev_prop_find(dev, name);
-    object_property_set_str(OBJECT(dev), prop->info->enum_table[value],
+    object_property_set_str(OBJECT(dev),
+                            qapi_enum_lookup(prop->info->enum_table, value),
                             name, &error_abort);
 }
 

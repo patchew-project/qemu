@@ -1725,7 +1725,7 @@ static int raw_regular_truncate(int fd, int64_t offset, PreallocMode prealloc,
     default:
         result = -ENOTSUP;
         error_setg(errp, "Unsupported preallocation mode: %s",
-                   PreallocMode_lookup[prealloc]);
+                   qapi_enum_lookup(PreallocMode_lookup, prealloc));
         return result;
     }
 
@@ -1760,7 +1760,8 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset,
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Preallocation mode '%s' unsupported for this "
-                   "non-regular file", PreallocMode_lookup[prealloc]);
+                   "non-regular file", qapi_enum_lookup(PreallocMode_lookup,
+                                                        prealloc));
         return -ENOTSUP;
     }
 

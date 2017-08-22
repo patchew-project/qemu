@@ -19,6 +19,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/util.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {
@@ -118,7 +119,8 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
 QObject *qmp_build_error_object(Error *err)
 {
     return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              QapiErrorClass_lookup[error_get_class(err)],
+                              qapi_enum_lookup(QapiErrorClass_lookup,
+                                               error_get_class(err)),
                               error_get_pretty(err));
 }
 

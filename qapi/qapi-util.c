@@ -34,6 +34,13 @@ int qapi_enum_parse(const char * const lookup[], const char *buf,
     return def;
 }
 
+const char *qapi_enum_lookup(const char * const lookup[], int val)
+{
+    assert(val >= 0);
+
+    return lookup[val];
+}
+
 /*
  * Parse a valid QAPI name from @str.
  * A valid name consists of letters, digits, hyphen and underscore.

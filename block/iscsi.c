@@ -39,6 +39,7 @@
 #include "qemu/uuid.h"
 #include "qmp-commands.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/util.h"
 #include "crypto/secret.h"
 
 #include <iscsi/iscsi.h>
@@ -2087,7 +2088,7 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset,
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
+                   qapi_enum_lookup(PreallocMode_lookup, prealloc));
         return -ENOTSUP;
     }
 

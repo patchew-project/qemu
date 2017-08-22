@@ -42,7 +42,7 @@ int global_state_store(void)
 
 void global_state_store_running(void)
 {
-    const char *state = RunState_lookup[RUN_STATE_RUNNING];
+    const char *state = qapi_enum_lookup(RunState_lookup, RUN_STATE_RUNNING);
     strncpy((char *)global_state.runstate,
            state, sizeof(global_state.runstate));
 }

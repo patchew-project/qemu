@@ -13,6 +13,7 @@
 #include "sysemu/hostmem.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "qapi/visitor.h"
 #include "qapi-types.h"
 #include "qapi-visit.h"
@@ -304,7 +305,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
             return;
         } else if (maxnode == 0 && backend->policy != MPOL_DEFAULT) {
             error_setg(errp, "host-nodes must be set for policy %s",
-                       HostMemPolicy_lookup[backend->policy]);
+                qapi_enum_lookup(HostMemPolicy_lookup, backend->policy));
             return;
         }
 

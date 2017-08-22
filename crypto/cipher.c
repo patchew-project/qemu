@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "crypto/cipher.h"
 #include "cipherpriv.h"
+#include "qapi/util.h"
 
 
 static size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {

@@ -15,6 +15,7 @@
 #include "ui/console.h"
 
 #include "standard-headers/linux/input.h"
+#include "qapi/util.h"
 
 #define VIRTIO_ID_NAME_KEYBOARD "QEMU Virtio Keyboard"
 #define VIRTIO_ID_NAME_MOUSE    "QEMU Virtio Mouse"
@@ -209,7 +210,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         } else {
             if (key->down) {
                 fprintf(stderr, "%s: unmapped key: %d [%s]\n", __func__,
-                        qcode, QKeyCode_lookup[qcode]);
+                        qcode, qapi_enum_lookup(QKeyCode_lookup, qcode));
             }
         }
         break;
@@ -224,7 +225,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
             if (btn->down) {
                 fprintf(stderr, "%s: unmapped button: %d [%s]\n", __func__,
                         btn->button,
-                        InputButton_lookup[btn->button]);
+                        qapi_enum_lookup(InputButton_lookup, btn->button));
             }
         }
         break;
