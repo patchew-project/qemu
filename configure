@@ -6522,6 +6522,19 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   ldflags="$ldflags $textseg_ldflags"
 fi
 
+# Newer kernels on s390 check for an S390_PGSTE program header and
+# enable the pgste page table extensions in that case. This makes
+# the vm.allocate_pgste sysctl unnecessary. We enable this program
+# header if
+#  - the linker support --s390-pgste
+#  - we build the system emulation (qemu-system-s390x)
+#  - KVM is enabled
+if $ld --help 2>/dev/null | grep ".--s390-pgste" >/dev/null 2>/dev/null ; then
+    if test "$target_softmmu" = "yes"  -a "$ARCH" = "s390x" -a "$kvm" = "yes" ; then
+        ldflags="-Wl,--s390-pgste $ldflags"
+    fi
+fi
+
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 
