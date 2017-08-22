@@ -116,6 +116,11 @@ const struct SCSISense sense_code_NOT_READY_REMOVAL_PREVENTED = {
     .key = NOT_READY, .asc = 0x53, .ascq = 0x02
 };
 
+/* Medium Error, Unrecoverable Read Error */
+const struct SCSISense sense_code_READ_ERROR = {
+    .key = MEDIUM_ERROR, .asc = 0x11, .ascq = 0x00
+};
+
 /* Hardware error, internal target failure */
 const struct SCSISense sense_code_TARGET_FAILURE = {
     .key = HARDWARE_ERROR, .asc = 0x44, .ascq = 0x00
@@ -191,6 +196,11 @@ const struct SCSISense sense_code_OVERLAPPED_COMMANDS = {
     .key = ABORTED_COMMAND, .asc = 0x4e, .ascq = 0x00
 };
 
+/* Command aborted, LUN Communication Failure */
+const struct SCSISense sense_code_LUN_COMM_FAILURE = {
+    .key = ABORTED_COMMAND, .asc = 0x08, .ascq = 0x00
+};
+
 /* Unit attention, Capacity data has changed */
 const struct SCSISense sense_code_CAPACITY_CHANGED = {
     .key = UNIT_ATTENTION, .asc = 0x2a, .ascq = 0x09
@@ -199,6 +209,11 @@ const struct SCSISense sense_code_CAPACITY_CHANGED = {
 /* Unit attention, Power on, reset or bus device reset occurred */
 const struct SCSISense sense_code_RESET = {
     .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x00
+};
+
+/* Unit attention, SCSI bus reset */
+const struct SCSISense sense_code_SCSI_BUS_RESET = {
+    .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x02
 };
 
 /* Unit attention, No medium */

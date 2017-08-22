@@ -44,6 +44,8 @@ extern const struct SCSISense sense_code_LUN_NOT_READY;
 extern const struct SCSISense sense_code_NO_MEDIUM;
 /* LUN not ready, medium removal prevented */
 extern const struct SCSISense sense_code_NOT_READY_REMOVAL_PREVENTED;
+/* Medium Error, Unrecoverable Read Error */
+extern const struct SCSISense sense_code_READ_ERROR;
 /* Hardware error, internal target failure */
 extern const struct SCSISense sense_code_TARGET_FAILURE;
 /* Illegal request, invalid command operation code */
@@ -80,6 +82,8 @@ extern const struct SCSISense sense_code_CAPACITY_CHANGED;
 extern const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM;
 /* Unit attention, Power on, reset or bus device reset occurred */
 extern const struct SCSISense sense_code_RESET;
+/* Unit attention, SCSI Bus Reset */
+extern const struct SCSISense sense_code_SCSI_BUS_RESET;
 /* Unit attention, Medium may have changed*/
 extern const struct SCSISense sense_code_MEDIUM_CHANGED;
 /* Unit attention, Reported LUNs data has changed */
@@ -90,6 +94,8 @@ extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 extern const struct SCSISense sense_code_WRITE_PROTECTED;
 /* Data Protection, Space Allocation Failed Write Protect */
 extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
+/* Aborted Command, LUN Communication Failure */
+extern const struct SCSISense sense_code_LUN_COMM_FAILURE;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
