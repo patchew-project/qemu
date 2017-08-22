@@ -101,7 +101,7 @@ static ThrottleGroup *throttle_group_by_name(const char *name)
     return NULL;
 }
 
-static bool throttle_group_exists(const char *name)
+bool throttle_group_exists(const char *name)
 {
     return throttle_group_by_name(name) ? true : false;
 }
@@ -547,6 +547,11 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     ThrottleGroupMember *token;
     int i;
+
+    if (!ts) {
+        /* Discard uninitialized tgm */
+        return;
+    }
 
     assert(tgm->pending_reqs[0] == 0 && tgm->pending_reqs[1] == 0);
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[0]));
