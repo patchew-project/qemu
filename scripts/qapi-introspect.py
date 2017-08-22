@@ -136,6 +136,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         ret = {'name': member.name, 'type': self._use_type(member.type)}
         if member.optional:
             ret['default'] = None
+        if member.ifcond:
+            ret = (ret, member.ifcond)
         return ret
 
     def _gen_variants(self, tag_name, variants):
