@@ -60,6 +60,8 @@ void qdict_destroy_obj(QObject *obj);
         qdict_put(qdict, key, qbool_from_bool(value))
 #define qdict_put_str(qdict, key, value) \
         qdict_put(qdict, key, qstring_from_str(value))
+#define qdict_put_null(qdict, key) \
+        qdict_put(qdict, key, qnull())
 
 /* High level helpers */
 double qdict_get_double(const QDict *qdict, const char *key);
