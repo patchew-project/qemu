@@ -35,17 +35,22 @@ struct QCryptoCipherBuiltinAES {
     QCryptoCipherBuiltinAESContext key_tweak;
     uint8_t iv[AES_BLOCK_SIZE];
 };
+
+#ifdef CONFIG_VNC
 typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
 struct QCryptoCipherBuiltinDESRFB {
     uint8_t *key;
     size_t nkey;
 };
+#endif
 
 typedef struct QCryptoCipherBuiltin QCryptoCipherBuiltin;
 struct QCryptoCipherBuiltin {
     union {
         QCryptoCipherBuiltinAES aes;
+#ifdef CONFIG_VNC
         QCryptoCipherBuiltinDESRFB desrfb;
+#endif
     } state;
     size_t blocksize;
     void (*free)(QCryptoCipher *cipher);
@@ -403,7 +408,9 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
+#ifdef CONFIG_VNC
     case QCRYPTO_CIPHER_ALG_DES_RFB:
+#endif
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
@@ -449,9 +456,11 @@ static QCryptoCipherBuiltin *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
+#ifdef CONFIG_VNC
     case QCRYPTO_CIPHER_ALG_DES_RFB:
         ctxt = qcrypto_cipher_init_des_rfb(mode, key, nkey, errp);
         break;
+#endif
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
