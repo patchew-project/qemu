@@ -25,6 +25,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
+#include "qmp-commands.h"
 
 #define CPUDEF_INIT(_type, _gen, _ec_ga, _mha_pow, _hmfai, _name, _desc) \
     {                                                                    \
@@ -523,7 +524,7 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
     }
 }
 
-CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type,
+CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
                                                       Error **errp)
 {
