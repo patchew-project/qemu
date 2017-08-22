@@ -1,0 +1,5 @@
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+object foo
+    member a: str optional=False
+object q_empty
