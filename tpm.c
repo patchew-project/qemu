@@ -26,9 +26,8 @@ static QLIST_HEAD(, TPMBackend) tpm_backends =
 
 
 #define TPM_MAX_MODELS      1
-#define TPM_MAX_DRIVERS     1
 
-static TPMDriverOps const *be_drivers[TPM_MAX_DRIVERS] = {
+static TPMDriverOps const *be_drivers[TPM_TYPE__MAX] = {
     NULL,
 };
 
@@ -64,31 +63,18 @@ static bool tpm_model_is_registered(enum TpmModel model)
 
 const TPMDriverOps *tpm_get_backend_driver(const char *type)
 {
-    int i;
+    int i = qapi_enum_parse(TpmType_lookup, type, TPM_TYPE__MAX, -1, NULL);
 
-    for (i = 0; i < TPM_MAX_DRIVERS && be_drivers[i] != NULL; i++) {
-        if (!strcmp(TpmType_lookup[be_drivers[i]->type], type)) {
-            return be_drivers[i];
-        }
-    }
-
-    return NULL;
+    return i >= 0 ? be_drivers[i] : NULL;
 }
 
 #ifdef CONFIG_TPM
 
-int tpm_register_driver(const TPMDriverOps *tdo)
+void tpm_register_driver(const TPMDriverOps *tdo)
 {
-    int i;
+    assert(!be_drivers[tdo->type]);
 
-    for (i = 0; i < TPM_MAX_DRIVERS; i++) {
-        if (!be_drivers[i]) {
-            be_drivers[i] = tdo;
-            return 0;
-        }
-    }
-    error_report("Could not register TPM driver");
-    return 1;
+    be_drivers[tdo->type] = tdo;
 }
 
 /*
@@ -101,9 +87,12 @@ static void tpm_display_backend_drivers(void)
 
     fprintf(stderr, "Supported TPM types (choose only one):\n");
 
-    for (i = 0; i < TPM_MAX_DRIVERS && be_drivers[i] != NULL; i++) {
+    for (i = 0; i < TPM_TYPE__MAX; i++) {
+        if (be_drivers[i] == NULL) {
+            continue;
+        }
         fprintf(stderr, "%12s   %s\n",
-                qapi_enum_lookup(TpmType_lookup, be_drivers[i]->type),
+                qapi_enum_lookup(TpmType_lookup, i),
                 be_drivers[i]->desc());
     }
     fprintf(stderr, "\n");
@@ -241,14 +230,7 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
 
 static const TPMDriverOps *tpm_driver_find_by_type(enum TpmType type)
 {
-    int i;
-
-    for (i = 0; i < TPM_MAX_DRIVERS && be_drivers[i] != NULL; i++) {
-        if (be_drivers[i]->type == type) {
-            return be_drivers[i];
-        }
-    }
-    return NULL;
+    return be_drivers[type];
 }
 
 static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
