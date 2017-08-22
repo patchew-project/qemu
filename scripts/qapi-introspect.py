@@ -16,7 +16,7 @@ def to_c_string(s):
     return '"' + s.replace('\\', r'\\').replace('"', r'\"') + '"'
 
 
-def to_qlit(obj, level=0, first_indent=True):
+def to_qlit(obj, level=0, first_indent=True, suffix=''):
 
     def indent(level):
         return level * 4 * ' '
@@ -29,11 +29,11 @@ def to_qlit(obj, level=0, first_indent=True):
     elif isinstance(obj, str):
         ret += 'QLIT_QSTR(' + to_c_string(obj) + ')'
     elif isinstance(obj, list):
-        elts = [to_qlit(elt, level + 1)
+        elts = [to_qlit(elt, level + 1, suffix=',')
                 for elt in obj]
         elts.append(indent(level + 1) + "{}")
         ret += 'QLIT_QLIST(((QLitObject[]) {\n'
-        ret += ',\n'.join(elts) + '\n'
+        ret += '\n'.join(elts) + '\n'
         ret += indent(level) + '}))'
     elif isinstance(obj, dict):
         elts = []
@@ -46,7 +46,7 @@ def to_qlit(obj, level=0, first_indent=True):
         ret += indent(level) + '}))'
     else:
         assert False                # not implemented
-    return ret
+    return ret + suffix
 
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
