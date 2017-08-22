@@ -241,7 +241,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = None
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, ifcond):
         if not gen:
             return
         self.decl += gen_command_decl(name, arg_type, boxed, ret_type)

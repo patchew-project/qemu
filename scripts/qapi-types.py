@@ -201,7 +201,7 @@ typedef struct QEnumLookup {
         self.decl += gen_type_cleanup_decl(name)
         self.defn += gen_type_cleanup(name)
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, values, prefix, ifcond):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
         if not info:
@@ -212,7 +212,7 @@ typedef struct QEnumLookup {
             self._fwdecl += gen_enum(name, values, prefix)
             self.defn += gen_enum_lookup(name, values, prefix)
 
-    def visit_array_type(self, name, info, element_type):
+    def visit_array_type(self, name, info, element_type, ifcond):
         if isinstance(element_type, QAPISchemaBuiltinType):
             self._btin += gen_fwd_object_or_array(name)
             self._btin += gen_array(name, element_type)
@@ -224,7 +224,7 @@ typedef struct QEnumLookup {
             self.decl += gen_array(name, element_type)
             self._gen_type_cleanup(name)
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, base, members, variants, ifcond):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
@@ -238,7 +238,7 @@ typedef struct QEnumLookup {
             # implicit types won't be directly allocated/freed
             self._gen_type_cleanup(name)
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, variants, ifcond):
         self._fwdecl += gen_fwd_object_or_array(name)
         self.decl += gen_object(name, None, [variants.tag_member], variants)
         self._gen_type_cleanup(name)
