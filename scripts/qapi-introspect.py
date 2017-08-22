@@ -26,6 +26,12 @@ def to_qlit(obj, level=0, first_indent=True, suffix=''):
         ret += indent(level)
     if obj is None:
         ret += 'QLIT_QNULL'
+    elif isinstance(obj, tuple):
+        obj, ifcond = obj
+        ret += gen_if(ifcond)
+        ret += to_qlit(obj, level, first_indent=False) + suffix
+        ret += gen_endif(ifcond)
+        suffix = ''
     elif isinstance(obj, str):
         ret += 'QLIT_QSTR(' + to_c_string(obj) + ')'
     elif isinstance(obj, list):
