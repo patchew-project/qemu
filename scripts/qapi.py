@@ -1967,13 +1967,16 @@ static const char *const %(c_name)s_array[] = {
 ''',
                 c_name=c_name(name))
     for value in values:
+        ifcond = None
         if isinstance(value, tuple):
             value, ifcond = value
+        ret += gen_if(ifcond)
         index = c_enum_const(name, value, prefix)
         ret += mcgen('''
     [%(index)s] = "%(value)s",
 ''',
                      index=index, value=value)
+        ret += gen_endif(ifcond)
 
     max_index = c_enum_const(name, '_MAX', prefix)
     ret += mcgen('''
@@ -1999,12 +2002,15 @@ typedef enum %(c_name)s {
                 c_name=c_name(name))
 
     for value in enum_values:
+        ifcond = None
         if isinstance(value, tuple):
             value, ifcond = value
+        ret += gen_if(ifcond)
         ret += mcgen('''
     %(c_enum)s,
 ''',
                      c_enum=c_enum_const(name, value, prefix))
+        ret += gen_endif(ifcond)
 
     ret += mcgen('''
 } %(c_name)s;
