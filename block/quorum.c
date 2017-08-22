@@ -22,6 +22,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/util.h"
 #include "qapi-event.h"
 #include "crypto/hash.h"
 
@@ -867,24 +868,6 @@ static QemuOptsList quorum_runtime_opts = {
     },
 };
 
-static int parse_read_pattern(const char *opt)
-{
-    int i;
-
-    if (!opt) {
-        /* Set quorum as default */
-        return QUORUM_READ_PATTERN_QUORUM;
-    }
-
-    for (i = 0; i < QUORUM_READ_PATTERN__MAX; i++) {
-        if (!strcmp(opt, QuorumReadPattern_lookup[i])) {
-            return i;
-        }
-    }
-
-    return -EINVAL;
-}
-
 static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
                        Error **errp)
 {
@@ -925,7 +908,13 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
         goto exit;
     }
 
-    ret = parse_read_pattern(qemu_opt_get(opts, QUORUM_OPT_READ_PATTERN));
+    if (!qemu_opt_get(opts, QUORUM_OPT_READ_PATTERN)) {
+        ret = QUORUM_READ_PATTERN_QUORUM;
+    } else {
+        ret = qapi_enum_parse(QuorumReadPattern_lookup,
+                              qemu_opt_get(opts, QUORUM_OPT_READ_PATTERN),
+                              QUORUM_READ_PATTERN__MAX, -EINVAL, NULL);
+    }
     if (ret < 0) {
         error_setg(&local_err, "Please set read-pattern as fifo or quorum");
         goto exit;
