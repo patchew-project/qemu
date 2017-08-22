@@ -51,4 +51,6 @@ struct QLitDictEntry {
 
 bool qlit_equal_qobject(QLitObject *lhs, QObject *rhs);
 
+QObject *qobject_from_qlit(const QLitObject *qlit);
+
 #endif /* QLIT_H_ */

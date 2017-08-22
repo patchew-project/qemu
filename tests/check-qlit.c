@@ -58,11 +58,37 @@ static void qlit_equal_qobject_test(void)
     qobject_decref(qobj);
 }
 
+static void qobject_from_qlit_test(void)
+{
+    QObject *obj, *qobj = qobject_from_qlit(&qlit);
+    QDict *qdict;
+    QList *bee;
+
+    qdict = qobject_to_qdict(qobj);
+    g_assert_cmpint(qdict_get_int(qdict, "foo"), ==, 42);
+    g_assert_cmpstr(qdict_get_str(qdict, "bar"), ==, "hello world");
+    g_assert(qobject_type(qdict_get(qdict, "baz")) == QTYPE_QNULL);
+
+    bee = qdict_get_qlist(qdict, "bee");
+    obj = qlist_pop(bee);
+    g_assert_cmpint(qnum_get_int(qobject_to_qnum(obj)), ==, 43);
+    qobject_decref(obj);
+    obj = qlist_pop(bee);
+    g_assert_cmpint(qnum_get_int(qobject_to_qnum(obj)), ==, 44);
+    qobject_decref(obj);
+    obj = qlist_pop(bee);
+    g_assert(qbool_get_bool(qobject_to_qbool(obj)));
+    qobject_decref(obj);
+
+    qobject_decref(qobj);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/qlit/equal_qobject", qlit_equal_qobject_test);
+    g_test_add_func("/qlit/qobject_from_qlit", qobject_from_qlit_test);
 
     return g_test_run();
 }
