@@ -639,6 +639,16 @@ def add_name(name, info, meta, implicit=False):
     all_names[name] = meta
 
 
+def check_if(expr, info):
+    ifcond = expr.get('if')
+    if not ifcond or isinstance(ifcond, str):
+        return
+    if (not isinstance(ifcond, list) or
+            any([not isinstance(elt, str) for elt in ifcond])):
+        raise QAPISemError(info, "'if' condition requires a string or "
+                           "a list of string")
+
+
 def check_type(info, source, value, allow_array=False,
                allow_dict=False, allow_optional=False,
                allow_metas=[]):
@@ -865,6 +875,7 @@ def check_keys(expr_elem, meta, required, optional=[]):
     expr = expr_elem['expr']
     info = expr_elem['info']
     name = expr[meta]
+    optional = optional + ['if']  # all top-level elem accept if
     if not isinstance(name, str):
         raise QAPISemError(info, "'%s' key must have a string value" % meta)
     required = required + [meta]
@@ -880,6 +891,8 @@ def check_keys(expr_elem, meta, required, optional=[]):
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use true value"
                                % (key, meta, name))
+        if key == 'if':
+            check_if(expr, info)
     for key in required:
         if key not in expr:
             raise QAPISemError(info, "Key '%s' is missing from %s '%s'"

@@ -52,6 +52,22 @@ enum QEnumTwo ['value1', 'value2']
     prefix QENUM_TWO
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
+alternate TestIfAlternate
+    tag type
+    case foo: int
+    case bar: TestStruct
+command TestIfCmd q_obj_TestIfCmd-arg -> None
+   gen=True success_response=True boxed=False
+enum TestIfEnum ['foo', 'bar']
+event TestIfEvent q_obj_TestIfEvent-arg
+   boxed=False
+object TestIfStruct
+    member foo: int optional=False
+object TestIfUnion
+    member type: TestIfUnionKind optional=False
+    tag type
+    case foo: q_obj_TestStruct-wrapper
+enum TestIfUnionKind ['foo']
 object TestStruct
     member integer: int optional=False
     member boolean: bool optional=False
@@ -172,6 +188,12 @@ object q_obj_EVENT_D-arg
     member b: str optional=False
     member c: str optional=True
     member enum3: EnumOne optional=True
+object q_obj_TestIfCmd-arg
+    member foo: TestIfStruct optional=False
+object q_obj_TestIfEvent-arg
+    member foo: TestIfStruct optional=False
+object q_obj_TestStruct-wrapper
+    member data: TestStruct optional=False
 object q_obj_UserDefFlatUnion2-base
     member integer: int optional=True
     member string: str optional=False
