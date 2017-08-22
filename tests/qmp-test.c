@@ -129,11 +129,32 @@ static void test_qmp_protocol(void)
     qtest_end();
 }
 
+static void test_qmp_query_schema(void)
+{
+    SchemaInfoList *schema;
+    QDict *resp;
+    Visitor *v;
+
+    qtest_start(common_args);
+
+    resp = qmp("{'execute': 'query-qmp-schema'}");
+    v = qobject_input_visitor_new(qdict_get(resp, "return"));
+    visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
+    g_assert(schema);
+
+    qapi_free_SchemaInfoList(schema);
+    visit_free(v);
+    QDECREF(resp);
+
+    qtest_end();
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("qmp/protocol", test_qmp_protocol);
+    qtest_add_func("qmp/query-schema", test_qmp_query_schema);
 
     return g_test_run();
 }
