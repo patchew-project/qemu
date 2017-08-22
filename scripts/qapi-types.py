@@ -175,6 +175,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.defn = None
         self._fwdecl = None
         self._btin = None
+        self.if_members = ['decl', 'defn', '_fwdecl', '_btin']
 
     def visit_begin(self, schema):
         # gen_object() is recursive, ensure it doesn't visit the empty type
@@ -201,10 +202,12 @@ typedef struct QEnumLookup {
         self.decl = self._btin + self.decl
         self._btin = None
 
-    def _gen_type_cleanup(self, name):
+    @ifcond_decorator
+    def _gen_type_cleanup(self, name, ifcond):
         self.decl += gen_type_cleanup_decl(name)
         self.defn += gen_type_cleanup(name)
 
+    @ifcond_decorator
     def visit_enum_type(self, name, info, values, prefix, ifcond):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
@@ -216,6 +219,7 @@ typedef struct QEnumLookup {
             self._fwdecl += gen_enum(name, values, prefix)
             self.defn += gen_enum_lookup(name, values, prefix)
 
+    @ifcond_decorator
     def visit_array_type(self, name, info, element_type, ifcond):
         if isinstance(element_type, QAPISchemaBuiltinType):
             self._btin += gen_fwd_object_or_array(name)
@@ -226,9 +230,10 @@ typedef struct QEnumLookup {
         else:
             self._fwdecl += gen_fwd_object_or_array(name)
             self.decl += gen_array(name, element_type)
-            self._gen_type_cleanup(name)
+            self._gen_type_cleanup(name, ifcond)
 
-    def _gen_object(self, name, info, base, members, variants):
+    @ifcond_decorator
+    def _gen_object(self, name, info, base, members, variants, ifcond):
         self.decl += gen_object(name, base, members, variants)
         if base and not base.is_implicit():
             self.decl += gen_upcast(name, base)
@@ -236,7 +241,7 @@ typedef struct QEnumLookup {
         # directly use rather than repeat type.is_implicit()?
         if not name.startswith('q_'):
             # implicit types won't be directly allocated/freed
-            self._gen_type_cleanup(name)
+            self._gen_type_cleanup(name, ifcond)
 
     def visit_object_type(self, name, info, base, members, variants, ifcond):
         # Nothing to do for the special empty builtin
@@ -244,12 +249,13 @@ typedef struct QEnumLookup {
             return
         self._fwdecl += gen_fwd_object_or_array(name)
         self.decl += gen_variants_objects(variants)
-        self._gen_object(name, info, base, members, variants)
+        self._gen_object(name, info, base, members, variants, ifcond)
 
     def visit_alternate_type(self, name, info, variants, ifcond):
         self._fwdecl += gen_fwd_object_or_array(name)
         self.decl += gen_variants_objects(variants)
-        self._gen_object(name, info, None, [variants.tag_member], variants)
+        self._gen_object(name, info, None, [variants.tag_member],
+                         variants, ifcond)
 
 # If you link code generated from multiple schemata, you want only one
 # instance of the code for built-in types.  Generate it only when
