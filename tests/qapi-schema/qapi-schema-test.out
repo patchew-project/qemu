@@ -73,8 +73,12 @@ object TestIfUnion
     member type: TestIfUnionKind optional=False
     tag type
     case foo: q_obj_TestStruct-wrapper
+    case union_bar: q_obj_str-wrapper if=defined(TEST_IF_UNION_BAR)
     if defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)
-enum TestIfUnionKind ['foo']
+command TestIfUnionCmd q_obj_TestIfUnionCmd-arg -> None
+   gen=True success_response=True boxed=False
+    if defined(TEST_IF_UNION)
+enum TestIfUnionKind ['foo', ('union_bar', 'defined(TEST_IF_UNION_BAR)')]
     if defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)
 object TestStruct
     member integer: int optional=False
@@ -204,6 +208,9 @@ object q_obj_TestIfEvent-arg
     member foo: TestIfStruct optional=False
     member bar: TestIfEnum optional=False if=defined(TEST_IF_EVT_BAR)
     if defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)
+object q_obj_TestIfUnionCmd-arg
+    member union_cmd_arg: TestIfUnion optional=False
+    if defined(TEST_IF_UNION)
 object q_obj_TestStruct-wrapper
     member data: TestStruct optional=False
 object q_obj_UserDefFlatUnion2-base
