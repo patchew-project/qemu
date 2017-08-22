@@ -769,7 +769,7 @@ int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
         return 0;
     }
 
-    ret = scsi_build_sense(req->sense, req->sense_len, buf, len, true);
+    ret = scsi_convert_sense(req->sense, req->sense_len, buf, len, true);
 
     /*
      * FIXME: clearing unit attention conditions upon autosense should be done
@@ -790,7 +790,7 @@ int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
 
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed)
 {
-    return scsi_build_sense(dev->sense, dev->sense_len, buf, len, fixed);
+    return scsi_convert_sense(dev->sense, dev->sense_len, buf, len, fixed);
 }
 
 void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
@@ -1510,12 +1510,12 @@ const struct SCSISense sense_code_SPACE_ALLOC_FAILED = {
 };
 
 /*
- * scsi_build_sense
+ * scsi_convert_sense
  *
  * Convert between fixed and descriptor sense buffers
  */
-int scsi_build_sense(uint8_t *in_buf, int in_len,
-                     uint8_t *buf, int len, bool fixed)
+int scsi_convert_sense(uint8_t *in_buf, int in_len,
+                       uint8_t *buf, int len, bool fixed)
 {
     bool fixed_in;
     SCSISense sense;
