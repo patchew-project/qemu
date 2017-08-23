@@ -20,10 +20,12 @@ int pci_chsc_sei_nt2_have_event(void)
 /* hw/s390x/sclp.c */
 void s390_pci_sclp_configure(SCCB *sccb)
 {
+    sccb->h.response_code = cpu_to_be16(SCLP_RC_ADAPTER_TYPE_NOT_RECOGNIZED);
 }
 
 void s390_pci_sclp_deconfigure(SCCB *sccb)
 {
+    sccb->h.response_code = cpu_to_be16(SCLP_RC_ADAPTER_TYPE_NOT_RECOGNIZED);
 }
 
 /* target/s390x/kvm.c */
