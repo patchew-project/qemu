@@ -16,6 +16,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen_backend.h"
+#include "qapi-event.h"
 #include "qmp-commands.h"
 
 #include "qemu/error-report.h"
@@ -967,6 +968,7 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
             handle_vmport_ioreq(state, req);
             break;
         case IOREQ_TYPE_TIMEOFFSET:
+            qapi_event_send_rtc_change((int64_t)req->data, &error_abort);
             break;
         case IOREQ_TYPE_INVALIDATE:
             xen_invalidate_map_cache();
