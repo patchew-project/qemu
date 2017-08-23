@@ -136,7 +136,7 @@ static GSourceFuncs vus_gsrc_funcs = {
 };
 
 static void vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
-                         vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
+                         vu_watch_cb vu_cb, gpointer data)
 {
     GSource *vus_gsrc;
     vus_gsrc_t *vus_src;
@@ -144,8 +144,7 @@ static void vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
 
     assert(vdev_scsi);
     assert(fd >= 0);
-    assert(vu_cb || gsrc_cb);
-    assert(!(vu_cb && gsrc_cb));
+    assert(vu_cb);
 
     vus_gsrc = g_source_new(&vus_gsrc_funcs, sizeof(vus_gsrc_t));
     vus_src = (vus_gsrc_t *)vus_gsrc;
@@ -156,7 +155,6 @@ static void vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
     vus_src->vu_cb = vu_cb;
 
     g_source_add_poll(vus_gsrc, &vus_src->gfd);
-    g_source_set_callback(vus_gsrc, gsrc_cb, data, NULL);
     id = g_source_attach(vus_gsrc, NULL);
     assert(id);
     g_source_unref(vus_gsrc);
@@ -450,7 +448,7 @@ static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
         (void)g_tree_remove(vdev_scsi->fdmap, (gpointer)(uintptr_t)fd);
     }
 
-    vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, NULL, pvt);
+    vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, pvt);
 }
 
 static void vus_del_watch_cb(VuDev *vu_dev, int fd)
@@ -578,7 +576,8 @@ static const VuDevIface vus_iface = {
     .queue_set_started = vus_queue_set_started,
 };
 
-static gboolean vus_vhost_cb(gpointer data)
+static gboolean vus_vhost_cb(GIOChannel *source, GIOCondition condition,
+                             gpointer data)
 {
     VuDev *vu_dev = (VuDev *)data;
 
@@ -679,6 +678,7 @@ static int vdev_scsi_add_iscsi_lun(vhost_scsi_dev_t *vdev_scsi,
 
 static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
 {
+    GIOChannel *chan;
     int cli_sock;
     int ret = 0;
 
@@ -699,10 +699,10 @@ static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
             vus_del_watch_cb,
             &vus_iface);
 
-    vus_gsrc_new(vdev_scsi, cli_sock, G_IO_IN, NULL, vus_vhost_cb,
-                 &vdev_scsi->vu_dev);
-
+    chan = g_io_channel_unix_new(cli_sock);
+    g_io_add_watch(chan, G_IO_IN, vus_vhost_cb, &vdev_scsi->vu_dev);
     g_main_loop_run(vdev_scsi->loop);
+    g_io_channel_unref(chan);
 
     vu_deinit(&vdev_scsi->vu_dev);
 
