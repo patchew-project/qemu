@@ -28,7 +28,6 @@ typedef struct VusIscsiLun {
 typedef struct VusDev {
     VugDev parent;
 
-    int server_sock;
     VusIscsiLun lun;
 } VusDev;
 
@@ -371,48 +370,30 @@ fail:
 
 static void vdev_scsi_free(VusDev *vdev_scsi)
 {
-    if (vdev_scsi->server_sock >= 0) {
-        close(vdev_scsi->server_sock);
-    }
     g_free(vdev_scsi);
 }
 
-static VusDev *vdev_scsi_new(int server_sock)
+static VusDev *vdev_scsi_new(void)
 {
-    VusDev *vdev_scsi;
-
-    assert(server_sock >= 0);
-
-    vdev_scsi = g_new0(VusDev, 1);
-    vdev_scsi->server_sock = server_sock;
-
-    return vdev_scsi;
+    return g_new0(VusDev, 1);
 }
 
-static int vdev_scsi_run(VusDev *vdev_scsi)
+static int vdev_scsi_run(VusDev *vdev_scsi, int sock)
 {
     GMainLoop *loop;
     GIOChannel *chan;
-    int cli_sock;
     int ret = 0;
 
     assert(vdev_scsi);
-    assert(vdev_scsi->server_sock >= 0);
-
-    cli_sock = accept(vdev_scsi->server_sock, NULL, NULL);
-    if (cli_sock < 0) {
-        perror("accept");
-        return -1;
-    }
 
     loop = g_main_loop_new(NULL, FALSE);
     vug_init(&vdev_scsi->parent,
-             cli_sock,
+             sock,
              loop,
              vus_panic_cb,
              &vus_iface);
 
-    chan = g_io_channel_unix_new(cli_sock);
+    chan = g_io_channel_unix_new(sock);
     g_io_add_watch(chan, G_IO_IN, vus_vhost_cb, vdev_scsi);
     g_main_loop_run(loop);
     g_io_channel_unref(chan);
@@ -428,7 +409,7 @@ int main(int argc, char **argv)
     VusDev *vdev_scsi = NULL;
     char *unix_fn = NULL;
     char *iscsi_uri = NULL;
-    int sock, opt, err = EXIT_SUCCESS;
+    int lsock = -1, csock = -1, opt, err = EXIT_SUCCESS;
 
     while ((opt = getopt(argc, argv, "u:i:")) != -1) {
         switch (opt) {
@@ -448,17 +429,24 @@ int main(int argc, char **argv)
         goto help;
     }
 
-    sock = unix_sock_new(unix_fn);
-    if (sock < 0) {
+    lsock = unix_sock_new(unix_fn);
+    if (lsock < 0) {
         goto err;
     }
-    vdev_scsi = vdev_scsi_new(sock);
+
+    csock = accept(lsock, NULL, NULL);
+    if (csock < 0) {
+        perror("accept");
+        goto err;
+    }
+
+    vdev_scsi = vdev_scsi_new();
 
     if (vus_iscsi_add_lun(&vdev_scsi->lun, iscsi_uri) != 0) {
         goto err;
     }
 
-    if (vdev_scsi_run(vdev_scsi) != 0) {
+    if (vdev_scsi_run(vdev_scsi, csock) != 0) {
         goto err;
     }
 
@@ -466,6 +454,12 @@ out:
     if (vdev_scsi) {
         vdev_scsi_free(vdev_scsi);
         unlink(unix_fn);
+    }
+    if (csock >= 0) {
+        close(csock);
+    }
+    if (lsock >= 0) {
+        close(lsock);
     }
     g_free(unix_fn);
     g_free(iscsi_uri);
