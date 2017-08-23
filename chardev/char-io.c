@@ -122,7 +122,6 @@ GSource *io_add_watch_poll(Chardev *chr,
     g_free(name);
 
     g_source_attach(&iwp->parent, context);
-    g_source_unref(&iwp->parent);
     return (GSource *)iwp;
 }
 
@@ -131,12 +130,24 @@ static void io_remove_watch_poll(GSource *source)
     IOWatchPoll *iwp;
 
     iwp = io_watch_poll_from_source(source);
+
+    /*
+     * Here the order of destruction really matters.  We need to first
+     * detach the IOWatchPoll object from the context (which may still
+     * be running in another loop thread), only after that could we
+     * continue to operate on iwp->src, or there may be risk condition
+     * between current thread and the context loop thread.
+     *
+     * Let's blame the glib bug mentioned in commit 2b3167 (again) for
+     * this extra complexity.
+     */
+    g_source_destroy(&iwp->parent);
     if (iwp->src) {
         g_source_destroy(iwp->src);
         g_source_unref(iwp->src);
         iwp->src = NULL;
     }
-    g_source_destroy(&iwp->parent);
+    g_source_unref(&iwp->parent);
 }
 
 void remove_fd_in_watch(Chardev *chr)
