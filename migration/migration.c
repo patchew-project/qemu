@@ -145,6 +145,7 @@ MigrationIncomingState *migration_incoming_get_current(void)
         mis_current.state = MIGRATION_STATUS_NONE;
         memset(&mis_current, 0, sizeof(MigrationIncomingState));
         qemu_mutex_init(&mis_current.rp_mutex);
+        qemu_mutex_init(&mis_current.mgmt_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
         once = true;
     }
@@ -1171,6 +1172,7 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!deferred_incoming) {
         error_setg(errp, "For use with '-incoming defer'");
@@ -1180,7 +1182,11 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
         error_setg(errp, "The incoming migration has already been started");
     }
 
+    qemu_mutex_lock(&mis->mgmt_mutex);
+
     qemu_start_incoming_migration(uri, &local_err);
+
+    qemu_mutex_unlock(&mis->mgmt_mutex);
 
     if (local_err) {
         error_propagate(errp, local_err);
