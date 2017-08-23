@@ -13,11 +13,22 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include <qemu/osdep.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
+#include <inttypes.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/eventfd.h>
+#include <sys/mman.h>
 #include <linux/vhost.h>
 
 #include "qemu/atomic.h"
+#include "qemu/compiler.h"
 
 #include "libvhost-user.h"
 
@@ -33,6 +44,14 @@
             fprintf(stderr, __VA_ARGS__);        \
         }                                       \
     } while (0)
+
+#ifndef MIN
+#define MIN(x, y) ({                            \
+        typeof(x) _min1 = (x);                  \
+        typeof(y) _min2 = (y);                  \
+        (void) (&_min1 == &_min2);              \
+        _min1 < _min2 ? _min1 : _min2; })
+#endif
 
 static const char *
 vu_request_to_string(int req)
@@ -81,7 +100,7 @@ vu_panic(VuDev *dev, const char *msg, ...)
     va_list ap;
 
     va_start(ap, msg);
-    buf = g_strdup_vprintf(msg, ap);
+    vasprintf(&buf, msg, ap);
     va_end(ap);
 
     dev->broken = true;
@@ -853,7 +872,7 @@ vu_dispatch(VuDev *dev)
     success = true;
 
 end:
-    g_free(vmsg.data);
+    free(vmsg.data);
     return success;
 }
 
