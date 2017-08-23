@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Test full backup functionality of qemu-backup tool
+#
+# Copyright (C) 2009 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=chugh.ishani@research.iiit.ac.in
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt generic
+_supported_proto generic
+_supported_os Linux
+
+
+CONFIG_FILE=$TEST_DIR/backup-config
+SOCKET=unix:$TEST_DIR/backup_socket
+size=128M
+
+_make_test_img $size
+export QEMU_BACKUP_CONFIG=$CONFIG_FILE
+qemu_comm_method="monitor"
+echo
+_launch_qemu -drive if=virtio,file=$TEST_IMG -qmp $SOCKET,server,nowait
+$PYTHON ../../contrib/backup/qemu-backup.py guest add --guest adad --qmp $SOCKET
+$PYTHON ../../contrib/backup/qemu-backup.py drive add --id virtio0 --guest adad --target $TEST_DIR/virtio0
+echo
+echo "== Creating backup =="
+$PYTHON ../../contrib/backup/qemu-backup.py backup --guest adad
+_send_qemu_cmd $QEMU_HANDLE 'quit' ''
+wait=1 _cleanup_qemu
+echo
+echo "== Comparing images =="
+$QEMU_IMG compare $TEST_DIR/virtio0 $TEST_IMG
+rm $TEST_DIR/virtio0
+
+_launch_qemu -drive if=virtio,id=virtio0,file=$TEST_IMG -qmp $SOCKET,server,nowait
+echo
+echo "== Writing Pattern =="
+_send_qemu_cmd $QEMU_HANDLE 'qemu-io virtio0 "write -P 0x22 0 1M"' "(qemu)" | _filter_qemu_io
+echo
+echo "== Creating backup =="
+$PYTHON ../../contrib/backup/qemu-backup.py backup --guest adad
+_send_qemu_cmd $QEMU_HANDLE 'quit' ''
+wait=1 _cleanup_qemu
+echo
+echo "== Comparing images =="
+$QEMU_IMG compare $TEST_DIR/virtio0 $TEST_IMG
+rm $TEST_DIR/virtio0
+rm $CONFIG_FILE
+
+echo "*** done"
+status=0
