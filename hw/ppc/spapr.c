@@ -790,12 +790,41 @@ out:
     return ret;
 }
 
+static bool spapr_hotplugged_dev_before_cas(void)
+{
+    Object *drc_container, *obj;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+
+    drc_container = container_get(object_get_root(), "/dr-connector");
+    object_property_iter_init(&iter, drc_container);
+    while ((prop = object_property_iter_next(&iter))) {
+        if (!strstart(prop->type, "link<", NULL)) {
+            continue;
+        }
+        obj = object_property_get_link(drc_container, prop->name, NULL);
+        drc = SPAPR_DR_CONNECTOR(obj);
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        if (drc->dev && drc->dev->hotplugged &&
+                (drc->state == drck->empty_state)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
                                  target_ulong addr, target_ulong size,
                                  sPAPROptionVector *ov5_updates)
 {
     void *fdt, *fdt_skel;
     sPAPRDeviceTreeUpdateHeader hdr = { .version_id = 1 };
+
+    if (spapr_hotplugged_dev_before_cas()) {
+        return 1;
+    }
 
     size -= sizeof(hdr);
 
@@ -2710,9 +2739,22 @@ static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+/*
+ * 'h_client_architecture_support' will set at least OV5_FORM1_AFFINITY
+ * in ov5_cas when intersecting it with spapr->ov5 and ov5_guest. It's safe
+ * then to assume that CAS ov5_cas will have something set after CAS.
+ */
+bool spapr_cas_completed(sPAPRMachineState *spapr)
+{
+    if (spapr->ov5_cas == NULL) {
+        return false;
+    }
+    return !spapr_ovec_is_unset(spapr->ov5_cas);
+}
+
 static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                            uint32_t node, bool dedicated_hp_event_source,
-                           Error **errp)
+                           sPAPRMachineState *spapr, Error **errp)
 {
     sPAPRDRConnector *drc;
     uint32_t nr_lmbs = size/SPAPR_MEMORY_BLOCK_SIZE;
@@ -2748,10 +2790,18 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
         }
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
-    /* send hotplug notification to the
-     * guest only in case of hotplugged memory
+
+    /*
+     * Send hotplug notification interrupt to the guest only
+     * in case of hotplugged memory.
+     *
+     * Before CAS, we don't know how to queue up events yet because
+     * we don't know if the guest is able to handle HOTPLUG or
+     * EPOW (see rtas_event_log_to_source). In this case, do
+     * not queue up the event. The memory will be left in
+     * the 'empty_state' and will trigger a CAS reboot later.
      */
-    if (hotplugged) {
+    if (hotplugged && spapr_cas_completed(spapr)) {
         if (dedicated_hp_event_source) {
             drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
@@ -2795,7 +2845,7 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     spapr_add_lmbs(dev, addr, size, node,
                    spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT),
-                   &local_err);
+                   ms, &local_err);
     if (local_err) {
         goto out_unplug;
     }
@@ -3113,8 +3163,18 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             /*
              * Send hotplug notification interrupt to the guest only
              * in case of hotplugged CPUs.
+             *
+             * Before CAS, we don't know how to queue up events yet because
+             * we don't know if the guest is able to handle HOTPLUG or
+             * EPOW (see rtas_event_log_to_source). In this case, do
+             * not queue up the event.
+             *
+             * A hotplugged CPU before CAS will trigger a CAS reboot
+             * later on.
              */
-            spapr_hotplug_req_add_by_index(drc);
+            if (spapr_cas_completed(spapr)) {
+                spapr_hotplug_req_add_by_index(drc);
+            }
         } else {
             spapr_drc_reset(drc);
         }
