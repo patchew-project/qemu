@@ -2117,6 +2117,10 @@ static void eepro100_register_types(void)
         type_info.class_init = eepro100_class_init;
         type_info.instance_size = sizeof(EEPRO100State);
         type_info.instance_init = eepro100_instance_init;
+        type_info.interfaces = (InterfaceInfo[]) {
+            { INTERFACE_LEGACY_PCI_DEVICE },
+            { },
+        };
 
         type_register(&type_info);
     }
