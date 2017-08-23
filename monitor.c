@@ -125,6 +125,8 @@ typedef struct mon_cmd_t {
     const char *args_type;
     const char *params;
     const char *help;
+    /* Whether this command can be run without taking BQL? */
+    bool without_bql;
     void (*cmd)(Monitor *mon, const QDict *qdict);
     /* @sub_table is a list of 2nd level of commands. If it does not exist,
      * cmd should be used. If it exists, sub_table[?].cmd should be
@@ -3152,6 +3154,14 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
         monitor_printf(mon, "Try \"help %s\" for more information\n",
                        cmd->name);
         return;
+    }
+
+    if (cmd->without_bql) {
+        /*
+         * This is similar to QMP's "without-bql".  See comments in
+         * do_qmp_dispatch().
+         */
+        take_bql = false;
     }
 
     if (take_bql) {
