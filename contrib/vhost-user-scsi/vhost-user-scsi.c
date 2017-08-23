@@ -245,7 +245,7 @@ struct scsi_task {
 
 /** libiscsi integration **/
 
-static int iscsi_add_lun(VusIscsiLun *lun, char *iscsi_uri)
+static int vus_iscsi_add_lun(VusIscsiLun *lun, char *iscsi_uri)
 {
     struct iscsi_url *iscsi_url;
     struct iscsi_context *iscsi_ctx;
@@ -705,7 +705,7 @@ int main(int argc, char **argv)
     }
     vdev_scsi = vdev_scsi_new(sock);
 
-    if (iscsi_add_lun(&vdev_scsi->lun, iscsi_uri) != 0) {
+    if (vus_iscsi_add_lun(&vdev_scsi->lun, iscsi_uri) != 0) {
         goto err;
     }
 
