@@ -36,6 +36,7 @@ typedef signed short int16_t;
 typedef signed char int8_t;
 
 typedef uint32_t uintptr_t;
+typedef uint32_t size_t;
 
 
 /* stdarg.h */
@@ -58,5 +59,6 @@ static inline void outb(uint16_t port, uint8_t data)
 
 void printf(const char *fmt, ...);
 void* memcpy(void *dest, const void *src, int n);
+void *memset(void *s, int c, size_t n);
 
 #endif
