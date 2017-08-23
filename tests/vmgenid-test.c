@@ -67,7 +67,7 @@ static uint32_t acpi_find_vgia(void)
     g_assert_cmpint(tables_nr, >, 0);
 
     /* get the addresses of the tables pointed by rsdt */
-    tables = g_new0(uint32_t, tables_nr);
+    tables = g_malloc0(sizeof(uint32_t) * tables_nr);
     ACPI_READ_ARRAY_PTR(tables, tables_nr, rsdt);
 
     for (i = 0; i < tables_nr; i++) {
