@@ -195,6 +195,12 @@ enum {
 #define PCI_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PCIDeviceClass, (obj), TYPE_PCI_DEVICE)
 
+/* Interface implemented by devices that can be plugged on PCIe buses */
+#define INTERFACE_PCIE_DEVICE "pci-express-device"
+
+/* Interface implemented by devices that can be plugged on legacy PCI buses */
+#define INTERFACE_LEGACY_PCI_DEVICE "legacy-pci-device"
+
 typedef struct PCIINTxRoute {
     enum {
         PCI_INTX_ENABLED,
