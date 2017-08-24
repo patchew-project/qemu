@@ -29,6 +29,7 @@ run_qemu() {
     printf %b "\n\n=== Running test case: $kernel $* ===\n\n" >> test.log
 
     $QEMU \
+        -cpu pentium \
         -kernel $kernel \
         -display none \
         -device isa-debugcon,chardev=stdio \

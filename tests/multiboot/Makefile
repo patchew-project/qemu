@@ -1,5 +1,5 @@
 CC=gcc
-CCFLAGS=-m32 -Wall -Wextra -Werror -fno-stack-protector -nostdinc -fno-builtin
+CCFLAGS=-m32 -Wall -Wextra -Werror -fno-stack-protector -nostdinc -fno-builtin -march=pentium
 ASFLAGS=-m32
 
 LD=ld

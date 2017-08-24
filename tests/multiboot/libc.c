@@ -33,6 +33,15 @@ void* memcpy(void *dest, const void *src, int n)
 
     return dest;
 }
+void *memset(void *s, int c, size_t n)
+{
+    size_t i;
+    char *d = s;
+    for (i = 0; i < n; i++) {
+        *d++ = c;
+    }
+    return s;
+}
 
 static void print_char(char c)
 {
