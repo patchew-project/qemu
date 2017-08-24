@@ -67,6 +67,28 @@ end:
     return success;
 }
 
+static bool qlit_equal_qlist(const QLitObject *lhs, const QList *qlist)
+{
+    QListCompareHelper helper;
+    int i;
+
+    for (i = 0; lhs->value.qlist[i].type != QTYPE_NONE; i++) {
+        continue;
+    }
+
+    if (qlist_size(qlist) != i) {
+        return false;
+    }
+
+    helper.index = 0;
+    helper.objs = lhs->value.qlist;
+    helper.result = true;
+
+    qlist_iter(qlist, compare_helper, &helper);
+
+    return helper.result;
+}
+
 bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
 {
     int64_t val;
@@ -82,21 +104,12 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
         val = qnum_get_int(qobject_to_qnum(rhs));
         return lhs->value.qnum == val;
     case QTYPE_QSTRING:
-        return (strcmp(lhs->value.qstr,
-                       qstring_get_str(qobject_to_qstring(rhs))) == 0);
+        return g_str_equal(lhs->value.qstr,
+                           qstring_get_str(qobject_to_qstring(rhs)));
     case QTYPE_QDICT:
         return qlit_equal_qdict(lhs, qobject_to_qdict(rhs));
-    case QTYPE_QLIST: {
-        QListCompareHelper helper;
-
-        helper.index = 0;
-        helper.objs = lhs->value.qlist;
-        helper.result = true;
-
-        qlist_iter(qobject_to_qlist(rhs), compare_helper, &helper);
-
-        return helper.result;
-    }
+    case QTYPE_QLIST:
+        return qlit_equal_qlist(lhs, qobject_to_qlist(rhs));
     case QTYPE_QNULL:
         return true;
     default:
