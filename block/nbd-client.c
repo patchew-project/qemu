@@ -371,7 +371,7 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     qio_channel_attach_aio_context(QIO_CHANNEL(client->ioc), new_context);
-    aio_co_schedule(new_context, client->read_reply_co);
+    qemu_aio_coroutine_enter(new_context, client->read_reply_co);
 }
 
 void nbd_client_close(BlockDriverState *bs)
