@@ -53,7 +53,7 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
     case QTYPE_QBOOL:
         return lhs->value.qbool == qbool_get_bool(qobject_to_qbool(rhs));
     case QTYPE_QNUM:
-        g_assert(qnum_get_try_int(qobject_to_qnum(rhs), &val));
+        val = qnum_get_int(qobject_to_qnum(rhs));
         return lhs->value.qnum == val;
     case QTYPE_QSTRING:
         return (strcmp(lhs->value.qstr,
