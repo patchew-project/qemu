@@ -41,6 +41,32 @@ static void compare_helper(QObject *obj, void *opaque)
         qlit_equal_qobject(&helper->objs[helper->index++], obj);
 }
 
+static bool qlit_equal_qdict(const QLitObject *lhs, const QDict *qdict)
+{
+    QDict *dict = qdict_clone_shallow(qdict);
+    bool success = false;
+    int i;
+
+    for (i = 0; lhs->value.qdict[i].key; i++) {
+        QObject *obj = qdict_get(dict, lhs->value.qdict[i].key);
+
+        if (!qlit_equal_qobject(&lhs->value.qdict[i].value, obj)) {
+            goto end;
+        }
+        qdict_del(dict, lhs->value.qdict[i].key);
+    }
+
+    if (qdict_size(dict) != 0) {
+        goto end;
+    }
+
+    success = true;
+
+end:
+    QDECREF(dict);
+    return success;
+}
+
 bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
 {
     int64_t val;
@@ -58,20 +84,8 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
     case QTYPE_QSTRING:
         return (strcmp(lhs->value.qstr,
                        qstring_get_str(qobject_to_qstring(rhs))) == 0);
-    case QTYPE_QDICT: {
-        int i;
-
-        for (i = 0; lhs->value.qdict[i].key; i++) {
-            QObject *obj = qdict_get(qobject_to_qdict(rhs),
-                                     lhs->value.qdict[i].key);
-
-            if (!qlit_equal_qobject(&lhs->value.qdict[i].value, obj)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    case QTYPE_QDICT:
+        return qlit_equal_qdict(lhs, qobject_to_qdict(rhs));
     case QTYPE_QLIST: {
         QListCompareHelper helper;
 
