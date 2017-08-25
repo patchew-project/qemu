@@ -271,9 +271,12 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 
             acb->ret = 0;
             s->acb[i] = NULL;
-            qemu_mutex_unlock(&s->s->mutex);
-            aio_co_wake(acb->co);
-            qemu_mutex_lock(&s->s->mutex);
+
+            if (qemu_coroutine_self() != acb->co) {
+                qemu_mutex_unlock(&s->s->mutex);
+                aio_co_wake(acb->co);
+                qemu_mutex_lock(&s->s->mutex);
+            }
         }
     }
 
