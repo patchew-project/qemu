@@ -2707,7 +2707,7 @@ static void mem_commit(MemoryListener *listener)
 
     atomic_rcu_set(&as->dispatch, next);
     if (cur) {
-        call_rcu(cur, address_space_dispatch_free, rcu);
+        address_space_dispatch_free(cur);
     }
 }
 
