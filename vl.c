@@ -1244,7 +1244,10 @@ static void smp_parse(QemuOpts *opts)
         }
 
         max_cpus = qemu_opt_get_number(opts, "maxcpus", cpus);
-
+        if (max_cpus <= 0) {
+            error_report("Invalid max_cpus : %d", max_cpus);
+            exit(1);
+        }
         if (max_cpus < cpus) {
             error_report("maxcpus must be equal to or greater than smp");
             exit(1);
