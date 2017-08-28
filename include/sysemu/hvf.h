@@ -34,12 +34,6 @@ typedef struct hvf_slot {
     int slot_id;
 } hvf_slot;
 
-typedef struct HVFState {
-    AccelState parent;
-    hvf_slot slots[32];
-    int num_slots;
-} HVFState;
-
 struct hvf_vcpu_caps {
     uint64_t vmx_cap_pinbased;
     uint64_t vmx_cap_procbased;
@@ -48,6 +42,15 @@ struct hvf_vcpu_caps {
     uint64_t vmx_cap_exit;
     uint64_t vmx_cap_preemption_timer;
 };
+
+typedef struct HVFState {
+    AccelState parent;
+    hvf_slot slots[32];
+    int num_slots;
+
+    struct hvf_vcpu_caps *hvf_caps;
+} HVFState;
+extern HVFState *hvf_state;
 
 void hvf_set_phys_mem(MemoryRegionSection *, bool);
 void hvf_handle_io(CPUArchState *, uint16_t, void *,
@@ -86,6 +89,9 @@ void vmx_update_tpr(CPUState *);
 void update_apic_tpr(CPUState *);
 int hvf_put_registers(CPUState *);
 void vmx_clear_int_window_exiting(CPUState *cpu);
+
+uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
+                                 int reg);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 

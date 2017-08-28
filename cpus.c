@@ -37,7 +37,9 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "sysemu/hax.h"
+#ifdef CONFIG_HVF
 #include "sysemu/hvf.h"
+#endif
 #include "qmp-commands.h"
 #include "exec/exec-all.h"
 
