@@ -20,10 +20,12 @@
 #include "qemu/bitops.h"
 #include "exec/memory.h"
 #include "sysemu/accel.h"
+
+#ifdef CONFIG_HVF
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
 #include <Hypervisor/hv_error.h>
-
+#endif
 
 typedef struct hvf_slot {
     uint64_t start;
@@ -85,7 +87,6 @@ void __hvf_cpu_synchronize_state(CPUState *, run_on_cpu_data);
 void __hvf_cpu_synchronize_post_reset(CPUState *, run_on_cpu_data);
 void vmx_update_tpr(CPUState *);
 void update_apic_tpr(CPUState *);
-int apic_get_highest_priority_irr(DeviceState *);
 int hvf_put_registers(CPUState *);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
