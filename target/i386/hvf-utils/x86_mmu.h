@@ -14,7 +14,7 @@
 #define PT_GLOBAL       (1 << 8)
 #define PT_NX           (1llu << 63)
 
-// error codes
+/* error codes */
 #define MMU_PAGE_PT             (1 << 0)
 #define MMU_PAGE_WT             (1 << 1)
 #define MMU_PAGE_US             (1 << 2)
@@ -22,7 +22,7 @@
 
 bool mmu_gva_to_gpa(struct CPUState *cpu, addr_t gva, addr_t *gpa);
 
-void vmx_write_mem(struct CPUState* cpu, addr_t gva, void *data, int bytes);
-void vmx_read_mem(struct CPUState* cpu, void *data, addr_t gva, int bytes);
+void vmx_write_mem(struct CPUState *cpu, addr_t gva, void *data, int bytes);
+void vmx_read_mem(struct CPUState *cpu, void *data, addr_t gva, int bytes);
 
 #endif /* __X86_MMU_H__ */

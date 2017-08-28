@@ -54,10 +54,12 @@ struct gpt_translation {
 
 static int gpt_top_level(struct CPUState *cpu, bool pae)
 {
-    if (!pae)
+    if (!pae) {
         return 2;
-    if (x86_is_long_mode(cpu))
+    }
+    if (x86_is_long_mode(cpu)) {
         return 4;
+    }
 
     return 3;
 }
@@ -74,18 +76,21 @@ static inline int pte_size(bool pae)
 }
 
 
-static bool get_pt_entry(struct CPUState *cpu, struct gpt_translation *pt, int level, bool pae)
+static bool get_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
+                         int level, bool pae)
 {
     int index;
     uint64_t pte = 0;
     addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
     addr_t gpa = pt->pte[level] & page_mask;
 
-    if (level == 3 && !x86_is_long_mode(cpu))
+    if (level == 3 && !x86_is_long_mode(cpu)) {
         gpa = pt->pte[level];
+    }
 
     index = gpt_entry(pt->gva, level, pae);
-    address_space_rw(&address_space_memory, gpa + index * pte_size(pae), MEMTXATTRS_UNSPECIFIED, (uint8_t *)&pte, pte_size(pae), 0);
+    address_space_rw(&address_space_memory, gpa + index * pte_size(pae),
+                     MEMTXATTRS_UNSPECIFIED, (uint8_t *)&pte, pte_size(pae), 0);
 
     pt->pte[level - 1] = pte;
 
@@ -93,32 +98,38 @@ static bool get_pt_entry(struct CPUState *cpu, struct gpt_translation *pt, int l
 }
 
 /* test page table entry */
-static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt, int level, bool *is_large, bool pae)
+static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
+                          int level, bool *is_large, bool pae)
 {
     uint64_t pte = pt->pte[level];
-    
-    if (pt->write_access)
+
+    if (pt->write_access) {
         pt->err_code |= MMU_PAGE_WT;
-    if (pt->user_access)
+    }
+    if (pt->user_access) {
         pt->err_code |= MMU_PAGE_US;
-    if (pt->exec_access)
+    }
+    if (pt->exec_access) {
         pt->err_code |= MMU_PAGE_NX;
+    }
 
     if (!pte_present(pte)) {
-        addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
+        /* addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK; */
         return false;
     }
-    
-    if (pae && !x86_is_long_mode(cpu) && 2 == level)
+
+    if (pae && !x86_is_long_mode(cpu) && 2 == level) {
         goto exit;
-    
+    }
+
     if (1 == level && pte_large_page(pte)) {
         pt->err_code |= MMU_PAGE_PT;
         *is_large = true;
     }
-    if (!level)
+    if (!level) {
         pt->err_code |= MMU_PAGE_PT;
-        
+    }
+
     addr_t cr0 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR0);
     /* check protection */
     if (cr0 & CR0_WP) {
@@ -134,7 +145,7 @@ static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt, int 
     if (pae && pt->exec_access && !pte_exec_access(pte)) {
         return false;
     }
-    
+
 exit:
     /* TODO: check reserved bits */
     return true;
@@ -149,22 +160,24 @@ static inline uint64_t large_page_gpa(struct gpt_translation *pt, bool pae)
 {
     VM_PANIC_ON(!pte_large_page(pt->pte[1]))
     /* 2Mb large page  */
-    if (pae)
+    if (pae) {
         return (pt->pte[1] & PAE_PTE_LARGE_PAGE_MASK) | (pt->gva & 0x1fffff);
-    
+    }
+
     /* 4Mb large page */
     return pse_pte_to_page(pt->pte[1]) | (pt->gva & 0x3fffff);
 }
 
 
 
-static bool walk_gpt(struct CPUState *cpu, addr_t addr, int err_code, struct gpt_translation* pt, bool pae)
+static bool walk_gpt(struct CPUState *cpu, addr_t addr, int err_code,
+                     struct gpt_translation *pt, bool pae)
 {
     int top_level, level;
     bool is_large = false;
     addr_t cr3 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR3);
     addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
-    
+
     memset(pt, 0, sizeof(*pt));
     top_level = gpt_top_level(cpu, pae);
 
@@ -173,7 +186,7 @@ static bool walk_gpt(struct CPUState *cpu, addr_t addr, int err_code, struct gpt
     pt->user_access = (err_code & MMU_PAGE_US);
     pt->write_access = (err_code & MMU_PAGE_WT);
     pt->exec_access = (err_code & MMU_PAGE_NX);
-    
+
     for (level = top_level; level > 0; level--) {
         get_pt_entry(cpu, pt, level, pae);
 
@@ -181,14 +194,16 @@ static bool walk_gpt(struct CPUState *cpu, addr_t addr, int err_code, struct gpt
             return false;
         }
 
-        if (is_large)
+        if (is_large) {
             break;
+        }
     }
 
-    if (!is_large)
+    if (!is_large) {
         pt->gpa = (pt->pte[0] & page_mask) | (pt->gva & 0xfff);
-    else
+    } else {
         pt->gpa = large_page_gpa(pt, pae);
+    }
 
     return true;
 }
@@ -214,18 +229,20 @@ bool mmu_gva_to_gpa(struct CPUState *cpu, addr_t gva, addr_t *gpa)
     return false;
 }
 
-void vmx_write_mem(struct CPUState* cpu, addr_t gva, void *data, int bytes)
+void vmx_write_mem(struct CPUState *cpu, addr_t gva, void *data, int bytes)
 {
     addr_t gpa;
 
     while (bytes > 0) {
-        // copy page
+        /* copy page */
         int copy = MIN(bytes, 0x1000 - (gva & 0xfff));
 
         if (!mmu_gva_to_gpa(cpu, gva, &gpa)) {
-            VM_PANIC_ON_EX(1, "%s: mmu_gva_to_gpa %llx failed\n", __FUNCTION__, gva);
+            VM_PANIC_ON_EX(1, "%s: mmu_gva_to_gpa %llx failed\n", __func__,
+                           gva);
         } else {
-            address_space_rw(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED, data, copy, 1);
+            address_space_rw(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED,
+                             data, copy, 1);
         }
 
         bytes -= copy;
@@ -234,18 +251,20 @@ void vmx_write_mem(struct CPUState* cpu, addr_t gva, void *data, int bytes)
     }
 }
 
-void vmx_read_mem(struct CPUState* cpu, void *data, addr_t gva, int bytes)
+void vmx_read_mem(struct CPUState *cpu, void *data, addr_t gva, int bytes)
 {
     addr_t gpa;
 
     while (bytes > 0) {
-        // copy page
+        /* copy page */
         int copy = MIN(bytes, 0x1000 - (gva & 0xfff));
 
         if (!mmu_gva_to_gpa(cpu, gva, &gpa)) {
-            VM_PANIC_ON_EX(1, "%s: mmu_gva_to_gpa %llx failed\n", __FUNCTION__, gva);
+            VM_PANIC_ON_EX(1, "%s: mmu_gva_to_gpa %llx failed\n", __func__,
+                           gva);
         }
-        address_space_rw(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED, data, copy, 0);
+        address_space_rw(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED,
+                         data, copy, 0);
 
         bytes -= copy;
         gva += copy;

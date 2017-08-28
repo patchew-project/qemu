@@ -41,7 +41,7 @@ struct hvf_state {
 /* Functions exported to host specific mode */
 
 /* Host specific functions */
-int hvf_inject_interrupt(CPUArchState * env, int vector);
+int hvf_inject_interrupt(CPUArchState *env, int vector);
 int hvf_vcpu_run(struct hvf_vcpu_state *vcpu);
 #endif
 

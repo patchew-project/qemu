@@ -49,7 +49,6 @@ struct hvf_vcpu_caps {
     uint64_t vmx_cap_preemption_timer;
 };
 
-int __hvf_set_memory(hvf_slot *);
 void hvf_set_phys_mem(MemoryRegionSection *, bool);
 void hvf_handle_io(CPUArchState *, uint16_t, void *,
                   int, int, int);
@@ -58,16 +57,16 @@ hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
 /* Returns 1 if HVF is available and enabled, 0 otherwise. */
 int hvf_enabled(void);
 
-/* Disable HVF if |disable| is 1, otherwise, enable it iff it is supported by the host CPU.
- * Use hvf_enabled() after this to get the result. */
+/* Disable HVF if |disable| is 1, otherwise, enable it iff it is supported by
+ * the host CPU. Use hvf_enabled() after this to get the result. */
 void hvf_disable(int disable);
 
-/* Returns non-0 if the host CPU supports the VMX "unrestricted guest" feature which
- * allows the virtual CPU to directly run in "real mode". If true, this allows QEMU to run
- * several vCPU threads in parallel (see cpus.c). Otherwise, only a a single TCG thread
- * can run, and it will call HVF to run the current instructions, except in case of
- * "real mode" (paging disabled, typically at boot time), or MMIO operations. */
-// int hvf_ug_platform(void); does not apply to HVF; assume we must be in UG mode
+/* Returns non-0 if the host CPU supports the VMX "unrestricted guest" feature
+ * which allows the virtual CPU to directly run in "real mode". If true, this
+ * allows QEMU to run several vCPU threads in parallel (see cpus.c). Otherwise,
+ * only a a single TCG thread can run, and it will call HVF to run the current
+ * instructions, except in case of "real mode" (paging disabled, typically at
+ * boot time), or MMIO operations. */
 
 int hvf_sync_vcpus(void);
 
@@ -81,13 +80,12 @@ void _hvf_cpu_synchronize_post_init(CPUState *, run_on_cpu_data);
 
 void hvf_vcpu_destroy(CPUState *);
 void hvf_raise_event(CPUState *);
-// void hvf_reset_vcpu_state(void *opaque);
+/* void hvf_reset_vcpu_state(void *opaque); */
 void vmx_reset_vcpu(CPUState *);
-void __hvf_cpu_synchronize_state(CPUState *, run_on_cpu_data);
-void __hvf_cpu_synchronize_post_reset(CPUState *, run_on_cpu_data);
 void vmx_update_tpr(CPUState *);
 void update_apic_tpr(CPUState *);
 int hvf_put_registers(CPUState *);
+void vmx_clear_int_window_exiting(CPUState *cpu);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 

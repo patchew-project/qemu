@@ -35,7 +35,7 @@ struct x86_cpuid {
     uint32_t features, ext_features, ext2_features, ext3_features;
     uint32_t kvm_features, svm_features;
     uint32_t xlevel;
-    char model_id[48];
+    char model_id[50];
     int vendor_override;
     uint32_t flags;
     uint32_t xlevel2;
@@ -44,8 +44,9 @@ struct x86_cpuid {
 
 struct CPUState;
 
-void init_cpuid(struct CPUState* cpu);
-void get_cpuid_func(struct CPUState *cpu, int func, int cnt, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
+void init_cpuid(struct CPUState *cpu);
+void get_cpuid_func(struct CPUState *cpu, int func, int cnt, uint32_t *eax,
+                    uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 #endif /* __CPUID_H__ */
 
