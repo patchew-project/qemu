@@ -40,6 +40,7 @@ typedef struct {
     int required_struct_types_len;
 } test_data;
 
+static bool really_verbose;
 static char disk[] = "tests/acpi-test-disk-XXXXXX";
 static const char *data_dir = "tests/acpi-test-data";
 #ifdef CONFIG_IASL
@@ -395,7 +396,7 @@ static GArray *load_expected_aml(test_data *data)
 try_again:
         aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
                                    (gchar *)&signature, ext);
-        if (getenv("V")) {
+        if (really_verbose) {
             fprintf(stderr, "\nLooking for expected file '%s'\n", aml_file);
         }
         if (g_file_test(aml_file, G_FILE_TEST_EXISTS)) {
@@ -407,7 +408,7 @@ try_again:
             goto try_again;
         }
         g_assert(exp_sdt.aml_file);
-        if (getenv("V")) {
+        if (really_verbose) {
             fprintf(stderr, "\nUsing expected file '%s'\n", aml_file);
         }
         ret = g_file_get_contents(aml_file, &exp_sdt.aml,
@@ -812,6 +813,11 @@ int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
     int ret;
+    const char *v_env = getenv("V");
+
+    if (v_env && *v_env >= '2') {
+        really_verbose = true;
+    }
 
     ret = boot_sector_init(disk);
     if(ret)
