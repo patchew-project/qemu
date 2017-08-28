@@ -215,14 +215,17 @@ static void qxl_unpack_chunks(void *dest, size_t size, PCIQXLDevice *qxl,
         bytes = MIN(size - offset, chunk->data_size);
         memcpy(dest + offset, chunk->data, bytes);
         offset += bytes;
-        if (offset == size)
+        if (offset == size) {
             return;
+        }
         chunk = qxl_phys2virt(qxl, chunk->next_chunk, group_id);
-        if (!chunk)
+        if (!chunk) {
             return;
+        }
         max_chunks--;
-        if (max_chunks == 0)
+        if (max_chunks == 0) {
             return;
+        }
     }
 }
 
