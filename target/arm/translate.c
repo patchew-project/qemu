@@ -41,7 +41,6 @@
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
 #define ENABLE_ARCH_5TE   arm_dc_feature(s, ARM_FEATURE_V5)
-#define ENABLE_ARCH_5J    0
 #define ENABLE_ARCH_6     arm_dc_feature(s, ARM_FEATURE_V6)
 #define ENABLE_ARCH_6K    arm_dc_feature(s, ARM_FEATURE_V6K)
 #define ENABLE_ARCH_6T2   arm_dc_feature(s, ARM_FEATURE_THUMB2)
@@ -8389,7 +8388,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             break;
         case 0x2:
             if (op1 == 1) {
-                ARCH(5J); /* bxj */
+                /* This should actually be ARCH(5J) but there is currently no
+                 * 5J architecture in QEMU.
+                 */
+                ARCH(6); /* bxj */
                 /* Trivial implementation equivalent to bx.  */
                 tmp = load_reg(s, rm);
                 gen_bx(s, tmp);
