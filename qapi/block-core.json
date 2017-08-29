@@ -1819,11 +1819,13 @@
   'data': 'BlockIOThrottle' }
 
 ##
-# @BlockIOThrottle:
+# == QAPI IOThrottle definitions
+##
+
+##
+# @IOThrottle:
 #
-# A set of parameters describing block throttling.
-#
-# @device: Block device name (deprecated, use @id instead)
+# A set of parameters describing IO throttling
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
@@ -1889,12 +1891,11 @@
 #
 # @iops_size: an I/O size in bytes (Since 1.7)
 #
-# @group: throttle group name (Since 2.4)
 #
-# Since: 1.1
+# Since: 2.11
 ##
-{ 'struct': 'BlockIOThrottle',
-  'data': { '*device': 'str', '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
+{ 'struct': 'IOThrottle',
+  'data': { '*id': 'str', 'bps': 'int', 'bps_rd': 'int',
             'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
             '*bps_max': 'int', '*bps_rd_max': 'int',
             '*bps_wr_max': 'int', '*iops_max': 'int',
@@ -1902,7 +1903,22 @@
             '*bps_max_length': 'int', '*bps_rd_max_length': 'int',
             '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
             '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
-            '*iops_size': 'int', '*group': 'str' } }
+            '*iops_size': 'int' } }
+
+##
+# @BlockIOThrottle:
+#
+# A set of parameters describing block throttling.
+#
+# @device: Block device name (deprecated, use @id instead)
+#
+# @group: throttle group name (Since 2.4)
+#
+# Since: 1.1
+##
+{ 'struct': 'BlockIOThrottle',
+  'base': 'IOThrottle',
+  'data': { '*device': 'str', '*group': 'str' } }
 
 ##
 # @block-stream:
