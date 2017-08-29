@@ -11,6 +11,7 @@
 #define THROTTLE_OPTIONS_H
 
 #include "typedefs.h"
+#include "qapi-types.h"
 
 #define THROTTLE_OPTS \
           { \
@@ -92,5 +93,7 @@
         }
 
 void throttle_parse_options(ThrottleConfig *, QemuOpts *);
+
+void throttle_set_io_limits(ThrottleConfig *, IOThrottle *);
 
 #endif
