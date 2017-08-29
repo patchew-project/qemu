@@ -644,20 +644,45 @@ static void ahci_reset_port(AHCIState *s, int port)
     ahci_init_d2h(d);
 }
 
-static void debug_print_fis(uint8_t *fis, int cmd_len)
+/* Buffer pretty output based on a raw FIS structure. */
+static void ahci_pretty_buffer_fis(uint8_t *fis, int cmd_len, char **out)
 {
-#if DEBUG_AHCI
+    size_t bufsize;
+    char *pbuf;
+    char *pptr;
+    size_t lines = DIV_ROUND_UP(cmd_len, 16);
+    const char *preamble = "FIS:";
     int i;
 
-    fprintf(stderr, "fis:");
+    /* Total amount of memory to store FISes in HBA memory */
+    g_assert_cmpint(cmd_len, <=, 0x100);
+    g_assert(out);
+
+    /* Printed like:
+     * FIS:\n
+     * 0x00: 00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee \n
+     * 0x10: ff \n
+     * \0
+     *
+     * Four bytes for the preamble, seven for each line prefix (including a
+     * newline to start a new line), three bytes for each source byte,
+     * a trailing newline and a terminal null byte.
+     */
+
+    bufsize = strlen(preamble) + ((6 + 1) * lines) + (3 * cmd_len) + 1 + 1;
+    pbuf = g_malloc(bufsize);
+    pptr = pbuf;
+    pptr += sprintf(pptr, "%s", preamble);
     for (i = 0; i < cmd_len; i++) {
         if ((i & 0xf) == 0) {
-            fprintf(stderr, "\n%02x:",i);
+            pptr += sprintf(pptr, "\n0x%02x: ", i);
         }
-        fprintf(stderr, "%02x ",fis[i]);
+        pptr += sprintf(pptr, "%02x ", fis[i]);
     }
-    fprintf(stderr, "\n");
-#endif
+    pptr += sprintf(pptr, "\n");
+    pptr += 1; /* \0 */
+    g_assert(pbuf + bufsize == pptr);
+    *out = pbuf;
 }
 
 static bool ahci_map_fis_address(AHCIDevice *ad)
@@ -1201,7 +1226,12 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
      * table to ide_state->io_buffer */
     if (opts & AHCI_CMD_ATAPI) {
         memcpy(ide_state->io_buffer, &cmd_fis[AHCI_COMMAND_TABLE_ACMD], 0x10);
-        debug_print_fis(ide_state->io_buffer, 0x10);
+        if (TRACE_HANDLE_REG_H2D_FIS_DUMP_ENABLED) {
+            char *pretty_fis;
+            ahci_pretty_buffer_fis(ide_state->io_buffer, 0x10, &pretty_fis);
+            trace_handle_reg_h2d_fis_dump(s, port, pretty_fis);
+            g_free(pretty_fis);
+        }
         s->dev[port].done_atapi_packet = false;
         /* XXX send PIO setup FIS */
     }
@@ -1256,8 +1286,12 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot)
         trace_handle_cmd_badmap(s, port, cmd_len);
         goto out;
     }
-    debug_print_fis(cmd_fis, 0x80);
-
+    if (TRACE_HANDLE_CMD_FIS_DUMP_ENABLED) {
+        char *pretty_fis;
+        ahci_pretty_buffer_fis(cmd_fis, 0x80, &pretty_fis);
+        trace_handle_cmd_fis_dump(s, port, pretty_fis);
+        g_free(pretty_fis);
+    }
     switch (cmd_fis[0]) {
         case SATA_FIS_TYPE_REGISTER_H2D:
             handle_reg_h2d_fis(s, port, slot, cmd_fis);
