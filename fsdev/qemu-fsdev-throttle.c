@@ -16,6 +16,7 @@
 #include "qemu/error-report.h"
 #include "qemu-fsdev-throttle.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 #include "qemu/throttle-options.h"
 
 static void fsdev_throttle_read_timer_cb(void *opaque)
@@ -28,6 +29,81 @@ static void fsdev_throttle_write_timer_cb(void *opaque)
 {
     FsThrottle *fst = opaque;
     qemu_co_enter_next(&fst->throttled_reqs[true]);
+}
+
+void fsdev_set_io_throttle(IOThrottle *arg, FsThrottle *fst, Error **errp)
+{
+    ThrottleConfig cfg;
+
+    throttle_set_io_limits(&cfg, arg);
+
+    if (throttle_is_valid(&cfg, errp)) {
+        fst->cfg = cfg;
+        fsdev_throttle_init(fst);
+    }
+}
+
+void fsdev_get_io_throttle(FsThrottle *fst, IOThrottle **fs9pcfg,
+                           char *fsdevice, Error **errp)
+{
+
+    ThrottleConfig cfg = fst->cfg;
+    IOThrottle *fscfg = g_malloc0(sizeof(*fscfg));
+
+    fscfg->has_id = true;
+    fscfg->id = g_strdup(fsdevice);
+    fscfg->bps = cfg.buckets[THROTTLE_BPS_TOTAL].avg;
+    fscfg->bps_rd = cfg.buckets[THROTTLE_BPS_READ].avg;
+    fscfg->bps_wr = cfg.buckets[THROTTLE_BPS_WRITE].avg;
+
+    fscfg->iops = cfg.buckets[THROTTLE_OPS_TOTAL].avg;
+    fscfg->iops_rd = cfg.buckets[THROTTLE_OPS_READ].avg;
+    fscfg->iops_wr = cfg.buckets[THROTTLE_OPS_WRITE].avg;
+
+    fscfg->has_bps_max     = cfg.buckets[THROTTLE_BPS_TOTAL].max;
+    fscfg->bps_max         = cfg.buckets[THROTTLE_BPS_TOTAL].max;
+    fscfg->has_bps_rd_max  = cfg.buckets[THROTTLE_BPS_READ].max;
+    fscfg->bps_rd_max      = cfg.buckets[THROTTLE_BPS_READ].max;
+    fscfg->has_bps_wr_max  = cfg.buckets[THROTTLE_BPS_WRITE].max;
+    fscfg->bps_wr_max      = cfg.buckets[THROTTLE_BPS_WRITE].max;
+
+    fscfg->has_iops_max    = cfg.buckets[THROTTLE_OPS_TOTAL].max;
+    fscfg->iops_max        = cfg.buckets[THROTTLE_OPS_TOTAL].max;
+    fscfg->has_iops_rd_max = cfg.buckets[THROTTLE_OPS_READ].max;
+    fscfg->iops_rd_max     = cfg.buckets[THROTTLE_OPS_READ].max;
+    fscfg->has_iops_wr_max = cfg.buckets[THROTTLE_OPS_WRITE].max;
+    fscfg->iops_wr_max     = cfg.buckets[THROTTLE_OPS_WRITE].max;
+
+    fscfg->has_bps_max_length     = fscfg->has_bps_max;
+    fscfg->bps_max_length         =
+         cfg.buckets[THROTTLE_BPS_TOTAL].burst_length;
+    fscfg->has_bps_rd_max_length  = fscfg->has_bps_rd_max;
+    fscfg->bps_rd_max_length      =
+         cfg.buckets[THROTTLE_BPS_READ].burst_length;
+    fscfg->has_bps_wr_max_length  = fscfg->has_bps_wr_max;
+    fscfg->bps_wr_max_length      =
+         cfg.buckets[THROTTLE_BPS_WRITE].burst_length;
+
+    fscfg->has_iops_max_length    = fscfg->has_iops_max;
+    fscfg->iops_max_length        =
+         cfg.buckets[THROTTLE_OPS_TOTAL].burst_length;
+    fscfg->has_iops_rd_max_length = fscfg->has_iops_rd_max;
+    fscfg->iops_rd_max_length     =
+         cfg.buckets[THROTTLE_OPS_READ].burst_length;
+    fscfg->has_iops_wr_max_length = fscfg->has_iops_wr_max;
+    fscfg->iops_wr_max_length     =
+         cfg.buckets[THROTTLE_OPS_WRITE].burst_length;
+
+    fscfg->bps_max_length = cfg.buckets[THROTTLE_BPS_TOTAL].burst_length;
+    fscfg->bps_rd_max_length = cfg.buckets[THROTTLE_BPS_READ].burst_length;
+    fscfg->bps_wr_max_length = cfg.buckets[THROTTLE_BPS_WRITE].burst_length;
+    fscfg->iops_max_length = cfg.buckets[THROTTLE_OPS_TOTAL].burst_length;
+    fscfg->iops_rd_max_length = cfg.buckets[THROTTLE_OPS_READ].burst_length;
+    fscfg->iops_wr_max_length = cfg.buckets[THROTTLE_OPS_WRITE].burst_length;
+
+    fscfg->iops_size = cfg.op_size;
+
+    *fs9pcfg = fscfg;
 }
 
 void fsdev_throttle_parse_opts(QemuOpts *opts, FsThrottle *fst, Error **errp)
