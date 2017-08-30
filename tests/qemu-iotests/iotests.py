@@ -57,6 +57,13 @@ qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 debug = False
 
+def blind_remove(filename):
+    try:
+        os.remove(filename)
+    except OSError, error:
+        if error.errno != errno.ENOENT:
+            raise
+
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
     devnull = open('/dev/null', 'r+')
