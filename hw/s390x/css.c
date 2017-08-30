@@ -1182,28 +1182,27 @@ static void copy_schib_from_guest(SCHIB *dest, const SCHIB *src)
     }
 }
 
-int css_do_msch(SubchDev *sch, const SCHIB *orig_schib)
+void css_do_msch(SubchDev *sch, const SCHIB *orig_schib)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
     uint16_t oldflags;
-    int ret;
     SCHIB schib;
 
     if (!(sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_DNV)) {
-        ret = 0;
-        goto out;
+        sch->iret.cc = 0;
+        return;
     }
 
     if (s->ctrl & SCSW_STCTL_STATUS_PEND) {
-        ret = -EINPROGRESS;
-        goto out;
+        sch->iret.cc = 1;
+        return;
     }
 
     if (s->ctrl &
         (SCSW_FCTL_START_FUNC|SCSW_FCTL_HALT_FUNC|SCSW_FCTL_CLEAR_FUNC)) {
-        ret = -EBUSY;
-        goto out;
+        sch->iret.cc = 2;
+        return;
     }
 
     copy_schib_from_guest(&schib, orig_schib);
@@ -1230,11 +1229,6 @@ int css_do_msch(SubchDev *sch, const SCHIB *orig_schib)
         && (p->flags & PMCW_FLAGS_MASK_ENA) == 0) {
         sch->disable_cb(sch);
     }
-
-    ret = 0;
-
-out:
-    return ret;
 }
 
 void css_do_xsch(SubchDev *sch)
