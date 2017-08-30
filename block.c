@@ -43,6 +43,7 @@
 #include "qemu/cutils.h"
 #include "qemu/id.h"
 #include "qapi/util.h"
+#include "migration/block.h"
 
 #ifdef CONFIG_BSD
 #include <sys/ioctl.h>
@@ -3111,6 +3112,7 @@ static void bdrv_close(BlockDriverState *bs)
 
 void bdrv_close_all(void)
 {
+    block_migration_cleanup_bmds();
     block_job_cancel_sync_all();
     nbd_export_close_all();
 

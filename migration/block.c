@@ -673,7 +673,7 @@ static int64_t get_remaining_dirty(void)
 
 
 /* Called with iothread lock taken.  */
-static void block_migration_cleanup_bmds(void)
+void block_migration_cleanup_bmds(void)
 {
     BlkMigDevState *bmds;
     AioContext *ctx;

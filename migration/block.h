@@ -42,4 +42,5 @@ static inline uint64_t blk_mig_bytes_total(void)
 #endif /* CONFIG_LIVE_BLOCK_MIGRATION */
 
 void migrate_set_block_enabled(bool value, Error **errp);
+void block_migration_cleanup_bmds(void);
 #endif /* MIGRATION_BLOCK_H */
