@@ -84,6 +84,8 @@ STEXI
 Show block device statistics.
 ETEXI
 
+#ifdef CONFIG_LIVE_BLOCK_OPS
+
     {
         .name       = "block-jobs",
         .args_type  = "",
@@ -97,6 +99,8 @@ STEXI
 @findex block-jobs
 Show progress of ongoing block device operations.
 ETEXI
+
+#endif /* CONFIG_LIVE_BLOCK_OPS */
 
     {
         .name       = "registers",
