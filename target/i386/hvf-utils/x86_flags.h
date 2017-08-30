@@ -24,13 +24,9 @@
 #define __X86_FLAGS_H__
 
 #include "x86_gen.h"
+#include "cpu.h"
 
 /* this is basically bocsh code */
-
-typedef struct lazy_flags {
-    addr_t result;
-    addr_t auxbits;
-} lazy_flags;
 
 #define LF_SIGN_BIT     31
 
@@ -63,7 +59,7 @@ typedef struct lazy_flags {
 #define SET_FLAGS_OSZAPC_SIZE(size, lf_carries, lf_result) { \
     addr_t temp = ((lf_carries) & (LF_MASK_AF)) | \
     (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
-    cpu->hvf_x86->lflags.result = (addr_t)(int##size##_t)(lf_result); \
+    env->hvf_emul->lflags.result = (addr_t)(int##size##_t)(lf_result); \
     if ((size) == 32) { \
         temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
     } else if ((size) == 16) { \
@@ -73,7 +69,7 @@ typedef struct lazy_flags {
     } else { \
         VM_PANIC("unimplemented");  \
     } \
-    cpu->hvf_x86->lflags.auxbits = (addr_t)(uint32_t)temp; \
+    env->hvf_emul->lflags.auxbits = (addr_t)(uint32_t)temp; \
 }
 
 /* carries, result */
@@ -135,10 +131,10 @@ typedef struct lazy_flags {
     } else { \
         VM_PANIC("unimplemented");      \
     } \
-    cpu->hvf_x86->lflags.result = (addr_t)(int##size##_t)(lf_result); \
-    addr_t delta_c = (cpu->hvf_x86->lflags.auxbits ^ temp) & LF_MASK_CF; \
+    env->hvf_emul->lflags.result = (addr_t)(int##size##_t)(lf_result); \
+    addr_t delta_c = (env->hvf_emul->lflags.auxbits ^ temp) & LF_MASK_CF; \
     delta_c ^= (delta_c >> 1); \
-    cpu->hvf_x86->lflags.auxbits = (addr_t)(uint32_t)(temp ^ delta_c); \
+    env->hvf_emul->lflags.auxbits = (addr_t)(uint32_t)(temp ^ delta_c); \
 }
 
 /* carries, result */
@@ -179,69 +175,69 @@ typedef struct lazy_flags {
 #define SET_FLAGS_OSZAxC_LOGIC_32(result_32) \
     SET_FLAGS_OSZAxC_LOGIC_SIZE(32, (result_32))
 
-void lflags_to_rflags(struct CPUState *cpu);
-void rflags_to_lflags(struct CPUState *cpu);
+void lflags_to_rflags(CPUX86State *env);
+void rflags_to_lflags(CPUX86State *env);
 
-bool get_PF(struct CPUState *cpu);
-void set_PF(struct CPUState *cpu, bool val);
-bool get_CF(struct CPUState *cpu);
-void set_CF(struct CPUState *cpu, bool val);
-bool get_AF(struct CPUState *cpu);
-void set_AF(struct CPUState *cpu, bool val);
-bool get_ZF(struct CPUState *cpu);
-void set_ZF(struct CPUState *cpu, bool val);
-bool get_SF(struct CPUState *cpu);
-void set_SF(struct CPUState *cpu, bool val);
-bool get_OF(struct CPUState *cpu);
-void set_OF(struct CPUState *cpu, bool val);
-void set_OSZAPC(struct CPUState *cpu, uint32_t flags32);
+bool get_PF(CPUX86State *env);
+void set_PF(CPUX86State *env, bool val);
+bool get_CF(CPUX86State *env);
+void set_CF(CPUX86State *env, bool val);
+bool get_AF(CPUX86State *env);
+void set_AF(CPUX86State *env, bool val);
+bool get_ZF(CPUX86State *env);
+void set_ZF(CPUX86State *env, bool val);
+bool get_SF(CPUX86State *env);
+void set_SF(CPUX86State *env, bool val);
+bool get_OF(CPUX86State *env);
+void set_OF(CPUX86State *env, bool val);
+void set_OSZAPC(CPUX86State *env, uint32_t flags32);
 
-void SET_FLAGS_OxxxxC(struct CPUState *cpu, uint32_t new_of, uint32_t new_cf);
+void SET_FLAGS_OxxxxC(CPUX86State *env, uint32_t new_of, uint32_t new_cf);
 
-void SET_FLAGS_OSZAPC_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+void SET_FLAGS_OSZAPC_SUB32(CPUX86State *env, uint32_t v1, uint32_t v2,
                             uint32_t diff);
-void SET_FLAGS_OSZAPC_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+void SET_FLAGS_OSZAPC_SUB16(CPUX86State *env, uint16_t v1, uint16_t v2,
                             uint16_t diff);
-void SET_FLAGS_OSZAPC_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+void SET_FLAGS_OSZAPC_SUB8(CPUX86State *env, uint8_t v1, uint8_t v2,
                            uint8_t diff);
 
-void SET_FLAGS_OSZAPC_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+void SET_FLAGS_OSZAPC_ADD32(CPUX86State *env, uint32_t v1, uint32_t v2,
                             uint32_t diff);
-void SET_FLAGS_OSZAPC_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+void SET_FLAGS_OSZAPC_ADD16(CPUX86State *env, uint16_t v1, uint16_t v2,
                             uint16_t diff);
-void SET_FLAGS_OSZAPC_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+void SET_FLAGS_OSZAPC_ADD8(CPUX86State *env, uint8_t v1, uint8_t v2,
                            uint8_t diff);
 
-void SET_FLAGS_OSZAP_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+void SET_FLAGS_OSZAP_SUB32(CPUX86State *env, uint32_t v1, uint32_t v2,
                            uint32_t diff);
-void SET_FLAGS_OSZAP_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+void SET_FLAGS_OSZAP_SUB16(CPUX86State *env, uint16_t v1, uint16_t v2,
                            uint16_t diff);
-void SET_FLAGS_OSZAP_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+void SET_FLAGS_OSZAP_SUB8(CPUX86State *env, uint8_t v1, uint8_t v2,
                           uint8_t diff);
 
-void SET_FLAGS_OSZAP_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+void SET_FLAGS_OSZAP_ADD32(CPUX86State *env, uint32_t v1, uint32_t v2,
                            uint32_t diff);
-void SET_FLAGS_OSZAP_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+void SET_FLAGS_OSZAP_ADD16(CPUX86State *env, uint16_t v1, uint16_t v2,
                            uint16_t diff);
-void SET_FLAGS_OSZAP_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+void SET_FLAGS_OSZAP_ADD8(CPUX86State *env, uint8_t v1, uint8_t v2,
                           uint8_t diff);
 
-void SET_FLAGS_OSZAPC_LOGIC32(struct CPUState *cpu, uint32_t diff);
-void SET_FLAGS_OSZAPC_LOGIC16(struct CPUState *cpu, uint16_t diff);
-void SET_FLAGS_OSZAPC_LOGIC8(struct CPUState *cpu, uint8_t diff);
+void SET_FLAGS_OSZAPC_LOGIC32(CPUX86State *env, uint32_t diff);
+void SET_FLAGS_OSZAPC_LOGIC16(CPUX86State *env, uint16_t diff);
+void SET_FLAGS_OSZAPC_LOGIC8(CPUX86State *env, uint8_t diff);
 
-void SET_FLAGS_SHR32(struct CPUState *cpu, uint32_t v, int count, uint32_t res);
-void SET_FLAGS_SHR16(struct CPUState *cpu, uint16_t v, int count, uint16_t res);
-void SET_FLAGS_SHR8(struct CPUState *cpu, uint8_t v, int count, uint8_t res);
+void SET_FLAGS_SHR32(CPUX86State *env, uint32_t v, int count, uint32_t res);
+void SET_FLAGS_SHR16(CPUX86State *env, uint16_t v, int count, uint16_t res);
+void SET_FLAGS_SHR8(CPUX86State *env, uint8_t v, int count, uint8_t res);
 
-void SET_FLAGS_SAR32(struct CPUState *cpu, int32_t v, int count, uint32_t res);
-void SET_FLAGS_SAR16(struct CPUState *cpu, int16_t v, int count, uint16_t res);
-void SET_FLAGS_SAR8(struct CPUState *cpu, int8_t v, int count, uint8_t res);
+void SET_FLAGS_SAR32(CPUX86State *env, int32_t v, int count, uint32_t res);
+void SET_FLAGS_SAR16(CPUX86State *env, int16_t v, int count, uint16_t res);
+void SET_FLAGS_SAR8(CPUX86State *env, int8_t v, int count, uint8_t res);
 
-void SET_FLAGS_SHL32(struct CPUState *cpu, uint32_t v, int count, uint32_t res);
-void SET_FLAGS_SHL16(struct CPUState *cpu, uint16_t v, int count, uint16_t res);
-void SET_FLAGS_SHL8(struct CPUState *cpu, uint8_t v, int count, uint8_t res);
+void SET_FLAGS_SHL32(CPUX86State *env, uint32_t v, int count, uint32_t res);
+void SET_FLAGS_SHL16(CPUX86State *env, uint16_t v, int count, uint16_t res);
+void SET_FLAGS_SHL8(CPUX86State *env, uint8_t v, int count, uint8_t res);
 
-bool _get_OF(struct CPUState *cpu);
-bool _get_CF(struct CPUState *cpu);
+bool _get_OF(CPUX86State *env);
+bool _get_CF(CPUX86State *env);
 #endif /* __X86_FLAGS_H__ */
