@@ -998,6 +998,22 @@ static void qmp_unregister_commands_hack(void)
     && !defined(TARGET_S390X)
     qmp_unregister_command(&qmp_commands, "query-cpu-definitions");
 #endif
+#ifndef CONFIG_LIVE_BLOCK_OPS
+    qmp_unregister_command(&qmp_commands, "block-stream");
+    qmp_unregister_command(&qmp_commands, "block-commit");
+    qmp_unregister_command(&qmp_commands, "drive-mirror");
+    qmp_unregister_command(&qmp_commands, "blockdev-mirror");
+    qmp_unregister_command(&qmp_commands, "drive-backup");
+    qmp_unregister_command(&qmp_commands, "blockdev-backup");
+    qmp_unregister_command(&qmp_commands, "blockdev-snapshot");
+    qmp_unregister_command(&qmp_commands, "blockdev-snapshot-sync");
+    qmp_unregister_command(&qmp_commands, "block-job-set-speed");
+    qmp_unregister_command(&qmp_commands, "block-job-cancel");
+    qmp_unregister_command(&qmp_commands, "block-job-pause");
+    qmp_unregister_command(&qmp_commands, "block-job-resume");
+    qmp_unregister_command(&qmp_commands, "block-job-complete");
+    qmp_unregister_command(&qmp_commands, "query-block-jobs");
+#endif
 }
 
 void monitor_init_qmp_commands(void)
