@@ -370,7 +370,15 @@ do
             fi
         fi
 
-        rm -rf "$TEST_DIR_SEQ"
+        #TODO: There is some intial work to save intermediate files
+        #      in python tests, but it is imperfect.  Having each
+        #      test record its test name, and the tearDown function
+        #      just move intermediate images to a subdirectory with
+        #      the test name may prove more useful.
+        if [ "$save_on_err" != "true" ] || [ "$err" != "true" ]
+        then
+            rm -rf "$TEST_DIR_SEQ"
+        fi
 
     fi
 

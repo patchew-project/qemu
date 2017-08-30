@@ -42,6 +42,7 @@ expunge=true
 have_test_arg=false
 randomize=false
 cachemode=false
+save_on_err=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw
@@ -172,6 +173,7 @@ other options
     -T                  output timestamps
     -r                  randomize test order
     -c mode             cache mode
+    -s                  save test scratch directory on test failure
 
 testlist options
     -g group[,group...]        include tests from these groups
@@ -347,6 +349,10 @@ testlist options
             ;;
         -x)        # -x group ... exclude from group file
             xgroup=true
+            xpand=false
+            ;;
+        -s)
+            save_on_err=true
             xpand=false
             ;;
         '[0-9][0-9][0-9] [0-9][0-9][0-9][0-9]')
