@@ -94,12 +94,30 @@ struct SubchDev {
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
-    int (*do_subchannel_work) (SubchDev *);
+    void (*do_subchannel_work) (SubchDev *);
     SenseId id;
     void *driver_data;
+    /* io instructions conclude according to iret */
+    struct {
+        /*
+         * General semantic of cc codes of IO instructions is (brief):
+         * 0 -- produced expected result
+         * 1 -- produced alternate result
+         * 2 -- ineffective, because busy with previously initiated function
+         * 3 -- ineffective, not operational
+         */
+        uint32_t cc:4;
+        bool pgm_chk:1;
+        uint32_t irq_code;
+    } iret;
 };
 
 extern const VMStateDescription vmstate_subch_dev;
+
+static inline void css_subch_clear_iret(SubchDev *sch)
+{
+    memset(&sch->iret, 0, sizeof(sch->iret));
+}
 
 /*
  * Identify a device within the channel subsystem.
@@ -156,9 +174,9 @@ void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
 void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
 void css_generate_css_crws(uint8_t cssid);
 void css_clear_sei_pending(void);
-int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data);
-int do_subchannel_work_virtual(SubchDev *sub);
-int do_subchannel_work_passthrough(SubchDev *sub);
+void s390_ccw_cmd_request(SubchDev *sch);
+void do_subchannel_work_virtual(SubchDev *sub);
+void do_subchannel_work_passthrough(SubchDev *sub);
 
 typedef enum {
     CSS_IO_ADAPTER_VIRTIO = 0,
@@ -189,7 +207,7 @@ int css_do_msch(SubchDev *sch, const SCHIB *schib);
 int css_do_xsch(SubchDev *sch);
 int css_do_csch(SubchDev *sch);
 int css_do_hsch(SubchDev *sch);
-int css_do_ssch(SubchDev *sch, ORB *orb);
+void css_do_ssch(SubchDev *sch, ORB *orb);
 int css_do_tsch_get_irb(SubchDev *sch, IRB *irb, int *irb_len);
 void css_do_tsch_update_subch(SubchDev *sch);
 int css_do_stcrw(CRW *crw);
@@ -200,7 +218,7 @@ int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
 void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo);
 int css_enable_mcsse(void);
 int css_enable_mss(void);
-int css_do_rsch(SubchDev *sch);
+void css_do_rsch(SubchDev *sch);
 int css_do_rchp(uint8_t cssid, uint8_t chpid);
 bool css_present(uint8_t cssid);
 #endif

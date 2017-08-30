@@ -1015,12 +1015,11 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
 
 }
 
-static int sch_handle_start_func_passthrough(SubchDev *sch)
+static void sch_handle_start_func_passthrough(SubchDev *sch)
 {
 
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
-    int ret;
 
     ORB *orb = &sch->orb;
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
@@ -1034,28 +1033,10 @@ static int sch_handle_start_func_passthrough(SubchDev *sch)
      */
     if (!(orb->ctrl0 & ORB_CTRL0_MASK_PFCH) ||
         !(orb->ctrl0 & ORB_CTRL0_MASK_C64)) {
-        return -ENODEV;
+        sch->iret.cc = 3;
     }
 
-    ret = s390_ccw_cmd_request(orb, s, sch->driver_data);
-    switch (ret) {
-    /* Currently we don't update control block and just return the cc code. */
-    case 0:
-        break;
-    case -EBUSY:
-        break;
-    case -ENODEV:
-        break;
-    case -EFAULT:
-         break;
-    case -EACCES:
-        /* Let's reflect an inaccessible host device by cc 3. */
-    default:
-        /* Let's make all other return codes map to cc 3.  */
-        ret = -ENODEV;
-    };
-
-    return ret;
+    s390_ccw_cmd_request(sch);
 }
 
 /*
@@ -1064,7 +1045,7 @@ static int sch_handle_start_func_passthrough(SubchDev *sch)
  * read/writes) asynchronous later on if we start supporting more than
  * our current very simple devices.
  */
-int do_subchannel_work_virtual(SubchDev *sch)
+void do_subchannel_work_virtual(SubchDev *sch)
 {
 
     SCSW *s = &sch->curr_status.scsw;
@@ -1078,41 +1059,35 @@ int do_subchannel_work_virtual(SubchDev *sch)
         sch_handle_start_func_virtual(sch);
     } else {
         /* Cannot happen. */
-        return -ENODEV;
+        sch->iret.cc = 3;
     }
     css_inject_io_interrupt(sch);
-    return 0;
 }
 
-int do_subchannel_work_passthrough(SubchDev *sch)
+void do_subchannel_work_passthrough(SubchDev *sch)
 {
-    int ret;
     SCSW *s = &sch->curr_status.scsw;
 
     if (s->ctrl & SCSW_FCTL_CLEAR_FUNC) {
         /* TODO: Clear handling */
         sch_handle_clear_func(sch);
-        ret = 0;
     } else if (s->ctrl & SCSW_FCTL_HALT_FUNC) {
         /* TODO: Halt handling */
         sch_handle_halt_func(sch);
-        ret = 0;
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
-        ret = sch_handle_start_func_passthrough(sch);
+        sch_handle_start_func_passthrough(sch);
     } else {
         /* Cannot happen. */
-        return -ENODEV;
+        sch->iret.cc = 3;
     }
-
-    return ret;
 }
 
-static int do_subchannel_work(SubchDev *sch)
+static void do_subchannel_work(SubchDev *sch)
 {
     if (sch->do_subchannel_work) {
-        return sch->do_subchannel_work(sch);
+        sch->do_subchannel_work(sch);
     } else {
-        return -ENODEV;
+        sch->iret.cc = 3;
     }
 }
 
@@ -1400,27 +1375,26 @@ static void css_update_chnmon(SubchDev *sch)
     }
 }
 
-int css_do_ssch(SubchDev *sch, ORB *orb)
+void css_do_ssch(SubchDev *sch, ORB *orb)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
-    int ret;
 
     if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
-        ret = -ENODEV;
-        goto out;
+        sch->iret.cc = 3;
+        return;
     }
 
     if (s->ctrl & SCSW_STCTL_STATUS_PEND) {
-        ret = -EINPROGRESS;
-        goto out;
+        sch->iret.cc = 1;
+        return;
     }
 
     if (s->ctrl & (SCSW_FCTL_START_FUNC |
                    SCSW_FCTL_HALT_FUNC |
                    SCSW_FCTL_CLEAR_FUNC)) {
-        ret = -EBUSY;
-        goto out;
+        sch->iret.cc = 2;
+        return;
     }
 
     /* If monitoring is active, update counter. */
@@ -1433,10 +1407,7 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     s->ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
     s->flags &= ~SCSW_FLAGS_MASK_PNO;
 
-    ret = do_subchannel_work(sch);
-
-out:
-    return ret;
+    do_subchannel_work(sch);
 }
 
 static void copy_irb_to_guest(IRB *dest, const IRB *src, PMCW *pmcw,
@@ -1683,27 +1654,26 @@ void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo)
     }
 }
 
-int css_do_rsch(SubchDev *sch)
+void css_do_rsch(SubchDev *sch)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
-    int ret;
 
     if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
-        ret = -ENODEV;
-        goto out;
+        sch->iret.cc = 3;
+        return;
     }
 
     if (s->ctrl & SCSW_STCTL_STATUS_PEND) {
-        ret = -EINPROGRESS;
-        goto out;
+        sch->iret.cc = 1;
+        return;
     }
 
     if (((s->ctrl & SCSW_CTRL_MASK_FCTL) != SCSW_FCTL_START_FUNC) ||
         (s->ctrl & SCSW_ACTL_RESUME_PEND) ||
         (!(s->ctrl & SCSW_ACTL_SUSP))) {
-        ret = -EINVAL;
-        goto out;
+        sch->iret.cc = 2;
+        return;
     }
 
     /* If monitoring is active, update counter. */
@@ -1713,10 +1683,6 @@ int css_do_rsch(SubchDev *sch)
 
     s->ctrl |= SCSW_ACTL_RESUME_PEND;
     do_subchannel_work(sch);
-    ret = 0;
-
-out:
-    return ret;
 }
 
 int css_do_rchp(uint8_t cssid, uint8_t chpid)
