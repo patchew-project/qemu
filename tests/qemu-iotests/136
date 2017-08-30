@@ -21,6 +21,7 @@
 
 import iotests
 import os
+from iotests import blind_remove
 
 interval_length = 10
 nsec_per_sec = 1000000000
@@ -68,6 +69,7 @@ sector = "%d"
         file.close()
 
     def setUp(self):
+        blind_remove(blkdebug_file)
         drive_args = []
         drive_args.append("stats-intervals.0=%d" % interval_length)
         drive_args.append("stats-account-invalid=%s" %
@@ -84,7 +86,6 @@ sector = "%d"
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(blkdebug_file)
 
     def accounted_ops(self, read = False, write = False, flush = False):
         ops = 0

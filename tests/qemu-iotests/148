@@ -21,6 +21,7 @@
 
 import os
 import iotests
+from iotests import blind_remove
 
 imgs = (os.path.join(iotests.test_dir, 'quorum0.img'),
         os.path.join(iotests.test_dir, 'quorum1.img'),
@@ -48,6 +49,9 @@ sector = "%d"
         file.close()
 
     def setUp(self):
+        for i in range(len(imgs)):
+            blind_remove(imgs[i])
+            blind_remove(img_conf[i])
         driveopts = ['driver=quorum', 'vote-threshold=2']
         driveopts.append('read-pattern=%s' % self.read_pattern)
         for i in range(len(imgs)):
@@ -64,9 +68,6 @@ sector = "%d"
 
     def tearDown(self):
         self.vm.shutdown()
-        for i in range(len(imgs)):
-            os.remove(imgs[i])
-            os.remove(img_conf[i])
 
     def do_check_event(self, node, sector = 0):
         if node == None:

@@ -22,19 +22,12 @@
 
 import os
 import iotests
+from iotests import blind_remove
 
 
 def io_write_patterns(img, patterns):
     for pattern in patterns:
         iotests.qemu_io('-c', 'write -P%s %s %s' % pattern, img)
-
-
-def try_remove(img):
-    try:
-        os.remove(img)
-    except OSError:
-        pass
-
 
 def transaction_action(action, **kwargs):
     return {
@@ -82,13 +75,13 @@ class Bitmap:
 
     def del_target(self):
         for image in self.backups.pop():
-            try_remove(image)
+            blind_remove(image)
         self.num -= 1
 
     def cleanup(self):
         for backup in self.backups:
             for image in backup:
-                try_remove(image)
+                blind_remove(image)
 
 
 class TestIncrementalBackupBase(iotests.QMPTestCase):
@@ -102,6 +95,10 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
 
     def setUp(self):
+        for filename in self.files:
+            blind_remove(filename)
+        for bitmap in self.bitmaps:
+            bitmap.cleanup()
         # Create a base image with a distinctive patterning
         drive0 = self.add_node('drive0')
         self.img_create(drive0['file'], drive0['fmt'])
@@ -273,10 +270,6 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for bitmap in self.bitmaps:
-            bitmap.cleanup()
-        for filename in self.files:
-            try_remove(filename)
 
 
 

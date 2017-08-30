@@ -23,7 +23,7 @@
 
 import os
 import iotests
-from iotests import qemu_img
+from iotests import qemu_img, blind_remove
 
 back0_img = os.path.join(iotests.test_dir, 'back0.' + iotests.imgfmt)
 back1_img = os.path.join(iotests.test_dir, 'back1.' + iotests.imgfmt)
@@ -51,6 +51,11 @@ class BaseClass(iotests.QMPTestCase):
     target_real_backing = None
 
     def setUp(self):
+        blind_remove(source_img)
+        blind_remove(back2_img)
+        blind_remove(back1_img)
+        blind_remove(back0_img)
+        blind_remove(target_img)
         qemu_img('create', '-f', iotests.imgfmt, back0_img, '1M')
         qemu_img('create', '-f', iotests.imgfmt, '-b', back0_img, back1_img)
         qemu_img('create', '-f', iotests.imgfmt, '-b', back1_img, back2_img)
@@ -95,14 +100,6 @@ class BaseClass(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(source_img)
-        os.remove(back2_img)
-        os.remove(back1_img)
-        os.remove(back0_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def findBlockNode(self, node_name, id=None):
         if id:

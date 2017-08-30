@@ -23,7 +23,7 @@
 import time
 import os
 import iotests
-from iotests import qemu_img, qemu_io, create_image
+from iotests import qemu_img, qemu_io, create_image, blind_remove
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
@@ -33,6 +33,9 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
     image_len = 64 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(backing_img)
+        blind_remove(target_img)
         create_image(backing_img, TestSyncModesNoneAndTop.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         qemu_io('-c', 'write -P0x41 0 512', test_img)
@@ -44,12 +47,6 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def test_complete_top(self):
         self.assert_no_active_block_jobs()
@@ -84,12 +81,12 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
 
 class TestBeforeWriteNotifier(iotests.QMPTestCase):
     def setUp(self):
+        blind_remove(target_img)
         self.vm = iotests.VM().add_drive_raw("file=blkdebug::null-co://,id=drive0,align=65536,driver=blkdebug")
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(target_img)
 
     def test_before_write_notifier(self):
         self.vm.pause_drive("drive0")

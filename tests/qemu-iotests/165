@@ -21,7 +21,7 @@
 import os
 import re
 import iotests
-from iotests import qemu_img
+from iotests import qemu_img, blind_remove
 
 disk = os.path.join(iotests.test_dir, 'disk')
 disk_size = 0x40000000 # 1G
@@ -36,10 +36,8 @@ regions2 = ((0x10000000, 0x20000),
 class TestPersistentDirtyBitmap(iotests.QMPTestCase):
 
     def setUp(self):
+        blind_remove(disk)
         qemu_img('create', '-f', iotests.imgfmt, disk, str(disk_size))
-
-    def tearDown(self):
-        os.remove(disk)
 
     def mkVm(self):
         return iotests.VM().add_drive(disk)

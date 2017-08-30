@@ -23,7 +23,7 @@
 import time
 import os
 import iotests
-from iotests import qemu_img, qemu_io
+from iotests import qemu_img, qemu_io, blind_remove
 
 test_drv_base_name = 'drive'
 
@@ -36,6 +36,8 @@ class ImageSnapshotTestCase(iotests.QMPTestCase):
 
     def _setUp(self, test_img_base_name, image_num):
         self.vm = iotests.VM()
+        for dev_expect in self.expect:
+            blind_remove(dev_expect['image'])
         for i in range(0, image_num):
             filename = '%s%d' % (test_img_base_name, i)
             img = os.path.join(iotests.test_dir, filename)
@@ -49,8 +51,6 @@ class ImageSnapshotTestCase(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for dev_expect in self.expect:
-            os.remove(dev_expect['image'])
 
     def createSnapshotInTransaction(self, snapshot_num, abort = False):
         actions = []

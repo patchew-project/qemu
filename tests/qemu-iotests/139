@@ -22,6 +22,7 @@
 import os
 import iotests
 import time
+from iotests import blind_remove
 
 base_img = os.path.join(iotests.test_dir, 'base.img')
 new_img = os.path.join(iotests.test_dir, 'new.img')
@@ -29,6 +30,8 @@ new_img = os.path.join(iotests.test_dir, 'new.img')
 class TestBlockdevDel(iotests.QMPTestCase):
 
     def setUp(self):
+        blind_remove(base_img)
+        blind_remove(new_img)
         iotests.qemu_img('create', '-f', iotests.imgfmt, base_img, '1M')
         self.vm = iotests.VM()
         self.vm.add_device("virtio-scsi-pci,id=virtio-scsi")
@@ -36,9 +39,6 @@ class TestBlockdevDel(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(base_img)
-        if os.path.isfile(new_img):
-            os.remove(new_img)
 
     # Check whether a BlockDriverState exists
     def checkBlockDriverState(self, node, must_exist = True):

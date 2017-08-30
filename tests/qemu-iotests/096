@@ -21,6 +21,7 @@
 
 import iotests
 import os
+from iotests import blind_remove
 
 class TestLiveSnapshot(iotests.QMPTestCase):
     base_img = os.path.join(iotests.test_dir, 'base.img')
@@ -30,6 +31,8 @@ class TestLiveSnapshot(iotests.QMPTestCase):
     iops_size = 1024
 
     def setUp(self):
+        blind_remove(self.base_img)
+        blind_remove(self.target_img)
         opts = []
         opts.append('node-name=base')
         opts.append('throttling.group=%s' % self.group)
@@ -41,8 +44,6 @@ class TestLiveSnapshot(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(self.base_img)
-        os.remove(self.target_img)
 
     def checkConfig(self, active_layer):
         result = self.vm.qmp('query-block')

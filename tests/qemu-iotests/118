@@ -23,7 +23,7 @@ import os
 import stat
 import time
 import iotests
-from iotests import qemu_img
+from iotests import qemu_img, blind_remove
 
 old_img = os.path.join(iotests.test_dir, 'test0.img')
 new_img = os.path.join(iotests.test_dir, 'test1.img')
@@ -323,6 +323,8 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
     was_empty = False
 
     def setUp(self, media, interface):
+        blind_remove(old_img)
+        blind_remove(new_img)
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1440k')
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
         self.vm = iotests.VM()
@@ -336,8 +338,6 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(old_img)
-        os.remove(new_img)
 
     def test_insert_on_filled(self):
         result = self.vm.qmp('blockdev-add',
@@ -360,13 +360,13 @@ class TestInitiallyEmpty(GeneralChangeTestsBaseClass):
     was_empty = True
 
     def setUp(self, media, interface):
+        blind_remove(new_img)
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
         self.vm = iotests.VM().add_drive(None, 'media=%s' % media, interface)
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(new_img)
 
     def test_remove_on_empty(self):
         result = self.vm.qmp('blockdev-open-tray', device='drive0')
@@ -411,16 +411,16 @@ class TestFloppyInitiallyEmpty(TestInitiallyEmpty):
 
 class TestChangeReadOnly(ChangeBaseClass):
     def setUp(self):
+        os.chmod(old_img, 0666)
+        os.chmod(new_img, 0666)
+        blind_remove(old_img)
+        blind_remove(new_img)
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1440k')
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
         self.vm = iotests.VM()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.chmod(old_img, 0666)
-        os.chmod(new_img, 0666)
-        os.remove(old_img)
-        os.remove(new_img)
 
     def test_ro_ro_retain(self):
         os.chmod(old_img, 0444)
@@ -645,6 +645,8 @@ TestInitiallyEmpty = None
 
 class TestBlockJobsAfterCycle(ChangeBaseClass):
     def setUp(self):
+        blind_remove(old_img)
+        blind_remove(new_img)
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1M')
 
         self.vm = iotests.VM()
@@ -678,11 +680,6 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(old_img)
-        try:
-            os.remove(new_img)
-        except OSError:
-            pass
 
     def test_snapshot_and_commit(self):
         # We need backing file support

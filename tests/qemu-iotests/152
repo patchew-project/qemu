@@ -20,24 +20,21 @@
 
 import os
 import iotests
-from iotests import qemu_img
+from iotests import qemu_img, blind_remove
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')
 
 class TestUnaligned(iotests.QMPTestCase):
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(target_img)
         qemu_img('create', '-f', iotests.imgfmt, test_img, '512')
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def test_unaligned(self):
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',

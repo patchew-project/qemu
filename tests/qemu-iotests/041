@@ -21,7 +21,7 @@
 import time
 import os
 import iotests
-from iotests import qemu_img, qemu_io
+from iotests import qemu_img, qemu_io, blind_remove
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
@@ -40,6 +40,9 @@ class TestSingleDrive(iotests.QMPTestCase):
     qmp_target = target_img
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(backing_img)
+        blind_remove(target_img)
         iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=base")
@@ -49,12 +52,6 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def test_complete(self):
         self.assert_no_active_block_jobs()
@@ -258,6 +255,10 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(backing_img)
+        blind_remove(target_backing_img)
+        blind_remove(target_img)
         iotests.create_image(backing_img, TestMirrorNoBacking.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
@@ -265,13 +266,6 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        try:
-            os.remove(target_backing_img)
-        except:
-            pass
-        os.remove(target_img)
 
     def test_complete(self):
         self.assert_no_active_block_jobs()
@@ -328,6 +322,9 @@ class TestMirrorResized(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(backing_img)
+        blind_remove(target_img)
         iotests.create_image(backing_img, TestMirrorResized.backing_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         qemu_img('resize', test_img, '2M')
@@ -336,12 +333,6 @@ class TestMirrorResized(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def test_complete_top(self):
         self.assert_no_active_block_jobs()
@@ -403,6 +394,10 @@ new_state = "1"
 
     def setUp(self):
         self.blkdebug_file = backing_img + ".blkdebug"
+        blind_remove(test_img)
+        blind_remove(target_img)
+        blind_remove(backing_img)
+        blind_remove(self.blkdebug_file)
         iotests.create_image(backing_img, TestReadErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 5)
         qemu_img('create', '-f', iotests.imgfmt,
@@ -417,10 +412,6 @@ new_state = "1"
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(target_img)
-        os.remove(backing_img)
-        os.remove(self.blkdebug_file)
 
     def test_report_read(self):
         self.assert_no_active_block_jobs()
@@ -558,6 +549,10 @@ new_state = "1"
 
     def setUp(self):
         self.blkdebug_file = target_img + ".blkdebug"
+        blind_remove(test_img)
+        blind_remove(target_img)
+        blind_remove(backing_img)
+        blind_remove(self.blkdebug_file)
         iotests.create_image(backing_img, TestWriteErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "write_aio", 5)
         qemu_img('create', '-f', iotests.imgfmt, '-obacking_file=%s' %(backing_img), test_img)
@@ -568,10 +563,6 @@ new_state = "1"
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(target_img)
-        os.remove(backing_img)
-        os.remove(self.blkdebug_file)
 
     def test_report_write(self):
         self.assert_no_active_block_jobs()
@@ -657,6 +648,9 @@ class TestSetSpeed(iotests.QMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(backing_img)
+        blind_remove(target_img)
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
@@ -664,9 +658,6 @@ class TestSetSpeed(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        os.remove(target_img)
 
     def test_set_speed(self):
         self.assert_no_active_block_jobs()
@@ -723,6 +714,8 @@ class TestUnbackedSource(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(target_img)
         qemu_img('create', '-f', iotests.imgfmt, test_img,
                  str(TestUnbackedSource.image_len))
         self.vm = iotests.VM().add_drive(test_img)
@@ -730,8 +723,6 @@ class TestUnbackedSource(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(target_img)
 
     def test_absolute_paths_full(self):
         self.assert_no_active_block_jobs()
@@ -764,6 +755,8 @@ class TestGranularity(iotests.QMPTestCase):
     image_len = 10 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(target_img)
         qemu_img('create', '-f', iotests.imgfmt, test_img,
                  str(TestGranularity.image_len))
         qemu_io('-c', 'write 0 %d' % (self.image_len),
@@ -775,8 +768,6 @@ class TestGranularity(iotests.QMPTestCase):
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
-        os.remove(test_img)
-        os.remove(target_img)
 
     def test_granularity(self):
         self.assert_no_active_block_jobs()
@@ -797,6 +788,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
     IMAGES = [ quorum_img1, quorum_img2, quorum_img3 ]
 
     def setUp(self):
+        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file ]:
+            blind_remove(i)
+
         self.vm = iotests.VM()
 
         if iotests.qemu_default_machine == 'pc':
@@ -823,12 +817,6 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file ]:
-            # Do a try/except because the test may have deleted some images
-            try:
-                os.remove(i)
-            except OSError:
-                pass
 
     def test_complete(self):
         if not iotests.supports_quorum():

@@ -20,7 +20,7 @@
 
 import os
 import iotests
-from iotests import qemu_img
+from iotests import qemu_img, blind_remove
 
 image0 = os.path.join(iotests.test_dir, 'image0')
 image1 = os.path.join(iotests.test_dir, 'image1')
@@ -31,6 +31,11 @@ image4 = os.path.join(iotests.test_dir, 'image4')
 class TestFdSets(iotests.QMPTestCase):
 
     def setUp(self):
+        blind_remove(image0)
+        blind_remove(image1)
+        blind_remove(image2)
+        blind_remove(image3)
+        blind_remove(image4)
         self.vm = iotests.VM()
         qemu_img('create', '-f', iotests.imgfmt, image0, '128K')
         qemu_img('create', '-f', iotests.imgfmt, image1, '128K')
@@ -57,11 +62,6 @@ class TestFdSets(iotests.QMPTestCase):
         self.file2.close()
         self.file3.close()
         self.file4.close()
-        os.remove(image0)
-        os.remove(image1)
-        os.remove(image2)
-        os.remove(image3)
-        os.remove(image4)
 
     def test_query_fdset(self):
         result = self.vm.qmp('query-fdsets')
@@ -128,6 +128,7 @@ class TestFdSets(iotests.QMPTestCase):
 # Add fd at runtime, there are two ways: monitor related or fdset related
 class TestSCMFd(iotests.QMPTestCase):
     def setUp(self):
+        blind_remove(image0)
         self.vm = iotests.VM()
         qemu_img('create', '-f', iotests.imgfmt, image0, '128K')
         # Add an unused monitor, to verify it works fine when two monitor
@@ -137,7 +138,6 @@ class TestSCMFd(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(image0)
 
     def _send_fd_by_SCM(self):
         ret = self.vm.send_fd_scm(image0)

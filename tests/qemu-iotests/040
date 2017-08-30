@@ -24,7 +24,7 @@
 import time
 import os
 import iotests
-from iotests import qemu_img, qemu_io
+from iotests import qemu_img, qemu_io, blind_remove
 import struct
 import errno
 
@@ -76,6 +76,9 @@ class TestSingleDrive(ImageCommitTestCase):
     test_len = 1 * 1024 * 256
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(mid_img)
+        blind_remove(backing_img)
         iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
@@ -88,9 +91,6 @@ class TestSingleDrive(ImageCommitTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(mid_img)
-        os.remove(backing_img)
 
     def test_commit(self):
         self.run_commit_test(mid_img, backing_img)
@@ -214,6 +214,9 @@ class TestRelativePaths(ImageCommitTestCase):
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
+        blind_remove(self.test_img)
+        blind_remove(self.mid_img_abs)
+        blind_remove(self.backing_img_abs)
         iotests.create_image(self.backing_img_abs, TestRelativePaths.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.backing_img_abs, self.mid_img_abs)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.mid_img_abs, self.test_img)
@@ -226,16 +229,6 @@ class TestRelativePaths(ImageCommitTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(self.test_img)
-        os.remove(self.mid_img_abs)
-        os.remove(self.backing_img_abs)
-        try:
-            os.rmdir(os.path.join(iotests.test_dir, self.dir1))
-            os.rmdir(os.path.join(iotests.test_dir, self.dir3))
-            os.rmdir(os.path.join(iotests.test_dir, self.dir2))
-        except OSError as exception:
-            if exception.errno != errno.EEXIST and exception.errno != errno.ENOTEMPTY:
-                raise
 
     def test_commit(self):
         self.run_commit_test(self.mid_img, self.backing_img)
@@ -280,6 +273,9 @@ class TestSetSpeed(ImageCommitTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(mid_img)
+        blind_remove(backing_img)
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
@@ -290,9 +286,6 @@ class TestSetSpeed(ImageCommitTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(mid_img)
-        os.remove(backing_img)
 
     def test_set_speed(self):
         self.assert_no_active_block_jobs()
@@ -319,6 +312,10 @@ class TestReopenOverlay(ImageCommitTestCase):
     img3 = os.path.join(iotests.test_dir, '3.img')
 
     def setUp(self):
+        blind_remove(self.img0)
+        blind_remove(self.img1)
+        blind_remove(self.img2)
+        blind_remove(self.img3)
         iotests.create_image(self.img0, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img0, self.img1)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img1, self.img2)
@@ -329,10 +326,6 @@ class TestReopenOverlay(ImageCommitTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(self.img0)
-        os.remove(self.img1)
-        os.remove(self.img2)
-        os.remove(self.img3)
 
     # This tests what happens when the overlay image of the 'top' node
     # needs to be reopened in read-write mode in order to update the

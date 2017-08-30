@@ -23,7 +23,7 @@ import os
 import qcow2
 from qcow2 import QcowHeader
 import iotests
-from iotests import qemu_img, qemu_img_verbose, qemu_io
+from iotests import qemu_img, qemu_img_verbose, qemu_io, blind_remove
 import struct
 import subprocess
 
@@ -99,13 +99,9 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
 
 
     def setUp(self):
+        blind_remove(test_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=512', test_img, '16G')
         self.preallocate(test_img)
-        pass
-
-
-    def tearDown(self):
-        os.remove(test_img)
         pass
 
     def test_grow_refcount_table(self):

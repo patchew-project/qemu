@@ -23,7 +23,7 @@ import socket
 import stat
 import time
 import iotests
-from iotests import cachemode, imgfmt, qemu_img, qemu_nbd
+from iotests import cachemode, imgfmt, qemu_img, qemu_nbd, blind_remove
 
 NBD_PORT = 10811
 
@@ -70,17 +70,14 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
 
 class QemuNBD(NBDBlockdevAddBase):
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(unix_socket)
         qemu_img('create', '-f', iotests.imgfmt, test_img, '64k')
         self.vm = iotests.VM()
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(unix_socket)
-        except OSError:
-            pass
 
     def _server_up(self, *args):
         self.assertEqual(qemu_nbd('-f', imgfmt, test_img, *args), 0)
@@ -105,6 +102,8 @@ class QemuNBD(NBDBlockdevAddBase):
 
 class BuiltinNBD(NBDBlockdevAddBase):
     def setUp(self):
+        blind_remove(test_img)
+        blind_remove(unix_socket)
         qemu_img('create', '-f', iotests.imgfmt, test_img, '64k')
         self.vm = iotests.VM()
         self.vm.launch()
@@ -118,11 +117,6 @@ class BuiltinNBD(NBDBlockdevAddBase):
     def tearDown(self):
         self.vm.shutdown()
         self.server.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(unix_socket)
-        except OSError:
-            pass
 
     def _server_up(self, address):
         result = self.server.qmp('nbd-server-start', addr=address)
