@@ -243,6 +243,7 @@ seq="check"
 
 for seq in $list
 do
+    TEST_DIR_SEQ=$TEST_DIR/$seq
     err=false
     printf %s "$seq"
     if [ -n "$TESTS_REMAINING_LOG" ] ; then
@@ -289,13 +290,23 @@ do
         fi
         export OUTPUT_DIR=$PWD
         if $debug; then
-            (cd "$source_iotests";
+            (
+            export TEST_DIR=$TEST_DIR_SEQ
+            . "$source_iotests/common.config"
+            . "$source_iotests/common.rc"
+            cd "$source_iotests" &&
             MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-                    $run_command -d 2>&1 | tee $tmp.out)
+                    $run_command -d 2>&1 | tee $tmp.out
+            )
         else
-            (cd "$source_iotests";
+            (
+            export TEST_DIR=$TEST_DIR_SEQ
+            . "$source_iotests/common.config"
+            . "$source_iotests/common.rc"
+             cd "$source_iotests" &&
             MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-                    $run_command >$tmp.out 2>&1)
+                    $run_command >$tmp.out 2>&1
+            )
         fi
         sts=$?
         $timestamp && _timestamp
@@ -358,6 +369,8 @@ do
                 fi
             fi
         fi
+
+        rm -rf "$TEST_DIR_SEQ"
 
     fi
 
