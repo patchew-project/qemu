@@ -75,13 +75,7 @@ _export_nbd_snapshot1()
     _wait_for_nbd
 }
 
-_cleanup()
-{
-    _cleanup_nbd
-    _cleanup_test_img
-    rm -f "$converted_image"
-}
-trap "_cleanup; exit \$status" 0 1 2 3 15
+trap "_cleanup_nbd; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
 . ./common.rc

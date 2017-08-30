@@ -27,12 +27,6 @@ echo "QA output created by $seq"
 here=$PWD
 status=1	# failure is the default!
 
-_cleanup()
-{
-	_cleanup_test_img
-}
-trap "_cleanup; exit \$status" 0 1 2 3 15
-
 get_image_size_on_host()
 {
     $QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep "disk size" \
