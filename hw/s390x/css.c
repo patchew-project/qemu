@@ -1034,7 +1034,7 @@ static int sch_handle_start_func_passthrough(SubchDev *sch)
      */
     if (!(orb->ctrl0 & ORB_CTRL0_MASK_PFCH) ||
         !(orb->ctrl0 & ORB_CTRL0_MASK_C64)) {
-        return -EINVAL;
+        return -ENODEV;
     }
 
     ret = s390_ccw_cmd_request(orb, s, sch->driver_data);
@@ -1046,16 +1046,13 @@ static int sch_handle_start_func_passthrough(SubchDev *sch)
         break;
     case -ENODEV:
         break;
+    case -EFAULT:
+         break;
     case -EACCES:
         /* Let's reflect an inaccessible host device by cc 3. */
-        ret = -ENODEV;
-        break;
     default:
-       /*
-        * All other return codes will trigger a program check,
-        * or set cc to 1.
-        */
-       break;
+        /* Let's make all other return codes map to cc 3.  */
+        ret = -ENODEV;
     };
 
     return ret;
@@ -1115,7 +1112,7 @@ static int do_subchannel_work(SubchDev *sch)
     if (sch->do_subchannel_work) {
         return sch->do_subchannel_work(sch);
     } else {
-        return -EINVAL;
+        return -ENODEV;
     }
 }
 

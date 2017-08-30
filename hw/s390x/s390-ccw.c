@@ -25,7 +25,7 @@ int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data)
     if (cdc->handle_request) {
         return cdc->handle_request(orb, scsw, data);
     } else {
-        return -ENOSYS;
+        return -ENODEV;
     }
 }
 
