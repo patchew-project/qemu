@@ -52,7 +52,7 @@ typedef struct S390CPUClass {
     bool is_migration_safe;
     const char *desc;
 
-    int64_t next_cpu_id;
+    uint32_t next_cpu_addr;
 
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);

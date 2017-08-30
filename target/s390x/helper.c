@@ -134,9 +134,9 @@ S390CPU *cpu_s390x_init(const char *cpu_model)
     Error *err = NULL;
     S390CPU *cpu;
     /* Use to track CPU ID for linux-user only */
-    static int64_t next_cpu_id;
+    static uint32_t next_cpu_addr;
 
-    cpu = s390x_new_cpu(cpu_model, next_cpu_id++, &err);
+    cpu = s390x_new_cpu(cpu_model, next_cpu_addr++, &err);
     if (err) {
         error_report_err(err);
     }

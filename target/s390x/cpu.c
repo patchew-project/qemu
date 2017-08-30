@@ -201,10 +201,10 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
                    cpu->env.cpu_addr);
         goto out;
     }
-    if (cpu->env.cpu_addr != scc->next_cpu_id) {
+    if (cpu->env.cpu_addr != scc->next_cpu_addr) {
         error_setg(&err, "Unable to add CPU: %" PRIu32
-                   ", the next available nr is %" PRIi64, cpu->env.cpu_addr,
-                   scc->next_cpu_id);
+                   ", the next available addr is %" PRIu32, cpu->env.cpu_addr,
+                   scc->next_cpu_addr);
         goto out;
     }
 
@@ -214,7 +214,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     if (err != NULL) {
         goto out;
     }
-    scc->next_cpu_id++;
+    scc->next_cpu_addr++;
 
 #if !defined(CONFIG_USER_ONLY)
     qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
@@ -459,7 +459,6 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(scc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    scc->next_cpu_id = 0;
     scc->parent_realize = dc->realize;
     dc->realize = s390_cpu_realizefn;
     dc->props = s390x_cpu_properties;
