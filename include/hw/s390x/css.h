@@ -205,7 +205,7 @@ int css_do_stsch(SubchDev *sch, SCHIB *schib);
 bool css_schid_final(int m, uint8_t cssid, uint8_t ssid, uint16_t schid);
 int css_do_msch(SubchDev *sch, const SCHIB *schib);
 void css_do_xsch(SubchDev *sch);
-int css_do_csch(SubchDev *sch);
+void css_do_csch(SubchDev *sch);
 int css_do_hsch(SubchDev *sch);
 void css_do_ssch(SubchDev *sch, ORB *orb);
 int css_do_tsch_get_irb(SubchDev *sch, IRB *irb, int *irb_len);

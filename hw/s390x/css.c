@@ -1272,15 +1272,14 @@ void css_do_xsch(SubchDev *sch)
     s->cstat = 0;
 }
 
-int css_do_csch(SubchDev *sch)
+void css_do_csch(SubchDev *sch)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
-    int ret;
 
     if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
-        ret = -ENODEV;
-        goto out;
+        sch->iret.cc = 3;
+        return;
     }
 
     /* Trigger the clear function. */
@@ -1288,10 +1287,6 @@ int css_do_csch(SubchDev *sch)
     s->ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_ACTL_CLEAR_PEND;
 
     do_subchannel_work(sch);
-    ret = 0;
-
-out:
-    return ret;
 }
 
 int css_do_hsch(SubchDev *sch)
