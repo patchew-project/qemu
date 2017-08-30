@@ -1289,28 +1289,27 @@ void css_do_csch(SubchDev *sch)
     do_subchannel_work(sch);
 }
 
-int css_do_hsch(SubchDev *sch)
+void css_do_hsch(SubchDev *sch)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
-    int ret;
 
     if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
-        ret = -ENODEV;
-        goto out;
+        sch->iret.cc = 3;
+        return;
     }
 
     if (((s->ctrl & SCSW_CTRL_MASK_STCTL) == SCSW_STCTL_STATUS_PEND) ||
         (s->ctrl & (SCSW_STCTL_PRIMARY |
                     SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT))) {
-        ret = -EINPROGRESS;
-        goto out;
+        sch->iret.cc = 1;
+        return;
     }
 
     if (s->ctrl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC)) {
-        ret = -EBUSY;
-        goto out;
+        sch->iret.cc = 2;
+        return;
     }
 
     /* Trigger the halt function. */
@@ -1324,10 +1323,6 @@ int css_do_hsch(SubchDev *sch)
     s->ctrl |= SCSW_ACTL_HALT_PEND;
 
     do_subchannel_work(sch);
-    ret = 0;
-
-out:
-    return ret;
 }
 
 static void css_update_chnmon(SubchDev *sch)
