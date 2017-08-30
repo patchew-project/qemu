@@ -25,20 +25,20 @@
 #include "x86.h"
 
 typedef enum x86_prefix {
-    // group 1
+    /* group 1 */
     PREFIX_LOCK =                  0xf0,
     PREFIX_REPN =                  0xf2,
     PREFIX_REP =                   0xf3,
-    // group 2
+    /* group 2 */
     PREFIX_CS_SEG_OVEERIDE =       0x2e,
     PREFIX_SS_SEG_OVEERIDE =       0x36,
     PREFIX_DS_SEG_OVEERIDE =       0x3e,
     PREFIX_ES_SEG_OVEERIDE =       0x26,
     PREFIX_FS_SEG_OVEERIDE =       0x64,
     PREFIX_GS_SEG_OVEERIDE =       0x65,
-    // group 3
+    /* group 3 */
     PREFIX_OP_SIZE_OVERRIDE =      0x66,
-    // group 4
+    /* group 4 */
     PREFIX_ADDR_SIZE_OVERRIDE =    0x67,
 
     PREFIX_REX                   = 0x40,
@@ -46,7 +46,7 @@ typedef enum x86_prefix {
 
 enum x86_decode_cmd {
     X86_DECODE_CMD_INVL = 0,
-    
+
     X86_DECODE_CMD_PUSH,
     X86_DECODE_CMD_PUSH_SEG,
     X86_DECODE_CMD_POP,
@@ -177,7 +177,7 @@ enum x86_decode_cmd {
     X86_DECODE_CMD_CMPXCHG8B,
     X86_DECODE_CMD_CMPXCHG,
     X86_DECODE_CMD_POPCNT,
-    
+
     X86_DECODE_CMD_FNINIT,
     X86_DECODE_CMD_FLD,
     X86_DECODE_CMD_FLDxx,
@@ -255,7 +255,7 @@ typedef enum x86_var_type {
     X86_VAR_REG,
     X86_VAR_RM,
 
-    // for floating point computations
+    /* for floating point computations */
     X87_VAR_REG,
     X87_VAR_FLOATP,
     X87_VAR_INTP,
@@ -308,7 +308,17 @@ uint32_t decode_instruction(CPUState *cpu, struct x86_decode *decode);
 
 addr_t get_reg_ref(CPUState *cpu, int reg, int is_extended, int size);
 addr_t get_reg_val(CPUState *cpu, int reg, int is_extended, int size);
-void calc_modrm_operand(CPUState *cpu, struct x86_decode *decode, struct x86_decode_op *op);
-addr_t decode_linear_addr(struct CPUState *cpu, struct x86_decode *decode, addr_t addr, x86_reg_segment seg);
+void calc_modrm_operand(CPUState *cpu, struct x86_decode *decode,
+                        struct x86_decode_op *op);
+addr_t decode_linear_addr(struct CPUState *cpu, struct x86_decode *decode,
+                          addr_t addr, x86_reg_segment seg);
 
-void init_decoder(CPUState* cpu);
+void init_decoder(CPUState *cpu);
+void calc_modrm_operand16(CPUState *cpu, struct x86_decode *decode,
+                          struct x86_decode_op *op);
+void calc_modrm_operand32(CPUState *cpu, struct x86_decode *decode,
+                          struct x86_decode_op *op);
+void calc_modrm_operand64(CPUState *cpu, struct x86_decode *decode,
+                          struct x86_decode_op *op);
+void set_addressing_size(CPUState *cpu, struct x86_decode *decode);
+void set_operand_size(CPUState *cpu, struct x86_decode *decode);

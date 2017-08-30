@@ -25,26 +25,26 @@
 #include "qemu-common.h"
 #include "x86_flags.h"
 
-// exceptions
+/* exceptions */
 typedef enum x86_exception {
-    EXCEPTION_DE,           // divide error
-    EXCEPTION_DB,           // debug fault
-    EXCEPTION_NMI,          // non-maskable interrupt
-    EXCEPTION_BP,           // breakpoint	trap
-    EXCEPTION_OF,           // overflow	trap
-    EXCEPTION_BR,           // boundary range exceeded	fault
-    EXCEPTION_UD,           // undefined opcode
-    EXCEPTION_NM,           // device not available
-    EXCEPTION_DF,           // double fault
-    EXCEPTION_RSVD,         // not defined
-    EXCEPTION_TS,           // invalid TSS	fault
-    EXCEPTION_NP,           // not present	fault
-    EXCEPTION_GP,           // general protection	fault
-    EXCEPTION_PF,           // page fault
-    EXCEPTION_RSVD2,        // not defined
+    EXCEPTION_DE,           /* divide error */
+    EXCEPTION_DB,           /* debug fault */
+    EXCEPTION_NMI,          /* non-maskable interrupt */
+    EXCEPTION_BP,           /* breakpoint trap */
+    EXCEPTION_OF,           /* overflow trap */
+    EXCEPTION_BR,           /* boundary range exceeded fault */
+    EXCEPTION_UD,           /* undefined opcode */
+    EXCEPTION_NM,           /* device not available */
+    EXCEPTION_DF,           /* double fault */
+    EXCEPTION_RSVD,         /* not defined */
+    EXCEPTION_TS,           /* invalid TSS fault */
+    EXCEPTION_NP,           /* not present fault */
+    EXCEPTION_GP,           /* general protection fault */
+    EXCEPTION_PF,           /* page fault */
+    EXCEPTION_RSVD2,        /* not defined */
 } x86_exception;
 
-// general purpose regs
+/* general purpose regs */
 typedef enum x86_reg_name {
     REG_RAX = 0,
     REG_RCX = 1,
@@ -64,7 +64,7 @@ typedef enum x86_reg_name {
     REG_R15 = 15,
 } x86_reg_name;
 
-// segment regs
+/* segment regs */
 typedef enum x86_reg_segment {
     REG_SEG_ES = 0,
     REG_SEG_CS = 1,
@@ -76,24 +76,23 @@ typedef enum x86_reg_segment {
     REG_SEG_TR = 7,
 } x86_reg_segment;
 
-typedef struct x86_register
-{
+typedef struct x86_register {
     union {
         struct {
-            uint64_t rrx;               // full 64 bit
+            uint64_t rrx;               /* full 64 bit */
         };
         struct {
-            uint32_t erx;               // low 32 bit part
+            uint32_t erx;               /* low 32 bit part */
             uint32_t hi32_unused1;
         };
         struct {
-            uint16_t rx;                // low 16 bit part
+            uint16_t rx;                /* low 16 bit part */
             uint16_t hi16_unused1;
             uint32_t hi32_unused2;
         };
         struct {
-            uint8_t lx;                 // low 8 bit part
-            uint8_t hx;                 // high 8 bit
+            uint8_t lx;                 /* low 8 bit part */
+            uint8_t hx;                 /* high 8 bit */
             uint16_t hi16_unused2;
             uint32_t hi32_unused3;
         };
@@ -120,7 +119,7 @@ typedef enum x86_rflags {
     RFLAGS_ID       = (1L << 21),
 } x86_rflags;
 
-// rflags register
+/* rflags register */
 typedef struct x86_reg_flags {
     union {
         struct {
@@ -205,7 +204,7 @@ typedef enum x86_reg_cr4 {
     CR4_SMEP =           (1L << 20),
 } x86_reg_cr4;
 
-// 16 bit Task State Segment
+/* 16 bit Task State Segment */
 typedef struct x86_tss_segment16 {
     uint16_t link;
     uint16_t sp0;
@@ -231,9 +230,8 @@ typedef struct x86_tss_segment16 {
     uint16_t ldtr;
 } __attribute__((packed)) x86_tss_segment16;
 
-// 32 bit Task State Segment
-typedef struct x86_tss_segment32
-{
+/* 32 bit Task State Segment */
+typedef struct x86_tss_segment32 {
     uint32_t prev_tss;
     uint32_t esp0;
     uint32_t ss0;
@@ -263,9 +261,8 @@ typedef struct x86_tss_segment32
     uint16_t iomap_base;
 } __attribute__ ((__packed__)) x86_tss_segment32;
 
-// 64 bit Task State Segment
-typedef struct x86_tss_segment64
-{
+/* 64 bit Task State Segment */
+typedef struct x86_tss_segment64 {
     uint32_t unused;
     uint64_t rsp0;
     uint64_t rsp1;
@@ -283,7 +280,7 @@ typedef struct x86_tss_segment64
     uint16_t iomap_base;
 } __attribute__ ((__packed__)) x86_tss_segment64;
 
-// segment descriptors
+/* segment descriptors */
 typedef struct x86_segment_descriptor {
     uint64_t    limit0:16;
     uint64_t    base0:16;
@@ -305,7 +302,8 @@ static inline uint32_t x86_segment_base(x86_segment_descriptor *desc)
     return (uint32_t)((desc->base2 << 24) | (desc->base1 << 16) | desc->base0);
 }
 
-static inline void x86_set_segment_base(x86_segment_descriptor *desc, uint32_t base)
+static inline void x86_set_segment_base(x86_segment_descriptor *desc,
+                                        uint32_t base)
 {
     desc->base2 = base >> 24;
     desc->base1 = (base >> 16) & 0xff;
@@ -315,12 +313,14 @@ static inline void x86_set_segment_base(x86_segment_descriptor *desc, uint32_t b
 static inline uint32_t x86_segment_limit(x86_segment_descriptor *desc)
 {
     uint32_t limit = (uint32_t)((desc->limit1 << 16) | desc->limit0);
-    if (desc->g)
+    if (desc->g) {
         return (limit << 12) | 0xfff;
+    }
     return limit;
 }
 
-static inline void x86_set_segment_limit(x86_segment_descriptor *desc, uint32_t limit)
+static inline void x86_set_segment_limit(x86_segment_descriptor *desc,
+                                         uint32_t limit)
 {
     desc->limit0 = limit & 0xffff;
     desc->limit1 = limit >> 16;
@@ -356,11 +356,11 @@ typedef struct x68_segment_selector {
     };
 } __attribute__ ((__packed__)) x68_segment_selector;
 
-// Definition of hvf_x86_state is here
+/* Definition of hvf_x86_state is here */
 struct hvf_x86_state {
     int hlt;
     uint64_t init_tsc;
-    
+
     int interruptable;
     uint64_t exp_rip;
     uint64_t fetch_rip;
@@ -370,7 +370,7 @@ struct hvf_x86_state {
     struct lazy_flags   lflags;
     struct x86_efer efer;
     uint8_t mmio_buf[4096];
-    uint8_t* apic_page;
+    uint8_t *apic_page;
 };
 
 /*
@@ -380,7 +380,7 @@ struct hvf_xsave_buf {
     uint32_t data[1024];
 };
 
-// useful register access  macros
+/* useful register access  macros */
 #define RIP(cpu)    (cpu->hvf_x86->rip)
 #define EIP(cpu)    ((uint32_t)cpu->hvf_x86->rip)
 #define RFLAGS(cpu) (cpu->hvf_x86->rflags.rflags)
@@ -436,13 +436,18 @@ struct hvf_xsave_buf {
 #define DH(cpu)        RH(cpu, REG_RDX)
 #define BH(cpu)        RH(cpu, REG_RBX)
 
-// deal with GDT/LDT descriptors in memory
-bool x86_read_segment_descriptor(struct CPUState *cpu, struct x86_segment_descriptor *desc, x68_segment_selector sel);
-bool x86_write_segment_descriptor(struct CPUState *cpu, struct x86_segment_descriptor *desc, x68_segment_selector sel);
+/* deal with GDT/LDT descriptors in memory */
+bool x86_read_segment_descriptor(struct CPUState *cpu,
+                                 struct x86_segment_descriptor *desc,
+                                 x68_segment_selector sel);
+bool x86_write_segment_descriptor(struct CPUState *cpu,
+                                  struct x86_segment_descriptor *desc,
+                                  x68_segment_selector sel);
 
-bool x86_read_call_gate(struct CPUState *cpu, struct x86_call_gate *idt_desc, int gate);
+bool x86_read_call_gate(struct CPUState *cpu, struct x86_call_gate *idt_desc,
+                        int gate);
 
-// helpers
+/* helpers */
 bool x86_is_protected(struct CPUState *cpu);
 bool x86_is_real(struct CPUState *cpu);
 bool x86_is_v8086(struct CPUState *cpu);
@@ -452,19 +457,20 @@ bool x86_is_paging_mode(struct CPUState *cpu);
 bool x86_is_pae_enabled(struct CPUState *cpu);
 
 addr_t linear_addr(struct CPUState *cpu, addr_t addr, x86_reg_segment seg);
-addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size, x86_reg_segment seg);
+addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
+                        x86_reg_segment seg);
 addr_t linear_rip(struct CPUState *cpu, addr_t rip);
 
 static inline uint64_t rdtscp(void)
 {
     uint64_t tsc;
-    __asm__ __volatile__("rdtscp; "         // serializing read of tsc
-                         "shl $32,%%rdx; "  // shift higher 32 bits stored in rdx up
-                         "or %%rdx,%%rax"   // and or onto rax
-                         : "=a"(tsc)        // output to tsc variable
+    __asm__ __volatile__("rdtscp; "         /* serializing read of tsc */
+                         "shl $32,%%rdx; "  /* shift higher 32 bits stored in rdx up */
+                         "or %%rdx,%%rax"   /* and or onto rax */
+                         : "=a"(tsc)        /* output to tsc variable */
                          :
-                         : "%rcx", "%rdx"); // rcx and rdx are clobbered
-    
+                         : "%rcx", "%rdx"); /* rcx and rdx are clobbered */
+
     return tsc;
 }
 

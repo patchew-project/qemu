@@ -45,8 +45,8 @@
 #include "vmcs.h"
 #include "vmx.h"
 
-static void print_debug(struct CPUState *cpu);
-void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int direction, int size, uint32_t count);
+void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
+                   int direction, int size, uint32_t count);
 
 #define EXEC_2OP_LOGIC_CMD(cpu, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \
@@ -57,8 +57,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
         uint8_t v1 = (uint8_t)decode->op[0].val;    \
         uint8_t v2 = (uint8_t)decode->op[1].val;    \
         uint8_t diff = v1 cmd v2;                   \
-        if (save_res)                               \
+        if (save_res) {                              \
             write_val_ext(cpu, decode->op[0].ptr, diff, 1);  \
+        } \
         FLAGS_FUNC##_8(diff);                       \
         break;                                      \
     }                                               \
@@ -67,8 +68,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
         uint16_t v1 = (uint16_t)decode->op[0].val;  \
         uint16_t v2 = (uint16_t)decode->op[1].val;  \
         uint16_t diff = v1 cmd v2;                  \
-        if (save_res)                               \
+        if (save_res) {                              \
             write_val_ext(cpu, decode->op[0].ptr, diff, 2); \
+        } \
         FLAGS_FUNC##_16(diff);                      \
         break;                                      \
     }                                               \
@@ -77,8 +79,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
         uint32_t v1 = (uint32_t)decode->op[0].val;  \
         uint32_t v2 = (uint32_t)decode->op[1].val;  \
         uint32_t diff = v1 cmd v2;                  \
-        if (save_res)                               \
+        if (save_res) {                              \
             write_val_ext(cpu, decode->op[0].ptr, diff, 4); \
+        } \
         FLAGS_FUNC##_32(diff);                      \
         break;                                      \
     }                                               \
@@ -97,8 +100,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
         uint8_t v1 = (uint8_t)decode->op[0].val;    \
         uint8_t v2 = (uint8_t)decode->op[1].val;    \
         uint8_t diff = v1 cmd v2;                   \
-        if (save_res)                               \
+        if (save_res) {                              \
             write_val_ext(cpu, decode->op[0].ptr, diff, 1);  \
+        } \
         FLAGS_FUNC##_8(v1, v2, diff);               \
         break;                                      \
     }                                               \
@@ -107,8 +111,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
         uint16_t v1 = (uint16_t)decode->op[0].val;  \
         uint16_t v2 = (uint16_t)decode->op[1].val;  \
         uint16_t diff = v1 cmd v2;                  \
-        if (save_res)                               \
+        if (save_res) {                              \
             write_val_ext(cpu, decode->op[0].ptr, diff, 2); \
+        } \
         FLAGS_FUNC##_16(v1, v2, diff);              \
         break;                                      \
     }                                               \
@@ -117,8 +122,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
         uint32_t v1 = (uint32_t)decode->op[0].val;  \
         uint32_t v2 = (uint32_t)decode->op[1].val;  \
         uint32_t diff = v1 cmd v2;                  \
-        if (save_res)                               \
+        if (save_res) {                              \
             write_val_ext(cpu, decode->op[0].ptr, diff, 4); \
+        } \
         FLAGS_FUNC##_32(v1, v2, diff);              \
         break;                                      \
     }                                               \
@@ -127,63 +133,63 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data, int directio
     }                                                   \
 }
 
-addr_t read_reg(struct CPUState* cpu, int reg, int size)
+addr_t read_reg(struct CPUState *cpu, int reg, int size)
 {
     switch (size) {
-        case 1:
-            return cpu->hvf_x86->regs[reg].lx;
-        case 2:
-            return cpu->hvf_x86->regs[reg].rx;
-        case 4:
-            return cpu->hvf_x86->regs[reg].erx;
-        case 8:
-            return cpu->hvf_x86->regs[reg].rrx;
-        default:
-            VM_PANIC_ON("read_reg size");
+    case 1:
+        return cpu->hvf_x86->regs[reg].lx;
+    case 2:
+        return cpu->hvf_x86->regs[reg].rx;
+    case 4:
+        return cpu->hvf_x86->regs[reg].erx;
+    case 8:
+        return cpu->hvf_x86->regs[reg].rrx;
+    default:
+        VM_PANIC_ON("read_reg size");
     }
     return 0;
 }
 
-void write_reg(struct CPUState* cpu, int reg, addr_t val, int size)
+void write_reg(struct CPUState *cpu, int reg, addr_t val, int size)
 {
     switch (size) {
-        case 1:
-            cpu->hvf_x86->regs[reg].lx = val;
-            break;
-        case 2:
-            cpu->hvf_x86->regs[reg].rx = val;
-            break;
-        case 4:
-            cpu->hvf_x86->regs[reg].rrx = (uint32_t)val;
-            break;
-        case 8:
-            cpu->hvf_x86->regs[reg].rrx = val;
-            break;
-        default:
-            VM_PANIC_ON("write_reg size");
+    case 1:
+        cpu->hvf_x86->regs[reg].lx = val;
+        break;
+    case 2:
+        cpu->hvf_x86->regs[reg].rx = val;
+        break;
+    case 4:
+        cpu->hvf_x86->regs[reg].rrx = (uint32_t)val;
+        break;
+    case 8:
+        cpu->hvf_x86->regs[reg].rrx = val;
+        break;
+    default:
+        VM_PANIC_ON("write_reg size");
     }
 }
 
 addr_t read_val_from_reg(addr_t reg_ptr, int size)
 {
     addr_t val;
-    
+
     switch (size) {
-        case 1:
-            val = *(uint8_t*)reg_ptr;
-            break;
-        case 2:
-            val = *(uint16_t*)reg_ptr;
-            break;
-        case 4:
-            val = *(uint32_t*)reg_ptr;
-            break;
-        case 8:
-            val = *(uint64_t*)reg_ptr;
-            break;
-        default:
-            VM_PANIC_ON_EX(1, "read_val: Unknown size %d\n", size);
-            break;
+    case 1:
+        val = *(uint8_t *)reg_ptr;
+        break;
+    case 2:
+        val = *(uint16_t *)reg_ptr;
+        break;
+    case 4:
+        val = *(uint32_t *)reg_ptr;
+        break;
+    case 8:
+        val = *(uint64_t *)reg_ptr;
+        break;
+    default:
+        VM_PANIC_ON_EX(1, "read_val: Unknown size %d\n", size);
+        break;
     }
     return val;
 }
@@ -191,30 +197,32 @@ addr_t read_val_from_reg(addr_t reg_ptr, int size)
 void write_val_to_reg(addr_t reg_ptr, addr_t val, int size)
 {
     switch (size) {
-        case 1:
-            *(uint8_t*)reg_ptr = val;
-            break;
-        case 2:
-            *(uint16_t*)reg_ptr = val;
-            break;
-        case 4:
-            *(uint64_t*)reg_ptr = (uint32_t)val;
-            break;
-        case 8:
-            *(uint64_t*)reg_ptr = val;
-            break;
-        default:
-            VM_PANIC("write_val: Unknown size\n");
-            break;
+    case 1:
+        *(uint8_t *)reg_ptr = val;
+        break;
+    case 2:
+        *(uint16_t *)reg_ptr = val;
+        break;
+    case 4:
+        *(uint64_t *)reg_ptr = (uint32_t)val;
+        break;
+    case 8:
+        *(uint64_t *)reg_ptr = val;
+        break;
+    default:
+        VM_PANIC("write_val: Unknown size\n");
+        break;
     }
 }
 
-static bool is_host_reg(struct CPUState* cpu, addr_t ptr) {
+static bool is_host_reg(struct CPUState *cpu, addr_t ptr)
+{
     return (ptr > (addr_t)cpu && ptr < (addr_t)cpu + sizeof(struct CPUState)) ||
-           (ptr > (addr_t)cpu->hvf_x86 && ptr < (addr_t)(cpu->hvf_x86 + sizeof(struct hvf_x86_state)));
+           (ptr > (addr_t)cpu->hvf_x86 && ptr <
+            (addr_t)(cpu->hvf_x86 + sizeof(struct hvf_x86_state)));
 }
 
-void write_val_ext(struct CPUState* cpu, addr_t ptr, addr_t val, int size)
+void write_val_ext(struct CPUState *cpu, addr_t ptr, addr_t val, int size)
 {
     if (is_host_reg(cpu, ptr)) {
         write_val_to_reg(ptr, val, size);
@@ -223,68 +231,77 @@ void write_val_ext(struct CPUState* cpu, addr_t ptr, addr_t val, int size)
     vmx_write_mem(cpu, ptr, &val, size);
 }
 
-uint8_t *read_mmio(struct CPUState* cpu, addr_t ptr, int bytes)
+uint8_t *read_mmio(struct CPUState *cpu, addr_t ptr, int bytes)
 {
     vmx_read_mem(cpu, cpu->hvf_x86->mmio_buf, ptr, bytes);
     return cpu->hvf_x86->mmio_buf;
 }
 
-addr_t read_val_ext(struct CPUState* cpu, addr_t ptr, int size)
+addr_t read_val_ext(struct CPUState *cpu, addr_t ptr, int size)
 {
     addr_t val;
     uint8_t *mmio_ptr;
-    
+
     if (is_host_reg(cpu, ptr)) {
         return read_val_from_reg(ptr, size);
     }
-    
+
     mmio_ptr = read_mmio(cpu, ptr, size);
     switch (size) {
-        case 1:
-            val = *(uint8_t*)mmio_ptr;
-            break;
-        case 2:
-            val = *(uint16_t*)mmio_ptr;
-            break;
-        case 4:
-            val = *(uint32_t*)mmio_ptr;
-            break;
-        case 8:
-            val = *(uint64_t*)mmio_ptr;
-            break;
-        default:
-            VM_PANIC("bad size\n");
-            break;
+    case 1:
+        val = *(uint8_t *)mmio_ptr;
+        break;
+    case 2:
+        val = *(uint16_t *)mmio_ptr;
+        break;
+    case 4:
+        val = *(uint32_t *)mmio_ptr;
+        break;
+    case 8:
+        val = *(uint64_t *)mmio_ptr;
+        break;
+    default:
+        VM_PANIC("bad size\n");
+        break;
     }
     return val;
 }
 
-static void fetch_operands(struct CPUState *cpu, struct x86_decode *decode, int n, bool val_op0, bool val_op1, bool val_op2)
+static void fetch_operands(struct CPUState *cpu, struct x86_decode *decode,
+                           int n, bool val_op0, bool val_op1, bool val_op2)
 {
     int i;
     bool calc_val[3] = {val_op0, val_op1, val_op2};
 
     for (i = 0; i < n; i++) {
         switch (decode->op[i].type) {
-            case X86_VAR_IMMEDIATE:
-                break;
-            case X86_VAR_REG:
-                VM_PANIC_ON(!decode->op[i].ptr);
-                if (calc_val[i])
-                    decode->op[i].val = read_val_from_reg(decode->op[i].ptr, decode->operand_size);
-                break;
-            case X86_VAR_RM:
-                calc_modrm_operand(cpu, decode, &decode->op[i]);
-                if (calc_val[i])
-                    decode->op[i].val = read_val_ext(cpu, decode->op[i].ptr, decode->operand_size);
-                break;
-            case X86_VAR_OFFSET:
-                decode->op[i].ptr = decode_linear_addr(cpu, decode, decode->op[i].ptr, REG_SEG_DS);
-                if (calc_val[i])
-                    decode->op[i].val = read_val_ext(cpu, decode->op[i].ptr, decode->operand_size);
-                break;
-            default:
-                break;
+        case X86_VAR_IMMEDIATE:
+            break;
+        case X86_VAR_REG:
+            VM_PANIC_ON(!decode->op[i].ptr);
+            if (calc_val[i]) {
+                decode->op[i].val = read_val_from_reg(decode->op[i].ptr,
+                                                      decode->operand_size);
+            }
+            break;
+        case X86_VAR_RM:
+            calc_modrm_operand(cpu, decode, &decode->op[i]);
+            if (calc_val[i]) {
+                decode->op[i].val = read_val_ext(cpu, decode->op[i].ptr,
+                                                 decode->operand_size);
+            }
+            break;
+        case X86_VAR_OFFSET:
+            decode->op[i].ptr = decode_linear_addr(cpu, decode,
+                                                   decode->op[i].ptr,
+                                                   REG_SEG_DS);
+            if (calc_val[i]) {
+                decode->op[i].val = read_val_ext(cpu, decode->op[i].ptr,
+                                                 decode->operand_size);
+            }
+            break;
+        default:
+            break;
         }
     }
 }
@@ -292,7 +309,8 @@ static void fetch_operands(struct CPUState *cpu, struct x86_decode *decode, int 
 static void exec_mov(struct CPUState *cpu, struct x86_decode *decode)
 {
     fetch_operands(cpu, decode, 2, false, true, false);
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val, decode->operand_size);
+    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val,
+                  decode->operand_size);
 
     RIP(cpu) += decode->len;
 }
@@ -341,7 +359,7 @@ static void exec_xor(struct CPUState *cpu, struct x86_decode *decode)
 
 static void exec_neg(struct CPUState *cpu, struct x86_decode *decode)
 {
-    //EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    /*EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, false);*/
     int32_t val;
     fetch_operands(cpu, decode, 2, true, true, false);
 
@@ -350,17 +368,15 @@ static void exec_neg(struct CPUState *cpu, struct x86_decode *decode)
 
     if (4 == decode->operand_size) {
         SET_FLAGS_OSZAPC_SUB_32(0, 0 - val, val);
-    }
-    else if (2 == decode->operand_size) {
+    } else if (2 == decode->operand_size) {
         SET_FLAGS_OSZAPC_SUB_16(0, 0 - val, val);
-    }
-    else if (1 == decode->operand_size) {
+    } else if (1 == decode->operand_size) {
         SET_FLAGS_OSZAPC_SUB_8(0, 0 - val, val);
     } else {
         VM_PANIC("bad op size\n");
     }
 
-    //lflags_to_rflags(cpu);
+    /*lflags_to_rflags(cpu);*/
     RIP(cpu) += decode->len;
 }
 
@@ -399,7 +415,8 @@ static void exec_not(struct CPUState *cpu, struct x86_decode *decode)
 {
     fetch_operands(cpu, decode, 1, true, false, false);
 
-    write_val_ext(cpu, decode->op[0].ptr, ~decode->op[0].val, decode->operand_size);
+    write_val_ext(cpu, decode->op[0].ptr, ~decode->op[0].val,
+                  decode->operand_size);
     RIP(cpu) += decode->len;
 }
 
@@ -410,10 +427,11 @@ void exec_movzx(struct CPUState *cpu, struct x86_decode *decode)
 
     fetch_operands(cpu, decode, 1, false, false, false);
 
-    if (0xb6 == decode->opcode[1])
+    if (0xb6 == decode->opcode[1]) {
         src_op_size = 1;
-    else
+    } else {
         src_op_size = 2;
+    }
     decode->operand_size = src_op_size;
     calc_modrm_operand(cpu, decode, &decode->op[1]);
     decode->op[1].val = read_val_ext(cpu, decode->op[1].ptr, src_op_size);
@@ -425,21 +443,22 @@ void exec_movzx(struct CPUState *cpu, struct x86_decode *decode)
 static void exec_out(struct CPUState *cpu, struct x86_decode *decode)
 {
     switch (decode->opcode[0]) {
-        case 0xe6:
-            hvf_handle_io(cpu, decode->op[0].val, &AL(cpu), 1, 1, 1);
-            break;
-        case 0xe7:
-            hvf_handle_io(cpu, decode->op[0].val, &RAX(cpu), 1, decode->operand_size, 1);
-            break;
-        case 0xee:
-            hvf_handle_io(cpu, DX(cpu), &AL(cpu), 1, 1, 1);
-            break;
-        case 0xef:
-            hvf_handle_io(cpu, DX(cpu), &RAX(cpu), 1, decode->operand_size, 1);
-            break;
-        default:
-            VM_PANIC("Bad out opcode\n");
-            break;
+    case 0xe6:
+        hvf_handle_io(cpu, decode->op[0].val, &AL(cpu), 1, 1, 1);
+        break;
+    case 0xe7:
+        hvf_handle_io(cpu, decode->op[0].val, &RAX(cpu), 1,
+                      decode->operand_size, 1);
+        break;
+    case 0xee:
+        hvf_handle_io(cpu, DX(cpu), &AL(cpu), 1, 1, 1);
+        break;
+    case 0xef:
+        hvf_handle_io(cpu, DX(cpu), &RAX(cpu), 1, decode->operand_size, 1);
+        break;
+    default:
+        VM_PANIC("Bad out opcode\n");
+        break;
     }
     RIP(cpu) += decode->len;
 }
@@ -448,63 +467,73 @@ static void exec_in(struct CPUState *cpu, struct x86_decode *decode)
 {
     addr_t val = 0;
     switch (decode->opcode[0]) {
-        case 0xe4:
-            hvf_handle_io(cpu, decode->op[0].val, &AL(cpu), 0, 1, 1);
-            break;
-        case 0xe5:
-            hvf_handle_io(cpu, decode->op[0].val, &val, 0, decode->operand_size, 1);
-            if (decode->operand_size == 2)
-                AX(cpu) = val;
-            else
-                RAX(cpu) = (uint32_t)val;
-            break;
-        case 0xec:
-            hvf_handle_io(cpu, DX(cpu), &AL(cpu), 0, 1, 1);
-            break;
-        case 0xed:
-            hvf_handle_io(cpu, DX(cpu), &val, 0, decode->operand_size, 1);
-            if (decode->operand_size == 2)
-                AX(cpu) = val;
-            else
-                RAX(cpu) = (uint32_t)val;
+    case 0xe4:
+        hvf_handle_io(cpu, decode->op[0].val, &AL(cpu), 0, 1, 1);
+        break;
+    case 0xe5:
+        hvf_handle_io(cpu, decode->op[0].val, &val, 0, decode->operand_size, 1);
+        if (decode->operand_size == 2) {
+            AX(cpu) = val;
+        } else {
+            RAX(cpu) = (uint32_t)val;
+        }
+        break;
+    case 0xec:
+        hvf_handle_io(cpu, DX(cpu), &AL(cpu), 0, 1, 1);
+        break;
+    case 0xed:
+        hvf_handle_io(cpu, DX(cpu), &val, 0, decode->operand_size, 1);
+        if (decode->operand_size == 2) {
+            AX(cpu) = val;
+        } else {
+            RAX(cpu) = (uint32_t)val;
+        }
 
-            break;
-        default:
-            VM_PANIC("Bad in opcode\n");
-            break;
+        break;
+    default:
+        VM_PANIC("Bad in opcode\n");
+        break;
     }
 
     RIP(cpu) += decode->len;
 }
 
-static inline void string_increment_reg(struct CPUState * cpu, int reg, struct x86_decode *decode)
+static inline void string_increment_reg(struct CPUState *cpu, int reg,
+                                        struct x86_decode *decode)
 {
     addr_t val = read_reg(cpu, reg, decode->addressing_size);
-    if (cpu->hvf_x86->rflags.df)
+    if (cpu->hvf_x86->rflags.df) {
         val -= decode->operand_size;
-    else
+    } else {
         val += decode->operand_size;
+    }
     write_reg(cpu, reg, val, decode->addressing_size);
 }
 
-static inline void string_rep(struct CPUState * cpu, struct x86_decode *decode, void (*func)(struct CPUState *cpu, struct x86_decode *ins), int rep)
+static inline void string_rep(struct CPUState *cpu, struct x86_decode *decode,
+                              void (*func)(struct CPUState *cpu,
+                                           struct x86_decode *ins), int rep)
 {
     addr_t rcx = read_reg(cpu, REG_RCX, decode->addressing_size);
     while (rcx--) {
         func(cpu, decode);
         write_reg(cpu, REG_RCX, rcx, decode->addressing_size);
-        if ((PREFIX_REP == rep) && !get_ZF(cpu))
+        if ((PREFIX_REP == rep) && !get_ZF(cpu)) {
             break;
-        if ((PREFIX_REPN == rep) && get_ZF(cpu))
+        }
+        if ((PREFIX_REPN == rep) && get_ZF(cpu)) {
             break;
+        }
     }
 }
 
 static void exec_ins_single(struct CPUState *cpu, struct x86_decode *decode)
 {
-    addr_t addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size, REG_SEG_ES);
+    addr_t addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size,
+                                   REG_SEG_ES);
 
-    hvf_handle_io(cpu, DX(cpu), cpu->hvf_x86->mmio_buf, 0, decode->operand_size, 1);
+    hvf_handle_io(cpu, DX(cpu), cpu->hvf_x86->mmio_buf, 0,
+                  decode->operand_size, 1);
     vmx_write_mem(cpu, addr, cpu->hvf_x86->mmio_buf, decode->operand_size);
 
     string_increment_reg(cpu, REG_RDI, decode);
@@ -512,10 +541,11 @@ static void exec_ins_single(struct CPUState *cpu, struct x86_decode *decode)
 
 static void exec_ins(struct CPUState *cpu, struct x86_decode *decode)
 {
-    if (decode->rep)
+    if (decode->rep) {
         string_rep(cpu, decode, exec_ins_single, 0);
-    else
+    } else {
         exec_ins_single(cpu, decode);
+    }
 
     RIP(cpu) += decode->len;
 }
@@ -525,18 +555,20 @@ static void exec_outs_single(struct CPUState *cpu, struct x86_decode *decode)
     addr_t addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
 
     vmx_read_mem(cpu, cpu->hvf_x86->mmio_buf, addr, decode->operand_size);
-    hvf_handle_io(cpu, DX(cpu), cpu->hvf_x86->mmio_buf, 1, decode->operand_size, 1);
+    hvf_handle_io(cpu, DX(cpu), cpu->hvf_x86->mmio_buf, 1,
+                  decode->operand_size, 1);
 
     string_increment_reg(cpu, REG_RSI, decode);
 }
 
 static void exec_outs(struct CPUState *cpu, struct x86_decode *decode)
 {
-    if (decode->rep)
+    if (decode->rep) {
         string_rep(cpu, decode, exec_outs_single, 0);
-    else
+    } else {
         exec_outs_single(cpu, decode);
-    
+    }
+
     RIP(cpu) += decode->len;
 }
 
@@ -545,10 +577,11 @@ static void exec_movs_single(struct CPUState *cpu, struct x86_decode *decode)
     addr_t src_addr;
     addr_t dst_addr;
     addr_t val;
-    
+
     src_addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
-    dst_addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size, REG_SEG_ES);
-    
+    dst_addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size,
+                                REG_SEG_ES);
+
     val = read_val_ext(cpu, src_addr, decode->operand_size);
     write_val_ext(cpu, dst_addr, val, decode->operand_size);
 
@@ -560,9 +593,9 @@ static void exec_movs(struct CPUState *cpu, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(cpu, decode, exec_movs_single, 0);
-    }
-    else
+    } else {
         exec_movs_single(cpu, decode);
+    }
 
     RIP(cpu) += decode->len;
 }
@@ -573,7 +606,8 @@ static void exec_cmps_single(struct CPUState *cpu, struct x86_decode *decode)
     addr_t dst_addr;
 
     src_addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
-    dst_addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size, REG_SEG_ES);
+    dst_addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size,
+                                REG_SEG_ES);
 
     decode->op[0].type = X86_VAR_IMMEDIATE;
     decode->op[0].val = read_val_ext(cpu, src_addr, decode->operand_size);
@@ -590,9 +624,9 @@ static void exec_cmps(struct CPUState *cpu, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(cpu, decode, exec_cmps_single, decode->rep);
-    }
-    else
+    } else {
         exec_cmps_single(cpu, decode);
+    }
     RIP(cpu) += decode->len;
 }
 
@@ -614,9 +648,9 @@ static void exec_stos(struct CPUState *cpu, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(cpu, decode, exec_stos_single, 0);
-    }
-    else
+    } else {
         exec_stos_single(cpu, decode);
+    }
 
     RIP(cpu) += decode->len;
 }
@@ -624,7 +658,7 @@ static void exec_stos(struct CPUState *cpu, struct x86_decode *decode)
 static void exec_scas_single(struct CPUState *cpu, struct x86_decode *decode)
 {
     addr_t addr;
-    
+
     addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size, REG_SEG_ES);
     decode->op[1].type = X86_VAR_IMMEDIATE;
     vmx_read_mem(cpu, &decode->op[1].val, addr, decode->operand_size);
@@ -639,9 +673,9 @@ static void exec_scas(struct CPUState *cpu, struct x86_decode *decode)
     decode->op[0].reg = REG_RAX;
     if (decode->rep) {
         string_rep(cpu, decode, exec_scas_single, decode->rep);
-    }
-    else
+    } else {
         exec_scas_single(cpu, decode);
+    }
 
     RIP(cpu) += decode->len;
 }
@@ -650,7 +684,7 @@ static void exec_lods_single(struct CPUState *cpu, struct x86_decode *decode)
 {
     addr_t addr;
     addr_t val = 0;
-    
+
     addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
     vmx_read_mem(cpu, &val, addr,  decode->operand_size);
     write_reg(cpu, REG_RAX, val, decode->operand_size);
@@ -662,14 +696,14 @@ static void exec_lods(struct CPUState *cpu, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(cpu, decode, exec_lods_single, 0);
-    }
-    else
+    } else {
         exec_lods_single(cpu, decode);
+    }
 
     RIP(cpu) += decode->len;
 }
 
-#define MSR_IA32_UCODE_REV 		0x00000017
+#define MSR_IA32_UCODE_REV 0x00000017
 
 void simulate_rdmsr(struct CPUState *cpu)
 {
@@ -679,83 +713,83 @@ void simulate_rdmsr(struct CPUState *cpu)
     uint64_t val = 0;
 
     switch (msr) {
-        case MSR_IA32_TSC:
-            val = rdtscp() + rvmcs(cpu->hvf_fd, VMCS_TSC_OFFSET);
-            break;
-        case MSR_IA32_APICBASE:
-            val = cpu_get_apic_base(X86_CPU(cpu)->apic_state);
-            break;
-        case MSR_IA32_UCODE_REV:
-            val = (0x100000000ULL << 32) | 0x100000000ULL;
-            break;
-        case MSR_EFER:
-            val = rvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER);
-            break;
-        case MSR_FSBASE:
-            val = rvmcs(cpu->hvf_fd, VMCS_GUEST_FS_BASE);
-            break;
-        case MSR_GSBASE:
-            val = rvmcs(cpu->hvf_fd, VMCS_GUEST_GS_BASE);
-            break;
-        case MSR_KERNELGSBASE:
-            val = rvmcs(cpu->hvf_fd, VMCS_HOST_FS_BASE);
-            break;
-        case MSR_STAR:
-            abort();
-            break;
-        case MSR_LSTAR:
-            abort();
-            break;
-        case MSR_CSTAR:
-            abort();
-            break;
-        case MSR_IA32_MISC_ENABLE:
-            val = env->msr_ia32_misc_enable;
-            break;
-        case MSR_MTRRphysBase(0):
-        case MSR_MTRRphysBase(1):
-        case MSR_MTRRphysBase(2):
-        case MSR_MTRRphysBase(3):
-        case MSR_MTRRphysBase(4):
-        case MSR_MTRRphysBase(5):
-        case MSR_MTRRphysBase(6):
-        case MSR_MTRRphysBase(7):
-            val = env->mtrr_var[(ECX(cpu) - MSR_MTRRphysBase(0)) / 2].base;
-            break;
-        case MSR_MTRRphysMask(0):
-        case MSR_MTRRphysMask(1):
-        case MSR_MTRRphysMask(2):
-        case MSR_MTRRphysMask(3):
-        case MSR_MTRRphysMask(4):
-        case MSR_MTRRphysMask(5):
-        case MSR_MTRRphysMask(6):
-        case MSR_MTRRphysMask(7):
-            val = env->mtrr_var[(ECX(cpu) - MSR_MTRRphysMask(0)) / 2].mask;
-            break;
-        case MSR_MTRRfix64K_00000:
-            val = env->mtrr_fixed[0];
-            break;
-        case MSR_MTRRfix16K_80000:
-        case MSR_MTRRfix16K_A0000:
-            val = env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix16K_80000 + 1];
-            break;
-        case MSR_MTRRfix4K_C0000:
-        case MSR_MTRRfix4K_C8000:
-        case MSR_MTRRfix4K_D0000:
-        case MSR_MTRRfix4K_D8000:
-        case MSR_MTRRfix4K_E0000:
-        case MSR_MTRRfix4K_E8000:
-        case MSR_MTRRfix4K_F0000:
-        case MSR_MTRRfix4K_F8000:
-            val = env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix4K_C0000 + 3];
-            break;
-        case MSR_MTRRdefType:
-            val = env->mtrr_deftype;
-            break;
-        default:
-            // fprintf(stderr, "%s: unknown msr 0x%x\n", __func__, msr);
-            val = 0;
-            break;
+    case MSR_IA32_TSC:
+        val = rdtscp() + rvmcs(cpu->hvf_fd, VMCS_TSC_OFFSET);
+        break;
+    case MSR_IA32_APICBASE:
+        val = cpu_get_apic_base(X86_CPU(cpu)->apic_state);
+        break;
+    case MSR_IA32_UCODE_REV:
+        val = (0x100000000ULL << 32) | 0x100000000ULL;
+        break;
+    case MSR_EFER:
+        val = rvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER);
+        break;
+    case MSR_FSBASE:
+        val = rvmcs(cpu->hvf_fd, VMCS_GUEST_FS_BASE);
+        break;
+    case MSR_GSBASE:
+        val = rvmcs(cpu->hvf_fd, VMCS_GUEST_GS_BASE);
+        break;
+    case MSR_KERNELGSBASE:
+        val = rvmcs(cpu->hvf_fd, VMCS_HOST_FS_BASE);
+        break;
+    case MSR_STAR:
+        abort();
+        break;
+    case MSR_LSTAR:
+        abort();
+        break;
+    case MSR_CSTAR:
+        abort();
+        break;
+    case MSR_IA32_MISC_ENABLE:
+        val = env->msr_ia32_misc_enable;
+        break;
+    case MSR_MTRRphysBase(0):
+    case MSR_MTRRphysBase(1):
+    case MSR_MTRRphysBase(2):
+    case MSR_MTRRphysBase(3):
+    case MSR_MTRRphysBase(4):
+    case MSR_MTRRphysBase(5):
+    case MSR_MTRRphysBase(6):
+    case MSR_MTRRphysBase(7):
+        val = env->mtrr_var[(ECX(cpu) - MSR_MTRRphysBase(0)) / 2].base;
+        break;
+    case MSR_MTRRphysMask(0):
+    case MSR_MTRRphysMask(1):
+    case MSR_MTRRphysMask(2):
+    case MSR_MTRRphysMask(3):
+    case MSR_MTRRphysMask(4):
+    case MSR_MTRRphysMask(5):
+    case MSR_MTRRphysMask(6):
+    case MSR_MTRRphysMask(7):
+        val = env->mtrr_var[(ECX(cpu) - MSR_MTRRphysMask(0)) / 2].mask;
+        break;
+    case MSR_MTRRfix64K_00000:
+        val = env->mtrr_fixed[0];
+        break;
+    case MSR_MTRRfix16K_80000:
+    case MSR_MTRRfix16K_A0000:
+        val = env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix16K_80000 + 1];
+        break;
+    case MSR_MTRRfix4K_C0000:
+    case MSR_MTRRfix4K_C8000:
+    case MSR_MTRRfix4K_D0000:
+    case MSR_MTRRfix4K_D8000:
+    case MSR_MTRRfix4K_E0000:
+    case MSR_MTRRfix4K_E8000:
+    case MSR_MTRRfix4K_F0000:
+    case MSR_MTRRfix4K_F8000:
+        val = env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix4K_C0000 + 3];
+        break;
+    case MSR_MTRRdefType:
+        val = env->mtrr_deftype;
+        break;
+    default:
+        /* fprintf(stderr, "%s: unknown msr 0x%x\n", __func__, msr); */
+        val = 0;
+        break;
     }
 
     RAX(cpu) = (uint32_t)val;
@@ -776,88 +810,89 @@ void simulate_wrmsr(struct CPUState *cpu)
     uint64_t data = ((uint64_t)EDX(cpu) << 32) | EAX(cpu);
 
     switch (msr) {
-        case MSR_IA32_TSC:
-            // if (!osx_is_sierra())
-            //     wvmcs(cpu->hvf_fd, VMCS_TSC_OFFSET, data - rdtscp());
-            //hv_vm_sync_tsc(data);
-            break;
-        case MSR_IA32_APICBASE:
-            cpu_set_apic_base(X86_CPU(cpu)->apic_state, data);
-            break;
-        case MSR_FSBASE:
-            wvmcs(cpu->hvf_fd, VMCS_GUEST_FS_BASE, data);
-            break;
-        case MSR_GSBASE:
-            wvmcs(cpu->hvf_fd, VMCS_GUEST_GS_BASE, data);
-            break;
-        case MSR_KERNELGSBASE:
-            wvmcs(cpu->hvf_fd, VMCS_HOST_FS_BASE, data);
-            break;
-        case MSR_STAR:
-            abort();
-            break;
-        case MSR_LSTAR:
-            abort();
-            break;
-        case MSR_CSTAR:
-            abort();
-            break;
-        case MSR_EFER:
-            cpu->hvf_x86->efer.efer = data;
-            //printf("new efer %llx\n", EFER(cpu));
-            wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, data);
-            if (data & EFER_NXE)
-                hv_vcpu_invalidate_tlb(cpu->hvf_fd);
-            break;
-        case MSR_MTRRphysBase(0):
-        case MSR_MTRRphysBase(1):
-        case MSR_MTRRphysBase(2):
-        case MSR_MTRRphysBase(3):
-        case MSR_MTRRphysBase(4):
-        case MSR_MTRRphysBase(5):
-        case MSR_MTRRphysBase(6):
-        case MSR_MTRRphysBase(7):
-            env->mtrr_var[(ECX(cpu) - MSR_MTRRphysBase(0)) / 2].base = data;
-            break;
-        case MSR_MTRRphysMask(0):
-        case MSR_MTRRphysMask(1):
-        case MSR_MTRRphysMask(2):
-        case MSR_MTRRphysMask(3):
-        case MSR_MTRRphysMask(4):
-        case MSR_MTRRphysMask(5):
-        case MSR_MTRRphysMask(6):
-        case MSR_MTRRphysMask(7):
-            env->mtrr_var[(ECX(cpu) - MSR_MTRRphysMask(0)) / 2].mask = data;
-            break;
-        case MSR_MTRRfix64K_00000:
-            env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix64K_00000] = data;
-            break;
-        case MSR_MTRRfix16K_80000:
-        case MSR_MTRRfix16K_A0000:
-            env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix16K_80000 + 1] = data;
-            break;
-        case MSR_MTRRfix4K_C0000:
-        case MSR_MTRRfix4K_C8000:
-        case MSR_MTRRfix4K_D0000:
-        case MSR_MTRRfix4K_D8000:
-        case MSR_MTRRfix4K_E0000:
-        case MSR_MTRRfix4K_E8000:
-        case MSR_MTRRfix4K_F0000:
-        case MSR_MTRRfix4K_F8000:
-            env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix4K_C0000 + 3] = data;
-            break;
-        case MSR_MTRRdefType:
-            env->mtrr_deftype = data;
-            break;
-        default:
-            break;
+    case MSR_IA32_TSC:
+        /* if (!osx_is_sierra())
+             wvmcs(cpu->hvf_fd, VMCS_TSC_OFFSET, data - rdtscp());
+        hv_vm_sync_tsc(data);*/
+        break;
+    case MSR_IA32_APICBASE:
+        cpu_set_apic_base(X86_CPU(cpu)->apic_state, data);
+        break;
+    case MSR_FSBASE:
+        wvmcs(cpu->hvf_fd, VMCS_GUEST_FS_BASE, data);
+        break;
+    case MSR_GSBASE:
+        wvmcs(cpu->hvf_fd, VMCS_GUEST_GS_BASE, data);
+        break;
+    case MSR_KERNELGSBASE:
+        wvmcs(cpu->hvf_fd, VMCS_HOST_FS_BASE, data);
+        break;
+    case MSR_STAR:
+        abort();
+        break;
+    case MSR_LSTAR:
+        abort();
+        break;
+    case MSR_CSTAR:
+        abort();
+        break;
+    case MSR_EFER:
+        cpu->hvf_x86->efer.efer = data;
+        /*printf("new efer %llx\n", EFER(cpu));*/
+        wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, data);
+        if (data & EFER_NXE) {
+            hv_vcpu_invalidate_tlb(cpu->hvf_fd);
+        }
+        break;
+    case MSR_MTRRphysBase(0):
+    case MSR_MTRRphysBase(1):
+    case MSR_MTRRphysBase(2):
+    case MSR_MTRRphysBase(3):
+    case MSR_MTRRphysBase(4):
+    case MSR_MTRRphysBase(5):
+    case MSR_MTRRphysBase(6):
+    case MSR_MTRRphysBase(7):
+        env->mtrr_var[(ECX(cpu) - MSR_MTRRphysBase(0)) / 2].base = data;
+        break;
+    case MSR_MTRRphysMask(0):
+    case MSR_MTRRphysMask(1):
+    case MSR_MTRRphysMask(2):
+    case MSR_MTRRphysMask(3):
+    case MSR_MTRRphysMask(4):
+    case MSR_MTRRphysMask(5):
+    case MSR_MTRRphysMask(6):
+    case MSR_MTRRphysMask(7):
+        env->mtrr_var[(ECX(cpu) - MSR_MTRRphysMask(0)) / 2].mask = data;
+        break;
+    case MSR_MTRRfix64K_00000:
+        env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix64K_00000] = data;
+        break;
+    case MSR_MTRRfix16K_80000:
+    case MSR_MTRRfix16K_A0000:
+        env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix16K_80000 + 1] = data;
+        break;
+    case MSR_MTRRfix4K_C0000:
+    case MSR_MTRRfix4K_C8000:
+    case MSR_MTRRfix4K_D0000:
+    case MSR_MTRRfix4K_D8000:
+    case MSR_MTRRfix4K_E0000:
+    case MSR_MTRRfix4K_E8000:
+    case MSR_MTRRfix4K_F0000:
+    case MSR_MTRRfix4K_F8000:
+        env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix4K_C0000 + 3] = data;
+        break;
+    case MSR_MTRRdefType:
+        env->mtrr_deftype = data;
+        break;
+    default:
+        break;
     }
 
     /* Related to support known hypervisor interface */
-    // if (g_hypervisor_iface)
-    //     g_hypervisor_iface->wrmsr_handler(cpu, msr, data);
+    /* if (g_hypervisor_iface)
+         g_hypervisor_iface->wrmsr_handler(cpu, msr, data);
 
-    //printf("write msr %llx\n", RCX(cpu));
+    printf("write msr %llx\n", RCX(cpu));*/
 }
 
 static void exec_wrmsr(struct CPUState *cpu, struct x86_decode *decode)
@@ -893,24 +928,26 @@ static void do_bt(struct CPUState *cpu, struct x86_decode *decode, int flag)
             VM_PANIC("bt 64bit\n");
         }
     }
-    decode->op[0].val = read_val_ext(cpu, decode->op[0].ptr, decode->operand_size);
+    decode->op[0].val = read_val_ext(cpu, decode->op[0].ptr,
+                                     decode->operand_size);
     cf = (decode->op[0].val >> index) & 0x01;
 
     switch (flag) {
-        case 0:
-            set_CF(cpu, cf);
-            return;
-        case 1:
-            decode->op[0].val ^= (1u << index);
-            break;
-        case 2:
-            decode->op[0].val |= (1u << index);
-            break;
-        case 3:
-            decode->op[0].val &= ~(1u << index);
-            break;
+    case 0:
+        set_CF(cpu, cf);
+        return;
+    case 1:
+        decode->op[0].val ^= (1u << index);
+        break;
+    case 2:
+        decode->op[0].val |= (1u << index);
+        break;
+    case 3:
+        decode->op[0].val &= ~(1u << index);
+        break;
     }
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[0].val, decode->operand_size);
+    write_val_ext(cpu, decode->op[0].ptr, decode->op[0].val,
+                  decode->operand_size);
     set_CF(cpu, cf);
 }
 
@@ -946,58 +983,59 @@ void exec_shl(struct CPUState *cpu, struct x86_decode *decode)
     fetch_operands(cpu, decode, 2, true, true, false);
 
     count = decode->op[1].val;
-    count &= 0x1f;      // count is masked to 5 bits
-    if (!count)
+    count &= 0x1f;      /* count is masked to 5 bits*/
+    if (!count) {
         goto exit;
+    }
 
     switch (decode->operand_size) {
-        case 1:
-        {
-            uint8_t res = 0;
-            if (count <= 8) {
-                res = (decode->op[0].val << count);
-                cf = (decode->op[0].val >> (8 - count)) & 0x1;
-                of = cf ^ (res >> 7);
-            }
-
-            write_val_ext(cpu, decode->op[0].ptr, res, 1);
-            SET_FLAGS_OSZAPC_LOGIC_8(res);
-            SET_FLAGS_OxxxxC(cpu, of, cf);
-            break;
+    case 1:
+    {
+        uint8_t res = 0;
+        if (count <= 8) {
+            res = (decode->op[0].val << count);
+            cf = (decode->op[0].val >> (8 - count)) & 0x1;
+            of = cf ^ (res >> 7);
         }
-        case 2:
-        {
-            uint16_t res = 0;
 
-            /* from bochs */
-            if (count <= 16) {
-                res = (decode->op[0].val << count);
-                cf = (decode->op[0].val >> (16 - count)) & 0x1;
-                of = cf ^ (res >> 15); // of = cf ^ result15
-            }
+        write_val_ext(cpu, decode->op[0].ptr, res, 1);
+        SET_FLAGS_OSZAPC_LOGIC_8(res);
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    case 2:
+    {
+        uint16_t res = 0;
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 2);
-            SET_FLAGS_OSZAPC_LOGIC_16(res);
-            SET_FLAGS_OxxxxC(cpu, of, cf);
-            break;
+        /* from bochs */
+        if (count <= 16) {
+            res = (decode->op[0].val << count);
+            cf = (decode->op[0].val >> (16 - count)) & 0x1;
+            of = cf ^ (res >> 15); /* of = cf ^ result15 */
         }
-        case 4:
-        {
-            uint32_t res = decode->op[0].val << count;
-            
-            write_val_ext(cpu, decode->op[0].ptr, res, 4);
-            SET_FLAGS_OSZAPC_LOGIC_32(res);
-            cf = (decode->op[0].val >> (32 - count)) & 0x1;
-            of = cf ^ (res >> 31); // of = cf ^ result31
-            SET_FLAGS_OxxxxC(cpu, of, cf);
-            break;
-        }
-        default:
-            abort();
+
+        write_val_ext(cpu, decode->op[0].ptr, res, 2);
+        SET_FLAGS_OSZAPC_LOGIC_16(res);
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    case 4:
+    {
+        uint32_t res = decode->op[0].val << count;
+
+        write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        SET_FLAGS_OSZAPC_LOGIC_32(res);
+        cf = (decode->op[0].val >> (32 - count)) & 0x1;
+        of = cf ^ (res >> 31); /* of = cf ^ result31 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    default:
+        abort();
     }
 
 exit:
-    //lflags_to_rflags(cpu);
+    /* lflags_to_rflags(cpu); */
     RIP(cpu) += decode->len;
 }
 
@@ -1008,14 +1046,16 @@ void exec_movsx(struct CPUState *cpu, struct x86_decode *decode)
 
     fetch_operands(cpu, decode, 2, false, false, false);
 
-    if (0xbe == decode->opcode[1])
+    if (0xbe == decode->opcode[1]) {
         src_op_size = 1;
-    else
+    } else {
         src_op_size = 2;
+    }
 
     decode->operand_size = src_op_size;
     calc_modrm_operand(cpu, decode, &decode->op[1]);
-    decode->op[1].val = sign(read_val_ext(cpu, decode->op[1].ptr, src_op_size), src_op_size);
+    decode->op[1].val = sign(read_val_ext(cpu, decode->op[1].ptr, src_op_size),
+                             src_op_size);
 
     write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val, op_size);
 
@@ -1030,68 +1070,71 @@ void exec_ror(struct CPUState *cpu, struct x86_decode *decode)
     count = decode->op[1].val;
 
     switch (decode->operand_size) {
-        case 1:
-        {
-            uint32_t bit6, bit7;
-            uint8_t res;
+    case 1:
+    {
+        uint32_t bit6, bit7;
+        uint8_t res;
 
-            if ((count & 0x07) == 0) {
-                if (count & 0x18) {
-                    bit6 = ((uint8_t)decode->op[0].val >> 6) & 1;
-                    bit7 = ((uint8_t)decode->op[0].val >> 7) & 1;
-                    SET_FLAGS_OxxxxC(cpu, bit6 ^ bit7, bit7);
-                 }
-            } else {
-                count &= 0x7; /* use only bottom 3 bits */
-                res = ((uint8_t)decode->op[0].val >> count) | ((uint8_t)decode->op[0].val << (8 - count));
-                write_val_ext(cpu, decode->op[0].ptr, res, 1);
-                bit6 = (res >> 6) & 1;
-                bit7 = (res >> 7) & 1;
-                /* set eflags: ROR count affects the following flags: C, O */
+        if ((count & 0x07) == 0) {
+            if (count & 0x18) {
+                bit6 = ((uint8_t)decode->op[0].val >> 6) & 1;
+                bit7 = ((uint8_t)decode->op[0].val >> 7) & 1;
                 SET_FLAGS_OxxxxC(cpu, bit6 ^ bit7, bit7);
-            }
-            break;
+             }
+        } else {
+            count &= 0x7; /* use only bottom 3 bits */
+            res = ((uint8_t)decode->op[0].val >> count) |
+                   ((uint8_t)decode->op[0].val << (8 - count));
+            write_val_ext(cpu, decode->op[0].ptr, res, 1);
+            bit6 = (res >> 6) & 1;
+            bit7 = (res >> 7) & 1;
+            /* set eflags: ROR count affects the following flags: C, O */
+            SET_FLAGS_OxxxxC(cpu, bit6 ^ bit7, bit7);
         }
-        case 2:
-        {
-            uint32_t bit14, bit15;
-            uint16_t res;
+        break;
+    }
+    case 2:
+    {
+        uint32_t bit14, bit15;
+        uint16_t res;
 
-            if ((count & 0x0f) == 0) {
-                if (count & 0x10) {
-                    bit14 = ((uint16_t)decode->op[0].val >> 14) & 1;
-                    bit15 = ((uint16_t)decode->op[0].val >> 15) & 1;
-                    // of = result14 ^ result15
-                    SET_FLAGS_OxxxxC(cpu, bit14 ^ bit15, bit15);
-                }
-            } else {
-                count &= 0x0f;  // use only 4 LSB's
-                res = ((uint16_t)decode->op[0].val >> count) | ((uint16_t)decode->op[0].val << (16 - count));
-                write_val_ext(cpu, decode->op[0].ptr, res, 2);
-
-                bit14 = (res >> 14) & 1;
-                bit15 = (res >> 15) & 1;
-                // of = result14 ^ result15
+        if ((count & 0x0f) == 0) {
+            if (count & 0x10) {
+                bit14 = ((uint16_t)decode->op[0].val >> 14) & 1;
+                bit15 = ((uint16_t)decode->op[0].val >> 15) & 1;
+                /* of = result14 ^ result15 */
                 SET_FLAGS_OxxxxC(cpu, bit14 ^ bit15, bit15);
             }
-            break;
+        } else {
+            count &= 0x0f;  /* use only 4 LSB's */
+            res = ((uint16_t)decode->op[0].val >> count) |
+                   ((uint16_t)decode->op[0].val << (16 - count));
+            write_val_ext(cpu, decode->op[0].ptr, res, 2);
+
+            bit14 = (res >> 14) & 1;
+            bit15 = (res >> 15) & 1;
+            /* of = result14 ^ result15 */
+            SET_FLAGS_OxxxxC(cpu, bit14 ^ bit15, bit15);
         }
-        case 4:
-        {
-            uint32_t bit31, bit30;
-            uint32_t res;
+        break;
+    }
+    case 4:
+    {
+        uint32_t bit31, bit30;
+        uint32_t res;
 
-            count &= 0x1f;
-            if (count) {
-                res = ((uint32_t)decode->op[0].val >> count) | ((uint32_t)decode->op[0].val << (32 - count));
-                write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        count &= 0x1f;
+        if (count) {
+            res = ((uint32_t)decode->op[0].val >> count) |
+                   ((uint32_t)decode->op[0].val << (32 - count));
+            write_val_ext(cpu, decode->op[0].ptr, res, 4);
 
-                bit31 = (res >> 31) & 1;
-                bit30 = (res >> 30) & 1;
-                // of = result30 ^ result31
-                SET_FLAGS_OxxxxC(cpu, bit30 ^ bit31, bit31);
-            }
-            break;
+            bit31 = (res >> 31) & 1;
+            bit30 = (res >> 30) & 1;
+            /* of = result30 ^ result31 */
+            SET_FLAGS_OxxxxC(cpu, bit30 ^ bit31, bit31);
+        }
+        break;
         }
     }
     RIP(cpu) += decode->len;
@@ -1105,71 +1148,74 @@ void exec_rol(struct CPUState *cpu, struct x86_decode *decode)
     count = decode->op[1].val;
 
     switch (decode->operand_size) {
-        case 1:
-        {
-            uint32_t bit0, bit7;
-            uint8_t res;
+    case 1:
+    {
+        uint32_t bit0, bit7;
+        uint8_t res;
 
-            if ((count & 0x07) == 0) {
-                if (count & 0x18) {
-                    bit0 = ((uint8_t)decode->op[0].val & 1);
-                    bit7 = ((uint8_t)decode->op[0].val >> 7);
-                    SET_FLAGS_OxxxxC(cpu, bit0 ^ bit7, bit0);
-                }
-            }  else {
-                count &= 0x7; // use only lowest 3 bits
-                res = ((uint8_t)decode->op[0].val << count) | ((uint8_t)decode->op[0].val >> (8 - count));
-
-                write_val_ext(cpu, decode->op[0].ptr, res, 1);
-                /* set eflags:
-                 * ROL count affects the following flags: C, O
-                 */
-                bit0 = (res &  1);
-                bit7 = (res >> 7);
+        if ((count & 0x07) == 0) {
+            if (count & 0x18) {
+                bit0 = ((uint8_t)decode->op[0].val & 1);
+                bit7 = ((uint8_t)decode->op[0].val >> 7);
                 SET_FLAGS_OxxxxC(cpu, bit0 ^ bit7, bit0);
             }
-            break;
+        }  else {
+            count &= 0x7; /* use only lowest 3 bits */
+            res = ((uint8_t)decode->op[0].val << count) |
+                   ((uint8_t)decode->op[0].val >> (8 - count));
+
+            write_val_ext(cpu, decode->op[0].ptr, res, 1);
+            /* set eflags:
+             * ROL count affects the following flags: C, O
+             */
+            bit0 = (res &  1);
+            bit7 = (res >> 7);
+            SET_FLAGS_OxxxxC(cpu, bit0 ^ bit7, bit0);
         }
-        case 2:
-        {
-            uint32_t bit0, bit15;
-            uint16_t res;
+        break;
+    }
+    case 2:
+    {
+        uint32_t bit0, bit15;
+        uint16_t res;
 
-            if ((count & 0x0f) == 0) {
-                if (count & 0x10) {
-                    bit0  = ((uint16_t)decode->op[0].val & 0x1);
-                    bit15 = ((uint16_t)decode->op[0].val >> 15);
-                    // of = cf ^ result15
-                    SET_FLAGS_OxxxxC(cpu, bit0 ^ bit15, bit0);
-                }
-            } else {
-                count &= 0x0f; // only use bottom 4 bits
-                res = ((uint16_t)decode->op[0].val << count) | ((uint16_t)decode->op[0].val >> (16 - count));
-
-                write_val_ext(cpu, decode->op[0].ptr, res, 2);
-                bit0  = (res & 0x1);
-                bit15 = (res >> 15);
-                // of = cf ^ result15
+        if ((count & 0x0f) == 0) {
+            if (count & 0x10) {
+                bit0  = ((uint16_t)decode->op[0].val & 0x1);
+                bit15 = ((uint16_t)decode->op[0].val >> 15);
+                /* of = cf ^ result15 */
                 SET_FLAGS_OxxxxC(cpu, bit0 ^ bit15, bit0);
             }
-            break;
+        } else {
+            count &= 0x0f; /* only use bottom 4 bits */
+            res = ((uint16_t)decode->op[0].val << count) |
+                   ((uint16_t)decode->op[0].val >> (16 - count));
+
+            write_val_ext(cpu, decode->op[0].ptr, res, 2);
+            bit0  = (res & 0x1);
+            bit15 = (res >> 15);
+            /* of = cf ^ result15 */
+            SET_FLAGS_OxxxxC(cpu, bit0 ^ bit15, bit0);
         }
-        case 4:
-        {
-            uint32_t bit0, bit31;
-            uint32_t res;
+        break;
+    }
+    case 4:
+    {
+        uint32_t bit0, bit31;
+        uint32_t res;
 
-            count &= 0x1f;
-            if (count) {
-                res = ((uint32_t)decode->op[0].val << count) | ((uint32_t)decode->op[0].val >> (32 - count));
+        count &= 0x1f;
+        if (count) {
+            res = ((uint32_t)decode->op[0].val << count) |
+                   ((uint32_t)decode->op[0].val >> (32 - count));
 
-                write_val_ext(cpu, decode->op[0].ptr, res, 4);
-                bit0  = (res & 0x1);
-                bit31 = (res >> 31);
-                // of = cf ^ result31
-                SET_FLAGS_OxxxxC(cpu, bit0 ^ bit31, bit0);
-            }
-            break;
+            write_val_ext(cpu, decode->op[0].ptr, res, 4);
+            bit0  = (res & 0x1);
+            bit31 = (res >> 31);
+            /* of = cf ^ result31 */
+            SET_FLAGS_OxxxxC(cpu, bit0 ^ bit31, bit0);
+        }
+        break;
         }
     }
     RIP(cpu) += decode->len;
@@ -1184,69 +1230,78 @@ void exec_rcl(struct CPUState *cpu, struct x86_decode *decode)
     fetch_operands(cpu, decode, 2, true, true, false);
     count = decode->op[1].val & 0x1f;
 
-    switch(decode->operand_size) {
-        case 1:
-        {
-            uint8_t op1_8 = decode->op[0].val;
-            uint8_t res;
-            count %= 9;
-            if (!count)
-                break;
-
-            if (1 == count)
-                res = (op1_8 << 1) | get_CF(cpu);
-            else
-                res = (op1_8 << count) | (get_CF(cpu) << (count - 1)) | (op1_8 >> (9 - count));
-
-            write_val_ext(cpu, decode->op[0].ptr, res, 1);
-
-            cf = (op1_8 >> (8 - count)) & 0x01;
-            of = cf ^ (res >> 7); // of = cf ^ result7
-            SET_FLAGS_OxxxxC(cpu, of, cf);
+    switch (decode->operand_size) {
+    case 1:
+    {
+        uint8_t op1_8 = decode->op[0].val;
+        uint8_t res;
+        count %= 9;
+        if (!count) {
             break;
         }
-        case 2:
-        {
-            uint16_t res;
-            uint16_t op1_16 = decode->op[0].val;
 
-            count %= 17;
-            if (!count)
-                break;
+        if (1 == count) {
+            res = (op1_8 << 1) | get_CF(cpu);
+        } else {
+            res = (op1_8 << count) | (get_CF(cpu) << (count - 1)) |
+                   (op1_8 >> (9 - count));
+        }
 
-            if (1 == count)
-                res = (op1_16 << 1) | get_CF(cpu);
-            else if (count == 16)
-                res = (get_CF(cpu) << 15) | (op1_16 >> 1);
-            else  // 2..15
-                res = (op1_16 << count) | (get_CF(cpu) << (count - 1)) | (op1_16 >> (17 - count));
-            
-            write_val_ext(cpu, decode->op[0].ptr, res, 2);
-            
-            cf = (op1_16 >> (16 - count)) & 0x1;
-            of = cf ^ (res >> 15); // of = cf ^ result15
-            SET_FLAGS_OxxxxC(cpu, of, cf);
+        write_val_ext(cpu, decode->op[0].ptr, res, 1);
+
+        cf = (op1_8 >> (8 - count)) & 0x01;
+        of = cf ^ (res >> 7); /* of = cf ^ result7 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    case 2:
+    {
+        uint16_t res;
+        uint16_t op1_16 = decode->op[0].val;
+
+        count %= 17;
+        if (!count) {
             break;
         }
-        case 4:
-        {
-            uint32_t res;
-            uint32_t op1_32 = decode->op[0].val;
 
-            if (!count)
-                break;
+        if (1 == count) {
+            res = (op1_16 << 1) | get_CF(cpu);
+        } else if (count == 16) {
+            res = (get_CF(cpu) << 15) | (op1_16 >> 1);
+        } else { /* 2..15 */
+            res = (op1_16 << count) | (get_CF(cpu) << (count - 1)) |
+                   (op1_16 >> (17 - count));
+        }
 
-            if (1 == count)
-                res = (op1_32 << 1) | get_CF(cpu);
-            else
-                res = (op1_32 << count) | (get_CF(cpu) << (count - 1)) | (op1_32 >> (33 - count));
+        write_val_ext(cpu, decode->op[0].ptr, res, 2);
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        cf = (op1_16 >> (16 - count)) & 0x1;
+        of = cf ^ (res >> 15); /* of = cf ^ result15 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    case 4:
+    {
+        uint32_t res;
+        uint32_t op1_32 = decode->op[0].val;
 
-            cf = (op1_32 >> (32 - count)) & 0x1;
-            of = cf ^ (res >> 31); // of = cf ^ result31
-            SET_FLAGS_OxxxxC(cpu, of, cf);
+        if (!count) {
             break;
+        }
+
+        if (1 == count) {
+            res = (op1_32 << 1) | get_CF(cpu);
+        } else {
+            res = (op1_32 << count) | (get_CF(cpu) << (count - 1)) |
+                   (op1_32 >> (33 - count));
+        }
+
+        write_val_ext(cpu, decode->op[0].ptr, res, 4);
+
+        cf = (op1_32 >> (32 - count)) & 0x1;
+        of = cf ^ (res >> 31); /* of = cf ^ result31 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
         }
     }
     RIP(cpu) += decode->len;
@@ -1260,60 +1315,68 @@ void exec_rcr(struct CPUState *cpu, struct x86_decode *decode)
     fetch_operands(cpu, decode, 2, true, true, false);
     count = decode->op[1].val & 0x1f;
 
-    switch(decode->operand_size) {
-        case 1:
-        {
-            uint8_t op1_8 = decode->op[0].val;
-            uint8_t res;
+    switch (decode->operand_size) {
+    case 1:
+    {
+        uint8_t op1_8 = decode->op[0].val;
+        uint8_t res;
 
-            count %= 9;
-            if (!count)
-                break;
-            res = (op1_8 >> count) | (get_CF(cpu) << (8 - count)) | (op1_8 << (9 - count));
-
-            write_val_ext(cpu, decode->op[0].ptr, res, 1);
-
-            cf = (op1_8 >> (count - 1)) & 0x1;
-            of = (((res << 1) ^ res) >> 7) & 0x1; // of = result6 ^ result7
-            SET_FLAGS_OxxxxC(cpu, of, cf);
+        count %= 9;
+        if (!count) {
             break;
         }
-        case 2:
-        {
-            uint16_t op1_16 = decode->op[0].val;
-            uint16_t res;
+        res = (op1_8 >> count) | (get_CF(cpu) << (8 - count)) |
+               (op1_8 << (9 - count));
 
-            count %= 17;
-            if (!count)
-                break;
-            res = (op1_16 >> count) | (get_CF(cpu) << (16 - count)) | (op1_16 << (17 - count));
+        write_val_ext(cpu, decode->op[0].ptr, res, 1);
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 2);
+        cf = (op1_8 >> (count - 1)) & 0x1;
+        of = (((res << 1) ^ res) >> 7) & 0x1; /* of = result6 ^ result7 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    case 2:
+    {
+        uint16_t op1_16 = decode->op[0].val;
+        uint16_t res;
 
-            cf = (op1_16 >> (count - 1)) & 0x1;
-            of = ((uint16_t)((res << 1) ^ res) >> 15) & 0x1; // of = result15 ^ result14
-            SET_FLAGS_OxxxxC(cpu, of, cf);
+        count %= 17;
+        if (!count) {
             break;
         }
-        case 4:
-        {
-            uint32_t res;
-            uint32_t op1_32 = decode->op[0].val;
+        res = (op1_16 >> count) | (get_CF(cpu) << (16 - count)) |
+               (op1_16 << (17 - count));
 
-            if (!count)
-                break;
- 
-            if (1 == count)
-                res = (op1_32 >> 1) | (get_CF(cpu) << 31);
-            else
-                res = (op1_32 >> count) | (get_CF(cpu) << (32 - count)) | (op1_32 << (33 - count));
+        write_val_ext(cpu, decode->op[0].ptr, res, 2);
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        cf = (op1_16 >> (count - 1)) & 0x1;
+        of = ((uint16_t)((res << 1) ^ res) >> 15) & 0x1; /* of = result15 ^
+                                                            result14 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
+    }
+    case 4:
+    {
+        uint32_t res;
+        uint32_t op1_32 = decode->op[0].val;
 
-            cf = (op1_32 >> (count - 1)) & 0x1;
-            of = ((res << 1) ^ res) >> 31; // of = result30 ^ result31
-            SET_FLAGS_OxxxxC(cpu, of, cf);
+        if (!count) {
             break;
+        }
+
+        if (1 == count) {
+            res = (op1_32 >> 1) | (get_CF(cpu) << 31);
+        } else {
+            res = (op1_32 >> count) | (get_CF(cpu) << (32 - count)) |
+                   (op1_32 << (33 - count));
+        }
+
+        write_val_ext(cpu, decode->op[0].ptr, res, 4);
+
+        cf = (op1_32 >> (count - 1)) & 0x1;
+        of = ((res << 1) ^ res) >> 31; /* of = result30 ^ result31 */
+        SET_FLAGS_OxxxxC(cpu, of, cf);
+        break;
         }
     }
     RIP(cpu) += decode->len;
@@ -1323,8 +1386,10 @@ static void exec_xchg(struct CPUState *cpu, struct x86_decode *decode)
 {
     fetch_operands(cpu, decode, 2, true, true, false);
 
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val, decode->operand_size);
-    write_val_ext(cpu, decode->op[1].ptr, decode->op[0].val, decode->operand_size);
+    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val,
+                  decode->operand_size);
+    write_val_ext(cpu, decode->op[1].ptr, decode->op[0].val,
+                  decode->operand_size);
 
     RIP(cpu) += decode->len;
 }
@@ -1332,7 +1397,8 @@ static void exec_xchg(struct CPUState *cpu, struct x86_decode *decode)
 static void exec_xadd(struct CPUState *cpu, struct x86_decode *decode)
 {
     EXEC_2OP_ARITH_CMD(cpu, decode, +, SET_FLAGS_OSZAPC_ADD, true);
-    write_val_ext(cpu, decode->op[1].ptr, decode->op[0].val, decode->operand_size);
+    write_val_ext(cpu, decode->op[1].ptr, decode->op[0].val,
+                  decode->operand_size);
 
     RIP(cpu) += decode->len;
 }
@@ -1388,13 +1454,9 @@ static struct cmd_handler _cmd_handler[X86_DECODE_CMD_LAST];
 static void init_cmd_handler(CPUState *cpu)
 {
     int i;
-    for (i = 0; i < ARRAY_SIZE(handlers); i++)
+    for (i = 0; i < ARRAY_SIZE(handlers); i++) {
         _cmd_handler[handlers[i].cmd] = handlers[i];
-}
-
-static void print_debug(struct CPUState *cpu)
-{
-    printf("%llx: eax %llx ebx %llx ecx %llx edx %llx esi %llx edi %llx ebp %llx esp %llx flags %llx\n", RIP(cpu), RAX(cpu), RBX(cpu), RCX(cpu), RDX(cpu), RSI(cpu), RDI(cpu), RBP(cpu), RSP(cpu), EFLAGS(cpu));
+    }
 }
 
 void load_regs(struct CPUState *cpu)
@@ -1408,14 +1470,13 @@ void load_regs(struct CPUState *cpu)
     RRX(cpu, REG_RDI) = rreg(cpu->hvf_fd, HV_X86_RDI);
     RRX(cpu, REG_RSP) = rreg(cpu->hvf_fd, HV_X86_RSP);
     RRX(cpu, REG_RBP) = rreg(cpu->hvf_fd, HV_X86_RBP);
-    for (i = 8; i < 16; i++)
+    for (i = 8; i < 16; i++) {
         RRX(cpu, i) = rreg(cpu->hvf_fd, HV_X86_RAX + i);
-    
+    }
+
     RFLAGS(cpu) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
     rflags_to_lflags(cpu);
     RIP(cpu) = rreg(cpu->hvf_fd, HV_X86_RIP);
-
-    //print_debug(cpu);
 }
 
 void store_regs(struct CPUState *cpu)
@@ -1429,32 +1490,36 @@ void store_regs(struct CPUState *cpu)
     wreg(cpu->hvf_fd, HV_X86_RDI, RDI(cpu));
     wreg(cpu->hvf_fd, HV_X86_RBP, RBP(cpu));
     wreg(cpu->hvf_fd, HV_X86_RSP, RSP(cpu));
-    for (i = 8; i < 16; i++)
+    for (i = 8; i < 16; i++) {
         wreg(cpu->hvf_fd, HV_X86_RAX + i, RRX(cpu, i));
-    
+    }
+
     lflags_to_rflags(cpu);
     wreg(cpu->hvf_fd, HV_X86_RFLAGS, RFLAGS(cpu));
     macvm_set_rip(cpu, RIP(cpu));
-
-    //print_debug(cpu);
 }
 
 bool exec_instruction(struct CPUState *cpu, struct x86_decode *ins)
 {
-    //if (hvf_vcpu_id(cpu))
-    //printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cpu),  RIP(cpu), decode_cmd_to_string(ins->cmd));
-    
+    /*if (hvf_vcpu_id(cpu))
+    printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cpu),  RIP(cpu),
+          decode_cmd_to_string(ins->cmd));*/
+
     if (0 && ins->is_fpu) {
         VM_PANIC("emulate fpu\n");
     } else {
         if (!_cmd_handler[ins->cmd].handler) {
-            printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(cpu), ins->cmd, ins->opcode[0],
-                   ins->opcode_len > 1 ? ins->opcode[1] : 0);
+            printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(cpu),
+                    ins->cmd, ins->opcode[0],
+                    ins->opcode_len > 1 ? ins->opcode[1] : 0);
             RIP(cpu) += ins->len;
             return true;
         }
-        
-        VM_PANIC_ON_EX(!_cmd_handler[ins->cmd].handler, "Unimplemented handler (%llx) for %d (%x %x) \n", RIP(cpu), ins->cmd, ins->opcode[0], ins->opcode_len > 1 ? ins->opcode[1] : 0);
+
+        VM_PANIC_ON_EX(!_cmd_handler[ins->cmd].handler,
+                "Unimplemented handler (%llx) for %d (%x %x) \n", RIP(cpu),
+                 ins->cmd, ins->opcode[0],
+                 ins->opcode_len > 1 ? ins->opcode[1] : 0);
         _cmd_handler[ins->cmd].handler(cpu, ins);
     }
     return true;

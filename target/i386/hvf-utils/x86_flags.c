@@ -32,65 +32,78 @@ void SET_FLAGS_OxxxxC(struct CPUState *cpu, uint32_t new_of, uint32_t new_cf)
 {
     uint32_t temp_po = new_of ^ new_cf;
     cpu->hvf_x86->lflags.auxbits &= ~(LF_MASK_PO | LF_MASK_CF);
-    cpu->hvf_x86->lflags.auxbits |= (temp_po << LF_BIT_PO) | (new_cf << LF_BIT_CF);
+    cpu->hvf_x86->lflags.auxbits |= (temp_po << LF_BIT_PO) |
+                                     (new_cf << LF_BIT_CF);
 }
 
-void SET_FLAGS_OSZAPC_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff)
+void SET_FLAGS_OSZAPC_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                            uint32_t diff)
 {
     SET_FLAGS_OSZAPC_SUB_32(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAPC_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff)
+void SET_FLAGS_OSZAPC_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                            uint16_t diff)
 {
     SET_FLAGS_OSZAPC_SUB_16(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAPC_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff)
+void SET_FLAGS_OSZAPC_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                            uint8_t diff)
 {
     SET_FLAGS_OSZAPC_SUB_8(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAPC_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff)
+void SET_FLAGS_OSZAPC_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                            uint32_t diff)
 {
     SET_FLAGS_OSZAPC_ADD_32(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAPC_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff)
+void SET_FLAGS_OSZAPC_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                            uint16_t diff)
 {
     SET_FLAGS_OSZAPC_ADD_16(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAPC_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff)
+void SET_FLAGS_OSZAPC_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                            uint8_t diff)
 {
     SET_FLAGS_OSZAPC_ADD_8(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAP_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff)
+void SET_FLAGS_OSZAP_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                            uint32_t diff)
 {
     SET_FLAGS_OSZAP_SUB_32(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAP_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff)
+void SET_FLAGS_OSZAP_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                            uint16_t diff)
 {
     SET_FLAGS_OSZAP_SUB_16(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAP_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff)
+void SET_FLAGS_OSZAP_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                            uint8_t diff)
 {
     SET_FLAGS_OSZAP_SUB_8(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAP_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff)
+void SET_FLAGS_OSZAP_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                            uint32_t diff)
 {
     SET_FLAGS_OSZAP_ADD_32(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAP_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff)
+void SET_FLAGS_OSZAP_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                            uint16_t diff)
 {
     SET_FLAGS_OSZAP_ADD_16(v1, v2, diff);
 }
 
-void SET_FLAGS_OSZAP_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff)
+void SET_FLAGS_OSZAP_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                            uint8_t diff)
 {
     SET_FLAGS_OSZAP_ADD_8(v1, v2, diff);
 }
@@ -264,19 +277,22 @@ bool get_ZF(struct CPUState *cpu)
 void set_ZF(struct CPUState *cpu, bool val)
 {
     if (val) {
-        cpu->hvf_x86->lflags.auxbits ^= (((cpu->hvf_x86->lflags.result >> LF_SIGN_BIT) & 1) << LF_BIT_SD);
-        // merge the parity bits into the Parity Delta Byte
+        cpu->hvf_x86->lflags.auxbits ^=
+         (((cpu->hvf_x86->lflags.result >> LF_SIGN_BIT) & 1) << LF_BIT_SD);
+        /* merge the parity bits into the Parity Delta Byte */
         uint32_t temp_pdb = (255 & cpu->hvf_x86->lflags.result);
         cpu->hvf_x86->lflags.auxbits ^= (temp_pdb << LF_BIT_PDB);
-        // now zero the .result value
+        /* now zero the .result value */
         cpu->hvf_x86->lflags.result = 0;
-    } else
+    } else {
         cpu->hvf_x86->lflags.result |= (1 << 8);
+    }
 }
 
 bool get_SF(struct CPUState *cpu)
 {
-    return ((cpu->hvf_x86->lflags.result >> LF_SIGN_BIT) ^ (cpu->hvf_x86->lflags.auxbits >> LF_BIT_SD)) & 1;
+    return ((cpu->hvf_x86->lflags.result >> LF_SIGN_BIT) ^
+            (cpu->hvf_x86->lflags.auxbits >> LF_BIT_SD)) & 1;
 }
 
 void set_SF(struct CPUState *cpu, bool val)
