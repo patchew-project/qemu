@@ -37,7 +37,10 @@ int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,
     return 0;
 }
 
-void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1)
+/* many ionst handlers look the same: they just delegate to a some css func */
+static void ioinst_handler_template_sch(S390CPU *cpu, uint64_t reg1,
+                                      const char *iname,
+                                      void (*handler_css)(SubchDev *))
 {
     int cssid, ssid, schid, m;
     SubchDev *sch;
@@ -46,67 +49,34 @@ void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1)
         program_interrupt(&cpu->env, PGM_OPERAND, 4);
         return;
     }
-    trace_ioinst_sch_id("xsch", cssid, ssid, schid);
+    trace_ioinst_sch_id(iname, cssid, ssid, schid);
     sch = css_find_subch(m, cssid, ssid, schid);
     if (!sch || !css_subch_visible(sch)) {
         setcc(cpu, 3);
         return;
     }
     css_subch_clear_iret(sch);
-    css_do_xsch(sch);
+    handler_css(sch);
     if (sch->iret.pgm_chk) {
         program_interrupt(&cpu->env, sch->iret.irq_code, 4);
         return;
     }
     setcc(cpu, sch->iret.cc);
+}
+
+void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1)
+{
+    ioinst_handler_template_sch(cpu, reg1, "xsch", css_do_xsch);
 }
 
 void ioinst_handle_csch(S390CPU *cpu, uint64_t reg1)
 {
-    int cssid, ssid, schid, m;
-    SubchDev *sch;
-
-    if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid)) {
-        program_interrupt(&cpu->env, PGM_OPERAND, 4);
-        return;
-    }
-    trace_ioinst_sch_id("csch", cssid, ssid, schid);
-    sch = css_find_subch(m, cssid, ssid, schid);
-    if (!sch || !css_subch_visible(sch)) {
-        setcc(cpu, 3);
-        return;
-    }
-    css_subch_clear_iret(sch);
-    css_do_csch(sch);
-    if (sch->iret.pgm_chk) {
-        program_interrupt(&cpu->env, sch->iret.irq_code, 4);
-        return;
-    }
-    setcc(cpu, sch->iret.cc);
+    ioinst_handler_template_sch(cpu, reg1, "csch", css_do_csch);
 }
 
 void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1)
 {
-    int cssid, ssid, schid, m;
-    SubchDev *sch;
-
-    if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid)) {
-        program_interrupt(&cpu->env, PGM_OPERAND, 4);
-        return;
-    }
-    trace_ioinst_sch_id("hsch", cssid, ssid, schid);
-    sch = css_find_subch(m, cssid, ssid, schid);
-    if (!sch || !css_subch_visible(sch)) {
-        setcc(cpu, 3);
-        return;
-    }
-    css_subch_clear_iret(sch);
-    css_do_hsch(sch);
-    if (sch->iret.pgm_chk) {
-        program_interrupt(&cpu->env, sch->iret.irq_code, 4);
-        return;
-    }
-    setcc(cpu, sch->iret.cc);
+    ioinst_handler_template_sch(cpu, reg1, "hsch", css_do_hsch);
 }
 
 static int ioinst_schib_valid(SCHIB *schib)
@@ -720,26 +690,7 @@ void ioinst_handle_schm(S390CPU *cpu, uint64_t reg1, uint64_t reg2,
 
 void ioinst_handle_rsch(S390CPU *cpu, uint64_t reg1)
 {
-    int cssid, ssid, schid, m;
-    SubchDev *sch;
-
-    if (ioinst_disassemble_sch_ident(reg1, &m, &cssid, &ssid, &schid)) {
-        program_interrupt(&cpu->env, PGM_OPERAND, 4);
-        return;
-    }
-    trace_ioinst_sch_id("rsch", cssid, ssid, schid);
-    sch = css_find_subch(m, cssid, ssid, schid);
-    if (!sch || !css_subch_visible(sch)) {
-        setcc(cpu, 3);
-        return;
-    }
-    css_subch_clear_iret(sch);
-    css_do_rsch(sch);
-    if (sch->iret.pgm_chk) {
-        program_interrupt(&cpu->env, sch->iret.irq_code, 4);
-        return;
-    }
-    setcc(cpu, sch->iret.cc);
+    ioinst_handler_template_sch(cpu, reg1, "rsch", css_do_rsch);
 }
 
 #define RCHP_REG1_RES(_reg) (_reg & 0x00000000ff00ff00)
