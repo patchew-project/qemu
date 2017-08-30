@@ -21,11 +21,14 @@
 #define S390_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(S390CcwMachineClass, (klass), TYPE_S390_CCW_MACHINE)
 
+struct S390CPU;
+
 typedef struct S390CcwMachineState {
     /*< private >*/
     MachineState parent_obj;
 
     /*< public >*/
+    S390CPU **cpus;
     bool aes_key_wrap;
     bool dea_key_wrap;
     uint8_t loadparm[8];

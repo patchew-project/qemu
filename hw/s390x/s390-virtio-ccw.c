@@ -32,6 +32,45 @@
 #include "migration/register.h"
 #include "cpu_models.h"
 
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(qdev_get_machine());
+
+    if (cpu_addr >= max_cpus) {
+        return NULL;
+    }
+
+    /* Fast lookup via CPU ID */
+    return ms->cpus[cpu_addr];
+}
+
+static void s390_init_cpus(MachineState *machine)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
+    int i;
+    gchar *name;
+
+    if (machine->cpu_model == NULL) {
+        machine->cpu_model = s390_default_cpu_model_name();
+    }
+
+    ms->cpus = g_new0(S390CPU *, max_cpus);
+
+    for (i = 0; i < max_cpus; i++) {
+        name = g_strdup_printf("cpu[%i]", i);
+        object_property_add_link(OBJECT(machine), name, TYPE_S390_CPU,
+                                 (Object **) &ms->cpus[i],
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                                 &error_abort);
+        g_free(name);
+    }
+
+    for (i = 0; i < smp_cpus; i++) {
+        s390x_new_cpu(machine->cpu_model, i, &error_fatal);
+    }
+}
+
 static const char *const reset_dev_types[] = {
     TYPE_VIRTUAL_CSS_BRIDGE,
     "s390-sclp-event-facility",
