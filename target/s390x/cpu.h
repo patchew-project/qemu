@@ -149,7 +149,7 @@ typedef struct CPUS390XState {
 
     CPU_COMMON
 
-    uint32_t cpu_num;
+    uint32_t cpu_addr; /* same as cpu->index */
     uint64_t cpuid;
 
     uint64_t tod_offset;
@@ -193,7 +193,6 @@ struct S390CPU {
     /*< public >*/
 
     CPUS390XState env;
-    int64_t id;
     S390CPUModel *model;
     /* needed for live migration */
     void *irqstate;
@@ -690,7 +689,7 @@ const char *s390_default_cpu_model_name(void);
 /* helper.c */
 S390CPU *cpu_s390x_init(const char *cpu_model);
 #define cpu_init(model) CPU(cpu_s390x_init(model))
-S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp);
+S390CPU *s390x_new_cpu(const char *cpu_model, uint32_t addr, Error **errp);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
