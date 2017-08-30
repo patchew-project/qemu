@@ -241,7 +241,7 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
         goto err;
     }
 
-    if(uri->user && strcmp(uri->user, "") != 0) {
+    if (uri->user && strcmp(uri->user, "") != 0) {
         qdict_put_str(options, "user", uri->user);
     }
 
@@ -268,7 +268,7 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
 
  err:
     if (uri) {
-      uri_free(uri);
+        uri_free(uri);
     }
     return -EINVAL;
 }
@@ -342,7 +342,7 @@ static int check_host_key_knownhosts(BDRVSSHState *s,
     libssh2_knownhost_readfile(knh, knh_file, LIBSSH2_KNOWNHOST_FILE_OPENSSH);
 
     r = libssh2_knownhost_checkp(knh, host, port, hostkey, len,
-                                 LIBSSH2_KNOWNHOST_TYPE_PLAIN|
+                                 LIBSSH2_KNOWNHOST_TYPE_PLAIN |
                                  LIBSSH2_KNOWNHOST_KEYENC_RAW,
                                  &found);
     switch (r) {
@@ -405,15 +405,18 @@ static int compare_fingerprint(const unsigned char *fingerprint, size_t len,
     unsigned c;
 
     while (len > 0) {
-        while (*host_key_check == ':')
+        while (*host_key_check == ':') {
             host_key_check++;
+        }
         if (!qemu_isxdigit(host_key_check[0]) ||
-            !qemu_isxdigit(host_key_check[1]))
+            !qemu_isxdigit(host_key_check[1])) {
             return 1;
+        }
         c = hex2decimal(host_key_check[0]) * 16 +
             hex2decimal(host_key_check[1]);
-        if (c - *fingerprint != 0)
+        if (c - *fingerprint != 0) {
             return c - *fingerprint;
+        }
         fingerprint++;
         len--;
         host_key_check += 2;
@@ -433,8 +436,8 @@ check_host_key_hash(BDRVSSHState *s, const char *hash,
         return -EINVAL;
     }
 
-    if(compare_fingerprint((unsigned char *) fingerprint, fingerprint_len,
-                           hash) != 0) {
+    if (compare_fingerprint((unsigned char *) fingerprint, fingerprint_len,
+                            hash) != 0) {
         error_setg(errp, "remote host key does not match host_key_check '%s'",
                    hash);
         return -EPERM;
@@ -507,7 +510,7 @@ static int authenticate(BDRVSSHState *s, const char *user, Error **errp)
         goto out;
     }
 
-    for(;;) {
+    for (;;) {
         r = libssh2_agent_get_identity(agent, &identity, prev_identity);
         if (r == 1) {           /* end of list */
             break;
@@ -863,8 +866,8 @@ static int ssh_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     r = connect_to_ssh(&s, uri_options,
-                       LIBSSH2_FXF_READ|LIBSSH2_FXF_WRITE|
-                       LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
+                       LIBSSH2_FXF_READ  | LIBSSH2_FXF_WRITE |
+                       LIBSSH2_FXF_CREAT | LIBSSH2_FXF_TRUNC,
                        0644, errp);
     if (r < 0) {
         ret = r;
@@ -872,7 +875,7 @@ static int ssh_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     if (total_size > 0) {
-        libssh2_sftp_seek64(s.sftp_handle, total_size-1);
+        libssh2_sftp_seek64(s.sftp_handle, total_size - 1);
         r2 = libssh2_sftp_write(s.sftp_handle, c, 1);
         if (r2 < 0) {
             sftp_error_setg(errp, &s, "truncate failed");
@@ -1111,7 +1114,7 @@ static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
          * works for me.
          */
         if (r == 0) {
-            ssh_seek(s, offset + written, SSH_SEEK_WRITE|SSH_SEEK_FORCE);
+            ssh_seek(s, offset + written, SSH_SEEK_WRITE | SSH_SEEK_FORCE);
             co_yield(s, bs);
             goto again;
         }
@@ -1125,8 +1128,9 @@ static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
             end_of_vec = i->iov_base + i->iov_len;
         }
 
-        if (offset + written > s->attrs.filesize)
+        if (offset + written > s->attrs.filesize) {
             s->attrs.filesize = offset + written;
+        }
     }
 
     return 0;
