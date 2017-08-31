@@ -20,6 +20,7 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "hw/char/serial.h"
 
 #define TYPE_IMX_SERIAL "imx.serial"
 #define IMX_SERIAL(obj) OBJECT_CHECK(IMXSerialState, (obj), TYPE_IMX_SERIAL)
