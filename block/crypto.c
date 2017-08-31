@@ -392,16 +392,16 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
     QEMUIOVector hd_qiov;
     int ret = 0;
     size_t payload_offset =
-        qcrypto_block_get_payload_offset(crypto->block) / 512;
+        qcrypto_block_get_payload_offset(crypto->block) / BDRV_SECTOR_SIZE;
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
     /* Bounce buffer because we don't wish to expose cipher text
      * in qiov which points to guest memory.
      */
-    cipher_data =
-        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * 512,
-                                              qiov->size));
+    cipher_data = qemu_try_blockalign(
+        bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * BDRV_SECTOR_SIZE,
+                          qiov->size));
     if (cipher_data == NULL) {
         ret = -ENOMEM;
         goto cleanup;
@@ -415,7 +415,7 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
         }
 
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * 512);
+        qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
 
         ret = bdrv_co_readv(bs->file,
                             payload_offset + sector_num,
@@ -426,18 +426,18 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
 
         if (qcrypto_block_decrypt(crypto->block,
                                   sector_num,
-                                  cipher_data, cur_nr_sectors * 512,
+                                  cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE,
                                   NULL) < 0) {
             ret = -EIO;
             goto cleanup;
         }
 
         qemu_iovec_from_buf(qiov, bytes_done,
-                            cipher_data, cur_nr_sectors * 512);
+                            cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
 
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
-        bytes_done += cur_nr_sectors * 512;
+        bytes_done += cur_nr_sectors * BDRV_SECTOR_SIZE;
     }
 
  cleanup:
@@ -459,16 +459,16 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
     QEMUIOVector hd_qiov;
     int ret = 0;
     size_t payload_offset =
-        qcrypto_block_get_payload_offset(crypto->block) / 512;
+        qcrypto_block_get_payload_offset(crypto->block) / BDRV_SECTOR_SIZE;
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
     /* Bounce buffer because we're not permitted to touch
      * contents of qiov - it points to guest memory.
      */
-    cipher_data =
-        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * 512,
-                                              qiov->size));
+    cipher_data = qemu_try_blockalign(
+        bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * BDRV_SECTOR_SIZE,
+                          qiov->size));
     if (cipher_data == NULL) {
         ret = -ENOMEM;
         goto cleanup;
@@ -482,18 +482,18 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
         }
 
         qemu_iovec_to_buf(qiov, bytes_done,
-                          cipher_data, cur_nr_sectors * 512);
+                          cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
 
         if (qcrypto_block_encrypt(crypto->block,
                                   sector_num,
-                                  cipher_data, cur_nr_sectors * 512,
+                                  cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE,
                                   NULL) < 0) {
             ret = -EIO;
             goto cleanup;
         }
 
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * 512);
+        qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
 
         ret = bdrv_co_writev(bs->file,
                              payload_offset + sector_num,
@@ -504,7 +504,7 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
 
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
-        bytes_done += cur_nr_sectors * 512;
+        bytes_done += cur_nr_sectors * BDRV_SECTOR_SIZE;
     }
 
  cleanup:
