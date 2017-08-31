@@ -1050,7 +1050,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     s->it_shift = it_shift;
     s->irq = irq;
     s->baudbase = baudbase;
-    qemu_chr_fe_init(&s->chr, chr, &error_abort);
+    qemu_chr_fe_init(&s->chr, serial_chr_nonnull(chr), &error_abort);
 
     serial_realize_core(s, &error_fatal);
     vmstate_register(NULL, base, &vmstate_serial, s);
