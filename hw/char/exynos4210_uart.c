@@ -27,6 +27,7 @@
 #include "chardev/char-serial.h"
 
 #include "hw/arm/exynos4210.h"
+#include "hw/char/serial.h"
 
 #undef DEBUG_UART
 #undef DEBUG_UART_EXTEND
@@ -589,9 +590,6 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     DeviceState  *dev;
     SysBusDevice *bus;
 
-    const char chr_name[] = "serial";
-    char label[ARRAY_SIZE(chr_name) + 1];
-
     dev = qdev_create(NULL, TYPE_EXYNOS4210_UART);
 
     if (!chr) {
@@ -600,15 +598,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
                          MAX_SERIAL_PORTS);
             exit(1);
         }
-        chr = serial_hds[channel];
-        if (!chr) {
-            snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, channel);
-            chr = qemu_chr_new(label, "null");
-            if (!(chr)) {
-                error_report("Can't assign serial port to UART%d", channel);
-                exit(1);
-            }
-        }
+        chr = serial_chr_nonnull(serial_hds[channel]);
     }
 
     qdev_prop_set_chr(dev, "chardev", chr);
