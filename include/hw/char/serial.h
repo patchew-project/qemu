@@ -93,6 +93,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
                             hwaddr base, int it_shift,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end);
+Chardev *serial_chr_nonnull(Chardev *chr);
 
 /* serial-isa.c */
 #define TYPE_ISA_SERIAL "isa-serial"

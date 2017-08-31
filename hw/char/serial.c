@@ -1025,6 +1025,19 @@ static const MemoryRegionOps serial_mm_ops[3] = {
     },
 };
 
+Chardev *serial_chr_nonnull(Chardev *chr)
+{
+    static int serial_id;
+    char *label;
+
+    label = g_strdup_printf("discarding-serial%d", serial_id++);
+    chr = qemu_chr_new(label, "null");
+    assert(chr);
+    g_free(label);
+
+    return chr;
+}
+
 SerialState *serial_mm_init(MemoryRegion *address_space,
                             hwaddr base, int it_shift,
                             qemu_irq irq, int baudbase,
