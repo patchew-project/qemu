@@ -380,19 +380,23 @@ static void block_crypto_close(BlockDriverState *bs)
 
 
 #define BLOCK_CRYPTO_MAX_SECTORS 2048
+#define BLOCK_CRYPTO_MAX_LENGTH (BLOCK_CRYPTO_MAX_SECTORS * BDRV_SECTOR_SIZE)
 
 static coroutine_fn int
-block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
-                      int remaining_sectors, QEMUIOVector *qiov)
+block_crypto_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                       QEMUIOVector *qiov, int flags)
 {
     BlockCrypto *crypto = bs->opaque;
-    int cur_nr_sectors; /* number of sectors in current iteration */
+    uint64_t cur_bytes; /* number of bytes in current iteration */
     uint64_t bytes_done = 0;
     uint8_t *cipher_data = NULL;
     QEMUIOVector hd_qiov;
     int ret = 0;
-    size_t payload_offset =
-        qcrypto_block_get_payload_offset(crypto->block) / BDRV_SECTOR_SIZE;
+    size_t payload_offset = qcrypto_block_get_payload_offset(crypto->block);
+    uint64_t sector_num = offset / BDRV_SECTOR_SIZE;
+
+    assert((offset % BDRV_SECTOR_SIZE) == 0);
+    assert((bytes % BDRV_SECTOR_SIZE) == 0);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -400,44 +404,39 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
      * in qiov which points to guest memory.
      */
     cipher_data = qemu_try_blockalign(
-        bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * BDRV_SECTOR_SIZE,
-                          qiov->size));
+        bs->file->bs, MIN(BLOCK_CRYPTO_MAX_LENGTH, qiov->size));
     if (cipher_data == NULL) {
         ret = -ENOMEM;
         goto cleanup;
     }
 
-    while (remaining_sectors) {
-        cur_nr_sectors = remaining_sectors;
+    while (bytes) {
+        cur_bytes = bytes;
 
-        if (cur_nr_sectors > BLOCK_CRYPTO_MAX_SECTORS) {
-            cur_nr_sectors = BLOCK_CRYPTO_MAX_SECTORS;
+        if (cur_bytes > BLOCK_CRYPTO_MAX_LENGTH) {
+            cur_bytes = BLOCK_CRYPTO_MAX_LENGTH;
         }
 
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
+        qemu_iovec_add(&hd_qiov, cipher_data, cur_bytes);
 
-        ret = bdrv_co_readv(bs->file,
-                            payload_offset + sector_num,
-                            cur_nr_sectors, &hd_qiov);
+        ret = bdrv_co_preadv(bs->file, payload_offset + offset + bytes_done,
+                             cur_bytes, &hd_qiov, 0);
         if (ret < 0) {
             goto cleanup;
         }
 
-        if (qcrypto_block_decrypt(crypto->block,
-                                  sector_num,
-                                  cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE,
-                                  NULL) < 0) {
+        if (qcrypto_block_decrypt(crypto->block, sector_num, cipher_data,
+                                  cur_bytes, NULL) < 0) {
             ret = -EIO;
             goto cleanup;
         }
 
-        qemu_iovec_from_buf(qiov, bytes_done,
-                            cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
+        qemu_iovec_from_buf(qiov, bytes_done, cipher_data, cur_bytes);
 
-        remaining_sectors -= cur_nr_sectors;
-        sector_num += cur_nr_sectors;
-        bytes_done += cur_nr_sectors * BDRV_SECTOR_SIZE;
+        sector_num += cur_bytes / BDRV_SECTOR_SIZE;
+        bytes -= cur_bytes;
+        bytes_done += cur_bytes;
     }
 
  cleanup:
@@ -449,17 +448,20 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
 
 
 static coroutine_fn int
-block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
-                       int remaining_sectors, QEMUIOVector *qiov)
+block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                        QEMUIOVector *qiov, int flags)
 {
     BlockCrypto *crypto = bs->opaque;
-    int cur_nr_sectors; /* number of sectors in current iteration */
+    uint64_t cur_bytes; /* number of bytes in current iteration */
     uint64_t bytes_done = 0;
     uint8_t *cipher_data = NULL;
     QEMUIOVector hd_qiov;
     int ret = 0;
-    size_t payload_offset =
-        qcrypto_block_get_payload_offset(crypto->block) / BDRV_SECTOR_SIZE;
+    size_t payload_offset = qcrypto_block_get_payload_offset(crypto->block);
+    uint64_t sector_num = offset / BDRV_SECTOR_SIZE;
+
+    assert((offset % BDRV_SECTOR_SIZE) == 0);
+    assert((bytes % BDRV_SECTOR_SIZE) == 0);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -467,44 +469,39 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
      * contents of qiov - it points to guest memory.
      */
     cipher_data = qemu_try_blockalign(
-        bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * BDRV_SECTOR_SIZE,
-                          qiov->size));
+        bs->file->bs, MIN(BLOCK_CRYPTO_MAX_LENGTH, qiov->size));
     if (cipher_data == NULL) {
         ret = -ENOMEM;
         goto cleanup;
     }
 
-    while (remaining_sectors) {
-        cur_nr_sectors = remaining_sectors;
+    while (bytes) {
+        cur_bytes = bytes;
 
-        if (cur_nr_sectors > BLOCK_CRYPTO_MAX_SECTORS) {
-            cur_nr_sectors = BLOCK_CRYPTO_MAX_SECTORS;
+        if (cur_bytes > BLOCK_CRYPTO_MAX_LENGTH) {
+            cur_bytes = BLOCK_CRYPTO_MAX_LENGTH;
         }
 
-        qemu_iovec_to_buf(qiov, bytes_done,
-                          cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
+        qemu_iovec_to_buf(qiov, bytes_done, cipher_data, cur_bytes);
 
-        if (qcrypto_block_encrypt(crypto->block,
-                                  sector_num,
-                                  cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE,
-                                  NULL) < 0) {
+        if (qcrypto_block_encrypt(crypto->block, sector_num, cipher_data,
+                                  cur_bytes, NULL) < 0) {
             ret = -EIO;
             goto cleanup;
         }
 
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_add(&hd_qiov, cipher_data, cur_nr_sectors * BDRV_SECTOR_SIZE);
+        qemu_iovec_add(&hd_qiov, cipher_data, cur_bytes);
 
-        ret = bdrv_co_writev(bs->file,
-                             payload_offset + sector_num,
-                             cur_nr_sectors, &hd_qiov);
+        ret = bdrv_co_pwritev(bs->file, payload_offset + offset + bytes_done,
+                              cur_bytes, &hd_qiov, 0);
         if (ret < 0) {
             goto cleanup;
         }
 
-        remaining_sectors -= cur_nr_sectors;
-        sector_num += cur_nr_sectors;
-        bytes_done += cur_nr_sectors * BDRV_SECTOR_SIZE;
+        sector_num += cur_bytes / BDRV_SECTOR_SIZE;
+        bytes -= cur_bytes;
+        bytes_done += cur_bytes;
     }
 
  cleanup:
@@ -512,6 +509,11 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
     qemu_vfree(cipher_data);
 
     return ret;
+}
+
+static void block_crypto_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
 }
 
 
@@ -611,8 +613,9 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_truncate      = block_crypto_truncate,
     .create_opts        = &block_crypto_create_opts_luks,
 
-    .bdrv_co_readv      = block_crypto_co_readv,
-    .bdrv_co_writev     = block_crypto_co_writev,
+    .bdrv_refresh_limits = block_crypto_refresh_limits,
+    .bdrv_co_preadv      = block_crypto_co_preadv,
+    .bdrv_co_pwritev     = block_crypto_co_pwritev,
     .bdrv_getlength     = block_crypto_getlength,
     .bdrv_get_info      = block_crypto_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
