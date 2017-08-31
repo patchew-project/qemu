@@ -1035,11 +1035,7 @@ void mips_malta_init(MachineState *machine)
 
     /* Make sure the first 3 serial ports are associated with a device. */
     for(i = 0; i < 3; i++) {
-        if (!serial_hds[i]) {
-            char label[32];
-            snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_new(label, "null");
-        }
+        serial_hds[i] = serial_chr_nonnull(serial_hds[i]);
     }
 
     /* create CPU */
