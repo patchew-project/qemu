@@ -52,6 +52,7 @@ class QEMUMachine(object):
         self._debug = debug
         self._qemu_full_args = None
         self._created_files = []
+        self._pending_shutdown = False
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -168,10 +169,14 @@ class QEMUMachine(object):
         if self.is_running():
             raise QEMUMachineError('VM already running')
 
+        if self._pending_shutdown:
+            raise QEMUMachineError('Shutdown pending after previous launch')
+
         self._iolog = None
         self._qemu_full_args = None
         try:
             self._launch()
+            self._pending_shutdown = True
         except:
             self.shutdown()
 
@@ -216,6 +221,8 @@ class QEMUMachine(object):
             else:
                 command = ''
             LOG.warn(msg, exitcode, command)
+
+        self._pending_shutdown = False
 
     underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, conv_keys=True, **args):
