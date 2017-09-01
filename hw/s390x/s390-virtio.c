@@ -141,9 +141,10 @@ void gtod_save(QEMUFile *f, void *opaque)
 
     r = s390_get_clock(&tod_high, &tod_low);
     if (r) {
-        warn_report("Unable to get guest clock for migration. "
-                    "Error code %d. Guest clock will not be migrated "
-                    "which could cause the guest to hang.", r);
+        warn_report("Unable to get guest clock for migration: %s",
+                    strerror(-r));
+        error_printf("Guest clock will not be migrated "
+                     "which could cause the guest to hang.");
         qemu_put_byte(f, S390_TOD_CLOCK_VALUE_MISSING);
         return;
     }

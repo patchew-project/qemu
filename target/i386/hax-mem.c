@@ -178,9 +178,8 @@ static void hax_process_section(MemoryRegionSection *section, uint8_t flags)
     if (!memory_region_is_ram(mr)) {
         if (memory_region_is_romd(mr)) {
             /* HAXM kernel module does not support ROMD yet  */
-            warn_report("Ignoring ROMD region 0x%016" PRIx64
-                        "->0x%016" PRIx64 "", __func__, start_pa,
-                        start_pa + size);
+            warn_report("Ignoring ROMD region 0x%016"PRIx64"->0x%016"PRIx64"",
+                        start_pa, start_pa + size);
         }
         return;
     }
