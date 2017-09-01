@@ -41,6 +41,7 @@ class QEMUMachine(object):
             monitor_address = os.path.join(test_dir, name + "-monitor.sock")
         self._monitor_address = monitor_address
         self._qemu_log_path = os.path.join(test_dir, name + ".log")
+        self._qemu_log_fd = None
         self._popen = None
         self._binary = binary
         self._args = list(args) # Force copy args in case we modify them
@@ -50,6 +51,7 @@ class QEMUMachine(object):
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
         self._qemu_full_args = None
+        self._created_files = []
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -128,30 +130,44 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
 
     def _pre_launch(self):
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address, server=True,
-                                                debug=self._debug)
+        try:
+            self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address,
+                                                    server=True,
+                                                    debug=self._debug)
+        except:
+            raise
+        else:
+            if not isinstance(self._monitor_address, tuple):
+                self._created_files.append(self._monitor_address)
+
+        try:
+            flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+            os.open(self._qemu_log_path, flags)
+        except:
+            raise
+        else:
+            self._created_files.append(self._qemu_log_path)
+            self._qemu_log_fd = open(self._qemu_log_path, 'wb')
 
     def _post_launch(self):
         self._qmp.accept()
 
     def _post_shutdown(self):
-        if not isinstance(self._monitor_address, tuple):
-            self._remove_if_exists(self._monitor_address)
-        self._remove_if_exists(self._qemu_log_path)
+        while self._created_files:
+            self._remove_if_exists(self._created_files.pop())
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
         self._iolog = None
         self._qemu_full_args = None
         devnull = open(os.path.devnull, 'rb')
-        qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._pre_launch()
             self._qemu_full_args = (self._wrapper + [self._binary] +
                                     self._base_args() + self._args)
             self._popen = subprocess.Popen(self._qemu_full_args,
                                            stdin=devnull,
-                                           stdout=qemulog,
+                                           stdout=self._qemu_log_fd,
                                            stderr=subprocess.STDOUT,
                                            shell=False)
             self._post_launch()
