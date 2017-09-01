@@ -102,14 +102,11 @@ static void test_fw_cfg_boot_menu(void)
 int main(int argc, char **argv)
 {
     QTestState *s;
-    char *cmdline;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
-    cmdline = g_strdup_printf("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8 ");
-    s = qtest_start(cmdline);
-    g_free(cmdline);
+    s = qtest_init("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8");
 
     fw_cfg = pc_fw_cfg_init(s);
 
