@@ -289,6 +289,7 @@ enum {
     SMMU_CMD_RESUME          = 0x44,
     SMMU_CMD_STALL_TERM,
     SMMU_CMD_SYNC,          /* 0x46 */
+    SMMU_CMD_TLBI_NH_VA_AM   = 0x8F, /* VIOMMU Impl Defined */
 };
 
 static const char *cmd_stringify[] = {
