@@ -132,7 +132,7 @@ static MemTxResult smmuv3_read_cmdq(SMMUV3State *s, Cmd *cmd)
     return ret;
 }
 
-void smmuv3_write_evtq(SMMUV3State *s, Evt *evt)
+static void smmuv3_write_evtq(SMMUV3State *s, Evt *evt)
 {
     SMMUQueue *q = &s->evtq;
     bool was_empty = smmu_is_q_empty(s, q);
@@ -155,6 +155,88 @@ void smmuv3_write_evtq(SMMUV3State *s, Evt *evt)
     if (was_empty) {
         smmuv3_irq_trigger(s, SMMU_IRQ_EVTQ, 0);
     }
+}
+
+/*
+ * smmuv3_record_event - Record an event
+ */
+void smmuv3_record_event(SMMUV3State *s, hwaddr iova,
+                         uint32_t sid, IOMMUAccessFlags perm,
+                         SMMUEvtErr type)
+{
+    Evt evt;
+    bool rnw = perm & IOMMU_RO;
+
+    if (!smmu_evt_q_enabled(s)) {
+        return;
+    }
+
+    EVT_SET_TYPE(&evt, type);
+    EVT_SET_SID(&evt, sid);
+    /* SSV=0 (substream invalid) and substreamID= 0 */
+
+    switch (type) {
+    case SMMU_EVT_OK:
+        return;
+    case SMMU_EVT_F_UUT:
+        EVT_SET_INPUT_ADDR(&evt, iova);
+        EVT_SET_RNW(&evt, rnw);
+        /* PnU and Ind not filled */
+        break;
+    case SMMU_EVT_C_BAD_SID:
+        break;
+    case SMMU_EVT_F_STE_FETCH:
+        /* Implementation defined and FetchAddr not filled yet */
+        break;
+    case SMMU_EVT_C_BAD_STE:
+        break;
+    case SMMU_EVT_F_BAD_ATS_REQ:
+        /* ATS not yet implemented */
+        break;
+    case SMMU_EVT_F_STREAM_DISABLED:
+        break;
+    case SMMU_EVT_F_TRANS_FORBIDDEN:
+        EVT_SET_INPUT_ADDR(&evt, iova);
+        EVT_SET_RNW(&evt, rnw);
+        break;
+    case SMMU_EVT_C_BAD_SSID:
+        break;
+    case SMMU_EVT_F_CD_FETCH:
+        break;
+    case SMMU_EVT_C_BAD_CD:
+        /* Implementation defined and FetchAddr not filled yet */
+        break;
+    case SMMU_EVT_F_WALK_EXT_ABRT:
+        EVT_SET_INPUT_ADDR(&evt, iova);
+        EVT_SET_RNW(&evt, rnw);
+        /* Reason, Class, S2, Ind, PnU, FetchAddr not filled yet */
+        break;
+    case SMMU_EVT_F_TRANS:
+    case SMMU_EVT_F_ADDR_SZ:
+    case SMMU_EVT_F_ACCESS:
+        EVT_SET_INPUT_ADDR(&evt, iova);
+        EVT_SET_RNW(&evt, rnw);
+        /* STAG, Class, S2, InD, PnU, IPA not filled yet */
+        break;
+    case SMMU_EVT_F_PERM:
+        EVT_SET_INPUT_ADDR(&evt, iova);
+        EVT_SET_RNW(&evt, rnw);
+        /* STAG, TTRnW, Class, S2, InD, PnU, IPA not filled yet */
+        break;
+    case SMMU_EVT_F_TLB_CONFLICT:
+        EVT_SET_INPUT_ADDR(&evt, iova);
+        EVT_SET_RNW(&evt, rnw);
+        /* Reason, S2, InD, PnU, IPA not filled yet */
+        break;
+    case SMMU_EVT_F_CFG_CONFLICT:
+        /* Implementation defined reason not filled yet */
+        break;
+    case SMMU_EVT_E_PAGE_REQ:
+        /* PRI not supported */
+        break;
+    }
+
+    smmuv3_write_evtq(s, &evt);
 }
 
 static void smmuv3_init_regs(SMMUV3State *s)

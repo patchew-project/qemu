@@ -259,8 +259,6 @@ static inline void smmu_write_cmdq_err(SMMUV3State *s, uint32_t err_type)
                         regval | err_type << SMMU_CMD_CONS_ERR_SHIFT);
 }
 
-void smmuv3_write_evtq(SMMUV3State *s, Evt *evt);
-
 /*****************************
  * Commands
  *****************************/
@@ -360,5 +358,48 @@ enum { /* Command completion notification */
             addr |=  extract32((x)->word[3], 12, 20);   \
             addr;                                       \
         })
+
+/*****************************
+ * EVTQ fields
+ *****************************/
+
+#define EVT_Q_OVERFLOW        (1 << 31)
+
+#define EVT_SET_TYPE(x, t)    deposit32((x)->word[0], 0, 8, t)
+#define EVT_SET_SID(x, s)     ((x)->word[1] =  s)
+#define EVT_SET_INPUT_ADDR(x, addr) ({                    \
+            (x)->word[5] = (uint32_t)(addr >> 32);        \
+            (x)->word[4] = (uint32_t)(addr & 0xffffffff); \
+        })
+#define EVT_SET_RNW(x, rnw)     deposit32((x)->word[3], 3, 1, rnw)
+
+/*****************************
+ * Events
+ *****************************/
+
+typedef enum evt_err {
+    SMMU_EVT_OK,
+    SMMU_EVT_F_UUT,
+    SMMU_EVT_C_BAD_SID,
+    SMMU_EVT_F_STE_FETCH,
+    SMMU_EVT_C_BAD_STE,
+    SMMU_EVT_F_BAD_ATS_REQ,
+    SMMU_EVT_F_STREAM_DISABLED,
+    SMMU_EVT_F_TRANS_FORBIDDEN,
+    SMMU_EVT_C_BAD_SSID,
+    SMMU_EVT_F_CD_FETCH,
+    SMMU_EVT_C_BAD_CD,
+    SMMU_EVT_F_WALK_EXT_ABRT,
+    SMMU_EVT_F_TRANS        = 0x10,
+    SMMU_EVT_F_ADDR_SZ,
+    SMMU_EVT_F_ACCESS,
+    SMMU_EVT_F_PERM,
+    SMMU_EVT_F_TLB_CONFLICT = 0x20,
+    SMMU_EVT_F_CFG_CONFLICT = 0x21,
+    SMMU_EVT_E_PAGE_REQ     = 0x24,
+} SMMUEvtErr;
+
+void smmuv3_record_event(SMMUV3State *s, hwaddr iova,
+                         uint32_t sid, bool is_write, SMMUEvtErr type);
 
 #endif
