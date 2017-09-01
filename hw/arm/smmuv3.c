@@ -72,7 +72,7 @@ static void smmuv3_irq_trigger(SMMUV3State *s, SMMUIrq irq, uint32_t gerror_val)
     }
 }
 
-void smmuv3_write_gerrorn(SMMUV3State *s, uint32_t gerrorn)
+static void smmuv3_write_gerrorn(SMMUV3State *s, uint32_t gerrorn)
 {
     uint32_t pending_gerrors = SMMU_PENDING_GERRORS(s);
     uint32_t sanitized;
@@ -116,7 +116,7 @@ static void smmu_q_write(SMMUQueue *q, void *data)
     }
 }
 
-MemTxResult smmuv3_read_cmdq(SMMUV3State *s, Cmd *cmd)
+static MemTxResult smmuv3_read_cmdq(SMMUV3State *s, Cmd *cmd)
 {
     SMMUQueue *q = &s->cmdq;
     MemTxResult ret = smmu_q_read(q, cmd);
@@ -224,6 +224,147 @@ static inline void smmu_update_base_reg(SMMUV3State *s, uint64_t *base,
     *base = val & ~(SMMU_BASE_RA | 0x3fULL);
 }
 
+static int smmuv3_cmdq_consume(SMMUV3State *s)
+{
+    SMMUCmdError cmd_error = SMMU_CERROR_NONE;
+
+    trace_smmuv3_cmdq_consume(SMMU_CMDQ_ERR(s), smmu_cmd_q_enabled(s),
+                              s->cmdq.prod, s->cmdq.cons,
+                              s->cmdq.wrap.prod, s->cmdq.wrap.cons);
+
+    if (!smmu_cmd_q_enabled(s)) {
+        return 0;
+    }
+
+    while (!SMMU_CMDQ_ERR(s) && !smmu_is_q_empty(s, &s->cmdq)) {
+        uint32_t type;
+        Cmd cmd;
+
+        if (smmuv3_read_cmdq(s, &cmd) != MEMTX_OK) {
+            cmd_error = SMMU_CERROR_ABT;
+            break;
+        }
+
+        type = CMD_TYPE(&cmd);
+
+        trace_smmuv3_cmdq_opcode(cmd_stringify[type]);
+
+        switch (CMD_TYPE(&cmd)) {
+        case SMMU_CMD_SYNC:
+            if (CMD_CS(&cmd) & CMD_SYNC_SIG_IRQ) {
+                smmuv3_irq_trigger(s, SMMU_IRQ_CMD_SYNC, 0);
+            }
+            break;
+        case SMMU_CMD_PREFETCH_CONFIG:
+        case SMMU_CMD_PREFETCH_ADDR:
+            break;
+        case SMMU_CMD_CFGI_STE:
+        {
+             uint32_t streamid = cmd.word[1];
+
+             trace_smmuv3_cmdq_cfgi_ste(streamid);
+            break;
+        }
+        case SMMU_CMD_CFGI_STE_RANGE: /* same as SMMU_CMD_CFGI_ALL */
+        {
+            uint32_t start = cmd.word[1], range, end;
+
+            range = extract32(cmd.word[2], 0, 5);
+            end = start + (1 << (range + 1)) - 1;
+            trace_smmuv3_cmdq_cfgi_ste_range(start, end);
+            break;
+        }
+        case SMMU_CMD_CFGI_CD:
+        case SMMU_CMD_CFGI_CD_ALL:
+            trace_smmuv3_unhandled_cmd(type);
+            break;
+        case SMMU_CMD_TLBI_NH_ALL:
+        case SMMU_CMD_TLBI_NH_ASID:
+            trace_smmuv3_unhandled_cmd(type);
+            break;
+        case SMMU_CMD_TLBI_NH_VA:
+        {
+            int asid = extract32(cmd.word[1], 16, 16);
+            int vmid = extract32(cmd.word[1], 0, 16);
+            uint64_t low = extract32(cmd.word[2], 12, 20);
+            uint64_t high = cmd.word[3];
+            uint64_t addr = high << 32 | (low << 12);
+
+            trace_smmuv3_cmdq_tlbi_nh_va(asid, vmid, addr);
+            break;
+        }
+        case SMMU_CMD_TLBI_NH_VAA:
+        case SMMU_CMD_TLBI_EL3_ALL:
+        case SMMU_CMD_TLBI_EL3_VA:
+        case SMMU_CMD_TLBI_EL2_ALL:
+        case SMMU_CMD_TLBI_EL2_ASID:
+        case SMMU_CMD_TLBI_EL2_VA:
+        case SMMU_CMD_TLBI_EL2_VAA:
+        case SMMU_CMD_TLBI_S12_VMALL:
+        case SMMU_CMD_TLBI_S2_IPA:
+        case SMMU_CMD_TLBI_NSNH_ALL:
+            trace_smmuv3_unhandled_cmd(type);
+            break;
+        case SMMU_CMD_ATC_INV:
+        case SMMU_CMD_PRI_RESP:
+        case SMMU_CMD_RESUME:
+        case SMMU_CMD_STALL_TERM:
+            trace_smmuv3_unhandled_cmd(type);
+            break;
+        default:
+            cmd_error = SMMU_CERROR_ILL;
+            error_report("Illegal command type: %d", CMD_TYPE(&cmd));
+            break;
+        }
+    }
+
+    if (cmd_error) {
+        error_report("GERROR_CMDQ: CONS.ERR=%d", cmd_error);
+        smmu_write_cmdq_err(s, cmd_error);
+        smmuv3_irq_trigger(s, SMMU_IRQ_GERROR, SMMU_GERROR_CMDQ);
+    }
+
+    trace_smmuv3_cmdq_consume_out(s->cmdq.wrap.prod, s->cmdq.prod,
+                                  s->cmdq.wrap.cons, s->cmdq.cons);
+
+    return 0;
+}
+
+static void smmu_update_qreg(SMMUV3State *s, SMMUQueue *q, hwaddr reg,
+                             uint32_t off, uint64_t val, unsigned size)
+{
+   if (size == 8 && off == 0) {
+        smmu_write64_reg(s, reg, val);
+    } else {
+        smmu_write32_reg(s, reg, val);
+    }
+
+    switch (off) {
+    case 0:                             /* BASE register */
+        val = smmu_read64_reg(s, reg);
+        q->shift = val & 0x1f;
+        q->entries = 1 << (q->shift);
+        smmu_update_base_reg(s, &q->base, val);
+        break;
+
+    case 8:                             /* PROD */
+        q->prod = Q_IDX(q, val);
+        q->wrap.prod = val >> q->shift;
+        break;
+
+    case 12:                             /* CONS */
+        q->cons = Q_IDX(q, val);
+        q->wrap.cons = val >> q->shift;
+        trace_smmuv3_update_qreg(q->cons, val);
+        break;
+
+    }
+
+    if (reg == SMMU_REG_CMDQ_PROD) {
+        smmuv3_cmdq_consume(s);
+    }
+}
+
 static void smmu_write_mmio_fixup(SMMUV3State *s, hwaddr *addr)
 {
     switch (*addr) {
@@ -236,6 +377,65 @@ static void smmu_write_mmio_fixup(SMMUV3State *s, hwaddr *addr)
 static void smmu_write_mmio(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
+    SMMUState *sys = opaque;
+    SMMUV3State *s = SMMU_V3_DEV(sys);
+
+    smmu_write_mmio_fixup(s, &addr);
+
+    trace_smmuv3_write_mmio(addr, val, size);
+
+    switch (addr) {
+    case 0xFDC ... 0xFFC:
+    case SMMU_REG_IDR0 ... SMMU_REG_IDR5:
+        trace_smmuv3_write_mmio_idr(addr, val);
+        return;
+    case SMMU_REG_GERRORN:
+        smmuv3_write_gerrorn(s, val);
+        /*
+         * By acknowledging the CMDQ_ERR, SW may notify cmds can
+         * be processed again
+         */
+        smmuv3_cmdq_consume(s);
+        return;
+    case SMMU_REG_CR0:
+        smmu_write32_reg(s, SMMU_REG_CR0, val);
+        /* immediatly reflect the changes in CR0_ACK */
+        smmu_write32_reg(s, SMMU_REG_CR0_ACK, val);
+        /* in case the command queue has been enabled */
+        smmuv3_cmdq_consume(s);
+        return;
+    case SMMU_REG_IRQ_CTRL:
+        smmu_write32_reg(s, SMMU_REG_IRQ_CTRL_ACK, val);
+        return;
+    case SMMU_REG_STRTAB_BASE:
+        smmu_update_base_reg(s, &s->strtab_base, val);
+        return;
+    case SMMU_REG_STRTAB_BASE_CFG:
+        if (((val >> 16) & 0x3) == 0x1) {
+            s->sid_split = (val >> 6) & 0x1f;
+            s->features |= SMMU_FEATURE_2LVL_STE;
+        }
+        return;
+    case SMMU_REG_CMDQ_BASE ... SMMU_REG_CMDQ_CONS:
+        smmu_update_qreg(s, &s->cmdq, addr, addr - SMMU_REG_CMDQ_BASE,
+                         val, size);
+        return;
+
+    case SMMU_REG_EVTQ_BASE ... SMMU_REG_EVTQ_CONS:
+        smmu_update_qreg(s, &s->evtq, addr, addr - SMMU_REG_EVTQ_BASE,
+                         val, size);
+        return;
+
+    case SMMU_REG_PRIQ_BASE ... SMMU_REG_PRIQ_CONS:
+        error_report("%s PRI queue is not supported", __func__);
+        abort();
+    }
+
+    if (size == 8) {
+        smmu_write64_reg(s, addr, val);
+    } else {
+        smmu_write32_reg(s, addr, (uint32_t)val);
+    }
 }
 
 static uint64_t smmu_read_mmio(void *opaque, hwaddr addr, unsigned size)
