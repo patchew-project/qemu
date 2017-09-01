@@ -632,7 +632,7 @@ static void test_acpi_one(const char *params, test_data *data)
 
     qtest_start(args);
 
-    boot_sector_test();
+    boot_sector_test(global_qtest);
 
     test_acpi_rsdp_address(data);
     test_acpi_rsdp_table(data);

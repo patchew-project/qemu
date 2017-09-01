@@ -31,7 +31,7 @@ static void test_pxe_one(const char *params, bool ipv6)
                            ipv6 ? "on" : "off", params);
 
     qtest_start(args);
-    boot_sector_test();
+    boot_sector_test(global_qtest);
     qtest_quit(global_qtest);
     g_free(args);
 }
