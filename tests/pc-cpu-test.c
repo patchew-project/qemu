@@ -26,15 +26,13 @@ typedef struct PCTestData PCTestData;
 static void test_pc_with_cpu_add(gconstpointer data)
 {
     const PCTestData *s = data;
-    char *args;
     QDict *response;
     unsigned int i;
 
-    args = g_strdup_printf("-machine %s -cpu %s "
-                           "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
-                           s->machine, s->cpu_model,
-                           s->sockets, s->cores, s->threads, s->maxcpus);
-    qtest_start(args);
+    global_qtest = qtest_init("-machine %s -cpu %s "
+                              "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
+                              s->machine, s->cpu_model,
+                              s->sockets, s->cores, s->threads, s->maxcpus);
 
     for (i = s->sockets * s->cores * s->threads; i < s->maxcpus; i++) {
         response = qmp("{ 'execute': 'cpu-add',"
@@ -44,21 +42,18 @@ static void test_pc_with_cpu_add(gconstpointer data)
         QDECREF(response);
     }
 
-    qtest_end();
-    g_free(args);
+    qtest_quit(global_qtest);
 }
 
 static void test_pc_without_cpu_add(gconstpointer data)
 {
     const PCTestData *s = data;
-    char *args;
     QDict *response;
 
-    args = g_strdup_printf("-machine %s -cpu %s "
-                           "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
-                           s->machine, s->cpu_model,
-                           s->sockets, s->cores, s->threads, s->maxcpus);
-    qtest_start(args);
+    global_qtest = qtest_init("-machine %s -cpu %s "
+                              "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
+                              s->machine, s->cpu_model,
+                              s->sockets, s->cores, s->threads, s->maxcpus);
 
     response = qmp("{ 'execute': 'cpu-add',"
                    "  'arguments': { 'id': %d } }",
@@ -67,8 +62,7 @@ static void test_pc_without_cpu_add(gconstpointer data)
     g_assert(qdict_haskey(response, "error"));
     QDECREF(response);
 
-    qtest_end();
-    g_free(args);
+    qtest_quit(global_qtest);
 }
 
 static void test_data_free(gpointer data)

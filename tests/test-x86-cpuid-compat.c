@@ -59,12 +59,12 @@ static void test_cpuid_prop(const void *data)
     QNum *value;
     int64_t val;
 
-    qtest_start(args->cmdline);
+    global_qtest = qtest_init("%s", args->cmdline);
     path = get_cpu0_qom_path();
     value = qobject_to_qnum(qom_get(path, args->property));
     g_assert(qnum_get_try_int(value, &val));
     g_assert_cmpint(val, ==, args->expected_value);
-    qtest_end();
+    qtest_quit(global_qtest);
 
     QDECREF(value);
     g_free(path);
@@ -131,13 +131,13 @@ static void test_feature_flag(const void *data)
     QList *present, *filtered;
     uint32_t value;
 
-    qtest_start(args->cmdline);
+    global_qtest = qtest_init("%s", args->cmdline);
     path = get_cpu0_qom_path();
     present = qobject_to_qlist(qom_get(path, "feature-words"));
     filtered = qobject_to_qlist(qom_get(path, "filtered-features"));
     value = get_feature_word(present, args->in_eax, args->in_ecx, args->reg);
     value |= get_feature_word(filtered, args->in_eax, args->in_ecx, args->reg);
-    qtest_end();
+    qtest_quit(global_qtest);
 
     g_assert(!!(value & (1U << args->bitnr)) == args->expected_value);
 
@@ -181,7 +181,8 @@ static void test_plus_minus_subprocess(void)
      * Note: rules 1 and 2 are planned to be removed soon, and
      * should generate a warning.
      */
-    qtest_start("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,cx8=off,+sse4_1,sse4_2=on");
+    global_qtest = qtest_init("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,"
+                              "cx8=off,+sse4_1,sse4_2=on");
     path = get_cpu0_qom_path();
 
     g_assert_false(qom_get_bool(path, "fpu"));
@@ -195,7 +196,7 @@ static void test_plus_minus_subprocess(void)
     g_assert_true(qom_get_bool(path, "sse4-2"));
     g_assert_true(qom_get_bool(path, "sse4.2"));
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(path);
 }
 

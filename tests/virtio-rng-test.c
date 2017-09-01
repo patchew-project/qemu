@@ -37,10 +37,10 @@ int main(int argc, char **argv)
     qtest_add_func("/virtio/rng/pci/nop", pci_nop);
     qtest_add_func("/virtio/rng/pci/hotplug", hotplug);
 
-    qtest_start("-device virtio-rng-pci");
+    global_qtest = qtest_init("-device virtio-rng-pci");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

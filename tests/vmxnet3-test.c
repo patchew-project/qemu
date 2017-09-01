@@ -22,10 +22,10 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/vmxnet3/nop", nop);
 
-    qtest_start("-device vmxnet3");
+    global_qtest = qtest_init("-device vmxnet3");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

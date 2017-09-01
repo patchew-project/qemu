@@ -509,32 +509,6 @@ void qtest_add_data_func_full(const char *str, void *data,
 void qtest_add_abrt_handler(GHookFunc fn, const void *data);
 
 /**
- * qtest_start:
- * @args: other arguments to pass to QEMU
- *
- * Start QEMU and assign the resulting #QTestState to a global variable.
- * The global variable is used by "shortcut" functions documented below.
- *
- * Returns: #QTestState instance.
- */
-static inline QTestState *qtest_start(const char *args)
-{
-    global_qtest = qtest_init("%s", args);
-    return global_qtest;
-}
-
-/**
- * qtest_end:
- *
- * Shut down the QEMU process started by qtest_start().
- */
-static inline void qtest_end(void)
-{
-    qtest_quit(global_qtest);
-    global_qtest = NULL;
-}
-
-/**
  * qmp:
  * @fmt...: QMP message to send to qemu
  *

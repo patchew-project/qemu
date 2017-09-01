@@ -124,7 +124,7 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
     va_end(ap);
 
-    qtest_start(cmdline);
+    global_qtest = qtest_init("%s", cmdline);
     guest_malloc = pc_alloc_init(global_qtest);
 
     g_free(cmdline);
@@ -134,7 +134,7 @@ static void ide_test_quit(void)
 {
     pc_alloc_uninit(guest_malloc);
     guest_malloc = NULL;
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static QPCIDevice *get_pci_device(QPCIBar *bmdma_bar, QPCIBar *ide_bar)

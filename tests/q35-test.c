@@ -84,7 +84,7 @@ static void test_smram_lock(void)
     QPCIDevice *pcidev;
     QDict *response;
 
-    qtest_start("-M q35");
+    global_qtest = qtest_init("-M q35");
 
     pcibus = qpci_init_pc(global_qtest, NULL);
     g_assert(pcibus != NULL);
@@ -119,7 +119,7 @@ static void test_smram_lock(void)
     g_free(pcidev);
     qpci_free_pc(pcibus);
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_tseg_size(const void *data)
@@ -141,7 +141,7 @@ static void test_tseg_size(const void *data)
         cmdline = g_strdup_printf("-M q35 -m %uM",
                                   TSEG_SIZE_TEST_GUEST_RAM_MBYTES);
     }
-    qtest_start(cmdline);
+    global_qtest = qtest_init("%s", cmdline);
     g_free(cmdline);
 
     /* locate the DRAM controller */
@@ -185,7 +185,7 @@ static void test_tseg_size(const void *data)
 
     g_free(pcidev);
     qpci_free_pc(pcibus);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

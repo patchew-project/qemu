@@ -22,10 +22,10 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/es1370/nop", nop);
 
-    qtest_start("-device ES1370");
+    global_qtest = qtest_init("-device ES1370");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

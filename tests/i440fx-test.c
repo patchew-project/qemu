@@ -33,11 +33,7 @@ typedef struct FirmwareTestFixture {
 
 static QPCIBus *test_start_get_bus(const TestData *s)
 {
-    char *cmdline;
-
-    cmdline = g_strdup_printf("-smp %d", s->num_cpus);
-    qtest_start(cmdline);
-    g_free(cmdline);
+    global_qtest = qtest_init("-smp %d", s->num_cpus);
     return qpci_init_pc(global_qtest, NULL);
 }
 
@@ -136,7 +132,7 @@ static void test_i440fx_defaults(gconstpointer opaque)
 
     g_free(dev);
     qpci_free_pc(bus);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 #define PAM_RE 1
@@ -275,7 +271,7 @@ static void test_i440fx_pam(gconstpointer opaque)
 
     g_free(dev);
     qpci_free_pc(bus);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 #define BLOB_SIZE ((size_t)65536)
@@ -344,10 +340,10 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
                                          : "-drive if=pflash,format=raw,file=",
                               fw_pathname);
     g_test_message("qemu cmdline: %s", cmdline);
-    qtest_start(cmdline);
+    global_qtest = qtest_init("%s", cmdline);
     g_free(cmdline);
 
-    /* QEMU has loaded the firmware (because qtest_start() only returns after
+    /* QEMU has loaded the firmware (because qtest_init() only returns after
      * the QMP handshake completes). We must unlink the firmware blob right
      * here, because any assertion firing below would leak it in the
      * filesystem. This is also the reason why we recreate the blob every time
@@ -373,7 +369,7 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
     }
 
     g_free(buf);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void add_firmware_test(const char *testpath,

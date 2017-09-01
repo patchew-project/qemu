@@ -407,7 +407,7 @@ static void test_ivshmem_hotplug(void)
     const char *arch = qtest_get_arch();
     gchar *opts;
 
-    qtest_start("");
+    global_qtest = qtest_init(" ");
 
     opts = g_strdup_printf("'shm': '%s', 'size': '1M'", tmpshm);
 
@@ -416,7 +416,7 @@ static void test_ivshmem_hotplug(void)
         qpci_unplug_acpi_device_test("iv1", PCI_SLOT_HP);
     }
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(opts);
 }
 

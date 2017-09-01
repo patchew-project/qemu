@@ -22,10 +22,10 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/ac97/nop", nop);
 
-    qtest_start("-device AC97");
+    global_qtest = qtest_init("-device AC97");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

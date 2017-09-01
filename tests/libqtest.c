@@ -970,7 +970,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     QString *qstr;
     const char *mname;
 
-    qtest_start("-machine none");
+    global_qtest = qtest_init("-machine none");
     response = qmp("{ 'execute': 'query-machines' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");
@@ -987,6 +987,6 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
         cb(mname);
     }
 
-    qtest_end();
+    qtest_quit(global_qtest);
     QDECREF(response);
 }

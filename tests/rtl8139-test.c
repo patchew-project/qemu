@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 {
     int ret;
 
-    qtest_start("-device rtl8139");
+    global_qtest = qtest_init("-device rtl8139");
 
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/rtl8139/nop", nop);
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

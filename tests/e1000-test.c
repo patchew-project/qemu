@@ -15,15 +15,9 @@ static void test_device(gconstpointer data)
 {
     const char *model = data;
     QTestState *s;
-    char *args;
 
-    args = g_strdup_printf("-device %s", model);
-    s = qtest_start(args);
-
-    if (s) {
-        qtest_quit(s);
-    }
-    g_free(args);
+    s = qtest_init("-device %s", model);
+    qtest_quit(s);
 }
 
 static const char *models[] = {

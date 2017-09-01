@@ -20,7 +20,7 @@ QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
     struct QOSState *qs = g_malloc(sizeof(QOSState));
 
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
-    qs->qts = qtest_start(cmdline);
+    qs->qts = global_qtest = qtest_init("%s", cmdline);
     qs->ops = ops;
     if (ops) {
         if (ops->init_allocator) {

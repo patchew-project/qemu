@@ -156,23 +156,24 @@ int main(int argc, char **argv)
     qtest_add_func("/ehci/pci/ehci-port-2", pci_ehci_port_2);
     qtest_add_func("/ehci/pci/ehci-port-3-hotplug", pci_ehci_port_hotplug);
 
-    qtest_start("-machine q35 -device ich9-usb-ehci1,bus=pcie.0,addr=1d.7,"
-                "multifunction=on,id=ich9-ehci-1 "
-                "-device ich9-usb-uhci1,bus=pcie.0,addr=1d.0,"
-                "multifunction=on,masterbus=ich9-ehci-1.0,firstport=0 "
-                "-device ich9-usb-uhci2,bus=pcie.0,addr=1d.1,"
-                "multifunction=on,masterbus=ich9-ehci-1.0,firstport=2 "
-                "-device ich9-usb-uhci3,bus=pcie.0,addr=1d.2,"
-                "multifunction=on,masterbus=ich9-ehci-1.0,firstport=4 "
-                "-drive if=none,id=usbcdrom,media=cdrom "
-                "-device usb-tablet,bus=ich9-ehci-1.0,port=1,usb_version=1 "
-                "-device usb-storage,bus=ich9-ehci-1.0,port=2,drive=usbcdrom ");
+    global_qtest = qtest_init(
+        "-machine q35 -device ich9-usb-ehci1,bus=pcie.0,addr=1d.7,"
+        "multifunction=on,id=ich9-ehci-1 "
+        "-device ich9-usb-uhci1,bus=pcie.0,addr=1d.0,"
+        "multifunction=on,masterbus=ich9-ehci-1.0,firstport=0 "
+        "-device ich9-usb-uhci2,bus=pcie.0,addr=1d.1,"
+        "multifunction=on,masterbus=ich9-ehci-1.0,firstport=2 "
+        "-device ich9-usb-uhci3,bus=pcie.0,addr=1d.2,"
+        "multifunction=on,masterbus=ich9-ehci-1.0,firstport=4 "
+        "-drive if=none,id=usbcdrom,media=cdrom "
+        "-device usb-tablet,bus=ich9-ehci-1.0,port=1,usb_version=1 "
+        "-device usb-storage,bus=ich9-ehci-1.0,port=2,drive=usbcdrom ");
 
     test_init();
     ret = g_test_run();
     test_deinit();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

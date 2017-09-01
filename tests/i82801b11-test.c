@@ -22,10 +22,11 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/i82801b11/nop", nop);
 
-    qtest_start("-machine q35 -device i82801b11-bridge,bus=pcie.0,addr=1e.0");
+    global_qtest = qtest_init("-machine q35 "
+                              "-device i82801b11-bridge,bus=pcie.0,addr=1e.0");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

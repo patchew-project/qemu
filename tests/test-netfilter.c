@@ -182,7 +182,6 @@ static void remove_netdev_with_multi_netfilter(void)
 int main(int argc, char **argv)
 {
     int ret;
-    char *args;
     const char *devstr = "e1000";
 
     if (g_str_equal(qtest_get_arch(), "s390x")) {
@@ -197,13 +196,11 @@ int main(int argc, char **argv)
     qtest_add_func("/netfilter/remove_netdev_multi",
                    remove_netdev_with_multi_netfilter);
 
-    args = g_strdup_printf("-netdev user,id=qtest-bn0 "
-                           "-device %s,netdev=qtest-bn0", devstr);
-    qtest_start(args);
+    global_qtest = qtest_init("-netdev user,id=qtest-bn0 "
+                              "-device %s,netdev=qtest-bn0", devstr);
     ret = g_test_run();
 
-    qtest_end();
-    g_free(args);
+    qtest_quit(global_qtest);
 
     return ret;
 }

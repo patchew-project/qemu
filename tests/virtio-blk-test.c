@@ -84,24 +84,21 @@ static QOSState *pci_test_start(void)
 
 static void arm_test_start(void)
 {
-    char *cmdline;
     char *tmp_path;
 
     tmp_path = drive_create();
 
-    cmdline = g_strdup_printf("-machine virt "
-                                "-drive if=none,id=drive0,file=%s,format=raw "
-                                "-device virtio-blk-device,drive=drive0",
-                                tmp_path);
-    qtest_start(cmdline);
+    global_qtest = qtest_init("-machine virt "
+                              "-drive if=none,id=drive0,file=%s,format=raw "
+                              "-device virtio-blk-device,drive=drive0",
+                              tmp_path);
     unlink(tmp_path);
     g_free(tmp_path);
-    g_free(cmdline);
 }
 
 static void test_end(void)
 {
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static QVirtioPCIDevice *virtio_blk_pci_init(QPCIBus *bus, int slot)
