@@ -160,7 +160,7 @@ static AHCIQState *ahci_vboot(const char *cli, va_list ap)
     alloc_set_flags(s->parent->alloc, ALLOC_LEAK_ASSERT);
 
     /* Verify that we have an AHCI device present. */
-    s->dev = get_ahci_device(&s->fingerprint);
+    s->dev = get_ahci_device(s->parent->qts, &s->fingerprint);
 
     return s;
 }

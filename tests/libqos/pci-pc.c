@@ -115,11 +115,14 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     outl(0xcfc, value);
 }
 
-QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
+QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
 {
     QPCIBusPC *ret;
 
+    assert(qts);
+
     ret = g_malloc(sizeof(*ret));
+    ret->bus.qts = qts;
 
     ret->bus.pio_readb = qpci_pc_pio_readb;
     ret->bus.pio_readw = qpci_pc_pio_readw;

@@ -154,11 +154,14 @@ static void qpci_spapr_config_writel(QPCIBus *bus, int devfn, uint8_t offset,
 #define SPAPR_PCI_MMIO32_WIN_SIZE    0x80000000 /* 2 GiB */
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
-QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
+QPCIBus *qpci_init_spapr(QTestState *qts, QGuestAllocator *alloc)
 {
     QPCIBusSPAPR *ret;
 
+    assert(qts);
+
     ret = g_malloc(sizeof(*ret));
+    ret->bus.qts = qts;
 
     ret->alloc = alloc;
 
@@ -200,6 +203,7 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
     ret->bus.pio_alloc_ptr = 0xc000;
     ret->bus.mmio_alloc_ptr = ret->mmio32.pci_base;
     ret->bus.mmio_limit = ret->mmio32.pci_base + ret->mmio32.size;
+
 
     return &ret->bus;
 }
