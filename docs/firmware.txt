@@ -1,0 +1,49 @@
+
+prebuilt firmware in qemu
+=========================
+
+The process of building firmware isn't as easy as building qemu
+itself, for example because you must have cross compilers installed
+when building firmware for other architectures.  So qemu ships
+prebuilt firmware binaries for convenience reasons.
+
+
+directories
+-----------
+
+pc-bios/
+    Firmware binaries.
+    Also other files like keymaps and logos which are copied to
+    $prefix/share/qemu by "make install".
+
+pc-bios/optionrom/
+    Firmware sources, part of the qemu project.
+
+roms/
+    Firmware sources, third-party projects, as git submodules.
+
+
+third-party git repos
+---------------------
+
+For third party firmware sources it is recommended to have a git
+mirror on git.qemu.org.  In case the firmware license is GPL the git
+mirror is mandatory for GPL compilance reasons:  We ship binaries, so
+we must provide sources too.
+
+
+building the firmware
+---------------------
+
+Firmware builds should be done using rules in roms/Makefile.  That
+serves as documentation how the firmware is built, and it also makes
+firmware updates easier for the maintainer.
+
+"make -C roms" prints a list of firmware build targets.
+"make -C roms $target" kicks a build.
+
+
+notes for specific firmwares
+----------------------------
+
+ipxe: see https://wiki.qemu.org/IpxeDownstreamForQemu
