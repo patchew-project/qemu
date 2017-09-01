@@ -160,9 +160,9 @@ static void smmuv3_write_evtq(SMMUV3State *s, Evt *evt)
 /*
  * smmuv3_record_event - Record an event
  */
-void smmuv3_record_event(SMMUV3State *s, hwaddr iova,
-                         uint32_t sid, IOMMUAccessFlags perm,
-                         SMMUEvtErr type)
+static void smmuv3_record_event(SMMUV3State *s, hwaddr iova,
+                                uint32_t sid, IOMMUAccessFlags perm,
+                                SMMUEvtErr type)
 {
     Evt evt;
     bool rnw = perm & IOMMU_RO;
@@ -304,6 +304,348 @@ static inline void smmu_update_base_reg(SMMUV3State *s, uint64_t *base,
                                         uint64_t val)
 {
     *base = val & ~(SMMU_BASE_RA | 0x3fULL);
+}
+
+/*
+ * All SMMU data structures are little endian, and are aligned to 8 bytes
+ * L1STE/STE/L1CD/CD, Queue entries in CMDQ/EVTQ/PRIQ
+ */
+static inline int smmu_get_ste(SMMUV3State *s, hwaddr addr, Ste *buf)
+{
+    trace_smmuv3_get_ste(addr);
+    return dma_memory_read(&address_space_memory, addr, buf, sizeof(*buf));
+}
+
+/*
+ * For now we only support CD with a single entry, 'ssid' is used to identify
+ * otherwise
+ */
+static inline int smmu_get_cd(SMMUV3State *s, Ste *ste, uint32_t ssid, Cd *buf)
+{
+    hwaddr addr = STE_CTXPTR(ste);
+
+    if (STE_S1CDMAX(ste) != 0) {
+        error_report("Multilevel Ctx Descriptor not supported yet");
+    }
+
+    trace_smmuv3_get_cd(addr);
+    return dma_memory_read(&address_space_memory, addr, buf, sizeof(*buf));
+}
+
+/**
+ * is_ste_consistent - Check validity of STE
+ * according to 6.2.1 Validity of STE
+ * TODO: check the relevance of each check and compliance
+ * with this spec chapter
+ */
+static bool is_ste_consistent(SMMUV3State *s, Ste *ste)
+{
+    uint32_t _config = STE_CONFIG(ste);
+    uint32_t ste_vmid, ste_eats, ste_s2s, ste_s1fmt, ste_s2aa64, ste_s1cdmax;
+    uint32_t ste_strw;
+    bool strw_unused, addr_out_of_range, granule_supported;
+    bool config[] = {_config & 0x1, _config & 0x2, _config & 0x3};
+
+    ste_vmid = STE_S2VMID(ste);
+    ste_eats = STE_EATS(ste); /* Enable PCIe ATS trans */
+    ste_s2s = STE_S2S(ste);
+    ste_s1fmt = STE_S1FMT(ste);
+    ste_s2aa64 = STE_S2AA64(ste);
+    ste_s1cdmax = STE_S1CDMAX(ste); /*CD bit # S1ContextPtr */
+    ste_strw = STE_STRW(ste); /* stream world control */
+
+    if (!STE_VALID(ste)) {
+        error_report("STE NOT valid");
+        return false;
+    }
+
+    granule_supported = is_s2granule_valid(ste);
+
+    /* As S1/S2 combinations are supported do not check
+     * corresponding STE config values */
+
+    if (!config[2]) {
+        /* Report abort to device, no event recorded */
+        error_report("STE config 0b000 not implemented");
+        return false;
+    }
+
+    if (!SMMU_IDR1_SIDSIZE && ste_s1cdmax && config[0] &&
+        !SMMU_IDR0_CD2L && (ste_s1fmt == 1 || ste_s1fmt == 2)) {
+        error_report("STE inconsistant, CD mismatch");
+        return false;
+    }
+    if (SMMU_IDR0_ATS && ((_config & 0x3) == 0) &&
+        ((ste_eats == 2 && (_config != 0x7 || ste_s2s)) ||
+        (ste_eats == 1 && !ste_s2s))) {
+        error_report("STE inconsistant, EATS/S2S mismatch");
+        return false;
+    }
+    if (config[0] && (SMMU_IDR1_SIDSIZE &&
+        (ste_s1cdmax > SMMU_IDR1_SIDSIZE))) {
+        error_report("STE inconsistant, SSID out of range");
+        return false;
+    }
+
+    strw_unused = (!SMMU_IDR0_S1P || !SMMU_IDR0_HYP || (_config == 4));
+
+    addr_out_of_range = STE_S2TTB(ste) > MAX_PA(ste);
+
+    if (is_ste_stage2(ste)) {
+        if ((ste_s2aa64 && !is_s2granule_valid(ste)) ||
+            (!ste_s2aa64 && !(SMMU_IDR0_TTF & 0x1)) ||
+            (ste_s2aa64 && !(SMMU_IDR0_TTF & 0x2))  ||
+            ((STE_S2HA(ste) || STE_S2HD(ste)) && !ste_s2aa64) ||
+            ((STE_S2HA(ste) || STE_S2HD(ste)) && !SMMU_IDR0_HTTU) ||
+            (STE_S2HD(ste) && (SMMU_IDR0_HTTU == 1)) || addr_out_of_range) {
+            error_report("STE inconsistant");
+            trace_smmuv3_is_ste_consistent(config[1], granule_supported,
+                                           addr_out_of_range, ste_s2aa64,
+                                           STE_S2HA(ste), STE_S2HD(ste),
+                                           STE_S2TTB(ste));
+        return false;
+        }
+    }
+    if (SMMU_IDR0_S2P && (config[0] == 0 && config[1]) &&
+        (strw_unused || !ste_strw) && !SMMU_IDR0_VMID16 && !(ste_vmid >> 8)) {
+        error_report("STE inconsistant, VMID out of range");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * smmu_find_ste - Return the stream table entry associated
+ * to the sid
+ *
+ * @s: smmuv3 handle
+ * @sid: stream ID
+ * @ste: returned stream table entry
+ *
+ * Supports linear and 2-level stream table
+ * Return 0 on success or an SMMUEvtErr enum value otherwise
+ */
+static int smmu_find_ste(SMMUV3State *s, uint16_t sid, Ste *ste)
+{
+    hwaddr addr;
+
+    trace_smmuv3_find_ste(sid, s->features, s->sid_split);
+    /* Check SID range */
+    if (sid > (1 << s->sid_size)) {
+        return SMMU_EVT_C_BAD_SID;
+    }
+    if (s->features & SMMU_FEATURE_2LVL_STE) {
+        int l1_ste_offset, l2_ste_offset, max_l2_ste, span;
+        hwaddr l1ptr, l2ptr;
+        STEDesc l1std;
+
+        l1_ste_offset = sid >> s->sid_split;
+        l2_ste_offset = sid & ((1 << s->sid_split) - 1);
+        l1ptr = (hwaddr)(s->strtab_base + l1_ste_offset * sizeof(l1std));
+        smmu_read_sysmem(l1ptr, &l1std, sizeof(l1std), false);
+        span = L1STD_SPAN(&l1std);
+
+        if (!span) {
+            /* l2ptr is not valid */
+            error_report("invalid sid=%d (L1STD span=0)", sid);
+            return SMMU_EVT_C_BAD_SID;
+        }
+        max_l2_ste = (1 << span) - 1;
+        l2ptr = L1STD_L2PTR(&l1std);
+        trace_smmuv3_find_ste_2lvl(s->strtab_base, l1ptr, l1_ste_offset,
+                                   l2ptr, l2_ste_offset, max_l2_ste);
+        if (l2_ste_offset > max_l2_ste) {
+            error_report("l2_ste_offset=%d > max_l2_ste=%d",
+                         l2_ste_offset, max_l2_ste);
+            return SMMU_EVT_C_BAD_STE;
+        }
+        addr = L1STD_L2PTR(&l1std) + l2_ste_offset * sizeof(*ste);
+    } else {
+        addr = s->strtab_base + sid * sizeof(*ste);
+    }
+
+    if (smmu_get_ste(s, addr, ste)) {
+        error_report("Unable to Fetch STE");
+        return SMMU_EVT_F_STE_FETCH;
+    }
+
+    return 0;
+}
+
+/**
+ * smmu_cfg_populate_s1 - Populate the stage 1 translation config
+ * from the context descriptor
+ */
+static int smmu_cfg_populate_s1(SMMUTransCfg *cfg, Cd *cd)
+{
+    bool s1a64 = CD_AARCH64(cd);
+    int epd0 = CD_EPD0(cd);
+    int tg;
+
+    cfg->stage   = 1;
+    tg           = epd0 ? CD_TG1(cd) : CD_TG0(cd);
+    cfg->tsz     = epd0 ? CD_T1SZ(cd) : CD_T0SZ(cd);
+    cfg->ttbr    = epd0 ? CD_TTB1(cd) : CD_TTB0(cd);
+    cfg->oas     = oas2bits(CD_IPS(cd));
+
+    if (s1a64) {
+        cfg->tsz = MIN(cfg->tsz, 39);
+        cfg->tsz = MAX(cfg->tsz, 16);
+    }
+    cfg->granule_sz = tg2granule(tg, epd0);
+
+    cfg->oas = MIN(oas2bits(SMMU_IDR5_OAS), cfg->oas);
+    /* fix ttbr - make top bits zero*/
+    cfg->ttbr = extract64(cfg->ttbr, 0, cfg->oas);
+    cfg->aa64 = s1a64;
+    cfg->initial_level  = 4 - (64 - cfg->tsz - 4) / (cfg->granule_sz - 3);
+
+    trace_smmuv3_cfg_stage(cfg->stage, cfg->oas, cfg->tsz, cfg->ttbr,
+                           cfg->aa64, cfg->granule_sz, cfg->initial_level);
+
+    return 0;
+}
+
+/**
+ * smmu_cfg_populate_s2 - Populate the stage 2 translation config
+ * from the Stream Table Entry
+ */
+static int smmu_cfg_populate_s2(SMMUTransCfg *cfg, Ste *ste)
+{
+    bool s2a64 = STE_S2AA64(ste);
+    int default_initial_level;
+    int tg;
+
+    cfg->stage = 2;
+
+    tg           = STE_S2TG(ste);
+    cfg->tsz     = STE_S2T0SZ(ste);
+    cfg->ttbr    = STE_S2TTB(ste);
+    cfg->oas     = pa_range(ste);
+
+    cfg->aa64    = s2a64;
+
+    if (s2a64) {
+        cfg->tsz = MIN(cfg->tsz, 39);
+        cfg->tsz = MAX(cfg->tsz, 16);
+    }
+    cfg->granule_sz = tg2granule(tg, 0);
+
+    cfg->oas = MIN(oas2bits(SMMU_IDR5_OAS), cfg->oas);
+    /* fix ttbr - make top bits zero*/
+    cfg->ttbr = extract64(cfg->ttbr, 0, cfg->oas);
+
+    default_initial_level = 4 - (64 - cfg->tsz - 4) / (cfg->granule_sz - 3);
+    cfg->initial_level = ~STE_S2SL0(ste);
+    if (cfg->initial_level  != default_initial_level) {
+        error_report("%s concatenated translation tables at initial S2 lookup"
+                     " not supported", __func__);
+        return SMMU_EVT_C_BAD_STE;;
+    }
+
+    trace_smmuv3_cfg_stage(cfg->stage, cfg->oas, cfg->tsz, cfg->ttbr,
+                           cfg->aa64, cfg->granule_sz, cfg->initial_level);
+
+    return 0;
+}
+
+/**
+ * smmuv3_decode_config - Prepare the translation configuration
+ * for the @mr iommu region
+ * @mr: iommu memory region the translation config must be prepared for
+ * @cfg: output translation configuration
+ *
+ * return 0 on success or an SMMUEvtErr enum value otherwise
+ */
+static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg)
+{
+    SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
+    int sid = smmu_get_sid(sdev);
+    SMMUV3State *s = sdev->smmu;
+    Ste ste;
+    Cd cd;
+    int ret = 0;
+
+    if (!smmu_enabled(s)) {
+        cfg->disabled = true;
+        return 0;
+    }
+    ret = smmu_find_ste(s, sid, &ste);
+    if (ret) {
+        return ret;
+    }
+
+    if (!STE_VALID(&ste)) {
+        return SMMU_EVT_C_BAD_STE;
+    }
+
+    switch (STE_CONFIG(&ste)) {
+    case STE_CONFIG_BYPASS:
+        cfg->bypassed = true;
+        return 0;
+    case STE_CONFIG_S1:
+         break;
+    case STE_CONFIG_S2:
+         break;
+    default: /* reserved, abort, nested */
+        return SMMU_EVT_F_UUT;
+    }
+
+    /* S1 or S2 */
+
+    if (!is_ste_consistent(s, &ste)) {
+        return SMMU_EVT_C_BAD_STE;
+    }
+
+    if (is_ste_stage1(&ste)) {
+        ret = smmu_get_cd(s, &ste, 0, &cd); /* We dont have SSID yet */
+        if (ret) {
+            return SMMU_EVT_F_CD_FETCH;
+        }
+
+        if (!is_cd_valid(s, &ste, &cd)) {
+            return SMMU_EVT_C_BAD_CD;
+        }
+        return smmu_cfg_populate_s1(cfg, &cd);
+    }
+
+    return smmu_cfg_populate_s2(cfg, &ste);
+}
+
+static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
+                                      IOMMUAccessFlags flag)
+{
+    SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
+    SMMUV3State *s = sdev->smmu;
+    uint16_t sid = smmu_get_sid(sdev);
+    SMMUEvtErr ret;
+    SMMUTransCfg cfg = {};
+    IOMMUTLBEntry entry = {
+        .target_as = &address_space_memory,
+        .iova = addr,
+        .translated_addr = addr,
+        .addr_mask = ~(hwaddr)0,
+        .perm = flag,
+    };
+
+    ret = smmuv3_decode_config(mr, &cfg);
+    if (ret || cfg.disabled || cfg.bypassed) {
+        goto out;
+    }
+
+    entry.addr_mask = (1 << cfg.granule_sz) - 1;
+
+    ret = smmu_translate(&cfg, &entry);
+
+    trace_smmuv3_translate(mr->parent_obj.name, sid, addr,
+                           entry.translated_addr, entry.perm, ret);
+out:
+    if (ret) {
+        error_report("%s translation failed for iova=0x%"PRIx64,
+                     mr->parent_obj.name, addr);
+        smmuv3_record_event(s, entry.iova, sid, flag, ret);
+    }
+    return entry;
 }
 
 static int smmuv3_cmdq_consume(SMMUV3State *s)
@@ -621,6 +963,9 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
 static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
                                                   void *data)
 {
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = smmuv3_translate;
 }
 
 static const TypeInfo smmuv3_type_info = {
