@@ -1121,6 +1121,8 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
     dc->reset   = smmu_reset;
     dc->vmsd    = &vmstate_smmuv3;
     dc->realize = smmu_realize;
+    /* Supported by TYPE_VIRT_MACHINE */
+    dc->user_creatable = true;
 }
 
 static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
