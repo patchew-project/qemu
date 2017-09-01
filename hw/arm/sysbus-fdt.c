@@ -487,6 +487,11 @@ static int add_smmuv3_fdt_node(SysBusDevice *sbdev, void *opaque)
     qemu_fdt_setprop_cells(guest_fdt, node_path, "iommu-map",
                      0x0, smmu_phandle, 0x0, 0x10000);
 
+    vms->smmu_info.type = VIRT_IOMMU_SMMUV3;
+    vms->smmu_info.reg.base = data->base + mmio_base;
+    vms->smmu_info.reg.size = 0x20000;
+    vms->smmu_info.irq_base = irq_number;
+
     g_free(nodename);
     g_free(node_path);
 

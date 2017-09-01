@@ -87,6 +87,18 @@ typedef struct {
     bool claim_edge_triggered_timers;
 } VirtMachineClass;
 
+typedef enum VirtIOMMUType {
+    VIRT_IOMMU_NONE,
+    VIRT_IOMMU_SMMUV3,
+    VIRT_IOMMU_VIRTIO,
+} VirtIOMMUType;
+
+typedef struct VirtIOMMUInfo {
+    VirtIOMMUType type;
+    MemMapEntry reg;
+    int irq_base;
+} VirtIOMMUInfo;
+
 typedef struct {
     MachineState parent;
     Notifier machine_done;
@@ -95,6 +107,7 @@ typedef struct {
     bool highmem;
     bool its;
     bool virt;
+    VirtIOMMUInfo smmu_info;
     int32_t gic_version;
     struct arm_boot_info bootinfo;
     const MemMapEntry *memmap;
