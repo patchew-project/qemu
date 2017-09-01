@@ -24,6 +24,8 @@
 #include "cpu.h"
 #include "boot.h"
 
+#include "hw/intc/xlnx-zynqmp-ipi.h"
+
 /* Define the PMU device */
 
 #define TYPE_XLNX_ZYNQMP_PMU "xlnx,zynqmp-pmu"
@@ -34,27 +36,42 @@
 #define XLNX_ZYNQMP_PMU_ROM_ADDR    0xFFD00000
 #define XLNX_ZYNQMP_PMU_RAM_ADDR    0xFFDC0000
 
+#define XLNX_ZYNQMP_PMU_NUM_IPIS    4
+
+static const uint64_t ipi_addr[XLNX_ZYNQMP_PMU_NUM_IPIS] = {
+    0xFF340000, 0xFF350000, 0xFF360000, 0xFF370000,
+};
+
 typedef struct XlnxZynqMPPMUState {
     /*< private >*/
     DeviceState parent_obj;
 
     /*< public >*/
     MicroBlazeCPU cpu;
+    XlnxZynqMPIPI ipi[XLNX_ZYNQMP_PMU_NUM_IPIS];
 }  XlnxZynqMPPMUState;
 
 static void xlnx_zynqmp_pmu_init(Object *obj)
 {
     XlnxZynqMPPMUState *s = XLNX_ZYNQMP_PMU(obj);
+    int i;
 
     object_initialize(&s->cpu, sizeof(s->cpu),
                       TYPE_MICROBLAZE_CPU);
     object_property_add_child(obj, "pmu-cpu[*]", OBJECT(&s->cpu),
                               &error_abort);
+
+   for (i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
+        object_initialize(&s->ipi[i], sizeof(s->ipi[i]), TYPE_XLNX_ZYNQMP_IPI);
+        qdev_set_parent_bus(DEVICE(&s->ipi[i]), sysbus_get_default());
+    }
 }
 
 static void xlnx_zynqmp_pmu_realize(DeviceState *dev, Error **errp)
 {
     XlnxZynqMPPMUState *s = XLNX_ZYNQMP_PMU(dev);
+    Error *err = NULL;
+    int i;
 
     object_property_set_uint(OBJECT(&s->cpu), XLNX_ZYNQMP_PMU_ROM_ADDR,
                              "base-vectors", &error_abort);
@@ -75,6 +92,17 @@ static void xlnx_zynqmp_pmu_realize(DeviceState *dev, Error **errp)
                             &error_abort);
     object_property_set_uint(OBJECT(&s->cpu), 0, "pvr", &error_abort);
     object_property_set_bool(OBJECT(&s->cpu), true, "realized", &error_fatal);
+
+    for (i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
+        object_property_set_bool(OBJECT(&s->ipi[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ipi[i]), 0, ipi_addr[i]);
+        /* Need to connect this to an interrupt controller */
+    }
+
 }
 
 static void xlnx_zynqmp_pmu_class_init(ObjectClass *oc, void *data)
