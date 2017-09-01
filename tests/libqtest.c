@@ -251,10 +251,13 @@ void qtest_quit(QTestState *s)
     g_free(s);
 }
 
-static void socket_send(int fd, const char *buf, size_t size)
+static void socket_send(int fd, const char *buf, ssize_t size)
 {
     size_t offset;
 
+    if (size < 0) {
+        size = strlen(buf);
+    }
     offset = 0;
     while (offset < size) {
         ssize_t len;
@@ -274,9 +277,8 @@ static void socket_send(int fd, const char *buf, size_t size)
 static void socket_sendf(int fd, const char *fmt, va_list ap)
 {
     gchar *str = g_strdup_vprintf(fmt, ap);
-    size_t size = strlen(str);
 
-    socket_send(fd, str, size);
+    socket_send(fd, str, -1);
     g_free(str);
 }
 
@@ -858,7 +860,7 @@ void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 
     bdata = g_base64_encode(data, size);
     qtest_sendf(s, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
-    socket_send(s->fd, bdata, strlen(bdata));
+    socket_send(s->fd, bdata, -1);
     socket_send(s->fd, "\n", 1);
     qtest_rsp(s, 0);
     g_free(bdata);
