@@ -280,6 +280,10 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "elevateprivileges",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "spawn",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1075,6 +1079,18 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
                 /* default value */
             } else {
                 error_report("invalid argument for elevateprivileges");
+                return -1;
+            }
+        }
+
+        value = qemu_opt_get(opts, "spawn");
+        if (value) {
+            if (strcmp(value, "deny") == 0) {
+                seccomp_opts |= QEMU_SECCOMP_SET_SPAWN;
+            } else if (strcmp(value, "allow") == 0) {
+                /* default value */
+            } else {
+                error_report("invalid argument for spawn");
                 return -1;
             }
         }
