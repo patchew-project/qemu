@@ -56,9 +56,22 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(tuxcall),               1, QEMU_SECCOMP_SET_DEFAULT },
     { SCMP_SYS(ulimit),                1, QEMU_SECCOMP_SET_DEFAULT },
     { SCMP_SYS(vserver),               1, QEMU_SECCOMP_SET_DEFAULT },
+    /* obsolete */
+    { SCMP_SYS(readdir),               2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(_sysctl),               2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(bdflush),               2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(create_module),         2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(get_kernel_syms),       2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(query_module),          2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(sgetmask),              2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(ssetmask),              2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(sysfs),                 2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(uselib),                2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(ustat),                 2, QEMU_SECCOMP_SET_OBSOLETE },
 };
 
-int seccomp_start(void)
+
+int seccomp_start(uint32_t seccomp_opts)
 {
     int rc = 0;
     unsigned int i = 0;
@@ -72,6 +85,14 @@ int seccomp_start(void)
 
     for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
         switch (blacklist[i].set) {
+        case QEMU_SECCOMP_SET_OBSOLETE:
+            if (!(seccomp_opts & QEMU_SECCOMP_SET_OBSOLETE)) {
+                goto add_syscall;
+            } else {
+                continue;
+            }
+
+            break;
         default:
             goto add_syscall;
         }
