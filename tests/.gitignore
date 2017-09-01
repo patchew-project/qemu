@@ -10,6 +10,8 @@ check-qnull
 check-qstring
 check-qom-interface
 check-qom-proplist
+multiboot/test.out
+multiboot/*.elf
 qht-bench
 rcutorture
 test-aio
