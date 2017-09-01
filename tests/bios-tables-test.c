@@ -623,17 +623,13 @@ static void test_smbios_structs(test_data *data)
 
 static void test_acpi_one(const char *params, test_data *data)
 {
-    char *args;
-
     /* Disable kernel irqchip to be able to override apic irq0. */
-    args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
+    data->qts = qtest_init("-machine %s,accel=%s,kernel-irqchip=off "
                            "-net none -display none %s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
                            data->machine, "kvm:tcg",
                            params ? params : "", disk);
-
-    data->qts = qtest_init(args);
 
     boot_sector_test(data->qts);
 
@@ -657,7 +653,6 @@ static void test_acpi_one(const char *params, test_data *data)
     test_smbios_structs(data);
 
     qtest_quit(data->qts);
-    g_free(args);
 }
 
 static uint8_t base_required_struct_types[] = {

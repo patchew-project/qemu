@@ -25,11 +25,12 @@ extern QTestState *global_qtest;
 
 /**
  * qtest_init:
- * @extra_args: other arguments to pass to QEMU.
+ * @extra_args...: other arguments to pass to QEMU, formatted as if by
+ * sprintf().
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_init(const char *extra_args);
+QTestState *qtest_init(const char *extra_args, ...) GCC_FMT_ATTR(1, 2);
 
 /**
  * qtest_init_without_qmp_handshake:
@@ -518,7 +519,7 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data);
  */
 static inline QTestState *qtest_start(const char *args)
 {
-    global_qtest = qtest_init(args);
+    global_qtest = qtest_init("%s", args);
     return global_qtest;
 }
 

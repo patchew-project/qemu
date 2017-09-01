@@ -347,9 +347,18 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     return s;
 }
 
-QTestState *qtest_init(const char *extra_args)
+QTestState *qtest_init(const char *extra_args, ...)
 {
-    QTestState *s = qtest_init_without_qmp_handshake(extra_args);
+    va_list ap;
+    QTestState *s;
+    char *cmd;
+
+    va_start(ap, extra_args);
+    cmd = g_strdup_vprintf(extra_args, ap);
+    va_end(ap);
+
+    s = qtest_init_without_qmp_handshake(cmd);
+    g_free(cmd);
 
     /* Read the QMP greeting and then do the handshake */
     qtest_qmp_discard_response(s, "");
