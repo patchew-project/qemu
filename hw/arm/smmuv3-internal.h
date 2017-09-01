@@ -215,7 +215,53 @@ static inline int smmu_enabled(SMMUV3State *s)
 
 #define SMMU_CMDQ_ERR(s) (SMMU_PENDING_GERRORS(s) & SMMU_GERROR_CMDQ)
 
-void smmuv3_irq_trigger(SMMUV3State *s, SMMUIrq irq, uint32_t gerror_val);
 void smmuv3_write_gerrorn(SMMUV3State *s, uint32_t gerrorn);
+
+/***************************
+ * Queue Handling
+ ***************************/
+
+typedef enum {
+    CMD_Q_EMPTY,
+    CMD_Q_FULL,
+    CMD_Q_PARTIALLY_FILLED,
+} SMMUQStatus;
+
+#define Q_ENTRY(q, idx)  (q->base + q->ent_size * idx)
+#define Q_WRAP(q, pc)    ((pc) >> (q)->shift)
+#define Q_IDX(q, pc)     ((pc) & ((1 << (q)->shift) - 1))
+
+static inline SMMUQStatus __smmu_queue_status(SMMUV3State *s, SMMUQueue *q)
+{
+    uint32_t prod = Q_IDX(q, q->prod);
+    uint32_t cons = Q_IDX(q, q->cons);
+
+    if ((prod == cons) && (q->wrap.prod != q->wrap.cons)) {
+        return CMD_Q_FULL;
+    } else if ((prod == cons) && (q->wrap.prod == q->wrap.cons)) {
+        return CMD_Q_EMPTY;
+    }
+    return CMD_Q_PARTIALLY_FILLED;
+}
+#define smmu_is_q_full(s, q) (__smmu_queue_status(s, q) == CMD_Q_FULL)
+#define smmu_is_q_empty(s, q) (__smmu_queue_status(s, q) == CMD_Q_EMPTY)
+
+static inline int __smmu_q_enabled(SMMUV3State *s, uint32_t q)
+{
+    return smmu_read32_reg(s, SMMU_REG_CR0) & q;
+}
+#define smmu_cmd_q_enabled(s) __smmu_q_enabled(s, SMMU_CR0_CMDQ_ENABLE)
+#define smmu_evt_q_enabled(s) __smmu_q_enabled(s, SMMU_CR0_EVTQ_ENABLE)
+
+static inline void smmu_write_cmdq_err(SMMUV3State *s, uint32_t err_type)
+{
+    uint32_t regval = smmu_read32_reg(s, SMMU_REG_CMDQ_CONS);
+
+    smmu_write32_reg(s, SMMU_REG_CMDQ_CONS,
+                        regval | err_type << SMMU_CMD_CONS_ERR_SHIFT);
+}
+
+MemTxResult smmuv3_read_cmdq(SMMUV3State *s, Cmd *cmd);
+void smmuv3_write_evtq(SMMUV3State *s, Evt *evt);
 
 #endif

@@ -36,7 +36,7 @@
  * @irq: irq type
  * @gerror: gerror new value, only relevant if @irq is GERROR
  */
-void smmuv3_irq_trigger(SMMUV3State *s, SMMUIrq irq, uint32_t gerror_val)
+static void smmuv3_irq_trigger(SMMUV3State *s, SMMUIrq irq, uint32_t gerror_val)
 {
     uint32_t pending_gerrors = SMMU_PENDING_GERRORS(s);
     bool pulse = false;
@@ -82,6 +82,79 @@ void smmuv3_write_gerrorn(SMMUV3State *s, uint32_t gerrorn)
 
     smmu_write32_reg(s, SMMU_REG_GERRORN, sanitized);
     trace_smmuv3_write_gerrorn(gerrorn, sanitized, SMMU_PENDING_GERRORS(s));
+}
+
+static MemTxResult smmu_q_read(SMMUQueue *q, void *data)
+{
+    uint64_t addr = Q_ENTRY(q, Q_IDX(q, q->cons));
+    MemTxResult ret;
+
+    ret = smmu_read_sysmem(addr, data, q->ent_size, false);
+    if (ret != MEMTX_OK) {
+        return ret;
+    }
+
+    q->cons++;
+    if (q->cons == q->entries) {
+        q->cons = 0;
+        q->wrap.cons++;
+    }
+
+    return ret;
+}
+
+static void smmu_q_write(SMMUQueue *q, void *data)
+{
+    uint64_t addr = Q_ENTRY(q, Q_IDX(q, q->prod));
+
+    smmu_write_sysmem(addr, data, q->ent_size, false);
+
+    q->prod++;
+    if (q->prod == q->entries) {
+        q->prod = 0;
+        q->wrap.prod++;
+    }
+}
+
+MemTxResult smmuv3_read_cmdq(SMMUV3State *s, Cmd *cmd)
+{
+    SMMUQueue *q = &s->cmdq;
+    MemTxResult ret = smmu_q_read(q, cmd);
+    uint32_t val = 0;
+
+    if (ret != MEMTX_OK) {
+        return ret;
+    }
+
+    val |= (q->wrap.cons << q->shift) | q->cons;
+    smmu_write32_reg(s, SMMU_REG_CMDQ_CONS, val);
+
+    return ret;
+}
+
+void smmuv3_write_evtq(SMMUV3State *s, Evt *evt)
+{
+    SMMUQueue *q = &s->evtq;
+    bool was_empty = smmu_is_q_empty(s, q);
+    bool was_full = smmu_is_q_full(s, q);
+    uint32_t val;
+
+    if (!smmu_evt_q_enabled(s)) {
+        return;
+    }
+
+    if (was_full) {
+        return;
+    }
+
+    smmu_q_write(q, evt);
+
+    val = (q->wrap.prod << q->shift) | q->prod;
+    smmu_write32_reg(s, SMMU_REG_EVTQ_PROD, val);
+
+    if (was_empty) {
+        smmuv3_irq_trigger(s, SMMU_IRQ_EVTQ, 0);
+    }
 }
 
 static void smmuv3_init_regs(SMMUV3State *s)
