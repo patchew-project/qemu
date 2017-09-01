@@ -36,6 +36,7 @@
 #include "hw/vfio/vfio-platform.h"
 #include "hw/vfio/vfio-calxeda-xgmac.h"
 #include "hw/vfio/vfio-amd-xgbe.h"
+#include "hw/arm/virt.h"
 #include "hw/arm/fdt.h"
 
 /*
@@ -47,6 +48,7 @@ typedef struct PlatformBusFDTData {
     int irq_start; /* index of the first IRQ usable by platform bus devices */
     const char *pbus_node_name; /* name of the platform bus node */
     PlatformBusDevice *pbus;
+    VirtMachineState *vms;
 } PlatformBusFDTData;
 
 /*
@@ -514,6 +516,7 @@ static void add_all_platform_bus_fdt_nodes(ARMPlatformBusFDTParams *fdt_params)
         .irq_start = irq_start,
         .pbus_node_name = node,
         .pbus = pbus,
+        .vms = fdt_params->vms,
     };
 
     /* Loop through all dynamic sysbus devices and create their node */

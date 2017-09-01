@@ -25,6 +25,7 @@
 #define HW_ARM_SYSBUS_FDT_H
 
 #include "hw/arm/arm.h"
+#include "hw/arm/virt.h"
 #include "qemu-common.h"
 #include "hw/sysbus.h"
 
@@ -48,6 +49,7 @@ typedef struct {
     const ARMPlatformBusSystemParams *system_params;
     struct arm_boot_info *binfo;
     const char *intc; /* parent interrupt controller name */
+    VirtMachineState *vms;
 } ARMPlatformBusFDTParams;
 
 /**

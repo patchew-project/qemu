@@ -1125,6 +1125,7 @@ static void create_platform_bus(VirtMachineState *vms, qemu_irq *pic)
     fdt_params->system_params = &platform_bus_params;
     fdt_params->binfo = &vms->bootinfo;
     fdt_params->intc = "/intc";
+    fdt_params->vms = vms;
     /*
      * register a machine init done notifier that creates the device tree
      * nodes of the platform bus and its children dynamic sysbus devices
