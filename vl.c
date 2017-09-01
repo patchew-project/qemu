@@ -29,6 +29,7 @@
 
 #ifdef CONFIG_SECCOMP
 #include "sysemu/seccomp.h"
+#include "sys/prctl.h"
 #endif
 
 #if defined(CONFIG_VDE)
@@ -273,6 +274,10 @@ static QemuOptsList qemu_sandbox_opts = {
         },
         {
             .name = "obsolete",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "elevateprivileges",
             .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
@@ -1050,6 +1055,28 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 	    } else {
 		error_report("invalid argument for obsolete");
 	    }
+        }
+
+        value = qemu_opt_get(opts, "elevateprivileges");
+        if (value) {
+            if (strcmp(value, "deny") == 0) {
+                seccomp_opts |= QEMU_SECCOMP_SET_PRIVILEGED;
+            } else if (strcmp(value, "children") == 0) {
+                seccomp_opts |= QEMU_SECCOMP_SET_PRIVILEGED;
+
+                /* calling prctl directly because we're
+                 * not sure if host has CAP_SYS_ADMIN set*/
+                if (prctl(PR_SET_NO_NEW_PRIVS, 1)) {
+                    error_report("failed to set no_new_privs "
+                                 "aborting");
+                    return -1;
+                }
+            } else if (strcmp(value, "allow") == 0) {
+                /* default value */
+            } else {
+                error_report("invalid argument for elevateprivileges");
+                return -1;
+            }
         }
 
         if (seccomp_start(seccomp_opts) < 0) {

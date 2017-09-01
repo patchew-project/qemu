@@ -57,17 +57,16 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(ulimit),                1, QEMU_SECCOMP_SET_DEFAULT },
     { SCMP_SYS(vserver),               1, QEMU_SECCOMP_SET_DEFAULT },
     /* obsolete */
-    { SCMP_SYS(readdir),               2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(_sysctl),               2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(bdflush),               2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(create_module),         2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(get_kernel_syms),       2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(query_module),          2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(sgetmask),              2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(ssetmask),              2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(sysfs),                 2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(uselib),                2, QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(ustat),                 2, QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(setuid),                4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setgid),                4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setpgid),               4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setsid),                4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setreuid),              4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setregid),              4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setresuid),             4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setresgid),             4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setfsuid),              4, QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setfsgid),              4, QEMU_SECCOMP_SET_PRIVILEGED },
 };
 
 
@@ -87,6 +86,14 @@ int seccomp_start(uint32_t seccomp_opts)
         switch (blacklist[i].set) {
         case QEMU_SECCOMP_SET_OBSOLETE:
             if (!(seccomp_opts & QEMU_SECCOMP_SET_OBSOLETE)) {
+                goto add_syscall;
+            } else {
+                continue;
+            }
+
+            break;
+        case QEMU_SECCOMP_SET_PRIVILEGED:
+            if (seccomp_opts & QEMU_SECCOMP_SET_PRIVILEGED) {
                 goto add_syscall;
             } else {
                 continue;
