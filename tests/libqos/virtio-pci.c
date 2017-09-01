@@ -240,6 +240,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     vqpci->vq.align = VIRTIO_PCI_VRING_ALIGN;
     vqpci->vq.indirect = (feat & (1u << VIRTIO_RING_F_INDIRECT_DESC)) != 0;
     vqpci->vq.event = (feat & (1u << VIRTIO_RING_F_EVENT_IDX)) != 0;
+    vqpci->vq.qts = d->qts;
 
     vqpci->msix_entry = -1;
     vqpci->msix_addr = 0;
@@ -316,6 +317,7 @@ QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type)
                         qvirtio_pci_assign_device, &dev);
 
     dev->vdev.bus = &qvirtio_pci;
+    dev->vdev.qts = bus->qts;
 
     return dev;
 }
@@ -329,6 +331,7 @@ QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
                         qvirtio_pci_assign_device, &dev);
 
     dev->vdev.bus = &qvirtio_pci;
+    dev->vdev.qts = bus->qts;
 
     return dev;
 }

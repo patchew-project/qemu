@@ -19,6 +19,7 @@ typedef struct QVirtioBus QVirtioBus;
 
 typedef struct QVirtioDevice {
     const QVirtioBus *bus;
+    QTestState *qts;
     /* Device type */
     uint16_t device_type;
 } QVirtioDevice;
@@ -35,12 +36,14 @@ typedef struct QVirtQueue {
     uint16_t last_used_idx;
     bool indirect;
     bool event;
+    QTestState *qts;
 } QVirtQueue;
 
 typedef struct QVRingIndirectDesc {
     uint64_t desc; /* This points to an array fo struct vring_desc */
     uint16_t index;
     uint16_t elem;
+    QTestState *qts;
 } QVRingIndirectDesc;
 
 struct QVirtioBus {
@@ -93,7 +96,7 @@ struct QVirtioBus {
 static inline bool qvirtio_is_big_endian(QVirtioDevice *d)
 {
     /* FIXME: virtio 1.0 is always little-endian */
-    return qtest_big_endian(global_qtest);
+    return qtest_big_endian(d->qts);
 }
 
 static inline uint32_t qvring_size(uint32_t num, uint32_t align)
