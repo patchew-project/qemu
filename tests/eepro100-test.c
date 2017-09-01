@@ -16,7 +16,7 @@ static void test_device(gconstpointer data)
     QTestState *s;
 
     /* Tests only initialization so far. TODO: Implement functional tests */
-    s = qtest_init("-device %s", model);
+    s = qtest_start("-device %s", model);
     qtest_quit(s);
 }
 

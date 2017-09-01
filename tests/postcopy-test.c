@@ -403,10 +403,10 @@ static void test_migrate(void)
 
     g_free(bootpath);
 
-    from = qtest_init("%s", cmd_src);
+    from = qtest_start("%s", cmd_src);
     g_free(cmd_src);
 
-    to = qtest_init("%s", cmd_dst);
+    to = qtest_start("%s", cmd_dst);
     g_free(cmd_dst);
 
     assert(!global_qtest);

@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_init("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8");
+    s = qtest_start("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8");
 
     fw_cfg = pc_fw_cfg_init(s);
 

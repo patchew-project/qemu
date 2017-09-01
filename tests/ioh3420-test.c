@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/ioh3420/nop", nop);
 
-    global_qtest = qtest_init(
+    global_qtest = qtest_start(
         "-machine q35 -device ioh3420,bus=pcie.0,addr=1c.0,port=1,"
         "chassis=1,multifunction=on");
     ret = g_test_run();

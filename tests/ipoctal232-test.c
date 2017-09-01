@@ -22,8 +22,8 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/ipoctal232/tpci200/nop", nop);
 
-    global_qtest = qtest_init("-device tpci200,id=ipack0 "
-                              "-device ipoctal232,bus=ipack0.0");
+    global_qtest = qtest_start("-device tpci200,id=ipack0 "
+                               "-device ipoctal232,bus=ipack0.0");
     ret = g_test_run();
 
     qtest_quit(global_qtest);

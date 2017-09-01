@@ -33,7 +33,7 @@ typedef struct FirmwareTestFixture {
 
 static QPCIBus *test_start_get_bus(const TestData *s)
 {
-    global_qtest = qtest_init("-smp %d", s->num_cpus);
+    global_qtest = qtest_start("-smp %d", s->num_cpus);
     return qpci_init_pc(global_qtest, NULL);
 }
 
@@ -340,10 +340,10 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
                                          : "-drive if=pflash,format=raw,file=",
                               fw_pathname);
     g_test_message("qemu cmdline: %s", cmdline);
-    global_qtest = qtest_init("%s", cmdline);
+    global_qtest = qtest_start("%s", cmdline);
     g_free(cmdline);
 
-    /* QEMU has loaded the firmware (because qtest_init() only returns after
+    /* QEMU has loaded the firmware (because qtest_start() only returns after
      * the QMP handshake completes). We must unlink the firmware blob right
      * here, because any assertion firing below would leak it in the
      * filesystem. This is also the reason why we recreate the blob every time

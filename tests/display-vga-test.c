@@ -12,33 +12,33 @@
 
 static void pci_cirrus(void)
 {
-    qtest_quit(qtest_init("-vga none -device cirrus-vga"));
+    qtest_quit(qtest_start("-vga none -device cirrus-vga"));
 }
 
 static void pci_stdvga(void)
 {
-    qtest_quit(qtest_init("-vga none -device VGA"));
+    qtest_quit(qtest_start("-vga none -device VGA"));
 }
 
 static void pci_secondary(void)
 {
-    qtest_quit(qtest_init("-vga none -device secondary-vga"));
+    qtest_quit(qtest_start("-vga none -device secondary-vga"));
 }
 
 static void pci_multihead(void)
 {
-    qtest_quit(qtest_init("-vga none -device VGA -device secondary-vga"));
+    qtest_quit(qtest_start("-vga none -device VGA -device secondary-vga"));
 }
 
 static void pci_virtio_gpu(void)
 {
-    qtest_quit(qtest_init("-vga none -device virtio-gpu-pci"));
+    qtest_quit(qtest_start("-vga none -device virtio-gpu-pci"));
 }
 
 #ifdef CONFIG_VIRTIO_VGA
 static void pci_virtio_vga(void)
 {
-    qtest_quit(qtest_init("-vga none -device virtio-vga"));
+    qtest_quit(qtest_start("-vga none -device virtio-vga"));
 }
 #endif
 

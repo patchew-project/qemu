@@ -641,14 +641,14 @@ static void test_migrate(void)
     test_server_listen(s);
     test_server_listen(dest);
 
-    s->qts = qtest_init(GET_QEMU_CMDE(s, 2, "", ""));
+    s->qts = qtest_start(GET_QEMU_CMDE(s, 2, "", ""));
 
     init_virtio_dev(s);
     wait_for_fds(s);
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
 
-    dest->qts = qtest_init(GET_QEMU_CMDE(dest, 2, "", " -incoming %s", uri));
+    dest->qts = qtest_start(GET_QEMU_CMDE(dest, 2, "", " -incoming %s", uri));
 
     source = g_source_new(&test_migrate_source_funcs,
                           sizeof(TestMigrateSource));
@@ -748,7 +748,7 @@ static void test_reconnect_subprocess(void)
     TestServer *s = test_server_new("reconnect");
 
     g_thread_new("connect", connect_thread, s);
-    s->qts = qtest_init(GET_QEMU_CMDE(s, 2, ",server", ""));
+    s->qts = qtest_start(GET_QEMU_CMDE(s, 2, ",server", ""));
 
     init_virtio_dev(s);
     wait_for_fds(s);
@@ -780,7 +780,7 @@ static void test_connect_fail_subprocess(void)
 
     s->test_fail = true;
     g_thread_new("connect", connect_thread, s);
-    s->qts = qtest_init(GET_QEMU_CMDE(s, 2, ",server", ""));
+    s->qts = qtest_start(GET_QEMU_CMDE(s, 2, ",server", ""));
 
     init_virtio_dev(s);
     wait_for_fds(s);
@@ -804,7 +804,7 @@ static void test_flags_mismatch_subprocess(void)
 
     s->test_flags = TEST_FLAGS_DISCONNECT;
     g_thread_new("connect", connect_thread, s);
-    s->qts = qtest_init(GET_QEMU_CMDE(s, 2, ",server", ""));
+    s->qts = qtest_start(GET_QEMU_CMDE(s, 2, ",server", ""));
 
     init_virtio_dev(s);
     wait_for_fds(s);
@@ -868,11 +868,11 @@ static void test_multiqueue(void)
     s->queues = queues;
     test_server_listen(s);
 
-    s->qts = qtest_init(QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
-                        "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
-                        512, 512, root, s->chr_name,
-                        s->socket_path, "", s->chr_name,
-                        queues, queues * 2 + 2);
+    s->qts = qtest_start(QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
+                         "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
+                         512, 512, root, s->chr_name,
+                         s->socket_path, "", s->chr_name,
+                         queues, queues * 2 + 2);
 
     bus = qpci_init_pc(s->qts, NULL);
     dev = virtio_net_pci_init(bus, PCI_SLOT);
@@ -933,7 +933,7 @@ int main(int argc, char **argv)
     /* run the main loop thread so the chardev may operate */
     thread = g_thread_new(NULL, thread_function, loop);
 
-    server->qts = qtest_init(GET_QEMU_CMD(server));
+    server->qts = qtest_start(GET_QEMU_CMD(server));
     init_virtio_dev(server);
 
     qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);

@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ohci/pci/init", test_ohci_init);
     qtest_add_func("/ohci/pci/hotplug", test_ohci_hotplug);
 
-    global_qtest = qtest_init("-device pci-ohci,id=ohci");
+    global_qtest = qtest_start("-device pci-ohci,id=ohci");
     ret = g_test_run();
     qtest_quit(global_qtest);
 

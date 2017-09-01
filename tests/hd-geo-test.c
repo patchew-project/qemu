@@ -241,7 +241,7 @@ static void test_ide_none(void)
 
     setup_common(argv, ARGV_SIZE);
     args = g_strjoinv(" ", argv);
-    global_qtest = qtest_init("%s", args);
+    global_qtest = qtest_start("%s", args);
     g_strfreev(argv);
     g_free(args);
     test_cmos();
@@ -263,7 +263,7 @@ static void test_ide_mbr(bool use_device, MBRcontents mbr)
         argc = setup_ide(argc, argv, ARGV_SIZE, i, dev, i, mbr, "");
     }
     args = g_strjoinv(" ", argv);
-    global_qtest = qtest_init("%s", args);
+    global_qtest = qtest_start("%s", args);
     g_strfreev(argv);
     g_free(args);
     test_cmos();
@@ -339,7 +339,7 @@ static void test_ide_drive_user(const char *dev, bool trans)
                      dev ? "" : opts);
     g_free(opts);
     args = g_strjoinv(" ", argv);
-    global_qtest = qtest_init("%s", args);
+    global_qtest = qtest_start("%s", args);
     g_strfreev(argv);
     g_free(args);
     test_cmos();
@@ -396,7 +396,7 @@ static void test_ide_drive_cd_0(void)
                          ide_idx, NULL, i, mbr_blank, "");
     }
     args = g_strjoinv(" ", argv);
-    global_qtest = qtest_init("%s", args);
+    global_qtest = qtest_start("%s", args);
     g_strfreev(argv);
     g_free(args);
     test_cmos();

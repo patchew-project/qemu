@@ -24,21 +24,21 @@ typedef struct QTestState QTestState;
 extern QTestState *global_qtest;
 
 /**
- * qtest_init:
+ * qtest_start:
  * @extra_args...: other arguments to pass to QEMU, formatted as if by
  * sprintf().
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_init(const char *extra_args, ...) GCC_FMT_ATTR(1, 2);
+QTestState *qtest_start(const char *extra_args, ...) GCC_FMT_ATTR(1, 2);
 
 /**
- * qtest_init_without_qmp_handshake:
+ * qtest_start_without_qmp_handshake:
  * @extra_args: other arguments to pass to QEMU.
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
+QTestState *qtest_start_without_qmp_handshake(const char *extra_args);
 
 /**
  * qtest_quit:

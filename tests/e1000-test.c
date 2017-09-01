@@ -16,7 +16,7 @@ static void test_device(gconstpointer data)
     const char *model = data;
     QTestState *s;
 
-    s = qtest_init("-device %s", model);
+    s = qtest_start("-device %s", model);
     qtest_quit(s);
 }
 

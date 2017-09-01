@@ -83,7 +83,7 @@ static void test_cfam_id(const void *data)
 {
     const PnvChip *chip = data;
 
-    global_qtest = qtest_init("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
+    global_qtest = qtest_start("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
     test_xscom_cfam_id(chip);
     qtest_quit(global_qtest);
 }
@@ -106,7 +106,7 @@ static void test_core(const void *data)
 {
     const PnvChip *chip = data;
 
-    global_qtest = qtest_init("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
+    global_qtest = qtest_start("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
     test_xscom_core(chip);
     qtest_quit(global_qtest);
 }

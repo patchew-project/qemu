@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/pvpanic/panic", test_panic);
 
-    global_qtest = qtest_init("-device pvpanic");
+    global_qtest = qtest_start("-device pvpanic");
     ret = g_test_run();
 
     qtest_quit(global_qtest);

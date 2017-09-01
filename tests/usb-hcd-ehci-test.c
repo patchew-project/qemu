@@ -156,7 +156,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ehci/pci/ehci-port-2", pci_ehci_port_2);
     qtest_add_func("/ehci/pci/ehci-port-3-hotplug", pci_ehci_port_hotplug);
 
-    global_qtest = qtest_init(
+    global_qtest = qtest_start(
         "-machine q35 -device ich9-usb-ehci1,bus=pcie.0,addr=1d.7,"
         "multifunction=on,id=ich9-ehci-1 "
         "-device ich9-usb-uhci1,bus=pcie.0,addr=1d.0,"

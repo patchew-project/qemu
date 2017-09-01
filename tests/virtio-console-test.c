@@ -13,15 +13,15 @@
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void console_pci_nop(void)
 {
-    global_qtest = qtest_init("-device virtio-serial-pci,id=vser0 "
-                "-device virtconsole,bus=vser0.0");
+    global_qtest = qtest_start("-device virtio-serial-pci,id=vser0 "
+                               "-device virtconsole,bus=vser0.0");
     qtest_quit(global_qtest);
 }
 
 static void serialport_pci_nop(void)
 {
-    global_qtest = qtest_init("-device virtio-serial-pci,id=vser0 "
-                "-device virtserialport,bus=vser0.0");
+    global_qtest = qtest_start("-device virtio-serial-pci,id=vser0 "
+                               "-device virtserialport,bus=vser0.0");
     qtest_quit(global_qtest);
 }
 

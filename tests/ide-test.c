@@ -124,7 +124,7 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
     va_end(ap);
 
-    global_qtest = qtest_init("%s", cmdline);
+    global_qtest = qtest_start("%s", cmdline);
     guest_malloc = pc_alloc_init(global_qtest);
 
     g_free(cmdline);

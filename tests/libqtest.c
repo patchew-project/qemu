@@ -266,7 +266,7 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     g_hook_prepend(&abrt_hooks, hook);
 }
 
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
+QTestState *qtest_start_without_qmp_handshake(const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, i;
@@ -347,7 +347,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     return s;
 }
 
-QTestState *qtest_init(const char *extra_args, ...)
+QTestState *qtest_start(const char *extra_args, ...)
 {
     va_list ap;
     QTestState *s;
@@ -357,7 +357,7 @@ QTestState *qtest_init(const char *extra_args, ...)
     cmd = g_strdup_vprintf(extra_args, ap);
     va_end(ap);
 
-    s = qtest_init_without_qmp_handshake(cmd);
+    s = qtest_start_without_qmp_handshake(cmd);
     g_free(cmd);
 
     /* Read the QMP greeting and then do the handshake */
@@ -970,7 +970,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     QString *qstr;
     const char *mname;
 
-    global_qtest = qtest_init("-machine none");
+    global_qtest = qtest_start("-machine none");
     response = qmp("{ 'execute': 'query-machines' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");

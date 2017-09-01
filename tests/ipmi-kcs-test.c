@@ -275,8 +275,8 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    global_qtest = qtest_init("-device ipmi-bmc-sim,id=bmc0"
-                              " -device isa-ipmi-kcs,bmc=bmc0");
+    global_qtest = qtest_start("-device ipmi-bmc-sim,id=bmc0"
+                               " -device isa-ipmi-kcs,bmc=bmc0");
     qtest_irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/ipmi/local/kcs_base", test_kcs_base);
     qtest_add_func("/ipmi/local/kcs_abort", test_kcs_abort);

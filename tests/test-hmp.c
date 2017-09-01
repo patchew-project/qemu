@@ -120,7 +120,7 @@ static void test_machine(gconstpointer data)
 {
     const char *machine = data;
 
-    global_qtest = qtest_init("-S -M %s", machine);
+    global_qtest = qtest_start("-S -M %s", machine);
 
     test_info_commands();
     test_commands();

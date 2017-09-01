@@ -29,10 +29,10 @@ static void test_pc_with_cpu_add(gconstpointer data)
     QDict *response;
     unsigned int i;
 
-    global_qtest = qtest_init("-machine %s -cpu %s "
-                              "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
-                              s->machine, s->cpu_model,
-                              s->sockets, s->cores, s->threads, s->maxcpus);
+    global_qtest = qtest_start("-machine %s -cpu %s "
+                               "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
+                               s->machine, s->cpu_model,
+                               s->sockets, s->cores, s->threads, s->maxcpus);
 
     for (i = s->sockets * s->cores * s->threads; i < s->maxcpus; i++) {
         response = qmp("{ 'execute': 'cpu-add',"
@@ -50,10 +50,10 @@ static void test_pc_without_cpu_add(gconstpointer data)
     const PCTestData *s = data;
     QDict *response;
 
-    global_qtest = qtest_init("-machine %s -cpu %s "
-                              "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
-                              s->machine, s->cpu_model,
-                              s->sockets, s->cores, s->threads, s->maxcpus);
+    global_qtest = qtest_start("-machine %s -cpu %s "
+                               "-smp sockets=%u,cores=%u,threads=%u,maxcpus=%u",
+                               s->machine, s->cpu_model,
+                               s->sockets, s->cores, s->threads, s->maxcpus);
 
     response = qmp("{ 'execute': 'cpu-add',"
                    "  'arguments': { 'id': %d } }",

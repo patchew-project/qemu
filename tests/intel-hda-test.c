@@ -18,13 +18,13 @@
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void ich6_test(void)
 {
-    global_qtest = qtest_init("-device intel-hda,id=" HDA_ID CODEC_DEVICES);
+    global_qtest = qtest_start("-device intel-hda,id=" HDA_ID CODEC_DEVICES);
     qtest_quit(global_qtest);
 }
 
 static void ich9_test(void)
 {
-    global_qtest = qtest_init(
+    global_qtest = qtest_start(
         "-machine q35 -device ich9-intel-hda,bus=pcie.0,addr=1b.0,id="
         HDA_ID CODEC_DEVICES);
     qtest_quit(global_qtest);

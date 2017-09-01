@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/tpci200/nop", nop);
 
-    global_qtest = qtest_init("-device tpci200");
+    global_qtest = qtest_start("-device tpci200");
     ret = g_test_run();
 
     qtest_quit(global_qtest);

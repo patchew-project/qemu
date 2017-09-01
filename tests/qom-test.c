@@ -92,7 +92,7 @@ static void test_machine(gconstpointer data)
     const char *machine = data;
     QDict *response;
 
-    global_qtest = qtest_init("-machine %s", machine);
+    global_qtest = qtest_start("-machine %s", machine);
 
     test_properties("/machine", true);
 

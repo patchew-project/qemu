@@ -196,8 +196,8 @@ int main(int argc, char **argv)
     qtest_add_func("/netfilter/remove_netdev_multi",
                    remove_netdev_with_multi_netfilter);
 
-    global_qtest = qtest_init("-netdev user,id=qtest-bn0 "
-                              "-device %s,netdev=qtest-bn0", devstr);
+    global_qtest = qtest_start("-netdev user,id=qtest-bn0 "
+                               "-device %s,netdev=qtest-bn0", devstr);
     ret = g_test_run();
 
     qtest_quit(global_qtest);

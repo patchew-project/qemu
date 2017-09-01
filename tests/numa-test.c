@@ -25,7 +25,7 @@ static void test_mon_explicit(const void *data)
     cli = make_cli(data, "-smp 8 "
                    "-numa node,nodeid=0,cpus=0-3 "
                    "-numa node,nodeid=1,cpus=4-7 ");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
 
     s = hmp("info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3"));
@@ -42,7 +42,7 @@ static void test_mon_default(const void *data)
     char *cli;
 
     cli = make_cli(data, "-smp 8 -numa node -numa node");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
 
     s = hmp("info numa");
     g_assert(strstr(s, "node 0 cpus: 0 2 4 6"));
@@ -61,7 +61,7 @@ static void test_mon_partial(const void *data)
     cli = make_cli(data, "-smp 8 "
                    "-numa node,nodeid=0,cpus=0-1 "
                    "-numa node,nodeid=1,cpus=4-5 ");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
 
     s = hmp("info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3 6 7"));
@@ -88,7 +88,7 @@ static void test_query_cpus(const void *data)
     QObject *e;
 
     cli = make_cli(data, "-smp 8 -numa node,cpus=0-3 -numa node,cpus=4-7");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -130,7 +130,7 @@ static void pc_numa_cpu(const void *data)
         "-numa cpu,node-id=0,socket-id=1,core-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=1,thread-id=0 "
         "-numa cpu,node-id=1,socket-id=1,core-id=1,thread-id=1");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -183,7 +183,7 @@ static void spapr_numa_cpu(const void *data)
         "-numa cpu,node-id=0,core-id=1 "
         "-numa cpu,node-id=0,core-id=2 "
         "-numa cpu,node-id=1,core-id=3");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -226,7 +226,7 @@ static void aarch64_numa_cpu(const void *data)
         "-numa node,nodeid=0 -numa node,nodeid=1 "
         "-numa cpu,node-id=1,thread-id=0 "
         "-numa cpu,node-id=0,thread-id=1");
-    global_qtest = qtest_init("%s", cli);
+    global_qtest = qtest_start("%s", cli);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
