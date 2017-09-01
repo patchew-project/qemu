@@ -115,8 +115,9 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
-        with open(self._qemu_log_path, "r") as fh:
-            self._iolog = fh.read()
+        if self._qemu_log_path in self._created_files:
+            with open(self._qemu_log_path, "r") as fh:
+                self._iolog = fh.read()
 
     def _base_args(self):
         if isinstance(self._monitor_address, tuple):
@@ -169,11 +170,7 @@ class QEMUMachine(object):
         try:
             self._launch()
         except:
-            if self.is_running():
-                self._popen.kill()
-                self._popen.wait()
-            self._load_io_log()
-            self._post_shutdown()
+            self.shutdown()
 
             LOG.debug('Error launching VM')
             if self._qemu_full_args:
