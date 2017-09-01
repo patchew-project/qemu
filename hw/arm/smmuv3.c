@@ -29,6 +29,61 @@
 #include "hw/arm/smmuv3.h"
 #include "smmuv3-internal.h"
 
+/**
+ * smmuv3_irq_trigger - pulse @irq if enabled and update
+ * GERROR register in case of GERROR interrupt
+ *
+ * @irq: irq type
+ * @gerror: gerror new value, only relevant if @irq is GERROR
+ */
+void smmuv3_irq_trigger(SMMUV3State *s, SMMUIrq irq, uint32_t gerror_val)
+{
+    uint32_t pending_gerrors = SMMU_PENDING_GERRORS(s);
+    bool pulse = false;
+
+    switch (irq) {
+    case SMMU_IRQ_EVTQ:
+        pulse = smmu_evt_irq_enabled(s);
+        break;
+    case SMMU_IRQ_PRIQ:
+        pulse = smmu_pri_irq_enabled(s);
+        break;
+    case SMMU_IRQ_CMD_SYNC:
+        pulse = true;
+        break;
+    case SMMU_IRQ_GERROR:
+    {
+        /* don't toggle an already pending error */
+        bool new_gerrors = ~pending_gerrors & gerror_val;
+        uint32_t gerror = smmu_read32_reg(s, SMMU_REG_GERROR);
+
+        smmu_write32_reg(s, SMMU_REG_GERROR, gerror | new_gerrors);
+
+        /* pulse the GERROR irq only if all fields were acked */
+        pulse = smmu_gerror_irq_enabled(s) && !pending_gerrors;
+        break;
+    }
+    }
+    if (pulse) {
+            trace_smmuv3_irq_trigger(irq,
+                                     smmu_read32_reg(s, SMMU_REG_GERROR),
+                                     SMMU_PENDING_GERRORS(s));
+            qemu_irq_pulse(s->irq[irq]);
+    }
+}
+
+void smmuv3_write_gerrorn(SMMUV3State *s, uint32_t gerrorn)
+{
+    uint32_t pending_gerrors = SMMU_PENDING_GERRORS(s);
+    uint32_t sanitized;
+
+    /* Make sure SW does not toggle irqs that are not active */
+    sanitized = gerrorn & pending_gerrors;
+
+    smmu_write32_reg(s, SMMU_REG_GERRORN, sanitized);
+    trace_smmuv3_write_gerrorn(gerrorn, sanitized, SMMU_PENDING_GERRORS(s));
+}
+
 static void smmuv3_init_regs(SMMUV3State *s)
 {
     uint32_t data =

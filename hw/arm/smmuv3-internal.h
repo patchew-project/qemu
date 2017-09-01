@@ -198,4 +198,24 @@ static inline int smmu_enabled(SMMUV3State *s)
     return smmu_read32_reg(s, SMMU_REG_CR0) & SMMU_CR0_SMMU_ENABLE;
 }
 
+/*****************************
+ * Interrupts
+ *****************************/
+
+#define smmu_evt_irq_enabled(s)                   \
+    (smmu_read64_reg(s, SMMU_REG_IRQ_CTRL) & SMMU_IRQ_CTRL_EVENT_EN)
+#define smmu_gerror_irq_enabled(s)                  \
+    (smmu_read64_reg(s, SMMU_REG_IRQ_CTRL) & SMMU_IRQ_CTRL_GERROR_EN)
+#define smmu_pri_irq_enabled(s)                 \
+    (smmu_read64_reg(s, SMMU_REG_IRQ_CTRL) & SMMU_IRQ_CTRL_PRI_EN)
+
+#define SMMU_PENDING_GERRORS(s) \
+    (smmu_read32_reg(s, SMMU_REG_GERROR) ^ \
+     smmu_read32_reg(s, SMMU_REG_GERRORN))
+
+#define SMMU_CMDQ_ERR(s) (SMMU_PENDING_GERRORS(s) & SMMU_GERROR_CMDQ)
+
+void smmuv3_irq_trigger(SMMUV3State *s, SMMUIrq irq, uint32_t gerror_val);
+void smmuv3_write_gerrorn(SMMUV3State *s, uint32_t gerrorn);
+
 #endif
