@@ -153,6 +153,9 @@ class QEMUMachine(object):
         self._qmp.accept()
 
     def _post_shutdown(self):
+        if self._qemu_log_fd is not None:
+            self._qemu_log_fd.close()
+
         while self._created_files:
             self._remove_if_exists(self._created_files.pop())
 
