@@ -71,6 +71,17 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(fork),                  8, QEMU_SECCOMP_SET_SPAWN },
     { SCMP_SYS(vfork),                 8, QEMU_SECCOMP_SET_SPAWN },
     { SCMP_SYS(execve),                8, QEMU_SECCOMP_SET_SPAWN },
+    /* resource control */
+    { SCMP_SYS(getpriority),           16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(setpriority),           16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_setparam),        16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_getparam),        16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_setscheduler),    16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_getscheduler),    16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_setaffinity),     16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_getaffinity),     16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_get_priority_max),16, QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_get_priority_min),16, QEMU_SECCOMP_SET_RESOURCECTL },
 };
 
 
@@ -106,6 +117,14 @@ int seccomp_start(uint32_t seccomp_opts)
             break;
         case QEMU_SECCOMP_SET_SPAWN:
             if (seccomp_opts & QEMU_SECCOMP_SET_SPAWN) {
+                goto add_syscall;
+            } else {
+                continue;
+            }
+
+            break;
+        case QEMU_SECCOMP_SET_RESOURCECTL:
+            if (seccomp_opts & QEMU_SECCOMP_SET_RESOURCECTL) {
                 goto add_syscall;
             } else {
                 continue;

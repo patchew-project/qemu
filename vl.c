@@ -284,6 +284,10 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "spawn",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "resourcecontrol",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -1093,6 +1097,18 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
                 error_report("invalid argument for spawn");
                 return -1;
             }
+        }
+
+        value = qemu_opt_get(opts, "resourcecontrol");
+        if (value) {
+            if (strcmp(value, "deny") == 0) {
+                seccomp_opts |= QEMU_SECCOMP_SET_RESOURCECTL;
+            } else if (strcmp(value, "allow") == 0) {
+                /* default value */
+            } else {
+		error_report("invalid argument for resourcecontrol");
+		return -1;
+	    }
         }
 
         if (seccomp_start(seccomp_opts) < 0) {
