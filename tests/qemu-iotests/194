@@ -23,6 +23,7 @@ import os
 import atexit
 import iotests
 
+iotests.verify_image_format(unsupported_fmts=['luks'])
 iotests.verify_platform(['linux'])
 
 img_size = '1G'
