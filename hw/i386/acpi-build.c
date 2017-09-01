@@ -2645,6 +2645,9 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
     Object *vmgenid_dev;
+    ram_addr_t hotplugabble_address_space_size =
+        object_property_get_int(OBJECT(pcms), PC_MACHINE_MEMHP_REGION_SIZE,
+                                NULL);
 
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
@@ -2708,7 +2711,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
             build_tpm2(tables_blob, tables->linker);
         }
     }
-    if (pcms->numa_nodes) {
+    if (pcms->numa_nodes || hotplugabble_address_space_size) {
         acpi_add_table(table_offsets, tables_blob);
         build_srat(tables_blob, tables->linker, machine);
         if (have_numa_distance) {
