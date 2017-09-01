@@ -24,7 +24,7 @@ QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
     qs->ops = ops;
     if (ops) {
         if (ops->init_allocator) {
-            qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
+            qs->alloc = ops->init_allocator(qs->qts, ALLOC_NO_FLAGS);
         }
         if (ops->qpci_init) {
             qs->pcibus = ops->qpci_init(qs->qts, qs->alloc);

@@ -896,7 +896,7 @@ static void test_multiqueue(void)
     bus = qpci_init_pc(global_qtest, NULL);
     dev = virtio_net_pci_init(bus, PCI_SLOT);
 
-    alloc = pc_alloc_init();
+    alloc = pc_alloc_init(global_qtest);
     for (i = 0; i < queues * 2; i++) {
         vq[i] = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, i);
     }
