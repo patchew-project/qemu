@@ -426,7 +426,8 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     its->its_count = cpu_to_le32(1);
     its->identifiers[0] = 0; /* MADT translation_id */
 
-    if (vms->smmu_info.type == VIRT_IOMMU_SMMUV3) {
+    if (vms->smmu_info.type == VIRT_IOMMU_SMMUV3 ||
+        vms->smmu_info.type == VIRT_IOMMU_SMMUV3_CACHING_MODE) {
         int irq =  vms->smmu_info.irq_base;
 
         /* SMMUv3 node */
@@ -438,6 +439,10 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
         smmu->type = ACPI_IORT_NODE_SMMU_V3;
         smmu->length = cpu_to_le16(node_size);
+
+        if (vms->smmu_info.type == VIRT_IOMMU_SMMUV3_CACHING_MODE) {
+            smmu->model = 0x3; /* ACPI_IORT_SMMU_V3_CACHING_MODE */
+        }
         smmu->mapping_count = cpu_to_le32(1);
         smmu->mapping_offset = cpu_to_le32(sizeof(*smmu));
         smmu->base_address = cpu_to_le64(vms->smmu_info.reg.base);

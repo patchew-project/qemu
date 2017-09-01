@@ -58,6 +58,7 @@ typedef struct SMMUV3State {
     qemu_irq     irq[4];
     SMMUQueue    cmdq, evtq;
 
+    bool cm; /* caching mode */
 } SMMUV3State;
 
 typedef enum {

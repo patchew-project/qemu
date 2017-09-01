@@ -90,6 +90,7 @@ typedef struct {
 typedef enum VirtIOMMUType {
     VIRT_IOMMU_NONE,
     VIRT_IOMMU_SMMUV3,
+    VIRT_IOMMU_SMMUV3_CACHING_MODE,
     VIRT_IOMMU_VIRTIO,
 } VirtIOMMUType;
 

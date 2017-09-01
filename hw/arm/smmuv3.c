@@ -1122,6 +1122,12 @@ static const VMStateDescription vmstate_smmuv3 = {
     },
 };
 
+static Property smmuv3_dev_properties[] = {
+    DEFINE_PROP_BOOL("caching-mode", SMMUV3State, cm, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+
 static void smmuv3_instance_init(Object *obj)
 {
     /* Nothing much to do here as of now */
@@ -1131,6 +1137,7 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->props   = smmuv3_dev_properties;
     dc->reset   = smmu_reset;
     dc->vmsd    = &vmstate_smmuv3;
     dc->realize = smmu_realize;

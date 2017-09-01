@@ -440,6 +440,7 @@ static int add_smmuv3_fdt_node(SysBusDevice *sbdev, void *opaque)
     const char *parent_node = data->pbus_node_name;
     PlatformBusDevice *pbus = data->pbus;
     VirtMachineState *vms = data->vms;
+    SMMUV3State *smmu = SMMU_V3_DEV(sbdev);
     void *guest_fdt = data->fdt;
     char *nodename, *node_path;
     int i;
@@ -471,6 +472,10 @@ static int add_smmuv3_fdt_node(SysBusDevice *sbdev, void *opaque)
     qemu_fdt_setprop_string(guest_fdt, nodename, "clock-names", "apb_pclk");
     qemu_fdt_setprop(guest_fdt, nodename, "dma-coherent", NULL, 0);
 
+    if (smmu->cm) {
+        qemu_fdt_setprop(guest_fdt, nodename, "tlbi-on-map", NULL, 0);
+    }
+
     qemu_fdt_setprop_cell(guest_fdt, nodename, "#iommu-cells", 1);
 
     smmu_phandle = qemu_fdt_alloc_phandle(vms->fdt);
@@ -487,7 +492,11 @@ static int add_smmuv3_fdt_node(SysBusDevice *sbdev, void *opaque)
     qemu_fdt_setprop_cells(guest_fdt, node_path, "iommu-map",
                      0x0, smmu_phandle, 0x0, 0x10000);
 
-    vms->smmu_info.type = VIRT_IOMMU_SMMUV3;
+    if (smmu->cm) {
+        vms->smmu_info.type = VIRT_IOMMU_SMMUV3_CACHING_MODE;
+    } else {
+        vms->smmu_info.type = VIRT_IOMMU_SMMUV3;
+    }
     vms->smmu_info.reg.base = data->base + mmio_base;
     vms->smmu_info.reg.size = 0x20000;
     vms->smmu_info.irq_base = irq_number;
