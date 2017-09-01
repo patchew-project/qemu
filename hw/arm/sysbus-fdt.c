@@ -46,6 +46,7 @@
 typedef struct PlatformBusFDTData {
     void *fdt; /* device tree handle */
     int irq_start; /* index of the first IRQ usable by platform bus devices */
+    hwaddr base; /* base address of the platform bus */
     const char *pbus_node_name; /* name of the platform bus node */
     PlatformBusDevice *pbus;
     VirtMachineState *vms;
@@ -514,6 +515,7 @@ static void add_all_platform_bus_fdt_nodes(ARMPlatformBusFDTParams *fdt_params)
     PlatformBusFDTData data = {
         .fdt = fdt,
         .irq_start = irq_start,
+        .base = addr,
         .pbus_node_name = node,
         .pbus = pbus,
         .vms = fdt_params->vms,
