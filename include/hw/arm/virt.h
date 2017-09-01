@@ -105,6 +105,7 @@ typedef struct {
     uint32_t clock_phandle;
     uint32_t gic_phandle;
     uint32_t msi_phandle;
+    uint32_t pcihost_phandle;
     int psci_conduit;
 } VirtMachineState;
 

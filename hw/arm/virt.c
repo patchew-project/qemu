@@ -991,7 +991,7 @@ static void create_pcie_irq_map(const VirtMachineState *vms,
                            0x7           /* PCI irq */);
 }
 
-static void create_pcie(const VirtMachineState *vms, qemu_irq *pic)
+static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
 {
     hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = vms->memmap[VIRT_PCIE_MMIO].size;
@@ -1100,8 +1100,11 @@ static void create_pcie(const VirtMachineState *vms, qemu_irq *pic)
                                      2, base_mmio, 2, size_mmio);
     }
 
+    vms->pcihost_phandle = qemu_fdt_alloc_phandle(vms->fdt);
+
     qemu_fdt_setprop_cell(vms->fdt, nodename, "#interrupt-cells", 1);
     create_pcie_irq_map(vms, vms->gic_phandle, irq, nodename);
+    qemu_fdt_setprop_cell(vms->fdt, nodename, "phandle", vms->pcihost_phandle);
 
     g_free(nodename);
 }
