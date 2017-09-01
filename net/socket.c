@@ -448,8 +448,11 @@ static NetSocketState *net_socket_fd_init(NetClientState *peer,
     case SOCK_STREAM:
         return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
     default:
-        /* who knows ... this could be a eg. a pty, do warn and continue as stream */
-        fprintf(stderr, "qemu: warning: socket type=%d for fd=%d is not SOCK_DGRAM or SOCK_STREAM\n", so_type, fd);
+        /* who knows ... this could be a eg. a pty, do warn and continue as
+         * stream
+         */
+        warn_report("socket type=%d for fd=%d is not SOCK_DGRAM or "
+                    "SOCK_STREAM", so_type, fd);
         return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
     }
     return NULL;
