@@ -1,0 +1,31 @@
+QEMU Seccomp system call filter
+===============================
+
+Starting from QEMU version 2.11, the seccomp filter does not work as a
+whitelist but as a blacklist instead. This method allows safer deploys since
+only the strictly forbidden system calls will be black-listed and the
+possibility of breaking any workload is close to zero.
+
+The default option (-sandbox on) has a slightly looser security though and the
+reason is that it shouldn't break any backwards compatibility with previous
+deploys and command lines already running. But if the intent is to have a
+better security from this version on, one should make use of the following
+additional options properly:
+
+* obsolete=allow|deny: It allows Qemu to run safely on old system that still
+  relies on old system calls.
+
+* elevateprivileges=allow|deny|children: It allows or denies Qemu process
+  to elevate its privileges by blacklisting all set*uid|gid system calls. The
+  'children' option sets the PR_SET_NO_NEW_PRIVS to 1 which allows helpers
+  (forks and execs) to run unprivileged.
+
+* spawn=allow|deny: It blacklists fork and execve system calls, avoiding QEMU to
+  spawn new threads or processes.
+
+* resourcecontrol=allow|deny: It blacklists all process affinity and scheduler
+  priority system calls to avoid that the process can increase its amount of
+  allowed resource consumption.
+
+--
+Eduardo Otubo <otubo@redhat.com>
