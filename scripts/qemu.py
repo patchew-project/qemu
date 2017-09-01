@@ -165,6 +165,9 @@ class QEMUMachine(object):
         Try to launch the VM and make sure we cleanup and expose the
         command line/output in case of exception.
         '''
+        if self.is_running():
+            raise QEMUMachineError('VM already running')
+
         self._iolog = None
         self._qemu_full_args = None
         try:
