@@ -111,4 +111,9 @@ static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
 {
     return  ((pci_bus_num(sdev->bus) & 0xff) << 8) | sdev->devfn;
 }
+
+MemTxResult smmu_read_sysmem(dma_addr_t addr, void *buf,
+                             dma_addr_t len, bool secure);
+void smmu_write_sysmem(dma_addr_t addr, void *buf, dma_addr_t len, bool secure);
+
 #endif  /* HW_ARM_SMMU_COMMON */
