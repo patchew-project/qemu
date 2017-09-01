@@ -116,4 +116,8 @@ MemTxResult smmu_read_sysmem(dma_addr_t addr, void *buf,
                              dma_addr_t len, bool secure);
 void smmu_write_sysmem(dma_addr_t addr, void *buf, dma_addr_t len, bool secure);
 
+int smmu_translate(SMMUTransCfg *cfg, IOMMUTLBEntry *tlbe);
+int smmu_page_walk(SMMUTransCfg *cfg, uint64_t start, uint64_t end,
+                   bool nofail, smmu_page_walk_hook hook_fn, void *private);
+
 #endif  /* HW_ARM_SMMU_COMMON */
