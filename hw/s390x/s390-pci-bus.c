@@ -397,6 +397,16 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
     return ret;
 }
 
+static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
+                                  IOMMUNotifier *notifier)
+{
+    /* It's impossible to plug a pci device on s390x that already has iommu
+     * mappings which need to be replayed, that is due to the "one iommu per
+     * zpci device" construct. So we don't need iommu replay currently.
+     */
+    return;
+}
+
 static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
                                         int devfn)
 {
@@ -1045,6 +1055,7 @@ static void s390_iommu_memory_region_class_init(ObjectClass *klass, void *data)
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = s390_translate_iommu;
+    imrc->replay = s390_pci_iommu_replay;
 }
 
 static const TypeInfo s390_iommu_memory_region_info = {
