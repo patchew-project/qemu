@@ -26,6 +26,10 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 
+#ifndef NAME_MAX
+#define NAME_MAX 255
+#endif
+
 /* ----------------------------------------------------------------------- */
 
 enum mtp_container_type {
