@@ -61,7 +61,7 @@ CPUState *cpu_create(const char *typename)
     if (err != NULL) {
         error_report_err(err);
         object_unref(OBJECT(cpu));
-        return NULL;
+        exit(EXIT_FAILURE);
     }
     return cpu;
 }
@@ -78,8 +78,9 @@ const char *cpu_parse_features(const char *typename, const char *cpu_model)
 
     oc = cpu_class_by_name(typename, model_pieces[0]);
     if (oc == NULL) {
+        error_report("unable to find CPU model '%s'", model_pieces[0]);
         g_strfreev(model_pieces);
-        return NULL;
+        exit(EXIT_FAILURE);
     }
 
     cpu_type = object_class_get_name(oc);
@@ -88,7 +89,7 @@ const char *cpu_parse_features(const char *typename, const char *cpu_model)
     g_strfreev(model_pieces);
     if (err != NULL) {
         error_report_err(err);
-        return NULL;
+        exit(EXIT_FAILURE);
     }
     return cpu_type;
 }
@@ -100,10 +101,8 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
      */
     const char *cpu_type = cpu_parse_features(typename, cpu_model);
 
-    if (cpu_type) {
-        return cpu_create(cpu_type);
-    }
-    return NULL;
+    assert(cpu_type);
+    return cpu_create(cpu_type);
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)

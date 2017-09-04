@@ -649,7 +649,8 @@ CPUState *cpu_create(const char *typename);
  *
  * processes optional parameters and registers them as global properties
  *
- * Returns: type of CPU to create or %NULL if an error occurred.
+ * Returns: type of CPU to create or prints error and terminates process
+ *          if an error occurred.
  */
 const char *cpu_parse_features(const char *typename, const char *cpu_model);
 
