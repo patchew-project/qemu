@@ -237,6 +237,7 @@ static inline int sccb_data_len(SCCB *sccb)
 }
 
 
+SCLPDevice *get_sclp_device(void);
 void s390_sclp_init(void);
 sclpMemoryHotplugDev *init_sclp_memory_hotplug_dev(void);
 sclpMemoryHotplugDev *get_sclp_memory_hotplug_dev(void);
