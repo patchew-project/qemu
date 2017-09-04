@@ -1,7 +1,4 @@
-#!/bin/bash
-#
-# Test NBD export with -incoming (non-shared storage migration use case from
-# libvirt)
+#!/usr/bin/env python
 #
 # Copyright (C) 2017 Red Hat, Inc.
 #
@@ -18,46 +15,33 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# Author: Kashyap Chamarthy <kchamart@redhat.com>
+#         [Converted to Python from the original Bash version by Fam
+#         Zheng (<famz@redhat.com)]
+#
+# Purpose: Test NBD export with '-incoming' (non-shared storage
+# migration use case from libvirt)
 
-# creator
-owner=famz@redhat.com
+import os
+import atexit
+import iotests
 
-seq=`basename $0`
-echo "QA output created by $seq"
+iotests.verify_platform(['linux'])
 
-here=`pwd`
-status=1	# failure is the default!
+img_size = '1G'
+test_img_path = os.path.join(iotests.test_dir, 'dest.img')
+iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, test_img_path, img_size)
 
-_cleanup()
-{
-	_cleanup_test_img
-}
-trap "_cleanup; exit \$status" 0 1 2 3 15
+iotests.log('Launching VM...')
+nbd_sock_path = os.path.join(iotests.test_dir, 'nbd.sock')
+dest_vm = (iotests.VM('dest').add_drive(test_img_path)
+                               .add_incoming('defer'))
+dest_vm.launch()
+atexit.register(dest_vm.shutdown)
 
-# get standard environment, filters and checks
-. ./common.rc
-. ./common.filter
-
-_supported_fmt generic
-_supported_proto file
-_supported_os Linux
-
-if [ "$QEMU_DEFAULT_MACHINE" != "pc" ]; then
-    _notrun "Requires a PC machine"
-fi
-
-size=64M
-_make_test_img $size
-
-{
-echo "nbd_server_start unix:$TEST_DIR/nbd"
-echo "nbd_server_add -w drive0"
-echo "q"
-} | $QEMU -nodefaults -display none -monitor stdio \
-    -drive format=$IMGFMT,file=$TEST_IMG,if=ide,id=drive0 \
-    -incoming defer 2>&1 | _filter_testdir | _filter_qemu | _filter_hmp
-
-# success, all done
-echo "*** done"
-rm -f $seq.full
-status=0
+iotests.log('Launching NBD server on destination...')
+iotests.log(dest_vm.qmp('nbd-server-start', addr={'type': 'unix', 'data': {'path': nbd_sock_path}}))
+iotests.log('Exporting the block device to NBD server...')
+iotests.log(dest_vm.qmp('nbd-server-add', device='drive0', writable=True))
+iotests.log('Stopping the NBD server on destination...')
+iotests.log(dest_vm.qmp('nbd-server-stop'))
