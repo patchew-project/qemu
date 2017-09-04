@@ -108,6 +108,9 @@
 /docs/interop/qemu-qmp-ref.html
 /docs/interop/qemu-qmp-ref.info*
 /docs/interop/qemu-qmp-ref.txt
+/docs/qemu-block-drivers.html
+/docs/qemu-block-drivers.info*
+/docs/qemu-block-drivers.txt
 /docs/version.texi
 *.tps
 .stgit-*
