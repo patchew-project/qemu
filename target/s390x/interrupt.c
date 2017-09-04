@@ -15,6 +15,9 @@
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "hw/s390x/ioinst.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/s390x/s390-virtio-ccw.h"
+#endif
 
 /* Ensure to exit the TB after this call! */
 void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen)

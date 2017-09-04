@@ -56,4 +56,7 @@ bool gs_allowed(void);
  */
 bool css_migration_enabled(void);
 
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
+void subsystem_reset(void);
+
 #endif
