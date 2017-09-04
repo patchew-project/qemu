@@ -66,7 +66,7 @@ CPUState *cpu_create(const char *typename)
     return cpu;
 }
 
-const char *cpu_parse_features(const char *typename, const char *cpu_model)
+const char *cpu_parse_cpu_model(const char *typename, const char *cpu_model)
 {
     ObjectClass *oc;
     CPUClass *cc;
@@ -99,7 +99,7 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
     /* TODO: all callers of cpu_generic_init() need to be converted to
      * call cpu_parse_features() only once, before calling cpu_generic_init().
      */
-    const char *cpu_type = cpu_parse_features(typename, cpu_model);
+    const char *cpu_type = cpu_parse_cpu_model(typename, cpu_model);
 
     assert(cpu_type);
     return cpu_create(cpu_type);
