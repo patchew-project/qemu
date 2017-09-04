@@ -209,6 +209,8 @@ static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
 
 #define ENV_OFFSET offsetof(S390CPU, env)
 
+#define S390_TCG_MAX_CPUS 1
+
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_s390_cpu;
 #endif
