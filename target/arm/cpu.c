@@ -867,7 +867,7 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     }
 
     cpuname = g_strsplit(cpu_model, ",", 1);
-    typename = g_strdup_printf("%s-" TYPE_ARM_CPU, cpuname[0]);
+    typename = g_strdup_printf("%s" ARM_CPU_TYPE_SUFFIX, cpuname[0]);
     oc = object_class_by_name(typename);
     g_strfreev(cpuname);
     g_free(typename);

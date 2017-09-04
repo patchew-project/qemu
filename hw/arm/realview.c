@@ -55,7 +55,6 @@ static void realview_init(MachineState *machine,
 {
     ARMCPU *cpu = NULL;
     CPUARMState *env;
-    ObjectClass *cpu_oc;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram_lo;
     MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
@@ -96,14 +95,8 @@ static void realview_init(MachineState *machine,
         break;
     }
 
-    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, machine->cpu_model);
-    if (!cpu_oc) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
-
     for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Object *cpuobj = object_new(machine->cpu_type);
 
         /* By default A9,A15 and ARM1176 CPUs have EL3 enabled.  This board
          * does not currently support EL3 so the CPU EL3 property is disabled
@@ -359,33 +352,21 @@ static void realview_init(MachineState *machine,
 
 static void realview_eb_init(MachineState *machine)
 {
-    if (!machine->cpu_model) {
-        machine->cpu_model = "arm926";
-    }
     realview_init(machine, BOARD_EB);
 }
 
 static void realview_eb_mpcore_init(MachineState *machine)
 {
-    if (!machine->cpu_model) {
-        machine->cpu_model = "arm11mpcore";
-    }
     realview_init(machine, BOARD_EB_MPCORE);
 }
 
 static void realview_pb_a8_init(MachineState *machine)
 {
-    if (!machine->cpu_model) {
-        machine->cpu_model = "cortex-a8";
-    }
     realview_init(machine, BOARD_PB_A8);
 }
 
 static void realview_pbx_a9_init(MachineState *machine)
 {
-    if (!machine->cpu_model) {
-        machine->cpu_model = "cortex-a9";
-    }
     realview_init(machine, BOARD_PBX_A9);
 }
 
@@ -396,6 +377,7 @@ static void realview_eb_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)";
     mc->init = realview_eb_init;
     mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 }
 
 static const TypeInfo realview_eb_type = {
@@ -412,6 +394,7 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->init = realview_eb_mpcore_init;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
 }
 
 static const TypeInfo realview_eb_mpcore_type = {
@@ -426,6 +409,7 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ARM RealView Platform Baseboard for Cortex-A8";
     mc->init = realview_pb_a8_init;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
 }
 
 static const TypeInfo realview_pb_a8_type = {
@@ -441,6 +425,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM RealView Platform Baseboard Explore for Cortex-A9";
     mc->init = realview_pbx_a9_init;
     mc->max_cpus = 4;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
 }
 
 static const TypeInfo realview_pbx_a9_type = {

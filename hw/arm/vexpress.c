@@ -184,7 +184,7 @@ typedef struct {
 
 typedef void DBoardInitFn(const VexpressMachineState *machine,
                           ram_addr_t ram_size,
-                          const char *cpu_model,
+                          const char *cpu_type,
                           qemu_irq *pic);
 
 struct VEDBoardInfo {
@@ -200,22 +200,16 @@ struct VEDBoardInfo {
     DBoardInitFn *init;
 };
 
-static void init_cpus(const char *cpu_model, const char *privdev,
+static void init_cpus(const char *cpu_type, const char *privdev,
                       hwaddr periphbase, qemu_irq *pic, bool secure)
 {
-    ObjectClass *cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
     DeviceState *dev;
     SysBusDevice *busdev;
     int n;
 
-    if (!cpu_oc) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
-
     /* Create the actual CPUs */
     for (n = 0; n < smp_cpus; n++) {
-        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Object *cpuobj = object_new(cpu_type);
 
         if (!secure) {
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
@@ -260,17 +254,13 @@ static void init_cpus(const char *cpu_model, const char *privdev,
 
 static void a9_daughterboard_init(const VexpressMachineState *vms,
                                   ram_addr_t ram_size,
-                                  const char *cpu_model,
+                                  const char *cpu_type,
                                   qemu_irq *pic)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
     ram_addr_t low_ram_size;
-
-    if (!cpu_model) {
-        cpu_model = "cortex-a9";
-    }
 
     if (ram_size > 0x40000000) {
         /* 1GB is the maximum the address space permits */
@@ -293,7 +283,7 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
-    init_cpus(cpu_model, "a9mpcore_priv", 0x1e000000, pic, vms->secure);
+    init_cpus(cpu_type, "a9mpcore_priv", 0x1e000000, pic, vms->secure);
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
@@ -349,16 +339,12 @@ static VEDBoardInfo a9_daughterboard = {
 
 static void a15_daughterboard_init(const VexpressMachineState *vms,
                                    ram_addr_t ram_size,
-                                   const char *cpu_model,
+                                   const char *cpu_type,
                                    qemu_irq *pic)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-
-    if (!cpu_model) {
-        cpu_model = "cortex-a15";
-    }
 
     {
         /* We have to use a separate 64 bit variable here to avoid the gcc
@@ -378,7 +364,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x80000000, ram);
 
     /* 0x2c000000 A15MPCore private memory region (GIC) */
-    init_cpus(cpu_model, "a15mpcore_priv", 0x2c000000, pic, vms->secure);
+    init_cpus(cpu_type, "a15mpcore_priv", 0x2c000000, pic, vms->secure);
 
     /* A15 daughterboard peripherals: */
 
@@ -558,7 +544,7 @@ static void vexpress_common_init(MachineState *machine)
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
-    daughterboard->init(vms, machine->ram_size, machine->cpu_model, pic);
+    daughterboard->init(vms, machine->ram_size, machine->cpu_type, pic);
 
     /*
      * If a bios file was provided, attempt to map it into memory
@@ -758,6 +744,7 @@ static void vexpress_a9_class_init(ObjectClass *oc, void *data)
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
 
     mc->desc = "ARM Versatile Express for Cortex-A9";
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
 
     vmc->daughterboard = &a9_daughterboard;
 }
@@ -768,6 +755,7 @@ static void vexpress_a15_class_init(ObjectClass *oc, void *data)
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
 
     mc->desc = "ARM Versatile Express for Cortex-A15";
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
 
     vmc->daughterboard = &a15_daughterboard;
 }

@@ -55,7 +55,7 @@ typedef struct ARMv7MState {
     MemoryRegion container;
 
     /* Properties */
-    char *cpu_model;
+    char *cpu_type;
     /* MemoryRegion the board provides to us (with its devices, RAM, etc) */
     MemoryRegion *board_memory;
 } ARMv7MState;
