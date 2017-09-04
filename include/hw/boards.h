@@ -131,6 +131,10 @@ typedef struct {
  *    size than the target architecture's minimum. (Attempting to create
  *    such a CPU will fail.) Note that changing this is a migration
  *    compatibility break for the machine.
+ * @default_cpu_type:
+ *    specifies default CPU_TYPE, which will be used for parsing target
+ *    specific features and for creating CPUs if CPU name wasn't provided
+ *    explicitly at CLI
  */
 struct MachineClass {
     /*< private >*/
@@ -167,6 +171,7 @@ struct MachineClass {
     GArray *compat_props;
     const char *hw_version;
     ram_addr_t default_ram_size;
+    const char *default_cpu_type;
     bool option_rom_has_mr;
     bool rom_file_has_mr;
     int minimum_page_bits;
@@ -220,6 +225,7 @@ struct MachineState {
     char *kernel_cmdline;
     char *initrd_filename;
     const char *cpu_model;
+    const char *cpu_type;
     AccelState *accelerator;
     CPUArchIdList *possible_cpus;
 };
