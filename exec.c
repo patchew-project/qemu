@@ -23,7 +23,6 @@
 
 #include "qemu/cutils.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exec/target_page.h"
 #include "tcg.h"
 #include "hw/qdev-core.h"
@@ -56,7 +55,6 @@
 #endif
 
 #endif
-#include "exec/cpu-all.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
 #include "translate-all.h"
