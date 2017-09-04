@@ -906,8 +906,34 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 check-tests/qapi-schema/doc-good.texi: tests/qapi-schema/doc-good.test.texi
 	@diff -q $(SRC_PATH)/tests/qapi-schema/doc-good.texi $<
 
-# Consolidated targets
+tests-cleanfiles = *.o
+tests-cleanfiles += .gitignore
+tests-cleanfiles += qht-bench$(EXESUF)
+tests-cleanfiles += qapi-schema/*.test.*
+tests-cleanfiles += test-qapi-event.[ch]
+tests-cleanfiles += test-qapi-types.[ch]
+tests-cleanfiles += test-qapi-visit.[ch]
+tests-cleanfiles += test-qmp-introspect.[ch]
+tests-cleanfiles += test-qmp-commands.h
+tests-cleanfiles += test-qmp-marshal.c
+tests-cleanfiles += $(subst tests/,,$(check-unit-y))
+tests-cleanfiles += $(subst tests/,,$(check-speed-y))
+tests-cleanfiles += $(subst tests/,,$(check-block-y))
+tests-cleanfiles += $(subst tests/,,$(check-qtest-y))
+tests-cleanfiles += $(subst tests/,,$(QEMU_IOTESTS_HELPERS-y))
+tests-cleanfiles += migration/initrd-stress.img
+tests-cleanfiles += migration/stress$(EXESUF)
+tests-cleanfiles += atomic_add-bench$(EXESUF)
+tests-cleanfiles += test-io-channel-file.txt
+tests-cleanfiles += test-io-channel-command.fifo
 
+tests-cleandirs += test-crypto-tlscredsx509-certs/
+tests-cleandirs += test-crypto-tlscredsx509-work/
+tests-cleandirs += test-crypto-tlssession-client/
+tests-cleandirs += test-crypto-tlssession-server/
+tests-cleandirs += test-crypto-tlssession-work/
+
+# Consolidated targets
 .PHONY: check-qapi-schema check-qtest check-unit check check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y)) check-tests/qapi-schema/doc-good.texi
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
@@ -917,14 +943,19 @@ check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-qapi-schema check-unit check-qtest
 check-clean:
 	$(MAKE) -C tests/tcg clean
-	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
-	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)) $(check-qtest-generic-y))
-
+	rm -f $(addprefix tests/, $(tests-cleanfiles))
+	rm -rf $(addprefix tests/, $(tests-cleandirs))
 clean: check-clean
 
 # Build the help program automatically
 
 all: $(QEMU_IOTESTS_HELPERS-y)
+
+$(SRC_PATH)/tests/.gitignore: $(MAKEFILE_LIST)
+	$(call quiet-command, echo "$(tests-cleanfiles)" "$(tests-cleandirs)" | \
+		xargs -n1 | sort | uniq | sed -e s:^:/: > $@,"GEN","$(@F)")
+
+gitignore: $(SRC_PATH)/tests/.gitignore
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)
