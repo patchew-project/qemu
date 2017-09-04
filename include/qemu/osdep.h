@@ -306,6 +306,11 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #endif
 #endif
 
+/* Required by SmartOS (SunOS) */
+#ifndef NAME_MAX
+#define NAME_MAX 255
+#endif
+
 #if defined(__linux__) && \
     (defined(__x86_64__) || defined(__arm__) || defined(__aarch64__))
    /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
