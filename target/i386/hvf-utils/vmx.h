@@ -31,45 +31,45 @@
 
 #include "exec/address-spaces.h"
 
-static uint64_t inline rreg(hv_vcpuid_t vcpu, hv_x86_reg_t reg)
+static inline uint64_t rreg(hv_vcpuid_t vcpu, hv_x86_reg_t reg)
 {
-	uint64_t v;
+    uint64_t v;
 
-	if (hv_vcpu_read_register(vcpu, reg, &v)) {
-		abort();
-	}
+    if (hv_vcpu_read_register(vcpu, reg, &v)) {
+        abort();
+    }
 
-	return v;
+    return v;
 }
 
 /* write GPR */
-static void inline wreg(hv_vcpuid_t vcpu, hv_x86_reg_t reg, uint64_t v)
+static inline void wreg(hv_vcpuid_t vcpu, hv_x86_reg_t reg, uint64_t v)
 {
-	if (hv_vcpu_write_register(vcpu, reg, v)) {
-		abort();
-	}
+    if (hv_vcpu_write_register(vcpu, reg, v)) {
+        abort();
+    }
 }
 
 /* read VMCS field */
-static uint64_t inline rvmcs(hv_vcpuid_t vcpu, uint32_t field)
+static inline uint64_t rvmcs(hv_vcpuid_t vcpu, uint32_t field)
 {
-	uint64_t v;
+    uint64_t v;
 
-	hv_vmx_vcpu_read_vmcs(vcpu, field, &v);
+    hv_vmx_vcpu_read_vmcs(vcpu, field, &v);
 
-	return v;
+    return v;
 }
 
 /* write VMCS field */
-static void inline wvmcs(hv_vcpuid_t vcpu, uint32_t field, uint64_t v)
+static inline void wvmcs(hv_vcpuid_t vcpu, uint32_t field, uint64_t v)
 {
-	hv_vmx_vcpu_write_vmcs(vcpu, field, v);
+    hv_vmx_vcpu_write_vmcs(vcpu, field, v);
 }
 
 /* desired control word constrained by hardware/hypervisor capabilities */
-static uint64_t inline cap2ctrl(uint64_t cap, uint64_t ctrl)
+static inline uint64_t cap2ctrl(uint64_t cap, uint64_t ctrl)
 {
-	return (ctrl | (cap & 0xffffffff)) & (cap >> 32);
+    return (ctrl | (cap & 0xffffffff)) & (cap >> 32);
 }
 
 #define VM_ENTRY_GUEST_LMA (1LL << 9)
@@ -91,11 +91,14 @@ static void enter_long_mode(hv_vcpuid_t vcpu, uint64_t cr0, uint64_t efer)
     efer |= EFER_LMA;
     wvmcs(vcpu, VMCS_GUEST_IA32_EFER, efer);
     entry_ctls = rvmcs(vcpu, VMCS_ENTRY_CTLS);
-    wvmcs(vcpu, VMCS_ENTRY_CTLS, rvmcs(vcpu, VMCS_ENTRY_CTLS) | VM_ENTRY_GUEST_LMA);
+    wvmcs(vcpu, VMCS_ENTRY_CTLS, rvmcs(vcpu, VMCS_ENTRY_CTLS) |
+          VM_ENTRY_GUEST_LMA);
 
     uint64_t guest_tr_ar = rvmcs(vcpu, VMCS_GUEST_TR_ACCESS_RIGHTS);
-    if ((efer & EFER_LME) && (guest_tr_ar & AR_TYPE_MASK) != AR_TYPE_BUSY_64_TSS) {
-        wvmcs(vcpu, VMCS_GUEST_TR_ACCESS_RIGHTS, (guest_tr_ar & ~AR_TYPE_MASK) | AR_TYPE_BUSY_64_TSS);
+    if ((efer & EFER_LME) &&
+        (guest_tr_ar & AR_TYPE_MASK) != AR_TYPE_BUSY_64_TSS) {
+        wvmcs(vcpu, VMCS_GUEST_TR_ACCESS_RIGHTS,
+              (guest_tr_ar & ~AR_TYPE_MASK) | AR_TYPE_BUSY_64_TSS);
     }
 }
 
@@ -110,39 +113,45 @@ static void exit_long_mode(hv_vcpuid_t vcpu, uint64_t cr0, uint64_t efer)
     wvmcs(vcpu, VMCS_GUEST_IA32_EFER, efer);
 }
 
-static void inline macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
+static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
 {
     int i;
     uint64_t pdpte[4] = {0, 0, 0, 0};
     uint64_t efer = rvmcs(vcpu, VMCS_GUEST_IA32_EFER);
     uint64_t old_cr0 = rvmcs(vcpu, VMCS_GUEST_CR0);
 
-    if ((cr0 & CR0_PG) && (rvmcs(vcpu, VMCS_GUEST_CR4) & CR4_PAE) && !(efer & EFER_LME))
-        address_space_rw(&address_space_memory, rvmcs(vcpu, VMCS_GUEST_CR3) & ~0x1f,
+    if ((cr0 & CR0_PG) && (rvmcs(vcpu, VMCS_GUEST_CR4) & CR4_PAE) &&
+        !(efer & EFER_LME)) {
+        address_space_rw(&address_space_memory,
+                         rvmcs(vcpu, VMCS_GUEST_CR3) & ~0x1f,
                          MEMTXATTRS_UNSPECIFIED,
                          (uint8_t *)pdpte, 32, 0);
+    }
 
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) {
         wvmcs(vcpu, VMCS_GUEST_PDPTE0 + i * 2, pdpte[i]);
+    }
 
     wvmcs(vcpu, VMCS_CR0_MASK, CR0_CD | CR0_NE | CR0_PG);
     wvmcs(vcpu, VMCS_CR0_SHADOW, cr0);
 
     cr0 &= ~CR0_CD;
-    wvmcs(vcpu, VMCS_GUEST_CR0, cr0 | CR0_NE| CR0_ET);
+    wvmcs(vcpu, VMCS_GUEST_CR0, cr0 | CR0_NE | CR0_ET);
 
     if (efer & EFER_LME) {
-        if (!(old_cr0 & CR0_PG) && (cr0 & CR0_PG))
-             enter_long_mode(vcpu, cr0, efer);
-        if (/*(old_cr0 & CR0_PG) &&*/ !(cr0 & CR0_PG))
+        if (!(old_cr0 & CR0_PG) && (cr0 & CR0_PG)) {
+            enter_long_mode(vcpu, cr0, efer);
+        }
+        if (/*(old_cr0 & CR0_PG) &&*/ !(cr0 & CR0_PG)) {
             exit_long_mode(vcpu, cr0, efer);
+        }
     }
 
     hv_vcpu_invalidate_tlb(vcpu);
     hv_vcpu_flush(vcpu);
 }
 
-static void inline macvm_set_cr4(hv_vcpuid_t vcpu, uint64_t cr4)
+static inline void macvm_set_cr4(hv_vcpuid_t vcpu, uint64_t cr4)
 {
     uint64_t guest_cr4 = cr4 | CR4_VMXE;
 
@@ -153,7 +162,7 @@ static void inline macvm_set_cr4(hv_vcpuid_t vcpu, uint64_t cr4)
     hv_vcpu_flush(vcpu);
 }
 
-static void inline macvm_set_rip(CPUState *cpu, uint64_t rip)
+static inline void macvm_set_rip(CPUState *cpu, uint64_t rip)
 {
     uint64_t val;
 
@@ -162,39 +171,44 @@ static void inline macvm_set_rip(CPUState *cpu, uint64_t rip)
 
     /* after moving forward in rip, we need to clean INTERRUPTABILITY */
    val = rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY);
-   if (val & (VMCS_INTERRUPTIBILITY_STI_BLOCKING | VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING))
+   if (val & (VMCS_INTERRUPTIBILITY_STI_BLOCKING |
+               VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)) {
         wvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY,
-              val & ~(VMCS_INTERRUPTIBILITY_STI_BLOCKING | VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING));
+               val & ~(VMCS_INTERRUPTIBILITY_STI_BLOCKING |
+               VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING));
+   }
 }
 
-static void inline vmx_clear_nmi_blocking(CPUState *cpu)
+static inline void vmx_clear_nmi_blocking(CPUState *cpu)
 {
     uint32_t gi = (uint32_t) rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY);
     gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
     wvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY, gi);
 }
 
-static void inline vmx_set_nmi_blocking(CPUState *cpu)
+static inline void vmx_set_nmi_blocking(CPUState *cpu)
 {
     uint32_t gi = (uint32_t)rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY);
     gi |= VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
     wvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY, gi);
 }
 
-static void inline vmx_set_nmi_window_exiting(CPUState *cpu)
+static inline void vmx_set_nmi_window_exiting(CPUState *cpu)
 {
     uint64_t val;
     val = rvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
-    wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val | VMCS_PRI_PROC_BASED_CTLS_NMI_WINDOW_EXITING);
+    wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val |
+          VMCS_PRI_PROC_BASED_CTLS_NMI_WINDOW_EXITING);
 
 }
 
-static void inline vmx_clear_nmi_window_exiting(CPUState *cpu)
+static inline void vmx_clear_nmi_window_exiting(CPUState *cpu)
 {
 
     uint64_t val;
     val = rvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
-    wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val & ~VMCS_PRI_PROC_BASED_CTLS_NMI_WINDOW_EXITING);
+    wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val &
+          ~VMCS_PRI_PROC_BASED_CTLS_NMI_WINDOW_EXITING);
 }
 
 #endif

@@ -44,8 +44,9 @@ struct x86_cpuid {
 
 struct CPUState;
 
-void init_cpuid(struct CPUState* cpu);
-void get_cpuid_func(struct CPUState *cpu, int func, int cnt, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
+void init_cpuid(struct CPUState *cpu);
+void get_cpuid_func(struct CPUState *cpu, int func, int cnt, uint32_t *eax,
+                    uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 #endif /* __CPUID_H__ */
 

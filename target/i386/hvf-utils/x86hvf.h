@@ -24,7 +24,8 @@ int hvf_process_events(CPUState *);
 int hvf_put_registers(CPUState *);
 int hvf_get_registers(CPUState *);
 void hvf_inject_interrupts(CPUState *);
-void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg, SegmentCache *qseg, bool is_tr);
+void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg,
+                     SegmentCache *qseg, bool is_tr);
 void hvf_get_segment(SegmentCache *qseg, struct vmx_segment *vmx_seg);
 void hvf_put_xsave(CPUState *cpu_state);
 void hvf_put_segments(CPUState *cpu_state);

@@ -55,19 +55,24 @@ typedef struct lazy_flags {
 #define GET_ADD_OVERFLOW(op1, op2, result, mask) \
    ((((op1) ^ (result)) & ((op2) ^ (result))) & (mask))
 
-// *******************
-// OSZAPC
-// *******************
+/* ******************* */
+/* OSZAPC */
+/* ******************* */
 
 /* size, carries, result */
 #define SET_FLAGS_OSZAPC_SIZE(size, lf_carries, lf_result) { \
     addr_t temp = ((lf_carries) & (LF_MASK_AF)) | \
     (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
     cpu->hvf_x86->lflags.result = (addr_t)(int##size##_t)(lf_result); \
-    if ((size) == 32) temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
-    else if ((size) == 16) temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 16); \
-    else if ((size) == 8)  temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 24); \
-    else VM_PANIC("unimplemented");                                                    \
+    if ((size) == 32) { \
+        temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
+    } else if ((size) == 16) { \
+        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 16); \
+    } else if ((size) == 8)  { \
+        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 24); \
+    } else { \
+        VM_PANIC("unimplemented");  \
+    } \
     cpu->hvf_x86->lflags.auxbits = (addr_t)(uint32_t)temp; \
 }
 
@@ -87,10 +92,15 @@ typedef struct lazy_flags {
 #define SET_FLAGS_OSZAPC_LOGIC_32(result_32) \
     SET_FLAGS_OSZAPC_32(0, (result_32))
 #define SET_FLAGS_OSZAPC_LOGIC_SIZE(size, result) {             \
-    if (32 == size) {SET_FLAGS_OSZAPC_LOGIC_32(result);}        \
-    else if (16 == size) {SET_FLAGS_OSZAPC_LOGIC_16(result);}   \
-    else if (8 == size) {SET_FLAGS_OSZAPC_LOGIC_8(result);}     \
-    else VM_PANIC("unimplemented");                            \
+    if (32 == size) { \
+        SET_FLAGS_OSZAPC_LOGIC_32(result); \
+    } else if (16 == size) { \
+        SET_FLAGS_OSZAPC_LOGIC_16(result); \
+    } else if (8 == size) { \
+        SET_FLAGS_OSZAPC_LOGIC_8(result); \
+    } else { \
+        VM_PANIC("unimplemented");                            \
+    } \
 }
 
 /* op1, op2, result */
@@ -109,17 +119,22 @@ typedef struct lazy_flags {
 #define SET_FLAGS_OSZAPC_SUB_32(op1_32, op2_32, diff_32) \
     SET_FLAGS_OSZAPC_32(SUB_COUT_VEC((op1_32), (op2_32), (diff_32)), (diff_32))
 
-// *******************
-// OSZAP
-// *******************
+/* ******************* */
+/* OSZAP */
+/* ******************* */
 /* size, carries, result */
 #define SET_FLAGS_OSZAP_SIZE(size, lf_carries, lf_result) { \
     addr_t temp = ((lf_carries) & (LF_MASK_AF)) | \
     (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
-    if ((size) == 32) temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
-    else if ((size) == 16) temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 16); \
-    else if ((size) == 8)  temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 24); \
-    else VM_PANIC("unimplemented");                                                    \
+    if ((size) == 32) { \
+        temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
+    } else if ((size) == 16) { \
+        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 16); \
+    } else if ((size) == 8) { \
+        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 24); \
+    } else { \
+        VM_PANIC("unimplemented");      \
+    } \
     cpu->hvf_x86->lflags.result = (addr_t)(int##size##_t)(lf_result); \
     addr_t delta_c = (cpu->hvf_x86->lflags.auxbits ^ temp) & LF_MASK_CF; \
     delta_c ^= (delta_c >> 1); \
@@ -150,9 +165,9 @@ typedef struct lazy_flags {
 #define SET_FLAGS_OSZAP_SUB_32(op1_32, op2_32, diff_32) \
     SET_FLAGS_OSZAP_32(SUB_COUT_VEC((op1_32), (op2_32), (diff_32)), (diff_32))
 
-// *******************
-// OSZAxC
-// *******************
+/* ******************* */
+/* OSZAxC */
+/* ******************* */
 /* size, carries, result */
 #define SET_FLAGS_OSZAxC_LOGIC_SIZE(size, lf_result) { \
     bool saved_PF = getB_PF(); \
@@ -183,21 +198,33 @@ void set_OSZAPC(struct CPUState *cpu, uint32_t flags32);
 
 void SET_FLAGS_OxxxxC(struct CPUState *cpu, uint32_t new_of, uint32_t new_cf);
 
-void SET_FLAGS_OSZAPC_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff);
-void SET_FLAGS_OSZAPC_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff);
-void SET_FLAGS_OSZAPC_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff);
+void SET_FLAGS_OSZAPC_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                            uint32_t diff);
+void SET_FLAGS_OSZAPC_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                            uint16_t diff);
+void SET_FLAGS_OSZAPC_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                           uint8_t diff);
 
-void SET_FLAGS_OSZAPC_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff);
-void SET_FLAGS_OSZAPC_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff);
-void SET_FLAGS_OSZAPC_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff);
+void SET_FLAGS_OSZAPC_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                            uint32_t diff);
+void SET_FLAGS_OSZAPC_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                            uint16_t diff);
+void SET_FLAGS_OSZAPC_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                           uint8_t diff);
 
-void SET_FLAGS_OSZAP_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff);
-void SET_FLAGS_OSZAP_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff);
-void SET_FLAGS_OSZAP_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff);
+void SET_FLAGS_OSZAP_SUB32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                           uint32_t diff);
+void SET_FLAGS_OSZAP_SUB16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                           uint16_t diff);
+void SET_FLAGS_OSZAP_SUB8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                          uint8_t diff);
 
-void SET_FLAGS_OSZAP_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2, uint32_t diff);
-void SET_FLAGS_OSZAP_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2, uint16_t diff);
-void SET_FLAGS_OSZAP_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2, uint8_t diff);
+void SET_FLAGS_OSZAP_ADD32(struct CPUState *cpu, uint32_t v1, uint32_t v2,
+                           uint32_t diff);
+void SET_FLAGS_OSZAP_ADD16(struct CPUState *cpu, uint16_t v1, uint16_t v2,
+                           uint16_t diff);
+void SET_FLAGS_OSZAP_ADD8(struct CPUState *cpu, uint8_t v1, uint8_t v2,
+                          uint8_t diff);
 
 void SET_FLAGS_OSZAPC_LOGIC32(struct CPUState *cpu, uint32_t diff);
 void SET_FLAGS_OSZAPC_LOGIC16(struct CPUState *cpu, uint16_t diff);

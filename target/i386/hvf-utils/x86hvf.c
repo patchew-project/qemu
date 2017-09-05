@@ -37,14 +37,16 @@
 
 void hvf_cpu_synchronize_state(struct CPUState* cpu_state);
 
-void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg, SegmentCache *qseg, bool is_tr)
+void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg,
+                     SegmentCache *qseg, bool is_tr)
 {
     vmx_seg->sel = qseg->selector;
     vmx_seg->base = qseg->base;
     vmx_seg->limit = qseg->limit;
 
     if (!qseg->selector && !x86_is_real(cpu) && !is_tr) {
-        // the TR register is usable after processor reset despite having a null selector
+        /* the TR register is usable after processor reset despite
+         * having a null selector */
         vmx_seg->ar = 1 << 16;
         return;
     }
@@ -122,7 +124,7 @@ void hvf_put_segments(CPUState *cpu_state)
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_GDTR_LIMIT, env->gdt.limit);
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_GDTR_BASE, env->gdt.base);
 
-    //wvmcs(cpu_state->hvf_fd, VMCS_GUEST_CR2, env->cr[2]);
+    /* wvmcs(cpu_state->hvf_fd, VMCS_GUEST_CR2, env->cr[2]); */
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_CR3, env->cr[3]);
     vmx_update_tpr(cpu_state);
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_IA32_EFER, env->efer);
@@ -161,9 +163,12 @@ void hvf_put_msrs(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
 
-    hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_CS, env->sysenter_cs);
-    hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
-    hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_EIP, env->sysenter_eip);
+    hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_CS,
+                      env->sysenter_cs);
+    hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_ESP,
+                      env->sysenter_esp);
+    hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_EIP,
+                      env->sysenter_eip);
 
     hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_STAR, env->star);
 
@@ -177,8 +182,8 @@ void hvf_put_msrs(CPUState *cpu_state)
     hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_GSBASE, env->segs[R_GS].base);
     hv_vcpu_write_msr(cpu_state->hvf_fd, MSR_FSBASE, env->segs[R_FS].base);
 
-    // if (!osx_is_sierra())
-    //     wvmcs(cpu_state->hvf_fd, VMCS_TSC_OFFSET, env->tsc - rdtscp());
+    /* if (!osx_is_sierra())
+         wvmcs(cpu_state->hvf_fd, VMCS_TSC_OFFSET, env->tsc - rdtscp());*/
     hv_vm_sync_tsc(env->tsc);
 }
 
@@ -385,14 +390,16 @@ static void vmx_set_int_window_exiting(CPUState *cpu)
 {
      uint64_t val;
      val = rvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
-     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val | VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
+     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val |
+             VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
 }
 
 void vmx_clear_int_window_exiting(CPUState *cpu)
 {
      uint64_t val;
      val = rvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
-     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val & ~VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
+     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val &
+             ~VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
 }
 
 #define NMI_VEC 2
@@ -400,7 +407,8 @@ void vmx_clear_int_window_exiting(CPUState *cpu)
 void hvf_inject_interrupts(CPUState *cpu_state)
 {
     X86CPU *x86cpu = X86_CPU(cpu_state);
-    int allow_nmi = !(rvmcs(cpu_state->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) & VMCS_INTERRUPTIBILITY_NMI_BLOCKING);
+    int allow_nmi = !(rvmcs(cpu_state->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
+            VMCS_INTERRUPTIBILITY_NMI_BLOCKING);
 
     uint64_t idt_info = rvmcs(cpu_state->hvf_fd, VMCS_IDT_VECTORING_INFO);
     uint64_t info = 0;
@@ -421,7 +429,8 @@ void hvf_inject_interrupts(CPUState *cpu_state)
             if (intr_type == VMCS_INTR_T_SWINTR ||
                 intr_type == VMCS_INTR_T_PRIV_SWEXCEPTION ||
                 intr_type == VMCS_INTR_T_SWEXCEPTION) {
-                uint64_t ins_len = rvmcs(cpu_state->hvf_fd, VMCS_EXIT_INSTRUCTION_LENGTH);
+                uint64_t ins_len = rvmcs(cpu_state->hvf_fd,
+                                         VMCS_EXIT_INSTRUCTION_LENGTH);
                 wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INST_LENGTH, ins_len);
             }
             if (vector == EXCEPTION_BP || vector == EXCEPTION_OF) {
@@ -431,7 +440,8 @@ void hvf_inject_interrupts(CPUState *cpu_state)
                  */
                 info &= ~VMCS_INTR_T_MASK;
                 info |= VMCS_INTR_T_SWEXCEPTION;
-                uint64_t ins_len = rvmcs(cpu_state->hvf_fd, VMCS_EXIT_INSTRUCTION_LENGTH);
+                uint64_t ins_len = rvmcs(cpu_state->hvf_fd,
+                                         VMCS_EXIT_INSTRUCTION_LENGTH);
                 wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INST_LENGTH, ins_len);
             }
             
@@ -440,7 +450,7 @@ void hvf_inject_interrupts(CPUState *cpu_state)
                 err = rvmcs(cpu_state->hvf_fd, VMCS_IDT_VECTORING_ERROR);
                 wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_EXCEPTION_ERROR, err);
             }
-            //printf("reinject  %lx err %d\n", info, err);
+            /*printf("reinject  %lx err %d\n", info, err);*/
             wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INTR_INFO, info);
         };
     }
@@ -455,15 +465,19 @@ void hvf_inject_interrupts(CPUState *cpu_state)
         }
     }
 
-    if (cpu_state->hvf_x86->interruptable && (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if (cpu_state->hvf_x86->interruptable &&
+        (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
         (EFLAGS(cpu_state) & IF_MASK) && !(info & VMCS_INTR_VALID)) {
         int line = cpu_get_pic_interrupt(&x86cpu->env);
         cpu_state->interrupt_request &= ~CPU_INTERRUPT_HARD;
-        if (line >= 0)
-            wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INTR_INFO, line | VMCS_INTR_VALID | VMCS_INTR_T_HWINTR);
+        if (line >= 0) {
+            wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INTR_INFO, line |
+                  VMCS_INTR_VALID | VMCS_INTR_T_HWINTR);
+        }
     }
-    if (cpu_state->interrupt_request & CPU_INTERRUPT_HARD)
+    if (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) {
         vmx_set_int_window_exiting(cpu_state);
+    }
 }
 
 int hvf_process_events(CPUState *cpu_state)
@@ -482,7 +496,8 @@ int hvf_process_events(CPUState *cpu_state)
         cpu_state->interrupt_request &= ~CPU_INTERRUPT_POLL;
         apic_poll_irq(cpu->apic_state);
     }
-    if (((cpu_state->interrupt_request & CPU_INTERRUPT_HARD) && (EFLAGS(cpu_state) & IF_MASK)) ||
+    if (((cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
+        (EFLAGS(cpu_state) & IF_MASK)) ||
         (cpu_state->interrupt_request & CPU_INTERRUPT_NMI)) {
         cpu_state->halted = 0;
     }
