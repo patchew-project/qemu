@@ -242,4 +242,6 @@ void SET_FLAGS_SHL32(struct CPUState *cpu, uint32_t v, int count, uint32_t res);
 void SET_FLAGS_SHL16(struct CPUState *cpu, uint16_t v, int count, uint16_t res);
 void SET_FLAGS_SHL8(struct CPUState *cpu, uint8_t v, int count, uint8_t res);
 
+bool _get_OF(struct CPUState *cpu);
+bool _get_CF(struct CPUState *cpu);
 #endif /* __X86_FLAGS_H__ */

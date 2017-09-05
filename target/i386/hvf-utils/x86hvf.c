@@ -35,8 +35,6 @@
 #include <Hypervisor/hv_vmx.h>
 #include <stdint.h>
 
-void hvf_cpu_synchronize_state(struct CPUState* cpu_state);
-
 void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg,
                      SegmentCache *qseg, bool is_tr)
 {
@@ -112,7 +110,6 @@ void hvf_put_xsave(CPUState *cpu_state)
     }
 }
 
-void vmx_update_tpr(CPUState *cpu);
 void hvf_put_segments(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;

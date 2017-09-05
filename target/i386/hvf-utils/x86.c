@@ -26,7 +26,7 @@
 #include "x86_mmu.h"
 #include "x86_descr.h"
 
-static uint32_t x86_segment_access_rights(struct x86_segment_descriptor *var)
+/* static uint32_t x86_segment_access_rights(struct x86_segment_descriptor *var)
 {
    uint32_t ar;
 

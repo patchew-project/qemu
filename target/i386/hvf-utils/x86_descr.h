@@ -47,3 +47,9 @@ void x86_segment_descriptor_to_vmx(struct CPUState *cpu,
                                    x68_segment_selector selector,
                                    struct x86_segment_descriptor *desc,
                                    struct vmx_segment *vmx_desc);
+
+uint32_t vmx_read_segment_limit(CPUState *cpu, x86_reg_segment seg);
+uint32_t vmx_read_segment_ar(CPUState *cpu, x86_reg_segment seg);
+void vmx_segment_to_x86_descriptor(struct CPUState *cpu,
+                                   struct vmx_segment *vmx_desc,
+                                   struct x86_segment_descriptor *desc);

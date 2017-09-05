@@ -45,7 +45,6 @@
 #include "vmcs.h"
 #include "vmx.h"
 
-static void print_debug(struct CPUState *cpu);
 void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
                    int direction, int size, uint32_t count);
 
@@ -1473,13 +1472,11 @@ void load_regs(struct CPUState *cpu)
     RRX(cpu, REG_RBP) = rreg(cpu->hvf_fd, HV_X86_RBP);
     for (i = 8; i < 16; i++) {
         RRX(cpu, i) = rreg(cpu->hvf_fd, HV_X86_RAX + i);
-    
     }
+
     RFLAGS(cpu) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
     rflags_to_lflags(cpu);
     RIP(cpu) = rreg(cpu->hvf_fd, HV_X86_RIP);
-
-    //print_debug(cpu);
 }
 
 void store_regs(struct CPUState *cpu)

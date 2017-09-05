@@ -53,7 +53,7 @@
 
 pthread_rwlock_t mem_lock = PTHREAD_RWLOCK_INITIALIZER;
 HVFState *hvf_state;
-static int hvf_disabled = 1;
+int hvf_disabled = 1;
 
 static void assert_hvf_ok(hv_return_t ret)
 {
@@ -62,26 +62,26 @@ static void assert_hvf_ok(hv_return_t ret)
     }
 
     switch (ret) {
-        case HV_ERROR:
-            fprintf(stderr, "Error: HV_ERROR\n");
-            break;
-        case HV_BUSY:
-            fprintf(stderr, "Error: HV_BUSY\n");
-            break;
-        case HV_BAD_ARGUMENT:
-            fprintf(stderr, "Error: HV_BAD_ARGUMENT\n");
-            break;
-        case HV_NO_RESOURCES:
-            fprintf(stderr, "Error: HV_NO_RESOURCES\n");
-            break;
-        case HV_NO_DEVICE:
-            fprintf(stderr, "Error: HV_NO_DEVICE\n");
-            break;
-        case HV_UNSUPPORTED:
-            fprintf(stderr, "Error: HV_UNSUPPORTED\n");
-            break;
-        default:
-            fprintf(stderr, "Unknown Error\n");
+    case HV_ERROR:
+        error_report("Error: HV_ERROR\n");
+        break;
+    case HV_BUSY:
+        error_report("Error: HV_BUSY\n");
+        break;
+    case HV_BAD_ARGUMENT:
+        error_report("Error: HV_BAD_ARGUMENT\n");
+        break;
+    case HV_NO_RESOURCES:
+        error_report("Error: HV_NO_RESOURCES\n");
+        break;
+    case HV_NO_DEVICE:
+        error_report("Error: HV_NO_DEVICE\n");
+        break;
+    case HV_UNSUPPORTED:
+        error_report("Error: HV_UNSUPPORTED\n");
+        break;
+    default:
+        error_report("Unknown Error\n");
     }
 
     abort();
@@ -112,11 +112,10 @@ struct mac_slot {
 struct mac_slot mac_slots[32];
 #define ALIGN(x, y)  (((x) + (y) - 1) & ~((y) - 1))
 
-int __hvf_set_memory(hvf_slot *slot)
+static int do_hvf_set_memory(hvf_slot *slot)
 {
     struct mac_slot *macslot;
     hv_memory_flags_t flags;
-    pthread_rwlock_wrlock(&mem_lock);
     hv_return_t ret;
 
     macslot = &mac_slots[slot->slot_id];
@@ -130,7 +129,6 @@ int __hvf_set_memory(hvf_slot *slot)
     }
 
     if (!slot->size) {
-        pthread_rwlock_unlock(&mem_lock);
         return 0;
     }
 
@@ -141,7 +139,6 @@ int __hvf_set_memory(hvf_slot *slot)
     macslot->size = slot->size;
     ret = hv_vm_map((hv_uvaddr_t)slot->mem, slot->start, slot->size, flags);
     assert_hvf_ok(ret);
-    pthread_rwlock_unlock(&mem_lock);
     return 0;
 }
 
@@ -170,8 +167,8 @@ void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     /* Region needs to be reset. set the size to 0 and remap it. */
     if (mem) {
         mem->size = 0;
-        if (__hvf_set_memory(mem)) {
-            fprintf(stderr, "Failed to reset overlapping slot\n");
+        if (do_hvf_set_memory(mem)) {
+            error_report("Failed to reset overlapping slot\n");
             abort();
         }
     }
@@ -191,7 +188,7 @@ void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     }
 
     if (x == hvf_state->num_slots) {
-        fprintf(stderr, "No free slots\n");
+        error_report("No free slots\n");
         abort();
     }
 
@@ -199,22 +196,10 @@ void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
     mem->mem = memory_region_get_ram_ptr(area) + section->offset_within_region;
     mem->start = section->offset_within_address_space;
 
-    if (__hvf_set_memory(mem)) {
-        fprintf(stderr, "Error registering new memory slot\n");
+    if (do_hvf_set_memory(mem)) {
+        error_report("Error registering new memory slot\n");
         abort();
     }
-}
-
-/* return -1 if no bit is set */
-static int get_highest_priority_int(uint32_t *tab)
-{
-    int i;
-    for (i = 7; i >= 0; i--) {
-        if (tab[i] != 0) {
-            return i * 32 + apic_fls_bit(tab[i]);
-        }
-    }
-    return -1;
 }
 
 void vmx_update_tpr(CPUState *cpu)
@@ -263,11 +248,11 @@ void hvf_handle_io(CPUArchState *env, uint16_t port, void *buffer,
         ptr += size;
     }
 }
-void __hvf_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 
 /* TODO: synchronize vcpu state */
+static void do_hvf_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
-    CPUState *cpu_state = cpu;//(CPUState *)data;
+    CPUState *cpu_state = cpu;
     if (cpu_state->hvf_vcpu_dirty == 0) {
         hvf_get_registers(cpu_state);
     }
@@ -277,12 +262,12 @@ void __hvf_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 
 void hvf_cpu_synchronize_state(CPUState *cpu_state)
 {
-        run_on_cpu(cpu_state, __hvf_cpu_synchronize_state, RUN_ON_CPU_NULL);
     if (cpu_state->hvf_vcpu_dirty == 0) {
+        run_on_cpu(cpu_state, do_hvf_cpu_synchronize_state, RUN_ON_CPU_NULL);
     }
 }
 
-void __hvf_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
+static void do_hvf_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 {
     CPUState *cpu_state = cpu;
     hvf_put_registers(cpu_state);
@@ -291,7 +276,7 @@ void __hvf_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 
 void hvf_cpu_synchronize_post_reset(CPUState *cpu_state)
 {
-    run_on_cpu(cpu_state, __hvf_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
+    run_on_cpu(cpu_state, do_hvf_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
 }
 
 void _hvf_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
@@ -354,12 +339,11 @@ static MemoryListener hvf_memory_listener = {
     .region_del = hvf_region_del,
 };
 
-static MemoryListener hvf_io_listener = {
-    .priority = 10,
-};
-
 void vmx_reset_vcpu(CPUState *cpu) {
 
+    /* TODO: this shouldn't be needed; there is already a call to
+     * cpu_synchronize_all_post_reset in vl.c
+     */
     wvmcs(cpu->hvf_fd, VMCS_ENTRY_CTLS, 0);
     wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, 0);
     macvm_set_cr0(cpu->hvf_fd, 0x60000010);
@@ -587,8 +571,6 @@ int hvf_vcpu_exec(CPUState *cpu)
         rip = rreg(cpu->hvf_fd, HV_X86_RIP);
         RFLAGS(cpu) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
         env->eflags = RFLAGS(cpu);
-
-        trace_hvf_vm_exit(exit_reason, exit_qual);
 
         qemu_mutex_lock_iothread();
 
@@ -846,7 +828,6 @@ static int hvf_accel_init(MachineState *ms)
     hvf_state = s;
     cpu_interrupt_handler = hvf_handle_interrupt;
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
-    memory_listener_register(&hvf_io_listener, &address_space_io);
     return 0;
 }
 

@@ -15,15 +15,24 @@
 #include "config-host.h"
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "hw/hw.h"
-#include "target/i386/cpu.h"
 #include "qemu/bitops.h"
 #include "exec/memory.h"
 #include "sysemu/accel.h"
+
+extern int hvf_disabled;
+#ifdef CONFIG_HVF
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
 #include <Hypervisor/hv_error.h>
-
+#include "target/i386/cpu.h"
+#include "hw/hw.h"
+uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
+                                 int reg);
+#define hvf_enabled() !hvf_disabled
+#else
+#define hvf_enabled() 0
+#define hvf_get_supported_cpuid(func, idx, reg) 0
+#endif
 
 typedef struct hvf_slot {
     uint64_t start;
@@ -41,7 +50,6 @@ struct hvf_vcpu_caps {
     uint64_t vmx_cap_preemption_timer;
 };
 
-int __hvf_set_memory(hvf_slot *);
 typedef struct HVFState {
     AccelState parent;
     hvf_slot slots[32];
@@ -56,8 +64,6 @@ void hvf_handle_io(CPUArchState *, uint16_t, void *,
                   int, int, int);
 hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
 
-/* Returns 1 if HVF is available and enabled, 0 otherwise. */
-int hvf_enabled(void);
 /* Disable HVF if |disable| is 1, otherwise, enable it iff it is supported by
  * the host CPU. Use hvf_enabled() after this to get the result. */
 void hvf_disable(int disable);
@@ -83,12 +89,10 @@ void hvf_vcpu_destroy(CPUState *);
 void hvf_raise_event(CPUState *);
 /* void hvf_reset_vcpu_state(void *opaque); */
 void vmx_reset_vcpu(CPUState *);
-void __hvf_cpu_synchronize_state(CPUState *, run_on_cpu_data);
-void __hvf_cpu_synchronize_post_reset(CPUState *, run_on_cpu_data);
 void vmx_update_tpr(CPUState *);
 void update_apic_tpr(CPUState *);
-int apic_get_highest_priority_irr(DeviceState *);
 int hvf_put_registers(CPUState *);
+void vmx_clear_int_window_exiting(CPUState *cpu);
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 
