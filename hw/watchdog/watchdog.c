@@ -29,6 +29,8 @@
 #include "qapi-event.h"
 #include "hw/nmi.h"
 #include "qemu/help_option.h"
+#include "qmp-commands.h"
+#include "qapi/qmp/qerror.h"
 
 static int watchdog_action = WDT_RESET;
 static QLIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
@@ -145,5 +147,12 @@ void watchdog_perform_action(void)
                                  &error_abort);
         nmi_monitor_handle(0, NULL);
         break;
+    }
+}
+
+void qmp_watchdog_set_action(const char *action, Error **errp)
+{
+    if (select_watchdog_action(action) == -1) {
+        error_setg(errp, QERR_INVALID_PARAMETER, action);
     }
 }
