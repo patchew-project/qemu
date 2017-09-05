@@ -187,7 +187,7 @@ static MemTxResult gicr_readl(GICv3CPUState *cs, hwaddr offset,
     case GICR_ICACTIVER0:
         *data = gicr_read_bitmap_reg(cs, attrs, cs->gicr_iactiver0);
         return MEMTX_OK;
-    case GICR_IPRIORITYR ... GICR_IPRIORITYR + 0x1f:
+    case GICR_IPRIORITYR ... GICR_IPRIORITYR + 0x1c:
     {
         int i, irq = offset - GICR_IPRIORITYR;
         uint32_t value = 0;
@@ -310,7 +310,7 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
     case GICR_ICACTIVER0:
         gicr_write_clear_bitmap_reg(cs, attrs, &cs->gicr_iactiver0, value);
         return MEMTX_OK;
-    case GICR_IPRIORITYR ... GICR_IPRIORITYR + 0x1f:
+    case GICR_IPRIORITYR ... GICR_IPRIORITYR + 0x1c:
     {
         int i, irq = offset - GICR_IPRIORITYR;
 
