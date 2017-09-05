@@ -2616,9 +2616,6 @@ if test "$nettle" != "no"; then
         nettle_cflags=$($pkg_config --cflags nettle)
         nettle_libs=$($pkg_config --libs nettle)
         nettle_version=$($pkg_config --modversion nettle)
-        libs_softmmu="$nettle_libs $libs_softmmu"
-        libs_tools="$nettle_libs $libs_tools"
-        QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
         nettle="yes"
 
         cat > $TMPC << EOF
@@ -5732,6 +5729,8 @@ if test "$nettle" = "yes" ; then
   if test "$nettle_kdf" = "yes" ; then
     echo "CONFIG_NETTLE_KDF=y" >> $config_host_mak
   fi
+  echo "NETTLE_CFLAGS=$nettle_cflags" >> $config_host_mak
+  echo "NETTLE_LIBS=$nettle_libs" >> $config_host_mak
 fi
 if test "$tasn1" = "yes" ; then
   echo "CONFIG_TASN1=y" >> $config_host_mak
