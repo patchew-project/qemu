@@ -28,7 +28,6 @@ static const char *hmp_cmds[] = {
     "commit all",
     "cpu-add 1",
     "cpu 0",
-    "device_add ?",
     "device_add usb-mouse,id=mouse1",
     "mouse_button 7",
     "mouse_move 10 10",
@@ -116,6 +115,64 @@ static void test_info_commands(void)
     g_free(info_buf);
 }
 
+/*
+ * People tend to forget to mark internal devices with "user_creatable = false
+ * and these devices can crash QEMU if added via the HMP monitor. So let's run
+ * through all devices and try to add them blindly (without arguments) to see
+ * whether this could crash the QEMU instance.
+ */
+static void test_device_add_commands(void)
+{
+    char *resp, *devices, *devices_buf, *endp;
+
+    devices = devices_buf = hmp("device_add help");
+
+    while (*devices) {
+        /* Ignore header lines etc. */
+        if (strncmp(devices, "name \"", 6)) {
+            devices = strchr(devices, '\n');
+            if (!devices) {
+                break;
+            }
+            devices += 1;
+            continue;
+        }
+        /* Extract the device name, ignore parameters and description */
+        devices += 6;
+        endp = strchr(devices, '"');
+        g_assert(endp != NULL);
+        *endp = '\0';
+        /* Check whether it is blacklisted... */
+        if (g_str_equal("macio-oldworld", devices)) {
+            devices = strchr(endp + 1, '\n');
+            if (!devices) {
+                break;
+            }
+            devices += 1;
+            continue;
+        }
+        /* Now run the device_add + device_del commands */
+        if (verbose) {
+            fprintf(stderr, "\tdevice_add %s,id=%s\n", devices, devices);
+        }
+        resp = hmp("device_add %s,id=%s", devices, devices);
+        g_free(resp);
+        if (verbose) {
+            fprintf(stderr, "\tdevice_del %s\n", devices);
+        }
+        resp = hmp("device_del %s", devices);
+        g_free(resp);
+        /* And move forward to the next line */
+        devices = strchr(endp + 1, '\n');
+        if (!devices) {
+            break;
+        }
+        devices += 1;
+    }
+
+    g_free(devices_buf);
+}
+
 static void test_machine(gconstpointer data)
 {
     const char *machine = data;
@@ -125,6 +182,7 @@ static void test_machine(gconstpointer data)
     qtest_start(args);
 
     test_info_commands();
+    test_device_add_commands();
     test_commands();
 
     qtest_end();
