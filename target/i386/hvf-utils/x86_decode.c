@@ -27,9 +27,9 @@
 
 #define OPCODE_ESCAPE   0xf
 
-static void decode_invalid(CPUState *cpu, struct x86_decode *decode)
+static void decode_invalid(CPUX86State *env, struct x86_decode *decode)
 {
-    printf("%llx: failed to decode instruction ", cpu->hvf_x86->fetch_rip -
+    printf("%llx: failed to decode instruction ", env->hvf_emul->fetch_rip -
            decode->len);
     for (int i = 0; i < decode->opcode_len; i++) {
         printf("%x ", decode->opcode[i]);
@@ -60,7 +60,7 @@ uint64_t sign(uint64_t val, int size)
     return val;
 }
 
-static inline uint64_t decode_bytes(CPUState *cpu, struct x86_decode *decode,
+static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
                                     int size)
 {
     addr_t val = 0;
@@ -75,129 +75,129 @@ static inline uint64_t decode_bytes(CPUState *cpu, struct x86_decode *decode,
         VM_PANIC_EX("%s invalid size %d\n", __func__, size);
         break;
     }
-    addr_t va  = linear_rip(cpu, RIP(cpu)) + decode->len;
-    vmx_read_mem(cpu, &val, va, size);
+    addr_t va  = linear_rip(ENV_GET_CPU(env), RIP(env)) + decode->len;
+    vmx_read_mem(ENV_GET_CPU(env), &val, va, size);
     decode->len += size;
     
     return val;
 }
 
-static inline uint8_t decode_byte(CPUState *cpu, struct x86_decode *decode)
+static inline uint8_t decode_byte(CPUX86State *env, struct x86_decode *decode)
 {
-    return (uint8_t)decode_bytes(cpu, decode, 1);
+    return (uint8_t)decode_bytes(env, decode, 1);
 }
 
-static inline uint16_t decode_word(CPUState *cpu, struct x86_decode *decode)
+static inline uint16_t decode_word(CPUX86State *env, struct x86_decode *decode)
 {
-    return (uint16_t)decode_bytes(cpu, decode, 2);
+    return (uint16_t)decode_bytes(env, decode, 2);
 }
 
-static inline uint32_t decode_dword(CPUState *cpu, struct x86_decode *decode)
+static inline uint32_t decode_dword(CPUX86State *env, struct x86_decode *decode)
 {
-    return (uint32_t)decode_bytes(cpu, decode, 4);
+    return (uint32_t)decode_bytes(env, decode, 4);
 }
 
-static inline uint64_t decode_qword(CPUState *cpu, struct x86_decode *decode)
+static inline uint64_t decode_qword(CPUX86State *env, struct x86_decode *decode)
 {
-    return decode_bytes(cpu, decode, 8);
+    return decode_bytes(env, decode, 8);
 }
 
-static void decode_modrm_rm(CPUState *cpu, struct x86_decode *decode,
+static void decode_modrm_rm(CPUX86State *env, struct x86_decode *decode,
                             struct x86_decode_op *op)
 {
     op->type = X86_VAR_RM;
 }
 
-static void decode_modrm_reg(CPUState *cpu, struct x86_decode *decode,
+static void decode_modrm_reg(CPUX86State *env, struct x86_decode *decode,
                              struct x86_decode_op *op)
 {
     op->type = X86_VAR_REG;
     op->reg = decode->modrm.reg;
-    op->ptr = get_reg_ref(cpu, op->reg, decode->rex.r, decode->operand_size);
+    op->ptr = get_reg_ref(env, op->reg, decode->rex.r, decode->operand_size);
 }
 
-static void decode_rax(CPUState *cpu, struct x86_decode *decode,
+static void decode_rax(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op)
 {
     op->type = X86_VAR_REG;
     op->reg = REG_RAX;
-    op->ptr = get_reg_ref(cpu, op->reg, 0, decode->operand_size);
+    op->ptr = get_reg_ref(env, op->reg, 0, decode->operand_size);
 }
 
-static inline void decode_immediate(CPUState *cpu, struct x86_decode *decode,
+static inline void decode_immediate(CPUX86State *env, struct x86_decode *decode,
                                     struct x86_decode_op *var, int size)
 {
     var->type = X86_VAR_IMMEDIATE;
     var->size = size;
     switch (size) {
     case 1:
-        var->val = decode_byte(cpu, decode);
+        var->val = decode_byte(env, decode);
         break;
     case 2:
-        var->val = decode_word(cpu, decode);
+        var->val = decode_word(env, decode);
         break;
     case 4:
-        var->val = decode_dword(cpu, decode);
+        var->val = decode_dword(env, decode);
         break;
     case 8:
-        var->val = decode_qword(cpu, decode);
+        var->val = decode_qword(env, decode);
         break;
     default:
         VM_PANIC_EX("bad size %d\n", size);
     }
 }
 
-static void decode_imm8(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm8(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op)
 {
-    decode_immediate(cpu, decode, op, 1);
+    decode_immediate(env, decode, op, 1);
     op->type = X86_VAR_IMMEDIATE;
 }
 
-static void decode_imm8_signed(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm8_signed(CPUX86State *env, struct x86_decode *decode,
                                struct x86_decode_op *op)
 {
-    decode_immediate(cpu, decode, op, 1);
+    decode_immediate(env, decode, op, 1);
     op->val = sign(op->val, 1);
     op->type = X86_VAR_IMMEDIATE;
 }
 
-static void decode_imm16(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm16(CPUX86State *env, struct x86_decode *decode,
                          struct x86_decode_op *op)
 {
-    decode_immediate(cpu, decode, op, 2);
+    decode_immediate(env, decode, op, 2);
     op->type = X86_VAR_IMMEDIATE;
 }
 
 
-static void decode_imm(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op)
 {
     if (8 == decode->operand_size) {
-        decode_immediate(cpu, decode, op, 4);
+        decode_immediate(env, decode, op, 4);
         op->val = sign(op->val, decode->operand_size);
     } else {
-        decode_immediate(cpu, decode, op, decode->operand_size);
+        decode_immediate(env, decode, op, decode->operand_size);
     }
     op->type = X86_VAR_IMMEDIATE;
 }
 
-static void decode_imm_signed(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm_signed(CPUX86State *env, struct x86_decode *decode,
                               struct x86_decode_op *op)
 {
-    decode_immediate(cpu, decode, op, decode->operand_size);
+    decode_immediate(env, decode, op, decode->operand_size);
     op->val = sign(op->val, decode->operand_size);
     op->type = X86_VAR_IMMEDIATE;
 }
 
-static void decode_imm_1(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm_1(CPUX86State *env, struct x86_decode *decode,
                          struct x86_decode_op *op)
 {
     op->type = X86_VAR_IMMEDIATE;
     op->val = 1;
 }
 
-static void decode_imm_0(CPUState *cpu, struct x86_decode *decode,
+static void decode_imm_0(CPUX86State *env, struct x86_decode *decode,
                          struct x86_decode_op *op)
 {
     op->type = X86_VAR_IMMEDIATE;
@@ -205,7 +205,7 @@ static void decode_imm_0(CPUState *cpu, struct x86_decode *decode,
 }
 
 
-static void decode_pushseg(CPUState *cpu, struct x86_decode *decode)
+static void decode_pushseg(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t op = (decode->opcode_len > 1) ? decode->opcode[1] : decode->opcode[0];
     
@@ -232,7 +232,7 @@ static void decode_pushseg(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_popseg(CPUState *cpu, struct x86_decode *decode)
+static void decode_popseg(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t op = (decode->opcode_len > 1) ? decode->opcode[1] : decode->opcode[0];
     
@@ -259,23 +259,23 @@ static void decode_popseg(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_incgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_incgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x40;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
 }
 
-static void decode_decgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_decgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x48;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
 }
 
-static void decode_incgroup2(CPUState *cpu, struct x86_decode *decode)
+static void decode_incgroup2(CPUX86State *env, struct x86_decode *decode)
 {
     if (!decode->modrm.reg) {
         decode->cmd = X86_DECODE_CMD_INC;
@@ -284,36 +284,36 @@ static void decode_incgroup2(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_pushgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_pushgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x50;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
 }
 
-static void decode_popgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_popgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x58;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
 }
 
-static void decode_jxx(CPUState *cpu, struct x86_decode *decode)
+static void decode_jxx(CPUX86State *env, struct x86_decode *decode)
 {
-    decode->displacement = decode_bytes(cpu, decode, decode->operand_size);
+    decode->displacement = decode_bytes(env, decode, decode->operand_size);
     decode->displacement_size = decode->operand_size;
 }
 
-static void decode_farjmp(CPUState *cpu, struct x86_decode *decode)
+static void decode_farjmp(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_IMMEDIATE;
-    decode->op[0].val = decode_bytes(cpu, decode, decode->operand_size);
-    decode->displacement = decode_word(cpu, decode);
+    decode->op[0].val = decode_bytes(env, decode, decode->operand_size);
+    decode->displacement = decode_word(env, decode);
 }
 
-static void decode_addgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_addgroup(CPUX86State *env, struct x86_decode *decode)
 {
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_ADD,
@@ -328,7 +328,7 @@ static void decode_addgroup(CPUState *cpu, struct x86_decode *decode)
     decode->cmd = group[decode->modrm.reg];
 }
 
-static void decode_rotgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_rotgroup(CPUX86State *env, struct x86_decode *decode)
 {
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_ROL,
@@ -343,7 +343,7 @@ static void decode_rotgroup(CPUState *cpu, struct x86_decode *decode)
     decode->cmd = group[decode->modrm.reg];
 }
 
-static void decode_f7group(CPUState *cpu, struct x86_decode *decode)
+static void decode_f7group(CPUX86State *env, struct x86_decode *decode)
 {
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_TST,
@@ -356,12 +356,12 @@ static void decode_f7group(CPUState *cpu, struct x86_decode *decode)
         X86_DECODE_CMD_IDIV
     };
     decode->cmd = group[decode->modrm.reg];
-    decode_modrm_rm(cpu, decode, &decode->op[0]);
+    decode_modrm_rm(env, decode, &decode->op[0]);
 
     switch (decode->modrm.reg) {
     case 0:
     case 1:
-        decode_imm(cpu, decode, &decode->op[1]);
+        decode_imm(env, decode, &decode->op[1]);
         break;
     case 2:
         break;
@@ -374,45 +374,45 @@ static void decode_f7group(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_xchgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_xchgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x90;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
 }
 
-static void decode_movgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_movgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0xb8;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
-    decode_immediate(cpu, decode, &decode->op[1], decode->operand_size);
+    decode_immediate(env, decode, &decode->op[1], decode->operand_size);
 }
 
-static void fetch_moffs(CPUState *cpu, struct x86_decode *decode,
+static void fetch_moffs(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op)
 {
     op->type = X86_VAR_OFFSET;
-    op->ptr = decode_bytes(cpu, decode, decode->addressing_size);
+    op->ptr = decode_bytes(env, decode, decode->addressing_size);
 }
 
-static void decode_movgroup8(CPUState *cpu, struct x86_decode *decode)
+static void decode_movgroup8(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0xb0;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
-    decode_immediate(cpu, decode, &decode->op[1], decode->operand_size);
+    decode_immediate(env, decode, &decode->op[1], decode->operand_size);
 }
 
-static void decode_rcx(CPUState *cpu, struct x86_decode *decode,
+static void decode_rcx(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op)
 {
     op->type = X86_VAR_REG;
     op->reg = REG_RCX;
-    op->ptr = get_reg_ref(cpu, op->reg, decode->rex.b, decode->operand_size);
+    op->ptr = get_reg_ref(env, op->reg, decode->rex.b, decode->operand_size);
 }
 
 struct decode_tbl {
@@ -420,15 +420,15 @@ struct decode_tbl {
     enum x86_decode_cmd cmd;
     uint8_t operand_size;
     bool is_modrm;
-    void (*decode_op1)(CPUState *cpu, struct x86_decode *decode,
+    void (*decode_op1)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op1);
-    void (*decode_op2)(CPUState *cpu, struct x86_decode *decode,
+    void (*decode_op2)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op2);
-    void (*decode_op3)(CPUState *cpu, struct x86_decode *decode,
+    void (*decode_op3)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op3);
-    void (*decode_op4)(CPUState *cpu, struct x86_decode *decode,
+    void (*decode_op4)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op4);
-    void (*decode_postfix)(CPUState *cpu, struct x86_decode *decode);
+    void (*decode_postfix)(CPUX86State *env, struct x86_decode *decode);
     addr_t flags_mask;
 };
 
@@ -440,11 +440,11 @@ struct decode_x87_tbl {
     uint8_t operand_size;
     bool rev;
     bool pop;
-    void (*decode_op1)(CPUState *cpu, struct x86_decode *decode,
+    void (*decode_op1)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op1);
-    void (*decode_op2)(CPUState *cpu, struct x86_decode *decode,
+    void (*decode_op2)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op2);
-    void (*decode_postfix)(CPUState *cpu, struct x86_decode *decode);
+    void (*decode_postfix)(CPUX86State *env, struct x86_decode *decode);
     addr_t flags_mask;
 };
 
@@ -455,7 +455,7 @@ struct decode_tbl _decode_tbl1[255];
 struct decode_tbl _decode_tbl2[255];
 struct decode_x87_tbl _decode_tbl3[255];
 
-static void decode_x87_ins(CPUState *cpu, struct x86_decode *decode)
+static void decode_x87_ins(CPUX86State *env, struct x86_decode *decode)
 {
     struct decode_x87_tbl *decoder;
     
@@ -475,13 +475,13 @@ static void decode_x87_ins(CPUState *cpu, struct x86_decode *decode)
     decode->frev = decoder->rev;
     
     if (decoder->decode_op1) {
-        decoder->decode_op1(cpu, decode, &decode->op[0]);
+        decoder->decode_op1(env, decode, &decode->op[0]);
     }
     if (decoder->decode_op2) {
-        decoder->decode_op2(cpu, decode, &decode->op[1]);
+        decoder->decode_op2(env, decode, &decode->op[1]);
     }
     if (decoder->decode_postfix) {
-        decoder->decode_postfix(cpu, decode);
+        decoder->decode_postfix(env, decode);
     }
 
     VM_PANIC_ON_EX(!decode->cmd, "x87 opcode %x %x (%x %x) not decoded\n",
@@ -489,7 +489,7 @@ static void decode_x87_ins(CPUState *cpu, struct x86_decode *decode)
                    decoder->modrm_mod);
 }
 
-static void decode_ffgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_ffgroup(CPUX86State *env, struct x86_decode *decode)
 {
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_INC,
@@ -508,8 +508,9 @@ static void decode_ffgroup(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_sldtgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_sldtgroup(CPUX86State *env, struct x86_decode *decode)
 {
+
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_SLDT,
         X86_DECODE_CMD_STR,
@@ -521,11 +522,11 @@ static void decode_sldtgroup(CPUState *cpu, struct x86_decode *decode)
         X86_DECODE_CMD_INVL
     };
     decode->cmd = group[decode->modrm.reg];
-    printf("%llx: decode_sldtgroup: %d\n", cpu->hvf_x86->fetch_rip,
+    printf("%llx: decode_sldtgroup: %d\n", env->hvf_emul->fetch_rip,
             decode->modrm.reg);
 }
 
-static void decode_lidtgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_lidtgroup(CPUX86State *env, struct x86_decode *decode)
 {
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_SGDT,
@@ -544,7 +545,7 @@ static void decode_lidtgroup(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_btgroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_btgroup(CPUX86State *env, struct x86_decode *decode)
 {
     enum x86_decode_cmd group[] = {
         X86_DECODE_CMD_INVL,
@@ -559,37 +560,37 @@ static void decode_btgroup(CPUState *cpu, struct x86_decode *decode)
     decode->cmd = group[decode->modrm.reg];
 }
 
-static void decode_x87_general(CPUState *cpu, struct x86_decode *decode)
+static void decode_x87_general(CPUX86State *env, struct x86_decode *decode)
 {
     decode->is_fpu = true;
 }
 
-static void decode_x87_modrm_floatp(CPUState *cpu, struct x86_decode *decode,
+static void decode_x87_modrm_floatp(CPUX86State *env, struct x86_decode *decode,
                                     struct x86_decode_op *op)
 {
     op->type = X87_VAR_FLOATP;
 }
 
-static void decode_x87_modrm_intp(CPUState *cpu, struct x86_decode *decode,
+static void decode_x87_modrm_intp(CPUX86State *env, struct x86_decode *decode,
                                   struct x86_decode_op *op)
 {
     op->type = X87_VAR_INTP;
 }
 
-static void decode_x87_modrm_bytep(CPUState *cpu, struct x86_decode *decode,
+static void decode_x87_modrm_bytep(CPUX86State *env, struct x86_decode *decode,
                                    struct x86_decode_op *op)
 {
     op->type = X87_VAR_BYTEP;
 }
 
-static void decode_x87_modrm_st0(CPUState *cpu, struct x86_decode *decode,
+static void decode_x87_modrm_st0(CPUX86State *env, struct x86_decode *decode,
                                  struct x86_decode_op *op)
 {
     op->type = X87_VAR_REG;
     op->reg = 0;
 }
 
-static void decode_decode_x87_modrm_st0(CPUState *cpu,
+static void decode_decode_x87_modrm_st0(CPUX86State *env,
                                         struct x86_decode *decode,
                                         struct x86_decode_op *op)
 {
@@ -598,16 +599,16 @@ static void decode_decode_x87_modrm_st0(CPUState *cpu,
 }
 
 
-static void decode_aegroup(CPUState *cpu, struct x86_decode *decode)
+static void decode_aegroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->is_fpu = true;
     switch (decode->modrm.reg) {
     case 0:
         decode->cmd = X86_DECODE_CMD_FXSAVE;
-        decode_x87_modrm_bytep(cpu, decode, &decode->op[0]);
+        decode_x87_modrm_bytep(env, decode, &decode->op[0]);
         break;
     case 1:
-        decode_x87_modrm_bytep(cpu, decode, &decode->op[0]);
+        decode_x87_modrm_bytep(env, decode, &decode->op[0]);
         decode->cmd = X86_DECODE_CMD_FXRSTOR;
         break;
     case 5:
@@ -634,15 +635,15 @@ static void decode_aegroup(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_bswap(CPUState *cpu, struct x86_decode *decode)
+static void decode_bswap(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[1] - 0xc8;
-    decode->op[0].ptr = get_reg_ref(cpu, decode->op[0].reg, decode->rex.b,
+    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.b,
                                     decode->operand_size);
 }
 
-static void decode_d9_4(CPUState *cpu, struct x86_decode *decode)
+static void decode_d9_4(CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->modrm.modrm) {
     case 0xe0:
@@ -665,7 +666,7 @@ static void decode_d9_4(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_db_4(CPUState *cpu, struct x86_decode *decode)
+static void decode_db_4(CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->modrm.modrm) {
     case 0xe0:
@@ -1633,7 +1634,7 @@ struct decode_x87_tbl _x87_inst[] = {
      decode_x87_modrm_intp, NULL, NULL, RFLAGS_MASK_NONE},
 };
 
-void calc_modrm_operand16(CPUState *cpu, struct x86_decode *decode,
+void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
     addr_t ptr = 0;
@@ -1650,42 +1651,42 @@ void calc_modrm_operand16(CPUState *cpu, struct x86_decode *decode,
 
     switch (decode->modrm.rm) {
     case 0:
-        ptr += BX(cpu) + SI(cpu);
+        ptr += BX(env) + SI(env);
         break;
     case 1:
-        ptr += BX(cpu) + DI(cpu);
+        ptr += BX(env) + DI(env);
         break;
     case 2:
-        ptr += BP(cpu) + SI(cpu);
+        ptr += BP(env) + SI(env);
         seg = REG_SEG_SS;
         break;
     case 3:
-        ptr += BP(cpu) + DI(cpu);
+        ptr += BP(env) + DI(env);
         seg = REG_SEG_SS;
         break;
     case 4:
-        ptr += SI(cpu);
+        ptr += SI(env);
         break;
     case 5:
-        ptr += DI(cpu);
+        ptr += DI(env);
         break;
     case 6:
-        ptr += BP(cpu);
+        ptr += BP(env);
         seg = REG_SEG_SS;
         break;
     case 7:
-        ptr += BX(cpu);
+        ptr += BX(env);
         break;
     }
 calc_addr:
     if (X86_DECODE_CMD_LEA == decode->cmd) {
         op->ptr = (uint16_t)ptr;
     } else {
-        op->ptr = decode_linear_addr(cpu, decode, (uint16_t)ptr, seg);
+        op->ptr = decode_linear_addr(env, decode, (uint16_t)ptr, seg);
     }
 }
 
-addr_t get_reg_ref(CPUState *cpu, int reg, int is_extended, int size)
+addr_t get_reg_ref(CPUX86State *env, int reg, int is_extended, int size)
 {
     addr_t ptr = 0;
     int which = 0;
@@ -1699,28 +1700,28 @@ addr_t get_reg_ref(CPUState *cpu, int reg, int is_extended, int size)
     case 1:
         if (is_extended || reg < 4) {
             which = 1;
-            ptr = (addr_t)&RL(cpu, reg);
+            ptr = (addr_t)&RL(env, reg);
         } else {
             which = 2;
-            ptr = (addr_t)&RH(cpu, reg - 4);
+            ptr = (addr_t)&RH(env, reg - 4);
         }
         break;
     default:
         which = 3;
-        ptr = (addr_t)&RRX(cpu, reg);
+        ptr = (addr_t)&RRX(env, reg);
         break;
     }
     return ptr;
 }
 
-addr_t get_reg_val(CPUState *cpu, int reg, int is_extended, int size)
+addr_t get_reg_val(CPUX86State *env, int reg, int is_extended, int size)
 {
     addr_t val = 0;
-    memcpy(&val, (void *)get_reg_ref(cpu, reg, is_extended, size), size);
+    memcpy(&val, (void *)get_reg_ref(env, reg, is_extended, size), size);
     return val;
 }
 
-static addr_t get_sib_val(CPUState *cpu, struct x86_decode *decode,
+static addr_t get_sib_val(CPUX86State *env, struct x86_decode *decode,
                           x86_reg_segment *sel)
 {
     addr_t base = 0;
@@ -1738,7 +1739,7 @@ static addr_t get_sib_val(CPUState *cpu, struct x86_decode *decode,
         if (REG_RSP == base_reg || REG_RBP == base_reg) {
             *sel = REG_SEG_SS;
         }
-        base = get_reg_val(cpu, decode->sib.base, decode->rex.b, addr_size);
+        base = get_reg_val(env, decode->sib.base, decode->rex.b, addr_size);
     }
 
     if (decode->rex.x) {
@@ -1746,13 +1747,13 @@ static addr_t get_sib_val(CPUState *cpu, struct x86_decode *decode,
     }
 
     if (index_reg != REG_RSP) {
-        scaled_index = get_reg_val(cpu, index_reg, decode->rex.x, addr_size) <<
+        scaled_index = get_reg_val(env, index_reg, decode->rex.x, addr_size) <<
                                    decode->sib.scale;
     }
     return base + scaled_index;
 }
 
-void calc_modrm_operand32(CPUState *cpu, struct x86_decode *decode,
+void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
     x86_reg_segment seg = REG_SEG_DS;
@@ -1764,10 +1765,10 @@ void calc_modrm_operand32(CPUState *cpu, struct x86_decode *decode,
     }
 
     if (4 == decode->modrm.rm) {
-        ptr += get_sib_val(cpu, decode, &seg);
+        ptr += get_sib_val(env, decode, &seg);
     } else if (!decode->modrm.mod && 5 == decode->modrm.rm) {
-        if (x86_is_long_mode(cpu)) {
-            ptr += RIP(cpu) + decode->len;
+        if (x86_is_long_mode(ENV_GET_CPU(env))) {
+            ptr += RIP(env) + decode->len;
         } else {
             ptr = decode->displacement;
         }
@@ -1775,17 +1776,17 @@ void calc_modrm_operand32(CPUState *cpu, struct x86_decode *decode,
         if (REG_RBP == decode->modrm.rm || REG_RSP == decode->modrm.rm) {
             seg = REG_SEG_SS;
         }
-        ptr += get_reg_val(cpu, decode->modrm.rm, decode->rex.b, addr_size);
+        ptr += get_reg_val(env, decode->modrm.rm, decode->rex.b, addr_size);
     }
 
     if (X86_DECODE_CMD_LEA == decode->cmd) {
         op->ptr = (uint32_t)ptr;
     } else {
-        op->ptr = decode_linear_addr(cpu, decode, (uint32_t)ptr, seg);
+        op->ptr = decode_linear_addr(env, decode, (uint32_t)ptr, seg);
     }
 }
 
-void calc_modrm_operand64(CPUState *cpu, struct x86_decode *decode,
+void calc_modrm_operand64(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
     x86_reg_segment seg = REG_SEG_DS;
@@ -1800,41 +1801,41 @@ void calc_modrm_operand64(CPUState *cpu, struct x86_decode *decode,
     }
 
     if (4 == rm) {
-        ptr = get_sib_val(cpu, decode, &seg) + offset;
+        ptr = get_sib_val(env, decode, &seg) + offset;
     } else if (0 == mod && 5 == rm) {
-        ptr = RIP(cpu) + decode->len + (int32_t) offset;
+        ptr = RIP(env) + decode->len + (int32_t) offset;
     } else {
-        ptr = get_reg_val(cpu, src, decode->rex.b, 8) + (int64_t) offset;
+        ptr = get_reg_val(env, src, decode->rex.b, 8) + (int64_t) offset;
     }
 
     if (X86_DECODE_CMD_LEA == decode->cmd) {
         op->ptr = ptr;
     } else {
-        op->ptr = decode_linear_addr(cpu, decode, ptr, seg);
+        op->ptr = decode_linear_addr(env, decode, ptr, seg);
     }
 }
 
 
-void calc_modrm_operand(CPUState *cpu, struct x86_decode *decode,
+void calc_modrm_operand(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op)
 {
     if (3 == decode->modrm.mod) {
         op->reg = decode->modrm.reg;
         op->type = X86_VAR_REG;
-        op->ptr = get_reg_ref(cpu, decode->modrm.rm, decode->rex.b,
+        op->ptr = get_reg_ref(env, decode->modrm.rm, decode->rex.b,
                               decode->operand_size);
         return;
     }
 
     switch (decode->addressing_size) {
     case 2:
-        calc_modrm_operand16(cpu, decode, op);
+        calc_modrm_operand16(env, decode, op);
         break;
     case 4:
-        calc_modrm_operand32(cpu, decode, op);
+        calc_modrm_operand32(env, decode, op);
         break;
     case 8:
-        calc_modrm_operand64(cpu, decode, op);
+        calc_modrm_operand64(env, decode, op);
         break;
     default:
         VM_PANIC_EX("unsupported address size %d\n", decode->addressing_size);
@@ -1842,10 +1843,10 @@ void calc_modrm_operand(CPUState *cpu, struct x86_decode *decode,
     }
 }
 
-static void decode_prefix(CPUState *cpu, struct x86_decode *decode)
+static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
 {
     while (1) {
-        uint8_t byte = decode_byte(cpu, decode);
+        uint8_t byte = decode_byte(env, decode);
         switch (byte) {
         case PREFIX_LOCK:
             decode->lock = byte;
@@ -1869,7 +1870,7 @@ static void decode_prefix(CPUState *cpu, struct x86_decode *decode)
             decode->addr_size_override = byte;
             break;
         case PREFIX_REX ... (PREFIX_REX + 0xf):
-            if (x86_is_long_mode(cpu)) {
+            if (x86_is_long_mode(ENV_GET_CPU(env))) {
                 decode->rex.rex = byte;
                 break;
             }
@@ -1881,19 +1882,19 @@ static void decode_prefix(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-void set_addressing_size(CPUState *cpu, struct x86_decode *decode)
+void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
 {
     decode->addressing_size = -1;
-    if (x86_is_real(cpu) || x86_is_v8086(cpu)) {
+    if (x86_is_real(ENV_GET_CPU(env)) || x86_is_v8086(ENV_GET_CPU(env))) {
         if (decode->addr_size_override) {
             decode->addressing_size = 4;
         } else {
             decode->addressing_size = 2;
         }
-    } else if (!x86_is_long_mode(cpu)) {
+    } else if (!x86_is_long_mode(ENV_GET_CPU(env))) {
         /* protected */
         struct vmx_segment cs;
-        vmx_read_segment_descriptor(cpu, &cs, REG_SEG_CS);
+        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, REG_SEG_CS);
         /* check db */
         if ((cs.ar >> 14) & 1) {
             if (decode->addr_size_override) {
@@ -1918,19 +1919,19 @@ void set_addressing_size(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-void set_operand_size(CPUState *cpu, struct x86_decode *decode)
+void set_operand_size(CPUX86State *env, struct x86_decode *decode)
 {
     decode->operand_size = -1;
-    if (x86_is_real(cpu) || x86_is_v8086(cpu)) {
+    if (x86_is_real(ENV_GET_CPU(env)) || x86_is_v8086(ENV_GET_CPU(env))) {
         if (decode->op_size_override) {
             decode->operand_size = 4;
         } else {
             decode->operand_size = 2;
         }
-    } else if (!x86_is_long_mode(cpu)) {
+    } else if (!x86_is_long_mode(ENV_GET_CPU(env))) {
         /* protected */
         struct vmx_segment cs;
-        vmx_read_segment_descriptor(cpu, &cs, REG_SEG_CS);
+        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, REG_SEG_CS);
         /* check db */
         if ((cs.ar >> 14) & 1) {
             if (decode->op_size_override) {
@@ -1959,11 +1960,11 @@ void set_operand_size(CPUState *cpu, struct x86_decode *decode)
     }
 }
 
-static void decode_sib(CPUState *cpu, struct x86_decode *decode)
+static void decode_sib(CPUX86State *env, struct x86_decode *decode)
 {
     if ((decode->modrm.mod != 3) && (4 == decode->modrm.rm) &&
         (decode->addressing_size != 2)) {
-        decode->sib.sib = decode_byte(cpu, decode);
+        decode->sib.sib = decode_byte(env, decode);
         decode->sib_present = true;
     }
 }
@@ -1984,7 +1985,7 @@ int disp32_tbl[4][8] = {
     {0, 0, 0, 0, 0, 0, 0, 0}
 };
 
-static inline void decode_displacement(CPUState *cpu, struct x86_decode *decode)
+static inline void decode_displacement(CPUX86State *env, struct x86_decode *decode)
 {
     int addressing_size = decode->addressing_size;
     int mod = decode->modrm.mod;
@@ -1995,7 +1996,7 @@ static inline void decode_displacement(CPUState *cpu, struct x86_decode *decode)
     case 2:
         decode->displacement_size = disp16_tbl[mod][rm];
         if (decode->displacement_size) {
-            decode->displacement = (uint16_t)decode_bytes(cpu, decode,
+            decode->displacement = (uint16_t)decode_bytes(env, decode,
                                     decode->displacement_size);
         }
         break;
@@ -2010,23 +2011,23 @@ static inline void decode_displacement(CPUState *cpu, struct x86_decode *decode)
         }
 
         if (decode->displacement_size) {
-            decode->displacement = (uint32_t)decode_bytes(cpu, decode,
+            decode->displacement = (uint32_t)decode_bytes(env, decode,
                                                 decode->displacement_size);
         }
         break;
     }
 }
 
-static inline void decode_modrm(CPUState *cpu, struct x86_decode *decode)
+static inline void decode_modrm(CPUX86State *env, struct x86_decode *decode)
 {
-    decode->modrm.modrm = decode_byte(cpu, decode);
+    decode->modrm.modrm = decode_byte(env, decode);
     decode->is_modrm = true;
-    
-    decode_sib(cpu, decode);
-    decode_displacement(cpu, decode);
+
+    decode_sib(env, decode);
+    decode_displacement(env, decode);
 }
 
-static inline void decode_opcode_general(CPUState *cpu,
+static inline void decode_opcode_general(CPUX86State *env,
                                          struct x86_decode *decode,
                                          uint8_t opcode,
                                          struct decode_tbl *inst_decoder)
@@ -2038,69 +2039,69 @@ static inline void decode_opcode_general(CPUState *cpu,
     decode->flags_mask = inst_decoder->flags_mask;
 
     if (inst_decoder->is_modrm) {
-        decode_modrm(cpu, decode);
+        decode_modrm(env, decode);
     }
     if (inst_decoder->decode_op1) {
-        inst_decoder->decode_op1(cpu, decode, &decode->op[0]);
+        inst_decoder->decode_op1(env, decode, &decode->op[0]);
     }
     if (inst_decoder->decode_op2) {
-        inst_decoder->decode_op2(cpu, decode, &decode->op[1]);
+        inst_decoder->decode_op2(env, decode, &decode->op[1]);
     }
     if (inst_decoder->decode_op3) {
-        inst_decoder->decode_op3(cpu, decode, &decode->op[2]);
+        inst_decoder->decode_op3(env, decode, &decode->op[2]);
     }
     if (inst_decoder->decode_op4) {
-        inst_decoder->decode_op4(cpu, decode, &decode->op[3]);
+        inst_decoder->decode_op4(env, decode, &decode->op[3]);
     }
     if (inst_decoder->decode_postfix) {
-        inst_decoder->decode_postfix(cpu, decode);
+        inst_decoder->decode_postfix(env, decode);
     }
 }
 
-static inline void decode_opcode_1(CPUState *cpu, struct x86_decode *decode,
+static inline void decode_opcode_1(CPUX86State *env, struct x86_decode *decode,
                                    uint8_t opcode)
 {
     struct decode_tbl *inst_decoder = &_decode_tbl1[opcode];
-    decode_opcode_general(cpu, decode, opcode, inst_decoder);
+    decode_opcode_general(env, decode, opcode, inst_decoder);
 }
 
 
-static inline void decode_opcode_2(CPUState *cpu, struct x86_decode *decode,
+static inline void decode_opcode_2(CPUX86State *env, struct x86_decode *decode,
                                    uint8_t opcode)
 {
     struct decode_tbl *inst_decoder = &_decode_tbl2[opcode];
-    decode_opcode_general(cpu, decode, opcode, inst_decoder);
+    decode_opcode_general(env, decode, opcode, inst_decoder);
 }
 
-static void decode_opcodes(CPUState *cpu, struct x86_decode *decode)
+static void decode_opcodes(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t opcode;
-    
-    opcode = decode_byte(cpu, decode);
+
+    opcode = decode_byte(env, decode);
     decode->opcode[decode->opcode_len++] = opcode;
     if (opcode != OPCODE_ESCAPE) {
-        decode_opcode_1(cpu, decode, opcode);
+        decode_opcode_1(env, decode, opcode);
     } else {
-        opcode = decode_byte(cpu, decode);
+        opcode = decode_byte(env, decode);
         decode->opcode[decode->opcode_len++] = opcode;
-        decode_opcode_2(cpu, decode, opcode);
+        decode_opcode_2(env, decode, opcode);
     }
 }
 
-uint32_t decode_instruction(CPUState *cpu, struct x86_decode *decode)
+uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode)
 {
     ZERO_INIT(*decode);
 
-    decode_prefix(cpu, decode);
-    set_addressing_size(cpu, decode);
-    set_operand_size(cpu, decode);
+    decode_prefix(env, decode);
+    set_addressing_size(env, decode);
+    set_operand_size(env, decode);
 
-    decode_opcodes(cpu, decode);
-    
+    decode_opcodes(env, decode);
+
     return decode->len;
 }
 
-void init_decoder(CPUState *cpu)
+void init_decoder()
 {
     int i;
     
@@ -2156,7 +2157,7 @@ const char *decode_cmd_to_string(enum x86_decode_cmd cmd)
     return cmds[cmd];
 }
 
-addr_t decode_linear_addr(struct CPUState *cpu, struct x86_decode *decode,
+addr_t decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
                           addr_t addr, x86_reg_segment seg)
 {
     switch (decode->segment_override) {
@@ -2181,5 +2182,5 @@ addr_t decode_linear_addr(struct CPUState *cpu, struct x86_decode *decode,
     default:
         break;
     }
-    return linear_addr_size(cpu, addr, decode->addressing_size, seg);
+    return linear_addr_size(ENV_GET_CPU(env), addr, decode->addressing_size, seg);
 }

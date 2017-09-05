@@ -414,6 +414,8 @@ struct CPUState {
      * unnecessary flushes.
      */
     uint16_t pending_tlb_flush;
+
+    int hvf_fd;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);

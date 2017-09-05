@@ -42,15 +42,16 @@
 #include "x86.h"
 #include "x86_emu.h"
 #include "x86_mmu.h"
+#include "x86_flags.h"
 #include "vmcs.h"
 #include "vmx.h"
 
 void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
                    int direction, int size, uint32_t count);
 
-#define EXEC_2OP_LOGIC_CMD(cpu, decode, cmd, FLAGS_FUNC, save_res) \
+#define EXEC_2OP_LOGIC_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \
-    fetch_operands(cpu, decode, 2, true, true, false);  \
+    fetch_operands(env, decode, 2, true, true, false);  \
     switch (decode->operand_size) {                     \
     case 1:                                         \
     {                                               \
@@ -58,7 +59,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         uint8_t v2 = (uint8_t)decode->op[1].val;    \
         uint8_t diff = v1 cmd v2;                   \
         if (save_res) {                              \
-            write_val_ext(cpu, decode->op[0].ptr, diff, 1);  \
+            write_val_ext(env, decode->op[0].ptr, diff, 1);  \
         } \
         FLAGS_FUNC##_8(diff);                       \
         break;                                      \
@@ -69,7 +70,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         uint16_t v2 = (uint16_t)decode->op[1].val;  \
         uint16_t diff = v1 cmd v2;                  \
         if (save_res) {                              \
-            write_val_ext(cpu, decode->op[0].ptr, diff, 2); \
+            write_val_ext(env, decode->op[0].ptr, diff, 2); \
         } \
         FLAGS_FUNC##_16(diff);                      \
         break;                                      \
@@ -80,7 +81,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         uint32_t v2 = (uint32_t)decode->op[1].val;  \
         uint32_t diff = v1 cmd v2;                  \
         if (save_res) {                              \
-            write_val_ext(cpu, decode->op[0].ptr, diff, 4); \
+            write_val_ext(env, decode->op[0].ptr, diff, 4); \
         } \
         FLAGS_FUNC##_32(diff);                      \
         break;                                      \
@@ -91,9 +92,9 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
 }                                                       \
 
 
-#define EXEC_2OP_ARITH_CMD(cpu, decode, cmd, FLAGS_FUNC, save_res) \
+#define EXEC_2OP_ARITH_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \
-    fetch_operands(cpu, decode, 2, true, true, false);  \
+    fetch_operands(env, decode, 2, true, true, false);  \
     switch (decode->operand_size) {                     \
     case 1:                                         \
     {                                               \
@@ -101,7 +102,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         uint8_t v2 = (uint8_t)decode->op[1].val;    \
         uint8_t diff = v1 cmd v2;                   \
         if (save_res) {                              \
-            write_val_ext(cpu, decode->op[0].ptr, diff, 1);  \
+            write_val_ext(env, decode->op[0].ptr, diff, 1);  \
         } \
         FLAGS_FUNC##_8(v1, v2, diff);               \
         break;                                      \
@@ -112,7 +113,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         uint16_t v2 = (uint16_t)decode->op[1].val;  \
         uint16_t diff = v1 cmd v2;                  \
         if (save_res) {                              \
-            write_val_ext(cpu, decode->op[0].ptr, diff, 2); \
+            write_val_ext(env, decode->op[0].ptr, diff, 2); \
         } \
         FLAGS_FUNC##_16(v1, v2, diff);              \
         break;                                      \
@@ -123,7 +124,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         uint32_t v2 = (uint32_t)decode->op[1].val;  \
         uint32_t diff = v1 cmd v2;                  \
         if (save_res) {                              \
-            write_val_ext(cpu, decode->op[0].ptr, diff, 4); \
+            write_val_ext(env, decode->op[0].ptr, diff, 4); \
         } \
         FLAGS_FUNC##_32(v1, v2, diff);              \
         break;                                      \
@@ -133,37 +134,37 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
     }                                                   \
 }
 
-addr_t read_reg(struct CPUState *cpu, int reg, int size)
+addr_t read_reg(CPUX86State *env, int reg, int size)
 {
     switch (size) {
     case 1:
-        return cpu->hvf_x86->regs[reg].lx;
+        return env->hvf_emul->regs[reg].lx;
     case 2:
-        return cpu->hvf_x86->regs[reg].rx;
+        return env->hvf_emul->regs[reg].rx;
     case 4:
-        return cpu->hvf_x86->regs[reg].erx;
+        return env->hvf_emul->regs[reg].erx;
     case 8:
-        return cpu->hvf_x86->regs[reg].rrx;
+        return env->hvf_emul->regs[reg].rrx;
     default:
         VM_PANIC_ON("read_reg size");
     }
     return 0;
 }
 
-void write_reg(struct CPUState *cpu, int reg, addr_t val, int size)
+void write_reg(CPUX86State *env, int reg, addr_t val, int size)
 {
     switch (size) {
     case 1:
-        cpu->hvf_x86->regs[reg].lx = val;
+        env->hvf_emul->regs[reg].lx = val;
         break;
     case 2:
-        cpu->hvf_x86->regs[reg].rx = val;
+        env->hvf_emul->regs[reg].rx = val;
         break;
     case 4:
-        cpu->hvf_x86->regs[reg].rrx = (uint32_t)val;
+        env->hvf_emul->regs[reg].rrx = (uint32_t)val;
         break;
     case 8:
-        cpu->hvf_x86->regs[reg].rrx = val;
+        env->hvf_emul->regs[reg].rrx = val;
         break;
     default:
         VM_PANIC_ON("write_reg size");
@@ -215,38 +216,36 @@ void write_val_to_reg(addr_t reg_ptr, addr_t val, int size)
     }
 }
 
-static bool is_host_reg(struct CPUState *cpu, addr_t ptr)
+static bool is_host_reg(struct CPUX86State *env, addr_t ptr)
 {
-    return (ptr > (addr_t)cpu && ptr < (addr_t)cpu + sizeof(struct CPUState)) ||
-           (ptr > (addr_t)cpu->hvf_x86 && ptr <
-            (addr_t)(cpu->hvf_x86 + sizeof(struct hvf_x86_state)));
+    return (ptr - (addr_t)&env->hvf_emul->regs[0]) < sizeof(env->hvf_emul->regs);
 }
 
-void write_val_ext(struct CPUState *cpu, addr_t ptr, addr_t val, int size)
+void write_val_ext(struct CPUX86State *env, addr_t ptr, addr_t val, int size)
 {
-    if (is_host_reg(cpu, ptr)) {
+    if (is_host_reg(env, ptr)) {
         write_val_to_reg(ptr, val, size);
         return;
     }
-    vmx_write_mem(cpu, ptr, &val, size);
+    vmx_write_mem(ENV_GET_CPU(env), ptr, &val, size);
 }
 
-uint8_t *read_mmio(struct CPUState *cpu, addr_t ptr, int bytes)
+uint8_t *read_mmio(struct CPUX86State *env, addr_t ptr, int bytes)
 {
-    vmx_read_mem(cpu, cpu->hvf_x86->mmio_buf, ptr, bytes);
-    return cpu->hvf_x86->mmio_buf;
+    vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, ptr, bytes);
+    return env->hvf_emul->mmio_buf;
 }
 
-addr_t read_val_ext(struct CPUState *cpu, addr_t ptr, int size)
+addr_t read_val_ext(struct CPUX86State *env, addr_t ptr, int size)
 {
     addr_t val;
     uint8_t *mmio_ptr;
 
-    if (is_host_reg(cpu, ptr)) {
+    if (is_host_reg(env, ptr)) {
         return read_val_from_reg(ptr, size);
     }
 
-    mmio_ptr = read_mmio(cpu, ptr, size);
+    mmio_ptr = read_mmio(env, ptr, size);
     switch (size) {
     case 1:
         val = *(uint8_t *)mmio_ptr;
@@ -267,7 +266,7 @@ addr_t read_val_ext(struct CPUState *cpu, addr_t ptr, int size)
     return val;
 }
 
-static void fetch_operands(struct CPUState *cpu, struct x86_decode *decode,
+static void fetch_operands(struct CPUX86State *env, struct x86_decode *decode,
                            int n, bool val_op0, bool val_op1, bool val_op2)
 {
     int i;
@@ -285,18 +284,18 @@ static void fetch_operands(struct CPUState *cpu, struct x86_decode *decode,
             }
             break;
         case X86_VAR_RM:
-            calc_modrm_operand(cpu, decode, &decode->op[i]);
+            calc_modrm_operand(env, decode, &decode->op[i]);
             if (calc_val[i]) {
-                decode->op[i].val = read_val_ext(cpu, decode->op[i].ptr,
+                decode->op[i].val = read_val_ext(env, decode->op[i].ptr,
                                                  decode->operand_size);
             }
             break;
         case X86_VAR_OFFSET:
-            decode->op[i].ptr = decode_linear_addr(cpu, decode,
+            decode->op[i].ptr = decode_linear_addr(env, decode,
                                                    decode->op[i].ptr,
                                                    REG_SEG_DS);
             if (calc_val[i]) {
-                decode->op[i].val = read_val_ext(cpu, decode->op[i].ptr,
+                decode->op[i].val = read_val_ext(env, decode->op[i].ptr,
                                                  decode->operand_size);
             }
             break;
@@ -306,65 +305,65 @@ static void fetch_operands(struct CPUState *cpu, struct x86_decode *decode,
     }
 }
 
-static void exec_mov(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_mov(struct CPUX86State *env, struct x86_decode *decode)
 {
-    fetch_operands(cpu, decode, 2, false, true, false);
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val,
+    fetch_operands(env, decode, 2, false, true, false);
+    write_val_ext(env, decode->op[0].ptr, decode->op[1].val,
                   decode->operand_size);
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_add(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_add(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(cpu, decode, +, SET_FLAGS_OSZAPC_ADD, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_ARITH_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_or(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_or(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(cpu, decode, |, SET_FLAGS_OSZAPC_LOGIC, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_LOGIC_CMD(env, decode, |, SET_FLAGS_OSZAPC_LOGIC, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_adc(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_adc(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(cpu, decode, +get_CF(cpu)+, SET_FLAGS_OSZAPC_ADD, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_ARITH_CMD(env, decode, +get_CF(env)+, SET_FLAGS_OSZAPC_ADD, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_sbb(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_sbb(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(cpu, decode, -get_CF(cpu)-, SET_FLAGS_OSZAPC_SUB, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_ARITH_CMD(env, decode, -get_CF(env)-, SET_FLAGS_OSZAPC_SUB, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_and(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_and(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(cpu, decode, &, SET_FLAGS_OSZAPC_LOGIC, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_LOGIC_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_sub(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_sub(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_xor(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_xor(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(cpu, decode, ^, SET_FLAGS_OSZAPC_LOGIC, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_LOGIC_CMD(env, decode, ^, SET_FLAGS_OSZAPC_LOGIC, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_neg(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_neg(struct CPUX86State *env, struct x86_decode *decode)
 {
-    /*EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, false);*/
+    /*EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);*/
     int32_t val;
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
 
     val = 0 - sign(decode->op[1].val, decode->operand_size);
-    write_val_ext(cpu, decode->op[1].ptr, val, decode->operand_size);
+    write_val_ext(env, decode->op[1].ptr, val, decode->operand_size);
 
     if (4 == decode->operand_size) {
         SET_FLAGS_OSZAPC_SUB_32(0, 0 - val, val);
@@ -376,56 +375,56 @@ static void exec_neg(struct CPUState *cpu, struct x86_decode *decode)
         VM_PANIC("bad op size\n");
     }
 
-    /*lflags_to_rflags(cpu);*/
-    RIP(cpu) += decode->len;
+    /*lflags_to_rflags(env);*/
+    RIP(env) += decode->len;
 }
 
-static void exec_cmp(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_cmp(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, false);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    RIP(env) += decode->len;
 }
 
-static void exec_inc(struct CPUState *cpu, struct x86_decode *decode)
-{
-    decode->op[1].type = X86_VAR_IMMEDIATE;
-    decode->op[1].val = 0;
-
-    EXEC_2OP_ARITH_CMD(cpu, decode, +1+, SET_FLAGS_OSZAP_ADD, true);
-
-    RIP(cpu) += decode->len;
-}
-
-static void exec_dec(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_inc(struct CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[1].type = X86_VAR_IMMEDIATE;
     decode->op[1].val = 0;
 
-    EXEC_2OP_ARITH_CMD(cpu, decode, -1-, SET_FLAGS_OSZAP_SUB, true);
-    RIP(cpu) += decode->len;
+    EXEC_2OP_ARITH_CMD(env, decode, +1+, SET_FLAGS_OSZAP_ADD, true);
+
+    RIP(env) += decode->len;
 }
 
-static void exec_tst(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_dec(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(cpu, decode, &, SET_FLAGS_OSZAPC_LOGIC, false);
-    RIP(cpu) += decode->len;
+    decode->op[1].type = X86_VAR_IMMEDIATE;
+    decode->op[1].val = 0;
+
+    EXEC_2OP_ARITH_CMD(env, decode, -1-, SET_FLAGS_OSZAP_SUB, true);
+    RIP(env) += decode->len;
 }
 
-static void exec_not(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_tst(struct CPUX86State *env, struct x86_decode *decode)
 {
-    fetch_operands(cpu, decode, 1, true, false, false);
+    EXEC_2OP_LOGIC_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, false);
+    RIP(env) += decode->len;
+}
 
-    write_val_ext(cpu, decode->op[0].ptr, ~decode->op[0].val,
+static void exec_not(struct CPUX86State *env, struct x86_decode *decode)
+{
+    fetch_operands(env, decode, 1, true, false, false);
+
+    write_val_ext(env, decode->op[0].ptr, ~decode->op[0].val,
                   decode->operand_size);
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-void exec_movzx(struct CPUState *cpu, struct x86_decode *decode)
+void exec_movzx(struct CPUX86State *env, struct x86_decode *decode)
 {
     int src_op_size;
     int op_size = decode->operand_size;
 
-    fetch_operands(cpu, decode, 1, false, false, false);
+    fetch_operands(env, decode, 1, false, false, false);
 
     if (0xb6 == decode->opcode[1]) {
         src_op_size = 1;
@@ -433,60 +432,60 @@ void exec_movzx(struct CPUState *cpu, struct x86_decode *decode)
         src_op_size = 2;
     }
     decode->operand_size = src_op_size;
-    calc_modrm_operand(cpu, decode, &decode->op[1]);
-    decode->op[1].val = read_val_ext(cpu, decode->op[1].ptr, src_op_size);
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val, op_size);
+    calc_modrm_operand(env, decode, &decode->op[1]);
+    decode->op[1].val = read_val_ext(env, decode->op[1].ptr, src_op_size);
+    write_val_ext(env, decode->op[0].ptr, decode->op[1].val, op_size);
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_out(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_out(struct CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->opcode[0]) {
     case 0xe6:
-        hvf_handle_io(cpu, decode->op[0].val, &AL(cpu), 1, 1, 1);
+        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &AL(env), 1, 1, 1);
         break;
     case 0xe7:
-        hvf_handle_io(cpu, decode->op[0].val, &RAX(cpu), 1,
+        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &RAX(env), 1,
                       decode->operand_size, 1);
         break;
     case 0xee:
-        hvf_handle_io(cpu, DX(cpu), &AL(cpu), 1, 1, 1);
+        hvf_handle_io(ENV_GET_CPU(env), DX(env), &AL(env), 1, 1, 1);
         break;
     case 0xef:
-        hvf_handle_io(cpu, DX(cpu), &RAX(cpu), 1, decode->operand_size, 1);
+        hvf_handle_io(ENV_GET_CPU(env), DX(env), &RAX(env), 1, decode->operand_size, 1);
         break;
     default:
         VM_PANIC("Bad out opcode\n");
         break;
     }
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_in(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t val = 0;
     switch (decode->opcode[0]) {
     case 0xe4:
-        hvf_handle_io(cpu, decode->op[0].val, &AL(cpu), 0, 1, 1);
+        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &AL(env), 0, 1, 1);
         break;
     case 0xe5:
-        hvf_handle_io(cpu, decode->op[0].val, &val, 0, decode->operand_size, 1);
+        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &val, 0, decode->operand_size, 1);
         if (decode->operand_size == 2) {
-            AX(cpu) = val;
+            AX(env) = val;
         } else {
-            RAX(cpu) = (uint32_t)val;
+            RAX(env) = (uint32_t)val;
         }
         break;
     case 0xec:
-        hvf_handle_io(cpu, DX(cpu), &AL(cpu), 0, 1, 1);
+        hvf_handle_io(ENV_GET_CPU(env), DX(env), &AL(env), 0, 1, 1);
         break;
     case 0xed:
-        hvf_handle_io(cpu, DX(cpu), &val, 0, decode->operand_size, 1);
+        hvf_handle_io(ENV_GET_CPU(env), DX(env), &val, 0, decode->operand_size, 1);
         if (decode->operand_size == 2) {
-            AX(cpu) = val;
+            AX(env) = val;
         } else {
-            RAX(cpu) = (uint32_t)val;
+            RAX(env) = (uint32_t)val;
         }
 
         break;
@@ -495,212 +494,212 @@ static void exec_in(struct CPUState *cpu, struct x86_decode *decode)
         break;
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static inline void string_increment_reg(struct CPUState *cpu, int reg,
+static inline void string_increment_reg(struct CPUX86State *env, int reg,
                                         struct x86_decode *decode)
 {
-    addr_t val = read_reg(cpu, reg, decode->addressing_size);
-    if (cpu->hvf_x86->rflags.df) {
+    addr_t val = read_reg(env, reg, decode->addressing_size);
+    if (env->hvf_emul->rflags.df) {
         val -= decode->operand_size;
     } else {
         val += decode->operand_size;
     }
-    write_reg(cpu, reg, val, decode->addressing_size);
+    write_reg(env, reg, val, decode->addressing_size);
 }
 
-static inline void string_rep(struct CPUState *cpu, struct x86_decode *decode,
-                              void (*func)(struct CPUState *cpu,
+static inline void string_rep(struct CPUX86State *env, struct x86_decode *decode,
+                              void (*func)(struct CPUX86State *env,
                                            struct x86_decode *ins), int rep)
 {
-    addr_t rcx = read_reg(cpu, REG_RCX, decode->addressing_size);
+    addr_t rcx = read_reg(env, REG_RCX, decode->addressing_size);
     while (rcx--) {
-        func(cpu, decode);
-        write_reg(cpu, REG_RCX, rcx, decode->addressing_size);
-        if ((PREFIX_REP == rep) && !get_ZF(cpu)) {
+        func(env, decode);
+        write_reg(env, REG_RCX, rcx, decode->addressing_size);
+        if ((PREFIX_REP == rep) && !get_ZF(env)) {
             break;
         }
-        if ((PREFIX_REPN == rep) && get_ZF(cpu)) {
+        if ((PREFIX_REPN == rep) && get_ZF(env)) {
             break;
         }
     }
 }
 
-static void exec_ins_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_ins_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size,
+    addr_t addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
                                    REG_SEG_ES);
 
-    hvf_handle_io(cpu, DX(cpu), cpu->hvf_x86->mmio_buf, 0,
+    hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 0,
                   decode->operand_size, 1);
-    vmx_write_mem(cpu, addr, cpu->hvf_x86->mmio_buf, decode->operand_size);
+    vmx_write_mem(ENV_GET_CPU(env), addr, env->hvf_emul->mmio_buf, decode->operand_size);
 
-    string_increment_reg(cpu, REG_RDI, decode);
+    string_increment_reg(env, REG_RDI, decode);
 }
 
-static void exec_ins(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_ins(struct CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
-        string_rep(cpu, decode, exec_ins_single, 0);
+        string_rep(env, decode, exec_ins_single, 0);
     } else {
-        exec_ins_single(cpu, decode);
+        exec_ins_single(env, decode);
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_outs_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_outs_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
+    addr_t addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
 
-    vmx_read_mem(cpu, cpu->hvf_x86->mmio_buf, addr, decode->operand_size);
-    hvf_handle_io(cpu, DX(cpu), cpu->hvf_x86->mmio_buf, 1,
+    vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, addr, decode->operand_size);
+    hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 1,
                   decode->operand_size, 1);
 
-    string_increment_reg(cpu, REG_RSI, decode);
+    string_increment_reg(env, REG_RSI, decode);
 }
 
-static void exec_outs(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_outs(struct CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
-        string_rep(cpu, decode, exec_outs_single, 0);
+        string_rep(env, decode, exec_outs_single, 0);
     } else {
-        exec_outs_single(cpu, decode);
+        exec_outs_single(env, decode);
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_movs_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_movs_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t src_addr;
     addr_t dst_addr;
     addr_t val;
-    
-    src_addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
-    
-    dst_addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size,
-                                REG_SEG_ES);
-    val = read_val_ext(cpu, src_addr, decode->operand_size);
-    write_val_ext(cpu, dst_addr, val, decode->operand_size);
 
-    string_increment_reg(cpu, REG_RSI, decode);
-    string_increment_reg(cpu, REG_RDI, decode);
+    src_addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
+                                REG_SEG_ES);
+
+    val = read_val_ext(env, src_addr, decode->operand_size);
+    write_val_ext(env, dst_addr, val, decode->operand_size);
+
+    string_increment_reg(env, REG_RSI, decode);
+    string_increment_reg(env, REG_RDI, decode);
 }
 
-static void exec_movs(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_movs(struct CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
-        string_rep(cpu, decode, exec_movs_single, 0);
+        string_rep(env, decode, exec_movs_single, 0);
     } else {
-        exec_movs_single(cpu, decode);
+        exec_movs_single(env, decode);
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_cmps_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t src_addr;
     addr_t dst_addr;
 
-    src_addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
-    dst_addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size,
+    src_addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
                                 REG_SEG_ES);
 
     decode->op[0].type = X86_VAR_IMMEDIATE;
-    decode->op[0].val = read_val_ext(cpu, src_addr, decode->operand_size);
+    decode->op[0].val = read_val_ext(env, src_addr, decode->operand_size);
     decode->op[1].type = X86_VAR_IMMEDIATE;
-    decode->op[1].val = read_val_ext(cpu, dst_addr, decode->operand_size);
+    decode->op[1].val = read_val_ext(env, dst_addr, decode->operand_size);
 
-    EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
 
-    string_increment_reg(cpu, REG_RSI, decode);
-    string_increment_reg(cpu, REG_RDI, decode);
+    string_increment_reg(env, REG_RSI, decode);
+    string_increment_reg(env, REG_RDI, decode);
 }
 
-static void exec_cmps(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_cmps(struct CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
-        string_rep(cpu, decode, exec_cmps_single, decode->rep);
+        string_rep(env, decode, exec_cmps_single, decode->rep);
     } else {
-        exec_cmps_single(cpu, decode);
+        exec_cmps_single(env, decode);
     }
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
 
-static void exec_stos_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_stos_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t addr;
     addr_t val;
 
-    addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size, REG_SEG_ES);
-    val = read_reg(cpu, REG_RAX, decode->operand_size);
-    vmx_write_mem(cpu, addr, &val, decode->operand_size);
+    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, REG_SEG_ES);
+    val = read_reg(env, REG_RAX, decode->operand_size);
+    vmx_write_mem(ENV_GET_CPU(env), addr, &val, decode->operand_size);
 
-    string_increment_reg(cpu, REG_RDI, decode);
+    string_increment_reg(env, REG_RDI, decode);
 }
 
 
-static void exec_stos(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_stos(struct CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
-        string_rep(cpu, decode, exec_stos_single, 0);
+        string_rep(env, decode, exec_stos_single, 0);
     } else {
-        exec_stos_single(cpu, decode);
+        exec_stos_single(env, decode);
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_scas_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_scas_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t addr;
-    
-    addr = linear_addr_size(cpu, RDI(cpu), decode->addressing_size, REG_SEG_ES);
-    decode->op[1].type = X86_VAR_IMMEDIATE;
-    vmx_read_mem(cpu, &decode->op[1].val, addr, decode->operand_size);
 
-    EXEC_2OP_ARITH_CMD(cpu, decode, -, SET_FLAGS_OSZAPC_SUB, false);
-    string_increment_reg(cpu, REG_RDI, decode);
+    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, REG_SEG_ES);
+    decode->op[1].type = X86_VAR_IMMEDIATE;
+    vmx_read_mem(ENV_GET_CPU(env), &decode->op[1].val, addr, decode->operand_size);
+
+    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    string_increment_reg(env, REG_RDI, decode);
 }
 
-static void exec_scas(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_scas(struct CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = REG_RAX;
     if (decode->rep) {
-        string_rep(cpu, decode, exec_scas_single, decode->rep);
+        string_rep(env, decode, exec_scas_single, decode->rep);
     } else {
-        exec_scas_single(cpu, decode);
+        exec_scas_single(env, decode);
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_lods_single(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_lods_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t addr;
     addr_t val = 0;
-    
-    addr = decode_linear_addr(cpu, decode, RSI(cpu), REG_SEG_DS);
-    vmx_read_mem(cpu, &val, addr,  decode->operand_size);
-    write_reg(cpu, REG_RAX, val, decode->operand_size);
 
-    string_increment_reg(cpu, REG_RSI, decode);
+    addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    vmx_read_mem(ENV_GET_CPU(env), &val, addr,  decode->operand_size);
+    write_reg(env, REG_RAX, val, decode->operand_size);
+
+    string_increment_reg(env, REG_RSI, decode);
 }
 
-static void exec_lods(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_lods(struct CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
-        string_rep(cpu, decode, exec_lods_single, 0);
+        string_rep(env, decode, exec_lods_single, 0);
     } else {
-        exec_lods_single(cpu, decode);
+        exec_lods_single(env, decode);
     }
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
 #define MSR_IA32_UCODE_REV 0x00000017
@@ -709,7 +708,7 @@ void simulate_rdmsr(struct CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
-    uint32_t msr = ECX(cpu);
+    uint32_t msr = ECX(env);
     uint64_t val = 0;
 
     switch (msr) {
@@ -754,7 +753,7 @@ void simulate_rdmsr(struct CPUState *cpu)
     case MSR_MTRRphysBase(5):
     case MSR_MTRRphysBase(6):
     case MSR_MTRRphysBase(7):
-        val = env->mtrr_var[(ECX(cpu) - MSR_MTRRphysBase(0)) / 2].base;
+        val = env->mtrr_var[(ECX(env) - MSR_MTRRphysBase(0)) / 2].base;
         break;
     case MSR_MTRRphysMask(0):
     case MSR_MTRRphysMask(1):
@@ -764,14 +763,14 @@ void simulate_rdmsr(struct CPUState *cpu)
     case MSR_MTRRphysMask(5):
     case MSR_MTRRphysMask(6):
     case MSR_MTRRphysMask(7):
-        val = env->mtrr_var[(ECX(cpu) - MSR_MTRRphysMask(0)) / 2].mask;
+        val = env->mtrr_var[(ECX(env) - MSR_MTRRphysMask(0)) / 2].mask;
         break;
     case MSR_MTRRfix64K_00000:
         val = env->mtrr_fixed[0];
         break;
     case MSR_MTRRfix16K_80000:
     case MSR_MTRRfix16K_A0000:
-        val = env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix16K_80000 + 1];
+        val = env->mtrr_fixed[ECX(env) - MSR_MTRRfix16K_80000 + 1];
         break;
     case MSR_MTRRfix4K_C0000:
     case MSR_MTRRfix4K_C8000:
@@ -781,7 +780,7 @@ void simulate_rdmsr(struct CPUState *cpu)
     case MSR_MTRRfix4K_E8000:
     case MSR_MTRRfix4K_F0000:
     case MSR_MTRRfix4K_F8000:
-        val = env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix4K_C0000 + 3];
+        val = env->mtrr_fixed[ECX(env) - MSR_MTRRfix4K_C0000 + 3];
         break;
     case MSR_MTRRdefType:
         val = env->mtrr_deftype;
@@ -792,22 +791,22 @@ void simulate_rdmsr(struct CPUState *cpu)
         break;
     }
 
-    RAX(cpu) = (uint32_t)val;
-    RDX(cpu) = (uint32_t)(val >> 32);
+    RAX(env) = (uint32_t)val;
+    RDX(env) = (uint32_t)(val >> 32);
 }
 
-static void exec_rdmsr(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_rdmsr(struct CPUX86State *env, struct x86_decode *decode)
 {
-    simulate_rdmsr(cpu);
-    RIP(cpu) += decode->len;
+    simulate_rdmsr(ENV_GET_CPU(env));
+    RIP(env) += decode->len;
 }
 
 void simulate_wrmsr(struct CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
-    uint32_t msr = ECX(cpu);
-    uint64_t data = ((uint64_t)EDX(cpu) << 32) | EAX(cpu);
+    uint32_t msr = ECX(env);
+    uint64_t data = ((uint64_t)EDX(env) << 32) | EAX(env);
 
     switch (msr) {
     case MSR_IA32_TSC:
@@ -837,7 +836,7 @@ void simulate_wrmsr(struct CPUState *cpu)
         abort();
         break;
     case MSR_EFER:
-        cpu->hvf_x86->efer.efer = data;
+        env->hvf_emul->efer.efer = data;
         /*printf("new efer %llx\n", EFER(cpu));*/
         wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, data);
         if (data & EFER_NXE) {
@@ -852,7 +851,7 @@ void simulate_wrmsr(struct CPUState *cpu)
     case MSR_MTRRphysBase(5):
     case MSR_MTRRphysBase(6):
     case MSR_MTRRphysBase(7):
-        env->mtrr_var[(ECX(cpu) - MSR_MTRRphysBase(0)) / 2].base = data;
+        env->mtrr_var[(ECX(env) - MSR_MTRRphysBase(0)) / 2].base = data;
         break;
     case MSR_MTRRphysMask(0):
     case MSR_MTRRphysMask(1):
@@ -862,14 +861,14 @@ void simulate_wrmsr(struct CPUState *cpu)
     case MSR_MTRRphysMask(5):
     case MSR_MTRRphysMask(6):
     case MSR_MTRRphysMask(7):
-        env->mtrr_var[(ECX(cpu) - MSR_MTRRphysMask(0)) / 2].mask = data;
+        env->mtrr_var[(ECX(env) - MSR_MTRRphysMask(0)) / 2].mask = data;
         break;
     case MSR_MTRRfix64K_00000:
-        env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix64K_00000] = data;
+        env->mtrr_fixed[ECX(env) - MSR_MTRRfix64K_00000] = data;
         break;
     case MSR_MTRRfix16K_80000:
     case MSR_MTRRfix16K_A0000:
-        env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix16K_80000 + 1] = data;
+        env->mtrr_fixed[ECX(env) - MSR_MTRRfix16K_80000 + 1] = data;
         break;
     case MSR_MTRRfix4K_C0000:
     case MSR_MTRRfix4K_C8000:
@@ -879,7 +878,7 @@ void simulate_wrmsr(struct CPUState *cpu)
     case MSR_MTRRfix4K_E8000:
     case MSR_MTRRfix4K_F0000:
     case MSR_MTRRfix4K_F8000:
-        env->mtrr_fixed[ECX(cpu) - MSR_MTRRfix4K_C0000 + 3] = data;
+        env->mtrr_fixed[ECX(env) - MSR_MTRRfix4K_C0000 + 3] = data;
         break;
     case MSR_MTRRdefType:
         env->mtrr_deftype = data;
@@ -895,17 +894,17 @@ void simulate_wrmsr(struct CPUState *cpu)
     printf("write msr %llx\n", RCX(cpu));*/
 }
 
-static void exec_wrmsr(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_wrmsr(struct CPUX86State *env, struct x86_decode *decode)
 {
-    simulate_wrmsr(cpu);
-    RIP(cpu) += decode->len;
+    simulate_wrmsr(ENV_GET_CPU(env));
+    RIP(env) += decode->len;
 }
 
 /*
  * flag:
  * 0 - bt, 1 - btc, 2 - bts, 3 - btr
  */
-static void do_bt(struct CPUState *cpu, struct x86_decode *decode, int flag)
+static void do_bt(struct CPUX86State *env, struct x86_decode *decode, int flag)
 {
     int32_t displacement;
     uint8_t index;
@@ -914,7 +913,7 @@ static void do_bt(struct CPUState *cpu, struct x86_decode *decode, int flag)
 
     VM_PANIC_ON(decode->rex.rex);
 
-    fetch_operands(cpu, decode, 2, false, true, false);
+    fetch_operands(env, decode, 2, false, true, false);
     index = decode->op[1].val & mask;
 
     if (decode->op[0].type != X86_VAR_REG) {
@@ -928,13 +927,13 @@ static void do_bt(struct CPUState *cpu, struct x86_decode *decode, int flag)
             VM_PANIC("bt 64bit\n");
         }
     }
-    decode->op[0].val = read_val_ext(cpu, decode->op[0].ptr,
+    decode->op[0].val = read_val_ext(env, decode->op[0].ptr,
                                      decode->operand_size);
     cf = (decode->op[0].val >> index) & 0x01;
 
     switch (flag) {
     case 0:
-        set_CF(cpu, cf);
+        set_CF(env, cf);
         return;
     case 1:
         decode->op[0].val ^= (1u << index);
@@ -946,41 +945,41 @@ static void do_bt(struct CPUState *cpu, struct x86_decode *decode, int flag)
         decode->op[0].val &= ~(1u << index);
         break;
     }
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[0].val,
+    write_val_ext(env, decode->op[0].ptr, decode->op[0].val,
                   decode->operand_size);
-    set_CF(cpu, cf);
+    set_CF(env, cf);
 }
 
-static void exec_bt(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_bt(struct CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(cpu, decode, 0);
-    RIP(cpu) += decode->len;
+    do_bt(env, decode, 0);
+    RIP(env) += decode->len;
 }
 
-static void exec_btc(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_btc(struct CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(cpu, decode, 1);
-    RIP(cpu) += decode->len;
+    do_bt(env, decode, 1);
+    RIP(env) += decode->len;
 }
 
-static void exec_btr(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_btr(struct CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(cpu, decode, 3);
-    RIP(cpu) += decode->len;
+    do_bt(env, decode, 3);
+    RIP(env) += decode->len;
 }
 
-static void exec_bts(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_bts(struct CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(cpu, decode, 2);
-    RIP(cpu) += decode->len;
+    do_bt(env, decode, 2);
+    RIP(env) += decode->len;
 }
 
-void exec_shl(struct CPUState *cpu, struct x86_decode *decode)
+void exec_shl(struct CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
     int of = 0, cf = 0;
 
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
 
     count = decode->op[1].val;
     count &= 0x1f;      /* count is masked to 5 bits*/
@@ -998,9 +997,9 @@ void exec_shl(struct CPUState *cpu, struct x86_decode *decode)
             of = cf ^ (res >> 7);
         }
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 1);
+        write_val_ext(env, decode->op[0].ptr, res, 1);
         SET_FLAGS_OSZAPC_LOGIC_8(res);
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     case 2:
@@ -1014,20 +1013,20 @@ void exec_shl(struct CPUState *cpu, struct x86_decode *decode)
             of = cf ^ (res >> 15); /* of = cf ^ result15 */
         }
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 2);
+        write_val_ext(env, decode->op[0].ptr, res, 2);
         SET_FLAGS_OSZAPC_LOGIC_16(res);
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     case 4:
     {
         uint32_t res = decode->op[0].val << count;
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        write_val_ext(env, decode->op[0].ptr, res, 4);
         SET_FLAGS_OSZAPC_LOGIC_32(res);
         cf = (decode->op[0].val >> (32 - count)) & 0x1;
         of = cf ^ (res >> 31); /* of = cf ^ result31 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     default:
@@ -1035,16 +1034,16 @@ void exec_shl(struct CPUState *cpu, struct x86_decode *decode)
     }
 
 exit:
-    /* lflags_to_rflags(cpu); */
-    RIP(cpu) += decode->len;
+    /* lflags_to_rflags(env); */
+    RIP(env) += decode->len;
 }
 
-void exec_movsx(struct CPUState *cpu, struct x86_decode *decode)
+void exec_movsx(CPUX86State *env, struct x86_decode *decode)
 {
     int src_op_size;
     int op_size = decode->operand_size;
 
-    fetch_operands(cpu, decode, 2, false, false, false);
+    fetch_operands(env, decode, 2, false, false, false);
 
     if (0xbe == decode->opcode[1]) {
         src_op_size = 1;
@@ -1053,20 +1052,20 @@ void exec_movsx(struct CPUState *cpu, struct x86_decode *decode)
     }
 
     decode->operand_size = src_op_size;
-    calc_modrm_operand(cpu, decode, &decode->op[1]);
-    decode->op[1].val = sign(read_val_ext(cpu, decode->op[1].ptr, src_op_size),
+    calc_modrm_operand(env, decode, &decode->op[1]);
+    decode->op[1].val = sign(read_val_ext(env, decode->op[1].ptr, src_op_size),
                              src_op_size);
 
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val, op_size);
+    write_val_ext(env, decode->op[0].ptr, decode->op[1].val, op_size);
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-void exec_ror(struct CPUState *cpu, struct x86_decode *decode)
+void exec_ror(struct CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
 
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
     count = decode->op[1].val;
 
     switch (decode->operand_size) {
@@ -1079,17 +1078,17 @@ void exec_ror(struct CPUState *cpu, struct x86_decode *decode)
             if (count & 0x18) {
                 bit6 = ((uint8_t)decode->op[0].val >> 6) & 1;
                 bit7 = ((uint8_t)decode->op[0].val >> 7) & 1;
-                SET_FLAGS_OxxxxC(cpu, bit6 ^ bit7, bit7);
+                SET_FLAGS_OxxxxC(env, bit6 ^ bit7, bit7);
              }
         } else {
             count &= 0x7; /* use only bottom 3 bits */
             res = ((uint8_t)decode->op[0].val >> count) |
                    ((uint8_t)decode->op[0].val << (8 - count));
-            write_val_ext(cpu, decode->op[0].ptr, res, 1);
+            write_val_ext(env, decode->op[0].ptr, res, 1);
             bit6 = (res >> 6) & 1;
             bit7 = (res >> 7) & 1;
             /* set eflags: ROR count affects the following flags: C, O */
-            SET_FLAGS_OxxxxC(cpu, bit6 ^ bit7, bit7);
+            SET_FLAGS_OxxxxC(env, bit6 ^ bit7, bit7);
         }
         break;
     }
@@ -1103,18 +1102,18 @@ void exec_ror(struct CPUState *cpu, struct x86_decode *decode)
                 bit14 = ((uint16_t)decode->op[0].val >> 14) & 1;
                 bit15 = ((uint16_t)decode->op[0].val >> 15) & 1;
                 /* of = result14 ^ result15 */
-                SET_FLAGS_OxxxxC(cpu, bit14 ^ bit15, bit15);
+                SET_FLAGS_OxxxxC(env, bit14 ^ bit15, bit15);
             }
         } else {
             count &= 0x0f;  /* use only 4 LSB's */
             res = ((uint16_t)decode->op[0].val >> count) |
                    ((uint16_t)decode->op[0].val << (16 - count));
-            write_val_ext(cpu, decode->op[0].ptr, res, 2);
+            write_val_ext(env, decode->op[0].ptr, res, 2);
 
             bit14 = (res >> 14) & 1;
             bit15 = (res >> 15) & 1;
             /* of = result14 ^ result15 */
-            SET_FLAGS_OxxxxC(cpu, bit14 ^ bit15, bit15);
+            SET_FLAGS_OxxxxC(env, bit14 ^ bit15, bit15);
         }
         break;
     }
@@ -1127,24 +1126,24 @@ void exec_ror(struct CPUState *cpu, struct x86_decode *decode)
         if (count) {
             res = ((uint32_t)decode->op[0].val >> count) |
                    ((uint32_t)decode->op[0].val << (32 - count));
-            write_val_ext(cpu, decode->op[0].ptr, res, 4);
+            write_val_ext(env, decode->op[0].ptr, res, 4);
 
             bit31 = (res >> 31) & 1;
             bit30 = (res >> 30) & 1;
             /* of = result30 ^ result31 */
-            SET_FLAGS_OxxxxC(cpu, bit30 ^ bit31, bit31);
+            SET_FLAGS_OxxxxC(env, bit30 ^ bit31, bit31);
         }
         break;
         }
     }
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-void exec_rol(struct CPUState *cpu, struct x86_decode *decode)
+void exec_rol(struct CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
 
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
     count = decode->op[1].val;
 
     switch (decode->operand_size) {
@@ -1157,20 +1156,20 @@ void exec_rol(struct CPUState *cpu, struct x86_decode *decode)
             if (count & 0x18) {
                 bit0 = ((uint8_t)decode->op[0].val & 1);
                 bit7 = ((uint8_t)decode->op[0].val >> 7);
-                SET_FLAGS_OxxxxC(cpu, bit0 ^ bit7, bit0);
+                SET_FLAGS_OxxxxC(env, bit0 ^ bit7, bit0);
             }
         }  else {
             count &= 0x7; /* use only lowest 3 bits */
             res = ((uint8_t)decode->op[0].val << count) |
                    ((uint8_t)decode->op[0].val >> (8 - count));
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 1);
+            write_val_ext(env, decode->op[0].ptr, res, 1);
             /* set eflags:
              * ROL count affects the following flags: C, O
              */
             bit0 = (res &  1);
             bit7 = (res >> 7);
-            SET_FLAGS_OxxxxC(cpu, bit0 ^ bit7, bit0);
+            SET_FLAGS_OxxxxC(env, bit0 ^ bit7, bit0);
         }
         break;
     }
@@ -1184,18 +1183,18 @@ void exec_rol(struct CPUState *cpu, struct x86_decode *decode)
                 bit0  = ((uint16_t)decode->op[0].val & 0x1);
                 bit15 = ((uint16_t)decode->op[0].val >> 15);
                 /* of = cf ^ result15 */
-                SET_FLAGS_OxxxxC(cpu, bit0 ^ bit15, bit0);
+                SET_FLAGS_OxxxxC(env, bit0 ^ bit15, bit0);
             }
         } else {
             count &= 0x0f; /* only use bottom 4 bits */
             res = ((uint16_t)decode->op[0].val << count) |
                    ((uint16_t)decode->op[0].val >> (16 - count));
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 2);
+            write_val_ext(env, decode->op[0].ptr, res, 2);
             bit0  = (res & 0x1);
             bit15 = (res >> 15);
             /* of = cf ^ result15 */
-            SET_FLAGS_OxxxxC(cpu, bit0 ^ bit15, bit0);
+            SET_FLAGS_OxxxxC(env, bit0 ^ bit15, bit0);
         }
         break;
     }
@@ -1209,25 +1208,25 @@ void exec_rol(struct CPUState *cpu, struct x86_decode *decode)
             res = ((uint32_t)decode->op[0].val << count) |
                    ((uint32_t)decode->op[0].val >> (32 - count));
 
-            write_val_ext(cpu, decode->op[0].ptr, res, 4);
+            write_val_ext(env, decode->op[0].ptr, res, 4);
             bit0  = (res & 0x1);
             bit31 = (res >> 31);
             /* of = cf ^ result31 */
-            SET_FLAGS_OxxxxC(cpu, bit0 ^ bit31, bit0);
+            SET_FLAGS_OxxxxC(env, bit0 ^ bit31, bit0);
         }
         break;
         }
     }
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
 
-void exec_rcl(struct CPUState *cpu, struct x86_decode *decode)
+void exec_rcl(struct CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
     int of = 0, cf = 0;
 
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
     count = decode->op[1].val & 0x1f;
 
     switch (decode->operand_size) {
@@ -1241,17 +1240,17 @@ void exec_rcl(struct CPUState *cpu, struct x86_decode *decode)
         }
 
         if (1 == count) {
-            res = (op1_8 << 1) | get_CF(cpu);
+            res = (op1_8 << 1) | get_CF(env);
         } else {
-            res = (op1_8 << count) | (get_CF(cpu) << (count - 1)) |
+            res = (op1_8 << count) | (get_CF(env) << (count - 1)) |
                    (op1_8 >> (9 - count));
         }
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 1);
+        write_val_ext(env, decode->op[0].ptr, res, 1);
 
         cf = (op1_8 >> (8 - count)) & 0x01;
         of = cf ^ (res >> 7); /* of = cf ^ result7 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     case 2:
@@ -1265,19 +1264,19 @@ void exec_rcl(struct CPUState *cpu, struct x86_decode *decode)
         }
 
         if (1 == count) {
-            res = (op1_16 << 1) | get_CF(cpu);
+            res = (op1_16 << 1) | get_CF(env);
         } else if (count == 16) {
-            res = (get_CF(cpu) << 15) | (op1_16 >> 1);
+            res = (get_CF(env) << 15) | (op1_16 >> 1);
         } else { /* 2..15 */
-            res = (op1_16 << count) | (get_CF(cpu) << (count - 1)) |
+            res = (op1_16 << count) | (get_CF(env) << (count - 1)) |
                    (op1_16 >> (17 - count));
         }
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 2);
+        write_val_ext(env, decode->op[0].ptr, res, 2);
 
         cf = (op1_16 >> (16 - count)) & 0x1;
         of = cf ^ (res >> 15); /* of = cf ^ result15 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     case 4:
@@ -1290,29 +1289,29 @@ void exec_rcl(struct CPUState *cpu, struct x86_decode *decode)
         }
 
         if (1 == count) {
-            res = (op1_32 << 1) | get_CF(cpu);
+            res = (op1_32 << 1) | get_CF(env);
         } else {
-            res = (op1_32 << count) | (get_CF(cpu) << (count - 1)) |
+            res = (op1_32 << count) | (get_CF(env) << (count - 1)) |
                    (op1_32 >> (33 - count));
         }
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        write_val_ext(env, decode->op[0].ptr, res, 4);
 
         cf = (op1_32 >> (32 - count)) & 0x1;
         of = cf ^ (res >> 31); /* of = cf ^ result31 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
         }
     }
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-void exec_rcr(struct CPUState *cpu, struct x86_decode *decode)
+void exec_rcr(struct CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
     int of = 0, cf = 0;
 
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
     count = decode->op[1].val & 0x1f;
 
     switch (decode->operand_size) {
@@ -1325,14 +1324,14 @@ void exec_rcr(struct CPUState *cpu, struct x86_decode *decode)
         if (!count) {
             break;
         }
-        res = (op1_8 >> count) | (get_CF(cpu) << (8 - count)) |
+        res = (op1_8 >> count) | (get_CF(env) << (8 - count)) |
                (op1_8 << (9 - count));
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 1);
+        write_val_ext(env, decode->op[0].ptr, res, 1);
 
         cf = (op1_8 >> (count - 1)) & 0x1;
         of = (((res << 1) ^ res) >> 7) & 0x1; /* of = result6 ^ result7 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     case 2:
@@ -1344,15 +1343,15 @@ void exec_rcr(struct CPUState *cpu, struct x86_decode *decode)
         if (!count) {
             break;
         }
-        res = (op1_16 >> count) | (get_CF(cpu) << (16 - count)) |
+        res = (op1_16 >> count) | (get_CF(env) << (16 - count)) |
                (op1_16 << (17 - count));
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 2);
+        write_val_ext(env, decode->op[0].ptr, res, 2);
 
         cf = (op1_16 >> (count - 1)) & 0x1;
         of = ((uint16_t)((res << 1) ^ res) >> 15) & 0x1; /* of = result15 ^
                                                             result14 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
     case 4:
@@ -1365,47 +1364,47 @@ void exec_rcr(struct CPUState *cpu, struct x86_decode *decode)
         }
 
         if (1 == count) {
-            res = (op1_32 >> 1) | (get_CF(cpu) << 31);
+            res = (op1_32 >> 1) | (get_CF(env) << 31);
         } else {
-            res = (op1_32 >> count) | (get_CF(cpu) << (32 - count)) |
+            res = (op1_32 >> count) | (get_CF(env) << (32 - count)) |
                    (op1_32 << (33 - count));
         }
 
-        write_val_ext(cpu, decode->op[0].ptr, res, 4);
+        write_val_ext(env, decode->op[0].ptr, res, 4);
 
         cf = (op1_32 >> (count - 1)) & 0x1;
         of = ((res << 1) ^ res) >> 31; /* of = result30 ^ result31 */
-        SET_FLAGS_OxxxxC(cpu, of, cf);
+        SET_FLAGS_OxxxxC(env, of, cf);
         break;
         }
     }
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_xchg(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_xchg(struct CPUX86State *env, struct x86_decode *decode)
 {
-    fetch_operands(cpu, decode, 2, true, true, false);
+    fetch_operands(env, decode, 2, true, true, false);
 
-    write_val_ext(cpu, decode->op[0].ptr, decode->op[1].val,
+    write_val_ext(env, decode->op[0].ptr, decode->op[1].val,
                   decode->operand_size);
-    write_val_ext(cpu, decode->op[1].ptr, decode->op[0].val,
+    write_val_ext(env, decode->op[1].ptr, decode->op[0].val,
                   decode->operand_size);
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
-static void exec_xadd(struct CPUState *cpu, struct x86_decode *decode)
+static void exec_xadd(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(cpu, decode, +, SET_FLAGS_OSZAPC_ADD, true);
-    write_val_ext(cpu, decode->op[1].ptr, decode->op[0].val,
+    EXEC_2OP_ARITH_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
+    write_val_ext(env, decode->op[1].ptr, decode->op[0].val,
                   decode->operand_size);
 
-    RIP(cpu) += decode->len;
+    RIP(env) += decode->len;
 }
 
 static struct cmd_handler {
     enum x86_decode_cmd cmd;
-    void (*handler)(struct CPUState *cpu, struct x86_decode *ins);
+    void (*handler)(struct CPUX86State *env, struct x86_decode *ins);
 } handlers[] = {
     {X86_DECODE_CMD_INVL, NULL,},
     {X86_DECODE_CMD_MOV, exec_mov},
@@ -1451,7 +1450,7 @@ static struct cmd_handler {
 
 static struct cmd_handler _cmd_handler[X86_DECODE_CMD_LAST];
 
-static void init_cmd_handler(CPUState *cpu)
+static void init_cmd_handler()
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(handlers); i++) {
@@ -1461,45 +1460,51 @@ static void init_cmd_handler(CPUState *cpu)
 
 void load_regs(struct CPUState *cpu)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
     int i = 0;
-    RRX(cpu, REG_RAX) = rreg(cpu->hvf_fd, HV_X86_RAX);
-    RRX(cpu, REG_RBX) = rreg(cpu->hvf_fd, HV_X86_RBX);
-    RRX(cpu, REG_RCX) = rreg(cpu->hvf_fd, HV_X86_RCX);
-    RRX(cpu, REG_RDX) = rreg(cpu->hvf_fd, HV_X86_RDX);
-    RRX(cpu, REG_RSI) = rreg(cpu->hvf_fd, HV_X86_RSI);
-    RRX(cpu, REG_RDI) = rreg(cpu->hvf_fd, HV_X86_RDI);
-    RRX(cpu, REG_RSP) = rreg(cpu->hvf_fd, HV_X86_RSP);
-    RRX(cpu, REG_RBP) = rreg(cpu->hvf_fd, HV_X86_RBP);
+    RRX(env, REG_RAX) = rreg(cpu->hvf_fd, HV_X86_RAX);
+    RRX(env, REG_RBX) = rreg(cpu->hvf_fd, HV_X86_RBX);
+    RRX(env, REG_RCX) = rreg(cpu->hvf_fd, HV_X86_RCX);
+    RRX(env, REG_RDX) = rreg(cpu->hvf_fd, HV_X86_RDX);
+    RRX(env, REG_RSI) = rreg(cpu->hvf_fd, HV_X86_RSI);
+    RRX(env, REG_RDI) = rreg(cpu->hvf_fd, HV_X86_RDI);
+    RRX(env, REG_RSP) = rreg(cpu->hvf_fd, HV_X86_RSP);
+    RRX(env, REG_RBP) = rreg(cpu->hvf_fd, HV_X86_RBP);
     for (i = 8; i < 16; i++) {
-        RRX(cpu, i) = rreg(cpu->hvf_fd, HV_X86_RAX + i);
+        RRX(env, i) = rreg(cpu->hvf_fd, HV_X86_RAX + i);
     }
 
-    RFLAGS(cpu) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
-    rflags_to_lflags(cpu);
-    RIP(cpu) = rreg(cpu->hvf_fd, HV_X86_RIP);
+    RFLAGS(env) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
+    rflags_to_lflags(env);
+    RIP(env) = rreg(cpu->hvf_fd, HV_X86_RIP);
 }
 
 void store_regs(struct CPUState *cpu)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
     int i = 0;
-    wreg(cpu->hvf_fd, HV_X86_RAX, RAX(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RBX, RBX(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RCX, RCX(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RDX, RDX(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RSI, RSI(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RDI, RDI(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RBP, RBP(cpu));
-    wreg(cpu->hvf_fd, HV_X86_RSP, RSP(cpu));
+    wreg(cpu->hvf_fd, HV_X86_RAX, RAX(env));
+    wreg(cpu->hvf_fd, HV_X86_RBX, RBX(env));
+    wreg(cpu->hvf_fd, HV_X86_RCX, RCX(env));
+    wreg(cpu->hvf_fd, HV_X86_RDX, RDX(env));
+    wreg(cpu->hvf_fd, HV_X86_RSI, RSI(env));
+    wreg(cpu->hvf_fd, HV_X86_RDI, RDI(env));
+    wreg(cpu->hvf_fd, HV_X86_RBP, RBP(env));
+    wreg(cpu->hvf_fd, HV_X86_RSP, RSP(env));
     for (i = 8; i < 16; i++) {
-        wreg(cpu->hvf_fd, HV_X86_RAX + i, RRX(cpu, i));
+        wreg(cpu->hvf_fd, HV_X86_RAX + i, RRX(env, i));
     }
 
-    lflags_to_rflags(cpu);
-    wreg(cpu->hvf_fd, HV_X86_RFLAGS, RFLAGS(cpu));
-    macvm_set_rip(cpu, RIP(cpu));
+    lflags_to_rflags(env);
+    wreg(cpu->hvf_fd, HV_X86_RFLAGS, RFLAGS(env));
+    macvm_set_rip(cpu, RIP(env));
 }
 
-bool exec_instruction(struct CPUState *cpu, struct x86_decode *ins)
+bool exec_instruction(struct CPUX86State *env, struct x86_decode *ins)
 {
     /*if (hvf_vcpu_id(cpu))
     printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cpu),  RIP(cpu),
@@ -1509,23 +1514,23 @@ bool exec_instruction(struct CPUState *cpu, struct x86_decode *ins)
         VM_PANIC("emulate fpu\n");
     } else {
         if (!_cmd_handler[ins->cmd].handler) {
-            printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(cpu),
+            printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(env),
                     ins->cmd, ins->opcode[0],
                     ins->opcode_len > 1 ? ins->opcode[1] : 0);
-            RIP(cpu) += ins->len;
+            RIP(env) += ins->len;
             return true;
         }
 
         VM_PANIC_ON_EX(!_cmd_handler[ins->cmd].handler,
-                "Unimplemented handler (%llx) for %d (%x %x) \n", RIP(cpu),
+                "Unimplemented handler (%llx) for %d (%x %x) \n", RIP(env),
                  ins->cmd, ins->opcode[0],
                  ins->opcode_len > 1 ? ins->opcode[1] : 0);
-        _cmd_handler[ins->cmd].handler(cpu, ins);
+        _cmd_handler[ins->cmd].handler(env, ins);
     }
     return true;
 }
 
-void init_emu(struct CPUState *cpu)
+void init_emu()
 {
-    init_cmd_handler(cpu);
+    init_cmd_handler();
 }

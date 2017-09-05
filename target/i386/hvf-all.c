@@ -253,16 +253,16 @@ void hvf_handle_io(CPUArchState *env, uint16_t port, void *buffer,
 static void do_hvf_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
     CPUState *cpu_state = cpu;
-    if (cpu_state->hvf_vcpu_dirty == 0) {
+    if (cpu_state->vcpu_dirty == 0) {
         hvf_get_registers(cpu_state);
     }
 
-    cpu_state->hvf_vcpu_dirty = 1;
+    cpu_state->vcpu_dirty = 1;
 }
 
 void hvf_cpu_synchronize_state(CPUState *cpu_state)
 {
-    if (cpu_state->hvf_vcpu_dirty == 0) {
+    if (cpu_state->vcpu_dirty == 0) {
         run_on_cpu(cpu_state, do_hvf_cpu_synchronize_state, RUN_ON_CPU_NULL);
     }
 }
@@ -271,7 +271,7 @@ static void do_hvf_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg
 {
     CPUState *cpu_state = cpu;
     hvf_put_registers(cpu_state);
-    cpu_state->hvf_vcpu_dirty = false;
+    cpu_state->vcpu_dirty = false;
 }
 
 void hvf_cpu_synchronize_post_reset(CPUState *cpu_state)
@@ -283,7 +283,7 @@ void _hvf_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 {
     CPUState *cpu_state = cpu;
     hvf_put_registers(cpu_state);
-    cpu_state->hvf_vcpu_dirty = false;
+    cpu_state->vcpu_dirty = false;
 }
 
 void hvf_cpu_synchronize_post_init(CPUState *cpu_state)
@@ -436,7 +436,8 @@ static void dummy_signal(int sig)
 int hvf_init_vcpu(CPUState *cpu)
 {
 
-    X86CPU *x86cpu;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
 
     /* init cpu signals */
     sigset_t set;
@@ -450,15 +451,15 @@ int hvf_init_vcpu(CPUState *cpu)
     sigdelset(&set, SIG_IPI);
 
     int r;
-    init_emu(cpu);
-    init_decoder(cpu);
+    init_emu();
+    init_decoder();
     init_cpuid(cpu);
 
     hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
     env->hvf_emul = g_new0(HVFX86EmulatorState, 1);
 
     r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf_fd, HV_VCPU_DEFAULT);
-    cpu->hvf_vcpu_dirty = 1;
+    cpu->vcpu_dirty = 1;
     assert_hvf_ok(r);
 
     if (hv_vmx_read_capability(HV_VMX_CAP_PINBASED,
@@ -539,12 +540,12 @@ int hvf_vcpu_exec(CPUState *cpu)
     }
 
     do {
-        if (cpu->hvf_vcpu_dirty) {
+        if (cpu->vcpu_dirty) {
             hvf_put_registers(cpu);
-            cpu->hvf_vcpu_dirty = false;
+            cpu->vcpu_dirty = false;
         }
 
-        cpu->hvf_x86->interruptable =
+        env->hvf_emul->interruptable =
             !(rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
              (VMCS_INTERRUPTIBILITY_STI_BLOCKING |
              VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING));
@@ -569,8 +570,8 @@ int hvf_vcpu_exec(CPUState *cpu)
                                            VMCS_EXIT_INSTRUCTION_LENGTH);
         uint64_t idtvec_info = rvmcs(cpu->hvf_fd, VMCS_IDT_VECTORING_INFO);
         rip = rreg(cpu->hvf_fd, HV_X86_RIP);
-        RFLAGS(cpu) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
-        env->eflags = RFLAGS(cpu);
+        RFLAGS(env) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
+        env->eflags = RFLAGS(env);
 
         qemu_mutex_lock_iothread();
 
@@ -582,7 +583,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         case EXIT_REASON_HLT: {
             macvm_set_rip(cpu, rip + ins_len);
             if (!((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
-                (EFLAGS(cpu) & IF_MASK))
+                (EFLAGS(env) & IF_MASK))
                 && !(cpu->interrupt_request & CPU_INTERRUPT_NMI) &&
                 !(idtvec_info & VMCS_IDT_VEC_VALID)) {
                 cpu->halted = 1;
@@ -612,10 +613,10 @@ int hvf_vcpu_exec(CPUState *cpu)
                 struct x86_decode decode;
 
                 load_regs(cpu);
-                cpu->hvf_x86->fetch_rip = rip;
+                env->hvf_emul->fetch_rip = rip;
 
-                decode_instruction(cpu, &decode);
-                exec_instruction(cpu, &decode);
+                decode_instruction(env, &decode);
+                exec_instruction(env, &decode);
                 store_regs(cpu);
                 break;
             }
@@ -638,20 +639,20 @@ int hvf_vcpu_exec(CPUState *cpu)
                 load_regs(cpu);
                 hvf_handle_io(env, port, &val, 0, size, 1);
                 if (size == 1) {
-                    AL(cpu) = val;
+                    AL(env) = val;
                 } else if (size == 2) {
-                    AX(cpu) = val;
+                    AX(env) = val;
                 } else if (size == 4) {
-                    RAX(cpu) = (uint32_t)val;
+                    RAX(env) = (uint32_t)val;
                 } else {
                     VM_PANIC("size");
                 }
-                RIP(cpu) += ins_len;
+                RIP(env) += ins_len;
                 store_regs(cpu);
                 break;
             } else if (!string && !in) {
-                RAX(cpu) = rreg(cpu->hvf_fd, HV_X86_RAX);
-                hvf_handle_io(env, port, &RAX(cpu), 1, size, 1);
+                RAX(env) = rreg(cpu->hvf_fd, HV_X86_RAX);
+                hvf_handle_io(env, port, &RAX(env), 1, size, 1);
                 macvm_set_rip(cpu, rip + ins_len);
                 break;
             }
@@ -659,11 +660,11 @@ int hvf_vcpu_exec(CPUState *cpu)
             struct x86_decode decode;
 
             load_regs(cpu);
-            cpu->hvf_x86->fetch_rip = rip;
+            env->hvf_emul->fetch_rip = rip;
 
-            decode_instruction(cpu, &decode);
+            decode_instruction(env, &decode);
             VM_PANIC_ON(ins_len != decode.len);
-            exec_instruction(cpu, &decode);
+            exec_instruction(env, &decode);
             store_regs(cpu);
 
             break;
@@ -721,7 +722,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             } else {
                 simulate_wrmsr(cpu);
             }
-            RIP(cpu) += rvmcs(cpu->hvf_fd, VMCS_EXIT_INSTRUCTION_LENGTH);
+            RIP(env) += rvmcs(cpu->hvf_fd, VMCS_EXIT_INSTRUCTION_LENGTH);
             store_regs(cpu);
             break;
         }
@@ -735,19 +736,19 @@ int hvf_vcpu_exec(CPUState *cpu)
 
             switch (cr) {
             case 0x0: {
-                macvm_set_cr0(cpu->hvf_fd, RRX(cpu, reg));
+                macvm_set_cr0(cpu->hvf_fd, RRX(env, reg));
                 break;
             }
             case 4: {
-                macvm_set_cr4(cpu->hvf_fd, RRX(cpu, reg));
+                macvm_set_cr4(cpu->hvf_fd, RRX(env, reg));
                 break;
             }
             case 8: {
                 X86CPU *x86_cpu = X86_CPU(cpu);
                 if (exit_qual & 0x10) {
-                    RRX(cpu, reg) = cpu_get_apic_tpr(x86_cpu->apic_state);
+                    RRX(env, reg) = cpu_get_apic_tpr(x86_cpu->apic_state);
                 } else {
-                    int tpr = RRX(cpu, reg);
+                    int tpr = RRX(env, reg);
                     cpu_set_apic_tpr(x86_cpu->apic_state, tpr);
                     ret = EXCP_INTERRUPT;
                 }
@@ -757,7 +758,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 error_report("Unrecognized CR %d\n", cr);
                 abort();
             }
-            RIP(cpu) += ins_len;
+            RIP(env) += ins_len;
             store_regs(cpu);
             break;
         }
@@ -765,10 +766,10 @@ int hvf_vcpu_exec(CPUState *cpu)
             struct x86_decode decode;
 
             load_regs(cpu);
-            cpu->hvf_x86->fetch_rip = rip;
+            env->hvf_emul->fetch_rip = rip;
 
-            decode_instruction(cpu, &decode);
-            exec_instruction(cpu, &decode);
+            decode_instruction(env, &decode);
+            exec_instruction(env, &decode);
             store_regs(cpu);
             break;
         }

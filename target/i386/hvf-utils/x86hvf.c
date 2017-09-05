@@ -403,9 +403,10 @@ void vmx_clear_int_window_exiting(CPUState *cpu)
 
 void hvf_inject_interrupts(CPUState *cpu_state)
 {
-    X86CPU *x86cpu = X86_CPU(cpu_state);
     int allow_nmi = !(rvmcs(cpu_state->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
-            VMCS_INTERRUPTIBILITY_NMI_BLOCKING);
+                VMCS_INTERRUPTIBILITY_NMI_BLOCKING);
+    X86CPU *x86cpu = X86_CPU(cpu_state);
+    CPUX86State *env = &x86cpu->env;
 
     uint64_t idt_info = rvmcs(cpu_state->hvf_fd, VMCS_IDT_VECTORING_INFO);
     uint64_t info = 0;
@@ -462,9 +463,9 @@ void hvf_inject_interrupts(CPUState *cpu_state)
         }
     }
 
-    if (cpu_state->hvf_x86->interruptable &&
+    if (env->hvf_emul->interruptable &&
         (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (EFLAGS(cpu_state) & IF_MASK) && !(info & VMCS_INTR_VALID)) {
+        (EFLAGS(env) & IF_MASK) && !(info & VMCS_INTR_VALID)) {
         int line = cpu_get_pic_interrupt(&x86cpu->env);
         cpu_state->interrupt_request &= ~CPU_INTERRUPT_HARD;
         if (line >= 0) {
@@ -481,8 +482,8 @@ int hvf_process_events(CPUState *cpu_state)
 {
     X86CPU *cpu = X86_CPU(cpu_state);
     CPUX86State *env = &cpu->env;
-    
-    EFLAGS(cpu_state) = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
+
+    EFLAGS(env) = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
 
     if (cpu_state->interrupt_request & CPU_INTERRUPT_INIT) {
         hvf_cpu_synchronize_state(cpu_state);
@@ -494,7 +495,7 @@ int hvf_process_events(CPUState *cpu_state)
         apic_poll_irq(cpu->apic_state);
     }
     if (((cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (EFLAGS(cpu_state) & IF_MASK)) ||
+        (EFLAGS(env) & IF_MASK)) ||
         (cpu_state->interrupt_request & CPU_INTERRUPT_NMI)) {
         cpu_state->halted = 0;
     }
@@ -510,4 +511,3 @@ int hvf_process_events(CPUState *cpu_state)
     }
     return cpu_state->halted;
 }
-

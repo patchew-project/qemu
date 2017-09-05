@@ -23,6 +23,9 @@
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "standard-headers/asm-x86/hyperv.h"
+#if defined(CONFIG_HVF)
+#include "target/i386/hvf-utils/x86.h"
+#endif
 
 #ifdef TARGET_X86_64
 #define TARGET_LONG_BITS 64
@@ -82,16 +85,20 @@
 #define R_GS 5
 
 /* segment descriptor fields */
-#define DESC_G_MASK     (1 << 23)
+#define DESC_G_SHIFT    23
+#define DESC_G_MASK     (1 << DESC_G_SHIFT)
 #define DESC_B_SHIFT    22
 #define DESC_B_MASK     (1 << DESC_B_SHIFT)
 #define DESC_L_SHIFT    21 /* x86_64 only : 64 bit code segment */
 #define DESC_L_MASK     (1 << DESC_L_SHIFT)
-#define DESC_AVL_MASK   (1 << 20)
-#define DESC_P_MASK     (1 << 15)
+#define DESC_AVL_SHIFT  20
+#define DESC_AVL_MASK   (1 << DESC_AVL_SHIFT)
+#define DESC_P_SHIFT    15
+#define DESC_P_MASK     (1 << DESC_P_SHIFT)
 #define DESC_DPL_SHIFT  13
 #define DESC_DPL_MASK   (3 << DESC_DPL_SHIFT)
-#define DESC_S_MASK     (1 << 12)
+#define DESC_S_SHIFT    12
+#define DESC_S_MASK     (1 << DESC_S_SHIFT)
 #define DESC_TYPE_SHIFT 8
 #define DESC_TYPE_MASK  (15 << DESC_TYPE_SHIFT)
 #define DESC_A_MASK     (1 << 8)
@@ -631,6 +638,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_AVX512BW (1U << 30) /* AVX-512 Byte and Word Instructions */
 #define CPUID_7_0_EBX_AVX512VL (1U << 31) /* AVX-512 Vector Length Extensions */
 
+#define CPUID_7_0_ECX_AVX512BMI (1U << 1)
 #define CPUID_7_0_ECX_VBMI     (1U << 1)  /* AVX-512 Vector Byte Manipulation Instrs */
 #define CPUID_7_0_ECX_UMIP     (1U << 2)
 #define CPUID_7_0_ECX_PKU      (1U << 3)
@@ -805,6 +813,20 @@ typedef struct SegmentCache {
         float32  _s_##n[(bits)/32]; \
         float64  _d_##n[(bits)/64]; \
     }
+
+typedef union {
+    uint8_t _b[16];
+    uint16_t _w[8];
+    uint32_t _l[4];
+    uint64_t _q[2];
+} XMMReg;
+
+typedef union {
+    uint8_t _b[32];
+    uint16_t _w[16];
+    uint32_t _l[8];
+    uint64_t _q[4];
+} YMMReg;
 
 typedef MMREG_UNION(ZMMReg, 512) ZMMReg;
 typedef MMREG_UNION(MMXReg, 64)  MMXReg;
@@ -1041,7 +1063,11 @@ typedef struct CPUX86State {
     ZMMReg xmm_t0;
     MMXReg mmx_t0;
 
+    XMMReg ymmh_regs[CPU_NB_REGS];
+
     uint64_t opmask_regs[NB_OPMASK_REGS];
+    YMMReg zmmh_regs[CPU_NB_REGS];
+    ZMMReg hi16_zmm_regs[CPU_NB_REGS];
 
     /* sysenter registers */
     uint32_t sysenter_cs;
@@ -1164,11 +1190,15 @@ typedef struct CPUX86State {
     int32_t interrupt_injected;
     uint8_t soft_interrupt;
     uint8_t has_error_code;
+    uint32_t ins_len;
     uint32_t sipi_vector;
     bool tsc_valid;
     int64_t tsc_khz;
     int64_t user_tsc_khz; /* for sanity check only */
     void *kvm_xsave_buf;
+#if defined(CONFIG_HVF)
+    HVFX86EmulatorState *hvf_emul;
+#endif
 
     uint64_t mcg_cap;
     uint64_t mcg_ctl;
