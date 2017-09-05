@@ -751,7 +751,23 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_IMPLEMENT_LIMITS;
-        c->eax = 0x40;
+
+        if (!cpu->hv_cpuid_limits_eax) {
+            /*
+             * Starting with Windows Server 2012 and Windows 8, if
+             * CPUID.40000005.EAX contains a value of -1, Windows
+             * assumes specific limit to the number of VPs. In this case,
+             * Windows Server 2012 guest VMs may use more than 64 VPs,
+             * up to the maximum supported number of processors
+             * applicable to the specific Windows version being used.
+             *
+             * https://docs.microsoft.com/en-us/virtualization/
+             *    hyper-v-on-windows/reference/tlfs
+             */
+            c->eax = -1;
+        } else {
+            c->eax = 0x40;
+        }
         c->ebx = 0x40;
 
         kvm_base = KVM_CPUID_SIGNATURE_NEXT;

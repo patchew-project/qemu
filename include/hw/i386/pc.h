@@ -371,6 +371,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_10 \
     HW_COMPAT_2_10 \
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "hv_cpuid_limits_eax",\
+        .value    = "on",\
+    },\
 
 #define PC_COMPAT_2_9 \
     HW_COMPAT_2_9 \

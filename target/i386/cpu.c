@@ -4145,6 +4145,7 @@ static Property x86_cpu_properties[] = {
                      false),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
     DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
+    DEFINE_PROP_BOOL("hv-cpuid-limits-eax", X86CPU, hv_cpuid_limits_eax, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
