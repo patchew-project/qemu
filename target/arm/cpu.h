@@ -1250,6 +1250,7 @@ enum arm_features {
     ARM_FEATURE_THUMB_DSP, /* DSP insns supported in the Thumb encodings */
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
+    ARM_FEATURE_JAZELLE, /* has Jazelle execution state */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
