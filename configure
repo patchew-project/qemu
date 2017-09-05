@@ -6386,7 +6386,12 @@ if supported_kvm_target $target; then
     if test "$vhost_net" = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
         if test "$vhost_user" = "yes" ; then
-            echo "CONFIG_VHOST_USER_NET_TEST_$target_name=y" >> $config_host_mak
+            if test -n "${FORCE_VHOST_USER_NET_TEST}"; then
+                echo "CONFIG_VHOST_USER_NET_TEST_$target_name=y" >> $config_host_mak
+            elif test -z "${VHOST_USER_NET_TEST_WARNED}"; then
+                echo "warning: vhost-user tests disabled" >&2
+                VHOST_USER_NET_TEST_WARNED="warned"
+            fi
         fi
     fi
 fi
