@@ -34,6 +34,12 @@ crypto-obj-y += block.o
 crypto-obj-y += block-qcow.o
 crypto-obj-y += block-luks.o
 
+$(if $(CONFIG_NETTLE), \
+	$(foreach x, cipher hash-nettle hmac-nettle pbkdf-nettle, \
+		$(eval $x.o-cflags := $(NETTLE_CFLAGS)) \
+		$(eval $x.o-libs := $(NETTLE_LIBS))) \
+)
+
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
 
