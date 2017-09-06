@@ -1021,16 +1021,14 @@ static void migrate_fd_cleanup(void *opaque)
     block_cleanup_parameters(s);
 }
 
-void migrate_set_error(MigrationState *s, const Error *error)
+void migrate_set_error(MigrationState *s, Error *error)
 {
     qemu_mutex_lock(&s->error_mutex);
-    if (!s->error) {
-        s->error = error_copy(error);
-    }
+    error_propagate(&s->error, error);
     qemu_mutex_unlock(&s->error_mutex);
 }
 
-void migrate_fd_error(MigrationState *s, const Error *error)
+void migrate_fd_error(MigrationState *s, Error *error)
 {
     trace_migrate_fd_error(error_get_pretty(error));
     assert(s->to_dst_file == NULL);
@@ -1304,7 +1302,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (local_err) {
-        migrate_fd_error(s, local_err);
+        migrate_fd_error(s, error_copy(local_err));
         error_propagate(errp, local_err);
         return;
     }
