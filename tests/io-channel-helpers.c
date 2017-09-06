@@ -83,11 +83,21 @@ static gpointer test_io_thread_writer(gpointer opaque)
     qio_channel_set_blocking(data->src, data->blocking, NULL);
 
     while (niov) {
+        int use_all;
         ssize_t ret;
-        ret = qio_channel_writev(data->src,
-                                 iov,
-                                 niov,
-                                 &data->writeerr);
+        use_all = g_test_rand_int_range(0, 2);
+
+        if (use_all) {
+            ret = qio_channel_writev_all(data->src,
+                                         iov,
+                                         niov,
+                                         &data->writeerr);
+        } else {
+            ret = qio_channel_writev(data->src,
+                                     iov,
+                                     niov,
+                                     &data->writeerr);
+        }
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
             if (data->blocking) {
                 error_setg(&data->writeerr,
@@ -124,13 +134,21 @@ static gpointer test_io_thread_reader(gpointer opaque)
     qio_channel_set_blocking(data->dst, data->blocking, NULL);
 
     while (niov) {
+        int use_all;
         ssize_t ret;
+        use_all = g_test_rand_int_range(0, 2);
 
-        ret = qio_channel_readv(data->dst,
-                                iov,
-                                niov,
-                                &data->readerr);
-
+        if (use_all) {
+            ret = qio_channel_readv_all(data->dst,
+                                        iov,
+                                        niov,
+                                        &data->readerr);
+        } else {
+            ret = qio_channel_readv(data->dst,
+                                    iov,
+                                    niov,
+                                    &data->readerr);
+        }
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
             if (data->blocking) {
                 error_setg(&data->readerr,
