@@ -88,13 +88,18 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
             clear_bit(vcpu_id, vcpu->trace_dstate_delayed);
             (*ev->dstate)--;
         }
-        /*
-         * Delay changes until next TB; we want all TBs to be built from a
-         * single set of dstate values to ensure consistency of generated
-         * tracing code.
-         */
-        async_run_on_cpu(vcpu, trace_event_synchronize_vcpu_state_dynamic,
-                         RUN_ON_CPU_NULL);
+        if (vcpu->created) {
+            /*
+             * Delay changes until next TB; we want all TBs to be built from a
+             * single set of dstate values to ensure consistency of generated
+             * tracing code.
+             */
+            async_run_on_cpu(vcpu, trace_event_synchronize_vcpu_state_dynamic,
+                             RUN_ON_CPU_NULL);
+        } else {
+            run_on_cpu_data ignored;
+            trace_event_synchronize_vcpu_state_dynamic(vcpu, ignored);
+        }
     }
 }
 
