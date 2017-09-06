@@ -758,6 +758,33 @@ void machine_run_board_init(MachineState *machine)
         machine_numa_finish_init(machine);
     }
     machine_class->init(machine);
+
+    if (machine_class->valid_cpu_types && machine->cpu_model) {
+        const char *temp;
+        int i, len = machine_class->valid_cpu_types->len;
+
+        for (i = 0; i < len; i++) {
+            temp = g_array_index(machine_class->valid_cpu_types, char *, i);
+            if (!strcmp(machine->cpu_model, temp)) {
+                /* The user specificed CPU is in the valid field, we are
+                 * good to go.
+                 */
+                g_array_free(machine_class->valid_cpu_types, true);
+                return;
+            }
+        }
+        /* The user specified CPU must not be a valid CPU, print a sane error */
+        temp = g_array_index(machine_class->valid_cpu_types, char *, 0);
+        error_report("Invalid CPU: %s", machine->cpu_model);
+        error_printf("The valid options are: %s", temp);
+        for (i = 1; i < len; i++) {
+            temp = g_array_index(machine_class->valid_cpu_types, char *, i);
+            error_printf(", %s", temp);
+        }
+        error_printf("\n");
+        g_array_free(machine_class->valid_cpu_types, true);
+        exit(1);
+    }
 }
 
 static void machine_class_finalize(ObjectClass *klass, void *data)
