@@ -29,6 +29,7 @@
 #include "qapi-event.h"
 #include "hw/nmi.h"
 #include "qemu/help_option.h"
+#include "qmp-commands.h"
 
 static WatchdogAction watchdog_action = WATCHDOG_ACTION_RESET;
 static QLIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
@@ -82,7 +83,7 @@ int select_watchdog_action(const char *p)
     action = qapi_enum_parse(&WatchdogAction_lookup, p, -1, NULL);
     if (action < 0)
         return -1;
-    watchdog_action = action;
+    qmp_watchdog_set_action(action, &error_abort);
     return 0;
 }
 
@@ -138,4 +139,9 @@ void watchdog_perform_action(void)
     default:
         assert(0);
     }
+}
+
+void qmp_watchdog_set_action(WatchdogAction action, Error **errp)
+{
+    watchdog_action = action;
 }
