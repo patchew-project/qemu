@@ -40,6 +40,13 @@ $(if $(CONFIG_NETTLE), \
 		$(eval $x.o-libs := $(NETTLE_LIBS))) \
 )
 
+$(if $(CONFIG_GNUTLS), \
+	$(foreach x, init random-gnutls tlscreds tlscredsanon \
+			tlscredsx509 tlssession, \
+		$(eval $x.o-cflags := $(GNUTLS_CFLAGS)) \
+		$(eval $x.o-libs := $(GNUTLS_LIBS))) \
+)
+
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
 
