@@ -2,7 +2,11 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_10 \
-    /* empty */
+    {\
+        .driver   = "pcie-root-port",\
+        .property = "enable-io-fwd",\
+        .value    = "true",\
+    },
 
 #define HW_COMPAT_2_9 \
     {\
