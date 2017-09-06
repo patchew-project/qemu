@@ -1,29 +1,53 @@
 crypto-obj-y = init.o
-crypto-obj-y += hash.o
-crypto-obj-$(CONFIG_NETTLE) += hash-nettle.o
-crypto-obj-$(if $(CONFIG_NETTLE),n,$(CONFIG_GCRYPT)) += hash-gcrypt.o
-crypto-obj-$(if $(CONFIG_NETTLE),n,$(if $(CONFIG_GCRYPT),n,y)) += hash-glib.o
-crypto-obj-y += hmac.o
-crypto-obj-$(CONFIG_NETTLE) += hmac-nettle.o
-crypto-obj-$(CONFIG_GCRYPT_HMAC) += hmac-gcrypt.o
-crypto-obj-$(if $(CONFIG_NETTLE),n,$(if $(CONFIG_GCRYPT_HMAC),n,y)) += hmac-glib.o
+crypto-obj-y += hash.mo
+
+hash.mo-objs := hash.o \
+	$(if $(CONFIG_NETTLE), \
+		hash-nettle.o, \
+		$(if $(CONFIG_GCRYPT), hash-gcrypt.o, hash-glib.o))
+hash.mo-cflags := $(NETTLE_CFLAGS) $(GCRYPT_CFLAGS)
+hash.mo-libs := $(NETTLE_LIBS) $(GCRYPT_LIBS)
+
+crypto-obj-y += hmac.mo
+hmac.mo-objs := hmac.o \
+	$(if $(CONFIG_NETTLE), \
+		hmac-nettle.o, \
+		$(if $(CONFIG_GCRYPT_HMAC), hmac-gcrypt.o, hmac-glib.o))
+hmac.mo-cflags := $(NETTLE_CFLAGS) $(GCRYPT_CFLAGS)
+hmac.mo-libs := $(NETTLE_LIBS) $(GCRYPT_LIBS)
+
 crypto-obj-y += aes.o
 crypto-obj-y += desrfb.o
 crypto-obj-y += cipher.o
 crypto-obj-$(CONFIG_AF_ALG) += afalg.o
 crypto-obj-$(CONFIG_AF_ALG) += cipher-afalg.o
 crypto-obj-$(CONFIG_AF_ALG) += hash-afalg.o
-crypto-obj-y += tlscreds.o
-crypto-obj-y += tlscredsanon.o
-crypto-obj-y += tlscredsx509.o
-crypto-obj-y += tlssession.o
+
+crypto-obj-y += tls.mo
+tls.mo-objs := \
+	tlscreds.o \
+	tlscredsanon.o \
+	tlscredsx509.o \
+	tlssession.o
+tls.mo-cflags := $(GNUTLS_CFLAGS)
+tls.mo-libs := $(GNUTLS_LIBS)
+
 crypto-obj-y += secret.o
-crypto-obj-$(CONFIG_GCRYPT) += random-gcrypt.o
-crypto-obj-$(if $(CONFIG_GCRYPT),n,$(CONFIG_GNUTLS_RND)) += random-gnutls.o
-crypto-obj-$(if $(CONFIG_GCRYPT),n,$(if $(CONFIG_GNUTLS_RND),n,y)) += random-platform.o
-crypto-obj-y += pbkdf.o
-crypto-obj-$(CONFIG_NETTLE_KDF) += pbkdf-nettle.o
-crypto-obj-$(if $(CONFIG_NETTLE_KDF),n,$(CONFIG_GCRYPT_KDF)) += pbkdf-gcrypt.o
+
+crypto-obj-y += random.mo
+random.mo-objs := \
+	$(if $(CONFIG_GCRYPT), random-gcrypt.o, \
+		$(if $(CONFIG_GNUTLS_RND), random-gnutls.o, random-platform.o))
+random.mo-cflags := $(GNUTLS_CFLAGS) $(GCRYPT_CFLAGS)
+random.mo-libs := $(GNUTLS_LIBS) $(GCRYPT_LIBS)
+
+crypto-obj-y += pbkdf.mo
+pbkdf.mo-objs := pbkdf.o \
+	$(if $(CONFIG_NETTLE_KDF), pbkdf-nettle.o, \
+		$(if $(CONFIG_GCRYPT_KDF), pbkdf-gcrypt.o))
+pbkdf.mo-cflags := $(NETTLE_CFLAGS) $(GCRYPT_CFLAGS)
+pbkdf.mo-libs := $(NETTLE_LIBS) $(GCRYPT_LIBS)
+
 crypto-obj-y += ivgen.o
 crypto-obj-y += ivgen-essiv.o
 crypto-obj-y += ivgen-plain.o
@@ -33,6 +57,12 @@ crypto-obj-y += xts.o
 crypto-obj-y += block.o
 crypto-obj-y += block-qcow.o
 crypto-obj-y += block-luks.o
+
+init.o-cflags := $(GNUTLS_CFLAGS) $(GCRYPT_CFLAGS)
+init.o-libs := $(GNUTLS_LIBS) $(GCRYPT_LIBS)
+
+cipher.o-cflags := $(NETTLE_CFLAGS) $(GCRYPT_CFLAGS)
+cipher.o-libs := $(NETTLE_LIBS) $(GCRYPT_LIBS)
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
