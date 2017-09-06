@@ -43,8 +43,13 @@ static void netduino2_init(MachineState *machine)
 
 static void netduino2_machine_init(MachineClass *mc)
 {
+    const char *val = "cortex-m3";
+
     mc->desc = "Netduino 2 Machine";
     mc->init = netduino2_init;
+
+    mc->valid_cpu_types = g_array_new(false, false, sizeof(char *));
+    g_array_append_val(mc->valid_cpu_types, val);
 }
 
 DEFINE_MACHINE("netduino2", netduino2_machine_init)
