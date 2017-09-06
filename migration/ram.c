@@ -49,6 +49,7 @@
 #include "migration/colo.h"
 #include "sysemu/sysemu.h"
 #include "qemu/uuid.h"
+#include "qemu/iov.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -362,6 +363,15 @@ static void compress_threads_save_setup(void)
 
 /* Multiple fd's */
 
+/* used to continue on the same multifd group */
+#define MULTIFD_CONTINUE UINT16_MAX
+
+typedef struct {
+    int num;
+    size_t size;
+    struct iovec *iov;
+} multifd_pages_t;
+
 struct MultiFDSendParams {
     /* not changed */
     uint8_t id;
@@ -372,11 +382,7 @@ struct MultiFDSendParams {
     QemuMutex mutex;
     /* protected by param mutex */
     bool quit;
-    /* This is a temp field.  We are using it now to transmit
-       something the address of the page.  Later in the series, we
-       change it for the real page.
-    */
-    uint8_t *address;
+    multifd_pages_t pages;
     /* protected by multifd mutex */
     /* has the thread finish the last submitted job */
     bool done;
@@ -389,7 +395,23 @@ struct {
     int count;
     QemuMutex mutex;
     QemuSemaphore sem;
+    multifd_pages_t pages;
 } *multifd_send_state;
+
+static void multifd_init_group(multifd_pages_t *pages)
+{
+    pages->num = 0;
+    pages->size = migrate_multifd_group();
+    pages->iov = g_new0(struct iovec, pages->size);
+}
+
+static void multifd_clear_group(multifd_pages_t *pages)
+{
+    pages->num = 0;
+    pages->size = 0;
+    g_free(pages->iov);
+    pages->iov = NULL;
+}
 
 static void terminate_multifd_send_threads(Error *errp)
 {
@@ -429,9 +451,11 @@ int multifd_save_cleanup(Error **errp)
         socket_send_channel_destroy(p->c);
         g_free(p->name);
         p->name = NULL;
+        multifd_clear_group(&p->pages);
     }
     g_free(multifd_send_state->params);
     multifd_send_state->params = NULL;
+    multifd_clear_group(&multifd_send_state->pages);
     g_free(multifd_send_state);
     multifd_send_state = NULL;
     return ret;
@@ -471,8 +495,8 @@ static void *multifd_send_thread(void *opaque)
             qemu_mutex_unlock(&p->mutex);
             break;
         }
-        if (p->address) {
-            p->address = 0;
+        if (p->pages.num) {
+            p->pages.num = 0;
             qemu_mutex_unlock(&p->mutex);
             qemu_mutex_lock(&multifd_send_state->mutex);
             p->done = true;
@@ -502,6 +526,7 @@ int multifd_save_setup(void)
     multifd_send_state->count = 0;
     qemu_mutex_init(&multifd_send_state->mutex);
     qemu_sem_init(&multifd_send_state->sem, 0);
+    multifd_init_group(&multifd_send_state->pages);
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
@@ -510,7 +535,7 @@ int multifd_save_setup(void)
         p->quit = false;
         p->id = i;
         p->done = true;
-        p->address = 0;
+        multifd_init_group(&p->pages);
         p->c = socket_send_channel_create(&local_err);
         if (!p->c) {
             if (multifd_save_cleanup(&local_err) != 0) {
@@ -531,6 +556,17 @@ static uint16_t multifd_send_page(uint8_t *address, bool last_page)
 {
     int i;
     MultiFDSendParams *p = NULL; /* make happy gcc */
+    multifd_pages_t *pages = &multifd_send_state->pages;
+
+    pages->iov[pages->num].iov_base = address;
+    pages->iov[pages->num].iov_len = TARGET_PAGE_SIZE;
+    pages->num++;
+
+    if (!last_page) {
+        if (pages->num < (pages->size - 1)) {
+            return MULTIFD_CONTINUE;
+        }
+    }
 
     qemu_sem_wait(&multifd_send_state->sem);
     qemu_mutex_lock(&multifd_send_state->mutex);
@@ -544,7 +580,10 @@ static uint16_t multifd_send_page(uint8_t *address, bool last_page)
     }
     qemu_mutex_unlock(&multifd_send_state->mutex);
     qemu_mutex_lock(&p->mutex);
-    p->address = address;
+    p->pages.num = pages->num;
+    iov_copy(p->pages.iov, pages->num, pages->iov, pages->num, 0,
+             iov_size(pages->iov, pages->num));
+    pages->num = 0;
     qemu_mutex_unlock(&p->mutex);
     qemu_sem_post(&p->sem);
 
