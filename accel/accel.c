@@ -68,6 +68,25 @@ static int accel_init_machine(AccelClass *acc, MachineState *ms)
     return ret;
 }
 
+static const char *default_accelerator(void)
+{
+    if (tcg_available()) {
+        return "tcg";
+    }
+    if (kvm_available()) {
+        return "kvm";
+    }
+    if (xen_available()) {
+        return "xen";
+    }
+    if (hax_available()) {
+        return "hax";
+    }
+    /* configure makes sure we have at least one accelerator */
+    g_assert(false);
+    return "";
+}
+
 void configure_accelerator(MachineState *ms)
 {
     const char *accel, *p;
@@ -79,8 +98,7 @@ void configure_accelerator(MachineState *ms)
 
     accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (accel == NULL) {
-        /* Use the default "accelerator", tcg */
-        accel = "tcg";
+        accel = default_accelerator();
     }
 
     p = accel;

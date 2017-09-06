@@ -103,6 +103,23 @@ int xen_available(void)
 #endif
 }
 
+int tcg_available(void)
+{
+#ifdef CONFIG_TCG
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int hax_available(void)
+{
+#ifdef CONFIG_HAX
+    return 1;
+#else
+    return 0;
+#endif
+}
 
 TargetInfo *qmp_query_target(Error **errp)
 {

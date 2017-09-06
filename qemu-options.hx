@@ -66,7 +66,8 @@ Supported machine properties are:
 @table @option
 @item accel=@var{accels1}[:@var{accels2}[:...]]
 This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, hax or tcg can be available. By default, tcg is used. If there is
+kvm, xen, hax or tcg can be available. By default, the first one available
+out of tcg, kvm, xen, hax (in that order) is used. If there is
 more than one accelerator specified, the next one is used if the previous one
 fails to initialize.
 @item kernel_irqchip=on|off
@@ -126,7 +127,8 @@ STEXI
 @item -accel @var{name}[,prop=@var{value}[,...]]
 @findex -accel
 This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, hax or tcg can be available. By default, tcg is used. If there is
+kvm, xen, hax or tcg can be available. By default, the first one available
+out of tcg, kvm, xen, hax (in that order) is used. If there is
 more than one accelerator specified, the next one is used if the previous one
 fails to initialize.
 @table @option
