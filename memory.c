@@ -2939,16 +2939,28 @@ static void mtree_print_flatview(fprintf_function p, void *f,
     flatview_unref(view);
 }
 
-void mtree_info(fprintf_function mon_printf, void *f, bool flatview)
+void mtree_info(fprintf_function mon_printf, void *f, bool flatview,
+                bool dispatch_tree)
 {
     MemoryRegionListHead ml_head;
     MemoryRegionList *ml, *ml2;
     AddressSpace *as;
+    FlatView *view;
+    int n;
 
     if (flatview) {
-        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-            mon_printf(f, "address-space (flat view): %s\n", as->name);
-            mtree_print_flatview(mon_printf, f, as);
+        n = 0;
+        QTAILQ_FOREACH(view, &flat_views, flat_views_link) {
+            mon_printf(f, "FlatView #%d\n", n);
+            ++n;
+
+            QTAILQ_FOREACH(as, &view->address_spaces, flat_view_link) {
+                mon_printf(f, " AS \"%s\"\n", as->name);
+                mtree_print_flatview(mon_printf, f, as);
+            }
+            if (dispatch_tree) {
+                mtree_print_dispatch(mon_printf, f, view->dispatch);
+            }
             mon_printf(f, "\n");
         }
         return;
