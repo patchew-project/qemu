@@ -53,10 +53,10 @@ gtk.o-libs := $(GTK_LIBS) $(VTE_LIBS)
 gtk-egl.o-libs := $(GTK_LIBS) $(VTE_LIBS)
 gtk-gl-area.o-libs := $(GTK_LIBS) $(VTE_LIBS)
 
-gtk-egl.o-libs += $(OPENGL_LIBS)
-shader.o-libs += $(OPENGL_LIBS)
-console-gl.o-libs += $(OPENGL_LIBS)
-egl-helpers.o-libs += $(OPENGL_LIBS)
+$(foreach x, gtk-egl shader console egl-helpers, \
+	$(eval $x.o-libs += $(OPENGL_LIBS)) \
+	$(eval $x.o-cflags += $(OPENGL_CFLAGS)) \
+)
 
 curses.o-cflags := $(CURSES_CFLAGS)
 curses.o-libs := $(CURSES_LIBS)
