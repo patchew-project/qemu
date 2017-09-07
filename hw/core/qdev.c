@@ -908,6 +908,11 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             if (local_err != NULL) {
                 goto fail;
             }
+        } else if (dev->hotplugged) {
+            /* Hot-plugged device without hotplug controller? No way! */
+            error_setg(&local_err, QERR_DEVICE_NO_HOTPLUG,
+                       object_get_typename(obj));
+            goto fail;
         }
 
         if (dc->realize) {
