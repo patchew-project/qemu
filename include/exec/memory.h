@@ -48,6 +48,7 @@
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
+typedef struct AddressSpaceDispatch AddressSpaceDispatch;
 
 struct MemoryRegionMmio {
     CPUReadMemoryFunc *read[3];
@@ -67,7 +68,7 @@ typedef enum {
 #define IOMMU_ACCESS_FLAG(r, w) (((r) ? IOMMU_RO : 0) | ((w) ? IOMMU_WO : 0))
 
 struct IOMMUTLBEntry {
-    AddressSpace    *target_as;
+    AddressSpaceDispatch *target_dispatch;
     hwaddr           iova;
     hwaddr           translated_addr;
     hwaddr           addr_mask;  /* 0xfff = 4k translation */
@@ -300,6 +301,8 @@ struct MemoryListener {
     QTAILQ_ENTRY(MemoryListener) link_as;
 };
 
+AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as);
+
 /**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
  */
@@ -336,7 +339,7 @@ struct AddressSpace {
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
-    AddressSpace *address_space;
+    AddressSpaceDispatch *dispatch;
     hwaddr offset_within_region;
     Int128 size;
     hwaddr offset_within_address_space;
@@ -1625,9 +1628,18 @@ void address_space_destroy(AddressSpace *as);
  * @buf: buffer with the data transferred
  * @is_write: indicates the transfer direction
  */
-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_dispatch_rw(AddressSpaceDispatch *d, hwaddr addr,
                              MemTxAttrs attrs, uint8_t *buf,
                              int len, bool is_write);
+
+static inline MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
+                                           MemTxAttrs attrs, uint8_t *buf,
+                                           int len, bool is_write)
+{
+    return address_space_dispatch_rw(address_space_to_dispatch(as),
+                                     addr, attrs, buf, len, is_write);
+}
+
 
 /**
  * address_space_write: write to address space.
@@ -1641,9 +1653,17 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
  * @attrs: memory transaction attributes
  * @buf: buffer with the data transferred
  */
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_dispatch_write(AddressSpaceDispatch *d, hwaddr addr,
                                 MemTxAttrs attrs,
                                 const uint8_t *buf, int len);
+
+static inline MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+                                MemTxAttrs attrs,
+                                const uint8_t *buf, int len)
+{
+    return address_space_dispatch_write(address_space_to_dispatch(as),
+                                        addr, attrs, buf, len);
+}
 
 /* address_space_ld*: load from an address space
  * address_space_st*: store to an address space
@@ -1830,8 +1850,8 @@ void stq_be_phys_cached(MemoryRegionCache *cache, hwaddr addr, uint64_t val);
 /* address_space_get_iotlb_entry: translate an address into an IOTLB
  * entry. Should be called from an RCU critical section.
  */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
-                                            bool is_write);
+IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpaceDispatch *d,
+                                            hwaddr addr, bool is_write);
 
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be
@@ -1845,9 +1865,17 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
  * @len: pointer to length
  * @is_write: indicates the transfer direction
  */
-MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
-                                      hwaddr *xlat, hwaddr *len,
-                                      bool is_write);
+MemoryRegion *address_space_dispatch_translate(AddressSpaceDispatch *d,
+                                               hwaddr addr, hwaddr *xlat,
+                                               hwaddr *len, bool is_write);
+
+static inline MemoryRegion *address_space_translate(AddressSpace *as,
+                                                    hwaddr addr, hwaddr *xlat,
+                                                    hwaddr *len, bool is_write)
+{
+    return address_space_dispatch_translate(address_space_to_dispatch(as),
+                                            addr, xlat, len, is_write);
+}
 
 /* address_space_access_valid: check for validity of accessing an address
  * space range
@@ -1864,7 +1892,15 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
  * @len: length of the area to be checked
  * @is_write: indicates the transfer direction
  */
-bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write);
+bool address_space_dispatch_access_valid(AddressSpaceDispatch *d, hwaddr addr,
+                                         int len, bool is_write);
+
+static inline bool address_space_access_valid(AddressSpace *as, hwaddr addr,
+                                              int len, bool is_write)
+{
+    return address_space_dispatch_access_valid(address_space_to_dispatch(as),
+                                               addr, len, is_write);
+}
 
 /* address_space_map: map a physical memory region into a host virtual address
  *
@@ -1898,11 +1934,11 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
 
 /* Internal functions, part of the implementation of address_space_read.  */
-MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read_continue(AddressSpaceDispatch *d, hwaddr addr,
                                         MemTxAttrs attrs, uint8_t *buf,
                                         int len, hwaddr addr1, hwaddr l,
 					MemoryRegion *mr);
-MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read_full(AddressSpaceDispatch *d, hwaddr addr,
                                     MemTxAttrs attrs, uint8_t *buf, int len);
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
@@ -1930,8 +1966,9 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
  * @buf: buffer with the data transferred
  */
 static inline __attribute__((__always_inline__))
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+MemTxResult address_space_dispatch_read(AddressSpaceDispatch *d, hwaddr addr,
+                                        MemTxAttrs attrs, uint8_t *buf,
+                                        int len)
 {
     MemTxResult result = MEMTX_OK;
     hwaddr l, addr1;
@@ -1942,20 +1979,28 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         if (len) {
             rcu_read_lock();
             l = len;
-            mr = address_space_translate(as, addr, &addr1, &l, false);
+            mr = address_space_dispatch_translate(d, addr, &addr1, &l, false);
             if (len == l && memory_access_is_direct(mr, false)) {
                 ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
                 memcpy(buf, ptr, len);
             } else {
-                result = address_space_read_continue(as, addr, attrs, buf, len,
+                result = address_space_read_continue(d, addr, attrs, buf, len,
                                                      addr1, l, mr);
             }
             rcu_read_unlock();
         }
     } else {
-        result = address_space_read_full(as, addr, attrs, buf, len);
+        result = address_space_read_full(d, addr, attrs, buf, len);
     }
     return result;
+}
+
+static inline MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
+                                             MemTxAttrs attrs, uint8_t *buf,
+                                             int len)
+{
+    return address_space_dispatch_read(address_space_to_dispatch(as),
+                                       addr, attrs, buf, len);
 }
 
 /**

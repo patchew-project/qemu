@@ -353,7 +353,7 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
     uint32_t flags;
     S390PCIIOMMU *iommu = container_of(mr, S390PCIIOMMU, iommu_mr);
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
         .iova = 0,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,

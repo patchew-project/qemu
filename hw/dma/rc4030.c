@@ -495,7 +495,7 @@ static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
 {
     rc4030State *s = container_of(iommu, rc4030State, dma_mr);
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
         .iova = addr & ~(DMA_PAGESIZE - 1),
         .translated_addr = 0,
         .addr_mask = DMA_PAGESIZE - 1,
@@ -507,7 +507,7 @@ static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     i = addr / DMA_PAGESIZE;
     if (i < s->dma_tl_limit / sizeof(entry)) {
         entry_address = (s->dma_tl_base & 0x7fffffff) + i * sizeof(entry);
-        if (address_space_read(ret.target_as, entry_address,
+        if (address_space_dispatch_read(ret.target_dispatch, entry_address,
                                MEMTXATTRS_UNSPECIFIED, (unsigned char *)&entry,
                                sizeof(entry)) == MEMTX_OK) {
             ret.translated_addr = entry.frame & ~(DMA_PAGESIZE - 1);

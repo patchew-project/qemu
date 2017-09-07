@@ -154,7 +154,8 @@ enum ListenerDirection { Forward, Reverse };
 /* No need to ref/unref .mr, the FlatRange keeps it alive.  */
 #define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback, _args...)  \
     do {                                                                \
-        MemoryRegionSection mrs = section_from_flat_range(fr, as);      \
+        MemoryRegionSection mrs = section_from_flat_range(fr,           \
+                address_space_to_dispatch(as));                         \
         MEMORY_LISTENER_CALL(as, callback, dir, &mrs, ##_args);         \
     } while(0)
 
@@ -237,11 +238,11 @@ typedef struct AddressSpaceOps AddressSpaceOps;
     for (var = (view)->ranges; var < (view)->ranges + (view)->nr; ++var)
 
 static inline MemoryRegionSection
-section_from_flat_range(FlatRange *fr, AddressSpace *as)
+section_from_flat_range(FlatRange *fr, AddressSpaceDispatch *d)
 {
     return (MemoryRegionSection) {
         .mr = fr->mr,
-        .address_space = as,
+        .dispatch = d,
         .offset_within_region = fr->offset_in_region,
         .size = fr->addr.size,
         .offset_within_address_space = int128_get64(fr->addr.start),
@@ -727,6 +728,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
     unsigned iold, inew;
     MemoryRegionIoeventfd *fd;
     MemoryRegionSection section;
+    AddressSpaceDispatch *d = address_space_to_dispatch(as);
 
     /* Generate a symmetric difference of the old and new fd sets, adding
      * and deleting as necessary.
@@ -740,7 +742,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                                   fds_new[inew]))) {
             fd = &fds_old[iold];
             section = (MemoryRegionSection) {
-                .address_space = as,
+                .dispatch = d,
                 .offset_within_address_space = int128_get64(fd->addr.start),
                 .size = fd->addr.size,
             };
@@ -753,7 +755,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                                          fds_old[iold]))) {
             fd = &fds_new[inew];
             section = (MemoryRegionSection) {
-                .address_space = as,
+                .dispatch = d,
                 .offset_within_address_space = int128_get64(fd->addr.start),
                 .size = fd->addr.size,
             };
@@ -1835,7 +1837,9 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
         view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
             if (fr->mr == mr) {
-                MemoryRegionSection mrs = section_from_flat_range(fr, as);
+                MemoryRegionSection mrs = section_from_flat_range(fr,
+                        address_space_to_dispatch(as));
+
                 listener->log_sync(listener, &mrs);
             }
         }
@@ -1938,7 +1942,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
     FOR_EACH_FLAT_RANGE(fr, view) {
         if (fr->mr == mr) {
             section = (MemoryRegionSection) {
-                .address_space = as,
+                .dispatch = address_space_to_dispatch(as),
                 .offset_within_address_space = int128_get64(fr->addr.start),
                 .size = fr->addr.size,
             };
@@ -2300,7 +2304,7 @@ static MemoryRegionSection memory_region_find_rcu(MemoryRegion *mr,
     }
 
     ret.mr = fr->mr;
-    ret.address_space = as;
+    ret.dispatch = address_space_to_dispatch(as);
     range = addrrange_intersection(range, fr->addr);
     ret.offset_within_region = fr->offset_in_region;
     ret.offset_within_region += int128_get64(int128_sub(range.start,
@@ -2349,7 +2353,9 @@ void memory_global_dirty_log_sync(void)
         view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
             if (fr->dirty_log_mask) {
-                MemoryRegionSection mrs = section_from_flat_range(fr, as);
+                MemoryRegionSection mrs = section_from_flat_range(fr,
+                        address_space_to_dispatch(as));
+
                 listener->log_sync(listener, &mrs);
             }
         }
@@ -2434,7 +2440,7 @@ static void listener_add_address_space(MemoryListener *listener,
     FOR_EACH_FLAT_RANGE(fr, view) {
         MemoryRegionSection section = {
             .mr = fr->mr,
-            .address_space = as,
+            .dispatch = address_space_to_dispatch(as),
             .offset_within_region = fr->offset_in_region,
             .size = fr->addr.size,
             .offset_within_address_space = int128_get64(fr->addr.start),

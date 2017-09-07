@@ -604,7 +604,7 @@ static const MemoryRegionOps pchip_ops = {
 static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
 {
     *ret = (IOMMUTLBEntry) {
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
         .translated_addr = taddr,
         .addr_mask = mask,
         .perm = IOMMU_RW,

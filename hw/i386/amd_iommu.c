@@ -993,7 +993,7 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
     AMDVIState *s = as->iommu_state;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
         .iova = addr,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,

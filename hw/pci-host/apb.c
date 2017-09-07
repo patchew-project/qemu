@@ -230,7 +230,7 @@ static IOMMUTLBEntry pbm_translate_iommu(IOMMUMemoryRegion *iommu, hwaddr addr,
     uint64_t tte;
     uint32_t tsbsize;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
         .iova = 0,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,

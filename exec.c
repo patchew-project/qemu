@@ -199,10 +199,12 @@ struct AddressSpaceDispatch {
     AddressSpace *as;
 };
 
+typedef struct AddressSpaceDispatch AddressSpaceDispatch;
+
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
     MemoryRegion iomem;
-    AddressSpace *as;
+    AddressSpaceDispatch *d;
     hwaddr base;
     uint16_t sub_section[];
 } subpage_t;
@@ -237,6 +239,11 @@ struct DirtyBitmapSnapshot {
     ram_addr_t end;
     unsigned long dirty[];
 };
+
+AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as)
+{
+    return atomic_rcu_read(&as->dispatch);
+}
 
 #endif
 
@@ -437,8 +444,9 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
 
 /* Called from RCU critical section */
 static MemoryRegionSection *
-address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *xlat,
-                                 hwaddr *plen, bool resolve_subpage)
+address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr,
+                                 hwaddr *xlat, hwaddr *plen,
+                                 bool resolve_subpage)
 {
     MemoryRegionSection *section;
     MemoryRegion *mr;
@@ -472,7 +480,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
 }
 
 /* Called from RCU critical section */
-static MemoryRegionSection address_space_do_translate(AddressSpace *as,
+static MemoryRegionSection address_space_do_translate(AddressSpaceDispatch *d,
                                                       hwaddr addr,
                                                       hwaddr *xlat,
                                                       hwaddr *plen,
@@ -485,8 +493,8 @@ static MemoryRegionSection address_space_do_translate(AddressSpace *as,
     IOMMUMemoryRegionClass *imrc;
 
     for (;;) {
-        AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
-        section = address_space_translate_internal(d, addr, &addr, plen, is_mmio);
+        section = address_space_translate_internal(d, addr, &addr,
+                                                   plen, is_mmio);
 
         iommu_mr = memory_region_get_iommu(section->mr);
         if (!iommu_mr) {
@@ -503,7 +511,7 @@ static MemoryRegionSection address_space_do_translate(AddressSpace *as,
             goto translate_fail;
         }
 
-        as = iotlb.target_as;
+        d = atomic_rcu_read(&iotlb.target_dispatch);
     }
 
     *xlat = addr;
@@ -515,8 +523,8 @@ translate_fail:
 }
 
 /* Called from RCU critical section */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
-                                            bool is_write)
+IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpaceDispatch *d,
+                                            hwaddr addr, bool is_write)
 {
     MemoryRegionSection section;
     hwaddr xlat, plen;
@@ -525,7 +533,7 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
     plen = (hwaddr)-1;
 
     /* This can never be MMIO. */
-    section = address_space_do_translate(as, addr, &xlat, &plen,
+    section = address_space_do_translate(d, addr, &xlat, &plen,
                                          is_write, false);
 
     /* Illegal translation */
@@ -549,7 +557,7 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
     plen -= 1;
 
     return (IOMMUTLBEntry) {
-        .target_as = section.address_space,
+        .target_dispatch = section.dispatch,
         .iova = addr & ~plen,
         .translated_addr = xlat & ~plen,
         .addr_mask = plen,
@@ -562,15 +570,15 @@ iotlb_fail:
 }
 
 /* Called from RCU critical section */
-MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
-                                      hwaddr *xlat, hwaddr *plen,
-                                      bool is_write)
+MemoryRegion *address_space_dispatch_translate(AddressSpaceDispatch *d,
+                                               hwaddr addr, hwaddr *xlat,
+                                               hwaddr *plen, bool is_write)
 {
     MemoryRegion *mr;
     MemoryRegionSection section;
 
     /* This can be MMIO, so setup MMIO bit. */
-    section = address_space_do_translate(as, addr, xlat, plen, is_write, true);
+    section = address_space_do_translate(d, addr, xlat, plen, is_write, true);
     mr = section.mr;
 
     if (xen_enabled() && memory_access_is_direct(mr, is_write)) {
@@ -587,7 +595,8 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen)
 {
     MemoryRegionSection *section;
-    AddressSpaceDispatch *d = atomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
+    AddressSpaceDispatch *d =
+            atomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
 
     section = address_space_translate_internal(d, addr, xlat, plen, false);
 
@@ -1220,7 +1229,7 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
     } else {
         AddressSpaceDispatch *d;
 
-        d = atomic_rcu_read(&section->address_space->dispatch);
+        d = atomic_rcu_read(&section->dispatch);
         iotlb = section - d->map.sections;
         iotlb += xlat;
     }
@@ -1246,7 +1255,7 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
-static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
+static subpage_t *subpage_init(AddressSpaceDispatch *d, hwaddr base);
 
 static void *(*phys_mem_alloc)(size_t size, uint64_t *align) =
                                qemu_anon_ram_alloc;
@@ -1318,8 +1327,8 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
     assert(existing->mr->subpage || existing->mr == &io_mem_unassigned);
 
     if (!(existing->mr->subpage)) {
-        subpage = subpage_init(d->as, base);
-        subsection.address_space = d->as;
+        subpage = subpage_init(d, base);
+        subsection.dispatch = d;
         subsection.mr = &subpage->iomem;
         phys_page_set(d, base >> TARGET_PAGE_BITS, 1,
                       phys_section_add(&d->map, &subsection));
@@ -2512,7 +2521,7 @@ static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
     printf("%s: subpage %p len %u addr " TARGET_FMT_plx "\n", __func__,
            subpage, len, addr);
 #endif
-    res = address_space_read(subpage->as, addr + subpage->base,
+    res = address_space_dispatch_read(subpage->d, addr + subpage->base,
                              attrs, buf, len);
     if (res) {
         return res;
@@ -2562,7 +2571,7 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
     default:
         abort();
     }
-    return address_space_write(subpage->as, addr + subpage->base,
+    return address_space_dispatch_write(subpage->d, addr + subpage->base,
                                attrs, buf, len);
 }
 
@@ -2575,8 +2584,8 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
            __func__, subpage, is_write ? 'w' : 'r', len, addr);
 #endif
 
-    return address_space_access_valid(subpage->as, addr + subpage->base,
-                                      len, is_write);
+    return address_space_dispatch_access_valid(subpage->d, addr + subpage->base,
+                                               len, is_write);
 }
 
 static const MemoryRegionOps subpage_ops = {
@@ -2610,12 +2619,12 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     return 0;
 }
 
-static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
+static subpage_t *subpage_init(AddressSpaceDispatch *d, hwaddr base)
 {
     subpage_t *mmio;
 
     mmio = g_malloc0(sizeof(subpage_t) + TARGET_PAGE_SIZE * sizeof(uint16_t));
-    mmio->as = as;
+    mmio->d = d;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
                           NULL, TARGET_PAGE_SIZE);
@@ -2629,12 +2638,12 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
     return mmio;
 }
 
-static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
+static uint16_t dummy_section(PhysPageMap *map, AddressSpaceDispatch *d,
                               MemoryRegion *mr)
 {
-    assert(as);
+    assert(d);
     MemoryRegionSection section = {
-        .address_space = as,
+        .dispatch = d,
         .mr = mr,
         .offset_within_address_space = 0,
         .offset_within_region = 0,
@@ -2677,17 +2686,16 @@ static void mem_begin(MemoryListener *listener)
     AddressSpaceDispatch *d = g_new0(AddressSpaceDispatch, 1);
     uint16_t n;
 
-    n = dummy_section(&d->map, as, &io_mem_unassigned);
+    n = dummy_section(&d->map, d, &io_mem_unassigned);
     assert(n == PHYS_SECTION_UNASSIGNED);
-    n = dummy_section(&d->map, as, &io_mem_notdirty);
+    n = dummy_section(&d->map, d, &io_mem_notdirty);
     assert(n == PHYS_SECTION_NOTDIRTY);
-    n = dummy_section(&d->map, as, &io_mem_rom);
+    n = dummy_section(&d->map, d, &io_mem_rom);
     assert(n == PHYS_SECTION_ROM);
-    n = dummy_section(&d->map, as, &io_mem_watch);
+    n = dummy_section(&d->map, d, &io_mem_watch);
     assert(n == PHYS_SECTION_WATCH);
 
     d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };
-    d->as = as;
     as->next_dispatch = d;
 }
 
@@ -2900,7 +2908,8 @@ static bool prepare_mmio_access(MemoryRegion *mr)
 }
 
 /* Called within RCU critical section.  */
-static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
+static MemTxResult address_space_write_continue(AddressSpaceDispatch *d,
+                                                hwaddr addr,
                                                 MemTxAttrs attrs,
                                                 const uint8_t *buf,
                                                 int len, hwaddr addr1,
@@ -2966,14 +2975,15 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
         }
 
         l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true);
+        mr = address_space_dispatch_translate(d, addr, &addr1, &l, true);
     }
 
     return result;
 }
 
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                                const uint8_t *buf, int len)
+MemTxResult address_space_dispatch_write(AddressSpaceDispatch *d, hwaddr addr,
+                                         MemTxAttrs attrs, const uint8_t *buf,
+                                         int len)
 {
     hwaddr l;
     hwaddr addr1;
@@ -2983,8 +2993,8 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
     if (len > 0) {
         rcu_read_lock();
         l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true);
-        result = address_space_write_continue(as, addr, attrs, buf, len,
+        mr = address_space_dispatch_translate(d, addr, &addr1, &l, true);
+        result = address_space_write_continue(d, addr, attrs, buf, len,
                                               addr1, l, mr);
         rcu_read_unlock();
     }
@@ -2993,7 +3003,7 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
 }
 
 /* Called within RCU critical section.  */
-MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read_continue(AddressSpaceDispatch *d, hwaddr addr,
                                         MemTxAttrs attrs, uint8_t *buf,
                                         int len, hwaddr addr1, hwaddr l,
                                         MemoryRegion *mr)
@@ -3056,13 +3066,13 @@ MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
         }
 
         l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, false);
+        mr = address_space_dispatch_translate(d, addr, &addr1, &l, false);
     }
 
     return result;
 }
 
-MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read_full(AddressSpaceDispatch *d, hwaddr addr,
                                     MemTxAttrs attrs, uint8_t *buf, int len)
 {
     hwaddr l;
@@ -3073,8 +3083,8 @@ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
     if (len > 0) {
         rcu_read_lock();
         l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, false);
-        result = address_space_read_continue(as, addr, attrs, buf, len,
+        mr = address_space_dispatch_translate(d, addr, &addr1, &l, false);
+        result = address_space_read_continue(d, addr, attrs, buf, len,
                                              addr1, l, mr);
         rcu_read_unlock();
     }
@@ -3082,13 +3092,14 @@ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
     return result;
 }
 
-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                             uint8_t *buf, int len, bool is_write)
+MemTxResult address_space_dispatch_rw(AddressSpaceDispatch *d, hwaddr addr,
+                                      MemTxAttrs attrs, uint8_t *buf,
+                                      int len, bool is_write)
 {
     if (is_write) {
-        return address_space_write(as, addr, attrs, (uint8_t *)buf, len);
+        return address_space_dispatch_write(d, addr, attrs, buf, len);
     } else {
-        return address_space_read(as, addr, attrs, (uint8_t *)buf, len);
+        return address_space_dispatch_read(d, addr, attrs, buf, len);
     }
 }
 
@@ -3249,7 +3260,8 @@ static void cpu_notify_map_clients(void)
     qemu_mutex_unlock(&map_client_list_lock);
 }
 
-bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write)
+bool address_space_dispatch_access_valid(AddressSpaceDispatch *d, hwaddr addr,
+                                         int len, bool is_write)
 {
     MemoryRegion *mr;
     hwaddr l, xlat;
@@ -3257,7 +3269,7 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
     rcu_read_lock();
     while (len > 0) {
         l = len;
-        mr = address_space_translate(as, addr, &xlat, &l, is_write);
+        mr = address_space_dispatch_translate(d, addr, &xlat, &l, is_write);
         if (!memory_access_is_direct(mr, is_write)) {
             l = memory_access_size(mr, l, addr);
             if (!memory_region_access_valid(mr, xlat, l, is_write)) {
@@ -3274,7 +3286,8 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
 }
 
 static hwaddr
-address_space_extend_translation(AddressSpace *as, hwaddr addr, hwaddr target_len,
+address_space_extend_translation(AddressSpaceDispatch *d, hwaddr addr,
+                                 hwaddr target_len,
                                  MemoryRegion *mr, hwaddr base, hwaddr len,
                                  bool is_write)
 {
@@ -3291,7 +3304,8 @@ address_space_extend_translation(AddressSpace *as, hwaddr addr, hwaddr target_le
         }
 
         len = target_len;
-        this_mr = address_space_translate(as, addr, &xlat, &len, is_write);
+        this_mr = address_space_dispatch_translate(d, addr, &xlat,
+                                                   &len, is_write);
         if (this_mr != mr || xlat != base + done) {
             return done;
         }
@@ -3314,6 +3328,7 @@ void *address_space_map(AddressSpace *as,
     hwaddr l, xlat;
     MemoryRegion *mr;
     void *ptr;
+    AddressSpaceDispatch *d = address_space_to_dispatch(as);
 
     if (len == 0) {
         return NULL;
@@ -3321,7 +3336,7 @@ void *address_space_map(AddressSpace *as,
 
     l = len;
     rcu_read_lock();
-    mr = address_space_translate(as, addr, &xlat, &l, is_write);
+    mr = address_space_dispatch_translate(d, addr, &xlat, &l, is_write);
 
     if (!memory_access_is_direct(mr, is_write)) {
         if (atomic_xchg(&bounce.in_use, true)) {
@@ -3337,7 +3352,7 @@ void *address_space_map(AddressSpace *as,
         memory_region_ref(mr);
         bounce.mr = mr;
         if (!is_write) {
-            address_space_read(as, addr, MEMTXATTRS_UNSPECIFIED,
+            address_space_dispatch_read(d, addr, MEMTXATTRS_UNSPECIFIED,
                                bounce.buffer, l);
         }
 
@@ -3348,7 +3363,8 @@ void *address_space_map(AddressSpace *as,
 
 
     memory_region_ref(mr);
-    *plen = address_space_extend_translation(as, addr, len, mr, xlat, l, is_write);
+    *plen = address_space_extend_translation(d, addr, len, mr, xlat,
+                                             l, is_write);
     ptr = qemu_ram_ptr_length(mr->ram_block, xlat, plen, true);
     rcu_read_unlock();
 

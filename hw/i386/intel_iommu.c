@@ -787,7 +787,8 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
         entry_valid = read_cur | write_cur;
 
         if (vtd_is_last_slpte(slpte, level)) {
-            entry.target_as = &address_space_memory;
+            entry.target_dispatch =
+                    address_space_to_dispatch(&address_space_memory);
             entry.iova = iova & subpage_mask;
             /* NOTE: this is only meaningful if entry_valid == true */
             entry.translated_addr = vtd_get_slpte_addr(slpte);
@@ -1810,7 +1811,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
         sz = VTD_PAGE_SIZE;
     }
 
-    entry.target_as = &vtd_dev_as->as;
+    entry.target_dispatch = address_space_to_dispatch(&vtd_dev_as->as);
     entry.addr_mask = sz - 1;
     entry.iova = addr;
     entry.perm = IOMMU_NONE;
@@ -2270,7 +2271,7 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     IntelIOMMUState *s = vtd_as->iommu_state;
     IOMMUTLBEntry iotlb = {
         /* We'll fill in the rest later. */
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
     };
     bool success;
 
@@ -2781,7 +2782,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
         size = 1ULL << n;
     }
 
-    entry.target_as = &address_space_memory;
+    entry.target_dispatch = address_space_to_dispatch(&address_space_memory);
     /* Adjust iova for the size */
     entry.iova = n->start & ~(size - 1);
     /* This field is meaningless for unmap */

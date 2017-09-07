@@ -117,7 +117,7 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(IOMMUMemoryRegion *iommu,
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
     uint64_t tce;
     IOMMUTLBEntry ret = {
-        .target_as = &address_space_memory,
+        .target_dispatch = address_space_to_dispatch(&address_space_memory),
         .iova = 0,
         .translated_addr = 0,
         .addr_mask = ~(hwaddr)0,
@@ -407,7 +407,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
 
     tcet->table[index] = tce;
 
-    entry.target_as = &address_space_memory,
+    entry.target_dispatch = address_space_to_dispatch(&address_space_memory),
     entry.iova = (ioba - tcet->bus_offset) & page_mask;
     entry.translated_addr = tce & page_mask;
     entry.addr_mask = ~page_mask;

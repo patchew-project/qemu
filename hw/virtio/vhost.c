@@ -976,12 +976,12 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
     IOMMUTLBEntry iotlb;
     uint64_t uaddr, len;
     int ret = -EFAULT;
+    AddressSpaceDispatch *d = address_space_to_dispatch(dev->vdev->dma_as);
 
     rcu_read_lock();
 
-    iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
-                                          iova, write);
-    if (iotlb.target_as != NULL) {
+    iotlb = address_space_get_iotlb_entry(d, iova, write);
+    if (iotlb.target_dispatch != NULL) {
         ret = vhost_memory_region_lookup(dev, iotlb.translated_addr,
                                          &uaddr, &len);
         if (ret) {
