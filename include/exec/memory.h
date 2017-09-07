@@ -27,6 +27,7 @@
 #include "qemu/rcu.h"
 #include "hw/qdev-core.h"
 
+typedef struct AddressSpaceDispatch AddressSpaceDispatch;
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
@@ -302,6 +303,7 @@ struct MemoryListener {
 };
 
 AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as);
+MemoryRegion *address_space_root(AddressSpace *as);
 
 /**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
@@ -310,20 +312,17 @@ struct AddressSpace {
     /* All fields are private. */
     struct rcu_head rcu;
     char *name;
-    MemoryRegion *root;
-    int ref_count;
-    bool malloced;
 
     /* Accessed via RCU.  */
     struct FlatView *current_map;
 
     int ioeventfd_nb;
     struct MemoryRegionIoeventfd *ioeventfds;
-    struct AddressSpaceDispatch *dispatch;
-    struct AddressSpaceDispatch *next_dispatch;
+
     MemoryListener dispatch_listener;
     QTAILQ_HEAD(memory_listeners_as, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
+    QTAILQ_ENTRY(AddressSpace) flat_view_link;
 };
 
 /**
