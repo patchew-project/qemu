@@ -187,7 +187,7 @@ static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
  *
  * An S/390 CPU.
  */
-struct S390CPU {
+typedef struct S390CPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -198,7 +198,7 @@ struct S390CPU {
     /* needed for live migration */
     void *irqstate;
     uint32_t irqstate_saved_size;
-};
+} S390CPU;
 
 static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
 {

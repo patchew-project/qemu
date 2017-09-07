@@ -61,6 +61,4 @@ typedef struct S390CPUClass {
     void (*initial_cpu_reset)(CPUState *cpu);
 } S390CPUClass;
 
-typedef struct S390CPU S390CPU;
-
 #endif
