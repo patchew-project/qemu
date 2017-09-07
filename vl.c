@@ -4659,11 +4659,15 @@ int main(int argc, char **argv, char **envp)
     igd_gfx_passthru();
 
     /* init generic devices */
+    memory_region_transaction_begin();
+
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
     if (qemu_opts_foreach(qemu_find_opts("device"),
                           device_init_func, NULL, NULL)) {
         exit(1);
     }
+
+    memory_region_transaction_commit();
 
     cpu_synchronize_all_post_init();
 
