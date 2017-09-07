@@ -38,6 +38,7 @@
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #ifndef CONFIG_USER_ONLY
+#include "hw/boards.h"
 #include "hw/hw.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
@@ -444,6 +445,22 @@ void s390_enable_css_support(S390CPU *cpu)
     if (kvm_enabled()) {
         kvm_s390_enable_css_support(cpu);
     }
+}
+
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
+{
+    static MachineState *ms;
+
+    if (!ms) {
+        ms = MACHINE(qdev_get_machine());
+        g_assert(ms->possible_cpus);
+    }
+
+    /* CPU address corresponds to the core_id and the index */
+    if (cpu_addr >= ms->possible_cpus->len) {
+        return NULL;
+    }
+    return S390_CPU(ms->possible_cpus->cpus[cpu_addr].cpu);
 }
 #endif
 

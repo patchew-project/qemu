@@ -670,6 +670,7 @@ int s390_cpu_restart(S390CPU *cpu);
 void s390_enable_css_support(S390CPU *cpu);
 int s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch_id,
                                 int vq, bool assign);
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 #ifndef CONFIG_USER_ONLY
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
 #else
@@ -716,9 +717,5 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
         s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, true)
 #define s390_cpu_virt_mem_check_write(cpu, laddr, ar, len)   \
         s390_cpu_virt_mem_rw(cpu, laddr, ar, NULL, len, true)
-
-
-/* outside of target/s390x/ */
-S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 
 #endif
