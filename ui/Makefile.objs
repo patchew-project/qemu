@@ -45,6 +45,10 @@ gtk.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
 gtk-egl.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
 gtk-gl-area.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
 
+gtk.o-libs := $(GTK_LIBS) $(VTE_LIBS)
+gtk-egl.o-libs := $(GTK_LIBS) $(VTE_LIBS)
+gtk-gl-area.o-libs := $(GTK_LIBS) $(VTE_LIBS)
+
 gtk-egl.o-libs += $(OPENGL_LIBS)
 shader.o-libs += $(OPENGL_LIBS)
 console-gl.o-libs += $(OPENGL_LIBS)
