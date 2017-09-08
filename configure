@@ -3134,8 +3134,8 @@ EOF
       unset IFS
       if compile_prog "$curses_inc" "$curses_lib" ; then
         curses_found=yes
-        QEMU_CFLAGS="$curses_inc $QEMU_CFLAGS"
-        libs_softmmu="$curses_lib $libs_softmmu"
+        curses_cflags="$curses_inc $curses_cflags"
+        curses_libs="$curses_lib $curses_libs"
         break
       fi
     done
@@ -5600,6 +5600,8 @@ if test "$cocoa" = "yes" ; then
 fi
 if test "$curses" = "yes" ; then
   echo "CONFIG_CURSES=y" >> $config_host_mak
+  echo "CURSES_CFLAGS=$curses_cflags" >> $config_host_mak
+  echo "CURSES_LIBS=$curses_libs" >> $config_host_mak
 fi
 if test "$pipe2" = "yes" ; then
   echo "CONFIG_PIPE2=y" >> $config_host_mak
