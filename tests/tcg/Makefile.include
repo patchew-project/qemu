@@ -1,3 +1,75 @@
 
-check-tcg:
+TCG_I386_TESTS := \
+	hello-i386 \
+	linux-test \
+	testthread \
+	sha1-i386 \
+	test-i386 \
+	test-i386-fprem \
+	test-mmap \
+	# runcom
+
+$(addprefix tests/tcg/, $(TCG_I386_TESTS)): DOCKER_IMAGE := fedora-i386-cross
+$(addprefix tests/tcg/, $(TCG_I386_TESTS)): CFLAGS := -m32 -I/usr/lib/glib-2.0/include/ -I/usr/include/glib-2.0 -Wall -O2 -g -fno-strict-aliasing $(QEMU_INCLUDES)
+$(addprefix tests/tcg/, $(TCG_I386_TESTS)): QEMU_CFLAGS :=
+$(addprefix tests/tcg/, $(TCG_I386_TESTS)): LDFLAGS :=
+$(addprefix tests/tcg/, $(TCG_I386_TESTS)): QEMU_LDFLAGS :=
+
+check-tcg-i386: $(addprefix tcg-run-,$(TCG_I386_TESTS))
+$(addprefix tcg-run-,$(TCG_I386_TESTS)): QEMU := i386-linux-user/qemu-i386
+$(addprefix tcg-run-,$(TCG_I386_TESTS)): i386-linux-user/qemu-i386
+
+TCG_SIMPLE_TESTS := \
+	hello-i386 \
+	linux-test \
+	testthread \
+	sha1-i386
+
+$(foreach t,$(TCG_SIMPLE_TESTS), \
+	$(eval tcg-run-$t: tcg-runsimple-$t))
+
+tcg-runsimple-%: tests/tcg/%$(EXESUF)
+	-$(QEMU) $<
+
+TCG_CMP_TESTS := \
+	test-i386 \
+	test-i386-fprem
+
+$(foreach t,$(TCG_CMP_TESTS), \
+	$(eval tcg-run-$t: tcg-runcmp-$t))
+
+tcg-runcmp-%: tests/tcg/%$(EXESUF)
+	$< > $<.ref
+	-$(QEMU) $< > $<.out
+	@if cmp -s $<.ref $<.out ; then echo "Auto Test OK"; fi
+
+tcg-run-test-mmap: tests/tcg/test-mmap
+	-$(QEMU) $<
+	-$(QEMU) -p 8192 $< 8192
+	-$(QEMU) -p 16384 $< 16384
+	-$(QEMU) -p 32768 $< 32768
+
+tcg-run-runcom: tests/tcg/runcom
+	-$(QEMU) $< $(SRC_PATH)/tests/tcg/pi_10.com
+
+TCG_TESTS = $(if $(filter i386-linux-user, $(TARGET_LIST)), $(TCG_I386_TESTS))
+
+$(addprefix tests/tcg/, $(TCG_TESTS)): CXX :=
+$(addprefix tests/tcg/, $(TCG_TESTS)): CC := \
+	$(SRC_PATH)/tests/docker/docker.py cc -i qemu:$(DOCKER_IMAGE) -s $(SRC_PATH) --
+
+tests/tcg/hello-i386: LDFLAGS := -nostdlib
+
+tests/tcg/sha1-i386: tests/tcg/sha1.o
+	$(call LINK, $^)
+
+tests/tcg/test-i386: $(addprefix $(SRC_PATH)/tests/tcg/, \
+			test-i386.c test-i386-code16.S test-i386-vm86.S \
+           test-i386.h test-i386-shift.h test-i386-muldiv.h)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
+              $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
+
+.PHONY: check-tcg $(patsubst %,run-%,$(TCG_TESTS))
+
+check-tcg: $(addprefix tcg-run-, $(TCG_TESTS))
 	$(MAKE) -C tests/tcg test
