@@ -282,6 +282,7 @@ dummy := $(call unnest-vars,, \
                 trace-obj-y)
 
 include $(SRC_PATH)/tests/Makefile.include
+include $(SRC_PATH)/tests/tcg/Makefile.include
 
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 

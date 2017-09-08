@@ -1,0 +1,3 @@
+
+check-tcg:
+	$(MAKE) -C tests/tcg test

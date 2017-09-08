@@ -10,6 +10,7 @@ check-help:
 	@echo " make check-speed          Run qobject speed tests"
 	@echo " make check-qapi-schema    Run QAPI schema tests"
 	@echo " make check-block          Run block tests"
+	@echo " make check-tcg            Clean TCG tests"
 	@echo " make check-report.html    Generates an HTML test report"
 	@echo " make check-clean          Clean the tests"
 	@echo
