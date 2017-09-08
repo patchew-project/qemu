@@ -18,46 +18,48 @@
 #include "hw/s390x/3270-ccw.h"
 
 /* Handle READ ccw commands from guest */
-static int handle_payload_3270_read(EmulatedCcw3270Device *dev, CCW1 *ccw)
+static CcwProcStatus handle_payload_3270_read(EmulatedCcw3270Device *dev,
+                                              CCW1 *ccw)
 {
     EmulatedCcw3270Class *ck = EMULATED_CCW_3270_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     int len;
 
     if (!ccw->cda) {
-        return -EFAULT;
+        return CSS_DO_PGM_CHK;
     }
 
     len = ck->read_payload_3270(dev, ccw->cda, ccw->count);
     ccw_dev->sch->curr_status.scsw.count = ccw->count - len;
 
-    return 0;
+    return CSS_DO_SUCCESS;
 }
 
 /* Handle WRITE ccw commands to write data to client */
-static int handle_payload_3270_write(EmulatedCcw3270Device *dev, CCW1 *ccw)
+static CcwProcStatus handle_payload_3270_write(EmulatedCcw3270Device *dev,
+                                               CCW1 *ccw)
 {
     EmulatedCcw3270Class *ck = EMULATED_CCW_3270_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     int len;
 
     if (!ccw->cda) {
-        return -EFAULT;
+        return CSS_DO_PGM_CHK;
     }
 
     len = ck->write_payload_3270(dev, ccw->cmd_code, ccw->cda, ccw->count);
 
     if (len <= 0) {
-        return -EIO;
+        return CSS_E_CUSTOM;
     }
 
     ccw_dev->sch->curr_status.scsw.count = ccw->count - len;
-    return 0;
+    return CSS_DO_SUCCESS;
 }
 
-static int emulated_ccw_3270_cb(SubchDev *sch, CCW1 ccw)
+static CcwProcStatus emulated_ccw_3270_cb(SubchDev *sch, CCW1 ccw)
 {
-    int rc = 0;
+    CcwProcStatus rc = CSS_DO_SUCCESS;
     EmulatedCcw3270Device *dev = sch->driver_data;
 
     switch (ccw.cmd_code) {
@@ -72,11 +74,11 @@ static int emulated_ccw_3270_cb(SubchDev *sch, CCW1 ccw)
         rc = handle_payload_3270_read(dev, &ccw);
         break;
     default:
-        rc = -ENOSYS;
+        rc = CSS_DO_UNIT_CHK_REJ;
         break;
     }
 
-    if (rc == -EIO) {
+    if (rc == CSS_E_CUSTOM) {
         /* I/O error, specific devices generate specific conditions */
         SCSW *s = &sch->curr_status.scsw;
 

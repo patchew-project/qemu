@@ -75,6 +75,17 @@ typedef struct CMBE {
     uint32_t reserved[7];
 } QEMU_PACKED CMBE;
 
+
+typedef enum CcwProcStatus {
+        CSS_DO_SUCCESS = 0, /* requet successful completin */
+        CSS_DO_CONT_CHAIN,  /* request continue ccw-chaning */
+        CSS_DO_SUSPEND,     /* request subchannel suspended */
+        CSS_DO_PGM_CHK,     /* request channel-program check */
+        CSS_DO_UNIT_CHK_REJ,/* request unit check cmd reject */
+        CSS_DO_INCORR_LEN,  /* request incorrect length */
+        CSS_E_CUSTOM        /* SCSW updated by device */
+} CcwProcStatus;
+
 typedef struct SubchDev SubchDev;
 struct SubchDev {
     /* channel-subsystem related things: */
@@ -93,7 +104,7 @@ struct SubchDev {
     uint16_t migrated_schid; /* used for missmatch detection */
     ORB orb;
     /* transport-provided data: */
-    int (*ccw_cb) (SubchDev *, CCW1);
+    CcwProcStatus (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
     int (*do_subchannel_work) (SubchDev *);
     SenseId id;

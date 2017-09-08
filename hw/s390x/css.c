@@ -784,20 +784,20 @@ static CCW1 copy_ccw_from_guest(hwaddr addr, bool fmt1)
     return ret;
 }
 
-static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
+static CcwProcStatus css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
                              bool suspend_allowed)
 {
-    int ret;
+    CcwProcStatus ret;
     bool check_len;
     int len;
     CCW1 ccw;
 
     if (!ccw_addr) {
-        return -EINVAL; /* channel-program check */
+        return CSS_DO_PGM_CHK;
     }
     /* Check doubleword aligned and 31 or 24 (fmt 0) bit addressable. */
     if (ccw_addr & (sch->ccw_fmt_1 ? 0x80000007 : 0xff000007)) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     /* Translate everything to format-1 ccws - the information is the same. */
@@ -805,31 +805,31 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
 
     /* Check for invalid command codes. */
     if ((ccw.cmd_code & 0x0f) == 0) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
     if (((ccw.cmd_code & 0x0f) == CCW_CMD_TIC) &&
         ((ccw.cmd_code & 0xf0) != 0)) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
     if (!sch->ccw_fmt_1 && (ccw.count == 0) &&
         (ccw.cmd_code != CCW_CMD_TIC)) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     /* We don't support MIDA. */
     if (ccw.flags & CCW_FLAG_MIDA) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     if (ccw.flags & CCW_FLAG_SUSPEND) {
-        return suspend_allowed ? -EINPROGRESS : -EINVAL;
+        return suspend_allowed ? CSS_DO_SUSPEND : CSS_DO_PGM_CHK;
     }
 
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
 
     if (!ccw.cda) {
         if (sch->ccw_no_data_cnt == 255) {
-            return -EINVAL;
+            return CSS_DO_PGM_CHK;
         }
         sch->ccw_no_data_cnt++;
     }
@@ -838,12 +838,12 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
     switch (ccw.cmd_code) {
     case CCW_CMD_NOOP:
         /* Nothing to do. */
-        ret = 0;
+        ret = CSS_DO_SUCCESS;
         break;
     case CCW_CMD_BASIC_SENSE:
         if (check_len) {
             if (ccw.count != sizeof(sch->sense_data)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         }
@@ -851,7 +851,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
         cpu_physical_memory_write(ccw.cda, sch->sense_data, len);
         sch->curr_status.scsw.count = ccw.count - len;
         memset(sch->sense_data, 0, sizeof(sch->sense_data));
-        ret = 0;
+        ret = CSS_DO_SUCCESS;
         break;
     case CCW_CMD_SENSE_ID:
     {
@@ -861,7 +861,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
         /* Sense ID information is device specific. */
         if (check_len) {
             if (ccw.count != sizeof(sense_id)) {
-                ret = -EINVAL;
+                ret = CSS_DO_PGM_CHK;
                 break;
             }
         }
@@ -877,37 +877,37 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
         }
         cpu_physical_memory_write(ccw.cda, &sense_id, len);
         sch->curr_status.scsw.count = ccw.count - len;
-        ret = 0;
+        ret = CSS_DO_SUCCESS;
         break;
     }
     case CCW_CMD_TIC:
         if (sch->last_cmd_valid && (sch->last_cmd.cmd_code == CCW_CMD_TIC)) {
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (ccw.flags || ccw.count) {
             /* We have already sanitized these if converted from fmt 0. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         sch->channel_prog = ccw.cda;
-        ret = -EAGAIN;
+        ret = CSS_DO_CONT_CHAIN;
         break;
     default:
         if (sch->ccw_cb) {
             /* Handle device specific commands. */
             ret = sch->ccw_cb(sch, ccw);
         } else {
-            ret = -ENOSYS;
+            ret = CSS_DO_UNIT_CHK_REJ;
         }
         break;
     }
     sch->last_cmd = ccw;
     sch->last_cmd_valid = true;
-    if (ret == 0) {
+    if (ret == CSS_DO_SUCCESS) {
         if (ccw.flags & CCW_FLAG_CC) {
             sch->channel_prog += 8;
-            ret = -EAGAIN;
+            ret = CSS_DO_CONT_CHAIN;
         }
     }
 
@@ -920,7 +920,7 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
     PMCW *p = &sch->curr_status.pmcw;
     SCSW *s = &sch->curr_status.scsw;
     int path;
-    int ret;
+    CcwProcStatus ret;
     bool suspend_allowed;
 
     /* Path management: In our simple css, we always choose the only path. */
@@ -954,10 +954,10 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
     do {
         ret = css_interpret_ccw(sch, sch->channel_prog, suspend_allowed);
         switch (ret) {
-        case -EAGAIN:
+        case CSS_DO_CONT_CHAIN:
             /* ccw chain, continue processing */
             break;
-        case 0:
+        case CSS_DO_SUCCESS:
             /* success */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
@@ -966,10 +966,10 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
             s->dstat = SCSW_DSTAT_CHANNEL_END | SCSW_DSTAT_DEVICE_END;
             s->cpa = sch->channel_prog + 8;
             break;
-        case -EIO:
+        case CSS_E_CUSTOM:
             /* I/O errors, status depends on specific devices */
             break;
-        case -ENOSYS:
+        case CSS_DO_UNIT_CHK_REJ:
             /* unsupported command, generate unit check (command reject) */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
             s->dstat = SCSW_DSTAT_UNIT_CHECK;
@@ -980,12 +980,21 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             s->cpa = sch->channel_prog + 8;
             break;
-        case -EINPROGRESS:
+        case CSS_DO_SUSPEND:
             /* channel program has been suspended */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
             s->ctrl |= SCSW_ACTL_SUSP;
             break;
-        default:
+        case CSS_DO_INCORR_LEN:
+            s->ctrl &= ~SCSW_ACTL_START_PEND;
+            s->cstat = SCSW_CSTAT_INCORR_LEN;
+            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+                    SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
+            s->cpa = sch->channel_prog + 8;
+            break;
+
+        case CSS_DO_PGM_CHK:
             /* error, generate channel program check */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
             s->cstat = SCSW_CSTAT_PROG_CHECK;
@@ -995,7 +1004,7 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
             s->cpa = sch->channel_prog + 8;
             break;
         }
-    } while (ret == -EAGAIN);
+    } while (ret == CSS_DO_CONT_CHAIN);
 
 }
 

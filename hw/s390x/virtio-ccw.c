@@ -207,16 +207,16 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
     uint64_t desc = info ? info->desc : linfo->queue;
 
     if (index >= VIRTIO_QUEUE_MAX) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     /* Current code in virtio.c relies on 4K alignment. */
     if (linfo && desc && (linfo->align != 4096)) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     if (!vdev) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     if (info) {
@@ -231,19 +231,19 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
             /* virtio-1 allows changing the ring size. */
             if (virtio_queue_get_max_num(vdev, index) < num) {
                 /* Fail if we exceed the maximum number. */
-                return -EINVAL;
+                return CSS_DO_PGM_CHK;
             }
             virtio_queue_set_num(vdev, index, num);
         } else if (virtio_queue_get_num(vdev, index) > num) {
             /* Fail if we don't have a big enough queue. */
-            return -EINVAL;
+            return CSS_DO_PGM_CHK;
         }
         /* We ignore possible increased num for legacy for compatibility. */
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
     vdev->config_vector = VIRTIO_QUEUE_MAX;
-    return 0;
+    return CSS_DO_SUCCESS;
 }
 
 static void virtio_ccw_reset_virtio(VirtioCcwDevice *dev, VirtIODevice *vdev)
@@ -277,14 +277,14 @@ static int virtio_ccw_handle_set_vq(SubchDev *sch, CCW1 ccw, bool check_len,
 
     if (check_len) {
         if (ccw.count != info_len) {
-            return -EINVAL;
+            return CSS_DO_INCORR_LEN;
         }
     } else if (ccw.count < info_len) {
         /* Can't execute command. */
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
     if (!ccw.cda) {
-        return -EFAULT;
+        return CSS_DO_PGM_CHK;
     }
     if (is_legacy) {
         linfo.queue = address_space_ldq_be(&address_space_memory, ccw.cda,
@@ -336,7 +336,7 @@ static int virtio_ccw_handle_set_vq(SubchDev *sch, CCW1 ccw, bool check_len,
     return ret;
 }
 
-static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
+static CcwProcStatus virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
 {
     int ret;
     VirtioRevInfo revinfo;
@@ -353,7 +353,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
     VirtioThinintInfo *thinint;
 
     if (!dev) {
-        return -EINVAL;
+        return CSS_DO_PGM_CHK;
     }
 
     trace_virtio_ccw_interpret_ccw(sch->cssid, sch->ssid, sch->schid,
@@ -366,7 +366,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
          * virtio-1 drivers must start with negotiating to a revision >= 1,
          * so post a command reject for all other commands
          */
-        return -ENOSYS;
+        return CSS_DO_UNIT_CHK_REJ;
     }
 
     /* Look at the command. */
@@ -376,21 +376,21 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         break;
     case CCW_CMD_VDEV_RESET:
         virtio_ccw_reset_virtio(dev, vdev);
-        ret = 0;
+        ret = CSS_DO_SUCCESS;
         break;
     case CCW_CMD_READ_FEAT:
         if (check_len) {
             if (ccw.count != sizeof(features)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(features)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
@@ -421,22 +421,22 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                  features.features, MEMTXATTRS_UNSPECIFIED,
                                  NULL);
             sch->curr_status.scsw.count = ccw.count - sizeof(features);
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_WRITE_FEAT:
         if (check_len) {
             if (ccw.count != sizeof(features)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(features)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             features.index = address_space_ldub(&address_space_memory,
                                                 ccw.cda
@@ -472,42 +472,42 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 }
             }
             sch->curr_status.scsw.count = ccw.count - sizeof(features);
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_READ_CONF:
         if (check_len) {
             if (ccw.count > vdev->config_len) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         }
         len = MIN(ccw.count, vdev->config_len);
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             virtio_bus_get_vdev_config(&dev->bus, vdev->config);
             /* XXX config space endianness */
             cpu_physical_memory_write(ccw.cda, vdev->config, len);
             sch->curr_status.scsw.count = ccw.count - len;
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_WRITE_CONF:
         if (check_len) {
             if (ccw.count > vdev->config_len) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         }
         len = MIN(ccw.count, vdev->config_len);
         hw_len = len;
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             config = cpu_physical_memory_map(ccw.cda, &hw_len, 0);
             if (!config) {
-                ret = -EFAULT;
+                ret = CSS_DO_PGM_CHK;
             } else {
                 len = hw_len;
                 /* XXX config space endianness */
@@ -515,43 +515,43 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 cpu_physical_memory_unmap(config, hw_len, 0, hw_len);
                 virtio_bus_set_vdev_config(&dev->bus, vdev->config);
                 sch->curr_status.scsw.count = ccw.count - len;
-                ret = 0;
+                ret = CSS_DO_SUCCESS;
             }
         }
         break;
     case CCW_CMD_READ_STATUS:
         if (check_len) {
             if (ccw.count != sizeof(status)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(status)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             address_space_stb(&address_space_memory, ccw.cda, vdev->status,
                                         MEMTXATTRS_UNSPECIFIED, NULL);
             sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);;
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_WRITE_STATUS:
         if (check_len) {
             if (ccw.count != sizeof(status)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(status)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             status = address_space_ldub(&address_space_memory, ccw.cda,
                                         MEMTXATTRS_UNSPECIFIED, NULL);
@@ -566,85 +566,85 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                     virtio_ccw_start_ioeventfd(dev);
                 }
                 sch->curr_status.scsw.count = ccw.count - sizeof(status);
-                ret = 0;
+                ret = CSS_DO_SUCCESS;
             } else {
                 /* Trigger a command reject. */
-                ret = -ENOSYS;
+                ret = CSS_DO_UNIT_CHK_REJ;
             }
         }
         break;
     case CCW_CMD_SET_IND:
         if (check_len) {
             if (ccw.count != sizeof(indicators)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(indicators)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (sch->thinint_active) {
             /* Trigger a command reject. */
-            ret = -ENOSYS;
+            ret = CSS_DO_UNIT_CHK_REJ;
             break;
         }
         if (virtio_get_num_queues(vdev) > NR_CLASSIC_INDICATOR_BITS) {
             /* More queues than indicator bits --> trigger a reject */
-            ret = -ENOSYS;
+            ret = CSS_DO_UNIT_CHK_REJ;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             indicators = address_space_ldq_be(&address_space_memory, ccw.cda,
                                               MEMTXATTRS_UNSPECIFIED, NULL);
             dev->indicators = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_SET_CONF_IND:
         if (check_len) {
             if (ccw.count != sizeof(indicators)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(indicators)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             indicators = address_space_ldq_be(&address_space_memory, ccw.cda,
                                               MEMTXATTRS_UNSPECIFIED, NULL);
             dev->indicators2 = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_READ_VQ_CONF:
         if (check_len) {
             if (ccw.count != sizeof(vq_config)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(vq_config)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else {
             vq_config.index = address_space_lduw_be(&address_space_memory,
                                                     ccw.cda,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
             if (vq_config.index >= VIRTIO_QUEUE_MAX) {
-                ret = -EINVAL;
+                ret = CSS_DO_PGM_CHK;
                 break;
             }
             vq_config.num_max = virtio_queue_get_num(vdev,
@@ -655,31 +655,31 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                  MEMTXATTRS_UNSPECIFIED,
                                  NULL);
             sch->curr_status.scsw.count = ccw.count - sizeof(vq_config);
-            ret = 0;
+            ret = CSS_DO_SUCCESS;
         }
         break;
     case CCW_CMD_SET_IND_ADAPTER:
         if (check_len) {
             if (ccw.count != sizeof(*thinint)) {
-                ret = -EINVAL;
+                ret = CSS_DO_INCORR_LEN;
                 break;
             }
         } else if (ccw.count < sizeof(*thinint)) {
             /* Can't execute command. */
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         len = sizeof(*thinint);
         hw_len = len;
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
         } else if (dev->indicators && !sch->thinint_active) {
             /* Trigger a command reject. */
-            ret = -ENOSYS;
+            ret = CSS_DO_UNIT_CHK_REJ;
         } else {
             thinint = cpu_physical_memory_map(ccw.cda, &hw_len, 0);
             if (!thinint) {
-                ret = -EFAULT;
+                ret = CSS_DO_PGM_CHK;
             } else {
                 uint64_t ind_bit = ldq_be_p(&thinint->ind_bit);
 
@@ -700,18 +700,18 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 sch->thinint_active = ((dev->indicators != NULL) &&
                                        (dev->summary_indicator != NULL));
                 sch->curr_status.scsw.count = ccw.count - len;
-                ret = 0;
+                ret = CSS_DO_SUCCESS;
             }
         }
         break;
     case CCW_CMD_SET_VIRTIO_REV:
         len = sizeof(revinfo);
         if (ccw.count < len) {
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         if (!ccw.cda) {
-            ret = -EFAULT;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         revinfo.revision =
@@ -723,7 +723,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                   MEMTXATTRS_UNSPECIFIED, NULL);
         if (ccw.count < len + revinfo.length ||
             (check_len && ccw.count > len + revinfo.length)) {
-            ret = -EINVAL;
+            ret = CSS_DO_PGM_CHK;
             break;
         }
         /*
@@ -733,14 +733,14 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (dev->revision >= 0 ||
             revinfo.revision > virtio_ccw_rev_max(dev) ||
             (dev->force_revision_1 && !revinfo.revision)) {
-            ret = -ENOSYS;
+            ret = CSS_DO_UNIT_CHK_REJ;
             break;
         }
-        ret = 0;
+        ret = CSS_DO_SUCCESS;
         dev->revision = revinfo.revision;
         break;
     default:
-        ret = -ENOSYS;
+        ret = CSS_DO_UNIT_CHK_REJ;
         break;
     }
     return ret;
