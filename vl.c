@@ -31,10 +31,6 @@
 #include "sysemu/seccomp.h"
 #endif
 
-#if defined(CONFIG_VDE)
-#include <libvdeplug.h>
-#endif
-
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
 #include <SDL.h>
