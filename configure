@@ -2805,7 +2805,6 @@ EOF
   rdma_libs="-lrdmacm -libverbs"
   if compile_prog "" "$rdma_libs" ; then
     rdma="yes"
-    libs_softmmu="$libs_softmmu $rdma_libs"
   else
     if test "$rdma" = "yes" ; then
         error_exit \
@@ -6028,6 +6027,7 @@ echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
+  echo "RDMA_LIBS=$rdma_libs" >> $config_host_mak
 fi
 
 if test "$have_rtnetlink" = "yes" ; then
