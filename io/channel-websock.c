@@ -86,6 +86,7 @@
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE 0x0f
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_HAS_MASK 0x80
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_PAYLOAD_LEN 0x7f
+#define QIO_CHANNEL_WEBSOCK_CONTROL_OPCODE_MASK 0x8
 
 typedef struct QIOChannelWebsockHeader QIOChannelWebsockHeader;
 
@@ -565,8 +566,11 @@ static int qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
             return -1;
         }
     } else {
-        if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
-            error_setg(errp, "only binary websocket frames are supported");
+        if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME &&
+                opcode != QIO_CHANNEL_WEBSOCK_OPCODE_PING &&
+                opcode != QIO_CHANNEL_WEBSOCK_OPCODE_PONG) {
+            error_setg(errp, "unsupported opcode: %#04x; only binary, ping, "
+                             "and pong websocket frames are supported", opcode);
             return -1;
         }
     }
@@ -579,6 +583,9 @@ static int qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
         ioc->payload_remain = payload_len;
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT;
         ioc->mask = header->u.m;
+    } else if (opcode & QIO_CHANNEL_WEBSOCK_CONTROL_OPCODE_MASK) {
+        error_setg(errp, "websocket control frame is too large");
+        return -1;
     } else if (payload_len == QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT &&
                ioc->encinput.offset >= QIO_CHANNEL_WEBSOCK_HEADER_LEN_16_BIT) {
         ioc->payload_remain = be16_to_cpu(header->u.s16.l16);
@@ -634,9 +641,15 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         }
     }
 
+    /* Drop the payload of ping/pong packets */
+    if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
+        if (payload_len) {
+            buffer_reserve(&ioc->rawinput, payload_len);
+            buffer_append(&ioc->rawinput, ioc->encinput.buffer, payload_len);
+        }
+    }
+
     if (payload_len) {
-        buffer_reserve(&ioc->rawinput, payload_len);
-        buffer_append(&ioc->rawinput, ioc->encinput.buffer, payload_len);
         buffer_advance(&ioc->encinput, payload_len);
     }
     return 0;
