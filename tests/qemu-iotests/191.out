@@ -1,0 +1,35 @@
+QA output created by 191
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+
+Successfully Added Guest
+Successfully Added Drive
+
+== Creating backup ==
+Backup Started
+*virtio0
+Backup Complete
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) Formatting 'TEST_DIR/virtio0', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16
+quit
+
+== Comparing images ==
+Images are identical.
+Successfully Added Guest
+Successfully Added Drive
+
+== Writing Pattern ==
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io virtio0 "write -P 0x22 0 1M"
+
+== Creating backup ==
+Backup Started
+*virtio0
+Backup Complete
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) Formatting 'TEST_DIR/virtio0', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16
+quit
+
+== Comparing images ==
+Images are identical.
+*** done
