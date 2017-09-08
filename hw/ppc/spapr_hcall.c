@@ -1623,6 +1623,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
     }
+
+    /* We need to rebuild the device tree for XIVE, generate a reset */
+    if (!spapr->cas_reboot) {
+        spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT);
+    }
+
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {
