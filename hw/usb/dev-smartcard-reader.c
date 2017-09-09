@@ -1306,27 +1306,25 @@ static int ccid_card_exit(DeviceState *qdev)
     return 0;
 }
 
-static int ccid_card_init(DeviceState *qdev)
+static void ccid_card_realize(DeviceState *qdev, Error **errp)
 {
     CCIDCardState *card = CCID_CARD(qdev);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
-    int ret = 0;
 
     if (card->slot != 0) {
-        warn_report("usb-ccid supports one slot, can't add %d",
+        error_setg(errp, "usb-ccid supports one slot, can't add %d",
                     card->slot);
-        return -1;
+        return;
     }
     if (s->card != NULL) {
-        warn_report("usb-ccid card already full, not adding");
-        return -1;
+        error_setg(errp, "usb-ccid card already full, not adding");
+        return;
     }
-    ret = ccid_card_initfn(card);
-    if (ret == 0) {
+
+    if (!ccid_card_initfn(card)) {
         s->card = card;
     }
-    return ret;
 }
 
 static void ccid_realize(USBDevice *dev, Error **errp)
@@ -1496,7 +1494,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_CCID_BUS;
-    k->init = ccid_card_init;
+    k->realize = ccid_card_realize;
     k->exit = ccid_card_exit;
     k->props = ccid_props;
 }
