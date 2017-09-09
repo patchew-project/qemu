@@ -57,3 +57,6 @@ gtk-egl.o-libs += $(OPENGL_LIBS)
 shader.o-libs += $(OPENGL_LIBS)
 console-gl.o-libs += $(OPENGL_LIBS)
 egl-helpers.o-libs += $(OPENGL_LIBS)
+
+curses.o-cflags := $(CURSES_CFLAGS)
+curses.o-libs := $(CURSES_LIBS)
