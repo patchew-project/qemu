@@ -42,6 +42,11 @@ common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 # usb pass-through
 common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
 
+host-libusb.o-cflags := $(LIBUSB_CFLAGS)
+host-libusb.o-libs := $(LIBUSB_LIBS)
+
 ifeq ($(CONFIG_USB_LIBUSB),y)
 common-obj-$(CONFIG_XEN) += xen-usb.o
+xen-usb.o-cflags := $(LIBUSB_CFLAGS)
+xen-usb.o-libs := $(LIBUSB_LIBS)
 endif
