@@ -1,11 +1,14 @@
-vnc-obj-y += vnc.o
-vnc-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
-vnc-obj-y += vnc-enc-tight.o vnc-palette.o
-vnc-obj-y += vnc-enc-zrle.o
-vnc-obj-y += vnc-auth-vencrypt.o
-vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
-vnc-obj-y += vnc-ws.o
-vnc-obj-y += vnc-jobs.o
+vnc.mo-objs += vnc.o
+vnc.mo-objs += vnc-enc-zlib.o vnc-enc-hextile.o
+vnc.mo-objs += vnc-enc-tight.o vnc-palette.o
+vnc.mo-objs += vnc-enc-zrle.o
+vnc.mo-objs += vnc-auth-vencrypt.o
+vnc.mo-objs += $(if $(CONFIG_VNC_SASL), vnc-auth-sasl.o)
+vnc.mo-objs += vnc-ws.o
+vnc.mo-objs += vnc-jobs.o
+
+vnc.mo-cflags := $(VNC_CFLAGS)
+vnc.mo-libs := $(VNC_LIBS)
 
 common-obj-y += keymaps.o console.o cursor.o qemu-pixman.o
 common-obj-y += input.o input-keymap.o input-legacy.o
@@ -14,7 +17,7 @@ common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o
 common-obj-$(CONFIG_SDL) += sdl.mo x_keymap.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_CURSES) += curses.o
-common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
+common-obj-$(CONFIG_VNC) += vnc.mo
 common-obj-$(CONFIG_GTK) += gtk.o x_keymap.o
 
 ifeq ($(CONFIG_SDLABI),1.2)

@@ -2833,8 +2833,8 @@ EOF
   vnc_sasl_libs="-lsasl2"
   if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
     vnc_sasl=yes
-    libs_softmmu="$vnc_sasl_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_sasl_cflags"
+    vnc_libs="$vnc_libs $vnc_sasl_libs"
+    vnc_cflags="$vnc_cflags $vnc_sasl_cflags"
   else
     if test "$vnc_sasl" = "yes" ; then
       feature_not_found "vnc-sasl" "Install Cyrus SASL devel"
@@ -2855,8 +2855,8 @@ EOF
     vnc_jpeg_libs="-ljpeg"
   if compile_prog "$vnc_jpeg_cflags" "$vnc_jpeg_libs" ; then
     vnc_jpeg=yes
-    libs_softmmu="$vnc_jpeg_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_jpeg_cflags"
+    vnc_libs="$vnc_libs $vnc_jpeg_libs"
+    vnc_cflags="$vnc_cflags $vnc_jpeg_cflags"
   else
     if test "$vnc_jpeg" = "yes" ; then
       feature_not_found "vnc-jpeg" "Install libjpeg-turbo devel"
@@ -2887,8 +2887,8 @@ EOF
   fi
   if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
     vnc_png=yes
-    libs_softmmu="$vnc_png_libs $libs_softmmu"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_png_cflags"
+    vnc_libs="$vnc_libs $vnc_png_libs"
+    vnc_cflags="$vnc_cflags $vnc_png_cflags"
   else
     if test "$vnc_png" = "yes" ; then
       feature_not_found "vnc-png" "Install libpng devel"
@@ -5552,6 +5552,8 @@ echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 if test "$vnc" = "yes" ; then
   echo "CONFIG_VNC=y" >> $config_host_mak
+  echo "VNC_CFLAGS=$vnc_cflags" >> $config_host_mak
+  echo "VNC_LIBS=$vnc_libs" >> $config_host_mak
 fi
 if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
