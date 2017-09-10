@@ -70,6 +70,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
     while (true) {
         target_ulong pc_insn = db->pc_next;
+        TCGv_i32 insn_size_tcg = 0;
+        int insn_size_opcode_idx;
 
         db->num_insns++;
         ops->insn_start(db, cpu);
@@ -99,6 +101,16 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             trace_guest_bbl_before_tcg(cpu, tcg_ctx.tcg_env, db->pc_first);
         }
         trace_guest_inst_before_tcg(cpu, tcg_ctx.tcg_env, pc_insn);
+        if (TRACE_GUEST_INST_INFO_BEFORE_EXEC_ENABLED) {
+            insn_size_tcg = tcg_temp_new_i32();
+            insn_size_opcode_idx = tcg_op_buf_count();
+            tcg_gen_movi_i32(insn_size_tcg, 0xdeadbeef);
+
+            trace_guest_inst_info_before_tcg(
+                cpu, tcg_ctx.tcg_env, pc_insn, insn_size_tcg);
+
+            tcg_temp_free_i32(insn_size_tcg);
+        }
 
         /* Disassemble one instruction.  The translate_insn hook should
            update db->pc_next and db->is_jmp to indicate what should be
@@ -111,6 +123,12 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             gen_io_end();
         } else {
             ops->translate_insn(db, cpu);
+        }
+
+        /* Tracing after (patched values) */
+        if (TRACE_GUEST_INST_INFO_BEFORE_EXEC_ENABLED) {
+            unsigned int insn_size = db->pc_next - pc_insn;
+            tcg_set_insn_param(insn_size_opcode_idx, 1, insn_size);
         }
 
         /* Stop translation if translate_insn so indicated.  */
