@@ -69,6 +69,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
     while (true) {
+        target_ulong pc_insn = db->pc_next;
+
         db->num_insns++;
         ops->insn_start(db, cpu);
         tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
@@ -96,6 +98,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         if (db->num_insns == 1) {
             trace_guest_bbl_before_tcg(cpu, tcg_ctx.tcg_env, db->pc_first);
         }
+        trace_guest_inst_before_tcg(cpu, tcg_ctx.tcg_env, pc_insn);
 
         /* Disassemble one instruction.  The translate_insn hook should
            update db->pc_next and db->is_jmp to indicate what should be
