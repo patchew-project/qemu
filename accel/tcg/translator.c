@@ -36,6 +36,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
                      CPUState *cpu, TranslationBlock *tb)
 {
     target_ulong pc_bbl, pc_insn = 0;
+    unsigned int insn_size = 0;
     bool translated_insn = false;
     int max_insns;
 
@@ -82,6 +83,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         /* Tracing after (previous instruction) */
         if (db->num_insns > 0) {
             trace_guest_inst_after_tcg(cpu, tcg_ctx.tcg_env, pc_insn);
+            trace_guest_inst_info_after_tcg(
+                cpu, tcg_ctx.tcg_env, pc_insn, insn_size);
         }
         pc_insn = db->pc_next;
 
@@ -145,7 +148,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         translated_insn = true;
         /* Tracing after (patched values) */
         if (TRACE_GUEST_INST_INFO_BEFORE_EXEC_ENABLED) {
-            unsigned int insn_size = db->pc_next - pc_insn;
+            insn_size = db->pc_next - pc_insn;
             tcg_set_insn_param(insn_size_opcode_idx, 1, insn_size);
         }
 
@@ -164,7 +167,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
     /* Tracing after */
     if (TRACE_GUEST_BBL_AFTER_ENABLED ||
-        TRACE_GUEST_INST_AFTER_ENABLED) {
+        TRACE_GUEST_INST_AFTER_ENABLED ||
+        TRACE_GUEST_INST_INFO_AFTER_ENABLED) {
         tcg_ctx.disas.in_guest_code = false;
         if (tcg_ctx.disas.inline_label == NULL) {
             tcg_ctx.disas.inline_label = gen_new_inline_label();
@@ -174,6 +178,10 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
         if (TRACE_GUEST_INST_AFTER_ENABLED && translated_insn) {
             trace_guest_inst_after_tcg(cpu, tcg_ctx.tcg_env, pc_insn);
+        }
+        if (TRACE_GUEST_INST_INFO_AFTER_ENABLED && translated_insn) {
+            trace_guest_inst_info_after_tcg(
+                cpu, tcg_ctx.tcg_env, pc_insn, insn_size);
         }
         if (TRACE_GUEST_BBL_AFTER_ENABLED) {
             trace_guest_bbl_after_tcg(cpu, tcg_ctx.tcg_env, pc_bbl);
@@ -207,7 +215,8 @@ void translator__gen_goto_tb(TCGContext *ctx)
 {
     if (ctx->disas.in_guest_code &&
         (TRACE_GUEST_BBL_AFTER_ENABLED ||
-         TRACE_GUEST_INST_AFTER_ENABLED)) {
+         TRACE_GUEST_INST_AFTER_ENABLED ||
+         TRACE_GUEST_INST_INFO_AFTER_ENABLED)) {
         if (ctx->disas.inline_label == NULL) {
             ctx->disas.inline_label = gen_new_inline_label();
         }
@@ -221,7 +230,8 @@ void translator__gen_exit_tb(TCGContext *ctx)
 {
     if (ctx->disas.in_guest_code && !ctx->disas.seen_goto_tb &&
         (TRACE_GUEST_BBL_AFTER_ENABLED ||
-         TRACE_GUEST_INST_AFTER_ENABLED)) {
+         TRACE_GUEST_INST_AFTER_ENABLED ||
+         TRACE_GUEST_INST_INFO_AFTER_ENABLED)) {
         if (ctx->disas.inline_label == NULL) {
             ctx->disas.inline_label = gen_new_inline_label();
         }

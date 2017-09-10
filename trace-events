@@ -135,6 +135,14 @@ vcpu tcg guest_inst_after(uint64_t vaddr) "vaddr=0x%016"PRIx64, "vaddr=0x%016"PR
 # Targets: TCG(all)
 disable vcpu tcg guest_inst_info_before(uint64_t vaddr, TCGv_i32 size) "vaddr=0x%016"PRIx64, "vaddr=0x%016"PRIx64" size=%d"
 
+# @vaddr: Instruction's virtual address
+# @size: Instruction's size in bytes
+#
+# Same as 'guest_inst_after', with additional information.
+#
+# Targets: TCG(all)
+disable vcpu tcg guest_inst_info_after(uint64_t vaddr, uint32_t size) "vaddr=0x%016"PRIx64" size=%d", "vaddr=0x%016"PRIx64" size=%d"
+
 # @vaddr: Access' virtual address.
 # @info : Access' information (see below).
 #
