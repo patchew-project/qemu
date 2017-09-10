@@ -35,6 +35,7 @@ void translator_loop_temp_check(DisasContextBase *db)
 void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
                      CPUState *cpu, TranslationBlock *tb)
 {
+    target_ulong pc_bbl;
     int max_insns;
 
     /* Initialize DisasContext */
@@ -63,6 +64,11 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     /* Reset the temp count so that we can identify leaks */
     tcg_clear_temp_count();
 
+    /* Tracking gen_goto_tb / gen_exit_tb */
+    pc_bbl = db->pc_first;
+    tcg_ctx.disas.seen_goto_tb = false;
+    tcg_ctx.disas.in_guest_code = false;
+
     /* Start translating.  */
     gen_tb_start(db->tb);
     ops->tb_start(db, cpu);
@@ -74,6 +80,11 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         int insn_size_opcode_idx;
 
         db->num_insns++;
+        if (db->num_insns == 1) {
+            tcg_ctx.disas.in_guest_code = true;
+            tcg_ctx.disas.inline_label = NULL;
+        }
+
         ops->insn_start(db, cpu);
         tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
@@ -144,6 +155,22 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         }
     }
 
+    /* Tracing after */
+    if (TRACE_GUEST_BBL_AFTER_ENABLED) {
+        tcg_ctx.disas.in_guest_code = false;
+        if (tcg_ctx.disas.inline_label == NULL) {
+            tcg_ctx.disas.inline_label = gen_new_inline_label();
+        }
+
+        gen_set_inline_region_begin(tcg_ctx.disas.inline_label);
+
+        if (TRACE_GUEST_BBL_AFTER_ENABLED) {
+            trace_guest_bbl_after_tcg(cpu, tcg_ctx.tcg_env, pc_bbl);
+        }
+
+        gen_set_inline_region_end(tcg_ctx.disas.inline_label);
+    }
+
     /* Emit code to exit the TB, as indicated by db->is_jmp.  */
     ops->tb_stop(db, cpu);
     gen_tb_end(db->tb, db->num_insns);
@@ -162,4 +189,31 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         qemu_log_unlock();
     }
 #endif
+}
+
+
+void translator__gen_goto_tb(TCGContext *ctx)
+{
+    if (ctx->disas.in_guest_code &&
+        (TRACE_GUEST_BBL_AFTER_ENABLED)) {
+        if (ctx->disas.inline_label == NULL) {
+            ctx->disas.inline_label = gen_new_inline_label();
+        }
+        gen_set_inline_point(ctx->disas.inline_label);
+        /* disable next exit_tb */
+        ctx->disas.seen_goto_tb = true;
+    }
+}
+
+void translator__gen_exit_tb(TCGContext *ctx)
+{
+    if (ctx->disas.in_guest_code && !ctx->disas.seen_goto_tb &&
+        (TRACE_GUEST_BBL_AFTER_ENABLED)) {
+        if (ctx->disas.inline_label == NULL) {
+            ctx->disas.inline_label = gen_new_inline_label();
+        }
+        gen_set_inline_point(ctx->disas.inline_label);
+        /* enable next exit_tb */
+        ctx->disas.seen_goto_tb = false;
+    }
 }

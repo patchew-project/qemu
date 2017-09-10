@@ -20,7 +20,6 @@
 
 
 #include "exec/exec-all.h"
-#include "tcg/tcg.h"
 
 
 /**
@@ -72,6 +71,21 @@ typedef struct DisasContextBase {
 } DisasContextBase;
 
 /**
+ * TCGContextDisas:
+ * @seen_goto_tb: Whether we've seen a call to tcg_gen_goto_tb().
+ * @in_guest_code: Whether we're generating guest code (or supporting
+ *                 boilerplate otherwise).
+ * @inline_label: Inline label.
+ *
+ * Extensions to #TCGContext specific to the generic translation framework.
+ */
+typedef struct TCGContextDisas {
+    bool seen_goto_tb;
+    bool in_guest_code;
+    TCGInlineLabel *inline_label;
+} TCGContextDisas;
+
+/**
  * TranslatorOps:
  * @init_disas_context:
  *      Initialize the target-specific portions of DisasContext struct.
@@ -117,6 +131,8 @@ typedef struct TranslatorOps {
     void (*disas_log)(const DisasContextBase *db, CPUState *cpu);
 } TranslatorOps;
 
+#include "tcg/tcg.h"
+
 /**
  * translator_loop:
  * @ops: Target-specific operations.
@@ -140,5 +156,9 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
                      CPUState *cpu, TranslationBlock *tb);
 
 void translator_loop_temp_check(DisasContextBase *db);
+
+/* Internal functions to hook tracing into */
+void translator__gen_goto_tb(TCGContext *ctx);
+void translator__gen_exit_tb(TCGContext *ctx);
 
 #endif  /* EXEC__TRANSLATOR_H */

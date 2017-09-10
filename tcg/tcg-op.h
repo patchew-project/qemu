@@ -817,6 +817,7 @@ static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1,
 
 static inline void tcg_gen_exit_tb(uintptr_t val)
 {
+    translator__gen_exit_tb(&tcg_ctx);
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
 

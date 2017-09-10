@@ -2578,6 +2578,8 @@ void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg)
 
 void tcg_gen_goto_tb(unsigned idx)
 {
+    translator__gen_goto_tb(&tcg_ctx);
+
     /* We only support two chained exits.  */
     tcg_debug_assert(idx <= 1);
 #ifdef CONFIG_DEBUG_TCG
