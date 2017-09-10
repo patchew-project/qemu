@@ -176,6 +176,7 @@ static void cpu_pre_save(void *opaque)
     env->spr[SPR_CFAR] = env->cfar;
 #endif
     env->spr[SPR_BOOKE_SPEFSCR] = env->spe_fscr;
+    env->spr[SPR_DECR] = cpu_ppc_load_decr(env);
 
     for (i = 0; (i < 4) && (i < env->nb_BATs); i++) {
         env->spr[SPR_DBAT0U + 2*i] = env->DBAT[0][i];
@@ -280,6 +281,7 @@ static int cpu_post_load(void *opaque, int version_id)
     env->cfar = env->spr[SPR_CFAR];
 #endif
     env->spe_fscr = env->spr[SPR_BOOKE_SPEFSCR];
+    cpu_ppc_store_decr(env, env->spr[SPR_DECR]);
 
     for (i = 0; (i < 4) && (i < env->nb_BATs); i++) {
         env->DBAT[0][i] = env->spr[SPR_DBAT0U + 2*i];
