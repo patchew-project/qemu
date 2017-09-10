@@ -397,6 +397,20 @@ static inline unsigned get_alignment_bits(TCGMemOp memop)
 
 typedef tcg_target_ulong TCGArg;
 
+#define TCG_MAX_INLINE_REGIONS 1
+#define TCG_MAX_INLINE_LABELS TCG_MAX_INLINE_REGIONS
+
+typedef struct TCGInlinePoint {
+    int op_idx;
+    struct TCGInlinePoint *next_point;
+} TCGInlinePoint;
+
+typedef struct TCGInlineLabel {
+    TCGInlinePoint *first_point;
+    int begin_op_idx, end_op_idx;
+} TCGInlineLabel;
+
+
 /* Define type and accessor macros for TCG variables.
 
    TCG variables are the inputs and outputs of TCG ops, as described
@@ -648,6 +662,9 @@ struct TCGContext {
     int nb_globals;
     int nb_temps;
     int nb_indirects;
+
+    TCGInlineLabel *inline_labels;
+    int nb_inline_labels;
 
     /* goto_tb support */
     tcg_insn_unit *code_buf;
@@ -950,6 +967,7 @@ TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
 TCGLabel *gen_new_label(void);
+TCGInlineLabel *gen_new_inline_label(void);
 
 /**
  * label_arg

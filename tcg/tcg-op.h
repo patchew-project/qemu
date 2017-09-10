@@ -326,6 +326,45 @@ void tcg_gen_ext16u_i32(TCGv_i32 ret, TCGv_i32 arg);
 void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg);
 void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg);
 
+static inline int _get_inline_index(TCGInlineLabel *l)
+{
+    TCGContext *s = &tcg_ctx;
+    return l - s->inline_labels;
+}
+
+static inline void gen_set_inline_point(TCGInlineLabel *l)
+{
+    TCGContext *s = &tcg_ctx;
+    TCGInlinePoint *p = tcg_malloc(sizeof(TCGInlinePoint));
+    p->op_idx = s->gen_next_op_idx;
+    p->next_point = l->first_point;
+    l->first_point = p;
+    tcg_gen_op1i(INDEX_op_set_inline_point,
+                 _get_inline_index(l));
+}
+
+static inline void gen_set_inline_region_begin(TCGInlineLabel *l)
+{
+    TCGContext *s = &tcg_ctx;
+    if (l->begin_op_idx != -1) {
+        tcg_abort();
+    }
+    l->begin_op_idx = s->gen_next_op_idx;
+    tcg_gen_op1i(INDEX_op_set_inline_region_begin,
+                 _get_inline_index(l));
+}
+
+static inline void gen_set_inline_region_end(TCGInlineLabel *l)
+{
+    TCGContext *s = &tcg_ctx;
+    if (l->begin_op_idx == -1) {
+        tcg_abort();
+    }
+    l->end_op_idx = s->gen_next_op_idx;
+    tcg_gen_op1i(INDEX_op_set_inline_region_end,
+                 _get_inline_index(l));
+}
+
 static inline void tcg_gen_discard_i32(TCGv_i32 arg)
 {
     tcg_gen_op1_i32(INDEX_op_discard, arg);

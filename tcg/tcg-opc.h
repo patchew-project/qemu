@@ -29,6 +29,9 @@
 /* predefined ops */
 DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
 DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
+DEF(set_inline_point, 0, 0, 1, TCG_OPF_NOT_PRESENT)
+DEF(set_inline_region_begin, 0, 0, 1, TCG_OPF_NOT_PRESENT)
+DEF(set_inline_region_end, 0, 0, 1, TCG_OPF_NOT_PRESENT)
 
 /* variable number of parameters */
 DEF(call, 0, 0, 3, TCG_OPF_CALL_CLOBBER | TCG_OPF_NOT_PRESENT)

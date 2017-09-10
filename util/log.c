@@ -246,6 +246,8 @@ const QEMULogItem qemu_log_items[] = {
       "show target assembly code for each compiled TB" },
     { CPU_LOG_TB_OP, "op",
       "show micro ops for each compiled TB" },
+    { CPU_LOG_TB_OP_INLINE, "op_inline",
+      "show micro ops after inlining" },
     { CPU_LOG_TB_OP_OPT, "op_opt",
       "show micro ops after optimization" },
     { CPU_LOG_TB_OP_IND, "op_ind",

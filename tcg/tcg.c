@@ -251,6 +251,23 @@ TCGLabel *gen_new_label(void)
     return l;
 }
 
+TCGInlineLabel *gen_new_inline_label(void)
+{
+    TCGContext *s = &tcg_ctx;
+    int idx;
+    TCGInlineLabel *l;
+
+    if (s->nb_inline_labels >= TCG_MAX_INLINE_LABELS) {
+        tcg_abort();
+    }
+    idx = s->nb_inline_labels++;
+    l = &s->inline_labels[idx];
+    l->first_point = NULL;
+    l->begin_op_idx = -1;
+    l->end_op_idx = -1;
+    return l;
+}
+
 #include "tcg-target.inc.c"
 
 /* pool based memory allocation */
@@ -461,6 +478,10 @@ void tcg_func_start(TCGContext *s)
 
     s->nb_labels = 0;
     s->current_frame_offset = s->frame_start;
+
+    s->inline_labels = tcg_malloc(sizeof(TCGInlineLabel) *
+                                  TCG_MAX_INLINE_LABELS);
+    s->nb_inline_labels = 0;
 
 #ifdef CONFIG_DEBUG_TCG
     s->goto_tb_issue_mask = 0;
@@ -1422,6 +1443,139 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *temp_state)
         }
     }
 }
+
+static inline int _get_op_next(TCGContext *s, int idx)
+{
+    return s->gen_op_buf[idx].next;
+}
+
+static inline void _set_op_next(TCGContext *s, int idx, int next)
+{
+    s->gen_op_buf[idx].next = next;
+}
+
+static inline int _get_op_prev(TCGContext *s, int idx)
+{
+    return s->gen_op_buf[idx].prev;
+}
+
+static inline void _set_op_prev(TCGContext *s, int idx, int prev)
+{
+    s->gen_op_buf[idx].prev = prev;
+}
+
+static inline void _inline_region_ignore(TCGContext *s, TCGInlineLabel *l)
+{
+    int l_prev = _get_op_prev(s, l->begin_op_idx);
+    int l_next = _get_op_next(s, l->end_op_idx);
+    _set_op_next(s, l_prev, l_next);
+    _set_op_prev(s, l_next, l_prev);
+}
+
+static inline void _op_ignore(TCGContext *s, int op_idx)
+{
+    int p_prev = _get_op_prev(s, op_idx);
+    int p_next = _get_op_next(s, op_idx);
+    _set_op_next(s, p_prev, p_next);
+    _set_op_prev(s, p_next, p_prev);
+}
+
+static inline void _inline_point_ignore(TCGContext *s, TCGInlinePoint *p)
+{
+    _op_ignore(s, p->op_idx);
+}
+
+static inline void _inline_weave(TCGContext *s, TCGInlinePoint *p,
+                                 int begin, int end)
+{
+    int begin_prev = _get_op_prev(s, begin);
+    int end_next = _get_op_next(s, end);
+    int p_prev = _get_op_prev(s, p->op_idx);
+    int p_next = _get_op_next(s, p->op_idx);
+    /* point.prev -> begin */
+    _set_op_next(s, p_prev, begin);
+    _set_op_prev(s, begin, p_prev);
+    /* end -> point.next */
+    _set_op_next(s, end, p_next);
+    _set_op_prev(s, p_next, end);
+    /* begin.prev -> end.next */
+    _set_op_next(s, begin_prev, end_next);
+    _set_op_prev(s, end_next, begin_prev);
+}
+
+/*
+ * Handles inline_set_label/inline_region_begin/inline_region_end opcodes (which
+ * will disappear after this optimization).
+ */
+static void tcg_inline(TCGContext *s)
+{
+    int i;
+    for (i = 0; i < s->nb_inline_labels; i++) {
+        TCGInlineLabel *l = &s->inline_labels[i];
+        size_t region_op_count = l->end_op_idx - l->begin_op_idx - 1;
+
+        /* open region is an error */
+        if (l->begin_op_idx != -1 && l->end_op_idx == -1) {
+            tcg_abort();
+        }
+
+        if (l->first_point == NULL) {   /* region without points  */
+            _inline_region_ignore(s, l);
+        } else if (l->begin_op_idx == -1) { /* points without region */
+            TCGInlinePoint *p;
+            for (p = l->first_point; p != NULL; p = p->next_point) {
+                _inline_point_ignore(s, p);
+            }
+        } else if (region_op_count == 0) { /* empty region */
+            TCGInlinePoint *p;
+            for (p = l->first_point; p != NULL; p = p->next_point) {
+                _inline_point_ignore(s, p);
+            }
+            _inline_region_ignore(s, l);
+        } else {                        /* actual inlining */
+            bool first_point = true;
+            int l_begin = _get_op_next(s, l->begin_op_idx);
+            int l_end = _get_op_prev(s, l->end_op_idx);
+            TCGInlinePoint *p;
+            for (p = l->first_point; p != NULL; p = p->next_point) {
+                if (first_point) {
+                    /* redirect point to existing region (skip markers) */
+                    _inline_weave(s, p, l_begin, l_end);
+                    _op_ignore(s, l->begin_op_idx);
+                    _op_ignore(s, l->end_op_idx);
+                } else {
+                    /* create a copy of the region */
+                    int l_end_next = _get_op_next(s, l_end);
+                    int op;
+                    int pos = p->op_idx;
+                    for (op = l_begin; op != l_end_next;
+                         op = _get_op_next(s, op)) {
+                        /* insert opcode copies */
+                        int insert_idx = s->gen_next_op_idx;
+                        int opc = s->gen_op_buf[op].opc;
+                        int args = s->gen_op_buf[op].args;
+                        int nargs = tcg_op_defs[opc].nb_args;
+                        if (opc == INDEX_op_call) {
+                            nargs += s->gen_op_buf[op].calli;
+                            nargs += s->gen_op_buf[op].callo;
+                        }
+                        tcg_op_insert_after(s, &s->gen_op_buf[pos], opc, nargs);
+                        pos = insert_idx;
+                        s->gen_op_buf[pos].calli = s->gen_op_buf[op].calli;
+                        s->gen_op_buf[pos].callo = s->gen_op_buf[op].callo;
+                        /* insert argument copies */
+                        memcpy(&s->gen_opparam_buf[s->gen_op_buf[pos].args],
+                               &s->gen_opparam_buf[args],
+                               nargs * sizeof(s->gen_opparam_buf[0]));
+                    }
+                    _op_ignore(s, p->op_idx);
+                }
+                first_point = false;
+            }
+        }
+    }
+}
+
 
 /* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
@@ -2557,6 +2711,18 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         tcg_dump_ops(s);
         qemu_log("\n");
         qemu_log_unlock();
+    }
+#endif
+
+    /* inline code regions before any optimization pass */
+    tcg_inline(s);
+
+#ifdef DEBUG_DISAS
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_INLINE)
+                 && qemu_log_in_addr_range(tb->pc))) {
+        qemu_log("OP after inline:\n");
+        tcg_dump_ops(s);
+        qemu_log("\n");
     }
 #endif
 
