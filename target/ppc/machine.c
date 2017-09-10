@@ -19,6 +19,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     target_ulong sdr1;
     uint32_t fpscr;
     target_ulong xer;
+    int access_type;
 
     for (i = 0; i < 32; i++)
         qemu_get_betls(f, &env->gpr[i]);
@@ -46,7 +47,8 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     }
     qemu_get_be32s(f, &fpscr);
     env->fpscr = fpscr;
-    qemu_get_sbe32s(f, &env->access_type);
+    qemu_get_sbe32s(f, &access_type);
+    env->access_type = (uint8_t)access_type;
 #if defined(TARGET_PPC64)
     qemu_get_betls(f, &env->spr[SPR_ASR]);
     qemu_get_sbe32s(f, &env->slb_nr);
