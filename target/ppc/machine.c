@@ -647,7 +647,7 @@ static const VMStateDescription vmstate_compat = {
 
 const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
-    .version_id = 5,
+    .version_id = 6,
     .minimum_version_id = 5,
     .minimum_version_id_old = 4,
     .load_state_old = cpu_load_old,
@@ -677,6 +677,10 @@ const VMStateDescription vmstate_ppc_cpu = {
         /* Internal state */
         VMSTATE_UINTTL(env.hflags_nmsr, PowerPCCPU),
         /* FIXME: access_type? */
+
+        /* Interrupt state */
+        VMSTATE_UINT32_V(env.pending_interrupts, PowerPCCPU, 6),
+        VMSTATE_UINT32_V(env.irq_input_state, PowerPCCPU, 6),
 
         /* Sanity checking */
         VMSTATE_UINTTL_TEST(mig_msr_mask, PowerPCCPU, cpu_pre_2_8_migration),
