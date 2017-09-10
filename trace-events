@@ -88,6 +88,17 @@ vcpu guest_cpu_exit(void)
 # Targets: all
 vcpu guest_cpu_reset(void)
 
+
+## Guest code
+
+# @vaddr: BBL's starting virtual address
+#
+# Mark start of BBL execution (before anything gets really executed).
+#
+# Mode: user, softmmu
+# Targets: TCG(all)
+vcpu tcg guest_bbl_before(uint64_t vaddr) "vaddr=0x%016"PRIx64, "vaddr=0x%016"PRIx64
+
 # @vaddr: Access' virtual address.
 # @info : Access' information (see below).
 #

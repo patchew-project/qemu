@@ -13,6 +13,7 @@
 #include "cpu.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
+#include "trace-tcg.h"
 #include "exec/exec-all.h"
 #include "exec/gen-icount.h"
 #include "exec/log.h"
@@ -89,6 +90,11 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             if (db->is_jmp > DISAS_TOO_MANY) {
                 break;
             }
+        }
+
+        /* Tracing before */
+        if (db->num_insns == 1) {
+            trace_guest_bbl_before_tcg(cpu, tcg_ctx.tcg_env, db->pc_first);
         }
 
         /* Disassemble one instruction.  The translate_insn hook should
