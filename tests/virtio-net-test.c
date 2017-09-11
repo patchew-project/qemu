@@ -246,7 +246,7 @@ static void hotplug(void)
 {
     const char *arch = qtest_get_arch();
 
-    qtest_start("-device virtio-net-pci");
+    global_qtest = qtest_start("-device virtio-net-pci");
 
     qpci_plug_device_test(global_qtest, "virtio-net-pci", "net1",
                           PCI_SLOT_HP, NULL);

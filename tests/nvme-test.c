@@ -22,8 +22,9 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/nvme/nop", nop);
 
-    qtest_start("-drive id=drv0,if=none,file=null-co://,format=raw "
-                "-device nvme,drive=drv0,serial=foo");
+    global_qtest = qtest_start(
+        "-drive id=drv0,if=none,file=null-co://,format=raw "
+        "-device nvme,drive=drv0,serial=foo");
     ret = g_test_run();
 
     qtest_quit(global_qtest);

@@ -59,7 +59,7 @@ static void test_cpuid_prop(const void *data)
     QNum *value;
     int64_t val;
 
-    qtest_start(args->cmdline);
+    global_qtest = qtest_start(args->cmdline);
     path = get_cpu0_qom_path();
     value = qobject_to_qnum(qom_get(path, args->property));
     g_assert(qnum_get_try_int(value, &val));
@@ -131,7 +131,7 @@ static void test_feature_flag(const void *data)
     QList *present, *filtered;
     uint32_t value;
 
-    qtest_start(args->cmdline);
+    global_qtest = qtest_start(args->cmdline);
     path = get_cpu0_qom_path();
     present = qobject_to_qlist(qom_get(path, "feature-words"));
     filtered = qobject_to_qlist(qom_get(path, "filtered-features"));
@@ -181,7 +181,8 @@ static void test_plus_minus_subprocess(void)
      * Note: rules 1 and 2 are planned to be removed soon, and
      * should generate a warning.
      */
-    qtest_start("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,cx8=off,+sse4_1,sse4_2=on");
+    global_qtest = qtest_start("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,"
+                               "cx8=off,+sse4_1,sse4_2=on");
     path = get_cpu0_qom_path();
 
     g_assert_false(qom_get_bool(path, "fpu"));

@@ -154,6 +154,7 @@ int main(int argc, char **argv)
     s = qtest_start("-machine n800 "
                     "-device tmp105,bus=i2c-bus.0,id=" TMP105_TEST_ID
                     ",address=0x49");
+    global_qtest = s;
     i2c = omap_i2c_create(s, OMAP2_I2C_1_BASE);
 
     qtest_add_func("/tmp105/tx-rx", send_and_receive);

@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/pcnet/pci/nop", pci_nop);
 
-    qtest_start("-device pcnet");
+    global_qtest = qtest_start("-device pcnet");
     ret = g_test_run();
 
     qtest_quit(global_qtest);

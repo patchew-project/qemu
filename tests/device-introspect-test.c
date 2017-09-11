@@ -126,7 +126,7 @@ static void test_device_intro_list(void)
     QList *types;
     char *help;
 
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
 
     types = device_type_list(true);
     QDECREF(types);
@@ -167,7 +167,7 @@ static void test_qom_list_fields(void)
     QList *non_abstract;
     QListEntry *e;
 
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
 
     all_types = qom_list_types(NULL, true);
     non_abstract = qom_list_types(NULL, false);
@@ -194,14 +194,14 @@ static void test_qom_list_fields(void)
 
 static void test_device_intro_none(void)
 {
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
     test_one_device("nonexistent");
     qtest_quit(global_qtest);
 }
 
 static void test_device_intro_abstract(void)
 {
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
     test_one_device("device");
     qtest_quit(global_qtest);
 }
@@ -212,7 +212,7 @@ static void test_device_intro_concrete(void)
     QListEntry *entry;
     const char *type;
 
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
     types = device_type_list(false);
 
     QLIST_FOREACH_ENTRY(types, entry) {
@@ -232,7 +232,7 @@ static void test_abstract_interfaces(void)
     QListEntry *e;
     QDict *index;
 
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
 
     all_types = qom_list_types("interface", true);
     index = qom_type_index(all_types);

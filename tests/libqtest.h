@@ -27,7 +27,7 @@ extern QTestState *global_qtest;
  * qtest_start_without_qmp_handshake:
  * @extra_args: other arguments to pass to QEMU.
  *
- * Returns: #QTestState instance.  Does not affect #global_qtest.
+ * Returns: #QTestState instance, handshaking not yet completed.
  */
 QTestState *qtest_start_without_qmp_handshake(const char *extra_args);
 
@@ -35,10 +35,7 @@ QTestState *qtest_start_without_qmp_handshake(const char *extra_args);
  * qtest_start:
  * @args: other arguments to pass to QEMU
  *
- * Start QEMU and assign the resulting #QTestState to #global_qtest.
- * The global variable is used by "shortcut" functions documented below.
- *
- * Returns: #QTestState instance.
+ * Returns: #QTestState instance, handshaking completed.
  */
 QTestState *qtest_start(const char *args);
 
@@ -47,10 +44,7 @@ QTestState *qtest_start(const char *args);
  * @fmt...: Format for creating other arguments to pass to QEMU, formatted
  * like sprintf().
  *
- * Start QEMU and return the resulting #QTestState (but unlike qtest_start(),
- * #global_qtest is left at NULL).
- *
- * Returns: #QTestState instance.
+ * Returns: #QTestState instance, handshaking completed.
  */
 QTestState *qtest_startf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
@@ -60,28 +54,9 @@ QTestState *qtest_startf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
  * like vsprintf().
  * @ap: Format arguments.
  *
- * Start QEMU and return the resulting #QTestState (but unlike qtest_start(),
- * #global_qtest is left at NULL).
- *
- * Returns: #QTestState instance.
+ * Returns: #QTestState instance, handshaking completed.
  */
 QTestState *qtest_vstartf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-
-/**
- * qtest_init:
- * @extra_args: other arguments to pass to QEMU.
- *
- * Returns: #QTestState instance.  Does not affect #global_qtest.
- */
-static inline QTestState *qtest_init(const char *extra_args)
-{
-    QTestState *s;
-
-    assert(!global_qtest);
-    s = qtest_start(extra_args);
-    global_qtest = NULL;
-    return s;
-}
 
 /**
  * qtest_quit:

@@ -242,7 +242,7 @@ QTestState *qtest_start(const char *extra_args)
     qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
 
     assert(!global_qtest);
-    return global_qtest = s;
+    return s;
 }
 
 QTestState *qtest_vstartf(const char *fmt, va_list ap)
@@ -988,7 +988,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     QString *qstr;
     const char *mname;
 
-    qtest_start("-machine none");
+    global_qtest = qtest_start("-machine none");
     response = qmp("{ 'execute': 'query-machines' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");

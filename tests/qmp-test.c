@@ -172,7 +172,7 @@ static void test_query(const void *data)
     QDict *resp, *error;
     const char *error_class;
 
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
 
     resp = qmp("{ 'execute': %s }", cmd);
     error = qdict_get_qdict(resp, "error");
@@ -224,7 +224,7 @@ static void qmp_schema_init(QmpSchema *schema)
     Visitor *qiv;
     SchemaInfoList *tail;
 
-    qtest_start(common_args);
+    global_qtest = qtest_start(common_args);
     resp = qmp("{ 'execute': 'query-qmp-schema' }");
 
     qiv = qobject_input_visitor_new(qdict_get(resp, "return"));

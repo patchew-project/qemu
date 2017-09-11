@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     qtest_add_func("/virtio/serial/pci/nop", pci_nop);
     qtest_add_func("/virtio/serial/pci/hotplug", hotplug);
 
-    qtest_start("-device virtio-serial-pci");
+    global_qtest = qtest_start("-device virtio-serial-pci");
     ret = g_test_run();
 
     qtest_quit(global_qtest);

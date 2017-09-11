@@ -407,7 +407,7 @@ static void test_ivshmem_hotplug(void)
     gchar *opts;
     QTestState *qts;
 
-    qts = qtest_init("");
+    qts = qtest_start("");
 
     opts = g_strdup_printf("'shm': '%s', 'size': '1M'", tmpshm);
 

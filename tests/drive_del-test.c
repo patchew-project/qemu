@@ -45,7 +45,7 @@ static void device_del(void)
 static void test_drive_without_dev(void)
 {
     /* Start with an empty drive */
-    qtest_start("-drive if=none,id=drive0");
+    global_qtest = qtest_start("-drive if=none,id=drive0");
 
     /* Delete the drive */
     drive_del();
@@ -63,7 +63,7 @@ static void test_after_failed_device_add(void)
     QDict *response;
     QDict *error;
 
-    qtest_start("-drive if=none,id=drive0");
+    global_qtest = qtest_start("-drive if=none,id=drive0");
 
     /* Make device_add fail.  If this leaks the virtio-blk-pci device then a
      * reference to drive0 will also be held (via qdev properties).
@@ -92,9 +92,10 @@ static void test_after_failed_device_add(void)
 static void test_drive_del_device_del(void)
 {
     /* Start with a drive used by a device that unplugs instantaneously */
-    qtest_start("-drive if=none,id=drive0,file=null-co://,format=raw"
-                " -device virtio-scsi-pci"
-                " -device scsi-hd,drive=drive0,id=dev0");
+    global_qtest = qtest_start(
+        "-drive if=none,id=drive0,file=null-co://,format=raw"
+        " -device virtio-scsi-pci"
+        " -device scsi-hd,drive=drive0,id=dev0");
 
     /*
      * Delete the drive, and then the device

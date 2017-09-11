@@ -1097,7 +1097,7 @@ tests_with_prescaler_arg:
         goto tests_with_prescaler_arg;
     }
 
-    qtest_start("-machine vexpress-a9");
+    global_qtest = qtest_start("-machine vexpress-a9");
     ret = g_test_run();
     qtest_quit(global_qtest);
 

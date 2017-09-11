@@ -340,7 +340,7 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
                                          : "-drive if=pflash,format=raw,file=",
                               fw_pathname);
     g_test_message("qemu cmdline: %s", cmdline);
-    qtest_start(cmdline);
+    global_qtest = qtest_start(cmdline);
     g_free(cmdline);
 
     /* QEMU has loaded the firmware (because qtest_start() only returns after
