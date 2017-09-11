@@ -15,19 +15,16 @@
  */
 QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
 {
-    char *cmdline;
 
     QOSState *qs = g_new0(QOSState, 1);
 
-    cmdline = g_strdup_vprintf(cmdline_fmt, ap);
-    qs->qts = qtest_init(cmdline);
+    qs->qts = qtest_vstartf(cmdline_fmt, ap);
     qs->ops = ops;
     if (ops) {
         qs->alloc = ops->init_allocator(qs->qts, ALLOC_NO_FLAGS);
         qs->pcibus = ops->qpci_init(qs->qts, qs->alloc);
     }
 
-    g_free(cmdline);
     return qs;
 }
 

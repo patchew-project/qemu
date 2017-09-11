@@ -115,19 +115,15 @@ static QGuestAllocator *guest_malloc;
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 
-static void ide_test_start(const char *cmdline_fmt, ...)
+static void GCC_FMT_ATTR(1, 2) ide_test_start(const char *cmdline_fmt, ...)
 {
     va_list ap;
-    char *cmdline;
 
     va_start(ap, cmdline_fmt);
-    cmdline = g_strdup_vprintf(cmdline_fmt, ap);
+    global_qtest = qtest_vstartf(cmdline_fmt, ap);
     va_end(ap);
 
-    qtest_start(cmdline);
     guest_malloc = pc_alloc_init(global_qtest);
-
-    g_free(cmdline);
 }
 
 static void ide_test_quit(void)
@@ -675,7 +671,7 @@ static void test_flush_nodev(void)
     QPCIDevice *dev;
     QPCIBar bmdma_bar, ide_bar;
 
-    ide_test_start("");
+    ide_test_start(" ");
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
 

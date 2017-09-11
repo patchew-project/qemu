@@ -90,11 +90,9 @@ static void test_properties(const char *path, bool recurse)
 static void test_machine(gconstpointer data)
 {
     const char *machine = data;
-    char *args;
     QDict *response;
 
-    args = g_strdup_printf("-machine %s", machine);
-    qtest_start(args);
+    global_qtest = qtest_startf("-machine %s", machine);
 
     test_properties("/machine", true);
 
@@ -103,7 +101,6 @@ static void test_machine(gconstpointer data)
     QDECREF(response);
 
     qtest_quit(global_qtest);
-    g_free(args);
     g_free((void *)machine);
 }
 

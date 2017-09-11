@@ -119,16 +119,13 @@ static void test_info_commands(void)
 static void test_machine(gconstpointer data)
 {
     const char *machine = data;
-    char *args;
 
-    args = g_strdup_printf("-S -M %s", machine);
-    qtest_start(args);
+    global_qtest = qtest_startf("-S -M %s", machine);
 
     test_info_commands();
     test_commands();
 
     qtest_quit(global_qtest);
-    g_free(args);
     g_free((void *)data);
 }
 

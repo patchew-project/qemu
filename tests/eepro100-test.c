@@ -13,18 +13,9 @@
 static void test_device(gconstpointer data)
 {
     const char *model = data;
-    QTestState *s;
-    char *args;
-
-    args = g_strdup_printf("-device %s", model);
-    s = qtest_start(args);
 
     /* Tests only initialization so far. TODO: Implement functional tests */
-
-    if (s) {
-        qtest_quit(s);
-    }
-    g_free(args);
+    qtest_quit(qtest_startf("-device %s", model));
 }
 
 static const char *models[] = {

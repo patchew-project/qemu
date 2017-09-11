@@ -23,17 +23,13 @@ static char disk[] = "tests/pxe-test-disk-XXXXXX";
 
 static void test_pxe_one(const char *params, bool ipv6)
 {
-    char *args;
-
-    args = g_strdup_printf("-machine accel=kvm:tcg -nodefaults -boot order=n "
-                           "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,"
-                           "ipv4=%s,ipv6=%s %s", disk, ipv6 ? "off" : "on",
-                           ipv6 ? "on" : "off", params);
-
-    qtest_start(args);
+    global_qtest = qtest_startf(
+        "-machine accel=kvm:tcg -nodefaults -boot order=n "
+        "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,"
+        "ipv4=%s,ipv6=%s %s", disk, ipv6 ? "off" : "on",
+        ipv6 ? "on" : "off", params);
     boot_sector_test(global_qtest);
     qtest_quit(global_qtest);
-    g_free(args);
 }
 
 static void test_pxe_e1000(void)

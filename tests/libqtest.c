@@ -245,6 +245,27 @@ QTestState *qtest_start(const char *extra_args)
     return global_qtest = s;
 }
 
+QTestState *qtest_vstartf(const char *fmt, va_list ap)
+{
+    char *args = g_strdup_vprintf(fmt, ap);
+    QTestState *s;
+
+    s = qtest_start(args);
+    global_qtest = NULL;
+    return s;
+}
+
+QTestState *qtest_startf(const char *fmt, ...)
+{
+    va_list ap;
+    QTestState *s;
+
+    va_start(ap, fmt);
+    s = qtest_vstartf(fmt, ap);
+    va_end(ap);
+    return s;
+}
+
 void qtest_quit(QTestState *s)
 {
     if (global_qtest) {

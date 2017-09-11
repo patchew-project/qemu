@@ -33,11 +33,7 @@ typedef struct FirmwareTestFixture {
 
 static QPCIBus *test_start_get_bus(const TestData *s)
 {
-    char *cmdline;
-
-    cmdline = g_strdup_printf("-smp %d", s->num_cpus);
-    qtest_start(cmdline);
-    g_free(cmdline);
+    global_qtest = qtest_startf("-smp %d", s->num_cpus);
     return qpci_init_pc(global_qtest, NULL);
 }
 

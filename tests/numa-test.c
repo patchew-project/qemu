@@ -12,20 +12,14 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 
-static char *make_cli(const char *generic_cli, const char *test_cli)
-{
-    return g_strdup_printf("%s %s", generic_cli ? generic_cli : "", test_cli);
-}
-
 static void test_mon_explicit(const void *data)
 {
     char *s;
-    char *cli;
+    const char *args = data;
 
-    cli = make_cli(data, "-smp 8 "
-                   "-numa node,nodeid=0,cpus=0-3 "
-                   "-numa node,nodeid=1,cpus=4-7 ");
-    qtest_start(cli);
+    global_qtest = qtest_startf("%s -smp 8 "
+                                "-numa node,nodeid=0,cpus=0-3 "
+                                "-numa node,nodeid=1,cpus=4-7 ", args);
 
     s = hmp("info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3"));
@@ -33,16 +27,14 @@ static void test_mon_explicit(const void *data)
     g_free(s);
 
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 static void test_mon_default(const void *data)
 {
     char *s;
-    char *cli;
+    const char *args = data;
 
-    cli = make_cli(data, "-smp 8 -numa node -numa node");
-    qtest_start(cli);
+    global_qtest = qtest_startf("%s -smp 8 -numa node -numa node", args);
 
     s = hmp("info numa");
     g_assert(strstr(s, "node 0 cpus: 0 2 4 6"));
@@ -50,18 +42,16 @@ static void test_mon_default(const void *data)
     g_free(s);
 
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 static void test_mon_partial(const void *data)
 {
     char *s;
-    char *cli;
+    const char *args = data;
 
-    cli = make_cli(data, "-smp 8 "
-                   "-numa node,nodeid=0,cpus=0-1 "
-                   "-numa node,nodeid=1,cpus=4-5 ");
-    qtest_start(cli);
+    global_qtest = qtest_startf("%s -smp 8 "
+                                "-numa node,nodeid=0,cpus=0-1 "
+                                "-numa node,nodeid=1,cpus=4-5 ", args);
 
     s = hmp("info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3 6 7"));
@@ -69,7 +59,6 @@ static void test_mon_partial(const void *data)
     g_free(s);
 
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 static QList *get_cpus(QDict **resp)
@@ -82,13 +71,13 @@ static QList *get_cpus(QDict **resp)
 
 static void test_query_cpus(const void *data)
 {
-    char *cli;
+    const char *args = data;
     QDict *resp;
     QList *cpus;
     QObject *e;
 
-    cli = make_cli(data, "-smp 8 -numa node,cpus=0-3 -numa node,cpus=4-7");
-    qtest_start(cli);
+    global_qtest = qtest_startf("%s -smp 8 -numa node,cpus=0-3 "
+                                "-numa node,cpus=4-7", args);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -114,23 +103,22 @@ static void test_query_cpus(const void *data)
 
     QDECREF(resp);
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 static void pc_numa_cpu(const void *data)
 {
-    char *cli;
+    const char *args = data;
     QDict *resp;
     QList *cpus;
     QObject *e;
 
-    cli = make_cli(data, "-cpu pentium -smp 8,sockets=2,cores=2,threads=2 "
+    global_qtest = qtest_startf(
+        "%s -cpu pentium -smp 8,sockets=2,cores=2,threads=2 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
         "-numa cpu,node-id=1,socket-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=1,thread-id=0 "
-        "-numa cpu,node-id=1,socket-id=1,core-id=1,thread-id=1");
-    qtest_start(cli);
+        "-numa cpu,node-id=1,socket-id=1,core-id=1,thread-id=1", args);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -167,23 +155,22 @@ static void pc_numa_cpu(const void *data)
 
     QDECREF(resp);
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 static void spapr_numa_cpu(const void *data)
 {
-    char *cli;
+    const char *args = data;
     QDict *resp;
     QList *cpus;
     QObject *e;
 
-    cli = make_cli(data, "-smp 4,cores=4 "
+    global_qtest = qtest_startf(
+        "%s -smp 4,cores=4 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
         "-numa cpu,node-id=0,core-id=0 "
         "-numa cpu,node-id=0,core-id=1 "
         "-numa cpu,node-id=0,core-id=2 "
-        "-numa cpu,node-id=1,core-id=3");
-    qtest_start(cli);
+        "-numa cpu,node-id=1,core-id=3", args);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -212,21 +199,20 @@ static void spapr_numa_cpu(const void *data)
 
     QDECREF(resp);
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 static void aarch64_numa_cpu(const void *data)
 {
-    char *cli;
+    const char *args = data;
     QDict *resp;
     QList *cpus;
     QObject *e;
 
-    cli = make_cli(data, "-smp 2 "
+    global_qtest = qtest_startf(
+        "%s -smp 2 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
         "-numa cpu,node-id=1,thread-id=0 "
-        "-numa cpu,node-id=0,thread-id=1");
-    qtest_start(cli);
+        "-numa cpu,node-id=0,thread-id=1", args);
     cpus = get_cpus(&resp);
     g_assert(cpus);
 
@@ -255,12 +241,11 @@ static void aarch64_numa_cpu(const void *data)
 
     QDECREF(resp);
     qtest_quit(global_qtest);
-    g_free(cli);
 }
 
 int main(int argc, char **argv)
 {
-    const char *args = NULL;
+    const char *args = "";
     const char *arch = qtest_get_arch();
 
     if (strcmp(arch, "aarch64") == 0) {
