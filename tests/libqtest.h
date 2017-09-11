@@ -69,11 +69,10 @@ void qtest_quit(QTestState *s);
 /**
  * qtest_qmp_discard_response:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu
  *
- * Sends a QMP message to QEMU and consumes the response.
+ * Read and discard a QMP response, typically after qtest_async_qmp().
  */
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
+void qtest_qmp_discard_response(QTestState *s);
 
 /**
  * qtest_qmp:
@@ -92,16 +91,6 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
 void qtest_async_qmp(QTestState *s, const char *fmt, ...);
-
-/**
- * qtest_qmpv_discard_response:
- * @s: #QTestState instance to operate on.
- * @fmt: QMP message to send to QEMU
- * @ap: QMP message arguments
- *
- * Sends a QMP message to QEMU and consumes the response.
- */
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
 
 /**
  * qtest_qmpv:
@@ -543,11 +532,10 @@ void qmp_async(const char *fmt, ...);
 
 /**
  * qmp_discard_response:
- * @fmt...: QMP message to send to qemu
  *
- * Sends a QMP message to QEMU and consumes the response.
+ * Read and discard a QMP response, typically after qmp_async().
  */
-void qmp_discard_response(const char *fmt, ...);
+void qmp_discard_response(void);
 
 /**
  * qmp_receive:

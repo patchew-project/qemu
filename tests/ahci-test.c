@@ -1589,9 +1589,10 @@ static void test_atapi_tray(void)
     rsp = qtest_qmp_receive(ahci->parent->qts);
     QDECREF(rsp);
 
-    qtest_qmp_discard_response(ahci->parent->qts,
-                               "{'execute': 'x-blockdev-remove-medium', "
-                               "'arguments': {'device': 'drive0'}}");
+    qtest_async_qmp(ahci->parent->qts,
+                    "{'execute': 'x-blockdev-remove-medium', "
+                    "'arguments': {'device': 'drive0'}}");
+    qtest_qmp_discard_response(ahci->parent->qts);
 
     /* Test the tray without a medium */
     ahci_atapi_load(ahci, port);
@@ -1601,16 +1602,15 @@ static void test_atapi_tray(void)
     atapi_wait_tray(ahci, true);
 
     /* Re-insert media */
-    qtest_qmp_discard_response(ahci->parent->qts,
-                               "{'execute': 'blockdev-add', "
-                               "'arguments': {'node-name': 'node0', "
-                                        "'driver': 'raw', "
-                                        "'file': { 'driver': 'file', "
-                                                  "'filename': %s }}}", iso);
-    qtest_qmp_discard_response(ahci->parent->qts,
-                               "{'execute': 'x-blockdev-insert-medium',"
-                               "'arguments': { 'device': 'drive0', "
-                                         "'node-name': 'node0' }}");
+    qtest_async_qmp(ahci->parent->qts,
+                    "{'execute': 'blockdev-add', 'arguments': {"
+                    "  'node-name': 'node0', 'driver': 'raw', "
+                    "  'file': { 'driver': 'file', 'filename': %s }}}", iso);
+    qtest_qmp_discard_response(ahci->parent->qts);
+    qtest_async_qmp(ahci->parent->qts,
+                    "{'execute': 'x-blockdev-insert-medium',"
+                    "'arguments': {'device': 'drive0', 'node-name': 'node0'}}");
+    qtest_qmp_discard_response(ahci->parent->qts);
 
     /* Again, the event shows up first */
     qtest_async_qmp(ahci->parent->qts, "{'execute': 'blockdev-close-tray', "

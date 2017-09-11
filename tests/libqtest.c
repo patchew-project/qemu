@@ -238,8 +238,9 @@ QTestState *qtest_start(const char *extra_args)
     QTestState *s = qtest_start_without_qmp_handshake(extra_args);
 
     /* Read the QMP greeting and then do the handshake */
-    qtest_qmp_discard_response(s, "");
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+    qtest_qmp_discard_response(s);
+    qtest_async_qmp(s, "{ 'execute': 'qmp_capabilities' }");
+    qtest_qmp_discard_response(s);
 
     assert(!global_qtest);
     return s;
@@ -566,20 +567,10 @@ void qtest_async_qmp(QTestState *s, const char *fmt, ...)
     va_end(ap);
 }
 
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
+void qtest_qmp_discard_response(QTestState *s)
 {
-    QDict *response = qtest_qmpv(s, fmt, ap);
-    QDECREF(response);
-}
+    QDict *response = qtest_qmp_receive(s);
 
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
-    va_end(ap);
     QDECREF(response);
 }
 
@@ -955,13 +946,11 @@ void qmp_async(const char *fmt, ...)
     va_end(ap);
 }
 
-void qmp_discard_response(const char *fmt, ...)
+void qmp_discard_response(void)
 {
-    va_list ap;
+    QDict *response = qmp_receive();
 
-    va_start(ap, fmt);
-    qtest_qmpv_discard_response(global_qtest, fmt, ap);
-    va_end(ap);
+    QDECREF(response);
 }
 char *hmp(const char *fmt, ...)
 {
