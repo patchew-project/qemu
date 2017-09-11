@@ -168,7 +168,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         self.decl += gen_event_send_decl(name, arg_type, boxed)
         self.defn += gen_event_send(name, arg_type, boxed)
-        self._event_names.append(QAPISchemaMember(name))
+        self._event_names.append(QAPISchemaMember(name, ifcond))
 
 
 (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
