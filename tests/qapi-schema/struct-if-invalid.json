@@ -1,0 +1,3 @@
+# check missing 'type'
+{ 'struct': 'TestIfStruct', 'data':
+  { 'foo': 'int', 'bar': { 'if': 'defined(TEST_IF_STRUCT_BAR)' } } }

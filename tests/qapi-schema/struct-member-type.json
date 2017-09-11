@@ -1,0 +1,2 @@
+# check member 'a' with 'type' key only
+{ 'struct': 'foo', 'data': { 'a': { 'type': 'str' } } }
