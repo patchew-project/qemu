@@ -47,6 +47,9 @@ returns_whitelist = []
 # Whitelist of entities allowed to violate case conventions
 name_case_whitelist = []
 
+# Unit to consider for the visit, 'all' for all units
+visit_unit = None
+
 enum_types = {}
 struct_types = {}
 union_types = {}
@@ -1796,6 +1799,10 @@ class QAPISchema(object):
     def visit(self, visitor):
         visitor.visit_begin(self)
         for (name, entity) in sorted(self._entity_dict.items()):
+            # FIXME: implicit array types should use element type unit
+            unit = entity.info and entity.info.get('unit')
+            if visit_unit != 'all' and visit_unit != unit:
+                continue
             if visitor.visit_needed(entity):
                 entity.visit(visitor)
         visitor.visit_end()
@@ -2103,13 +2110,14 @@ def parse_command_line(extra_options='', extra_long_options=[]):
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:],
-            'chp:o:i:' + extra_options,
+            'chp:o:u:i:' + extra_options,
             ['source', 'header', 'prefix=', 'output-dir=',
-             'include='] + extra_long_options)
+             'unit=', 'include='] + extra_long_options)
     except getopt.GetoptError as err:
         print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
 
+    global visit_unit
     output_dir = ''
     prefix = ''
     do_c = False
@@ -2129,6 +2137,8 @@ def parse_command_line(extra_options='', extra_long_options=[]):
             prefix = a
         elif o in ('-o', '--output-dir'):
             output_dir = a + '/'
+        elif o in ('-u', '--unit'):
+            visit_unit = a
         elif o in ('-c', '--source'):
             do_c = True
         elif o in ('-h', '--header'):

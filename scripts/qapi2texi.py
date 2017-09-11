@@ -293,6 +293,7 @@ def main(argv):
         print >>sys.stderr, "%s: need exactly 1 argument: SCHEMA" % argv[0]
         sys.exit(1)
 
+    qapi.visit_unit = 'all'
     schema = qapi.QAPISchema(argv[1])
     if not qapi.doc_required:
         print >>sys.stderr, ("%s: need pragma 'doc-required' "
