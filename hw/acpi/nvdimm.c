@@ -1245,7 +1245,14 @@ static void nvdimm_build_ssdt_device(Aml *dev, uint32_t ram_slots)
 
     /* 0 is reserved for root device. */
     nvdimm_build_device_dsm(dev, 0);
-    nvdimm_build_fit(dev);
+    /*
+     * Xen does not support vNVDIMM hotplug, and always sets the QEMU
+     * option "maxmem" to be just enough for RAM and static plugged
+     * vNVDIMM, so it's unnecessary to build _FIT method on Xen.
+     */
+    if (!xen_enabled()) {
+        nvdimm_build_fit(dev);
+    }
 
     nvdimm_build_nvdimm_devices(dev, ram_slots);
 }
