@@ -253,7 +253,8 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._regy += gen_register_command(name, success_response)
 
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
+(input_file, output_dir, do_c, do_h, prefix, includes, opts) = \
+        parse_command_line()
 
 c_comment = '''
 /*
@@ -305,6 +306,7 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 fdecl.write(mcgen('''
+%(includes)s
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/dispatch.h"
@@ -312,7 +314,8 @@ fdecl.write(mcgen('''
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-                  prefix=prefix, c_prefix=c_name(prefix, protect=False)))
+                  includes=includes, prefix=prefix,
+                  c_prefix=c_name(prefix, protect=False)))
 
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenCommandVisitor()

@@ -171,7 +171,8 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self._event_names.append(QAPISchemaMember(name, ifcond))
 
 
-(input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
+(input_file, output_dir, do_c, do_h, prefix, includes, dummy) = \
+        parse_command_line()
 
 c_comment = '''
 /*
@@ -218,13 +219,14 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 fdecl.write(mcgen('''
+%(includes)s
 #include "qapi/error.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qdict.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                  prefix=prefix))
+                  includes=includes, prefix=prefix))
 
 event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
 

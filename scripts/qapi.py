@@ -2096,9 +2096,9 @@ def parse_command_line(extra_options='', extra_long_options=[]):
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       'chp:o:' + extra_options,
-                                       ['source', 'header', 'prefix=',
-                                        'output-dir='] + extra_long_options)
+            'chp:o:i:' + extra_options,
+            ['source', 'header', 'prefix=', 'output-dir=',
+             'include='] + extra_long_options)
     except getopt.GetoptError as err:
         print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
@@ -2107,6 +2107,7 @@ def parse_command_line(extra_options='', extra_long_options=[]):
     prefix = ''
     do_c = False
     do_h = False
+    includes = []
     extra_opts = []
 
     for oa in opts:
@@ -2125,6 +2126,8 @@ def parse_command_line(extra_options='', extra_long_options=[]):
             do_c = True
         elif o in ('-h', '--header'):
             do_h = True
+        elif o in ('-i', '--include'):
+            includes.append(a)
         else:
             extra_opts.append(oa)
 
@@ -2137,7 +2140,9 @@ def parse_command_line(extra_options='', extra_long_options=[]):
         sys.exit(1)
     fname = args[0]
 
-    return (fname, output_dir, do_c, do_h, prefix, extra_opts)
+    includes = "\n".join(['#include "%s"' % inc for inc in includes])
+
+    return (fname, output_dir, do_c, do_h, prefix, includes, extra_opts)
 
 #
 # Generate output files with boilerplate

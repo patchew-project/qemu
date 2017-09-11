@@ -338,7 +338,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
 # QAPISchemaGenVisitVisitor.visit_end().
 do_builtins = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
+(input_file, output_dir, do_c, do_h, prefix, includes, opts) = \
     parse_command_line('b', ['builtins'])
 
 for o, a in opts:
@@ -387,12 +387,13 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 fdecl.write(mcgen('''
+%(includes)s
 #include "qapi/visitor.h"
 #include "qapi/qmp/qerror.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                  prefix=prefix))
+                  includes=includes, prefix=prefix))
 
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenVisitVisitor()

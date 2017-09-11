@@ -192,7 +192,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 # We normally mask them, because they're not QMP wire ABI
 opt_unmask = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
+(input_file, output_dir, do_c, do_h, prefix, includes, opts) = \
     parse_command_line('u', ['unmask-non-abi-names'])
 
 for o, a in opts:
@@ -235,10 +235,11 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 fdecl.write(mcgen('''
+%(includes)s
 #include "qemu/osdep.h"
 #include "qapi/qmp/qlit.h"
 
-'''))
+''', includes=includes))
 
 schema = QAPISchema(input_file)
 gen = QAPISchemaGenIntrospectVisitor(opt_unmask)
