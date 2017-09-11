@@ -2,7 +2,7 @@
 # Common libraries for tools and emulators
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
-util-obj-y += qmp-introspect.o qapi-types.o qapi-visit.o qapi-event.o
+util-obj-y += qapi-types.o qapi-visit.o qapi-event.o
 
 chardev-obj-y = chardev/
 
@@ -77,7 +77,6 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 # qapi
 
 common-obj-y += qmp-marshal.o
-common-obj-y += qmp-introspect.o
 common-obj-y += qmp.o hmp.o
 endif
 
