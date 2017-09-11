@@ -6,13 +6,20 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
-UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-%
+UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-% gitignore
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
 all:
 include config-host.mak
+
+.PHONY: gitignore
+ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
+ifeq ($(BUILD_DIR),$(SRC_PATH))
+all $(MAKECMDGOALS): gitignore
+endif
+endif
 
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
