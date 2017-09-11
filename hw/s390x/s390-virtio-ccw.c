@@ -23,6 +23,7 @@
 #include "hw/s390x/css.h"
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
@@ -47,6 +48,8 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
     return cpu_states[cpu_addr];
 }
 
+/* #define S390_TCG_SMP_SUPPORT */
+
 static void s390_init_cpus(MachineState *machine)
 {
     int i;
@@ -55,6 +58,13 @@ static void s390_init_cpus(MachineState *machine)
     if (machine->cpu_model == NULL) {
         machine->cpu_model = s390_default_cpu_model_name();
     }
+#ifndef S390_TCG_SMP_SUPPORT
+    if (tcg_enabled() && max_cpus > 1) {
+        error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
+                     "supported by TCG (1) on s390x", max_cpus);
+        exit(1);
+    }
+#endif
 
     cpu_states = g_new0(S390CPU *, max_cpus);
 
