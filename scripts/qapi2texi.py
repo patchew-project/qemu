@@ -132,7 +132,6 @@ def texi_enum_value(value):
     """Format a table of members item for an enumeration value"""
     return '@item @code{%s}\n' % value.name
 
-
 def texi_member(member, suffix=''):
     """Format a table of members item for an object type member"""
     typ = member.type.doc_type()
@@ -175,7 +174,7 @@ def texi_members(doc, what, base, variants, member_func):
     return '\n@b{%s:}\n@table @asis\n%s@end table\n' % (what, items)
 
 
-def texi_sections(doc):
+def texi_sections(doc, ifcond):
     """Format additional sections following arguments"""
     body = ''
     for section in doc.sections:
@@ -189,14 +188,16 @@ def texi_sections(doc):
             body += '\n\n@b{%s:}\n' % name
 
         body += func(doc)
+    if ifcond:
+        body += '\n\n@b{If:} @code{%s}' % ifcond
     return body
 
 
-def texi_entity(doc, what, base=None, variants=None,
+def texi_entity(doc, what, ifcond, base=None, variants=None,
                 member_func=texi_member):
     return (texi_body(doc)
             + texi_members(doc, what, base, variants, member_func)
-            + texi_sections(doc))
+            + texi_sections(doc, ifcond))
 
 
 class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
@@ -213,7 +214,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
             self.out += '\n'
         self.out += TYPE_FMT(type='Enum',
                              name=doc.symbol,
-                             body=texi_entity(doc, 'Values',
+                             body=texi_entity(doc, 'Values', ifcond,
                                               member_func=texi_enum_value))
 
     def visit_object_type(self, name, info, ifcond, base, members, variants):
@@ -224,7 +225,8 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
             self.out += '\n'
         self.out += TYPE_FMT(type='Object',
                              name=doc.symbol,
-                             body=texi_entity(doc, 'Members', base, variants))
+                             body=texi_entity(doc, 'Members', ifcond,
+                                              base, variants))
 
     def visit_alternate_type(self, name, info, ifcond, variants):
         doc = self.cur_doc
@@ -232,7 +234,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
             self.out += '\n'
         self.out += TYPE_FMT(type='Alternate',
                              name=doc.symbol,
-                             body=texi_entity(doc, 'Members'))
+                             body=texi_entity(doc, 'Members', ifcond))
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type,
                       gen, success_response, boxed):
@@ -242,9 +244,9 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
         if boxed:
             body = texi_body(doc)
             body += '\n@b{Arguments:} the members of @code{%s}' % arg_type.name
-            body += texi_sections(doc)
+            body += texi_sections(doc, ifcond)
         else:
-            body = texi_entity(doc, 'Arguments')
+            body = texi_entity(doc, 'Arguments', ifcond)
         self.out += MSG_FMT(type='Command',
                             name=doc.symbol,
                             body=body)
@@ -255,7 +257,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
             self.out += '\n'
         self.out += MSG_FMT(type='Event',
                             name=doc.symbol,
-                            body=texi_entity(doc, 'Arguments'))
+                            body=texi_entity(doc, 'Arguments', ifcond))
 
     def symbol(self, doc, entity):
         self.cur_doc = doc
@@ -266,7 +268,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
         assert not doc.args
         if self.out:
             self.out += '\n'
-        self.out += texi_body(doc) + texi_sections(doc)
+        self.out += texi_body(doc) + texi_sections(doc, None)
 
 
 def texi_schema(schema):
