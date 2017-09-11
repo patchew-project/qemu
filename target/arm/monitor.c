@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qmp-commands.h"
+#include "target-qmp-commands.h"
 #include "hw/boards.h"
 #include "kvm_arm.h"
 
