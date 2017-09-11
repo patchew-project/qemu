@@ -279,10 +279,12 @@ class QAPISchemaParser(object):
         self.docs = []
         self.cur_doc = None
         self.accept()
+        self.unit = None
 
         while self.tok is not None:
             info = {'file': fname, 'line': self.line,
-                    'parent': self.incl_info}
+                    'parent': self.incl_info,
+                    'unit': self.unit}
             if self.tok == '#':
                 self.reject_expr_doc()
                 self.cur_doc = self.get_doc(info)
@@ -371,6 +373,11 @@ class QAPISchemaParser(object):
                                    "Pragma name-case-whitelist must be"
                                    " a list of strings")
             name_case_whitelist = value
+        elif name == 'unit':
+            if not isinstance(value, str):
+                raise QAPISemError(info,
+                                   "Pragma 'unit' must be string")
+            self.unit = value
         else:
             raise QAPISemError(info, "Unknown pragma '%s'" % name)
 

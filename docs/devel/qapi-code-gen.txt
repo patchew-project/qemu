@@ -326,6 +326,9 @@ violate the rules on permitted return types.  Default is none.
 Pragma 'name-case-whitelist' takes a list of names that may violate
 rules on use of upper- vs. lower-case letters.  Default is none.
 
+Pragma 'unit' takes a string value. It will set the unit name for the
+following expressions in the schema. Most code generator can filter
+based on a unit name. Default is none.
 
 === Struct types ===
 
