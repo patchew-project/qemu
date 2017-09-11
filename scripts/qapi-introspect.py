@@ -17,6 +17,13 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
     def indent(level):
         return level * 4 * ' '
 
+    if isinstance(obj, tuple):
+        ifobj, ifcond = obj
+        ret = gen_if(ifcond)
+        ret += to_qlit(ifobj, level)
+        ret += '\n' + gen_endif(ifcond)
+        return ret
+
     ret = ''
     if not suppress_first_indent:
         ret += indent(level)
