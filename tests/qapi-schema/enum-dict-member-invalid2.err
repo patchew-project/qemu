@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-dict-member-invalid2.json:2: Dictionnary has unknown keys: bad-key (allowed: name, if)
