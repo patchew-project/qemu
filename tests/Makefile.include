@@ -380,6 +380,7 @@ qapi-schema += alternate-conflict-enum-int.json
 qapi-schema += alternate-conflict-string.json
 qapi-schema += alternate-conflict-bool-string.json
 qapi-schema += alternate-conflict-num-string.json
+qapi-schema += alternate-dict-invalid.json
 qapi-schema += alternate-empty.json
 qapi-schema += alternate-nested.json
 qapi-schema += alternate-unknown.json
