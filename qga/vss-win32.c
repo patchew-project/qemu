@@ -61,7 +61,7 @@ static bool vss_check_os_version(void)
             return false;
         }
         if (wow64) {
-            fprintf(stderr, "Warning: Running under WOW64\n");
+            warn_report("Running under WOW64");
         }
 #endif
         return !wow64;
