@@ -18,12 +18,13 @@
 typedef struct QVirtioBus QVirtioBus;
 
 typedef struct QVirtioDevice {
-    const QVirtioBus *bus;
+    QVirtioBus *bus;
     /* Device type */
     uint16_t device_type;
 } QVirtioDevice;
 
 typedef struct QVirtQueue {
+    QVirtioDevice *dev;
     uint64_t desc; /* This points to an array of struct vring_desc */
     uint64_t avail; /* This points to a struct vring_avail */
     uint64_t used; /* This points to a struct vring_used */
@@ -88,6 +89,8 @@ struct QVirtioBus {
 
     /* Notify changes in virtqueue */
     void (*virtqueue_kick)(QVirtioDevice *d, QVirtQueue *vq);
+
+    QTestState *qts;
 };
 
 static inline bool qvirtio_is_big_endian(QVirtioDevice *d)
@@ -102,6 +105,8 @@ static inline uint32_t qvring_size(uint32_t num, uint32_t align)
         + align - 1) & ~(align - 1))
         + sizeof(uint16_t) * 3 + sizeof(struct vring_used_elem) * num;
 }
+
+QVirtioBus *qvirtio_init_bus(QTestState *qts, const QVirtioBus *base);
 
 uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr);
 uint16_t qvirtio_config_readw(QVirtioDevice *d, uint64_t addr);

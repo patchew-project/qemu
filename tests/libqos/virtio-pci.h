@@ -29,8 +29,6 @@ typedef struct QVirtQueuePCI {
     uint32_t msix_data;
 } QVirtQueuePCI;
 
-extern const QVirtioBus qvirtio_pci;
-
 QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type);
 QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
                                                uint16_t device_type, int slot);

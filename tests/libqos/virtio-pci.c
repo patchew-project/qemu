@@ -31,6 +31,7 @@ typedef struct QVirtioPCIForeachData {
 
 void qvirtio_pci_device_free(QVirtioPCIDevice *dev)
 {
+    g_free(dev->vdev.bus);
     g_free(dev->pdev);
     g_free(dev);
 }
@@ -233,6 +234,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     feat = qvirtio_pci_get_guest_features(d);
 
     qvirtio_pci_queue_select(d, index);
+    vqpci->vq.dev = d;
     vqpci->vq.index = index;
     vqpci->vq.size = qvirtio_pci_get_queue_size(d);
     vqpci->vq.free_head = 0;
@@ -315,7 +317,7 @@ QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type)
     qvirtio_pci_foreach(bus, device_type, false, 0,
                         qvirtio_pci_assign_device, &dev);
 
-    dev->vdev.bus = &qvirtio_pci;
+    dev->vdev.bus = qvirtio_init_bus(bus->qts, &qvirtio_pci);
 
     return dev;
 }
@@ -328,7 +330,7 @@ QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
     qvirtio_pci_foreach(bus, device_type, true, slot,
                         qvirtio_pci_assign_device, &dev);
 
-    dev->vdev.bus = &qvirtio_pci;
+    dev->vdev.bus = qvirtio_init_bus(bus->qts, &qvirtio_pci);
 
     return dev;
 }

@@ -39,8 +39,8 @@ typedef struct QVirtioMMIODevice {
     uint32_t features; /* As it cannot be read later, save it */
 } QVirtioMMIODevice;
 
-extern const QVirtioBus qvirtio_mmio;
-
-QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size);
+QVirtioMMIODevice *qvirtio_mmio_init_device(QTestState *qts, uint64_t addr,
+                                            uint32_t page_size);
+void qvirtio_mmio_device_free(QVirtioMMIODevice *dev);
 
 #endif

@@ -687,7 +687,8 @@ static void mmio_basic(void)
 
     arm_test_start();
 
-    dev = qvirtio_mmio_init_device(MMIO_DEV_BASE_ADDR, MMIO_PAGE_SIZE);
+    dev = qvirtio_mmio_init_device(global_qtest, MMIO_DEV_BASE_ADDR,
+                                   MMIO_PAGE_SIZE);
     g_assert(dev != NULL);
     g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_BLOCK);
 
@@ -711,7 +712,7 @@ static void mmio_basic(void)
 
     /* End test */
     qvirtqueue_cleanup(dev->vdev.bus, vq, alloc);
-    g_free(dev);
+    qvirtio_mmio_device_free(dev);
     generic_alloc_uninit(alloc);
     test_end();
 }

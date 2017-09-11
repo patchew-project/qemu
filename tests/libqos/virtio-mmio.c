@@ -131,6 +131,7 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     qvirtio_mmio_queue_select(d, index);
     writel(dev->addr + QVIRTIO_MMIO_QUEUE_ALIGN, dev->page_size);
 
+    vq->dev = d;
     vq->index = index;
     vq->size = qvirtio_mmio_get_queue_size(d);
     vq->free_head = 0;
@@ -187,7 +188,8 @@ const QVirtioBus qvirtio_mmio = {
     .virtqueue_kick = qvirtio_mmio_virtqueue_kick,
 };
 
-QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size)
+QVirtioMMIODevice *qvirtio_mmio_init_device(QTestState *qts, uint64_t addr,
+                                            uint32_t page_size)
 {
     QVirtioMMIODevice *dev;
     uint32_t magic;
@@ -199,9 +201,15 @@ QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size)
     dev->addr = addr;
     dev->page_size = page_size;
     dev->vdev.device_type = readl(addr + QVIRTIO_MMIO_DEVICE_ID);
-    dev->vdev.bus = &qvirtio_mmio;
+    dev->vdev.bus = qvirtio_init_bus(qts, &qvirtio_mmio);
 
     writel(addr + QVIRTIO_MMIO_GUEST_PAGE_SIZE, page_size);
 
     return dev;
+}
+
+void qvirtio_mmio_device_free(QVirtioMMIODevice *dev)
+{
+    g_free(dev->vdev.bus);
+    g_free(dev);
 }

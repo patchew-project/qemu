@@ -13,6 +13,16 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 
+QVirtioBus *qvirtio_init_bus(QTestState *qts, const QVirtioBus *base)
+{
+    QVirtioBus *bus = g_new0(QVirtioBus, 1);
+
+    assert(qts);
+    *bus = *base;
+    bus->qts = qts;
+    return bus;
+}
+
 uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr)
 {
     return d->bus->config_readb(d, addr);
