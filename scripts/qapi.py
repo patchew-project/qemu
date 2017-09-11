@@ -639,6 +639,26 @@ def add_name(name, info, meta, implicit=False):
     all_names[name] = meta
 
 
+def check_if(expr, info):
+
+    def check_if_str(ifcond, info):
+        if ifcond == '':
+            raise QAPISemError(info, "'if' condition '' makes no sense")
+
+    ifcond = expr['if']
+    if isinstance(ifcond, str):
+        check_if_str(ifcond, info)
+    elif (isinstance(ifcond, list)
+          and all(isinstance(elt, str) for elt in ifcond)):
+        if ifcond == []:
+            raise QAPISemError(info, "'if' condition [] is useless")
+        for elt in ifcond:
+            check_if_str(elt, info)
+    else:
+        raise QAPISemError(
+            info, "'if' condition must be a string or a list of strings")
+
+
 def check_type(info, source, value, allow_array=False,
                allow_dict=False, allow_optional=False,
                allow_metas=[]):
@@ -878,6 +898,8 @@ def check_keys(expr_elem, meta, required, optional=[]):
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use true value"
                                % (key, meta, name))
+        if key == 'if':
+            check_if(expr, info)
     for key in required:
         if key not in expr:
             raise QAPISemError(info, "Key '%s' is missing from %s '%s'"
@@ -903,27 +925,28 @@ def check_exprs(exprs):
 
         if 'enum' in expr:
             meta = 'enum'
-            check_keys(expr_elem, 'enum', ['data'], ['prefix'])
+            check_keys(expr_elem, 'enum', ['data'], ['if', 'prefix'])
             enum_types[expr[meta]] = expr
         elif 'union' in expr:
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
-                       ['base', 'discriminator'])
+                       ['base', 'discriminator', 'if'])
             union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
-            check_keys(expr_elem, 'alternate', ['data'])
+            check_keys(expr_elem, 'alternate', ['data'], ['if'])
         elif 'struct' in expr:
             meta = 'struct'
-            check_keys(expr_elem, 'struct', ['data'], ['base'])
+            check_keys(expr_elem, 'struct', ['data'], ['base', 'if'])
             struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
             check_keys(expr_elem, 'command', [],
-                       ['data', 'returns', 'gen', 'success-response', 'boxed'])
+                       ['data', 'returns', 'gen', 'success-response', 'boxed',
+                        'if'])
         elif 'event' in expr:
             meta = 'event'
-            check_keys(expr_elem, 'event', [], ['data', 'boxed'])
+            check_keys(expr_elem, 'event', [], ['data', 'boxed', 'if'])
         else:
             raise QAPISemError(expr_elem['info'],
                                "Expression is missing metatype")
