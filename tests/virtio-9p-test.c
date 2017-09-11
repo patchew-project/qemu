@@ -116,7 +116,7 @@ typedef struct {
 
 static void v9fs_memwrite(P9Req *req, const void *addr, size_t len)
 {
-    memwrite(req->t_msg + req->t_off, addr, len);
+    memwrite(global_qtest, req->t_msg + req->t_off, addr, len);
     req->t_off += len;
 }
 
@@ -132,7 +132,7 @@ static void v9fs_memrewind(P9Req *req, size_t len)
 
 static void v9fs_memread(P9Req *req, void *addr, size_t len)
 {
-    memread(req->r_msg + req->r_off, addr, len);
+    memread(global_qtest, req->r_msg + req->r_off, addr, len);
     req->r_off += len;
 }
 

@@ -222,7 +222,7 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
     /* Setup PRDT */
     len = sizeof(*prdt) * prdt_entries;
     guest_prdt = guest_alloc(guest_malloc, len);
-    memwrite(guest_prdt, prdt, len);
+    memwrite(global_qtest, guest_prdt, prdt, len);
     qpci_io_writel(dev, bmdma_bar, bmreg_prdt, guest_prdt);
 
     /* ATA DMA command */
@@ -299,7 +299,7 @@ static void test_bmdma_simple_rw(void)
 
     /* Write 0x55 pattern to sector 0 */
     memset(buf, 0x55, len);
-    memwrite(guest_buf, buf, len);
+    memwrite(global_qtest, guest_buf, buf, len);
 
     status = send_dma_request(CMD_WRITE_DMA, 0, 1, prdt,
                               ARRAY_SIZE(prdt), NULL);
@@ -308,7 +308,7 @@ static void test_bmdma_simple_rw(void)
 
     /* Write 0xaa pattern to sector 1 */
     memset(buf, 0xaa, len);
-    memwrite(guest_buf, buf, len);
+    memwrite(global_qtest, guest_buf, buf, len);
 
     status = send_dma_request(CMD_WRITE_DMA, 1, 1, prdt,
                               ARRAY_SIZE(prdt), NULL);
@@ -322,7 +322,7 @@ static void test_bmdma_simple_rw(void)
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
 
-    memread(guest_buf, buf, len);
+    memread(global_qtest, guest_buf, buf, len);
     g_assert(memcmp(buf, cmpbuf, len) == 0);
 
     /* Read and verify 0xaa pattern in sector 1 */
@@ -332,7 +332,7 @@ static void test_bmdma_simple_rw(void)
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), DF | ERR);
 
-    memread(guest_buf, buf, len);
+    memread(global_qtest, guest_buf, buf, len);
     g_assert(memcmp(buf, cmpbuf, len) == 0);
 
 
@@ -551,7 +551,7 @@ static void make_dirty(uint8_t device)
     g_assert(guest_buf);
     g_assert(buf);
 
-    memwrite(guest_buf, buf, len);
+    memwrite(global_qtest, guest_buf, buf, len);
 
     PrdtEntry prdt[] = {
         {
@@ -921,7 +921,7 @@ static void test_cdrom_dma(void)
     send_dma_request(CMD_PACKET, 0, 1, prdt, 1, send_scsi_cdb_read10);
 
     /* Read back data from guest memory into local qtest memory */
-    memread(guest_buf, rx, len);
+    memread(global_qtest, guest_buf, rx, len);
     g_assert_cmpint(memcmp(pattern, rx, len), ==, 0);
 
     g_free(pattern);

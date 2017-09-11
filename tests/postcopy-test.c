@@ -320,13 +320,13 @@ static void check_guests_ram(QTestState *qts)
     bool hit_edge = false;
     bool bad = false;
 
-    qtest_memread(qts, start_address, &first_byte, 1);
+    memread(qts, start_address, &first_byte, 1);
     last_byte = first_byte;
 
     for (address = start_address + 4096; address < end_address; address += 4096)
     {
         uint8_t b;
-        qtest_memread(qts, address, &b, 1);
+        memread(qts, address, &b, 1);
         if (b != last_byte) {
             if (((b + 1) % 256) == last_byte && !hit_edge) {
                 /* This is OK, the guest stopped at the point of
@@ -470,19 +470,19 @@ static void test_migrate(void)
 
     qtest_quit(from);
 
-    qtest_memread(to, start_address, &dest_byte_a, 1);
+    memread(to, start_address, &dest_byte_a, 1);
 
     /* Destination still running, wait for a byte to change */
     do {
-        qtest_memread(to, start_address, &dest_byte_b, 1);
+        memread(to, start_address, &dest_byte_b, 1);
         usleep(10 * 1000);
     } while (dest_byte_a == dest_byte_b);
 
     qtest_qmp_discard_response(to, "{ 'execute' : 'stop'}");
     /* With it stopped, check nothing changes */
-    qtest_memread(to, start_address, &dest_byte_c, 1);
+    memread(to, start_address, &dest_byte_c, 1);
     sleep(1);
-    qtest_memread(to, start_address, &dest_byte_d, 1);
+    memread(to, start_address, &dest_byte_d, 1);
     g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
 
     check_guests_ram(to);

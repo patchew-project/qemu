@@ -145,9 +145,9 @@ static uint64_t virtio_blk_request(QGuestAllocator *alloc, QVirtioDevice *d,
 
     virtio_blk_fix_request(d, req);
 
-    memwrite(addr, req, 16);
-    memwrite(addr + 16, req->data, data_size);
-    memwrite(addr + 16 + data_size, &status, sizeof(status));
+    memwrite(global_qtest, addr, req, 16);
+    memwrite(global_qtest, addr + 16, req->data, data_size);
+    memwrite(global_qtest, addr + 16 + data_size, &status, sizeof(status));
 
     return addr;
 }
@@ -221,7 +221,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
-    memread(req_addr + 16, data, 512);
+    memread(global_qtest, req_addr + 16, data, 512);
     g_assert_cmpstr(data, ==, "TEST");
     g_free(data);
 
@@ -270,7 +270,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
         g_assert_cmpint(status, ==, 0);
 
         data = g_malloc0(512);
-        memread(req_addr + 16, data, 512);
+        memread(global_qtest, req_addr + 16, data, 512);
         g_assert_cmpstr(data, ==, "TEST");
         g_free(data);
 
@@ -380,7 +380,7 @@ static void pci_indirect(void)
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
-    memread(req_addr + 16, data, 512);
+    memread(global_qtest, req_addr + 16, data, 512);
     g_assert_cmpstr(data, ==, "TEST");
     g_free(data);
 
@@ -517,7 +517,7 @@ static void pci_msix(void)
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
-    memread(req_addr + 16, data, 512);
+    memread(global_qtest, req_addr + 16, data, 512);
     g_assert_cmpstr(data, ==, "TEST");
     g_free(data);
 
@@ -640,7 +640,7 @@ static void pci_idx(void)
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
-    memread(req_addr + 16, data, 512);
+    memread(global_qtest, req_addr + 16, data, 512);
     g_assert_cmpstr(data, ==, "TEST");
     g_free(data);
 

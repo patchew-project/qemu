@@ -869,7 +869,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 
     /* Write some indicative pattern to our buffer. */
     generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
-    qtest_bufwrite(ahci->parent->qts, ptr, tx, bufsize);
+    bufwrite(ahci->parent->qts, ptr, tx, bufsize);
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
     ahci_guest_io(ahci, port, write_cmd, ptr, bufsize, sector);
@@ -877,7 +877,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     ahci_guest_io(ahci, port, read_cmd, ptr, bufsize, sector);
 
     /*** Read back the Data ***/
-    qtest_bufread(ahci->parent->qts, ptr, rx, bufsize);
+    bufread(ahci->parent->qts, ptr, rx, bufsize);
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
 
     ahci_free(ahci, ptr);
@@ -918,7 +918,7 @@ static void ahci_test_max(AHCIQState *ahci)
     }
 
     port = ahci_test_nondata(ahci, cmd);
-    qtest_memread(ahci->parent->qts, ahci->port[port].fb + 0x40, d2h, 0x20);
+    memread(ahci->parent->qts, ahci->port[port].fb + 0x40, d2h, 0x20);
     nsect = (uint64_t)d2h->lba_hi[2] << 40 |
         (uint64_t)d2h->lba_hi[1] << 32 |
         (uint64_t)d2h->lba_hi[0] << 24 |
@@ -1036,7 +1036,7 @@ static void test_dma_fragmented(void)
     /* Create a DMA buffer in guest memory, and write our pattern to it. */
     ptr = guest_alloc(ahci->parent->alloc, bufsize);
     g_assert(ptr);
-    qtest_bufwrite(ahci->parent->qts, ptr, tx, bufsize);
+    bufwrite(ahci->parent->qts, ptr, tx, bufsize);
 
     cmd = ahci_command_create(CMD_WRITE_DMA);
     ahci_command_adjust(cmd, 0, ptr, bufsize, 32);
@@ -1053,7 +1053,7 @@ static void test_dma_fragmented(void)
     ahci_command_free(cmd);
 
     /* Read back the guest's receive buffer into local memory */
-    qtest_bufread(ahci->parent->qts, ptr, rx, bufsize);
+    bufread(ahci->parent->qts, ptr, rx, bufsize);
     guest_free(ahci->parent->alloc, ptr);
 
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
@@ -1231,7 +1231,7 @@ static void ahci_halted_io_test(uint8_t cmd_read, uint8_t cmd_write)
     generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
     ptr = ahci_alloc(ahci, bufsize);
     g_assert(ptr);
-    qtest_memwrite(ahci->parent->qts, ptr, tx, bufsize);
+    memwrite(ahci->parent->qts, ptr, tx, bufsize);
 
     /* Attempt to write (and fail) */
     cmd = ahci_guest_io_halt(ahci, port, cmd_write,
@@ -1305,7 +1305,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
     /* create DMA source buffer and write pattern */
     ptr = ahci_alloc(src, bufsize);
     g_assert(ptr);
-    qtest_memwrite(src->parent->qts, ptr, tx, bufsize);
+    memwrite(src->parent->qts, ptr, tx, bufsize);
 
     /* Write, trigger the VM to stop, migrate, then resume. */
     cmd = ahci_guest_io_halt(src, port, cmd_write,
@@ -1472,7 +1472,7 @@ static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
     }
 
     rx = g_malloc0(opts->size);
-    qtest_bufread(ahci->parent->qts, opts->buffer, rx, opts->size);
+    bufread(ahci->parent->qts, opts->buffer, rx, opts->size);
     g_assert_cmphex(memcmp(tx, rx, opts->size), ==, 0);
     g_free(rx);
 

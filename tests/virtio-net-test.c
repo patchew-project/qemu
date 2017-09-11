@@ -112,7 +112,7 @@ static void rx_test(QVirtioDevice *dev,
     g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
 
     qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_NET_TIMEOUT_US);
-    memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
+    memread(global_qtest, req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
     guest_free(alloc, req_addr);
@@ -129,7 +129,7 @@ static void tx_test(QVirtioDevice *dev,
     int ret;
 
     req_addr = guest_alloc(alloc, 64);
-    memwrite(req_addr + VNET_HDR_SIZE, "TEST", 4);
+    memwrite(global_qtest, req_addr + VNET_HDR_SIZE, "TEST", 4);
 
     free_head = qvirtqueue_add(vq, req_addr, 64, false, false);
     qvirtqueue_kick(dev, vq, free_head);
@@ -186,7 +186,7 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     QDECREF(rsp);
 
     qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_NET_TIMEOUT_US);
-    memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
+    memread(global_qtest, req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
     guest_free(alloc, req_addr);

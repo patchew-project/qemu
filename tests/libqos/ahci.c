@@ -467,7 +467,7 @@ void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot)
     RegD2HFIS *d2h = g_malloc0(0x20);
     uint32_t reg;
 
-    qtest_memread(ahci->parent->qts, ahci->port[port].fb + 0x40, d2h, 0x20);
+    memread(ahci->parent->qts, ahci->port[port].fb + 0x40, d2h, 0x20);
     g_assert_cmphex(d2h->fis_type, ==, 0x34);
 
     reg = ahci_px_rreg(ahci, port, AHCI_PX_TFD);
@@ -485,7 +485,7 @@ void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
     /* We cannot check the Status or E_Status registers, because
      * the status may have again changed between the PIO Setup FIS
      * and the conclusion of the command with the D2H Register FIS. */
-    qtest_memread(ahci->parent->qts, ahci->port[port].fb + 0x20, pio, 0x20);
+    memread(ahci->parent->qts, ahci->port[port].fb + 0x20, pio, 0x20);
     g_assert_cmphex(pio->fis_type, ==, 0x5f);
 
     /* BUG: PIO Setup FIS as utilized by QEMU tries to fit the entire
@@ -517,7 +517,7 @@ void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
 {
     uint64_t ba = ahci->port[port].clb;
     ba += slot * sizeof(AHCICommandHeader);
-    qtest_memread(ahci->parent->qts, ba, cmd, sizeof(AHCICommandHeader));
+    memread(ahci->parent->qts, ba, cmd, sizeof(AHCICommandHeader));
 
     cmd->flags = le16_to_cpu(cmd->flags);
     cmd->prdtl = le16_to_cpu(cmd->prdtl);
@@ -538,7 +538,7 @@ void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
     tmp.prdbc = cpu_to_le32(cmd->prdbc);
     tmp.ctba = cpu_to_le64(cmd->ctba);
 
-    qtest_memwrite(ahci->parent->qts, ba, &tmp, sizeof(AHCICommandHeader));
+    memwrite(ahci->parent->qts, ba, &tmp, sizeof(AHCICommandHeader));
 }
 
 void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot)
@@ -576,7 +576,7 @@ void ahci_write_fis(AHCIQState *ahci, AHCICommand *cmd)
         tmp.count = cpu_to_le16(tmp.count);
     }
 
-    qtest_memwrite(ahci->parent->qts, addr, &tmp, sizeof(tmp));
+    memwrite(ahci->parent->qts, addr, &tmp, sizeof(tmp));
 }
 
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port)
@@ -758,13 +758,13 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     qtest_memset(ahci->parent->qts, ptr, 0x00, bufsize);
 
     if (bufsize && props->write) {
-        qtest_bufwrite(ahci->parent->qts, ptr, buffer, bufsize);
+        bufwrite(ahci->parent->qts, ptr, buffer, bufsize);
     }
 
     ahci_guest_io(ahci, port, ide_cmd, ptr, bufsize, sector);
 
     if (bufsize && props->read) {
-        qtest_bufread(ahci->parent->qts, ptr, buffer, bufsize);
+        bufread(ahci->parent->qts, ptr, buffer, bufsize);
     }
 
     ahci_free(ahci, ptr);
@@ -902,7 +902,7 @@ static int copy_buffer(AHCIQState *ahci, AHCICommand *cmd,
                         const AHCIOpts *opts)
 {
     unsigned char *rx = opts->opaque;
-    qtest_bufread(ahci->parent->qts, opts->buffer, rx, opts->size);
+    bufread(ahci->parent->qts, opts->buffer, rx, opts->size);
     return 0;
 }
 
@@ -1142,7 +1142,7 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
     ahci_write_fis(ahci, cmd);
     /* Then ATAPI CMD, if needed */
     if (cmd->props->atapi) {
-        qtest_memwrite(ahci->parent->qts, table_ptr + 0x40, cmd->atapi_cmd, 16);
+        memwrite(ahci->parent->qts, table_ptr + 0x40, cmd->atapi_cmd, 16);
     }
 
     /* Construct and write the PRDs to the command table */
@@ -1163,8 +1163,8 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
         prd.dbc |= cpu_to_le32(0x80000000); /* Request DPS Interrupt */
 
         /* Commit the PRD entry to the Command Table */
-        qtest_memwrite(ahci->parent->qts, table_ptr + 0x80 + (i * sizeof(PRD)),
-                       &prd, sizeof(PRD));
+        memwrite(ahci->parent->qts, table_ptr + 0x80 + (i * sizeof(PRD)),
+                 &prd, sizeof(PRD));
     }
 
     /* Bookmark the PRDTL and CTBA values */

@@ -202,11 +202,13 @@ static void e1000e_tx_ring_push(e1000e_device *d, void *descr)
     uint32_t tail = e1000e_macreg_read(d, E1000E_TDT);
     uint32_t len = e1000e_macreg_read(d, E1000E_TDLEN) / E1000E_TXD_LEN;
 
-    memwrite(d->tx_ring + tail * E1000E_TXD_LEN, descr, E1000E_TXD_LEN);
+    memwrite(global_qtest, d->tx_ring + tail * E1000E_TXD_LEN, descr,
+             E1000E_TXD_LEN);
     e1000e_macreg_write(d, E1000E_TDT, (tail + 1) % len);
 
     /* Read WB data for the packet transmitted */
-    memread(d->tx_ring + tail * E1000E_TXD_LEN, descr, E1000E_TXD_LEN);
+    memread(global_qtest, d->tx_ring + tail * E1000E_TXD_LEN, descr,
+            E1000E_TXD_LEN);
 }
 
 static void e1000e_rx_ring_push(e1000e_device *d, void *descr)
@@ -214,11 +216,13 @@ static void e1000e_rx_ring_push(e1000e_device *d, void *descr)
     uint32_t tail = e1000e_macreg_read(d, E1000E_RDT);
     uint32_t len = e1000e_macreg_read(d, E1000E_RDLEN) / E1000E_RXD_LEN;
 
-    memwrite(d->rx_ring + tail * E1000E_RXD_LEN, descr, E1000E_RXD_LEN);
+    memwrite(global_qtest, d->rx_ring + tail * E1000E_RXD_LEN, descr,
+             E1000E_RXD_LEN);
     e1000e_macreg_write(d, E1000E_RDT, (tail + 1) % len);
 
     /* Read WB data for the packet received */
-    memread(d->rx_ring + tail * E1000E_RXD_LEN, descr, E1000E_RXD_LEN);
+    memread(global_qtest, d->rx_ring + tail * E1000E_RXD_LEN, descr,
+            E1000E_RXD_LEN);
 }
 
 static void e1000e_wait_isr(e1000e_device *d, uint16_t msg_id)
@@ -269,7 +273,7 @@ static void e1000e_send_verify(e1000e_device *d)
 
     /* Prepare test data buffer */
     uint64_t data = guest_alloc(test_alloc, data_len);
-    memwrite(data, "TEST", 5);
+    memwrite(global_qtest, data, "TEST", 5);
 
     /* Prepare TX descriptor */
     memset(&descr, 0, sizeof(descr));
@@ -365,7 +369,7 @@ static void e1000e_receive_verify(e1000e_device *d)
         esta_dd, ==, esta_dd);
 
     /* Check data sent to the backend */
-    memread(data, buffer, sizeof(buffer));
+    memread(global_qtest, data, buffer, sizeof(buffer));
     g_assert_cmpstr(buffer, == , "TEST");
 
     /* Free test data buffer */

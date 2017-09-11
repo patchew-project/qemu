@@ -822,7 +822,7 @@ static int hex2nib(char ch)
     }
 }
 
-void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
+void memread(QTestState *s, uint64_t addr, void *data, size_t size)
 {
     uint8_t *ptr = data;
     gchar **args;
@@ -877,7 +877,7 @@ void qtest_add_data_func(const char *str, const void *data,
     g_free(path);
 }
 
-void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
+void bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 {
     gchar *bdata;
 
@@ -889,7 +889,7 @@ void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
     g_free(bdata);
 }
 
-void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size)
+void bufread(QTestState *s, uint64_t addr, void *data, size_t size)
 {
     gchar **args;
     size_t len;
@@ -908,7 +908,7 @@ void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size)
     g_strfreev(args);
 }
 
-void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
+void memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 {
     const uint8_t *ptr = data;
     size_t i;

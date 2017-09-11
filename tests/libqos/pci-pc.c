@@ -68,13 +68,13 @@ static void qpci_pc_pio_writeq(QPCIBus *bus, uint32_t addr, uint64_t val)
 
 static void qpci_pc_memread(QPCIBus *bus, uint32_t addr, void *buf, size_t len)
 {
-    qtest_memread(bus->qts, addr, buf, len);
+    memread(bus->qts, addr, buf, len);
 }
 
 static void qpci_pc_memwrite(QPCIBus *bus, uint32_t addr,
                              const void *buf, size_t len)
 {
-    qtest_memwrite(bus->qts, addr, buf, len);
+    memwrite(bus->qts, addr, buf, len);
 }
 
 static uint8_t qpci_pc_config_readb(QPCIBus *bus, int devfn, uint8_t offset)

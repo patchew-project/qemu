@@ -72,7 +72,7 @@ static void megasas_pd_get_info_fuzz(void)
     context[7] = cpu_to_le32(0);
 
     context_pa = qmalloc(qs, sizeof(context));
-    memwrite(context_pa, context, sizeof(context));
+    memwrite(global_qtest, context_pa, context, sizeof(context));
     qpci_io_writel(dev, bar, 0x40, context_pa);
 
     g_free(dev);

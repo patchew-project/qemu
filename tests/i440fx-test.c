@@ -160,7 +160,7 @@ static gboolean verify_area(uint32_t start, uint32_t end, uint8_t value)
     int i;
 
     data = g_malloc0(size);
-    memread(start, data, size);
+    memread(global_qtest, start, data, size);
 
     g_test_message("verify_area: data[0] = 0x%x", data[0]);
 
@@ -183,7 +183,7 @@ static void write_area(uint32_t start, uint32_t end, uint8_t value)
 
     data = g_malloc(size);
     memset(data, value, size);
-    memwrite(start, data, size);
+    memwrite(global_qtest, start, data, size);
 
     g_free(data);
 }
@@ -354,7 +354,7 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
 
     /* check below 4G */
     buf = g_malloc0(BLOB_SIZE);
-    memread(0x100000000ULL - BLOB_SIZE, buf, BLOB_SIZE);
+    memread(global_qtest, 0x100000000ULL - BLOB_SIZE, buf, BLOB_SIZE);
     for (i = 0; i < BLOB_SIZE; ++i) {
         g_assert_cmphex(buf[i], ==, (uint8_t)i);
     }
@@ -362,7 +362,7 @@ static void test_i440fx_firmware(FirmwareTestFixture *fixture,
     /* check in ISA space too */
     memset(buf, 0, BLOB_SIZE);
     isa_bios_size = ISA_BIOS_MAXSZ < BLOB_SIZE ? ISA_BIOS_MAXSZ : BLOB_SIZE;
-    memread(0x100000 - isa_bios_size, buf, isa_bios_size);
+    memread(global_qtest, 0x100000 - isa_bios_size, buf, isa_bios_size);
     for (i = 0; i < isa_bios_size; ++i) {
         g_assert_cmphex(buf[i], ==,
                         (uint8_t)((BLOB_SIZE - isa_bios_size) + i));

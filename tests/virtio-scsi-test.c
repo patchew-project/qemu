@@ -77,7 +77,7 @@ static uint64_t qvirtio_scsi_alloc(QVirtIOSCSI *vs, size_t alloc_size,
 
     addr = guest_alloc(vs->qs->alloc, alloc_size);
     if (data) {
-        memwrite(addr, data, alloc_size);
+        memwrite(global_qtest, addr, data, alloc_size);
     }
 
     return addr;
@@ -129,7 +129,7 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
                      offsetof(struct virtio_scsi_cmd_resp, response));
 
     if (resp_out) {
-        memread(resp_addr, resp_out, sizeof(*resp_out));
+        memread(global_qtest, resp_addr, resp_out, sizeof(*resp_out));
     }
 
     guest_free(vs->qs->alloc, req_addr);
