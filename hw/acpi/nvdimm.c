@@ -404,6 +404,12 @@ static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
     build_header(linker, table_data,
                  (void *)(table_data->data + header), "NFIT",
                  sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, NULL, NULL);
+
+    if (xen_enabled()) {
+        xen_acpi_copy_to_guest("NFIT", table_data->data + header,
+                               sizeof(NvdimmNfitHeader) + fit_buf->fit->len,
+                               XEN_DM_ACPI_BLOB_TYPE_TABLE);
+    }
 }
 
 #define NVDIMM_DSM_MEMORY_SIZE      4096
