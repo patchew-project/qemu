@@ -28,6 +28,7 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "hw/virtio/vhost.h"
+#include "hw/xen/xen.h"
 
 typedef struct pc_dimms_capacity {
      uint64_t size;
@@ -108,7 +109,10 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     }
 
     memory_region_add_subregion(&hpms->mr, addr - hpms->base, mr);
-    vmstate_register_ram(vmstate_mr, dev);
+    /* memory-backend-xen is not backed by RAM. */
+    if (!xen_enabled()) {
+        vmstate_register_ram(vmstate_mr, dev);
+    }
     numa_set_mem_node_id(addr, memory_region_size(mr), dimm->node);
 
 out:
