@@ -1,19 +1,30 @@
 object Base
     member base1: Enum optional=False
-enum Enum ['one', 'two']
+enum Enum
+    member one:
+    member two:
 object Object
     base Base
     tag base1
     case one: Variant1
     case two: Variant2
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+enum QType
     prefix QTYPE
+    member none:
+    member qnull:
+    member qnum:
+    member qstring:
+    member qdict:
+    member qlist:
+    member qbool:
 object SugaredUnion
     member type: SugaredUnionKind optional=False
     tag type
     case one: q_obj_Variant1-wrapper
     case two: q_obj_Variant2-wrapper
-enum SugaredUnionKind ['one', 'two']
+enum SugaredUnionKind
+    member one:
+    member two:
 object Variant1
     member var1: str optional=False
 object Variant2

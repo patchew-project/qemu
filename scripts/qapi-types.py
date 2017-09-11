@@ -203,16 +203,16 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.defn += gen_type_cleanup(name)
 
     @ifcond_decorator
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
         if not info:
-            self._btin += gen_enum(name, values, prefix)
+            self._btin += gen_enum(name, members, prefix)
             if do_builtins:
-                self.defn += gen_enum_lookup(name, values, prefix)
+                self.defn += gen_enum_lookup(name, members, prefix)
         else:
-            self._fwdecl += gen_enum(name, values, prefix)
-            self.defn += gen_enum_lookup(name, values, prefix)
+            self._fwdecl += gen_enum(name, members, prefix)
+            self.defn += gen_enum_lookup(name, members, prefix)
 
     @ifcond_decorator
     def visit_array_type(self, name, info, ifcond, element_type):

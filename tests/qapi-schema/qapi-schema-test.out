@@ -33,7 +33,10 @@ event EVENT_F UserDefAlternate
 object Empty1
 object Empty2
     base Empty1
-enum EnumOne ['value1', 'value2', 'value3']
+enum EnumOne
+    member value1:
+    member value2:
+    member value3:
 object EventStructOne
     member struct1: UserDefOne optional=False
     member string: str optional=False
@@ -42,16 +45,25 @@ object ForceArrays
     member unused1: UserDefOneList optional=False
     member unused2: UserDefTwoList optional=False
     member unused3: TestStructList optional=False
-enum MyEnum []
+enum MyEnum
 object NestedEnumsOne
     member enum1: EnumOne optional=False
     member enum2: EnumOne optional=True
     member enum3: EnumOne optional=False
     member enum4: EnumOne optional=True
-enum QEnumTwo ['value1', 'value2']
+enum QEnumTwo
     prefix QENUM_TWO
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    member value1:
+    member value2:
+enum QType
     prefix QTYPE
+    member none:
+    member qnull:
+    member qnum:
+    member qstring:
+    member qdict:
+    member qlist:
+    member qbool:
 alternate TestIfAlternate
     tag type
     case foo: int
@@ -60,7 +72,9 @@ alternate TestIfAlternate
 command TestIfCmd q_obj_TestIfCmd-arg -> None
    gen=True success_response=True boxed=False
     if defined(TEST_IF_CMD) && defined(TEST_IF_STRUCT)
-enum TestIfEnum ['foo', 'bar']
+enum TestIfEnum
+    member foo:
+    member bar:
     if defined(TEST_IF_ENUM)
 event TestIfEvent q_obj_TestIfEvent-arg
    boxed=False
@@ -73,7 +87,8 @@ object TestIfUnion
     tag type
     case foo: q_obj_TestStruct-wrapper
     if defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)
-enum TestIfUnionKind ['foo']
+enum TestIfUnionKind
+    member foo:
     if defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)
 object TestStruct
     member integer: int optional=False
@@ -122,7 +137,21 @@ object UserDefNativeListUnion
     case string: q_obj_strList-wrapper
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
-enum UserDefNativeListUnionKind ['integer', 's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64', 'number', 'boolean', 'string', 'sizes', 'any']
+enum UserDefNativeListUnionKind
+    member integer:
+    member s8:
+    member s16:
+    member s32:
+    member s64:
+    member u8:
+    member u16:
+    member u32:
+    member u64:
+    member number:
+    member boolean:
+    member string:
+    member sizes:
+    member any:
 object UserDefOne
     base UserDefZero
     member string: str optional=False
@@ -159,7 +188,8 @@ alternate __org.qemu_x-Alt
     case b: __org.qemu_x-Base
 object __org.qemu_x-Base
     member __org.qemu_x-member1: __org.qemu_x-Enum optional=False
-enum __org.qemu_x-Enum ['__org.qemu_x-value']
+enum __org.qemu_x-Enum
+    member __org.qemu_x-value:
 object __org.qemu_x-Struct
     base __org.qemu_x-Base
     member __org.qemu_x-member2: str optional=False
@@ -170,7 +200,8 @@ object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
     tag type
     case __org.qemu_x-branch: q_obj_str-wrapper
-enum __org.qemu_x-Union1Kind ['__org.qemu_x-branch']
+enum __org.qemu_x-Union1Kind
+    member __org.qemu_x-branch:
 object __org.qemu_x-Union2
     base __org.qemu_x-Base
     tag __org.qemu_x-member1

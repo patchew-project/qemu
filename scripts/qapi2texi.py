@@ -207,7 +207,7 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
     def visit_begin(self, schema):
         self.out = ''
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         doc = self.cur_doc
         if self.out:
             self.out += '\n'

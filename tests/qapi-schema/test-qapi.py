@@ -17,19 +17,18 @@ import sys
 
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
-        print 'enum %s %s' % (name, values)
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
+        print 'enum %s' % name
         if prefix:
             print '    prefix %s' % prefix
+        self._print_members(members)
         self._print_if(ifcond)
 
     def visit_object_type(self, name, info, ifcond, base, members, variants):
         print 'object %s' % name
         if base:
             print '    base %s' % base.name
-        for m in members:
-            print '    member %s: %s optional=%s' % \
-                (m.name, m.type.name, m.optional)
+        self._print_members(members)
         self._print_variants(variants)
         self._print_if(ifcond)
 
@@ -50,6 +49,14 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print 'event %s %s' % (name, arg_type and arg_type.name)
         print '   boxed=%s' % boxed
         self._print_if(ifcond)
+
+    @staticmethod
+    def _print_members(members):
+        for m in members:
+            print '    member %s:' % m.name,
+            if isinstance(m, QAPISchemaObjectTypeMember):
+                print '%s optional=%s' % (m.type.name, m.optional),
+            print
 
     @staticmethod
     def _print_variants(variants):

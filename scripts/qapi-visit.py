@@ -284,7 +284,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self._btin = None
 
     @ifcond_decorator
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
         if not info:

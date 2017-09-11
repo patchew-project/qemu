@@ -1,5 +1,12 @@
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+enum QType
     prefix QTYPE
+    member none:
+    member qnull:
+    member qnum:
+    member qstring:
+    member qdict:
+    member qlist:
+    member qbool:
 command fooA q_obj_fooA-arg -> None
    gen=True success_response=True boxed=False
 object q_empty

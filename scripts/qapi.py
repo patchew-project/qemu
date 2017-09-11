@@ -1039,7 +1039,7 @@ class QAPISchemaVisitor(object):
     def visit_builtin_type(self, name, info, json_type):
         pass
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         pass
 
     def visit_array_type(self, name, info, ifcond, element_type):
@@ -1127,21 +1127,21 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
 
 class QAPISchemaEnumType(QAPISchemaType):
-    def __init__(self, name, info, doc, ifcond, values, prefix):
+    def __init__(self, name, info, doc, ifcond, members, prefix):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
-        for v in values:
-            assert isinstance(v, QAPISchemaMember)
-            v.set_owner(name)
+        for m in members:
+            assert isinstance(m, QAPISchemaMember)
+            m.set_owner(name)
         assert prefix is None or isinstance(prefix, str)
-        self.values = values
+        self.members = members
         self.prefix = prefix
 
     def check(self, schema):
         seen = {}
-        for v in self.values:
-            v.check_clash(self.info, seen)
+        for m in self.members:
+            m.check_clash(self.info, seen)
             if self.doc:
-                self.doc.connect_member(v)
+                self.doc.connect_member(m)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
@@ -1151,14 +1151,14 @@ class QAPISchemaEnumType(QAPISchemaType):
         return c_name(self.name)
 
     def member_names(self):
-        return [v.name for v in self.values]
+        return [m.name for m in self.members]
 
     def json_type(self):
         return 'string'
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info, self.ifcond,
-                                self.member_names(), self.prefix)
+                                self.members, self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -1952,19 +1952,19 @@ def ifcond_decorator(func):
     return func_wrapper
 
 
-def gen_enum_lookup(name, values, prefix=None):
+def gen_enum_lookup(name, members, prefix=None):
     ret = mcgen('''
 
 const QEnumLookup %(c_name)s_lookup = {
     .array = (const char *const[]) {
 ''',
                 c_name=c_name(name))
-    for value in values:
-        index = c_enum_const(name, value, prefix)
+    for m in members:
+        index = c_enum_const(name, m.name, prefix)
         ret += mcgen('''
-        [%(index)s] = "%(value)s",
+        [%(index)s] = "%(name)s",
 ''',
-                     index=index, value=value)
+                     index=index, name=m.name)
 
     ret += mcgen('''
     },
@@ -1975,9 +1975,9 @@ const QEnumLookup %(c_name)s_lookup = {
     return ret
 
 
-def gen_enum(name, values, prefix=None):
+def gen_enum(name, members, prefix=None):
     # append automatically generated _MAX value
-    enum_values = values + ['_MAX']
+    enum_members = members + [QAPISchemaMember('_MAX')]
 
     ret = mcgen('''
 
@@ -1985,11 +1985,11 @@ typedef enum %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    for value in enum_values:
+    for m in enum_members:
         ret += mcgen('''
     %(c_enum)s,
 ''',
-                     c_enum=c_enum_const(name, value, prefix))
+                     c_enum=c_enum_const(name, m.name, prefix))
 
     ret += mcgen('''
 } %(c_name)s;

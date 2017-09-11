@@ -1,4 +1,14 @@
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+enum QType
     prefix QTYPE
-enum Status ['good', 'bad', 'ugly']
+    member none:
+    member qnull:
+    member qnum:
+    member qstring:
+    member qdict:
+    member qlist:
+    member qbool:
+enum Status
+    member good:
+    member bad:
+    member ugly:
 object q_empty
