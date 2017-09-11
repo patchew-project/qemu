@@ -141,6 +141,7 @@ enum {
 };
 
 typedef struct TestServer {
+    QTestState *qts;
     QPCIBus *bus;
     gchar *socket_path;
     gchar *mig_path;
@@ -166,7 +167,7 @@ static void init_virtio_dev(TestServer *s)
     QVirtioPCIDevice *dev;
     uint32_t features;
 
-    s->bus = qpci_init_pc(global_qtest, NULL);
+    s->bus = qpci_init_pc(s->qts, NULL);
     g_assert_nonnull(s->bus);
 
     dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
@@ -238,8 +239,11 @@ static void read_guest_mem(const void *data)
         guest_mem += (s->memory.regions[i].mmap_offset / sizeof(*guest_mem));
 
         for (j = 0; j < 256; j++) {
-            uint32_t a = readl(s->memory.regions[i].guest_phys_addr + j*4);
-            uint32_t b = guest_mem[j];
+            uint32_t a, b;
+
+            a = qtest_readl(s->qts,
+                            s->memory.regions[i].guest_phys_addr + j * 4);
+            b = guest_mem[j];
 
             g_assert_cmpint(a, ==, b);
         }
@@ -512,6 +516,12 @@ static gboolean _test_server_free(TestServer *server)
 
 static void test_server_free(TestServer *server)
 {
+    assert(!global_qtest);
+    if (server->qts) {
+        qtest_quit(server->qts);
+        server->qts = NULL;
+    }
+
     g_idle_add((GSourceFunc)_test_server_free, server);
 }
 
@@ -623,7 +633,6 @@ static void test_migrate(void)
     TestServer *s = test_server_new("src");
     TestServer *dest = test_server_new("dest");
     char *uri = g_strdup_printf("%s%s", "unix:", dest->mig_path);
-    QTestState *global = global_qtest, *from, *to;
     GSource *source;
     gchar *cmd;
     QDict *rsp;
@@ -634,7 +643,7 @@ static void test_migrate(void)
     test_server_listen(dest);
 
     cmd = GET_QEMU_CMDE(s, 2, "", "");
-    from = qtest_start(cmd);
+    s->qts = qtest_init(cmd);
     g_free(cmd);
 
     init_virtio_dev(s);
@@ -643,7 +652,7 @@ static void test_migrate(void)
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
 
     cmd = GET_QEMU_CMDE(dest, 2, "", " -incoming %s", uri);
-    to = qtest_init(cmd);
+    dest->qts = qtest_init(cmd);
     g_free(cmd);
 
     source = g_source_new(&test_migrate_source_funcs,
@@ -654,16 +663,13 @@ static void test_migrate(void)
 
     /* slow down migration to have time to fiddle with log */
     /* TODO: qtest could learn to break on some places */
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 10 } }");
+    rsp = qtest_qmp(s->qts, "{ 'execute': 'migrate_set_speed',"
+                    "'arguments': { 'value': 10 } }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
-    rsp = qmp(cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(s->qts,
+                    "{'execute': 'migrate', 'arguments': { 'uri': %s}}", uri);
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
@@ -678,28 +684,23 @@ static void test_migrate(void)
     munmap(log, size);
 
     /* speed things up */
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 0 } }");
+    rsp = qtest_qmp(s->qts, "{ 'execute': 'migrate_set_speed',"
+                    "'arguments': { 'value': 0 } }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
-    qmp_eventwait("STOP");
+    qtest_qmp_eventwait(s->qts, "STOP");
 
-    global_qtest = to;
-    qmp_eventwait("RESUME");
+    qtest_qmp_eventwait(dest->qts, "RESUME");
 
     read_guest_mem(dest);
 
     g_source_destroy(source);
     g_source_unref(source);
 
-    qtest_quit(to);
     test_server_free(dest);
-    qtest_quit(from);
     test_server_free(s);
     g_free(uri);
-
-    global_qtest = global;
 }
 
 static void wait_for_rings_started(TestServer *s, size_t count)
@@ -754,7 +755,7 @@ static void test_reconnect_subprocess(void)
 
     g_thread_new("connect", connect_thread, s);
     cmd = GET_QEMU_CMDE(s, 2, ",server", "");
-    qtest_start(cmd);
+    s->qts = qtest_init(cmd);
     g_free(cmd);
 
     init_virtio_dev(s);
@@ -768,7 +769,6 @@ static void test_reconnect_subprocess(void)
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
-    qtest_end();
     test_server_free(s);
     return;
 }
@@ -790,14 +790,13 @@ static void test_connect_fail_subprocess(void)
     s->test_fail = true;
     g_thread_new("connect", connect_thread, s);
     cmd = GET_QEMU_CMDE(s, 2, ",server", "");
-    qtest_start(cmd);
+    s->qts = qtest_init(cmd);
     g_free(cmd);
 
     init_virtio_dev(s);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
-    qtest_end();
     test_server_free(s);
 }
 
@@ -818,14 +817,13 @@ static void test_flags_mismatch_subprocess(void)
     s->test_flags = TEST_FLAGS_DISCONNECT;
     g_thread_new("connect", connect_thread, s);
     cmd = GET_QEMU_CMDE(s, 2, ",server", "");
-    qtest_start(cmd);
+    s->qts = qtest_init(cmd);
     g_free(cmd);
 
     init_virtio_dev(s);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
-    qtest_end();
     test_server_free(s);
 }
 
@@ -890,13 +888,13 @@ static void test_multiqueue(void)
                           512, 512, root, s->chr_name,
                           s->socket_path, "", s->chr_name,
                           queues, queues * 2 + 2);
-    qtest_start(cmd);
+    s->qts = qtest_init(cmd);
     g_free(cmd);
 
-    bus = qpci_init_pc(global_qtest, NULL);
+    bus = qpci_init_pc(s->qts, NULL);
     dev = virtio_net_pci_init(bus, PCI_SLOT);
 
-    alloc = pc_alloc_init(global_qtest);
+    alloc = pc_alloc_init(s->qts);
     for (i = 0; i < queues * 2; i++) {
         vq[i] = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, i);
     }
@@ -913,14 +911,12 @@ static void test_multiqueue(void)
     g_free(dev->pdev);
     g_free(dev);
     qpci_free_pc(bus);
-    qtest_end();
 
     test_server_free(s);
 }
 
 int main(int argc, char **argv)
 {
-    QTestState *s = NULL;
     TestServer *server = NULL;
     const char *hugefs;
     char *qemu_cmd = NULL;
@@ -957,7 +953,7 @@ int main(int argc, char **argv)
 
     qemu_cmd = GET_QEMU_CMD(server);
 
-    s = qtest_start(qemu_cmd);
+    server->qts = qtest_init(qemu_cmd);
     g_free(qemu_cmd);
     init_virtio_dev(server);
 
@@ -978,10 +974,6 @@ int main(int argc, char **argv)
 #endif
 
     ret = g_test_run();
-
-    if (s) {
-        qtest_quit(s);
-    }
 
     /* cleanup */
     test_server_free(server);
