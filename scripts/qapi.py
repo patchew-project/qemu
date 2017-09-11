@@ -659,6 +659,14 @@ def check_if(expr, info):
             info, "'if' condition must be a string or a list of strings")
 
 
+def check_unknown_keys(info, dict, allowed_keys):
+    diff = set(dict) - allowed_keys
+    if not diff:
+        return
+    raise QAPISemError(info, "Dictionnary has unknown keys: %s (allowed: %s)" %
+        (', '.join(diff), ', '.join(allowed_keys)))
+
+
 def check_type(info, source, value, allow_array=False,
                allow_dict=False, allow_optional=False,
                allow_metas=[]):
@@ -739,6 +747,10 @@ def check_event(expr, info):
                allow_metas=meta)
 
 
+def enum_get_values(expr):
+    return [e if isinstance(e, str) else e['name'] for e in expr['data']]
+
+
 def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
@@ -798,7 +810,7 @@ def check_union(expr, info):
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
-            if key not in enum_define['data']:
+            if key not in enum_get_values(enum_define):
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
@@ -806,7 +818,7 @@ def check_union(expr, info):
 
     # If discriminator is user-defined, ensure all values are covered
     if enum_define:
-        for value in enum_define['data']:
+        for value in enum_get_values(enum_define):
             if value not in members.keys():
                 raise QAPISemError(info, "Union '%s' data missing '%s' branch"
                                    % (name, value))
@@ -837,7 +849,7 @@ def check_alternate(expr, info):
         if qtype == 'QTYPE_QSTRING':
             enum_expr = enum_types.get(value)
             if enum_expr:
-                for v in enum_expr['data']:
+                for v in enum_get_values(enum_expr):
                     if v in ['on', 'off']:
                         conflicting.add('QTYPE_QBOOL')
                     if re.match(r'[-+0-9.]', v): # lazy, could be tightened
@@ -865,6 +877,14 @@ def check_enum(expr, info):
         raise QAPISemError(info,
                            "Enum '%s' requires a string for 'prefix'" % name)
     for member in members:
+        if isinstance(member, dict):
+            if 'name' not in member:
+                raise QAPISemError(info, "Dictionary member of enum '%s' must "
+                                   "have a 'name' key" % name)
+            if 'if' in member:
+                check_if(member, info)
+            check_unknown_keys(info, member, {'name', 'if'})
+            member = member['name']
         check_name(info, "Member of enum '%s'" % name, member,
                    enum_member=True)
 
@@ -1280,9 +1300,11 @@ class QAPISchemaObjectType(QAPISchemaType):
 class QAPISchemaMember(object):
     role = 'member'
 
-    def __init__(self, name):
+    def __init__(self, name, ifcond=None):
         assert isinstance(name, str)
+        assert ifcond is None or isinstance(ifcond, str)
         self.name = name
+        self.ifcond = ifcond
         self.owner = None
 
     def set_owner(self, name):
@@ -1559,7 +1581,14 @@ class QAPISchema(object):
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v) for v in values]
+        enum = []
+        for v in values:
+            ifcond = None
+            if isinstance(v, dict):
+                ifcond = v.get('if')
+                v = v['name']
+            enum.append(QAPISchemaMember(v, ifcond))
+        return enum
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()

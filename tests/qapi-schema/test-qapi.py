@@ -56,6 +56,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print '    member %s:' % m.name,
             if isinstance(m, QAPISchemaObjectTypeMember):
                 print '%s optional=%s' % (m.type.name, m.optional),
+            if m.ifcond:
+                print 'if=%s' % m.ifcond,
             print
 
     @staticmethod
