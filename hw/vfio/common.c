@@ -35,6 +35,7 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "hw/vfio/pci.h"
 
 struct vfio_group_head vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -1181,6 +1182,33 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
         vfio_put_address_space(space);
     }
+}
+
+AddressSpace *vfio_lookup_as(int groupid, PCIDevice *pdev, Error **errp)
+{
+    VFIOGroup *group;
+    VFIODevice *vbasedev_iter;
+    VFIOPCIDevice *vdev, *vd;
+
+    vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
+            if (strcmp(vbasedev_iter->name, vdev->vbasedev.name) == 0) {
+                error_setg(errp, "device is already attached");
+                return 0;
+            }
+
+            if (vbasedev_iter->group->groupid == groupid) {
+                vd = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
+
+                if (vd->pdev.bus == pdev->bus) {
+                    return vbasedev_iter->group->container->space->as;
+                }
+            }
+        }
+    }
+
+    return pci_device_iommu_address_space(pdev);
 }
 
 VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
