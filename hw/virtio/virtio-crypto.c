@@ -38,6 +38,28 @@ static inline bool virtio_crypto_in_mux_mode(VirtIODevice *vdev)
     return virtio_vdev_has_feature(vdev, VIRTIO_CRYPTO_F_MUX_MODE);
 }
 
+static inline bool virtio_crypto_stateless_req(VirtIODevice *vdev,
+                                uint32_t opcode, uint32_t flag)
+{
+    if (!virtio_crypto_in_mux_mode(vdev)) {
+        return false;
+    }
+
+    switch (opcode) {
+    case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
+    case VIRTIO_CRYPTO_CIPHER_DECRYPT:
+        if (!virtio_vdev_has_feature(vdev,
+            VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE)) {
+            return false;
+        }
+        return (flag != VIRTIO_CRYPTO_FLAG_SESSION_MODE);
+    default:
+        break;
+    }
+
+    return false;
+}
+
 static int
 virtio_crypto_cipher_session_helper(VirtIODevice *vdev,
            CryptoDevBackendSymSessionInfo *info,
@@ -388,9 +410,10 @@ static void virtio_crypto_init_request(VirtIOCrypto *vcrypto, VirtQueue *vq,
 
 static void virtio_crypto_free_request(VirtIOCryptoReq *req)
 {
+    size_t max_len;
+
     if (req) {
         if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
-            size_t max_len;
             CryptoDevBackendSymOpInfo *op_info = req->u.sym_op_info;
 
             max_len = op_info->iv_len +
@@ -402,6 +425,21 @@ static void virtio_crypto_free_request(VirtIOCryptoReq *req)
             /* Zeroize and free request data structure */
             memset(op_info, 0, sizeof(*op_info) + max_len);
             g_free(op_info);
+        } else if (req->flags == CRYPTODEV_BACKEND_ALG_SYM_STATELESS) {
+            CryptoDevBackendSymStatelessInfo *sym_stateless_info;
+
+            sym_stateless_info = req->u.sym_stateless_info;
+            max_len = sym_stateless_info->session_info.key_len +
+                sym_stateless_info->session_info.auth_key_len +
+                sym_stateless_info->op_info.iv_len +
+                sym_stateless_info->op_info.src_len +
+                sym_stateless_info->op_info.dst_len +
+                sym_stateless_info->op_info.aad_len +
+                sym_stateless_info->op_info.digest_result_len;
+            /* Zeroize and free request data structure */
+            memset(sym_stateless_info, 0,
+                sizeof(*sym_stateless_info) + max_len);
+            g_free(sym_stateless_info);
         }
         g_free(req);
     }
@@ -449,6 +487,9 @@ static void virtio_crypto_req_complete(VirtIOCryptoReq *req, uint8_t status)
     if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
         virtio_crypto_sym_input_data_helper(vdev, req, status,
                                             req->u.sym_op_info);
+    } else if (req->flags == CRYPTODEV_BACKEND_ALG_SYM_STATELESS) {
+        virtio_crypto_sym_input_data_helper(vdev, req, status,
+                &req->u.sym_stateless_info->op_info);
     }
     stb_p(&req->in->status, status);
     virtqueue_push(req->vq, &req->elem, req->in_len);
@@ -623,6 +664,221 @@ virtio_crypto_handle_sym_req(VirtIOCrypto *vcrypto,
 }
 
 static int
+virtio_crypto_handle_sym_stateless_req(VirtIOCrypto *vcrypto,
+               struct virtio_crypto_sym_data_req_stateless *req,
+               CryptoDevBackendSymStatelessInfo **stateless_info,
+               struct iovec *iov, unsigned int out_num)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
+    CryptoDevBackendSymStatelessInfo *sym_stateless_info;
+
+    uint32_t op_type;
+    uint32_t src_len = 0, dst_len = 0;
+    uint32_t iv_len = 0;
+    uint32_t aad_len = 0, hash_result_len = 0;
+    uint32_t hash_start_src_offset = 0, len_to_hash = 0;
+    uint32_t cipher_start_src_offset = 0, len_to_cipher = 0;
+    uint32_t key_len = 0, auth_key_len = 0;
+
+    uint64_t max_len, curr_size = 0;
+    size_t s;
+
+    op_type = ldl_le_p(&req->op_type);
+
+    if (op_type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
+        key_len = ldl_le_p(&req->u.cipher.para.sess_para.keylen);
+        iv_len = ldl_le_p(&req->u.cipher.para.iv_len);
+        src_len = ldl_le_p(&req->u.cipher.para.src_data_len);
+        dst_len = ldl_le_p(&req->u.cipher.para.dst_data_len);
+    } else if (op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
+        key_len = ldl_le_p(&req->u.chain.para.sess_para.cipher.keylen);
+        auth_key_len =
+            ldl_le_p(&req->u.chain.para.sess_para.hash.auth_key_len);
+        iv_len = ldl_le_p(&req->u.chain.para.iv_len);
+        src_len = ldl_le_p(&req->u.chain.para.src_data_len);
+        dst_len = ldl_le_p(&req->u.chain.para.dst_data_len);
+
+        aad_len = ldl_le_p(&req->u.chain.para.aad_len);
+        hash_result_len = ldl_le_p(&req->u.chain.para.hash_result_len);
+        hash_start_src_offset = ldl_le_p(
+                         &req->u.chain.para.hash_start_src_offset);
+        cipher_start_src_offset = ldl_le_p(
+                         &req->u.chain.para.cipher_start_src_offset);
+        len_to_cipher = ldl_le_p(&req->u.chain.para.len_to_cipher);
+        len_to_hash = ldl_le_p(&req->u.chain.para.len_to_hash);
+    } else {
+        /* VIRTIO_CRYPTO_SYM_OP_NONE */
+        error_report("virtio-crypto unsupported cipher type");
+        return -VIRTIO_CRYPTO_NOTSUPP;
+    }
+
+    if (key_len > vcrypto->conf.max_cipher_key_len) {
+        virtio_error(vdev,
+            "virtio-crypto length of cipher key is too big: %u", key_len);
+        return -EFAULT;
+    }
+
+    if (auth_key_len > vcrypto->conf.max_auth_key_len) {
+        virtio_error(vdev,
+         "virtio-crypto length of auth key is too big: %u", auth_key_len);
+        return -EFAULT;
+    }
+
+    max_len = (uint64_t)key_len + auth_key_len + iv_len + aad_len +
+                src_len + dst_len + hash_result_len;
+    if (unlikely(max_len > vcrypto->conf.max_size)) {
+        virtio_error(vdev, "virtio-crypto too big length");
+        return -EFAULT;
+    }
+
+    sym_stateless_info =
+            g_malloc0(sizeof(CryptoDevBackendSymStatelessInfo) + max_len);
+    sym_stateless_info->session_info.key_len = key_len;
+    sym_stateless_info->session_info.auth_key_len = auth_key_len;
+    sym_stateless_info->op_info.iv_len = iv_len;
+    sym_stateless_info->op_info.src_len = src_len;
+    sym_stateless_info->op_info.dst_len = dst_len;
+    sym_stateless_info->op_info.aad_len = aad_len;
+    sym_stateless_info->op_info.digest_result_len = hash_result_len;
+    sym_stateless_info->op_info.hash_start_src_offset =
+                                            hash_start_src_offset;
+    sym_stateless_info->op_info.len_to_hash = len_to_hash;
+    sym_stateless_info->op_info.cipher_start_src_offset =
+                                            cipher_start_src_offset;
+    sym_stateless_info->op_info.len_to_cipher = len_to_cipher;
+
+    sym_stateless_info->session_info.op_type =
+                    sym_stateless_info->op_info.op_type = op_type;
+    if (op_type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
+        sym_stateless_info->session_info.cipher_alg =
+                    ldl_le_p(&req->u.cipher.para.sess_para.algo);
+        sym_stateless_info->session_info.direction =
+                    ldl_le_p(&req->u.cipher.para.sess_para.op);
+    } else { /* It must be algorithm chain here */
+        sym_stateless_info->session_info.cipher_alg =
+                    ldl_le_p(&req->u.chain.para.sess_para.cipher.algo);
+        sym_stateless_info->session_info.direction =
+                    ldl_le_p(&req->u.chain.para.sess_para.cipher.op);
+        sym_stateless_info->session_info.hash_alg =
+                    ldl_le_p(&req->u.chain.para.sess_para.hash.algo);
+        sym_stateless_info->session_info.hash_mode =
+                    ldl_le_p(&req->u.chain.para.sess_para.hash.hash_mode);
+        sym_stateless_info->session_info.alg_chain_order =
+                    ldl_le_p(&req->u.chain.para.sess_para.alg_chain_order);
+    }
+
+    DPRINTF("cipher_alg=%" PRIu32 ", info->direction=%" PRIu32 "\n",
+            sym_stateless_info->session_info.cipher_alg,
+            sym_stateless_info->session_info.direction);
+    /* Begin to parse the buffer */
+
+    /*
+     * Cipher request components:
+     *   header + key + iv + src_data + dst_data
+     *
+     * Alg_chainning request components:
+     *   header + key + auth_key + iv + aad + src_data + dst_data + hash_result
+     */
+     if (key_len > 0) {
+        DPRINTF("key_len=%" PRIu32 "\n", key_len);
+        sym_stateless_info->session_info.cipher_key =
+                sym_stateless_info->op_info.data + curr_size;
+
+        s = iov_to_buf(iov, out_num, 0,
+            sym_stateless_info->session_info.cipher_key, key_len);
+        if (unlikely(s != key_len)) {
+            virtio_error(vdev, "virtio-crypto cipher key incorrect");
+            goto err;
+        }
+        iov_discard_front(&iov, &out_num, key_len);
+        curr_size += key_len;
+    }
+    if (auth_key_len > 0) {
+        DPRINTF("auth_key_len=%" PRIu32 "\n", auth_key_len);
+        sym_stateless_info->session_info.auth_key =
+                sym_stateless_info->op_info.data + curr_size;
+
+        s = iov_to_buf(iov, out_num, 0,
+            sym_stateless_info->session_info.auth_key, auth_key_len);
+        if (unlikely(s != auth_key_len)) {
+            virtio_error(vdev, "virtio-crypto auth key incorrect");
+            goto err;
+        }
+        iov_discard_front(&iov, &out_num, auth_key_len);
+        curr_size += auth_key_len;
+    }
+    if (iv_len > 0) {
+        DPRINTF("iv_len=%" PRIu32 "\n", iv_len);
+        sym_stateless_info->op_info.iv =
+            sym_stateless_info->op_info.data + curr_size;
+
+        s = iov_to_buf(iov, out_num, 0,
+            sym_stateless_info->op_info.iv, iv_len);
+        if (unlikely(s != iv_len)) {
+            virtio_error(vdev, "virtio-crypto iv incorrect");
+            goto err;
+        }
+        iov_discard_front(&iov, &out_num, iv_len);
+        curr_size += iv_len;
+    }
+
+    /* Handle additional authentication data if exists */
+    if (aad_len > 0) {
+        DPRINTF("aad_len=%" PRIu32 "\n", aad_len);
+        sym_stateless_info->op_info.aad_data =
+            sym_stateless_info->op_info.data + curr_size;
+
+        s = iov_to_buf(iov, out_num, 0,
+            sym_stateless_info->op_info.aad_data, aad_len);
+        if (unlikely(s != aad_len)) {
+            virtio_error(vdev, "virtio-crypto additional auth data incorrect");
+            goto err;
+        }
+        iov_discard_front(&iov, &out_num, aad_len);
+
+        curr_size += aad_len;
+    }
+    /* Handle the source data */
+    if (src_len > 0) {
+        DPRINTF("src_len=%" PRIu32 "\n", src_len);
+        sym_stateless_info->op_info.src =
+            sym_stateless_info->op_info.data + curr_size;
+
+        s = iov_to_buf(iov, out_num, 0,
+            sym_stateless_info->op_info.src, src_len);
+        if (unlikely(s != src_len)) {
+            virtio_error(vdev, "virtio-crypto source data incorrect");
+            goto err;
+        }
+        iov_discard_front(&iov, &out_num, src_len);
+
+        curr_size += src_len;
+    }
+
+    /* Handle the destination data */
+    sym_stateless_info->op_info.dst =
+        sym_stateless_info->op_info.data + curr_size;
+    curr_size += dst_len;
+
+    DPRINTF("dst_len=%" PRIu32 "\n", dst_len);
+
+    /* Handle the hash digest result */
+    if (hash_result_len > 0) {
+        DPRINTF("hash_result_len=%" PRIu32 "\n", hash_result_len);
+        sym_stateless_info->op_info.digest_result =
+            sym_stateless_info->op_info.data + curr_size;
+    }
+
+    *stateless_info = sym_stateless_info;
+
+    return 0;
+
+err:
+    g_free(sym_stateless_info);
+    return -EFAULT;
+}
+
+static int
 virtio_crypto_handle_request(VirtIOCryptoReq *request)
 {
     VirtIOCrypto *vcrypto = request->vcrypto;
@@ -630,6 +886,17 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     VirtQueueElement *elem = &request->elem;
     int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(request->vq));
     struct virtio_crypto_op_header *generic_hdr;
+    union {
+        struct virtio_crypto_op_data_req req;
+        struct virtio_crypto_op_data_req_mux mux_req;
+    } op;
+
+    bool is_stateless_req = false;
+    union {
+        CryptoDevBackendSymOpInfo *sym_op_info;
+        CryptoDevBackendSymStatelessInfo *stateless_info;
+    } info;
+
     int ret;
     struct iovec *in_iov;
     struct iovec *out_iov;
@@ -638,14 +905,9 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     uint32_t opcode;
     uint8_t status = VIRTIO_CRYPTO_ERR;
     uint64_t session_id;
-    CryptoDevBackendSymOpInfo *sym_op_info = NULL;
     Error *local_err = NULL;
     size_t s, exp_len;
     void *body;
-    union {
-        struct virtio_crypto_op_data_req req;
-        struct virtio_crypto_op_data_req_mux mux_req;
-    } op;
 
     if (elem->out_num < 1 || elem->in_num < 1) {
         virtio_error(vdev, "virtio-crypto dataq missing headers");
@@ -693,14 +955,19 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     request->in_iov = in_iov;
 
     opcode = ldl_le_p(&generic_hdr->opcode);
-    session_id = ldq_le_p(&generic_hdr->session_id);
 
     switch (opcode) {
     case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
     case VIRTIO_CRYPTO_CIPHER_DECRYPT:
         if (virtio_crypto_in_mux_mode(vdev)) {
-            body = g_new0(struct virtio_crypto_sym_data_req, 1);
-            exp_len = sizeof(struct virtio_crypto_sym_data_req);
+            if (virtio_crypto_stateless_req(vdev, opcode, generic_hdr->flag)) {
+                body = g_new0(struct virtio_crypto_sym_data_req_stateless, 1);
+                exp_len = sizeof(struct virtio_crypto_sym_data_req_stateless);
+                is_stateless_req = true;
+            } else {
+                body = g_new0(struct virtio_crypto_sym_data_req, 1);
+                exp_len = sizeof(struct virtio_crypto_sym_data_req);
+            }
             s = iov_to_buf(out_iov, out_num, 0, body, exp_len);
             if (unlikely(s != exp_len)) {
                 g_free(body);
@@ -711,8 +978,13 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
             body = &op.req.u.sym_req;
         }
 
-        ret = virtio_crypto_handle_sym_req(vcrypto, body,
-                         &sym_op_info, out_iov, out_num);
+        if (is_stateless_req) {
+            ret = virtio_crypto_handle_sym_stateless_req(vcrypto, body,
+                            &info.stateless_info, out_iov, out_num);
+        } else {
+            ret = virtio_crypto_handle_sym_req(vcrypto, body,
+                            &info.sym_op_info, out_iov, out_num);
+        }
         /* Serious errors, need to reset virtio crypto device */
         if (ret == -EFAULT) {
             return -1;
@@ -720,11 +992,19 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
             virtio_crypto_req_complete(request, VIRTIO_CRYPTO_NOTSUPP);
             virtio_crypto_free_request(request);
         } else {
-            sym_op_info->session_id = session_id;
+            if (is_stateless_req) {
+                info.stateless_info->op_info.op_code = opcode;
+                request->flags = CRYPTODEV_BACKEND_ALG_SYM_STATELESS;
+                request->u.sym_stateless_info = info.stateless_info;
+            } else {
+                info.sym_op_info->op_code = opcode;
+                session_id = ldq_le_p(&generic_hdr->session_id);
+                info.sym_op_info->session_id = session_id;
+                /* Set request's parameter */
+                request->flags = CRYPTODEV_BACKEND_ALG_SYM;
+                request->u.sym_op_info = info.sym_op_info;
+            }
 
-            /* Set request's parameter */
-            request->flags = CRYPTODEV_BACKEND_ALG_SYM;
-            request->u.sym_op_info = sym_op_info;
             ret = cryptodev_backend_crypto_operation(vcrypto->cryptodev,
                                     request, queue_index, &local_err);
             if (ret < 0) {

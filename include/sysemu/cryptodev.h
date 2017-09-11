@@ -103,6 +103,7 @@ typedef struct CryptoDevBackendSymSessionInfo {
  *
  * @session_id: session index which was previously
  *              created by cryptodev_backend_sym_create_session()
+ * @op_code: operation code (refer to virtio_crypto.h)
  * @aad_len: byte length of additional authenticated data
  * @iv_len: byte length of initialization vector or counter
  * @src_len: byte length of source data
@@ -129,6 +130,8 @@ typedef struct CryptoDevBackendSymSessionInfo {
  */
 typedef struct CryptoDevBackendSymOpInfo {
     uint64_t session_id;
+    /* corresponding with virtio crypto spec */
+    uint32_t op_code;
     uint32_t aad_len;
     uint32_t iv_len;
     uint32_t src_len;

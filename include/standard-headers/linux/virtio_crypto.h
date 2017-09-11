@@ -283,6 +283,7 @@ struct virtio_crypto_op_header {
 	uint32_t algo;
 	/* session_id should be service-specific algorithms */
 	uint64_t session_id;
+#define VIRTIO_CRYPTO_FLAG_SESSION_MODE	1
 	/* control flag to control the request */
 	uint32_t flag;
 	uint32_t padding;
@@ -413,6 +414,166 @@ struct virtio_crypto_op_data_req {
 		struct virtio_crypto_aead_data_req aead_req;
 		uint8_t padding[48];
 	} u;
+};
+
+struct virtio_crypto_cipher_para_stateless {
+	struct {
+		/* See VIRTIO_CRYPTO_CIPHER* above */
+		uint32_t algo;
+		/* length of key */
+		uint32_t keylen;
+
+		/* See VIRTIO_CRYPTO_OP_* above */
+		uint32_t op;
+	} sess_para;
+
+	/*
+	 * Byte Length of valid IV/Counter
+	 */
+	uint32_t iv_len;
+	/* length of source data */
+	uint32_t src_data_len;
+	/* length of dst data */
+	uint32_t dst_data_len;
+};
+
+struct virtio_crypto_alg_chain_data_para_stateless {
+	struct {
+		/* See VIRTIO_CRYPTO_SYM_ALG_CHAIN_ORDER_* above */
+		uint32_t alg_chain_order;
+		/* length of the additional authenticated data in bytes */
+		uint32_t aad_len;
+
+		struct {
+			/* See VIRTIO_CRYPTO_CIPHER* above */
+			uint32_t algo;
+			/* length of key */
+			uint32_t keylen;
+			/* See VIRTIO_CRYPTO_OP_* above */
+			uint32_t op;
+		} cipher;
+
+		struct {
+			/* See VIRTIO_CRYPTO_HASH_* or _MAC_* above */
+			uint32_t algo;
+			/* length of authenticated key */
+			uint32_t auth_key_len;
+			/* See VIRTIO_CRYPTO_SYM_HASH_MODE_* above */
+			uint32_t hash_mode;
+		} hash;
+	} sess_para;
+
+	uint32_t iv_len;
+	/* Length of source data */
+	uint32_t src_data_len;
+	/* Length of destination data */
+	uint32_t dst_data_len;
+	/* Starting point for cipher processing in source data */
+	uint32_t cipher_start_src_offset;
+	/* Length of the source data that the cipher will be computed on */
+	uint32_t len_to_cipher;
+	/* Starting point for hash processing in source data */
+	uint32_t hash_start_src_offset;
+	/* Length of the source data that the hash will be computed on */
+	uint32_t len_to_hash;
+	/* Length of the additional auth data */
+	uint32_t aad_len;
+	/* Length of the hash result */
+	uint32_t hash_result_len;
+	uint32_t reserved;
+};
+
+struct virtio_crypto_hash_para_stateless {
+	struct {
+		/* See VIRTIO_CRYPTO_HASH_* above */
+		uint32_t algo;
+	} sess_para;
+
+	/* length of source data */
+	uint32_t src_data_len;
+	/* hash result length */
+	uint32_t hash_result_len;
+	uint32_t reserved;
+};
+
+struct virtio_crypto_mac_para_stateless {
+	struct {
+		/* See VIRTIO_CRYPTO_MAC_* above */
+		uint32_t algo;
+		/* length of authenticated key */
+		uint32_t auth_key_len;
+	} sess_para;
+
+	/* length of source data */
+	uint32_t src_data_len;
+	/* hash result length */
+	uint32_t hash_result_len;
+};
+
+struct virtio_crypto_aead_para_stateless {
+	struct {
+		/* See VIRTIO_CRYPTO_AEAD_* above */
+		uint32_t algo;
+		/* length of key */
+		uint32_t key_len;
+		/* encrypt or decrypt, See above VIRTIO_CRYPTO_OP_* */
+		uint32_t op;
+	} sess_para;
+
+	/*
+	 * Byte Length of valid IV data pointed to by the below iv_addr
+	 * parameter.
+	 */
+	uint32_t iv_len;
+	/* Authentication tag length */
+	uint32_t tag_len;
+	/* length of the additional authenticated data (AAD) in bytes */
+	uint32_t aad_len;
+	/* length of source data */
+	uint32_t src_data_len;
+	/* length of dst data, it should be at least src_data_len + tag_len */
+	uint32_t dst_data_len;
+};
+
+struct virtio_crypto_cipher_data_req_stateless {
+	/* Device-readable part */
+	struct virtio_crypto_cipher_para_stateless para;
+	uint8_t padding[48];
+};
+
+struct virtio_crypto_hash_data_req_stateless {
+	/* Device-readable part */
+	struct virtio_crypto_hash_para_stateless para;
+	uint8_t padding[64];
+};
+
+struct virtio_crypto_mac_data_req_stateless {
+	/* Device-readable part */
+	struct virtio_crypto_mac_para_stateless para;
+	uint8_t padding[64];
+};
+
+struct virtio_crypto_alg_chain_data_req_stateless {
+	/* Device-readable part */
+	struct virtio_crypto_alg_chain_data_para_stateless para;
+};
+
+struct virtio_crypto_sym_data_req_stateless {
+	union {
+		struct virtio_crypto_cipher_data_req_stateless cipher;
+		struct virtio_crypto_alg_chain_data_req_stateless chain;
+		uint8_t padding[72];
+	} u;
+
+	/* See above VIRTIO_CRYPTO_SYM_OP_* */
+	uint32_t op_type;
+	uint32_t padding;
+};
+
+struct virtio_crypto_aead_data_req_stateless {
+	/* Device-readable part */
+	struct virtio_crypto_aead_para_stateless para;
+	uint8_t padding[48];
 };
 
 /* The request of the data virtqueue's packet for MUX mode */
