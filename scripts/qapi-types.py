@@ -53,23 +53,27 @@ def gen_struct_members(members):
     return ret
 
 
+def gen_variants_objects(variants):
+    ret = ''
+    if variants:
+        for v in variants.variants:
+            if isinstance(v.type, QAPISchemaObjectType):
+                ret += gen_variants_objects(v.type.variants)
+                ret += gen_object(v.type.name, v.type.base,
+                                  v.type.local_members, v.type.variants)
+    return ret
+
+
 def gen_object(name, base, members, variants):
     if name in objects_seen:
         return ''
     objects_seen.add(name)
 
-    ret = ''
-    if variants:
-        for v in variants.variants:
-            if isinstance(v.type, QAPISchemaObjectType):
-                ret += gen_object(v.type.name, v.type.base,
-                                  v.type.local_members, v.type.variants)
-
-    ret += mcgen('''
+    ret = mcgen('''
 
 struct %(c_name)s {
 ''',
-                 c_name=c_name(name))
+                c_name=c_name(name))
 
     if base:
         if not base.is_implicit():
@@ -218,11 +222,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self.decl += gen_array(name, element_type)
             self._gen_type_cleanup(name)
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants):
-        # Nothing to do for the special empty builtin
-        if name == 'q_empty':
-            return
-        self._fwdecl += gen_fwd_object_or_array(name)
+    def _gen_object(self, name, info, ifcond, base, members, variants):
         self.decl += gen_object(name, base, members, variants)
         if base and not base.is_implicit():
             self.decl += gen_upcast(name, base)
@@ -232,10 +232,19 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             # implicit types won't be directly allocated/freed
             self._gen_type_cleanup(name)
 
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
+        # Nothing to do for the special empty builtin
+        if name == 'q_empty':
+            return
+        self._fwdecl += gen_fwd_object_or_array(name)
+        self.decl += gen_variants_objects(variants)
+        self._gen_object(name, info, None, base, members, variants)
+
     def visit_alternate_type(self, name, info, ifcond, variants):
         self._fwdecl += gen_fwd_object_or_array(name)
-        self.decl += gen_object(name, None, [variants.tag_member], variants)
-        self._gen_type_cleanup(name)
+        self.decl += gen_variants_objects(variants)
+        self._gen_object(name, info, None, None,
+                         [variants.tag_member], variants)
 
 # If you link code generated from multiple schemata, you want only one
 # instance of the code for built-in types.  Generate it only when
