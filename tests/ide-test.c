@@ -749,7 +749,7 @@ static void nsleep(int64_t nsecs)
 {
     const struct timespec val = { .tv_nsec = nsecs };
     nanosleep(&val, NULL);
-    clock_set(nsecs);
+    clock_set(global_qtest, nsecs);
 }
 
 static uint8_t ide_wait_clear(uint8_t flag)

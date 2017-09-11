@@ -417,17 +417,17 @@ void qtest_bufwrite(QTestState *s, uint64_t addr,
 void qtest_memset(QTestState *s, uint64_t addr, uint8_t patt, size_t size);
 
 /**
- * qtest_clock_step_next:
+ * clock_step_next:
  * @s: #QTestState instance to operate on.
  *
  * Advance the QEMU_CLOCK_VIRTUAL to the next deadline.
  *
  * Returns: The current value of the QEMU_CLOCK_VIRTUAL in nanoseconds.
  */
-int64_t qtest_clock_step_next(QTestState *s);
+int64_t clock_step_next(QTestState *s);
 
 /**
- * qtest_clock_step:
+ * clock_step:
  * @s: QTestState instance to operate on.
  * @step: Number of nanoseconds to advance the clock by.
  *
@@ -435,10 +435,10 @@ int64_t qtest_clock_step_next(QTestState *s);
  *
  * Returns: The current value of the QEMU_CLOCK_VIRTUAL in nanoseconds.
  */
-int64_t qtest_clock_step(QTestState *s, int64_t step);
+int64_t clock_step(QTestState *s, int64_t step);
 
 /**
- * qtest_clock_set:
+ * clock_set:
  * @s: QTestState instance to operate on.
  * @val: Nanoseconds value to advance the clock to.
  *
@@ -446,7 +446,7 @@ int64_t qtest_clock_step(QTestState *s, int64_t step);
  *
  * Returns: The current value of the QEMU_CLOCK_VIRTUAL in nanoseconds.
  */
-int64_t qtest_clock_set(QTestState *s, int64_t val);
+int64_t clock_set(QTestState *s, int64_t val);
 
 /**
  * qtest_big_endian:
@@ -866,44 +866,6 @@ static inline void bufwrite(uint64_t addr, const void *data, size_t size)
 static inline void qmemset(uint64_t addr, uint8_t patt, size_t size)
 {
     qtest_memset(global_qtest, addr, patt, size);
-}
-
-/**
- * clock_step_next:
- *
- * Advance the QEMU_CLOCK_VIRTUAL to the next deadline.
- *
- * Returns: The current value of the QEMU_CLOCK_VIRTUAL in nanoseconds.
- */
-static inline int64_t clock_step_next(void)
-{
-    return qtest_clock_step_next(global_qtest);
-}
-
-/**
- * clock_step:
- * @step: Number of nanoseconds to advance the clock by.
- *
- * Advance the QEMU_CLOCK_VIRTUAL by @step nanoseconds.
- *
- * Returns: The current value of the QEMU_CLOCK_VIRTUAL in nanoseconds.
- */
-static inline int64_t clock_step(int64_t step)
-{
-    return qtest_clock_step(global_qtest, step);
-}
-
-/**
- * clock_set:
- * @val: Nanoseconds value to advance the clock to.
- *
- * Advance the QEMU_CLOCK_VIRTUAL to @val nanoseconds since the VM was launched.
- *
- * Returns: The current value of the QEMU_CLOCK_VIRTUAL in nanoseconds.
- */
-static inline int64_t clock_set(int64_t val)
-{
-    return qtest_clock_set(global_qtest, val);
 }
 
 QDict *qmp_fd_receive(int fd);

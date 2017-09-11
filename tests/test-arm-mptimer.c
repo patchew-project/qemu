@@ -14,7 +14,8 @@
 #define TIMER_BLOCK_SCALE(s)    ((((s) & 0xff) + 1) * 10)
 
 #define TIMER_BLOCK_STEP(scaler, steps_nb) \
-    clock_step(TIMER_BLOCK_SCALE(scaler) * (int64_t)(steps_nb) + 1)
+    clock_step(global_qtest, \
+               TIMER_BLOCK_SCALE(scaler) * (int64_t)(steps_nb) + 1)
 
 #define TIMER_BASE_PHYS 0x1e000600
 
@@ -185,12 +186,14 @@ static void test_timer_periodic(gconstpointer arg)
     timer_start(PERIODIC, scaler);
 
     while (repeat--) {
-        clock_step(TIMER_BLOCK_SCALE(scaler) * (101 + repeat) + 1);
+        clock_step(global_qtest,
+                   TIMER_BLOCK_SCALE(scaler) * (101 + repeat) + 1);
 
         g_assert_cmpuint(timer_counter(), ==, 100 - repeat);
         g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 1);
 
-        clock_step(TIMER_BLOCK_SCALE(scaler) * (101 - repeat) - 1);
+        clock_step(global_qtest,
+                   TIMER_BLOCK_SCALE(scaler) * (101 - repeat) - 1);
     }
 }
 
@@ -686,10 +689,10 @@ static void test_periodic_counter(gconstpointer arg)
     timer_load(test_load);
     timer_start(PERIODIC, scaler);
 
-    clock_step(1);
+    clock_step(global_qtest, 1);
 
     for (test_val = 0; test_val <= test_load; test_val++) {
-        clock_step(TIMER_BLOCK_SCALE(scaler) * test_load);
+        clock_step(global_qtest, TIMER_BLOCK_SCALE(scaler) * test_load);
         g_assert_cmpint(timer_counter(), ==, test_val);
     }
 }
@@ -783,7 +786,7 @@ again:
     timer_reset();
     timer_start(mode, 255);
 
-    clock_step(100);
+    clock_step(global_qtest, 100);
 
     g_assert_cmpuint(timer_counter(), ==, 0);
 
@@ -795,7 +798,7 @@ again:
     timer_load(2);
     timer_start(mode, 255);
 
-    clock_step(100);
+    clock_step(global_qtest, 100);
 
     g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 0);
 
@@ -811,13 +814,13 @@ again:
     timer_load(UINT32_MAX);
     timer_start(mode, 255);
 
-    clock_step(100);
+    clock_step(global_qtest, 100);
 
     g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 0);
 
     timer_set_counter(0);
 
-    clock_step(100);
+    clock_step(global_qtest, 100);
 
     g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 0);
 
@@ -829,13 +832,13 @@ again:
     timer_load(UINT32_MAX);
     timer_start(mode, 255);
 
-    clock_step(100);
+    clock_step(global_qtest, 100);
 
     g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 0);
 
     timer_load(0);
 
-    clock_step(100);
+    clock_step(global_qtest, 100);
 
     g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 0);
 

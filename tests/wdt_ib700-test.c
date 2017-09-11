@@ -22,29 +22,29 @@ static QDict *ib700_program_and_wait(QTestState *s)
 {
     QDict *event, *data;
 
-    qtest_clock_step(s, NANOSECONDS_PER_SECOND * 40);
+    clock_step(s, NANOSECONDS_PER_SECOND * 40);
     qmp_check_no_event(s);
 
     /* 2 second limit */
     qtest_outb(s, 0x443, 14);
 
     /* Ping */
-    qtest_clock_step(s, NANOSECONDS_PER_SECOND);
+    clock_step(s, NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
     qtest_outb(s, 0x443, 14);
 
     /* Disable */
-    qtest_clock_step(s, NANOSECONDS_PER_SECOND);
+    clock_step(s, NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
     qtest_outb(s, 0x441, 1);
-    qtest_clock_step(s, 3 * NANOSECONDS_PER_SECOND);
+    clock_step(s, 3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
 
     /* Enable and let it fire */
     qtest_outb(s, 0x443, 13);
-    qtest_clock_step(s, 3 * NANOSECONDS_PER_SECOND);
+    clock_step(s, 3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
-    qtest_clock_step(s, 2 * NANOSECONDS_PER_SECOND);
+    clock_step(s, 2 * NANOSECONDS_PER_SECOND);
     event = qtest_qmp_eventwait_ref(s, "WATCHDOG");
     data = qdict_get_qdict(event, "data");
     QINCREF(data);

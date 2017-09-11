@@ -424,7 +424,7 @@ static void test_read_id(void)
 
     while (!get_irq(FLOPPY_IRQ)) {
         /* qemu involves a timer with READ ID... */
-        clock_step(1000000000LL / 50);
+        clock_step(global_qtest, 1000000000LL / 50);
     }
 
     msr = inb(FLOPPY_BASE + reg_msr);
@@ -467,7 +467,7 @@ static void test_read_id(void)
 
     while (!get_irq(FLOPPY_IRQ)) {
         /* qemu involves a timer with READ ID... */
-        clock_step(1000000000LL / 50);
+        clock_step(global_qtest, 1000000000LL / 50);
     }
 
     msr = inb(FLOPPY_BASE + reg_msr);

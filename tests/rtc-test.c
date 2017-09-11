@@ -291,7 +291,7 @@ static void alarm_time(void)
             break;
         }
 
-        clock_step(1000000000);
+        clock_step(global_qtest, 1000000000);
     }
 
     g_assert(get_irq(RTC_ISA_IRQ));
@@ -371,35 +371,35 @@ static void basic_12h_bcd(void)
 {
     /* set BCD 12 hour mode */
     set_time(0, 0x81, 0x59, 0x00);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x81, 0x59, 0x01);
-    clock_step(59000000000LL);
+    clock_step(global_qtest, 59000000000LL);
     assert_time(0x82, 0x00, 0x00);
 
     /* test BCD wraparound */
     set_time(0, 0x09, 0x59, 0x59);
-    clock_step(60000000000LL);
+    clock_step(global_qtest, 60000000000LL);
     assert_time(0x10, 0x00, 0x59);
 
     /* 12 AM -> 1 AM */
     set_time(0, 0x12, 0x59, 0x59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x01, 0x00, 0x00);
 
     /* 12 PM -> 1 PM */
     set_time(0, 0x92, 0x59, 0x59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x81, 0x00, 0x00);
 
     /* 11 AM -> 12 PM */
     set_time(0, 0x11, 0x59, 0x59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x92, 0x00, 0x00);
     /* TODO: test day wraparound */
 
     /* 11 PM -> 12 AM */
     set_time(0, 0x91, 0x59, 0x59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x12, 0x00, 0x00);
     /* TODO: test day wraparound */
 }
@@ -408,29 +408,29 @@ static void basic_12h_dec(void)
 {
     /* set decimal 12 hour mode */
     set_time(REG_B_DM, 0x81, 59, 0);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x81, 59, 1);
-    clock_step(59000000000LL);
+    clock_step(global_qtest, 59000000000LL);
     assert_time(0x82, 0, 0);
 
     /* 12 PM -> 1 PM */
     set_time(REG_B_DM, 0x8c, 59, 59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x81, 0, 0);
 
     /* 12 AM -> 1 AM */
     set_time(REG_B_DM, 0x0c, 59, 59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x01, 0, 0);
 
     /* 11 AM -> 12 PM */
     set_time(REG_B_DM, 0x0b, 59, 59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x8c, 0, 0);
 
     /* 11 PM -> 12 AM */
     set_time(REG_B_DM, 0x8b, 59, 59);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x0c, 0, 0);
     /* TODO: test day wraparound */
 }
@@ -439,19 +439,19 @@ static void basic_24h_bcd(void)
 {
     /* set BCD 24 hour mode */
     set_time(REG_B_24H, 0x09, 0x59, 0x00);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(0x09, 0x59, 0x01);
-    clock_step(59000000000LL);
+    clock_step(global_qtest, 59000000000LL);
     assert_time(0x10, 0x00, 0x00);
 
     /* test BCD wraparound */
     set_time(REG_B_24H, 0x09, 0x59, 0x00);
-    clock_step(60000000000LL);
+    clock_step(global_qtest, 60000000000LL);
     assert_time(0x10, 0x00, 0x00);
 
     /* TODO: test day wraparound */
     set_time(REG_B_24H, 0x23, 0x59, 0x00);
-    clock_step(60000000000LL);
+    clock_step(global_qtest, 60000000000LL);
     assert_time(0x00, 0x00, 0x00);
 }
 
@@ -459,19 +459,19 @@ static void basic_24h_dec(void)
 {
     /* set decimal 24 hour mode */
     set_time(REG_B_24H | REG_B_DM, 9, 59, 0);
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_time(9, 59, 1);
-    clock_step(59000000000LL);
+    clock_step(global_qtest, 59000000000LL);
     assert_time(10, 0, 0);
 
     /* test BCD wraparound */
     set_time(REG_B_24H | REG_B_DM, 9, 59, 0);
-    clock_step(60000000000LL);
+    clock_step(global_qtest, 60000000000LL);
     assert_time(10, 0, 0);
 
     /* TODO: test day wraparound */
     set_time(REG_B_24H | REG_B_DM, 23, 59, 0);
-    clock_step(60000000000LL);
+    clock_step(global_qtest, 60000000000LL);
     assert_time(0, 0, 0);
 }
 
@@ -493,7 +493,7 @@ static void am_pm_alarm(void)
     cmos_write(RTC_REG_A, 0x26);
 
     /* Check that alarm triggers when AM/PM is set.  */
-    clock_step(60000000000LL);
+    clock_step(global_qtest, 60000000000LL);
     g_assert(cmos_read(RTC_HOURS) == 0x82);
     g_assert((cmos_read(RTC_REG_C) & REG_C_AF) != 0);
 
@@ -520,7 +520,7 @@ static void am_pm_alarm(void)
     cmos_write(RTC_REG_A, 0x26);
 
     /* Check that alarm triggers.  */
-    clock_step(3600 * 11 * 1000000000LL);
+    clock_step(global_qtest, 3600 * 11 * 1000000000LL);
     g_assert(cmos_read(RTC_HOURS) == 0x82);
     g_assert((cmos_read(RTC_REG_C) & REG_C_AF) != 0);
 
@@ -534,7 +534,7 @@ static void am_pm_alarm(void)
     cmos_write(RTC_REG_A, 0x26);
 
     /* Check that alarm does not trigger if hours differ only by AM/PM.  */
-    clock_step(3600 * 11 * 1000000000LL);
+    clock_step(global_qtest, 3600 * 11 * 1000000000LL);
     g_assert(cmos_read(RTC_HOURS) == 0x82);
     g_assert((cmos_read(RTC_REG_C) & REG_C_AF) == 0);
 }
@@ -558,7 +558,7 @@ static void fuzz_registers(void)
 static void register_b_set_flag(void)
 {
     if (cmos_read(RTC_REG_A) & REG_A_UIP) {
-        clock_step(UIP_HOLD_LENGTH + NANOSECONDS_PER_SECOND / 5);
+        clock_step(global_qtest, UIP_HOLD_LENGTH + NANOSECONDS_PER_SECOND / 5);
     }
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
 
@@ -570,7 +570,7 @@ static void register_b_set_flag(void)
     assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
     /* Since SET flag is still enabled, time does not advance. */
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
     /* Disable SET flag in Register B */
@@ -579,7 +579,7 @@ static void register_b_set_flag(void)
     assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
     /* Since SET flag is disabled, the clock now advances.  */
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_datetime_bcd(0x02, 0x04, 0x59, 0x02, 0x02, 0x2011);
 }
 
@@ -595,18 +595,18 @@ static void divider_reset(void)
     assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
     /* Since divider reset flag is still enabled, these are equality checks. */
-    clock_step(1000000000LL);
+    clock_step(global_qtest, 1000000000LL);
     assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
     /* The first update ends 500 ms after divider reset */
     cmos_write(RTC_REG_A, 0x26);
-    clock_step(500000000LL - UIP_HOLD_LENGTH - 1);
+    clock_step(global_qtest, 500000000LL - UIP_HOLD_LENGTH - 1);
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
     assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
-    clock_step(1);
+    clock_step(global_qtest, 1);
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, !=, 0);
-    clock_step(UIP_HOLD_LENGTH);
+    clock_step(global_qtest, UIP_HOLD_LENGTH);
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
 
     assert_datetime_bcd(0x02, 0x04, 0x59, 0x02, 0x02, 0x2011);
@@ -618,7 +618,7 @@ static void uip_stuck(void)
 
     /* The first update ends 500 ms after divider reset */
     (void)cmos_read(RTC_REG_C);
-    clock_step(500000000LL);
+    clock_step(global_qtest, 500000000LL);
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
     assert_datetime_bcd(0x02, 0x04, 0x59, 0x02, 0x02, 0x2011);
 
@@ -628,12 +628,12 @@ static void uip_stuck(void)
     cmos_write(RTC_SECONDS_ALARM, 0xC0);
 
     /* Because the alarm will fire soon, reading register A will latch UIP.  */
-    clock_step(1000000000LL - UIP_HOLD_LENGTH / 2);
+    clock_step(global_qtest, 1000000000LL - UIP_HOLD_LENGTH / 2);
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, !=, 0);
 
     /* Move the alarm far away.  This must not cause UIP to remain stuck!  */
     cmos_write(RTC_HOURS_ALARM, 0x03);
-    clock_step(UIP_HOLD_LENGTH);
+    clock_step(global_qtest, UIP_HOLD_LENGTH);
     g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
 }
 
@@ -645,7 +645,7 @@ static void uip_stuck(void)
 static uint64_t wait_periodic_interrupt(uint64_t real_time)
 {
     while (!get_irq(RTC_ISA_IRQ)) {
-        real_time = clock_step_next();
+        real_time = clock_step_next(global_qtest);
     }
 
     g_assert((cmos_read(RTC_REG_C) & REG_C_PF) != 0);
@@ -664,7 +664,7 @@ static void periodic_timer(void)
     /* enable periodic interrupt after properly configure the period. */
     cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_PIE);
 
-    start_time = real_time = clock_step_next();
+    start_time = real_time = clock_step_next(global_qtest);
 
     for (i = 0; i < RTC_PERIOD_TEST_NR; i++) {
         cmos_write(RTC_REG_A, RTC_PERIOD_CODE1);

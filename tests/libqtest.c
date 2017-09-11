@@ -666,19 +666,19 @@ static int64_t qtest_clock_rsp(QTestState *s)
     return clock;
 }
 
-int64_t qtest_clock_step_next(QTestState *s)
+int64_t clock_step_next(QTestState *s)
 {
     qtest_sendf(s, "clock_step\n");
     return qtest_clock_rsp(s);
 }
 
-int64_t qtest_clock_step(QTestState *s, int64_t step)
+int64_t clock_step(QTestState *s, int64_t step)
 {
     qtest_sendf(s, "clock_step %"PRIi64"\n", step);
     return qtest_clock_rsp(s);
 }
 
-int64_t qtest_clock_set(QTestState *s, int64_t val)
+int64_t clock_set(QTestState *s, int64_t val)
 {
     qtest_sendf(s, "clock_set %"PRIi64"\n", val);
     return qtest_clock_rsp(s);

@@ -229,7 +229,7 @@ static void e1000e_wait_isr(e1000e_device *d, uint16_t msg_id)
         if (qpci_msix_pending(d->pci_dev, msg_id)) {
             return;
         }
-        clock_step(10000);
+        clock_step(global_qtest, 10000);
     } while (g_get_monotonic_time() < end_time);
 
     g_error("Timeout expired");
