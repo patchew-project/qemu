@@ -38,6 +38,7 @@ typedef struct {
     struct smbios_21_entry_point smbios_ep_table;
     uint8_t *required_struct_types;
     int required_struct_types_len;
+    QTestState *qts;
 } test_data;
 
 static char disk[] = "tests/acpi-test-disk-XXXXXX";
@@ -77,7 +78,7 @@ static void free_test_data(test_data *data)
 
 static void test_acpi_rsdp_address(test_data *data)
 {
-    uint32_t off = acpi_find_rsdp_address();
+    uint32_t off = acpi_find_rsdp_address(data->qts);
     g_assert_cmphex(off, <, 0x100000);
     data->rsdp_addr = off;
 }
@@ -87,7 +88,7 @@ static void test_acpi_rsdp_table(test_data *data)
     AcpiRsdpDescriptor *rsdp_table = &data->rsdp_table;
     uint32_t addr = data->rsdp_addr;
 
-    acpi_parse_rsdp_table(addr, rsdp_table);
+    acpi_parse_rsdp_table(data->qts, addr, rsdp_table);
 
     /* rsdp checksum is not for the whole table, but for the first 20 bytes */
     g_assert(!acpi_calc_checksum((uint8_t *)rsdp_table, 20));
@@ -102,7 +103,7 @@ static void test_acpi_rsdt_table(test_data *data)
     uint8_t checksum;
 
     /* read the header */
-    ACPI_READ_TABLE_HEADER(rsdt_table, addr);
+    ACPI_READ_TABLE_HEADER(data->qts, rsdt_table, addr);
     ACPI_ASSERT_CMP(rsdt_table->signature, "RSDT");
 
     /* compute the table entries in rsdt */
@@ -112,7 +113,7 @@ static void test_acpi_rsdt_table(test_data *data)
 
     /* get the addresses of the tables pointed by rsdt */
     tables = g_new0(uint32_t, tables_nr);
-    ACPI_READ_ARRAY_PTR(tables, tables_nr, addr);
+    ACPI_READ_ARRAY_PTR(data->qts, tables, tables_nr, addr);
 
     checksum = acpi_calc_checksum((uint8_t *)rsdt_table, rsdt_table->length) +
                acpi_calc_checksum((uint8_t *)tables,
@@ -128,63 +129,64 @@ static void test_acpi_fadt_table(test_data *data)
 {
     AcpiFadtDescriptorRev3 *fadt_table = &data->fadt_table;
     uint32_t addr;
+    QTestState *qts = data->qts;
 
     /* FADT table comes first */
     addr = data->rsdt_tables_addr[0];
-    ACPI_READ_TABLE_HEADER(fadt_table, addr);
+    ACPI_READ_TABLE_HEADER(qts, fadt_table, addr);
 
-    ACPI_READ_FIELD(fadt_table->firmware_ctrl, addr);
-    ACPI_READ_FIELD(fadt_table->dsdt, addr);
-    ACPI_READ_FIELD(fadt_table->model, addr);
-    ACPI_READ_FIELD(fadt_table->reserved1, addr);
-    ACPI_READ_FIELD(fadt_table->sci_int, addr);
-    ACPI_READ_FIELD(fadt_table->smi_cmd, addr);
-    ACPI_READ_FIELD(fadt_table->acpi_enable, addr);
-    ACPI_READ_FIELD(fadt_table->acpi_disable, addr);
-    ACPI_READ_FIELD(fadt_table->S4bios_req, addr);
-    ACPI_READ_FIELD(fadt_table->reserved2, addr);
-    ACPI_READ_FIELD(fadt_table->pm1a_evt_blk, addr);
-    ACPI_READ_FIELD(fadt_table->pm1b_evt_blk, addr);
-    ACPI_READ_FIELD(fadt_table->pm1a_cnt_blk, addr);
-    ACPI_READ_FIELD(fadt_table->pm1b_cnt_blk, addr);
-    ACPI_READ_FIELD(fadt_table->pm2_cnt_blk, addr);
-    ACPI_READ_FIELD(fadt_table->pm_tmr_blk, addr);
-    ACPI_READ_FIELD(fadt_table->gpe0_blk, addr);
-    ACPI_READ_FIELD(fadt_table->gpe1_blk, addr);
-    ACPI_READ_FIELD(fadt_table->pm1_evt_len, addr);
-    ACPI_READ_FIELD(fadt_table->pm1_cnt_len, addr);
-    ACPI_READ_FIELD(fadt_table->pm2_cnt_len, addr);
-    ACPI_READ_FIELD(fadt_table->pm_tmr_len, addr);
-    ACPI_READ_FIELD(fadt_table->gpe0_blk_len, addr);
-    ACPI_READ_FIELD(fadt_table->gpe1_blk_len, addr);
-    ACPI_READ_FIELD(fadt_table->gpe1_base, addr);
-    ACPI_READ_FIELD(fadt_table->reserved3, addr);
-    ACPI_READ_FIELD(fadt_table->plvl2_lat, addr);
-    ACPI_READ_FIELD(fadt_table->plvl3_lat, addr);
-    ACPI_READ_FIELD(fadt_table->flush_size, addr);
-    ACPI_READ_FIELD(fadt_table->flush_stride, addr);
-    ACPI_READ_FIELD(fadt_table->duty_offset, addr);
-    ACPI_READ_FIELD(fadt_table->duty_width, addr);
-    ACPI_READ_FIELD(fadt_table->day_alrm, addr);
-    ACPI_READ_FIELD(fadt_table->mon_alrm, addr);
-    ACPI_READ_FIELD(fadt_table->century, addr);
-    ACPI_READ_FIELD(fadt_table->boot_flags, addr);
-    ACPI_READ_FIELD(fadt_table->reserved, addr);
-    ACPI_READ_FIELD(fadt_table->flags, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->reset_register, addr);
-    ACPI_READ_FIELD(fadt_table->reset_value, addr);
-    ACPI_READ_FIELD(fadt_table->arm_boot_flags, addr);
-    ACPI_READ_FIELD(fadt_table->minor_revision, addr);
-    ACPI_READ_FIELD(fadt_table->x_facs, addr);
-    ACPI_READ_FIELD(fadt_table->x_dsdt, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_event_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1b_event_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_control_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1b_control_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm2_control_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm_timer_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xgpe0_block, addr);
-    ACPI_READ_GENERIC_ADDRESS(fadt_table->xgpe1_block, addr);
+    ACPI_READ_FIELD(qts, fadt_table->firmware_ctrl, addr);
+    ACPI_READ_FIELD(qts, fadt_table->dsdt, addr);
+    ACPI_READ_FIELD(qts, fadt_table->model, addr);
+    ACPI_READ_FIELD(qts, fadt_table->reserved1, addr);
+    ACPI_READ_FIELD(qts, fadt_table->sci_int, addr);
+    ACPI_READ_FIELD(qts, fadt_table->smi_cmd, addr);
+    ACPI_READ_FIELD(qts, fadt_table->acpi_enable, addr);
+    ACPI_READ_FIELD(qts, fadt_table->acpi_disable, addr);
+    ACPI_READ_FIELD(qts, fadt_table->S4bios_req, addr);
+    ACPI_READ_FIELD(qts, fadt_table->reserved2, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm1a_evt_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm1b_evt_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm1a_cnt_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm1b_cnt_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm2_cnt_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm_tmr_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->gpe0_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->gpe1_blk, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm1_evt_len, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm1_cnt_len, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm2_cnt_len, addr);
+    ACPI_READ_FIELD(qts, fadt_table->pm_tmr_len, addr);
+    ACPI_READ_FIELD(qts, fadt_table->gpe0_blk_len, addr);
+    ACPI_READ_FIELD(qts, fadt_table->gpe1_blk_len, addr);
+    ACPI_READ_FIELD(qts, fadt_table->gpe1_base, addr);
+    ACPI_READ_FIELD(qts, fadt_table->reserved3, addr);
+    ACPI_READ_FIELD(qts, fadt_table->plvl2_lat, addr);
+    ACPI_READ_FIELD(qts, fadt_table->plvl3_lat, addr);
+    ACPI_READ_FIELD(qts, fadt_table->flush_size, addr);
+    ACPI_READ_FIELD(qts, fadt_table->flush_stride, addr);
+    ACPI_READ_FIELD(qts, fadt_table->duty_offset, addr);
+    ACPI_READ_FIELD(qts, fadt_table->duty_width, addr);
+    ACPI_READ_FIELD(qts, fadt_table->day_alrm, addr);
+    ACPI_READ_FIELD(qts, fadt_table->mon_alrm, addr);
+    ACPI_READ_FIELD(qts, fadt_table->century, addr);
+    ACPI_READ_FIELD(qts, fadt_table->boot_flags, addr);
+    ACPI_READ_FIELD(qts, fadt_table->reserved, addr);
+    ACPI_READ_FIELD(qts, fadt_table->flags, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->reset_register, addr);
+    ACPI_READ_FIELD(qts, fadt_table->reset_value, addr);
+    ACPI_READ_FIELD(qts, fadt_table->arm_boot_flags, addr);
+    ACPI_READ_FIELD(qts, fadt_table->minor_revision, addr);
+    ACPI_READ_FIELD(qts, fadt_table->x_facs, addr);
+    ACPI_READ_FIELD(qts, fadt_table->x_dsdt, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xpm1a_event_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xpm1b_event_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xpm1a_control_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xpm1b_control_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xpm2_control_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xpm_timer_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xgpe0_block, addr);
+    ACPI_READ_GENERIC_ADDRESS(qts, fadt_table->xgpe1_block, addr);
 
     ACPI_ASSERT_CMP(fadt_table->signature, "FACP");
     g_assert(!acpi_calc_checksum((uint8_t *)fadt_table, fadt_table->length));
@@ -195,26 +197,27 @@ static void test_acpi_facs_table(test_data *data)
     AcpiFacsDescriptorRev1 *facs_table = &data->facs_table;
     uint32_t addr = data->fadt_table.firmware_ctrl;
 
-    ACPI_READ_FIELD(facs_table->signature, addr);
-    ACPI_READ_FIELD(facs_table->length, addr);
-    ACPI_READ_FIELD(facs_table->hardware_signature, addr);
-    ACPI_READ_FIELD(facs_table->firmware_waking_vector, addr);
-    ACPI_READ_FIELD(facs_table->global_lock, addr);
-    ACPI_READ_FIELD(facs_table->flags, addr);
-    ACPI_READ_ARRAY(facs_table->resverved3, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->signature, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->length, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->hardware_signature, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->firmware_waking_vector, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->global_lock, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->flags, addr);
+    ACPI_READ_ARRAY(data->qts, facs_table->resverved3, addr);
 
     ACPI_ASSERT_CMP(facs_table->signature, "FACS");
 }
 
-static void test_dst_table(AcpiSdtTable *sdt_table, uint32_t addr)
+static void test_dst_table(test_data *data, AcpiSdtTable *sdt_table,
+                           uint32_t addr)
 {
     uint8_t checksum;
 
-    ACPI_READ_TABLE_HEADER(&sdt_table->header, addr);
+    ACPI_READ_TABLE_HEADER(data->qts, &sdt_table->header, addr);
 
     sdt_table->aml_len = sdt_table->header.length - sizeof(AcpiTableHeader);
     sdt_table->aml = g_malloc0(sdt_table->aml_len);
-    ACPI_READ_ARRAY_PTR(sdt_table->aml, sdt_table->aml_len, addr);
+    ACPI_READ_ARRAY_PTR(data->qts, sdt_table->aml, sdt_table->aml_len, addr);
 
     checksum = acpi_calc_checksum((uint8_t *)sdt_table,
                                   sizeof(AcpiTableHeader)) +
@@ -231,7 +234,7 @@ static void test_acpi_dsdt_table(test_data *data)
     memset(&dsdt_table, 0, sizeof(dsdt_table));
     data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
 
-    test_dst_table(&dsdt_table, addr);
+    test_dst_table(data, &dsdt_table, addr);
     ACPI_ASSERT_CMP(dsdt_table.header.signature, "DSDT");
 
     /* Place DSDT first */
@@ -248,7 +251,7 @@ static void test_acpi_tables(test_data *data)
 
         memset(&ssdt_table, 0, sizeof(ssdt_table));
         uint32_t addr = data->rsdt_tables_addr[i + 1]; /* fadt is first */
-        test_dst_table(&ssdt_table, addr);
+        test_dst_table(data, &ssdt_table, addr);
         g_array_append_val(data->tables, ssdt_table);
     }
 }
@@ -492,32 +495,32 @@ static bool smbios_ep_table_ok(test_data *data)
     struct smbios_21_entry_point *ep_table = &data->smbios_ep_table;
     uint32_t addr = data->smbios_ep_addr;
 
-    ACPI_READ_ARRAY(ep_table->anchor_string, addr);
+    ACPI_READ_ARRAY(data->qts, ep_table->anchor_string, addr);
     if (memcmp(ep_table->anchor_string, "_SM_", 4)) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->checksum, addr);
-    ACPI_READ_FIELD(ep_table->length, addr);
-    ACPI_READ_FIELD(ep_table->smbios_major_version, addr);
-    ACPI_READ_FIELD(ep_table->smbios_minor_version, addr);
-    ACPI_READ_FIELD(ep_table->max_structure_size, addr);
-    ACPI_READ_FIELD(ep_table->entry_point_revision, addr);
-    ACPI_READ_ARRAY(ep_table->formatted_area, addr);
-    ACPI_READ_ARRAY(ep_table->intermediate_anchor_string, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->checksum, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->length, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->smbios_major_version, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->smbios_minor_version, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->max_structure_size, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->entry_point_revision, addr);
+    ACPI_READ_ARRAY(data->qts, ep_table->formatted_area, addr);
+    ACPI_READ_ARRAY(data->qts, ep_table->intermediate_anchor_string, addr);
     if (memcmp(ep_table->intermediate_anchor_string, "_DMI_", 5)) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->intermediate_checksum, addr);
-    ACPI_READ_FIELD(ep_table->structure_table_length, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->intermediate_checksum, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->structure_table_length, addr);
     if (ep_table->structure_table_length == 0) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->structure_table_address, addr);
-    ACPI_READ_FIELD(ep_table->number_of_structures, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->structure_table_address, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->number_of_structures, addr);
     if (ep_table->number_of_structures == 0) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->smbios_bcd_revision, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->smbios_bcd_revision, addr);
     if (acpi_calc_checksum((uint8_t *)ep_table, sizeof *ep_table) ||
         acpi_calc_checksum((uint8_t *)ep_table + 0x10,
                            sizeof *ep_table - 0x10)) {
@@ -536,7 +539,7 @@ static void test_smbios_entry_point(test_data *data)
         int i;
 
         for (i = 0; i < sizeof sig - 1; ++i) {
-            sig[i] = readb(off + i);
+            sig[i] = qtest_readb(data->qts, off + i);
         }
 
         if (!memcmp(sig, "_SM_", sizeof sig)) {
@@ -579,9 +582,9 @@ static void test_smbios_structs(test_data *data)
     for (i = 0; i < ep_table->number_of_structures; i++) {
 
         /* grab type and formatted area length from struct header */
-        type = readb(addr);
+        type = qtest_readb(data->qts, addr);
         g_assert_cmpuint(type, <=, SMBIOS_MAX_TYPE);
-        len = readb(addr + 1);
+        len = qtest_readb(data->qts, addr + 1);
 
         /* single-instance structs must not have been encountered before */
         if (smbios_single_instance(type)) {
@@ -593,7 +596,7 @@ static void test_smbios_structs(test_data *data)
         prv = crt = 1;
         while (prv || crt) {
             prv = crt;
-            crt = readb(addr + len);
+            crt = qtest_readb(data->qts, addr + len);
             len++;
         }
 
@@ -630,9 +633,9 @@ static void test_acpi_one(const char *params, test_data *data)
                            data->machine, "kvm:tcg",
                            params ? params : "", disk);
 
-    qtest_start(args);
+    data->qts = qtest_init(args);
 
-    boot_sector_test(global_qtest);
+    boot_sector_test(data->qts);
 
     test_acpi_rsdp_address(data);
     test_acpi_rsdp_table(data);
@@ -653,7 +656,8 @@ static void test_acpi_one(const char *params, test_data *data)
     test_smbios_entry_point(data);
     test_smbios_structs(data);
 
-    qtest_quit(global_qtest);
+    assert(!global_qtest);
+    qtest_quit(data->qts);
     g_free(args);
 }
 
