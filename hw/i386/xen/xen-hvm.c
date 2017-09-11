@@ -265,7 +265,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
         /* RAM already populated in Xen */
         fprintf(stderr, "%s: do not alloc "RAM_ADDR_FMT
                 " bytes of ram at "RAM_ADDR_FMT" when runstate is INMIGRATE\n",
-                __func__, size, ram_addr); 
+                __func__, size, ram_addr);
         return;
     }
 
@@ -1251,7 +1251,7 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
 
 static int xen_dm_acpi_needed(PCMachineState *pcms)
 {
-    return 0;
+    return pcms->acpi_nvdimm_state.is_enabled;
 }
 
 static int dm_acpi_buf_init(XenIOState *state)
@@ -1307,6 +1307,20 @@ static int xen_dm_acpi_init(PCMachineState *pcms, XenIOState *state)
     }
 
     return dm_acpi_buf_init(state);
+}
+
+static void xen_dm_acpi_nvdimm_setup(PCMachineState *pcms)
+{
+    GArray *table_offsets = g_array_new(false, true /* clear */,
+                                        sizeof(uint32_t));
+    GArray *table_data = g_array_new(false, true /* clear */, 1);
+
+    nvdimm_build_acpi(table_offsets, table_data,
+                      NULL, &pcms->acpi_nvdimm_state,
+                      MACHINE(pcms)->ram_slots);
+
+    g_array_free(table_offsets, true);
+    g_array_free(table_data, true);
 }
 
 static int xs_write_dm_acpi_blob_entry(const char *name,
@@ -1406,6 +1420,13 @@ int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
     }
 
     return 0;
+}
+
+void xen_dm_acpi_setup(PCMachineState *pcms)
+{
+    if (pcms->acpi_nvdimm_state.is_enabled) {
+        xen_dm_acpi_nvdimm_setup(pcms);
+    }
 }
 
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)

@@ -66,4 +66,11 @@ void xen_register_framebuffer(struct MemoryRegion *mr);
 int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
                            int type);
 
+/*
+ * Build guest ACPI (i.e. DM ACPI, or ACPI built by device model) and
+ * copy them into guest memory. Xen hvmloader will load and merge DM
+ * ACPI with the guest ACPI built by itself.
+ */
+void xen_dm_acpi_setup(PCMachineState *pcms);
+
 #endif /* QEMU_HW_XEN_H */

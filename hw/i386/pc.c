@@ -1252,12 +1252,16 @@ void pc_machine_done(Notifier *notifier, void *data)
         }
     }
 
-    acpi_setup();
-    if (pcms->fw_cfg) {
-        pc_build_smbios(pcms);
-        pc_build_feature_control_file(pcms);
-        /* update FW_CFG_NB_CPUS to account for -device added CPUs */
-        fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
+    if (!xen_enabled()) {
+        acpi_setup();
+        if (pcms->fw_cfg) {
+            pc_build_smbios(pcms);
+            pc_build_feature_control_file(pcms);
+            /* update FW_CFG_NB_CPUS to account for -device added CPUs */
+            fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
+        }
+    } else {
+        xen_dm_acpi_setup(pcms);
     }
 
     if (pcms->apic_id_limit > 255) {
