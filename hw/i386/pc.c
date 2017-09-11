@@ -1347,6 +1347,53 @@ void xen_load_linux(PCMachineState *pcms)
     pcms->fw_cfg = fw_cfg;
 }
 
+void pc_memory_hotplug_init(PCMachineState *pcms, MemoryRegion *system_memory)
+{
+    MachineState *machine = MACHINE(pcms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
+
+    if (!pcmc->has_reserved_memory || machine->ram_size >= machine->maxram_size)
+        return;
+
+    if (memory_region_size(&pcms->hotplug_memory.mr)) {
+        error_report("hotplug memory region has been initialized");
+        exit(EXIT_FAILURE);
+    }
+
+    if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
+        error_report("unsupported amount of memory slots: %"PRIu64,
+                     machine->ram_slots);
+        exit(EXIT_FAILURE);
+    }
+
+    if (QEMU_ALIGN_UP(machine->maxram_size,
+                      TARGET_PAGE_SIZE) != machine->maxram_size) {
+        error_report("maximum memory size must by aligned to multiple of "
+                     "%d bytes", TARGET_PAGE_SIZE);
+        exit(EXIT_FAILURE);
+    }
+
+    pcms->hotplug_memory.base =
+        ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
+
+    if (pcmc->enforce_aligned_dimm) {
+        /* size hotplug region assuming 1G page max alignment per slot */
+        hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
+    }
+
+    if ((pcms->hotplug_memory.base + hotplug_mem_size) < hotplug_mem_size) {
+        error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
+                     machine->maxram_size);
+        exit(EXIT_FAILURE);
+    }
+
+    memory_region_init(&pcms->hotplug_memory.mr, OBJECT(pcms),
+                       "hotplug-memory", hotplug_mem_size);
+    memory_region_add_subregion(system_memory, pcms->hotplug_memory.base,
+                                &pcms->hotplug_memory.mr);
+}
+
 void pc_memory_init(PCMachineState *pcms,
                     MemoryRegion *system_memory,
                     MemoryRegion *rom_memory,
@@ -1398,44 +1445,7 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     /* initialize hotplug memory address space */
-    if (pcmc->has_reserved_memory &&
-        (machine->ram_size < machine->maxram_size)) {
-        ram_addr_t hotplug_mem_size =
-            machine->maxram_size - machine->ram_size;
-
-        if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
-            error_report("unsupported amount of memory slots: %"PRIu64,
-                         machine->ram_slots);
-            exit(EXIT_FAILURE);
-        }
-
-        if (QEMU_ALIGN_UP(machine->maxram_size,
-                          TARGET_PAGE_SIZE) != machine->maxram_size) {
-            error_report("maximum memory size must by aligned to multiple of "
-                         "%d bytes", TARGET_PAGE_SIZE);
-            exit(EXIT_FAILURE);
-        }
-
-        pcms->hotplug_memory.base =
-            ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
-
-        if (pcmc->enforce_aligned_dimm) {
-            /* size hotplug region assuming 1G page max alignment per slot */
-            hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
-        }
-
-        if ((pcms->hotplug_memory.base + hotplug_mem_size) <
-            hotplug_mem_size) {
-            error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
-                         machine->maxram_size);
-            exit(EXIT_FAILURE);
-        }
-
-        memory_region_init(&pcms->hotplug_memory.mr, OBJECT(pcms),
-                           "hotplug-memory", hotplug_mem_size);
-        memory_region_add_subregion(system_memory, pcms->hotplug_memory.base,
-                                    &pcms->hotplug_memory.mr);
-    }
+    pc_memory_hotplug_init(pcms, system_memory);
 
     /* Initialize PC system firmware */
     pc_system_firmware_init(rom_memory, !pcmc->pci_enabled);

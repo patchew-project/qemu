@@ -235,6 +235,8 @@ static void xen_ram_init(PCMachineState *pcms,
                                  pcms->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
+
+    pc_memory_hotplug_init(pcms, sysmem);
 }
 
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
