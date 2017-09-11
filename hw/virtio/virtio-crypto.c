@@ -629,7 +629,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
     VirtQueueElement *elem = &request->elem;
     int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(request->vq));
-    struct virtio_crypto_op_data_req req;
+    struct virtio_crypto_op_header *generic_hdr;
     int ret;
     struct iovec *in_iov;
     struct iovec *out_iov;
@@ -640,6 +640,12 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     uint64_t session_id;
     CryptoDevBackendSymOpInfo *sym_op_info = NULL;
     Error *local_err = NULL;
+    size_t s, exp_len;
+    void *body;
+    union {
+        struct virtio_crypto_op_data_req req;
+        struct virtio_crypto_op_data_req_mux mux_req;
+    } op;
 
     if (elem->out_num < 1 || elem->in_num < 1) {
         virtio_error(vdev, "virtio-crypto dataq missing headers");
@@ -650,12 +656,22 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     out_iov = elem->out_sg;
     in_num = elem->in_num;
     in_iov = elem->in_sg;
-    if (unlikely(iov_to_buf(out_iov, out_num, 0, &req, sizeof(req))
-                != sizeof(req))) {
+
+    if (virtio_crypto_in_mux_mode(vdev)) {
+        exp_len = sizeof(op.mux_req);
+        generic_hdr = (struct virtio_crypto_op_header *)(&op.mux_req);
+    } else {
+        exp_len = sizeof(op.req);
+        generic_hdr = (struct virtio_crypto_op_header *)(&op.req);
+    }
+
+    s = iov_to_buf(out_iov, out_num, 0, generic_hdr, exp_len);
+    if (unlikely(s != exp_len)) {
         virtio_error(vdev, "virtio-crypto request outhdr too short");
         return -1;
     }
-    iov_discard_front(&out_iov, &out_num, sizeof(req));
+
+    iov_discard_front(&out_iov, &out_num, exp_len);
 
     if (in_iov[in_num - 1].iov_len <
             sizeof(struct virtio_crypto_inhdr)) {
@@ -676,16 +692,27 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     request->in_num = in_num;
     request->in_iov = in_iov;
 
-    opcode = ldl_le_p(&req.header.opcode);
-    session_id = ldq_le_p(&req.header.session_id);
+    opcode = ldl_le_p(&generic_hdr->opcode);
+    session_id = ldq_le_p(&generic_hdr->session_id);
 
     switch (opcode) {
     case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
     case VIRTIO_CRYPTO_CIPHER_DECRYPT:
-        ret = virtio_crypto_handle_sym_req(vcrypto,
-                         &req.u.sym_req,
-                         &sym_op_info,
-                         out_iov, out_num);
+        if (virtio_crypto_in_mux_mode(vdev)) {
+            body = g_new0(struct virtio_crypto_sym_data_req, 1);
+            exp_len = sizeof(struct virtio_crypto_sym_data_req);
+            s = iov_to_buf(out_iov, out_num, 0, body, exp_len);
+            if (unlikely(s != exp_len)) {
+                g_free(body);
+                return -1;
+            }
+            iov_discard_front(&out_iov, &out_num, exp_len);
+        } else {
+            body = &op.req.u.sym_req;
+        }
+
+        ret = virtio_crypto_handle_sym_req(vcrypto, body,
+                         &sym_op_info, out_iov, out_num);
         /* Serious errors, need to reset virtio crypto device */
         if (ret == -EFAULT) {
             return -1;
