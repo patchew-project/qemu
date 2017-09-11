@@ -87,7 +87,15 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     align = memory_region_get_alignment(mr);
 
     pmem_size = size - nvdimm->label_size;
-    nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
+    /*
+     * The memory region of vNVDIMM on Xen is not a RAM memory region,
+     * so memory_region_get_ram_ptr() below will abort QEMU. In
+     * addition that Xen currently does not support vNVDIMM labels
+     * (i.e. label_size is zero here), let's not initialize of the
+     * pointer to label data if the label size is zero.
+     */
+    if (nvdimm->label_size)
+        nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
     pmem_size = QEMU_ALIGN_DOWN(pmem_size, align);
 
     if (size <= nvdimm->label_size || !pmem_size) {
