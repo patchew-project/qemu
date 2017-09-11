@@ -1360,6 +1360,7 @@ int main(int argc, char **argv)
 
     config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
+    QTAILQ_INIT(&ga_commands);
     qga_qmp_init_marshal(&ga_commands);
 
     init_dfl_pathnames();

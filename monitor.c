@@ -1001,6 +1001,7 @@ void monitor_init_qmp_commands(void)
      *   "qmp_capabilities", to enforce capability negotiation
      */
 
+    QTAILQ_INIT(&qmp_commands);
     qmp_init_marshal(&qmp_commands);
 
     qmp_register_command(&qmp_commands, "query-qmp-schema",

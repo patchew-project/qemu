@@ -211,8 +211,6 @@ def gen_registry(registry):
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 {
-    QTAILQ_INIT(cmds);
-
 ''',
                 c_prefix=c_name(prefix, protect=False))
     ret += registry
