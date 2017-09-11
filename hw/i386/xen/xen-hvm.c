@@ -1286,6 +1286,20 @@ static int dm_acpi_buf_init(XenIOState *state)
     return 0;
 }
 
+static ram_addr_t dm_acpi_buf_alloc(size_t length)
+{
+    ram_addr_t addr;
+
+    if (dm_acpi_buf->length - dm_acpi_buf->used < length) {
+        return 0;
+    }
+
+    addr = dm_acpi_buf->base + dm_acpi_buf->used;
+    dm_acpi_buf->used += length;
+
+    return addr;
+}
+
 static int xen_dm_acpi_init(PCMachineState *pcms, XenIOState *state)
 {
     if (!xen_dm_acpi_needed(pcms)) {
@@ -1293,6 +1307,105 @@ static int xen_dm_acpi_init(PCMachineState *pcms, XenIOState *state)
     }
 
     return dm_acpi_buf_init(state);
+}
+
+static int xs_write_dm_acpi_blob_entry(const char *name,
+                                       const char *entry, const char *value)
+{
+    XenIOState *state = container_of(dm_acpi_buf, XenIOState, dm_acpi_buf);
+    char path[80];
+
+    snprintf(path, sizeof(path),
+             "/local/domain/%d"HVM_XS_DM_ACPI_ROOT"/%s/%s",
+             xen_domid, name, entry);
+    if (!xs_write(state->xenstore, 0, path, value, strlen(value))) {
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static size_t xen_memcpy_to_guest(ram_addr_t gpa,
+                                  const void *buf, size_t length)
+{
+    size_t copied = 0, size;
+    ram_addr_t s, e, offset, cur = gpa;
+    xen_pfn_t cur_pfn;
+    void *page;
+
+    if (!buf || !length) {
+        return 0;
+    }
+
+    s = gpa & TARGET_PAGE_MASK;
+    e = gpa + length;
+    if (e < s) {
+        return 0;
+    }
+
+    while (cur < e) {
+        cur_pfn = cur >> TARGET_PAGE_BITS;
+        offset = cur - (cur_pfn << TARGET_PAGE_BITS);
+        size = (length >= TARGET_PAGE_SIZE - offset) ?
+               TARGET_PAGE_SIZE - offset : length;
+
+        page = xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ | PROT_WRITE,
+                                    1, &cur_pfn, NULL);
+        if (!page) {
+            break;
+        }
+
+        memcpy(page + offset, buf, size);
+        xenforeignmemory_unmap(xen_fmem, page, 1);
+
+        copied += size;
+        buf += size;
+        cur += size;
+        length -= size;
+    }
+
+    return copied;
+}
+
+int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
+                           int type)
+{
+    char value[21];
+    ram_addr_t buf_addr;
+    int rc;
+
+    if (type != XEN_DM_ACPI_BLOB_TYPE_TABLE &&
+        type != XEN_DM_ACPI_BLOB_TYPE_NSDEV) {
+        return -EINVAL;
+    }
+
+    buf_addr = dm_acpi_buf_alloc(length);
+    if (!buf_addr) {
+        return -ENOMEM;
+    }
+    if (xen_memcpy_to_guest(buf_addr, blob, length) != length) {
+        return -EIO;
+    }
+
+    snprintf(value, sizeof(value), "%d", type);
+    rc = xs_write_dm_acpi_blob_entry(name, "type", value);
+    if (rc) {
+        return rc;
+    }
+
+    snprintf(value, sizeof(value), "%"PRIu64, buf_addr - dm_acpi_buf->base);
+    rc = xs_write_dm_acpi_blob_entry(name, "offset", value);
+    if (rc) {
+        return rc;
+    }
+
+    snprintf(value, sizeof(value), "%"PRIu64, length);
+    rc = xs_write_dm_acpi_blob_entry(name, "length", value);
+    if (rc) {
+        return rc;
+    }
+
+    return 0;
 }
 
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)

@@ -48,4 +48,22 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length);
 
 void xen_register_framebuffer(struct MemoryRegion *mr);
 
+/*
+ * Copy an ACPI blob from QEMU to HVM guest.
+ *
+ * Parameters:
+ *  name:   a unique name of the data blob; for XEN_DM_ACPI_BLOB_TYPE_NSDEV,
+ *          name should be less then 4 characters
+ *  blob:   the ACPI blob to be copied
+ *  length: the length in bytes of the ACPI blob
+ *  type:   the type of content in the ACPI blob, one of XEN_DM_ACPI_BLOB_TYPE_*
+ *
+ * Return:
+ *   0 on success; a non-zero error code on failures.
+ */
+#define XEN_DM_ACPI_BLOB_TYPE_TABLE 0 /* ACPI table */
+#define XEN_DM_ACPI_BLOB_TYPE_NSDEV 1 /* AML of ACPI namespace device */
+int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
+                           int type);
+
 #endif /* QEMU_HW_XEN_H */

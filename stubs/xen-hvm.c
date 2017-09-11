@@ -61,3 +61,9 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
 {
 }
+
+int xen_acpi_copy_to_guest(const char *name, const void *blob, size_t length,
+                           int type)
+{
+    return -1;
+}
