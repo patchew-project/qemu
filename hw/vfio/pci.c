@@ -2632,7 +2632,6 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
-    VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     char *tmp, group_path[PATH_MAX], *group_name;
     Error *err = NULL;
@@ -2695,14 +2694,6 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     group = vfio_get_group(groupid, as, errp);
     if (!group) {
         goto error;
-    }
-
-    QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
-        if (strcmp(vbasedev_iter->name, vdev->vbasedev.name) == 0) {
-            error_setg(errp, "device is already attached");
-            vfio_put_group(group);
-            goto error;
-        }
     }
 
     ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev, errp);
