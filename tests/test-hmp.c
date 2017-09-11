@@ -80,7 +80,7 @@ static void test_commands(void)
         if (verbose) {
             fprintf(stderr, "\t%s\n", hmp_cmds[i]);
         }
-        response = hmp("%s", hmp_cmds[i]);
+        response = hmp(global_qtest, "%s", hmp_cmds[i]);
         g_free(response);
     }
 
@@ -91,7 +91,7 @@ static void test_info_commands(void)
 {
     char *resp, *info, *info_buf, *endp;
 
-    info_buf = info = hmp("help info");
+    info_buf = info = hmp(global_qtest, "help info");
 
     while (*info) {
         /* Extract the info command, ignore parameters and description */
@@ -103,7 +103,7 @@ static void test_info_commands(void)
         if (verbose) {
             fprintf(stderr, "\t%s\n", info);
         }
-        resp = hmp("%s", info);
+        resp = hmp(global_qtest, "%s", info);
         g_free(resp);
         /* And move forward to the next line */
         info = strchr(endp + 1, '\n');

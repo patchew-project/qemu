@@ -15,7 +15,7 @@
 
 static void drive_add(void)
 {
-    char *resp = hmp("drive_add 0 if=none,id=drive0");
+    char *resp = hmp(global_qtest, "drive_add 0 if=none,id=drive0");
 
     g_assert_cmpstr(resp, ==, "OK\r\n");
     g_free(resp);
@@ -23,7 +23,7 @@ static void drive_add(void)
 
 static void drive_del(void)
 {
-    char *resp = hmp("drive_del drive0");
+    char *resp = hmp(global_qtest, "drive_del drive0");
 
     g_assert_cmpstr(resp, ==, "");
     g_free(resp);

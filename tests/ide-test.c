@@ -587,7 +587,7 @@ static void test_flush(void)
     make_dirty(0);
 
     /* Delay the completion of the flush request until we explicitly do it */
-    g_free(hmp("qemu-io ide0-hd0 \"break flush_to_os A\""));
+    g_free(hmp(global_qtest, "qemu-io ide0-hd0 \"break flush_to_os A\""));
 
     /* FLUSH CACHE command on device 0*/
     qpci_io_writeb(dev, ide_bar, reg_device, 0);
@@ -599,7 +599,7 @@ static void test_flush(void)
     assert_bit_clear(data, DF | ERR | DRQ);
 
     /* Complete the command */
-    g_free(hmp("qemu-io ide0-hd0 \"resume A\""));
+    g_free(hmp(global_qtest, "qemu-io ide0-hd0 \"resume A\""));
 
     /* Check registers */
     data = qpci_io_readb(dev, ide_bar, reg_device);

@@ -21,7 +21,7 @@ static void test_mon_explicit(const void *data)
                                 "-numa node,nodeid=0,cpus=0-3 "
                                 "-numa node,nodeid=1,cpus=4-7 ", args);
 
-    s = hmp("info numa");
+    s = hmp(global_qtest, "info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3"));
     g_assert(strstr(s, "node 1 cpus: 4 5 6 7"));
     g_free(s);
@@ -36,7 +36,7 @@ static void test_mon_default(const void *data)
 
     global_qtest = qtest_startf("%s -smp 8 -numa node -numa node", args);
 
-    s = hmp("info numa");
+    s = hmp(global_qtest, "info numa");
     g_assert(strstr(s, "node 0 cpus: 0 2 4 6"));
     g_assert(strstr(s, "node 1 cpus: 1 3 5 7"));
     g_free(s);
@@ -53,7 +53,7 @@ static void test_mon_partial(const void *data)
                                 "-numa node,nodeid=0,cpus=0-1 "
                                 "-numa node,nodeid=1,cpus=4-5 ", args);
 
-    s = hmp("info numa");
+    s = hmp(global_qtest, "info numa");
     g_assert(strstr(s, "node 0 cpus: 0 1 2 3 6 7"));
     g_assert(strstr(s, "node 1 cpus: 4 5"));
     g_free(s);

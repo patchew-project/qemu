@@ -110,14 +110,14 @@ static void test_one_device(const char *type)
                type);
     QDECREF(resp);
 
-    help = hmp("device_add \"%s,help\"", type);
+    help = hmp(global_qtest, "device_add \"%s,help\"", type);
     g_free(help);
 
     /*
      * Some devices leave dangling pointers in QOM behind.
      * "info qom-tree" has a good chance at crashing then
      */
-    qom_tree = hmp("info qom-tree");
+    qom_tree = hmp(global_qtest, "info qom-tree");
     g_free(qom_tree);
 }
 
@@ -131,7 +131,7 @@ static void test_device_intro_list(void)
     types = device_type_list(true);
     QDECREF(types);
 
-    help = hmp("device_add help");
+    help = hmp(global_qtest, "device_add help");
     g_free(help);
 
     qtest_quit(global_qtest);
