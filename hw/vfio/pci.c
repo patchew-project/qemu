@@ -2640,6 +2640,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     struct stat st;
     int groupid;
     int i, ret;
+    AddressSpace *as;
 
     if (!vdev->vbasedev.sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -2686,7 +2687,12 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     trace_vfio_realize(vdev->vbasedev.name, groupid);
 
-    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), errp);
+    as = vfio_lookup_as(groupid, pdev, errp);
+    if (!as) {
+        goto error;
+    }
+
+    group = vfio_get_group(groupid, as, errp);
     if (!group) {
         goto error;
     }
