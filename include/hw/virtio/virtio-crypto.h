@@ -73,6 +73,7 @@ typedef struct VirtIOCryptoReq {
     struct VirtIOCrypto *vcrypto;
     union {
         CryptoDevBackendSymOpInfo *sym_op_info;
+        CryptoDevBackendSymStatelessInfo *sym_stateless_info;
     } u;
 } VirtIOCryptoReq;
 

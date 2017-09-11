@@ -120,6 +120,21 @@ static int cryptodev_backend_sym_operation(
     return -VIRTIO_CRYPTO_ERR;
 }
 
+static int cryptodev_backend_sym_stateless_operation(
+                 CryptoDevBackend *backend,
+                 CryptoDevBackendSymStatelessInfo *op_info,
+                 uint32_t queue_index, Error **errp)
+{
+    CryptoDevBackendClass *bc =
+                      CRYPTODEV_BACKEND_GET_CLASS(backend);
+
+    if (bc->do_sym_stateless_op) {
+        return bc->do_sym_stateless_op(backend, op_info, queue_index, errp);
+    }
+
+    return -VIRTIO_CRYPTO_ERR;
+}
+
 int cryptodev_backend_crypto_operation(
                  CryptoDevBackend *backend,
                  void *opaque,
@@ -132,6 +147,12 @@ int cryptodev_backend_crypto_operation(
         op_info = req->u.sym_op_info;
 
         return cryptodev_backend_sym_operation(backend,
+                         op_info, queue_index, errp);
+    } else if (req->flags == CRYPTODEV_BACKEND_ALG_SYM_STATELESS) {
+        CryptoDevBackendSymStatelessInfo *op_info;
+        op_info = req->u.sym_stateless_info;
+
+        return cryptodev_backend_sym_stateless_operation(backend,
                          op_info, queue_index, errp);
     } else {
         error_setg(errp, "Unsupported cryptodev alg type: %" PRIu32 "",
