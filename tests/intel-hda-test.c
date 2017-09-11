@@ -19,14 +19,14 @@
 static void ich6_test(void)
 {
     qtest_start("-device intel-hda,id=" HDA_ID CODEC_DEVICES);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void ich9_test(void)
 {
     qtest_start("-machine q35 -device ich9-intel-hda,bus=pcie.0,addr=1b.0,id="
                 HDA_ID CODEC_DEVICES);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

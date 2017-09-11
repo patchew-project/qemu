@@ -408,7 +408,7 @@ static void data_test_clear(e1000e_device *d)
     pc_alloc_uninit(test_alloc);
     g_free(d->pci_dev);
     qpci_free_pc(test_bus);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_e1000e_init(gconstpointer data)
@@ -463,7 +463,7 @@ static void test_e1000e_hotplug(gconstpointer data)
     qpci_plug_device_test(global_qtest, "e1000e", "e1000e_net", slot, NULL);
     qpci_unplug_device_test(global_qtest, "e1000e_net", slot);
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

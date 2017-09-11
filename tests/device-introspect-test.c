@@ -134,7 +134,7 @@ static void test_device_intro_list(void)
     help = hmp("device_add help");
     g_free(help);
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 /*
@@ -189,21 +189,21 @@ static void test_qom_list_fields(void)
 
     QDECREF(all_types);
     QDECREF(non_abstract);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_device_intro_none(void)
 {
     qtest_start(common_args);
     test_one_device("nonexistent");
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_device_intro_abstract(void)
 {
     qtest_start(common_args);
     test_one_device("device");
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_device_intro_concrete(void)
@@ -223,7 +223,7 @@ static void test_device_intro_concrete(void)
     }
 
     QDECREF(types);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_abstract_interfaces(void)
@@ -257,7 +257,7 @@ static void test_abstract_interfaces(void)
 
     QDECREF(all_types);
     QDECREF(index);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

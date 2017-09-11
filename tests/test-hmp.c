@@ -127,7 +127,7 @@ static void test_machine(gconstpointer data)
     test_info_commands();
     test_commands();
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(args);
     g_free((void *)data);
 }

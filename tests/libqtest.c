@@ -246,6 +246,10 @@ QTestState *qtest_init(const char *extra_args)
 
 void qtest_quit(QTestState *s)
 {
+    if (global_qtest) {
+        assert(s == global_qtest);
+        global_qtest = NULL;
+    }
     g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
 
     /* Uninstall SIGABRT handler on last instance */
@@ -979,6 +983,6 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
         cb(mname);
     }
 
-    qtest_end();
+    qtest_quit(global_qtest);
     QDECREF(response);
 }

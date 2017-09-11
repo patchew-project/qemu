@@ -30,7 +30,7 @@
 
 static void test_end(void)
 {
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 #ifndef _WIN32

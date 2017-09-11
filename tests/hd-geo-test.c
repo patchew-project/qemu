@@ -245,7 +245,7 @@ static void test_ide_none(void)
     g_strfreev(argv);
     g_free(args);
     test_cmos();
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_ide_mbr(bool use_device, MBRcontents mbr)
@@ -267,7 +267,7 @@ static void test_ide_mbr(bool use_device, MBRcontents mbr)
     g_strfreev(argv);
     g_free(args);
     test_cmos();
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 /*
@@ -343,7 +343,7 @@ static void test_ide_drive_user(const char *dev, bool trans)
     g_strfreev(argv);
     g_free(args);
     test_cmos();
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 /*
@@ -400,7 +400,7 @@ static void test_ide_drive_cd_0(void)
     g_strfreev(argv);
     g_free(args);
     test_cmos();
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

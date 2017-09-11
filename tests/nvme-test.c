@@ -26,7 +26,7 @@ int main(int argc, char **argv)
                 "-device nvme,drive=drv0,serial=foo");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

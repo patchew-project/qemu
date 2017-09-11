@@ -102,7 +102,7 @@ static void test_machine(gconstpointer data)
     g_assert(qdict_haskey(response, "return"));
     QDECREF(response);
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(args);
     g_free((void *)machine);
 }

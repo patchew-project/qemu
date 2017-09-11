@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/netfilter/mirror", test_mirror);
     ret = g_test_run();
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

@@ -44,7 +44,7 @@ static void test_pc_with_cpu_add(gconstpointer data)
         QDECREF(response);
     }
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(args);
 }
 
@@ -67,7 +67,7 @@ static void test_pc_without_cpu_add(gconstpointer data)
     g_assert(qdict_haskey(response, "error"));
     QDECREF(response);
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(args);
 }
 

@@ -32,7 +32,7 @@ static void test_mon_explicit(const void *data)
     g_assert(strstr(s, "node 1 cpus: 4 5 6 7"));
     g_free(s);
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 
@@ -49,7 +49,7 @@ static void test_mon_default(const void *data)
     g_assert(strstr(s, "node 1 cpus: 1 3 5 7"));
     g_free(s);
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 
@@ -68,7 +68,7 @@ static void test_mon_partial(const void *data)
     g_assert(strstr(s, "node 1 cpus: 4 5"));
     g_free(s);
 
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 
@@ -113,7 +113,7 @@ static void test_query_cpus(const void *data)
     }
 
     QDECREF(resp);
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 
@@ -166,7 +166,7 @@ static void pc_numa_cpu(const void *data)
     }
 
     QDECREF(resp);
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 
@@ -211,7 +211,7 @@ static void spapr_numa_cpu(const void *data)
     }
 
     QDECREF(resp);
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 
@@ -254,7 +254,7 @@ static void aarch64_numa_cpu(const void *data)
     }
 
     QDECREF(resp);
-    qtest_end();
+    qtest_quit(global_qtest);
     g_free(cli);
 }
 

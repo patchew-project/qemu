@@ -188,7 +188,7 @@ static void test_query(const void *data)
     }
     QDECREF(resp);
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static bool query_is_blacklisted(const char *cmd)
@@ -232,7 +232,7 @@ static void qmp_schema_init(QmpSchema *schema)
     visit_free(qiv);
 
     QDECREF(resp);
-    qtest_end();
+    qtest_quit(global_qtest);
 
     schema->hash = g_hash_table_new(g_str_hash, g_str_equal);
 

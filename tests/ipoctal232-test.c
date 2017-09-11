@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     qtest_start("-device tpci200,id=ipack0 -device ipoctal232,bus=ipack0.0");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

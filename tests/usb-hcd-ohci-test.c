@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 
     qtest_start("-device pci-ohci,id=ohci");
     ret = g_test_run();
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

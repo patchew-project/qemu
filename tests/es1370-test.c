@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     qtest_start("-device ES1370");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

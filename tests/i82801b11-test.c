@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     qtest_start("-machine q35 -device i82801b11-bridge,bus=pcie.0,addr=1e.0");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

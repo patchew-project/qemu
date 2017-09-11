@@ -102,7 +102,7 @@ static void arm_test_start(void)
 
 static void test_end(void)
 {
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static QVirtioPCIDevice *virtio_blk_pci_init(QPCIBus *bus, int slot)

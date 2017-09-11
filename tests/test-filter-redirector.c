@@ -135,7 +135,7 @@ static void test_redirector_tx(void)
     close(recv_sock);
     unlink(sock_path0);
     unlink(sock_path1);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_redirector_rx(void)
@@ -204,7 +204,7 @@ static void test_redirector_rx(void)
     g_free(recv_buf);
     unlink(sock_path0);
     unlink(sock_path1);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

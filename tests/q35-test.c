@@ -119,7 +119,7 @@ static void test_smram_lock(void)
     g_free(pcidev);
     qpci_free_pc(pcibus);
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_tseg_size(const void *data)
@@ -185,7 +185,7 @@ static void test_tseg_size(const void *data)
 
     g_free(pcidev);
     qpci_free_pc(pcibus);
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

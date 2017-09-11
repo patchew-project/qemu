@@ -134,7 +134,7 @@ static void ide_test_quit(void)
 {
     pc_alloc_uninit(guest_malloc);
     guest_malloc = NULL;
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static QPCIDevice *get_pci_device(QPCIBar *bmdma_bar, QPCIBar *ide_bar)

@@ -523,17 +523,6 @@ static inline QTestState *qtest_start(const char *args)
 }
 
 /**
- * qtest_end:
- *
- * Shut down the QEMU process started by qtest_start().
- */
-static inline void qtest_end(void)
-{
-    qtest_quit(global_qtest);
-    global_qtest = NULL;
-}
-
-/**
  * qmp:
  * @fmt...: QMP message to send to qemu
  *

@@ -55,7 +55,7 @@ static void test_drive_without_dev(void)
      */
     drive_add();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_after_failed_device_add(void)
@@ -86,7 +86,7 @@ static void test_after_failed_device_add(void)
      */
     drive_add();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 static void test_drive_del_device_del(void)
@@ -103,7 +103,7 @@ static void test_drive_del_device_del(void)
     drive_del();
     device_del();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 }
 
 int main(int argc, char **argv)

@@ -172,7 +172,7 @@ int main(int argc, char **argv)
     ret = g_test_run();
     test_deinit();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

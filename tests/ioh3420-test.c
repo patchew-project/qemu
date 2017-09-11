@@ -26,7 +26,7 @@ int main(int argc, char **argv)
                 "chassis=1,multifunction=on");
     ret = g_test_run();
 
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }

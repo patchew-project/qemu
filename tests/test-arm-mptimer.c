@@ -1099,7 +1099,7 @@ tests_with_prescaler_arg:
 
     qtest_start("-machine vexpress-a9");
     ret = g_test_run();
-    qtest_end();
+    qtest_quit(global_qtest);
 
     return ret;
 }
