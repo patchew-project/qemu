@@ -36,7 +36,7 @@ void* memcpy(void *dest, const void *src, int n)
 
 static void print_char(char c)
 {
-    outb(0xe9, c);
+    outb(global_qtest, 0xe9, c);
 }
 
 static void print_str(char *s)

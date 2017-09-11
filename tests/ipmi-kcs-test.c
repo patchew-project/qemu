@@ -52,22 +52,22 @@ static int kcs_ints_enabled;
 
 static uint8_t kcs_get_cmdreg(void)
 {
-    return inb(IPMI_KCS_BASE + 1);
+    return inb(global_qtest, IPMI_KCS_BASE + 1);
 }
 
 static void kcs_write_cmdreg(uint8_t val)
 {
-    outb(IPMI_KCS_BASE + 1, val);
+    outb(global_qtest, IPMI_KCS_BASE + 1, val);
 }
 
 static uint8_t kcs_get_datareg(void)
 {
-    return inb(IPMI_KCS_BASE);
+    return inb(global_qtest, IPMI_KCS_BASE);
 }
 
 static void kcs_write_datareg(uint8_t val)
 {
-    outb(IPMI_KCS_BASE, val);
+    outb(global_qtest, IPMI_KCS_BASE, val);
 }
 
 static void kcs_wait_ibf(void)

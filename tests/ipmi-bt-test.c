@@ -66,32 +66,32 @@ static int bt_ints_enabled;
 
 static uint8_t bt_get_ctrlreg(void)
 {
-    return inb(IPMI_BT_BASE);
+    return inb(global_qtest, IPMI_BT_BASE);
 }
 
 static void bt_write_ctrlreg(uint8_t val)
 {
-    outb(IPMI_BT_BASE, val);
+    outb(global_qtest, IPMI_BT_BASE, val);
 }
 
 static uint8_t bt_get_buf(void)
 {
-    return inb(IPMI_BT_BASE + 1);
+    return inb(global_qtest, IPMI_BT_BASE + 1);
 }
 
 static void bt_write_buf(uint8_t val)
 {
-    outb(IPMI_BT_BASE + 1, val);
+    outb(global_qtest, IPMI_BT_BASE + 1, val);
 }
 
 static uint8_t bt_get_irqreg(void)
 {
-    return inb(IPMI_BT_BASE + 2);
+    return inb(global_qtest, IPMI_BT_BASE + 2);
 }
 
 static void bt_write_irqreg(uint8_t val)
 {
-    outb(IPMI_BT_BASE + 2, val);
+    outb(global_qtest, IPMI_BT_BASE + 2, val);
 }
 
 static void bt_wait_b_busy(void)

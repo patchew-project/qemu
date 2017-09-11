@@ -77,21 +77,21 @@ static void floppy_send(uint8_t byte)
 {
     uint8_t msr;
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     assert_bit_set(msr, RQM);
     assert_bit_clear(msr, DIO);
 
-    outb(FLOPPY_BASE + reg_fifo, byte);
+    outb(global_qtest, FLOPPY_BASE + reg_fifo, byte);
 }
 
 static uint8_t floppy_recv(void)
 {
     uint8_t msr;
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     assert_bit_set(msr, RQM | DIO);
 
-    return inb(FLOPPY_BASE + reg_fifo);
+    return inb(global_qtest, FLOPPY_BASE + reg_fifo);
 }
 
 /* pcn: Present Cylinder Number */
@@ -141,7 +141,7 @@ static uint8_t send_read_command(uint8_t cmd)
     uint8_t i = 0;
     uint8_t n = 2;
     for (; i < n; i++) {
-        msr = inb(FLOPPY_BASE + reg_msr);
+        msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
         if (msr == 0xd0) {
             break;
         }
@@ -197,7 +197,7 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
     uint16_t i = 0;
     uint8_t n = 2;
     for (; i < n; i++) {
-        msr = inb(FLOPPY_BASE + reg_msr);
+        msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
         if (msr == (BUSY | NONDMA | DIO | RQM)) {
             break;
         }
@@ -210,12 +210,12 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
 
     /* Non-DMA mode */
     for (i = 0; i < 512 * 2 * nb_sect; i++) {
-        msr = inb(FLOPPY_BASE + reg_msr);
+        msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
         assert_bit_set(msr, BUSY | RQM | DIO);
-        inb(FLOPPY_BASE + reg_fifo);
+        inb(global_qtest, FLOPPY_BASE + reg_fifo);
     }
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     assert_bit_set(msr, BUSY | RQM | DIO);
     g_assert(get_irq(global_qtest, FLOPPY_IRQ));
 
@@ -233,7 +233,7 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
     floppy_recv();
 
     /* Check that we're back in command phase */
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     assert_bit_clear(msr, BUSY | DIO);
     assert_bit_set(msr, RQM);
     g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
@@ -255,8 +255,8 @@ static void send_seek(int cyl)
 
 static uint8_t cmos_read(uint8_t reg)
 {
-    outb(base + 0, reg);
-    return inb(base + 1);
+    outb(global_qtest, base + 0, reg);
+    return inb(global_qtest, base + 1);
 }
 
 static void test_cmos(void)
@@ -273,14 +273,14 @@ static void test_no_media_on_start(void)
 
     /* Media changed bit must be set all time after start if there is
      * no media in drive. */
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     send_seek(1);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 }
 
@@ -302,22 +302,22 @@ static void test_media_insert(void)
                          " 'id':'floppy0', 'filename': %s, 'format': 'raw' }}",
                          test_image);
 
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
     send_seek(0);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
     /* Step to next track should clear DSKCHG bit. */
     send_seek(1);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
 }
 
@@ -332,21 +332,21 @@ static void test_media_change(void)
     qmp_discard_response("{'execute':'eject', 'arguments':{"
                          " 'id':'floppy0' }}");
 
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
     send_seek(0);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
     send_seek(1);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
+    dir = inb(global_qtest, FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 }
 
@@ -416,7 +416,7 @@ static void test_read_id(void)
     g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(head << 2 | drive);
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     if (!get_irq(global_qtest, FLOPPY_IRQ)) {
         assert_bit_set(msr, BUSY);
         assert_bit_clear(msr, RQM);
@@ -427,7 +427,7 @@ static void test_read_id(void)
         clock_step(global_qtest, 1000000000LL / 50);
     }
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     assert_bit_set(msr, BUSY | RQM | DIO);
 
     st0 = floppy_recv();
@@ -459,7 +459,7 @@ static void test_read_id(void)
     g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(head << 2 | drive);
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     if (!get_irq(global_qtest, FLOPPY_IRQ)) {
         assert_bit_set(msr, BUSY);
         assert_bit_clear(msr, RQM);
@@ -470,7 +470,7 @@ static void test_read_id(void)
         clock_step(global_qtest, 1000000000LL / 50);
     }
 
-    msr = inb(FLOPPY_BASE + reg_msr);
+    msr = inb(global_qtest, FLOPPY_BASE + reg_msr);
     assert_bit_set(msr, BUSY | RQM | DIO);
 
     st0 = floppy_recv();
@@ -492,7 +492,8 @@ static void test_read_no_dma_1(void)
 {
     uint8_t ret;
 
-    outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
+    outb(global_qtest, FLOPPY_BASE + reg_dor,
+         inb(global_qtest, FLOPPY_BASE + reg_dor) & ~0x08);
     send_seek(0);
     ret = send_read_no_dma_command(1, 0x04);
     g_assert(ret == 0);
@@ -502,7 +503,8 @@ static void test_read_no_dma_18(void)
 {
     uint8_t ret;
 
-    outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
+    outb(global_qtest, FLOPPY_BASE + reg_dor,
+         inb(global_qtest, FLOPPY_BASE + reg_dor) & ~0x08);
     send_seek(0);
     ret = send_read_no_dma_command(18, 0x04);
     g_assert(ret == 0);
@@ -512,7 +514,8 @@ static void test_read_no_dma_19(void)
 {
     uint8_t ret;
 
-    outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
+    outb(global_qtest, FLOPPY_BASE + reg_dor,
+         inb(global_qtest, FLOPPY_BASE + reg_dor) & ~0x08);
     send_seek(0);
     ret = send_read_no_dma_command(19, 0x20);
     g_assert(ret == 0);
@@ -537,8 +540,8 @@ static void fuzz_registers(void)
         reg = (uint8_t)g_test_rand_int_range(0, 8);
         val = (uint8_t)g_test_rand_int_range(0, 256);
 
-        outb(FLOPPY_BASE + reg, val);
-        inb(FLOPPY_BASE + reg);
+        outb(global_qtest, FLOPPY_BASE + reg, val);
+        inb(global_qtest, FLOPPY_BASE + reg);
     }
 }
 

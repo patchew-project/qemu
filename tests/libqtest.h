@@ -205,61 +205,61 @@ void irq_intercept_in(QTestState *s, const char *string);
 void irq_intercept_out(QTestState *s, const char *string);
 
 /**
- * qtest_outb:
+ * outb:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to write to.
  * @value: Value being written.
  *
  * Write an 8-bit value to an I/O port.
  */
-void qtest_outb(QTestState *s, uint16_t addr, uint8_t value);
+void outb(QTestState *s, uint16_t addr, uint8_t value);
 
 /**
- * qtest_outw:
+ * outw:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to write to.
  * @value: Value being written.
  *
  * Write a 16-bit value to an I/O port.
  */
-void qtest_outw(QTestState *s, uint16_t addr, uint16_t value);
+void outw(QTestState *s, uint16_t addr, uint16_t value);
 
 /**
- * qtest_outl:
+ * outl:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to write to.
  * @value: Value being written.
  *
  * Write a 32-bit value to an I/O port.
  */
-void qtest_outl(QTestState *s, uint16_t addr, uint32_t value);
+void outl(QTestState *s, uint16_t addr, uint32_t value);
 
 /**
- * qtest_inb:
+ * inb:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to read from.
  *
  * Returns an 8-bit value from an I/O port.
  */
-uint8_t qtest_inb(QTestState *s, uint16_t addr);
+uint8_t inb(QTestState *s, uint16_t addr);
 
 /**
- * qtest_inw:
+ * inw:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to read from.
  *
  * Returns a 16-bit value from an I/O port.
  */
-uint16_t qtest_inw(QTestState *s, uint16_t addr);
+uint16_t inw(QTestState *s, uint16_t addr);
 
 /**
- * qtest_inl:
+ * inl:
  * @s: #QTestState instance to operate on.
  * @addr: I/O port to read from.
  *
  * Returns a 32-bit value from an I/O port.
  */
-uint32_t qtest_inl(QTestState *s, uint16_t addr);
+uint32_t inl(QTestState *s, uint16_t addr);
 
 /**
  * qtest_writeb:
@@ -592,81 +592,6 @@ static inline QDict *qmp_eventwait_ref(const char *event)
  * Returns: the command's output.  The caller should g_free() it.
  */
 char *hmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/**
- * outb:
- * @addr: I/O port to write to.
- * @value: Value being written.
- *
- * Write an 8-bit value to an I/O port.
- */
-static inline void outb(uint16_t addr, uint8_t value)
-{
-    qtest_outb(global_qtest, addr, value);
-}
-
-/**
- * outw:
- * @addr: I/O port to write to.
- * @value: Value being written.
- *
- * Write a 16-bit value to an I/O port.
- */
-static inline void outw(uint16_t addr, uint16_t value)
-{
-    qtest_outw(global_qtest, addr, value);
-}
-
-/**
- * outl:
- * @addr: I/O port to write to.
- * @value: Value being written.
- *
- * Write a 32-bit value to an I/O port.
- */
-static inline void outl(uint16_t addr, uint32_t value)
-{
-    qtest_outl(global_qtest, addr, value);
-}
-
-/**
- * inb:
- * @addr: I/O port to read from.
- *
- * Reads an 8-bit value from an I/O port.
- *
- * Returns: Value read.
- */
-static inline uint8_t inb(uint16_t addr)
-{
-    return qtest_inb(global_qtest, addr);
-}
-
-/**
- * inw:
- * @addr: I/O port to read from.
- *
- * Reads a 16-bit value from an I/O port.
- *
- * Returns: Value read.
- */
-static inline uint16_t inw(uint16_t addr)
-{
-    return qtest_inw(global_qtest, addr);
-}
-
-/**
- * inl:
- * @addr: I/O port to read from.
- *
- * Reads a 32-bit value from an I/O port.
- *
- * Returns: Value read.
- */
-static inline uint32_t inl(uint16_t addr)
-{
-    return qtest_inl(global_qtest, addr);
-}
 
 /**
  * writeb:

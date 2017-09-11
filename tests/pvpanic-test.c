@@ -15,10 +15,10 @@ static void test_panic(void)
     uint8_t val;
     QDict *response, *data;
 
-    val = inb(0x505);
+    val = inb(global_qtest, 0x505);
     g_assert_cmpuint(val, ==, 1);
 
-    outb(0x505, 0x1);
+    outb(global_qtest, 0x505, 0x1);
 
     response = qmp_receive();
     g_assert(qdict_haskey(response, "event"));

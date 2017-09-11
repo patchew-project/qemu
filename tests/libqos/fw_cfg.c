@@ -83,7 +83,7 @@ QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base)
 
 static void io_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
-    qtest_outw(fw_cfg->qts, fw_cfg->base, key);
+    outw(fw_cfg->qts, fw_cfg->base, key);
 }
 
 static void io_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
@@ -92,7 +92,7 @@ static void io_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
     int i;
 
     for (i = 0; i < len; i++) {
-        ptr[i] = qtest_inb(fw_cfg->qts, fw_cfg->base + 1);
+        ptr[i] = inb(fw_cfg->qts, fw_cfg->base + 1);
     }
 }
 

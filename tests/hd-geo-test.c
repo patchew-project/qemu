@@ -82,8 +82,8 @@ static void test_cmos_byte(int reg, int expected)
     enum { cmos_base = 0x70 };
     int actual;
 
-    outb(cmos_base + 0, reg);
-    actual = inb(cmos_base + 1);
+    outb(global_qtest, cmos_base + 0, reg);
+    actual = inb(global_qtest, cmos_base + 1);
     g_assert(actual == expected);
 }
 

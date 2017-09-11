@@ -26,22 +26,22 @@ static QDict *ib700_program_and_wait(QTestState *s)
     qmp_check_no_event(s);
 
     /* 2 second limit */
-    qtest_outb(s, 0x443, 14);
+    outb(s, 0x443, 14);
 
     /* Ping */
     clock_step(s, NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
-    qtest_outb(s, 0x443, 14);
+    outb(s, 0x443, 14);
 
     /* Disable */
     clock_step(s, NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
-    qtest_outb(s, 0x441, 1);
+    outb(s, 0x441, 1);
     clock_step(s, 3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
 
     /* Enable and let it fire */
-    qtest_outb(s, 0x443, 13);
+    outb(s, 0x443, 13);
     clock_step(s, 3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event(s);
     clock_step(s, 2 * NANOSECONDS_PER_SECOND);

@@ -426,7 +426,7 @@ void qpci_unplug_device_test(QTestState *qts, const char *id, uint8_t slot)
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    qtest_outb(qts, ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
+    outb(qts, ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
 
     qtest_qmp_eventwait(qts, "DEVICE_DELETED");
 }

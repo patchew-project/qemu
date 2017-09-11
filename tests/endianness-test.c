@@ -52,7 +52,7 @@ static uint8_t isa_inb(const TestCase *test, uint16_t addr)
 {
     uint8_t value;
     if (test->isa_base == -1) {
-        value = inb(addr);
+        value = inb(global_qtest, addr);
     } else {
         value = readb(test->isa_base + addr);
     }
@@ -63,7 +63,7 @@ static uint16_t isa_inw(const TestCase *test, uint16_t addr)
 {
     uint16_t value;
     if (test->isa_base == -1) {
-        value = inw(addr);
+        value = inw(global_qtest, addr);
     } else {
         value = readw(test->isa_base + addr);
     }
@@ -74,7 +74,7 @@ static uint32_t isa_inl(const TestCase *test, uint16_t addr)
 {
     uint32_t value;
     if (test->isa_base == -1) {
-        value = inl(addr);
+        value = inl(global_qtest, addr);
     } else {
         value = readl(test->isa_base + addr);
     }
@@ -84,7 +84,7 @@ static uint32_t isa_inl(const TestCase *test, uint16_t addr)
 static void isa_outb(const TestCase *test, uint16_t addr, uint8_t value)
 {
     if (test->isa_base == -1) {
-        outb(addr, value);
+        outb(global_qtest, addr, value);
     } else {
         writeb(test->isa_base + addr, value);
     }
@@ -94,7 +94,7 @@ static void isa_outw(const TestCase *test, uint16_t addr, uint16_t value)
 {
     value = test->bswap ? bswap16(value) : value;
     if (test->isa_base == -1) {
-        outw(addr, value);
+        outw(global_qtest, addr, value);
     } else {
         writew(test->isa_base + addr, value);
     }
@@ -104,7 +104,7 @@ static void isa_outl(const TestCase *test, uint16_t addr, uint32_t value)
 {
     value = test->bswap ? bswap32(value) : value;
     if (test->isa_base == -1) {
-        outl(addr, value);
+        outl(global_qtest, addr, value);
     } else {
         writel(test->isa_base + addr, value);
     }

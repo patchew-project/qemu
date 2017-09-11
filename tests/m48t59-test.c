@@ -44,14 +44,14 @@ static void cmos_write_mmio(uint8_t reg, uint8_t val)
 
 static uint8_t cmos_read_ioio(uint8_t reg)
 {
-    outw(base + 0, reg_base + (uint16_t)reg);
-    return inb(base + 3);
+    outw(global_qtest, base + 0, reg_base + (uint16_t)reg);
+    return inb(global_qtest, base + 3);
 }
 
 static void cmos_write_ioio(uint8_t reg, uint8_t val)
 {
-    outw(base + 0, reg_base + (uint16_t)reg);
-    outb(base + 3, val);
+    outw(global_qtest, base + 0, reg_base + (uint16_t)reg);
+    outb(global_qtest, base + 3, val);
 }
 
 static uint8_t cmos_read(uint8_t reg)

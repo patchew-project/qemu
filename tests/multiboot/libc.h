@@ -48,7 +48,7 @@ typedef __builtin_va_list       va_list;
 
 /* Port I/O functions */
 
-static inline void outb(uint16_t port, uint8_t data)
+static inline void outb(global_qtest, uint16_t port, uint8_t data)
 {
     asm volatile ("outb %0, %1" : : "a" (data), "Nd" (port));
 }

@@ -28,14 +28,14 @@ static int bcd2dec(int value)
 
 static uint8_t cmos_read(uint8_t reg)
 {
-    outb(base + 0, reg);
-    return inb(base + 1);
+    outb(global_qtest, base + 0, reg);
+    return inb(global_qtest, base + 1);
 }
 
 static void cmos_write(uint8_t reg, uint8_t val)
 {
-    outb(base + 0, reg);
-    outb(base + 1, val);
+    outb(global_qtest, base + 0, reg);
+    outb(global_qtest, base + 1, val);
 }
 
 static int tm_cmp(struct tm *lhs, struct tm *rhs)

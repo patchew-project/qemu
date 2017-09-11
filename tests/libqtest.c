@@ -651,7 +651,7 @@ const char *qtest_get_arch(void)
 bool get_irq(QTestState *s, int num)
 {
     /* dummy operation in order to make sure irq is up to date */
-    qtest_inb(s, 0);
+    inb(s, 0);
 
     return s->irq_level[num];
 }
@@ -702,17 +702,17 @@ static void qtest_out(QTestState *s, const char *cmd, uint16_t addr, uint32_t va
     qtest_rsp(s, 0);
 }
 
-void qtest_outb(QTestState *s, uint16_t addr, uint8_t value)
+void outb(QTestState *s, uint16_t addr, uint8_t value)
 {
     qtest_out(s, "outb", addr, value);
 }
 
-void qtest_outw(QTestState *s, uint16_t addr, uint16_t value)
+void outw(QTestState *s, uint16_t addr, uint16_t value)
 {
     qtest_out(s, "outw", addr, value);
 }
 
-void qtest_outl(QTestState *s, uint16_t addr, uint32_t value)
+void outl(QTestState *s, uint16_t addr, uint32_t value)
 {
     qtest_out(s, "outl", addr, value);
 }
@@ -732,17 +732,17 @@ static uint32_t qtest_in(QTestState *s, const char *cmd, uint16_t addr)
     return value;
 }
 
-uint8_t qtest_inb(QTestState *s, uint16_t addr)
+uint8_t inb(QTestState *s, uint16_t addr)
 {
     return qtest_in(s, "inb", addr);
 }
 
-uint16_t qtest_inw(QTestState *s, uint16_t addr)
+uint16_t inw(QTestState *s, uint16_t addr)
 {
     return qtest_in(s, "inw", addr);
 }
 
-uint32_t qtest_inl(QTestState *s, uint16_t addr)
+uint32_t inl(QTestState *s, uint16_t addr)
 {
     return qtest_in(s, "inl", addr);
 }

@@ -63,8 +63,8 @@ static void test_boot_orders(const char *machine,
 
 static uint8_t read_mc146818(uint16_t port, uint8_t reg)
 {
-    outb(port, reg);
-    return inb(port + 1);
+    outb(global_qtest, port, reg);
+    return inb(global_qtest, port + 1);
 }
 
 static uint64_t read_boot_order_pc(void)
