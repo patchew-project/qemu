@@ -60,7 +60,7 @@ static void test_init(TestData *d)
                       d->noreboot ? "" : "-global ICH9-LPC.noreboot=false",
                       !d->args ? "" : d->args);
     global_qtest = qs;
-    qtest_irq_intercept_in(qs, "ioapic");
+    irq_intercept_in(qs, "ioapic");
 
     d->bus = qpci_init_pc(qs, NULL);
     d->dev = qpci_device_find(d->bus, QPCI_DEVFN(0x1f, 0x00));

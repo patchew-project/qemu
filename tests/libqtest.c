@@ -648,7 +648,7 @@ const char *qtest_get_arch(void)
     return end + strlen("/qemu-system-");
 }
 
-bool qtest_get_irq(QTestState *s, int num)
+bool get_irq(QTestState *s, int num)
 {
     /* dummy operation in order to make sure irq is up to date */
     qtest_inb(s, 0);
@@ -684,13 +684,13 @@ int64_t clock_set(QTestState *s, int64_t val)
     return qtest_clock_rsp(s);
 }
 
-void qtest_irq_intercept_out(QTestState *s, const char *qom_path)
+void irq_intercept_out(QTestState *s, const char *qom_path)
 {
     qtest_sendf(s, "irq_intercept_out %s\n", qom_path);
     qtest_rsp(s, 0);
 }
 
-void qtest_irq_intercept_in(QTestState *s, const char *qom_path)
+void irq_intercept_in(QTestState *s, const char *qom_path)
 {
     qtest_sendf(s, "irq_intercept_in %s\n", qom_path);
     qtest_rsp(s, 0);

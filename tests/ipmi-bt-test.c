@@ -276,10 +276,10 @@ static void bt_cmd(uint8_t *cmd, unsigned int cmd_len,
     bt_wait_b2h_atn();
     if (bt_ints_enabled) {
         g_assert((bt_get_irqreg() & 0x02) == 0x02);
-        g_assert(get_irq(IPMI_IRQ));
+        g_assert(get_irq(global_qtest, IPMI_IRQ));
         bt_write_irqreg(0x03);
     } else {
-        g_assert(!get_irq(IPMI_IRQ));
+        g_assert(!get_irq(global_qtest, IPMI_IRQ));
     }
     IPMI_BT_CTLREG_SET_H_BUSY();
     IPMI_BT_CTLREG_SET_B2H_ATN();
@@ -418,7 +418,7 @@ int main(int argc, char **argv)
         " -chardev socket,id=ipmi0,host=localhost,port=%d,reconnect=10"
         " -device ipmi-bmc-extern,chardev=ipmi0,id=bmc0"
         " -device isa-ipmi-bt,bmc=bmc0", emu_port);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/ipmi/extern/connect", test_connect);
     qtest_add_func("/ipmi/extern/bt_base", test_bt_base);
     qtest_add_func("/ipmi/extern/bt_enable_irq", test_enable_irq);

@@ -176,33 +176,33 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
- * qtest_get_irq:
+ * get_irq:
  * @s: #QTestState instance to operate on.
  * @num: Interrupt to observe.
  *
  * Returns: The level of the @num interrupt.
  */
-bool qtest_get_irq(QTestState *s, int num);
+bool get_irq(QTestState *s, int num);
 
 /**
- * qtest_irq_intercept_in:
+ * irq_intercept_in:
  * @s: #QTestState instance to operate on.
  * @string: QOM path of a device.
  *
  * Associate qtest irqs with the GPIO-in pins of the device
  * whose path is specified by @string.
  */
-void qtest_irq_intercept_in(QTestState *s, const char *string);
+void irq_intercept_in(QTestState *s, const char *string);
 
 /**
- * qtest_irq_intercept_out:
+ * irq_intercept_out:
  * @s: #QTestState instance to operate on.
  * @string: QOM path of a device.
  *
  * Associate qtest irqs with the GPIO-out pins of the device
  * whose path is specified by @string.
  */
-void qtest_irq_intercept_out(QTestState *s, const char *string);
+void irq_intercept_out(QTestState *s, const char *string);
 
 /**
  * qtest_outb:
@@ -592,41 +592,6 @@ static inline QDict *qmp_eventwait_ref(const char *event)
  * Returns: the command's output.  The caller should g_free() it.
  */
 char *hmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/**
- * get_irq:
- * @num: Interrupt to observe.
- *
- * Returns: The level of the @num interrupt.
- */
-static inline bool get_irq(int num)
-{
-    return qtest_get_irq(global_qtest, num);
-}
-
-/**
- * irq_intercept_in:
- * @string: QOM path of a device.
- *
- * Associate qtest irqs with the GPIO-in pins of the device
- * whose path is specified by @string.
- */
-static inline void irq_intercept_in(const char *string)
-{
-    qtest_irq_intercept_in(global_qtest, string);
-}
-
-/**
- * qtest_irq_intercept_out:
- * @string: QOM path of a device.
- *
- * Associate qtest irqs with the GPIO-out pins of the device
- * whose path is specified by @string.
- */
-static inline void irq_intercept_out(const char *string)
-{
-    qtest_irq_intercept_out(global_qtest, string);
-}
 
 /**
  * outb:

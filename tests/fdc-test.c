@@ -99,7 +99,7 @@ static void ack_irq(uint8_t *pcn)
 {
     uint8_t ret;
 
-    g_assert(get_irq(FLOPPY_IRQ));
+    g_assert(get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(CMD_SENSE_INT);
     floppy_recv();
 
@@ -108,7 +108,7 @@ static void ack_irq(uint8_t *pcn)
         *pcn = ret;
     }
 
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
 }
 
 static uint8_t send_read_command(uint8_t cmd)
@@ -129,7 +129,7 @@ static uint8_t send_read_command(uint8_t cmd)
 
     floppy_send(cmd);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
     floppy_send(head);
     floppy_send(sect_addr);
@@ -185,7 +185,7 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
 
     floppy_send(CMD_READ);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
     floppy_send(head);
     floppy_send(sect_addr);
@@ -217,7 +217,7 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
 
     msr = inb(FLOPPY_BASE + reg_msr);
     assert_bit_set(msr, BUSY | RQM | DIO);
-    g_assert(get_irq(FLOPPY_IRQ));
+    g_assert(get_irq(global_qtest, FLOPPY_IRQ));
 
     st0 = floppy_recv();
     if (st0 != expected_st0) {
@@ -229,14 +229,14 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
     floppy_recv();
     floppy_recv();
     floppy_recv();
-    g_assert(get_irq(FLOPPY_IRQ));
+    g_assert(get_irq(global_qtest, FLOPPY_IRQ));
     floppy_recv();
 
     /* Check that we're back in command phase */
     msr = inb(FLOPPY_BASE + reg_msr);
     assert_bit_clear(msr, BUSY | DIO);
     assert_bit_set(msr, RQM);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
 
     return ret;
 }
@@ -248,7 +248,7 @@ static void send_seek(int cyl)
 
     floppy_send(CMD_SEEK);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
     ack_irq(NULL);
 }
@@ -363,7 +363,7 @@ static void test_sense_interrupt(void)
 
     floppy_send(CMD_SEEK);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
 
     floppy_send(CMD_SENSE_INT);
@@ -385,7 +385,7 @@ static void test_relative_seek(void)
     /* Send relative seek to increase track by 1 */
     floppy_send(CMD_RELATIVE_SEEK_IN);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
 
     ack_irq(&pcn);
@@ -394,7 +394,7 @@ static void test_relative_seek(void)
     /* Send relative seek to decrease track by 1 */
     floppy_send(CMD_RELATIVE_SEEK_OUT);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
 
     ack_irq(&pcn);
@@ -413,16 +413,16 @@ static void test_read_id(void)
     send_seek(0);
 
     floppy_send(CMD_READ_ID);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(head << 2 | drive);
 
     msr = inb(FLOPPY_BASE + reg_msr);
-    if (!get_irq(FLOPPY_IRQ)) {
+    if (!get_irq(global_qtest, FLOPPY_IRQ)) {
         assert_bit_set(msr, BUSY);
         assert_bit_clear(msr, RQM);
     }
 
-    while (!get_irq(FLOPPY_IRQ)) {
+    while (!get_irq(global_qtest, FLOPPY_IRQ)) {
         /* qemu involves a timer with READ ID... */
         clock_step(global_qtest, 1000000000LL / 50);
     }
@@ -436,9 +436,9 @@ static void test_read_id(void)
     cyl = floppy_recv();
     head = floppy_recv();
     floppy_recv();
-    g_assert(get_irq(FLOPPY_IRQ));
+    g_assert(get_irq(global_qtest, FLOPPY_IRQ));
     floppy_recv();
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
 
     g_assert_cmpint(cyl, ==, 0);
     g_assert_cmpint(head, ==, 0);
@@ -450,22 +450,22 @@ static void test_read_id(void)
 
     floppy_send(CMD_SEEK);
     floppy_send(head << 2 | drive);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(cyl);
-    g_assert(get_irq(FLOPPY_IRQ));
+    g_assert(get_irq(global_qtest, FLOPPY_IRQ));
     ack_irq(NULL);
 
     floppy_send(CMD_READ_ID);
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
     floppy_send(head << 2 | drive);
 
     msr = inb(FLOPPY_BASE + reg_msr);
-    if (!get_irq(FLOPPY_IRQ)) {
+    if (!get_irq(global_qtest, FLOPPY_IRQ)) {
         assert_bit_set(msr, BUSY);
         assert_bit_clear(msr, RQM);
     }
 
-    while (!get_irq(FLOPPY_IRQ)) {
+    while (!get_irq(global_qtest, FLOPPY_IRQ)) {
         /* qemu involves a timer with READ ID... */
         clock_step(global_qtest, 1000000000LL / 50);
     }
@@ -479,9 +479,9 @@ static void test_read_id(void)
     cyl = floppy_recv();
     head = floppy_recv();
     floppy_recv();
-    g_assert(get_irq(FLOPPY_IRQ));
+    g_assert(get_irq(global_qtest, FLOPPY_IRQ));
     floppy_recv();
-    g_assert(!get_irq(FLOPPY_IRQ));
+    g_assert(!get_irq(global_qtest, FLOPPY_IRQ));
 
     g_assert_cmpint(cyl, ==, 8);
     g_assert_cmpint(head, ==, 1);
@@ -565,7 +565,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     global_qtest = qtest_start("-device floppy,id=floppy0");
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/fdc/cmos", test_cmos);
     qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);
     qtest_add_func("/fdc/read_without_media", test_read_without_media);

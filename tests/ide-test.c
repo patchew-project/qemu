@@ -255,14 +255,15 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
         status = qpci_io_readb(dev, bmdma_bar, bmreg_status);
     } while ((status & (BM_STS_ACTIVE | BM_STS_INTR)) == BM_STS_ACTIVE);
 
-    g_assert_cmpint(get_irq(IDE_PRIMARY_IRQ), ==, !!(status & BM_STS_INTR));
+    g_assert_cmpint(get_irq(global_qtest, IDE_PRIMARY_IRQ), ==,
+                    !!(status & BM_STS_INTR));
 
     /* Check IDE status code */
     assert_bit_set(qpci_io_readb(dev, ide_bar, reg_status), DRDY);
     assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), BSY | DRQ);
 
     /* Reading the status register clears the IRQ */
-    g_assert(!get_irq(IDE_PRIMARY_IRQ));
+    g_assert(!get_irq(global_qtest, IDE_PRIMARY_IRQ));
 
     /* Stop DMA transfer if still active */
     if (status & BM_STS_ACTIVE) {
@@ -458,7 +459,7 @@ static void test_bmdma_setup(void)
         "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
         "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
 }
 
 static void test_bmdma_teardown(void)
@@ -580,7 +581,7 @@ static void test_flush(void)
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
 
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
 
     /* Dirty media so that CMD_FLUSH_CACHE will actually go to disk */
     make_dirty(0);
@@ -631,7 +632,7 @@ static void test_retry_flush(const char *machine)
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
 
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
 
     /* Dirty media so that CMD_FLUSH_CACHE will actually go to disk */
     make_dirty(0);
@@ -784,7 +785,7 @@ static void ide_wait_intr(int irq)
 
     time(&st);
     while (true) {
-        intr = get_irq(irq);
+        intr = get_irq(global_qtest, irq);
         if (intr) {
             return;
         }
@@ -822,7 +823,7 @@ static void cdrom_pio_impl(int nblocks)
     ide_test_start("-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
                    "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
     dev = get_pci_device(&bmdma_bar, &ide_bar);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
 
     /* PACKET command on device 0 */
     qpci_io_writeb(dev, ide_bar, reg_device, 0);
@@ -905,7 +906,7 @@ static void test_cdrom_dma(void)
 
     ide_test_start("-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
                    "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
 
     guest_buf = guest_alloc(guest_malloc, len);
     prdt[0].addr = cpu_to_le32(guest_buf);

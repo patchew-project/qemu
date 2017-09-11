@@ -89,14 +89,14 @@ static void kcs_wait_obf(void)
 static void kcs_clear_obf(void)
 {
     if (kcs_ints_enabled) {
-        g_assert(get_irq(IPMI_IRQ));
+        g_assert(get_irq(global_qtest, IPMI_IRQ));
     } else {
-        g_assert(!get_irq(IPMI_IRQ));
+        g_assert(!get_irq(global_qtest, IPMI_IRQ));
     }
     g_assert(IPMI_KCS_CMDREG_GET_OBF() == 1);
     kcs_get_datareg();
     g_assert(IPMI_KCS_CMDREG_GET_OBF() == 0);
-    g_assert(!get_irq(IPMI_IRQ));
+    g_assert(!get_irq(global_qtest, IPMI_IRQ));
 }
 
 static void kcs_check_state(uint8_t state)
@@ -277,7 +277,7 @@ int main(int argc, char **argv)
 
     global_qtest = qtest_start("-device ipmi-bmc-sim,id=bmc0"
                                " -device isa-ipmi-kcs,bmc=bmc0");
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/ipmi/local/kcs_base", test_kcs_base);
     qtest_add_func("/ipmi/local/kcs_abort", test_kcs_abort);
     qtest_add_func("/ipmi/local/kcs_enable_irq", test_enable_irq);
