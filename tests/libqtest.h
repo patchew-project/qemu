@@ -24,20 +24,39 @@ typedef struct QTestState QTestState;
 extern QTestState *global_qtest;
 
 /**
+ * qtest_start_without_qmp_handshake:
+ * @extra_args: other arguments to pass to QEMU.
+ *
+ * Returns: #QTestState instance.  Does not affect #global_qtest.
+ */
+QTestState *qtest_start_without_qmp_handshake(const char *extra_args);
+
+/**
+ * qtest_start:
+ * @args: other arguments to pass to QEMU
+ *
+ * Start QEMU and assign the resulting #QTestState to #global_qtest.
+ * The global variable is used by "shortcut" functions documented below.
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_start(const char *args);
+
+/**
  * qtest_init:
  * @extra_args: other arguments to pass to QEMU.
  *
- * Returns: #QTestState instance.
+ * Returns: #QTestState instance.  Does not affect #global_qtest.
  */
-QTestState *qtest_init(const char *extra_args);
+static inline QTestState *qtest_init(const char *extra_args)
+{
+    QTestState *s;
 
-/**
- * qtest_init_without_qmp_handshake:
- * @extra_args: other arguments to pass to QEMU.
- *
- * Returns: #QTestState instance.
- */
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
+    assert(!global_qtest);
+    s = qtest_start(extra_args);
+    global_qtest = NULL;
+    return s;
+}
 
 /**
  * qtest_quit:
@@ -506,21 +525,6 @@ void qtest_add_data_func_full(const char *str, void *data,
     } while (0)
 
 void qtest_add_abrt_handler(GHookFunc fn, const void *data);
-
-/**
- * qtest_start:
- * @args: other arguments to pass to QEMU
- *
- * Start QEMU and assign the resulting #QTestState to a global variable.
- * The global variable is used by "shortcut" functions documented below.
- *
- * Returns: #QTestState instance.
- */
-static inline QTestState *qtest_start(const char *args)
-{
-    global_qtest = qtest_init(args);
-    return global_qtest;
-}
 
 /**
  * qmp:
