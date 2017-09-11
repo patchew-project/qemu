@@ -110,7 +110,8 @@
 { 'struct': 'SpiceBasicInfo',
   'data': { 'host': 'str',
             'port': 'str',
-            'family': 'NetworkAddressFamily' } }
+            'family': 'NetworkAddressFamily' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SpiceServerInfo:
@@ -123,7 +124,8 @@
 ##
 { 'struct': 'SpiceServerInfo',
   'base': 'SpiceBasicInfo',
-  'data': { '*auth': 'str' } }
+  'data': { '*auth': 'str' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SpiceChannel:
@@ -148,7 +150,8 @@
 { 'struct': 'SpiceChannel',
   'base': 'SpiceBasicInfo',
   'data': {'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
-           'tls': 'bool'} }
+           'tls': 'bool'},
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SpiceQueryMouseMode:
@@ -167,7 +170,8 @@
 # Since: 1.1
 ##
 { 'enum': 'SpiceQueryMouseMode',
-  'data': [ 'client', 'server', 'unknown' ] }
+  'data': [ 'client', 'server', 'unknown' ],
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SpiceInfo:
@@ -204,7 +208,8 @@
 { 'struct': 'SpiceInfo',
   'data': {'enabled': 'bool', 'migrated': 'bool', '*host': 'str', '*port': 'int',
            '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
-           'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']} }
+           'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']},
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @query-spice:
@@ -249,7 +254,8 @@
 #    }
 #
 ##
-{ 'command': 'query-spice', 'returns': 'SpiceInfo' }
+{ 'command': 'query-spice', 'returns': 'SpiceInfo',
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_CONNECTED:
@@ -274,7 +280,8 @@
 ##
 { 'event': 'SPICE_CONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
-            'client': 'SpiceBasicInfo' } }
+            'client': 'SpiceBasicInfo' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_INITIALIZED:
@@ -302,7 +309,8 @@
 ##
 { 'event': 'SPICE_INITIALIZED',
   'data': { 'server': 'SpiceServerInfo',
-            'client': 'SpiceChannel' } }
+            'client': 'SpiceChannel' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_DISCONNECTED:
@@ -327,7 +335,8 @@
 ##
 { 'event': 'SPICE_DISCONNECTED',
   'data': { 'server': 'SpiceBasicInfo',
-            'client': 'SpiceBasicInfo' } }
+            'client': 'SpiceBasicInfo' },
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @SPICE_MIGRATE_COMPLETED:
@@ -342,7 +351,8 @@
 #      "event": "SPICE_MIGRATE_COMPLETED" }
 #
 ##
-{ 'event': 'SPICE_MIGRATE_COMPLETED' }
+{ 'event': 'SPICE_MIGRATE_COMPLETED',
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # == VNC
