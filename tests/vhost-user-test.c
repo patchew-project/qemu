@@ -166,7 +166,7 @@ static void init_virtio_dev(TestServer *s)
     QVirtioPCIDevice *dev;
     uint32_t features;
 
-    s->bus = qpci_init_pc(NULL);
+    s->bus = qpci_init_pc(global_qtest, NULL);
     g_assert_nonnull(s->bus);
 
     dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
@@ -893,7 +893,7 @@ static void test_multiqueue(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    bus = qpci_init_pc(NULL);
+    bus = qpci_init_pc(global_qtest, NULL);
     dev = virtio_net_pci_init(bus, PCI_SLOT);
 
     alloc = pc_alloc_init();
