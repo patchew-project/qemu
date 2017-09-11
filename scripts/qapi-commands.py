@@ -228,6 +228,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self.defn = None
         self._regy = None
         self._visited_ret_types = None
+        self.if_members = ['decl', 'defn', '_regy']
 
     def visit_begin(self, schema):
         self.decl = ''
@@ -240,6 +241,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._regy = None
         self._visited_ret_types = None
 
+    @ifcond_decorator
     def visit_command(self, name, info, ifcond, arg_type, ret_type,
                       gen, success_response, boxed):
         if not gen:
