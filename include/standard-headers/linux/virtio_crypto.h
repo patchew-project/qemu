@@ -38,6 +38,13 @@
 #define VIRTIO_CRYPTO_SERVICE_MAC    2
 #define VIRTIO_CRYPTO_SERVICE_AEAD   3
 
+/* The features for virtio crypto device */
+#define VIRTIO_CRYPTO_F_MUX_MODE	0
+#define VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE	1
+#define VIRTIO_CRYPTO_F_HASH_STATELESS_MODE	2
+#define VIRTIO_CRYPTO_F_MAC_STATELESS_MODE	3
+#define VIRTIO_CRYPTO_F_AEAD_STATELESS_MODE	4
+
 #define VIRTIO_CRYPTO_OPCODE(service, op)   (((service) << 8) | (op))
 
 struct virtio_crypto_ctrl_header {
@@ -234,7 +241,7 @@ struct virtio_crypto_destroy_session_req {
 	uint8_t padding[48];
 };
 
-/* The request of the control virtqueue's packet */
+/* The request of the control virtqueue's packet for non-MUX mode */
 struct virtio_crypto_op_ctrl_req {
 	struct virtio_crypto_ctrl_header header;
 
@@ -251,6 +258,11 @@ struct virtio_crypto_op_ctrl_req {
 			destroy_session;
 		uint8_t padding[56];
 	} u;
+};
+
+/* The request of the control virtqueue's packet for MUX mode */
+struct virtio_crypto_op_ctrl_req_mux {
+	struct virtio_crypto_ctrl_header header;
 };
 
 struct virtio_crypto_op_header {
@@ -390,7 +402,7 @@ struct virtio_crypto_aead_data_req {
 	uint8_t padding[32];
 };
 
-/* The request of the data virtqueue's packet */
+/* The request of the data virtqueue's packet for non-MUX mode */
 struct virtio_crypto_op_data_req {
 	struct virtio_crypto_op_header header;
 
@@ -401,6 +413,11 @@ struct virtio_crypto_op_data_req {
 		struct virtio_crypto_aead_data_req aead_req;
 		uint8_t padding[48];
 	} u;
+};
+
+/* The request of the data virtqueue's packet for MUX mode */
+struct virtio_crypto_op_data_req_mux {
+	struct virtio_crypto_op_header header;
 };
 
 #define VIRTIO_CRYPTO_OK        0
