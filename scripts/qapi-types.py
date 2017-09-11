@@ -131,11 +131,13 @@ def gen_variants(variants):
                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
+        ret += gen_if(var.ifcond)
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
                      c_type=var.type.c_unboxed_type(),
                      c_name=c_name(var.name))
+        ret += gen_endif(var.ifcond)
 
     ret += mcgen('''
     } u;
