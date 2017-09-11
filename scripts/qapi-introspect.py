@@ -172,7 +172,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_alternate_type(self, name, info, ifcond, variants):
         self._gen_qlit(name, 'alternate',
-                       {'members': [{'type': self._use_type(m.type)}
+                       {'members': [({'type': self._use_type(m.type)}, m.ifcond)
                                     for m in variants.variants]}, ifcond)
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type,
