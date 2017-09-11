@@ -1946,17 +1946,6 @@
             '*unavailable-features': [ 'str' ], 'typename': 'str' } }
 
 ##
-# @query-cpu-definitions:
-#
-# Return a list of supported virtual CPU definitions
-#
-# Returns: a list of CpuDefInfo
-#
-# Since: 1.2.0
-##
-{ 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }
-
-##
 # @CpuModelInfo:
 #
 # Virtual CPU model.
