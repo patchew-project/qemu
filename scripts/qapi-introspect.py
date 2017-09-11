@@ -29,7 +29,7 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
                 for elt in obj]
         elts.append(indent(level + 1) + "{}")
         ret += 'QLIT_QLIST(((QLitObject[]) {\n'
-        ret += ',\n'.join(elts) + '\n'
+        ret += '\n'.join(elts) + '\n'
         ret += indent(level) + '}))'
     elif isinstance(obj, dict):
         elts = []
@@ -42,6 +42,8 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
         ret += indent(level) + '}))'
     else:
         assert False                # not implemented
+    if level > 0:
+        ret += ','
     return ret
 
 
