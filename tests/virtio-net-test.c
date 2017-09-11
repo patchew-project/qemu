@@ -245,10 +245,11 @@ static void hotplug(void)
 
     qtest_start("-device virtio-net-pci");
 
-    qpci_plug_device_test("virtio-net-pci", "net1", PCI_SLOT_HP, NULL);
+    qpci_plug_device_test(global_qtest, "virtio-net-pci", "net1",
+                          PCI_SLOT_HP, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qpci_unplug_device_test("net1", PCI_SLOT_HP);
+        qpci_unplug_device_test(global_qtest, "net1", PCI_SLOT_HP);
     }
 
     test_end();

@@ -662,7 +662,7 @@ static void pci_hotplug(void)
     qs = pci_test_start();
 
     /* plug secondary disk */
-    qpci_plug_device_test("virtio-blk-pci", "drv1", PCI_SLOT_HP,
+    qpci_plug_device_test(global_qtest, "virtio-blk-pci", "drv1", PCI_SLOT_HP,
                           "'drive': 'drive1'");
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT_HP);
@@ -672,7 +672,7 @@ static void pci_hotplug(void)
 
     /* unplug secondary disk */
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qpci_unplug_device_test("drv1", PCI_SLOT_HP);
+        qpci_unplug_device_test(global_qtest, "drv1", PCI_SLOT_HP);
     }
     qtest_shutdown(qs);
 }

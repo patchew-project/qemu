@@ -394,7 +394,7 @@ QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr)
     return bar;
 }
 
-void qpci_plug_device_test(const char *driver, const char *id,
+void qpci_plug_device_test(QTestState *qts, const char *driver, const char *id,
                            uint8_t slot, const char *opts)
 {
     QDict *response;
@@ -409,29 +409,24 @@ void qpci_plug_device_test(const char *driver, const char *id,
                           "}}", driver, slot,
                           opts ? opts : "", opts ? "," : "",
                           id);
-    response = qmp(cmd);
+    response = qtest_qmp(qts, cmd);
     g_free(cmd);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 }
 
-void qpci_unplug_device_test(const char *id, uint8_t slot)
+void qpci_unplug_device_test(QTestState *qts, const char *id, uint8_t slot)
 {
     QDict *response;
-    char *cmd;
 
-    cmd = g_strdup_printf("{'execute': 'device_del',"
-                          " 'arguments': {"
-                          "   'id': '%s'"
-                          "}}", id);
-    response = qmp(cmd);
-    g_free(cmd);
+    response = qtest_qmp(qts, "{'execute': 'device_del',"
+                         " 'arguments': { 'id': %s }}", id);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
 
-    outb(ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
+    qtest_outb(qts, ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
 
-    qmp_eventwait("DEVICE_DELETED");
+    qtest_qmp_eventwait(qts, "DEVICE_DELETED");
 }

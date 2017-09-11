@@ -425,9 +425,9 @@ static void test_ivshmem_hotplug(void)
 
     opts = g_strdup_printf("'shm': '%s', 'size': '1M'", tmpshm);
 
-    qpci_plug_device_test("ivshmem", "iv1", PCI_SLOT_HP, opts);
+    qpci_plug_device_test(global_qtest, "ivshmem", "iv1", PCI_SLOT_HP, opts);
     if (strcmp(arch, "ppc64") != 0) {
-        qpci_unplug_device_test("iv1", PCI_SLOT_HP);
+        qpci_unplug_device_test(global_qtest, "iv1", PCI_SLOT_HP);
     }
 
     qtest_end();

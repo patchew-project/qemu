@@ -460,8 +460,8 @@ static void test_e1000e_hotplug(gconstpointer data)
 
     qtest_start("-device e1000e");
 
-    qpci_plug_device_test("e1000e", "e1000e_net", slot, NULL);
-    qpci_unplug_device_test("e1000e_net", slot);
+    qpci_plug_device_test(global_qtest, "e1000e", "e1000e_net", slot, NULL);
+    qpci_unplug_device_test(global_qtest, "e1000e_net", slot);
 
     qtest_end();
 }

@@ -22,10 +22,11 @@ static void hotplug(void)
 {
     const char *arch = qtest_get_arch();
 
-    qpci_plug_device_test("virtio-rng-pci", "rng1", PCI_SLOT_HP, NULL);
+    qpci_plug_device_test(global_qtest, "virtio-rng-pci", "rng1",
+                          PCI_SLOT_HP, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qpci_unplug_device_test("rng1", PCI_SLOT_HP);
+        qpci_unplug_device_test(global_qtest, "rng1", PCI_SLOT_HP);
     }
 }
 
