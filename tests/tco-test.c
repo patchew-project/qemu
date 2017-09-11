@@ -117,13 +117,13 @@ static void reset_on_second_timeout(bool enable)
 {
     uint32_t val;
 
-    val = readl(RCBA_BASE_ADDR + ICH9_CC_GCS);
+    val = readl(global_qtest, RCBA_BASE_ADDR + ICH9_CC_GCS);
     if (enable) {
         val &= ~ICH9_CC_GCS_NO_REBOOT;
     } else {
         val |= ICH9_CC_GCS_NO_REBOOT;
     }
-    writel(RCBA_BASE_ADDR + ICH9_CC_GCS, val);
+    writel(global_qtest, RCBA_BASE_ADDR + ICH9_CC_GCS, val);
 }
 
 static void test_tco_defaults(void)

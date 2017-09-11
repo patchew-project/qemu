@@ -195,7 +195,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
     qvirtqueue_kick(dev, vq, free_head);
 
     qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     guest_free(alloc, req_addr);
@@ -217,7 +217,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
     qvirtqueue_kick(dev, vq, free_head);
 
     qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
@@ -245,7 +245,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
         qvirtqueue_kick(dev, vq, free_head);
 
         qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
-        status = readb(req_addr + 528);
+        status = readb(global_qtest, req_addr + 528);
         g_assert_cmpint(status, ==, 0);
 
         guest_free(alloc, req_addr);
@@ -266,7 +266,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
         qvirtqueue_kick(dev, vq, free_head);
 
         qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
-        status = readb(req_addr + 528);
+        status = readb(global_qtest, req_addr + 528);
         g_assert_cmpint(status, ==, 0);
 
         data = g_malloc0(512);
@@ -350,7 +350,7 @@ static void pci_indirect(void)
 
     qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
                            QVIRTIO_BLK_TIMEOUT_US);
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     g_free(indirect);
@@ -376,7 +376,7 @@ static void pci_indirect(void)
 
     qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
                            QVIRTIO_BLK_TIMEOUT_US);
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
@@ -488,7 +488,7 @@ static void pci_msix(void)
     qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
                            QVIRTIO_BLK_TIMEOUT_US);
 
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     guest_free(qs->alloc, req_addr);
@@ -513,7 +513,7 @@ static void pci_msix(void)
     qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
                            QVIRTIO_BLK_TIMEOUT_US);
 
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);
@@ -636,7 +636,7 @@ static void pci_idx(void)
     g_assert(qvirtqueue_get_buf(&vqpci->vq, &desc_idx));
     g_assert_cmpint(desc_idx, ==, free_head);
 
-    status = readb(req_addr + 528);
+    status = readb(global_qtest, req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
     data = g_malloc0(512);

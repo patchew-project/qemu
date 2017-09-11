@@ -75,53 +75,53 @@ static inline uint32_t make_be32(uint32_t data)
 
 static void spi_conf(uint32_t value)
 {
-    uint32_t conf = readl(ASPEED_FMC_BASE + R_CONF);
+    uint32_t conf = readl(global_qtest, ASPEED_FMC_BASE + R_CONF);
 
     conf |= value;
-    writel(ASPEED_FMC_BASE + R_CONF, conf);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CONF, conf);
 }
 
 static void spi_conf_remove(uint32_t value)
 {
-    uint32_t conf = readl(ASPEED_FMC_BASE + R_CONF);
+    uint32_t conf = readl(global_qtest, ASPEED_FMC_BASE + R_CONF);
 
     conf &= ~value;
-    writel(ASPEED_FMC_BASE + R_CONF, conf);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CONF, conf);
 }
 
 static void spi_ce_ctrl(uint32_t value)
 {
-    uint32_t conf = readl(ASPEED_FMC_BASE + R_CE_CTRL);
+    uint32_t conf = readl(global_qtest, ASPEED_FMC_BASE + R_CE_CTRL);
 
     conf |= value;
-    writel(ASPEED_FMC_BASE + R_CE_CTRL, conf);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CE_CTRL, conf);
 }
 
 static void spi_ctrl_setmode(uint8_t mode, uint8_t cmd)
 {
-    uint32_t ctrl = readl(ASPEED_FMC_BASE + R_CTRL0);
+    uint32_t ctrl = readl(global_qtest, ASPEED_FMC_BASE + R_CTRL0);
     ctrl &= ~(CTRL_USERMODE | 0xff << 16);
     ctrl |= mode | (cmd << 16);
-    writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CTRL0, ctrl);
 }
 
 static void spi_ctrl_start_user(void)
 {
-    uint32_t ctrl = readl(ASPEED_FMC_BASE + R_CTRL0);
+    uint32_t ctrl = readl(global_qtest, ASPEED_FMC_BASE + R_CTRL0);
 
     ctrl |= CTRL_USERMODE | CTRL_CE_STOP_ACTIVE;
-    writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CTRL0, ctrl);
 
     ctrl &= ~CTRL_CE_STOP_ACTIVE;
-    writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CTRL0, ctrl);
 }
 
 static void spi_ctrl_stop_user(void)
 {
-    uint32_t ctrl = readl(ASPEED_FMC_BASE + R_CTRL0);
+    uint32_t ctrl = readl(global_qtest, ASPEED_FMC_BASE + R_CTRL0);
 
     ctrl |= CTRL_USERMODE | CTRL_CE_STOP_ACTIVE;
-    writel(ASPEED_FMC_BASE + R_CTRL0, ctrl);
+    writel(global_qtest, ASPEED_FMC_BASE + R_CTRL0, ctrl);
 }
 
 static void flash_reset(void)
@@ -129,8 +129,8 @@ static void flash_reset(void)
     spi_conf(CONF_ENABLE_W0);
 
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, RESET_ENABLE);
-    writeb(ASPEED_FLASH_BASE, RESET_MEMORY);
+    writeb(global_qtest, ASPEED_FLASH_BASE, RESET_ENABLE);
+    writeb(global_qtest, ASPEED_FLASH_BASE, RESET_MEMORY);
     spi_ctrl_stop_user();
 
     spi_conf_remove(CONF_ENABLE_W0);
@@ -143,10 +143,10 @@ static void test_read_jedec(void)
     spi_conf(CONF_ENABLE_W0);
 
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, JEDEC_READ);
-    jedec |= readb(ASPEED_FLASH_BASE) << 16;
-    jedec |= readb(ASPEED_FLASH_BASE) << 8;
-    jedec |= readb(ASPEED_FLASH_BASE);
+    writeb(global_qtest, ASPEED_FLASH_BASE, JEDEC_READ);
+    jedec |= readb(global_qtest, ASPEED_FLASH_BASE) << 16;
+    jedec |= readb(global_qtest, ASPEED_FLASH_BASE) << 8;
+    jedec |= readb(global_qtest, ASPEED_FLASH_BASE);
     spi_ctrl_stop_user();
 
     flash_reset();
@@ -160,13 +160,13 @@ static void read_page(uint32_t addr, uint32_t *page)
 
     spi_ctrl_start_user();
 
-    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
-    writeb(ASPEED_FLASH_BASE, READ);
-    writel(ASPEED_FLASH_BASE, make_be32(addr));
+    writeb(global_qtest, ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(global_qtest, ASPEED_FLASH_BASE, READ);
+    writel(global_qtest, ASPEED_FLASH_BASE, make_be32(addr));
 
     /* Continuous read are supported */
     for (i = 0; i < PAGE_SIZE / 4; i++) {
-        page[i] = make_be32(readl(ASPEED_FLASH_BASE));
+        page[i] = make_be32(readl(global_qtest, ASPEED_FLASH_BASE));
     }
     spi_ctrl_stop_user();
 }
@@ -179,7 +179,8 @@ static void read_page_mem(uint32_t addr, uint32_t *page)
     spi_ctrl_setmode(CTRL_READMODE, READ);
 
     for (i = 0; i < PAGE_SIZE / 4; i++) {
-        page[i] = make_be32(readl(ASPEED_FLASH_BASE + addr + i * 4));
+        page[i] = make_be32(readl(global_qtest,
+                                  ASPEED_FLASH_BASE + addr + i * 4));
     }
 }
 
@@ -192,10 +193,10 @@ static void test_erase_sector(void)
     spi_conf(CONF_ENABLE_W0);
 
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, WREN);
-    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
-    writeb(ASPEED_FLASH_BASE, ERASE_SECTOR);
-    writel(ASPEED_FLASH_BASE, make_be32(some_page_addr));
+    writeb(global_qtest, ASPEED_FLASH_BASE, WREN);
+    writeb(global_qtest, ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(global_qtest, ASPEED_FLASH_BASE, ERASE_SECTOR);
+    writel(global_qtest, ASPEED_FLASH_BASE, make_be32(some_page_addr));
     spi_ctrl_stop_user();
 
     /* Previous page should be full of zeroes as backend is not
@@ -230,8 +231,8 @@ static void test_erase_all(void)
     }
 
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, WREN);
-    writeb(ASPEED_FLASH_BASE, BULK_ERASE);
+    writeb(global_qtest, ASPEED_FLASH_BASE, WREN);
+    writeb(global_qtest, ASPEED_FLASH_BASE, BULK_ERASE);
     spi_ctrl_stop_user();
 
     /* Recheck that some random page */
@@ -253,14 +254,15 @@ static void test_write_page(void)
     spi_conf(CONF_ENABLE_W0);
 
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
-    writeb(ASPEED_FLASH_BASE, WREN);
-    writeb(ASPEED_FLASH_BASE, PP);
-    writel(ASPEED_FLASH_BASE, make_be32(my_page_addr));
+    writeb(global_qtest, ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(global_qtest, ASPEED_FLASH_BASE, WREN);
+    writeb(global_qtest, ASPEED_FLASH_BASE, PP);
+    writel(global_qtest, ASPEED_FLASH_BASE, make_be32(my_page_addr));
 
     /* Fill the page with its own addresses */
     for (i = 0; i < PAGE_SIZE / 4; i++) {
-        writel(ASPEED_FLASH_BASE, make_be32(my_page_addr + i * 4));
+        writel(global_qtest, ASPEED_FLASH_BASE,
+               make_be32(my_page_addr + i * 4));
     }
     spi_ctrl_stop_user();
 
@@ -294,7 +296,7 @@ static void test_read_page_mem(void)
     /* Enable 4BYTE mode for flash. */
     spi_conf(CONF_ENABLE_W0);
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(global_qtest, ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
     spi_ctrl_stop_user();
     spi_conf_remove(CONF_ENABLE_W0);
 
@@ -327,15 +329,15 @@ static void test_write_page_mem(void)
     /* Enable 4BYTE mode for flash. */
     spi_conf(CONF_ENABLE_W0);
     spi_ctrl_start_user();
-    writeb(ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
-    writeb(ASPEED_FLASH_BASE, WREN);
+    writeb(global_qtest, ASPEED_FLASH_BASE, EN_4BYTE_ADDR);
+    writeb(global_qtest, ASPEED_FLASH_BASE, WREN);
     spi_ctrl_stop_user();
 
     /* move out USER mode to use direct writes to the AHB bus */
     spi_ctrl_setmode(CTRL_WRITEMODE, PP);
 
     for (i = 0; i < PAGE_SIZE / 4; i++) {
-        writel(ASPEED_FLASH_BASE + my_page_addr + i * 4,
+        writel(global_qtest, ASPEED_FLASH_BASE + my_page_addr + i * 4,
                make_be32(my_page_addr + i * 4));
     }
 

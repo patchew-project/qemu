@@ -32,21 +32,21 @@ typedef struct {
     do {                                       \
         switch (sizeof(field)) {               \
         case 1:                                \
-            field = qtest_readb(qts, addr);    \
+            field = readb(qts, addr);          \
             break;                             \
         case 2:                                \
-            field = qtest_readw(qts, addr);    \
+            field = readw(qts, addr);          \
             break;                             \
         case 4:                                \
-            field = qtest_readl(qts, addr);    \
+            field = readl(qts, addr);          \
             break;                             \
         case 8:                                \
-            field = qtest_readq(qts, addr);    \
+            field = readq(qts, addr);          \
             break;                             \
         default:                               \
             g_assert(false);                   \
         }                                      \
-        addr += sizeof(field);                  \
+        addr += sizeof(field);                 \
     } while (0);
 
 #define ACPI_READ_ARRAY_PTR(qts, arr, length, addr)      \

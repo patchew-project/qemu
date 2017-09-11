@@ -168,9 +168,9 @@ static bool qvirtio_pci_get_queue_isr_status(QVirtioDevice *d, QVirtQueue *vq)
             /* No ISR checking should be done if masked, but read anyway */
             return qpci_msix_pending(dev->pdev, vqpci->msix_entry);
         } else {
-            data = qtest_readl(d->bus->qts, vqpci->msix_addr);
+            data = readl(d->bus->qts, vqpci->msix_addr);
             if (data == vqpci->msix_data) {
-                qtest_writel(d->bus->qts, vqpci->msix_addr, 0);
+                writel(d->bus->qts, vqpci->msix_addr, 0);
                 return true;
             } else {
                 return false;
@@ -192,9 +192,9 @@ static bool qvirtio_pci_get_config_isr_status(QVirtioDevice *d)
             /* No ISR checking should be done if masked, but read anyway */
             return qpci_msix_pending(dev->pdev, dev->config_msix_entry);
         } else {
-            data = qtest_readl(d->bus->qts, dev->config_msix_addr);
+            data = readl(d->bus->qts, dev->config_msix_addr);
             if (data == dev->config_msix_data) {
-                qtest_writel(d->bus->qts, dev->config_msix_addr, 0);
+                writel(d->bus->qts, dev->config_msix_addr, 0);
                 return true;
             } else {
                 return false;

@@ -539,7 +539,7 @@ static void test_smbios_entry_point(test_data *data)
         int i;
 
         for (i = 0; i < sizeof sig - 1; ++i) {
-            sig[i] = qtest_readb(data->qts, off + i);
+            sig[i] = readb(data->qts, off + i);
         }
 
         if (!memcmp(sig, "_SM_", sizeof sig)) {
@@ -582,9 +582,9 @@ static void test_smbios_structs(test_data *data)
     for (i = 0; i < ep_table->number_of_structures; i++) {
 
         /* grab type and formatted area length from struct header */
-        type = qtest_readb(data->qts, addr);
+        type = readb(data->qts, addr);
         g_assert_cmpuint(type, <=, SMBIOS_MAX_TYPE);
-        len = qtest_readb(data->qts, addr + 1);
+        len = readb(data->qts, addr + 1);
 
         /* single-instance structs must not have been encountered before */
         if (smbios_single_instance(type)) {
@@ -596,7 +596,7 @@ static void test_smbios_structs(test_data *data)
         prv = crt = 1;
         while (prv || crt) {
             prv = crt;
-            crt = qtest_readb(data->qts, addr + len);
+            crt = readb(data->qts, addr + len);
             len++;
         }
 

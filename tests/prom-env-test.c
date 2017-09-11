@@ -32,7 +32,7 @@ static void check_guest_memory(void)
 
     /* Poll until code has run and modified memory. Wait at most 120 seconds */
     for (i = 0; i < 12000; ++i) {
-        signature = readl(ADDRESS);
+        signature = readl(global_qtest, ADDRESS);
         if (signature == MAGIC) {
             break;
         }

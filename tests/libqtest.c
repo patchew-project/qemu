@@ -754,22 +754,22 @@ static void qtest_write(QTestState *s, const char *cmd, uint64_t addr,
     qtest_rsp(s, 0);
 }
 
-void qtest_writeb(QTestState *s, uint64_t addr, uint8_t value)
+void writeb(QTestState *s, uint64_t addr, uint8_t value)
 {
     qtest_write(s, "writeb", addr, value);
 }
 
-void qtest_writew(QTestState *s, uint64_t addr, uint16_t value)
+void writew(QTestState *s, uint64_t addr, uint16_t value)
 {
     qtest_write(s, "writew", addr, value);
 }
 
-void qtest_writel(QTestState *s, uint64_t addr, uint32_t value)
+void writel(QTestState *s, uint64_t addr, uint32_t value)
 {
     qtest_write(s, "writel", addr, value);
 }
 
-void qtest_writeq(QTestState *s, uint64_t addr, uint64_t value)
+void writeq(QTestState *s, uint64_t addr, uint64_t value)
 {
     qtest_write(s, "writeq", addr, value);
 }
@@ -789,22 +789,22 @@ static uint64_t qtest_read(QTestState *s, const char *cmd, uint64_t addr)
     return value;
 }
 
-uint8_t qtest_readb(QTestState *s, uint64_t addr)
+uint8_t readb(QTestState *s, uint64_t addr)
 {
     return qtest_read(s, "readb", addr);
 }
 
-uint16_t qtest_readw(QTestState *s, uint64_t addr)
+uint16_t readw(QTestState *s, uint64_t addr)
 {
     return qtest_read(s, "readw", addr);
 }
 
-uint32_t qtest_readl(QTestState *s, uint64_t addr)
+uint32_t readl(QTestState *s, uint64_t addr)
 {
     return qtest_read(s, "readl", addr);
 }
 
-uint64_t qtest_readq(QTestState *s, uint64_t addr)
+uint64_t readq(QTestState *s, uint64_t addr)
 {
     return qtest_read(s, "readq", addr);
 }

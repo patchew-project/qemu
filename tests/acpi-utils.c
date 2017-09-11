@@ -42,7 +42,7 @@ uint32_t acpi_find_rsdp_address(QTestState *qts)
         int i;
 
         for (i = 0; i < sizeof sig - 1; ++i) {
-            sig[i] = qtest_readb(qts, off + i);
+            sig[i] = readb(qts, off + i);
         }
 
         if (!memcmp(sig, "RSD PTR ", sizeof sig)) {

@@ -69,7 +69,7 @@ static uint64_t pnv_xscom_addr(const PnvChip *chip, uint32_t pcba)
 
 static uint64_t pnv_xscom_read(const PnvChip *chip, uint32_t pcba)
 {
-    return readq(pnv_xscom_addr(chip, pcba));
+    return readq(global_qtest, pnv_xscom_addr(chip, pcba));
 }
 
 static void test_xscom_cfam_id(const PnvChip *chip)

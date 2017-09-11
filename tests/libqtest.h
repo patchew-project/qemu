@@ -262,47 +262,47 @@ uint16_t inw(QTestState *s, uint16_t addr);
 uint32_t inl(QTestState *s, uint16_t addr);
 
 /**
- * qtest_writeb:
+ * writeb:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
  * @value: Value being written.
  *
  * Writes an 8-bit value to memory.
  */
-void qtest_writeb(QTestState *s, uint64_t addr, uint8_t value);
+void writeb(QTestState *s, uint64_t addr, uint8_t value);
 
 /**
- * qtest_writew:
+ * writew:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
  * @value: Value being written.
  *
  * Writes a 16-bit value to memory.
  */
-void qtest_writew(QTestState *s, uint64_t addr, uint16_t value);
+void writew(QTestState *s, uint64_t addr, uint16_t value);
 
 /**
- * qtest_writel:
+ * writel:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
  * @value: Value being written.
  *
  * Writes a 32-bit value to memory.
  */
-void qtest_writel(QTestState *s, uint64_t addr, uint32_t value);
+void writel(QTestState *s, uint64_t addr, uint32_t value);
 
 /**
- * qtest_writeq:
+ * writeq:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
  * @value: Value being written.
  *
  * Writes a 64-bit value to memory.
  */
-void qtest_writeq(QTestState *s, uint64_t addr, uint64_t value);
+void writeq(QTestState *s, uint64_t addr, uint64_t value);
 
 /**
- * qtest_readb:
+ * readb:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to read from.
  *
@@ -310,10 +310,10 @@ void qtest_writeq(QTestState *s, uint64_t addr, uint64_t value);
  *
  * Returns: Value read.
  */
-uint8_t qtest_readb(QTestState *s, uint64_t addr);
+uint8_t readb(QTestState *s, uint64_t addr);
 
 /**
- * qtest_readw:
+ * readw:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to read from.
  *
@@ -321,10 +321,10 @@ uint8_t qtest_readb(QTestState *s, uint64_t addr);
  *
  * Returns: Value read.
  */
-uint16_t qtest_readw(QTestState *s, uint64_t addr);
+uint16_t readw(QTestState *s, uint64_t addr);
 
 /**
- * qtest_readl:
+ * readl:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to read from.
  *
@@ -332,10 +332,10 @@ uint16_t qtest_readw(QTestState *s, uint64_t addr);
  *
  * Returns: Value read.
  */
-uint32_t qtest_readl(QTestState *s, uint64_t addr);
+uint32_t readl(QTestState *s, uint64_t addr);
 
 /**
- * qtest_readq:
+ * readq:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to read from.
  *
@@ -343,7 +343,7 @@ uint32_t qtest_readl(QTestState *s, uint64_t addr);
  *
  * Returns: Value read.
  */
-uint64_t qtest_readq(QTestState *s, uint64_t addr);
+uint64_t readq(QTestState *s, uint64_t addr);
 
 /**
  * qtest_memread:
@@ -592,106 +592,6 @@ static inline QDict *qmp_eventwait_ref(const char *event)
  * Returns: the command's output.  The caller should g_free() it.
  */
 char *hmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/**
- * writeb:
- * @addr: Guest address to write to.
- * @value: Value being written.
- *
- * Writes an 8-bit value to guest memory.
- */
-static inline void writeb(uint64_t addr, uint8_t value)
-{
-    qtest_writeb(global_qtest, addr, value);
-}
-
-/**
- * writew:
- * @addr: Guest address to write to.
- * @value: Value being written.
- *
- * Writes a 16-bit value to guest memory.
- */
-static inline void writew(uint64_t addr, uint16_t value)
-{
-    qtest_writew(global_qtest, addr, value);
-}
-
-/**
- * writel:
- * @addr: Guest address to write to.
- * @value: Value being written.
- *
- * Writes a 32-bit value to guest memory.
- */
-static inline void writel(uint64_t addr, uint32_t value)
-{
-    qtest_writel(global_qtest, addr, value);
-}
-
-/**
- * writeq:
- * @addr: Guest address to write to.
- * @value: Value being written.
- *
- * Writes a 64-bit value to guest memory.
- */
-static inline void writeq(uint64_t addr, uint64_t value)
-{
-    qtest_writeq(global_qtest, addr, value);
-}
-
-/**
- * readb:
- * @addr: Guest address to read from.
- *
- * Reads an 8-bit value from guest memory.
- *
- * Returns: Value read.
- */
-static inline uint8_t readb(uint64_t addr)
-{
-    return qtest_readb(global_qtest, addr);
-}
-
-/**
- * readw:
- * @addr: Guest address to read from.
- *
- * Reads a 16-bit value from guest memory.
- *
- * Returns: Value read.
- */
-static inline uint16_t readw(uint64_t addr)
-{
-    return qtest_readw(global_qtest, addr);
-}
-
-/**
- * readl:
- * @addr: Guest address to read from.
- *
- * Reads a 32-bit value from guest memory.
- *
- * Returns: Value read.
- */
-static inline uint32_t readl(uint64_t addr)
-{
-    return qtest_readl(global_qtest, addr);
-}
-
-/**
- * readq:
- * @addr: Guest address to read from.
- *
- * Reads a 64-bit value from guest memory.
- *
- * Returns: Value read.
- */
-static inline uint64_t readq(uint64_t addr)
-{
-    return qtest_readq(global_qtest, addr);
-}
 
 /**
  * memread:

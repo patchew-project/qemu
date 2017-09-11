@@ -174,14 +174,14 @@ static void test_tseg_size(const void *data)
      */
     ram_offs = (TSEG_SIZE_TEST_GUEST_RAM_MBYTES - args->expected_tseg_mbytes) *
                1024 * 1024 - 1;
-    g_assert_cmpint(readb(ram_offs), ==, 0);
-    writeb(ram_offs, 1);
-    g_assert_cmpint(readb(ram_offs), ==, 1);
+    g_assert_cmpint(readb(global_qtest, ram_offs), ==, 0);
+    writeb(global_qtest, ram_offs, 1);
+    g_assert_cmpint(readb(global_qtest, ram_offs), ==, 1);
 
     ram_offs++;
-    g_assert_cmpint(readb(ram_offs), ==, 0xff);
-    writeb(ram_offs, 1);
-    g_assert_cmpint(readb(ram_offs), ==, 0xff);
+    g_assert_cmpint(readb(global_qtest, ram_offs), ==, 0xff);
+    writeb(global_qtest, ram_offs, 1);
+    g_assert_cmpint(readb(global_qtest, ram_offs), ==, 0xff);
 
     g_free(pcidev);
     qpci_free_pc(pcibus);

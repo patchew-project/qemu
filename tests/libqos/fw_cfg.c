@@ -56,7 +56,7 @@ uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key)
 
 static void mm_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
-    qtest_writew(fw_cfg->qts, fw_cfg->base, key);
+    writew(fw_cfg->qts, fw_cfg->base, key);
 }
 
 static void mm_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
@@ -65,7 +65,7 @@ static void mm_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
     int i;
 
     for (i = 0; i < len; i++) {
-        ptr[i] = qtest_readb(fw_cfg->qts, fw_cfg->base + 2);
+        ptr[i] = readb(fw_cfg->qts, fw_cfg->base + 2);
     }
 }
 

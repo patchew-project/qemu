@@ -38,7 +38,7 @@ static int scaled = 122;
 
 static void timer_load(uint32_t load)
 {
-    writel(TIMER_BASE_PHYS + TIMER_LOAD, load);
+    writel(global_qtest, TIMER_BASE_PHYS + TIMER_LOAD, load);
 }
 
 static void timer_start(int periodic, uint32_t scale)
@@ -49,17 +49,17 @@ static void timer_start(int periodic, uint32_t scale)
         ctl |= TIMER_CONTROL_PERIODIC;
     }
 
-    writel(TIMER_BASE_PHYS + TIMER_CONTROL, ctl);
+    writel(global_qtest, TIMER_BASE_PHYS + TIMER_CONTROL, ctl);
 }
 
 static void timer_stop(void)
 {
-    writel(TIMER_BASE_PHYS + TIMER_CONTROL, 0);
+    writel(global_qtest, TIMER_BASE_PHYS + TIMER_CONTROL, 0);
 }
 
 static void timer_int_clr(void)
 {
-    writel(TIMER_BASE_PHYS + TIMER_INTSTAT, 1);
+    writel(global_qtest, TIMER_BASE_PHYS + TIMER_INTSTAT, 1);
 }
 
 static void timer_reset(void)
@@ -71,7 +71,7 @@ static void timer_reset(void)
 
 static uint32_t timer_get_and_clr_int_sts(void)
 {
-    uint32_t int_sts = readl(TIMER_BASE_PHYS + TIMER_INTSTAT);
+    uint32_t int_sts = readl(global_qtest, TIMER_BASE_PHYS + TIMER_INTSTAT);
 
     if (int_sts) {
         timer_int_clr();
@@ -82,12 +82,12 @@ static uint32_t timer_get_and_clr_int_sts(void)
 
 static uint32_t timer_counter(void)
 {
-    return readl(TIMER_BASE_PHYS + TIMER_COUNTER);
+    return readl(global_qtest, TIMER_BASE_PHYS + TIMER_COUNTER);
 }
 
 static void timer_set_counter(uint32_t value)
 {
-    writel(TIMER_BASE_PHYS + TIMER_COUNTER, value);
+    writel(global_qtest, TIMER_BASE_PHYS + TIMER_COUNTER, value);
 }
 
 static void test_timer_oneshot(gconstpointer arg)

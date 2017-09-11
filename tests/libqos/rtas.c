@@ -13,7 +13,7 @@ static void qrtas_copy_args(QTestState *qts, uint64_t target_args,
     int i;
 
     for (i = 0; i < nargs; i++) {
-        qtest_writel(qts, target_args + i * sizeof(uint32_t), args[i]);
+        writel(qts, target_args + i * sizeof(uint32_t), args[i]);
     }
 }
 
@@ -23,7 +23,7 @@ static void qrtas_copy_ret(QTestState *qts, uint64_t target_ret,
     int i;
 
     for (i = 0; i < nret; i++) {
-        ret[i] = qtest_readl(qts, target_ret + i * sizeof(uint32_t));
+        ret[i] = readl(qts, target_ret + i * sizeof(uint32_t));
     }
 }
 

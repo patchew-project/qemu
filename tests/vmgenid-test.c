@@ -105,7 +105,7 @@ static void read_guid_from_memory(QemuUUID *guid)
 
     /* Read the GUID directly from guest memory */
     for (i = 0; i < 16; i++) {
-        guid->data[i] = readb(vmgenid_addr + i);
+        guid->data[i] = readb(global_qtest, vmgenid_addr + i);
     }
     /* The GUID is in little-endian format in the guest, while QEMU
      * uses big-endian.  Swap after reading.

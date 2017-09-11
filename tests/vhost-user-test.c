@@ -241,7 +241,7 @@ static void read_guest_mem(const void *data)
         for (j = 0; j < 256; j++) {
             uint32_t a, b;
 
-            a = qtest_readl(s->qts,
+            a = readl(s->qts,
                             s->memory.regions[i].guest_phys_addr + j * 4);
             b = guest_mem[j];
 

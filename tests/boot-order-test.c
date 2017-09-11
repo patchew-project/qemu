@@ -108,9 +108,9 @@ static void test_pc_boot_order(void)
 
 static uint8_t read_m48t59(uint64_t addr, uint16_t reg)
 {
-    writeb(addr, reg & 0xff);
-    writeb(addr + 1, reg >> 8);
-    return readb(addr + 3);
+    writeb(global_qtest, addr, reg & 0xff);
+    writeb(global_qtest, addr + 1, reg >> 8);
+    return readb(global_qtest, addr + 3);
 }
 
 static uint64_t read_boot_order_prep(void)

@@ -146,8 +146,8 @@ void boot_sector_test(QTestState *qts)
      * instruction.
      */
     for (i = 0; i < TEST_CYCLES; ++i) {
-        signature_low = qtest_readb(qts, SIGNATURE_ADDR);
-        signature_high = qtest_readb(qts, SIGNATURE_ADDR + 1);
+        signature_low = readb(qts, SIGNATURE_ADDR);
+        signature_high = readb(qts, SIGNATURE_ADDR + 1);
         signature = (signature_high << 8) | signature_low;
         if (signature == SIGNATURE) {
             break;

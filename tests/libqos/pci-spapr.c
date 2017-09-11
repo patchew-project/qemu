@@ -45,49 +45,49 @@ typedef struct QPCIBusSPAPR {
 static uint8_t qpci_spapr_pio_readb(QPCIBus *bus, uint32_t addr)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    return qtest_readb(bus->qts, s->pio_cpu_base + addr);
+    return readb(bus->qts, s->pio_cpu_base + addr);
 }
 
 static void qpci_spapr_pio_writeb(QPCIBus *bus, uint32_t addr, uint8_t val)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    qtest_writeb(bus->qts, s->pio_cpu_base + addr, val);
+    writeb(bus->qts, s->pio_cpu_base + addr, val);
 }
 
 static uint16_t qpci_spapr_pio_readw(QPCIBus *bus, uint32_t addr)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    return bswap16(qtest_readw(bus->qts, s->pio_cpu_base + addr));
+    return bswap16(readw(bus->qts, s->pio_cpu_base + addr));
 }
 
 static void qpci_spapr_pio_writew(QPCIBus *bus, uint32_t addr, uint16_t val)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    qtest_writew(bus->qts, s->pio_cpu_base + addr, bswap16(val));
+    writew(bus->qts, s->pio_cpu_base + addr, bswap16(val));
 }
 
 static uint32_t qpci_spapr_pio_readl(QPCIBus *bus, uint32_t addr)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    return bswap32(qtest_readl(bus->qts, s->pio_cpu_base + addr));
+    return bswap32(readl(bus->qts, s->pio_cpu_base + addr));
 }
 
 static void qpci_spapr_pio_writel(QPCIBus *bus, uint32_t addr, uint32_t val)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    qtest_writel(bus->qts, s->pio_cpu_base + addr, bswap32(val));
+    writel(bus->qts, s->pio_cpu_base + addr, bswap32(val));
 }
 
 static uint64_t qpci_spapr_pio_readq(QPCIBus *bus, uint32_t addr)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    return bswap64(qtest_readq(bus->qts, s->pio_cpu_base + addr));
+    return bswap64(readq(bus->qts, s->pio_cpu_base + addr));
 }
 
 static void qpci_spapr_pio_writeq(QPCIBus *bus, uint32_t addr, uint64_t val)
 {
     QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
-    qtest_writeq(bus->qts, s->pio_cpu_base + addr, bswap64(val));
+    writeq(bus->qts, s->pio_cpu_base + addr, bswap64(val));
 }
 
 static void qpci_spapr_memread(QPCIBus *bus, uint32_t addr,
