@@ -51,8 +51,8 @@
 # include <termios.h>
 #endif
 
-#ifdef __sun__
-/* Once Solaris has openpty(), this is going to be removed. */
+/* The fallback implementation is needed at least on SmartOS. */
+#if !defined(CONFIG_OPENPTY_LIBC) && !defined(CONFIG_OPENPTY_LIBUTIL)
 static int openpty(int *amaster, int *aslave, char *name,
                    struct termios *termp, struct winsize *winp)
 {

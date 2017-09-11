@@ -3820,6 +3820,25 @@ EOF
 fi
 
 ##########################################
+# openpty probe
+openpty_libc=no
+openpty_libutil=no
+cat > $TMPC << EOF
+extern int openpty(int *amaster, int *aslave, char *name, void *termp, void *winp);
+
+int main(void)
+{
+    int master_fd, slave_fd;
+    return openpty(&master_fd, &slave_fd, 0, 0, 0) == 0;
+}
+EOF
+if compile_prog "" "" ; then
+  openpty_libc=yes
+elif compile_prog "" "-lutil" ; then
+  openpty_libutil=yes
+fi
+
+##########################################
 # signalfd probe
 signalfd="no"
 cat > $TMPC << EOF
@@ -5787,6 +5806,12 @@ if test "$preadv" = "yes" ; then
 fi
 if test "$fdt" = "yes" ; then
   echo "CONFIG_FDT=y" >> $config_host_mak
+fi
+if test "$openpty_libc" = "yes" ; then
+  echo "CONFIG_OPENPTY_LIBC=y" >> $config_host_mak
+fi
+if test "$openpty_libutil" = "yes" ; then
+  echo "CONFIG_OPENPTY_LIBUTIL=y" >> $config_host_mak
 fi
 if test "$signalfd" = "yes" ; then
   echo "CONFIG_SIGNALFD=y" >> $config_host_mak

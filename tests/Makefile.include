@@ -814,7 +814,7 @@ tests/migration/initrd-stress.img: tests/migration/stress$(EXESUF)
 	rm $(INITRD_WORK_DIR)/init
 	rmdir $(INITRD_WORK_DIR)
 
-ifeq ($(CONFIG_POSIX),y)
+ifeq ($(CONFIG_OPENPTY_LIBUTIL),y)
 LIBS += -lutil
 endif
 
