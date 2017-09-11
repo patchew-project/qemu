@@ -163,7 +163,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self.defn += gen_enum_lookup(event_enum_name, self._event_names)
         self._event_names = None
 
-    def visit_event(self, name, info, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, arg_type, boxed):
         self.decl += gen_event_send_decl(name, arg_type, boxed)
         self.defn += gen_event_send(name, arg_type, boxed)
         self._event_names.append(name)
