@@ -405,7 +405,7 @@ void memwrite(QTestState *s, uint64_t addr, const void *data, size_t size);
 void bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size);
 
 /**
- * qtest_memset:
+ * qmemset:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to write to.
  * @patt: Byte pattern to fill the guest memory region with.
@@ -413,7 +413,7 @@ void bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size);
  *
  * Write a pattern to guest memory.
  */
-void qtest_memset(QTestState *s, uint64_t addr, uint8_t patt, size_t size);
+void qmemset(QTestState *s, uint64_t addr, uint8_t patt, size_t size);
 
 /**
  * clock_step_next:
@@ -591,19 +591,6 @@ static inline QDict *qmp_eventwait_ref(const char *event)
  * Returns: the command's output.  The caller should g_free() it.
  */
 char *hmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/**
- * qmemset:
- * @addr: Guest address to write to.
- * @patt: Byte pattern to fill the guest memory region with.
- * @size: Number of bytes to write.
- *
- * Write a pattern to guest memory.
- */
-static inline void qmemset(uint64_t addr, uint8_t patt, size_t size)
-{
-    qtest_memset(global_qtest, addr, patt, size);
-}
 
 QDict *qmp_fd_receive(int fd);
 void qmp_fd_sendv(int fd, const char *fmt, va_list ap);

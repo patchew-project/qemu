@@ -873,7 +873,7 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
 
     /* Write this buffer to disk, then read it back to the DMA buffer. */
     ahci_guest_io(ahci, port, write_cmd, ptr, bufsize, sector);
-    qtest_memset(ahci->parent->qts, ptr, 0x00, bufsize);
+    qmemset(ahci->parent->qts, ptr, 0x00, bufsize);
     ahci_guest_io(ahci, port, read_cmd, ptr, bufsize, sector);
 
     /*** Read back the Data ***/

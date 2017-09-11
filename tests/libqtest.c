@@ -929,7 +929,7 @@ void memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
     g_free(enc);
 }
 
-void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
+void qmemset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
 {
     qtest_sendf(s, "memset 0x%" PRIx64 " 0x%zx 0x%02x\n", addr, size, pattern);
     qtest_rsp(s, 0);

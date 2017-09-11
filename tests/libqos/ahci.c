@@ -283,8 +283,8 @@ void ahci_hba_enable(AHCIQState *ahci)
         /* Allocate Memory for the Command List Buffer & FIS Buffer */
         /* PxCLB space ... 0x20 per command, as in 4.2.2 p 36 */
         ahci->port[i].clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
-        qtest_memset(ahci->parent->qts, ahci->port[i].clb, 0x00,
-                     num_cmd_slots * 0x20);
+        qmemset(ahci->parent->qts, ahci->port[i].clb, 0x00,
+                num_cmd_slots * 0x20);
         g_test_message("CLB: 0x%08" PRIx64, ahci->port[i].clb);
         ahci_px_wreg(ahci, i, AHCI_PX_CLB, ahci->port[i].clb);
         g_assert_cmphex(ahci->port[i].clb, ==,
@@ -292,7 +292,7 @@ void ahci_hba_enable(AHCIQState *ahci)
 
         /* PxFB space ... 0x100, as in 4.2.1 p 35 */
         ahci->port[i].fb = ahci_alloc(ahci, 0x100);
-        qtest_memset(ahci->parent->qts, ahci->port[i].fb, 0x00, 0x100);
+        qmemset(ahci->parent->qts, ahci->port[i].fb, 0x00, 0x100);
         g_test_message("FB: 0x%08" PRIx64, ahci->port[i].fb);
         ahci_px_wreg(ahci, i, AHCI_PX_FB, ahci->port[i].fb);
         g_assert_cmphex(ahci->port[i].fb, ==,
@@ -398,7 +398,7 @@ void ahci_port_clear(AHCIQState *ahci, uint8_t port)
     g_assert_cmphex(ahci_px_rreg(ahci, port, AHCI_PX_IS), ==, 0);
 
     /* Wipe the FIS-Receive Buffer */
-    qtest_memset(ahci->parent->qts, ahci->port[port].fb, 0x00, 0x100);
+    qmemset(ahci->parent->qts, ahci->port[port].fb, 0x00, 0x100);
 }
 
 /**
@@ -637,7 +637,7 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
     if (opts->size && !opts->buffer) {
         opts->buffer = ahci_alloc(ahci, opts->size);
         g_assert(opts->buffer);
-        qtest_memset(ahci->parent->qts, opts->buffer, 0x00, opts->size);
+        qmemset(ahci->parent->qts, opts->buffer, 0x00, opts->size);
     }
 
     /* Command creation */
@@ -755,7 +755,7 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     g_assert(props);
     ptr = ahci_alloc(ahci, bufsize);
     g_assert(!bufsize || ptr);
-    qtest_memset(ahci->parent->qts, ptr, 0x00, bufsize);
+    qmemset(ahci->parent->qts, ptr, 0x00, bufsize);
 
     if (bufsize && props->write) {
         bufwrite(ahci->parent->qts, ptr, buffer, bufsize);
