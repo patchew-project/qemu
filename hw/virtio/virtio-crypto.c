@@ -1095,6 +1095,11 @@ static uint64_t virtio_crypto_get_features(VirtIODevice *vdev,
                                            uint64_t features,
                                            Error **errp)
 {
+    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
+
+    /* Firstly sync all virtio-crypto possible supported features */
+    features |= vcrypto->host_features;
+
     return features;
 }
 
@@ -1210,6 +1215,16 @@ static const VMStateDescription vmstate_virtio_crypto = {
 };
 
 static Property virtio_crypto_properties[] = {
+    DEFINE_PROP_BIT("mux_mode", VirtIOCrypto, host_features,
+                    VIRTIO_CRYPTO_F_MUX_MODE, true),
+    DEFINE_PROP_BIT("cipher_stateless_mode", VirtIOCrypto, host_features,
+                    VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE, true),
+    DEFINE_PROP_BIT("hash_stateless_mode", VirtIOCrypto, host_features,
+                    VIRTIO_CRYPTO_F_HASH_STATELESS_MODE, true),
+    DEFINE_PROP_BIT("mac_stateless_mode", VirtIOCrypto, host_features,
+                    VIRTIO_CRYPTO_F_MAC_STATELESS_MODE, true),
+    DEFINE_PROP_BIT("aead_stateless_mode", VirtIOCrypto, host_features,
+                    VIRTIO_CRYPTO_F_AEAD_STATELESS_MODE, true),
     DEFINE_PROP_LINK("cryptodev", VirtIOCrypto, conf.cryptodev,
                      TYPE_CRYPTODEV_BACKEND, CryptoDevBackend *),
     DEFINE_PROP_END_OF_LIST(),
