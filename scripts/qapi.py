@@ -1412,8 +1412,8 @@ class QAPISchemaObjectTypeVariants(object):
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
-    def __init__(self, name, typ):
-        QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
+    def __init__(self, name, typ, ifcond=None):
+        QAPISchemaObjectTypeMember.__init__(self, name, typ, False, ifcond)
 
 
 class QAPISchemaAlternateType(QAPISchemaType):
@@ -1674,13 +1674,18 @@ class QAPISchema(object):
         return QAPISchemaObjectTypeVariant(case, typ)
 
     def _make_simple_variant(self, case, typ, info):
+        ifcond = None
+        if isinstance(typ, dict):
+            check_unknown_keys(info, typ, {'type', 'if'})
+            ifcond = typ.get('if')
+            typ = typ['type']
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
             typ, info, None, self.lookup_type(typ).ifcond,
             'wrapper', [self._make_member('data', typ, info)])
-        return QAPISchemaObjectTypeVariant(case, typ)
+        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
 
     def _def_union_type(self, expr, info, doc):
         name = expr['union']
@@ -1700,8 +1705,8 @@ class QAPISchema(object):
         else:
             variants = [self._make_simple_variant(key, value, info)
                         for (key, value) in data.iteritems()]
-            typ = self._make_implicit_enum_type(name, info, ifcond,
-                                                [v.name for v in variants])
+            values = [{'name': v.name, 'if': v.ifcond} for v in variants]
+            typ = self._make_implicit_enum_type(name, info, ifcond, values)
             tag_member = QAPISchemaObjectTypeMember('type', typ, False)
             members = [tag_member]
         self._def_entity(
