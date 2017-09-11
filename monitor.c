@@ -971,9 +971,6 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
  */
 static void qmp_unregister_commands_hack(void)
 {
-#ifndef TARGET_I386
-    qmp_unregister_command(&qmp_commands, "rtc-reset-reinjection");
-#endif
 #ifndef TARGET_S390X
     qmp_unregister_command(&qmp_commands, "dump-skeys");
 #endif
@@ -4154,13 +4151,6 @@ QemuOptsList qemu_mon_opts = {
         { /* end of list */ }
     },
 };
-
-#ifndef TARGET_I386
-void qmp_rtc_reset_reinjection(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
-}
-#endif
 
 #ifndef TARGET_S390X
 void qmp_dump_skeys(const char *filename, Error **errp)

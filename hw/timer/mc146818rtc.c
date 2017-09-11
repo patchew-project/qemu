@@ -31,7 +31,7 @@
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/visitor.h"
 #include "qapi-event.h"
-#include "qmp-commands.h"
+#include "target-qmp-commands.h"
 
 #ifdef TARGET_I386
 #include "hw/i386/apic.h"
