@@ -267,6 +267,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self.decl = None
         self.defn = None
         self._btin = None
+        self.if_members = ['decl', 'defn', '_btin']
 
     def visit_begin(self, schema):
         self.decl = ''
@@ -282,6 +283,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self.decl = self._btin + self.decl
         self._btin = None
 
+    @ifcond_decorator
     def visit_enum_type(self, name, info, ifcond, values, prefix):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
@@ -293,6 +295,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.decl += gen_visit_decl(name, scalar=True)
             self.defn += gen_visit_enum(name)
 
+    @ifcond_decorator
     def visit_array_type(self, name, info, ifcond, element_type):
         decl = gen_visit_decl(name)
         defn = gen_visit_list(name, element_type)
@@ -304,6 +307,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.decl += decl
             self.defn += defn
 
+    @ifcond_decorator
     def visit_object_type(self, name, info, ifcond, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
@@ -317,6 +321,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.decl += gen_visit_decl(name)
             self.defn += gen_visit_object(name, base, members, variants)
 
+    @ifcond_decorator
     def visit_alternate_type(self, name, info, ifcond, variants):
         self.decl += gen_visit_decl(name)
         self.defn += gen_visit_alternate(name, variants)

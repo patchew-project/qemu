@@ -59,8 +59,10 @@ def gen_variants_objects(variants):
         for v in variants.variants:
             if isinstance(v.type, QAPISchemaObjectType):
                 ret += gen_variants_objects(v.type.variants)
+                ret += gen_if(v.type.ifcond)
                 ret += gen_object(v.type.name, v.type.base,
                                   v.type.local_members, v.type.variants)
+                ret += gen_endif(v.type.ifcond)
     return ret
 
 
@@ -175,6 +177,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.defn = None
         self._fwdecl = None
         self._btin = None
+        self.if_members = ['decl', 'defn', '_fwdecl', '_btin']
 
     def visit_begin(self, schema):
         # gen_object() is recursive, ensure it doesn't visit the empty type
@@ -199,6 +202,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.decl += gen_type_cleanup_decl(name)
         self.defn += gen_type_cleanup(name)
 
+    @ifcond_decorator
     def visit_enum_type(self, name, info, ifcond, values, prefix):
         # Special case for our lone builtin enum type
         # TODO use something cleaner than existence of info
@@ -210,6 +214,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._fwdecl += gen_enum(name, values, prefix)
             self.defn += gen_enum_lookup(name, values, prefix)
 
+    @ifcond_decorator
     def visit_array_type(self, name, info, ifcond, element_type):
         if isinstance(element_type, QAPISchemaBuiltinType):
             self._btin += gen_fwd_object_or_array(name)
@@ -222,6 +227,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self.decl += gen_array(name, element_type)
             self._gen_type_cleanup(name)
 
+    @ifcond_decorator
     def _gen_object(self, name, info, ifcond, base, members, variants):
         self.decl += gen_object(name, base, members, variants)
         if base and not base.is_implicit():
@@ -232,18 +238,22 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             # implicit types won't be directly allocated/freed
             self._gen_type_cleanup(name)
 
+    @ifcond_decorator
+    def _gen_fwd_object_or_array(self, name, ifcond):
+        self._fwdecl += gen_fwd_object_or_array(name)
+
     def visit_object_type(self, name, info, ifcond, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self._fwdecl += gen_fwd_object_or_array(name)
+        self._gen_fwd_object_or_array(name, ifcond)
         self.decl += gen_variants_objects(variants)
-        self._gen_object(name, info, None, base, members, variants)
+        self._gen_object(name, info, ifcond, base, members, variants)
 
     def visit_alternate_type(self, name, info, ifcond, variants):
-        self._fwdecl += gen_fwd_object_or_array(name)
+        self._gen_fwd_object_or_array(name, ifcond)
         self.decl += gen_variants_objects(variants)
-        self._gen_object(name, info, None, None,
+        self._gen_object(name, info, ifcond, None,
                          [variants.tag_member], variants)
 
 # If you link code generated from multiple schemata, you want only one
