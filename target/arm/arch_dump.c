@@ -273,8 +273,6 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const GuestPhysBlockList *guest_phys_blocks)
 {
-    ARMCPU *cpu = ARM_CPU(first_cpu);
-    CPUARMState *env = &cpu->env;
     GuestPhysBlock *block;
     hwaddr lowest_addr = ULLONG_MAX;
 
@@ -290,13 +288,32 @@ int cpu_get_dump_info(ArchDumpInfo *info,
         }
     }
 
-    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
-        info->d_machine = EM_AARCH64;
-        info->d_class = ELFCLASS64;
-        info->page_size = (1 << 16); /* aarch64 max pagesize */
-        if (lowest_addr != ULLONG_MAX) {
-            info->phys_base = lowest_addr;
+    if (first_cpu) {
+        ARMCPU *cpu = ARM_CPU(first_cpu);
+        CPUARMState *env = &cpu->env;
+        if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+            info->d_machine = EM_AARCH64;
+            info->d_class = ELFCLASS64;
+            info->page_size = (1 << 16); /* aarch64 max pagesize */
+            if (lowest_addr != ULLONG_MAX) {
+                info->phys_base = lowest_addr;
+            }
+        } else {
+            info->d_machine = EM_ARM;
+            info->d_class = ELFCLASS32;
+            info->page_size = (1 << 12);
+            if (lowest_addr < UINT_MAX) {
+                info->phys_base = lowest_addr;
+            }
         }
+
+        /* We assume the relevant endianness is that of EL1; this is right
+         * for kernels, but might give the wrong answer if you're trying to
+         * dump a hypervisor that happens to be running an opposite-endian
+         * kernel.
+         */
+        info->d_endian = (env->cp15.sctlr_el[1] & SCTLR_EE) != 0
+                         ? ELFDATA2MSB : ELFDATA2LSB;
     } else {
         info->d_machine = EM_ARM;
         info->d_class = ELFCLASS32;
@@ -304,25 +321,24 @@ int cpu_get_dump_info(ArchDumpInfo *info,
         if (lowest_addr < UINT_MAX) {
             info->phys_base = lowest_addr;
         }
+        info->d_endian = ELFDATA2LSB;
     }
-
-    /* We assume the relevant endianness is that of EL1; this is right
-     * for kernels, but might give the wrong answer if you're trying to
-     * dump a hypervisor that happens to be running an opposite-endian
-     * kernel.
-     */
-    info->d_endian = (env->cp15.sctlr_el[1] & SCTLR_EE) != 0
-                     ? ELFDATA2MSB : ELFDATA2LSB;
 
     return 0;
 }
 
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 {
-    ARMCPU *cpu = ARM_CPU(first_cpu);
-    CPUARMState *env = &cpu->env;
+    ARMCPU *cpu;
+    CPUARMState *env;
     size_t note_size;
 
+    if (first_cpu == NULL) {
+        return 0;
+    }
+
+    cpu = ARM_CPU(first_cpu);
+    env = &cpu->env;
     if (class == ELFCLASS64) {
         note_size = AARCH64_PRSTATUS_NOTE_SIZE;
         note_size += AARCH64_PRFPREG_NOTE_SIZE;
