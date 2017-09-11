@@ -1862,7 +1862,7 @@ def cgen(code, **kwds):
     if indent_level:
         indent = genindent(indent_level)
         # re.subn() lacks flags support before Python 2.7, use re.compile()
-        raw = re.subn(re.compile(r'^.', re.MULTILINE),
+        raw = re.subn(re.compile(r'^[^#\n].', re.MULTILINE),
                       indent + r'\g<0>', raw)
         raw = raw[0]
     return re.sub(re.escape(eatspace) + r' *', '', raw)
