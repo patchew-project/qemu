@@ -96,7 +96,7 @@ struct QVirtioBus {
 static inline bool qvirtio_is_big_endian(QVirtioDevice *d)
 {
     /* FIXME: virtio 1.0 is always little-endian */
-    return qtest_big_endian(global_qtest);
+    return qtest_big_endian(d->bus->qts);
 }
 
 static inline uint32_t qvring_size(uint32_t num, uint32_t align)
@@ -139,8 +139,8 @@ void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,
 void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr);
 QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t elem);
-void qvring_indirect_desc_add(QVRingIndirectDesc *indirect, uint64_t data,
-                                                    uint32_t len, bool write);
+void qvring_indirect_desc_add(QTestState *qts, QVRingIndirectDesc *indirect,
+                              uint64_t data, uint32_t len, bool write);
 uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
                                                                     bool next);
 uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect);

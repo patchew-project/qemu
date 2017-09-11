@@ -343,8 +343,10 @@ static void pci_indirect(void)
     g_free(req.data);
 
     indirect = qvring_indirect_desc_setup(&dev->vdev, qs->alloc, 2);
-    qvring_indirect_desc_add(indirect, req_addr, 528, false);
-    qvring_indirect_desc_add(indirect, req_addr + 528, 1, true);
+    qvring_indirect_desc_add(dev->vdev.bus->qts, indirect, req_addr, 528,
+                             false);
+    qvring_indirect_desc_add(dev->vdev.bus->qts, indirect, req_addr + 528, 1,
+                             true);
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
@@ -368,8 +370,9 @@ static void pci_indirect(void)
     g_free(req.data);
 
     indirect = qvring_indirect_desc_setup(&dev->vdev, qs->alloc, 2);
-    qvring_indirect_desc_add(indirect, req_addr, 16, false);
-    qvring_indirect_desc_add(indirect, req_addr + 16, 513, true);
+    qvring_indirect_desc_add(dev->vdev.bus->qts, indirect, req_addr, 16, false);
+    qvring_indirect_desc_add(dev->vdev.bus->qts, indirect, req_addr + 16, 513,
+                             true);
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
