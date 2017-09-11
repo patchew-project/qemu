@@ -157,6 +157,7 @@ static AHCIQState *ahci_vboot(const char *cli, va_list ap)
 
     s = g_malloc0(sizeof(AHCIQState));
     s->parent = qtest_pc_vboot(cli, ap);
+    global_qtest = s->parent->qts;
     alloc_set_flags(s->parent->alloc, ALLOC_LEAK_ASSERT);
 
     /* Verify that we have an AHCI device present. */
