@@ -1897,6 +1897,61 @@ def guardend(name):
                  name=guardname(name))
 
 
+def gen_if(ifcond):
+    if not ifcond:
+        return ''
+    if isinstance(ifcond, str):
+        ifcond = [ifcond]
+    ret = ''
+    for ifc in ifcond:
+        ret += mcgen('''
+#if %(cond)s
+''', cond=ifc)
+    return ret
+
+
+def gen_endif(ifcond):
+    if not ifcond:
+        return ''
+    if isinstance(ifcond, str):
+        ifcond = [ifcond]
+    ret = ''
+    for ifc in reversed(ifcond):
+        ret += mcgen('''
+#endif /* %(cond)s */
+''', cond=ifc)
+    return ret
+
+
+# Wrap a method to add #if / #endif to generated code, only if some
+# code was generated. The method must have an 'ifcond' argument.
+# self must have 'if_members' listing the attributes to wrap.
+def ifcond_decorator(func):
+
+    def func_wrapper(self, *args, **kwargs):
+        import inspect
+        idx = inspect.getargspec(func).args.index('ifcond')
+        ifcond = args[idx - 1]
+        save = {}
+        for mem in self.if_members:
+            save[mem] = getattr(self, mem)
+        func(self, *args, **kwargs)
+        for mem, val in save.items():
+            newval = getattr(self, mem)
+            if newval != val:
+                assert newval.startswith(val)
+                newval = newval[len(val):]
+                if newval[0] == '\n':
+                    val += '\n'
+                    newval = newval[1:]
+                val += gen_if(ifcond)
+                val += newval
+                val += gen_endif(ifcond)
+            setattr(self, mem, val)
+
+    return func_wrapper
+
+
 def gen_enum_lookup(name, values, prefix=None):
     ret = mcgen('''
 
