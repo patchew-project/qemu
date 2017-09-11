@@ -18,6 +18,7 @@
 #include "hw/xen/xen_backend.h"
 #include "qmp-commands.h"
 
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "sysemu/xen-mapcache.h"
@@ -86,6 +87,18 @@ typedef struct XenPhysmap {
     QLIST_ENTRY(XenPhysmap) list;
 } XenPhysmap;
 
+#define HVM_XS_DM_ACPI_ROOT    "/hvmloader/dm-acpi"
+#define HVM_XS_DM_ACPI_ADDRESS HVM_XS_DM_ACPI_ROOT"/address"
+#define HVM_XS_DM_ACPI_LENGTH  HVM_XS_DM_ACPI_ROOT"/length"
+
+typedef struct XenAcpiBuf {
+    ram_addr_t base;
+    ram_addr_t length;
+    ram_addr_t used;
+} XenAcpiBuf;
+
+static XenAcpiBuf *dm_acpi_buf;
+
 typedef struct XenIOState {
     ioservid_t ioservid;
     shared_iopage_t *shared_page;
@@ -109,6 +122,8 @@ typedef struct XenIOState {
     QLIST_HEAD(, XenPhysmap) physmap;
     hwaddr free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
+
+    XenAcpiBuf dm_acpi_buf;
 
     Notifier exit;
     Notifier suspend;
@@ -1234,6 +1249,52 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
     xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
 }
 
+static int xen_dm_acpi_needed(PCMachineState *pcms)
+{
+    return 0;
+}
+
+static int dm_acpi_buf_init(XenIOState *state)
+{
+    char path[80], *value;
+    unsigned int len;
+
+    dm_acpi_buf = &state->dm_acpi_buf;
+
+    snprintf(path, sizeof(path),
+             "/local/domain/%d"HVM_XS_DM_ACPI_ADDRESS, xen_domid);
+    value = xs_read(state->xenstore, 0, path, &len);
+    if (!value) {
+        return -EINVAL;
+    }
+    if (qemu_strtoul(value, NULL, 16, &dm_acpi_buf->base)) {
+        return -EINVAL;
+    }
+
+    snprintf(path, sizeof(path),
+             "/local/domain/%d"HVM_XS_DM_ACPI_LENGTH, xen_domid);
+    value = xs_read(state->xenstore, 0, path, &len);
+    if (!value) {
+        return -EINVAL;
+    }
+    if (qemu_strtoul(value, NULL, 16, &dm_acpi_buf->length)) {
+        return -EINVAL;
+    }
+
+    dm_acpi_buf->used = 0;
+
+    return 0;
+}
+
+static int xen_dm_acpi_init(PCMachineState *pcms, XenIOState *state)
+{
+    if (!xen_dm_acpi_needed(pcms)) {
+        return 0;
+    }
+
+    return dm_acpi_buf_init(state);
+}
+
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 {
     int i, rc;
@@ -1384,6 +1445,11 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     /* Disable ACPI build because Xen handles it */
     pcms->acpi_build_enabled = false;
+
+    if (xen_dm_acpi_init(pcms, state)) {
+        error_report("failed to initialize xen ACPI");
+        goto err;
+    }
 
     return;
 
