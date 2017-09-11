@@ -1374,7 +1374,7 @@ void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
         pair = (uint64_t)i2 << 32 | i1;
 #endif
 
-        atomic_set((uint64_t *)jmp_addr, pair);
+        atomic_set__nocheck((uint64_t *)jmp_addr, pair);
         flush_icache_range(jmp_addr, jmp_addr + 8);
     } else {
         intptr_t diff = addr - jmp_addr;
