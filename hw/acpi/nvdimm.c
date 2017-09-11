@@ -1226,22 +1226,8 @@ static void nvdimm_build_nvdimm_devices(Aml *root_dev, uint32_t ram_slots)
     }
 }
 
-static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
-                              BIOSLinker *linker, GArray *dsm_dma_arrea,
-                              uint32_t ram_slots)
+static void nvdimm_build_ssdt_device(Aml *dev, uint32_t ram_slots)
 {
-    Aml *ssdt, *sb_scope, *dev;
-    int mem_addr_offset, nvdimm_ssdt;
-
-    acpi_add_table(table_offsets, table_data);
-
-    ssdt = init_aml_allocator();
-    acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
-
-    sb_scope = aml_scope("\\_SB");
-
-    dev = aml_device("NVDR");
-
     /*
      * ACPI 6.0: 9.20 NVDIMM Devices:
      *
@@ -1262,6 +1248,25 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
     nvdimm_build_fit(dev);
 
     nvdimm_build_nvdimm_devices(dev, ram_slots);
+}
+
+static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
+                              BIOSLinker *linker, GArray *dsm_dma_arrea,
+                              uint32_t ram_slots)
+{
+    Aml *ssdt, *sb_scope, *dev;
+    int mem_addr_offset, nvdimm_ssdt;
+
+    acpi_add_table(table_offsets, table_data);
+
+    ssdt = init_aml_allocator();
+    acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
+
+    sb_scope = aml_scope("\\_SB");
+
+    dev = aml_device("NVDR");
+
+    nvdimm_build_ssdt_device(dev, ram_slots);
 
     aml_append(sb_scope, dev);
     aml_append(ssdt, sb_scope);
@@ -1285,6 +1290,18 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
     free_aml_allocator();
 }
 
+static void nvdimm_build_xen_ssdt(uint32_t ram_slots)
+{
+    Aml *dev = init_aml_allocator();
+
+    nvdimm_build_ssdt_device(dev, ram_slots);
+    build_append_named_dword(dev->buf, NVDIMM_ACPI_MEM_ADDR);
+    xen_acpi_copy_to_guest("NVDR", dev->buf->data, dev->buf->len,
+                           XEN_DM_ACPI_BLOB_TYPE_NSDEV);
+
+    free_aml_allocator();
+}
+
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, AcpiNVDIMMState *state,
                        uint32_t ram_slots)
@@ -1296,8 +1313,12 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
         return;
     }
 
-    nvdimm_build_ssdt(table_offsets, table_data, linker, state->dsm_mem,
-                      ram_slots);
+    if (!xen_enabled()) {
+        nvdimm_build_ssdt(table_offsets, table_data, linker, state->dsm_mem,
+                          ram_slots);
+    } else {
+        nvdimm_build_xen_ssdt(ram_slots);
+    }
 
     device_list = nvdimm_get_device_list();
     /* no NVDIMM device is plugged. */
