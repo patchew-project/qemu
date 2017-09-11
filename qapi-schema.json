@@ -92,6 +92,7 @@
 { 'include': 'qapi/transaction.json' }
 { 'include': 'qapi/trace.json' }
 { 'include': 'qapi/introspect.json' }
+{ 'include': 'qapi/target.json' }
 
 ##
 # = Miscellanea

@@ -157,6 +157,8 @@ endif
 
 GENERATED_FILES += hmp-commands.h hmp-commands-info.h
 
+obj-y += target-qapi-types.o target-qapi-visit.o
+obj-y += target-qapi-event.o target-qmp-marshal.o
 obj-y += qmp-introspect.o
 
 endif # CONFIG_SOFTMMU

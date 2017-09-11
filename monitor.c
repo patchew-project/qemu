@@ -68,6 +68,7 @@
 #include "exec/exec-all.h"
 #include "qemu/log.h"
 #include "qmp-commands.h"
+#include "target-qmp-commands.h"
 #include "hmp.h"
 #include "qemu/thread.h"
 #include "block/qapi.h"
@@ -1003,6 +1004,7 @@ void monitor_init_qmp_commands(void)
 
     QTAILQ_INIT(&qmp_commands);
     qmp_init_marshal(&qmp_commands);
+    target_qmp_init_marshal(&qmp_commands);
 
     qmp_register_command(&qmp_commands, "query-qmp-schema",
                          qmp_query_qmp_schema,

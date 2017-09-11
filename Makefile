@@ -54,6 +54,8 @@ include $(SRC_PATH)/rules.mak
 GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
 GENERATED_FILES += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
 GENERATED_FILES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
+GENERATED_FILES += target-qmp-commands.h target-qapi-types.h target-qapi-visit.h target-qapi-event.h
+GENERATED_FILES += target-qmp-marshal.c target-qapi-types.c target-qapi-visit.c target-qapi-event.c
 GENERATED_FILES += qmp-introspect.h
 GENERATED_FILES += qmp-introspect.c
 
@@ -418,6 +420,7 @@ qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
                $(SRC_PATH)/qapi/rocker.json \
                $(SRC_PATH)/qapi/run-state.json \
                $(SRC_PATH)/qapi/sockets.json \
+               $(SRC_PATH)/qapi/target.json \
                $(SRC_PATH)/qapi/tpm.json \
                $(SRC_PATH)/qapi/trace.json \
                $(SRC_PATH)/qapi/transaction.json \
@@ -443,10 +446,34 @@ $(qapi-modules) $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
 		$(gen-out-type) -o "." $<, \
 		"GEN","$@")
+
+target-qapi-types.c target-qapi-types.h :\
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
+		-i qapi-types.h \
+		$(gen-out-type) -p target- -u target $<, \
+		"GEN","$@")
+target-qapi-visit.c target-qapi-visit.h :\
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
+		-i qapi-visit.h \
+		$(gen-out-type) -p target- -u target $<, \
+		"GEN","$@")
+target-qapi-event.c target-qapi-event.h :\
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
+		$(gen-out-type) -p target- -u target  $<, \
+		"GEN","$@")
+target-qmp-commands.h target-qmp-marshal.c :\
+$(qapi-modules) $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
+		$(gen-out-type) -p target- -u target $<, \
+		"GEN","$@")
+
 qmp-introspect.h qmp-introspect.c :\
 $(qapi-modules) $(SRC_PATH)/scripts/qapi-introspect.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-introspect.py \
-		$(gen-out-type) -o "." $<, \
+		$(gen-out-type) -o "." -u all $<, \
 		"GEN","$@")
 
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
