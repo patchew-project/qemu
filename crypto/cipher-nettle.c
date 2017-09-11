@@ -67,6 +67,7 @@ static void aes_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
     aes_decrypt(&aesctx->dec, length, dst, src);
 }
 
+#ifdef CONFIG_VNC
 static void des_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
                                uint8_t *dst, const uint8_t *src)
 {
@@ -78,6 +79,7 @@ static void des_decrypt_native(cipher_ctx_t ctx, cipher_length_t length,
 {
     des_decrypt(ctx, length, dst, src);
 }
+#endif
 
 static void des3_encrypt_native(cipher_ctx_t ctx, cipher_length_t length,
                                 uint8_t *dst, const uint8_t *src)
@@ -141,6 +143,7 @@ static void aes_decrypt_wrapper(const void *ctx, size_t length,
     aes_decrypt(&aesctx->dec, length, dst, src);
 }
 
+#ifdef CONFIG_VNC
 static void des_encrypt_wrapper(const void *ctx, size_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
@@ -152,6 +155,7 @@ static void des_decrypt_wrapper(const void *ctx, size_t length,
 {
     des_decrypt(ctx, length, dst, src);
 }
+#endif
 
 static void des3_encrypt_wrapper(const void *ctx, size_t length,
                                 uint8_t *dst, const uint8_t *src)
@@ -221,7 +225,9 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
+#ifdef CONFIG_VNC
     case QCRYPTO_CIPHER_ALG_DES_RFB:
+#endif
     case QCRYPTO_CIPHER_ALG_3DES:
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
@@ -271,7 +277,6 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                                                    Error **errp)
 {
     QCryptoCipherNettle *ctx;
-    uint8_t *rfbkey;
 
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
@@ -292,7 +297,9 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     ctx = g_new0(QCryptoCipherNettle, 1);
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+#ifdef CONFIG_VNC
+    case QCRYPTO_CIPHER_ALG_DES_RFB: {
+        uint8_t *rfbkey;
         ctx->ctx = g_new0(struct des_ctx, 1);
         rfbkey = qcrypto_cipher_munge_des_rfb_key(key, nkey);
         des_set_key(ctx->ctx, rfbkey);
@@ -305,7 +312,8 @@ static QCryptoCipherNettle *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 
         ctx->blocksize = DES_BLOCK_SIZE;
         break;
-
+    }
+#endif
     case QCRYPTO_CIPHER_ALG_3DES:
         ctx->ctx = g_new0(struct des3_ctx, 1);
         des3_set_key(ctx->ctx, key);

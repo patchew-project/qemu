@@ -29,7 +29,9 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
+#ifdef CONFIG_VNC
     case QCRYPTO_CIPHER_ALG_DES_RFB:
+#endif
     case QCRYPTO_CIPHER_ALG_3DES:
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
@@ -114,10 +116,11 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
+#ifdef CONFIG_VNC
     case QCRYPTO_CIPHER_ALG_DES_RFB:
         gcryalg = GCRY_CIPHER_DES;
         break;
-
+#endif
     case QCRYPTO_CIPHER_ALG_3DES:
         gcryalg = GCRY_CIPHER_3DES;
         break;
@@ -181,6 +184,7 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
         }
     }
 
+#ifdef CONFIG_VNC
     if (alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
         /* We're using standard DES cipher from gcrypt, so we need
          * to munge the key so that the results are the same as the
@@ -190,7 +194,9 @@ static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
         err = gcry_cipher_setkey(ctx->handle, rfbkey, nkey);
         g_free(rfbkey);
         ctx->blocksize = 8;
-    } else {
+    } else
+#endif /* CONFIG_VNC */
+    {
         if (mode == QCRYPTO_CIPHER_MODE_XTS) {
             nkey /= 2;
             err = gcry_cipher_setkey(ctx->handle, key, nkey);

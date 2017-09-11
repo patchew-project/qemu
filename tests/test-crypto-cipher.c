@@ -149,6 +149,7 @@ static QCryptoCipherTestData test_data[] = {
             "39f23369a9d9bacfa530e26304231461"
             "b2eb05e2c39be9fcda6c19078c6a9d1b",
     },
+#ifdef CONFIG_VNC
     {
         .path = "/crypto/cipher/des-rfb-ecb-56",
         .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
@@ -165,6 +166,7 @@ static QCryptoCipherTestData test_data[] = {
             "ffd29f1bb5596ad94ea2d8e6196b7f09"
             "30d8ed0bf2773af36dd82a6280c20926",
     },
+#endif
 #if defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT)
     {
         /* Borrowed from linux-kernel crypto/testmgr.h */

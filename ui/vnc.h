@@ -291,7 +291,9 @@ struct VncState
     bool encode_ws;
     bool websocket;
 
+#ifdef CONFIG_VNC
     VncClientInfo *info;
+#endif
 
     Buffer output;
     Buffer input;
