@@ -16,6 +16,9 @@
 #include "hw/pci/pci_regs.h"
 #include "qemu/host-utils.h"
 
+#define ACPI_PCIHP_ADDR         0xae00
+#define PCI_EJ_BASE             0x0008
+
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
                          void (*func)(QPCIDevice *dev, int devfn, void *data),
                          void *data)
@@ -411,4 +414,24 @@ void qpci_plug_device_test(const char *driver, const char *id,
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     QDECREF(response);
+}
+
+void qpci_unplug_device_test(const char *id, uint8_t slot)
+{
+    QDict *response;
+    char *cmd;
+
+    cmd = g_strdup_printf("{'execute': 'device_del',"
+                          " 'arguments': {"
+                          "   'id': '%s'"
+                          "}}", id);
+    response = qmp(cmd);
+    g_free(cmd);
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+
+    outb(ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
+
+    qmp_eventwait("DEVICE_DELETED");
 }

@@ -25,7 +25,7 @@ static void hotplug(void)
     qpci_plug_device_test("virtio-rng-pci", "rng1", PCI_SLOT_HP, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qpci_unplug_acpi_device_test("rng1", PCI_SLOT_HP);
+        qpci_unplug_device_test("rng1", PCI_SLOT_HP);
     }
 }
 

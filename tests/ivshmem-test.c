@@ -427,7 +427,7 @@ static void test_ivshmem_hotplug(void)
 
     qpci_plug_device_test("ivshmem", "iv1", PCI_SLOT_HP, opts);
     if (strcmp(arch, "ppc64") != 0) {
-        qpci_unplug_acpi_device_test("iv1", PCI_SLOT_HP);
+        qpci_unplug_device_test("iv1", PCI_SLOT_HP);
     }
 
     qtest_end();

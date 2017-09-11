@@ -111,5 +111,5 @@ QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
 
 void qpci_plug_device_test(const char *driver, const char *id,
                            uint8_t slot, const char *opts);
-void qpci_unplug_acpi_device_test(const char *id, uint8_t slot);
+void qpci_unplug_device_test(const char *id, uint8_t slot);
 #endif

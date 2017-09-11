@@ -672,7 +672,7 @@ static void pci_hotplug(void)
 
     /* unplug secondary disk */
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qpci_unplug_acpi_device_test("drv1", PCI_SLOT_HP);
+        qpci_unplug_device_test("drv1", PCI_SLOT_HP);
     }
     qtest_shutdown(qs);
 }
