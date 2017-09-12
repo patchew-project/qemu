@@ -13,8 +13,31 @@
 #include "instrument/load.h"
 #include "instrument/qemu-instr/control.h"
 #include "qemu/compiler.h"
+#include "qom/cpu.h"
+
 
 __thread InstrState instr_cur_state;
+
+
+unsigned int instr_cpus_count;
+CPUState **instr_cpus;
+
+void instr_cpu_add(CPUState *vcpu)
+{
+    unsigned int idx = vcpu->cpu_index;
+    if (idx >= instr_cpus_count) {
+        instr_cpus_count = idx + 1;
+        instr_cpus = realloc(instr_cpus,
+                             sizeof(*instr_cpus) * instr_cpus_count);
+    }
+    instr_cpus[idx] = vcpu;
+}
+
+void instr_cpu_remove(CPUState *vcpu)
+{
+    unsigned int idx = vcpu->cpu_index;
+    instr_cpus[idx] = NULL;
+}
 
 
 qi_fini_fn instr_event__fini_fn;

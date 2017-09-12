@@ -22,6 +22,9 @@
 #include "exec/cpu-common.h"
 #include "qom/cpu.h"
 #include "sysemu/cpus.h"
+#if defined(CONFIG_INSTRUMENT)
+#include "instrument/control.h"
+#endif
 
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
@@ -84,6 +87,9 @@ void cpu_list_add(CPUState *cpu)
     } else {
         assert(!cpu_index_auto_assigned);
     }
+#if defined(CONFIG_INSTRUMENT)
+    instr_cpu_add(cpu);
+#endif
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 
@@ -102,6 +108,9 @@ void cpu_list_remove(CPUState *cpu)
     assert(!(cpu_index_auto_assigned && cpu != QTAILQ_LAST(&cpus, CPUTailQ)));
 
     QTAILQ_REMOVE(&cpus, cpu, node);
+#if defined(CONFIG_INSTRUMENT)
+    instr_cpu_remove(cpu);
+#endif
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 }

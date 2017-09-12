@@ -10,6 +10,42 @@
 #ifndef INSTRUMENT__CONTROL_H
 #define INSTRUMENT__CONTROL_H
 
+#include "qemu/typedefs.h"
+#include "instrument/qemu-instr/types.h"
+
+
+/**
+ * instr_cpu_add:
+ *
+ * Make @vcpu available to instrumentation clients.
+ *
+ * Precondition: cpu_list_lock().
+ */
+void instr_cpu_add(CPUState *vcpu);
+
+/**
+ * instr_cpu_remove:
+ *
+ * Make @vcpu unavailable to instrumentation clients.
+ *
+ * Precondition: cpu_list_lock().
+ */
+void instr_cpu_remove(CPUState *vcpu);
+
+/**
+ * instr_cpu_to_qicpu:
+ *
+ * Get the #QICPU corresponding to the given #CPUState.
+ */
+static inline QICPU instr_cpu_to_qicpu(CPUState *vcpu);
+
+/**
+ * instr_cpu_from_qicpu:
+ *
+ * Get the #CPUState corresponding to the given #QICPU.
+ */
+static inline CPUState *instr_cpu_from_qicpu(QICPU vcpu);
+
 
 /**
  * InstrState:
