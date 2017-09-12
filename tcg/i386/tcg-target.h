@@ -30,11 +30,10 @@
 
 #ifdef __x86_64__
 # define TCG_TARGET_REG_BITS  64
-# define TCG_TARGET_NB_REGS   16
 #else
 # define TCG_TARGET_REG_BITS  32
-# define TCG_TARGET_NB_REGS    8
 #endif
+# define TCG_TARGET_NB_REGS   24
 
 typedef enum {
     TCG_REG_EAX = 0,
@@ -56,6 +55,19 @@ typedef enum {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
+
+    /* SSE registers; 64-bit has access to 8 more, but we won't
+       need more than a few and using only the first 8 minimizes
+       the need for a rex prefix on the sse instructions.  */
+    TCG_REG_XMM0,
+    TCG_REG_XMM1,
+    TCG_REG_XMM2,
+    TCG_REG_XMM3,
+    TCG_REG_XMM4,
+    TCG_REG_XMM5,
+    TCG_REG_XMM6,
+    TCG_REG_XMM7,
+
     TCG_REG_RAX = TCG_REG_EAX,
     TCG_REG_RCX = TCG_REG_ECX,
     TCG_REG_RDX = TCG_REG_EDX,
@@ -77,6 +89,17 @@ typedef enum {
 
 extern bool have_bmi1;
 extern bool have_popcnt;
+
+#ifdef __SSE2__
+#define have_sse2  true
+#else
+extern bool have_sse2;
+#endif
+#ifdef __AVX2__
+#define have_avx2  true
+#else
+extern bool have_avx2;
+#endif
 
 /* optional instructions */
 #define TCG_TARGET_HAS_div2_i32         1
@@ -145,6 +168,25 @@ extern bool have_popcnt;
 #define TCG_TARGET_HAS_muluh_i64        0
 #define TCG_TARGET_HAS_mulsh_i64        0
 #endif
+
+#define TCG_TARGET_HAS_v64              have_sse2
+#define TCG_TARGET_HAS_v128             have_sse2
+#define TCG_TARGET_HAS_v256             have_avx2
+
+#define TCG_TARGET_HAS_andc_v64         TCG_TARGET_HAS_v64
+#define TCG_TARGET_HAS_orc_v64          0
+#define TCG_TARGET_HAS_not_v64          0
+#define TCG_TARGET_HAS_neg_v64          0
+
+#define TCG_TARGET_HAS_andc_v128        TCG_TARGET_HAS_v128
+#define TCG_TARGET_HAS_orc_v128         0
+#define TCG_TARGET_HAS_not_v128         0
+#define TCG_TARGET_HAS_neg_v128         0
+
+#define TCG_TARGET_HAS_andc_v256        TCG_TARGET_HAS_v256
+#define TCG_TARGET_HAS_orc_v256         0
+#define TCG_TARGET_HAS_not_v256         0
+#define TCG_TARGET_HAS_neg_v256         0
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
     (((ofs) == 0 && (len) == 8) || ((ofs) == 8 && (len) == 8) || \
