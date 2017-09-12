@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "instrument/events.h"
 #include "tcg.h"
 #include "tcg-op.h"
 #include "tcg-mo.h"
@@ -2680,6 +2681,7 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 0, 0);
     meminfo = trace_mem_get_info(memop, 0);
+    instr_guest_mem_before_trans(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo);
     trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i32(INDEX_op_qemu_ld_i32, val, addr, memop, idx);
 }
@@ -2690,6 +2692,7 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     memop = tcg_canonicalize_memop(memop, 0, 1);
     meminfo = trace_mem_get_info(memop, 1);
+    instr_guest_mem_before_trans(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo);
     trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i32(INDEX_op_qemu_st_i32, val, addr, memop, idx);
 }
@@ -2711,6 +2714,7 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 
     memop = tcg_canonicalize_memop(memop, 1, 0);
     meminfo = trace_mem_get_info(memop, 0);
+    instr_guest_mem_before_trans(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo);
     trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i64(INDEX_op_qemu_ld_i64, val, addr, memop, idx);
 }
@@ -2727,6 +2731,7 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 
     memop = tcg_canonicalize_memop(memop, 1, 1);
     meminfo = trace_mem_get_info(memop, 1);
+    instr_guest_mem_before_trans(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo);
     trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i64(INDEX_op_qemu_st_i64, val, addr, memop, idx);
 }

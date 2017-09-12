@@ -86,12 +86,21 @@ typedef enum {
     INSTR_STATE_ENABLE,
 } InstrState;
 
+#define INSTR_MAX_TCG_REGS 16
+
+typedef struct InstrInfo {
+    InstrState state;
+    unsigned int max;
+    void *tcg_regs[INSTR_MAX_TCG_REGS];
+} InstrInfo;
+
 /**
  * instr_set_state:
  *
- * Set the instrumentation state of the current host thread.
+ * Set the instrumentation state of the current host thread, and return its
+ * #InstrInfo.
  */
-static inline void instr_set_state(InstrState state);
+static inline InstrInfo *instr_set_state(InstrState state);
 
 /**
  * instr_get_state:
@@ -99,6 +108,29 @@ static inline void instr_set_state(InstrState state);
  * Get the instrumentation state of the current host thread.
  */
 static inline InstrState instr_get_state(void);
+
+/**
+ * instr_tcg_to_qitcg:
+ * @info: Pointer to #InstrInfo.
+ * @num: Number of TCG register used by instrumentation.
+ * @arg: TCG register.
+ *
+ * Get a suitable QITCGv* from a TCGv* value.
+ */
+#define instr_tcg_to_qitcg(info, num, arg) \
+    ({                                \
+        info->tcg_regs[num] = arg;    \
+        (void *)num;                  \
+    })
+
+/**
+ * instr_tcg_count:
+ * @info: Pointer to #InstrInfo.
+ * @count: Number of TCG registers used by instrumentation.
+ *
+ * Set the number of TCG registers used by instrumentation.
+ */
+static inline void instr_tcg_count(InstrInfo *info, unsigned int count);
 
 
 #include "instrument/control.inc.h"

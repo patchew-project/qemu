@@ -20,6 +20,29 @@ typedef struct TraceEventIter {
     const char *pattern;
 } TraceEventIter;
 
+/**
+ * TraceMemInfo:
+ * @size_shift: Memoy access size, interpreted as "1 << size_shift" bytes.
+ * @sign_extend: Whether the access is sign-extended.
+ * @endianness: Endinness type (0: little, 1: big).
+ * @store: Whether it's a store operation.
+ *
+ * Memory access information.
+ *
+ * NOTE: Keep in sync with QIMemInfo.
+ */
+typedef struct TraceMemInfo {
+    union {
+        struct {
+            uint8_t size_shift : 2;
+            bool    sign_extend: 1;
+            uint8_t endianness : 1;
+            bool    store      : 1;
+        };
+        uint8_t raw;
+    };
+} TraceMemInfo;
+
 
 /**
  * trace_event_iter_init:

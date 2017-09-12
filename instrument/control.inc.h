@@ -46,14 +46,22 @@ static inline CPUState *instr_cpu_from_qicpu(QICPU vcpu)
 }
 
 
-extern __thread InstrState instr_cur_state;
+extern __thread InstrInfo instr_cur_info;
 
-static inline void instr_set_state(InstrState state)
+static inline InstrInfo *instr_set_state(InstrState state)
 {
-    atomic_store_release(&instr_cur_state, state);
+    InstrInfo *info = &instr_cur_info;
+    atomic_store_release(&info->state, state);
+    return info;
 }
 
 static inline InstrState instr_get_state(void)
 {
-    return atomic_load_acquire(&instr_cur_state);
+    return atomic_load_acquire(&instr_cur_info.state);
+}
+
+
+static inline void instr_tcg_count(InstrInfo *info, unsigned int count)
+{
+    info->max = count;
 }
