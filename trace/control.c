@@ -1,13 +1,14 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2011-2016 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2017 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
 
 #include "qemu/osdep.h"
+#include "instrument/events.h"
 #include "trace/control.h"
 #include "qemu/help_option.h"
 #ifdef CONFIG_TRACE_SIMPLE
@@ -272,6 +273,7 @@ void trace_fini_vcpu(CPUState *vcpu)
     TraceEventIter iter;
     TraceEvent *ev;
 
+    instr_guest_cpu_exit(vcpu);
     trace_guest_cpu_exit(vcpu);
 
     trace_event_iter_init(&iter, NULL);

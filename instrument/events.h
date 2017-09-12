@@ -36,6 +36,9 @@ extern void *instr_event__fini_data;
 extern void (*instr_event__guest_cpu_enter)(QICPU vcpu);
 static inline void instr_guest_cpu_enter(CPUState *vcpu);
 
+extern void (*instr_event__guest_cpu_exit)(QICPU vcpu);
+static inline void instr_guest_cpu_exit(CPUState *vcpu);
+
 
 #include "instrument/events.inc.h"
 
