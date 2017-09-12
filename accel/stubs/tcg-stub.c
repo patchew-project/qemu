@@ -20,3 +20,6 @@
 void tb_flush(CPUState *cpu)
 {
 }
+void tb_flush_sync(CPUState *cpu)
+{
+}
