@@ -18,7 +18,8 @@ use Getopt::Long qw(:config no_auto_abbrev);
 my $quiet = 0;
 my $tree = 1;
 my $chk_signoff = 1;
-my $chk_patch = 1;
+my $chk_patch = undef;
+my $chk_branch = undef;
 my $tst_only;
 my $emacs = 0;
 my $terse = 0;
@@ -35,7 +36,11 @@ sub help {
 	my ($exitcode) = @_;
 
 	print << "EOM";
-Usage: $P [OPTION]... [FILE]...
+Usage:
+
+    $P [OPTION]... [FILE]...
+    $P [OPTION]... [GIT-REV-LIST]
+
 Version: $V
 
 Options:
@@ -87,6 +92,19 @@ GetOptions(
 help(0) if ($help);
 
 my $exit = 0;
+
+if (!defined $chk_patch) {
+    if (!$file) {
+	if ($#ARGV == 0 && $ARGV[0] =~ /\.\./) {
+	    $chk_branch = $ARGV[0];
+	    $chk_patch = 0;
+	} else {
+	    $chk_patch = 1;
+	}
+    } else {
+	$chk_patch = 0;
+    }
+}
 
 if ($#ARGV < 0) {
 	print "$P: no input files\n";
@@ -251,32 +269,66 @@ $chk_signoff = 0 if ($file);
 my @rawlines = ();
 my @lines = ();
 my $vname;
-for my $filename (@ARGV) {
-	my $FILE;
-	if ($file) {
-		open($FILE, '-|', "diff -u /dev/null $filename") ||
-			die "$P: $filename: diff failed - $!\n";
-	} elsif ($filename eq '-') {
-		open($FILE, '<&STDIN');
-	} else {
-		open($FILE, '<', "$filename") ||
-			die "$P: $filename: open failed - $!\n";
-	}
-	if ($filename eq '-') {
-		$vname = 'Your patch';
-	} else {
-		$vname = $filename;
-	}
-	while (<$FILE>) {
+if ($chk_branch) {
+	my @patches;
+	my $HASH;
+	open($HASH, "-|", "git", "log", "--format=%H", $chk_branch) ||
+		die "$P: git log --format=%H $chk_branch failed - $!\n";
+
+	while (<$HASH>) {
 		chomp;
-		push(@rawlines, $_);
+		push @patches, $_;
 	}
-	close($FILE);
-	if (!process($filename)) {
-		$exit = 1;
+
+	close $HASH;
+
+	die "$P: no revisions returned for revlist '$chk_branch'\n"
+	    unless @patches;
+
+	for my $hash (@patches) {
+		my $FILE;
+		open($FILE, '-|', "git", "show", $hash) ||
+			die "$P: git show $hash - $!\n";
+		$vname = $hash;
+		while (<$FILE>) {
+			chomp;
+			push(@rawlines, $_);
+		}
+		close($FILE);
+		if (!process($hash)) {
+			$exit = 1;
+		}
+		@rawlines = ();
+		@lines = ();
 	}
-	@rawlines = ();
-	@lines = ();
+} else {
+	for my $filename (@ARGV) {
+		my $FILE;
+		if ($file) {
+			open($FILE, '-|', "diff -u /dev/null $filename") ||
+				die "$P: $filename: diff failed - $!\n";
+		} elsif ($filename eq '-') {
+			open($FILE, '<&STDIN');
+		} else {
+			open($FILE, '<', "$filename") ||
+				die "$P: $filename: open failed - $!\n";
+		}
+		if ($filename eq '-') {
+			$vname = 'Your patch';
+		} else {
+			$vname = $filename;
+		}
+		while (<$FILE>) {
+			chomp;
+			push(@rawlines, $_);
+		}
+		close($FILE);
+		if (!process($filename)) {
+			$exit = 1;
+		}
+		@rawlines = ();
+		@lines = ();
+	}
 }
 
 exit($exit);
