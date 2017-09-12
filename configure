@@ -6025,6 +6025,9 @@ fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 
 if test "$instrument" = "yes"; then
+  LDFLAGS="-rdynamic $LDFLAGS"          # limit symbols available to clients
+  QEMU_CFLAGS="-fvisibility=hidden $QEMU_CFLAGS"
+  LIBS="-ldl $LIBS"
   echo "CONFIG_INSTRUMENT=y" >> $config_host_mak
 fi
 
