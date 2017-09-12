@@ -4,3 +4,4 @@ target-obj-$(CONFIG_INSTRUMENT) += cmdline.o
 target-obj-$(CONFIG_INSTRUMENT) += load.o
 target-obj-$(CONFIG_INSTRUMENT) += qmp.o
 target-obj-$(CONFIG_INSTRUMENT) += control.o
+target-obj-$(CONFIG_INSTRUMENT) += trace.o
