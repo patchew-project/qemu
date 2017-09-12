@@ -116,7 +116,7 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 static bool tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
-static TCGRegSet tcg_target_available_regs[2];
+static TCGRegSet tcg_target_available_regs[TCG_TYPE_COUNT];
 static TCGRegSet tcg_target_call_clobber_regs;
 
 #if TCG_TARGET_INSN_UNIT_SIZE == 1
