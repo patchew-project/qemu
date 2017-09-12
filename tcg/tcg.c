@@ -754,6 +754,9 @@ int tcg_check_temp_count(void)
 bool tcg_op_supported(TCGOpcode op)
 {
     switch (op) {
+    case INDEX_op_invalid:
+        return false;
+
     case INDEX_op_discard:
     case INDEX_op_set_label:
     case INDEX_op_call:
