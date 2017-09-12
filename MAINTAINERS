@@ -1492,6 +1492,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: docs/instrument.txt
 F: instrument/
+F: qapi/instrument.json
 
 TPM
 S: Orphan
