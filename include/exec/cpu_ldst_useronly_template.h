@@ -61,9 +61,8 @@ static inline RES_TYPE
 glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 {
 #if !defined(CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
-        trace_mem_build_info(DATA_SIZE, false, MO_TE, false));
+    TraceMemInfo meminfo = trace_mem_build_info(DATA_SIZE, false, MO_TE, false);
+    trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
     return glue(glue(ld, USUFFIX), _p)(g2h(ptr));
 }
@@ -81,9 +80,8 @@ static inline int
 glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 {
 #if !defined(CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
-        trace_mem_build_info(DATA_SIZE, true, MO_TE, false));
+    TraceMemInfo meminfo = trace_mem_build_info(DATA_SIZE, true, MO_TE, false);
+    trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
     return glue(glue(lds, SUFFIX), _p)(g2h(ptr));
 }
@@ -103,9 +101,8 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
                                       RES_TYPE v)
 {
 #if !defined(CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
-        trace_mem_build_info(DATA_SIZE, false, MO_TE, true));
+    TraceMemInfo meminfo = trace_mem_build_info(DATA_SIZE, false, MO_TE, true);
+    trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
     glue(glue(st, SUFFIX), _p)(g2h(ptr), v);
 }
