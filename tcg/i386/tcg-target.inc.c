@@ -213,25 +213,17 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     case 'q':
         /* A register that can be used as a byte operand.  */
         ct->ct |= TCG_CT_REG;
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        } else {
-            tcg_regset_set32(ct->u.regs, 0, 0xf);
-        }
+        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xf;
         break;
     case 'Q':
         /* A register with an addressable second byte (e.g. %ah).  */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xf);
+        ct->u.regs = 0xf;
         break;
     case 'r':
         /* A general register.  */
         ct->ct |= TCG_CT_REG;
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        } else {
-            tcg_regset_set32(ct->u.regs, 0, 0xff);
-        }
+        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
         break;
     case 'W':
         /* With TZCNT/LZCNT, we can have operand-size as an input.  */
@@ -240,17 +232,13 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     case 'x':
         /* A vector register.  */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xff0000);
+        ct->u.regs = 0xff0000;
         break;
 
         /* qemu_ld/st address constraint */
     case 'L':
         ct->ct |= TCG_CT_REG;
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        } else {
-            tcg_regset_set32(ct->u.regs, 0, 0xff);
-        }
+        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
         break;
@@ -2986,17 +2974,17 @@ static void tcg_target_init(TCGContext *s)
 #endif /* CONFIG_CPUID_H */
 
     if (TCG_TARGET_REG_BITS == 64) {
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffff);
+        tcg_target_available_regs[TCG_TYPE_I32] = 0xffff;
+        tcg_target_available_regs[TCG_TYPE_I64] = 0xffff;
     } else {
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xff);
+        tcg_target_available_regs[TCG_TYPE_I32] = 0xff;
     }
     if (have_sse2) {
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_V64], 0, 0xff0000);
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_V128], 0, 0xff0000);
+        tcg_target_available_regs[TCG_TYPE_V64] = 0xff0000;
+        tcg_target_available_regs[TCG_TYPE_V128] = 0xff0000;
     }
     if (have_avx2) {
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_V256], 0, 0xff0000);
+        tcg_target_available_regs[TCG_TYPE_V256] = 0xff0000;
     }
 
     tcg_target_call_clobber_regs = 0;
