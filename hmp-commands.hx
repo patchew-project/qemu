@@ -1858,6 +1858,38 @@ ETEXI
         .sub_table  = info_cmds,
     },
 
+#ifdef CONFIG_INSTRUMENT
+    {
+        .name       = "instr-load",
+        .args_type  = "path:F,id:s?,arg:s?",
+        .params     = "path [id] [arg]",
+        .help       = "load an instrumentation library",
+        .cmd        = hmp_instr_load,
+    },
+#endif
+
+STEXI
+@item instr-load @var{path} [@var{id}] [@var{arg}]
+@findex instr-load
+Load an instrumentation library.
+ETEXI
+
+#ifdef CONFIG_INSTRUMENT
+    {
+        .name       = "instr-unload",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "unload an instrumentation library",
+        .cmd        = hmp_instr_unload,
+    },
+#endif
+
+STEXI
+@item instr-unload
+@findex instr-unload
+Unload an instrumentation library.
+ETEXI
+
 STEXI
 @end table
 ETEXI

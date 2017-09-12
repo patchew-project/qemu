@@ -2323,6 +2323,45 @@ int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
     return fd;
 }
 
+#ifdef CONFIG_INSTRUMENT
+static void hmp_instr_load(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *path = qdict_get_str(qdict, "path");
+    const char *id = qdict_get_try_str(qdict, "id");
+    const char *str = qdict_get_try_str(qdict, "arg");
+    strList args;
+
+    args.value = (char *)str;
+    args.next = NULL;
+
+    InstrLoadResult *res = qmp_instr_load(path,
+                                          id != NULL, id,
+                                          args.value != NULL, &args,
+                                          &err);
+    if (err) {
+        error_report_err(err);
+    } else {
+        monitor_printf(mon, "Handle: %s\n", res->id);
+        monitor_printf(mon, "OK\n");
+    }
+    qapi_free_InstrLoadResult(res);
+}
+
+static void hmp_instr_unload(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *id = qdict_get_str(qdict, "id");
+
+    qmp_instr_unload(id, &err);
+    if (err) {
+        error_report_err(err);
+    } else {
+        monitor_printf(mon, "OK\n");
+    }
+}
+#endif
+
 /* Please update hmp-commands.hx when adding or changing commands */
 static mon_cmd_t info_cmds[] = {
 #include "hmp-commands-info.h"
