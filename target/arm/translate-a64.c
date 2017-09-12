@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
+#include "tcg-op-gvec.h"
 #include "qemu/log.h"
 #include "arm_ldst.h"
 #include "translate.h"
@@ -82,6 +83,7 @@ typedef void NeonGenTwoDoubleOPFn(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_ptr);
 typedef void NeonGenOneOpFn(TCGv_i64, TCGv_i64);
 typedef void CryptoTwoOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void CryptoThreeOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
+typedef void GVecGenTwoFn(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -535,6 +537,21 @@ static inline int vec_reg_offset(DisasContext *s, int regno,
     offs += offsetof(CPUARMState, vfp.regs[regno * 2]);
     assert_fp_access_checked(s);
     return offs;
+}
+
+/* Return the offset info CPUARMState of the "whole" vector register Qn.  */
+static inline int vec_full_reg_offset(DisasContext *s, int regno)
+{
+    assert_fp_access_checked(s);
+    return offsetof(CPUARMState, vfp.regs[regno * 2]);
+}
+
+/* Return the byte size of the "whole" vector register, VL / 8.  */
+static inline int vec_full_reg_size(DisasContext *s)
+{
+    /* FIXME SVE: We should put the composite ZCR_EL* value into tb->flags.
+       In the meantime this is just the AdvSIMD length of 128.  */
+    return 128 / 8;
 }
 
 /* Return the offset into CPUARMState of a slice (from
@@ -9047,10 +9064,37 @@ static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
     bool is_q = extract32(insn, 30, 1);
     TCGv_i64 tcg_op1, tcg_op2, tcg_res[2];
     int pass;
+    GVecGenTwoFn *gvec_op;
 
     if (!fp_access_check(s)) {
         return;
     }
+
+    switch (size + 4 * is_u) {
+    case 0: /* AND */
+        gvec_op = tcg_gen_gvec_and;
+        goto do_gvec;
+    case 1: /* BIC */
+        gvec_op = tcg_gen_gvec_andc;
+        goto do_gvec;
+    case 2: /* ORR */
+        gvec_op = tcg_gen_gvec_or;
+        goto do_gvec;
+    case 3: /* ORN */
+        gvec_op = tcg_gen_gvec_orc;
+        goto do_gvec;
+    case 4: /* EOR */
+        gvec_op = tcg_gen_gvec_xor;
+        goto do_gvec;
+    do_gvec:
+        gvec_op(vec_full_reg_offset(s, rd),
+                vec_full_reg_offset(s, rn),
+                vec_full_reg_offset(s, rm),
+                is_q ? 16 : 8, vec_full_reg_size(s));
+        return;
+    }
+
+    /* Note that we've now eliminated all !is_u.  */
 
     tcg_op1 = tcg_temp_new_i64();
     tcg_op2 = tcg_temp_new_i64();
@@ -9061,47 +9105,27 @@ static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
         read_vec_element(s, tcg_op1, rn, pass, MO_64);
         read_vec_element(s, tcg_op2, rm, pass, MO_64);
 
-        if (!is_u) {
-            switch (size) {
-            case 0: /* AND */
-                tcg_gen_and_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 1: /* BIC */
-                tcg_gen_andc_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 2: /* ORR */
-                tcg_gen_or_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 3: /* ORN */
-                tcg_gen_orc_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            }
-        } else {
-            if (size != 0) {
-                /* B* ops need res loaded to operate on */
-                read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
-            }
+        /* B* ops need res loaded to operate on */
+        read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
 
-            switch (size) {
-            case 0: /* EOR */
-                tcg_gen_xor_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 1: /* BSL bitwise select */
-                tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_op2);
-                tcg_gen_and_i64(tcg_op1, tcg_op1, tcg_res[pass]);
-                tcg_gen_xor_i64(tcg_res[pass], tcg_op2, tcg_op1);
-                break;
-            case 2: /* BIT, bitwise insert if true */
-                tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_res[pass]);
-                tcg_gen_and_i64(tcg_op1, tcg_op1, tcg_op2);
-                tcg_gen_xor_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
-                break;
-            case 3: /* BIF, bitwise insert if false */
-                tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_res[pass]);
-                tcg_gen_andc_i64(tcg_op1, tcg_op1, tcg_op2);
-                tcg_gen_xor_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
-                break;
-            }
+        switch (size) {
+        case 1: /* BSL bitwise select */
+            tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_op2);
+            tcg_gen_and_i64(tcg_op1, tcg_op1, tcg_res[pass]);
+            tcg_gen_xor_i64(tcg_res[pass], tcg_op2, tcg_op1);
+            break;
+        case 2: /* BIT, bitwise insert if true */
+            tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_res[pass]);
+            tcg_gen_and_i64(tcg_op1, tcg_op1, tcg_op2);
+            tcg_gen_xor_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
+            break;
+        case 3: /* BIF, bitwise insert if false */
+            tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_res[pass]);
+            tcg_gen_andc_i64(tcg_op1, tcg_op1, tcg_op2);
+            tcg_gen_xor_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
+            break;
+        default:
+            g_assert_not_reached();
         }
     }
 
@@ -9375,6 +9399,7 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     int pass;
+    GVecGenTwoFn *gvec_op;
 
     switch (opcode) {
     case 0x13: /* MUL, PMUL */
@@ -9411,6 +9436,28 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     }
 
     if (!fp_access_check(s)) {
+        return;
+    }
+
+    switch (opcode) {
+    case 0x10: /* ADD, SUB */
+        {
+            static GVecGenTwoFn * const fns[4][2] = {
+                { tcg_gen_gvec_add8, tcg_gen_gvec_sub8 },
+                { tcg_gen_gvec_add16, tcg_gen_gvec_sub16 },
+                { tcg_gen_gvec_add32, tcg_gen_gvec_sub32 },
+                { tcg_gen_gvec_add64, tcg_gen_gvec_sub64 },
+            };
+            gvec_op = fns[size][u];
+            goto do_gvec;
+        }
+        break;
+
+    do_gvec:
+        gvec_op(vec_full_reg_offset(s, rd),
+                vec_full_reg_offset(s, rn),
+                vec_full_reg_offset(s, rm),
+                is_q ? 16 : 8, vec_full_reg_size(s));
         return;
     }
 
@@ -9582,16 +9629,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                     { gen_helper_neon_abd_s8, gen_helper_neon_abd_u8 },
                     { gen_helper_neon_abd_s16, gen_helper_neon_abd_u16 },
                     { gen_helper_neon_abd_s32, gen_helper_neon_abd_u32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
-            case 0x10: /* ADD, SUB */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_add_u8, gen_helper_neon_sub_u8 },
-                    { gen_helper_neon_add_u16, gen_helper_neon_sub_u16 },
-                    { tcg_gen_add_i32, tcg_gen_sub_i32 },
                 };
                 genfn = fns[size][u];
                 break;
