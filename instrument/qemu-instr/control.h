@@ -96,6 +96,15 @@ void qi_event_set_guest_cpu_enter(void (*fn)(QICPU vcpu));
  */
 void qi_event_set_guest_cpu_exit(void (*fn)(QICPU vcpu));
 
+/*
+ * Reset the state of a virtual (guest) CPU.
+ *
+ * Mode: user, softmmu
+ * Targets: all
+ * Time: exec
+ */
+void qi_event_set_guest_cpu_reset(void (*fn)(QICPU vcpu));
+
 #ifdef __cplusplus
 }
 #endif
