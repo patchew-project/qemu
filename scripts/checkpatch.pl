@@ -19,6 +19,8 @@ my $quiet = 0;
 my $tree = 1;
 my $chk_signoff = 1;
 my $chk_patch = 1;
+my $chk_branch = 0;
+my $revlist = "master..";
 my $tst_only;
 my $emacs = 0;
 my $terse = 0;
@@ -43,6 +45,7 @@ Options:
   --no-tree                  run without a kernel tree
   --no-signoff               do not check for 'Signed-off-by' line
   --patch                    treat FILE as patchfile (default)
+  --branch                   check all patches on branch since master
   --emacs                    emacs compile window format
   --terse                    one line per report
   -f, --file                 treat FILE as regular source file
@@ -69,6 +72,7 @@ GetOptions(
 	'tree!'		=> \$tree,
 	'signoff!'	=> \$chk_signoff,
 	'patch!'	=> \$chk_patch,
+	'branch'	=> \$chk_branch,
 	'emacs!'	=> \$emacs,
 	'terse!'	=> \$terse,
 	'f|file!'	=> \$file,
@@ -88,9 +92,19 @@ help(0) if ($help);
 
 my $exit = 0;
 
-if ($#ARGV < 0) {
-	print "$P: no input files\n";
-	exit(1);
+if ($chk_branch) {
+	if ($#ARGV > 0) {
+		print "$P: expected zero or one origni revisions\n";
+		exit(1);
+	}
+	if ($#ARGV == 0) {
+		$revlist = shift @ARGV;
+	}
+} else {
+	if ($#ARGV < 0) {
+		print "$P: no input files\n";
+		exit(1);
+	}
 }
 
 my $dbg_values = 0;
@@ -251,32 +265,63 @@ $chk_signoff = 0 if ($file);
 my @rawlines = ();
 my @lines = ();
 my $vname;
-for my $filename (@ARGV) {
-	my $FILE;
-	if ($file) {
-		open($FILE, '-|', "diff -u /dev/null $filename") ||
-			die "$P: $filename: diff failed - $!\n";
-	} elsif ($filename eq '-') {
-		open($FILE, '<&STDIN');
-	} else {
-		open($FILE, '<', "$filename") ||
-			die "$P: $filename: open failed - $!\n";
-	}
-	if ($filename eq '-') {
-		$vname = 'Your patch';
-	} else {
-		$vname = $filename;
-	}
-	while (<$FILE>) {
+if ($chk_branch) {
+	my @patches;
+	my $HASH;
+	open($HASH, "-|", "git", "log", "--format=%H", $revlist) ||
+		die "$P: git log --format=%H $revlist failed - $!\n";
+
+	while (<$HASH>) {
 		chomp;
-		push(@rawlines, $_);
+		push @patches, $_;
 	}
-	close($FILE);
-	if (!process($filename)) {
-		$exit = 1;
+
+	close $HASH;
+
+	for my $hash (@patches) {
+		my $FILE;
+		open($FILE, '-|', "git", "show", $hash) ||
+			die "$P: git show $hash - $!\n";
+		$vname = $hash;
+		while (<$FILE>) {
+			chomp;
+			push(@rawlines, $_);
+		}
+		close($FILE);
+		if (!process($hash)) {
+			$exit = 1;
+		}
+		@rawlines = ();
+		@lines = ();
 	}
-	@rawlines = ();
-	@lines = ();
+} else {
+	for my $filename (@ARGV) {
+		my $FILE;
+		if ($file) {
+			open($FILE, '-|', "diff -u /dev/null $filename") ||
+				die "$P: $filename: diff failed - $!\n";
+		} elsif ($filename eq '-') {
+			open($FILE, '<&STDIN');
+		} else {
+			open($FILE, '<', "$filename") ||
+				die "$P: $filename: open failed - $!\n";
+		}
+		if ($filename eq '-') {
+			$vname = 'Your patch';
+		} else {
+			$vname = $filename;
+		}
+		while (<$FILE>) {
+			chomp;
+			push(@rawlines, $_);
+		}
+		close($FILE);
+		if (!process($filename)) {
+			$exit = 1;
+		}
+		@rawlines = ();
+		@lines = ();
+	}
 }
 
 exit($exit);
