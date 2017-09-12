@@ -236,8 +236,8 @@ virtio_gpu_fill_display_info(VirtIOGPU *g,
     for (i = 0; i < g->conf.max_outputs; i++) {
         if (g->enabled_output_bitmask & (1 << i)) {
             dpy_info->pmodes[i].enabled = 1;
-            dpy_info->pmodes[i].r.width = g->req_state[i].width;
-            dpy_info->pmodes[i].r.height = g->req_state[i].height;
+            dpy_info->pmodes[i].r.width = cpu_to_le32(g->req_state[i].width);
+            dpy_info->pmodes[i].r.height = cpu_to_le32(g->req_state[i].height);
         }
     }
 }
@@ -287,6 +287,12 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
     struct virtio_gpu_resource_create_2d c2d;
 
     VIRTIO_GPU_FILL_CMD(c2d);
+
+    c2d.resource_id = le32_to_cpu(c2d.resource_id);
+    c2d.format = le32_to_cpu(c2d.format);
+    c2d.width = le32_to_cpu(c2d.width);
+    c2d.height = le32_to_cpu(c2d.height);
+
     trace_virtio_gpu_cmd_res_create_2d(c2d.resource_id, c2d.format,
                                        c2d.width, c2d.height);
 
@@ -383,6 +389,14 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
     struct virtio_gpu_transfer_to_host_2d t2d;
 
     VIRTIO_GPU_FILL_CMD(t2d);
+
+    t2d.r.x = le32_to_cpu(t2d.r.x);
+    t2d.r.y = le32_to_cpu(t2d.r.y);
+    t2d.r.width = le32_to_cpu(t2d.r.width);
+    t2d.r.height = le32_to_cpu(t2d.r.height);
+    t2d.resource_id = le32_to_cpu(t2d.resource_id);
+    t2d.offset = le64_to_cpu(t2d.offset);
+
     trace_virtio_gpu_cmd_res_xfer_toh_2d(t2d.resource_id);
 
     res = virtio_gpu_find_resource(g, t2d.resource_id);
@@ -439,6 +453,13 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
     int i;
 
     VIRTIO_GPU_FILL_CMD(rf);
+
+    rf.resource_id = le32_to_cpu(rf.resource_id);
+    rf.r.width = le32_to_cpu(rf.r.width);
+    rf.r.height = le32_to_cpu(rf.r.height);
+    rf.r.x = le32_to_cpu(rf.r.x);
+    rf.r.y = le32_to_cpu(rf.r.y);
+
     trace_virtio_gpu_cmd_res_flush(rf.resource_id,
                                    rf.r.width, rf.r.height, rf.r.x, rf.r.y);
 
@@ -511,6 +532,14 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     struct virtio_gpu_set_scanout ss;
 
     VIRTIO_GPU_FILL_CMD(ss);
+
+    ss.scanout_id = le32_to_cpu(ss.scanout_id);
+    ss.resource_id = le32_to_cpu(ss.resource_id);
+    ss.r.width = le32_to_cpu(ss.r.width);
+    ss.r.height = le32_to_cpu(ss.r.height);
+    ss.r.x = le32_to_cpu(ss.r.x);
+    ss.r.y = le32_to_cpu(ss.r.y);
+
     trace_virtio_gpu_cmd_set_scanout(ss.scanout_id, ss.resource_id,
                                      ss.r.width, ss.r.height, ss.r.x, ss.r.y);
 
@@ -633,13 +662,15 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
         *addr = g_malloc0(sizeof(uint64_t) * ab->nr_entries);
     }
     for (i = 0; i < ab->nr_entries; i++) {
-        hwaddr len = ents[i].length;
-        (*iov)[i].iov_len = ents[i].length;
-        (*iov)[i].iov_base = cpu_physical_memory_map(ents[i].addr, &len, 1);
+        uint64_t a = le64_to_cpu(ents[i].addr);
+        uint32_t l = le32_to_cpu(ents[i].length);
+        hwaddr len = l;
+        (*iov)[i].iov_len = l;
+        (*iov)[i].iov_base = cpu_physical_memory_map(a, &len, 1);
         if (addr) {
-            (*addr)[i] = ents[i].addr;
+            (*addr)[i] = a;
         }
-        if (!(*iov)[i].iov_base || len != ents[i].length) {
+        if (!(*iov)[i].iov_base || len != l) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
                           " resource %d element %d\n",
                           __func__, ab->resource_id, i);
@@ -686,6 +717,10 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
     int ret;
 
     VIRTIO_GPU_FILL_CMD(ab);
+
+    ab.resource_id = le32_to_cpu(ab.resource_id);
+    ab.nr_entries = le32_to_cpu(ab.nr_entries);
+
     trace_virtio_gpu_cmd_res_back_attach(ab.resource_id);
 
     res = virtio_gpu_find_resource(g, ab.resource_id);
@@ -735,7 +770,7 @@ static void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
 {
     VIRTIO_GPU_FILL_CMD(cmd->cmd_hdr);
 
-    switch (cmd->cmd_hdr.type) {
+    switch (le32_to_cpu(cmd->cmd_hdr.type)) {
     case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
         virtio_gpu_get_display_info(g, cmd);
         break;
@@ -1135,7 +1170,7 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     }
 
     g->config_size = sizeof(struct virtio_gpu_config);
-    g->virtio_config.num_scanouts = g->conf.max_outputs;
+    g->virtio_config.num_scanouts = cpu_to_le32(g->conf.max_outputs);
     virtio_init(VIRTIO_DEVICE(g), "virtio-gpu", VIRTIO_ID_GPU,
                 g->config_size);
 
