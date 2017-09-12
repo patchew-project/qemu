@@ -118,6 +118,7 @@ int main(int argc, char **argv)
 
 #include "trace-root.h"
 #include "trace/control.h"
+#include "instrument/cmdline.h"
 #include "qemu/queue.h"
 #include "sysemu/arch_init.h"
 
@@ -3037,6 +3038,9 @@ int main(int argc, char **argv, char **envp)
     } BlockdevOptions_queue;
     QSIMPLEQ_HEAD(, BlockdevOptions_queue) bdo_queue
         = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
+    char *instrument_path = NULL;
+    int instrument_argc = 0;
+    const char **instrument_argv = NULL;
 
     module_call_init(MODULE_INIT_TRACE);
 
@@ -3064,6 +3068,9 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_global_opts);
     qemu_add_opts(&qemu_mon_opts);
     qemu_add_opts(&qemu_trace_opts);
+#if defined(CONFIG_INSTRUMENT)
+    qemu_add_opts(&qemu_instr_opts);
+#endif
     qemu_add_opts(&qemu_option_rom_opts);
     qemu_add_opts(&qemu_machine_opts);
     qemu_add_opts(&qemu_accel_opts);
@@ -4009,6 +4016,12 @@ int main(int argc, char **argv, char **envp)
                 g_free(trace_file);
                 trace_file = trace_opt_parse(optarg);
                 break;
+#if defined(CONFIG_INSTRUMENT)
+            case QEMU_OPTION_instr:
+                instr_opt_parse(optarg, &instrument_path,
+                                &instrument_argc, &instrument_argv);
+                break;
+#endif
             case QEMU_OPTION_readconfig:
                 {
                     int ret = qemu_read_config_file(optarg);
@@ -4195,6 +4208,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     trace_init_file(trace_file);
+
+    instr_init(instrument_path, instrument_argc, instrument_argv);
 
     /* Open the logfile at this point and set the log mask if necessary.
      */
