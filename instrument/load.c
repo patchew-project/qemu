@@ -11,6 +11,8 @@
 #include "qemu-common.h"
 
 #include <dlfcn.h>
+#include "instrument/control.h"
+#include "instrument/events.h"
 #include "instrument/load.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
@@ -96,8 +98,11 @@ InstrLoadError instr_load(const char *path, int argc, const char **argv,
         res = INSTR_LOAD_DLERROR;
         goto err;
     }
+    instr_set_event(fini_fn, NULL);
 
+    instr_set_state(INSTR_STATE_ENABLE);
     main_res = main_cb(argc, argv);
+    instr_set_state(INSTR_STATE_DISABLE);
 
     if (main_res != 0) {
         res = INSTR_LOAD_ERROR;
@@ -125,6 +130,14 @@ InstrUnloadError instr_unload(const char *id)
         res = INSTR_UNLOAD_INVALID;
         goto out;
     }
+
+    qi_fini_fn fini_fn = instr_get_event(fini_fn);
+    if (fini_fn) {
+        void *fini_data = instr_get_event(fini_data);
+        fini_fn(fini_data);
+    }
+
+    instr_set_event(fini_fn, NULL);
 
     /* this should never fail */
     if (dlclose(handle->dlhandle) < 0) {
