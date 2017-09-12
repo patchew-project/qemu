@@ -2999,7 +2999,7 @@ static void tcg_target_init(TCGContext *s)
         tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_V256], 0, 0xff0000);
     }
 
-    tcg_regset_clear(tcg_target_call_clobber_regs);
+    tcg_target_call_clobber_regs = 0;
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_EAX);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_EDX);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_ECX);
@@ -3014,7 +3014,7 @@ static void tcg_target_init(TCGContext *s)
         tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R11);
     }
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 }
 
