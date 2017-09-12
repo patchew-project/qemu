@@ -36,6 +36,7 @@
 #include "exec/log.h"
 #include "trace/control.h"
 #include "glib-compat.h"
+#include "instrument/cmdline.h"
 
 char *exec_path;
 
@@ -4017,6 +4018,17 @@ static void handle_arg_trace(const char *arg)
     trace_file = trace_opt_parse(arg);
 }
 
+static char *instrument_path;
+static int instrument_argc;
+static const char **instrument_argv;
+#if defined(CONFIG_INSTRUMENT)
+static void handle_arg_instrument(const char *arg)
+{
+    instr_opt_parse(arg, &instrument_path,
+                    &instrument_argc, &instrument_argv);
+}
+#endif
+
 struct qemu_argument {
     const char *argv;
     const char *env;
@@ -4066,6 +4078,10 @@ static const struct qemu_argument arg_table[] = {
      "",           "Seed for pseudo-random number generator"},
     {"trace",      "QEMU_TRACE",       true,  handle_arg_trace,
      "",           "[[enable=]<pattern>][,events=<file>][,file=<file>]"},
+#if defined(CONFIG_INSTRUMENT)
+    {"instr",      "QEMU_INSTR",       true,  handle_arg_instrument,
+     "",           "[file=]<file>[,arg=<string>]"},
+#endif
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}
@@ -4257,6 +4273,9 @@ int main(int argc, char **argv, char **envp)
     srand(time(NULL));
 
     qemu_add_opts(&qemu_trace_opts);
+#if defined(CONFIG_INSTRUMENT)
+    qemu_add_opts(&qemu_instr_opts);
+#endif
 
     optind = parse_args(argc, argv);
 
@@ -4264,6 +4283,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     trace_init_file(trace_file);
+
+    instr_init(instrument_path, instrument_argc, instrument_argv);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));

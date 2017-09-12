@@ -115,6 +115,8 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include "uname.h"
 
 #include "qemu.h"
+#include "instrument/cmdline.h"
+
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -7765,6 +7767,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        instr_fini();
         _exit(arg1);
         ret = 0; /* avoid warning */
         break;
@@ -9821,6 +9824,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         _mcleanup();
 #endif
         gdb_exit(cpu_env, arg1);
+        instr_fini();
         ret = get_errno(exit_group(arg1));
         break;
 #endif
