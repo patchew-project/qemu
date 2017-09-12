@@ -1486,6 +1486,12 @@ F: scripts/tracetool/
 F: docs/tracing.txt
 T: git git://github.com/stefanha/qemu.git tracing
 
+Event instrumentation
+M: Lluís Vilanova <vilanova@ac.upc.edu>
+M: Stefan Hajnoczi <stefanha@redhat.com>
+S: Maintained
+F: docs/instrument.txt
+
 TPM
 S: Orphan
 F: tpm.c
