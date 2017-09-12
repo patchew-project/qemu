@@ -407,6 +407,7 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     if (do_strace)
         print_freebsd_syscall_ret(num, ret);
+    instr_guest_user_syscall_ret(cpu, num, ret);
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
  efault:
@@ -485,6 +486,7 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     if (do_strace)
         print_netbsd_syscall_ret(num, ret);
+    instr_guest_user_syscall_ret(cpu, num, ret);
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
  efault:
@@ -563,6 +565,7 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     if (do_strace)
         print_openbsd_syscall_ret(num, ret);
+    instr_guest_user_syscall_ret(cpu, num, ret);
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
  efault:
