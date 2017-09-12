@@ -63,6 +63,9 @@ vu_request_to_string(int req)
         REQ(VHOST_USER_SET_VRING_ENABLE),
         REQ(VHOST_USER_SEND_RARP),
         REQ(VHOST_USER_INPUT_GET_CONFIG),
+        REQ(VHOST_USER_GET_CONFIG),
+        REQ(VHOST_USER_SET_CONFIG),
+        REQ(VHOST_USER_SET_CONFIG_FD),
         REQ(VHOST_USER_MAX),
     };
 #undef REQ
@@ -757,6 +760,66 @@ vu_set_vring_enable_exec(VuDev *dev, VhostUserMsg *vmsg)
 }
 
 static bool
+vu_get_config(VuDev *dev, VhostUserMsg *vmsg)
+{
+    int ret = -1;
+
+    if (dev->iface->get_config) {
+        ret = dev->iface->get_config(dev, vmsg->payload.config, vmsg->size);
+    }
+
+    if (ret) {
+        /* resize to zero to indicate an error to master */
+        vmsg->size = 0;
+    }
+
+    return true;
+}
+
+static bool
+vu_set_config(VuDev *dev, VhostUserMsg *vmsg)
+{
+    int ret = -1;
+    bool reply_supported = !!(dev->protocol_features &
+                             (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK));
+
+    if (dev->iface->set_config) {
+        ret = dev->iface->set_config(dev, vmsg->payload.config, vmsg->size);
+    }
+
+    vmsg->size = sizeof(vmsg->payload.u64);
+    if (!ret) {
+        vmsg->payload.u64 = 0;
+    } else {
+        /* indicate an error in case reply supported */
+        vmsg->payload.u64 = 1;
+    }
+
+    if (reply_supported) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool
+vu_set_config_fd(VuDev *dev, VhostUserMsg *vmsg)
+{
+   if (vmsg->fd_num != 1) {
+        vu_panic(dev, "Invalid config_fd message");
+        return false;
+    }
+
+    if (dev->config_fd != -1) {
+        close(dev->config_fd);
+    }
+    dev->config_fd = vmsg->fds[0];
+    DPRINT("Got config_fd: %d\n", vmsg->fds[0]);
+
+    return false;
+}
+
+static bool
 vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
 {
     int do_reply = 0;
@@ -819,6 +882,12 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
         return vu_get_queue_num_exec(dev, vmsg);
     case VHOST_USER_SET_VRING_ENABLE:
         return vu_set_vring_enable_exec(dev, vmsg);
+    case VHOST_USER_GET_CONFIG:
+        return vu_get_config(dev, vmsg);
+    case VHOST_USER_SET_CONFIG:
+        return vu_set_config(dev, vmsg);
+    case VHOST_USER_SET_CONFIG_FD:
+        return vu_set_config_fd(dev, vmsg);
     case VHOST_USER_NONE:
         break;
     default:
@@ -893,6 +962,10 @@ vu_deinit(VuDev *dev)
 
     vu_close_log(dev);
 
+    if (dev->config_fd != -1) {
+        close(dev->config_fd);
+    }
+
     if (dev->sock != -1) {
         close(dev->sock);
     }
@@ -922,6 +995,7 @@ vu_init(VuDev *dev,
     dev->remove_watch = remove_watch;
     dev->iface = iface;
     dev->log_call_fd = -1;
+    dev->config_fd = -1;
     for (i = 0; i < VHOST_MAX_NR_VIRTQUEUE; i++) {
         dev->vq[i] = (VuVirtq) {
             .call_fd = -1, .kick_fd = -1, .err_fd = -1,
