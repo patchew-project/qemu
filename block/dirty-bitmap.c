@@ -1,7 +1,7 @@
 /*
  * Block Dirty Bitmap
  *
- * Copyright (c) 2016 Red Hat. Inc
+ * Copyright (c) 2016-2017 Red Hat. Inc
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -300,13 +300,16 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
 
 /**
  * Truncates _all_ bitmaps attached to a BDS.
- * Called with BQL taken.
+ * Called with BQL taken, returns -errno on failure.
  */
-void bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
+int bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
 {
     BdrvDirtyBitmap *bitmap;
-    uint64_t size = bdrv_nb_sectors(bs);
+    int64_t size = bdrv_nb_sectors(bs);
 
+    if (size < 0) {
+        return size;
+    }
     bdrv_dirty_bitmaps_lock(bs);
     QLIST_FOREACH(bitmap, &bs->dirty_bitmaps, list) {
         assert(!bdrv_dirty_bitmap_frozen(bitmap));
@@ -315,6 +318,7 @@ void bdrv_dirty_bitmap_truncate(BlockDriverState *bs)
         bitmap->size = size;
     }
     bdrv_dirty_bitmaps_unlock(bs);
+    return 0;
 }
 
 static bool bdrv_dirty_bitmap_has_name(BdrvDirtyBitmap *bitmap)
