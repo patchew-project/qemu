@@ -1250,6 +1250,7 @@ static void armv7m_nvic_reset(DeviceState *dev)
 
     s->exception_prio = NVIC_NOEXC_PRIO;
     s->vectpending = 0;
+    s->vectpending_is_s_banked = false;
 }
 
 static void nvic_systick_trigger(void *opaque, int n, int level)
