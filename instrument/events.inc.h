@@ -51,7 +51,7 @@ static inline void instr_guest_mem_before_trans(
                QITCGv vaddr, QIMemInfo info)
         = instr_get_event(guest_mem_before_trans);
     if (cb) {
-        InstrInfo *iinfo = instr_set_state(INSTR_STATE_ENABLE);
+        InstrInfo *iinfo = instr_set_state(INSTR_STATE_ENABLE_TCG);
         QICPU vcpu_trans_ = instr_cpu_to_qicpu(vcpu_trans);
         QITCGv_cpu vcpu_exec_ = instr_tcg_to_qitcg(iinfo, 0, vcpu_exec);
         QITCGv vaddr_ = instr_tcg_to_qitcg(iinfo, 1, vaddr);
@@ -59,6 +59,22 @@ static inline void instr_guest_mem_before_trans(
         info_.raw = info.raw;
         instr_tcg_count(iinfo, 2);
         (*cb)(vcpu_trans_, vcpu_exec_, vaddr_, info_);
+        instr_set_state(INSTR_STATE_DISABLE);
+    }
+}
+
+static inline void instr_guest_mem_before_exec(
+    CPUState *vcpu, uint64_t vaddr, TraceMemInfo info)
+{
+    void (*cb)(QICPU vcpu, uint64_t vaddr, QIMemInfo info)
+        = instr_get_event(guest_mem_before_exec);
+    if (cb) {
+        InstrInfo *iinfo = instr_set_state(INSTR_STATE_ENABLE);
+        QICPU vcpu_ = instr_cpu_to_qicpu(vcpu);
+        QIMemInfo info_;
+        info_.raw = info.raw;
+        instr_tcg_count(iinfo, 2);
+        (*cb)(vcpu_, vaddr, info_);
         instr_set_state(INSTR_STATE_DISABLE);
     }
 }

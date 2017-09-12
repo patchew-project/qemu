@@ -84,6 +84,7 @@ void instr_cpu_stop_all_end(InstrCPUStop *info);
 typedef enum {
     INSTR_STATE_DISABLE,
     INSTR_STATE_ENABLE,
+    INSTR_STATE_ENABLE_TCG,
 } InstrState;
 
 #define INSTR_MAX_TCG_REGS 16
@@ -121,6 +122,20 @@ static inline InstrState instr_get_state(void);
     ({                                \
         info->tcg_regs[num] = arg;    \
         (void *)num;                  \
+    })
+
+/**
+ * instr_tcg_from_qitcg:
+ * @info: Pointer to #InstrInfo.
+ * @arg: QITCG register.
+ *
+ * Get a suitable TCGv* from a QITCGv* value.
+ */
+#define instr_tcg_from_qitcg(info, arg)                                \
+    ({                                                          \
+        unsigned int idx = (uintptr_t)arg;                      \
+        ERROR_IF(info->max <= idx, "invalid QITCGv register");  \
+        info->tcg_regs[idx];                                  \
     })
 
 /**

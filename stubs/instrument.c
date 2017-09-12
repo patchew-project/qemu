@@ -7,6 +7,9 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* Unpoison missing types */
+#define HW_POISON_H
+
 #include "qemu/osdep.h"
 
 #include "instrument/cmdline.h"
@@ -17,6 +20,9 @@
 
 /* Declare missing types */
 typedef struct strList strList;
+typedef struct CPUArchState CPUArchState;
+typedef int target_ulong;
+
 
 
 void instr_init(const char *path, int argc, const char **argv)
@@ -50,4 +56,15 @@ void (*instr_event__guest_cpu_enter)(QICPU *vcpu);
 void (*instr_event__guest_cpu_exit)(QICPU *vcpu);
 void (*instr_event__guest_cpu_reset)(QICPU *vcpu);
 void (*instr_event__guest_mem_before_trans)(
-    QICPU vcpu_trans, QITCGv_cpu vcpu_exec, QITCGv vaddr, QIMemInfo info);
+    QICPU vcpu_trans, QITCGv_cpu vcpu_exec,
+    QITCGv vaddr, QIMemInfo info);
+void helper_instr_guest_mem_before_exec(
+    CPUArchState *vcpu, target_ulong vaddr, uint32_t info);
+void helper_instr_guest_mem_before_exec(
+    CPUArchState *vcpu, target_ulong vaddr, uint32_t info)
+{
+    assert(false);
+}
+void (*instr_event__guest_mem_before_exec)(
+    QICPU vcpu_trans, QITCGv_cpu vcpu_exec,
+    QITCGv vaddr, QIMemInfo info);
