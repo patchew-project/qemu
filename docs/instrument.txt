@@ -1,0 +1,173 @@
+= Event instrumentation =
+
+== Introduction ==
+
+Event instrumentation allows users to execute their own host-native code on a
+set of pre-defined events provided by QEMU. QEMU also exposes other
+functionality to peek/poke at the guest state (e.g., memory or registers), as
+well as interacting with tracing events. For those familiar with the term, this
+provides dynamic binary instrumentation, works on all QEMU-supported
+architectures, as well as works in both 'user' (standalone application) and
+'system' (full-system emulation) modes.
+
+Look at the headers installed by QEMU on the "qemu-instr" directory for further
+information beyond this document.
+
+
+== Loading an instrumentation library ==
+
+Instrumentation code can be bundled into a dynamic library, which can be later
+loaded into QEMU:
+
+* Using the command-line "-instr" argument.
+
+* Using the "instr-load" and "instr-unload" commands in the HMP and QMP
+  interfaces.
+
+
+== Example ==
+
+1. Configure QEMU with event instrumentation:
+
+    # instrument guest_cpu_enter and guest_mem_before
+    mkdir -p /path/to/qemu-build
+    cd /path/to/qemu-build
+    /path/to/qemu-source/configure \
+      --enable-instrument \
+      --prefix=/path/to/qemu-install
+
+2. Build and install QEMU:
+
+    make install
+
+3. Create the "Makefile" to build the instrumentation library:
+
+    mkdir -p /tmp/my-instrument
+    
+    cat > /tmp/my-instrument/Makefile <<EOF
+    QEMU_PATH=/tmp/qemu-install/
+    
+    CFLAGS += -g
+    CFLAGS += -O3
+    CFLAGS += -Werror -Wall
+    CFLAGS += -I$(QEMU_PATH)/include
+    
+    all: libtrace-instrument.la
+    
+    libtrace-instrument.la: instrument.lo
+            libtool --mode=link --tag=CC $(CC) -module -rpath /usr/local/lib -o $@ $^
+    
+    %.lo: %.c
+            libtool --mode=compile --tag=CC $(CC) $(CFLAGS) -c $^
+    
+    clean:
+            $(RM) -f *.o *.so *.lo
+            $(RM) -Rf .libs
+    EOF
+
+4. Write your instrumentation library:
+
+    cat > /tmp/my-instrument/instrument.c <<EOF
+    #include <stdio.h>
+    #include <assert.h>
+    
+    #include <qemu-instr/control.h>         /* manipulate events */
+    #include <qemu-instr/trace.h>           /* manipulate tracing */
+    
+    /* the address for the memory access is not known at translation time */
+    void guest_mem_before_trans(QICPU vcpu_trans, QITCGv_cpu vcpu_exec,
+                                QITCGv vaddr, QIMemInfo info)
+    {
+        printf("%s: %p %p %p %d %d %d %d\n", __func__, vcpu_trans, vcpu_exec, vaddr,
+               1 << info.size_shift, info.sign_extend, info.endianness, info.store);
+        if (info.store) {
+            /* generate at execution time only for memory writes */
+            qi_event_gen_guest_mem_before_exec(vcpu_exec, vaddr, info);
+        }
+    }
+    
+    /* called when QEMU executes a memory access */
+    void guest_mem_before_exec(QICPU vcpu, uint64_t vaddr, QIMemInfo info)
+    {
+        if (info.store) {
+            /* if called by TCG code, we'll only get writes (see above) */
+            printf("%s: %p %lx %d %d %d %d\n", __func__, vcpu, vaddr,
+                   1 << info.size_shift, info.sign_extend, info.endianness, info.store);
+        }
+    }
+    
+    /* called every time QEMU hotplugs a CPU */
+    void guest_cpu_enter(QICPU vcpu)
+    {
+        printf("%s: %p\n", __func__, vcpu);
+    
+        /* disable instrumentation and tracing after the first call */
+        static bool found = false;
+        if (found) {
+            qi_event_set_guest_cpu_enter(NULL);
+            QITraceEvent *ev = qi_trace_event_name("guest_cpu_enter");
+            assert(ev);
+            qi_trace_event_set_state_dynamic(ev, true);
+        } else {
+            found = true;
+        }
+    }
+    
+    static void fini(void *data)
+    {
+        /* diable all tracing events */
+        QITraceEventIter iter;
+        qi_trace_event_iter_init(&iter, NULL);
+        QITraceEvent *ev;
+        while ((ev = qi_trace_event_iter_next(&iter)) != NULL) {
+            if (qi_trace_event_get_state_static(ev)) {
+                qi_trace_event_set_state_dynamic(ev, false);
+            }
+        }
+    
+        /* instrumentation callbacks are automatically reset by QEMU */
+    }
+    
+    /* mandatory initialization function */
+    int main(int argc, const char **argv)
+    {
+        int i;
+        printf("init!\n");
+        printf("    argc :: %d\n", argc);
+        for (i = 0; i < argc; i++) {
+            printf("            -> %s\n", argv[i]);
+        }
+    
+        qi_set_fini(fini, NULL);
+    
+        /* instrument and trace events */
+        QITraceEvent *ev;
+    
+        qi_event_set_guest_cpu_enter(guest_cpu_enter);
+        ev = qi_trace_event_name("guest_cpu_enter");
+        assert(ev);
+        qi_trace_event_set_state_dynamic(ev, true);
+    
+        qi_event_set_guest_mem_before_trans(guest_mem_before_trans);
+        ev = qi_trace_event_name("guest_mem_before_trans");
+        assert(ev);
+        qi_trace_event_set_state_dynamic(ev, true);
+    
+        qi_event_set_guest_mem_before_exec(guest_mem_before_exec);
+        ev = qi_trace_event_name("guest_mem_before_exec");
+        assert(ev);
+        qi_trace_event_set_state_dynamic(ev, true);
+    
+        return 0;
+    }
+    EOF
+
+5. Compile the instrumentation library:
+
+    make -C /tmp/my-instrument
+
+6. Start QEMU with the instrumentation library:
+
+    /tmp/qemu-install/bin/qemu-system-x86_64 \
+        -instr file=/tmp/my-dinstrument/.libs/libtrace-instrument.so, \
+               arg=foo,arg=bar
