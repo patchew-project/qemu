@@ -1,7 +1,7 @@
 /*
  * Helper functions for guest memory tracing
  *
- * Copyright (C) 2016 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2016-2017 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -10,8 +10,9 @@
 #ifndef TRACE__MEM_INTERNAL_H
 #define TRACE__MEM_INTERNAL_H
 
-static inline uint8_t trace_mem_get_info(TCGMemOp op, bool store)
+static inline TraceMemInfo trace_mem_get_info(TCGMemOp op, bool store)
 {
+    TraceMemInfo res_;
     uint8_t res = op;
     bool be = (op & MO_BSWAP) == MO_BE;
 
@@ -27,19 +28,22 @@ static inline uint8_t trace_mem_get_info(TCGMemOp op, bool store)
         res |= 1ULL << 4;
     }
 
-    return res;
+    res_.raw = res;
+    return res_;
 }
 
-static inline uint8_t trace_mem_build_info(
+static inline TraceMemInfo trace_mem_build_info(
     TCGMemOp size, bool sign_extend, TCGMemOp endianness, bool store)
 {
-    uint8_t res = 0;
-    res |= size;
-    res |= (sign_extend << 2);
+    TraceMemInfo res;
+    res.size_shift = size;
+    res.sign_extend = sign_extend;
     if (endianness == MO_BE) {
-        res |= (1ULL << 3);
+        res.endianness = 1;
+    } else {
+        res.endianness = 0;
     }
-    res |= (store << 4);
+    res.store = store;
     return res;
 }
 

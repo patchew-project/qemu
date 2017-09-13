@@ -88,9 +88,8 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     TCGMemOpIdx oi;
 
 #if !defined(SOFTMMU_CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
-        trace_mem_build_info(SHIFT, false, MO_TE, false));
+    TraceMemInfo meminfo = trace_mem_build_info(SHIFT, false, MO_TE, false);
+    trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
 
     addr = ptr;
@@ -126,9 +125,8 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     TCGMemOpIdx oi;
 
 #if !defined(SOFTMMU_CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
-        trace_mem_build_info(SHIFT, true, MO_TE, false));
+    TraceMemInfo meminfo = trace_mem_build_info(SHIFT, true, MO_TE, false);
+    trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
 
     addr = ptr;
@@ -168,9 +166,8 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     TCGMemOpIdx oi;
 
 #if !defined(SOFTMMU_CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
-        trace_mem_build_info(SHIFT, false, MO_TE, true));
+    TraceMemInfo meminfo = trace_mem_build_info(SHIFT, false, MO_TE, true);
+    trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
 
     addr = ptr;

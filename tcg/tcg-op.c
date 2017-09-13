@@ -2676,24 +2676,28 @@ static void tcg_gen_req_mo(TCGBar type)
 
 void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 {
+    TraceMemInfo meminfo;
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 0, 0);
-    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env,
-                               addr, trace_mem_get_info(memop, 0));
+    meminfo = trace_mem_get_info(memop, 0);
+    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i32(INDEX_op_qemu_ld_i32, val, addr, memop, idx);
 }
 
 void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 {
+    TraceMemInfo meminfo;
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     memop = tcg_canonicalize_memop(memop, 0, 1);
-    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env,
-                               addr, trace_mem_get_info(memop, 1));
+    meminfo = trace_mem_get_info(memop, 1);
+    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i32(INDEX_op_qemu_st_i32, val, addr, memop, idx);
 }
 
 void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 {
+    TraceMemInfo meminfo;
+
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     if (TCG_TARGET_REG_BITS == 32 && (memop & MO_SIZE) < MO_64) {
         tcg_gen_qemu_ld_i32(TCGV_LOW(val), addr, idx, memop);
@@ -2706,13 +2710,15 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 
     memop = tcg_canonicalize_memop(memop, 1, 0);
-    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env,
-                               addr, trace_mem_get_info(memop, 0));
+    meminfo = trace_mem_get_info(memop, 0);
+    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i64(INDEX_op_qemu_ld_i64, val, addr, memop, idx);
 }
 
 void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
 {
+    TraceMemInfo meminfo;
+
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     if (TCG_TARGET_REG_BITS == 32 && (memop & MO_SIZE) < MO_64) {
         tcg_gen_qemu_st_i32(TCGV_LOW(val), addr, idx, memop);
@@ -2720,8 +2726,8 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 
     memop = tcg_canonicalize_memop(memop, 1, 1);
-    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env,
-                               addr, trace_mem_get_info(memop, 1));
+    meminfo = trace_mem_get_info(memop, 1);
+    trace_guest_mem_before_tcg(tcg_ctx.cpu, tcg_ctx.tcg_env, addr, meminfo.raw);
     gen_ldst_i64(INDEX_op_qemu_st_i64, val, addr, memop, idx);
 }
 
