@@ -920,6 +920,14 @@ QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
 QDict *qmp_fd(int fd, const char *fmt, ...);
 
 /**
+ * qmp_device_del:
+ * @id: The device ID to be deleted
+ *
+ * Delete the device with ID @id from QMP interface.
+ */
+void qmp_device_del(const char *id);
+
+/**
  * qtest_cb_for_every_machine:
  * @cb: Pointer to the callback function
  *

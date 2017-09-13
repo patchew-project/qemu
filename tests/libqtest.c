@@ -925,6 +925,54 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
+void qmp_device_del(const char *id)
+{
+    QDict *response1, *response2, *event = NULL;
+    char *cmd;
+
+    /*
+     * device deletion will get one response and one event. E.g.:
+     *
+     * {'execute': 'device_del','arguments': { 'id': 'scsi-hd'}}
+     *
+     * will get this one:
+     *
+     * {"timestamp": {"seconds": 1505289667, "microseconds": 569862},
+     *  "event": "DEVICE_DELETED", "data": {"device": "scsi-hd",
+     *  "path": "/machine/peripheral/scsi-hd"}}
+     *
+     * and this one:
+     *
+     * {"return": {}}
+     *
+     * But the order of arrival may vary.  Detect both.
+     */
+
+    cmd = g_strdup_printf("{'execute': 'device_del',"
+                          " 'arguments': {"
+                          "   'id': '%s'"
+                          "}}", id);
+    response1 = qmp(cmd);
+    g_free(cmd);
+    g_assert(response1);
+    g_assert(!qdict_haskey(response1, "error"));
+
+    response2 = qmp("");
+    g_assert(response2);
+    g_assert(!qdict_haskey(response2, "error"));
+
+    if (qdict_haskey(response1, "event")) {
+        event = response1;
+    } else if (qdict_haskey(response2, "event")) {
+        event = response2;
+    }
+    g_assert(event);
+    g_assert(!strcmp(qdict_get_str(event, "event"), "DEVICE_DELETED"));
+
+    QDECREF(response1);
+    QDECREF(response2);
+}
+
 void qmp_async(const char *fmt, ...)
 {
     va_list ap;
