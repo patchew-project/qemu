@@ -217,21 +217,29 @@ static const BdrvChildRole child_job = {
     .stay_at_node       = true,
 };
 
-static void block_job_drained_begin(void *opaque)
+void block_job_drained_begin(BlockJob *job)
 {
-    BlockJob *job = opaque;
     block_job_pause(job);
 }
 
-static void block_job_drained_end(void *opaque)
+static void block_job_drained_begin_op(void *opaque)
 {
-    BlockJob *job = opaque;
+    block_job_drained_begin(opaque);
+}
+
+void block_job_drained_end(BlockJob *job)
+{
     block_job_resume(job);
 }
 
+static void block_job_drained_end_op(void *opaque)
+{
+    block_job_drained_end(opaque);
+}
+
 static const BlockDevOps block_job_dev_ops = {
-    .drained_begin = block_job_drained_begin,
-    .drained_end = block_job_drained_end,
+    .drained_begin = block_job_drained_begin_op,
+    .drained_end = block_job_drained_end_op,
 };
 
 void block_job_remove_all_bdrv(BlockJob *job)

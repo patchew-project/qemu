@@ -339,6 +339,21 @@ void block_job_ref(BlockJob *job);
 void block_job_unref(BlockJob *job);
 
 /**
+ * block_job_drained_begin:
+ *
+ * Inhibit I/O requests initiated by the block job.
+ */
+void block_job_drained_begin(BlockJob *job);
+
+/**
+ * block_job_drained_end:
+ *
+ * Resume I/O after it has been paused through
+ * block_job_drained_begin().
+ */
+void block_job_drained_end(BlockJob *job);
+
+/**
  * block_job_txn_unref:
  *
  * Release a reference that was previously acquired with block_job_txn_add_job
