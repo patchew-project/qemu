@@ -17,7 +17,7 @@
 #include "qom/cpu.h"
 
 
-__thread InstrState instr_cur_state;
+__thread InstrInfo instr_cur_info;
 
 
 unsigned int instr_cpus_count;
@@ -142,4 +142,17 @@ SYM_PUBLIC void qi_event_set_guest_cpu_reset(void (*fn)(QICPU vcpu))
 {
     ERROR_IF(!instr_get_state(), "called outside instrumentation");
     instr_set_event(guest_cpu_reset, fn);
+}
+
+
+void (*instr_event__guest_mem_before_trans)(
+    QICPU vcpu_trans, QITCGv_cpu vcpu_exec, QITCGv vaddr, QIMemInfo info);
+
+SYM_PUBLIC void qi_event_set_guest_mem_before_trans(
+    void (*fn)(QICPU vcpu_trans, QITCGv_cpu vcpu_exec,
+               QITCGv vaddr, QIMemInfo info))
+{
+    ERROR_IF(!instr_get_state(), "called outside instrumentation");
+    ERROR_IF(!tcg_enabled(), "called without TCG");
+    instr_set_event(guest_mem_before_trans, fn);
 }

@@ -196,6 +196,7 @@ $(QEMU_PROG_BUILD): config-devices.mak
 COMMON_LDADDS = ../libqemuutil.a ../libqemustub.a
 
 # build either PROG or PROGW
+$(QEMU_PROG_BUILD): CFLAGS += -DQEMU_TARGET_BUILD=1
 $(QEMU_PROG_BUILD): $(all-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $(filter-out %.mak, $^))
 ifdef CONFIG_DARWIN

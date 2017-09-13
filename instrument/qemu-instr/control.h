@@ -105,6 +105,22 @@ void qi_event_set_guest_cpu_exit(void (*fn)(QICPU vcpu));
  */
 void qi_event_set_guest_cpu_reset(void (*fn)(QICPU vcpu));
 
+/*
+ * Start virtual memory access (before any potential access violation).
+ *
+ * @vaddr: Access' virtual address.
+ * @info : Access' information.
+ *
+ * Does not include memory accesses performed by devices.
+ *
+ * Mode: user, softmmu
+ * Targets: TCG(all)
+ * Time: trans
+ */
+void qi_event_set_guest_mem_before_trans(
+    void (*fn)(QICPU vcpu_trans, QITCGv_cpu vcpu_exec,
+               QITCGv vaddr, QIMemInfo info));
+
 #ifdef __cplusplus
 }
 #endif
