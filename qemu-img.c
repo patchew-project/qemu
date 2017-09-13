@@ -1171,11 +1171,6 @@ static int64_t sectors_to_bytes(int64_t sectors)
     return sectors << BDRV_SECTOR_BITS;
 }
 
-static int64_t sectors_to_process(int64_t total, int64_t from)
-{
-    return MIN(total - from, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
-}
-
 /*
  * Check if passed sectors are empty (not allocated or contain only 0 bytes)
  *
@@ -1372,13 +1367,9 @@ static int img_compare(int argc, char **argv)
         goto out;
     }
 
-    for (;;) {
+    while (sector_num < total_sectors) {
         int64_t status1, status2;
 
-        nb_sectors = sectors_to_process(total_sectors, sector_num);
-        if (nb_sectors <= 0) {
-            break;
-        }
         status1 = bdrv_block_status_above(bs1, NULL,
                                           sector_num * BDRV_SECTOR_SIZE,
                                           (total_sectors1 - sector_num) *
@@ -1402,14 +1393,9 @@ static int img_compare(int argc, char **argv)
             goto out;
         }
         allocated2 = status2 & BDRV_BLOCK_ALLOCATED;
-        if (pnum1) {
-            nb_sectors = MIN(nb_sectors,
-                             DIV_ROUND_UP(pnum1, BDRV_SECTOR_SIZE));
-        }
-        if (pnum2) {
-            nb_sectors = MIN(nb_sectors,
-                             DIV_ROUND_UP(pnum2, BDRV_SECTOR_SIZE));
-        }
+
+        assert(pnum1 && pnum2);
+        nb_sectors = DIV_ROUND_UP(MIN(pnum1, pnum2), BDRV_SECTOR_SIZE);
 
         if (strict) {
             if ((status1 & ~BDRV_BLOCK_OFFSET_MASK) !=
@@ -1422,9 +1408,10 @@ static int img_compare(int argc, char **argv)
             }
         }
         if ((status1 & BDRV_BLOCK_ZERO) && (status2 & BDRV_BLOCK_ZERO)) {
-            nb_sectors = DIV_ROUND_UP(MIN(pnum1, pnum2), BDRV_SECTOR_SIZE);
+            /* nothing to do */
         } else if (allocated1 == allocated2) {
             if (allocated1) {
+                nb_sectors = MIN(nb_sectors, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
                 ret = blk_pread(blk1, sector_num << BDRV_SECTOR_BITS, buf1,
                                 nb_sectors << BDRV_SECTOR_BITS);
                 if (ret < 0) {
@@ -1453,7 +1440,7 @@ static int img_compare(int argc, char **argv)
                 }
             }
         } else {
-
+            nb_sectors = MIN(nb_sectors, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
             if (allocated1) {
                 ret = check_empty_sectors(blk1, sector_num, nb_sectors,
                                           filename1, buf1, quiet);
@@ -1476,30 +1463,24 @@ static int img_compare(int argc, char **argv)
 
     if (total_sectors1 != total_sectors2) {
         BlockBackend *blk_over;
-        int64_t total_sectors_over;
         const char *filename_over;
 
         qprintf(quiet, "Warning: Image size mismatch!\n");
         if (total_sectors1 > total_sectors2) {
-            total_sectors_over = total_sectors1;
             blk_over = blk1;
             filename_over = filename1;
         } else {
-            total_sectors_over = total_sectors2;
             blk_over = blk2;
             filename_over = filename2;
         }
 
-        for (;;) {
+        while (sector_num < progress_base) {
             int64_t count;
 
-            nb_sectors = sectors_to_process(total_sectors_over, sector_num);
-            if (nb_sectors <= 0) {
-                break;
-            }
             ret = bdrv_is_allocated_above(blk_bs(blk_over), NULL,
                                           sector_num * BDRV_SECTOR_SIZE,
-                                          nb_sectors * BDRV_SECTOR_SIZE,
+                                          (progress_base - sector_num) *
+                                          BDRV_SECTOR_SIZE,
                                           &count);
             if (ret < 0) {
                 ret = 3;
@@ -1513,6 +1494,7 @@ static int img_compare(int argc, char **argv)
             assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
             nb_sectors = count >> BDRV_SECTOR_BITS;
             if (ret) {
+                nb_sectors = MIN(nb_sectors, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
                 ret = check_empty_sectors(blk_over, sector_num, nb_sectors,
                                           filename_over, buf1, quiet);
                 if (ret) {
