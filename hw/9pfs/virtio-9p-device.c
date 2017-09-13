@@ -146,16 +146,8 @@ static ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
-    ssize_t ret;
 
-    ret = v9fs_iov_vmarshal(elem->in_sg, elem->in_num, offset, 1, fmt, ap);
-    if (ret < 0) {
-        VirtIODevice *vdev = VIRTIO_DEVICE(v);
-
-        virtio_error(vdev, "Failed to encode VirtFS reply type %d",
-                     pdu->id + 1);
-    }
-    return ret;
+    return v9fs_iov_vmarshal(elem->in_sg, elem->in_num, offset, 1, fmt, ap);
 }
 
 static ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
@@ -164,15 +156,8 @@ static ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
-    ssize_t ret;
 
-    ret = v9fs_iov_vunmarshal(elem->out_sg, elem->out_num, offset, 1, fmt, ap);
-    if (ret < 0) {
-        VirtIODevice *vdev = VIRTIO_DEVICE(v);
-
-        virtio_error(vdev, "Failed to decode VirtFS request type %d", pdu->id);
-    }
-    return ret;
+    return v9fs_iov_vunmarshal(elem->out_sg, elem->out_num, offset, 1, fmt, ap);
 }
 
 static void virtio_init_in_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
