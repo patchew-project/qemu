@@ -1893,12 +1893,12 @@ out:
     return ret;
 }
 
-static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
+static int64_t coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
         BlockDriverState *base,
         bool mapping,
-        int64_t sector_num,
-        int nb_sectors,
-        int *pnum,
+        int64_t offset,
+        int64_t bytes,
+        int64_t *pnum,
         BlockDriverState **file)
 {
     BlockDriverState *p;
@@ -1907,17 +1907,10 @@ static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
 
     assert(bs != base);
     for (p = bs; p != base; p = backing_bs(p)) {
-        int64_t count;
-
-        ret = bdrv_co_block_status(p, mapping,
-                                   sector_num * BDRV_SECTOR_SIZE,
-                                   nb_sectors * BDRV_SECTOR_SIZE, &count,
-                                   file);
+        ret = bdrv_co_block_status(p, mapping, offset, bytes, pnum, file);
         if (ret < 0) {
             break;
         }
-        assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
-        *pnum = count >> BDRV_SECTOR_BITS;
         if (ret & BDRV_BLOCK_ZERO && ret & BDRV_BLOCK_EOF && !first) {
             /*
              * Reading beyond the end of the file continues to read
@@ -1925,39 +1918,35 @@ static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
              * unallocated length we learned from an earlier
              * iteration.
              */
-            *pnum = nb_sectors;
+            *pnum = bytes;
         }
         if (ret & (BDRV_BLOCK_ZERO | BDRV_BLOCK_DATA)) {
             break;
         }
-        /* [sector_num, pnum] unallocated on this layer, which could be only
-         * the first part of [sector_num, nb_sectors].  */
-        nb_sectors = MIN(nb_sectors, *pnum);
+        /* [offset, pnum] unallocated on this layer, which could be only
+         * the first part of [offset, bytes].  */
+        bytes = MIN(bytes, *pnum);
         first = false;
     }
     return ret;
 }
 
 /* Coroutine wrapper for bdrv_get_block_status_above() */
-static void coroutine_fn bdrv_get_block_status_above_co_entry(void *opaque)
+static void coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
 {
     BdrvCoBlockStatusData *data = opaque;
-    int n;
 
-    data->ret = bdrv_co_get_block_status_above(data->bs, data->base,
-                                               data->mapping,
-                                               data->offset >> BDRV_SECTOR_BITS,
-                                               data->bytes >> BDRV_SECTOR_BITS,
-                                               &n,
-                                               data->file);
-    *data->pnum = n * BDRV_SECTOR_SIZE;
+    data->ret = bdrv_co_block_status_above(data->bs, data->base,
+                                           data->mapping,
+                                           data->offset, data->bytes,
+                                           data->pnum, data->file);
     data->done = true;
 }
 
 /*
- * Synchronous wrapper around bdrv_co_get_block_status_above().
+ * Synchronous wrapper around bdrv_co_block_status_above().
  *
- * See bdrv_co_get_block_status_above() for details.
+ * See bdrv_co_block_status_above() for details.
  */
 static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
                                               BlockDriverState *base,
@@ -1980,10 +1969,9 @@ static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
 
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
-        bdrv_get_block_status_above_co_entry(&data);
+        bdrv_block_status_above_co_entry(&data);
     } else {
-        co = qemu_coroutine_create(bdrv_get_block_status_above_co_entry,
-                                   &data);
+        co = qemu_coroutine_create(bdrv_block_status_above_co_entry, &data);
         bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, !data.done);
     }
