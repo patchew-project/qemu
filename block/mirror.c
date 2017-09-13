@@ -1236,6 +1236,7 @@ static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
                                        uint64_t *nperm, uint64_t *nshared)
 {
     MirrorBDSOpaque *s = bs->opaque;
+    bool ops_in_flight = s->job && !QTAILQ_EMPTY(&s->job->ops_in_flight);
 
     if (s->job && s->job->exiting) {
         *nperm = 0;
@@ -1243,9 +1244,10 @@ static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
         return;
     }
 
-    /* Must be able to forward guest writes to the real image */
+    /* Must be able to forward both new and pending guest writes to
+     * the real image */
     *nperm = 0;
-    if (perm & BLK_PERM_WRITE) {
+    if ((perm & BLK_PERM_WRITE) || ops_in_flight) {
         *nperm |= BLK_PERM_WRITE;
     }
 
