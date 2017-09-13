@@ -358,6 +358,7 @@ struct TranslationBlock {
 
 void tb_free(TranslationBlock *tb);
 void tb_flush(CPUState *cpu);
+void tb_flush_sync(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
                                    target_ulong cs_base, uint32_t flags);

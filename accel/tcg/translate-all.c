@@ -929,6 +929,13 @@ done:
     tb_unlock();
 }
 
+void tb_flush_sync(CPUState *cpu)
+{
+    unsigned tb_flush_count = atomic_mb_read(&tcg_ctx.tb_ctx.tb_flush_count);
+    assert(cpu == current_cpu);
+    do_tb_flush(cpu, RUN_ON_CPU_HOST_INT(tb_flush_count));
+}
+
 void tb_flush(CPUState *cpu)
 {
     if (tcg_enabled()) {
