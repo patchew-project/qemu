@@ -1773,7 +1773,8 @@ static int64_t coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     int64_t n; /* bytes */
     int64_t ret, ret2;
     BlockDriverState *local_file = NULL;
-    int count; /* sectors */
+    int64_t aligned_offset, aligned_bytes;
+    uint32_t align;
 
     assert(pnum);
     total_size = bdrv_getlength(bs);
@@ -1815,28 +1816,45 @@ static int64_t coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     }
 
     bdrv_inc_in_flight(bs);
-    /*
-     * TODO: Rather than require aligned offsets, we could instead
-     * round to the driver's request_alignment here, then touch up
-     * count afterwards back to the caller's expectations.
-     */
-    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
-    bytes = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
-    ret = bs->drv->bdrv_co_get_block_status(bs, offset >> BDRV_SECTOR_BITS,
-                                            bytes >> BDRV_SECTOR_BITS, &count,
-                                            &local_file);
-    if (ret < 0) {
-        *pnum = 0;
-        goto out;
+
+    /* Round out to request_alignment boundaries */
+    align = MAX(bs->bl.request_alignment, BDRV_SECTOR_SIZE);
+    aligned_offset = QEMU_ALIGN_DOWN(offset, align);
+    aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
+
+    {
+        int count; /* sectors */
+
+        assert(QEMU_IS_ALIGNED(aligned_offset | aligned_bytes,
+                               BDRV_SECTOR_SIZE));
+        ret = bs->drv->bdrv_co_get_block_status(
+            bs, aligned_offset >> BDRV_SECTOR_BITS,
+            MIN(INT_MAX, aligned_bytes) >> BDRV_SECTOR_BITS, &count,
+            &local_file);
+        if (ret < 0) {
+            *pnum = 0;
+            goto out;
+        }
+        *pnum = count * BDRV_SECTOR_SIZE;
     }
-    *pnum = count * BDRV_SECTOR_SIZE;
+
+    /* Clamp pnum and ret to original request */
+    assert(QEMU_IS_ALIGNED(*pnum, align));
+    *pnum -= offset - aligned_offset;
+    if (aligned_offset >> BDRV_SECTOR_BITS != offset >> BDRV_SECTOR_BITS &&
+        ret & BDRV_BLOCK_OFFSET_VALID) {
+        ret += QEMU_ALIGN_DOWN(offset - aligned_offset, BDRV_SECTOR_SIZE);
+    }
+    if (*pnum > bytes) {
+        *pnum = bytes;
+    }
 
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID && local_file);
         ret = bdrv_co_block_status(local_file, mapping,
-                                   ret & BDRV_BLOCK_OFFSET_MASK,
+                                   (ret & BDRV_BLOCK_OFFSET_MASK) |
+                                   (offset & ~BDRV_BLOCK_OFFSET_MASK),
                                    *pnum, pnum, &local_file);
-        assert(QEMU_IS_ALIGNED(*pnum, BDRV_SECTOR_SIZE));
         goto out;
     }
 
@@ -1860,7 +1878,8 @@ static int64_t coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
         int64_t file_pnum;
 
         ret2 = bdrv_co_block_status(local_file, mapping,
-                                    ret & BDRV_BLOCK_OFFSET_MASK,
+                                    (ret & BDRV_BLOCK_OFFSET_MASK) |
+                                    (offset & ~BDRV_BLOCK_OFFSET_MASK),
                                     *pnum, &file_pnum, NULL);
         if (ret2 >= 0) {
             /* Ignore errors.  This is just providing extra information, it
