@@ -25,4 +25,10 @@
         return;                      \
     }
 
+#define ERROR_IF_RET(cond, ret, msg, args...)   \
+    if (unlikely(cond)) {                       \
+        _ERROR(msg, ##args);                    \
+        return ret;                             \
+    }                                           \
+
 #endif  /* INSTRUMENT_ERROR_H */

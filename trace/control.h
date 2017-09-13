@@ -13,6 +13,7 @@
 #include "qemu-common.h"
 #include "event-internal.h"
 
+/* NOTE: Keep in sync with size of QITraceEventIter */
 typedef struct TraceEventIter {
     size_t event;
     size_t group;

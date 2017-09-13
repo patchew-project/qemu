@@ -602,6 +602,9 @@ endif
 ifdef CONFIG_INSTRUMENT
 	$(INSTALL_DIR) "$(DESTDIR)$(includedir)/qemu-instr/"
 	$(INSTALL_DATA) $(SRC_PATH)/instrument/qemu-instr/control.h "$(DESTDIR)$(includedir)/qemu-instr/"
+	$(INSTALL_DATA) $(SRC_PATH)/instrument/qemu-instr/trace.h "$(DESTDIR)$(includedir)/qemu-instr/"
+	$(INSTALL_DATA) $(SRC_PATH)/instrument/qemu-instr/types.h "$(DESTDIR)$(includedir)/qemu-instr/"
+	$(INSTALL_DATA) $(SRC_PATH)/instrument/qemu-instr/types.inc.h "$(DESTDIR)$(includedir)/qemu-instr/"
 endif
 
 install-datadir:
