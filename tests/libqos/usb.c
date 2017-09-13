@@ -60,14 +60,7 @@ void usb_test_hotplug(const char *hcd_id, const int port,
         port_check();
     }
 
-    cmd = g_strdup_printf("{'execute': 'device_del',"
-                           " 'arguments': {"
-                           "   'id': 'usbdev%d'"
-                           "}}", port);
-    response = qmp(cmd);
+    cmd = g_strdup_printf("usbdev%d", port);
+    qmp_device_del(cmd);
     g_free(cmd);
-    g_assert(response);
-    g_assert(qdict_haskey(response, "event"));
-    g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
-    QDECREF(response);
 }
