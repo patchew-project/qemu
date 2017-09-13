@@ -31,7 +31,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "-machine [type=]name[,prop[=value][,...]]\n"
     "                selects emulated machine ('-machine help' for list)\n"
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
-    "                supported accelerators are kvm, xen, hax or tcg (default: tcg)\n"
+    "                supported accelerators are kvm, xen, hax or tcg (default: tcg:kvm:hax)\n"
     "                kernel_irqchip=on|off|split controls accelerated irqchip support (default=off)\n"
     "                vmport=on|off|auto controls emulation of vmport (default: auto)\n"
     "                kvm_shadow_mem=size of KVM shadow MMU in bytes\n"
@@ -66,7 +66,8 @@ Supported machine properties are:
 @table @option
 @item accel=@var{accels1}[:@var{accels2}[:...]]
 This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, hax or tcg can be available. By default, tcg is used. If there is
+kvm, xen, hax or tcg can be available. By default, the first one available
+out of tcg, kvm, hax (in that order) is used. If there is
 more than one accelerator specified, the next one is used if the previous one
 fails to initialize.
 @item kernel_irqchip=on|off
@@ -126,7 +127,8 @@ STEXI
 @item -accel @var{name}[,prop=@var{value}[,...]]
 @findex -accel
 This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, hax or tcg can be available. By default, tcg is used. If there is
+kvm, xen, hax or tcg can be available. By default, the first one available
+out of tcg, kvm, hax (in that order) is used. If there is
 more than one accelerator specified, the next one is used if the previous one
 fails to initialize.
 @table @option
