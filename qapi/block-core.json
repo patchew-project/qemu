@@ -938,6 +938,29 @@
   'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
+# @MirrorCopyMode:
+#
+# An enumeration whose values tell the mirror block job when to
+# trigger writes to the target.
+#
+# @passive: copy data in background only.
+#
+# @active-write: when data is written to the source, write it
+#                (synchronously) to the target as well.  In addition,
+#                data is copied in background just like in @passive
+#                mode.
+#
+# @active-read-write: write data to the target (synchronously) both
+#                     when it is read from and written to the source.
+#                     In addition, data is copied in background just
+#                     like in @passive mode.
+#
+# Since: 2.11
+##
+{ 'enum': 'MirrorCopyMode',
+  'data': ['passive', 'active-write', 'active-read-write'] }
+
+##
 # @BlockJobType:
 #
 # Type of a block job.
