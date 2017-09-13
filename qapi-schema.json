@@ -93,6 +93,9 @@
 { 'include': 'qapi/trace.json' }
 { 'include': 'qapi/introspect.json' }
 
+# Instrumentation commands
+{ 'include': 'qapi/instrument.json' }
+
 ##
 # = Miscellanea
 ##

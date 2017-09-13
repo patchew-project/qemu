@@ -978,6 +978,10 @@ static void qmp_unregister_commands_hack(void)
     qmp_unregister_command(&qmp_commands, "query-xen-replication-status");
     qmp_unregister_command(&qmp_commands, "xen-colo-do-checkpoint");
 #endif
+#ifndef CONFIG_INSTRUMENT
+    qmp_unregister_command(&qmp_commands, "instr-load");
+    qmp_unregister_command(&qmp_commands, "instr-unload");
+#endif
 #ifndef TARGET_I386
     qmp_unregister_command(&qmp_commands, "rtc-reset-reinjection");
 #endif

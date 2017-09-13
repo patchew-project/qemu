@@ -1,0 +1,49 @@
+# *-*- Mode: Python -*-*
+#
+# Copyright (C) 2012-2017 Lluís Vilanova <vilanova@ac.upc.edu>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# QAPI instrumentation control commands.
+##
+
+##
+# @InstrLoadResult:
+#
+# Result of an 'instr-load' command.
+#
+# @id: instrumentation library ID
+#
+# Since: 2.11
+##
+{ 'struct': 'InstrLoadResult',
+  'data': { 'id': 'str' } }
+
+##
+# @instr-load:
+#
+# Load an instrumentation library.
+#
+# @path: path to the dynamic instrumentation library
+# @id: unique ID for the loaded library
+# @args: arguments to the dynamic instrumentation library
+#
+# Since: 2.11
+##
+{ 'command': 'instr-load',
+  'data':    { 'path': 'str', '*id': 'str', '*args': ['str'] },
+  'returns': 'InstrLoadResult' }
+
+##
+# @instr-unload:
+#
+# Unload an instrumentation library.
+#
+# @id: unique ID passed to instr-load().
+#
+# Since: 2.11
+##
+{ 'command': 'instr-unload',
+  'data': { 'id': 'str' } }
