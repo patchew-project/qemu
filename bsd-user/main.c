@@ -33,6 +33,7 @@
 #include "exec/log.h"
 #include "trace/control.h"
 #include "glib-compat.h"
+#include "instrument/cmdline.h"
 
 int singlestep;
 unsigned long mmap_min_addr;
@@ -667,6 +668,11 @@ static void usage(void)
            "-B address        set guest_base address to address\n"
            "-bsd type         select emulated BSD type FreeBSD/NetBSD/OpenBSD (default)\n"
            "\n"
+#if defined(CONFIG_INSTRUMENT)
+           "-instr [file=]<file>[,arg=<string>]\n"
+           "                  load an instrumentation library\n"
+           "\n"
+#endif
            "Debug options:\n"
            "-d item1[,...]    enable logging of specified items\n"
            "                  (use '-d help' for a list of log items)\n"
@@ -738,6 +744,9 @@ int main(int argc, char **argv)
     envlist_t *envlist = NULL;
     char *trace_file = NULL;
     bsd_type = target_openbsd;
+    char *instrument_path = NULL;
+    int instrument_argc = 0;
+    const char **instrument_argv = NULL;
 
     if (argc <= 1)
         usage();
@@ -756,6 +765,9 @@ int main(int argc, char **argv)
     cpu_model = NULL;
 
     qemu_add_opts(&qemu_trace_opts);
+#if defined(CONFIG_INSTRUMENT)
+    qemu_add_opts(&qemu_instr_opts);
+#endif
 
     optind = 1;
     for (;;) {
@@ -843,6 +855,9 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "trace")) {
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
+        } else if (!strcmp(r, "instr")) {
+            instr_opt_parse(optarg, &instrument_path,
+                            &instrument_argc, &instrument_argv);
         } else {
             usage();
         }
@@ -871,6 +886,8 @@ int main(int argc, char **argv)
         exit(1);
     }
     trace_init_file(trace_file);
+
+    instr_init(instrument_path, instrument_argc, instrument_argv);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
