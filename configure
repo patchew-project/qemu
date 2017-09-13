@@ -356,6 +356,7 @@ pie=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
+instrument="no"
 spice=""
 rbd=""
 smartcard=""
@@ -885,6 +886,8 @@ for opt do
   --enable-trace-backend=*) trace_backends="$optarg"
   ;;
   --with-trace-file=*) trace_file="$optarg"
+  ;;
+  --enable-instrument) instrument="yes"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -1436,6 +1439,7 @@ Advanced options (experts only):
                            Available backends: $trace_backend_list
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
+  --enable-instrument      enable event instrumentation
   --disable-slirp          disable SLIRP userspace network connectivity
   --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)
   --oss-lib                path to OSS library
@@ -5366,6 +5370,7 @@ echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
 fi
+echo "instrumentation   $instrument"
 echo "spice support     $spice $(echo_version $spice $spice_protocol_version/$spice_server_version)"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
@@ -6018,6 +6023,10 @@ if have_backend "syslog"; then
   fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+
+if test "$instrument" = "yes"; then
+  echo "CONFIG_INSTRUMENT=y" >> $config_host_mak
+fi
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
