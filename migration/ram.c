@@ -1789,7 +1789,7 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
     RAMBlock *rb = qemu_ram_block_by_name(rbname);
 
     if (!rb) {
-        error_report("ram_discard_range: Failed to find block '%s'", rbname);
+        error_report("ram_discard_rang0e: Failed to find block '%s'", rbname);
         goto err;
     }
 
