@@ -925,6 +925,21 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
+void qmp_device_add(const char *args)
+{
+    QDict *response;
+    char *cmd;
+
+    cmd = g_strdup_printf("{'execute': 'device_add',"
+                          " 'arguments': { %s }"
+                          "}", args);
+    response = qmp(cmd);
+    g_free(cmd);
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+}
+
 void qmp_device_del(const char *id)
 {
     QDict *response1, *response2, *event = NULL;

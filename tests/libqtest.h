@@ -920,6 +920,15 @@ QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
 QDict *qmp_fd(int fd, const char *fmt, ...);
 
 /**
+ * qmp_device_add:
+ * @args: Parameters for the new device, like:
+ *        "'driver': 'XXX', 'id': 'XXX', 'addr': 'XXX'"
+ *
+ * Create a new device with parameter @args provided.
+ */
+void qmp_device_add(const char *args);
+
+/**
  * qmp_device_del:
  * @id: The device ID to be deleted
  *
