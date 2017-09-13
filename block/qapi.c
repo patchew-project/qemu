@@ -147,9 +147,13 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
 
         /* Skip automatically inserted nodes that the user isn't aware of for
          * query-block (blk != NULL), but not for query-named-block-nodes */
-        while (blk && bs0->drv && bs0->implicit) {
-            bs0 = backing_bs(bs0);
-            assert(bs0);
+        while (blk && bs0 && bs0->drv && bs0->implicit) {
+            if (bs0->backing) {
+                bs0 = backing_bs(bs0);
+            } else {
+                assert(bs0->file);
+                bs0 = bs0->file->bs;
+            }
         }
     }
 
@@ -337,7 +341,12 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 
     /* Skip automatically inserted nodes that the user isn't aware of */
     while (bs && bs->drv && bs->implicit) {
-        bs = backing_bs(bs);
+        if (bs->backing) {
+            bs = backing_bs(bs);
+        } else {
+            assert(bs->file);
+            bs = bs->file->bs;
+        }
     }
 
     info->device = g_strdup(blk_name(blk));
@@ -466,8 +475,12 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
      * a BlockBackend-level command. Stay at the exact node for a node-level
      * command. */
     while (blk_level && bs->drv && bs->implicit) {
-        bs = backing_bs(bs);
-        assert(bs);
+        if (bs->backing) {
+            bs = backing_bs(bs);
+        } else {
+            assert(bs->file);
+            bs = bs->file->bs;
+        }
     }
 
     if (bdrv_get_node_name(bs)[0]) {
