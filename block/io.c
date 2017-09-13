@@ -182,33 +182,57 @@ static void bdrv_drain_invoke(BlockDriverState *bs)
 
 static bool bdrv_drain_recurse(BlockDriverState *bs)
 {
-    BdrvChild *child, *tmp;
+    BdrvChild *child;
     bool waited;
+    struct BDSToDrain {
+        BlockDriverState *bs;
+        BdrvDeletedStatus del_stat;
+        QLIST_ENTRY(BDSToDrain) next;
+    };
+    QLIST_HEAD(, BDSToDrain) bs_list = QLIST_HEAD_INITIALIZER(bs_list);
+    bool in_main_loop =
+        qemu_get_current_aio_context() == qemu_get_aio_context();
 
     waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
 
     /* Ensure any pending metadata writes are submitted to bs->file.  */
     bdrv_drain_invoke(bs);
 
-    QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
-        BlockDriverState *bs = child->bs;
-        bool in_main_loop =
-            qemu_get_current_aio_context() == qemu_get_aio_context();
-        assert(bs->refcnt > 0);
-        if (in_main_loop) {
-            /* In case the recursive bdrv_drain_recurse processes a
-             * block_job_defer_to_main_loop BH and modifies the graph,
-             * let's hold a reference to bs until we are done.
-             *
-             * IOThread doesn't have such a BH, and it is not safe to call
-             * bdrv_unref without BQL, so skip doing it there.
-             */
-            bdrv_ref(bs);
+    /* Draining children may result in other children being removed and maybe
+     * even deleted, so copy the children list first */
+    QLIST_FOREACH(child, &bs->children, next) {
+        struct BDSToDrain *bs2d = g_new0(struct BDSToDrain, 1);
+
+        bs2d->bs = child->bs;
+        QLIST_INSERT_HEAD(&bs->deleted_status, &bs2d->del_stat, next);
+
+        QLIST_INSERT_HEAD(&bs_list, bs2d, next);
+    }
+
+    while (!QLIST_EMPTY(&bs_list)) {
+        struct BDSToDrain *bs2d = QLIST_FIRST(&bs_list);
+        QLIST_REMOVE(bs2d, next);
+
+        if (!bs2d->del_stat.deleted) {
+            QLIST_REMOVE(&bs2d->del_stat, next);
+
+            if (in_main_loop) {
+                /* In case the recursive bdrv_drain_recurse processes a
+                 * block_job_defer_to_main_loop BH and modifies the graph,
+                 * let's hold a reference to the BDS until we are done.
+                 *
+                 * IOThread doesn't have such a BH, and it is not safe to call
+                 * bdrv_unref without BQL, so skip doing it there.
+                 */
+                bdrv_ref(bs2d->bs);
+            }
+            waited |= bdrv_drain_recurse(bs2d->bs);
+            if (in_main_loop) {
+                bdrv_unref(bs2d->bs);
+            }
         }
-        waited |= bdrv_drain_recurse(bs);
-        if (in_main_loop) {
-            bdrv_unref(bs);
-        }
+
+        g_free(bs2d);
     }
 
     return waited;
@@ -252,17 +276,25 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
 
 void bdrv_drained_begin(BlockDriverState *bs)
 {
+    BdrvDeletedStatus del_stat = { .deleted = false };
+
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs);
         return;
     }
+
+    QLIST_INSERT_HEAD(&bs->deleted_status, &del_stat, next);
 
     if (atomic_fetch_inc(&bs->quiesce_counter) == 0) {
         aio_disable_external(bdrv_get_aio_context(bs));
         bdrv_parent_drained_begin(bs);
     }
 
-    bdrv_drain_recurse(bs);
+    if (!del_stat.deleted) {
+        QLIST_REMOVE(&del_stat, next);
+
+        bdrv_drain_recurse(bs);
+    }
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
