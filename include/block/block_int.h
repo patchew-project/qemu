@@ -498,6 +498,13 @@ typedef struct BdrvAioNotifier {
     QLIST_ENTRY(BdrvAioNotifier) list;
 } BdrvAioNotifier;
 
+typedef struct BdrvDeletedStatus {
+    /* Set to true by bdrv_delete() */
+    bool deleted;
+
+    QLIST_ENTRY(BdrvDeletedStatus) next;
+} BdrvDeletedStatus;
+
 struct BdrvChildRole {
     /* If true, bdrv_replace_node() doesn't change the node this BdrvChild
      * points to. */
@@ -706,6 +713,11 @@ struct BlockDriverState {
 
     /* Only read/written by whoever has set active_flush_req to true.  */
     unsigned int flushed_gen;             /* Flushed write generation */
+
+    /* When bdrv_delete() is invoked, it will walk through this list
+     * and set every entry's @deleted field to true.  The entries will
+     * not be freed automatically. */
+    QLIST_HEAD(, BdrvDeletedStatus) deleted_status;
 };
 
 struct BlockBackendRootState {

@@ -3246,9 +3246,15 @@ out:
 
 static void bdrv_delete(BlockDriverState *bs)
 {
+    BdrvDeletedStatus *del_stat;
+
     assert(!bs->job);
     assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
+
+    QLIST_FOREACH(del_stat, &bs->deleted_status, next) {
+        del_stat->deleted = true;
+    }
 
     bdrv_close(bs);
 
