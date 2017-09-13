@@ -1598,9 +1598,14 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 
     if (s->sector_next_status <= sector_num) {
         if (s->target_has_backing) {
-            ret = bdrv_get_block_status(blk_bs(s->src[src_cur]),
-                                        sector_num - src_cur_offset,
-                                        n, &n, NULL);
+            int64_t count = n * BDRV_SECTOR_SIZE;
+
+            ret = bdrv_block_status(blk_bs(s->src[src_cur]),
+                                    (sector_num - src_cur_offset) *
+                                    BDRV_SECTOR_SIZE,
+                                    count, &count, NULL);
+            assert(ret < 0 || QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
+            n = count >> BDRV_SECTOR_BITS;
         } else {
             ret = bdrv_get_block_status_above(blk_bs(s->src[src_cur]), NULL,
                                               sector_num - src_cur_offset,
@@ -2677,9 +2682,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     int depth;
     BlockDriverState *file;
     bool has_offset;
-    int nb_sectors = bytes >> BDRV_SECTOR_BITS;
 
-    assert(bytes < INT_MAX);
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
      * range repeatedly.
@@ -2687,12 +2690,11 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
 
     depth = 0;
     for (;;) {
-        ret = bdrv_get_block_status(bs, offset >> BDRV_SECTOR_BITS, nb_sectors,
-                                    &nb_sectors, &file);
+        ret = bdrv_block_status(bs, offset, bytes, &bytes, &file);
         if (ret < 0) {
             return ret;
         }
-        assert(nb_sectors);
+        assert(bytes);
         if (ret & (BDRV_BLOCK_ZERO|BDRV_BLOCK_DATA)) {
             break;
         }
@@ -2709,7 +2711,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
 
     *e = (MapEntry) {
         .start = offset,
-        .length = nb_sectors * BDRV_SECTOR_SIZE,
+        .length = bytes,
         .data = !!(ret & BDRV_BLOCK_DATA),
         .zero = !!(ret & BDRV_BLOCK_ZERO),
         .offset = ret & BDRV_BLOCK_OFFSET_MASK,

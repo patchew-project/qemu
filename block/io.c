@@ -695,7 +695,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 {
     int64_t target_size, ret, bytes, offset = 0;
     BlockDriverState *bs = child->bs;
-    int n; /* sectors */
 
     target_size = bdrv_getlength(bs);
     if (target_size < 0) {
@@ -707,24 +706,23 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         if (bytes <= 0) {
             return 0;
         }
-        ret = bdrv_get_block_status(bs, offset >> BDRV_SECTOR_BITS,
-                                    bytes >> BDRV_SECTOR_BITS, &n, NULL);
+        ret = bdrv_block_status(bs, offset, bytes, &bytes, NULL);
         if (ret < 0) {
             error_report("error getting block status at offset %" PRId64 ": %s",
                          offset, strerror(-ret));
             return ret;
         }
         if (ret & BDRV_BLOCK_ZERO) {
-            offset += n * BDRV_SECTOR_BITS;
+            offset += bytes;
             continue;
         }
-        ret = bdrv_pwrite_zeroes(child, offset, n * BDRV_SECTOR_SIZE, flags);
+        ret = bdrv_pwrite_zeroes(child, offset, bytes, flags);
         if (ret < 0) {
             error_report("error writing zeroes at offset %" PRId64 ": %s",
                          offset, strerror(-ret));
             return ret;
         }
-        offset += n * BDRV_SECTOR_SIZE;
+        offset += bytes;
     }
 }
 
@@ -1983,13 +1981,22 @@ int64_t bdrv_get_block_status_above(BlockDriverState *bs,
                                           nb_sectors, pnum, file);
 }
 
-int64_t bdrv_get_block_status(BlockDriverState *bs,
-                              int64_t sector_num,
-                              int nb_sectors, int *pnum,
-                              BlockDriverState **file)
+int64_t bdrv_block_status(BlockDriverState *bs,
+                          int64_t offset, int64_t bytes, int64_t *pnum,
+                          BlockDriverState **file)
 {
-    return bdrv_get_block_status_above(bs, backing_bs(bs),
-                                       sector_num, nb_sectors, pnum, file);
+    int64_t ret;
+    int n;
+
+    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
+    bytes = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
+    ret = bdrv_get_block_status_above(bs, backing_bs(bs),
+                                      offset >> BDRV_SECTOR_BITS,
+                                      bytes >> BDRV_SECTOR_BITS, &n, file);
+    if (pnum) {
+        *pnum = n * BDRV_SECTOR_SIZE;
+    }
+    return ret;
 }
 
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
