@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "instrument/events.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qom/cpu.h"
@@ -275,6 +276,7 @@ void cpu_reset(CPUState *cpu)
         (*klass->reset)(cpu);
     }
 
+    instr_guest_cpu_reset(cpu);
     trace_guest_cpu_reset(cpu);
 }
 

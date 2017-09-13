@@ -31,3 +31,14 @@ static inline void instr_guest_cpu_exit(CPUState *vcpu)
         instr_set_state(INSTR_STATE_DISABLE);
     }
 }
+
+static inline void instr_guest_cpu_reset(CPUState *vcpu)
+{
+    void (*cb)(QICPU vcpu) = instr_get_event(guest_cpu_reset);
+    if (cb) {
+        QICPU vcpu_ = instr_cpu_to_qicpu(vcpu);
+        instr_set_state(INSTR_STATE_ENABLE);
+        (*cb)(vcpu_);
+        instr_set_state(INSTR_STATE_DISABLE);
+    }
+}

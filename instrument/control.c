@@ -134,3 +134,12 @@ SYM_PUBLIC void qi_event_set_guest_cpu_exit(void (*fn)(QICPU vcpu))
     ERROR_IF(!instr_get_state(), "called outside instrumentation");
     instr_set_event(guest_cpu_exit, fn);
 }
+
+
+void (*instr_event__guest_cpu_reset)(QICPU vcpu);
+
+SYM_PUBLIC void qi_event_set_guest_cpu_reset(void (*fn)(QICPU vcpu))
+{
+    ERROR_IF(!instr_get_state(), "called outside instrumentation");
+    instr_set_event(guest_cpu_reset, fn);
+}
