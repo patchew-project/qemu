@@ -71,7 +71,6 @@ void migration_channel_connect(MigrationState *s,
         migration_tls_channel_connect(s, ioc, hostname, &local_err);
         if (local_err) {
             migrate_fd_error(s, local_err);
-            error_free(local_err);
         }
     } else {
         QEMUFile *f = qemu_fopen_channel_output(ioc);
