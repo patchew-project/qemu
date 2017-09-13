@@ -7,9 +7,32 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/atomic.h"
 #include "qemu/compiler.h"
+#include "qom/cpu.h"
 #include <stdbool.h>
+#include <stdint.h>
+
+
+extern unsigned int instr_cpus_count;
+extern CPUState **instr_cpus;
+
+static inline QICPU instr_cpu_to_qicpu(CPUState *vcpu)
+{
+    uintptr_t idx = vcpu->cpu_index;
+    return (QICPU)idx;
+}
+
+static inline CPUState *instr_cpu_from_qicpu(QICPU vcpu)
+{
+    unsigned int idx = (uintptr_t)vcpu;
+    if (idx >= instr_cpus_count) {
+        return NULL;
+    } else {
+        return instr_cpus[idx];
+    }
+}
 
 
 extern __thread InstrState instr_cur_state;
