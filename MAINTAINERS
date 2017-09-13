@@ -1248,6 +1248,12 @@ F: docs/bitmaps.md
 T: git git://github.com/famz/qemu.git bitmaps
 T: git git://github.com/jnsnow/qemu.git bitmaps
 
+DUMP
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
+M: Peter Xu <peterx@redhat.com
+S: Maintained
+F: dump.c
+
 Character device backends
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
