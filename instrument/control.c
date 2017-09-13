@@ -15,6 +15,8 @@
 #include "qemu/compiler.h"
 #include "qemu/main-loop.h"
 #include "qom/cpu.h"
+#include "exec/helper-proto.h"
+#include "exec/helper-gen.h"
 
 
 __thread InstrInfo instr_cur_info;
@@ -155,4 +157,39 @@ SYM_PUBLIC void qi_event_set_guest_mem_before_trans(
     ERROR_IF(!instr_get_state(), "called outside instrumentation");
     ERROR_IF(!tcg_enabled(), "called without TCG");
     instr_set_event(guest_mem_before_trans, fn);
+}
+
+
+SYM_PUBLIC void qi_event_gen_guest_mem_before_exec(
+    QITCGv_cpu vcpu, QITCGv vaddr, QIMemInfo info)
+{
+    ERROR_IF(instr_get_state() != INSTR_STATE_ENABLE_TCG,
+             "called outside instrumentation");
+    ERROR_IF(!tcg_enabled(), "called without TCG");
+    InstrInfo *iinfo = &instr_cur_info;
+    TCGv_env vcpu_ = instr_tcg_from_qitcg(iinfo, vcpu);
+    TCGv vaddr_ = instr_tcg_from_qitcg(iinfo, vaddr);
+    TCGv_i32 info_ = tcg_const_i32(info.raw);
+    gen_helper_instr_guest_mem_before_exec(vcpu_, vaddr_, info_);
+    tcg_temp_free_i32(info_);
+}
+
+void helper_instr_guest_mem_before_exec(
+    CPUArchState *vcpu, target_ulong vaddr, uint32_t info)
+{
+    TraceMemInfo info_;
+    info_.raw = info;
+    instr_guest_mem_before_exec(ENV_GET_CPU(vcpu), vaddr, info_);
+}
+
+
+void (*instr_event__guest_mem_before_exec)(
+    QICPU vcpu, uint64_t vaddr, QIMemInfo info);
+
+SYM_PUBLIC void qi_event_set_guest_mem_before_exec(
+    void (*fn)(QICPU vcpu, uint64_t vaddr, QIMemInfo info))
+{
+    ERROR_IF(!instr_get_state(), "called outside instrumentation");
+    ERROR_IF(!tcg_enabled(), "called without TCG");
+    instr_set_event(guest_mem_before_exec, fn);
 }

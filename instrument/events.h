@@ -63,6 +63,11 @@ extern void (*instr_event__guest_mem_before_trans)(
 static inline void instr_guest_mem_before_trans(
     CPUState *vcpu_trans, TCGv_env vcpu_exec, TCGv vaddr, TraceMemInfo info);
 
+extern void (*instr_event__guest_mem_before_exec)(
+    QICPU vcpu, uint64_t vaddr, QIMemInfo info);
+static inline void instr_guest_mem_before_exec(
+    CPUState *vcpu, uint64_t vaddr, TraceMemInfo info);
+
 
 #include "instrument/events.inc.h"
 

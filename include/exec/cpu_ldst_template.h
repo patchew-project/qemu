@@ -28,6 +28,7 @@
 #include "trace-root.h"
 #endif
 
+#include "instrument/events.h"
 #include "trace/mem.h"
 
 #if DATA_SIZE == 8
@@ -89,6 +90,7 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 
 #if !defined(SOFTMMU_CODE_ACCESS)
     TraceMemInfo meminfo = trace_mem_build_info(SHIFT, false, MO_TE, false);
+    instr_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo);
     trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
 
@@ -126,6 +128,7 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 
 #if !defined(SOFTMMU_CODE_ACCESS)
     TraceMemInfo meminfo = trace_mem_build_info(SHIFT, true, MO_TE, false);
+    instr_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo);
     trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
 
@@ -167,6 +170,7 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 
 #if !defined(SOFTMMU_CODE_ACCESS)
     TraceMemInfo meminfo = trace_mem_build_info(SHIFT, false, MO_TE, true);
+    instr_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo);
     trace_guest_mem_before_exec(ENV_GET_CPU(env), ptr, meminfo.raw);
 #endif
 

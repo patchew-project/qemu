@@ -121,6 +121,27 @@ void qi_event_set_guest_mem_before_trans(
     void (*fn)(QICPU vcpu_trans, QITCGv_cpu vcpu_exec,
                QITCGv vaddr, QIMemInfo info));
 
+/*
+ * Generate code to trigger a 'guest_mem_before_exec' from
+ * 'guest_mem_before_trans'.
+ *
+ * Mode: user, softmmu
+ * Targets: TCG(all)
+ * Time: trans
+ */
+void qi_event_gen_guest_mem_before_exec(
+    QITCGv_cpu vcpu, QITCGv vaddr, QIMemInfo info);
+
+/*
+ * Execution-time equivalent of 'guest_mem_before_trans'.
+ *
+ * Mode: user, softmmu
+ * Targets: TCG(all)
+ * Time: exec
+ */
+void qi_event_set_guest_mem_before_exec(
+    void (*fn)(QICPU vcpu, uint64_t vaddr, QIMemInfo info));
+
 #ifdef __cplusplus
 }
 #endif
