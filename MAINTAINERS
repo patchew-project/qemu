@@ -1491,6 +1491,7 @@ M: Lluís Vilanova <vilanova@ac.upc.edu>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: docs/instrument.txt
+F: instrument/
 
 TPM
 S: Orphan

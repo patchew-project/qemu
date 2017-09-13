@@ -1,0 +1,4 @@
+# -*- mode: makefile -*-
+
+target-obj-$(CONFIG_INSTRUMENT) += cmdline.o
+target-obj-$(CONFIG_INSTRUMENT) += load.o
