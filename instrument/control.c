@@ -193,3 +193,21 @@ SYM_PUBLIC void qi_event_set_guest_mem_before_exec(
     ERROR_IF(!tcg_enabled(), "called without TCG");
     instr_set_event(guest_mem_before_exec, fn);
 }
+
+
+void (*instr_event__guest_user_syscall)(
+    QICPU vcpu, uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
+    uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8);
+
+SYM_PUBLIC void qi_event_set_guest_user_syscall(
+    void (*fn)(QICPU vcpu, uint64_t num, uint64_t arg1, uint64_t arg2,
+               uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6,
+               uint64_t arg7, uint64_t arg8))
+{
+    ERROR_IF(!instr_get_state(), "called outside instrumentation");
+    ERROR_IF(!tcg_enabled(), "called without TCG");
+#if !defined(CONFIG_USER_ONLY)
+    ERROR_IF(true, "called in full-system mode");
+#endif
+    instr_set_event(guest_user_syscall, fn);
+}

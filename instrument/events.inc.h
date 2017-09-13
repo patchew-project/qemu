@@ -78,3 +78,19 @@ static inline void instr_guest_mem_before_exec(
         instr_set_state(INSTR_STATE_DISABLE);
     }
 }
+
+static inline void instr_guest_user_syscall(
+    CPUState *vcpu, uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
+    uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8)
+{
+    void (*cb)(QICPU vcpu, uint64_t num, uint64_t arg1, uint64_t arg2,
+               uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6,
+               uint64_t arg7, uint64_t arg8)
+        = instr_get_event(guest_user_syscall);
+    if (cb) {
+        instr_set_state(INSTR_STATE_ENABLE);
+        QICPU vcpu_ = instr_cpu_to_qicpu(vcpu);
+        (*cb)(vcpu_, num, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+        instr_set_state(INSTR_STATE_DISABLE);
+    }
+}

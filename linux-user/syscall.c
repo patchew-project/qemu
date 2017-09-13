@@ -7723,6 +7723,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef DEBUG
     gemu_log("syscall %d", num);
 #endif
+    instr_guest_user_syscall(cpu, num,
+                             arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
     trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
     if(do_strace)
         print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);

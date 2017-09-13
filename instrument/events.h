@@ -68,6 +68,13 @@ extern void (*instr_event__guest_mem_before_exec)(
 static inline void instr_guest_mem_before_exec(
     CPUState *vcpu, uint64_t vaddr, TraceMemInfo info);
 
+extern void (*instr_event__guest_user_syscall)(
+    QICPU vcpu, uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
+    uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8);
+static inline void instr_guest_user_syscall(
+    CPUState *vcpu, uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
+    uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8);
+
 
 #include "instrument/events.inc.h"
 

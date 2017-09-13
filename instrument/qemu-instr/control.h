@@ -142,6 +142,21 @@ void qi_event_gen_guest_mem_before_exec(
 void qi_event_set_guest_mem_before_exec(
     void (*fn)(QICPU vcpu, uint64_t vaddr, QIMemInfo info));
 
+/*
+ * Start executing a guest system call in syscall emulation mode.
+ *
+ * @num: System call number.
+ * @arg*: System call argument value.
+ *
+ * Mode: user
+ * Targets: TCG(all)
+ * Time: exec
+ */
+void qi_event_set_guest_user_syscall(
+    void (*fn)(QICPU vcpu, uint64_t num, uint64_t arg1, uint64_t arg2,
+               uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6,
+               uint64_t arg7, uint64_t arg8));
+
 #ifdef __cplusplus
 }
 #endif

@@ -164,6 +164,7 @@ InstrUnloadError instr_unload(const char *id)
     instr_set_event(guest_cpu_reset, NULL);
     instr_set_event(guest_mem_before_trans, NULL);
     instr_set_event(guest_mem_before_exec, NULL);
+    instr_set_event(guest_user_syscall, NULL);
 
     instr_cpu_stop_all_end(&info);
     cpu_list_unlock();
