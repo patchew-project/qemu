@@ -15,6 +15,17 @@
 #include <stdint.h>
 
 
+struct InstrCPUStop {
+    instr_cpu_stop_fun fun;
+    void *data;
+#if !defined(CONFIG_USER_ONLY)
+    bool stopped;
+    unsigned int count;
+    QemuCond cond;
+    QemuMutex mutex;
+#endif
+};
+
 extern unsigned int instr_cpus_count;
 extern CPUState **instr_cpus;
 

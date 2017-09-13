@@ -46,6 +46,32 @@ static inline QICPU instr_cpu_to_qicpu(CPUState *vcpu);
  */
 static inline CPUState *instr_cpu_from_qicpu(QICPU vcpu);
 
+typedef struct InstrCPUStop InstrCPUStop;
+typedef void (*instr_cpu_stop_fun)(CPUState *cpu, void *data);
+
+/**
+ * instr_cpu_stop_all_begin:
+ * @info: Opaque structure describing the operation.
+ * @fun: Function to run on the context of each vCPU once stopped.
+ * @data: Pointer to pass to @fun.
+ *
+ * Ensure all vCPUs stop executing guest code, and execute @fun on their context
+ * in turn. Returns with all vCPUs still stopped.
+ *
+ * Assumes cpu_list_lock() and that the QBL is locked before calling.
+ */
+void instr_cpu_stop_all_begin(InstrCPUStop *info,
+                              instr_cpu_stop_fun fun, void *data);
+
+/**
+ * instr_cpu_stop_all_end:
+ * @info: Opaque structure passed to a previous instr_cpu_stop_all_begin()
+ *     call.
+ *
+ * Resume execution on all vCPUs stopped by instr_cpu_stop_all_begin().
+ */
+void instr_cpu_stop_all_end(InstrCPUStop *info);
+
 
 /**
  * InstrState:
