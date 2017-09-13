@@ -11,6 +11,7 @@
 #include "qemu-common.h"
 
 #include <dlfcn.h>
+#include "exec/cpu-common.h"
 #include "instrument/control.h"
 #include "instrument/events.h"
 #include "instrument/load.h"
@@ -109,6 +110,13 @@ InstrLoadError instr_load(const char *path, int argc, const char **argv,
         goto err;
     }
 
+    cpu_list_lock();
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        instr_guest_cpu_enter(cpu);
+    }
+    cpu_list_unlock();
+
     res = INSTR_LOAD_OK;
     goto out;
 
@@ -138,6 +146,7 @@ InstrUnloadError instr_unload(const char *id)
     }
 
     instr_set_event(fini_fn, NULL);
+    instr_set_event(guest_cpu_enter, NULL);
 
     /* this should never fail */
     if (dlclose(handle->dlhandle) < 0) {

@@ -49,3 +49,12 @@ SYM_PUBLIC void qi_set_fini(qi_fini_fn fn, void *data)
     instr_set_event(fini_fn, fn);
     instr_set_event(fini_data, data);
 }
+
+
+void (*instr_event__guest_cpu_enter)(QICPU vcpu);
+
+SYM_PUBLIC void qi_event_set_guest_cpu_enter(void (*fn)(QICPU vcpu))
+{
+    ERROR_IF(!instr_get_state(), "called outside instrumentation");
+    instr_set_event(guest_cpu_enter, fn);
+}

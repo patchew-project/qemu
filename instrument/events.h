@@ -11,6 +11,7 @@
 #define INSTRUMENT__EVENTS_H
 
 #include "instrument/qemu-instr/control.h"
+#include "instrument/qemu-instr/types.h"
 
 /**
  * instr_get_event:
@@ -31,6 +32,10 @@
 
 extern qi_fini_fn instr_event__fini_fn;
 extern void *instr_event__fini_data;
+
+extern void (*instr_event__guest_cpu_enter)(QICPU vcpu);
+static inline void instr_guest_cpu_enter(CPUState *vcpu);
+
 
 #include "instrument/events.inc.h"
 

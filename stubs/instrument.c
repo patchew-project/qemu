@@ -42,3 +42,4 @@ void qmp_instr_unload(const char *id, Error **errp)
 
 
 __thread InstrState instr_cur_state;
+void (*instr_event__guest_cpu_enter)(QICPU *vcpu);
