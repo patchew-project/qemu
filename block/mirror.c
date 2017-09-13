@@ -96,6 +96,7 @@ struct MirrorOp {
     /* Set by mirror_co_read() before yielding for the first time */
     uint64_t bytes_copied;
 
+    bool is_active_write;
     CoQueue waiting_requests;
 
     QTAILQ_ENTRY(MirrorOp) next;
@@ -286,9 +287,14 @@ static inline void mirror_wait_for_free_in_flight_slot(MirrorBlockJob *s)
 {
     MirrorOp *op;
 
-    op = QTAILQ_FIRST(&s->ops_in_flight);
-    assert(op);
-    qemu_co_queue_wait(&op->waiting_requests, NULL);
+    QTAILQ_FOREACH(op, &s->ops_in_flight, next) {
+        if (!op->is_active_write) {
+            /* Only non-active operations use up in-flight slots */
+            qemu_co_queue_wait(&op->waiting_requests, NULL);
+            return;
+        }
+    }
+    abort();
 }
 
 /* Submit async read while handling COW.
