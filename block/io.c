@@ -1931,7 +1931,7 @@ static int64_t coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
     return ret;
 }
 
-/* Coroutine wrapper for bdrv_get_block_status_above() */
+/* Coroutine wrapper for bdrv_block_status_above() */
 static void coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
 {
     BdrvCoBlockStatusData *data = opaque;
@@ -1978,43 +1978,20 @@ static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
     return data.ret;
 }
 
-int64_t bdrv_get_block_status_above(BlockDriverState *bs,
-                                    BlockDriverState *base,
-                                    int64_t sector_num,
-                                    int nb_sectors, int *pnum,
-                                    BlockDriverState **file)
+int64_t bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
+                                int64_t offset, int64_t bytes, int64_t *pnum,
+                                BlockDriverState **file)
 {
-    int64_t ret;
-    int64_t n;
-
-    ret = bdrv_common_block_status_above(bs, base, true,
-                                         sector_num * BDRV_SECTOR_SIZE,
-                                         nb_sectors * BDRV_SECTOR_SIZE,
-                                         &n, file);
-    if (ret < 0) {
-        return ret;
-    }
-    assert(QEMU_IS_ALIGNED(n, BDRV_SECTOR_SIZE));
-    *pnum = n >> BDRV_SECTOR_BITS;
-    return ret;
+    return bdrv_common_block_status_above(bs, base, true, offset, bytes,
+                                          pnum, file);
 }
 
 int64_t bdrv_block_status(BlockDriverState *bs,
                           int64_t offset, int64_t bytes, int64_t *pnum,
                           BlockDriverState **file)
 {
-    int64_t ret;
-    int n;
-
-    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
-    bytes = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
-    ret = bdrv_get_block_status_above(bs, backing_bs(bs),
-                                      offset >> BDRV_SECTOR_BITS,
-                                      bytes >> BDRV_SECTOR_BITS, &n, file);
-    if (pnum) {
-        *pnum = n * BDRV_SECTOR_SIZE;
-    }
-    return ret;
+    return bdrv_block_status_above(bs, backing_bs(bs),
+                                   offset, bytes, pnum, file);
 }
 
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
