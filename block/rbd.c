@@ -96,6 +96,8 @@ typedef struct BDRVRBDState {
     rbd_image_t image;
     char *image_name;
     char *snap;
+    uint64_t watcher_handle;
+    uint64_t size_bytes;
 } BDRVRBDState;
 
 static char *qemu_rbd_next_tok(char *src, char delim, char **p)
@@ -540,6 +542,67 @@ out:
     return rados_str;
 }
 
+/* BH for when rbd notifies us of an update. */
+static void qemu_rbd_update_bh(void *arg)
+{
+    BlockDriverState *parent, *bs = arg;
+    BDRVRBDState *s = bs->opaque;
+    bool was_variable_length;
+    uint64_t new_size_bytes;
+    int64_t new_parent_len;
+    BdrvChild *c;
+    int r;
+
+    r = rbd_get_size(s->image, &new_size_bytes);
+    if (r < 0) {
+        error_report("error reading size for %s: %s", s->name, strerror(-r));
+        return;
+    }
+
+    /* Avoid no-op resizes on non-resize notifications. */
+    if (new_size_bytes == s->size_bytes) {
+        error_printf("skipping non-resize rbd cb\n");
+        return;
+    }
+
+    /* NOTE: This assumes there's only one layer between us and the
+       block-backend. Is this always true? */
+    parent = bs->inherits_from;
+    if (parent == NULL) {
+        error_report("bs %s does not have parent", bdrv_get_device_or_node_name(bs));
+        return;
+    }
+
+    /* Force parents to re-read our size. */
+    was_variable_length = bs->drv->has_variable_length;
+    bs->drv->has_variable_length = true;
+    new_parent_len = bdrv_getlength(parent);
+    if (new_parent_len < 0) {
+        error_report("getlength failed on parent %s", bdrv_get_device_or_node_name(parent));
+        bs->drv->has_variable_length = was_variable_length;
+        return;
+    }
+    bs->drv->has_variable_length = was_variable_length;
+
+    /* Notify block backends that that we have resized.
+       Copied from bdrv_parent_cb_resize. */
+    QLIST_FOREACH(c, &parent->parents, next_parent) {
+        if (c->role->resize) {
+            c->role->resize(c);
+        }
+    }
+
+    s->size_bytes = new_size_bytes;
+}
+
+/* Called from non-qemu thread - careful! */
+static void qemu_rbd_update_cb(void *arg)
+{
+    BlockDriverState *bs = arg;
+
+    aio_bh_schedule_oneshot(bdrv_get_aio_context(bs), qemu_rbd_update_bh, bs);
+}
+
 static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
@@ -672,9 +735,25 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    r = rbd_update_watch(s->image, &s->watcher_handle, qemu_rbd_update_cb, bs);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error registering watcher on %s", s->name);
+        goto failed_watch;
+    }
+
+    r = rbd_get_size(s->image, &s->size_bytes);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error reading size for %s", s->name);
+        goto failed_sz;
+    }
+
     qemu_opts_del(opts);
     return 0;
 
+failed_sz:
+    rbd_update_unwatch(s->image, s->watcher_handle);
+failed_watch:
+    rbd_close(s->image);
 failed_open:
     rados_ioctx_destroy(s->io_ctx);
 failed_shutdown:
@@ -712,6 +791,7 @@ static void qemu_rbd_close(BlockDriverState *bs)
 {
     BDRVRBDState *s = bs->opaque;
 
+    rbd_update_unwatch(s->image, s->watcher_handle);
     rbd_close(s->image);
     rados_ioctx_destroy(s->io_ctx);
     g_free(s->snap);
