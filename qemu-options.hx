@@ -4077,6 +4077,25 @@ HXCOMM HX does not support conditional compilation of text.
 @findex -trace
 @include qemu-option-trace.texi
 ETEXI
+#if defined(CONFIG_INSTRUMENT)
+DEF("instr", HAS_ARG, QEMU_OPTION_instr,
+    "-instr [file=]<file>[,arg=<string>]\n"
+    "                load an instrumentation library\n",
+    QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -instr file=@var{file}[,arg=@var{string}]
+@findex -instr
+
+Load a dynamic trace instrumentation library.
+
+@table @option
+@item file=@var{file}
+Load the given dynamic trace instrumentation library.
+@item arg=@var{string}
+String argument passed as to the library's @code{qi_init} routine (can be given multiple times).
+@end table
+ETEXI
 
 HXCOMM Internal use
 DEF("qtest", HAS_ARG, QEMU_OPTION_qtest, "", QEMU_ARCH_ALL)
