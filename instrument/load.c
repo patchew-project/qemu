@@ -11,7 +11,9 @@
 #include "qemu-common.h"
 
 #include <dlfcn.h>
+#include "cpu.h"
 #include "exec/cpu-common.h"
+#include "exec/exec-all.h"
 #include "instrument/control.h"
 #include "instrument/events.h"
 #include "instrument/load.h"
@@ -127,6 +129,13 @@ out:
     return res;
 }
 
+
+static void instr_unload__cb(CPUState *cpu, void *data)
+{
+    tb_flush_sync(cpu);
+    instr_guest_cpu_exit(cpu);
+}
+
 InstrUnloadError instr_unload(const char *id)
 {
     InstrUnloadError res;
@@ -139,6 +148,10 @@ InstrUnloadError instr_unload(const char *id)
         goto out;
     }
 
+    InstrCPUStop info;
+    cpu_list_lock();
+    instr_cpu_stop_all_begin(&info, instr_unload__cb, NULL);
+
     qi_fini_fn fini_fn = instr_get_event(fini_fn);
     if (fini_fn) {
         void *fini_data = instr_get_event(fini_data);
@@ -147,6 +160,10 @@ InstrUnloadError instr_unload(const char *id)
 
     instr_set_event(fini_fn, NULL);
     instr_set_event(guest_cpu_enter, NULL);
+    instr_set_event(guest_cpu_exit, NULL);
+
+    instr_cpu_stop_all_end(&info);
+    cpu_list_unlock();
 
     /* this should never fail */
     if (dlclose(handle->dlhandle) < 0) {

@@ -85,6 +85,17 @@ void qi_set_fini(qi_fini_fn fn, void *data);
  */
 void qi_event_set_guest_cpu_enter(void (*fn)(QICPU vcpu));
 
+/*
+ * Hot-unplug a virtual (guest) CPU.
+ *
+ * Also triggered on each CPU when an instrumentation library is unloaded.
+ *
+ * Mode: user, softmmu
+ * Targets: all
+ * Time: exec
+ */
+void qi_event_set_guest_cpu_exit(void (*fn)(QICPU vcpu));
+
 #ifdef __cplusplus
 }
 #endif
