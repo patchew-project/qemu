@@ -111,4 +111,23 @@
 #define GCC_FMT_ATTR(n, m)
 #endif
 
+/*
+ * Export symbol to dlopen()'ed libraries'.
+ *
+ * This code is taken from http://gcc.gnu.org/wiki/Visibility.
+ */
+#if defined _WIN32 || defined __CYGWIN__
+  #ifdef __GNUC__
+    #define SYM_PUBLIC __attribute__ ((dllimport))
+  #else
+    #define SYM_PUBLIC __declspec(dllimport)
+  #endif
+#else
+  #if __GNUC__ >= 4
+    #define SYM_PUBLIC __attribute__ ((visibility("default")))
+  #else
+    #define SYM_PUBLIC
+  #endif
+#endif
+
 #endif /* COMPILER_H */

@@ -6030,6 +6030,7 @@ if test "$instrument" = "yes"; then
   LIBS="-ldl $LIBS"
   echo "CONFIG_INSTRUMENT=y" >> $config_host_mak
 fi
+QEMU_INCLUDES="-I\$(SRC_PATH)/instrument $QEMU_INCLUDES"
 
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak

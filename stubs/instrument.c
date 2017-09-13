@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 
 #include "instrument/cmdline.h"
+#include "instrument/control.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 
@@ -38,3 +39,6 @@ void qmp_instr_unload(const char *id, Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
 }
+
+
+__thread InstrState instr_cur_state;
