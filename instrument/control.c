@@ -211,3 +211,18 @@ SYM_PUBLIC void qi_event_set_guest_user_syscall(
 #endif
     instr_set_event(guest_user_syscall, fn);
 }
+
+
+void (*instr_event__guest_user_syscall_ret)(
+    QICPU vcpu, uint64_t num, uint64_t ret);
+
+SYM_PUBLIC void qi_event_set_guest_user_syscall_ret(
+    void (*fn)(QICPU vcpu, uint64_t num, uint64_t ret))
+{
+    ERROR_IF(!instr_get_state(), "called outside instrumentation");
+    ERROR_IF(!tcg_enabled(), "called without TCG");
+#if !defined(CONFIG_USER_ONLY)
+    ERROR_IF(true, "called in full-system mode");
+#endif
+    instr_set_event(guest_user_syscall_ret, fn);
+}

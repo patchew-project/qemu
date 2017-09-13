@@ -69,3 +69,5 @@ void (*instr_event__guest_mem_before_exec)(
 void (*instr_event__guest_user_syscall)(
     QICPU vcpu, uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
     uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8);
+void (*instr_event__guest_user_syscall_ret)(
+    QICPU vcpu, uint64_t num, uint64_t ret);

@@ -12398,6 +12398,7 @@ fail:
 #endif
     if(do_strace)
         print_syscall_ret(num, ret);
+    instr_guest_user_syscall_ret(cpu, num, ret);
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
 efault:

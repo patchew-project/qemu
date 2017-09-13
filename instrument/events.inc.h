@@ -94,3 +94,16 @@ static inline void instr_guest_user_syscall(
         instr_set_state(INSTR_STATE_DISABLE);
     }
 }
+
+static inline void instr_guest_user_syscall_ret(
+    CPUState *vcpu, uint64_t num, uint64_t ret)
+{
+    void (*cb)(QICPU vcpu, uint64_t num, uint64_t ret)
+        = instr_get_event(guest_user_syscall_ret);
+    if (cb) {
+        instr_set_state(INSTR_STATE_ENABLE);
+        QICPU vcpu_ = instr_cpu_to_qicpu(vcpu);
+        (*cb)(vcpu_, num, ret);
+        instr_set_state(INSTR_STATE_DISABLE);
+    }
+}
