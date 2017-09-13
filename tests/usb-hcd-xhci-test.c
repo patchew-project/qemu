@@ -23,26 +23,9 @@ static void test_xhci_hotplug(void)
 
 static void test_usb_uas_hotplug(void)
 {
-    QDict *response;
-
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'usb-uas',"
-                   "   'id': 'uas'"
-                   "}}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
-
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'scsi-hd',"
-                   "   'drive': 'drive0',"
-                   "   'id': 'scsi-hd'"
-                   "}}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qmp_device_add("'driver': 'usb-uas', 'id': 'uas'");
+    qmp_device_add("'driver': 'scsi-hd', 'drive': 'drive0',"
+                   "'id': 'scsi-hd'");
 
     /* TODO:
         UAS HBA driver in libqos, to check that

@@ -48,18 +48,8 @@ static void test_uhci_hotplug(void)
 
 static void test_usb_storage_hotplug(void)
 {
-    QDict *response;
-
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'usb-storage',"
-                   "   'drive': 'drive0',"
-                   "   'id': 'usbdev0'"
-                   "}}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
-
+    qmp_device_add("'driver': 'usb-storage',"
+                   "'drive': 'drive0', 'id': 'usbdev0'");
     qmp_device_del("usbdev0");
 }
 

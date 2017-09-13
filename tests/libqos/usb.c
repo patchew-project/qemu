@@ -40,21 +40,12 @@ void uhci_port_test(struct qhc *hc, int port, uint16_t expect)
 void usb_test_hotplug(const char *hcd_id, const int port,
                       void (*port_check)(void))
 {
-    QDict *response;
     char  *cmd;
 
-    cmd = g_strdup_printf("{'execute': 'device_add',"
-                          " 'arguments': {"
-                          "   'driver': 'usb-tablet',"
-                          "   'port': '%d',"
-                          "   'bus': '%s.0',"
-                          "   'id': 'usbdev%d'"
-                          "}}", port, hcd_id, port);
-    response = qmp(cmd);
-    g_free(cmd);
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    cmd = g_strdup_printf("'driver': 'usb-tablet', 'port': '%d',"
+                          "'bus': '%s.0', 'id': 'usbdev%d'",
+                          port, hcd_id, port);
+    qmp_device_add(cmd);
 
     if (port_check) {
         port_check();
