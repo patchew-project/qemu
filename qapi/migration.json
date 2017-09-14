@@ -986,7 +986,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
+{ 'command': 'migrate-incoming', 'data': {'uri': 'str' },
+  'allow-oob': true }
 
 ##
 # @xen-save-devices-state:
