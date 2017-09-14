@@ -665,6 +665,16 @@ allowed to run out-of-band can also be introspected using
 query-qmp-schema command.  Please see the section "Client JSON
 Protocol introspection" for more information.
 
+To execute a command in out-of-band way, we need to specify the
+"control" field in the request, with "run-oob" set to true. Example:
+
+ => { "execute": "command-support-oob",
+      "arguments": { ... },
+      "control": { "run-oob": true } }
+ <= { "return": { } }
+
+Without it, even the commands that supports out-of-band execution will
+still be run in-band.
 
 === Events ===
 
