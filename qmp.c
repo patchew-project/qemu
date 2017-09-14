@@ -130,6 +130,20 @@ void qmp_cpu_add(int64_t id, Error **errp)
     }
 }
 
+#if defined(_WIN64) || defined(_WIN32) || defined(__FreeBSD__)
+
+void qmp_fsdev_set_io_throttle(ThrottleLimits *arg, Error **errp)
+{
+    return;
+}
+
+ThrottleLimitsList *qmp_query_fsdev_io_throttle(Error **errp)
+{
+    return NULL;
+}
+
+#endif
+
 #ifndef CONFIG_VNC
 /* If VNC support is enabled, the "true" query-vnc command is
    defined in the VNC subsystem */
