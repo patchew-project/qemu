@@ -25,16 +25,20 @@ typedef struct JSONToken {
 
 typedef struct JSONMessageParser
 {
-    void (*emit)(struct JSONMessageParser *parser, GQueue *tokens);
+    void (*emit)(struct JSONMessageParser *parser, GQueue *tokens, void *opaque);
     JSONLexer lexer;
     int brace_count;
     int bracket_count;
     GQueue *tokens;
     uint64_t token_size;
+    /* To be passed in when emit(). */
+    void *opaque;
 } JSONMessageParser;
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*func)(JSONMessageParser *, GQueue *));
+                              void (*func)(JSONMessageParser *, GQueue *,
+                                           void *opaque),
+                              void *opaque);
 
 int json_message_parser_feed(JSONMessageParser *parser,
                              const char *buffer, size_t size);

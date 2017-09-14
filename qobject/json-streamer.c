@@ -102,18 +102,21 @@ out_emit:
      */
     tokens = parser->tokens;
     parser->tokens = g_queue_new();
-    parser->emit(parser, tokens);
+    parser->emit(parser, tokens, parser->opaque);
     parser->token_size = 0;
 }
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*func)(JSONMessageParser *, GQueue *))
+                              void (*func)(JSONMessageParser *,
+                                           GQueue *, void *opaque),
+                              void *opaque)
 {
     parser->emit = func;
     parser->brace_count = 0;
     parser->bracket_count = 0;
     parser->tokens = g_queue_new();
     parser->token_size = 0;
+    parser->opaque = opaque;
 
     json_lexer_init(&parser->lexer, json_message_process_token);
 }
