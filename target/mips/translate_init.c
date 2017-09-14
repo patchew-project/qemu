@@ -947,3 +947,39 @@ static void msa_reset(CPUMIPSState *env)
     /* set proper signanling bit meaning ("1" means "quiet") */
     set_snan_bit_is_one(0, &env->active_tc.msa_fp_status);
 }
+
+#include "disas/capstone.h"
+
+void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
+{
+    MIPSCPU *cpu = MIPS_CPU(s);
+    CPUMIPSState *env = &cpu->env;
+    int insn_flags = env->cpu_model->insn_flags;
+    int cap_mode;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    info->print_insn = print_insn_big_mips;
+#else
+    info->print_insn = print_insn_little_mips;
+#endif
+
+    cap_mode = 0;
+    if (insn_flags & ISA_MIPS3) {
+        cap_mode |= CS_MODE_MIPS3;
+    }
+    if (insn_flags & ISA_MIPS32) {
+        cap_mode |= CS_MODE_MIPS32;
+    }
+    if (insn_flags & ISA_MIPS64) {
+        cap_mode |= CS_MODE_MIPS64;
+    }
+    if (insn_flags & ISA_MIPS32R6) {
+        cap_mode |= CS_MODE_MIPS32R6;
+    }
+#ifdef TARGET_MIPS64
+    cap_mode |= CS_MODE_MIPSGP64;
+#endif
+
+    info->cap_arch = CS_ARCH_MIPS;
+    info->cap_mode = cap_mode;
+}

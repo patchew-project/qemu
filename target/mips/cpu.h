@@ -1118,4 +1118,6 @@ static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
     do_raise_exception_err(env, exception, 0, pc);
 }
 
+void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info);
+
 #endif /* MIPS_CPU_H */

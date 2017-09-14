@@ -111,14 +111,6 @@ static void mips_cpu_reset(CPUState *s)
 #endif
 }
 
-static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info) {
-#ifdef TARGET_WORDS_BIGENDIAN
-    info->print_insn = print_insn_big_mips;
-#else
-    info->print_insn = print_insn_little_mips;
-#endif
-}
-
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
