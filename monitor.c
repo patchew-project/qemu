@@ -36,6 +36,7 @@
 #include "net/net.h"
 #include "net/slirp.h"
 #include "chardev/char-fe.h"
+#include "chardev/char-mux.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/numa.h"
 #include "monitor/monitor.h"
@@ -4214,7 +4215,7 @@ void monitor_init(Chardev *chr, int flags)
     Monitor *mon = g_malloc(sizeof(*mon));
     GMainContext *context;
 
-    monitor_data_init(mon, false, false);
+    monitor_data_init(mon, false, !CHARDEV_IS_MUX(chr));
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
