@@ -6,6 +6,7 @@
 
 #include "cpu.h"
 #include "disas/disas.h"
+#include "disas/capstone.h"
 
 typedef struct CPUDebug {
     struct disassemble_info info;
@@ -171,6 +172,57 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
     return print_insn_objdump(pc, info, "OBJD-T");
 }
 
+static bool cap_disas(disassemble_info *info, uint64_t pc, size_t size)
+{
+    bool ret = false;
+#ifdef CONFIG_CAPSTONE
+    csh handle;
+    cs_insn *insn;
+    uint8_t *buf;
+    const uint8_t *cbuf;
+    uint64_t pc_start;
+    cs_mode cap_mode = info->cap_mode;
+
+    cap_mode += (info->endian == BFD_ENDIAN_BIG ? CS_MODE_BIG_ENDIAN
+                 : CS_MODE_LITTLE_ENDIAN);
+
+    if (cs_open(info->cap_arch, cap_mode, &handle) != CS_ERR_OK) {
+        goto err0;
+    }
+
+    /* ??? There probably ought to be a better place to put this.  */
+    if (info->cap_arch == CS_ARCH_X86) {
+        /* We don't care about errors (if for some reason the library
+           is compiled without AT&T syntax); the user will just have
+           to deal with the Intel syntax.  */
+        cs_option(handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
+    }
+
+    insn = cs_malloc(handle);
+    if (insn == NULL) {
+        goto err1;
+    }
+
+    cbuf = buf = g_malloc(size);
+    info->read_memory_func(pc, buf, size, info);
+
+    pc_start = pc;
+    while (cs_disasm_iter(handle, &cbuf, &size, &pc, insn)) {
+        (*info->fprintf_func)(info->stream,
+                              "0x%08" PRIx64 ":  %-12s %s\n",
+                              pc_start, insn->mnemonic, insn->op_str);
+        pc_start = pc;
+    }
+    ret = true;
+
+    g_free(buf);
+ err1:
+    cs_close(&handle);
+ err0:
+#endif /* CONFIG_CAPSTONE */
+    return ret;
+}
+
 /* Disassemble this for me please... (debugging).  */
 void target_disas(FILE *out, CPUState *cpu, target_ulong code,
                   target_ulong size)
@@ -188,6 +240,8 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     s.info.buffer_vma = code;
     s.info.buffer_length = size;
     s.info.print_address_func = generic_print_address;
+    s.info.cap_arch = -1;
+    s.info.cap_mode = 0;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -199,6 +253,10 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
         cc->disas_set_info(cpu, &s.info);
     }
 
+    if (s.info.cap_arch >= 0 && cap_disas(&s.info, code, size)) {
+        return;
+    }
+
     if (s.info.print_insn == NULL) {
         s.info.print_insn = print_insn_od_target;
     }
@@ -206,18 +264,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
 	count = s.info.print_insn(pc, &s.info);
-#if 0
-        {
-            int i;
-            uint8_t b;
-            fprintf(out, " {");
-            for(i = 0; i < count; i++) {
-                target_read_memory(pc + i, &b, 1, &s.info);
-                fprintf(out, " %02x", b);
-            }
-            fprintf(out, " }");
-        }
-#endif
 	fprintf(out, "\n");
 	if (count < 0)
 	    break;
@@ -245,6 +291,8 @@ void disas(FILE *out, void *code, unsigned long size)
     s.info.buffer = code;
     s.info.buffer_vma = (uintptr_t)code;
     s.info.buffer_length = size;
+    s.info.cap_arch = -1;
+    s.info.cap_mode = 0;
 
 #ifdef HOST_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -256,21 +304,34 @@ void disas(FILE *out, void *code, unsigned long size)
 #elif defined(__i386__)
     s.info.mach = bfd_mach_i386_i386;
     print_insn = print_insn_i386;
+    s.info.cap_arch = CS_ARCH_X86;
+    s.info.cap_mode = CS_MODE_32;
 #elif defined(__x86_64__)
     s.info.mach = bfd_mach_x86_64;
     print_insn = print_insn_i386;
+    s.info.cap_arch = CS_ARCH_X86;
+    s.info.cap_mode = CS_MODE_64;
 #elif defined(_ARCH_PPC)
     s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
+    s.info.cap_arch = CS_ARCH_PPC;
+# ifdef _ARCH_PPC64
+    s.info.cap_mode = CS_MODE_64;
+# endif
 #elif defined(__aarch64__) && defined(CONFIG_ARM_A64_DIS)
     print_insn = print_insn_arm_a64;
+    s.info.cap_arch = CS_ARCH_ARM64;
 #elif defined(__alpha__)
     print_insn = print_insn_alpha;
 #elif defined(__sparc__)
     print_insn = print_insn_sparc;
     s.info.mach = bfd_mach_sparc_v9b;
+    s.info.cap_arch = CS_ARCH_SPARC;
+    s.info.cap_mode = CS_MODE_V9;
 #elif defined(__arm__)
     print_insn = print_insn_arm;
+    s.info.cap_arch = CS_ARCH_ARM;
+    /* TCG only generates code for arm mode.  */
 #elif defined(__MIPSEB__)
     print_insn = print_insn_big_mips;
 #elif defined(__MIPSEL__)
@@ -279,9 +340,15 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_m68k;
 #elif defined(__s390__)
     print_insn = print_insn_s390;
+    s.info.cap_arch = CS_ARCH_SYSZ;
 #elif defined(__hppa__)
     print_insn = print_insn_hppa;
 #endif
+
+    if (s.info.cap_arch >= 0 && cap_disas(&s.info, (uintptr_t)code, size)) {
+        return;
+    }
+
     if (print_insn == NULL) {
         print_insn = print_insn_od_host;
     }
@@ -355,6 +422,14 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 
     if (cc->disas_set_info) {
         cc->disas_set_info(cpu, &s.info);
+    }
+
+    /* ??? Capstone requires that we copy the data into a host-addressable
+       buffer first and has no call-back to read more.  Therefore we need
+       an estimate of buffer size.  This will work for most RISC, but we'll
+       need to figure out something else for variable-length ISAs.  */
+    if (s.info.cap_arch >= 0 && cap_disas(&s.info, pc, 4 * nb_insn)) {
+        return;
     }
 
     if (!s.info.print_insn) {
