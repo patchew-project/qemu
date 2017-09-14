@@ -42,6 +42,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/s390x/sclp.h"
 #endif
+#include "disas/capstone.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
@@ -172,6 +173,7 @@ static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     info->mach = bfd_mach_s390_64;
     info->print_insn = print_insn_s390;
+    info->cap_arch = CS_ARCH_SYSZ;
 }
 
 static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
