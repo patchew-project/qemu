@@ -3041,6 +3041,13 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     }
 
     bus = pcms->bus;
+
+    if (!bus) {
+        error_setg(errp, "Machine-type '%s' does not support PCI",
+                   mc->name);
+        return;
+    }
+
     x86_iommu->type = TYPE_INTEL;
 
     if (!vtd_decide_config(s, errp)) {
