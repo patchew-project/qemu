@@ -125,7 +125,7 @@ QString *qobject_to_qstring(const QObject *obj)
  */
 const char *qstring_get_str(const QString *qstring)
 {
-    return qstring->string;
+    return qstring ? qstring->string : NULL;
 }
 
 /**
