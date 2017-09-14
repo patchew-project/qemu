@@ -1679,6 +1679,16 @@ static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
     qemu_iovec_concat(qiov, &elem, skip, size);
 }
 
+static size_t v9fs_marshal_size(V9fsPDU *pdu)
+{
+    struct iovec *iov;
+    unsigned int niov;
+
+    pdu->s->transport->init_in_iov_from_pdu(pdu, &iov, &niov, 0);
+
+    return iov_size(iov, niov);
+}
+
 static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
                            uint64_t off, uint32_t max_count)
 {
@@ -1725,6 +1735,10 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
     off_t saved_dir_pos;
     struct dirent *dent;
 
+    /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
+    size_t offset = 11;
+    size_t marshal_size = v9fs_marshal_size(pdu);
+
     /* save the directory position */
     saved_dir_pos = v9fs_co_telldir(pdu, fidp);
     if (saved_dir_pos < 0) {
@@ -1752,18 +1766,23 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         if (err < 0) {
             break;
         }
-        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
-        len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
 
-        v9fs_readdir_unlock(&fidp->fs.dir);
+        if (v9stat.size + 2 > MIN(marshal_size - offset, max_count - count)) {
+            v9fs_readdir_unlock(&fidp->fs.dir);
 
-        if ((len != (v9stat.size + 2)) || ((count + len) > max_count)) {
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_stat_free(&v9stat);
             v9fs_path_free(&path);
             return count;
         }
+
+        len = pdu_marshal(pdu, offset, "S", &v9stat);
+        BUG_ON(len != v9stat.size + 2);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
+        offset += len;
         count += len;
         v9fs_stat_free(&v9stat);
         v9fs_path_free(&path);
@@ -1884,6 +1903,10 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
     off_t saved_dir_pos;
     struct dirent *dent;
 
+    /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
+    size_t offset = 11;
+    size_t marshal_size = v9fs_marshal_size(pdu);
+
     /* save the directory position */
     saved_dir_pos = v9fs_co_telldir(pdu, fidp);
     if (saved_dir_pos < 0) {
@@ -1899,7 +1922,8 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
         }
         v9fs_string_init(&name);
         v9fs_string_sprintf(&name, "%s", dent->d_name);
-        if ((count + v9fs_readdir_data_size(&name)) > max_count) {
+        if (v9fs_readdir_data_size(&name) > MIN(marshal_size - offset,
+                                                max_count - count)) {
             v9fs_readdir_unlock(&fidp->fs.dir);
 
             /* Ran out of buffer. Set dir back to old position and return */
@@ -1918,18 +1942,14 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
         qid.type = 0;
         qid.version = 0;
 
-        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
-        len = pdu_marshal(pdu, 11 + count, "Qqbs",
+        len = pdu_marshal(pdu, offset, "Qqbs",
                           &qid, dent->d_off,
                           dent->d_type, &name);
+        BUG_ON(len != v9fs_readdir_data_size(&name));
 
         v9fs_readdir_unlock(&fidp->fs.dir);
 
-        if (len < 0) {
-            v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
-            v9fs_string_free(&name);
-            return len;
-        }
+        offset += len;
         count += len;
         v9fs_string_free(&name);
         saved_dir_pos = dent->d_off;
