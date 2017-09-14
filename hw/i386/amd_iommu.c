@@ -1153,6 +1153,13 @@ static void amdvi_realize(DeviceState *dev, Error **err)
     }
 
     bus = pcms->bus;
+
+    if (!bus) {
+        error_setg(err, "Machine-type '%s' does not support PCI",
+                   mc->name);
+        return;
+    }
+
     s->iotlb = g_hash_table_new_full(amdvi_uint64_hash,
                                      amdvi_uint64_equal, g_free, g_free);
 
