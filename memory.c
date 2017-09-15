@@ -900,14 +900,12 @@ static void address_space_update_topology_pass(AddressSpace *as,
     }
 }
 
-static void address_space_update_flatview(AddressSpace *as,
-                                          FlatView *old_view,
-                                          FlatView *new_view)
+static void flatview_render_new(FlatView *old_view, FlatView *new_view)
 {
     unsigned iold, inew;
     FlatRange *frold, *frnew;
 
-    new_view->dispatch = mem_begin(as);
+    new_view->dispatch = address_space_dispatch_alloc(new_view);
     /*
      * FIXME: this is cut-n-paste from address_space_update_topology_pass,
      * simplify it
@@ -935,7 +933,7 @@ static void address_space_update_flatview(AddressSpace *as,
             /* In both and unchanged (except logging may have changed) */
             MemoryRegionSection mrs = section_from_flat_range(frnew, new_view);
 
-            mem_add(new_view, &mrs);
+            flatview_mem_add(new_view, &mrs);
 
             ++iold;
             ++inew;
@@ -943,12 +941,12 @@ static void address_space_update_flatview(AddressSpace *as,
             /* In new */
             MemoryRegionSection mrs = section_from_flat_range(frnew, new_view);
 
-            mem_add(new_view, &mrs);
+            flatview_mem_add(new_view, &mrs);
 
             ++inew;
         }
     }
-    mem_commit(new_view->dispatch);
+    address_space_dispatch_compact(new_view->dispatch);
 }
 
 static void address_space_update_topology(AddressSpace *as)
@@ -956,7 +954,7 @@ static void address_space_update_topology(AddressSpace *as)
     FlatView *old_view = address_space_get_flatview(as);
     FlatView *new_view = generate_memory_topology(as->root);
 
-    address_space_update_flatview(as, old_view, new_view);
+    flatview_render_new(old_view, new_view);
     address_space_update_topology_pass(as, old_view, new_view, false);
     address_space_update_topology_pass(as, old_view, new_view, true);
 
