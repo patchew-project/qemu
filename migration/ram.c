@@ -1365,6 +1365,9 @@ static void ram_save_cleanup(void *opaque)
     RAMState **rsp = opaque;
     RAMBlock *block;
 
+    if (!rsp || !*rsp) {
+        return;
+    }
     /* caller have hold iothread lock or is in a bh, so there is
      * no writing race against this migration_bitmap
      */
