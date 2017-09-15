@@ -366,6 +366,12 @@ static void command_loop(void)
     char *input;
 
     for (i = 0; !done && i < ncmdline; i++) {
+        /* Make sure that we start each command with clean permissions and only
+         * add whatever the specific cmdinfo_t describes */
+        if (qemuio_blk) {
+            blk_set_perm(qemuio_blk, BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL,
+                         &error_abort);
+        }
         done = qemuio_command(qemuio_blk, cmdline[i]);
     }
     if (cmdline) {
@@ -390,6 +396,13 @@ static void command_loop(void)
         input = fetchline();
         if (input == NULL) {
             break;
+        }
+
+        /* Make sure that we start each command with clean permissions and only
+         * add whatever the specific cmdinfo_t describes */
+        if (qemuio_blk) {
+            blk_set_perm(qemuio_blk, BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL,
+                         &error_abort);
         }
         done = qemuio_command(qemuio_blk, input);
         g_free(input);
