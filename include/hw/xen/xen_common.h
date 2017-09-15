@@ -12,6 +12,7 @@
 
 #include <xenctrl.h>
 #include <xenstore.h>
+#include <xentoolcore.h>
 #include <xen/io/xenbus.h>
 
 #include "hw/hw.h"
@@ -289,30 +290,7 @@ static inline int xen_modified_memory(domid_t domid, uint64_t first_pfn,
 
 static inline int xen_restrict(domid_t domid)
 {
-    int rc;
-
-    /* Attempt to restrict devicemodel operations */
-    rc = xendevicemodel_restrict(xen_dmod, domid);
-    trace_xen_domid_restrict(rc ? errno : 0);
-
-    if (rc < 0) {
-        /*
-         * If errno is ENOTTY then restriction is not implemented so
-         * there's no point in trying to restrict other types of
-         * operation, but it should not be treated as a failure.
-         */
-        if (errno == ENOTTY) {
-            return 0;
-        }
-
-        return rc;
-    }
-
-    /* Restrict foreignmemory operations */
-    rc = xenforeignmemory_restrict(xen_fmem, domid);
-    trace_xen_domid_restrict(rc ? errno : 0);
-
-    return rc;
+    return xentoolcore_restrict_all(domid);
 }
 
 void destroy_hvm_domain(bool reboot);
