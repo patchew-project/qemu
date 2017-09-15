@@ -231,6 +231,7 @@ struct FlatView {
     unsigned nr;
     unsigned nr_allocated;
     struct AddressSpaceDispatch *dispatch;
+    MemoryRegion *root;
 };
 
 typedef struct AddressSpaceOps AddressSpaceOps;
@@ -260,12 +261,14 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
         && a->readonly == b->readonly;
 }
 
-static FlatView *flatview_alloc(void)
+static FlatView *flatview_alloc(MemoryRegion *mr_root)
 {
     FlatView *view;
 
     view = g_new0(FlatView, 1);
     view->ref = 1;
+    view->root = mr_root;
+    memory_region_ref(mr_root);
 
     return view;
 }
@@ -298,6 +301,7 @@ static void flatview_destroy(FlatView *view)
         memory_region_unref(view->ranges[i].mr);
     }
     g_free(view->ranges);
+    memory_region_unref(view->root);
     g_free(view);
 }
 
@@ -629,7 +633,7 @@ static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
         mr = mr->container;
     }
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        if (mr == as->root) {
+        if (mr == as->current_map->root) {
             return as;
         }
     }
@@ -728,7 +732,7 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
 {
     FlatView *view;
 
-    view = flatview_alloc();
+    view = flatview_alloc(mr);
 
     if (mr) {
         render_memory_region(view, mr, int128_zero(),
@@ -952,7 +956,7 @@ static void flatview_render_new(FlatView *old_view, FlatView *new_view)
 static void address_space_update_topology(AddressSpace *as)
 {
     FlatView *old_view = address_space_get_flatview(as);
-    FlatView *new_view = generate_memory_topology(as->root);
+    FlatView *new_view = generate_memory_topology(old_view->root);
 
     flatview_render_new(old_view, new_view);
     address_space_update_topology_pass(as, old_view, new_view, false);
@@ -2680,12 +2684,10 @@ void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
-    memory_region_ref(root);
     memory_region_transaction_begin();
     as->ref_count = 1;
-    as->root = root;
     as->malloced = false;
-    as->current_map = flatview_alloc();
+    as->current_map = flatview_alloc(root);
     as->ioeventfd_nb = 0;
     as->ioeventfds = NULL;
     QTAILQ_INIT(&as->listeners);
@@ -2693,6 +2695,11 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     as->name = g_strdup(name ? name : "anonymous");
     memory_region_update_pending |= root->enabled;
     memory_region_transaction_commit();
+}
+
+MemoryRegion *address_space_root(AddressSpace *as)
+{
+    return as->current_map->root;
 }
 
 static void do_address_space_destroy(AddressSpace *as)
@@ -2704,7 +2711,6 @@ static void do_address_space_destroy(AddressSpace *as)
     flatview_unref(as->current_map);
     g_free(as->name);
     g_free(as->ioeventfds);
-    memory_region_unref(as->root);
     if (do_free) {
         g_free(as);
     }
@@ -2715,7 +2721,7 @@ AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
     AddressSpace *as;
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        if (root == as->root && as->malloced) {
+        if (root == address_space_root(as) && as->malloced) {
             as->ref_count++;
             return as;
         }
@@ -2729,15 +2735,12 @@ AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
 
 void address_space_destroy(AddressSpace *as)
 {
-    MemoryRegion *root = as->root;
-
     as->ref_count--;
     if (as->ref_count) {
         return;
     }
     /* Flush out anything from MemoryListeners listening in on this */
     memory_region_transaction_begin();
-    as->root = NULL;
     memory_region_transaction_commit();
     QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
 
@@ -2745,7 +2748,6 @@ void address_space_destroy(AddressSpace *as)
      * entries that the guest should never use.  Wait for the old
      * values to expire before freeing the data.
      */
-    as->root = root;
     call_rcu(as, do_address_space_destroy, rcu);
 }
 
@@ -2934,7 +2936,7 @@ void mtree_info(fprintf_function mon_printf, void *f, bool flatview)
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         mon_printf(f, "address-space: %s\n", as->name);
-        mtree_print_mr(mon_printf, f, as->root, 1, 0, &ml_head);
+        mtree_print_mr(mon_printf, f, address_space_root(as), 1, 0, &ml_head);
         mon_printf(f, "\n");
     }
 

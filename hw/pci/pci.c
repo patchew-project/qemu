@@ -90,7 +90,8 @@ static void pci_init_bus_master(PCIDevice *pci_dev)
 
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
                              OBJECT(pci_dev), "bus master",
-                             dma_as->root, 0, memory_region_size(dma_as->root));
+                             address_space_root(dma_as), 0,
+                             memory_region_size(address_space_root(dma_as)));
     memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
     memory_region_add_subregion(&pci_dev->bus_master_container_region, 0,
                                 &pci_dev->bus_master_enable_region);

@@ -308,7 +308,6 @@ struct AddressSpace {
     /* All fields are private. */
     struct rcu_head rcu;
     char *name;
-    MemoryRegion *root;
     int ref_count;
     bool malloced;
 
@@ -322,6 +321,7 @@ struct AddressSpace {
 };
 
 FlatView *address_space_to_flatview(AddressSpace *as);
+MemoryRegion *address_space_root(AddressSpace *as);
 
 /**
  * MemoryRegionSection: describes a fragment of a #MemoryRegion
