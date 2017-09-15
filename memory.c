@@ -2933,17 +2933,26 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
 }
 
 static void mtree_print_flatview(fprintf_function p, void *f,
-                                 AddressSpace *as)
+                                 FlatView *view)
 {
-    FlatView *view = address_space_get_flatview(as);
     FlatRange *range = &view->ranges[0];
     MemoryRegion *mr;
     int n = view->nr;
+    AddressSpace *as;
+
+    QTAILQ_FOREACH(as, &view->address_spaces, flat_view_link) {
+        p(f, " AS \"%s\"\n", as->name);
+    }
+
+    p(f, " Root memory region: %s", memory_region_name(view->root));
+    if (view->root->alias) {
+        p(f, " alias %s", memory_region_name(view->root->alias));
+    }
+    p(f, "\n");
 
     if (n <= 0) {
         p(f, MTREE_INDENT "No rendered FlatView for "
           "address space '%s'\n", as->name);
-        flatview_unref(view);
         return;
     }
 
@@ -2969,21 +2978,35 @@ static void mtree_print_flatview(fprintf_function p, void *f,
         }
         range++;
     }
-
-    flatview_unref(view);
 }
 
-void mtree_info(fprintf_function mon_printf, void *f, bool flatview)
+void mtree_info(fprintf_function mon_printf, void *f, bool flatview,
+                bool dispatch_tree)
 {
     MemoryRegionListHead ml_head;
     MemoryRegionList *ml, *ml2;
     AddressSpace *as;
+    FlatView *view;
+    int n;
 
     if (flatview) {
-        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-            mon_printf(f, "address-space (flat view): %s\n", as->name);
-            mtree_print_flatview(mon_printf, f, as);
+        n = 0;
+        QTAILQ_FOREACH(view, &flat_views, flat_views_link) {
+            flatview_ref(view);
+
+            mon_printf(f, "FlatView #%d\n", n);
+            ++n;
+
+            mtree_print_flatview(mon_printf, f, view);
+#if !defined(CONFIG_USER_ONLY)
+            if (dispatch_tree) {
+                mtree_print_dispatch(mon_printf, f, view->dispatch,
+                                     view->root);
+            }
+#endif
             mon_printf(f, "\n");
+
+            flatview_unref(view);
         }
         return;
     }
