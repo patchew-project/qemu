@@ -879,12 +879,63 @@ static void address_space_update_topology_pass(AddressSpace *as,
     }
 }
 
+static void address_space_update_flatview(AddressSpace *as,
+                                          FlatView *old_view,
+                                          FlatView *new_view)
+{
+    unsigned iold, inew;
+    FlatRange *frold, *frnew;
+
+    mem_begin(as);
+    /*
+     * FIXME: this is cut-n-paste from address_space_update_topology_pass,
+     * simplify it
+     */
+    iold = inew = 0;
+    while (iold < old_view->nr || inew < new_view->nr) {
+        if (iold < old_view->nr) {
+            frold = &old_view->ranges[iold];
+        } else {
+            frold = NULL;
+        }
+        if (inew < new_view->nr) {
+            frnew = &new_view->ranges[inew];
+        } else {
+            frnew = NULL;
+        }
+
+        if (frold
+            && (!frnew
+                || int128_lt(frold->addr.start, frnew->addr.start)
+                || (int128_eq(frold->addr.start, frnew->addr.start)
+                    && !flatrange_equal(frold, frnew)))) {
+            ++iold;
+        } else if (frold && frnew && flatrange_equal(frold, frnew)) {
+            /* In both and unchanged (except logging may have changed) */
+            MemoryRegionSection mrs = section_from_flat_range(frnew, as);
+
+            mem_add(as, &mrs);
+
+            ++iold;
+            ++inew;
+        } else {
+            /* In new */
+            MemoryRegionSection mrs = section_from_flat_range(frnew, as);
+
+            mem_add(as, &mrs);
+
+            ++inew;
+        }
+    }
+    mem_commit(as);
+}
 
 static void address_space_update_topology(AddressSpace *as)
 {
     FlatView *old_view = address_space_get_flatview(as);
     FlatView *new_view = generate_memory_topology(as->root);
 
+    address_space_update_flatview(as, old_view, new_view);
     address_space_update_topology_pass(as, old_view, new_view, false);
     address_space_update_topology_pass(as, old_view, new_view, true);
 
@@ -2621,7 +2672,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     QTAILQ_INIT(&as->listeners);
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = g_strdup(name ? name : "anonymous");
-    address_space_init_dispatch(as);
+    as->dispatch = NULL;
     memory_region_update_pending |= root->enabled;
     memory_region_transaction_commit();
 }
@@ -2672,7 +2723,6 @@ void address_space_destroy(AddressSpace *as)
     as->root = NULL;
     memory_region_transaction_commit();
     QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
-    address_space_unregister(as);
 
     /* At this point, as->dispatch and as->current_map are dummy
      * entries that the guest should never use.  Wait for the old
