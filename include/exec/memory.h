@@ -308,8 +308,6 @@ struct AddressSpace {
     /* All fields are private. */
     struct rcu_head rcu;
     char *name;
-    int ref_count;
-    bool malloced;
 
     /* Accessed via RCU.  */
     struct FlatView *current_map;
@@ -318,6 +316,7 @@ struct AddressSpace {
     struct MemoryRegionIoeventfd *ioeventfds;
     QTAILQ_HEAD(memory_listeners_as, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
+    QTAILQ_ENTRY(AddressSpace) flat_view_link;
 };
 
 FlatView *address_space_to_flatview(AddressSpace *as);
