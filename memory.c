@@ -229,6 +229,7 @@ struct FlatView {
     FlatRange *ranges;
     unsigned nr;
     unsigned nr_allocated;
+    struct AddressSpaceDispatch *dispatch;
 };
 
 typedef struct AddressSpaceOps AddressSpaceOps;
@@ -289,6 +290,9 @@ static void flatview_destroy(FlatView *view)
 {
     int i;
 
+    if (view->dispatch) {
+        address_space_dispatch_free(view->dispatch);
+    }
     for (i = 0; i < view->nr; i++) {
         memory_region_unref(view->ranges[i].mr);
     }
@@ -304,8 +308,23 @@ static void flatview_ref(FlatView *view)
 static void flatview_unref(FlatView *view)
 {
     if (atomic_fetch_dec(&view->ref) == 1) {
-        flatview_destroy(view);
+        call_rcu(view, flatview_destroy, rcu);
     }
+}
+
+static FlatView *address_space_to_flatview(AddressSpace *as)
+{
+    return atomic_rcu_read(&as->current_map);
+}
+
+AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv)
+{
+    return fv->dispatch;
+}
+
+AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as)
+{
+    return flatview_to_dispatch(address_space_to_flatview(as));
 }
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
@@ -887,7 +906,7 @@ static void address_space_update_flatview(AddressSpace *as,
     unsigned iold, inew;
     FlatRange *frold, *frnew;
 
-    mem_begin(as);
+    new_view->dispatch = mem_begin(as);
     /*
      * FIXME: this is cut-n-paste from address_space_update_topology_pass,
      * simplify it
@@ -915,7 +934,7 @@ static void address_space_update_flatview(AddressSpace *as,
             /* In both and unchanged (except logging may have changed) */
             MemoryRegionSection mrs = section_from_flat_range(frnew, as);
 
-            mem_add(as, &mrs);
+            mem_add(as, new_view, &mrs);
 
             ++iold;
             ++inew;
@@ -923,12 +942,12 @@ static void address_space_update_flatview(AddressSpace *as,
             /* In new */
             MemoryRegionSection mrs = section_from_flat_range(frnew, as);
 
-            mem_add(as, &mrs);
+            mem_add(as, new_view, &mrs);
 
             ++inew;
         }
     }
-    mem_commit(as);
+    mem_commit(new_view->dispatch);
 }
 
 static void address_space_update_topology(AddressSpace *as)
@@ -2672,7 +2691,6 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     QTAILQ_INIT(&as->listeners);
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = g_strdup(name ? name : "anonymous");
-    as->dispatch = NULL;
     memory_region_update_pending |= root->enabled;
     memory_region_transaction_commit();
 }
@@ -2681,7 +2699,6 @@ static void do_address_space_destroy(AddressSpace *as)
 {
     bool do_free = as->malloced;
 
-    address_space_destroy_dispatch(as);
     assert(QTAILQ_EMPTY(&as->listeners));
 
     flatview_unref(as->current_map);
