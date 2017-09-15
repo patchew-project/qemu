@@ -111,9 +111,19 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
 static void xen_change_state_handler(void *opaque, int running,
                                      RunState state)
 {
+    int rc;
+
     if (running) {
         /* record state running */
         xenstore_record_dm_state(xenstore, "running");
+
+        if (xen_domid_restrict) {
+            rc = xen_restrict(xen_domid);
+            if (rc < 0) {
+                perror("xen: failed to restrict");
+                exit(1);
+            }
+        }
     }
 }
 
