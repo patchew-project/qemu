@@ -3030,6 +3030,7 @@ int main(int argc, char **argv, char **envp)
     Error *main_loop_err = NULL;
     Error *err = NULL;
     bool list_data_dirs = false;
+    bool has_numa_config_in_CLI = false;
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -3293,6 +3294,7 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
+                has_numa_config_in_CLI = true;
                 break;
             case QEMU_OPTION_display:
                 display_type = select_display(optarg);
@@ -4585,6 +4587,18 @@ int main(int argc, char **argv, char **envp)
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
+    /*
+     * If memory hotplug is enabled i.e. slots > 0 and user hasn't add
+     * NUMA nodes explicitly on CLI
+     *
+     * Enable NUMA implicitly for guest to know the maximum memory
+     * from ACPI SRAT table, which is used for SWIOTLB.
+     */
+    if (ram_slots > 0 && !has_numa_config_in_CLI) {
+        if (machine_class->numa_implicit_add_node0) {
+            machine_class->numa_implicit_add_node0();
+        }
+    }
     parse_numa_opts(current_machine);
 
     if (qemu_opts_foreach(qemu_find_opts("mon"),

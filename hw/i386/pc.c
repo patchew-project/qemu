@@ -2308,6 +2308,11 @@ static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
+static void numa_implicit_add_node0(void)
+{
+    qemu_opts_parse_noisily(qemu_find_opts("numa"), "node", true);
+}
+
 static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     /* cpu index isn't used */
@@ -2349,6 +2354,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_instance_props = pc_cpu_index_to_props;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
+    mc->numa_implicit_add_node0 = numa_implicit_add_node0;
     mc->has_hotpluggable_cpus = true;
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
