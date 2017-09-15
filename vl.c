@@ -87,6 +87,7 @@ int main(int argc, char **argv)
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "migration/misc.h"
+#include "migration/savevm.h"
 #include "migration/snapshot.h"
 #include "migration/global_state.h"
 #include "sysemu/tpm.h"
@@ -4799,6 +4800,8 @@ int main(int argc, char **argv, char **envp)
     iothread_stop_all();
 
     pause_all_vcpus();
+    migrate_cancel();
+    qemu_savevm_state_cleanup();
     bdrv_close_all();
     res_free();
 

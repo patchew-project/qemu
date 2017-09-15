@@ -1274,9 +1274,14 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 }
 
-void qmp_migrate_cancel(Error **errp)
+void migrate_cancel(void)
 {
     migrate_fd_cancel(migrate_get_current());
+}
+
+void qmp_migrate_cancel(Error **errp)
+{
+    migrate_cancel();
 }
 
 void qmp_migrate_set_cache_size(int64_t value, Error **errp)
