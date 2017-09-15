@@ -2793,16 +2793,6 @@ static void do_address_space_destroy(AddressSpace *as)
     g_free(as);
 }
 
-AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
-{
-    AddressSpace *as;
-
-    as = g_malloc0(sizeof *as);
-    address_space_init(as, root, name);
-
-    return as;
-}
-
 void address_space_destroy(AddressSpace *as)
 {
     /* Flush out anything from MemoryListeners listening in on this */
